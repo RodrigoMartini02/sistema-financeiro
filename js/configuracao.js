@@ -1093,7 +1093,7 @@ function validarDocumento(documento) {
 function garantirUsuarioMaster() {
     console.log("Verificando usuário master padrão...");
     
-    const cpfMaster = "798.855.820-02";
+    const cpfMaster = "08996441988";
     
     let usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
     
