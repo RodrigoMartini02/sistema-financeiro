@@ -8,7 +8,7 @@ console.log('🚀 Carregando API Client...');
 const IS_DEVELOPMENT = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
 // URLs do backend para cada ambiente
-const PROD_BASE_URL = 'https://sistema-financeiro-backend-c199.onrender.com/api';
+const PROD_BASE_URL = 'https://sistema-financeiro-kxed.onrender.com/api';
 const DEV_BASE_URL = 'http://localhost:5000/api';
 
 // Define a URL correta a ser usada
