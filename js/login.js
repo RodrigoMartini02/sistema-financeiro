@@ -370,12 +370,12 @@ const EMAIL_CONFIG = {
             
             salvarUsuarioLogado(documento);
             
-            if (window.location.pathname.includes('financeiro.html')) {
+            if (window.location.pathname.includes('index.html')) {
                 exibirNomeUsuario();
             }
             
-            if (!window.location.pathname.includes('financeiro.html')) {
-                window.location.href = 'financeiro.html';
+            if (!window.location.pathname.includes('index.html')) {
+                window.location.href = 'index.html';
             }
         } else {
             console.log('❌ Login falhou');
@@ -1058,7 +1058,7 @@ const EMAIL_CONFIG = {
             exibirNomeUsuario();
             return true;
         } else {
-            if (window.location.pathname.includes('financeiro.html')) {
+            if (window.location.pathname.includes('index.html')) {
                 console.log("❌ Usuário não logado, redirecionando para login");
                 window.location.href = 'login.html';
             }
