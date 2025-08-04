@@ -343,7 +343,11 @@ function resetarEstadoFormularioDespesa() {
 // SALVAR DESPESA
 // ================================================================
 
-function salvarDespesa(e) {
+// ================================================================
+// SALVAR DESPESA (VERSÃO CORRIGIDA COM ASYNC/AWAIT)
+// ================================================================
+
+async function salvarDespesa(e) { // <-- MUDANÇA AQUI
     if (e && e.preventDefault) {
         e.preventDefault();
         e.stopPropagation();
@@ -377,9 +381,8 @@ function salvarDespesa(e) {
         
         const formData = coletarDadosFormularioDespesa();
         
-        // ✅ ADICIONAR ESTAS 5 LINHAS:
         if (window.useAPI && window.sistemaAdapter) {
-            window.sistemaAdapter.salvarDespesa(formData.mes, formData.ano, formData);
+            await window.sistemaAdapter.salvarDespesa(formData.mes, formData.ano, formData); // <-- MUDANÇA AQUI
         } else {
             // Código existente
             if (formData.id !== '') {
@@ -387,7 +390,7 @@ function salvarDespesa(e) {
             } else {
                 adicionarNovaDespesa(formData);
             }
-            salvarDados();
+            await salvarDados();
         }
         
         setTimeout(() => {
@@ -727,33 +730,43 @@ function configurarBotoesExclusao(despesa, index, mes, ano) {
     }
 }
 
-function processarExclusao(opcao, index, mes, ano, descricaoDespesa, categoriaDespesa, idGrupoParcelamento) {
+// ================================================================
+// PROCESSAR EXCLUSÃO (VERSÃO CORRIGIDA COM ASYNC/AWAIT)
+// ================================================================
+
+async function processarExclusao(opcao, index, mes, ano, descricaoDespesa, categoriaDespesa, idGrupoParcelamento) { // <-- MUDANÇA AQUI
     console.log('Processando exclusão:', opcao, index, mes, ano);
-    
-    // ✅ ADICIONAR ESTAS 3 LINHAS:
-    if (window.useAPI && window.sistemaAdapter) {
-        window.sistemaAdapter.excluirDespesa(mes, ano, index, opcao, { descricaoDespesa, categoriaDespesa, idGrupoParcelamento });
-    } else {
-        // Código existente
-        if (opcao === 'atual') {
-            dadosFinanceiros[ano].meses[mes].despesas.splice(index, 1);
-        } 
-        else if (opcao === 'todas') {
-            excluirTodasParcelas(ano, descricaoDespesa, categoriaDespesa, idGrupoParcelamento);
+
+    try {
+        if (window.useAPI && window.sistemaAdapter) {
+            await window.sistemaAdapter.excluirDespesa(mes, ano, index, opcao, { descricaoDespesa, categoriaDespesa, idGrupoParcelamento }); // <-- MUDANÇA AQUI
+        } else {
+            // Código existente
+            if (opcao === 'atual') {
+                dadosFinanceiros[ano].meses[mes].despesas.splice(index, 1);
+            } else if (opcao === 'todas') {
+                excluirTodasParcelas(ano, descricaoDespesa, categoriaDespesa, idGrupoParcelamento);
+            }
+            await salvarDados();
         }
-        salvarDados();
+
+        setTimeout(() => {
+            if (typeof carregarDadosDashboard === 'function') {
+                carregarDadosDashboard(anoAtual);
+            }
+            if (typeof renderizarDetalhesDoMes === 'function') {
+                renderizarDetalhesDoMes(mesAberto, anoAberto);
+            }
+            document.getElementById('modal-confirmacao-exclusao-despesa').style.display = 'none';
+        }, 100);
+
+    } catch (error) {
+        console.error("Erro ao processar exclusão:", error);
+        alert("Não foi possível excluir a despesa: " + error.message);
     }
-    
-    setTimeout(() => {
-        if (typeof carregarDadosDashboard === 'function') {
-            carregarDadosDashboard(anoAtual);
-        }
-        if (typeof renderizarDetalhesDoMes === 'function') {
-            renderizarDetalhesDoMes(mesAberto, anoAberto);
-        }
-        document.getElementById('modal-confirmacao-exclusao-despesa').style.display = 'none';
-    }, 100);
 }
+
+
 function excluirTodasParcelas(ano, descricao, categoria, idGrupo) {
     if (!idGrupo) {
         alert("Não foi possível identificar todas as parcelas relacionadas.");

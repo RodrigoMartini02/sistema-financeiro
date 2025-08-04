@@ -241,7 +241,7 @@ function abrirModalNovaReceita(index) {
 // SALVAR RECEITA
 // ================================================================
 
-function salvarReceita(e) {
+async function salvarReceita(e) { // <-- MUDANÇA AQUI
     if (e && e.preventDefault) {
         e.preventDefault();
         e.stopPropagation();
@@ -281,9 +281,8 @@ function salvarReceita(e) {
             parcela: null
         };
         
-        // ✅ ADICIONAR ESTAS 5 LINHAS:
         if (window.useAPI && window.sistemaAdapter) {
-            window.sistemaAdapter.salvarReceita(mes, ano, novaReceita, id);
+            await window.sistemaAdapter.salvarReceita(mes, ano, novaReceita, id); // <-- MUDANÇA AQUI
         } else {
             // Código existente
             garantirEstruturaDados(ano, mes);
@@ -299,7 +298,7 @@ function salvarReceita(e) {
                 }
             }
             
-            salvarDados();
+            await salvarDados();
             atualizarSaldosMesesOtimizado(mes, ano);
         }
         
@@ -437,11 +436,10 @@ function excluirReceita(index, mes, ano) {
     }
 }
 
-function processarExclusaoReceita(opcao, index, mes, ano, descricaoReceita) {
+async function processarExclusaoReceita(opcao, index, mes, ano, descricaoReceita) { // <-- MUDANÇA AQUI
     try {
-        // ✅ ADICIONAR ESTAS 3 LINHAS:
         if (window.useAPI && window.sistemaAdapter) {
-            window.sistemaAdapter.excluirReceita(mes, ano, index, opcao, descricaoReceita);
+            await window.sistemaAdapter.excluirReceita(mes, ano, index, opcao, descricaoReceita); // <-- MUDANÇA AQUI
         } else {
             // Código existente
             if (opcao === 'atual') {
@@ -461,7 +459,7 @@ function processarExclusaoReceita(opcao, index, mes, ano, descricaoReceita) {
                 }
             }
             
-            salvarDados();
+            await salvarDados();
             atualizarSaldosMesesOtimizado(mes, ano);
         }
         
@@ -480,6 +478,7 @@ function processarExclusaoReceita(opcao, index, mes, ano, descricaoReceita) {
         alert("Erro ao processar exclusão: " + error.message);
     }
 }
+
 
 // ================================================================
 // CONFIGURAÇÃO DE OPÇÕES DE REPLICAÇÃO
