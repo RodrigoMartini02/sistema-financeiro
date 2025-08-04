@@ -1,22 +1,47 @@
 // =====================================================
 // Sistema de Controle Financeiro - Login JavaScript
-// VERSÃO COM EMAIL REAL USANDO EMAILJS
+// VERSÃO COM EMAIL REAL USANDO EMAILJS + API INTEGRADA
 // =====================================================
 
 document.addEventListener('DOMContentLoaded', function() {
     // =====================================================
+    // VARIÁVEIS DE INTEGRAÇÃO COM API
+    // =====================================================
+    
+    let apiClient = null;
+    let useAPI = true;
+
+    // =====================================================
     // CONFIGURAÇÃO EMAILJS - CONFIGURE SUAS CREDENCIAIS
     // =====================================================
     
-    // IMPORTANTE: Configure estas credenciais no EmailJS
-const EMAIL_CONFIG = {
-    serviceId: 'service_financas',
-    templateId: 'template_recuperacao', 
-    userId: 'oW3fgPbnchMKc42Yf'
-};
+    const EMAIL_CONFIG = {
+        serviceId: 'service_financas',
+        templateId: 'template_recuperacao', 
+        userId: 'oW3fgPbnchMKc42Yf'
+    };
+
     // =====================================================
-    // INICIALIZAÇÃO DO EMAILJS
+    // INICIALIZAÇÃO DO SISTEMA
     // =====================================================
+    
+    // Inicializar API Client
+    function initializeAPIClient() {
+        if (typeof window.apiClient !== 'undefined') {
+            apiClient = window.apiClient;
+            console.log('✅ API Client inicializado');
+            return true;
+        } else {
+            console.warn('⚠️ API Client não encontrado, usando localStorage');
+            useAPI = false;
+            return false;
+        }
+    }
+
+    // Aguardar API estar disponível
+    setTimeout(() => {
+        initializeAPIClient();
+    }, 500);
     
     // Carregar EmailJS dinamicamente
     function carregarEmailJS() {
@@ -195,7 +220,7 @@ const EMAIL_CONFIG = {
     }
     
     // =====================================================
-    // SUAS FUNÇÕES ORIGINAIS (MANTIDAS)
+    // FUNÇÕES DE VALIDAÇÃO E FORMATAÇÃO
     // =====================================================
     
     // Inicialização do Local Storage para usuários, se não existir
@@ -308,14 +333,14 @@ const EMAIL_CONFIG = {
         input.value = documento;
     }
     
-    // Função para verificar se um documento já existe
+    // Função para verificar se um documento já existe (localStorage)
     function documentoExiste(documento) {
         const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
         const docLimpo = documento.replace(/[^\d]+/g, '');
         return usuarios.some(u => u.documento && u.documento.replace(/[^\d]+/g, '') === docLimpo);
     }
     
-    // Função para verificar se um email já está cadastrado
+    // Função para verificar se um email já está cadastrado (localStorage)
     function emailExiste(email) {
         const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
         return usuarios.some(u => u.email === email);
@@ -327,12 +352,72 @@ const EMAIL_CONFIG = {
         return usuarios.find(u => u.email.toLowerCase() === email.toLowerCase());
     }
     
-    // Função para validar login
-    function validateLogin(documento, password) {
+    // =====================================================
+    // FUNÇÕES DE AUTENTICAÇÃO COM API
+    // =====================================================
+    
+    // Validação de login com fallback
+    function validateLoginLocal(documento, password) {
         const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
         const docLimpo = documento.replace(/[^\d]+/g, '');
         
         return usuarios.some(u => u.documento && u.documento.replace(/[^\d]+/g, '') === docLimpo && u.password === password);
+    }
+    
+    // Função para validar login (API + fallback)
+    async function validateLogin(documento, password) {
+        if (useAPI && apiClient) {
+            try {
+                console.log('🔄 Tentando login via API...');
+                const resultado = await apiClient.login(documento, password);
+                return resultado.token ? true : false;
+            } catch (error) {
+                console.error('❌ Erro no login via API:', error);
+                return validateLoginLocal(documento, password);
+            }
+        } else {
+            return validateLoginLocal(documento, password);
+        }
+    }
+    
+    // Verificação de usuário existente com API
+    async function verificarUsuarioExistente(documento, email) {
+        if (!useAPI || !apiClient) {
+            return {
+                documentoExiste: documentoExiste(documento),
+                emailExiste: emailExiste(email)
+            };
+        }
+
+        try {
+            const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+            const docLimpo = documento.replace(/[^\d]+/g, '');
+            
+            return {
+                documentoExiste: usuarios.some(u => u.documento && u.documento.replace(/[^\d]+/g, '') === docLimpo),
+                emailExiste: usuarios.some(u => u.email === email)
+            };
+        } catch (error) {
+            return {
+                documentoExiste: documentoExiste(documento),
+                emailExiste: emailExiste(email)
+            };
+        }
+    }
+    
+    // Cadastro com API
+    async function processarCadastroComAPI(dadosUsuario) {
+        if (!useAPI || !apiClient) {
+            return { success: false, useLocal: true };
+        }
+
+        try {
+            const resultado = await apiClient.register(dadosUsuario);
+            return { success: true, data: resultado };
+        } catch (error) {
+            console.error('❌ Erro no cadastro via API:', error);
+            return { success: false, error: error.message, useLocal: true };
+        }
     }
     
     // =====================================================
@@ -357,42 +442,56 @@ const EMAIL_CONFIG = {
     }
     
     // =====================================================
-    // FUNÇÕES DE PROCESSO (ATUALIZADAS)
+    // FUNÇÕES DE PROCESSO ATUALIZADAS
     // =====================================================
     
-    // Função para processar login (MANTIDA)
-    function processLogin(documento, password, isModal) {
-        if (validateLogin(documento, password)) {
-            console.log('✅ Login bem-sucedido, redirecionando...');
+    // Função para processar login (ATUALIZADA COM API)
+    async function processLogin(documento, password, isModal) {
+        try {
+            const loginValido = await validateLogin(documento, password);
             
-            const docLimpo = documento.replace(/[^\d]+/g, '');
-            sessionStorage.setItem('usuarioAtual', docLimpo);
-            
-            salvarUsuarioLogado(documento);
-            
-            if (window.location.pathname.includes('index.html')) {
-                exibirNomeUsuario();
-            }
-            
-            if (!window.location.pathname.includes('index.html')) {
-                window.location.href = 'index.html';
-            }
-        } else {
-            console.log('❌ Login falhou');
-            if (isModal) {
-                modalErrorMessage.textContent = 'Documento ou senha incorretos';
-                modalErrorMessage.style.display = 'block';
-                document.getElementById('modal-password').value = '';
+            if (loginValido) {
+                console.log('✅ Login bem-sucedido, redirecionando...');
+                
+                const docLimpo = documento.replace(/[^\d]+/g, '');
+                sessionStorage.setItem('usuarioAtual', docLimpo);
+                
+                salvarUsuarioLogado(documento);
+                
+                if (window.location.pathname.includes('index.html')) {
+                    exibirNomeUsuario();
+                }
+                
+                if (!window.location.pathname.includes('index.html')) {
+                    window.location.href = 'index.html';
+                }
             } else {
-                errorMessage.textContent = 'Documento ou senha incorretos';
+                console.log('❌ Login falhou');
+                if (isModal) {
+                    modalErrorMessage.textContent = 'Documento ou senha incorretos';
+                    modalErrorMessage.style.display = 'block';
+                    document.getElementById('modal-password').value = '';
+                } else {
+                    errorMessage.textContent = 'Documento ou senha incorretos';
+                    errorMessage.style.display = 'block';
+                    document.getElementById('password').value = '';
+                }
+            }
+        } catch (error) {
+            console.error('❌ Erro no processo de login:', error);
+            const mensagem = 'Erro no sistema. Tente novamente.';
+            if (isModal) {
+                modalErrorMessage.textContent = mensagem;
+                modalErrorMessage.style.display = 'block';
+            } else {
+                errorMessage.textContent = mensagem;
                 errorMessage.style.display = 'block';
-                document.getElementById('password').value = '';
             }
         }
     }
     
     // =====================================================
-    // RECUPERAÇÃO DE SENHA COM EMAIL REAL (NOVA)
+    // RECUPERAÇÃO DE SENHA COM EMAIL REAL
     // =====================================================
     
     // Processo de recuperação de senha ATUALIZADO
@@ -579,7 +678,7 @@ const EMAIL_CONFIG = {
     }
     
     // =====================================================
-    // INICIALIZAÇÃO DOS MODAIS E UI (MANTIDA)
+    // INICIALIZAÇÃO DOS MODAIS E UI
     // =====================================================
     
     // Esconder modais ao carregar a página
@@ -611,7 +710,7 @@ const EMAIL_CONFIG = {
     if (novaSenhaSuccessMessage) novaSenhaSuccessMessage.style.display = 'none';
     
     // =====================================================
-    // EVENT LISTENERS (MANTIDOS E ATUALIZADOS)
+    // EVENT LISTENERS
     // =====================================================
     
     // Login no formulário principal
@@ -656,11 +755,11 @@ const EMAIL_CONFIG = {
         });
     }
     
-    // Cadastrar novo usuário (MANTIDO)
+    // Cadastrar novo usuário (ATUALIZADO COM API)
     if (formCadastro) {
         console.log("✅ Formulário de cadastro encontrado, adicionando event listener");
         
-        formCadastro.addEventListener('submit', function(e) {
+        formCadastro.addEventListener('submit', async function(e) {
             e.preventDefault();
             console.log("📝 Formulário de cadastro enviado");
             
@@ -669,6 +768,7 @@ const EMAIL_CONFIG = {
             const documento = document.getElementById('cadastro-documento').value.trim();
             const password = document.getElementById('cadastro-password').value.trim();
             const confirmPassword = document.getElementById('cadastro-confirm-password').value.trim();
+            const botao = formCadastro.querySelector('button[type="submit"]');
             
             console.log("📋 Dados capturados:", { nome, email, documento });
             
@@ -697,54 +797,88 @@ const EMAIL_CONFIG = {
                 return;
             }
             
-            if (documentoExiste(documento)) {
+            // Verificar se usuário já existe
+            const verificacao = await verificarUsuarioExistente(documento, email);
+            
+            if (verificacao.documentoExiste) {
                 console.log("❌ Erro: Documento já cadastrado");
                 cadastroErrorMessage.textContent = 'CPF/CNPJ já cadastrado';
                 cadastroErrorMessage.style.display = 'block';
                 return;
             }
             
-            if (emailExiste(email)) {
+            if (verificacao.emailExiste) {
                 console.log("❌ Erro: Email já cadastrado");
                 cadastroErrorMessage.textContent = 'E-mail já cadastrado';
                 cadastroErrorMessage.style.display = 'block';
                 return;
             }
             
+            setLoadingState(botao, true);
+            
             try {
-                console.log("💾 Iniciando cadastro do usuário no localStorage");
-                const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+                // Tentar cadastro via API primeiro
+                const dadosUsuario = { nome, email, documento, senha: password };
+                const resultadoAPI = await processarCadastroComAPI(dadosUsuario);
                 
-                const novoUsuario = {
-                    nome,
-                    email,
-                    documento,
-                    password,
-                    dataCadastro: new Date().toISOString()
-                };
-                
-                usuarios.push(novoUsuario);
-                localStorage.setItem('usuarios', JSON.stringify(usuarios));
-                
-                console.log("✅ Usuário cadastrado com sucesso:", novoUsuario);
-                
-                cadastroSuccessMessage.textContent = 'Cadastro realizado com sucesso! Você já pode fazer login.';
-                cadastroSuccessMessage.style.display = 'block';
-                
-                formCadastro.reset();
-                
-                setTimeout(function() {
-                    cadastroModal.style.display = 'none';
-                    if (window.innerWidth <= 768) {
-                        loginModal.style.display = 'flex';
-                    }
-                    cadastroSuccessMessage.style.display = 'none';
-                }, 3000);
+                if (resultadoAPI.success) {
+                    console.log("✅ Usuário cadastrado via API:", resultadoAPI.data);
+                    
+                    cadastroSuccessMessage.textContent = 'Cadastro realizado com sucesso! Você já pode fazer login.';
+                    cadastroSuccessMessage.style.display = 'block';
+                    
+                    formCadastro.reset();
+                    
+                    setTimeout(function() {
+                        cadastroModal.style.display = 'none';
+                        if (window.innerWidth <= 768) {
+                            loginModal.style.display = 'flex';
+                        }
+                        cadastroSuccessMessage.style.display = 'none';
+                    }, 3000);
+                    
+                } else if (resultadoAPI.useLocal) {
+                    // Fallback para localStorage
+                    console.log("💾 Cadastrando no localStorage (fallback)");
+                    const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+                    
+                    const novoUsuario = {
+                        nome,
+                        email,
+                        documento,
+                        password,
+                        dataCadastro: new Date().toISOString()
+                    };
+                    
+                    usuarios.push(novoUsuario);
+                    localStorage.setItem('usuarios', JSON.stringify(usuarios));
+                    
+                    console.log("✅ Usuário cadastrado localmente:", novoUsuario);
+                    
+                    cadastroSuccessMessage.textContent = 'Cadastro realizado com sucesso! Você já pode fazer login.';
+                    cadastroSuccessMessage.style.display = 'block';
+                    
+                    formCadastro.reset();
+                    
+                    setTimeout(function() {
+                        cadastroModal.style.display = 'none';
+                        if (window.innerWidth <= 768) {
+                            loginModal.style.display = 'flex';
+                        }
+                        cadastroSuccessMessage.style.display = 'none';
+                    }, 3000);
+                    
+                } else {
+                    cadastroErrorMessage.textContent = resultadoAPI.error || 'Erro ao criar conta. Tente novamente.';
+                    cadastroErrorMessage.style.display = 'block';
+                }
                 
             } catch (error) {
                 console.error("❌ Erro ao cadastrar usuário:", error);
                 cadastroErrorMessage.textContent = 'Erro interno. Tente novamente.';
                 cadastroErrorMessage.style.display = 'block';
+            } finally {
+                setLoadingState(botao, false);
             }
         });
     } else {
@@ -786,7 +920,7 @@ const EMAIL_CONFIG = {
     }
     
     // =====================================================
-    // NAVEGAÇÃO ENTRE MODAIS (MANTIDA)
+    // NAVEGAÇÃO ENTRE MODAIS
     // =====================================================
     
     // Abrir modal de login
@@ -849,7 +983,7 @@ const EMAIL_CONFIG = {
     }
     
     // =====================================================
-    // FECHAR MODAIS (MANTIDO)
+    // FECHAR MODAIS
     // =====================================================
     
     if (loginCloseBtn) {
@@ -938,7 +1072,7 @@ const EMAIL_CONFIG = {
     });
     
     // =====================================================
-    // ESCONDER MENSAGENS AO DIGITAR (MANTIDO)
+    // ESCONDER MENSAGENS AO DIGITAR
     // =====================================================
     
     const inputsLogin = [
@@ -998,11 +1132,17 @@ const EMAIL_CONFIG = {
     });
     
     // =====================================================
-    // SUAS FUNÇÕES DE USUÁRIO LOGADO (MANTIDAS)
+    // FUNÇÕES DE USUÁRIO LOGADO ATUALIZADAS
     // =====================================================
     
-    // Função para salvar dados do usuário logado
+    // Função para salvar dados do usuário logado (ATUALIZADA COM API)
     function salvarUsuarioLogado(documento) {
+        if (useAPI && apiClient && apiClient.usuarioAtual) {
+            sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify(apiClient.usuarioAtual));
+            console.log("✅ Dados do usuário da API salvos:", apiClient.usuarioAtual.nome);
+            return;
+        }
+
         const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
         const docLimpo = documento.replace(/[^\d]+/g, '');
         
@@ -1010,7 +1150,7 @@ const EMAIL_CONFIG = {
         
         if (usuario) {
             sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify(usuario));
-            console.log("✅ Dados do usuário logado salvos:", usuario.nome);
+            console.log("✅ Dados do usuário local salvos:", usuario.nome);
         }
     }
     
@@ -1049,8 +1189,26 @@ const EMAIL_CONFIG = {
         }
     }
     
-    // Função para verificar se usuário está logado
+    // Função para verificar se usuário está logado (ATUALIZADA COM API)
     function verificarUsuarioLogado() {
+        if (useAPI && apiClient && apiClient.token) {
+            apiClient.verificarToken()
+                .then(usuario => {
+                    sessionStorage.setItem('usuarioAtual', usuario.documento.replace(/[^\d]+/g, ''));
+                    sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify(usuario));
+                    exibirNomeUsuario();
+                    return true;
+                })
+                .catch(() => {
+                    if (window.location.pathname.includes('index.html')) {
+                        console.log("❌ Token inválido, redirecionando para login");
+                        window.location.href = 'login.html';
+                    }
+                    return false;
+                });
+            return;
+        }
+
         const documentoLogado = sessionStorage.getItem('usuarioAtual');
         
         if (documentoLogado) {
@@ -1066,8 +1224,12 @@ const EMAIL_CONFIG = {
         }
     }
     
-    // Função para logout
+    // Função para logout (ATUALIZADA COM API)
     function realizarLogout() {
+        if (useAPI && apiClient) {
+            apiClient.logout();
+        }
+        
         sessionStorage.removeItem('usuarioAtual');
         sessionStorage.removeItem('dadosUsuarioLogado');
         
@@ -1081,7 +1243,7 @@ const EMAIL_CONFIG = {
     }
     
     // =====================================================
-    // INICIALIZAÇÃO FINAL (MANTIDA)
+    // INICIALIZAÇÃO FINAL
     // =====================================================
     
     // Verificar se usuário está logado ao carregar a página
@@ -1162,8 +1324,9 @@ const EMAIL_CONFIG = {
     // Log de inicialização
     console.log('🚀 =====================================================');
     console.log('🌟 Sistema de Controle Financeiro inicializado!');
+    console.log('🔗 API integrada:', useAPI ? 'SIM' : 'NÃO');
     console.log('📧 Email real configurado via EmailJS');
-    console.log('💾 Dados salvos no localStorage');
+    console.log('💾 Dados salvos no localStorage (fallback)');
     console.log('🔐 Sistema de recuperação de senha ativo');
     console.log('🚀 =====================================================');
 });
@@ -1216,27 +1379,3 @@ if (typeof Storage === "undefined") {
     console.error("❌ LocalStorage não suportado neste navegador");
     alert("Seu navegador não suporta armazenamento local. Algumas funcionalidades podem não funcionar.");
 }
-
-// =====================================================
-// TEMPLATE DE EMAIL PARA EMAILJS
-// =====================================================
-
-/*
-TEMPLATE SUGERIDO PARA O EMAILJS:
-
-Assunto: [Sistema Financeiro] Código de Recuperação de Senha
-
-Corpo do email:
-Olá {{to_name}},
-
-Você solicitou a recuperação de senha para o {{sistema_nome}}.
-
-Seu código de verificação é: **{{codigo_recuperacao}}**
-
-Este código é válido por {{validade}}.
-
-Se você não solicitou esta recuperação, ignore este email.
-
-Atenciosamente,
-{{from_name}}
-*/

@@ -6,37 +6,88 @@ let anoAberto = null;
 let salvandoDados = false;
 let timerSalvamento = null;
 
+// VARIÁVEIS DA API
+let apiClient = null;
+let sistemaAdapter = null;
+let useAPI = true;
+
 document.addEventListener('DOMContentLoaded', () => {
     iniciarSistema();
-    setupEventListeners();
-    setupNavigation();
 });
 
-function iniciarSistema() {
-    if (typeof window.usuarioDados !== 'undefined' && window.usuarioDados.verificarAcesso) {
-        if (!window.usuarioDados.verificarAcesso()) {
-            return;
-        }
+async function iniciarSistema() {
+    // Inicializar API
+    await initializeAPISystem();
+    
+    // Verificar acesso
+    if (!await verificarAcessoSistema()) {
+        return;
     }
     
-    carregarDados();
+    // Carregar dados
+    await carregarDadosIniciais();
     
-    if (typeof window.usuarioDados !== 'undefined' && window.usuarioDados.executarMigracoes) {
-        window.usuarioDados.executarMigracoes();
-    }
+    // Configurar eventos
+    setupEventListeners();
+    setupNavigation();
     
+    // Exportar funções globais
     exportarFuncoesGlobais();
     atualizarElemento('ano-atual', anoAtual);
     
+    // Verificar se ano existe
     if (!dadosFinanceiros[anoAtual]) {
         abrirModalNovoAno();
     } else {
-        carregarDadosDashboard(anoAtual);
+        await carregarDadosDashboard(anoAtual);
         atualizarResumoAnual(anoAtual);
     }
 }
 
-function carregarDados() {
+// INICIALIZAÇÃO DA API
+async function initializeAPISystem() {
+    if (typeof window.apiClient !== 'undefined' && typeof window.sistemaAdapter !== 'undefined') {
+        apiClient = window.apiClient;
+        sistemaAdapter = window.sistemaAdapter;
+        useAPI = true;
+        console.log('✅ Sistema API inicializado');
+    } else {
+        console.warn('⚠️ API não encontrada, usando localStorage');
+        useAPI = false;
+    }
+}
+
+// VERIFICAÇÃO DE ACESSO
+async function verificarAcessoSistema() {
+    if (useAPI && sistemaAdapter) {
+        return await sistemaAdapter.verificarAcesso();
+    }
+    
+    // Fallback para verificação local
+    if (typeof window.usuarioDados !== 'undefined' && window.usuarioDados.verificarAcesso) {
+        return window.usuarioDados.verificarAcesso();
+    }
+    
+    return true;
+}
+
+// CARREGAMENTO DE DADOS INICIAL
+async function carregarDadosIniciais() {
+    if (useAPI && sistemaAdapter) {
+        try {
+            dadosFinanceiros = await sistemaAdapter.carregarDadosFinanceiros();
+            console.log('✅ Dados carregados da API');
+        } catch (error) {
+            console.error('❌ Erro ao carregar dados da API:', error);
+            carregarDadosLocal();
+        }
+    } else {
+        carregarDadosLocal();
+    }
+}
+
+// FALLBACK PARA DADOS LOCAIS
+function carregarDadosLocal() {
     if (typeof window.usuarioDados !== 'undefined' && window.usuarioDados.getDadosFinanceirosUsuario) {
         const dados = window.usuarioDados.getDadosFinanceirosUsuario();
         if (dados) {
@@ -69,17 +120,25 @@ function carregarDados() {
     }
 }
 
-function salvarDados() {
+// SALVAMENTO DE DADOS ATUALIZADO
+async function salvarDados() {
     if (salvandoDados) return false;
     
     if (timerSalvamento) {
         clearTimeout(timerSalvamento);
     }
     
-    timerSalvamento = setTimeout(() => {
+    timerSalvamento = setTimeout(async () => {
         salvandoDados = true;
         
         try {
+            if (useAPI && sistemaAdapter) {
+                const sucesso = await sistemaAdapter.salvarDadosUsuario(dadosFinanceiros);
+                salvandoDados = false;
+                return sucesso;
+            }
+            
+            // Fallback para localStorage
             if (typeof window.usuarioDados !== 'undefined' && window.usuarioDados.salvarDadosUsuario) {
                 const sucesso = window.usuarioDados.salvarDadosUsuario(dadosFinanceiros);
                 salvandoDados = false;
@@ -124,10 +183,10 @@ function garantirEstruturaDados(ano, mes) {
     }
 }
 
-function mudarAno(ano) {
+async function mudarAno(ano) {
     if (!dadosFinanceiros[ano]) {
         if (confirm(`O ano ${ano} ainda não foi configurado. Deseja criar agora?`)) {
-            criarAnoSimples(ano);
+            await criarAnoSimples(ano);
         }
         return;
     }
@@ -135,12 +194,12 @@ function mudarAno(ano) {
     anoAtual = ano;
     atualizarElemento('ano-atual', anoAtual);
     
-    carregarDadosDashboard(anoAtual);
+    await carregarDadosDashboard(anoAtual);
     atualizarResumoAnual(anoAtual);
     renderizarMeses(anoAtual);
 }
 
-function criarAnoSimples(ano) {
+async function criarAnoSimples(ano) {
     if (dadosFinanceiros[ano]) {
         alert(`O ano ${ano} já existe!`);
         return;
@@ -155,19 +214,19 @@ function criarAnoSimples(ano) {
         };
     }
     
-    salvarDados();
+    await salvarDados();
     
     anoAtual = ano;
     atualizarElemento('ano-atual', anoAtual);
     
-    carregarDadosDashboard(anoAtual);
+    await carregarDadosDashboard(anoAtual);
     atualizarResumoAnual(anoAtual);
     renderizarMeses(anoAtual);
     
     alert(`Ano ${ano} criado com sucesso!`);
 }
 
-function criarNovoAno(e) {
+async function criarNovoAno(e) {
     e.preventDefault();
     
     const ano = parseInt(obterValorElemento('ano'));
@@ -186,12 +245,12 @@ function criarNovoAno(e) {
         };
     }
     
-    salvarDados();
+    await salvarDados();
     
     anoAtual = ano;
     atualizarElemento('ano-atual', anoAtual);
     
-    carregarDadosDashboard(anoAtual);
+    await carregarDadosDashboard(anoAtual);
     atualizarResumoAnual(anoAtual);
     renderizarMeses(anoAtual);
     
@@ -199,7 +258,7 @@ function criarNovoAno(e) {
     alert(`Ano ${ano} criado com sucesso!`);
 }
 
-function excluirAno(ano) {
+async function excluirAno(ano) {
     if (!dadosFinanceiros[ano]) {
         alert(`O ano ${ano} não existe!`);
         return;
@@ -208,7 +267,7 @@ function excluirAno(ano) {
     if (confirm(`Tem certeza que deseja excluir todos os dados do ano ${ano}?`)) {
         delete dadosFinanceiros[ano];
         
-        salvarDados();
+        await salvarDados();
         
         if (ano === anoAtual) {
             anoAtual = new Date().getFullYear();
@@ -217,11 +276,11 @@ function excluirAno(ano) {
             if (!dadosFinanceiros[anoAtual]) {
                 abrirModalNovoAno();
             } else {
-                carregarDadosDashboard(anoAtual);
+                await carregarDadosDashboard(anoAtual);
                 atualizarResumoAnual(anoAtual);
             }
         } else {
-            carregarDadosDashboard(anoAtual);
+            await carregarDadosDashboard(anoAtual);
             atualizarResumoAnual(anoAtual);
         }
         
@@ -419,7 +478,25 @@ function atualizarResumoDetalhes(saldo, totalJuros) {
     atualizarElemento('resumo-saldo', formatarMoeda(saldo.saldoFinal));
 }
 
-function carregarDadosDashboard(ano) {
+// DASHBOARD COM API
+async function carregarDadosDashboard(ano) {
+    if (useAPI && sistemaAdapter) {
+        try {
+            const dashboardData = await sistemaAdapter.getDashboardData(ano);
+            if (dashboardData) {
+                atualizarElementosDashboard(dashboardData);
+                return;
+            }
+        } catch (error) {
+            console.error('Erro ao carregar dashboard da API:', error);
+        }
+    }
+    
+    // Fallback para cálculo local
+    carregarDadosDashboardLocal(ano);
+}
+
+function carregarDadosDashboardLocal(ano) {
     if (!dadosFinanceiros[ano]) return;
     
     let totalReceitas = 0;
@@ -444,19 +521,28 @@ function carregarDadosDashboard(ano) {
     
     const saldoAnual = totalReceitas - totalDespesas;
     
-    atualizarElemento('dashboard-total-receitas', formatarMoeda(totalReceitas));
-    atualizarElemento('dashboard-total-despesas', formatarMoeda(totalDespesas));
-    atualizarElemento('dashboard-total-juros', formatarMoeda(totalJuros));
+    atualizarElementosDashboard({
+        totalReceitas,
+        totalDespesas,
+        totalJuros,
+        saldo: saldoAnual
+    });
+}
+
+function atualizarElementosDashboard(dados) {
+    atualizarElemento('dashboard-total-receitas', formatarMoeda(dados.totalReceitas));
+    atualizarElemento('dashboard-total-despesas', formatarMoeda(dados.totalDespesas));
+    atualizarElemento('dashboard-total-juros', formatarMoeda(dados.totalJuros || 0));
     
     const saldoElement = document.getElementById('dashboard-saldo-anual');
     if (saldoElement) {
-        saldoElement.textContent = formatarMoeda(saldoAnual);
-        saldoElement.className = saldoAnual >= 0 ? 'saldo-positivo' : 'saldo-negativo';
+        saldoElement.textContent = formatarMoeda(dados.saldo);
+        saldoElement.className = dados.saldo >= 0 ? 'saldo-positivo' : 'saldo-negativo';
     }
 }
 
-function atualizarResumoAnual(ano) {
-    carregarDadosDashboard(ano);
+async function atualizarResumoAnual(ano) {
+    await carregarDadosDashboard(ano);
 }
 
 function calcularSaldoMes(mes, ano) {
@@ -620,13 +706,13 @@ function configurarAbas() {
 function configurarOutrosControles() {
     const refreshBtn = document.getElementById('btn-refresh');
     if (refreshBtn) {
-        refreshBtn.addEventListener('click', function() {
+        refreshBtn.addEventListener('click', async function() {
             const activeSection = document.querySelector('section.active');
             if (activeSection) {
                 const sectionId = activeSection.id;
                 switch(sectionId) {
                     case 'dashboard-section':
-                        carregarDadosDashboard(anoAtual);
+                        await carregarDadosDashboard(anoAtual);
                         atualizarResumoAnual(anoAtual);
                         break;
                     case 'meses-section':
@@ -648,6 +734,9 @@ function configurarOutrosControles() {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', function(e) {
             e.preventDefault();
+            if (useAPI && apiClient) {
+                apiClient.logout();
+            }
             sessionStorage.removeItem('usuarioAtual');
             window.location.href = 'login.html';
         });
@@ -687,6 +776,18 @@ function configurarSistemaBloqueio() {
             if (!enteredPassword) { 
                 alert('Por favor, digite sua senha.'); 
                 return; 
+            }
+            
+            if (useAPI && apiClient && apiClient.usuarioAtual) {
+                if (apiClient.usuarioAtual.senha === enteredPassword) {
+                    unlockSystem();
+                } else {
+                    modalContent.classList.add('shake-animation');
+                    setTimeout(() => modalContent.classList.remove('shake-animation'), 500);
+                    passwordInput.value = '';
+                    passwordInput.focus();
+                }
+                return;
             }
             
             if (typeof window.usuarioDados?.getUsuarioAtual !== 'function') {
@@ -824,6 +925,7 @@ function fecharModal(modalId) {
     }
 }
 
+// FUNÇÕES GLOBAIS EXPORTADAS
 function exportarFuncoesGlobais() {
     window.dadosFinanceiros = dadosFinanceiros;
     window.anoAtual = anoAtual;
@@ -849,4 +951,9 @@ function exportarFuncoesGlobais() {
     window.fecharModal = fecharModal;
     window.atualizarElemento = atualizarElemento;
     window.obterValorElemento = obterValorElemento;
+    
+    // Exportar variáveis da API
+    window.apiClient = apiClient;
+    window.sistemaAdapter = sistemaAdapter;
+    window.useAPI = useAPI;
 }

@@ -50,12 +50,18 @@ function salvarCategorias() {
     const usuarioAtual = sessionStorage.getItem('usuarioAtual');
     if (!usuarioAtual) return;
     
-    const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-    const index = usuarios.findIndex(u => u.documento.replace(/[^\d]+/g, '') === usuarioAtual);
-    
-    if (index !== -1) {
-        usuarios[index].categorias = { despesas: categoriasUsuario.despesas };
-        localStorage.setItem('usuarios', JSON.stringify(usuarios));
+    // ✅ ADICIONAR ESTAS 3 LINHAS:
+    if (window.useAPI && window.sistemaAdapter) {
+        window.sistemaAdapter.salvarCategorias(categoriasUsuario.despesas);
+    } else {
+        // Código existente
+        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+        const index = usuarios.findIndex(u => u.documento.replace(/[^\d]+/g, '') === usuarioAtual);
+        
+        if (index !== -1) {
+            usuarios[index].categorias = { despesas: categoriasUsuario.despesas };
+            localStorage.setItem('usuarios', JSON.stringify(usuarios));
+        }
     }
 }
 

@@ -546,7 +546,44 @@ function filtrarCrescimentoCategoria() {
 
 let timerAtualizacao = null;
 
-function carregarDadosDashboard(ano) {
+async function carregarDadosDashboard(ano) {
+    // ✅ ADICIONAR INTEGRAÇÃO COM API NO INÍCIO:
+    if (window.useAPI && window.sistemaAdapter) {
+        try {
+            console.log('Carregando dashboard via API...');
+            const dashboardData = await window.sistemaAdapter.getDashboardData(ano);
+            if (dashboardData) {
+                // Atualizar elementos da interface
+                Utils.atualizarElemento('dashboard-total-receitas', dashboardData.resumoAnual.receitas);
+                Utils.atualizarElemento('dashboard-total-despesas', dashboardData.resumoAnual.despesas);
+                Utils.atualizarElemento('dashboard-saldo-anual', dashboardData.resumoAnual.saldo);
+                Utils.atualizarElemento('dashboard-total-juros', dashboardData.resumoAnual.juros || 0);
+                
+                // Criar gráficos com dados da API
+                Utils.limparGraficos();
+                criarGraficoReceitasDespesas(dashboardData.dadosMensais, dashboardData.mesesFechados || []);
+                criarGraficoSaldo(dashboardData.dadosMensais, dashboardData.mesesFechados || []);
+                criarGraficoParcelamentosJuros(dashboardData.dadosJuros, dashboardData.dadosParcelamentos);
+                
+                setTimeout(() => {
+                    if (dashboardData.dadosCategorias) {
+                        // Usar dados de categorias da API se disponível
+                        criarGraficosComDadosAPI(dashboardData, ano);
+                    } else {
+                        // Fallback para gráficos locais
+                        criarGraficosLocais(ano);
+                    }
+                }, 100);
+                
+                return;
+            }
+        } catch (error) {
+            console.error('Erro ao carregar dashboard da API:', error);
+            // Continuar com fallback localStorage
+        }
+    }
+    
+    // ============ CÓDIGO LOCALSTORAGE ORIGINAL (não mexer) ============
     if (timerAtualizacao) {
         clearTimeout(timerAtualizacao);
     }
@@ -556,49 +593,88 @@ function carregarDadosDashboard(ano) {
     }, 100);
 }
 
-function carregarDadosDashboardReal(ano) {
-    console.log(`Carregando dashboard para o ano: ${ano}`);
+// ✅ ADICIONAR ESTAS FUNÇÕES AUXILIARES:
+function criarGraficosComDadosAPI(dashboardData, ano) {
+    console.log('Criando gráficos com dados da API');
     
-    if (!dadosFinanceiros) {
-        console.error('dadosFinanceiros não está definido');
-        return;
+    // Usar dados da API para categorias se disponível
+    if (dashboardData.dadosCategorias) {
+        criarGraficoBarrasCategoriasAPI(dashboardData.dadosCategorias);
     }
     
-    if (!dadosFinanceiros[ano]) {
-        console.warn(`Não há dados para o ano ${ano}.`);
-        const dadosVazios = ProcessadorDados.obterEstruturaPadrao();
-        criarGraficosVazios(dadosVazios);
-        return;
-    }
-    
-    Utils.limparGraficos();
-    
-    const dadosProcessados = ProcessadorDados.processarDadosParaGraficos(dadosFinanceiros, ano);
-    
-    Utils.atualizarElemento('dashboard-total-receitas', dadosProcessados.resumoAnual.receitas);
-    Utils.atualizarElemento('dashboard-total-despesas', dadosProcessados.resumoAnual.despesas);
-    Utils.atualizarElemento('dashboard-saldo-anual', dadosProcessados.resumoAnual.saldo);
-    Utils.atualizarElemento('dashboard-total-juros', dadosProcessados.resumoAnual.juros);
-    
-    criarGraficoReceitasDespesas(dadosProcessados.dadosMensais, dadosProcessados.mesesFechados);
-    criarGraficoSaldo(dadosProcessados.dadosMensais, dadosProcessados.mesesFechados);
-    criarGraficoParcelamentosJuros(dadosProcessados.dadosJuros, dadosProcessados.dadosParcelamentos);
+    // Continuar com gráficos que precisam de processamento local
+    criarGraficosLocais(ano);
+}
+
+function criarGraficosLocais(ano) {
+    criarGraficoBarrasCategorias(dadosFinanceiros, ano);
+    criarGraficoDespesasCategoriasMensais(dadosFinanceiros, ano);
+    criarGraficoTendencia(dadosFinanceiros, ano);
+    criarGraficoFormaPagamentoMensal(dadosFinanceiros, ano);
+    criarGraficoCrescimentoCategoria(dadosFinanceiros, ano);
     
     setTimeout(() => {
-        criarGraficoBarrasCategorias(dadosFinanceiros, ano);
-        criarGraficoDespesasCategoriasMensais(dadosFinanceiros, ano);
-        criarGraficoTendencia(dadosFinanceiros, ano);
-        criarGraficoFormaPagamentoMensal(dadosFinanceiros, ano);
-        criarGraficoCrescimentoCategoria(dadosFinanceiros, ano);
+        carregarCategoriasDinamicas();
+        aplicarFiltrosPersistidos();
         
-        setTimeout(() => {
-            carregarCategoriasDinamicas();
-            aplicarFiltrosPersistidos();
-            
-            const categoriasAtivas = Utils.obterTodasCategoriasDoAno(ano);
-            GerenciadorCores.limparCoresNaoUtilizadas(categoriasAtivas);
-        }, 200);
-    }, 100);
+        const categoriasAtivas = Utils.obterTodasCategoriasDoAno(ano);
+        GerenciadorCores.limparCoresNaoUtilizadas(categoriasAtivas);
+    }, 200);
+}
+
+function criarGraficoBarrasCategoriasAPI(dadosCategorias) {
+    const canvas = document.getElementById('categorias-barras-chart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    
+    if (window.categoriasBarrasChart) {
+        window.categoriasBarrasChart.destroy();
+    }
+    
+    if (dadosCategorias.labels && dadosCategorias.labels.length > 0) {
+        const cores = GerenciadorCores.obterCoresParaCategorias(dadosCategorias.labels);
+        
+        window.categoriasBarrasChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: dadosCategorias.labels,
+                datasets: [{
+                    label: 'Despesas por Categoria',
+                    data: dadosCategorias.valores,
+                    backgroundColor: cores,
+                    borderColor: cores.map(cor => cor.replace('0.7', '1')),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: value => formatarMoeda(value) }
+                    },
+                    x: {
+                        ticks: { maxRotation: 45, minRotation: 0 }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: context => {
+                                const valor = context.raw;
+                                const total = dadosCategorias.valores.reduce((sum, val) => sum + val, 0);
+                                const porcentagem = ((valor / total) * 100).toFixed(1);
+                                return `${formatarMoeda(valor)} (${porcentagem}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
 }
 
 function criarGraficosVazios(dadosVazios) {

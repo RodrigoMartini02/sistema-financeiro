@@ -377,13 +377,18 @@ function salvarDespesa(e) {
         
         const formData = coletarDadosFormularioDespesa();
         
-        if (formData.id !== '') {
-            atualizarDespesaExistente(formData);
+        // ✅ ADICIONAR ESTAS 5 LINHAS:
+        if (window.useAPI && window.sistemaAdapter) {
+            window.sistemaAdapter.salvarDespesa(formData.mes, formData.ano, formData);
         } else {
-            adicionarNovaDespesa(formData);
+            // Código existente
+            if (formData.id !== '') {
+                atualizarDespesaExistente(formData);
+            } else {
+                adicionarNovaDespesa(formData);
+            }
+            salvarDados();
         }
-        
-        salvarDados();
         
         setTimeout(() => {
             if (typeof carregarDadosDashboard === 'function') {
@@ -725,14 +730,19 @@ function configurarBotoesExclusao(despesa, index, mes, ano) {
 function processarExclusao(opcao, index, mes, ano, descricaoDespesa, categoriaDespesa, idGrupoParcelamento) {
     console.log('Processando exclusão:', opcao, index, mes, ano);
     
-    if (opcao === 'atual') {
-        dadosFinanceiros[ano].meses[mes].despesas.splice(index, 1);
-    } 
-    else if (opcao === 'todas') {
-        excluirTodasParcelas(ano, descricaoDespesa, categoriaDespesa, idGrupoParcelamento);
+    // ✅ ADICIONAR ESTAS 3 LINHAS:
+    if (window.useAPI && window.sistemaAdapter) {
+        window.sistemaAdapter.excluirDespesa(mes, ano, index, opcao, { descricaoDespesa, categoriaDespesa, idGrupoParcelamento });
+    } else {
+        // Código existente
+        if (opcao === 'atual') {
+            dadosFinanceiros[ano].meses[mes].despesas.splice(index, 1);
+        } 
+        else if (opcao === 'todas') {
+            excluirTodasParcelas(ano, descricaoDespesa, categoriaDespesa, idGrupoParcelamento);
+        }
+        salvarDados();
     }
-    
-    salvarDados();
     
     setTimeout(() => {
         if (typeof carregarDadosDashboard === 'function') {
@@ -744,7 +754,6 @@ function processarExclusao(opcao, index, mes, ano, descricaoDespesa, categoriaDe
         document.getElementById('modal-confirmacao-exclusao-despesa').style.display = 'none';
     }, 100);
 }
-
 function excluirTodasParcelas(ano, descricao, categoria, idGrupo) {
     if (!idGrupo) {
         alert("Não foi possível identificar todas as parcelas relacionadas.");
