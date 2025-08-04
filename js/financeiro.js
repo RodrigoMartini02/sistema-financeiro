@@ -7,7 +7,6 @@ let salvandoDados = false;
 let timerSalvamento = null;
 
 // VARIÁVEIS DA API
-let apiClient = null;
 let sistemaAdapter = null;
 let useAPI = true;
 

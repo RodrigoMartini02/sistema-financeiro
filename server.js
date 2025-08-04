@@ -59,13 +59,19 @@ const authLimiter = rateLimit({
 });
 
 // ================================================================
-// CONFIGURAÇÃO DO SQLITE
+// CONFIGURAÇÃO DO BANCO DE DADOS (PostgreSQL)
 // ================================================================
 
-const sequelize = new Sequelize({
-    dialect: 'sqlite',
-    storage: path.join(__dirname, 'sistema_financeiro.db'),
-    logging: process.env.NODE_ENV === 'development' ? console.log : false,
+const sequelize = new Sequelize(process.env.DATABASE_URL, {
+    dialect: 'postgres',
+    protocol: 'postgres',
+    dialectOptions: {
+        ssl: {
+            require: true,
+            rejectUnauthorized: false // Necessário para conexões na Render
+        }
+    },
+    logging: false,
     define: {
         timestamps: true,
         underscored: false,
@@ -1359,7 +1365,7 @@ app.get('/api/health', (req, res) => {
         status: 'OK',
         timestamp: new Date().toISOString(),
         version: '1.0.0',
-        database: 'SQLite',
+        database: 'PostgreSQL',
         uptime: process.uptime(),
         environment: process.env.NODE_ENV || 'development'
     });
@@ -1371,7 +1377,7 @@ app.get('/', (req, res) => {
         message: '🚀 Sistema Financeiro API - SQLite',
         version: '1.0.0',
         status: 'running',
-        database: 'SQLite',
+        database: 'PostgreSQL',
         endpoints: {
             health: '/api/health',
             auth: '/api/auth',
