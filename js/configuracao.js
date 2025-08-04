@@ -46,15 +46,19 @@ function iniciarCategorias() {
     setupGerenciadorCategorias();
 }
 
-function salvarCategorias() {
+async function salvarCategorias() { // Adicionado async
     const usuarioAtual = sessionStorage.getItem('usuarioAtual');
     if (!usuarioAtual) return;
     
-    // ✅ ADICIONAR ESTAS 3 LINHAS:
     if (window.useAPI && window.sistemaAdapter) {
-        window.sistemaAdapter.salvarCategorias(categoriasUsuario.despesas);
+        try {
+            await window.sistemaAdapter.salvarCategorias(categoriasUsuario.despesas); // Adicionado await
+        } catch (error) {
+            console.error("Erro ao salvar categorias na API:", error);
+            alert("Não foi possível salvar as categorias no servidor.");
+        }
     } else {
-        // Código existente
+        // Código de fallback para localStorage
         const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
         const index = usuarios.findIndex(u => u.documento.replace(/[^\d]+/g, '') === usuarioAtual);
         

@@ -1374,7 +1374,7 @@ app.get('/api/health', (req, res) => {
 // Rota raiz
 app.get('/', (req, res) => {
     res.json({
-        message: '🚀 Sistema Financeiro API - SQLite',
+        message: '🚀 Sistema Financeiro API - PostgreSQL',
         version: '1.0.0',
         status: 'running',
         database: 'PostgreSQL',
@@ -1412,7 +1412,7 @@ const startServer = async () => {
     try {
         // Conectar ao SQLite e sincronizar tabelas
         await sequelize.authenticate();
-        console.log('✅ SQLite conectado com sucesso');
+        console.log('✅ PostgreSQL conectado com sucesso');
         
         await sequelize.sync({ force: false }); // force: true recria as tabelas
         console.log('✅ Tabelas sincronizadas');
@@ -1423,7 +1423,7 @@ const startServer = async () => {
             console.log(`🚀 ====================================`);
             console.log(`🌍 Servidor: http://localhost:${PORT}`);
             console.log(`📊 Ambiente: ${process.env.NODE_ENV || 'development'}`);
-            console.log(`🗄️  Banco: SQLite (${path.join(__dirname, 'sistema_financeiro.db')})`);
+            console.log(`🗄️  Banco: PostgreSQL (Conectado via Render)`);
             console.log(`🔐 JWT: Configurado`);
             console.log(`🛡️  Segurança: Helmet + CORS + Rate Limit`);
             console.log(`🚀 ====================================\n`);
@@ -1446,7 +1446,7 @@ const startServer = async () => {
 process.on('SIGTERM', () => {
     console.log('🛑 SIGTERM recebido. Parando servidor...');
     sequelize.close().then(() => {
-        console.log('🔒 SQLite desconectado');
+        console.log('🔒 PostgreSQL desconectado');
         process.exit(0);
     });
 });
@@ -1454,7 +1454,7 @@ process.on('SIGTERM', () => {
 process.on('SIGINT', () => {
     console.log('🛑 SIGINT recebido. Parando servidor...');
     sequelize.close().then(() => {
-        console.log('🔒 SQLite desconectado');
+        console.log('🔒 PostgreSQL desconectado');
         process.exit(0);
     });
 });

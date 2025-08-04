@@ -43,3 +43,6 @@ coverage/
 # Backup
 *.bak
 *.backup
+
+# Bancos de dados locais
+*.db
