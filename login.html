@@ -486,13 +486,15 @@
             });
         }
 
-        // Inicializar quando o DOM carregar
+// Inicializar quando o DOM carregar
         document.addEventListener('DOMContentLoaded', function() {
             setupPasswordStrength('nova-senha');
             setupPasswordStrength('cadastro-password');
         });
     </script>
 
+    <!-- IMPORTANTE: API Client DEVE vir ANTES do login.js -->
+    <script src="js/api.js"></script>
     <script src="js/login.js" defer></script>
 
 </body>
