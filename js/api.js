@@ -4,8 +4,21 @@
 
 console.log('🚀 Carregando API Client...');
 
+// Detecta se estamos em ambiente de desenvolvimento (local) ou produção (online)
+const IS_DEVELOPMENT = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+// URLs do backend para cada ambiente
+const PROD_BASE_URL = 'https://sistema-financeiro-backend-c199.onrender.com/api';
+const DEV_BASE_URL = 'http://localhost:5000/api';
+
+// Define a URL correta a ser usada
+const API_BASE_URL = IS_DEVELOPMENT ? DEV_BASE_URL : PROD_BASE_URL;
+
+console.log(`Ambiente detectado: ${IS_DEVELOPMENT ? 'Desenvolvimento' : 'Produção'}. Usando API em: ${API_BASE_URL}`);
+
+
 class APIClient {
-    constructor(baseURL = 'http://localhost:5000/api') {
+    constructor(baseURL = API_BASE_URL) {
         this.baseURL = baseURL;
         this.token = localStorage.getItem('authToken');
         this.usuarioAtual = null;
