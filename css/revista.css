@@ -1,0 +1,940 @@
+/* ================================================== */
+/* REVISTA FINANCEIRA - FIN-SIGHTS */
+/* Estilo Profissional Inspirado em Revistas Reais */
+/* ================================================== */
+
+.fin-sights-section {
+    display: none;
+    padding: 0;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    min-height: 100vh;
+    color: #2c3e50;
+    overflow-y: auto;
+    font-family: 'Georgia', 'Times New Roman', serif;
+}
+
+.fin-sights-section.active {
+    display: block;
+}
+
+.revista-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* ================================================== */
+/* CABEÇALHO DA REVISTA */
+/* ================================================== */
+
+.revista-header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding: 50px 30px;
+    background: linear-gradient(135deg, #1a365d 0%, #2c5282 20%, #3182ce 100%);
+    color: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.revista-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+    opacity: 0.3;
+}
+
+.revista-logo {
+    font-size: 4rem;
+    font-weight: 900;
+    letter-spacing: -2px;
+    margin-bottom: 10px;
+    position: relative;
+    z-index: 2;
+    font-family: 'Arial Black', sans-serif;
+    text-transform: uppercase;
+}
+
+.revista-logo i {
+    margin-right: 15px;
+    color: #ffd700;
+    font-size: 3.5rem;
+}
+
+.revista-subtitle {
+    font-size: 1.2rem;
+    font-style: italic;
+    font-weight: 300;
+    opacity: 0.9;
+    position: relative;
+    z-index: 2;
+    font-family: 'Georgia', serif;
+}
+
+/* ================================================== */
+/* NAVEGAÇÃO POR CATEGORIAS */
+/* ================================================== */
+
+.revista-nav {
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 40px;
+    flex-wrap: wrap;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+}
+
+.nav-categoria {
+    padding: 15px 25px;
+    background: white;
+    color: #4a5568;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    border-right: 1px solid #e2e8f0;
+    font-family: 'Arial', sans-serif;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
+}
+
+.nav-categoria:last-child {
+    border-right: none;
+}
+
+.nav-categoria:hover {
+    background: #f7fafc;
+    color: #2d3748;
+}
+
+.nav-categoria.active {
+    background: #1a365d;
+    color: white;
+    position: relative;
+}
+
+.nav-categoria.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: #ffd700;
+}
+
+.nav-categoria i {
+    margin-right: 8px;
+}
+
+/* ================================================== */
+/* ARTIGO EM DESTAQUE */
+/* ================================================== */
+
+.artigo-destaque {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: 40px;
+    margin-bottom: 50px;
+    padding: 0;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 25px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    position: relative;
+    border: 1px solid #e2e8f0;
+}
+
+.artigo-badge {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: #dc2626;
+    color: white;
+    padding: 6px 14px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    z-index: 2;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-family: 'Arial', sans-serif;
+}
+
+.artigo-imagem {
+    position: relative;
+    height: 100%;
+    min-height: 300px;
+}
+
+.artigo-placeholder-img {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #1a365d 0%, #2c5282 50%, #3182ce 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 4rem;
+    color: rgba(255, 255, 255, 0.8);
+    position: relative;
+}
+
+.artigo-placeholder-img::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(to top, rgba(0,0,0,0.4), transparent);
+}
+
+.artigo-conteudo {
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.artigo-titulo {
+    font-size: 2.2rem;
+    margin-bottom: 20px;
+    line-height: 1.2;
+    color: #1a202c;
+    font-weight: 700;
+    font-family: 'Georgia', serif;
+}
+
+.artigo-resumo {
+    font-size: 1.1rem;
+    line-height: 1.7;
+    margin-bottom: 25px;
+    color: #4a5568;
+    font-family: 'Georgia', serif;
+}
+
+.artigo-meta {
+    display: flex;
+    gap: 25px;
+    margin-bottom: 30px;
+    font-size: 0.9rem;
+    color: #718096;
+    font-family: 'Arial', sans-serif;
+}
+
+.artigo-meta span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-ler-artigo {
+    background: #1a365d;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-family: 'Arial', sans-serif;
+    align-self: flex-start;
+}
+
+.btn-ler-artigo:hover {
+    background: #2c5282;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(26, 54, 93, 0.3);
+}
+
+/* ================================================== */
+/* GRID DE ARTIGOS */
+/* ================================================== */
+
+.artigos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 30px;
+    margin-bottom: 50px;
+}
+
+.artigo-card {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+}
+
+.artigo-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+    border-color: #cbd5e0;
+}
+
+.artigo-card-img {
+    height: 200px;
+    background: linear-gradient(135deg, #1a365d 0%, #2c5282 50%, #3182ce 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    color: rgba(255, 255, 255, 0.8);
+    position: relative;
+}
+
+.artigo-card-img::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 40%;
+    background: linear-gradient(to top, rgba(0,0,0,0.3), transparent);
+}
+
+.artigo-card-content {
+    padding: 25px;
+}
+
+.artigo-card-titulo {
+    font-size: 1.3rem;
+    margin-bottom: 12px;
+    line-height: 1.4;
+    color: #1a202c;
+    font-weight: 600;
+    font-family: 'Georgia', serif;
+}
+
+.artigo-card-resumo {
+    font-size: 0.95rem;
+    color: #4a5568;
+    margin-bottom: 18px;
+    line-height: 1.6;
+    font-family: 'Georgia', serif;
+}
+
+.artigo-card-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    color: #718096;
+    font-family: 'Arial', sans-serif;
+}
+
+/* ================================================== */
+/* DICAS RÁPIDAS */
+/* ================================================== */
+
+.dicas-rapidas {
+    margin-bottom: 50px;
+    padding: 40px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 25px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e2e8f0;
+}
+
+.dicas-rapidas h3 {
+    margin-bottom: 30px;
+    font-size: 2rem;
+    text-align: center;
+    color: #1a202c;
+    font-weight: 700;
+    font-family: 'Georgia', serif;
+    position: relative;
+}
+
+.dicas-rapidas h3::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 3px;
+    background: #ffd700;
+}
+
+.dicas-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 25px;
+}
+
+.dica-card {
+    background: #f8f9fa;
+    padding: 25px;
+    border-radius: 8px;
+    border-left: 4px solid #1a365d;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.dica-card:hover {
+    background: #f1f5f9;
+    transform: translateX(5px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.dica-titulo {
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: #1a365d;
+    font-family: 'Arial', sans-serif;
+    font-size: 1.1rem;
+}
+
+.dica-conteudo {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: #4a5568;
+    font-family: 'Georgia', serif;
+}
+
+/* ================================================== */
+/* CALCULADORAS FINANCEIRAS */
+/* ================================================== */
+
+.calculadoras-section {
+    margin-bottom: 50px;
+}
+
+.calculadoras-section h3 {
+    margin-bottom: 30px;
+    font-size: 2rem;
+    text-align: center;
+    color: #1a202c;
+    font-weight: 700;
+    font-family: 'Georgia', serif;
+    position: relative;
+}
+
+.calculadoras-section h3::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80px;
+    height: 3px;
+    background: #ffd700;
+}
+
+.calculadoras-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 25px;
+}
+
+.calculadora-card {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+}
+
+.calculadora-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+    border-color: #1a365d;
+}
+
+.calc-icon {
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+    color: #1a365d;
+}
+
+.calculadora-card h4 {
+    margin-bottom: 12px;
+    font-size: 1.3rem;
+    color: #1a202c;
+    font-weight: 600;
+    font-family: 'Arial', sans-serif;
+}
+
+.calculadora-card p {
+    color: #4a5568;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    font-family: 'Georgia', serif;
+}
+
+/* ================================================== */
+/* MODAIS */
+/* ================================================== */
+
+.modal-artigo, .modal-calculadora {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+}
+
+.modal-artigo-content, .modal-calc-content {
+    background: white;
+    margin: 5% auto;
+    padding: 0;
+    border-radius: 12px;
+    width: 70%;
+    max-width: 700px;
+    max-height: 80vh;
+    overflow-y: auto;
+    color: #2c3e50;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    border: 1px solid #e2e8f0;
+    position: relative;
+    top: 44%;
+    transform: translateY(-50%);
+}
+
+.modal-artigo-header, .modal-calc-header {
+    padding: 25px 30px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8f9fa;
+}
+
+.modal-artigo-header h2, .modal-calc-header h2 {
+    margin: 0;
+    font-size: 1.6rem;
+    color: #1a202c;
+    font-weight: 700;
+    font-family: 'Georgia', serif;
+}
+
+.close-artigo, .close-calc {
+    font-size: 2rem;
+    cursor: pointer;
+    color: #718096;
+    transition: color 0.3s ease;
+    font-weight: 300;
+}
+
+.close-artigo:hover, .close-calc:hover {
+    color: #2d3748;
+}
+
+.modal-artigo-body, .modal-calc-body {
+    padding: 30px;
+}
+
+.artigo-meta-completo {
+    display: flex;
+    gap: 25px;
+    margin-bottom: 30px;
+    font-size: 0.9rem;
+    color: #718096;
+    flex-wrap: wrap;
+    font-family: 'Arial', sans-serif;
+}
+
+.artigo-meta-completo span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.artigo-imagem-completa {
+    margin-bottom: 25px;
+    border-radius: 8px;
+    overflow: hidden;
+    height: 220px;
+    background: linear-gradient(135deg, #1a365d 0%, #2c5282 50%, #3182ce 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3.5rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.artigo-conteudo-completo {
+    line-height: 1.8;
+    font-size: 1.1rem;
+    font-family: 'Georgia', serif;
+    color: #2d3748;
+}
+
+.artigo-conteudo-completo h3 {
+    color: #1a365d;
+    margin: 30px 0 15px 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.artigo-conteudo-completo p {
+    margin-bottom: 20px;
+}
+
+.artigo-conteudo-completo ul {
+    margin: 20px 0;
+    padding-left: 25px;
+}
+
+.artigo-conteudo-completo li {
+    margin-bottom: 10px;
+}
+
+.artigo-acoes {
+    margin-top: 40px;
+    padding-top: 25px;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn-compartilhar, .btn-favoritar, .btn-imprimir {
+    background: white;
+    color: #4a5568;
+    border: 1px solid #e2e8f0;
+    padding: 12px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+    font-family: 'Arial', sans-serif;
+    font-weight: 500;
+}
+
+.btn-compartilhar:hover, .btn-favoritar:hover, .btn-imprimir:hover {
+    background: #f7fafc;
+    border-color: #cbd5e0;
+    transform: translateY(-2px);
+}
+
+/* ================================================== */
+/* FORMULÁRIOS DAS CALCULADORAS */
+/* ================================================== */
+
+.calc-form {
+    background: #f8f9fa;
+    padding: 30px;
+    border-radius: 8px;
+    margin-bottom: 25px;
+    border: 1px solid #e2e8f0;
+}
+
+.calc-field {
+    margin-bottom: 25px;
+}
+
+.calc-field label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #1a365d;
+    font-family: 'Arial', sans-serif;
+}
+
+.calc-field input, .calc-field select {
+    width: 100%;
+    padding: 12px 15px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: white;
+    color: #2d3748;
+    font-size: 1rem;
+    font-family: 'Arial', sans-serif;
+    transition: border-color 0.3s ease;
+}
+
+.calc-field input:focus, .calc-field select:focus {
+    outline: none;
+    border-color: #1a365d;
+    box-shadow: 0 0 0 3px rgba(26, 54, 93, 0.1);
+}
+
+.calc-field input::placeholder {
+    color: #a0aec0;
+}
+
+.calc-button {
+    background: #1a365d;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 1rem;
+    width: 100%;
+    margin: 25px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-family: 'Arial', sans-serif;
+}
+
+.calc-button:hover {
+    background: #2c5282;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(26, 54, 93, 0.3);
+}
+
+.calc-resultado {
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #1a365d;
+    margin-top: 25px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.resultado-titulo {
+    font-weight: 600;
+    color: #1a365d;
+    margin-bottom: 12px;
+    font-size: 1.2rem;
+    font-family: 'Arial', sans-serif;
+}
+
+.resultado-valor {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 15px;
+    color: #1a202c;
+    font-family: 'Georgia', serif;
+}
+
+.resultado-detalhes {
+    font-size: 0.95rem;
+    color: #4a5568;
+    line-height: 1.6;
+    font-family: 'Georgia', serif;
+}
+
+/* ================================================== */
+/* RESPONSIVIDADE */
+/* ================================================== */
+
+@media (max-width: 768px) {
+    .revista-container {
+        padding: 15px;
+    }
+    
+    .revista-header {
+        padding: 40px 20px;
+    }
+    
+    .revista-logo {
+        font-size: 2.8rem;
+    }
+    
+    .revista-subtitle {
+        font-size: 1.1rem;
+    }
+    
+    .artigo-destaque {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+    
+    .artigo-imagem {
+        height: 200px;
+    }
+    
+    .artigo-conteudo {
+        padding: 30px;
+    }
+    
+    .artigo-titulo {
+        font-size: 1.8rem;
+    }
+    
+    .artigos-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .revista-nav {
+        flex-direction: column;
+        gap: 0;
+    }
+    
+    .nav-categoria {
+        border-right: none;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .nav-categoria:last-child {
+        border-bottom: none;
+    }
+    
+    .modal-artigo-content, .modal-calc-content {
+        width: 85%;
+        margin: 3% auto;
+        max-height: 85vh;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+    
+    .modal-artigo-header, .modal-calc-header {
+        padding: 20px 25px;
+    }
+    
+    .modal-artigo-body, .modal-calc-body {
+        padding: 25px;
+    }
+    
+    .artigo-meta, .artigo-meta-completo {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .artigo-acoes {
+        flex-direction: column;
+    }
+    
+    .dicas-rapidas, .calc-form {
+        padding: 25px;
+    }
+}
+
+@media (max-width: 480px) {
+    .calculadoras-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .dicas-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .revista-header {
+        padding: 30px 15px;
+    }
+    
+    .revista-logo {
+        font-size: 2.2rem;
+    }
+    
+    .calculadora-card {
+        padding: 25px;
+    }
+}
+
+/* ================================================== */
+/* ANIMAÇÕES */
+/* ================================================== */
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.artigo-card, .dica-card, .calculadora-card {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.artigo-destaque {
+    animation: slideInRight 0.8s ease-out;
+}
+
+/* Estados de loading */
+.loading-artigos {
+    text-align: center;
+    padding: 60px;
+    font-size: 1.2rem;
+    color: #718096;
+    font-family: 'Georgia', serif;
+}
+
+.loading-artigos i {
+    font-size: 2.5rem;
+    margin-bottom: 20px;
+    color: #1a365d;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ================================================== */
+/* ELEMENTOS DECORATIVOS */
+/* ================================================== */
+
+.revista-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #ffd700 0%, #ffa500 50%, #ffd700 100%);
+}
+
+/* Separadores elegantes */
+.section-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, #e2e8f0 20%, #e2e8f0 80%, transparent 100%);
+    margin: 50px 0;
+}
+
+/* Typography refinements */
+.artigo-titulo, .modal-artigo-header h2, .calculadoras-section h3, .dicas-rapidas h3 {
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Print styles */
+@media print {
+    .fin-sights-section {
+        background: white !important;
+        color: black !important;
+    }
+    
+    .modal-artigo, .modal-calculadora {
+        display: none !important;
+    }
+    
+    .btn-ler-artigo, .calculadora-card, .nav-categoria {
+        display: none !important;
+    }
+}

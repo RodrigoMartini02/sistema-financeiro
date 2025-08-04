@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Controle Financeiro - Login</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/login.css">
+</head>
+<body>
+    <!-- Hero Section -->
+    <div class="hero">
+        <div class="hero-background">
+            <div class="floating-elements">
+                <div class="element element-1"></div>
+                <div class="element element-2"></div>
+                <div class="element element-3"></div>
+            </div>
+        </div>
+        
+        <div class="hero-content">
+            <!-- Main Content -->
+            <div class="main-content">
+                <h1>Controle Financeiro</h1>
+               
+                
+                <!-- Desktop Login Button -->
+                <button class="btn btn-primary btn-login" onclick="abrirModal('login')">
+                    <i class="fas fa-sign-in-alt"></i>
+                    <span>Fazer Login</span>
+                </button>
+            </div>
+            
+            <!-- Features Grid -->
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="48" height="48" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <linearGradient id="dashboardGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#4facfe"/>
+                                    <stop offset="100%" style="stop-color:#00f2fe"/>
+                                </linearGradient>
+                            </defs>
+                            <rect x="4" y="4" width="12" height="12" rx="2" fill="url(#dashboardGradient)" opacity="0.8"/>
+                            <rect x="20" y="4" width="16" height="8" rx="2" fill="url(#dashboardGradient)" opacity="0.6"/>
+                            <rect x="4" y="20" width="16" height="16" rx="2" fill="url(#dashboardGradient)" opacity="0.9"/>
+                            <rect x="24" y="16" width="12" height="20" rx="2" fill="url(#dashboardGradient)" opacity="0.7"/>
+                            <circle cx="12" cy="28" r="2" fill="white"/>
+                            <circle cx="30" cy="22" r="1.5" fill="white"/>
+                            <path d="M8 10 L12 6 L16 10" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h3>Dashboard Completo</h3>
+                    <p>Visualize todos os seus dados financeiros em um único lugar com gráficos intuitivos e análises detalhadas.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="48" height="48" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <linearGradient id="walletGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#667eea"/>
+                                    <stop offset="100%" style="stop-color:#764ba2"/>
+                                </linearGradient>
+                            </defs>
+                            <path d="M6 12 C6 9.79 7.79 8 10 8 L30 8 C32.21 8 34 9.79 34 12 L34 28 C34 30.21 32.21 32 30 32 L10 32 C7.79 32 6 30.21 6 28 L6 12 Z" fill="url(#walletGradient)"/>
+                            <rect x="6" y="12" width="28" height="4" fill="rgba(255,255,255,0.2)"/>
+                            <circle cx="28" cy="22" r="2" fill="white"/>
+                            <path d="M12 22 L18 22" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M12 26 L16 26" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                            <path d="M10 6 L14 2 M26 2 L30 6" stroke="url(#walletGradient)" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <h3>Controle de Receitas e Despesas</h3>
+                    <p>Gerencie facilmente todas as suas entradas e saídas financeiras, com categorização e acompanhamento detalhado.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="48" height="48" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <linearGradient id="growthGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#11998e"/>
+                                    <stop offset="100%" style="stop-color:#38ef7d"/>
+                                </linearGradient>
+                            </defs>
+                            <path d="M8 32 L8 24 C8 23.45 8.45 23 9 23 L11 23 C11.55 23 12 23.45 12 24 L12 32" fill="url(#growthGradient)" opacity="0.7"/>
+                            <path d="M16 32 L16 18 C16 17.45 16.45 17 17 17 L19 17 C19.55 17 20 17.45 20 18 L20 32" fill="url(#growthGradient)" opacity="0.8"/>
+                            <path d="M24 32 L24 12 C24 11.45 24.45 11 25 11 L27 11 C27.55 11 28 11.45 28 12 L28 32" fill="url(#growthGradient)" opacity="0.9"/>
+                            <path d="M32 32 L32 8 C32 7.45 31.55 7 31 7 L29 7 C28.45 7 28 7.45 28 8 L28 32" fill="url(#growthGradient)"/>
+                            <path d="M4 32 L36 32" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M24 8 L30 8 L30 14" stroke="url(#growthGradient)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M30 8 L22 16" stroke="url(#growthGradient)" stroke-width="2" stroke-linecap="round"/>
+                            <circle cx="14" cy="6" r="2" fill="#38ef7d"/>
+                            <path d="M12 4 L14 2 L16 4" stroke="white" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h3>Gerenciamento de Poupança</h3>
+                    <p>Acompanhe seus investimentos, defina metas de economia e visualize projeções de crescimento para o futuro.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="48" height="48" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <linearGradient id="scheduleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#f093fb"/>
+                                    <stop offset="100%" style="stop-color:#f5576c"/>
+                                </linearGradient>
+                            </defs>
+                            <rect x="6" y="8" width="28" height="26" rx="3" fill="url(#scheduleGradient)" opacity="0.9"/>
+                            <rect x="6" y="8" width="28" height="6" rx="3" fill="rgba(255,255,255,0.2)"/>
+                            <circle cx="12" cy="11" r="1.5" fill="white"/>
+                            <circle cx="20" cy="11" r="1.5" fill="white"/>
+                            <circle cx="28" cy="11" r="1.5" fill="white"/>
+                            <rect x="10" y="18" width="6" height="2" rx="1" fill="white" opacity="0.8"/>
+                            <rect x="18" y="18" width="10" height="2" rx="1" fill="white" opacity="0.6"/>
+                            <rect x="10" y="22" width="8" height="2" rx="1" fill="white" opacity="0.7"/>
+                            <rect x="20" y="22" width="8" height="2" rx="1" fill="white" opacity="0.5"/>
+                            <rect x="10" y="26" width="6" height="2" rx="1" fill="white" opacity="0.6"/>
+                            <rect x="18" y="26" width="12" height="2" rx="1" fill="white" opacity="0.8"/>
+                            <rect x="10" y="30" width="10" height="2" rx="1" fill="white" opacity="0.5"/>
+                            <circle cx="32" cy="24" r="6" fill="#f5576c"/>
+                            <path d="M29 24 L31 26 L35 22" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h3>Controle de Parcelamentos</h3>
+                    <p>Visualize o impacto de compras parceladas em seu orçamento e planeje seus compromissos financeiros futuros.</p>
+                </div>
+            </div>
+            
+            <!-- Mobile Login Button -->
+            <button id="mobile-login-btn" class="btn btn-mobile">
+                <i class="fas fa-sign-in-alt"></i>
+                <span>ENTRAR</span>
+            </button>
+        </div>
+        
+        <!-- Footer -->
+        <footer class="hero-footer">
+            <p>&copy; 2025 Sistema de Controle Financeiro | Todos os direitos reservados</p>
+        </footer>
+    </div>
+
+    
+    <!-- WhatsApp Button -->
+    <div id="whatsapp-button">
+        <a href="https://wa.me/5549999554856" target="_blank" rel="noopener noreferrer">
+            <i class="fab fa-whatsapp"></i>
+           
+        </a>
+    </div>
+    
+    <!-- Modal de Login -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="login-close">&times;</span>
+            <div class="modal-header">
+                <div class="modal-icon">
+                    <i class="fas fa-sign-in-alt"></i>
+                </div>
+                <h2>Acesse sua conta</h2>
+                <p>Entre com suas credenciais para continuar</p>
+            </div>
+            
+            <div id="modal-error-message" class="error-message">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>CPF/CNPJ ou senha incorretos. Tente novamente.</span>
+            </div>
+            
+            <form id="modal-login-form">
+                <div class="form-group">
+                    <label for="modal-documento">
+                        <i class="fas fa-id-card"></i>
+                        CPF/CNPJ
+                    </label>
+                    <input type="text" id="modal-documento" name="documento" required placeholder="Digite seu CPF ou CNPJ" autocomplete="username">
+                </div>
+                
+                <div class="form-group">
+                    <label for="modal-password">
+                        <i class="fas fa-lock"></i>
+                        Senha
+                    </label>
+                    <div class="password-input">
+                        <input type="password" id="modal-password" name="password" required placeholder="Digite sua senha" autocomplete="current-password">
+                        <button type="button" class="password-toggle" onclick="togglePassword('modal-password', this)">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="form-options">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="remember-me" name="remember">
+                        <span class="checkmark"></span>
+                        Lembrar de mim
+                    </label>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-sign-in-alt"></i>
+                    <span>Entrar</span>
+                </button>
+                
+                <div class="login-footer">
+                    <p>Não tem uma conta? <a href="#" id="modal-abrir-cadastro">Cadastre-se</a></p>
+                    <p><a href="#" id="modal-esqueceu-senha">Esqueceu sua senha?</a></p>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Recuperação de Senha -->
+    <div id="recuperacaoSenhaModal" class="modal">
+        <div class="modal-content">
+            <span class="recuperacao-close">&times;</span>
+            <div class="modal-header">
+                <div class="modal-icon">
+                    <i class="fas fa-key"></i>
+                </div>
+                <h2>Recuperar senha</h2>
+                <p>Digite seu e-mail para receber as instruções de recuperação</p>
+            </div>
+            
+            <div id="recuperacao-error-message" class="error-message">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>Não foi possível encontrar uma conta com este e-mail.</span>
+            </div>
+            
+            <div id="recuperacao-success-message" class="success-message">
+                <i class="fas fa-check-circle"></i>
+                <span>E-mail de recuperação enviado! Verifique sua caixa de entrada e spam.</span>
+            </div>
+            
+            <form id="form-recuperacao-senha">
+                <div class="form-group">
+                    <label for="recuperacao-email">
+                        <i class="fas fa-envelope"></i>
+                        E-mail cadastrado
+                    </label>
+                    <input type="email" id="recuperacao-email" name="email" required placeholder="Digite seu e-mail" autocomplete="email">
+                </div>
+                
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-paper-plane"></i>
+                    <span>Enviar Link de Recuperação</span>
+                </button>
+                
+                <div class="login-footer">
+                    <p>Lembrou sua senha? <a href="#" id="recuperacao-abrir-login">Voltar para o login</a></p>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal de Nova Senha -->
+    <div id="novaSenhaModal" class="modal">
+        <div class="modal-content">
+            <span class="nova-senha-close">&times;</span>
+            <div class="modal-header">
+                <div class="modal-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h2>Definir nova senha</h2>
+                <p>Crie uma senha segura para sua conta</p>
+            </div>
+            
+            <div id="nova-senha-error-message" class="error-message">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>As senhas não coincidem ou não atendem aos requisitos.</span>
+            </div>
+            
+            <div id="nova-senha-success-message" class="success-message">
+                <i class="fas fa-check-circle"></i>
+                <span>Senha alterada com sucesso! Você já pode fazer login.</span>
+            </div>
+            
+            <form id="form-nova-senha">
+                <input type="hidden" id="nova-senha-documento" name="documento">
+                
+                <div class="form-group">
+                    <label for="nova-senha">
+                        <i class="fas fa-key"></i>
+                        Nova senha
+                    </label>
+                    <div class="password-input">
+                        <input type="password" id="nova-senha" name="password" required minlength="6" placeholder="Digite sua nova senha" autocomplete="new-password">
+                        <button type="button" class="password-toggle" onclick="togglePassword('nova-senha', this)">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    <div class="password-strength">
+                        <div class="strength-bar">
+                            <div class="strength-fill"></div>
+                        </div>
+                        <small class="strength-text">Mínimo de 6 caracteres</small>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="confirmar-nova-senha">
+                        <i class="fas fa-key"></i>
+                        Confirme a nova senha
+                    </label>
+                    <div class="password-input">
+                        <input type="password" id="confirmar-nova-senha" name="confirm-password" required placeholder="Confirme sua nova senha" autocomplete="new-password">
+                        <button type="button" class="password-toggle" onclick="togglePassword('confirmar-nova-senha', this)">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i>
+                    <span>Salvar Nova Senha</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Cadastro -->
+    <div id="cadastroModal" class="modal">
+        <div class="modal-content">
+            <span class="cadastro-close">&times;</span>
+            <div class="modal-header">
+                <div class="modal-icon">
+                    <i class="fas fa-user-plus"></i>
+                </div>
+                <h2>Criar conta</h2>
+                <p>Preencha os dados para começar sua jornada financeira</p>
+            </div>
+            
+            <div id="cadastro-error-message" class="error-message">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>Erro no cadastro. Verifique os dados e tente novamente.</span>
+            </div>
+            
+            <div id="cadastro-success-message" class="success-message">
+                <i class="fas fa-check-circle"></i>
+                <span>Cadastro realizado com sucesso! Você já pode fazer login.</span>
+            </div>
+            
+            <form id="form-cadastro">
+                <div class="form-group">
+                    <label for="cadastro-nome">
+                        <i class="fas fa-user"></i>
+                        Nome completo
+                    </label>
+                    <input type="text" id="cadastro-nome" name="nome" required placeholder="Digite seu nome completo" autocomplete="name">
+                </div>
+                
+                <div class="form-group">
+                    <label for="cadastro-email">
+                        <i class="fas fa-envelope"></i>
+                        E-mail
+                    </label>
+                    <input type="email" id="cadastro-email" name="email" required placeholder="Digite seu e-mail" autocomplete="email">
+                </div>
+                
+                <div class="form-group">
+                    <label for="cadastro-documento">
+                        <i class="fas fa-id-card"></i>
+                        CPF/CNPJ
+                    </label>
+                    <input type="text" id="cadastro-documento" name="documento" required placeholder="Digite seu CPF ou CNPJ" autocomplete="off">
+                    <small>Para pessoa física: CPF (XXX.XXX.XXX-XX) | Para empresa: CNPJ (XX.XXX.XXX/XXXX-XX)</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="cadastro-password">
+                        <i class="fas fa-lock"></i>
+                        Senha
+                    </label>
+                    <div class="password-input">
+                        <input type="password" id="cadastro-password" name="password" required minlength="6" placeholder="Digite sua senha" autocomplete="new-password">
+                        <button type="button" class="password-toggle" onclick="togglePassword('cadastro-password', this)">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    <div class="password-strength">
+                        <div class="strength-bar">
+                            <div class="strength-fill"></div>
+                        </div>
+                        <small class="strength-text">Mínimo de 6 caracteres</small>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="cadastro-confirm-password">
+                        <i class="fas fa-lock"></i>
+                        Confirme a senha
+                    </label>
+                    <div class="password-input">
+                        <input type="password" id="cadastro-confirm-password" name="confirm-password" required placeholder="Confirme sua senha" autocomplete="new-password">
+                        <button type="button" class="password-toggle" onclick="togglePassword('cadastro-confirm-password', this)">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="form-options">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="aceitar-termos" name="terms" required>
+                        <span class="checkmark"></span>
+                        Aceito os <a href="#" target="_blank">termos de uso</a> e <a href="#" target="_blank">política de privacidade</a>
+                    </label>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-user-plus"></i>
+                    <span>Criar Conta</span>
+                </button>
+                
+                <div class="login-footer">
+                    <p>Já tem uma conta? <a href="#" id="cadastro-abrir-login">Faça login</a></p>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Script básico para funcionalidades -->
+    <script>
+        // Função para abrir modais
+        function abrirModal(modalName) {
+            const modal = document.getElementById(modalName + 'Modal');
+            if (modal) {
+                modal.style.display = 'block';
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        // Função para mostrar/ocultar senha
+        function togglePassword(inputId, button) {
+            const input = document.getElementById(inputId);
+            const icon = button.querySelector('i');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        // Força de senha
+        function checkPasswordStrength(password) {
+            let strength = 0;
+            
+            if (password.length >= 6) strength += 1;
+            if (password.length >= 8) strength += 1;
+            if (/[a-z]/.test(password)) strength += 1;
+            if (/[A-Z]/.test(password)) strength += 1;
+            if (/[0-9]/.test(password)) strength += 1;
+            if (/[^A-Za-z0-9]/.test(password)) strength += 1;
+            
+            return Math.min(strength, 4);
+        }
+
+        // Aplicar verificação de força da senha
+        function setupPasswordStrength(inputId) {
+            const input = document.getElementById(inputId);
+            const strengthBar = input.closest('.form-group').querySelector('.strength-fill');
+            const strengthText = input.closest('.form-group').querySelector('.strength-text');
+            
+            if (!strengthBar) return;
+            
+            input.addEventListener('input', function() {
+                const strength = checkPasswordStrength(this.value);
+                const percentage = (strength / 4) * 100;
+                
+                strengthBar.style.width = percentage + '%';
+                
+                const strengthLabels = ['Muito fraca', 'Fraca', 'Regular', 'Boa', 'Forte'];
+                const strengthColors = ['#ef4444', '#f59e0b', '#f59e0b', '#10b981', '#059669'];
+                
+                strengthText.textContent = this.value ? strengthLabels[strength] : 'Mínimo de 6 caracteres';
+                strengthBar.style.backgroundColor = this.value ? strengthColors[strength] : '#e2e8f0';
+            });
+        }
+
+        // Inicializar quando o DOM carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            setupPasswordStrength('nova-senha');
+            setupPasswordStrength('cadastro-password');
+        });
+    </script>
+
+    <script src="js/login.js"></script>
+</body>
+</html>
