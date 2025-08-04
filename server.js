@@ -1408,14 +1408,48 @@ app.use((error, req, res, next) => {
 // INICIALIZAÇÃO DO SERVIDOR
 // ================================================================
 
+
+// ================================================================
+// FUNÇÃO PARA GARANTIR USUÁRIO MASTER (SEED)
+// ================================================================
+const garantirUsuarioMaster = async () => {
+    const masterCPF = '08996441988';
+
+    try {
+        const usuarioMaster = await Usuario.findOne({ where: { documento: masterCPF } });
+
+        if (!usuarioMaster) {
+            console.log('🌱 Usuário master não encontrado. Criando novo usuário master...');
+            await Usuario.create({
+                nome: "Rodrigo Martini (Master)",
+                email: "martini.rodrigo1992@gmail.com", 
+                documento: masterCPF,
+                senha: "qwe12345",
+                tipo: "master",
+                status: "ativo"
+            });
+            console.log('✅ Usuário master criado com sucesso!');
+        } else {
+            console.log('👤 Usuário master já existe. Nenhuma ação necessária.');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao verificar ou criar usuário master:', error);
+    }
+};
+
+
+
+
 const startServer = async () => {
     try {
         // Conectar ao SQLite e sincronizar tabelas
         await sequelize.authenticate();
         console.log('✅ PostgreSQL conectado com sucesso');
         
-        await sequelize.sync({ force: false }); // force: true recria as tabelas
-        console.log('✅ Tabelas sincronizadas');
+       await sequelize.sync({ force: false }); 
+console.log('✅ Tabelas sincronizadas');
+
+await garantirUsuarioMaster(); 
         
         app.listen(PORT, () => {
             console.log(`\n🚀 ====================================`);
