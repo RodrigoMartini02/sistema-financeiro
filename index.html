@@ -2335,20 +2335,17 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 <script src="https://sdk.mercadopago.com/js/v2"></script>
 
-<!-- IMPORTANTE: API Client DEVE ser o PRIMEIRO script carregado -->
-<script src="js/api.js"></script>
-
-<!-- Scripts do sistema na ordem correta -->
-<script src="js/usuario_dados.js"></script>
-<script src="js/main.js"></script>
-<script src="js/configuracao.js"></script>
-<script src="js/receita.js"></script>
-<script src="js/despesas.js"></script>
-<script src="js/dashboard.js"></script>
-<script src="js/notificacao.js"></script>
-<script src="js/rel.js"></script>
-<script src="js/jarvs.js"></script>
-<script src="js/revista.js"></script>
-
+<!-- ✅ ORDEM CORRETA -->
+<script src="js/api.js"></script>           <!-- 1️⃣ PRIMEIRO: API Client -->
+<script src="js/main.js"></script>          <!-- 2️⃣ BASE: Variáveis globais -->
+<script src="js/usuario_dados.js"></script> <!-- 3️⃣ Dados do usuário -->
+<script src="js/configuracao.js"></script>  <!-- 4️⃣ Configurações -->
+<script src="js/receita.js"></script>       <!-- 5️⃣ Sistema de receitas -->
+<script src="js/despesas.js"></script>      <!-- 6️⃣ Sistema de despesas -->
+<script src="js/dashboard.js"></script>     <!-- 7️⃣ Dashboard (usa receitas + despesas) -->
+<script src="js/notificacao.js"></script>   <!-- 8️⃣ Notificações -->
+<script src="js/rel.js"></script>           <!-- 9️⃣ Relatórios -->
+<script src="js/jarvs.js"></script>         <!-- 🔟 Assistente IA -->
+<script src="js/revista.js"></script>   
 </body>
 </html>
