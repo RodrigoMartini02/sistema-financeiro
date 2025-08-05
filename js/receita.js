@@ -241,7 +241,7 @@ function abrirModalNovaReceita(index) {
 // SALVAR RECEITA
 // ================================================================
 
-async function salvarReceita(e) { // <-- MUDANÇA AQUI
+function salvarReceita(e) {
     if (e && e.preventDefault) {
         e.preventDefault();
         e.stopPropagation();
@@ -281,26 +281,24 @@ async function salvarReceita(e) { // <-- MUDANÇA AQUI
             parcela: null
         };
         
-        if (window.useAPI && window.sistemaAdapter) {
-            await window.sistemaAdapter.salvarReceita(mes, ano, novaReceita, id); // <-- MUDANÇA AQUI
+        garantirEstruturaDados(ano, mes);
+        
+        if (id !== '') {
+            // Editar receita existente
+            dadosFinanceiros[ano].meses[mes].receitas[parseInt(id)] = novaReceita;
         } else {
-            // Código existente
-            garantirEstruturaDados(ano, mes);
+            // Adicionar nova receita
+            dadosFinanceiros[ano].meses[mes].receitas.push(novaReceita);
             
-            if (id !== '') {
-                dadosFinanceiros[ano].meses[mes].receitas[parseInt(id)] = novaReceita;
-            } else {
-                dadosFinanceiros[ano].meses[mes].receitas.push(novaReceita);
-                
-                const replicar = document.getElementById('receita-replicar');
-                if (replicar && replicar.checked) {
-                    processarReplicacao(novaReceita, mes, ano);
-                }
+            // Processar replicação se marcado
+            const replicar = document.getElementById('receita-replicar');
+            if (replicar && replicar.checked) {
+                processarReplicacao(novaReceita, mes, ano);
             }
-            
-            await salvarDados();
-            atualizarSaldosMesesOtimizado(mes, ano);
         }
+        
+        salvarDados();
+        atualizarSaldosMesesOtimizado(mes, ano);
         
         // Fechar modal
         document.getElementById('modal-nova-receita').style.display = 'none';
@@ -436,33 +434,34 @@ function excluirReceita(index, mes, ano) {
     }
 }
 
-async function processarExclusaoReceita(opcao, index, mes, ano, descricaoReceita) { // <-- MUDANÇA AQUI
+function processarExclusaoReceita(opcao, index, mes, ano, descricaoReceita) {
     try {
-        if (window.useAPI && window.sistemaAdapter) {
-            await window.sistemaAdapter.excluirReceita(mes, ano, index, opcao, descricaoReceita); // <-- MUDANÇA AQUI
-        } else {
-            // Código existente
-            if (opcao === 'atual') {
-                dadosFinanceiros[ano].meses[mes].receitas.splice(index, 1);
-            } else if (opcao === 'todas') {
-                for (let m = 0; m < 12; m++) {
-                    if (!dadosFinanceiros[ano].meses[m]) continue;
-                    
-                    const receitas = dadosFinanceiros[ano].meses[m].receitas;
-                    if (!receitas) continue;
-                    
-                    for (let i = receitas.length - 1; i >= 0; i--) {
-                        if (receitas[i].descricao === descricaoReceita) {
-                            receitas.splice(i, 1);
-                        }
+        if (opcao === 'atual') {
+            // Excluir apenas esta receita
+            dadosFinanceiros[ano].meses[mes].receitas.splice(index, 1);
+        } else if (opcao === 'todas') {
+            // Excluir todas as receitas com esta descrição neste ano
+            for (let m = 0; m < 12; m++) {
+                if (!dadosFinanceiros[ano].meses[m]) continue;
+                
+                const receitas = dadosFinanceiros[ano].meses[m].receitas;
+                if (!receitas) continue;
+                
+                // Remover de trás para frente para não afetar os índices
+                for (let i = receitas.length - 1; i >= 0; i--) {
+                    if (receitas[i].descricao === descricaoReceita) {
+                        receitas.splice(i, 1);
                     }
                 }
             }
-            
-            await salvarDados();
-            atualizarSaldosMesesOtimizado(mes, ano);
         }
         
+        salvarDados();
+        
+        // Atualizar saldos
+        atualizarSaldosMesesOtimizado(mes, ano);
+        
+        // Atualizar interface
         if (typeof renderizarDetalhesDoMes === 'function') {
             renderizarDetalhesDoMes(mes, ano);
         }
@@ -471,6 +470,7 @@ async function processarExclusaoReceita(opcao, index, mes, ano, descricaoReceita
             carregarDadosDashboard(ano);
         }
         
+        // Fechar modal
         document.getElementById('modal-exclusao-receita').style.display = 'none';
         
     } catch (error) {
@@ -478,7 +478,6 @@ async function processarExclusaoReceita(opcao, index, mes, ano, descricaoReceita
         alert("Erro ao processar exclusão: " + error.message);
     }
 }
-
 
 // ================================================================
 // CONFIGURAÇÃO DE OPÇÕES DE REPLICAÇÃO

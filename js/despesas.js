@@ -343,11 +343,7 @@ function resetarEstadoFormularioDespesa() {
 // SALVAR DESPESA
 // ================================================================
 
-// ================================================================
-// SALVAR DESPESA (VERSÃO CORRIGIDA COM ASYNC/AWAIT)
-// ================================================================
-
-async function salvarDespesa(e) { // <-- MUDANÇA AQUI
+function salvarDespesa(e) {
     if (e && e.preventDefault) {
         e.preventDefault();
         e.stopPropagation();
@@ -381,17 +377,13 @@ async function salvarDespesa(e) { // <-- MUDANÇA AQUI
         
         const formData = coletarDadosFormularioDespesa();
         
-        if (window.useAPI && window.sistemaAdapter) {
-            await window.sistemaAdapter.salvarDespesa(formData.mes, formData.ano, formData); // <-- MUDANÇA AQUI
+        if (formData.id !== '') {
+            atualizarDespesaExistente(formData);
         } else {
-            // Código existente
-            if (formData.id !== '') {
-                atualizarDespesaExistente(formData);
-            } else {
-                adicionarNovaDespesa(formData);
-            }
-            await salvarDados();
+            adicionarNovaDespesa(formData);
         }
+        
+        salvarDados();
         
         setTimeout(() => {
             if (typeof carregarDadosDashboard === 'function') {
@@ -730,42 +722,28 @@ function configurarBotoesExclusao(despesa, index, mes, ano) {
     }
 }
 
-// ================================================================
-// PROCESSAR EXCLUSÃO (VERSÃO CORRIGIDA COM ASYNC/AWAIT)
-// ================================================================
-
-async function processarExclusao(opcao, index, mes, ano, descricaoDespesa, categoriaDespesa, idGrupoParcelamento) { // <-- MUDANÇA AQUI
+function processarExclusao(opcao, index, mes, ano, descricaoDespesa, categoriaDespesa, idGrupoParcelamento) {
     console.log('Processando exclusão:', opcao, index, mes, ano);
-
-    try {
-        if (window.useAPI && window.sistemaAdapter) {
-            await window.sistemaAdapter.excluirDespesa(mes, ano, index, opcao, { descricaoDespesa, categoriaDespesa, idGrupoParcelamento }); // <-- MUDANÇA AQUI
-        } else {
-            // Código existente
-            if (opcao === 'atual') {
-                dadosFinanceiros[ano].meses[mes].despesas.splice(index, 1);
-            } else if (opcao === 'todas') {
-                excluirTodasParcelas(ano, descricaoDespesa, categoriaDespesa, idGrupoParcelamento);
-            }
-            await salvarDados();
-        }
-
-        setTimeout(() => {
-            if (typeof carregarDadosDashboard === 'function') {
-                carregarDadosDashboard(anoAtual);
-            }
-            if (typeof renderizarDetalhesDoMes === 'function') {
-                renderizarDetalhesDoMes(mesAberto, anoAberto);
-            }
-            document.getElementById('modal-confirmacao-exclusao-despesa').style.display = 'none';
-        }, 100);
-
-    } catch (error) {
-        console.error("Erro ao processar exclusão:", error);
-        alert("Não foi possível excluir a despesa: " + error.message);
+    
+    if (opcao === 'atual') {
+        dadosFinanceiros[ano].meses[mes].despesas.splice(index, 1);
+    } 
+    else if (opcao === 'todas') {
+        excluirTodasParcelas(ano, descricaoDespesa, categoriaDespesa, idGrupoParcelamento);
     }
+    
+    salvarDados();
+    
+    setTimeout(() => {
+        if (typeof carregarDadosDashboard === 'function') {
+            carregarDadosDashboard(anoAtual);
+        }
+        if (typeof renderizarDetalhesDoMes === 'function') {
+            renderizarDetalhesDoMes(mesAberto, anoAberto);
+        }
+        document.getElementById('modal-confirmacao-exclusao-despesa').style.display = 'none';
+    }, 100);
 }
-
 
 function excluirTodasParcelas(ano, descricao, categoria, idGrupo) {
     if (!idGrupo) {
