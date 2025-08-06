@@ -2244,7 +2244,6 @@
 </template>
 
 
-<!-- TEMPLATES PARA RENDERIZAÇÃO -->
 <template id="template-mes-card">
     <div class="mes-header">
         <span class="mes-nome"></span>
@@ -2275,58 +2274,79 @@
     <div class="mes-acoes">
         <button class="btn-mes-acao btn-reabrir hidden">🔓 Reabrir</button>
         <button class="btn-mes-acao btn-fechar hidden">🔒 Fechar</button>
-        <button class="btn-mes-acao btn-detalhes"></button>
+        <button class="btn-mes-acao btn-detalhes">Ver Detalhes</button>
     </div>
 </template>
 
 <template id="template-linha-receita">
-    <tr>
-        <td class="receita-descricao"></td>
-        <td class="receita-valor"></td>
-        <td class="receita-data"></td>
-        <td class="receita-parcela"></td>
-        <td class="receita-acoes">
-            <button class="btn-editar" data-index="">
-                <i class="fas fa-edit"></i>
-            </button>
-            <button class="btn-excluir" data-index="">
-                <i class="fas fa-trash-alt"></i>
-            </button>
+    <tr class="receita-row" data-categoria="">
+        <td class="col-descricao"><span class="receita-descricao"></span></td>
+        <td class="col-valor"><span class="receita-valor"></span></td>
+        <td class="col-data"><span class="receita-data"></span></td>
+        <td class="col-parcela"><span class="receita-parcela"></span></td>
+        <td class="col-acoes">
+            <div class="receita-acoes">
+                <button class="btn btn-editar" title="Editar"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-excluir" title="Excluir"><i class="fas fa-trash"></i></button>
+            </div>
         </td>
     </tr>
 </template>
 
+<template id="template-linha-saldo-anterior">
+    <tr class="saldo-anterior-row">
+        <td class="col-descricao"><span class="saldo-anterior-desc"></span></td>
+        <td class="col-valor"><span class="saldo-anterior-valor"></span></td>
+        <td class="col-data">-</td>
+        <td class="col-parcela">-</td>
+        <td class="col-acoes"><span class="badge-saldo-anterior">AUTOMÁTICO</span></td>
+    </tr>
+</template>
+
 <template id="template-linha-despesa">
-    <tr>
-        <td class="td-checkbox">
-            <input type="checkbox" class="despesa-checkbox" data-index="">
+    <tr class="despesa-row" data-status="" data-categoria="" data-forma-pagamento="">
+        <td class="col-checkbox"><input type="checkbox" class="despesa-checkbox"></td>
+        <td class="col-descricao"><span class="despesa-descricao"></span></td>
+        <td class="col-categoria"><span class="despesa-categoria"></span></td>
+        <td class="col-forma-pagamento"><span class="despesa-forma-pagamento"></span></td>
+        <td class="col-valor"><span class="despesa-valor"></span></td>
+        <td class="col-parcela"><span class="despesa-parcela"></span></td>
+        <td class="col-valor-pago"><span class="despesa-valor-pago"></span></td>
+        <td class="col-status"><span class="badge-status"></span></td>
+        <td class="col-compra"><span class="despesa-data-compra"></span></td>
+        <td class="col-vencimento"><span class="despesa-data-vencimento"></span></td>
+        <td class="col-acoes">
+            <div class="despesa-acoes">
+                <button class="btn btn-editar" title="Editar"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-excluir" title="Excluir"><i class="fas fa-trash"></i></button>
+                <button class="btn btn-pagar" title="Pagar"><i class="fas fa-check"></i></button>
+                <button class="btn btn-mover" title="Mover"><i class="fas fa-arrow-right"></i></button>
+            </div>
         </td>
+    </tr>
+</template>
+
+<template id="template-info-parcelamento">
+    <div class="info-parcelas">
+        <div><strong>Total de juros:</strong> <span class="info-juros-total"></span></div>
+        <div><strong>Juros por parcela:</strong> <span class="info-juros-parcela"></span></div>
+        <div><strong>Valor de cada parcela:</strong> <span class="info-valor-parcela"></span></div>
+        <div><strong>Valor total da compra:</strong> <span class="info-valor-total"></span></div>
+    </div>
+</template>
+
+<template id="template-linha-valor-personalizado">
+    <tr>
         <td class="despesa-descricao"></td>
         <td class="despesa-categoria"></td>
         <td class="despesa-forma-pagamento"></td>
-        <td class="despesa-valor"></td>
-        <td class="despesa-parcela"></td>
-        <td class="despesa-valor-pago"></td>
-        <td class="despesa-status">
-            <span class="badge-status"></span>
-        </td>
-        <td class="despesa-data-compra"></td>
-        <td class="despesa-data-vencimento"></td>
-        <td class="despesa-acoes">
-            <button class="btn-editar" data-index="">
-                <i class="fas fa-edit"></i>
-            </button>
-            <button class="btn-excluir" data-index="">
-                <i class="fas fa-trash-alt"></i>
-            </button>
-            <button class="btn-pagar" data-index="">
-                <i class="fas fa-check-circle"></i>
-            </button>
-            <button class="btn-mover" data-index="">
-                <i class="fas fa-arrow-right"></i>
-            </button>
-        </td>
+        <td class="despesa-valor-original"></td>
+        <td><input type="number" class="input-valor-pago" min="0" step="0.01"></td>
     </tr>
+</template>
+
+<template id="template-badge-pagamento">
+    <span class="badge-pagamento"></span>
 </template>
 
 
@@ -2335,9 +2355,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 <script src="https://sdk.mercadopago.com/js/v2"></script>
 
-<!-- ✅ ORDEM CORRETA -->
-<script src="js/api.js"></script>           <!-- 1️⃣ PRIMEIRO: API Client -->
-<script src="js/main.js"></script>          <!-- 2️⃣ BASE: Variáveis globais -->
+<script src="js/api.js"></script>           <script src="js/main.js"></script>           <script src="js/usuario_dados.js"></script>  <script src="js/configuracao.js"></script>   <script src="js/receita.js"></script>        <script src="js/despesas.js"></script>       <script src="js/dashboard.js"></script>      <script src="js/notificacao.js"></script>    <script src="js/rel.js"></script>            <script src="js/jarvs.js"></script>          <script src="js/revista.js"></script>        </body>
+
 <script src="js/usuario_dados.js"></script> <!-- 3️⃣ Dados do usuário -->
 <script src="js/configuracao.js"></script>  <!-- 4️⃣ Configurações -->
 <script src="js/receita.js"></script>       <!-- 5️⃣ Sistema de receitas -->
