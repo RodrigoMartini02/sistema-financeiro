@@ -15,13 +15,9 @@ yarn-error.log*
 logs
 *.log
 
-# Arquivos de upload
-uploads/
-temp/
-
-# Arquivos do sistema
-.DS_Store
-Thumbs.db
+# Arquivos temporários
+*.tmp
+*.temp
 
 # IDEs
 .vscode/
@@ -29,20 +25,13 @@ Thumbs.db
 *.swp
 *.swo
 
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
 # Build
 dist/
 build/
 
 # Coverage
 coverage/
-
-# Arquivos temporários
-*.tmp
-*.temp
-
-# Backup
-*.bak
-*.backup
-
-# Bancos de dados locais
-*.db
