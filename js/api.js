@@ -5,6 +5,15 @@
 
 console.log('🚀 Carregando API Client v2.1.0...');
 
+// Verificar se já existe um apiClient e limpar
+if (window.apiClient) {
+    console.log('⚠️ API Client anterior detectado, substituindo...');
+    window.apiClient = null;
+}
+if (window.sistemaAdapter) {
+    window.sistemaAdapter = null;
+}
+
 // ================================================================
 // CONFIGURAÇÕES E DETECÇÃO DE AMBIENTE
 // ================================================================
