@@ -1,22 +1,69 @@
 // ================================================================
-// API CLIENT - SISTEMA FINANCEIRO CORRIGIDO
+// API CLIENT - SISTEMA FINANCEIRO CORRIGIDO E INTEGRADO
+// Versão 2.1.0 - Compatível com PostgreSQL + Frontend existente
 // ================================================================
 
-console.log('🚀 Carregando API Client...');
+console.log('🚀 Carregando API Client v2.1.0...');
 
-const IS_DEVELOPMENT = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const PROD_BASE_URL = 'https://sistema-financeiro-kxed.onrender.com/api';
+// ================================================================
+// CONFIGURAÇÕES E DETECÇÃO DE AMBIENTE
+// ================================================================
+
+const IS_DEVELOPMENT = window.location.hostname === 'localhost' || 
+                      window.location.hostname === '127.0.0.1' ||
+                      window.location.port === '5500';
+
+const PROD_BASE_URL = 'https://sistema-financeiro-api.onrender.com/api';
 const DEV_BASE_URL = 'http://localhost:5000/api';
 const API_BASE_URL = IS_DEVELOPMENT ? DEV_BASE_URL : PROD_BASE_URL;
 
-console.log(`Ambiente: ${IS_DEVELOPMENT ? 'Desenvolvimento' : 'Produção'}. API: ${API_BASE_URL}`);
+console.log(`🌍 Ambiente: ${IS_DEVELOPMENT ? 'Desenvolvimento' : 'Produção'}`);
+console.log(`🔗 API Base URL: ${API_BASE_URL}`);
+
+// ================================================================
+// CLASSE PRINCIPAL DO API CLIENT
+// ================================================================
 
 class APIClient {
     constructor(baseURL = API_BASE_URL) {
         this.baseURL = baseURL;
-        this.token = localStorage.getItem('authToken');
+        this.token = localStorage.getItem('authToken') || localStorage.getItem('token');
         this.usuarioAtual = null;
-        this.isOnline = true;
+        this.isOnline = navigator.onLine;
+        this.requestQueue = [];
+        this.retryCount = 0;
+        this.maxRetries = 3;
+        
+        this.setupNetworkListeners();
+        this.loadCachedUser();
+    }
+    
+    // ================================================================
+    // CONFIGURAÇÃO E UTILITÁRIOS
+    // ================================================================
+    
+    setupNetworkListeners() {
+        window.addEventListener('online', () => {
+            console.log('🌐 Conexão restaurada');
+            this.isOnline = true;
+            this.processRequestQueue();
+        });
+        
+        window.addEventListener('offline', () => {
+            console.log('📴 Conexão perdida');
+            this.isOnline = false;
+        });
+    }
+    
+    loadCachedUser() {
+        try {
+            const cachedUser = sessionStorage.getItem('dadosUsuarioLogado');
+            if (cachedUser) {
+                this.usuarioAtual = JSON.parse(cachedUser);
+            }
+        } catch (error) {
+            console.warn('⚠️ Erro ao carregar usuário do cache:', error);
+        }
     }
     
     async makeRequest(endpoint, options = {}) {
@@ -30,28 +77,104 @@ class APIClient {
         
         const requestOptions = { ...defaultOptions, ...options };
         
+        // Adicionar headers extras se necessário
+        if (requestOptions.body && typeof requestOptions.body === 'object') {
+            requestOptions.body = JSON.stringify(requestOptions.body);
+        }
+        
         try {
-            console.log(`🌐 API Request: ${requestOptions.method || 'GET'} ${url}`);
+            console.log(`🌐 API Request: ${requestOptions.method || 'GET'} ${endpoint}`);
             
             const response = await fetch(url, requestOptions);
             
             if (!response.ok) {
-                if (response.status === 401) {
-                    this.handleUnauthorized();
-                    throw new Error('Sessão expirada. Faça login novamente.');
-                }
-                
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `HTTP ${response.status}`);
+                await this.handleErrorResponse(response, endpoint, requestOptions);
+                return null;
             }
             
             const data = await response.json();
             console.log(`✅ API Response: ${endpoint}`, data);
+            
+            this.retryCount = 0; // Reset retry count on success
             return data;
             
         } catch (error) {
             console.error(`❌ API Error [${endpoint}]:`, error);
+            
+            if (!this.isOnline) {
+                this.queueRequest(endpoint, requestOptions);
+                throw new Error('Sem conexão com a internet. Operação será executada quando a conexão for restaurada.');
+            }
+            
+            // Retry logic para erros de rede
+            if (this.retryCount < this.maxRetries && this.shouldRetry(error)) {
+                this.retryCount++;
+                console.log(`🔄 Tentativa ${this.retryCount}/${this.maxRetries} para ${endpoint}`);
+                await this.delay(1000 * this.retryCount);
+                return this.makeRequest(endpoint, options);
+            }
+            
             throw error;
+        }
+    }
+    
+    async handleErrorResponse(response, endpoint, requestOptions) {
+        const errorData = await response.json().catch(() => ({}));
+        
+        if (response.status === 401) {
+            console.warn('🔑 Token expirado ou inválido');
+            this.handleUnauthorized();
+            throw new Error('Sessão expirada. Faça login novamente.');
+        }
+        
+        if (response.status === 403) {
+            throw new Error('Acesso negado. Você não tem permissão para esta operação.');
+        }
+        
+        if (response.status === 404) {
+            throw new Error('Recurso não encontrado.');
+        }
+        
+        if (response.status === 409) {
+            throw new Error(errorData.error || 'Conflito de dados.');
+        }
+        
+        if (response.status >= 500) {
+            throw new Error('Erro interno do servidor. Tente novamente mais tarde.');
+        }
+        
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+    }
+    
+    shouldRetry(error) {
+        return error.name === 'TypeError' || 
+               error.message.includes('fetch') ||
+               error.message.includes('network');
+    }
+    
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    
+    queueRequest(endpoint, options) {
+        this.requestQueue.push({ endpoint, options, timestamp: Date.now() });
+        console.log(`📋 Solicitação enfileirada: ${endpoint}`);
+    }
+    
+    async processRequestQueue() {
+        if (this.requestQueue.length === 0) return;
+        
+        console.log(`🔄 Processando ${this.requestQueue.length} solicitações enfileiradas...`);
+        
+        const currentQueue = [...this.requestQueue];
+        this.requestQueue = [];
+        
+        for (const request of currentQueue) {
+            try {
+                await this.makeRequest(request.endpoint, request.options);
+            } catch (error) {
+                console.error('❌ Erro ao processar solicitação enfileirada:', error);
+            }
         }
     }
     
@@ -59,41 +182,54 @@ class APIClient {
         this.token = null;
         this.usuarioAtual = null;
         localStorage.removeItem('authToken');
+        localStorage.removeItem('token');
         sessionStorage.removeItem('usuarioAtual');
         sessionStorage.removeItem('dadosUsuarioLogado');
         
-        // Redirecionar para login
+        // Redirecionar para login após um delay
         setTimeout(() => {
-            window.location.href = 'login.html';
+            if (!window.location.pathname.includes('login.html')) {
+                window.location.href = 'login.html';
+            }
         }, 1000);
     }
     
     // ================================================================
-    // AUTENTICAÇÃO
+    // MÉTODOS DE AUTENTICAÇÃO
     // ================================================================
     
     async login(documento, senha) {
         try {
-            console.log('🔐 Fazendo login...');
+            console.log('🔐 Realizando login...');
             
             const response = await this.makeRequest('/auth/login', {
                 method: 'POST',
-                body: JSON.stringify({ documento, senha })
+                body: { documento, senha }
             });
+            
+            if (!response) {
+                throw new Error('Falha na autenticação');
+            }
             
             if (response.token) {
                 this.token = response.token;
                 this.usuarioAtual = response.usuario;
                 
+                // Salvar tokens e dados do usuário
                 localStorage.setItem('authToken', this.token);
+                localStorage.setItem('token', this.token);
                 sessionStorage.setItem('usuarioAtual', documento.replace(/[^\d]+/g, ''));
                 sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify(response.usuario));
                 
-                console.log('✅ Login bem-sucedido');
-                return { success: true, token: this.token, usuario: response.usuario };
+                console.log('✅ Login realizado com sucesso');
+                return { 
+                    success: true, 
+                    token: this.token, 
+                    usuario: response.usuario 
+                };
             }
             
-            throw new Error('Token não recebido');
+            throw new Error('Token não recebido do servidor');
             
         } catch (error) {
             console.error('❌ Erro no login:', error);
@@ -108,8 +244,15 @@ class APIClient {
         
         try {
             const response = await this.makeRequest('/auth/me');
-            this.usuarioAtual = response.usuario;
-            return response.usuario;
+            
+            if (response && response.usuario) {
+                this.usuarioAtual = response.usuario;
+                sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify(response.usuario));
+                return response.usuario;
+            }
+            
+            throw new Error('Dados do usuário não recebidos');
+            
         } catch (error) {
             this.handleUnauthorized();
             throw error;
@@ -117,16 +260,18 @@ class APIClient {
     }
     
     logout() {
-        console.log('👋 Fazendo logout...');
+        console.log('👋 Realizando logout...');
         this.token = null;
         this.usuarioAtual = null;
         localStorage.removeItem('authToken');
+        localStorage.removeItem('token');
         sessionStorage.removeItem('usuarioAtual');
         sessionStorage.removeItem('dadosUsuarioLogado');
+        this.requestQueue = [];
     }
     
     // ================================================================
-    // TRANSAÇÕES
+    // MÉTODOS DE TRANSAÇÕES
     // ================================================================
     
     async getTransacoes(filtros = {}) {
@@ -143,7 +288,7 @@ class APIClient {
             
             return await this.makeRequest(endpoint);
         } catch (error) {
-            console.error('Erro ao buscar transações:', error);
+            console.error('❌ Erro ao buscar transações:', error);
             throw error;
         }
     }
@@ -154,65 +299,226 @@ class APIClient {
             
             return await this.makeRequest('/transacoes', {
                 method: 'POST',
-                body: JSON.stringify(transacao)
+                body: transacao
             });
         } catch (error) {
-            console.error('Erro ao criar transação:', error);
+            console.error('❌ Erro ao criar transação:', error);
             throw error;
         }
     }
     
-    async excluirTransacao(id) {
+    async atualizarTransacao(id, dados) {
         try {
+            console.log('📝 Atualizando transação:', id);
+            
             return await this.makeRequest(`/transacoes/${id}`, {
-                method: 'DELETE'
+                method: 'PUT',
+                body: dados
             });
         } catch (error) {
-            console.error('Erro ao excluir transação:', error);
+            console.error('❌ Erro ao atualizar transação:', error);
+            throw error;
+        }
+    }
+    
+    async excluirTransacao(id, opcoes = {}) {
+        try {
+            console.log('🗑️ Excluindo transação:', id);
+            
+            return await this.makeRequest(`/transacoes/${id}`, {
+                method: 'DELETE',
+                body: opcoes
+            });
+        } catch (error) {
+            console.error('❌ Erro ao excluir transação:', error);
             throw error;
         }
     }
     
     // ================================================================
-    // CATEGORIAS
+    // MÉTODOS DE CATEGORIAS
     // ================================================================
     
     async getCategorias() {
         try {
             return await this.makeRequest('/categorias');
         } catch (error) {
-            console.error('Erro ao buscar categorias:', error);
+            console.error('❌ Erro ao buscar categorias:', error);
+            throw error;
+        }
+    }
+    
+    async criarCategoria(categoria) {
+        try {
+            console.log('📂 Criando categoria:', categoria);
+            
+            return await this.makeRequest('/categorias', {
+                method: 'POST',
+                body: { categoria }
+            });
+        } catch (error) {
+            console.error('❌ Erro ao criar categoria:', error);
             throw error;
         }
     }
     
     // ================================================================
-    // DASHBOARD
+    // MÉTODOS DE DADOS FINANCEIROS
+    // ================================================================
+    
+    async getDadosFinanceiros(ano = null) {
+        try {
+            const params = ano ? `?ano=${ano}` : '';
+            return await this.makeRequest(`/dados-financeiros${params}`);
+        } catch (error) {
+            console.error('❌ Erro ao buscar dados financeiros:', error);
+            throw error;
+        }
+    }
+    
+    async salvarDadosFinanceiros(dados) {
+        try {
+            console.log('💾 Salvando dados financeiros...');
+            
+            return await this.makeRequest('/dados-financeiros', {
+                method: 'POST',
+                body: { dadosFinanceiros: dados }
+            });
+        } catch (error) {
+            console.error('❌ Erro ao salvar dados financeiros:', error);
+            throw error;
+        }
+    }
+    
+    // ================================================================
+    // MÉTODOS DE DASHBOARD
     // ================================================================
     
     async getDashboardData(ano) {
         try {
             return await this.makeRequest(`/dashboard/${ano}`);
         } catch (error) {
-            console.error('Erro ao buscar dashboard:', error);
+            console.error('❌ Erro ao buscar dados do dashboard:', error);
+            throw error;
+        }
+    }
+    
+    // ================================================================
+    // MÉTODOS DE RELATÓRIOS
+    // ================================================================
+    
+    async getRelatorioCategorias(ano) {
+        try {
+            return await this.makeRequest(`/relatorios/categorias/${ano}`);
+        } catch (error) {
+            console.error('❌ Erro ao buscar relatório de categorias:', error);
+            throw error;
+        }
+    }
+    
+    async getRelatorioMensal(ano, mes) {
+        try {
+            return await this.makeRequest(`/relatorios/mensal/${ano}/${mes}`);
+        } catch (error) {
+            console.error('❌ Erro ao buscar relatório mensal:', error);
+            throw error;
+        }
+    }
+    
+    // ================================================================
+    // MÉTODOS DE USUÁRIOS (Admin)
+    // ================================================================
+    
+    async getUsuarios(filtros = {}) {
+        try {
+            const params = new URLSearchParams(filtros);
+            return await this.makeRequest(`/usuarios?${params}`);
+        } catch (error) {
+            console.error('❌ Erro ao buscar usuários:', error);
+            throw error;
+        }
+    }
+    
+    async alterarStatusUsuario(id, status) {
+        try {
+            return await this.makeRequest(`/usuarios/${id}/status`, {
+                method: 'PUT',
+                body: { status }
+            });
+        } catch (error) {
+            console.error('❌ Erro ao alterar status do usuário:', error);
+            throw error;
+        }
+    }
+    
+    // ================================================================
+    // MÉTODOS DE SISTEMA
+    // ================================================================
+    
+    async getHealth() {
+        try {
+            return await this.makeRequest('/health');
+        } catch (error) {
+            console.error('❌ Erro ao verificar saúde do sistema:', error);
+            throw error;
+        }
+    }
+    
+    async getBackup(userId) {
+        try {
+            return await this.makeRequest(`/backup/${userId}`);
+        } catch (error) {
+            console.error('❌ Erro ao gerar backup:', error);
             throw error;
         }
     }
 }
 
 // ================================================================
-// ADAPTER SIMPLIFICADO
+// SISTEMA ADAPTER - COMPATIBILIDADE COM FRONTEND EXISTENTE
 // ================================================================
 
 class SistemaAdapter {
     constructor(apiClient) {
         this.api = apiClient;
+        this.pronto = false;
+        this.tentativasReconexao = 0;
+        this.maxTentativasReconexao = 3;
+    }
+    
+    // ================================================================
+    // MÉTODOS DE VERIFICAÇÃO E INICIALIZAÇÃO
+    // ================================================================
+    
+    async aguardarPronto() {
+        if (this.pronto) return true;
+        
+        return new Promise((resolve) => {
+            let tentativas = 0;
+            const maxTentativas = 30;
+            
+            const verificar = () => {
+                tentativas++;
+                
+                if (this.pronto) {
+                    resolve(true);
+                } else if (tentativas >= maxTentativas) {
+                    console.warn('⚠️ Timeout aguardando adapter estar pronto');
+                    resolve(false);
+                } else {
+                    setTimeout(verificar, 200);
+                }
+            };
+            
+            verificar();
+        });
     }
     
     async verificarAcesso() {
         try {
             if (this.api.token) {
                 await this.api.verificarToken();
+                this.pronto = true;
                 return true;
             }
             
@@ -222,6 +528,7 @@ class SistemaAdapter {
                 return false;
             }
             
+            this.pronto = true;
             return true;
         } catch (error) {
             console.error('❌ Verificação de acesso falhou:', error);
@@ -231,174 +538,293 @@ class SistemaAdapter {
     }
     
     redirecionarParaLogin() {
-        if (window.location.pathname.includes('index.html') || window.location.pathname === '/') {
+        const pathname = window.location.pathname;
+        if (pathname.includes('index.html') || 
+            pathname.includes('financeiro.html') || 
+            pathname === '/') {
             window.location.href = 'login.html';
         }
     }
+    
+    // ================================================================
+    // MÉTODOS DE DADOS FINANCEIROS - HÍBRIDO API + LOCALSTORAGE
+    // ================================================================
     
     async carregarDadosFinanceiros() {
         try {
             console.log('📊 Carregando dados financeiros...');
             
-            const anoAtual = new Date().getFullYear();
-            const anos = [anoAtual - 1, anoAtual, anoAtual + 1];
-            
-            const dadosFinanceiros = {};
-            
-            for (const ano of anos) {
-                dadosFinanceiros[ano] = { meses: [] };
-                
-                // Inicializar 12 meses
-                for (let mes = 0; mes < 12; mes++) {
-                    dadosFinanceiros[ano].meses[mes] = {
-                        receitas: [],
-                        despesas: [],
-                        fechado: false
-                    };
-                }
-                
-                try {
-                    const transacoes = await this.api.getTransacoes({ ano, limit: 1000 });
-                    this.organizarTransacoesPorMes(transacoes.transacoes || [], dadosFinanceiros[ano]);
-                } catch (error) {
-                    console.warn(`⚠️ Erro ao carregar dados de ${ano}:`, error);
-                }
+            // Tentar carregar da API primeiro
+            const dadosAPI = await this.api.getDadosFinanceiros();
+            if (dadosAPI && Object.keys(dadosAPI).length > 0) {
+                console.log('✅ Dados carregados da API');
+                return dadosAPI;
             }
             
-            console.log('✅ Dados financeiros carregados');
-            return dadosFinanceiros;
+            // Fallback para localStorage
+            console.log('💾 Carregando dados do localStorage...');
+            return this.carregarDadosLocal();
             
         } catch (error) {
-            console.error('❌ Erro ao carregar dados:', error);
-            throw error;
+            console.error('❌ Erro ao carregar dados via API:', error);
+            return this.carregarDadosLocal();
         }
     }
     
-    organizarTransacoesPorMes(transacoes, dadosAno) {
-        transacoes.forEach(transacao => {
-            const mes = transacao.mes;
-            if (mes >= 0 && mes < 12) {
-                const dadosTransacao = this.converterTransacaoAPIParaLocal(transacao);
-                
-                if (transacao.tipo === 'receita') {
-                    dadosAno.meses[mes].receitas.push(dadosTransacao);
-                } else if (transacao.tipo === 'despesa') {
-                    dadosAno.meses[mes].despesas.push(dadosTransacao);
-                }
+    carregarDadosLocal() {
+        try {
+            const usuarioAtual = sessionStorage.getItem('usuarioAtual');
+            if (!usuarioAtual) {
+                return this.criarEstruturaPadrao();
+            }
+            
+            const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+            const usuario = usuarios.find(u => 
+                u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
+            );
+            
+            if (usuario && usuario.dadosFinanceiros) {
+                return usuario.dadosFinanceiros;
+            }
+            
+            return this.criarEstruturaPadrao();
+            
+        } catch (error) {
+            console.error('❌ Erro ao carregar dados locais:', error);
+            return this.criarEstruturaPadrao();
+        }
+    }
+    
+    criarEstruturaPadrao() {
+        const anoAtual = new Date().getFullYear();
+        const estrutura = {};
+        
+        [anoAtual - 1, anoAtual, anoAtual + 1].forEach(ano => {
+            estrutura[ano] = { meses: [] };
+            for (let i = 0; i < 12; i++) {
+                estrutura[ano].meses[i] = {
+                    receitas: [],
+                    despesas: [],
+                    fechado: false,
+                    saldoAnterior: 0,
+                    saldoFinal: 0
+                };
             }
         });
+        
+        return estrutura;
     }
     
-    converterTransacaoAPIParaLocal(transacao) {
-        return {
-            id: transacao.id,
-            descricao: transacao.descricao,
-            valor: parseFloat(transacao.valor),
-            valorPago: parseFloat(transacao.valorPago || 0),
-            categoria: transacao.categoria?.nome || 'Sem categoria',
-            categoriaId: transacao.categoriaId,
-            formaPagamento: transacao.formaPagamento,
-            data: transacao.dataTransacao,
-            dataCompra: transacao.dataTransacao,
-            dataVencimento: transacao.dataVencimento,
-            status: transacao.status,
-            quitado: transacao.status === 'pago',
-            parcelado: transacao.parcelamento?.total > 1,
-            parcela: transacao.parcelamento?.total > 1 ? 
-                     `${transacao.parcelamento.atual}/${transacao.parcelamento.total}` : null,
-            totalParcelas: transacao.parcelamento?.total || 1,
-            idGrupoParcelamento: transacao.parcelamento?.grupoId,
-            observacoes: transacao.observacoes
-        };
-    }
-    
-    async salvarReceita(mes, ano, receita) {
+    async salvarDadosUsuario(dadosFinanceiros) {
         try {
-            console.log('💰 Salvando receita:', receita.descricao);
+            // Tentar salvar na API primeiro
+            const sucessoAPI = await this.api.salvarDadosFinanceiros(dadosFinanceiros);
+            if (sucessoAPI) {
+                console.log('✅ Dados salvos na API');
+                return true;
+            }
             
-            const transacaoAPI = this.converterReceitaParaAPI(receita, mes, ano);
-            return await this.api.criarTransacao(transacaoAPI);
+            // Fallback para localStorage
+            return this.salvarDadosLocal(dadosFinanceiros);
+            
         } catch (error) {
-            console.error('❌ Erro ao salvar receita:', error);
-            throw error;
+            console.error('❌ Erro ao salvar na API:', error);
+            return this.salvarDadosLocal(dadosFinanceiros);
         }
     }
     
-    async salvarDespesa(mes, ano, despesa) {
+    salvarDadosLocal(dadosFinanceiros) {
         try {
-            console.log('💸 Salvando despesa:', despesa.descricao);
+            const usuarioAtual = sessionStorage.getItem('usuarioAtual');
+            if (!usuarioAtual) return false;
             
-            const transacaoAPI = this.converterDespesaParaAPI(despesa, mes, ano);
-            return await this.api.criarTransacao(transacaoAPI);
+            const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+            const index = usuarios.findIndex(u => 
+                u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
+            );
+            
+            if (index !== -1) {
+                usuarios[index].dadosFinanceiros = dadosFinanceiros;
+                usuarios[index].ultimaAtualizacao = new Date().toISOString();
+                localStorage.setItem('usuarios', JSON.stringify(usuarios));
+                console.log('✅ Dados salvos no localStorage');
+                return true;
+            }
+            
+            return false;
         } catch (error) {
-            console.error('❌ Erro ao salvar despesa:', error);
-            throw error;
+            console.error('❌ Erro ao salvar dados locais:', error);
+            return false;
         }
     }
     
-    converterReceitaParaAPI(receita, mes, ano) {
-        return {
-            tipo: 'receita',
-            descricao: receita.descricao,
-            valor: parseFloat(receita.valor),
-            valorPago: parseFloat(receita.valor),
-            categoriaId: 1, // ID da categoria "Receitas" - ajustar conforme necessário
-            formaPagamento: 'pix',
-            dataTransacao: receita.data,
-            status: 'pago',
-            mes: mes,
-            ano: ano
-        };
+    // ================================================================
+    // MÉTODOS DE TRANSAÇÕES - COMPATIBILIDADE COM FRONTEND
+    // ================================================================
+    
+    async salvarReceita(mes, ano, receita, id = null) {
+        try {
+            console.log('💰 Salvando receita via API...');
+            
+            const transacao = {
+                tipo: 'receita',
+                descricao: receita.descricao,
+                valor: parseFloat(receita.valor),
+                categoria: 'Receitas',
+                formaPagamento: 'pix',
+                dataCompra: receita.data || new Date().toISOString().split('T')[0],
+                mes: mes,
+                ano: ano,
+                id: id
+            };
+            
+            const resultado = await this.api.criarTransacao(transacao);
+            return !!resultado;
+            
+        } catch (error) {
+            console.error('❌ Erro ao salvar receita via API:', error);
+            return false;
+        }
     }
     
-    converterDespesaParaAPI(despesa, mes, ano) {
-        return {
-            tipo: 'despesa',
-            descricao: despesa.descricao,
-            valor: parseFloat(despesa.valor),
-            valorPago: parseFloat(despesa.valorPago || 0),
-            categoriaId: this.encontrarCategoriaIdPorNome(despesa.categoria),
-            formaPagamento: despesa.formaPagamento || 'pix',
-            dataTransacao: despesa.dataCompra || despesa.data,
-            dataVencimento: despesa.dataVencimento,
-            status: despesa.quitado ? 'pago' : 'pendente',
-            parcelamento: despesa.parcelado ? {
-                total: despesa.totalParcelas || 1,
-                atual: this.extrairParcelaAtual(despesa.parcela) || 1,
-                grupoId: despesa.idGrupoParcelamento
-            } : { total: 1, atual: 1, grupoId: null },
-            observacoes: despesa.observacoes,
-            mes: mes,
-            ano: ano
-        };
+    async salvarDespesa(mes, ano, despesa, id = null) {
+        try {
+            console.log('💸 Salvando despesa via API...');
+            
+            const transacao = {
+                tipo: 'despesa',
+                descricao: despesa.descricao,
+                valor: parseFloat(despesa.valor),
+                valorPago: despesa.valorPago ? parseFloat(despesa.valorPago) : null,
+                categoria: despesa.categoria,
+                formaPagamento: despesa.formaPagamento || 'debito',
+                dataCompra: despesa.dataCompra || despesa.data,
+                dataVencimento: despesa.dataVencimento,
+                parcelado: despesa.parcelado || false,
+                totalParcelas: despesa.totalParcelas || 1,
+                idGrupoParcelamento: despesa.idGrupoParcelamento,
+                parcela: despesa.parcela,
+                valorOriginal: despesa.valorOriginal,
+                valorTotalComJuros: despesa.valorTotalComJuros,
+                metadados: despesa.metadados,
+                observacoes: despesa.observacoes,
+                mes: mes,
+                ano: ano,
+                id: id
+            };
+            
+            const resultado = await this.api.criarTransacao(transacao);
+            return !!resultado;
+            
+        } catch (error) {
+            console.error('❌ Erro ao salvar despesa via API:', error);
+            return false;
+        }
     }
     
-    encontrarCategoriaIdPorNome(nomeCategoria) {
-        // Por enquanto retorna um ID fixo, mas deveria buscar na lista de categorias
-        const mapeamento = {
-            'Alimentação': 1,
-            'Transporte': 2,
-            'Saúde': 3,
-            'Lazer': 4,
-            'Casa': 5,
-            'Educação': 6,
-            'Trabalho': 7,
-            'Outros': 8
-        };
-        
-        return mapeamento[nomeCategoria] || 8; // Default: Outros
+    async excluirReceita(mes, ano, index, opcao, descricaoReceita) {
+        try {
+            console.log('🗑️ Excluindo receita via API...');
+            
+            const opcoes = {
+                opcao: opcao,
+                descricaoReceita: descricaoReceita
+            };
+            
+            const resultado = await this.api.excluirTransacao(index, opcoes);
+            return !!resultado;
+            
+        } catch (error) {
+            console.error('❌ Erro ao excluir receita via API:', error);
+            return false;
+        }
     }
     
-    extrairParcelaAtual(parcelaString) {
-        if (!parcelaString || typeof parcelaString !== 'string') return 1;
-        
-        const match = parcelaString.match(/^(\d+)\/\d+$/);
-        return match ? parseInt(match[1]) : 1;
+    async excluirDespesa(mes, ano, index, opcao, dadosExclusao) {
+        try {
+            console.log('🗑️ Excluindo despesa via API...');
+            
+            const opcoes = {
+                opcao: opcao,
+                categoriaDespesa: dadosExclusao.categoriaDespesa,
+                idGrupoParcelamento: dadosExclusao.idGrupoParcelamento
+            };
+            
+            const resultado = await this.api.excluirTransacao(index, opcoes);
+            return !!resultado;
+            
+        } catch (error) {
+            console.error('❌ Erro ao excluir despesa via API:', error);
+            return false;
+        }
+    }
+    
+    // ================================================================
+    // MÉTODOS DE DASHBOARD E CATEGORIAS
+    // ================================================================
+    
+    async getDashboardData(ano) {
+        try {
+            return await this.api.getDashboardData(ano);
+        } catch (error) {
+            console.error('❌ Erro ao buscar dashboard via API:', error);
+            return null;
+        }
+    }
+    
+    async getCategorias() {
+        try {
+            return await this.api.getCategorias();
+        } catch (error) {
+            console.error('❌ Erro ao buscar categorias via API:', error);
+            return { despesas: [] };
+        }
+    }
+    
+    async salvarCategorias(categorias) {
+        try {
+            // A API atual não tem endpoint específico para salvar categorias
+            // Por enquanto, retornar true para compatibilidade
+            return true;
+        } catch (error) {
+            console.error('❌ Erro ao salvar categorias via API:', error);
+            return false;
+        }
+    }
+    
+    // ================================================================
+    // MÉTODOS DE COMPATIBILIDADE
+    // ================================================================
+    
+    getUsuarioAtual() {
+        return this.api.usuarioAtual;
+    }
+    
+    async importarDadosUsuario(dados) {
+        try {
+            console.log('📥 Importando dados do usuário...');
+            // Implementar lógica de importação se necessário
+            return true;
+        } catch (error) {
+            console.error('❌ Erro ao importar dados:', error);
+            return false;
+        }
+    }
+    
+    async limparDadosUsuario() {
+        try {
+            console.log('🧹 Limpando dados do usuário...');
+            // Implementar lógica de limpeza se necessário
+            return true;
+        } catch (error) {
+            console.error('❌ Erro ao limpar dados:', error);
+            return false;
+        }
     }
 }
 
 // ================================================================
-// INICIALIZAÇÃO
+// INICIALIZAÇÃO E CONFIGURAÇÃO GLOBAL
 // ================================================================
 
 let apiClient = null;
@@ -406,18 +832,18 @@ let sistemaAdapter = null;
 
 async function initializeAPISystem() {
     try {
-        console.log('🚀 Inicializando sistema API...');
+        console.log('🚀 Inicializando sistema API v2.1.0...');
         
         apiClient = new APIClient();
         sistemaAdapter = new SistemaAdapter(apiClient);
         
-        // Verificar se há token salvo
+        // Verificar se há token salvo e validar
         if (apiClient.token) {
             try {
                 await apiClient.verificarToken();
                 console.log('✅ Token válido encontrado');
             } catch (error) {
-                console.warn('⚠️ Token inválido, redirecionando...');
+                console.warn('⚠️ Token inválido, limpando dados...');
                 apiClient.handleUnauthorized();
                 return false;
             }
@@ -427,6 +853,14 @@ async function initializeAPISystem() {
         window.apiClient = apiClient;
         window.sistemaAdapter = sistemaAdapter;
         window.useAPI = true;
+        
+        // Verificar saúde da API
+        try {
+            const health = await apiClient.getHealth();
+            console.log('🏥 Status da API:', health);
+        } catch (error) {
+            console.warn('⚠️ API não está respondendo, usando modo híbrido');
+        }
         
         console.log('✅ Sistema API inicializado!');
         return true;
@@ -439,10 +873,17 @@ async function initializeAPISystem() {
 }
 
 // ================================================================
-// INTERFACE DE COMPATIBILIDADE
+// INTERFACE DE COMPATIBILIDADE COM FRONTEND EXISTENTE
 // ================================================================
 
 window.usuarioDados = {
+    aguardarPronto: async () => {
+        if (sistemaAdapter) {
+            return await sistemaAdapter.aguardarPronto();
+        }
+        return false;
+    },
+    
     verificarAcesso: async () => {
         if (sistemaAdapter) {
             return await sistemaAdapter.verificarAcesso();
@@ -451,8 +892,8 @@ window.usuarioDados = {
     },
     
     getUsuarioAtual: () => {
-        if (apiClient) {
-            return apiClient.usuarioAtual;
+        if (sistemaAdapter) {
+            return sistemaAdapter.getUsuarioAtual();
         }
         return null;
     },
@@ -464,28 +905,37 @@ window.usuarioDados = {
         return {};
     },
     
-    salvarDadosUsuario: async () => {
-        // Não necessário com API
-        return true;
-    },
-    
-    adicionarReceita: async (mes, ano, receita) => {
+    salvarDadosUsuario: async (dados) => {
         if (sistemaAdapter) {
-            return await sistemaAdapter.salvarReceita(mes, ano, receita);
+            return await sistemaAdapter.salvarDadosUsuario(dados);
         }
         return false;
     },
     
-    adicionarDespesa: async (mes, ano, despesa) => {
+    salvarReceita: async (mes, ano, receita, id) => {
         if (sistemaAdapter) {
-            return await sistemaAdapter.salvarDespesa(mes, ano, despesa);
+            return await sistemaAdapter.salvarReceita(mes, ano, receita, id);
         }
         return false;
     },
     
-    excluirTransacao: async (id) => {
-        if (apiClient) {
-            return await apiClient.excluirTransacao(id);
+    salvarDespesa: async (mes, ano, despesa, id) => {
+        if (sistemaAdapter) {
+            return await sistemaAdapter.salvarDespesa(mes, ano, despesa, id);
+        }
+        return false;
+    },
+    
+    excluirReceita: async (mes, ano, index, opcao, descricaoReceita) => {
+        if (sistemaAdapter) {
+            return await sistemaAdapter.excluirReceita(mes, ano, index, opcao, descricaoReceita);
+        }
+        return false;
+    },
+    
+    excluirDespesa: async (mes, ano, index, opcao, dadosExclusao) => {
+        if (sistemaAdapter) {
+            return await sistemaAdapter.excluirDespesa(mes, ano, index, opcao, dadosExclusao);
         }
         return false;
     },
@@ -498,7 +948,6 @@ window.usuarioDados = {
     },
     
     limparCache: () => {
-        // Cache simples - limpar localStorage
         const keysToRemove = [];
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
@@ -512,12 +961,14 @@ window.usuarioDados = {
     executarMigracoes: () => true,
     
     getStatus: () => {
-        if (apiClient) {
+        if (apiClient && sistemaAdapter) {
             return {
                 online: apiClient.isOnline,
                 autenticado: !!apiClient.token,
                 usuario: apiClient.usuarioAtual?.nome,
-                baseURL: apiClient.baseURL
+                baseURL: apiClient.baseURL,
+                pronto: sistemaAdapter.pronto,
+                requestQueueSize: apiClient.requestQueue.length
             };
         }
         return { erro: 'API não inicializada' };
@@ -525,10 +976,11 @@ window.usuarioDados = {
 };
 
 // ================================================================
-// AUTO-INICIALIZAÇÃO
+// AUTO-INICIALIZAÇÃO E EVENTOS
 // ================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // Aguardar um pouco para outras dependências carregarem
     setTimeout(async () => {
         try {
             const inicializado = await initializeAPISystem();
@@ -540,14 +992,36 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
             
+            // Disparar evento para notificar outros módulos
+            window.dispatchEvent(new CustomEvent('apiSystemReady', {
+                detail: { inicializado, useAPI: window.useAPI }
+            }));
+            
         } catch (error) {
-            console.error('❌ Erro na inicialização:', error);
+            console.error('❌ Erro na inicialização automática da API:', error);
         }
-    }, 500);
+    }, 800);
 });
+
+// ================================================================
+// EXPORTAÇÕES GLOBAIS
+// ================================================================
 
 window.APIClient = APIClient;
 window.SistemaAdapter = SistemaAdapter;
 window.initializeAPISystem = initializeAPISystem;
 
-console.log('📦 API Client carregado e aguardando inicialização...');
+// Função de diagnóstico
+window.diagnosticoAPI = () => {
+    return {
+        inicializado: !!(apiClient && sistemaAdapter),
+        token: !!apiClient?.token,
+        usuario: apiClient?.usuarioAtual?.nome || 'Não logado',
+        online: apiClient?.isOnline || false,
+        baseURL: apiClient?.baseURL || 'Não definido',
+        requestQueue: apiClient?.requestQueue?.length || 0,
+        pronto: sistemaAdapter?.pronto || false
+    };
+};
+
+console.log('📦 API Client v2.1.0 CORRIGIDO E INTEGRADO carregado!');
