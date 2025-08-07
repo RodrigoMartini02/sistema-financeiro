@@ -16,11 +16,11 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
-            scriptSrc: ["'self'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
             imgSrc: ["'self'", "data:", "https:"],
             connectSrc: ["'self'"],
-            fontSrc: ["'self'", "https://cdnjs.cloudflare.com"],
+            fontSrc: ["'self'", "https://cdnjs.cloudflare.com", "https://fonts.gstatic.com"],
             objectSrc: ["'none'"],
             mediaSrc: ["'self'"],
             frameSrc: ["'none'"],
@@ -30,12 +30,13 @@ app.use(helmet({
 }));
 
 app.use(cors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:5500', 'http://localhost:5500', process.env.FRONTEND_URL],
+    origin: ['http://localhost:3000', 'http://127.0.0.1:5500', 'http://localhost:5500', 'http://localhost:5000', process.env.FRONTEND_URL],
     credentials: true
 }));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.static('.'));
 
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -50,15 +51,9 @@ const authLimiter = rateLimit({
     message: { error: 'Muitas tentativas de login. Tente novamente em 15 minutos.' }
 });
 
-const sequelize = new Sequelize(process.env.DATABASE_URL, {
-    dialect: 'postgres',
-    protocol: 'postgres',
-    dialectOptions: {
-        ssl: process.env.NODE_ENV === 'production' ? {
-            require: true,
-            rejectUnauthorized: false
-        } : false
-    },
+const sequelize = new Sequelize({
+    dialect: 'sqlite',
+    storage: './sistema_financeiro.db',
     logging: false,
     define: {
         timestamps: true,
@@ -674,7 +669,7 @@ app.get('/api/health', (req, res) => {
         status: 'OK',
         timestamp: new Date().toISOString(),
         version: '1.0.0',
-        database: 'PostgreSQL',
+        database: 'SQLite',
         uptime: process.uptime()
     });
 });
@@ -684,7 +679,7 @@ app.get('/', (req, res) => {
         message: 'Sistema Financeiro API',
         version: '1.0.0',
         status: 'running',
-        database: 'PostgreSQL'
+        database: 'SQLite'
     });
 });
 
