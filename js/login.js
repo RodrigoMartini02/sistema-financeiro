@@ -12,7 +12,7 @@ const EMAIL_CONFIG = {
     userId: 'oW3fgPbnchMKc42Yf'
 };
 
-const API_URL = 'http://localhost:3100/api';
+const API_URL = 'http://localhost:3200/api';
 
 function inicializarSistemaLoginRapido() {
     try {
