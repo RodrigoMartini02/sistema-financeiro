@@ -1,7 +1,26 @@
 // ================================================================
 // SISTEMA PRINCIPAL - MAIN.JS OTIMIZADO
 // ================================================================
+// Se o sistema estiver rodando no Render, use a URL do Render. 
+// Caso contrário, use o localhost (para quando você estiver testando no PC).
+// Define onde o servidor está (Render ou Local)
+const API_URL = window.location.hostname === 'localhost' 
+    ? 'http://localhost:3000/api' 
+    : 'https://sistema-financeiro-backend.onrender.com/api';
 
+// Função padrão para enviar dados para o servidor
+async function enviarDados(rota, dados) {
+    try {
+        const resposta = await fetch(`${API_URL}${rota}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+        return await resposta.json();
+    } catch (erro) {
+        console.error("Erro na conexão:", erro);
+    }
+}
 // ================================================================
 // VARIÁVEIS GLOBAIS
 // ================================================================

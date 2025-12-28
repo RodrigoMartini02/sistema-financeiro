@@ -1,6 +1,26 @@
 // ================================================================
 // SISTEMA DE LOGIN OTIMIZADO - SEM TEMPORIZADORES DESNECESSÁRIOS
 // ================================================================
+// Exemplo de como seria seu código de login
+const dadosLogin = { email: "teste@teste.com", senha: "123" };
+
+enviarDados('/auth/login', dadosLogin).then(resultado => {
+    if(resultado.success) {
+        window.location.href = 'dashboard.html';
+    } else {
+        alert("Erro ao entrar!");
+    }
+});
+
+
+
+
+
+
+
+
+
+
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Login otimizado carregado - inicialização rápida...');
