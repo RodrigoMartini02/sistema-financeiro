@@ -14,6 +14,8 @@ const pool = new Pool({
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 2000,
+    // ADICIONE ESTAS LINHAS ABAIXO:
+    ssl: process.env.DB_HOST ? { rejectUnauthorized: false } : false
 });
 
 // Teste de conexão
