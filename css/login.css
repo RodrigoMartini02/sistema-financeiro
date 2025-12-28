@@ -1,59 +1,44 @@
-/* =====================================================
- * Sistema de Controle Financeiro - Estilo Moderno
- * Por: Gemini AI
- * ===================================================== */
-
-/* ----------------------------------
- * Variáveis e Configurações Globais
- * ---------------------------------- */
+/* Variáveis CSS para consistência */
 :root {
-    --color-background: #12121c; /* Fundo escuro profundo */
-    --color-primary: #8e44ad; /* Roxo vibrante */
-    --color-secondary: #00c6ff; /* Azul ciano */
-    --color-text-primary: #f0f0f5; /* Texto principal claro */
-    --color-text-secondary: #a8a8b3; /* Texto secundário/placeholder */
-    --color-success: #2ecc71; /* Verde para sucesso */
-    --color-error: #e74c3c; /* Vermelho para erro */
-    --color-white: #ffffff;
-    
-    --font-family: 'Inter', sans-serif;
-    --border-radius-sm: 8px;
-    --border-radius-md: 12px;
-    --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.2);
-    --transition-smooth: all 0.3s ease-in-out;
+    --primary-color: #2563eb;
+    --primary-dark: #1d4ed8;
+    --primary-light: #3b82f6;
+    --secondary-color: #64748b;
+    --success-color: #10b981;
+    --error-color: #ef4444;
+    --warning-color: #f59e0b;
+    --background-color: #f8fafc;
+    --card-background: #ffffff;
+    --text-color: #1e293b;
+    --text-light: #64748b;
+    --border-color: #e2e8f0;
+    --border-radius: 12px;
+    --shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    --shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.15);
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Reset básico e configurações do corpo */
+/* Reset e estilos base */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-html {
-    scroll-behavior: smooth;
-}
-
 body {
-    font-family: var(--font-family);
-    background-color: var(--color-background);
-    color: var(--color-text-primary);
-    overflow-x: hidden;
+    font-family: 'Inter', sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-color);
     line-height: 1.6;
+    overflow-x: hidden;
 }
 
-/* ----------------------------------
- * Seção Hero e Fundo Animado
- * ---------------------------------- */
+/* Hero Section */
 .hero {
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    padding: 2rem;
     position: relative;
-    overflow: hidden;
 }
 
 .hero-background {
@@ -62,257 +47,315 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(135deg, var(--color-background) 0%, #1a1a2e 100%);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
     z-index: -1;
+    overflow: hidden;
 }
 
-.floating-elements .element {
+.floating-elements {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.element {
     position: absolute;
-    display: block;
-    background: linear-gradient(45deg, var(--color-primary), var(--color-secondary));
     border-radius: 50%;
     opacity: 0.15;
-    animation: float 25s infinite linear;
-    bottom: -150px;
+    background: white;
+    animation: float 20s infinite ease-in-out;
+    filter: blur(2px);
 }
 
-.element-1 { width: 80px; height: 80px; left: 25%; animation-duration: 20s; }
-.element-2 { width: 40px; height: 40px; left: 10%; animation-duration: 15s; animation-delay: 2s; }
-.element-3 { width: 120px; height: 120px; left: 70%; animation-duration: 30s; animation-delay: 4s; }
+.element-1 {
+    width: 400px;
+    height: 400px;
+    top: -50px;
+    left: -100px;
+    animation-delay: 0s;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.1));
+}
+
+.element-2 {
+    width: 300px;
+    height: 300px;
+    top: 50%;
+    right: -50px;
+    animation-delay: -7s;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.05));
+}
+
+.element-3 {
+    width: 250px;
+    height: 250px;
+    bottom: -50px;
+    left: 30%;
+    animation-delay: -14s;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.08));
+}
 
 @keyframes float {
-    0% { transform: translateY(0) rotate(0deg); }
-    100% { transform: translateY(-120vh) rotate(720deg); }
+    0%, 100% {
+        transform: translateY(0) translateX(0) scale(1);
+    }
+    25% {
+        transform: translateY(-30px) translateX(20px) scale(1.05);
+    }
+    50% {
+        transform: translateY(0) translateX(40px) scale(1);
+    }
+    75% {
+        transform: translateY(30px) translateX(20px) scale(0.95);
+    }
 }
 
 .hero-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+    text-align: center;
+    color: white;
+    position: relative;
     z-index: 1;
+}
+
+.main-content {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 2.5rem;
-    max-width: 1200px;
-}
-
-/* ----------------------------------
- * Conteúdo Principal e Tipografia
- * ---------------------------------- */
-.main-content {
-    text-align: center;
-    max-width: 700px;
 }
 
 .main-content h1 {
-    font-size: clamp(2.5rem, 5vw, 4rem); /* Tamanho de fonte responsivo */
+    font-size: 4rem;
     font-weight: 800;
-    margin-bottom: 1rem;
-    background: linear-gradient(90deg, var(--color-white), var(--color-secondary));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    text-shadow: 0 0 20px rgba(0, 198, 255, 0.2);
+    margin: 0;
+    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    letter-spacing: -1px;
+    animation: fadeInUp 0.8s ease-out;
 }
 
-.main-content p {
-    font-size: 1.1rem;
-    color: var(--color-text-secondary);
-    max-width: 500px;
-    margin: 0 auto 2rem auto;
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-/* ----------------------------------
- * Grid de Funcionalidades (Features)
- * ---------------------------------- */
-.features-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(260px, 1fr));
-    gap: 1.5rem;
-    width: 100%;
-}
-.feature-card {
-    /* Efeito Glassmorphism */
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    
-    padding: 1.5rem;
-    border-radius: var(--border-radius-md);
-    text-align: left;
-    transition: var(--transition-smooth);
-}
-
-.feature-card:hover {
-    transform: translateY(-8px) scale(1.02);
-    border-color: rgba(0, 198, 255, 0.5);
-    box-shadow: 0 0 25px rgba(0, 198, 255, 0.1);
-}
-
-.feature-icon {
-    margin-bottom: 1rem;
-}
-
-.feature-card h3 {
-    font-size: 1.2rem;
-    margin-bottom: 0.5rem;
-    color: var(--color-text-primary);
-}
-
-.feature-card p {
-    font-size: 0.9rem;
-    color: var(--color-text-secondary);
-    line-height: 1.5;
-}
-
-/* ----------------------------------
- * Botões
- * ---------------------------------- */
 .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.75rem;
-    padding: 0.8rem 1.8rem;
+    padding: 1rem 2.5rem;
     border: none;
-    border-radius: var(--border-radius-sm);
-    font-family: var(--font-family);
+    border-radius: var(--border-radius);
     font-weight: 600;
-    font-size: 1rem;
+    font-size: 1.1rem;
     cursor: pointer;
-    transition: var(--transition-smooth);
+    transition: var(--transition);
     text-decoration: none;
-    color: var(--color-white);
+    gap: 0.75rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.btn:hover::before {
+    width: 300px;
+    height: 300px;
 }
 
 .btn-primary {
-    background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
-    background-size: 200% auto;
+    background-color: white;
+    color: var(--primary-color);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    animation: fadeInUp 0.8s ease-out 0.2s backwards;
 }
 
 .btn-primary:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0 20px rgba(142, 68, 173, 0.5);
-    background-position: right center;
+    background-color: #ffffff;
+    transform: translateY(-3px);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
 }
 
-.btn-login { display: none; } /* Oculto por padrão, visível em desktop */
-#mobile-login-btn { display: block; width: 90%; max-width: 400px; padding: 1rem; }
-
-/* ----------------------------------
- * Modais (Login, Cadastro, etc.)
- * ---------------------------------- */
-.modal {
-    display: none; /* Alterado pelo JS */
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    background-color: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
-    align-items: center;
-    justify-content: center;
-    animation: fadeIn 0.5s ease-in-out;
+.btn-primary:active {
+    transform: translateY(-1px);
 }
 
-.modal-content {
-    /* Efeito Glassmorphism */
-    background: rgba(30, 30, 46, 0.85); /* Fundo do modal um pouco mais sólido */
-    backdrop-filter: blur(15px);
-    -webkit-backdrop-filter: blur(15px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-
-    margin: auto;
-    padding: 2.5rem;
-    border-radius: var(--border-radius-md);
-    width: 90%;
-    max-width: 450px;
-    box-shadow: var(--shadow-lg);
-    position: relative;
-    animation: slideIn 0.5s ease-in-out;
+.btn-mobile {
+    display: none;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes slideIn { from { transform: translateY(30px) scale(0.98); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
-
-.login-close, .cadastro-close, .recuperacao-close, .nova-senha-close {
-    color: var(--color-text-secondary);
-    position: absolute;
-    top: 1rem;
-    right: 1.5rem;
-    font-size: 1.8rem;
-    font-weight: bold;
-    cursor: pointer;
-    transition: var(--transition-smooth);
-}
-.login-close:hover, .cadastro-close:hover, .recuperacao-close:hover, .nova-senha-close:hover {
-    color: var(--color-white);
-    transform: rotate(90deg);
+.btn-mobile:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
 }
 
-.modal-header {
+.hero-footer {
+    padding: 2rem;
     text-align: center;
-    margin-bottom: 2rem;
-}
-
-.modal-icon {
-    font-size: 2.5rem;
-    color: var(--color-secondary);
-    margin-bottom: 1rem;
-}
-
-.modal-header h2 {
-    font-size: 1.8rem;
-    margin-bottom: 0.5rem;
-}
-
-.modal-header p {
-    color: var(--color-text-secondary);
-}
-
-/* ----------------------------------
- * Formulários
- * ---------------------------------- */
-form .form-group {
-    margin-bottom: 1.5rem;
-    position: relative;
-}
-
-form label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-weight: 500;
-    margin-bottom: 0.5rem;
-    color: var(--color-text-secondary);
+    color: rgba(255, 255, 255, 0.9);
     font-size: 0.9rem;
 }
 
-form input[type="text"],
-form input[type="email"],
-form input[type="password"] {
+/* WhatsApp Button */
+#whatsapp-button {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 100;
+}
+
+#whatsapp-button a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 65px;
+    height: 65px;
+    background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+    color: white;
+    border-radius: 50%;
+    box-shadow: 0 8px 25px rgba(37, 211, 102, 0.4);
+    transition: var(--transition);
+    font-size: 1.75rem;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        box-shadow: 0 8px 25px rgba(37, 211, 102, 0.4);
+    }
+    50% {
+        box-shadow: 0 8px 35px rgba(37, 211, 102, 0.6);
+    }
+}
+
+#whatsapp-button a:hover {
+    transform: scale(1.15) rotate(5deg);
+    box-shadow: 0 12px 35px rgba(37, 211, 102, 0.6);
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
     width: 100%;
-    padding: 0.8rem 1rem;
-    background-color: rgba(0, 0, 0, 0.3);
-    border: 1px solid transparent;
-    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
-    border-radius: var(--border-radius-sm);
-    color: var(--color-text-primary);
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.modal-content {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border-radius: 20px;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    max-width: 440px;
+    padding: 2.5rem;
+    position: relative;
+    animation: modalFadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    max-height: 90vh;
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-30px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.login-close, .recuperacao-close, .nova-senha-close, .cadastro-close {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.25rem;
+    font-size: 1.75rem;
+    cursor: pointer;
+    color: var(--text-light);
+    transition: var(--transition);
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: transparent;
+}
+
+.login-close:hover, .recuperacao-close:hover, .nova-senha-close:hover, .cadastro-close:hover {
+    color: var(--error-color);
+    background: rgba(239, 68, 68, 0.1);
+    transform: rotate(90deg);
+}
+
+/* Form Styles */
+.form-group {
+    margin-bottom: 1.75rem;
+}
+
+.form-group label {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+    color: var(--text-color);
+    gap: 0.5rem;
+    font-size: 0.95rem;
+}
+
+.form-group label i {
+    color: var(--primary-color);
+}
+
+.form-group input {
+    width: 100%;
+    padding: 1rem 1.25rem;
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius);
     font-size: 1rem;
-    transition: var(--transition-smooth);
+    transition: var(--transition);
+    background: white;
 }
 
-form input::placeholder {
-    color: var(--color-text-secondary);
-    opacity: 0.7;
-}
-
-form input:focus {
+.form-group input:focus {
     outline: none;
-    border-bottom-color: var(--color-secondary);
-    background-color: rgba(0, 0, 0, 0.4);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+    transform: translateY(-2px);
 }
 
 .password-input {
@@ -326,243 +369,218 @@ form input:focus {
     transform: translateY(-50%);
     background: none;
     border: none;
-    color: var(--color-text-secondary);
+    color: var(--text-light);
     cursor: pointer;
-    transition: var(--transition-smooth);
+    padding: 0.5rem;
+    transition: var(--transition);
+    border-radius: 6px;
 }
 
 .password-toggle:hover {
-    color: var(--color-secondary);
+    color: var(--primary-color);
+    background: rgba(37, 99, 235, 0.1);
 }
 
-/* Checkbox customizado */
-.form-options {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
+.password-strength {
+    margin-top: 0.75rem;
 }
 
+.strength-bar {
+    height: 5px;
+    background-color: var(--border-color);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.strength-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--error-color), var(--success-color));
+    transition: var(--transition);
+    border-radius: 10px;
+}
+
+.strength-text {
+    color: var(--text-light);
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+/* Checkbox Styles */
 .checkbox-label {
     display: flex;
     align-items: center;
     cursor: pointer;
     font-size: 0.9rem;
-    color: var(--color-text-secondary);
-    position: relative;
-    padding-left: 28px; /* Espaço para o checkmark customizado */
+    color: var(--text-color);
+    gap: 0.65rem;
+    font-weight: 500;
 }
 
 .checkbox-label input {
-    position: absolute;
-    opacity: 0;
-    cursor: pointer;
+    display: none;
 }
 
 .checkmark {
-    position: absolute;
-    left: 0;
-    top: 0;
-    height: 20px;
     width: 20px;
-    background-color: rgba(0, 0, 0, 0.3);
-    border-radius: 4px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    transition: var(--transition-smooth);
+    height: 20px;
+    border: 2px solid var(--border-color);
+    border-radius: 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    position: relative;
 }
 
-.checkbox-label:hover .checkmark {
-    border-color: var(--color-secondary);
+.checkbox-label input:checked + .checkmark {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    border-color: var(--primary-color);
+    transform: scale(1.1);
 }
 
-.checkbox-label input:checked ~ .checkmark {
-    background-color: var(--color-secondary);
-    border-color: var(--color-secondary);
-}
-
-.checkmark:after {
+.checkbox-label input:checked + .checkmark::after {
     content: "";
-    position: absolute;
-    display: none;
-    left: 6px;
-    top: 2px;
     width: 5px;
     height: 10px;
     border: solid white;
-    border-width: 0 3px 3px 0;
+    border-width: 0 2.5px 2.5px 0;
     transform: rotate(45deg);
+    position: absolute;
 }
 
-.checkbox-label input:checked ~ .checkmark:after {
-    display: block;
-}
-
-/* Password Strength */
-.password-strength {
-    margin-top: 0.5rem;
-}
-.strength-bar {
-    width: 100%;
-    height: 5px;
-    background-color: rgba(0, 0, 0, 0.3);
-    border-radius: 5px;
-    overflow: hidden;
-}
-.strength-fill {
-    height: 100%;
-    width: 0;
-    border-radius: 5px;
-    transition: width 0.3s ease, background-color 0.3s ease;
-}
-.strength-text {
-    font-size: 0.8rem;
-    color: var(--color-text-secondary);
-    margin-top: 0.3rem;
-    display: block;
-}
-
-/* ----------------------------------
- * Mensagens de Erro e Sucesso
- * ---------------------------------- */
+/* Message Styles */
 .error-message, .success-message {
-    display: none; /* Alterado por JS */
-    padding: 0.8rem 1rem;
+    padding: 1rem 1.25rem;
+    border-radius: var(--border-radius);
     margin-bottom: 1.5rem;
-    border-radius: var(--border-radius-sm);
-    font-weight: 500;
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    animation: fadeIn 0.3s;
+    font-size: 0.9rem;
+    font-weight: 500;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 .error-message {
-    background-color: rgba(231, 76, 60, 0.2);
-    color: var(--color-error);
-    border: 1px solid var(--color-error);
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05));
+    color: var(--error-color);
+    border: 2px solid rgba(239, 68, 68, 0.3);
 }
 
 .success-message {
-    background-color: rgba(46, 204, 113, 0.2);
-    color: var(--color-success);
-    border: 1px solid var(--color-success);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05));
+    color: var(--success-color);
+    border: 2px solid rgba(16, 185, 129, 0.3);
 }
 
-/* ----------------------------------
- * Footer e Links
- * ---------------------------------- */
-.hero-footer {
-    position: absolute;
-    bottom: 1.5rem;
-    font-size: 0.9rem;
-    color: var(--color-text-secondary);
-    opacity: 0.7;
+/* Form Options and Footer */
+.form-options {
+    margin-bottom: 1.75rem;
 }
 
 .login-footer {
-    text-align: center;
     margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid var(--border-color);
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--text-light);
 }
 
 .login-footer p {
-    color: var(--color-text-secondary);
-    font-size: 0.9rem;
+    margin: 0.5rem 0;
 }
 
 .login-footer a {
-    color: var(--color-secondary);
+    color: var(--primary-color);
     text-decoration: none;
+    transition: var(--transition);
     font-weight: 600;
-    transition: var(--transition-smooth);
 }
 
 .login-footer a:hover {
+    color: var(--primary-dark);
     text-decoration: underline;
-    filter: brightness(1.2);
 }
 
-/* ----------------------------------
- * Botão WhatsApp
- * ---------------------------------- */
-#whatsapp-button {
-    position: fixed;
-    bottom: 2rem;
-    right: 2rem;
-    z-index: 999;
+/* Button Submit Styles */
+form .btn-primary {
+    width: 100%;
+    padding: 1.1rem;
+    font-size: 1.05rem;
+    margin-top: 0.5rem;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    color: white;
+    border: none;
+    font-weight: 700;
+    letter-spacing: 0.5px;
 }
 
-#whatsapp-button a {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 55px;
-    height: 55px;
-    background-color: #25d366;
-    color: var(--color-white);
-    border-radius: 50%;
-    font-size: 2rem;
-    text-decoration: none;
-    box-shadow: var(--shadow-lg);
-    transition: var(--transition-smooth);
+form .btn-primary:hover {
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
+    transform: translateY(-2px);
 }
 
-#whatsapp-button a:hover {
-    transform: scale(1.1) rotate(15deg);
-    background-color: #128c7e;
-}
-
-#whatsapp-button .tooltip {
-    visibility: hidden;
-    width: 120px;
-    background-color: #12121c;
-    color: #fff;
-    text-align: center;
-    border-radius: 6px;
-    padding: 5px 0;
-    position: absolute;
-    z-index: 1;
-    bottom: 125%;
-    left: 50%;
-    margin-left: -60px;
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-
-#whatsapp-button:hover .tooltip {
-    visibility: visible;
-    opacity: 1;
-}
-
-/* ----------------------------------
- * Responsividade
- * ---------------------------------- */
-@media (min-width: 769px) {
-    .btn-login {
-        display: inline-flex;
+/* Responsive Design */
+@media (max-width: 768px) {
+    .main-content h1 {
+        font-size: 3rem;
     }
-    #mobile-login-btn {
+    
+    .btn-login {
         display: none;
     }
-}
-
-@media (max-width: 768px) {
-    .hero-content {
-        gap: 2rem;
+    
+    .btn-mobile {
+        display: inline-flex;
     }
-    .features-grid {
-        grid-template-columns: 1fr;
-    }
-    .main-content {
-        margin-bottom: 0;
+    
+    .modal-content {
+        padding: 2rem;
+        border-radius: 16px;
     }
 }
 
 @media (max-width: 480px) {
-    .modal-content {
-        padding: 2rem 1.5rem;
+    .main-content h1 {
+        font-size: 2.25rem;
     }
+    
+    .hero-content {
+        padding: 1.5rem;
+    }
+    
+    .modal-content {
+        padding: 1.75rem;
+        max-width: 95%;
+    }
+    
     #whatsapp-button {
-        bottom: 1rem;
-        right: 1rem;
+        bottom: 1.5rem;
+        right: 1.5rem;
+    }
+    
+    #whatsapp-button a {
+        width: 55px;
+        height: 55px;
+        font-size: 1.5rem;
+    }
+    
+    .btn {
+        padding: 0.9rem 2rem;
+        font-size: 1rem;
     }
 }

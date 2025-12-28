@@ -1,25 +1,18 @@
 // ================================================================
-// SISTEMA DE LOGIN INTEGRADO - VERSÃO FINAL CORRIGIDA
-// Compatível com main.js e usuarioDados.js corrigidos
+// SISTEMA DE LOGIN OTIMIZADO - SEM TEMPORIZADORES DESNECESSÁRIOS
 // ================================================================
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('📦 Login.js carregado - iniciando sistema...');
-    inicializarSistemaLogin().catch(error => {
-        console.error('❌ Erro crítico na inicialização do login:', error);
-        alert('Erro ao inicializar sistema. Por favor, recarregue a página.');
-    });
+    console.log('Login otimizado carregado - inicialização rápida...');
+    inicializarSistemaLoginRapido();
 });
 
 // ================================================================
-// VARIÁVEIS GLOBAIS E ESTADO DO SISTEMA
+// VARIÁVEIS GLOBAIS
 // ================================================================
 
-let apiClient = null;
-let sistemaAdapter = null; 
-let useAPI = false;
-let sistemaLoginInicializado = false;
-let emailJSCarregado = false;
+let elementos = {};
+let emailJSDisponivel = false;
 
 const EMAIL_CONFIG = {
     serviceId: 'service_financas',
@@ -28,203 +21,624 @@ const EMAIL_CONFIG = {
 };
 
 // ================================================================
-// AGUARDAR DEPENDÊNCIAS E INICIALIZAÇÃO COORDENADA
+// INICIALIZAÇÃO RÁPIDA - SEM AGUARDOS
 // ================================================================
 
-async function aguardarDependenciasLogin() {
-    console.log('⏳ Aguardando dependências para login...');
-    
-    return new Promise((resolve) => {
-        let tentativas = 0;
-        const maxTentativas = 30; // 6 segundos
+function inicializarSistemaLoginRapido() {
+    try {
+        console.log('Inicialização imediata do login...');
         
-        function verificarDependencias() {
-            tentativas++;
+        // Teste básico de localStorage
+        if (!testLocalStorage()) {
+            alert("Seu navegador tem o armazenamento local desativado. Por favor, ative-o nas configurações.");
+            return;
+        }
+        
+        // Obter elementos e configurar sistema imediatamente
+        elementos = obterElementosDOM();
+        configurarSistemaCompleto();
+        
+        // Carregar dependências opcionais em background
+        carregarDependenciasBackground();
+        
+        window.loginSistemaInicializado = true;
+        console.log('Login pronto para uso');
+        
+    } catch (error) {
+        console.error('Erro na inicialização:', error);
+        configurarLoginMinimo();
+    }
+}
+
+function configurarSistemaCompleto() {
+    // Inicializar estrutura de dados se necessário
+    if (!localStorage.getItem('usuarios')) {
+        localStorage.setItem('usuarios', JSON.stringify([]));
+    }
+    
+    // Configurar todos os eventos
+    configurarEventListenersLogin();
+    configurarEventListenersCadastro();
+    configurarEventListenersRecuperacao();
+    configurarNavegacaoModais();
+    configurarFechamentoModais();
+    configurarLimpezaMensagens();
+    configurarFormatacaoDocumentos();
+    inicializarModais();
+}
+
+function carregarDependenciasBackground() {
+    // EmailJS em background (não bloqueia login)
+    if (!window.emailjs) {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';
+        script.onload = () => {
+            try {
+                emailjs.init(EMAIL_CONFIG.userId);
+                emailJSDisponivel = true;
+                console.log('EmailJS carregado');
+            } catch (e) {
+                console.warn('EmailJS erro:', e);
+            }
+        };
+        script.onerror = () => console.warn('EmailJS falhou');
+        document.head.appendChild(script);
+    } else {
+        emailJSDisponivel = true;
+    }
+    
+    // UsuarioDados se disponível
+    if (window.usuarioDados && typeof window.usuarioDados.aguardarPronto === 'function') {
+        window.usuarioDados.aguardarPronto().then(() => {
+            console.log('UsuarioDados integrado');
+        });
+    }
+    
+    // Limpeza automática
+    verificarELimparDados();
+}
+
+// ================================================================
+// CONFIGURAÇÃO DE EVENTOS DE LOGIN
+// ================================================================
+
+function configurarEventListenersLogin() {
+    // Login principal
+    if (elementos.loginForm) {
+        elementos.loginForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const documento = document.getElementById('documento')?.value?.trim();
+            const password = document.getElementById('password')?.value?.trim();
             
-            // Verificar se as APIs globais estão disponíveis
-            const apiDisponivel = window.apiClient && window.sistemaAdapter;
-            const mainInicializado = window.sistemaInicializado === true;
-            const usuarioDadosDisponivel = window.usuarioDados && typeof window.usuarioDados.aguardarPronto === 'function';
+            if (documento && password) {
+                await processarLogin(documento, password, false);
+            }
+        });
+    }
+    
+    // Login modal
+    if (elementos.modalLoginForm) {
+        elementos.modalLoginForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const documento = document.getElementById('modal-documento')?.value?.trim();
+            const password = document.getElementById('modal-password')?.value?.trim();
             
-            if (apiDisponivel || mainInicializado || usuarioDadosDisponivel) {
-                console.log('✅ Dependências encontradas:', {
-                    api: !!apiDisponivel,
-                    main: !!mainInicializado, 
-                    usuarioDados: !!usuarioDadosDisponivel,
-                    tentativas
-                });
-                resolve(true);
-            } else if (tentativas >= maxTentativas) {
-                console.warn('⚠️ Timeout aguardando dependências, continuando...');
-                resolve(false);
+            if (documento && password) {
+                await processarLogin(documento, password, true);
+            }
+        });
+    }
+}
+
+function configurarEventListenersCadastro() {
+    if (elementos.formCadastro) {
+        elementos.formCadastro.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await processarFormularioCadastro();
+        });
+    }
+}
+
+function configurarEventListenersRecuperacao() {
+    if (elementos.formRecuperacao) {
+        elementos.formRecuperacao.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await processarRecuperacaoSenha();
+        });
+    }
+    
+    if (elementos.formNovaSenha) {
+        elementos.formNovaSenha.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await processarNovaSenha();
+        });
+    }
+}
+
+// ================================================================
+// PROCESSO DE LOGIN OTIMIZADO
+// ================================================================
+
+async function processarLogin(documento, password, isModal) {
+    console.log('Processando login...');
+    
+    const errorElement = isModal ? elementos.modalErrorMessage : elementos.errorMessage;
+    const botaoSubmit = isModal ? 
+        document.querySelector('#modal-login-form button[type="submit"]') :
+        document.querySelector('#login-form button[type="submit"]');
+    
+    if (errorElement) errorElement.style.display = 'none';
+    setLoadingState(botaoSubmit, true);
+    
+    try {
+        // Validação direta e rápida
+        const loginValido = validarLoginRapido(documento, password);
+        
+        if (loginValido) {
+            const docLimpo = documento.replace(/[^\d]+/g, '');
+            
+            // Salvar sessão
+            sessionStorage.setItem('usuarioAtual', docLimpo);
+            salvarDadosUsuarioSessao(docLimpo);
+            
+            // Registrar tentativa em background
+            registrarTentativaBackground(documento, true);
+            
+            // Redirecionamento imediato
+            window.location.href = 'index.html';
+            
+        } else {
+            mostrarErroLogin(errorElement, 'Documento ou senha incorretos');
+            registrarTentativaBackground(documento, false);
+            
+            // Limpar senha
+            const passwordField = isModal ? 
+                document.getElementById('modal-password') : 
+                document.getElementById('password');
+            if (passwordField) passwordField.value = '';
+        }
+        
+    } catch (error) {
+        console.error('Erro durante login:', error);
+        mostrarErroLogin(errorElement, error.message || 'Erro no sistema. Tente novamente.');
+    } finally {
+        setLoadingState(botaoSubmit, false);
+    }
+}
+
+function validarLoginRapido(documento, password) {
+    const docLimpo = documento.replace(/[^\d]+/g, '');
+    
+    // Verificar bloqueio simples
+    const bloqueio = verificarBloqueio(documento);
+    if (bloqueio.bloqueado) {
+        throw new Error(`Conta bloqueada. Aguarde ${bloqueio.tempoRestante} minutos.`);
+    }
+    
+    // Validação direta
+    const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+    const usuario = usuarios.find(u => 
+        u.documento && 
+        u.documento.replace(/[^\d]+/g, '') === docLimpo && 
+        u.password === password
+    );
+    
+    return !!usuario;
+}
+
+function salvarDadosUsuarioSessao(docLimpo) {
+    try {
+        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+        const usuario = usuarios.find(u => 
+            u.documento && u.documento.replace(/[^\d]+/g, '') === docLimpo
+        );
+        
+        if (usuario) {
+            sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify(usuario));
+        }
+    } catch (error) {
+        console.warn('Erro ao salvar dados da sessão:', error);
+    }
+}
+
+// ================================================================
+// CADASTRO
+// ================================================================
+
+async function processarFormularioCadastro() {
+    const nome = document.getElementById('cadastro-nome')?.value?.trim();
+    const email = document.getElementById('cadastro-email')?.value?.trim();
+    const documento = document.getElementById('cadastro-documento')?.value?.trim();
+    const password = document.getElementById('cadastro-password')?.value?.trim();
+    const confirmPassword = document.getElementById('cadastro-confirm-password')?.value?.trim();
+    const botaoSubmit = elementos.formCadastro?.querySelector('button[type="submit"]');
+    
+    // Limpar mensagens
+    if (elementos.cadastroErrorMessage) elementos.cadastroErrorMessage.style.display = 'none';
+    if (elementos.cadastroSuccessMessage) elementos.cadastroSuccessMessage.style.display = 'none';
+    
+    // Validações
+    if (!nome || !email || !documento || !password) {
+        mostrarErroCadastro('Todos os campos são obrigatórios');
+        return;
+    }
+    
+    if (password !== confirmPassword) {
+        mostrarErroCadastro('As senhas não coincidem');
+        return;
+    }
+    
+    if (password.length < 6) {
+        mostrarErroCadastro('A senha deve ter pelo menos 6 caracteres');
+        return;
+    }
+    
+    if (!validarDocumento(documento)) {
+        mostrarErroCadastro('CPF/CNPJ inválido');
+        return;
+    }
+    
+    setLoadingState(botaoSubmit, true);
+    
+    try {
+        const resultado = await processarCadastro(nome, email, documento, password);
+        
+        if (elementos.cadastroSuccessMessage) {
+            elementos.cadastroSuccessMessage.textContent = 'Cadastro realizado com sucesso!';
+            elementos.cadastroSuccessMessage.style.display = 'block';
+        }
+        
+        if (elementos.formCadastro) elementos.formCadastro.reset();
+        
+        // Redirecionamento rápido
+        setTimeout(() => {
+            if (elementos.cadastroModal) elementos.cadastroModal.style.display = 'none';
+            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
+        }, 2000);
+        
+    } catch (error) {
+        mostrarErroCadastro(error.message || 'Erro ao criar conta.');
+    } finally {
+        setLoadingState(botaoSubmit, false);
+    }
+}
+
+async function processarCadastro(nome, email, documento, password) {
+    const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+    const docLimpo = documento.replace(/[^\d]+/g, '');
+    
+    // Verificar se já existe
+    const jaExiste = usuarios.some(u => 
+        u.email.toLowerCase() === email.toLowerCase() || 
+        (u.documento && u.documento.replace(/[^\d]+/g, '') === docLimpo)
+    );
+    
+    if (jaExiste) {
+        throw new Error('Usuário já existe com este email ou documento');
+    }
+    
+    const novoUsuario = {
+        nome,
+        email,
+        documento,
+        password,
+        dataCadastro: new Date().toISOString(),
+        dadosFinanceiros: criarEstruturaFinanceiraInicial()
+    };
+    
+    usuarios.push(novoUsuario);
+    localStorage.setItem('usuarios', JSON.stringify(usuarios));
+    
+    return { success: true, data: novoUsuario };
+}
+
+function criarEstruturaFinanceiraInicial() {
+    const anoAtual = new Date().getFullYear();
+    const estrutura = {};
+    
+    estrutura[anoAtual] = { meses: [] };
+    for (let i = 0; i < 12; i++) {
+        estrutura[anoAtual].meses[i] = {
+            receitas: [],
+            despesas: [],
+            fechado: false,
+            saldoAnterior: 0,
+            saldoFinal: 0
+        };
+    }
+    
+    return estrutura;
+}
+
+// ================================================================
+// RECUPERAÇÃO DE SENHA
+// ================================================================
+
+async function processarRecuperacaoSenha() {
+    const email = document.getElementById('recuperacao-email')?.value?.trim();
+    const codigo = document.getElementById('codigo-recuperacao')?.value?.trim();
+    const botaoSubmit = elementos.formRecuperacao?.querySelector('button[type="submit"]');
+    
+    if (elementos.recuperacaoErrorMessage) elementos.recuperacaoErrorMessage.style.display = 'none';
+    if (elementos.recuperacaoSuccessMessage) elementos.recuperacaoSuccessMessage.style.display = 'none';
+    
+    if (!email) {
+        mostrarErroRecuperacao('Por favor, informe seu email');
+        return;
+    }
+    
+    setLoadingState(botaoSubmit, true);
+    
+    try {
+        if (!codigo) {
+            // Enviar código
+            const usuario = obterUsuarioPorEmail(email);
+            if (!usuario) {
+                mostrarErroRecuperacao('Email não encontrado');
+                return;
+            }
+            
+            if (!emailJSDisponivel) {
+                mostrarErroRecuperacao('Serviço de email temporariamente indisponível');
+                return;
+            }
+            
+            const codigoGerado = gerarCodigoRecuperacao();
+            salvarCodigoRecuperacao(email, codigoGerado);
+            
+            const resultado = await enviarEmailRecuperacao(email, codigoGerado, usuario.nome);
+            
+            if (resultado.success) {
+                if (elementos.recuperacaoSuccessMessage) {
+                    elementos.recuperacaoSuccessMessage.textContent = 'Código enviado! Verifique seu email.';
+                    elementos.recuperacaoSuccessMessage.style.display = 'block';
+                }
+                
+                const campoCodeContainer = document.getElementById('campo-codigo-container');
+                if (campoCodeContainer) {
+                    campoCodeContainer.style.display = 'block';
+                }
             } else {
-                console.log(`⏳ Aguardando dependências... ${tentativas}/${maxTentativas}`);
-                setTimeout(verificarDependencias, 200);
+                mostrarErroRecuperacao('Erro ao enviar email');
+            }
+            
+        } else {
+            // Verificar código
+            const verificacao = verificarCodigoRecuperacao(email, codigo);
+            
+            if (verificacao.valido) {
+                if (elementos.recuperacaoModal) elementos.recuperacaoModal.style.display = 'none';
+                if (elementos.novaSenhaModal) {
+                    elementos.novaSenhaModal.style.display = 'flex';
+                    const emailField = document.getElementById('email-nova-senha');
+                    if (emailField) emailField.value = email;
+                }
+            } else {
+                mostrarErroRecuperacao(verificacao.motivo || 'Código inválido');
             }
         }
         
-        verificarDependencias();
+    } catch (error) {
+        console.error('Erro na recuperação:', error);
+        mostrarErroRecuperacao('Erro no sistema. Tente novamente.');
+    } finally {
+        setLoadingState(botaoSubmit, false);
+    }
+}
+
+async function processarNovaSenha() {
+    const email = document.getElementById('email-nova-senha')?.value?.trim();
+    const novaSenha = document.getElementById('nova-senha')?.value?.trim();
+    const confirmarSenha = document.getElementById('confirmar-nova-senha')?.value?.trim();
+    const botaoSubmit = elementos.formNovaSenha?.querySelector('button[type="submit"]');
+    
+    if (elementos.novaSenhaErrorMessage) elementos.novaSenhaErrorMessage.style.display = 'none';
+    if (elementos.novaSenhaSuccessMessage) elementos.novaSenhaSuccessMessage.style.display = 'none';
+    
+    // Validações
+    if (!novaSenha || !confirmarSenha) {
+        mostrarErroNovaSenha('Todos os campos são obrigatórios');
+        return;
+    }
+    
+    if (novaSenha !== confirmarSenha) {
+        mostrarErroNovaSenha('As senhas não coincidem');
+        return;
+    }
+    
+    if (novaSenha.length < 6) {
+        mostrarErroNovaSenha('A senha deve ter pelo menos 6 caracteres');
+        return;
+    }
+    
+    setLoadingState(botaoSubmit, true);
+    
+    try {
+        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+        const usuarioIndex = usuarios.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
+        
+        if (usuarioIndex === -1) {
+            mostrarErroNovaSenha('Usuário não encontrado');
+            return;
+        }
+        
+        usuarios[usuarioIndex].password = novaSenha;
+        localStorage.setItem('usuarios', JSON.stringify(usuarios));
+        
+        if (elementos.novaSenhaSuccessMessage) {
+            elementos.novaSenhaSuccessMessage.textContent = 'Senha alterada com sucesso!';
+            elementos.novaSenhaSuccessMessage.style.display = 'block';
+        }
+        
+        setTimeout(() => {
+            if (elementos.novaSenhaModal) elementos.novaSenhaModal.style.display = 'none';
+            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
+        }, 1800);
+        
+    } catch (error) {
+        console.error('Erro ao alterar senha:', error);
+        mostrarErroNovaSenha('Erro ao alterar senha.');
+    } finally {
+        setLoadingState(botaoSubmit, false);
+    }
+}
+
+// ================================================================
+// NAVEGAÇÃO ENTRE MODAIS
+// ================================================================
+
+function configurarNavegacaoModais() {
+    // Abrir login
+    if (elementos.openLoginModalBtn) {
+        elementos.openLoginModalBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
+        });
+    }
+    
+    if (elementos.mobileLoginBtn) {
+        elementos.mobileLoginBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
+        });
+    }
+    
+    // Navegação login <-> cadastro
+    if (elementos.modalAbrirCadastroBtn) {
+        elementos.modalAbrirCadastroBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (elementos.loginModal) elementos.loginModal.style.display = 'none';
+            if (elementos.cadastroModal) elementos.cadastroModal.style.display = 'flex';
+        });
+    }
+    
+    if (elementos.cadastroAbrirLoginBtn) {
+        elementos.cadastroAbrirLoginBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (elementos.cadastroModal) elementos.cadastroModal.style.display = 'none';
+            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
+        });
+    }
+    
+    // Recuperação de senha
+    if (elementos.esqueceuSenhaBtn) {
+        elementos.esqueceuSenhaBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (elementos.loginModal) elementos.loginModal.style.display = 'none';
+            if (elementos.recuperacaoModal) elementos.recuperacaoModal.style.display = 'flex';
+        });
+    }
+    
+    if (elementos.recuperacaoAbrirLoginBtn) {
+        elementos.recuperacaoAbrirLoginBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (elementos.recuperacaoModal) elementos.recuperacaoModal.style.display = 'none';
+            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
+        });
+    }
+}
+
+function configurarFechamentoModais() {
+    function fecharModal(modal) {
+        if (modal) {
+            modal.style.display = 'none';
+            const form = modal.querySelector('form');
+            if (form) form.reset();
+            
+            // Ocultar mensagens
+            const error = modal.querySelector('.error-message');
+            const success = modal.querySelector('.success-message');
+            if (error) error.style.display = 'none';
+            if (success) success.style.display = 'none';
+            
+            // Ocultar campo de código
+            const campoCode = modal.querySelector('#campo-codigo-container');
+            if (campoCode) campoCode.style.display = 'none';
+        }
+    }
+    
+    // Botões de fechar
+    const closeButtons = [
+        { btn: elementos.loginCloseBtn, modal: elementos.loginModal },
+        { btn: elementos.cadastroCloseBtn, modal: elementos.cadastroModal },
+        { btn: elementos.recuperacaoCloseBtn, modal: elementos.recuperacaoModal },
+        { btn: elementos.novaSenhaCloseBtn, modal: elementos.novaSenhaModal }
+    ];
+    
+    closeButtons.forEach(({ btn, modal }) => {
+        if (btn) {
+            btn.addEventListener('click', () => fecharModal(modal));
+        }
+    });
+    
+    // Fechar clicando fora
+    window.addEventListener('click', function(event) {
+        const modais = [elementos.loginModal, elementos.cadastroModal, elementos.recuperacaoModal, elementos.novaSenhaModal];
+        modais.forEach(modal => {
+            if (event.target === modal) {
+                fecharModal(modal);
+            }
+        });
     });
 }
 
-async function configurarIntegracaoAPI() {
-    // Tentar usar APIs globais se disponíveis
-    if (window.apiClient && window.sistemaAdapter) {
-        try {
-            apiClient = window.apiClient;
-            sistemaAdapter = window.sistemaAdapter;
-            useAPI = window.useAPI || true;
-            console.log('✅ Login integrado com API global');
-            return true;
-        } catch (error) {
-            console.error('❌ Erro ao integrar com API global:', error);
-        }
-    }
+function configurarLimpezaMensagens() {
+    const configuracoes = [
+        { campos: ['documento', 'password'], erro: elementos.errorMessage },
+        { campos: ['modal-documento', 'modal-password'], erro: elementos.modalErrorMessage },
+        { campos: ['cadastro-nome', 'cadastro-email', 'cadastro-documento', 'cadastro-password', 'cadastro-confirm-password'], erro: elementos.cadastroErrorMessage },
+        { campos: ['recuperacao-email', 'codigo-recuperacao'], erro: elementos.recuperacaoErrorMessage },
+        { campos: ['nova-senha', 'confirmar-nova-senha'], erro: elementos.novaSenhaErrorMessage }
+    ];
     
-    // Fallback - não usar API
-    console.log('💾 Login configurado para usar apenas localStorage');
-    useAPI = false;
-    apiClient = null;
-    sistemaAdapter = null;
-    return false;
-}
-
-// ================================================================
-// INICIALIZAÇÃO PRINCIPAL DO SISTEMA DE LOGIN
-// ================================================================
-
-async function inicializarSistemaLogin() {
-    try {
-        console.log('🚀 Inicializando sistema de login...');
-        
-        // Aguardar dependências
-        await aguardarDependenciasLogin();
-        
-        // Configurar integração com API
-        await configurarIntegracaoAPI();
-        
-        // Teste de localStorage
-        if (!testLocalStorage()) {
-            console.error("❌ LocalStorage não funciona!");
-            alert("Seu navegador tem o armazenamento local desativado. Por favor, ative-o nas configurações do navegador.");
-            return;
-        }
-        
-        // Carregar EmailJS
-        await carregarEmailJS();
-        
-        // Obter elementos do DOM
-        const elementos = obterElementosDOM();
-        
-        if (!elementos.loginForm && !elementos.modalLoginForm) {
-            console.error('❌ Nenhum formulário de login encontrado');
-            return;
-        }
-        
-        // Inicializar sistema
-        await configurarSistemaLoginCompleto(elementos);
-        
-        sistemaLoginInicializado = true;
-        window.loginSistemaInicializado = true;
-        
-        console.log('✅ Sistema de login inicializado:', {
-            useAPI,
-            emailJS: emailJSCarregado,
-            elementos: Object.keys(elementos).filter(k => elementos[k]).length
-        });
-        
-    } catch (error) {
-        console.error('❌ Erro na inicialização do login:', error);
-        // Tentar fallback básico
-        await inicializarLoginFallback();
-    }
-}
-
-async function inicializarLoginFallback() {
-    console.log('🔄 Inicializando login via fallback...');
-    
-    try {
-        const elementos = obterElementosDOM();
-        
-        // Configurar apenas formulários básicos
-        if (elementos.loginForm) {
-            elementos.loginForm.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                const documento = document.getElementById('documento')?.value?.trim();
-                const password = document.getElementById('password')?.value?.trim();
-                if (documento && password) {
-                    await processarLoginBasico(documento, password, false);
+    configuracoes.forEach(({ campos, erro }) => {
+        if (erro) {
+            campos.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.addEventListener('input', () => {
+                        erro.style.display = 'none';
+                    });
                 }
             });
         }
-        
-        if (elementos.modalLoginForm) {
-            elementos.modalLoginForm.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                const documento = document.getElementById('modal-documento')?.value?.trim();
-                const password = document.getElementById('modal-password')?.value?.trim();
-                if (documento && password) {
-                    await processarLoginBasico(documento, password, true);
-                }
-            });
+    });
+}
+
+function configurarFormatacaoDocumentos() {
+    const campos = ['documento', 'modal-documento', 'cadastro-documento'];
+    
+    campos.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.addEventListener('input', () => formatarDocumento(field));
         }
-        
-        configurarEventosBasicos(elementos);
-        sistemaLoginInicializado = true;
-        window.loginSistemaInicializado = true;
-        
-        console.log('✅ Login fallback inicializado');
-        
-    } catch (error) {
-        console.error('❌ Falha total na inicialização do login:', error);
-        alert('Erro crítico no sistema de login. Por favor, recarregue a página.');
-    }
+    });
+}
+
+function inicializarModais() {
+    const modais = [elementos.loginModal, elementos.cadastroModal, elementos.recuperacaoModal, elementos.novaSenhaModal];
+    modais.forEach(modal => {
+        if (modal) modal.style.display = 'none';
+    });
+    
+    const mensagens = [
+        elementos.errorMessage, elementos.modalErrorMessage,
+        elementos.cadastroErrorMessage, elementos.cadastroSuccessMessage,
+        elementos.recuperacaoErrorMessage, elementos.recuperacaoSuccessMessage,
+        elementos.novaSenhaErrorMessage, elementos.novaSenhaSuccessMessage
+    ];
+    
+    mensagens.forEach(msg => {
+        if (msg) msg.style.display = 'none';
+    });
+    
+    const campoCode = document.getElementById('campo-codigo-container');
+    if (campoCode) campoCode.style.display = 'none';
 }
 
 // ================================================================
-// CONFIGURAÇÃO DE EMAILJS
-// ================================================================
-
-async function carregarEmailJS() {
-    try {
-        if (window.emailjs) {
-            emailJSCarregado = true;
-            console.log('✅ EmailJS já estava carregado');
-            return true;
-        }
-        
-        return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';
-            script.onload = () => {
-                try {
-                    emailjs.init(EMAIL_CONFIG.userId);
-                    emailJSCarregado = true;
-                    console.log('✅ EmailJS carregado e inicializado');
-                    resolve(true);
-                } catch (e) {
-                    console.error('❌ Erro ao inicializar EmailJS:', e);
-                    emailJSCarregado = false;
-                    resolve(false);
-                }
-            };
-            script.onerror = () => {
-                console.error('❌ Erro ao carregar EmailJS');
-                emailJSCarregado = false;
-                resolve(false);
-            };
-            document.head.appendChild(script);
-        });
-        
-    } catch (error) {
-        console.error('❌ Erro ao carregar EmailJS:', error);
-        emailJSCarregado = false;
-        return false;
-    }
-}
-
-// ================================================================
-// OBTENÇÃO DE ELEMENTOS DO DOM
+// ELEMENTOS DO DOM
 // ================================================================
 
 function obterElementosDOM() {
@@ -242,7 +656,7 @@ function obterElementosDOM() {
         formRecuperacao: document.getElementById('form-recuperacao-senha'),
         formNovaSenha: document.getElementById('form-nova-senha'),
         
-        // Mensagens de erro e sucesso
+        // Mensagens
         errorMessage: document.getElementById('error-message'),
         modalErrorMessage: document.getElementById('modal-error-message'),
         cadastroErrorMessage: document.getElementById('cadastro-error-message'),
@@ -269,262 +683,58 @@ function obterElementosDOM() {
 }
 
 // ================================================================
-// AUTENTICAÇÃO HÍBRIDA CORRIGIDA
+// SISTEMA DE SEGURANÇA OTIMIZADO
 // ================================================================
 
-async function validarLogin(documento, password) {
-    console.log('🔐 Validando login...', useAPI ? 'via API' : 'via localStorage');
-    
-    // Registrar tentativa
-    const docLimpo = documento.replace(/[^\d]+/g, '');
-    
-    // Verificar bloqueio
-    const bloqueio = verificarBloqueioLogin(documento);
-    if (bloqueio.bloqueado) {
-        throw new Error(`Conta temporariamente bloqueada. Tente novamente em ${bloqueio.tempoRestante} minutos.`);
-    }
-    
-    let loginValido = false;
-    
-    // Tentar API primeiro se disponível
-    if (useAPI && apiClient) {
-        try {
-            console.log('🌐 Tentando login via API...');
-            const resultado = await apiClient.login(documento, password);
-            
-            if (resultado && resultado.token) {
-                localStorage.setItem('token', resultado.token);
-                loginValido = true;
-                console.log('✅ Login API bem-sucedido');
-            }
-        } catch (error) {
-            console.error('❌ Erro no login via API:', error.message);
-            console.log('🔄 Tentando fallback para localStorage...');
-        }
-    }
-    
-    // Fallback para localStorage se API falhou ou não está disponível
-    if (!loginValido) {
-        console.log('💾 Validando via localStorage...');
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const usuario = usuarios.find(u => 
-            u.documento && 
-            u.documento.replace(/[^\d]+/g, '') === docLimpo && 
-            u.password === password
-        );
-        
-        loginValido = !!usuario;
-        console.log(loginValido ? '✅ Login localStorage válido' : '❌ Credenciais inválidas');
-    }
-    
-    // Registrar tentativa
-    registrarTentativaLogin(documento, loginValido);
-    
-    return loginValido;
-}
-
-// ================================================================
-// PROCESSO DE LOGIN OTIMIZADO
-// ================================================================
-
-async function processarLogin(documento, password, isModal) {
-    console.log('🚀 Iniciando processo de login...');
-    
-    const errorElement = isModal ? elementos.modalErrorMessage : elementos.errorMessage;
-    const botaoSubmit = isModal ? 
-        document.querySelector('#modal-login-form button[type="submit"]') :
-        document.querySelector('#login-form button[type="submit"]');
-    
-    // Limpar mensagens de erro
-    if (errorElement) errorElement.style.display = 'none';
-    
-    // Estado de loading
-    setLoadingState(botaoSubmit, true);
-    
+function verificarBloqueio(documento) {
     try {
-        // Aguardar sistema estar pronto se necessário
-        if (window.usuarioDados && typeof window.usuarioDados.aguardarPronto === 'function') {
-            console.log('⏳ Aguardando usuarioDados estar pronto...');
-            await window.usuarioDados.aguardarPronto();
-        }
-        
-        const loginValido = await validarLogin(documento, password);
-        
-        if (loginValido) {
-            console.log('✅ Login bem-sucedido, configurando sessão...');
-            
-            const docLimpo = documento.replace(/[^\d]+/g, '');
-            sessionStorage.setItem('usuarioAtual', docLimpo);
-            
-            // Salvar dados do usuário baseado no modo
-            await salvarDadosUsuarioSessao(docLimpo);
-            
-            console.log('🔄 Redirecionando para sistema principal...');
-            
-            // Aguardar um pouco para garantir que dados foram salvos
-            setTimeout(() => {
-                window.location.href = 'index.html';
-            }, 200);
-            
-        } else {
-            console.log('❌ Login inválido');
-            mostrarErroLogin(errorElement, 'Documento ou senha incorretos');
-            
-            // Limpar senha
-            const passwordField = isModal ? 
-                document.getElementById('modal-password') : 
-                document.getElementById('password');
-            if (passwordField) passwordField.value = '';
-        }
-        
-    } catch (error) {
-        console.error('❌ Erro durante login:', error);
-        mostrarErroLogin(errorElement, error.message || 'Erro no sistema. Tente novamente.');
-    } finally {
-        setLoadingState(botaoSubmit, false);
-    }
-}
-
-async function processarLoginBasico(documento, password, isModal) {
-    console.log('🚀 Processando login básico...');
-    
-    try {
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+        const tentativas = JSON.parse(localStorage.getItem('tentativasLogin') || '{}');
         const docLimpo = documento.replace(/[^\d]+/g, '');
-        const usuario = usuarios.find(u => 
-            u.documento && 
-            u.documento.replace(/[^\d]+/g, '') === docLimpo && 
-            u.password === password
-        );
+        const tentativasUsuario = tentativas[docLimpo] || [];
         
-        if (usuario) {
-            sessionStorage.setItem('usuarioAtual', docLimpo);
-            sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify(usuario));
-            window.location.href = 'index.html';
-        } else {
-            const errorElement = isModal ? 
-                document.getElementById('modal-error-message') : 
-                document.getElementById('error-message');
-            mostrarErroLogin(errorElement, 'Documento ou senha incorretos');
-        }
-    } catch (error) {
-        console.error('❌ Erro no login básico:', error);
-    }
-}
-
-async function salvarDadosUsuarioSessao(docLimpo) {
-    try {
-        // Tentar obter dados via API primeiro
-        if (useAPI && apiClient && apiClient.usuarioAtual) {
-            sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify(apiClient.usuarioAtual));
-            console.log('💾 Dados do usuário da API salvos na sessão');
-            return;
-        }
+        const agora = Date.now();
+        const ultimaHora = agora - (60 * 60 * 1000);
         
-        // Fallback para localStorage
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const usuario = usuarios.find(u => 
-            u.documento && u.documento.replace(/[^\d]+/g, '') === docLimpo
-        );
+        const falhasRecentes = tentativasUsuario.filter(t => 
+            !t.sucesso && t.timestamp > ultimaHora
+        ).length;
         
-        if (usuario) {
-            sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify(usuario));
-            console.log('💾 Dados do usuário do localStorage salvos na sessão');
-        } else {
-            console.warn('⚠️ Usuário não encontrado para salvar dados da sessão');
-        }
-    } catch (error) {
-        console.error('❌ Erro ao salvar dados do usuário na sessão:', error);
-    }
-}
-
-// ================================================================
-// PROCESSO DE CADASTRO INTEGRADO
-// ================================================================
-
-async function processarCadastro(nome, email, documento, password) {
-    console.log('📝 Iniciando processo de cadastro...');
-    
-    try {
-        // Aguardar sistema estar pronto se necessário
-        if (window.usuarioDados && typeof window.usuarioDados.aguardarPronto === 'function') {
-            console.log('⏳ Aguardando usuarioDados estar pronto...');
-            await window.usuarioDados.aguardarPronto();
-        }
-        
-        // Tentar cadastro via API primeiro
-        if (useAPI && apiClient) {
-            try {
-                console.log('🌐 Tentando cadastro via API...');
-                const dadosUsuario = { nome, email, documento, senha: password };
-                const resultado = await apiClient.register(dadosUsuario);
-                console.log('✅ Cadastro API bem-sucedido');
-                return { success: true, data: resultado };
-            } catch (error) {
-                console.error('❌ Erro no cadastro via API:', error);
-                console.log('🔄 Tentando fallback para localStorage...');
-            }
-        }
-        
-        // Fallback para localStorage
-        return await processarCadastroLocal(nome, email, documento, password);
-        
-    } catch (error) {
-        console.error('❌ Erro no processo de cadastro:', error);
-        throw error;
-    }
-}
-
-async function processarCadastroLocal(nome, email, documento, password) {
-    console.log('💾 Cadastrando via localStorage...');
-    
-    const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-    
-    // Verificar se já existe
-    const docLimpo = documento.replace(/[^\d]+/g, '');
-    const jaExiste = usuarios.some(u => 
-        u.email.toLowerCase() === email.toLowerCase() || 
-        (u.documento && u.documento.replace(/[^\d]+/g, '') === docLimpo)
-    );
-    
-    if (jaExiste) {
-        throw new Error('Usuário já existe com este email ou documento');
-    }
-    
-    const novoUsuario = {
-        nome,
-        email,
-        documento,
-        password,
-        dataCadastro: new Date().toISOString(),
-        dadosFinanceiros: criarEstruturaFinanceiraInicial()
-    };
-    
-    usuarios.push(novoUsuario);
-    localStorage.setItem('usuarios', JSON.stringify(usuarios));
-    
-    console.log('✅ Cadastro localStorage bem-sucedido');
-    return { success: true, data: novoUsuario };
-}
-
-function criarEstruturaFinanceiraInicial() {
-    const anoAtual = new Date().getFullYear();
-    const estrutura = {};
-    
-    estrutura[anoAtual] = { meses: [] };
-    for (let i = 0; i < 12; i++) {
-        estrutura[anoAtual].meses[i] = {
-            receitas: [],
-            despesas: [],
-            fechado: false
+        return {
+            bloqueado: falhasRecentes >= 5,
+            tempoRestante: falhasRecentes >= 5 ? Math.ceil((agora - ultimaHora) / 60000) : 0
         };
+    } catch {
+        return { bloqueado: false, tempoRestante: 0 };
     }
-    
-    return estrutura;
+}
+
+function registrarTentativaBackground(documento, sucesso) {
+    // Execução em background para não atrasar login
+    setTimeout(() => {
+        try {
+            const tentativas = JSON.parse(localStorage.getItem('tentativasLogin') || '{}');
+            const docLimpo = documento.replace(/[^\d]+/g, '');
+            
+            if (!tentativas[docLimpo]) {
+                tentativas[docLimpo] = [];
+            }
+            
+            tentativas[docLimpo].push({
+                timestamp: Date.now(),
+                sucesso
+            });
+            
+            // Manter apenas 5 últimas
+            tentativas[docLimpo] = tentativas[docLimpo].slice(-5);
+            localStorage.setItem('tentativasLogin', JSON.stringify(tentativas));
+        } catch (error) {
+            console.warn('Erro ao registrar tentativa:', error);
+        }
+    }, 0);
 }
 
 // ================================================================
-// SISTEMA DE RECUPERAÇÃO DE SENHA
+// FUNÇÕES DE RECUPERAÇÃO DE SENHA
 // ================================================================
 
 function gerarCodigoRecuperacao() {
@@ -532,17 +742,17 @@ function gerarCodigoRecuperacao() {
 }
 
 function salvarCodigoRecuperacao(email, codigo) {
-    const codigosRecuperacao = JSON.parse(localStorage.getItem('codigosRecuperacao')) || {};
+    const codigosRecuperacao = JSON.parse(localStorage.getItem('codigosRecuperacao') || '{}');
     codigosRecuperacao[email] = {
         codigo: codigo,
-        expiracao: Date.now() + (15 * 60 * 1000), // 15 minutos
+        expiracao: Date.now() + (15 * 60 * 1000),
         tentativas: 0
     };
     localStorage.setItem('codigosRecuperacao', JSON.stringify(codigosRecuperacao));
 }
 
 function verificarCodigoRecuperacao(email, codigoInformado) {
-    const codigosRecuperacao = JSON.parse(localStorage.getItem('codigosRecuperacao')) || {};
+    const codigosRecuperacao = JSON.parse(localStorage.getItem('codigosRecuperacao') || '{}');
     const dadosCodigo = codigosRecuperacao[email];
     
     if (!dadosCodigo) {
@@ -565,7 +775,6 @@ function verificarCodigoRecuperacao(email, codigoInformado) {
         return { valido: false, motivo: 'Código incorreto' };
     }
     
-    // Código válido - remover da lista
     delete codigosRecuperacao[email];
     localStorage.setItem('codigosRecuperacao', JSON.stringify(codigosRecuperacao));
     
@@ -574,8 +783,8 @@ function verificarCodigoRecuperacao(email, codigoInformado) {
 
 async function enviarEmailRecuperacao(email, codigo, nomeUsuario = 'Usuário') {
     try {
-        if (!emailJSCarregado || !window.emailjs) {
-            throw new Error('EmailJS não está disponível');
+        if (!emailJSDisponivel || !window.emailjs) {
+            throw new Error('EmailJS não disponível');
         }
         
         const templateParams = {
@@ -583,8 +792,7 @@ async function enviarEmailRecuperacao(email, codigo, nomeUsuario = 'Usuário') {
             to_name: nomeUsuario,
             codigo_recuperacao: codigo,
             validade: '15 minutos',
-            sistema_nome: 'Sistema de Controle Financeiro',
-            from_name: 'Sistema Financeiro'
+            sistema_nome: 'Sistema de Controle Financeiro'
         };
         
         const response = await emailjs.send(
@@ -593,18 +801,11 @@ async function enviarEmailRecuperacao(email, codigo, nomeUsuario = 'Usuário') {
             templateParams
         );
         
-        return { 
-            success: true, 
-            message: 'Email de recuperação enviado com sucesso!', 
-            messageId: response.text 
-        };
+        return { success: true, message: 'Email enviado com sucesso!' };
         
     } catch (error) {
-        console.error('❌ Erro ao enviar email:', error);
-        return { 
-            success: false, 
-            message: 'Erro ao enviar email: ' + error.message 
-        };
+        console.error('Erro ao enviar email:', error);
+        return { success: false, message: 'Erro ao enviar email: ' + error.message };
     }
 }
 
@@ -614,526 +815,20 @@ function obterUsuarioPorEmail(email) {
 }
 
 // ================================================================
-// CONFIGURAÇÃO COMPLETA DO SISTEMA
-// ================================================================
-
-async function configurarSistemaLoginCompleto(elementos) {
-    // Inicializar usuários se necessário
-    if (!localStorage.getItem('usuarios')) {
-        localStorage.setItem('usuarios', JSON.stringify([]));
-    }
-    
-    // Configurar todos os event listeners
-    configurarEventListenersLogin(elementos);
-    configurarEventListenersCadastro(elementos);
-    configurarEventListenersRecuperacao(elementos);
-    configurarNavegacaoModais(elementos);
-    configurarFechamentoModais(elementos);
-    configurarLimpezaMensagens(elementos);
-    configurarFormatacaoDocumentos(elementos);
-    
-    // Inicializar modais
-    inicializarModais(elementos);
-    
-    console.log('✅ Sistema de login configurado completamente');
-}
-
-function configurarEventListenersLogin(elementos) {
-    // Formulário de login principal
-    if (elementos.loginForm) {
-        elementos.loginForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const documento = document.getElementById('documento')?.value?.trim();
-            const password = document.getElementById('password')?.value?.trim();
-            
-            if (documento && password) {
-                await processarLogin(documento, password, false);
-            }
-        });
-    }
-    
-    // Formulário de login modal
-    if (elementos.modalLoginForm) {
-        elementos.modalLoginForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const documento = document.getElementById('modal-documento')?.value?.trim();
-            const password = document.getElementById('modal-password')?.value?.trim();
-            
-            if (documento && password) {
-                await processarLogin(documento, password, true);
-            }
-        });
-    }
-}
-
-function configurarEventListenersCadastro(elementos) {
-    if (elementos.formCadastro) {
-        elementos.formCadastro.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            await processarFormularioCadastro(elementos);
-        });
-    }
-}
-
-async function processarFormularioCadastro(elementos) {
-    const nome = document.getElementById('cadastro-nome')?.value?.trim();
-    const email = document.getElementById('cadastro-email')?.value?.trim();
-    const documento = document.getElementById('cadastro-documento')?.value?.trim();
-    const password = document.getElementById('cadastro-password')?.value?.trim();
-    const confirmPassword = document.getElementById('cadastro-confirm-password')?.value?.trim();
-    const botaoSubmit = elementos.formCadastro.querySelector('button[type="submit"]');
-    
-    // Limpar mensagens
-    if (elementos.cadastroErrorMessage) elementos.cadastroErrorMessage.style.display = 'none';
-    if (elementos.cadastroSuccessMessage) elementos.cadastroSuccessMessage.style.display = 'none';
-    
-    // Validações
-    if (!nome || !email || !documento || !password) {
-        mostrarErroCadastro(elementos, 'Todos os campos são obrigatórios');
-        return;
-    }
-    
-    if (password !== confirmPassword) {
-        mostrarErroCadastro(elementos, 'As senhas não coincidem');
-        return;
-    }
-    
-    if (password.length < 6) {
-        mostrarErroCadastro(elementos, 'A senha deve ter pelo menos 6 caracteres');
-        return;
-    }
-    
-    if (!validarDocumento(documento)) {
-        mostrarErroCadastro(elementos, 'CPF/CNPJ inválido');
-        return;
-    }
-    
-    // Estado de loading
-    setLoadingState(botaoSubmit, true);
-    
-    try {
-        const resultado = await processarCadastro(nome, email, documento, password);
-        
-        if (elementos.cadastroSuccessMessage) {
-            elementos.cadastroSuccessMessage.textContent = 'Cadastro realizado com sucesso! Você já pode fazer login.';
-            elementos.cadastroSuccessMessage.style.display = 'block';
-        }
-        
-        // Limpar formulário
-        if (elementos.formCadastro) elementos.formCadastro.reset();
-        
-        // Fechar modal após delay e redirecionar para login
-        setTimeout(() => {
-            if (elementos.cadastroModal) elementos.cadastroModal.style.display = 'none';
-            if (window.innerWidth <= 768 && elementos.loginModal) {
-                elementos.loginModal.style.display = 'flex';
-            }
-            if (elementos.cadastroSuccessMessage) elementos.cadastroSuccessMessage.style.display = 'none';
-        }, 3000);
-        
-    } catch (error) {
-        console.error('❌ Erro no cadastro:', error);
-        mostrarErroCadastro(elementos, error.message || 'Erro ao criar conta. Tente novamente.');
-    } finally {
-        setLoadingState(botaoSubmit, false);
-    }
-}
-
-function configurarEventListenersRecuperacao(elementos) {
-    if (elementos.formRecuperacao) {
-        elementos.formRecuperacao.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            await processarRecuperacaoSenha(elementos);
-        });
-    }
-    
-    if (elementos.formNovaSenha) {
-        elementos.formNovaSenha.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            await processarNovaSenha(elementos);
-        });
-    }
-}
-
-async function processarRecuperacaoSenha(elementos) {
-    const email = document.getElementById('recuperacao-email')?.value?.trim();
-    const codigo = document.getElementById('codigo-recuperacao')?.value?.trim();
-    const botaoSubmit = elementos.formRecuperacao.querySelector('button[type="submit"]');
-    
-    if (elementos.recuperacaoErrorMessage) elementos.recuperacaoErrorMessage.style.display = 'none';
-    if (elementos.recuperacaoSuccessMessage) elementos.recuperacaoSuccessMessage.style.display = 'none';
-    
-    if (!email) {
-        mostrarErroRecuperacao(elementos, 'Por favor, informe seu email');
-        return;
-    }
-    
-    setLoadingState(botaoSubmit, true);
-    
-    try {
-        if (!codigo) {
-            // Enviar código
-            const usuario = obterUsuarioPorEmail(email);
-            if (!usuario) {
-                mostrarErroRecuperacao(elementos, 'Email não encontrado');
-                return;
-            }
-            
-            const codigoGerado = gerarCodigoRecuperacao();
-            salvarCodigoRecuperacao(email, codigoGerado);
-            
-            const resultado = await enviarEmailRecuperacao(email, codigoGerado, usuario.nome);
-            
-            if (resultado.success) {
-                if (elementos.recuperacaoSuccessMessage) {
-                    elementos.recuperacaoSuccessMessage.textContent = 'Código enviado! Verifique seu email.';
-                    elementos.recuperacaoSuccessMessage.style.display = 'block';
-                }
-                
-                // Mostrar campo do código
-                const campoCodeContainer = document.getElementById('campo-codigo-container');
-                if (campoCodeContainer) {
-                    campoCodeContainer.style.display = 'block';
-                }
-            } else {
-                mostrarErroRecuperacao(elementos, resultado.message || 'Erro ao enviar email');
-            }
-            
-        } else {
-            // Verificar código
-            const verificacao = verificarCodigoRecuperacao(email, codigo);
-            
-            if (verificacao.valido) {
-                // Código válido - ir para nova senha
-                if (elementos.recuperacaoModal) elementos.recuperacaoModal.style.display = 'none';
-                if (elementos.novaSenhaModal) {
-                    elementos.novaSenhaModal.style.display = 'flex';
-                    document.getElementById('email-nova-senha').value = email;
-                }
-            } else {
-                mostrarErroRecuperacao(elementos, verificacao.motivo || 'Código inválido');
-            }
-        }
-        
-    } catch (error) {
-        console.error('❌ Erro na recuperação:', error);
-        mostrarErroRecuperacao(elementos, 'Erro no sistema. Tente novamente.');
-    } finally {
-        setLoadingState(botaoSubmit, false);
-    }
-}
-
-async function processarNovaSenha(elementos) {
-    const email = document.getElementById('email-nova-senha')?.value?.trim();
-    const novaSenha = document.getElementById('nova-senha')?.value?.trim();
-    const confirmarSenha = document.getElementById('confirmar-nova-senha')?.value?.trim();
-    const botaoSubmit = elementos.formNovaSenha.querySelector('button[type="submit"]');
-    
-    if (elementos.novaSenhaErrorMessage) elementos.novaSenhaErrorMessage.style.display = 'none';
-    if (elementos.novaSenhaSuccessMessage) elementos.novaSenhaSuccessMessage.style.display = 'none';
-    
-    // Validações
-    if (!novaSenha || !confirmarSenha) {
-        mostrarErroNovaSenha(elementos, 'Todos os campos são obrigatórios');
-        return;
-    }
-    
-    if (novaSenha !== confirmarSenha) {
-        mostrarErroNovaSenha(elementos, 'As senhas não coincidem');
-        return;
-    }
-    
-    if (novaSenha.length < 6) {
-        mostrarErroNovaSenha(elementos, 'A senha deve ter pelo menos 6 caracteres');
-        return;
-    }
-    
-    setLoadingState(botaoSubmit, true);
-    
-    try {
-        // Atualizar senha no localStorage
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const usuarioIndex = usuarios.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
-        
-        if (usuarioIndex === -1) {
-            mostrarErroNovaSenha(elementos, 'Usuário não encontrado');
-            return;
-        }
-        
-        usuarios[usuarioIndex].password = novaSenha;
-        localStorage.setItem('usuarios', JSON.stringify(usuarios));
-        
-        if (elementos.novaSenhaSuccessMessage) {
-            elementos.novaSenhaSuccessMessage.textContent = 'Senha alterada com sucesso!';
-            elementos.novaSenhaSuccessMessage.style.display = 'block';
-        }
-        
-        // Fechar modal e redirecionar para login
-        setTimeout(() => {
-            if (elementos.novaSenhaModal) elementos.novaSenhaModal.style.display = 'none';
-            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
-            if (elementos.novaSenhaSuccessMessage) elementos.novaSenhaSuccessMessage.style.display = 'none';
-        }, 3000);
-        
-    } catch (error) {
-        console.error('❌ Erro ao alterar senha:', error);
-        mostrarErroNovaSenha(elementos, 'Erro ao alterar senha. Tente novamente.');
-    } finally {
-        setLoadingState(botaoSubmit, false);
-    }
-}
-
-// ================================================================
-// NAVEGAÇÃO E CONTROLE DE MODAIS
-// ================================================================
-
-function configurarNavegacaoModais(elementos) {
-    // Abrir modal de login
-    if (elementos.openLoginModalBtn) {
-        elementos.openLoginModalBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
-        });
-    }
-    
-    if (elementos.mobileLoginBtn) {
-        elementos.mobileLoginBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
-        });
-    }
-    
-    // Navegar entre login e cadastro
-    if (elementos.modalAbrirCadastroBtn) {
-        elementos.modalAbrirCadastroBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (elementos.loginModal) elementos.loginModal.style.display = 'none';
-            if (elementos.cadastroModal) elementos.cadastroModal.style.display = 'flex';
-        });
-    }
-    
-    if (elementos.cadastroAbrirLoginBtn) {
-        elementos.cadastroAbrirLoginBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (elementos.cadastroModal) elementos.cadastroModal.style.display = 'none';
-            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
-        });
-    }
-    
-    // Abrir recuperação de senha
-    if (elementos.esqueceuSenhaBtn) {
-        elementos.esqueceuSenhaBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (elementos.loginModal) elementos.loginModal.style.display = 'none';
-            if (elementos.recuperacaoModal) elementos.recuperacaoModal.style.display = 'flex';
-        });
-    }
-    
-    // Voltar para login da recuperação
-    if (elementos.recuperacaoAbrirLoginBtn) {
-        elementos.recuperacaoAbrirLoginBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (elementos.recuperacaoModal) elementos.recuperacaoModal.style.display = 'none';
-            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
-        });
-    }
-}
-
-function configurarFechamentoModais(elementos) {
-    function fecharModal(modal) {
-        if (modal) {
-            modal.style.display = 'none';
-            const form = modal.querySelector('form');
-            if (form) form.reset();
-            
-            // Ocultar mensagens
-            const error = modal.querySelector('.error-message');
-            const success = modal.querySelector('.success-message');
-            if (error) error.style.display = 'none';
-            if (success) success.style.display = 'none';
-            
-            // Ocultar campo de código se existir
-            const campoCode = modal.querySelector('#campo-codigo-container');
-            if (campoCode) campoCode.style.display = 'none';
-        }
-    }
-    
-    // Botões de fechar
-    if (elementos.loginCloseBtn) {
-        elementos.loginCloseBtn.addEventListener('click', () => fecharModal(elementos.loginModal));
-    }
-    
-    if (elementos.cadastroCloseBtn) {
-        elementos.cadastroCloseBtn.addEventListener('click', () => fecharModal(elementos.cadastroModal));
-    }
-    
-    if (elementos.recuperacaoCloseBtn) {
-        elementos.recuperacaoCloseBtn.addEventListener('click', () => fecharModal(elementos.recuperacaoModal));
-    }
-    
-    if (elementos.novaSenhaCloseBtn) {
-        elementos.novaSenhaCloseBtn.addEventListener('click', () => fecharModal(elementos.novaSenhaModal));
-    }
-    
-    // Fechar clicando fora do modal
-    window.addEventListener('click', function(event) {
-        if (event.target === elementos.loginModal) fecharModal(elementos.loginModal);
-        if (event.target === elementos.cadastroModal) fecharModal(elementos.cadastroModal);
-        if (event.target === elementos.recuperacaoModal) fecharModal(elementos.recuperacaoModal);
-        if (event.target === elementos.novaSenhaModal) fecharModal(elementos.novaSenhaModal);
-    });
-}
-
-function configurarLimpezaMensagens(elementos) {
-    // Limpar mensagens de erro ao digitar - Login
-    const camposLogin = [
-        'documento', 'password', 
-        'modal-documento', 'modal-password'
-    ];
-    
-    camposLogin.forEach(fieldId => {
-        const field = document.getElementById(fieldId);
-        if (field) {
-            field.addEventListener('input', () => {
-                const errorEl = fieldId.includes('modal') ? 
-                    elementos.modalErrorMessage : elementos.errorMessage;
-                if (errorEl) errorEl.style.display = 'none';
-            });
-        }
-    });
-    
-    // Limpar mensagens de erro ao digitar - Cadastro
-    const camposCadastro = [
-        'cadastro-nome', 'cadastro-email', 
-        'cadastro-documento', 'cadastro-password', 
-        'cadastro-confirm-password'
-    ];
-    
-    camposCadastro.forEach(fieldId => {
-        const field = document.getElementById(fieldId);
-        if (field) {
-            field.addEventListener('input', () => {
-                if (elementos.cadastroErrorMessage) {
-                    elementos.cadastroErrorMessage.style.display = 'none';
-                }
-            });
-        }
-    });
-    
-    // Limpar mensagens de erro ao digitar - Recuperação
-    const camposRecuperacao = ['recuperacao-email', 'codigo-recuperacao'];
-    
-    camposRecuperacao.forEach(fieldId => {
-        const field = document.getElementById(fieldId);
-        if (field) {
-            field.addEventListener('input', () => {
-                if (elementos.recuperacaoErrorMessage) {
-                    elementos.recuperacaoErrorMessage.style.display = 'none';
-                }
-            });
-        }
-    });
-    
-    // Limpar mensagens de erro ao digitar - Nova senha
-    const camposNovaSenha = ['nova-senha', 'confirmar-nova-senha'];
-    
-    camposNovaSenha.forEach(fieldId => {
-        const field = document.getElementById(fieldId);
-        if (field) {
-            field.addEventListener('input', () => {
-                if (elementos.novaSenhaErrorMessage) {
-                    elementos.novaSenhaErrorMessage.style.display = 'none';
-                }
-            });
-        }
-    });
-}
-
-function configurarFormatacaoDocumentos(elementos) {
-    const camposDocumento = [
-        'documento', 'modal-documento', 'cadastro-documento'
-    ];
-    
-    camposDocumento.forEach(fieldId => {
-        const field = document.getElementById(fieldId);
-        if (field) {
-            field.addEventListener('input', () => formatarDocumento(field));
-        }
-    });
-}
-
-function inicializarModais(elementos) {
-    // Ocultar todos os modais inicialmente
-    const modais = [
-        elementos.loginModal, 
-        elementos.cadastroModal, 
-        elementos.recuperacaoModal, 
-        elementos.novaSenhaModal
-    ];
-    
-    modais.forEach(modal => {
-        if (modal) modal.style.display = 'none';
-    });
-    
-    // Ocultar todas as mensagens inicialmente
-    const mensagens = [
-        elementos.errorMessage, elementos.modalErrorMessage,
-        elementos.cadastroErrorMessage, elementos.cadastroSuccessMessage,
-        elementos.recuperacaoErrorMessage, elementos.recuperacaoSuccessMessage,
-        elementos.novaSenhaErrorMessage, elementos.novaSenhaSuccessMessage
-    ];
-    
-    mensagens.forEach(msg => {
-        if (msg) msg.style.display = 'none';
-    });
-    
-    // Ocultar campos condicionais
-    const campoCode = document.getElementById('campo-codigo-container');
-    if (campoCode) campoCode.style.display = 'none';
-}
-
-function configurarEventosBasicos(elementos) {
-    // Navegação básica entre modais
-    if (elementos.openLoginModalBtn) {
-        elementos.openLoginModalBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
-        });
-    }
-
-    if (elementos.mobileLoginBtn) {
-        elementos.mobileLoginBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
-        });
-    }
-
-    // Fechar modais
-    [elementos.loginCloseBtn, elementos.cadastroCloseBtn].forEach(btn => {
-        if (btn) {
-            btn.addEventListener('click', () => {
-                const modal = btn.closest('.modal');
-                if (modal) modal.style.display = 'none';
-            });
-        }
-    });
-}
-
-// ================================================================
-// FUNÇÕES DE VALIDAÇÃO
+// VALIDAÇÕES
 // ================================================================
 
 function validarCPF(cpf) {
     cpf = cpf.replace(/[^\d]+/g, '');
     if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
     
-    let soma = 0, resto;
+    let soma = 0;
     for (let i = 1; i <= 9; i++) {
         soma += parseInt(cpf.substring(i - 1, i)) * (11 - i);
     }
     
-    resto = (soma * 10) % 11;
-    if ((resto === 10) || (resto === 11)) resto = 0;
+    let resto = (soma * 10) % 11;
+    if (resto === 10 || resto === 11) resto = 0;
     if (resto !== parseInt(cpf.substring(9, 10))) return false;
     
     soma = 0;
@@ -1142,7 +837,7 @@ function validarCPF(cpf) {
     }
     
     resto = (soma * 10) % 11;
-    if ((resto === 10) || (resto === 11)) resto = 0;
+    if (resto === 10 || resto === 11) resto = 0;
     if (resto !== parseInt(cpf.substring(10, 11))) return false;
     
     return true;
@@ -1209,7 +904,7 @@ function formatarDocumento(input) {
 }
 
 // ================================================================
-// FUNÇÕES DE EXIBIÇÃO DE MENSAGENS
+// FUNÇÕES DE MENSAGENS
 // ================================================================
 
 function mostrarErroLogin(errorElement, mensagem) {
@@ -1219,21 +914,21 @@ function mostrarErroLogin(errorElement, mensagem) {
     }
 }
 
-function mostrarErroCadastro(elementos, mensagem) {
+function mostrarErroCadastro(mensagem) {
     if (elementos.cadastroErrorMessage) {
         elementos.cadastroErrorMessage.textContent = mensagem;
         elementos.cadastroErrorMessage.style.display = 'block';
     }
 }
 
-function mostrarErroRecuperacao(elementos, mensagem) {
+function mostrarErroRecuperacao(mensagem) {
     if (elementos.recuperacaoErrorMessage) {
         elementos.recuperacaoErrorMessage.textContent = mensagem;
         elementos.recuperacaoErrorMessage.style.display = 'block';
     }
 }
 
-function mostrarErroNovaSenha(elementos, mensagem) {
+function mostrarErroNovaSenha(mensagem) {
     if (elementos.novaSenhaErrorMessage) {
         elementos.novaSenhaErrorMessage.textContent = mensagem;
         elementos.novaSenhaErrorMessage.style.display = 'block';
@@ -1241,18 +936,15 @@ function mostrarErroNovaSenha(elementos, mensagem) {
 }
 
 // ================================================================
-// FUNÇÕES UTILITÁRIAS
+// UTILITÁRIOS
 // ================================================================
 
 function testLocalStorage() {
     try {
-        const testKey = '__test_storage__';
-        localStorage.setItem(testKey, testKey);
-        localStorage.removeItem(testKey);
-        console.log('✅ LocalStorage funcionando');
+        localStorage.setItem('__test__', 'test');
+        localStorage.removeItem('__test__');
         return true;
-    } catch (e) {
-        console.error("❌ LocalStorage não funciona:", e);
+    } catch {
         return false;
     }
 }
@@ -1261,108 +953,119 @@ function setLoadingState(button, loading = true) {
     if (!button) return;
     
     if (loading) {
-        button.classList.add('loading');
         button.disabled = true;
-        const originalText = button.textContent;
-        button.setAttribute('data-original-text', originalText);
         button.textContent = 'Carregando...';
+        button.style.opacity = '0.7';
     } else {
-        button.classList.remove('loading');
         button.disabled = false;
-        const originalText = button.getAttribute('data-original-text');
-        if (originalText) {
-            button.textContent = originalText;
-        }
+        button.textContent = button.getAttribute('data-original-text') || 'Entrar';
+        button.style.opacity = '1';
     }
 }
 
-// ================================================================
-// SISTEMA DE SEGURANÇA E BLOQUEIO
-// ================================================================
-
-function registrarTentativaLogin(documento, sucesso) {
+function verificarELimparDados() {
     try {
-        const tentativas = JSON.parse(localStorage.getItem('tentativasLogin') || '{}');
         const agora = Date.now();
-        const docLimpo = documento.replace(/[^\d]+/g, '');
         
-        if (!tentativas[docLimpo]) {
-            tentativas[docLimpo] = [];
-        }
+        // Limpar códigos de recuperação expirados
+        const codigosRecuperacao = JSON.parse(localStorage.getItem('codigosRecuperacao') || '{}');
+        let alterou = false;
         
-        tentativas[docLimpo].push({
-            timestamp: agora,
-            sucesso,
-            ip: 'local',
-            dispositivo: detectarDispositivo()
-        });
-        
-        // Manter apenas últimas 10 tentativas
-        tentativas[docLimpo] = tentativas[docLimpo].slice(-10);
-        
-        // Limpar tentativas antigas (mais de 24h)
-        Object.keys(tentativas).forEach(doc => {
-            tentativas[doc] = tentativas[doc].filter(t => agora - t.timestamp < 24 * 60 * 60 * 1000);
-            if (tentativas[doc].length === 0) {
-                delete tentativas[doc];
+        Object.keys(codigosRecuperacao).forEach(email => {
+            if (codigosRecuperacao[email].expiracao < agora) {
+                delete codigosRecuperacao[email];
+                alterou = true;
             }
         });
         
-        localStorage.setItem('tentativasLogin', JSON.stringify(tentativas));
-    } catch (error) {
-        console.error('❌ Erro ao registrar tentativa:', error);
-    }
-}
-
-function verificarBloqueioLogin(documento) {
-    try {
-        const tentativas = JSON.parse(localStorage.getItem('tentativasLogin') || '{}');
-        const docLimpo = documento.replace(/[^\d]+/g, '');
-        const tentativasUsuario = tentativas[docLimpo] || [];
-        
-        const agora = Date.now();
-        const ultimaHora = agora - (60 * 60 * 1000);
-        
-        // Contar falhas na última hora
-        const falhasRecentes = tentativasUsuario.filter(t => 
-            !t.sucesso && t.timestamp > ultimaHora
-        ).length;
-        
-        const bloqueado = falhasRecentes >= 5;
-        const tempoRestante = bloqueado ? 
-            Math.ceil((ultimaHora - Math.min(...tentativasUsuario.filter(t => !t.sucesso).map(t => t.timestamp))) / 1000 / 60) : 0;
-        
-        return {
-            bloqueado,
-            falhasRecentes,
-            tempoRestante
-        };
-    } catch (error) {
-        console.error('❌ Erro ao verificar bloqueio:', error);
-        return { bloqueado: false, falhasRecentes: 0, tempoRestante: 0 };
-    }
-}
-
-function detectarDispositivo() {
-    const userAgent = navigator.userAgent;
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
-    const isTablet = /iPad|Android(?=.*Mobile)/i.test(userAgent);
-    const isDesktop = !isMobile && !isTablet;
-    
-    return {
-        isMobile,
-        isTablet,
-        isDesktop,
-        userAgent,
-        screen: {
-            width: window.screen.width,
-            height: window.screen.height
+        if (alterou) {
+            localStorage.setItem('codigosRecuperacao', JSON.stringify(codigosRecuperacao));
         }
-    };
+        
+        // Limpar tentativas antigas
+        const tentativas = JSON.parse(localStorage.getItem('tentativasLogin') || '{}');
+        alterou = false;
+        
+        Object.keys(tentativas).forEach(doc => {
+            const tentativasValidas = tentativas[doc].filter(t => 
+                agora - t.timestamp < 24 * 60 * 60 * 1000
+            );
+            
+            if (tentativasValidas.length !== tentativas[doc].length) {
+                tentativas[doc] = tentativasValidas;
+                alterou = true;
+            }
+            
+            if (tentativas[doc].length === 0) {
+                delete tentativas[doc];
+                alterou = true;
+            }
+        });
+        
+        if (alterou) {
+            localStorage.setItem('tentativasLogin', JSON.stringify(tentativas));
+        }
+        
+    } catch (error) {
+        console.warn('Erro na limpeza:', error);
+    }
+}
+
+function configurarLoginMinimo() {
+    // Fallback básico caso tudo falhe
+    try {
+        const loginForm = document.getElementById('login-form');
+        const modalLoginForm = document.getElementById('modal-login-form');
+        
+        if (loginForm) {
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const doc = document.getElementById('documento')?.value;
+                const pass = document.getElementById('password')?.value;
+                if (doc && pass) processarLoginMinimo(doc, pass);
+            });
+        }
+        
+        if (modalLoginForm) {
+            modalLoginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const doc = document.getElementById('modal-documento')?.value;
+                const pass = document.getElementById('modal-password')?.value;
+                if (doc && pass) processarLoginMinimo(doc, pass);
+            });
+        }
+        
+        console.log('Login mínimo configurado');
+    } catch (error) {
+        console.error('Falha total:', error);
+    }
+}
+
+function processarLoginMinimo(documento, password) {
+    try {
+        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+        const docLimpo = documento.replace(/[^\d]+/g, '');
+        const usuario = usuarios.find(u => 
+            u.documento && 
+            u.documento.replace(/[^\d]+/g, '') === docLimpo && 
+            u.password === password
+        );
+        
+        if (usuario) {
+            sessionStorage.setItem('usuarioAtual', docLimpo);
+            sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify(usuario));
+            window.location.href = 'index.html';
+        } else {
+            alert('Login inválido');
+        }
+    } catch (error) {
+        console.error('Erro no login mínimo:', error);
+        alert('Erro no sistema');
+    }
 }
 
 // ================================================================
-// FUNÇÕES GLOBAIS PARA COMPATIBILIDADE
+// FUNÇÕES GLOBAIS EXPORTADAS
 // ================================================================
 
 function togglePassword(inputId, button) {
@@ -1385,149 +1088,25 @@ function togglePassword(inputId, button) {
 }
 
 function diagnosticoLogin() {
-    const status = {
+    return {
         timestamp: new Date().toISOString(),
-        sistemaLoginInicializado,
-        useAPI,
-        apiClient: !!apiClient,
-        sistemaAdapter: !!sistemaAdapter,
-        emailJSCarregado,
+        sistemaInicializado: window.loginSistemaInicializado || false,
+        emailJSDisponivel,
         localStorage: testLocalStorage(),
-        sessionStorage: (() => {
-            try {
-                const test = 'test';
-                sessionStorage.setItem(test, test);
-                sessionStorage.removeItem(test);
-                return true;
-            } catch (e) {
-                return false;
-            }
-        })(),
         usuarios: JSON.parse(localStorage.getItem('usuarios') || '[]').length,
         usuarioAtual: sessionStorage.getItem('usuarioAtual'),
-        dadosUsuarioLogado: !!sessionStorage.getItem('dadosUsuarioLogado'),
-        codigosRecuperacao: Object.keys(JSON.parse(localStorage.getItem('codigosRecuperacao') || '{}')).length
-    };
-    
-    console.table(status);
-    return status;
-}
-
-function limparSessaoCompleta() {
-    try {
-        // Limpar sessionStorage
-        sessionStorage.removeItem('usuarioAtual');
-        sessionStorage.removeItem('dadosUsuarioLogado');
-        
-        // Limpar tokens se existirem
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
-        
-        // Limpar códigos de recuperação expirados
-        const codigosRecuperacao = JSON.parse(localStorage.getItem('codigosRecuperacao') || '{}');
-        const agora = Date.now();
-        
-        Object.keys(codigosRecuperacao).forEach(email => {
-            if (codigosRecuperacao[email].expiracao < agora) {
-                delete codigosRecuperacao[email];
-            }
-        });
-        
-        localStorage.setItem('codigosRecuperacao', JSON.stringify(codigosRecuperacao));
-        
-        console.log('🧹 Sessão limpa completamente');
-        return true;
-    } catch (error) {
-        console.error('❌ Erro ao limpar sessão:', error);
-        return false;
-    }
-}
-
-function validarForcaSenha(senha) {
-    const criterios = {
-        tamanho: senha.length >= 8,
-        maiuscula: /[A-Z]/.test(senha),
-        minuscula: /[a-z]/.test(senha),
-        numero: /\d/.test(senha),
-        especial: /[!@#$%^&*(),.?":{}|<>]/.test(senha)
-    };
-    
-    const pontuacao = Object.values(criterios).filter(Boolean).length;
-    
-    let forca = 'muito-fraca';
-    if (pontuacao >= 5) forca = 'muito-forte';
-    else if (pontuacao >= 4) forca = 'forte';
-    else if (pontuacao >= 3) forca = 'media';
-    else if (pontuacao >= 2) forca = 'fraca';
-    
-    return {
-        forca,
-        pontuacao,
-        criterios,
-        valida: pontuacao >= 3
+        usuarioDadosDisponivel: !!window.usuarioDados
     };
 }
 
-function verificarInicializacaoCompleta() {
-    const status = {
-        loginInicializado: sistemaLoginInicializado,
-        sistemaMainInicializado: !!window.sistemaInicializado,
-        usuarioDadosDisponivel: !!(window.usuarioDados && typeof window.usuarioDados.aguardarPronto === 'function'),
-        apiDisponivel: !!(window.apiClient && window.sistemaAdapter),
-        dadosFinanceirosDisponivel: !!window.dadosFinanceiros
-    };
-    
-    const todosInicializados = Object.values(status).every(Boolean);
-    
-    console.log('🔍 Status de inicialização completa:', status);
-    console.log(todosInicializados ? '✅ Sistema completamente inicializado' : '⚠️ Sistema ainda inicializando...');
-    
-    return {
-        completo: todosInicializados,
-        detalhes: status
-    };
+function limparSessao() {
+    sessionStorage.removeItem('usuarioAtual');
+    sessionStorage.removeItem('dadosUsuarioLogado');
+    console.log('Sessão limpa');
 }
 
-function aguardarInicializacaoCompleta() {
-    return new Promise((resolve) => {
-        let tentativas = 0;
-        const maxTentativas = 50; // 10 segundos
-        
-        function verificar() {
-            tentativas++;
-            const status = verificarInicializacaoCompleta();
-            
-            if (status.completo) {
-                console.log('✅ Sistema completamente inicializado após', tentativas, 'tentativas');
-                resolve(true);
-            } else if (tentativas >= maxTentativas) {
-                console.warn('⚠️ Timeout aguardando inicialização completa');
-                resolve(false);
-            } else {
-                setTimeout(verificar, 200);
-            }
-        }
-        
-        verificar();
-    });
-}
-
-// ================================================================
-// EXPORTAÇÃO PARA ESCOPO GLOBAL
-// ================================================================
-
-// Exportar funções para compatibilidade
+// Exportar para escopo global
 window.togglePassword = togglePassword;
 window.diagnosticoLogin = diagnosticoLogin;
-window.limparSessaoCompleta = limparSessaoCompleta;
-window.validarForcaSenha = validarForcaSenha;
-window.verificarInicializacaoCompleta = verificarInicializacaoCompleta;
-window.aguardarInicializacaoCompleta = aguardarInicializacaoCompleta;
-window.detectarDispositivo = detectarDispositivo;
-window.registrarTentativaLogin = registrarTentativaLogin;
-window.verificarBloqueioLogin = verificarBloqueioLogin;
-
-// Exportar estado do sistema
-window.sistemaLoginInicializado = sistemaLoginInicializado;
-
-console.log('✅ Sistema de Login INTEGRADO E CORRIGIDO carregado!');
+window.limparSessao = limparSessao;
+window.loginSistemaInicializado = false;

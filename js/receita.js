@@ -1,11 +1,41 @@
 // ================================================================
-// SISTEMA DE RECEITAS - VERSÃO CORRIGIDA E ASSÍNCRONA
+// SISTEMA DE RECEITAS - VERSÃO FUNCIONAL COMPLETA
 // ================================================================
 
 let processandoReceita = false;
 
 // ================================================================
-// RENDERIZAÇÃO DE RECEITAS
+// INICIALIZAÇÃO
+// ================================================================
+
+async function aguardarSistemaReady() {
+    return new Promise((resolve) => {
+        if (window.sistemaInicializado && window.dadosFinanceiros && typeof window.salvarDados === 'function') {
+            resolve(true);
+            return;
+        }
+        
+        let tentativas = 0;
+        const maxTentativas = 50;
+        
+        const verificar = () => {
+            tentativas++;
+            
+            if (window.sistemaInicializado && window.dadosFinanceiros && typeof window.salvarDados === 'function') {
+                resolve(true);
+            } else if (tentativas >= maxTentativas) {
+                resolve(false);
+            } else {
+                setTimeout(verificar, 100);
+            }
+        };
+        
+        verificar();
+    });
+}
+
+// ================================================================
+// RENDERIZAÇÃO
 // ================================================================
 
 function renderizarReceitas(receitas, fechado) {
@@ -14,14 +44,17 @@ function renderizarReceitas(receitas, fechado) {
    
     listaReceitas.innerHTML = '';
    
-    // Adicionar saldo anterior se existir
-    const saldoAnterior = obterSaldoAnteriorValido(mesAberto, anoAberto);
-    if (saldoAnterior !== 0) {
-        const trSaldo = criarLinhaSaldoAnterior(saldoAnterior, fechado);
-        listaReceitas.appendChild(trSaldo);
+    const temSaldoAnteriorReal = Array.isArray(receitas) && 
+        receitas.some(receita => receita.saldoAnterior === true);
+    
+    if (!temSaldoAnteriorReal) {
+        const saldoAnterior = obterSaldoAnteriorValido(window.mesAberto, window.anoAberto);
+        if (saldoAnterior !== 0) {
+            const trSaldo = criarLinhaSaldoAnterior(saldoAnterior, fechado);
+            listaReceitas.appendChild(trSaldo);
+        }
     }
    
-    // Adicionar receitas
     if (Array.isArray(receitas)) {
         receitas.forEach((receita, index) => {
             const tr = criarLinhaReceita(receita, index, fechado);
@@ -29,139 +62,191 @@ function renderizarReceitas(receitas, fechado) {
         });
     }
    
-    // Configurar eventos para os botões
     if (!fechado) {
-        configurarEventosReceitas(listaReceitas, mesAberto, anoAberto);
+        configurarEventosReceitas(listaReceitas, window.mesAberto, window.anoAberto);
     }
+    
+    setTimeout(() => {
+        configurarEventosAnexosReceitas(listaReceitas);
+        atualizarTodosContadoresAnexosReceitas();
+    }, 100);
 }
 
 function criarLinhaSaldoAnterior(saldoAnterior, fechado) {
-    const tr = document.createElement('tr');
-    tr.className = 'saldo-anterior-row';
+    const template = document.getElementById('template-saldo-anterior-inline') || 
+                    document.getElementById('template-linha-saldo-anterior');
+    
+    if (!template) return document.createElement('tr');
+    
+    const clone = template.content.cloneNode(true);
+    const tr = clone.querySelector('tr');
+    
     if (fechado) tr.classList.add('transacao-fechada');
-   
+    
     const tipoSaldo = saldoAnterior >= 0 ? 'positivo' : 'negativo';
     const descricaoSaldo = saldoAnterior >= 0 ?
-        '💰 Saldo Anterior (Positivo)' :
-        '🔴 Saldo Anterior (Negativo)';
-   
-    tr.innerHTML = `
-        <td class="col-descricao">
-            <span class="saldo-anterior-desc ${tipoSaldo}">${descricaoSaldo}</span>
-        </td>
-        <td class="col-valor">
-            <span class="saldo-anterior-valor ${tipoSaldo}">${formatarMoeda(saldoAnterior)}</span>
-        </td>
-        <td class="col-data">-</td>
-        <td class="col-parcela">-</td>
-        <td class="col-acoes">
-            <span class="badge-saldo-anterior">AUTOMÁTICO</span>
-        </td>
-    `;
-   
-    return tr;
+        'Saldo Anterior (Positivo)' :
+        'Saldo Anterior (Negativo)';
+    
+    const spanDesc = clone.querySelector('.saldo-anterior-desc');
+    const spanValor = clone.querySelector('.saldo-anterior-valor');
+    
+    if (spanDesc) {
+        spanDesc.textContent = descricaoSaldo;
+        spanDesc.classList.add(tipoSaldo);
+    }
+    
+    if (spanValor) {
+        spanValor.textContent = window.formatarMoeda(saldoAnterior);
+        spanValor.classList.add(tipoSaldo);
+    }
+    
+    return clone;
 }
 
 function criarLinhaReceita(receita, index, fechado) {
-    const tr = document.createElement('tr');
-    tr.className = 'receita-row';
+    const template = document.getElementById('template-linha-receita');
+    if (!template) return document.createElement('tr');
+    
+    const clone = template.content.cloneNode(true);
+    const tr = clone.querySelector('tr');
+    
+    const eSaldoAnterior = receita.saldoAnterior === true || 
+                          receita.descricao.includes('Saldo Anterior');
+    
+    if (eSaldoAnterior) {
+        tr.classList.add('saldo-anterior-row');
+        preencherLinhaSaldoAnterior(clone, receita);
+    } else {
+        preencherLinhaReceitaNormal(clone, receita, index, fechado);
+    }
+    
     if (fechado) tr.classList.add('transacao-fechada');
-   
-    // Criar estrutura da linha
-    tr.innerHTML = '';
-   
-    // Coluna Descrição
-    const tdDescricao = document.createElement('td');
-    tdDescricao.className = 'col-descricao';
-    const spanDescricao = document.createElement('span');
-    spanDescricao.className = 'receita-descricao';
-    spanDescricao.textContent = receita.descricao || 'Sem descrição';
-    spanDescricao.title = receita.descricao || 'Sem descrição';
-    tdDescricao.appendChild(spanDescricao);
-    tr.appendChild(tdDescricao);
-   
-    // Coluna Valor
-    const tdValor = document.createElement('td');
-    tdValor.className = 'col-valor';
-    const spanValor = document.createElement('span');
-    spanValor.className = 'receita-valor';
-    spanValor.textContent = formatarMoeda(receita.valor || 0);
-    tdValor.appendChild(spanValor);
-    tr.appendChild(tdValor);
-   
-    // Coluna Data
-    const tdData = document.createElement('td');
-    tdData.className = 'col-data';
-    const spanData = document.createElement('span');
-    spanData.className = 'receita-data';
-    spanData.textContent = formatarData(receita.data || new Date());
-    tdData.appendChild(spanData);
-    tr.appendChild(tdData);
-   
-    // Coluna Parcela
-    const tdParcela = document.createElement('td');
-    tdParcela.className = 'col-parcela';
-    const spanParcela = document.createElement('span');
-    spanParcela.className = 'receita-parcela';
-    spanParcela.textContent = receita.parcela || '-';
-    tdParcela.appendChild(spanParcela);
-    tr.appendChild(tdParcela);
-   
-    // Coluna Ações
-    const tdAcoes = document.createElement('td');
-    tdAcoes.className = 'col-acoes';
-    const divAcoes = document.createElement('div');
-    divAcoes.className = 'receita-acoes';
-   
-    // Botão Editar
-    const btnEditar = document.createElement('button');
-    btnEditar.className = 'btn btn-editar';
-    btnEditar.dataset.index = index;
-    btnEditar.title = 'Editar';
-    btnEditar.innerHTML = '<i class="fas fa-edit"></i>';
-    if (fechado) {
-        btnEditar.disabled = true;
-        btnEditar.title = 'Mês fechado';
+    
+    return clone;
+}
+
+function preencherLinhaSaldoAnterior(clone, receita) {
+    const tipoSaldo = receita.valor >= 0 ? 'positivo' : 'negativo';
+    
+    const descricaoEl = clone.querySelector('.receita-descricao');
+    const valorEl = clone.querySelector('.receita-valor');
+    const dataEl = clone.querySelector('.receita-data');
+    const parcelaEl = clone.querySelector('.receita-parcela');
+    const acoesEl = clone.querySelector('.receita-acoes');
+    
+    if (descricaoEl) {
+        descricaoEl.textContent = receita.descricao;
+        descricaoEl.classList.add('saldo-anterior-desc', tipoSaldo);
     }
-    divAcoes.appendChild(btnEditar);
-   
-    // Botão Excluir
-    const btnExcluir = document.createElement('button');
-    btnExcluir.className = 'btn btn-excluir';
-    btnExcluir.dataset.index = index;
-    btnExcluir.title = 'Excluir';
-    btnExcluir.innerHTML = '<i class="fas fa-trash"></i>';
-    if (fechado) {
-        btnExcluir.disabled = true;
-        btnExcluir.title = 'Mês fechado';
+    
+    if (valorEl) {
+        valorEl.textContent = window.formatarMoeda(receita.valor);
+        valorEl.classList.add('saldo-anterior-valor', tipoSaldo);
     }
-    divAcoes.appendChild(btnExcluir);
-   
-    tdAcoes.appendChild(divAcoes);
-    tr.appendChild(tdAcoes);
-   
-    return tr;
+    
+    if (dataEl) dataEl.textContent = '-';
+    if (parcelaEl) parcelaEl.textContent = '-';
+    if (acoesEl) acoesEl.innerHTML = '<span class="badge-saldo-anterior">AUTOMÁTICO</span>';
+}
+
+function preencherLinhaReceitaNormal(clone, receita, index, fechado) {
+    const descricaoEl = clone.querySelector('.receita-descricao');
+    const valorEl = clone.querySelector('.receita-valor');
+    const dataEl = clone.querySelector('.receita-data');
+    const parcelaEl = clone.querySelector('.receita-parcela');
+    
+    if (descricaoEl) descricaoEl.textContent = receita.descricao || 'Sem descrição';
+    if (valorEl) valorEl.textContent = window.formatarMoeda(receita.valor || 0);
+    if (dataEl) dataEl.textContent = window.formatarData(receita.data || new Date());
+    if (parcelaEl) parcelaEl.textContent = receita.parcela || '-';
+    
+    const btnEditar = clone.querySelector('.btn-editar');
+    const btnExcluir = clone.querySelector('.btn-excluir');
+    
+    if (btnEditar) {
+        btnEditar.dataset.index = index;
+        if (fechado) {
+            btnEditar.disabled = true;
+            btnEditar.title = 'Mês fechado';
+        }
+    }
+    
+    if (btnExcluir) {
+        btnExcluir.dataset.index = index;
+        if (fechado) {
+            btnExcluir.disabled = true;
+            btnExcluir.title = 'Mês fechado';
+        }
+    }
+    
+    configurarBotaoAnexos(clone, receita, index, fechado);
+}
+
+function configurarBotaoAnexos(clone, receita, index, fechado) {
+    const btnAnexos = clone.querySelector('.btn-anexos');
+    if (!btnAnexos) return;
+    
+    btnAnexos.dataset.index = index;
+    
+    const quantidadeAnexos = receita.anexos ? receita.anexos.length : 0;
+    const contador = clone.querySelector('.contador-anexos');
+    
+    if (contador) {
+        contador.textContent = quantidadeAnexos;
+    }
+    
+    if (quantidadeAnexos > 0) {
+        btnAnexos.classList.add('tem-anexos');
+        btnAnexos.title = `${quantidadeAnexos} anexo(s) - Clique para visualizar`;
+    } else {
+        btnAnexos.classList.remove('tem-anexos');
+        btnAnexos.title = 'Sem anexos';
+    }
+    
+    btnAnexos.disabled = false;
 }
 
 // ================================================================
-// CONFIGURAÇÃO DE EVENTOS
+// EVENTOS
 // ================================================================
 
 function configurarEventosReceitas(container, mes, ano) {
-    // Usar delegação de eventos no container
-    container.addEventListener('click', (e) => {
+    if (!container) return;
+    
+    if (container._receitasListener) {
+        container.removeEventListener('click', container._receitasListener);
+    }
+    
+    container._receitasListener = (e) => {
         const btn = e.target.closest('.btn');
         if (!btn) return;
-       
+        
         e.stopPropagation();
         const index = parseInt(btn.dataset.index);
-       
+        
         if (btn.classList.contains('btn-editar')) {
             editarReceita(index, mes, ano);
         } else if (btn.classList.contains('btn-excluir')) {
             excluirReceita(index, mes, ano);
+        } else if (btn.classList.contains('btn-anexos')) {
+            if (typeof window.abrirModalVisualizarAnexosReceita === 'function') {
+                window.abrirModalVisualizarAnexosReceita(index);
+            } else {
+                alert('Sistema de visualização de anexos não disponível');
+            }
         }
-    });
+    };
+    
+    container.addEventListener('click', container._receitasListener);
+}
+
+function configurarEventosAnexosReceitas(container) {
+    if (!container) return;
+    
+    if (typeof window.configurarEventosAnexosReceitas === 'function') {
+        window.configurarEventosAnexosReceitas(container);
+    }
 }
 
 // ================================================================
@@ -170,75 +255,151 @@ function configurarEventosReceitas(container, mes, ano) {
 
 function calcularTotalReceitas(receitas) {
     if (!Array.isArray(receitas)) return 0;
-    return receitas.reduce((total, receita) => total + parseFloat(receita.valor || 0), 0);
-}
-
-function calcularTotalReceitasComSaldo(receitas, mes, ano) {
-    const totalReceitas = calcularTotalReceitas(receitas || []);
-    const saldoAnterior = obterSaldoAnteriorValido(mes || mesAberto, ano || anoAberto);
-    return totalReceitas + saldoAnterior;
-}
-
-// ================================================================
-// MODAL NOVA RECEITA
-// ================================================================
-
-function abrirModalNovaReceita(index) {
-    try {
-        if (mesAberto === null || anoAberto === null) {
-            mesAberto = new Date().getMonth();
-            anoAberto = new Date().getFullYear();
+    
+    return receitas.reduce((total, receita) => {
+        if (receita.saldoAnterior === true || 
+            receita.descricao?.includes('Saldo Anterior') ||
+            receita.automatica === true) {
+            return total;
         }
-     
+        return total + parseFloat(receita.valor || 0);
+    }, 0);
+}
+
+function obterSaldoAnteriorValido(mes, ano) {
+    let mesAnterior = mes - 1;
+    let anoAnterior = ano;
+    
+    if (mes === 0) {
+        mesAnterior = 11;
+        anoAnterior = ano - 1;
+    }
+    
+    if (!window.dadosFinanceiros[anoAnterior] || !window.dadosFinanceiros[anoAnterior].meses) {
+        return 0;
+    }
+    
+    const dadosMesAnterior = window.dadosFinanceiros[anoAnterior].meses[mesAnterior];
+    
+    if (dadosMesAnterior && dadosMesAnterior.fechado === true) {
+        return dadosMesAnterior.saldoFinal || 0;
+    }
+    
+    return 0;
+}
+
+// ================================================================
+// MODAL RECEITA - REFATORADO COMPLETAMENTE
+// ================================================================
+
+function abrirModalNovaReceita(index, mes, ano) {
+    try {
+        console.log('🔵 Abrindo modal - Index:', index, 'Mes:', mes, 'Ano:', ano);
+        
+        const mesReceita = mes !== undefined ? mes : window.mesAberto;
+        const anoReceita = ano !== undefined ? ano : window.anoAberto;
+        
+        if (mesReceita === null || anoReceita === null) {
+            throw new Error('Mês ou ano não definido');
+        }
+        
         const modal = document.getElementById('modal-nova-receita');
         const form = document.getElementById('form-nova-receita');
-       
+        
         if (!modal || !form) {
-            console.error("Modal ou formulário não encontrado!");
-            return;
+            throw new Error('Modal ou formulário não encontrado');
         }
-       
-        form.reset();
+        
         processandoReceita = false;
-       
-        // Resetar estado do formulário
-        document.getElementById('opcoes-replicacao-detalhes').classList.add('hidden');
-        document.getElementById('selector-ate-container').classList.add('hidden');
-        document.getElementById('receita-replicar').checked = false;
-        document.getElementById('replicar-todos').checked = true;
-       
-        document.getElementById('receita-mes').value = mesAberto;
-        document.getElementById('receita-ano').value = anoAberto;
-       
-        const dataAtual = new Date(anoAberto, mesAberto, new Date().getDate());
-        document.getElementById('receita-data').value = dataAtual.toISOString().split('T')[0];
-       
-        if (index !== undefined && dadosFinanceiros[anoAberto]?.meses[mesAberto]?.receitas[index]) {
-            const receita = dadosFinanceiros[anoAberto].meses[mesAberto].receitas[index];
-            document.getElementById('receita-id').value = index;
-            document.getElementById('receita-descricao').value = receita.descricao;
-            document.getElementById('receita-valor').value = receita.valor;
-            document.getElementById('receita-data').value = receita.data;
-        } else {
-            document.getElementById('receita-id').value = '';
+        
+        if (window.sistemaAnexos) {
+            window.sistemaAnexos.limparAnexosTemporarios('receita');
         }
-       
+        
+        const indexValido = typeof index === 'number' && !isNaN(index) && index >= 0;
+        const receitas = window.dadosFinanceiros[anoReceita]?.meses[mesReceita]?.receitas;
+        const receitaExiste = indexValido && receitas && receitas[index];
+        
+        console.log('📋 Verificação:', {
+            indexValido,
+            receitaExiste,
+            totalReceitas: receitas?.length
+        });
+        
+        form.reset();
+        resetarOpcoesReplicacao();
+        
+        document.getElementById('receita-mes').value = mesReceita;
+        document.getElementById('receita-ano').value = anoReceita;
+        
+        if (receitaExiste) {
+            const receita = receitas[index];
+            
+            console.log('✏️ MODO EDIÇÃO - Receita:', receita);
+            
+            if (receita.saldoAnterior === true || receita.descricao?.includes('Saldo Anterior')) {
+                alert('Não é possível editar receitas de saldo anterior.');
+                return;
+            }
+            
+            document.getElementById('receita-id').value = index;
+            document.getElementById('receita-descricao').value = receita.descricao || '';
+            document.getElementById('receita-valor').value = receita.valor || '';
+            document.getElementById('receita-data').value = receita.data || '';
+            
+            console.log('✅ Campos preenchidos:', {
+                id: index,
+                descricao: receita.descricao,
+                valor: receita.valor,
+                data: receita.data
+            });
+            
+            if (window.sistemaAnexos && receita.anexos) {
+                window.sistemaAnexos.carregarAnexosExistentes(receita, 'receita');
+            }
+            
+            const titulo = modal.querySelector('.modal-header h2');
+            if (titulo) titulo.textContent = 'Editar Receita';
+            
+        } else {
+            console.log('➕ MODO NOVA RECEITA');
+            
+            document.getElementById('receita-id').value = '';
+            
+            const dataAtual = new Date(anoReceita, mesReceita, new Date().getDate());
+            document.getElementById('receita-data').value = dataAtual.toISOString().split('T')[0];
+            
+            const titulo = modal.querySelector('.modal-header h2');
+            if (titulo) titulo.textContent = 'Nova Receita';
+        }
+        
         configurarOpcoesReplicacao();
         modal.style.display = 'block';
-       
-        // Focar no primeiro campo
+        
         setTimeout(() => {
             document.getElementById('receita-descricao').focus();
         }, 100);
-       
+        
     } catch (error) {
-        console.error("Erro ao abrir modal:", error);
+        console.error('❌ Erro ao abrir modal:', error);
         alert("Erro ao abrir modal: " + error.message);
     }
 }
 
+function resetarOpcoesReplicacao() {
+    const opcoesDetalhes = document.getElementById('opcoes-replicacao-detalhes');
+    const selectorContainer = document.getElementById('selector-ate-container');
+    const checkboxReplicar = document.getElementById('receita-replicar');
+    const radioTodos = document.getElementById('replicar-todos');
+    
+    if (opcoesDetalhes) opcoesDetalhes.classList.add('hidden');
+    if (selectorContainer) selectorContainer.classList.add('hidden');
+    if (checkboxReplicar) checkboxReplicar.checked = false;
+    if (radioTodos) radioTodos.checked = true;
+}
+
 // ================================================================
-// SALVAR RECEITA - CORRIGIDO E TOTALMENTE ASSÍNCRONO
+// SALVAMENTO
 // ================================================================
 
 async function salvarReceita(e) {
@@ -246,102 +407,63 @@ async function salvarReceita(e) {
         e.preventDefault();
         e.stopPropagation();
     }
-   
+    
     if (processandoReceita) {
-        console.log('⏳ Receita já sendo processada...');
+        console.log('⏳ Já está processando...');
+        return false;
+    }
+    
+    if (!window.sistemaInicializado || !window.dadosFinanceiros) {
+        alert('Sistema ainda carregando. Aguarde alguns segundos e tente novamente.');
         return false;
     }
     
     processandoReceita = true;
-   
+    
     try {
-        console.log('💰 Iniciando salvamento de receita...');
+        const formData = coletarDadosFormulario();
         
-        const mes = parseInt(document.getElementById('receita-mes').value);
-        const ano = parseInt(document.getElementById('receita-ano').value);
-        const id = document.getElementById('receita-id').value;
-       
-        const descricao = document.getElementById('receita-descricao').value.trim();
-        const valor = parseFloat(document.getElementById('receita-valor').value);
-       
-        // Validações
-        if (!descricao) {
-            alert('Por favor, informe a descrição da receita.');
-            document.getElementById('receita-descricao').focus();
+        console.log('📝 Dados coletados:', formData);
+        
+        if (!validarDadosFormulario(formData)) {
+            processandoReceita = false;
             return false;
         }
-       
-        if (isNaN(valor) || valor <= 0) {
-            alert('Por favor, informe um valor válido para a receita.');
-            document.getElementById('receita-valor').focus();
-            return false;
-        }
-       
-        // Criar objeto receita
-        const novaReceita = {
-            descricao: descricao,
-            valor: valor,
-            data: document.getElementById('receita-data').value,
-            parcelado: false,
-            parcela: null
-        };
-
-        // CORREÇÃO PRINCIPAL: Aguardar usuarioDados estar pronto
-        if (window.usuarioDados && typeof window.usuarioDados.aguardarPronto === 'function') {
-            console.log('⏳ Aguardando usuarioDados estar pronto...');
-            await window.usuarioDados.aguardarPronto();
-        }
-
-        let sucesso = false;
-
-        // Tentar salvar via sistema integrado
-        if (window.usuarioDados && typeof window.usuarioDados.salvarReceita === 'function') {
-            try {
-                console.log('🌐 Salvando receita via sistema integrado...');
-                sucesso = await window.usuarioDados.salvarReceita(mes, ano, novaReceita, id);
-                if (sucesso) {
-                    console.log('✅ Receita salva via sistema integrado');
-                }
-            } catch (error) {
-                console.error('❌ Erro no sistema integrado:', error);
-                sucesso = false;
-            }
-        }
-
-        // Fallback para método direto
-        if (!sucesso) {
-            console.log('💾 Usando fallback direto...');
-            sucesso = await salvarReceitaFallback(mes, ano, novaReceita, id);
-        }
+        
+        const novaReceita = criarObjetoReceita(formData);
+        
+        const idValue = formData.id;
+        const ehEdicao = idValue !== '' && idValue !== null && idValue !== undefined;
+        
+        console.log('💾 Salvando - É edição?', ehEdicao, 'ID:', idValue);
+        
+        const sucesso = await salvarReceitaLocal(formData.mes, formData.ano, novaReceita, idValue);
 
         if (sucesso) {
-            // Processar replicação se necessário
-            if (id === '' || id === null) { // Apenas para receitas novas
+            if (!ehEdicao) {
                 const replicar = document.getElementById('receita-replicar');
                 if (replicar && replicar.checked) {
-                    await processarReplicacao(novaReceita, mes, ano);
+                    await processarReplicacao(novaReceita, formData.mes, formData.ano);
                 }
             }
 
-            // Fechar modal
             document.getElementById('modal-nova-receita').style.display = 'none';
-           
-            // Atualizar interface
-            if (typeof renderizarDetalhesDoMes === 'function') {
-                renderizarDetalhesDoMes(mes, ano);
+            
+            if (typeof window.renderizarDetalhesDoMes === 'function') {
+                window.renderizarDetalhesDoMes(formData.mes, formData.ano);
             }
-           
-            if (typeof carregarDadosDashboard === 'function') {
-                await carregarDadosDashboard(ano);
+            
+            if (typeof window.carregarDadosDashboard === 'function') {
+                await window.carregarDadosDashboard(formData.ano);
             }
-
-            console.log('✅ Receita salva e interface atualizada');
+            
+            console.log('✅ Receita salva com sucesso!');
         } else {
             throw new Error('Falha ao salvar receita');
         }
-       
+        
         return false;
-       
+        
     } catch (error) {
         console.error("❌ Erro ao salvar receita:", error);
         alert("Erro ao salvar receita: " + error.message);
@@ -351,156 +473,254 @@ async function salvarReceita(e) {
     }
 }
 
-// Função de fallback para salvamento direto
-async function salvarReceitaFallback(mes, ano, receita, id) {
-    try {
-        garantirEstruturaDados(ano, mes);
-        
-        if (id !== '' && id !== null) {
-            // Editar receita existente
-            const index = parseInt(id);
-            if (dadosFinanceiros[ano].meses[mes].receitas[index]) {
-                dadosFinanceiros[ano].meses[mes].receitas[index] = receita;
+function coletarDadosFormulario() {
+    const idValue = document.getElementById('receita-id').value;
+    
+    return {
+        id: idValue,
+        mes: parseInt(document.getElementById('receita-mes').value),
+        ano: parseInt(document.getElementById('receita-ano').value),
+        descricao: document.getElementById('receita-descricao').value.trim(),
+        valor: parseFloat(document.getElementById('receita-valor').value),
+        data: document.getElementById('receita-data').value
+    };
+}
+
+function validarDadosFormulario(formData) {
+    if (!formData.descricao) {
+        alert('Por favor, informe a descrição da receita.');
+        document.getElementById('receita-descricao').focus();
+        return false;
+    }
+    
+    if (isNaN(formData.valor) || formData.valor <= 0) {
+        alert('Por favor, informe um valor válido para a receita.');
+        document.getElementById('receita-valor').focus();
+        return false;
+    }
+
+    if (isNaN(formData.mes) || formData.mes < 0 || formData.mes > 11) {
+        alert('Mês inválido.');
+        return false;
+    }
+
+    if (isNaN(formData.ano) || formData.ano < 2020 || formData.ano > 2050) {
+        alert('Ano inválido.');
+        return false;
+    }
+    
+    return true;
+}
+
+function criarObjetoReceita(formData) {
+    let anexosReceita = [];
+    if (window.sistemaAnexos) {
+        try {
+            anexosReceita = window.sistemaAnexos.obterAnexosParaSalvar('receita');
+            if (!Array.isArray(anexosReceita)) {
+                anexosReceita = [];
             }
+        } catch (error) {
+            console.warn('⚠️ Erro ao obter anexos:', error);
+            anexosReceita = [];
+        }
+    }
+    
+    return {
+        id: window.gerarId ? window.gerarId() : Date.now().toString(),
+        descricao: formData.descricao,
+        valor: formData.valor,
+        data: formData.data,
+        parcelado: false,
+        parcela: null,
+        saldoAnterior: false,
+        anexos: anexosReceita
+    };
+}
+
+async function salvarReceitaLocal(mes, ano, receita, id) {
+    try {
+        if (!window.garantirEstruturaDados || !window.salvarDados || !window.dadosFinanceiros) {
+            throw new Error('Sistema principal não inicializado');
+        }
+
+        window.garantirEstruturaDados(ano, mes);
+        
+        if (!window.dadosFinanceiros[ano] || !window.dadosFinanceiros[ano].meses[mes]) {
+            throw new Error(`Estrutura do mês ${mes}/${ano} não foi criada corretamente`);
+        }
+        
+        const ehEdicao = id !== '' && id !== null && id !== undefined;
+        
+        if (ehEdicao) {
+            const index = parseInt(id);
+            
+            console.log('✏️ Editando receita no índice:', index);
+            
+            if (isNaN(index) || index < 0) {
+                throw new Error('Índice de edição inválido: ' + id);
+            }
+            
+            if (!window.dadosFinanceiros[ano].meses[mes].receitas[index]) {
+                throw new Error('Receita não encontrada no índice: ' + index);
+            }
+            
+            const receitaOriginal = window.dadosFinanceiros[ano].meses[mes].receitas[index];
+            receita.id = receitaOriginal.id;
+            
+            if (!receita.anexos || receita.anexos.length === 0) {
+                receita.anexos = receitaOriginal.anexos || [];
+            }
+            
+            window.dadosFinanceiros[ano].meses[mes].receitas[index] = receita;
+            
+            console.log('✅ Receita editada:', receita);
         } else {
-            // Adicionar nova receita
-            dadosFinanceiros[ano].meses[mes].receitas.push(receita);
+            console.log('➕ Adicionando nova receita');
+            window.dadosFinanceiros[ano].meses[mes].receitas.push(receita);
         }
         
-        const sucessoSalvamento = await salvarDados();
-        if (sucessoSalvamento) {
-            atualizarSaldosMesesOtimizado(mes, ano);
-            return true;
+        const sucesso = await window.salvarDados();
+        
+        if (!sucesso) {
+            throw new Error('Falha na operação de salvamento');
         }
         
-        return false;
+        if (window.sistemaAnexos) {
+            window.sistemaAnexos.limparAnexosTemporarios('receita');
+        }
+        
+        return true;
+        
     } catch (error) {
-        console.error('❌ Erro no fallback de salvamento:', error);
-        return false;
+        console.error('❌ Erro em salvarReceitaLocal:', error);
+        throw new Error(`Erro ao salvar receita: ${error.message}`);
     }
 }
 
 // ================================================================
-// REPLICAÇÃO DE RECEITAS - CORRIGIDA
+// REPLICAÇÃO
 // ================================================================
 
 async function processarReplicacao(receita, mes, ano) {
     try {
-        console.log('🔄 Processando replicação de receita...');
-        
         const tipoReplicacao = document.querySelector('input[name="tipo-replicacao"]:checked')?.value || 'todos';
         const dataReceita = new Date(receita.data);
         const diaReceita = dataReceita.getDate();
-       
+        
         if (tipoReplicacao === 'todos') {
-            // Replicar para todos os meses futuros do ano
             for (let mesProcesando = mes + 1; mesProcesando < 12; mesProcesando++) {
                 await replicarParaMes(receita, mesProcesando, ano, diaReceita);
             }
         } else if (tipoReplicacao === 'ate') {
-            // Replicar até o mês selecionado
             const mesFinal = parseInt(document.getElementById('replicar-ate-mes').value);
             const anoFinal = parseInt(document.getElementById('replicar-ate-ano').value);
-           
+            
             let mesAtual = mes;
             let anoAtual = ano;
-           
+            
             while (anoAtual < anoFinal || (anoAtual === anoFinal && mesAtual < mesFinal)) {
                 mesAtual++;
                 if (mesAtual > 11) {
                     mesAtual = 0;
                     anoAtual++;
                 }
-               
+                
                 if (anoAtual <= anoFinal) {
-                    garantirEstruturaDados(anoAtual, mesAtual);
+                    window.garantirEstruturaDados(anoAtual, mesAtual);
                     await replicarParaMes(receita, mesAtual, anoAtual, diaReceita);
                 }
             }
         }
         
-        // Salvar após replicação
-        await salvarDados();
-        console.log('✅ Replicação concluída');
+        await window.salvarDados();
         
     } catch (error) {
-        console.error('❌ Erro na replicação:', error);
+        console.error('Erro na replicação:', error);
     }
 }
 
 async function replicarParaMes(receita, mes, ano, dia) {
     try {
-        garantirEstruturaDados(ano, mes);
-       
+        window.garantirEstruturaDados(ano, mes);
+        
         const receitaReplicada = { ...receita };
+        receitaReplicada.anexos = [];
+        
         const novaData = new Date(ano, mes, dia);
-       
-        // Ajustar para último dia do mês se necessário
+        
         if (novaData.getMonth() !== mes) {
             const ultimoDia = new Date(ano, mes + 1, 0).getDate();
             novaData.setDate(ultimoDia);
         }
-       
+        
         receitaReplicada.data = novaData.toISOString().split('T')[0];
-        dadosFinanceiros[ano].meses[mes].receitas.push(receitaReplicada);
+        receitaReplicada.id = window.gerarId ? window.gerarId() : Date.now().toString();
+        
+        window.dadosFinanceiros[ano].meses[mes].receitas.push(receitaReplicada);
         
     } catch (error) {
-        console.error('❌ Erro ao replicar para mês:', error);
+        console.error('Erro ao replicar para mês:', error);
     }
 }
 
 // ================================================================
-// EDITAR E EXCLUIR RECEITAS - CORRIGIDAS
+// EDITAR E EXCLUIR
 // ================================================================
 
 function editarReceita(index, mes, ano) {
-    abrirModalNovaReceita(index);
+    console.log('🖊️ Editando receita - Index:', index, 'Mes:', mes, 'Ano:', ano);
+    
+    if (window.dadosFinanceiros[ano]?.meses[mes]?.receitas[index]) {
+        const receita = window.dadosFinanceiros[ano].meses[mes].receitas[index];
+        
+        console.log('📄 Receita encontrada:', receita);
+        
+        if (receita.saldoAnterior === true || receita.descricao?.includes('Saldo Anterior')) {
+            alert('Não é possível editar receitas de saldo anterior. Estas são geradas automaticamente.');
+            return;
+        }
+    } else {
+        console.error('❌ Receita não encontrada!');
+        alert('Receita não encontrada!');
+        return;
+    }
+    
+    abrirModalNovaReceita(index, mes, ano);
 }
 
 function excluirReceita(index, mes, ano) {
     try {
-        if (!dadosFinanceiros[ano]?.meses[mes]?.receitas[index]) {
+        if (!window.dadosFinanceiros[ano]?.meses[mes]?.receitas[index]) {
             alert('Receita não encontrada!');
             return;
         }
-       
-        const receita = dadosFinanceiros[ano].meses[mes].receitas[index];
+        
+        const receita = window.dadosFinanceiros[ano].meses[mes].receitas[index];
+        
+        if (receita.saldoAnterior === true || receita.descricao.includes('Saldo Anterior')) {
+            alert('Não é possível excluir receitas de saldo anterior. Estas são geradas automaticamente.');
+            return;
+        }
+        
         const descricaoReceita = receita.descricao;
-       
-        // Configurar modal
+        
+        window.dadosExclusao = {
+            index: index,
+            mes: mes,
+            ano: ano,
+            descricao: descricaoReceita
+        };
+        
         const modal = document.getElementById('modal-exclusao-receita');
         const titulo = modal.querySelector('h3');
         const mensagem = modal.querySelector('p');
-       
-        titulo.textContent = 'Excluir receita';
-        mensagem.textContent = `Deseja excluir a receita "${descricaoReceita}"?`;
-       
-        // Remover listeners antigos dos botões
-        const btnExcluirAtual = document.getElementById('btn-excluir-atual');
-        const btnExcluirTodas = document.getElementById('btn-excluir-todas');
-       
-        const novoBtnAtual = btnExcluirAtual.cloneNode(true);
-        btnExcluirAtual.parentNode.replaceChild(novoBtnAtual, btnExcluirAtual);
-       
-        const novoBtnTodas = btnExcluirTodas.cloneNode(true);
-        btnExcluirTodas.parentNode.replaceChild(novoBtnTodas, btnExcluirTodas);
-       
-        // Adicionar novos listeners
-        document.getElementById('btn-excluir-atual').addEventListener('click', () => {
-            processarExclusaoReceita('atual', index, mes, ano, descricaoReceita);
-        });
-       
-        document.getElementById('btn-excluir-todas').addEventListener('click', () => {
-            processarExclusaoReceita('todas', index, mes, ano, descricaoReceita);
-        });
-       
-        // Configurar botão fechar
-        const closeBtn = modal.querySelector('.close');
-        closeBtn.onclick = () => modal.style.display = 'none';
-       
-        // Mostrar modal
+        
+        if (titulo) titulo.textContent = 'Excluir receita';
+        if (mensagem) mensagem.textContent = `Deseja excluir a receita "${descricaoReceita}"?`;
+        
         modal.style.display = 'block';
-       
+        
     } catch (error) {
         console.error("Erro ao excluir receita:", error);
         alert("Erro ao excluir receita: " + error.message);
@@ -509,115 +729,60 @@ function excluirReceita(index, mes, ano) {
 
 async function processarExclusaoReceita(opcao, index, mes, ano, descricaoReceita) {
     try {
-        console.log('🗑️ Iniciando exclusão de receita...', opcao);
-        
-        // CORREÇÃO: Aguardar sistema estar pronto
-        if (window.usuarioDados && typeof window.usuarioDados.aguardarPronto === 'function') {
-            await window.usuarioDados.aguardarPronto();
-        }
-
-        let sucesso = false;
-
-        // Tentar excluir via sistema integrado
-        if (window.usuarioDados && typeof window.usuarioDados.excluirReceita === 'function') {
-            try {
-                console.log('🌐 Excluindo receita via sistema integrado...');
-                sucesso = await window.usuarioDados.excluirReceita(mes, ano, index, opcao, descricaoReceita);
-                if (sucesso) {
-                    console.log('✅ Receita excluída via sistema integrado');
-                }
-            } catch (error) {
-                console.error('❌ Erro no sistema integrado:', error);
-                sucesso = false;
-            }
-        }
-
-        // Fallback para exclusão direta
-        if (!sucesso) {
-            console.log('💾 Usando fallback direto para exclusão...');
-            sucesso = await excluirReceitaFallback(opcao, index, mes, ano, descricaoReceita);
-        }
+        const sucesso = await excluirReceitaLocal(opcao, index, mes, ano, descricaoReceita);
 
         if (sucesso) {
-            // Atualizar interface
-            if (typeof renderizarDetalhesDoMes === 'function') {
-                renderizarDetalhesDoMes(mes, ano);
+            if (typeof window.renderizarDetalhesDoMes === 'function') {
+                window.renderizarDetalhesDoMes(mes, ano);
             }
-           
-            if (typeof carregarDadosDashboard === 'function') {
-                await carregarDadosDashboard(ano);
+            
+            if (typeof window.carregarDadosDashboard === 'function') {
+                await window.carregarDadosDashboard(window.anoAtual);
             }
-
-            console.log('✅ Receita excluída e interface atualizada');
         } else {
             throw new Error('Falha ao excluir receita');
         }
-       
-        // Fechar modal
-        document.getElementById('modal-exclusao-receita').style.display = 'none';
-       
+        
     } catch (error) {
-        console.error("❌ Erro ao processar exclusão:", error);
         alert("Erro ao processar exclusão: " + error.message);
     }
 }
 
-// Função de fallback para exclusão direta
-async function excluirReceitaFallback(opcao, index, mes, ano, descricaoReceita) {
+async function excluirReceitaLocal(opcao, index, mes, ano, descricaoReceita) {
     try {
         if (opcao === 'atual') {
-            if (dadosFinanceiros[ano]?.meses[mes]?.receitas[index]) {
-                dadosFinanceiros[ano].meses[mes].receitas.splice(index, 1);
+            if (window.dadosFinanceiros[ano]?.meses[mes]?.receitas[index]) {
+                window.dadosFinanceiros[ano].meses[mes].receitas.splice(index, 1);
             }
         } else if (opcao === 'todas') {
-            // Excluir todas as receitas com a mesma descrição no ano
             for (let m = 0; m < 12; m++) {
-                if (!dadosFinanceiros[ano]?.meses[m]?.receitas) continue;
+                if (!window.dadosFinanceiros[ano]?.meses[m]?.receitas) continue;
                 
-                const receitas = dadosFinanceiros[ano].meses[m].receitas;
+                const receitas = window.dadosFinanceiros[ano].meses[m].receitas;
                 for (let i = receitas.length - 1; i >= 0; i--) {
-                    if (receitas[i].descricao === descricaoReceita) {
+                    const receita = receitas[i];
+                    if (receita.descricao === descricaoReceita && !receita.saldoAnterior) {
                         receitas.splice(i, 1);
                     }
                 }
             }
         }
         
-        const sucessoSalvamento = await salvarDados();
-        if (sucessoSalvamento) {
-            atualizarSaldosMesesOtimizado(mes, ano);
-            return true;
-        }
+        return await window.salvarDados();
         
-        return false;
     } catch (error) {
-        console.error('❌ Erro no fallback de exclusão:', error);
         return false;
     }
 }
 
 // ================================================================
-// CONFIGURAÇÃO DE OPÇÕES DE REPLICAÇÃO
+// OPÇÕES DE REPLICAÇÃO
 // ================================================================
 
 function configurarOpcoesReplicacao() {
-    const checkboxReplicar = document.getElementById('receita-replicar');
-    const opcoesDetalhes = document.getElementById('opcoes-replicacao-detalhes');
-   
-    if (checkboxReplicar) {
-        checkboxReplicar.onchange = function() {
-            if (this.checked) {
-                opcoesDetalhes.classList.remove('hidden');
-            } else {
-                opcoesDetalhes.classList.add('hidden');
-            }
-        };
-    }
-   
-    // Configurar seletor de ano
     const anoSelect = document.getElementById('replicar-ate-ano');
     if (anoSelect && anoSelect.children.length === 0) {
-        const anoAtual = anoAberto || new Date().getFullYear();
+        const anoAtual = window.anoAberto || new Date().getFullYear();
         for (let i = 0; i <= 5; i++) {
             const ano = anoAtual + i;
             const option = document.createElement('option');
@@ -627,299 +792,117 @@ function configurarOpcoesReplicacao() {
             anoSelect.appendChild(option);
         }
     }
-   
-    // Configurar seletor de mês
+    
     const mesSelect = document.getElementById('replicar-ate-mes');
     if (mesSelect) {
-        mesSelect.value = '11'; // Dezembro por padrão
+        mesSelect.value = '11';
     }
 }
 
 // ================================================================
-// SALDOS E FECHAMENTO DE MÊS
+// CONTADORES DE ANEXOS
 // ================================================================
 
-function obterSaldoAnteriorValido(mes, ano) {
-    let mesAnterior = mes - 1;
-    let anoAnterior = ano;
-   
-    if (mes === 0) {
-        mesAnterior = 11;
-        anoAnterior = ano - 1;
-    }
-   
-    if (!dadosFinanceiros[anoAnterior] || !dadosFinanceiros[anoAnterior].meses) {
-        return 0;
-    }
-   
-    const dadosMesAnterior = dadosFinanceiros[anoAnterior].meses[mesAnterior];
-   
-    if (dadosMesAnterior && dadosMesAnterior.fechado === true) {
-        return dadosMesAnterior.saldoFinal || 0;
-    }
-   
-    return 0;
-}
-
-function calcularSaldoMes(mes, ano) {
-    const dadosMes = dadosFinanceiros[ano]?.meses[mes];
-    if (!dadosMes) return { saldoAnterior: 0, receitas: 0, despesas: 0, saldoFinal: 0 };
-   
-    const saldoAnterior = obterSaldoAnteriorValido(mes, ano);
-    const receitasManuais = calcularTotalReceitas(dadosMes.receitas || []);
-    const despesas = typeof calcularTotalDespesas === 'function' ?
-                    calcularTotalDespesas(dadosMes.despesas || []) : 0;
-   
-    const receitasTotal = saldoAnterior + receitasManuais;
-    const saldoFinal = saldoAnterior + receitasManuais - despesas;
-   
-    return {
-        saldoAnterior,
-        receitas: receitasTotal,
-        despesas,
-        saldoFinal
-    };
-}
-
-function atualizarSaldoMes(mes, ano) {
-    if (!dadosFinanceiros[ano] || !dadosFinanceiros[ano].meses[mes]) return;
-   
-    const dadosMes = dadosFinanceiros[ano].meses[mes];
-   
-    if (dadosMes.fechado === undefined) dadosMes.fechado = false;
-   
-    const saldoAnterior = obterSaldoAnteriorValido(mes, ano);
-    const receitas = calcularTotalReceitas(dadosMes.receitas || []);
-    const despesas = typeof calcularTotalDespesas === 'function' ?
-                    calcularTotalDespesas(dadosMes.despesas || []) : 0;
-   
-    dadosMes.saldoAnterior = saldoAnterior;
-    dadosMes.saldoFinal = saldoAnterior + receitas - despesas;
-}
-
-async function atualizarSaldosMesesOtimizado(mes, ano) {
-    // Atualizar mês atual
-    atualizarSaldoMes(mes, ano);
-   
-    // Atualizar próximo mês se existir
-    let proximoMes = mes + 1;
-    let proximoAno = ano;
-   
-    if (proximoMes > 11) {
-        proximoMes = 0;
-        proximoAno = ano + 1;
-    }
-   
-    if (dadosFinanceiros[proximoAno] && dadosFinanceiros[proximoAno].meses[proximoMes]) {
-        atualizarSaldoMes(proximoMes, proximoAno);
-    }
-   
-    await salvarDados();
-}
-
-async function fecharMes(mes, ano) {
-    const dadosMes = dadosFinanceiros[ano]?.meses[mes];
-    if (!dadosMes || dadosMes.fechado) {
-        alert('Mês já está fechado ou não existe!');
-        return false;
-    }
-   
-    const saldo = calcularSaldoMes(mes, ano);
-    const nomesMeses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-                       'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-   
-    const proximoMes = mes + 1;
-    const proximoAno = proximoMes > 11 ? ano + 1 : ano;
-    const proximoMesAjustado = proximoMes > 11 ? 0 : proximoMes;
-    const nomeProximoMes = proximoMes > 11 ? `Janeiro/${proximoAno}` : `${nomesMeses[proximoMes]}/${ano}`;
-   
-    const mensagem = `Fechar ${nomesMeses[mes]} de ${ano}?\n\n` +
-                    `Saldo final: ${formatarMoeda(saldo.saldoFinal)}\n\n` +
-                    `✅ Este saldo será transferido para ${nomeProximoMes}`;
-   
-    if (!confirm(mensagem)) return false;
-   
-    dadosMes.fechado = true;
-    dadosMes.dataFechamento = new Date().toISOString().split('T')[0];
-   
-    await atualizarSaldosMesesOtimizado(mes, ano);
-   
-    if (typeof renderizarMeses === 'function') {
-        renderizarMeses(ano);
-    }
-   
-    alert(`${nomesMeses[mes]} fechado com sucesso!\n\n💰 Saldo de ${formatarMoeda(saldo.saldoFinal)} transferido para ${nomeProximoMes}`);
-    return true;
-}
-
-async function reabrirMes(mes, ano) {
-    const dadosMes = dadosFinanceiros[ano]?.meses[mes];
-    if (!dadosMes || !dadosMes.fechado) {
-        alert('Mês já está aberto ou não existe!');
-        return false;
-    }
-   
-    const nomesMeses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-                       'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-   
-    const mensagem = `Reabrir ${nomesMeses[mes]} de ${ano}?\n\n` +
-                    `⚠️ O próximo mês terá seu saldo recalculado`;
-   
-    if (!confirm(mensagem)) return false;
-   
-    dadosMes.fechado = false;
-    dadosMes.dataFechamento = null;
-   
-    await atualizarSaldosMesesOtimizado(mes, ano);
-   
-    if (typeof renderizarMeses === 'function') {
-        renderizarMeses(ano);
-    }
-   
-    alert(`${nomesMeses[mes]} reaberto com sucesso!`);
-    return true;
-}
-
-// ================================================================
-// FECHAMENTO AUTOMÁTICO
-// ================================================================
-
-function verificarFechamentoAutomatico() {
-    const hoje = new Date();
-    if (hoje.getDate() !== 1) return;
-   
-    const mesAtual = hoje.getMonth();
-    const anoAtual = hoje.getFullYear();
-   
-    let mesAnterior = mesAtual - 1;
-    let anoAnterior = anoAtual;
-   
-    if (mesAnterior < 0) {
-        mesAnterior = 11;
-        anoAnterior = anoAtual - 1;
-    }
-   
-    const dadosMesAnterior = dadosFinanceiros[anoAnterior]?.meses[mesAnterior];
-   
-    if (dadosMesAnterior && !dadosMesAnterior.fechado) {
-        const temTransacoes = (dadosMesAnterior.receitas && dadosMesAnterior.receitas.length > 0) ||
-                             (dadosMesAnterior.despesas && dadosMesAnterior.despesas.length > 0);
-       
-        if (temTransacoes) {
-            fecharMesAutomatico(mesAnterior, anoAnterior);
+function atualizarContadorAnexosReceita(index, quantidade) {
+    const btnAnexos = document.querySelector(`.btn-anexos[data-index="${index}"]`);
+    
+    if (btnAnexos) {
+        const contador = btnAnexos.querySelector('.contador-anexos');
+        if (contador) {
+            contador.textContent = quantidade;
+            
+            if (quantidade > 0) {
+                btnAnexos.classList.add('tem-anexos');
+                btnAnexos.title = `${quantidade} anexo(s) - Clique para visualizar`;
+            } else {
+                btnAnexos.classList.remove('tem-anexos');
+                btnAnexos.title = 'Sem anexos';
+            }
         }
     }
 }
 
-async function fecharMesAutomatico(mes, ano) {
-    const dadosMes = dadosFinanceiros[ano]?.meses[mes];
-    if (!dadosMes || dadosMes.fechado) return false;
-   
-    dadosMes.fechado = true;
-    dadosMes.dataFechamento = new Date().toISOString().split('T')[0];
-    dadosMes.fechadoAutomaticamente = true;
-   
-    await atualizarSaldosMesesOtimizado(mes, ano);
-   
-    if (typeof renderizarMeses === 'function') {
-        renderizarMeses(ano);
+function atualizarTodosContadoresAnexosReceitas() {
+    if (!window.dadosFinanceiros || window.mesAberto === null || window.anoAberto === null) {
+        return;
     }
-   
-    return true;
+    
+    const dadosMes = window.dadosFinanceiros[window.anoAberto]?.meses[window.mesAberto];
+    if (!dadosMes || !dadosMes.receitas) return;
+    
+    dadosMes.receitas.forEach((receita, index) => {
+        if (!receita.saldoAnterior) {
+            const quantidade = receita.anexos ? receita.anexos.length : 0;
+            atualizarContadorAnexosReceita(index, quantidade);
+        }
+    });
 }
 
 // ================================================================
-// FUNÇÕES GLOBAIS PARA O HTML
+// FUNÇÕES GLOBAIS DE EXCLUSÃO
 // ================================================================
 
-window.toggleReplicacaoReceita = function(checkbox) {
-    const opcoes = document.getElementById('opcoes-replicacao-detalhes');
-    if (checkbox.checked) {
-        opcoes.classList.remove('hidden');
-    } else {
-        opcoes.classList.add('hidden');
+window.excluirAtual = function() {
+    if (window.dadosExclusao) {
+        const modal = document.getElementById('modal-exclusao-receita');
+        modal.style.display = 'none';
+        processarExclusaoReceita('atual', window.dadosExclusao.index, window.dadosExclusao.mes, window.dadosExclusao.ano, window.dadosExclusao.descricao);
     }
 };
 
-window.toggleSeletorAte = function() {
-    const selectorContainer = document.getElementById('selector-ate-container');
-    const radioAte = document.getElementById('replicar-ate');
-   
-    if (radioAte && radioAte.checked) {
-        selectorContainer.classList.remove('hidden');
-    } else {
-        selectorContainer.classList.add('hidden');
-    }
-};
-
-window.handleSalvarReceita = function(event) {
-    event.preventDefault();
-    salvarReceita(event);
-    return false;
-};
-
-window.handleNovaReceita = function() {
-    abrirModalNovaReceita();
-};
-
-window.handleFecharMes = function() {
-    if (mesAberto !== null && anoAberto !== null) {
-        fecharMes(mesAberto, anoAberto);
-    }
-};
-
-window.handleReabrirMes = function() {
-    if (mesAberto !== null && anoAberto !== null) {
-        reabrirMes(mesAberto, anoAberto);
+window.excluirTodas = function() {
+    if (window.dadosExclusao) {
+        const modal = document.getElementById('modal-exclusao-receita');
+        modal.style.display = 'none';
+        processarExclusaoReceita('todas', window.dadosExclusao.index, window.dadosExclusao.mes, window.dadosExclusao.ano, window.dadosExclusao.descricao);
     }
 };
 
 // ================================================================
-// INICIALIZAÇÃO
+// INICIALIZAÇÃO DE EVENT LISTENERS
 // ================================================================
 
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Inicializando sistema de receitas...');
+document.addEventListener('DOMContentLoaded', async function() {
+    const sistemaReady = await aguardarSistemaReady();
+    if (!sistemaReady) return;
     
-    // Aguardar um pouco para garantir que outros sistemas estejam prontos
     setTimeout(() => {
-        inicializarFormularioReceitas();
-        configurarEventosReceitas();
-        verificarFechamentoAutomaticoInicial();
-        console.log('✅ Sistema de receitas inicializado');
-    }, 500);
+        inicializarEventListeners();
+    }, 100);
 });
 
-function inicializarFormularioReceitas() {
-    // Remover handler inline antigo se existir
+function inicializarEventListeners() {
     const form = document.getElementById('form-nova-receita');
     if (form) {
-        // Remover o onsubmit inline
-        form.removeAttribute('onsubmit');
-       
-        // Clonar para remover todos os event listeners antigos
-        const novoForm = form.cloneNode(true);
-        form.parentNode.replaceChild(novoForm, form);
-       
-        // Adicionar apenas um event listener assíncrono
-        document.getElementById('form-nova-receita').addEventListener('submit', async function(e) {
+        form.addEventListener('submit', salvarReceita);
+    }
+    
+    const btnNovaReceita = document.getElementById('btn-nova-receita');
+    if (btnNovaReceita) {
+        btnNovaReceita.addEventListener('click', () => abrirModalNovaReceita());
+    }
+    
+    configurarEventListenersAnexos();
+    configurarEventListenersReplicacao();
+    configurarEventListenersModais();
+}
+
+function configurarEventListenersAnexos() {
+    const btnAnexarReceita = document.getElementById('btn-anexar-receita');
+    if (btnAnexarReceita) {
+        btnAnexarReceita.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            
-            try {
-                await salvarReceita(e);
-            } catch (error) {
-                console.error('❌ Erro no submit do formulário:', error);
-                alert('Erro ao salvar receita: ' + error.message);
+            if (window.sistemaAnexos) {
+                window.sistemaAnexos.abrirSeletorArquivos('receita');
+            } else {
+                alert('Sistema de anexos não disponível');
             }
-            
-            return false;
         });
     }
 }
 
-function configurarEventosReceitas() {
-    // Configurar eventos de replicação
+function configurarEventListenersReplicacao() {
     const checkboxReplicar = document.getElementById('receita-replicar');
     if (checkboxReplicar) {
         checkboxReplicar.addEventListener('change', function() {
@@ -931,8 +914,7 @@ function configurarEventosReceitas() {
             }
         });
     }
-   
-    // Configurar radio buttons de tipo de replicação
+
     document.querySelectorAll('input[name="tipo-replicacao"]').forEach(radio => {
         radio.addEventListener('change', function() {
             const selectorContainer = document.getElementById('selector-ate-container');
@@ -943,9 +925,10 @@ function configurarEventosReceitas() {
             }
         });
     });
-   
-    // Fechar modais ao clicar no X
-    document.querySelectorAll('#modal-nova-receita .close, #modal-exclusao-receita .close').forEach(closeBtn => {
+}
+
+function configurarEventListenersModais() {
+    document.querySelectorAll('.close').forEach(closeBtn => {
         closeBtn.addEventListener('click', function() {
             const modal = this.closest('.modal');
             if (modal) {
@@ -953,31 +936,201 @@ function configurarEventosReceitas() {
             }
         });
     });
+    
+    window.addEventListener('click', function(event) {
+        if (event.target.classList.contains('modal')) {
+            event.target.style.display = 'none';
+        }
+    });
 }
 
-function verificarFechamentoAutomaticoInicial() {
-    // Verificar fechamento automático
-    const ultimaVerificacao = localStorage.getItem('ultima_verificacao_fechamento');
-    const hoje = new Date().toDateString();
-   
-    if (ultimaVerificacao !== hoje) {
-        setTimeout(() => {
-            verificarFechamentoAutomatico();
-            localStorage.setItem('ultima_verificacao_fechamento', hoje);
-        }, 1000); // Aguardar 1 segundo para outros sistemas estarem prontos
+
+function abrirAbaReservas() {
+    const mes = window.mesAberto;
+    const ano = window.anoAberto;
+    
+    if (mes === null || ano === null) return;
+    
+    window.garantirEstruturaDados(ano, mes);
+    if (!window.dadosFinanceiros[ano].meses[mes].reservas) {
+        window.dadosFinanceiros[ano].meses[mes].reservas = [];
+    }
+    
+    document.getElementById('valor-reserva').value = '';
+    
+    atualizarResumos(mes, ano);
+    renderizarHistorico(mes, ano);
+}
+
+function atualizarResumos(mes, ano) {
+    const dadosMes = window.dadosFinanceiros[ano]?.meses[mes];
+    if (!dadosMes) return;
+    
+    const saldoInfo = window.calcularSaldoMes(mes, ano);
+    
+    const totalDisponivel = saldoInfo.saldoAnterior + saldoInfo.receitas;
+    const totalDespesas = saldoInfo.despesas;
+    const saldoLivre = totalDisponivel - totalDespesas;
+    
+    const reservasMes = (dadosMes.reservas || []).reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+    
+    const disponivelParaReservar = Math.max(0, saldoLivre - reservasMes);
+    
+    let totalAcumulado = 0;
+    for (const anoKey in window.dadosFinanceiros) {
+        if (anoKey === 'versao') continue;
+        const dadosAno = window.dadosFinanceiros[anoKey];
+        if (!dadosAno.meses) continue;
+        
+        for (let m = 0; m < 12; m++) {
+            const reservas = dadosAno.meses[m]?.reservas || [];
+            totalAcumulado += reservas.reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+        }
+    }
+    
+    document.getElementById('reservas-total-receitas').textContent = window.formatarMoeda(totalDisponivel);
+    document.getElementById('reservas-ja-reservado').textContent = window.formatarMoeda(totalAcumulado);
+    
+    const elemDisponivel = document.getElementById('reservas-disponivel');
+    elemDisponivel.textContent = window.formatarMoeda(disponivelParaReservar);
+    elemDisponivel.style.color = disponivelParaReservar > 0 ? '#27ae60' : '#e74c3c';
+    
+    const inputValor = document.getElementById('valor-reserva');
+    if (inputValor) {
+        inputValor.max = disponivelParaReservar.toFixed(2);
     }
 }
+
+async function adicionarReserva(e) {
+    e.preventDefault();
+    
+    const mes = window.mesAberto;
+    const ano = window.anoAberto;
+    const valor = parseFloat(document.getElementById('valor-reserva').value);
+    
+    if (isNaN(valor) || valor <= 0) {
+        return;
+    }
+    
+    const dadosMes = window.dadosFinanceiros[ano].meses[mes];
+    
+    const novaReserva = {
+        id: window.gerarId(),
+        valor: valor,
+        data: new Date().toISOString().split('T')[0]
+    };
+    
+    if (!dadosMes.reservas) dadosMes.reservas = [];
+    dadosMes.reservas.push(novaReserva);
+    
+    await window.salvarDados();
+    
+    atualizarResumos(mes, ano);
+    renderizarHistorico(mes, ano);
+    
+    const saldo = window.calcularSaldoMes(mes, ano);
+    const totalJuros = typeof window.calcularTotalJuros === 'function' ?
+                      window.calcularTotalJuros(dadosMes.despesas || []) : 0;
+    
+    window.atualizarElemento('resumo-receitas', window.formatarMoeda(saldo.receitas));
+    window.atualizarElemento('resumo-despesas', window.formatarMoeda(saldo.despesas));
+    window.atualizarElemento('resumo-juros', window.formatarMoeda(totalJuros));
+    
+    const saldoElement = document.getElementById('resumo-saldo');
+    if (saldoElement) {
+        saldoElement.textContent = window.formatarMoeda(saldo.saldoFinal);
+        saldoElement.className = saldo.saldoFinal >= 0 ? 'saldo-positivo' : 'saldo-negativo';
+    }
+    
+    if (typeof window.renderizarMeses === 'function') {
+        window.renderizarMeses(ano);
+    }
+    
+    document.getElementById('valor-reserva').value = '';
+}
+
+
+
+function renderizarHistorico(mes, ano) {
+    const lista = document.getElementById('lista-historico-reservas');
+    if (!lista) return;
+    
+    const reservas = window.dadosFinanceiros[ano]?.meses[mes]?.reservas || [];
+    lista.innerHTML = '';
+    
+    if (reservas.length === 0) {
+        lista.innerHTML = '<p class="historico-vazio">Nenhuma reserva neste mês.</p>';
+        return;
+    }
+    
+    const template = document.getElementById('template-historico-reserva');
+    if (!template) return;
+    
+    reservas.forEach((reserva, index) => {
+        const clone = template.content.cloneNode(true);
+        
+        clone.querySelector('.historico-data').textContent = window.formatarData(reserva.data);
+        clone.querySelector('.historico-valor').textContent = window.formatarMoeda(reserva.valor);
+        
+        const btnRemover = clone.querySelector('.btn-remover-reserva');
+        btnRemover.addEventListener('click', () => removerReserva(index, mes, ano));
+        
+        lista.appendChild(clone);
+    });
+}
+
+async function removerReserva(index, mes, ano) {
+    const reservas = window.dadosFinanceiros[ano]?.meses[mes]?.reservas;
+    if (!reservas || !reservas[index]) return;
+    
+    const valor = reservas[index].valor;
+    if (!confirm(`Remover reserva de ${window.formatarMoeda(valor)}?`)) return;
+    
+    reservas.splice(index, 1);
+    await window.salvarDados();
+    
+    atualizarResumos(mes, ano);
+    renderizarHistorico(mes, ano);
+    
+    const dadosMes = window.dadosFinanceiros[ano].meses[mes];
+    const saldo = window.calcularSaldoMes(mes, ano);
+    const totalJuros = typeof window.calcularTotalJuros === 'function' ?
+                      window.calcularTotalJuros(dadosMes.despesas || []) : 0;
+    
+    window.atualizarElemento('resumo-receitas', window.formatarMoeda(saldo.receitas));
+    window.atualizarElemento('resumo-despesas', window.formatarMoeda(saldo.despesas));
+    window.atualizarElemento('resumo-juros', window.formatarMoeda(totalJuros));
+    
+    const saldoElement = document.getElementById('resumo-saldo');
+    if (saldoElement) {
+        saldoElement.textContent = window.formatarMoeda(saldo.saldoFinal);
+        saldoElement.className = saldo.saldoFinal >= 0 ? 'saldo-positivo' : 'saldo-negativo';
+    }
+    
+    if (typeof window.renderizarMeses === 'function') {
+        window.renderizarMeses(ano);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        const tabBtnReservas = document.querySelector('.tab-btn[data-tab="tab-reservas"]');
+        if (tabBtnReservas) {
+            tabBtnReservas.addEventListener('click', abrirAbaReservas);
+        }
+        
+        const form = document.getElementById('form-migrar-reserva');
+        if (form) {
+            form.addEventListener('submit', adicionarReserva);
+        }
+    }, 200);
+});
+
 
 // ================================================================
 // EXPORTAR FUNÇÕES GLOBAIS
 // ================================================================
 
-window.fecharMes = fecharMes;
-window.reabrirMes = reabrirMes;
-window.calcularSaldoMes = calcularSaldoMes;
-window.atualizarSaldosMesesOtimizado = atualizarSaldosMesesOtimizado;
-window.atualizarSaldoMes = atualizarSaldoMes;
-window.obterSaldoAnteriorValido = obterSaldoAnteriorValido;
 window.abrirModalNovaReceita = abrirModalNovaReceita;
 window.editarReceita = editarReceita;
 window.excluirReceita = excluirReceita;
@@ -985,8 +1138,7 @@ window.processarExclusaoReceita = processarExclusaoReceita;
 window.salvarReceita = salvarReceita;
 window.renderizarReceitas = renderizarReceitas;
 window.calcularTotalReceitas = calcularTotalReceitas;
-window.calcularTotalReceitasComSaldo = calcularTotalReceitasComSaldo;
-window.verificarFechamentoAutomatico = verificarFechamentoAutomatico;
-window.fecharMesAutomatico = fecharMesAutomatico;
+window.atualizarContadorAnexosReceita = atualizarContadorAnexosReceita;
+window.atualizarTodosContadoresAnexosReceitas = atualizarTodosContadoresAnexosReceitas;
 
-console.log('📦 Sistema de receitas carregado - aguardando inicialização completa...');
+console.log('✅ Sistema de receitas carregado com logs de debug');

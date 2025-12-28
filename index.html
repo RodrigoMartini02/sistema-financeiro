@@ -1,5 +1,5 @@
 <!-- ================================================================ -->
-<!-- financeiro.html -->
+<!-- index.html -->
 <!-- ================================================================ -->
 
 <!DOCTYPE html>
@@ -10,17 +10,9 @@
     <title>Sistema de Controle Financeiro</title>
     
     <!-- CSS EXTERNOS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">    
     <!-- CSS DO SISTEMA -->
-    <link rel="stylesheet" href="css/new.css">
-    
-    <link rel="stylesheet" href="css/revista.css">
-
-
-    
-    <!-- JAVASCRIPT EXTERNOS -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="css/new.css">    
 </head>
 <body>
 
@@ -41,7 +33,7 @@
             <li class="nav-item">
                 <a href="#" class="nav-link active" data-section="dashboard">
                     <span class="nav-icon"><i class="fas fa-chart-line"></i></span>
-                    <span class="nav-text">Análise</span>
+                    <span class="nav-text">Dashboard</span>
                 </a>
             </li>
             <li class="nav-item">
@@ -56,12 +48,7 @@
                     <span class="nav-text">Relatórios</span>
                 </a>
             </li>
-              <li class="nav-item">
-                <a href="#" class="nav-link" data-section="fin-sights">
-                    <span class="nav-icon"><i class="fas fa-book-open"></i></span>
-                    <span class="nav-text">CanalEconomia</span>
-                </a>
-            </li>
+           
             <li class="nav-item">
                 <a href="#" class="nav-link" data-section="config">
                     <span class="nav-icon"><i class="fas fa-cog"></i></span>
@@ -73,12 +60,9 @@
 
     <!-- ============================================================ -->
     <!-- ÁREA PRINCIPAL DE CONTEÚDO -->
+     <!-- CABEÇALHO SUPERIOR COM CONTROLES -->
     <!-- ============================================================ -->
     <main class="main-content">
-        
-        <!-- ======================================================== -->
-        <!-- CABEÇALHO SUPERIOR COM CONTROLES -->
-        <!-- ======================================================== -->
         <header class="main-header">
             <div class="header-left">
                 <div class="user-welcome hidden" id="nome-usuario"></div>
@@ -87,16 +71,15 @@
             <div class="header-actions">
                 <div class="periodo-selector">
                     <button id="btn-ano-anterior"><i class="fas fa-chevron-left"></i></button>
-                    <span id="ano-atual">2025</span>
+                    <span id="ano-atual"></span>
                     <button id="btn-proximo-ano"><i class="fas fa-chevron-right"></i></button>
                 </div>
                 
-                <!-- No seu cabeçalho, deve estar assim: -->
+                
                 <div class="notification-icon-container">
                     <button class="notification-icon" id="notification-bell" type="button" aria-label="Notificações">
                         <i class="fas fa-bell"></i>
                     </button>
-                    <!-- ESTE SPAN É O BADGE QUE MOSTRA O NÚMERO -->
                     <span class="notification-badge hidden" id="notification-count">0</span>
                 </div>
 
@@ -138,615 +121,646 @@
             </div>
         </div>
 
-        <!-- ======================================================== -->
-        <!-- CONTAINER DE TODAS AS SEÇÕES -->
-        <!-- ======================================================== -->
-        <div class="content-area">
+<!-- ======================================================== -->
+<!-- CONTAINER DE TODAS AS SEÇÕES -->
+ <!-- SEÇÃO 1: DASHBOARD/ANÁLISE FINANCEIRA -->
+<!-- ======================================================== -->
+<div class="content-area">
+    <section class="dashboard-section active" id="dashboard-section">
+        <div class="dashboard-resumo">
+            <div class="resumo-card receitas">
+                <h3><i class="fas fa-arrow-up"></i> RECEITAS TOTAIS</h3>
+                <p id="dashboard-total-receitas">R$ 0,00</p>
+                <small>Todas as receitas do ano</small>
+            </div>
+            <div class="resumo-card despesas">
+                <h3><i class="fas fa-arrow-down"></i> DESPESAS TOTAIS</h3>
+                <p id="dashboard-total-despesas">R$ 0,00</p>
+                <small>Todas as despesas do ano</small>
+            </div>
+            <div class="resumo-card saldo">
+                <h3><i class="fas fa-wallet"></i> SALDO ANUAL</h3>
+                <p id="dashboard-saldo-anual">R$ 0,00</p>
+                <small>Balanço receitas - despesas</small>
+            </div>
+            <div class="resumo-card juros">
+                <h3><i class="fas fa-percentage"></i> JUROS PAGOS</h3>
+                <p id="dashboard-total-juros">R$ 0,00</p>
+                <small>Total de juros pagos no ano</small>
+            </div>
+            <div class="resumo-card economias">
+                <h3><i class="fas fa-piggy-bank"></i> ECONOMIAS</h3>
+                <p id="dashboard-total-economias">R$ 0,00</p>
+                <small>Valor economizado no ano</small>
+            </div>
+        </div>
+        <div class="dashboard-card dashboard-card-full">
+            <h3>BALANÇO</h3>
+            <div class="chart-container">
+                <canvas id="balanco-chart"></canvas>
+            </div>
+        </div>
+        <div class="dashboard-grid">
+
+            <!-- GRÁFICO 2: TENDÊNCIA ANUAL -->
+            <div class="dashboard-card">
+                <h3>
+                    <span>TENDÊNCIA ANUAL</span>
+                    <div class="filtros-header">
+                        <select class="filter-select" id="tendencia-tipo-filter" onchange="filtrarTendencia()">
+                            <option value="ambos">Receitas e Despesas</option>
+                            <option value="receitas">Apenas Receitas</option>
+                            <option value="despesas">Apenas Despesas</option>
+                        </select>
+                        <select class="filter-select" id="tendencia-categoria-filter" onchange="filtrarTendencia()">
+                            <option value="">Todas as categorias</option>
+                        </select>
+                        <select class="filter-select" id="tendencia-pagamento-filter" onchange="filtrarTendencia()">
+                            <option value="todas">Todas as formas</option>
+                            <option value="pix">PIX</option>
+                            <option value="debito">Débito</option>
+                            <option value="credito">Crédito</option>
+                        </select>
+                    </div>
+                </h3>
+                <div class="chart-container">
+                    <canvas id="tendencia-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- GRÁFICO 3: ENTRADAS E SAÍDAS -->
+            <div class="dashboard-card">
+                <h3>
+                    <span>ENTRADAS E SAÍDAS</span>
+                    <div class="filtros-header">
+                        <select class="filter-select" id="receitas-despesas-tipo-filter" onchange="filtrarReceitasDespesas()">
+                            <option value="ambos">Receitas e Despesas</option>
+                            <option value="receitas">Apenas Receitas</option>
+                            <option value="despesas">Apenas Despesas</option>
+                        </select>
+                        <select class="filter-select" id="receitas-despesas-categoria-filter" onchange="filtrarReceitasDespesas()">
+                            <option value="">Todas as categorias</option>
+                        </select>
+                        <select class="filter-select" id="receitas-despesas-pagamento-filter" onchange="filtrarReceitasDespesas()">
+                            <option value="todas">Todas as formas</option>
+                            <option value="pix">PIX</option>
+                            <option value="debito">Débito</option>
+                            <option value="credito">Crédito</option>
+                        </select>
+                    </div>
+                </h3>
+                <div class="chart-container">
+                    <canvas id="receitas-despesas-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- GRÁFICO 4: CATEGORIAS ANUAIS -->
+            <div class="dashboard-card">
+                <h3>
+                    <span>CATEGORIAS ANUAIS</span>
+                    <div class="filtros-header">
+                        <select class="filter-select" id="categorias-anual-categoria-filter" onchange="filtrarCategoriasAnual()">
+                            <option value="">Todas as categorias</option>
+                        </select>
+                        <select class="filter-select" id="categorias-anual-pagamento-filter" onchange="filtrarCategoriasAnual()">
+                            <option value="todas">Todas as formas</option>
+                            <option value="pix">PIX</option>
+                            <option value="debito">Débito</option>
+                            <option value="credito">Crédito</option>
+                        </select>
+                    </div>
+                </h3>
+                <div class="chart-container">
+                    <canvas id="categorias-barras-chart"></canvas>
+                </div>
+            </div>
             
-            <!-- ================================================== -->
-            <!-- SEÇÃO 1: DASHBOARD/ANÁLISE FINANCEIRA -->
-            <!-- Gráficos, resumos e análises dos dados financeiros -->
-            <!-- ================================================== -->
-            <section class="dashboard-section active" id="dashboard-section">
-                <div class="dashboard-resumo">
-                    <div class="resumo-card receitas">
-                        <h3><i class="fas fa-arrow-up"></i> RECEITAS TOTAIS</h3>
-                        <p id="dashboard-total-receitas">R$ 0,00</p>
-                        <small>Todas as receitas do ano</small>
+            <!-- GRÁFICO 5: CATEGORIAS MENSAIS -->
+            <div class="dashboard-card">
+                <h3>
+                    <span>CATEGORIAS MENSAIS</span>
+                    <div class="filtros-header">
+                        <select class="filter-select" id="categorias-mensal-categoria-filter" onchange="filtrarCategoriasMensal()">
+                            <option value="">Todas as categorias</option>
+                        </select>
+                        <select class="filter-select" id="categorias-mensal-pagamento-filter" onchange="filtrarCategoriasMensal()">
+                            <option value="todas">Todas as formas</option>
+                            <option value="pix">PIX</option>
+                            <option value="debito">Débito</option>
+                            <option value="credito">Crédito</option>
+                        </select>
                     </div>
-                    <div class="resumo-card despesas">
-                        <h3><i class="fas fa-arrow-down"></i> DESPESAS TOTAIS</h3>
-                        <p id="dashboard-total-despesas">R$ 0,00</p>
-                        <small>Todas as despesas do ano</small>
-                    </div>
-                    <div class="resumo-card saldo">
-                        <h3><i class="fas fa-wallet"></i> SALDO ANUAL</h3>
-                        <p id="dashboard-saldo-anual">R$ 0,00</p>
-                        <small>Balanço receitas - despesas</small>
-                    </div>
-                    <div class="resumo-card juros">
-                        <h3><i class="fas fa-percentage"></i> JUROS PAGOS</h3>
-                        <p id="dashboard-total-juros">R$ 0,00</p>
-                        <small>Total de juros pagos no ano</small>
-                    </div>
+                </h3>
+                <div class="chart-container">
+                    <canvas id="categorias-mensais-chart"></canvas>
                 </div>
-
-                <div class="dashboard-grid">
-                    <div class="dashboard-card">
-                        <h3>TENDÊNCIA ANUAL</h3>
-                        <div class="chart-container">
-                            <canvas id="tendencia-chart"></canvas>
-                        </div>
-                    </div>
-                    
-                    <div class="dashboard-card">
-                        <h3>ENTRADAS E SAÍDAS</h3>
-                        <div class="chart-container">
-                            <canvas id="receitas-despesas-chart"></canvas>
-                        </div>
-                    </div>
-
-                    <div class="dashboard-card">
-                        <h3>
-                            <span>CATEGORIZADAS ANUAL</span>
-                            <div class="filtros-header">
-                                <span class="filter-label">Filtro:</span>
-                                <div class="filter-checkbox-group">
-                                    <div class="filter-checkbox">
-                                        <input type="checkbox" id="cat-anual-todas" checked onchange="filtrarCategoriaAnual()">
-                                        <label for="cat-anual-todas">Todas</label>
-                                    </div>
-                                    <div class="filter-checkbox pix">
-                                        <input type="checkbox" id="cat-anual-pix" onchange="filtrarCategoriaAnual()">
-                                        <label for="cat-anual-pix">PIX</label>
-                                    </div>
-                                    <div class="filter-checkbox debito">
-                                        <input type="checkbox" id="cat-anual-debito" onchange="filtrarCategoriaAnual()">
-                                        <label for="cat-anual-debito">Débito</label>
-                                    </div>
-                                    <div class="filter-checkbox credito">
-                                        <input type="checkbox" id="cat-anual-credito" onchange="filtrarCategoriaAnual()">
-                                        <label for="cat-anual-credito">Crédito</label>
-                                    </div>
-                                </div>
-                            </div>
-                        </h3>
-                        <div class="chart-container categorias-barras-container">
-                            <canvas id="categorias-barras-chart"></canvas>
-                        </div>
-                    </div>
-                    
-                    <div class="dashboard-card">
-                        <h3>
-                            <span>FORMAS DE PAGAMENTO</span>
-                            <div class="filtros-header">
-                                <span class="filter-label">Categoria:</span>
-                                <select class="filter-select" id="forma-pagamento-categoria" onchange="filtrarFormaPagamento()">
-                                    <option value="">Todas as categorias</option>
-                                </select>
-                            </div>
-                        </h3>
-                        <div class="chart-container">
-                            <canvas id="forma-pagamento-mensal-chart"></canvas>
-                        </div>
-                    </div>
-                    
-                    <div class="dashboard-card">
-                        <h3>
-                            <span>CATEGORIZADAS MENSAL</span>
-                            <div class="filtros-header">
-                                <span class="filter-label">Filtro:</span>
-                                <div class="filter-checkbox-group">
-                                    <div class="filter-checkbox">
-                                        <input type="checkbox" id="cat-mensal-todas" checked onchange="filtrarCategoriaMensal()">
-                                        <label for="cat-mensal-todas">Todas</label>
-                                    </div>
-                                    <div class="filter-checkbox pix">
-                                        <input type="checkbox" id="cat-mensal-pix" onchange="filtrarCategoriaMensal()">
-                                        <label for="cat-mensal-pix">PIX</label>
-                                    </div>
-                                    <div class="filter-checkbox debito">
-                                        <input type="checkbox" id="cat-mensal-debito" onchange="filtrarCategoriaMensal()">
-                                        <label for="cat-mensal-debito">Débito</label>
-                                    </div>
-                                    <div class="filter-checkbox credito">
-                                        <input type="checkbox" id="cat-mensal-credito" onchange="filtrarCategoriaMensal()">
-                                        <label for="cat-mensal-credito">Crédito</label>
-                                    </div>
-                                </div>
-                            </div>
-                        </h3>
-                        <div class="chart-container">
-                            <canvas id="top-categorias-chart"></canvas>
-                        </div>
-                    </div>
-                  
-                    <div class="dashboard-card">
-                        <h3>
-                            <span>PARCELAMENTOS E JUROS</span>
-                            <div class="filtros-header">
-                                <span class="filter-label">Categoria:</span>
-                                <select class="filter-select" id="parcelamentos-categoria" onchange="filtrarParcelamentosJuros()">
-                                    <option value="">Todas as categorias</option>
-                                </select>
-                            </div>
-                        </h3>
-                        <div class="chart-container">
-                            <canvas id="parcelamentos-juros-chart"></canvas>
-                        </div>
-                    </div>          
-                </div>
-
-                <div class="dashboard-card">
-                    <h3>
-                        <span>CRESCIMENTO POR CATEGORIA</span>
-                        <div class="filtros-header">
-                            <span class="filter-label">Exibir:</span>
-                            <div class="filter-checkbox-group">
-                                <div class="filter-checkbox">
-                                    <input type="checkbox" id="crescimento-todas" checked onchange="filtrarCrescimentoCategoria()">
-                                    <label for="crescimento-todas">Todas</label>
-                                </div>
-                                <div class="filter-checkbox">
-                                    <input type="checkbox" id="crescimento-top5" onchange="filtrarCrescimentoCategoria()">
-                                    <label for="crescimento-top5">Top 5</label>
-                                </div>
-                                <div class="filter-checkbox">
-                                    <input type="checkbox" id="crescimento-positivo" onchange="filtrarCrescimentoCategoria()">
-                                    <label for="crescimento-positivo">Só Crescimento</label>
-                                </div>
-                            </div>
-                            <select class="filter-select" id="crescimento-categoria-especifica" onchange="filtrarCrescimentoCategoria()">
-                                <option value="">Categoria específica</option>
-                            </select>
-                        </div>
-                    </h3>
-                    <div class="chart-container">
-                        <canvas id="crescimento-categoria-chart"></canvas>
-                    </div>
-                </div>
-                
-                <div class="dashboard-card">
-                    <h3>EVOLUÇÃO DO SALDO</h3>
-                    <div class="chart-container">
-                        <canvas id="saldo-chart"></canvas>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ================================================== -->
-            <!-- SEÇÃO 2: VISUALIZAÇÃO MENSAL -->
-            <!-- Grid de meses do ano para navegação e resumos -->
-            <!-- ================================================== -->
-            <section class="meses-section" id="meses-section">
-                <div class="meses-container">
-                </div>
-            </section>
-
-            <!-- ================================================== -->
-            <!-- SEÇÃO 3: SISTEMA DE RELATÓRIOS -->
-            <!-- Filtros avançados e geração de relatórios personalizados -->
-            <!-- ================================================== -->
-
-            <section class="relatorios-section" id="relatorios-section">
-                <div class="relatorios-filtros-container">
-                    <div class="filtros-card">
-                        <h3><i class="fas fa-filter"></i> Filtros de Relatório</h3>
-                        
-                        <div class="filtros-grid">
-                            <div class="filtro-grupo">
-                                <label for="filtro-periodo">Período:</label>
-                                <select id="filtro-periodo" class="form-select">
-                                    <option value="mes-atual">Mês Atual</option>
-                                    <option value="mes-anterior">Mês Anterior</option>
-                                    <option value="ultimos-3-meses">Últimos 3 Meses</option>
-                                    <option value="ultimos-6-meses">Últimos 6 Meses</option>
-                                    <option value="ano-atual">Ano Atual</option>
-                                    <option value="ano-anterior">Ano Anterior</option>
-                                    <option value="personalizado">Período Personalizado</option>
-                                </select>
-                            </div>
-                            
-                            <div id="periodo-personalizado-container" class="filtro-grupo hidden">
-                                <label>De:</label>
-                                <input type="date" id="data-inicio-relatorio" class="form-input">
-                                <label>Até:</label>
-                                <input type="date" id="data-fim-relatorio" class="form-input">
-                            </div>
-
-                            <div class="filtro-grupo">
-                                <label for="filtro-tipo-relatorio">Tipo de Relatório:</label>
-                                <select id="filtro-tipo-relatorio" class="form-select">
-                                    <option value="completo">Relatório Completo</option>
-                                    <option value="apenas-receitas">Apenas Receitas</option>
-                                    <option value="apenas-despesas">Apenas Despesas</option>
-                                    <option value="por-categoria">Por Categoria</option>
-                                    <option value="por-forma-pagamento">Por Forma de Pagamento</option>
-                                    <option value="parcelamentos">Parcelamentos</option>
-                                </select>
-                            </div>
-
-                            <div class="filtro-grupo">
-                                <label for="filtro-categoria-relatorio">Categoria (Opcional):</label>
-                                <select id="filtro-categoria-relatorio" class="form-select">
-                                    <option value="todas">Todas as Categorias</option>
-                                </select>
-                            </div>
-
-                            <div class="filtro-grupo">
-                                <label for="filtro-forma-pagamento-relatorio">Forma de Pagamento:</label>
-                                <select id="filtro-forma-pagamento-relatorio" class="form-select">
-                                    <option value="todas">Todas</option>
-                                    <option value="pix">PIX</option>
-                                    <option value="debito">Débito</option>
-                                    <option value="credito">Crédito</option>
-                                </select>
-                            </div>
-
-                            <div class="filtro-grupo">
-                                <label for="filtro-status-relatorio">Status:</label>
-                                <select id="filtro-status-relatorio" class="form-select">
-                                    <option value="todos">Todos</option>
-                                    <option value="quitadas">Pagas</option>
-                                    <option value="pendentes">Pendentes</option>
-                                    <option value="atrasadas">Atrasadas</option>
-                                </select>
-                            </div>
-
-                            <div class="filtro-grupo">
-                                <label for="filtro-ordenacao">Ordenar por:</label>
-                                <select id="filtro-ordenacao" class="form-select">
-                                    <option value="data">Data</option>
-                                    <option value="valor-desc">Maior Valor</option>
-                                    <option value="valor-asc">Menor Valor</option>
-                                    <option value="categoria">Categoria</option>
-                                    <option value="descricao">Descrição</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="filtros-acoes">
-                            <button id="btn-gerar-relatorio" class="btn btn-primary">
-                                <i class="fas fa-search"></i>
-                                Gerar Relatório
-                            </button>
-                            <button id="btn-limpar-filtros-relatorio" class="btn btn-secondary">
-                                <i class="fas fa-times"></i>
-                                Limpar Filtros
-                            </button>
-                            <button id="btn-exportar-pdf-relatorio" class="btn btn-success" disabled>
-                                <i class="fas fa-file-pdf"></i>
-                                Exportar PDF
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="relatorios-resultados">
-                    <div id="resumo-executivo" class="resultado-secao hidden">
-                        <div class="secao-header">
-                            <h3><i class="fas fa-chart-line"></i> Resumo Executivo</h3>
-                        </div>
-                        <div class="resumo-cards">
-                            <div class="resumo-card receitas">
-                                <div class="card-header">
-                                    <i class="fas fa-arrow-up"></i>
-                                    <span>Total de Receitas</span>
-                                </div>
-                                <div class="card-valor" id="resumo-total-receitas">R$ 0,00</div>
-                                <div class="card-info" id="resumo-count-receitas">0 transações</div>
-                            </div>
-                            
-                            <div class="resumo-card despesas">
-                                <div class="card-header">
-                                    <i class="fas fa-arrow-down"></i>
-                                    <span>Total de Despesas</span>
-                                </div>
-                                <div class="card-valor" id="resumo-total-despesas">R$ 0,00</div>
-                                <div class="card-info" id="resumo-count-despesas">0 transações</div>
-                            </div>
-                            
-                            <div class="resumo-card saldo">
-                                <div class="card-header">
-                                    <i class="fas fa-balance-scale"></i>
-                                    <span>Saldo Líquido</span>
-                                </div>
-                                <div class="card-valor" id="resumo-saldo-liquido">R$ 0,00</div>
-                                <div class="card-info" id="resumo-economia">0% de economia</div>
-                            </div>
-                            
-                            <div class="resumo-card juros">
-                                <div class="card-header">
-                                    <i class="fas fa-percentage"></i>
-                                    <span>Juros Pagos</span>
-                                </div>
-                                <div class="card-valor" id="resumo-total-juros">R$ 0,00</div>
-                                <div class="card-info" id="resumo-percent-juros">0% do total</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="detalhamento-categorias" class="resultado-secao hidden">
-                        <div class="secao-header">
-                            <h3><i class="fas fa-tags"></i> Detalhamento por Categoria</h3>
-                        </div>
-                        <div class="tabela-responsiva">
-                            <table class="relatorio-tabela">
-                                <thead>
-                                    <tr>
-                                        <th>Categoria</th>
-                                        <th>Receitas</th>
-                                        <th>Despesas</th>
-                                        <th>Saldo</th>
-                                        <th>% do Total</th>
-                                        <th>Transações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tabela-categorias-body">
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div id="detalhamento-pagamento" class="resultado-secao hidden">
-                        <div class="secao-header">
-                            <h3><i class="fas fa-credit-card"></i> Detalhamento por Forma de Pagamento</h3>
-                        </div>
-                        <div class="pagamento-resumo">
-                            <div class="pagamento-item pix">
-                                <div class="pagamento-header">
-                                    <i class="fas fa-mobile-alt"></i>
-                                    <span>PIX</span>
-                                </div>
-                                <div class="pagamento-valor" id="pagamento-pix-valor">R$ 0,00</div>
-                                <div class="pagamento-info">
-                                    <span id="pagamento-pix-count">0 transações</span>
-                                    <span id="pagamento-pix-percent">0%</span>
-                                </div>
-                            </div>
-                            
-                            <div class="pagamento-item debito">
-                                <div class="pagamento-header">
-                                    <i class="fas fa-credit-card"></i>
-                                    <span>Débito</span>
-                                </div>
-                                <div class="pagamento-valor" id="pagamento-debito-valor">R$ 0,00</div>
-                                <div class="pagamento-info">
-                                    <span id="pagamento-debito-count">0 transações</span>
-                                    <span id="pagamento-debito-percent">0%</span>
-                                </div>
-                            </div>
-                            
-                            <div class="pagamento-item credito">
-                                <div class="pagamento-header">
-                                    <i class="fas fa-credit-card"></i>
-                                    <span>Crédito</span>
-                                </div>
-                                <div class="pagamento-valor" id="pagamento-credito-valor">R$ 0,00</div>
-                                <div class="pagamento-info">
-                                    <span id="pagamento-credito-count">0 transações</span>
-                                    <span id="pagamento-credito-percent">0%</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="lista-transacoes" class="resultado-secao hidden">
-                        <div class="secao-header">
-                            <h3><i class="fas fa-list"></i> Lista de Transações</h3>
-                            <div class="transacoes-info">
-                                <p id="transacoes-count-info">Mostrando 0 transações</p>
-                            </div>
-                        </div>
-                        <div class="tabela-responsiva">
-                            <table class="relatorio-tabela">
-                                <thead>
-                                    <tr>
-                                        <th>Data</th>
-                                        <th>Tipo</th>
-                                        <th>Descrição</th>
-                                        <th>Categoria</th>
-                                        <th>Forma Pagamento</th>
-                                        <th>Valor</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tabela-transacoes-body">
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div id="detalhamento-parcelamentos" class="resultado-secao hidden">
-                        <div class="secao-header">
-                            <h3><i class="fas fa-credit-card"></i> Parcelamentos</h3>
-                        </div>
-                        <div class="tabela-responsiva">
-                            <table class="relatorio-tabela">
-                                <thead>
-                                    <tr>
-                                        <th>Descrição</th>
-                                        <th>Valor Total</th>
-                                        <th>Parcelas</th>
-                                        <th>Valor/Parcela</th>
-                                        <th>Pagas</th>
-                                        <th>Restantes</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tabela-parcelamentos-body">
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div id="sem-dados-mensagem" class="sem-dados hidden">
-                        <div class="sem-dados-icon">
-                            <i class="fas fa-search"></i>
-                        </div>
-                        <h4>Nenhum dado encontrado</h4>
-                        <p>Não foram encontradas transações para os filtros selecionados. Tente ajustar os critérios de busca.</p>
-                    </div>
-                </div>
-
-               <div id="relatorios-loading" class="loading-overlay hidden">
-                    <div class="loading-spinner">                                     
-                </div>
-             </div>
-        </section>
-
-            <!-- ================================================== -->
-            <!-- SEÇÃO 4: CANAL ECONOMIA (REVISTA FINANCEIRA) -->
-            <!-- Sistema de educação financeira com artigos, dicas e calculadoras -->
-            <!-- ================================================== -->
-<section class="fin-sights-section" id="fin-sights-section">
-    <div class="revista-container">
+            </div>
         
-        <div class="revista-header">
-            <div class="revista-logo">
-                <i class="fas fa-chart-line"></i>
-                CanalEconomia
+            <!-- GRÁFICO 6: JUROS MENSAIS -->
+            <div class="dashboard-card">
+                <h3>
+                    <span>JUROS MENSAIS</span>
+                    <div class="filtros-header">
+                        <select class="filter-select" id="juros-categoria-filter" onchange="filtrarJuros()">
+                            <option value="">Todas as categorias</option>
+                        </select>
+                        <select class="filter-select" id="juros-pagamento-filter" onchange="filtrarJuros()">
+                            <option value="todas">Todas as formas</option>
+                            <option value="pix">PIX</option>
+                            <option value="debito">Débito</option>
+                            <option value="credito">Crédito</option>
+                        </select>
+                        <select class="filter-select" id="juros-status-filter" onchange="filtrarJuros()">
+                            <option value="todos">Todos</option>
+                            <option value="pagos">Apenas Pagos</option>
+                            <option value="pendentes">Apenas Pendentes</option>
+                        </select>
+                    </div>
+                </h3>
+                <div class="chart-container">
+                    <canvas id="juros-chart"></canvas>
+                </div>
+                <div class="estatisticas-container">
+                    <div class="estatistica-item">
+                        <span class="estatistica-label">Juros Pendentes:</span>
+                        <span class="estatistica-valor" id="juros-pendentes-valor">R$ 0,00</span>
+                    </div>
+                    <div class="estatistica-item">
+                        <span class="estatistica-label">% Juros Pagos:</span>
+                        <span class="estatistica-valor" id="juros-pagos-percentual">0%</span>
+                    </div>
+                </div>
             </div>
-            <div class="revista-subtitle">
-                Sua revista de educação financeira pessoal
+
+            <!-- GRÁFICO 7: PARCELAMENTOS MENSAIS -->
+            <div class="dashboard-card">
+                <h3>
+                    <span>PARCELAMENTOS MENSAIS</span>
+                    <div class="filtros-header">
+                        <select class="filter-select" id="parcelamentos-categoria-filter" onchange="filtrarParcelamentos()">
+                            <option value="">Todas as categorias</option>
+                        </select>
+                        <select class="filter-select" id="parcelamentos-pagamento-filter" onchange="filtrarParcelamentos()">
+                            <option value="todas">Todas as formas</option>
+                            <option value="pix">PIX</option>
+                            <option value="debito">Débito</option>
+                            <option value="credito">Crédito</option>
+                        </select>
+                        <select class="filter-select" id="parcelamentos-status-filter" onchange="filtrarParcelamentos()">
+                            <option value="todos">Todos</option>
+                            <option value="pagos">Apenas Pagos</option>
+                            <option value="pendentes">Apenas Pendentes</option>
+                        </select>
+                    </div>
+                </h3>
+                <div class="chart-container">
+                    <canvas id="parcelamentos-chart"></canvas>
+                </div>
+                <div class="estatisticas-container">
+                    <div class="estatistica-item">
+                        <span class="estatistica-label">Parcelas Pendentes:</span>
+                        <span class="estatistica-valor" id="parcelas-pendentes-valor">R$ 0,00</span>
+                    </div>
+                    <div class="estatistica-item">
+                        <span class="estatistica-label">% Parcelas Pagas:</span>
+                        <span class="estatistica-valor" id="parcelas-pagas-percentual">0%</span>
+                    </div>
+                </div>
             </div>
+
+            <!-- GRÁFICO 8: FORMAS DE PAGAMENTO -->
+            <div class="dashboard-card">
+                <h3>
+                    <span>FORMAS DE PAGAMENTO</span>
+                    <div class="filtros-header">
+                        <select class="filter-select" id="forma-pagamento-categoria-filter" onchange="filtrarFormaPagamento()">
+                            <option value="">Todas as categorias</option>
+                        </select>
+                        <select class="filter-select" id="forma-pagamento-pagamento-filter" onchange="filtrarFormaPagamento()">
+                            <option value="todas">Todas as formas</option>
+                            <option value="pix">PIX</option>
+                            <option value="debito">Débito</option>
+                            <option value="credito">Crédito</option>
+                        </select>
+                    </div>
+                </h3>
+                <div class="chart-container">
+                    <canvas id="forma-pagamento-chart"></canvas>
+                </div>
+            </div>
+
         </div>
+    </section>
 
-       
-<div class="calculadoras-section">
-                <h3><i class="fas fa-calculator"></i> Calculadoras Financeiras</h3>
-                <div class="calculadoras-grid">
-                    <div class="calculadora-card" data-calc="juros-compostos">
-                        <div class="calc-icon">
-                            <i class="fas fa-percentage"></i>
-                        </div>
-                        <h4>Juros Compostos</h4>
-                        <p>Calcule o crescimento dos seus investimentos</p>
-                    </div>
-                    <div class="calculadora-card" data-calc="financiamento">
-                        <div class="calc-icon">
-                            <i class="fas fa-home"></i>
-                        </div>
-                        <h4>Financiamento</h4>
-                        <p>Simule parcelas de financiamentos</p>
-                    </div>
-                    <div class="calculadora-card" data-calc="aposentadoria">
-                        <div class="calc-icon">
-                            <i class="fas fa-user-clock"></i>
-                        </div>
-                        <h4>Aposentadoria</h4>
-                        <p>Planeje sua aposentadoria</p>
-                    </div>
-                </div>
-            </div>
-        <div class="revista-content">
-            
-            <div class="artigo-destaque" id="artigo-principal">
-                <div class="artigo-badge">Artigo em Destaque</div>
-                <div class="artigo-imagem">
-                    <div class="artigo-placeholder-img">
-                        <i class="fas fa-piggy-bank"></i>
-                    </div>
-                </div>
 
+    <!-- ================================================== -->
+    <!-- SEÇÃO 2: VISUALIZAÇÃO MENSAL -->
+    <!-- ================================================== -->
+    <section class="meses-section" id="meses-section">
+        <div class="meses-container">
+        </div>
+    </section>
+
+<!-- ================================================================
+   SEÇÃO DE RELATÓRIOS
+   ================================================================ -->
+<section class="relatorios-section" id="relatorios-section">
+    <div class="relatorios-filtros-container">
+        <div class="filtros-card">
+            <h3><i class="fas fa-filter"></i> Filtros de Relatório</h3>
+            <div class="filtros-linha filtros-linha-super-compacta">
+                <div class="filtro-grupo filtro-periodo">
+                    <label for="filtro-periodo">Período:</label>
+                    <select id="filtro-periodo" class="form-select">
+                        <option value="mes-atual">Mês Atual</option>
+                        <option value="mes-anterior">Mês Anterior</option>
+                        <option value="ultimos-3-meses">Últimos 3 Meses</option>
+                        <option value="ultimos-6-meses">Últimos 6 Meses</option>
+                        <option value="ano-atual">Ano Atual</option>
+                        <option value="ano-anterior">Ano Anterior</option>
+                        <option value="personalizado">Período Personalizado</option>
+                    </select>
+                </div>
                 
-                <div class="artigo-conteudo">
-                    <h2 class="artigo-titulo">Como Criar uma Reserva de Emergência em 2025</h2>
-                    <p class="artigo-resumo">
-                        Descubra estratégias práticas para construir sua reserva de emergência, 
-                        mesmo com orçamento apertado. Um guia completo com dicas exclusivas.
-                    </p>
-                    <div class="artigo-meta">
-                        <span class="artigo-tempo"><i class="fas fa-clock"></i> 8 min de leitura</span>
-                        <span class="artigo-categoria"><i class="fas fa-tag"></i> Planejamento</span>
+                <div class="filtro-grupo filtro-tipo">
+                    <label for="filtro-tipo-relatorio">Tipo:</label>
+                    <select id="filtro-tipo-relatorio" class="form-select">
+                        <option value="completo">Completo</option>
+                        <option value="apenas-receitas">Receitas</option>
+                        <option value="apenas-despesas">Despesas</option>
+                        <option value="por-categoria">Por Categoria</option>
+                        <option value="por-forma-pagamento">Por Pagamento</option>
+                        <option value="parcelamentos">Parcelamentos</option>
+                        <option value="gastos-reais">Gastos Reais</option>
+                    </select>
+                </div>
+                
+                <div class="filtro-grupo filtro-criterio">
+                    <label for="filtro-criterio-data">Data:</label>
+                    <select id="filtro-criterio-data" class="form-select">
+                        <option value="vencimento">Vencimento</option>
+                        <option value="compra">Compra</option>
+                        <option value="pagamento">Pagamento</option>
+                        <option value="mista">Mista</option>
+                    </select>
+                </div>
+
+                <div class="filtro-grupo filtro-categoria">
+                    <label for="filtro-categoria-relatorio">Categoria:</label>
+                    <select id="filtro-categoria-relatorio" class="form-select">
+                        <option value="todas">Todas</option>
+                    </select>
+                </div>
+
+                <div class="filtro-grupo filtro-status">
+                    <label for="filtro-status-relatorio">Status:</label>
+                    <select id="filtro-status-relatorio" class="form-select">
+                        <option value="todos">Todos</option>
+                        <option value="quitadas">Pagas</option>
+                        <option value="pendentes">Pendentes</option>
+                        <option value="atrasadas">Atrasadas</option>
+                    </select>
+                </div>
+
+                <div class="filtro-grupo filtro-ordenacao">
+                    <label for="filtro-ordenacao">Ordenar:</label>
+                    <select id="filtro-ordenacao" class="form-select">
+                        <option value="data">Data</option>
+                        <option value="valor-desc">Maior Valor</option>
+                        <option value="valor-asc">Menor Valor</option>
+                        <option value="categoria">Categoria</option>
+                        <option value="forma-pagamento">Pagamento</option>
+                        <option value="descricao">Descrição</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- PERÍODO PERSONALIZADO -->
+            <div id="periodo-personalizado-container" class="periodo-personalizado-ultra-compacto hidden">
+                <label for="data-inicio-relatorio">De:</label>
+                <input type="date" id="data-inicio-relatorio" class="form-input">
+                <label for="data-fim-relatorio">Até:</label>
+                <input type="date" id="data-fim-relatorio" class="form-input">
+            </div>
+            <!-- LINHA 2: Checkboxes -->
+            <div class="filtros-linha filtros-linha-checkboxes-inline">
+                <div class="grupo-checkboxes-completo">
+                    <span class="grupo-label">Pagamento:</span>
+                    <label class="checkbox-mini">
+                        <input type="checkbox" id="forma-todas" value="todas" checked>
+                        <span>Todas</span>
+                    </label>
+                    <label class="checkbox-mini">
+                        <input type="checkbox" id="forma-pix" value="pix">
+                        <span>PIX</span>
+                    </label>
+                    <label class="checkbox-mini">
+                        <input type="checkbox" id="forma-debito" value="debito">
+                        <span>Débito</span>
+                    </label>
+                    <label class="checkbox-mini">
+                        <input type="checkbox" id="forma-credito" value="credito">
+                        <span>Crédito</span>
+                    </label>
+
+                    <span class="grupo-label grupo-label-separador">Opções:</span>
+                    <label class="checkbox-mini">
+                        <input type="checkbox" id="incluir-transferencias">
+                        <span>Transferências</span>
+                    </label>
+                    <label class="checkbox-mini">
+                        <input type="checkbox" id="agrupar-parcelamentos">
+                        <span>Agrupar</span>
+                    </label>
+                    <label class="checkbox-mini">
+                        <input type="checkbox" id="mostrar-projecoes">
+                        <span>Projeções</span>
+                    </label>
+                </div>
+            </div>
+            <div id="resumo-filtros-aplicados" class="filtros-resumo hidden">
+                <h4>Filtros Aplicados:</h4>
+                <div id="texto-filtros-resumo"></div>
+            </div>
+            <div class="filtros-acoes">
+                <button id="btn-gerar-relatorio" class="btn btn-primary">
+                    <i class="fas fa-search"></i>
+                    Gerar Relatório
+                </button>
+                <button id="btn-limpar-filtros-relatorio" class="btn btn-secondary">
+                    <i class="fas fa-times"></i>
+                    Limpar Filtros
+                </button>
+                <button id="btn-exportar-pdf-relatorio" class="btn btn-success" disabled>
+                    <i class="fas fa-file-pdf"></i>
+                    Exportar PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESULTADOS DOS RELATÓRIOS -->
+    <div class="relatorios-resultados">
+        <!-- Resumo Executivo -->
+        <div id="resumo-executivo" class="resultado-secao hidden">
+            <div class="secao-header">
+                <h3><i class="fas fa-chart-line"></i> Resumo Executivo</h3>
+            </div>
+            <div class="resumo-cards">
+                <div class="resumo-card receitas">
+                    <div class="card-header">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>Total de Receitas</span>
                     </div>
-                    <button class="btn-ler-artigo" data-artigo="reserva-emergencia">
-                        Ler Artigo Completo
-                    </button>
+                    <div class="card-valor" id="resumo-total-receitas">R$ 0,00</div>
+                    <div class="card-info" id="resumo-count-receitas">0 transações</div>
+                </div>
+                
+                <div class="resumo-card despesas">
+                    <div class="card-header">
+                        <i class="fas fa-arrow-down"></i>
+                        <span>Total de Despesas</span>
+                    </div>
+                    <div class="card-valor" id="resumo-total-despesas">R$ 0,00</div>
+                    <div class="card-info" id="resumo-count-despesas">0 transações</div>
+                </div>
+                
+                <div class="resumo-card saldo">
+                    <div class="card-header">
+                        <i class="fas fa-balance-scale"></i>
+                        <span>Saldo Líquido</span>
+                    </div>
+                    <div class="card-valor" id="resumo-saldo-liquido">R$ 0,00</div>
+                    <div class="card-info" id="resumo-economia">0% de economia</div>
+                </div>
+                
+                <div class="resumo-card juros">
+                    <div class="card-header">
+                        <i class="fas fa-percentage"></i>
+                        <span>Juros Pagos</span>
+                    </div>
+                    <div class="card-valor" id="resumo-total-juros">R$ 0,00</div>
+                    <div class="card-info" id="resumo-percent-juros">0% do total</div>
                 </div>
             </div>
-
-             <div class="revista-nav">
-            <button class="nav-categoria active" data-categoria="destaque">
-                <i class="fas fa-star"></i> Destaques
-            </button>
-            <button class="nav-categoria" data-categoria="basico">
-                <i class="fas fa-graduation-cap"></i> Básico
-            </button>
-            <button class="nav-categoria" data-categoria="investimentos">
-                <i class="fas fa-chart-bar"></i> Investimentos
-            </button>
-            <button class="nav-categoria" data-categoria="planejamento">
-                <i class="fas fa-calculator"></i> Planejamento
-            </button>
-            <button class="nav-categoria" data-categoria="dicas">
-                <i class="fas fa-lightbulb"></i> Dicas
-            </button>
-            <button class="nav-categoria" data-categoria="noticias">
-                <i class="fas fa-newspaper"></i> Notícias
-            </button>
         </div>
 
-            <div class="artigos-grid" id="artigos-grid">
+        <!-- Comparativo por Forma de Pagamento -->
+        <div id="comparativo-formas-pagamento" class="resultado-secao hidden">
+            <div class="secao-header">
+                <h3><i class="fas fa-chart-bar"></i> Comparativo por Forma de Pagamento</h3>
             </div>
-
-            <div class="dicas-rapidas">
-                <h3><i class="fas fa-bolt"></i> Dicas Rápidas do Dia</h3>
-                <div class="dicas-container" id="dicas-container">
+            <div class="comparativo-cards">
+                <div class="comparativo-card pix">
+                    <div class="card-header">
+                        <i class="fas fa-mobile-alt"></i>
+                        <span>PIX</span>
+                    </div>
+                    <div class="card-valor" id="comparativo-pix-valor">R$ 0,00</div>
+                    <div class="card-info">
+                        <span id="comparativo-pix-count">0 transações</span>
+                        <span id="comparativo-pix-percent">0%</span>
+                    </div>
+                </div>
+                
+                <div class="comparativo-card debito">
+                    <div class="card-header">
+                        <i class="fas fa-credit-card"></i>
+                        <span>Débito</span>
+                    </div>
+                    <div class="card-valor" id="comparativo-debito-valor">R$ 0,00</div>
+                    <div class="card-info">
+                        <span id="comparativo-debito-count">0 transações</span>
+                        <span id="comparativo-debito-percent">0%</span>
+                    </div>
+                </div>
+                
+                <div class="comparativo-card credito">
+                    <div class="card-header">
+                        <i class="fas fa-credit-card"></i>
+                        <span>Crédito</span>
+                    </div>
+                    <div class="card-valor" id="comparativo-credito-valor">R$ 0,00</div>
+                    <div class="card-info">
+                        <span id="comparativo-credito-count">0 transações</span>
+                        <span id="comparativo-credito-percent">0%</span>
+                    </div>
                 </div>
             </div>
+        </div>
 
-            
+        <!-- Análise de Gastos Reais -->
+        <div id="analise-gastos-reais" class="resultado-secao hidden">
+            <div class="secao-header">
+                <h3><i class="fas fa-calculator"></i> Análise de Gastos Reais</h3>
+            </div>
+            <div class="gastos-reais-cards">
+                <div class="gasto-real-card total">
+                    <div class="card-header">
+                        <i class="fas fa-coins"></i>
+                        <span>Total Gasto no Período</span>
+                    </div>
+                    <div class="card-valor" id="total-gastos-reais">R$ 0,00</div>
+                    <div class="card-info" id="gastos-reais-criterio">Por data de vencimento</div>
+                </div>
+                
+                <div class="gasto-real-card media">
+                    <div class="card-header">
+                        <i class="fas fa-calendar-day"></i>
+                        <span>Média Diária</span>
+                    </div>
+                    <div class="card-valor" id="media-diaria-gastos">R$ 0,00</div>
+                    <div class="card-info" id="dias-periodo">0 dias</div>
+                </div>
+                
+                <div class="gasto-real-card maior">
+                    <div class="card-header">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>Maior Gasto</span>
+                    </div>
+                    <div class="card-valor" id="maior-gasto-periodo">R$ 0,00</div>
+                    <div class="card-info" id="maior-gasto-descricao">-</div>
+                </div>
+            </div>
+        </div>
 
+        <!-- Detalhamento por Categoria -->
+        <div id="detalhamento-categorias" class="resultado-secao hidden">
+            <div class="secao-header">
+                <h3><i class="fas fa-tags"></i> Detalhamento por Categoria</h3>
+            </div>
+            <div class="tabela-responsiva">
+                <table class="relatorio-tabela">
+                    <thead>
+                        <tr>
+                            <th>Categoria</th>
+                            <th>Receitas</th>
+                            <th>Despesas</th>
+                            <th>Saldo</th>
+                            <th>% do Total</th>
+                            <th>Transações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-categorias-body">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Detalhamento por Forma de Pagamento -->
+        <div id="detalhamento-pagamento" class="resultado-secao hidden">
+            <div class="secao-header">
+                <h3><i class="fas fa-credit-card"></i> Detalhamento por Forma de Pagamento</h3>
+            </div>
+            <div class="pagamento-resumo">
+                <div class="pagamento-item pix">
+                    <div class="pagamento-header">
+                        <i class="fas fa-mobile-alt"></i>
+                        <span>PIX</span>
+                    </div>
+                    <div class="pagamento-valor" id="pagamento-pix-valor">R$ 0,00</div>
+                    <div class="pagamento-info">
+                        <span id="pagamento-pix-count">0 transações</span>
+                        <span id="pagamento-pix-percent">0%</span>
+                    </div>
+                </div>
+                
+                <div class="pagamento-item debito">
+                    <div class="pagamento-header">
+                        <i class="fas fa-credit-card"></i>
+                        <span>Débito</span>
+                    </div>
+                    <div class="pagamento-valor" id="pagamento-debito-valor">R$ 0,00</div>
+                    <div class="pagamento-info">
+                        <span id="pagamento-debito-count">0 transações</span>
+                        <span id="pagamento-debito-percent">0%</span>
+                    </div>
+                </div>
+                
+                <div class="pagamento-item credito">
+                    <div class="pagamento-header">
+                        <i class="fas fa-credit-card"></i>
+                        <span>Crédito</span>
+                    </div>
+                    <div class="pagamento-valor" id="pagamento-credito-valor">R$ 0,00</div>
+                    <div class="pagamento-info">
+                        <span id="pagamento-credito-count">0 transações</span>
+                        <span id="pagamento-credito-percent">0%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de Transações -->
+        <div id="lista-transacoes" class="resultado-secao hidden">
+            <div class="secao-header">
+                <h3><i class="fas fa-list"></i> Lista de Transações</h3>
+                <div class="transacoes-info">
+                    <p id="transacoes-count-info">Mostrando 0 transações</p>
+                </div>
+            </div>
+            <div class="tabela-responsiva">
+                <table class="relatorio-tabela">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Tipo</th>
+                            <th>Descrição</th>
+                            <th>Categoria</th>
+                            <th>Forma Pagamento</th>
+                            <th>Valor</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-transacoes-body">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Detalhamento de Parcelamentos -->
+        <div id="detalhamento-parcelamentos" class="resultado-secao hidden">
+            <div class="secao-header">
+                <h3><i class="fas fa-credit-card"></i> Parcelamentos</h3>
+            </div>
+            <div class="tabela-responsiva">
+                <table class="relatorio-tabela">
+                    <thead>
+                        <tr>
+                            <th>Descrição</th>
+                            <th>Valor Total</th>
+                            <th>Parcelas</th>
+                            <th>Valor/Parcela</th>
+                            <th>Pagas</th>
+                            <th>Restantes</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-parcelamentos-body">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Mensagem Sem Dados -->
+        <div id="sem-dados-mensagem" class="sem-dados hidden">
+            <div class="sem-dados-icon">
+                <i class="fas fa-search"></i>
+            </div>
+            <h4>Nenhum dado encontrado</h4>
+            <p>Não foram encontradas transações para os filtros selecionados. Tente ajustar os critérios de busca.</p>
         </div>
     </div>
 
-
-    
-
-    <div id="modal-artigo" class="modal-artigo">
-        <div class="modal-artigo-content">
-            <div class="modal-artigo-header">
-                <h2 id="modal-artigo-titulo">Título do Artigo</h2>
-                <span class="close-artigo">&times;</span>
-            </div>
-            <div class="modal-artigo-body">
-                <div class="artigo-meta-completo">
-                    <span id="modal-artigo-tempo"></span>
-                    <span id="modal-artigo-categoria"></span>
-                    <span id="modal-artigo-data"></span>
-                </div>
-                <div class="artigo-imagem-completa" id="modal-artigo-imagem">
-                </div>
-                <div class="artigo-conteudo-completo" id="modal-artigo-conteudo">
-                </div>
-                <div class="artigo-acoes">
-                    <button class="btn-compartilhar"><i class="fas fa-share"></i> Compartilhar</button>
-                    <button class="btn-favoritar"><i class="fas fa-heart"></i> Favoritar</button>
-                    <button class="btn-imprimir"><i class="fas fa-print"></i> Imprimir</button>
-                </div>
-            </div>
-        </div>
+    <!-- Loading Overlay -->
+    <div id="relatorios-loading" class="loading-overlay hidden">
+        <div class="loading-spinner"></div>
     </div>
-
-    <div id="modal-calculadora" class="modal-calculadora">
-        <div class="modal-calc-content">
-            <div class="modal-calc-header">
-                <h2 id="modal-calc-titulo">Calculadora</h2>
-                <span class="close-calc">&times;</span>
-            </div>
-            <div class="modal-calc-body" id="modal-calc-body">
-            </div>
-        </div>
-    </div>
-
 </section>
 
 
-
 <!-- ================================================== -->
-<!-- SEÇÃO 5: CONFIGURAÇÕES DO SISTEMA -->
-<!-- Gerenciamento de categorias, usuários e configurações gerais -->
+<!-- SEÇÃO DE CONFIGURAÇÕES -->
 <!-- ================================================== -->
 <section class="config-section" id="config-section">
     <h2>Configurações do Sistema</h2>
@@ -761,19 +775,19 @@
         <button class="config-tab-btn" data-tab="usuarios">
             <i class="fas fa-users"></i> Usuários
         </button>
+        <button class="config-tab-btn" data-tab="cartoes">
+            <i class="fas fa-credit-card"></i> Cartões de Crédito
+        </button>
     </div>
     
     <div class="config-tab-content">
-
 
         <!-- ============================================== -->
         <!-- ABA: GERENCIAMENTO DE CATEGORIAS -->
         <!-- ============================================== -->
         <div id="categorias-tab" class="config-tab-pane active">
             <div class="config-card">
-                <h3 class="categorias-section-title">
-                    <i class="fas fa-tags"></i> Gerenciamento de Categorias
-                </h3>
+                <h3><i class="fas fa-tags"></i> Gerenciamento de Categorias</h3>
                    
                 <div class="form-add-categoria">
                     <div class="input-group">
@@ -793,9 +807,15 @@
                             </tr>
                         </thead>
                         <tbody id="lista-categorias">
-                            <!-- Preenchido dinamicamente -->
+                            <!-- Preenchido dinamicamente via template -->
                         </tbody>
                     </table>
+                </div>
+
+                <!-- Mensagem quando não há categorias -->
+                <div id="sem-categorias-message" class="notification-empty hidden">
+                    <i class="fas fa-tags"></i>
+                    <p>Nenhuma categoria encontrada</p>
                 </div>
             </div>
             
@@ -803,7 +823,7 @@
                 <h3><i class="fas fa-info-circle"></i> Dicas</h3>
                 <ul>
                     <li>Use categorias específicas para melhor organizar suas finanças</li>
-                    <li>Agora você pode identificar a <strong>forma de pagamento</strong> (PIX, Débito, Crédito) diretamente no formulário de despesas</li>
+                    <li>Você pode identificar a <strong>forma de pagamento</strong> (PIX, Débito, Crédito) diretamente no formulário de despesas</li>
                     <li>Todas as despesas da mesma categoria são agrupadas nos gráficos, independente da forma de pagamento</li>
                     <li>Categorias bem definidas melhoram a visualização nos relatórios</li>
                     <li>Você pode analisar seus gastos tanto por categoria quanto por forma de pagamento</li>
@@ -851,27 +871,95 @@
                         <span class="info-label">Última atualização:</span>
                         <span class="info-value">20/12/2024</span>
                     </div>
-                    
                 </div>
                 <button id="btn-verificar-atualizacoes" class="btn-outline">
                     <i class="fas fa-sync"></i> Verificar Atualizações
                 </button>
             </div>
+
+            <!-- Status de operações do sistema -->
+            <div id="sistema-status" class="config-card hidden">
+                <h3><i class="fas fa-info-circle"></i> Status da Operação</h3>
+                <div class="status-container">
+                    <div id="status-message" class="status-message"></div>
+                    <div id="status-progress" class="status-progress hidden">
+                        <div class="progress-bar">
+                            <div class="progress-fill"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
         
         <!-- ============================================== -->
-        <!-- ABA: GERENCIAMENTO DE USUÁRIOS -->
+        <!-- ABA: GERENCIAMENTO DE USUÁRIOS INTEGRADA -->
         <!-- ============================================== -->
         <div id="usuarios-tab" class="config-tab-pane">
             <div class="config-card">
                 <h3><i class="fas fa-users"></i> Gerenciamento de Usuários</h3>
                 <p>Visualize e gerencie os usuários cadastrados no sistema.</p>
                 
-                <button id="btn-gerenciar-usuarios" class="btn-action">
-                    <i class="fas fa-users-cog"></i> Gerenciar Usuários
-                </button>
+                <!-- Controles de Usuários Integrados -->
+                <div class="user-management-controls">
+                    <div class="search-container">
+                        <input type="text" id="usuario-search" placeholder="Buscar usuário..." maxlength="100">
+                        <button id="btn-search-user" class="btn-search">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="filter-container">
+                        <select id="filter-user-type" class="filter-select">
+                            <option value="todos">Todos os usuários</option>
+                            <option value="master">Master</option>
+                            <option value="admin">Administradores</option>
+                            <option value="padrao">Usuários padrão</option>
+                        </select>
+                    </div>
+                    
+                    <button id="btn-adicionar-usuario" class="btn-action">
+                        <i class="fas fa-user-plus"></i> Novo Usuário
+                    </button>
+                </div>
+
+                <!-- Tabela de Usuários Integrada -->
+                <div class="table-responsive">
+                    <table class="tabela-usuarios">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Documento</th>
+                                <th>E-mail</th>
+                                <th>Tipo</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lista-usuarios">
+                            <!-- Preenchido dinamicamente via template -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Mensagem quando não há usuários -->
+                <div id="no-users-message" class="notification-empty hidden">
+                    <i class="fas fa-users-slash"></i>
+                    <p>Nenhum usuário encontrado</p>
+                </div>
+
+                <!-- Controles de Paginação -->
+                <div class="pagination-controls">
+                    <button id="btn-prev-page" class="btn-pagination" disabled>
+                        <i class="fas fa-chevron-left"></i> Anterior
+                    </button>
+                    <span id="pagination-info">Página 1 de 1</span>
+                    <button id="btn-next-page" class="btn-pagination" disabled>
+                        Próxima <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
             </div>
             
+            <!-- Card de Informações de Segurança -->
             <div class="config-card info-card">
                 <h3><i class="fas fa-shield-alt"></i> Segurança</h3>
                 <p>O gerenciamento de usuários permite controlar quem tem acesso ao sistema e quais ações cada usuário pode realizar.</p>
@@ -884,17 +972,422 @@
                 </ul>
             </div>
         </div>
+
+        <!-- ============================================== -->
+        <!-- ABA: CARTÕES DE CRÉDITO -->
+        <!-- ============================================== -->
+        <div id="cartoes-tab" class="config-tab-pane">
+            <div class="config-card">
+                <h3><i class="fas fa-credit-card"></i> Gerenciamento de Cartões de Crédito</h3>
+                <p>Configure seus cartões de crédito para melhor controle financeiro.</p>
+                
+                <div class="cartoes-fixos-container">
+                    <div class="form-add-cartao">
+                        <h4>Cartão 1</h4>
+                        <div class="input-group">
+                            <input type="text" id="cartao1-nome" placeholder="Nome do cartão" maxlength="50">
+                            <input type="text" id="cartao1-validade" placeholder="MM/AAAA" maxlength="7">
+                            <input type="number" id="cartao1-limite" placeholder="Limite" step="0.01" min="0">
+                            <label><input type="checkbox" id="cartao1-ativo"> Ativo</label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-add-cartao">
+                        <h4>Cartão 2</h4>
+                        <div class="input-group">
+                            <input type="text" id="cartao2-nome" placeholder="Nome do cartão" maxlength="50">
+                            <input type="text" id="cartao2-validade" placeholder="MM/AAAA" maxlength="7">
+                            <input type="number" id="cartao2-limite" placeholder="Limite" step="0.01" min="0">
+                            <label><input type="checkbox" id="cartao2-ativo"> Ativo</label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-add-cartao">
+                        <h4>Cartão 3</h4>
+                        <div class="input-group">
+                            <input type="text" id="cartao3-nome" placeholder="Nome do cartão" maxlength="50">
+                            <input type="text" id="cartao3-validade" placeholder="MM/AAAA" maxlength="7">
+                            <input type="number" id="cartao3-limite" placeholder="Limite" step="0.01" min="0">
+                            <label><input type="checkbox" id="cartao3-ativo"> Ativo</label>
+                        </div>
+                    </div>
+                    
+                    <button id="btn-salvar-cartoes" class="btn-action">
+                        <i class="fas fa-save"></i> Salvar Cartões
+                    </button>
+                </div>
+
+                <!-- Status de salvamento dos cartões -->
+                <div id="cartoes-status" class="status-feedback hidden">
+                    <div class="feedback-message">
+                        <i class="feedback-icon"></i>
+                        <span class="feedback-text"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="config-card info-card">
+                <h3><i class="fas fa-info-circle"></i> Dicas sobre Cartões</h3>
+                <ul>
+                    <li>Mantenha sempre o controle dos limites dos seus cartões</li>
+                    <li>Verifique regularmente as datas de validade</li>
+                    <li>Use o checkbox "Ativo" para cartões que você realmente utiliza</li>
+                    <li>O sistema ajudará você a controlar gastos por cartão</li>
+                    <li>Cartões inativos não aparecerão nos formulários de despesas</li>
+                </ul>
+            </div>
+        </div>
+
     </div>
 </section>
+
+<!-- ================================================== -->
+<!-- TODOS OS MODAIS DE CONFIGURAÇÕES -->
+<!-- ================================================== -->
+
+<!-- Modal: Editar Categoria -->
+<div id="modal-editar-categoria" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-edit"></i> Editar Categoria</h2>
+            <span class="close">&times;</span>
         </div>
-        
-    </main>
+        <div class="modal-body">
+            <form id="form-editar-categoria">
+                <input type="hidden" id="categoria-edit-tipo">
+                <input type="hidden" id="categoria-edit-nome-original">
+                
+                <div class="form-group">
+                    <label for="categoria-edit-nome">
+                        <i class="fas fa-tag"></i> Nome da Categoria: <span class="required">*</span>
+                    </label>
+                    <input type="text" id="categoria-edit-nome" class="form-input" required maxlength="50">
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn-action">
+                        <i class="fas fa-save"></i> Salvar Alterações
+                    </button>
+                    <button type="button" class="btn-outline" data-action="cancelar">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
-<!-- ================================================================ -->
-<!-- SISTEMA DE MODAIS -->
-<!-- Todas as janelas modais para interação com usuário -->
-<!-- ================================================================ -->
+<!-- Modal: Adicionar Usuário -->
+<div id="modal-adicionar-usuario" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-user-plus"></i> Adicionar Novo Usuário</h2>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="form-adicionar-usuario">
+                <div class="form-group">
+                    <label for="novo-usuario-nome">
+                        <i class="fas fa-user"></i> Nome: <span class="required">*</span>
+                    </label>
+                    <input type="text" id="novo-usuario-nome" class="form-input" required maxlength="100">
+                </div>
+                
+                <div class="form-group">
+                    <label for="novo-usuario-email">
+                        <i class="fas fa-envelope"></i> E-mail: <span class="required">*</span>
+                    </label>
+                    <input type="email" id="novo-usuario-email" class="form-input" required maxlength="100">
+                </div>
+                
+                <div class="form-group">
+                    <label for="novo-usuario-documento">
+                        <i class="fas fa-id-card"></i> Documento (CPF/CNPJ): <span class="required">*</span>
+                    </label>
+                    <input type="text" id="novo-usuario-documento" class="form-input" required maxlength="18">
+                    <small class="field-help">Digite apenas números</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="novo-usuario-tipo">
+                        <i class="fas fa-user-tag"></i> Tipo de Usuário:
+                    </label>
+                    <select id="novo-usuario-tipo" class="form-select">
+                        <option value="padrao">Usuário Padrão</option>
+                        <option value="admin">Administrador</option>
+                        <option value="master">Master</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="novo-usuario-senha">
+                        <i class="fas fa-key"></i> Senha: <span class="required">*</span>
+                    </label>
+                    <input type="password" id="novo-usuario-senha" class="form-input" required minlength="6">
+                    <small class="field-help">Mínimo 6 caracteres</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="novo-usuario-confirmar-senha">
+                        <i class="fas fa-key"></i> Confirmar Senha: <span class="required">*</span>
+                    </label>
+                    <input type="password" id="novo-usuario-confirmar-senha" class="form-input" required minlength="6">
+                </div>
+
+                <!-- Status de validação -->
+                <div id="validacao-status" class="validation-feedback hidden">
+                    <div class="validation-message">
+                        <i class="validation-icon"></i>
+                        <span class="validation-text"></span>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn-action">
+                        <i class="fas fa-user-plus"></i> Adicionar Usuário
+                    </button>
+                    <button type="button" class="btn-outline" data-action="cancelar">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Editar Usuário -->
+<div id="modal-editar-usuario" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="editar-usuario-titulo">
+                <i class="fas fa-user-edit"></i> Editar Usuário
+            </h2>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="form-editar-usuario">
+                <input type="hidden" id="editar-usuario-id">
+                
+                <div class="form-group">
+                    <label for="editar-usuario-nome">
+                        <i class="fas fa-user"></i> Nome: <span class="required">*</span>
+                    </label>
+                    <input type="text" id="editar-usuario-nome" class="form-input" required maxlength="100">
+                </div>
+                
+                <div class="form-group">
+                    <label for="editar-usuario-email">
+                        <i class="fas fa-envelope"></i> E-mail: <span class="required">*</span>
+                    </label>
+                    <input type="email" id="editar-usuario-email" class="form-input" required maxlength="100">
+                </div>
+                
+                <div class="form-group">
+                    <label for="editar-usuario-documento">
+                        <i class="fas fa-id-card"></i> Documento (CPF/CNPJ): <span class="required">*</span>
+                    </label>
+                    <input type="text" id="editar-usuario-documento" class="form-input" required maxlength="18" disabled>
+                    <small class="field-help">O documento não pode ser alterado após o cadastro</small>
+                </div>
+                
+                <div id="form-group-tipo" class="form-group">
+                    <label for="editar-usuario-tipo">
+                        <i class="fas fa-user-tag"></i> Tipo de Usuário:
+                    </label>
+                    <select id="editar-usuario-tipo" class="form-select">
+                        <option value="padrao">Usuário Padrão</option>
+                        <option value="admin">Administrador</option>
+                        <option value="master">Master</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="editar-usuario-status">
+                        <i class="fas fa-toggle-on"></i> Status:
+                    </label>
+                    <select id="editar-usuario-status" class="form-select">
+                        <option value="ativo">Ativo</option>
+                        <option value="inativo">Inativo</option>
+                        <option value="bloqueado">Bloqueado</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="editar-usuario-senha">
+                        <i class="fas fa-key"></i> Nova Senha:
+                    </label>
+                    <input type="password" id="editar-usuario-senha" class="form-input" placeholder="Deixe em branco para manter a atual" minlength="6">
+                    <small class="field-help">Mínimo 6 caracteres</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="editar-usuario-confirmar-senha">
+                        <i class="fas fa-key"></i> Confirmar Nova Senha:
+                    </label>
+                    <input type="password" id="editar-usuario-confirmar-senha" class="form-input" placeholder="Confirme a nova senha">
+                </div>
+
+                <!-- Mensagem de permissão -->
+                <div id="permissao-message" class="alert-message hidden">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Você só pode editar usuários do tipo Padrão</span>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn-action">
+                        <i class="fas fa-save"></i> Salvar Alterações
+                    </button>
+                    <button type="button" class="btn-outline" data-action="cancelar">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Confirmação de Exclusão de Usuário -->
+<div id="modal-confirmar-exclusao-usuario" class="modal">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h3><i class="fas fa-exclamation-triangle"></i> Confirmar Exclusão</h3>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="confirmacao-exclusao">
+                <div class="warning-message">
+                    <i class="fas fa-user-times"></i>
+                    <p>Tem certeza que deseja excluir o usuário <strong id="usuario-nome-exclusao"></strong>?</p>
+                </div>
+                
+                <div class="alert-message">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p><strong>ATENÇÃO:</strong> Todos os dados deste usuário serão perdidos permanentemente. Esta ação não pode ser desfeita.</p>
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button id="btn-confirmar-exclusao-usuario" class="btn-danger">
+                    <i class="fas fa-trash"></i> Sim, Excluir
+                </button>
+                <button id="btn-cancelar-exclusao-usuario" class="btn-outline">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Feedback do Sistema -->
+<div id="modal-feedback-sistema" class="modal">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h3 id="feedback-titulo">Mensagem do Sistema</h3>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="feedback-conteudo" class="feedback-message">
+                <div id="feedback-icone" class="feedback-icon"></div>
+                <p id="feedback-texto">Mensagem</p>
+            </div>
+            <div class="form-actions">
+                <button id="btn-feedback-ok" class="btn-action btn-block">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================== -->
+<!-- TEMPLATES PARA REUTILIZAÇÃO -->
+<!-- ================================================== -->
+
+<!-- Template: Linha de Categoria -->
+<template id="template-linha-categoria">
+    <tr class="categoria-row">
+        <td class="categoria-nome"></td>
+        <td class="acoes-categoria">
+            <button class="btn-editar-categoria" data-categoria="" title="Editar categoria">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn-remover-categoria" data-categoria="" title="Remover categoria">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    </tr>
+</template>
+
+<!-- Template: Linha de Usuário -->
+<template id="template-linha-usuario">
+    <tr class="usuario-row">
+        <td class="usuario-nome"></td>
+        <td class="usuario-documento"></td>
+        <td class="usuario-email"></td>
+        <td class="usuario-tipo">
+            <span class="tipo-badge"></span>
+        </td>
+        <td class="usuario-status">
+            <span class="status-badge"></span>
+        </td>
+        <td class="acoes-usuario">
+            <button class="btn-usuario btn-editar-usuario" data-index="" title="Editar usuário">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn-usuario btn-bloquear-usuario" data-index="" title="Bloquear usuário">
+                <i class="fas fa-ban"></i>
+            </button>
+            <button class="btn-usuario btn-excluir-usuario" data-index="" title="Excluir usuário">
+                <i class="fas fa-trash"></i>
+            </button>
+            <span class="texto-sem-permissao hidden">Sem permissão</span>
+        </td>
+    </tr>
+</template>
+
+<!-- Template: Badge de Tipo de Usuário -->
+<template id="template-tipo-badge">
+    <span class="tipo-badge tipo-padrao">Padrão</span>
+</template>
+
+<!-- Template: Badge de Status de Usuário -->
+<template id="template-status-badge">
+    <span class="status-badge status-ativo">Ativo</span>
+</template>
+
+<!-- Template: Mensagem de Status -->
+<template id="template-status-message">
+    <div class="status-message">
+        <i class="status-icon"></i>
+        <span class="status-text"></span>
+    </div>
+</template>
+
+<!-- Template: Mensagem de Validação -->
+<template id="template-validation-message">
+    <div class="validation-message">
+        <i class="validation-icon"></i>
+        <span class="validation-text"></span>
+    </div>
+</template>
+
+<!-- ======================================================== -->
+<!-- MODALTELA DE BLOQUEIO -->
+<!-- ======================================================== -->
+<div id="lock-screen-overlay" class="lock-screen-overlay"></div>
+<div id="modal-lock-screen" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-lock"></i> Sistema Bloqueado</h2>
+        </div>
+        <div class="modal-body">
+            <form id="form-lock-screen">
+                <div class="form-group">
+                    <input type="password" id="lock-screen-password" placeholder="Sua Senha" required>
+                </div>
+                <button type="submit" class="btn-submit btn-full-width">Desbloquear</button>
+            </form>
+        </div>
+    </div>
+</div>
 
 <!-- ======================================================== -->
 <!-- MODAL 1: CRIAÇÃO DE NOVO ANO FINANCEIRO -->
@@ -922,9 +1415,8 @@
 </div>
 
 
-
 <!-- ======================================================== -->
-<!-- MODAL 3: NOTIFICAÇÃO DE FECHAMENTO AUTOMÁTICO -->
+<!-- MODAL 3: FECHAMENTO AUTOMÁTICO -->
 <!-- Notifica quando um mês é fechado automaticamente -->
 <!-- ======================================================== -->
 <div id="modal-notificacao-fechamento" class="notificacao-fechamento hidden">
@@ -938,22 +1430,25 @@
     </div>
 </div>
 
-
 <!-- ======================================================== -->
-<!-- MODAL 5: DETALHES MENSAIS - VERSÃO ATUALIZADA -->
-<!-- Visualização completa com abas: resumo, receitas e despesas -->
+<!-- MODAL 5: DETALHES MENSAIS -->
 <!-- ======================================================== -->
 <div id="modal-detalhes-mes" class="modal">
     <div class="modal-content modal-lg">
         <div class="modal-header">
             <h2 id="detalhes-mes-titulo">Detalhes do Mês</h2>
-            <span class="close" onclick="fecharModal('modal-detalhes-mes')">&times;</span>
+            <div class="header-navigation">
+                <button id="btn-mes-anterior" class="btn-navegacao-mes">Anterior</button>
+                <button id="btn-mes-proximo" class="btn-navegacao-mes">Próximo</button>
+            </div>
+            <span class="close">&times;</span>
         </div>
         <div class="modal-body">
-            <div class="tabs">
-                <button class="tab-btn active" data-tab="tab-resumo" onclick="ativarAba(this, 'tab-resumo')">Resumo</button>
-                <button class="tab-btn" data-tab="tab-receitas" onclick="ativarAba(this, 'tab-receitas')">Receitas</button>
-                <button class="tab-btn" data-tab="tab-despesas" onclick="ativarAba(this, 'tab-despesas')">Despesas</button>
+           <div class="tabs">
+                <button class="tab-btn active" data-tab="tab-resumo">Resumo</button>                
+                <button class="tab-btn" data-tab="tab-despesas">Despesas</button>
+                <button class="tab-btn" data-tab="tab-receitas">Receitas</button>
+                <button class="tab-btn" data-tab="tab-reservas">Reservas</button>
             </div>
 
             <!-- ABA RESUMO -->
@@ -977,56 +1472,215 @@
                     </div>
                 </div>
                 
-                <!-- Container para saldo anterior (gerado dinamicamente) -->
-                <div id="saldo-anterior-container" class="card hidden">
-                    <h3><i class="fas fa-piggy-bank"></i> Saldo Anterior</h3>
-                    <p id="saldo-anterior-valor">R$ 0,00</p>
-                </div>
+                <!-- Barras de Limite dos Cartões -->
+                <div id="limites-cartoes-container" class="limites-cartoes-container">
+                    <h3><i class="fas fa-credit-card"></i> Limites dos Cartões</h3>
+                    
+                    <div id="lista-barras-cartoes" class="lista-barras-cartoes">
+                        
+                        <!-- Cartão 1 -->
+                        <div class="cartao-limite-item" data-cartao="1" id="cartao1-barra">
+                            <div class="cartao-info-header">
+                                <span class="cartao-nome" id="cartao1-nome-display">Cartão 1</span>
+                                <div class="cartao-valores">
+                                    <span class="valor-usado" id="cartao1-valor-usado">R$ 0,00</span>
+                                    <span class="separador">/</span>
+                                    <span class="valor-limite" id="cartao1-valor-limite">R$ 0,00</span>
+                                </div>
+                            </div>
+                            
+                            <div class="cartao-barra-progresso">
+                                <div class="barra-fundo">
+                                    <div class="barra-preenchida" id="cartao1-barra-preenchida" style="width: 0%"></div>
+                                </div>
+                                <div class="cartao-percentual">
+                                    <span class="percentual-texto" id="cartao1-percentual">0% usado</span>
+                                    <span class="disponivel-texto" id="cartao1-disponivel">Disponível: R$ 0,00</span>
+                                </div>
+                            </div>
+                            
+                            <div class="cartao-status">
+                                <span class="status-ativo" id="cartao1-status">Inativo</span>
+                            </div>
+                        </div>
 
-                <!-- Container para controles do mês (gerado dinamicamente) -->
-                <div id="controle-mes-container" class="controle-mes-actions hidden">
-                    <div class="status-info" id="status-mes-info"></div>
-                    <div class="controle-botoes" id="controle-mes-botoes"></div>
+                        <!-- Cartão 2 -->
+                        <div class="cartao-limite-item" data-cartao="2" id="cartao2-barra">
+                            <div class="cartao-info-header">
+                                <span class="cartao-nome" id="cartao2-nome-display">Cartão 2</span>
+                                <div class="cartao-valores">
+                                    <span class="valor-usado" id="cartao2-valor-usado">R$ 0,00</span>
+                                    <span class="separador">/</span>
+                                    <span class="valor-limite" id="cartao2-valor-limite">R$ 0,00</span>
+                                </div>
+                            </div>
+                            
+                            <div class="cartao-barra-progresso">
+                                <div class="barra-fundo">
+                                    <div class="barra-preenchida" id="cartao2-barra-preenchida" style="width: 0%"></div>
+                                </div>
+                                <div class="cartao-percentual">
+                                    <span class="percentual-texto" id="cartao2-percentual">0% usado</span>
+                                    <span class="disponivel-texto" id="cartao2-disponivel">Disponível: R$ 0,00</span>
+                                </div>
+                            </div>
+                            
+                            <div class="cartao-status">
+                                <span class="status-ativo" id="cartao2-status">Inativo</span>
+                            </div>
+                        </div>
+
+                        <!-- Cartão 3 -->
+                        <div class="cartao-limite-item" data-cartao="3" id="cartao3-barra">
+                            <div class="cartao-info-header">
+                                <span class="cartao-nome" id="cartao3-nome-display">Cartão 3</span>
+                                <div class="cartao-valores">
+                                    <span class="valor-usado" id="cartao3-valor-usado">R$ 0,00</span>
+                                    <span class="separador">/</span>
+                                    <span class="valor-limite" id="cartao3-valor-limite">R$ 0,00</span>
+                                </div>
+                            </div>
+                            
+                            <div class="cartao-barra-progresso">
+                                <div class="barra-fundo">
+                                    <div class="barra-preenchida" id="cartao3-barra-preenchida" style="width: 0%"></div>
+                                </div>
+                                <div class="cartao-percentual">
+                                    <span class="percentual-texto" id="cartao3-percentual">0% usado</span>
+                                    <span class="disponivel-texto" id="cartao3-disponivel">Disponível: R$ 0,00</span>
+                                </div>
+                            </div>
+                            
+                            <div class="cartao-status">
+                                <span class="status-ativo" id="cartao3-status">Inativo</span>
+                            </div>
+                        </div>
+                        
+                    </div>
                 </div>
+            </div>
+
+            <!-- ABA RECEITAS -->
+            <div id="tab-receitas" class="tab-content">
+                <div class="tab-actions">
+                    <button id="btn-nova-receita" class="btn-action">
+                        <i class="fas fa-plus-circle"></i> Nova Receita
+                    </button>
+                </div>
+                
+                <div class="tabela-container">
+                    <table id="tabela-receitas" class="tabela-receitas">
+                        <thead class="receita-thead">
+                            <tr class="receita-header-row">
+                                <th class="col-descricao">Descrição</th>
+                                <th class="col-valor">Valor</th>
+                                <th class="col-data">Data</th>
+                                <th class="col-parcela">Parcela</th>
+                                <th class="col-acoes">Ações</th>
+                                <th class="col-anexos">Anexos</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lista-receitas" class="receita-tbody">
+                            <!-- Receitas serão inseridas aqui -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ABA DESPESAS -->
+            <div id="tab-despesas" class="tab-content">
+                <!-- Conteúdo gerado dinamicamente pelo despesas.js -->
             </div>
 
 
 
-<!-- ABA RECEITAS -->
-<!-- ================================================================ -->
-<!-- ESTRUTURA HTML CORRIGIDA PARA TABELA DE RECEITAS -->
-<!-- Deve substituir a tabela atual no modal de detalhes -->
-<!-- ================================================================ -->
-
-<!-- ABA RECEITAS no modal-detalhes-mes -->
-<div id="tab-receitas" class="tab-content">
-    <div class="tab-actions">
-        <button id="btn-nova-receita" class="btn-action" onclick="handleNovaReceita()">
-            <i class="fas fa-plus-circle"></i> Nova Receita
-        </button>
+       <div id="tab-reservas" class="tab-content">
+    <div class="resumo-reservas">
+        <div class="card-resumo-reserva">
+            <div class="card-icon receitas">
+                <i class="fas fa-arrow-down"></i>
+            </div>
+            <div class="card-info">
+                <label>Total de Receitas</label>
+                <span id="reservas-total-receitas" class="valor-destaque">R$ 0,00</span>
+            </div>
+        </div>
+        
+        <div class="card-resumo-reserva">
+            <div class="card-icon reservado">
+                <i class="fas fa-lock"></i>
+            </div>
+            <div class="card-info">
+                <label>Já Reservado</label>
+                <span id="reservas-ja-reservado" class="valor-destaque reservado">R$ 0,00</span>
+            </div>
+        </div>
+        
+        <div class="card-resumo-reserva">
+            <div class="card-icon disponivel">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="card-info">
+                <label>Disponível</label>
+                <span id="reservas-disponivel" class="valor-destaque disponivel">R$ 0,00</span>
+            </div>
+        </div>
     </div>
     
-    <div class="tabela-container">
-        <table id="tabela-receitas" class="tabela-receitas">
-            <thead class="receita-thead">
-                <tr class="receita-header-row">
-                    <th class="col-descricao">Descrição</th>
-                    <th class="col-valor">Valor</th>
-                    <th class="col-data">Data</th>
-                    <th class="col-parcela">Parcela</th>
-                    <th class="col-acoes">Ações</th>
-                </tr>
-            </thead>
-            <tbody id="lista-receitas" class="receita-tbody">
-                <!-- Receitas serão inseridas aqui pelo JavaScript -->
-            </tbody>
-        </table>
+    <div class="formulario-reserva">
+        <h3><i class="fas fa-exchange-alt"></i> Migrar para Reservas</h3>
+        <form id="form-migrar-reserva">
+            <div class="form-group-inline">
+                <label for="valor-reserva">Valor:</label>
+                <input 
+                    type="number" 
+                    id="valor-reserva" 
+                    class="form-control" 
+                    placeholder="0,00" 
+                    step="0.01" 
+                    min="0.01"
+                  
+                >
+                <button type="submit" class="btn-confirmar-reserva">
+                    <i class="fas fa-check"></i> Confirmar
+                </button>
+            </div>
+            <p class="info-texto">
+                <i class="fas fa-info-circle"></i> 
+                Este valor será descontado do saldo disponível do mês.
+            </p>
+        </form>
+    </div>
+    
+    <div class="historico-reservas">
+        <h3><i class="fas fa-history"></i> Histórico deste Mês</h3>
+        <div id="lista-historico-reservas" class="lista-historico">
+            <p class="historico-vazio">Nenhuma reserva realizada neste mês.</p>
+        </div>
+    </div>
+</div>
+
+<template id="template-historico-reserva">
+    <div class="historico-item">
+        <div class="historico-icon">
+            <i class="fas fa-arrow-right"></i>
+        </div>
+        <div class="historico-detalhes">
+            <span class="historico-data"></span>
+            <span class="historico-valor"></span>
+        </div>
+        <button class="btn-remover-reserva" data-index="" title="Remover reserva">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+</template>
+
+        </div>
     </div>
 </div>
 
 <!-- ================================================================ -->
-<!-- TEMPLATE PARA LINHA DE RECEITA (usado pelo JavaScript) -->
-<!-- Deve substituir o template atual -->
+<!-- TEMPLATES PARA RECEITAS  -->
 <!-- ================================================================ -->
 
 <template id="template-linha-receita">
@@ -1053,13 +1707,14 @@
                 </button>
             </div>
         </td>
+        <td class="col-anexos">
+            <button class="btn btn-anexos" data-index="" title="Ver anexos">
+                <i class="fas fa-paperclip"></i>
+                <span class="contador-anexos">0</span>
+            </button>
+        </td>
     </tr>
 </template>
-
-<!-- ================================================================ -->
-<!-- TEMPLATE PARA LINHA DE SALDO ANTERIOR -->
-<!-- Deve substituir o template atual -->
-<!-- ================================================================ -->
 
 <template id="template-linha-saldo-anterior">
     <tr class="saldo-anterior-row">
@@ -1074,84 +1729,21 @@
         <td class="col-acoes">
             <span class="badge-saldo-anterior">AUTOMÁTICO</span>
         </td>
+        <td class="col-anexos">-</td>
     </tr>
 </template>
 
-            <!-- ABA DESPESAS  -->
-            <div id="tab-despesas" class="tab-content">
-                <!-- AÇÕES DA TABELA -->
-                <div class="tab-actions">
-                    <div class="left-side">
-                        <button id="btn-nova-despesa" class="btn-action" onclick="abrirModalNovaDespesa()">
-                            <i class="fas fa-plus-circle"></i> Nova Despesa
-                        </button>
-                        <button id="btn-pagar-em-lote" class="btn-action" disabled onclick="pagarDespesasEmLote()">
-                            <i class="fas fa-check-circle"></i> Pagar em Lote
-                        </button>
-                    </div>
-                    
-                    <div class="right-side">
-                        <div class="filtros-despesas">
-                            <select id="filtro-categoria" class="form-control">
-                                <option value="todas">Categorias</option>
-                            </select>
-                            
-                            <select id="filtro-forma-pagamento-tabela" class="form-control">
-                                <option value="todas">Forma Pagamento</option>
-                                <option value="pix">PIX</option>
-                                <option value="debito">Débito</option>
-                                <option value="credito">Crédito</option>
-                            </select>
-                            
-                            <select id="filtro-status" class="form-control">
-                                <option value="todas">Status</option>
-                                <option value="em_dia">Em Dia</option>
-                                <option value="atrasada">Atrasadas</option>
-                                <option value="quitada">Pagas</option>
-                                <option value="pendentes">Pendentes</option>
-                            </select>
-                            
-                            <button id="btn-limpar-filtros" class="btn btn-secondary" onclick="limparFiltros()">
-                                </i> Limpar
-                            </button>
-                            
-                            <span id="contador-filtro" class="filtro-contador"></span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- TABELA DE DESPESAS COM ESTRUTURA COMPATÍVEL COM DESPESAS.JS -->
-                <div class="tabela-container">
-                    <table id="tabela-despesas" class="tabela-despesas">
-                        <thead class="despesa-thead">
-                            <tr class="despesa-header-row">
-                                <th class="col-checkbox">
-                                    <input type="checkbox" id="pagar-despesas-em-lote" class="despesa-checkbox-all" onchange="toggleTodasDespesas(this)">
-                                </th>
-                                <th class="col-descricao">Descrição</th>
-                                <th class="col-categoria">Categoria</th>
-                                <th class="col-forma-pagamento">Pagamento</th>
-                                <th class="col-valor">Valor</th>
-                                <th class="col-parcela">Parcela</th>
-                                <th class="col-valor-pago">Valor Pago</th>
-                                <th class="col-status">Status</th>
-                                <th class="col-compra">Compra</th>
-                                <th class="col-vencimento">Vencimento</th>
-                                <th class="col-acoes">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="lista-despesas" class="despesa-tbody">
-                            <!-- Despesas serão inseridas aqui dinamicamente via despesas.js -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+<!-- ABA DESPESAS  -->
+         <div id="tab-despesas" class="tab-content">
+    <!-- Conteúdo será gerado dinamicamente pelo despesas.js usando CSS Grid -->
+         </div>
         </div>
+      </div>
     </div>
-</div>
+
 
 <!-- ======================================================== -->
-<!-- TEMPLATES PADRONIZADOS PARA COMPATIBILIDADE -->
+<!-- TEMPLATES -->
 <!-- ======================================================== -->
 
 <!-- Template para linha de receita -->
@@ -1179,6 +1771,12 @@
                 </button>
             </div>
         </td>
+        <td class="col-anexos">
+            <button class="btn btn-anexos" data-index="" title="Ver anexos">
+                <i class="fas fa-paperclip"></i>
+                <span class="contador-anexos">0</span>
+            </button>
+        </td>
     </tr>
 </template>
 
@@ -1196,97 +1794,18 @@
         <td class="col-acoes">
             <span class="badge-saldo-anterior">AUTOMÁTICO</span>
         </td>
+        <td class="col-anexos">-</td>
     </tr>
 </template>
-
-
-
-<!-- Template padronizado para linha de despesa - COMPATÍVEL COM DESPESAS.JS -->
-<template id="template-linha-despesa">
-    <tr class="despesa-row" data-status="" data-categoria="" data-forma-pagamento="">
-        <!-- Checkbox para seleção múltipla -->
-        <td class="col-checkbox">
-            <input type="checkbox" class="despesa-checkbox" data-index="">
-        </td>
-        
-        <!-- Descrição da despesa -->
-        <td class="col-descricao">
-            <span class="despesa-descricao"></span>
-        </td>
-        
-        <!-- Categoria -->
-        <td class="col-categoria">
-            <span class="despesa-categoria"></span>
-        </td>
-        
-        <!-- Forma de pagamento com badge -->
-        <td class="col-forma-pagamento">
-            <span class="despesa-forma-pagamento"></span>
-        </td>
-        
-        <!-- Valor -->
-        <td class="col-valor">
-            <span class="despesa-valor"></span>
-        </td>
-        
-        <!-- Parcela -->
-        <td class="col-parcela">
-            <span class="despesa-parcela"></span>
-        </td>
-        
-        <!-- Valor pago -->
-        <td class="col-valor-pago">
-            <span class="despesa-valor-pago"></span>
-        </td>
-        
-        <!-- Status com badge -->
-        <td class="col-status">
-            <span class="badge-status"></span>
-        </td>
-        
-        <!-- Data de compra -->
-        <td class="col-compra">
-            <span class="despesa-data-compra"></span>
-        </td>
-        
-        <!-- Data de vencimento -->
-        <td class="col-vencimento">
-            <span class="despesa-data-vencimento"></span>
-        </td>
-        
-        <!-- Ações -->
-        <td class="col-acoes">
-            <div class="despesa-acoes">
-                <button class="btn btn-editar" data-index="" title="Editar">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn btn-excluir" data-index="" title="Excluir">
-                    <i class="fas fa-trash"></i>
-                </button>
-                <button class="btn btn-pagar" data-index="" title="Pagar">
-                    <i class="fas fa-check"></i>
-                </button>
-                <button class="btn btn-mover" data-index="" title="Mover para próximo mês">
-                    <i class="fas fa-arrow-right"></i>
-                </button>
-            </div>
-        </td>
-    </tr>
-</template>
-
-
-
-
 
 <!-- ======================================================== -->
 <!-- MODAL 4: CADASTRO DE NOVAS RECEITAS -->
-<!-- Formulário completo para adicionar receitas com parcelamento -->
 <!-- ======================================================== -->
 <div id="modal-nova-receita" class="modal modal-nova-receita">
     <div class="modal-content">
         <div class="modal-header">
             <h2>Nova Receita</h2>
-            <span class="close" onclick="fecharModal('modal-nova-receita')">&times;</span>
+            <span class="close">&times;</span>
         </div>
         <div class="modal-body">
             <form id="form-nova-receita">
@@ -1296,7 +1815,16 @@
                 
                 <div class="form-group form-group-full">
                     <label for="receita-descricao">Descrição:</label>
-                    <input type="text" id="receita-descricao" placeholder="Descrição" required>
+                    <div class="descricao-anexos-container">
+                        <input type="text" id="receita-descricao" placeholder="Descrição" required>
+                        <button type="button" id="btn-anexar-receita" class="btn-anexar">
+                            <i class="fas fa-paperclip"></i> Anexar
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="lista-anexos-receita" class="lista-anexos-container">
+                    <!-- Anexos serão inseridos aqui -->
                 </div>
                 
                 <div class="form-row-grid">
@@ -1311,8 +1839,6 @@
                     </div>
                 </div>
                 
-              
-                
                 <div id="opcoes-parcelamento-receita" class="hidden">
                     <div class="form-group">
                         <label for="receita-parcelas">Número de Parcelas:</label>
@@ -1322,7 +1848,7 @@
                 
                 <div class="checkbox-container">
                     <div class="checkbox-row">
-                        <input type="checkbox" id="receita-replicar" onchange="toggleReplicacaoReceita(this)">
+                        <input type="checkbox" id="receita-replicar">
                         <label for="receita-replicar">Replicar para meses futuros</label>
                     </div>
                 </div>
@@ -1330,12 +1856,12 @@
                 <div id="opcoes-replicacao-detalhes" class="hidden">
                     <div class="opcoes-replicacao-grupo">
                         <div class="opcao-replicacao">
-                            <input type="radio" name="tipo-replicacao" id="replicar-todos" value="todos" checked onchange="toggleSeletorAte()" />
+                            <input type="radio" name="tipo-replicacao" id="replicar-todos" value="todos" checked />
                             <label for="replicar-todos">Replicar para todos os meses futuros</label>
                         </div>
                         
                         <div class="opcao-replicacao">
-                            <input type="radio" name="tipo-replicacao" id="replicar-ate" value="ate" onchange="toggleSeletorAte()" />
+                            <input type="radio" name="tipo-replicacao" id="replicar-ate" value="ate" />
                             <label for="replicar-ate">Replicar até</label>
                             
                             <div id="selector-ate-container" class="hidden">
@@ -1367,10 +1893,8 @@
     </div>
 </div>
 
-
 <!-- ======================================================== -->
 <!-- MODAL 2: EXCLUSÃO DE RECEITAS -->
-<!-- Opções para excluir receita individual ou em lote -->
 <!-- ======================================================== -->
 <div id="modal-exclusao-receita" class="modal">
     <div class="modal-content modal-small">
@@ -1381,22 +1905,65 @@
         <div class="modal-body">
             <p>Como deseja excluir esta receita?</p>
             <div class="opcoes-exclusao">
-                <button id="btn-excluir-atual" class="btn btn-block">Excluir apenas esta receita</button>
-                <button id="btn-excluir-todas" class="btn btn-block">Excluir todas com esta descrição neste ano</button>
+                <button id="btn-excluir-atual" class="btn btn-block" onclick="excluirAtual()">Excluir apenas esta receita</button>
+                <button id="btn-excluir-todas" class="btn btn-block" onclick="excluirTodas()">Excluir todas com esta descrição neste ano</button>
             </div>
         </div>
     </div>
 </div>
 
+<!-- ======================================================== -->
+<!-- MODAIS DE ANEXOS -->
+<!-- ======================================================== -->
 
-<!-- ======================================================== -->
-<!-- MODAL 6: CADASTRO DE DESPESAS -->
-<!-- ======================================================== -->
+<!-- Modal para visualizar anexos da receita -->
+<div id="modal-anexos-receita" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Anexos da Receita</h2>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="lista-anexos-visualizar" class="lista-anexos-visualizar">
+                <!-- Anexos para download serão inseridos aqui -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Templates para anexos -->
+<template id="template-anexo-item">
+    <div class="anexo-item">
+        <div class="anexo-info">
+            <i class="anexo-icone"></i>
+            <span class="anexo-nome"></span>
+        </div>
+        <button class="btn-remover-anexo" data-anexo-id="">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+</template>
+
+<template id="template-anexo-download">
+    <div class="anexo-download-item">
+        <div class="anexo-info">
+            <i class="anexo-icone"></i>
+            <span class="anexo-nome"></span>
+        </div>
+        <button class="btn-download-anexo" data-anexo-id="">
+            <i class="fas fa-download"></i>
+        </button>
+    </div>
+</template>
+
+
+
+
 
 <div id="modal-nova-despesa" class="modal modal-nova-despesa">
-   <div class="modal-content">
+   <div class="modal-content modal-despesa-compact">
        <div class="modal-header">
-           <h2><i class="fas fa-plus-circle"></i> Nova Despesa</h2>
+           <h2>Nova Despesa</h2>
            <span class="close" onclick="fecharModal('modal-nova-despesa')">&times;</span>
        </div>
        <div class="modal-body">
@@ -1405,131 +1972,269 @@
                <input type="hidden" id="despesa-mes">
                <input type="hidden" id="despesa-ano">
                
-               <!-- Descrição -->
-               <div class="form-group form-group-full">
-                   <input type="text" id="despesa-descricao" placeholder="Descrição da despesa" required>
-               </div>
+              <!-- Descrição e Anexos -->
+                <div class="form-group-compact">
+                    <div class="descricao-anexos-row">
+                        <input type="text" id="despesa-descricao" placeholder="Descrição da despesa" required>
+                        <button type="button" id="btn-anexar-despesa" class="btn-anexar-compact">
+                            <i class="fas fa-paperclip"></i>
+                        </button>
+                    </div>
+                    <div id="lista-anexos-despesa" class="lista-anexos-inline"></div>
+                </div>
                
                <!-- Categoria e Forma de Pagamento -->
-               <div class="form-row-grid">
-                   <div class="form-group">
-                       <label for="despesa-categoria">Categoria <span class="campo-obrigatorio">*</span></label>
+               <div class="form-row-compact">
+                   <div class="form-col">
+                       <label>Categoria *</label>
                        <select id="despesa-categoria" required onchange="validarCategoria()">
                            <option value="">Selecione...</option>
                            <option value="Alimentação">Alimentação</option>
                            <option value="Transporte">Transporte</option>
-                           <option value="Saúde">Saúde</option>
-                           <option value="Lazer">Lazer</option>
-                           <option value="Casa">Casa</option>
-                           <option value="Educação">Educação</option>
-                           <option value="Trabalho">Trabalho</option>
-                           <option value="Outros">Outros</option>
-                       </select>
+                           </select>
                    </div>
                    
-                   <div class="form-group">
-                       <label>Forma de Pagamento <span class="campo-obrigatorio">*</span></label>
-                       <div class="payment-methods">
-                           <div class="payment-option">
-                               <input type="radio" id="pagamento-pix" name="forma-pagamento" value="pix" required onchange="validarFormaPagamento()">
-                               <label for="pagamento-pix">PIX</label>
-                           </div>
-                           <div class="payment-option">
-                               <input type="radio" id="pagamento-debito" name="forma-pagamento" value="debito" required onchange="validarFormaPagamento()">
-                               <label for="pagamento-debito">Débito</label>
-                           </div>
-                           <div class="payment-option">
-                               <input type="radio" id="pagamento-credito" name="forma-pagamento" value="credito" required onchange="validarFormaPagamento()">
-                               <label for="pagamento-credito">Crédito</label>
-                           </div>
-                       </div>
-                   </div>
+                   <div class="form-col">
+                        <label>Pagamento *</label>
+                        <div class="payment-methods">
+                            <div class="payment-option">
+                                <input type="radio" id="pagamento-pix" name="forma-pagamento" value="pix" required onchange="validarFormaPagamento()">
+                                <label for="pagamento-pix">PIX</label>
+                            </div>
+                            <div class="payment-option">
+                                <input type="radio" id="pagamento-debito" name="forma-pagamento" value="debito" required onchange="validarFormaPagamento()">
+                                <label for="pagamento-debito">DEBITO</label>
+                            </div>
+                            <div class="payment-option-group" id="credito-options">
+                                <div class="payment-option" id="cartao1-option">
+                                    <input type="radio" id="pagamento-cartao1" name="forma-pagamento" value="credito" data-cartao="1" required onchange="validarFormaPagamento()">
+                                    <label for="pagamento-cartao1" id="label-cartao1">CARTÃO 1</label>
+                                </div>
+                                <div class="payment-option" id="cartao2-option">
+                                    <input type="radio" id="pagamento-cartao2" name="forma-pagamento" value="credito" data-cartao="2" required onchange="validarFormaPagamento()">
+                                    <label for="pagamento-cartao2" id="label-cartao2">CARTÃO 2</label>
+                                </div>
+                                <div class="payment-option" id="cartao3-option">
+                                    <input type="radio" id="pagamento-cartao3" name="forma-pagamento" value="credito" data-cartao="3" required onchange="validarFormaPagamento()">
+                                    <label for="pagamento-cartao3" id="label-cartao3">CARTÃO 3</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                </div>
                
-               <!-- Opções: Parcelado e Replicar -->
-             <div class="checkbox-container">
-    <div class="checkbox-row-grid">
-        <div class="checkbox-item" onclick="toggleCheckboxParcelado()">
-            <input type="checkbox" id="despesa-parcelado" onchange="toggleParcelamentoDespesa(this)">
-            <label for="despesa-parcelado">Parcelado</label>
-        </div>
-        <div class="checkbox-item" onclick="toggleCheckboxReplicacao()">
-            <input type="checkbox" id="replicar-sem-valores" onchange="toggleReplicacaoSemValor(this)">
-            <label for="replicar-sem-valores">Replicar sem valores</label>
-        </div>
-    </div>
-</div>
-               
-               <!-- Opções de Parcelamento -->
-               <div id="opcoes-parcelamento" class="hidden">
-                   <div class="form-group">
-                       <label for="despesa-parcelas">Número de Parcelas</label>
-                       <input type="number" id="despesa-parcelas" min="2" max="36" value="2" onchange="calcularInfoParcelamento()">
+               <!-- Valores e Parcelas -->
+               <div class="form-row-compact form-row-valores">
+                   <div class="form-col">
+                       <label>Valor original *</label>
+                       <input type="number" id="despesa-valor" min="0.01" step="0.01" placeholder="0,00" required onchange="calcularInfoParcelamento()">
                    </div>
-               </div>
-               
-               <!-- Opções de Replicação -->
-               <div id="opcoes-replicacao-sem-valor" class="hidden">
-                   <div class="form-group">
-                       <label for="replicar-meses">Número de Meses</label>
-                       <input type="number" id="replicar-meses" min="1" max="36" value="12">
+                   <div class="form-col">
+                       <label>Com juros</label>
+                       <input type="number" id="despesa-valor-pago" min="0" step="0.01" placeholder="0,00" onchange="calcularInfoParcelamento()">
+                   </div>
+                   <div class="form-col parcelas-col">
+                       <label>
+                           <input type="checkbox" id="despesa-parcelado" onchange="toggleParcelamentoDespesa(this)">Parcelas</label>
+                       <input type="number" id="despesa-parcelas" min="2" max="999" value="2" disabled onchange="calcularInfoParcelamento()">
                    </div>
                </div>
 
-               <!-- Valores -->
-               <div class="form-row-grid">
-                   <div class="form-group">
-                       <label for="despesa-valor">Valor <span class="campo-obrigatorio">*</span></label>
-                       <input type="number" id="despesa-valor" min="0.01" step="0.01" placeholder="0,00" required onchange="calcularInfoParcelamento()">
-                   </div>
-                   <div class="form-group">
-                       <label for="despesa-valor-pago">Valor Pago (com juros)</label>
-                       <input type="number" id="despesa-valor-pago" min="0" step="0.01" placeholder="0,00" onchange="calcularInfoParcelamento()">
-                   </div>
-               </div>
-               
                <!-- Datas -->
-               <div class="form-row-grid">
-                   <div class="form-group">
-                       <label for="despesa-data-compra">Data de Compra <span class="campo-obrigatorio">*</span></label>
+               <div class="form-row-compact">
+                   <div class="form-col">
+                       <label>Compra *</label>
                        <input type="date" id="despesa-data-compra" required>
                    </div>
-                   <div class="form-group">
-                       <label for="despesa-data-vencimento">Data de Vencimento <span class="campo-obrigatorio">*</span></label>
+                   <div class="form-col">
+                       <label>Vencimento *</label>
                        <input type="date" id="despesa-data-vencimento" required>
                    </div>
                </div>
                
                <!-- Info de Parcelamento -->
-               <div id="info-parcelamento" class="info-parcelamento-container hidden">
-                   <div class="info-parcelas">
-                       <div class="info-item">
-                           <span class="info-label">Total de juros:</span>
-                           <span class="info-valor" id="info-juros-total">R$ 0,00</span>
-                       </div>
-                       <div class="info-item">
-                           <span class="info-label">Juros por parcela:</span>
-                           <span class="info-valor" id="info-juros-parcela">R$ 0,00</span>
-                       </div>
-                       <div class="info-item">
-                           <span class="info-label">Valor de cada parcela:</span>
-                           <span class="info-valor" id="info-valor-parcela">R$ 0,00</span>
-                       </div>
-                       <div class="info-item">
-                           <span class="info-label">Valor total da compra:</span>
-                           <span class="info-valor" id="info-valor-total">R$ 0,00</span>
-                       </div>
+               <div id="info-parcelamento" class="info-compact hidden">
+                   <div class="info-grid">
+                       <span>Juros total: <strong id="info-juros-total">R$ 0,00</strong></span>
+                       <span>Por parcela: <strong id="info-juros-parcela">R$ 0,00</strong></span>
+                       <span>Valor parcela: <strong id="info-valor-parcela">R$ 0,00</strong></span>
+                       <span>Total: <strong id="info-valor-total">R$ 0,00</strong></span>
                    </div>
                </div>
                
-               <!-- Botão de Salvar -->
-               <button type="submit" class="btn-salvar-transacao">
-                   <i class="fas fa-save"></i> Salvar Despesa
-               </button>
+               <!-- Checkboxes e Botão -->
+               <div class="form-footer-compact">
+                    <div class="checkboxes-inline">
+                        <label class="checkbox-inline">
+                            <input type="checkbox" id="despesa-ja-pago">
+                            Já está Paga
+                        </label>
+                        <label class="checkbox-inline">
+                            <input type="checkbox" id="despesa-recorrente">
+                            Recorrente
+                        </label>
+                    </div>
+                    <button type="submit" class="btn-salvar-compact">
+                        Salvar Despesa
+                    </button>
+                </div>
            </form>
        </div>
    </div>
 </div>
+
+
+
+
+
+
+
+<template id="template-estrutura-despesas-grid">
+    <div class="tab-actions">
+        <div class="left-side">
+            <button id="btn-nova-despesa" class="btn-action" onclick="abrirModalNovaDespesa()">
+                <i class="fas fa-plus-circle"></i> Nova Despesa
+            </button>
+            <button id="btn-pagar-em-lote" class="btn-action" disabled onclick="pagarDespesasEmLote()">
+                <i class="fas fa-check-circle"></i> Pagar em Lote
+            </button>
+        </div>
+        
+        <div class="right-side">
+            <div class="filtros-despesas">
+                <select id="filtro-categoria" class="form-control">
+                    <option value="todas">Categorias</option>
+                </select>
+                <select id="filtro-forma-pagamento-tabela" class="form-control">
+                    <option value="todas">Forma Pagamento</option>
+                    <option value="pix">PIX</option>
+                    <option value="debito">Débito</option>
+                    <option value="credito">Crédito</option>
+                </select>
+                <select id="filtro-status" class="form-control">
+                    <option value="todas">Status</option>
+                    <option value="em_dia">Em Dia</option>
+                    <option value="atrasada">Atrasadas</option>
+                    <option value="pagas">Pagas</option>
+                    <option value="pendentes">Pendentes</option>
+                </select>
+                <select id="filtro-ordenacao-despesas" class="form-control">
+                    <option value="original">Ordem Original</option>
+                    <option value="data-compra-asc">Data Compra (A-Z)</option>
+                    <option value="data-compra-desc">Data Compra (Z-A)</option>
+                    <option value="data-vencimento-asc">Vencimento (A-Z)</option>
+                    <option value="data-vencimento-desc">Vencimento (Z-A)</option>
+                    <option value="valor-asc">Menor Valor</option>
+                    <option value="valor-desc">Maior Valor</option>
+                </select>
+                <button id="btn-limpar-filtros" class="btn btn-secondary">
+                    <i class="fas fa-eraser"></i>
+                </button>
+                <span id="contador-filtro" class="filtro-contador"></span>
+            </div>
+        </div>
+    </div>
+    
+    <div id="despesas-grid-container" class="despesas-grid">
+        <div class="grid-header">
+            <div class="col-checkbox">
+                <input type="checkbox" id="select-all-despesas" onchange="toggleTodasDespesas(this)">
+            </div>
+            <div class="col-descricao">Descrição</div>
+            <div class="col-categoria">Categoria</div>
+            <div class="col-forma-pagamento">Método</div>
+            <div class="col-valor">Valor</div>
+            <div class="col-parcela">Parcela</div>
+            <div class="col-valor-pago">Valor Pago</div>
+            <div class="col-status">Status</div>
+            <div class="col-compra">Compra</div>
+            <div class="col-vencimento">Vencimento</div>
+            <div class="col-data-pagamento">Pagamento</div>
+            <div class="col-acoes">Ações</div>
+            <div class="col-anexos">Anexos</div>
+        </div>
+        
+        <div id="lista-despesas" class="grid-content">
+            <!-- Linhas serão inseridas aqui -->
+        </div>
+    </div>
+</template>
+
+<template id="template-linha-despesa-grid">
+    <div class="grid-row despesa-row">
+        <div class="col-checkbox"></div>
+        <div class="col-descricao"></div>
+        <div class="col-categoria"></div>
+        <div class="col-forma-pagamento"></div>
+        <div class="col-valor"></div>
+        <div class="col-parcela"></div>
+        <div class="col-valor-pago"></div>
+        <div class="col-status"></div>
+        <div class="col-compra"></div>
+        <div class="col-vencimento"></div>
+        <div class="col-data-pagamento"></div>
+        <div class="col-acoes"></div>
+        <div class="col-anexos">
+            <button class="btn btn-anexos" data-index="" title="Ver anexos">
+                <i class="fas fa-paperclip"></i>
+                <span class="contador-anexos">0</span>
+            </button>
+        </div>
+    </div>
+</template>
+
+<template id="template-botoes-acao-despesa">
+    <div class="acoes-grupo">
+        <button class="btn btn-sm btn-editar" title="Editar">
+            <i class="fas fa-edit"></i>
+        </button>
+        <button class="btn btn-sm btn-excluir" title="Excluir">
+            <i class="fas fa-trash"></i>
+        </button>
+        <button class="btn btn-sm btn-pagar" title="Pagar">
+            <i class="fas fa-check"></i>
+        </button>
+        <button class="btn btn-sm btn-mover" title="Mover para próximo mês">
+            <i class="fas fa-arrow-right"></i>
+        </button>
+    </div>
+</template>
+
+<template id="template-valor-com-juros">
+    <div class="valor-com-juros">
+        <span class="valor-original"></span>
+        <span class="valor-juros"></span>
+    </div>
+</template>
+
+<template id="template-badge-forma-pagamento-despesa">
+    <span class="badge-pagamento debito">DÉBITO</span>
+</template>
+
+<template id="template-badge-status-despesa">
+    <span class="badge-status badge-em-dia">EM DIA</span>
+</template>
+
+<template id="template-celula-checkbox-despesa">
+    <input type="checkbox" class="despesa-checkbox">
+</template>
+
+<!-- Novos templates para anexos -->
+<template id="template-botao-anexos-com-anexos">
+    <button class="btn btn-anexos" data-index="" title="">
+        <i class="fas fa-paperclip"></i>
+        <span class="contador-anexos"></span>
+    </button>
+</template>
+
+<template id="template-botao-anexos-sem-anexos">
+    <button class="btn btn-anexos btn-anexos-vazio" data-index="" title="Nenhum anexo">
+        <i class="fas fa-paperclip"></i>
+        <span class="contador-anexos">0</span>
+    </button>
+</template>
+
+
 
 
 
@@ -1541,21 +2246,18 @@
    <div class="modal-content">
        <div class="modal-header">
            <h3 id="exclusao-titulo">Excluir despesa</h3>
-           <span class="close" onclick="fecharModalExclusao()">&times;</span>
+           <span class="close" data-action="fechar-modal-exclusao">&times;</span>
        </div>
        <div class="modal-body">
            <p id="exclusao-mensagem">Como deseja excluir esta despesa?</p>
            <div class="opcoes-exclusao">
-               <button id="btn-excluir-atual" class="btn btn-block opcao-exclusao-basica" onclick="excluirDespesaAtual()">
-                   Excluir apenas neste mês
-               </button>
                <button id="btn-excluir-todos-meses" class="btn btn-block opcao-exclusao-basica">
-                   Excluir em todos os meses do ano atual
+                   Excluir Despesa
                </button>
                <button id="btn-excluir-parcela-atual" class="btn btn-block opcao-exclusao-parcelada">
                    Excluir apenas esta parcela
                </button>
-               <button id="btn-excluir-futuras" class="btn btn-block opcao-exclusao-parcelada">
+               <button id="btn-excluir-parcelas-futuras" class="btn btn-block opcao-exclusao-parcelada">
                    Excluir esta e parcelas futuras
                </button>
                <button id="btn-excluir-todas-parcelas" class="btn btn-block opcao-exclusao-parcelada">
@@ -1565,6 +2267,11 @@
        </div>
    </div>
 </div>
+
+
+
+
+
 
 <!-- ======================================================== -->
 <!-- MODAL 8: PAGAMENTO INDIVIDUAL -->
@@ -1600,7 +2307,10 @@
                   <label for="valor-pago-individual">Valor Pago:</label>
                   <input type="number" id="valor-pago-individual" class="form-control" step="0.01" min="0">
               </div>
-              
+              <div class="form-group">
+                <label for="data-pagamento-individual">Data do Pagamento:</label>
+                <input type="date" id="data-pagamento-individual" class="form-control">
+            </div>
               <div class="form-group">
                   <div class="checkbox-row">
                       <input type="checkbox" id="despesa-quitado-individual">
@@ -1608,6 +2318,18 @@
                   </div>
                   <div id="info-parcelas-futuras" class="info-texto hidden">
                       Quando marcado, todas as parcelas futuras serão marcadas como pagas e seus valores zerados.
+                  </div>
+              </div>
+              
+              <div class="form-group">
+                  <label>Comprovante de Pagamento:</label>
+                  <div class="comprovante-anexo-container">
+                      <button type="button" id="btn-anexar-comprovante" class="btn-anexar">
+                          <i class="fas fa-paperclip"></i> Anexar Comprovante
+                      </button>
+                  </div>
+                  <div id="lista-comprovantes" class="lista-anexos-container">
+                      <!-- Comprovantes serão inseridos aqui -->
                   </div>
               </div>
               
@@ -1640,6 +2362,10 @@
                <button id="btn-pagar-com-valor-personalizado" class="btn btn-block">
                    Personalizar valores
                </button>
+               <div class="form-group">
+                    <label for="data-pagamento-lote">Data do Pagamento (para todas):</label>
+                    <input type="date" id="data-pagamento-lote" class="form-control">
+                </div>
            </div>
        </div>
    </div>
@@ -1654,6 +2380,7 @@
            <h2>Personalizar Valores de Pagamento</h2>
            <span class="close">&times;</span>
        </div>
+       
        <div class="modal-body">
            <p>Defina os valores a serem pagos para cada despesa:</p>
            <div class="tabela-container">
@@ -1692,47 +2419,8 @@
    </tr>
 </template>
 
-<template id="template-linha-despesa">
-   <tr>
-       <td class="td-checkbox">
-           <input type="checkbox" class="despesa-checkbox" data-index="">
-       </td>
-       <td class="despesa-descricao">-</td>
-       <td class="despesa-categoria">-</td>
-       <td class="despesa-forma-pagamento">
-           <span class="badge-pagamento">-</span>
-       </td>
-       <td class="despesa-valor">R$ 0,00</td>
-       <td class="despesa-parcela">-</td>
-       <td class="despesa-valor-pago">-</td>
-       <td class="despesa-status">
-           <span class="badge-status">-</span>
-       </td>
-       <td class="despesa-data-compra">-</td>
-       <td class="despesa-data-vencimento">-</td>
-       <td class="despesa-acoes">
-           <button class="btn-editar" data-index="">
-               <i class="fas fa-edit"></i>
-           </button>
-           <button class="btn-excluir" data-index="">
-               <i class="fas fa-trash-alt"></i>
-           </button>
-           <button class="btn-pagar" data-index="">
-               <i class="fas fa-check-circle"></i>
-           </button>
-           <button class="btn-mover" data-index="">
-               <i class="fas fa-arrow-right"></i>
-           </button>
-       </td>
-   </tr>
-</template>
-
-
-
-
 <!-- ======================================================== -->
 <!-- MODAL 11: SELETOR DE MÊS PARA TRANSAÇÕES RÁPIDAS -->
-<!-- Grid de meses para adicionar receitas/despesas rapidamente -->
 <!-- ======================================================== -->
 <div id="modal-selecionar-mes" class="modal">
     <div class="modal-content modal-medium">
@@ -1743,24 +2431,23 @@
         <div class="modal-body">
             <p>Para qual mês você deseja adicionar a transação?</p>
             <div id="seletor-mes-rapido-grid" class="meses-grid-rapido">
-                <button class="mes-btn" data-mes="0" onclick="selecionarMesRapido(0)">Jan</button>
-                <button class="mes-btn" data-mes="1" onclick="selecionarMesRapido(1)">Fev</button>
-                <button class="mes-btn" data-mes="2" onclick="selecionarMesRapido(2)">Mar</button>
-                <button class="mes-btn" data-mes="3" onclick="selecionarMesRapido(3)">Abr</button>
-                <button class="mes-btn" data-mes="4" onclick="selecionarMesRapido(4)">Mai</button>
-                <button class="mes-btn" data-mes="5" onclick="selecionarMesRapido(5)">Jun</button>
-                <button class="mes-btn" data-mes="6" onclick="selecionarMesRapido(6)">Jul</button>
-                <button class="mes-btn" data-mes="7" onclick="selecionarMesRapido(7)">Ago</button>
-                <button class="mes-btn" data-mes="8" onclick="selecionarMesRapido(8)">Set</button>
-                <button class="mes-btn" data-mes="9" onclick="selecionarMesRapido(9)">Out</button>
-                <button class="mes-btn" data-mes="10" onclick="selecionarMesRapido(10)">Nov</button>
-                <button class="mes-btn" data-mes="11" onclick="selecionarMesRapido(11)">Dez</button>
+                <button class="mes-btn" data-mes="0">Jan</button>                
+                <button class="mes-btn" data-mes="1">Fev</button>
+                <button class="mes-btn" data-mes="2">Mar</button>
+                <button class="mes-btn" data-mes="3">Abr</button>
+                <button class="mes-btn" data-mes="4">Mai</button>
+                <button class="mes-btn" data-mes="5">Jun</button>
+                <button class="mes-btn" data-mes="6">Jul</button>
+                <button class="mes-btn" data-mes="7">Ago</button>
+                <button class="mes-btn" data-mes="8">Set</button>
+                <button class="mes-btn" data-mes="9">Out</button>
+                <button class="mes-btn" data-mes="10">Nov</button>
+                <button class="mes-btn" data-mes="11">Dez</button>
             </div>
             <input type="hidden" id="tipo-transacao-rapida">
         </div>
     </div>
 </div>
-
 
 <!-- ================================================================ -->
 <!-- TEMPLATES DE MENSAGENS E STATUS (OCULTOS) -->
@@ -1804,8 +2491,49 @@
 
 </div>
 
+<!-- ======================================================== -->
+<!-- MODAIS DE ANEXOS PARA DESPESAS -->
+<!-- ======================================================== -->
 
+<!-- Modal para visualizar anexos da despesa -->
+<div id="modal-anexos-despesa" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Anexos da Despesa</h2>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="lista-anexos-despesa-visualizar" class="lista-anexos-visualizar">
+                <!-- Anexos para download serão inseridos aqui -->
+            </div>
+        </div>
+    </div>
+</div>
 
+<!-- Templates para anexos -->
+<template id="template-anexo-item-despesa">
+    <div class="anexo-item">
+        <div class="anexo-info">
+            <i class="anexo-icone"></i>
+            <span class="anexo-nome"></span>
+        </div>
+        <button class="btn-remover-anexo" data-anexo-id="">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+</template>
+
+<template id="template-anexo-download-despesa">
+    <div class="anexo-download-item">
+        <div class="anexo-info">
+            <i class="anexo-icone"></i>
+            <span class="anexo-nome"></span>
+        </div>
+        <button class="btn-download-anexo" data-anexo-id="">
+            <i class="fas fa-download"></i>
+        </button>
+    </div>
+</template>
 
 
 <!-- ======================================================== -->
@@ -1854,340 +2582,154 @@
     </div>
 </template>
 
-<!-- ======================================================== -->
-<!-- MODAL: EDIÇÃO DE CATEGORIAS -->
-<!-- Formulário para editar nome de categorias existentes -->
-<!-- ======================================================== -->
-<div id="modal-editar-categoria" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2><i class="fas fa-edit"></i> Editar Categoria</h2>
-            <span class="close">&times;</span>
-        </div>
-        <div class="modal-body">
-            <form id="form-editar-categoria">
-                <input type="hidden" id="categoria-edit-tipo">
-                <input type="hidden" id="categoria-edit-nome-original">
-                
-                <div class="form-group">
-                    <label for="categoria-edit-nome">
-                        <i class="fas fa-tag"></i> Nome da Categoria: <span class="required">*</span>
-                    </label>
-                    <input type="text" id="categoria-edit-nome" class="form-input" required maxlength="50">
-                </div>
-                
-                <div class="form-actions">
-                    <button type="submit" class="btn-submit">
-                        <i class="fas fa-save"></i> Salvar Alterações
-                    </button>
-                </div>
-            </form>
-        </div>
+
+
+<!-- Templates para reutilização -->
+<template id="template-info-parcelamento">
+    <div class="info-parcelas">
+        <div><strong>Total de juros:</strong> <span class="info-juros-total"></span></div>
+        <div><strong>Juros por parcela:</strong> <span class="info-juros-parcela"></span></div>
+        <div><strong>Valor de cada parcela:</strong> <span class="info-valor-parcela"></span></div>
+        <div><strong>Valor total da compra:</strong> <span class="info-valor-total"></span></div>
+        
     </div>
-</div>
+</template>
 
+<template id="template-linha-valor-personalizado">
+    <tr>
+        <td class="despesa-descricao"></td>
+        <td class="despesa-categoria"></td>
+        <td class="despesa-forma-pagamento"></td>
+        <td class="despesa-valor-original"></td>
+        <td>
+            <input type="number" class="input-valor-pago" min="0" step="0.01" data-index="">
+        </td>
+    </tr>
+</template>
 
-<!-- ======================================================== -->
-<!-- MODAL: GERENCIAMENTO DE USUÁRIOS -->
-<!-- Listagem, busca e controles de usuários do sistema -->
-<!-- ======================================================== -->
-<div id="modal-gerenciar-usuarios" class="modal">
-    <div class="modal-content modal-lg">
-        <div class="modal-header">
-            <h2><i class="fas fa-users-cog"></i> Gerenciamento de Usuários</h2>
-            <span class="close">&times;</span>
+<template id="template-badge-pagamento">
+    <span class="badge-pagamento"></span>
+</template>
+
+<template id="template-estrutura-despesas">
+    <div class="tab-actions">
+        <div class="left-side">
+            <button id="btn-nova-despesa" class="btn-action" onclick="abrirModalNovaDespesa()">
+                <i class="fas fa-plus-circle"></i> Nova Despesa
+            </button>
+            <button id="btn-pagar-em-lote" class="btn-action" disabled onclick="pagarDespesasEmLote()">
+                <i class="fas fa-check-circle"></i> Pagar em Lote
+            </button>
         </div>
         
-        <div class="modal-body">
-            <div class="user-management-controls">
-                <div class="search-container">
-                    <input type="text" id="usuario-search" placeholder="Buscar usuário..." maxlength="100">
-                    <button id="btn-search-user" class="btn-search">
-                        <i class="fas fa-search"></i>
-                    </button>
-                </div>
+        <div class="right-side">
+            <div class="filtros-despesas">
+                <select id="filtro-categoria" class="form-control">
+                    <option value="todas">Categorias</option>
+                </select>
+                <select id="filtro-forma-pagamento-tabela" class="form-control">
+                    <option value="todas">Forma Pagamento</option>
+                    <option value="pix">PIX</option>
+                    <option value="debito">Débito</option>
+                    <option value="credito">Crédito</option>
+                </select>
+                <select id="filtro-status" class="form-control">
+                    <option value="todas">Status</option>
+                    <option value="em_dia">Em Dia</option>
+                    <option value="atrasada">Atrasadas</option>
+                    <option value="pagas">Pagas</option>
+                    <option value="pendentes">Pendentes</option>
+                </select>
+                <button id="btn-limpar-filtros" class="btn btn-secondary" onclick="limparFiltros()">
+                    <i class="fas fa-eraser"></i>
+                </button>
                 
-                <div class="filter-container">
-                    <select id="filter-user-type" class="filter-select">
-                        <option value="todos">Todos os usuários</option>
-                        <option value="master">Master</option>
-                        <option value="admin">Administradores</option>
-                        <option value="padrao">Usuários padrão</option>
-                    </select>
-                </div>
-                
-                <button id="btn-adicionar-usuario" class="btn-action">
-                    <i class="fas fa-user-plus"></i> Novo Usuário
-                </button>
-            </div>
-
-            <div class="table-responsive">
-                <table class="tabela-usuarios">
-                    <thead>
-                        <tr>
-                            <th>Nome</th>
-                            <th>Documento</th>
-                            <th>E-mail</th>
-                            <th>Tipo</th>
-                            <th>Status</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="lista-usuarios">
-                        <!-- Preenchido dinamicamente -->
-                    </tbody>
-                </table>
-            </div>
-
-            <div id="no-users-message" class="notification-empty hidden">
-                <i class="fas fa-users-slash"></i>
-                <p>Nenhum usuário encontrado</p>
-            </div>
-
-            <div class="pagination-controls">
-                <button id="btn-prev-page" class="btn-pagination" disabled>
-                    <i class="fas fa-chevron-left"></i> Anterior
-                </button>
-                <span id="pagination-info">Página 1 de 1</span>
-                <button id="btn-next-page" class="btn-pagination" disabled>
-                    Próxima <i class="fas fa-chevron-right"></i>
-                </button>
+                <span id="contador-filtro" class="filtro-contador"></span>
             </div>
         </div>
     </div>
-</div>
-
-<!-- ======================================================== -->
-<!-- MODAL 15: CADASTRO DE NOVOS USUÁRIOS -->
-<!-- Formulário completo para adicionar usuários ao sistema -->
-<!-- ======================================================== -->
-<div id="modal-adicionar-usuario" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2><i class="fas fa-user-plus"></i> Adicionar Novo Usuário</h2>
-            <span class="close">&times;</span>
-        </div>
-        <div class="modal-body">
-            <form id="form-adicionar-usuario">
-                <div class="form-group">
-                    <label for="novo-usuario-nome">Nome:</label>
-                    <input type="text" id="novo-usuario-nome" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="novo-usuario-email">E-mail:</label>
-                    <input type="email" id="novo-usuario-email" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="novo-usuario-documento">Documento (CPF/CNPJ):</label>
-                    <input type="text" id="novo-usuario-documento" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="novo-usuario-tipo">Tipo de Usuário:</label>
-                    <select id="novo-usuario-tipo">
-                        <option value="padrao">Usuário Padrão</option>
-                        <option value="admin">Administrador</option>
-                        <option value="master">Master</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="novo-usuario-senha">Senha:</label>
-                    <input type="password" id="novo-usuario-senha" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="novo-usuario-confirmar-senha">Confirmar Senha:</label>
-                    <input type="password" id="novo-usuario-confirmar-senha" required>
-                </div>
-                
-                <button type="submit" class="btn-salvar-transacao">Adicionar Usuário</button>
-            </form>
-        </div>
-    </div>
-</div>
-
-
-<!-- ======================================================== -->
-<!-- MODAL: EDITAR/ADICIONAR USUÁRIO -->
-<!-- Formulário para alterar dados de usuários -->
-<!-- ======================================================== -->
-<div id="modal-editar-usuario" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 id="editar-usuario-titulo">
-                <i class="fas fa-user-edit"></i> Editar Usuário
-            </h2>
-            <span class="close">&times;</span>
-        </div>
-        <div class="modal-body">
-            <form id="form-editar-usuario">
-                <input type="hidden" id="editar-usuario-id">
-                
-                <div class="form-group">
-                    <label for="editar-usuario-nome">
-                        <i class="fas fa-user"></i> Nome: <span class="required">*</span>
-                    </label>
-                    <input type="text" id="editar-usuario-nome" class="form-input" required maxlength="100">
-                </div>
-                
-                <div class="form-group">
-                    <label for="editar-usuario-email">
-                        <i class="fas fa-envelope"></i> E-mail: <span class="required">*</span>
-                    </label>
-                    <input type="email" id="editar-usuario-email" class="form-input" required maxlength="100">
-                </div>
-                
-                <div class="form-group">
-                    <label for="editar-usuario-documento">
-                        <i class="fas fa-id-card"></i> Documento (CPF/CNPJ): <span class="required">*</span>
-                    </label>
-                    <input type="text" id="editar-usuario-documento" class="form-input" required maxlength="18">
-                    <small class="field-help">O documento não pode ser alterado após o cadastro.</small>
-                </div>
-                
-                <div id="form-group-tipo" class="form-group">
-                    <label for="editar-usuario-tipo">
-                        <i class="fas fa-user-tag"></i> Tipo de Usuário:
-                    </label>
-                    <select id="editar-usuario-tipo" class="form-select">
-                        <option value="padrao">Usuário Padrão</option>
-                        <option value="admin">Administrador</option>
-                        <option value="master">Master</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="editar-usuario-status">
-                        <i class="fas fa-toggle-on"></i> Status:
-                    </label>
-                    <select id="editar-usuario-status" class="form-select">
-                        <option value="ativo">Ativo</option>
-                        <option value="inativo">Inativo</option>
-                        <option value="bloqueado">Bloqueado</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="editar-usuario-senha">
-                        <i class="fas fa-key"></i> Nova Senha:
-                    </label>
-                    <input type="password" id="editar-usuario-senha" class="form-input" placeholder="Deixe em branco para manter a atual" minlength="6">
-                    <small class="field-help">Mínimo 6 caracteres</small>
-                </div>
-                
-                <div class="form-group">
-                    <label for="editar-usuario-confirmar-senha">
-                        <i class="fas fa-key"></i> Confirmar Nova Senha:
-                    </label>
-                    <input type="password" id="editar-usuario-confirmar-senha" class="form-input" placeholder="Confirme a nova senha">
-                </div>
-                
-                <div class="form-actions">
-                    <button type="submit" class="btn-salvar-transacao">
-                        <i class="fas fa-save"></i> Salvar Alterações
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- ======================================================== -->
-<!-- SISTEMA DE BLOQUEIO DE TELA -->
-<!-- ======================================================== -->
-<div id="lock-screen-overlay" class="lock-screen-overlay"></div>
-<!-- ======================================================== -->
-<!-- MODAL 17: TELA DE BLOQUEIO DO SISTEMA -->
-<!-- Formulário de senha para desbloquear o sistema -->
-<!-- ======================================================== -->
-<div id="modal-lock-screen" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2><i class="fas fa-lock"></i> Sistema Bloqueado</h2>
-        </div>
-        <div class="modal-body">
-            <form id="form-lock-screen">
-                <div class="form-group">
-                    <input type="password" id="lock-screen-password" placeholder="Sua Senha" required>
-                </div>
-                <button type="submit" class="btn-submit btn-full-width">
-                    <i class="fas fa-unlock"></i> Desbloquear
-                </button>
-            </form>
-        </div>
-    </div>
-</div>
-
-
-
-
-
-<!-- ================================================================ -->
-<!-- ASSISTENTE IA JARVS - SIMPLIFICADO -->
-<!-- Sistema de chat inteligente para suporte financeiro -->
-<!-- ================================================================ -->
-
-<!-- ======================================================== -->
-<!-- BOTÃO FLUTUANTE PARA ACESSO AO ASSISTENTE -->
-<!-- ======================================================== -->
-<button id="jarvs-fab" class="ai-fab-button" aria-label="Abrir assistente Jarvs">
-    <i class="fas fa-robot"></i>
-</button>
-
-<!-- ======================================================== -->
-<!-- MODAL: INTERFACE DO ASSISTENTE IA JARVS -->
-<!-- Chat estilo WhatsApp sem blocos internos -->
-<!-- ======================================================== -->
-<div id="ai-assistant-modal" class="ai-modal">
-    <div class="ai-modal-content">
-        
-        <div class="ai-modal-header">
-            <h2><i class="fas fa-robot"></i> Jarvs</h2>
-            <span class="close" aria-label="Fechar">&times;</span>
+    
+    <div id="despesas-grid-container" class="despesas-grid">
+        <div class="grid-header">
+            <div class="col-checkbox">
+                <input type="checkbox" id="select-all-despesas" onchange="toggleTodasDespesas(this)">
+            </div>
+            <div class="col-descricao">Descrição</div>
+            <div class="col-categoria">Categoria</div>
+            <div class="col-forma-pagamento">Pagamento</div>
+            <div class="col-valor">Valor</div>
+            <div class="col-parcela">Parcela</div>
+            <div class="col-valor-pago">Valor Pago</div>
+            <div class="col-status">Status</div>
+            <div class="col-compra">Compra</div>
+            <div class="col-vencimento">Vencimento</div>
+            <div class="col-anexos">Anexos</div>
+            <div class="col-acoes">Ações</div>
         </div>
         
-        <div class="modal-body">
-            <div class="ai-chat-container">
-                
-                <div class="ai-messages" id="ai-messages">
-                    <!-- Mensagem de boas-vindas integrada -->
-                    <div class="ai-message ai-message-bot">
-                        <div class="ai-content">
-                            <p>Olá! 👋 Sou o <strong>Jarvs</strong>, seu assistente financeiro pessoal. Como posso te ajudar hoje?</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="ai-typing-indicator hidden" id="ai-typing">
-                    <div class="ai-typing-content">
-                        <span class="typing-text">Jarvs está pensando</span>
-                        <div class="typing-dots">
-                            <span class="typing-dot"></span>
-                            <span class="typing-dot"></span>
-                            <span class="typing-dot"></span>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
+        <div id="lista-despesas" class="grid-content">
+            <!-- Linhas serão inseridas aqui -->
         </div>
-
-        <div class="ai-modal-footer">
-            <div class="ai-input-wrapper">
-                <input type="text" id="ai-input" placeholder="Digite sua pergunta..." maxlength="500">
-                <button id="ai-send-btn" type="button" aria-label="Enviar mensagem">
-                    <i class="fas fa-paper-plane"></i>
-                </button>
-            </div>
-        </div>
-
     </div>
-</div>
+</template>
+
+<!-- Template para linha de despesa no CSS Grid -->
+<template id="template-linha-despesa-grid">
+    <div class="grid-row despesa-row">
+        <div class="col-checkbox"></div>
+        <div class="col-descricao"></div>
+        <div class="col-categoria"></div>
+        <div class="col-forma-pagamento"></div>
+        <div class="col-valor"></div>
+        <div class="col-parcela"></div>
+        <div class="col-valor-pago"></div>
+        <div class="col-status"></div>
+        <div class="col-compra"></div>
+        <div class="col-vencimento"></div>
+        <div class="col-anexos"></div>
+        <div class="col-acoes"></div>
+    </div>
+</template>
+
+<!-- Template para botões de ação -->
+<template id="template-botoes-acao">
+    <div class="acoes-grupo">
+        <button class="btn btn-sm btn-editar" title="Editar">
+            <i class="fas fa-edit"></i>
+        </button>
+        <button class="btn btn-sm btn-excluir" title="Excluir">
+            <i class="fas fa-trash"></i>
+        </button>
+        <button class="btn btn-sm btn-pagar" title="Pagar">
+            <i class="fas fa-check"></i>
+        </button>
+        <button class="btn btn-sm btn-mover" title="Mover para próximo mês">
+            <i class="fas fa-arrow-right"></i>
+        </button>
+    </div>
+</template>
+
+<!-- Template para valor com juros -->
+<template id="template-valor-com-juros">
+    <div class="valor-com-juros">
+        <span class="valor-original"></span>
+        <span class="valor-juros"></span>
+    </div>
+</template>
+
+<!-- Template para badge de forma de pagamento -->
+<template id="template-badge-forma-pagamento">
+    <span class="badge-pagamento"></span>
+</template>
+
+<!-- Template para badge de status -->
+<template id="template-badge-status">
+    <span class="badge-status"></span>
+</template>
 
 
+
+<!-- TEMPLATES PARA RENDERIZAÇÃO -->
 <!-- Templates para reutilização -->
 <template id="template-info-parcelamento">
     <div class="info-parcelas">
@@ -2215,36 +2757,6 @@
 </template>
 
 
-<!-- TEMPLATES PARA RENDERIZAÇÃO -->
-<!-- Templates para reutilização -->
-<template id="template-info-parcelamento">
-    <div class="info-parcelas">
-        <div><strong>Total de juros:</strong> <span class="info-juros-total"></span></div>
-        <div><strong>Juros por parcela:</strong> <span class="info-juros-parcela"></span></div>
-        <div><strong>Valor de cada parcela:</strong> <span class="info-valor-parcela"></span></div>
-        <div><strong>Valor total da compra:</strong> <span class="info-valor-total"></span></div>
-    </div>
-</template>
-
-<template id="template-linha-valor-personalizado">
-    <tr>
-        <td class="despesa-descricao"></td>
-        <td class="despesa-categoria"></td>
-        <td class="despesa-forma-pagamento"></td>
-        <td class="despesa-valor-original"></td>
-        <td>
-            <input type="number" class="input-valor-pago" min="0" step="0.01" data-index="">
-        </td>
-    </tr>
-</template>
-
-<!-- 🆕 NOVO TEMPLATE ADICIONADO -->
-<template id="template-badge-pagamento">
-    <span class="badge-pagamento"></span>
-</template>
-
-
-<!-- TEMPLATES PARA RENDERIZAÇÃO -->
 <template id="template-mes-card">
     <div class="mes-header">
         <span class="mes-nome"></span>
@@ -2296,56 +2808,256 @@
     </tr>
 </template>
 
-<template id="template-linha-despesa">
-    <tr>
-        <td class="td-checkbox">
-            <input type="checkbox" class="despesa-checkbox" data-index="">
-        </td>
-        <td class="despesa-descricao"></td>
-        <td class="despesa-categoria"></td>
-        <td class="despesa-forma-pagamento"></td>
-        <td class="despesa-valor"></td>
-        <td class="despesa-parcela"></td>
-        <td class="despesa-valor-pago"></td>
-        <td class="despesa-status">
-            <span class="badge-status"></span>
-        </td>
-        <td class="despesa-data-compra"></td>
-        <td class="despesa-data-vencimento"></td>
-        <td class="despesa-acoes">
-            <button class="btn-editar" data-index="">
-                <i class="fas fa-edit"></i>
-            </button>
-            <button class="btn-excluir" data-index="">
-                <i class="fas fa-trash-alt"></i>
-            </button>
-            <button class="btn-pagar" data-index="">
-                <i class="fas fa-check-circle"></i>
-            </button>
-            <button class="btn-mover" data-index="">
-                <i class="fas fa-arrow-right"></i>
-            </button>
-        </td>
-    </tr>
+<div id="modal-feedback-sistema" class="modal">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h3 id="feedback-titulo">Mensagem</h3>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="feedback-conteudo" class="feedback-message">
+                <div id="feedback-icone" class="feedback-icon"></div>
+                <p id="feedback-texto">Mensagem</p>
+            </div>
+            <button id="btn-feedback-ok" class="btn btn-primary btn-block">OK</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- ================================================================ -->
+<!-- CONTROLES DE FECHAMENTO/REABERTURA DE MÊS -->
+<!-- ================================================================ -->
+
+<div id="controles-mes" class="controles-mes">
+    <div class="status-mes">
+        <span id="status-mes-atual" class="status-badge"></span>
+    </div>
+    <div class="botoes-controle">
+        <button id="btn-fechar-mes" class="btn btn-fechar-mes hidden">
+            <i class="fas fa-lock"></i> Fechar Mês
+        </button>
+        <button id="btn-reabrir-mes" class="btn btn-reabrir-mes hidden">
+            <i class="fas fa-unlock"></i> Reabrir Mês
+        </button>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- MODAL CONFIRMAÇÃO FECHAMENTO DE MÊS -->
+<!-- ================================================================ -->
+
+<div id="modal-confirmar-fechamento" class="modal">
+    <div class="modal-content modal-medium">
+        <div class="modal-header">
+            <h3><i class="fas fa-lock"></i> Fechar Mês</h3>
+            <span class="close" data-modal="modal-confirmar-fechamento">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="confirmacao-fechamento">
+                <p id="mensagem-fechamento" class="texto-confirmacao"></p>
+                
+                <div class="resumo-fechamento">
+                    <h4>Resumo do Mês</h4>
+                    <div class="resumo-grid">
+                        <div class="item-resumo receitas">
+                            <div class="icone">
+                                <i class="fas fa-plus-circle"></i>
+                            </div>
+                            <div class="detalhes">
+                                <span class="label">Receitas</span>
+                                <span id="resumo-receitas-fechamento" class="valor positivo"></span>
+                            </div>
+                        </div>
+                        
+                        <div class="item-resumo despesas">
+                            <div class="icone">
+                                <i class="fas fa-minus-circle"></i>
+                            </div>
+                            <div class="detalhes">
+                                <span class="label">Despesas</span>
+                                <span id="resumo-despesas-fechamento" class="valor negativo"></span>
+                            </div>
+                        </div>
+                        
+                        <div class="item-resumo saldo total">
+                            <div class="icone">
+                                <i class="fas fa-equals"></i>
+                            </div>
+                            <div class="detalhes">
+                                <span class="label">Saldo Final</span>
+                                <span id="resumo-saldo-fechamento" class="valor"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="transferencia-info">
+                    <div class="info-box">
+                        <i class="fas fa-arrow-right"></i>
+                        <p id="info-transferencia"></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-actions">
+                <button id="btn-cancelar-fechamento" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+                <button id="btn-confirmar-fechamento" class="btn btn-primary">
+                    <i class="fas fa-lock"></i> Confirmar Fechamento
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- MODAL CONFIRMAÇÃO REABERTURA DE MÊS -->
+<!-- ================================================================ -->
+
+<div id="modal-confirmar-reabertura" class="modal">
+    <div class="modal-content modal-medium">
+        <div class="modal-header">
+            <h3><i class="fas fa-unlock"></i> Reabrir Mês</h3>
+            <span class="close" data-modal="modal-confirmar-reabertura">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="confirmacao-reabertura">
+                <p id="mensagem-reabertura" class="texto-confirmacao"></p>
+                
+                <div class="aviso-reabertura">
+                    <div class="alerta">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <div class="alerta-conteudo">
+                            <h4>Atenção</h4>
+                            <ul>
+                                <li>A receita de saldo anterior será removida do próximo mês</li>
+                                <li>O saldo do próximo mês será recalculado automaticamente</li>
+                                <li>Esta ação afetará todos os cálculos subsequentes</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="info-mes-atual">
+                    <h4>Dados do Mês Atual</h4>
+                    <div class="dados-mes">
+                        <div class="dado-item">
+                            <span class="label">Receitas:</span>
+                            <span id="reabertura-receitas" class="valor"></span>
+                        </div>
+                        <div class="dado-item">
+                            <span class="label">Despesas:</span>
+                            <span id="reabertura-despesas" class="valor"></span>
+                        </div>
+                        <div class="dado-item">
+                            <span class="label">Saldo:</span>
+                            <span id="reabertura-saldo" class="valor"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-actions">
+                <button id="btn-cancelar-reabertura" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+                <button id="btn-confirmar-reabertura" class="btn btn-danger">
+                    <i class="fas fa-unlock"></i> Confirmar Reabertura
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- TEMPLATES PARA NOTIFICAÇÕES DE FECHAMENTO -->
+<!-- ================================================================ -->
+
+<template id="template-status-mes-aberto">
+    <span class="status-badge aberto">
+        <i class="fas fa-unlock"></i> Mês Aberto
+    </span>
 </template>
 
+<template id="template-status-mes-fechado">
+    <span class="status-badge fechado">
+        <i class="fas fa-lock"></i> Mês Fechado
+    </span>
+</template>
 
+<template id="template-notificacao-fechamento-sucesso">
+    <div class="notificacao sucesso fechamento">
+        <i class="fas fa-check-circle"></i>
+        <div class="conteudo">
+            <h4>Mês fechado com sucesso!</h4>
+            <p class="mensagem"></p>
+        </div>
+    </div>
+</template>
+
+<template id="template-notificacao-reabertura-sucesso">
+    <div class="notificacao sucesso reabertura">
+        <i class="fas fa-unlock"></i>
+        <div class="conteudo">
+            <h4>Mês reaberto com sucesso!</h4>
+            <p class="mensagem"></p>
+        </div>
+    </div>
+</template>
+
+<template id="template-notificacao-erro-fechamento">
+    <div class="notificacao erro fechamento">
+        <i class="fas fa-exclamation-circle"></i>
+        <div class="conteudo">
+            <h4>Erro ao fechar mês</h4>
+            <p class="mensagem"></p>
+        </div>
+    </div>
+</template>
+
+<!-- ================================================================ -->
+<!-- INDICADORES DE PROCESSAMENTO -->
+<!-- ================================================================ -->
+
+<div id="loading-fechamento" class="loading-overlay loading-fechamento hidden">
+    <div class="loading-content">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+        </div>
+        <div class="loading-texto">
+            <h4 id="loading-titulo">Processando...</h4>
+            <p id="loading-descricao">Aguarde enquanto processamos a operação</p>
+        </div>
+    </div>
+</div>
+
+<!-- JAVASCRIPT EXTERNOS -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Input files para anexos -->
+<input type="file" id="input-file-anexos-receita" multiple accept=".pdf,.jpg,.jpeg,.png,.gif" style="display: none;">
+<input type="file" id="input-file-anexos-despesa" multiple accept=".pdf,.jpg,.jpeg,.png,.gif" style="display: none;">
+<input type="file" id="input-file-comprovante" multiple accept=".pdf,.jpg,.jpeg,.png,.gif" style="display: none;">
+
+<!-- Bibliotecas externas -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 <script src="https://sdk.mercadopago.com/js/v2"></script>
 
-<!-- ✅ ORDEM CORRETA -->
-<script src="js/api.js"></script>           <!-- 1️⃣ PRIMEIRO: API Client -->
-<script src="js/main.js"></script>          <!-- 2️⃣ BASE: Variáveis globais -->
-<script src="js/usuario_dados.js"></script> <!-- 3️⃣ Dados do usuário -->
-<script src="js/configuracao.js"></script>  <!-- 4️⃣ Configurações -->
-<script src="js/receita.js"></script>       <!-- 5️⃣ Sistema de receitas -->
-<script src="js/despesas.js"></script>      <!-- 6️⃣ Sistema de despesas -->
-<script src="js/dashboard.js"></script>     <!-- 7️⃣ Dashboard (usa receitas + despesas) -->
-<script src="js/notificacao.js"></script>   <!-- 8️⃣ Notificações -->
-<script src="js/rel.js"></script>           <!-- 9️⃣ Relatórios -->
-<script src="js/jarvs.js"></script>         <!-- 🔟 Assistente IA -->
-<script src="js/revista.js"></script>   
+<!-- Sistema base -->
+<script src="js/main.js"></script>   
+<script src="js/usuarioDados.js"></script> 
+<script src="js/configuracao.js"></script>
+<script src="js/receita.js"></script>    
+<script src="js/despesas.js"></script> 
+<script src="js/anexos.js"></script>
+
+<!-- Módulos secundários -->
+<script src="js/dashboard.js"></script>     
+<script src="js/notificacao.js"></script>  
+<script src="js/rel.js"></script>
 </body>
 </html>

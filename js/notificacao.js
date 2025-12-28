@@ -1,43 +1,37 @@
 // ================================================================
-// SISTEMA DE NOTIFICAÇÕES - VERSÃO CORRIGIDA E COMPATÍVEL
-// Compatible com receitas.js e despesas.js - Sem interceptações
+// SISTEMA DE NOTIFICAÇÕES OTIMIZADO
 // ================================================================
 
 class SistemaNotificacoes {
     constructor() {
         this.notificacoes = [];
-        this.maxNotificacoes = 50;
+        this.maxNotificacoes = 30;
         this.inicializado = false;
         this.verificandoAutomaticamente = false;
         
-        // Aguardar sistemas principais estarem prontos
         this.aguardarSistemasProntos();
     }
 
     // ================================================================
-    // INICIALIZAÇÃO SEGURA
+    // INICIALIZAÇÃO
     // ================================================================
     
     async aguardarSistemasProntos() {
         let tentativas = 0;
-        const maxTentativas = 50; // 10 segundos
+        const maxTentativas = 50;
         
         const verificar = () => {
             tentativas++;
             
-            // Verificar se sistemas principais estão prontos
             const sistemaPronto = window.sistemaInicializado === true;
             const dadosDisponiveis = typeof window.dadosFinanceiros !== 'undefined';
             const funcionesBasicas = typeof window.formatarMoeda === 'function';
             
             if (sistemaPronto && dadosDisponiveis && funcionesBasicas) {
-                console.log('✅ SistemaNotificacoes: Dependências prontas, inicializando...');
                 this.init();
             } else if (tentativas >= maxTentativas) {
-                console.warn('⚠️ SistemaNotificacoes: Timeout, inicializando com funcionalidades limitadas...');
                 this.init();
             } else {
-                console.log(`⏳ SistemaNotificacoes aguardando dependências... ${tentativas}/${maxTentativas}`);
                 setTimeout(verificar, 200);
             }
         };
@@ -45,9 +39,9 @@ class SistemaNotificacoes {
         verificar();
     }
 
-    // ============================================================
-    // TIPOS DE NOTIFICAÇÕES
-    // ============================================================
+    // ================================================================
+    // TIPOS DE NOTIFICAÇÕES (SEM BACKUP)
+    // ================================================================
     tipos = {
         DESPESA_VENCENDO: {
             codigo: 'despesa_vencendo',
@@ -85,12 +79,6 @@ class SistemaNotificacoes {
             titulo: 'Meta Atingida',
             prioridade: 'sucesso'
         },
-        BACKUP_RECOMENDADO: {
-            codigo: 'backup_recomendado',
-            icone: '💾',
-            titulo: 'Backup Recomendado',
-            prioridade: 'baixa'
-        },
         GASTOS_ELEVADOS: {
             codigo: 'gastos_elevados',
             icone: '📈',
@@ -123,29 +111,24 @@ class SistemaNotificacoes {
         }
     };
 
-    // ============================================================
+    // ================================================================
     // INICIALIZAÇÃO
-    // ============================================================
+    // ================================================================
     init() {
         if (this.inicializado) {
-            console.log('⚠️ SistemaNotificacoes já foi inicializado');
             return;
         }
-
-        console.log('🚀 Inicializando SistemaNotificacoes...');
         
         this.carregarNotificacoes();
         this.configurarEventos();
         this.atualizarBadge();
         
-        // Aguardar um pouco antes de iniciar verificações automáticas
         setTimeout(() => {
             this.verificarNotificacoesPendentes();
             this.iniciarVerificacaoAutomatica();
         }, 2000);
         
         this.inicializado = true;
-        console.log('✅ SistemaNotificacoes inicializado com sucesso');
     }
 
     iniciarVerificacaoAutomatica() {
@@ -153,26 +136,22 @@ class SistemaNotificacoes {
         
         this.verificandoAutomaticamente = true;
         
-        // Verificação a cada 5 minutos
         setInterval(() => {
             try {
                 this.verificarNotificacoesPendentes();
             } catch (error) {
-                console.error('❌ Erro na verificação automática:', error);
+                // Falha silenciosa
             }
         }, 5 * 60 * 1000);
-        
-        console.log('🔄 Verificação automática de notificações iniciada');
     }
 
-    // ============================================================
+    // ================================================================
     // CRIAÇÃO DE NOTIFICAÇÕES
-    // ============================================================
+    // ================================================================
     criarNotificacao(tipo, dados = {}) {
         try {
             const tipoConfig = this.tipos[tipo];
             if (!tipoConfig) {
-                console.warn('⚠️ Tipo de notificação inválido:', tipo);
                 return null;
             }
 
@@ -192,16 +171,14 @@ class SistemaNotificacoes {
             this.adicionarNotificacao(notificacao);
             return notificacao;
         } catch (error) {
-            console.error('❌ Erro ao criar notificação:', error);
             return null;
         }
     }
 
-    // ============================================================
-    // NOTIFICAÇÕES ESPECÍFICAS - SEM INTERCEPTAÇÕES
-    // ============================================================
+    // ================================================================
+    // NOTIFICAÇÕES ESPECÍFICAS
+    // ================================================================
     
-    // Método público para ser chamado externamente
     notificarTransacaoSalva(tipo, descricao, valor) {
         const tipoTexto = tipo === 'receita' ? 'Receita' : 'Despesa';
         const icone = tipo === 'receita' ? '💰' : '💸';
@@ -217,7 +194,6 @@ class SistemaNotificacoes {
         });
     }
 
-    // Método público para ser chamado externamente
     notificarTransacaoExcluida(tipo, descricao, valor) {
         const tipoTexto = tipo === 'receita' ? 'Receita' : 'Despesa';
         const mensagem = `${tipoTexto} "${descricao}" excluída. Valor: ${this.formatarMoedaSeguro(valor)}`;
@@ -246,7 +222,10 @@ class SistemaNotificacoes {
     }
 
     notificarDespesaVencida(despesa, diasAtraso) {
-        const mensagem = `A despesa "${despesa.descricao}" está ${diasAtraso} dia(s) em atraso. Valor: ${this.formatarMoedaSeguro(despesa.valor)}`;
+        const nomesMeses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                           'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+        const nomeMes = nomesMeses[despesa.mes];
+        const mensagem = `A despesa "${despesa.descricao}" de ${nomeMes}/${despesa.ano} está ${diasAtraso} dia(s) em atraso. Valor: ${this.formatarMoedaSeguro(despesa.valor)}`;
         
         return this.criarNotificacao('DESPESA_VENCIDA', {
             mensagem,
@@ -308,39 +287,21 @@ class SistemaNotificacoes {
         });
     }
 
-    notificarBackupRecomendado() {
-        const ultimoBackup = localStorage.getItem('ultimo_backup');
-        const diasSemBackup = ultimoBackup ? 
-            Math.floor((Date.now() - new Date(ultimoBackup)) / (1000 * 60 * 60 * 24)) : 30;
-        
-        const mensagem = `Recomendamos fazer backup dos seus dados. ${diasSemBackup} dias sem backup.`;
-        
-        return this.criarNotificacao('BACKUP_RECOMENDADO', {
-            mensagem,
-            diasSemBackup,
-            acao: 'abrir_configuracoes',
-            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-        });
-    }
-
-    // ============================================================
-    // VERIFICAÇÕES AUTOMÁTICAS - COM PROTEÇÕES
-    // ============================================================
+    // ================================================================
+    // VERIFICAÇÕES AUTOMÁTICAS OTIMIZADAS
+    // ================================================================
     verificarNotificacoesPendentes() {
         try {
-            // Verificar se dados estão disponíveis
             if (typeof window.dadosFinanceiros === 'undefined' || !window.dadosFinanceiros) {
-                console.log('⏳ Dados financeiros não disponíveis para verificação');
                 return;
             }
 
             this.verificarDespesasVencendo();
             this.verificarDespesasVencidas();
             this.verificarSaldosNegativos();
-            this.verificarBackupRecomendado();
             this.limparNotificacoesExpiradas();
         } catch (error) {
-            console.error('❌ Erro nas verificações automáticas:', error);
+            // Falha silenciosa
         }
     }
 
@@ -348,45 +309,43 @@ class SistemaNotificacoes {
         try {
             const hoje = new Date();
             const em3Dias = new Date(hoje.getTime() + 3 * 24 * 60 * 60 * 1000);
+            const mesAtual = hoje.getMonth();
+            const anoAtual = hoje.getFullYear();
 
-            for (const ano in window.dadosFinanceiros) {
-                const anoData = window.dadosFinanceiros[ano];
-                if (!anoData || !anoData.meses) continue;
+            // Apenas mês atual para despesas vencendo
+            const anoData = window.dadosFinanceiros[anoAtual];
+            if (!anoData || !anoData.meses) return;
 
-                for (let mes = 0; mes < 12; mes++) {
-                    const dadosMes = anoData.meses[mes];
-                    if (!dadosMes?.despesas) continue;
+            const dadosMes = anoData.meses[mesAtual];
+            if (!dadosMes?.despesas) return;
 
-                    dadosMes.despesas.forEach((despesa, index) => {
-                        if (despesa.quitado) return;
+            dadosMes.despesas.forEach((despesa, index) => {
+                if (despesa.quitado) return;
 
-                        const dataVencimento = new Date(despesa.dataVencimento || despesa.data);
-                        
-                        if (dataVencimento >= hoje && dataVencimento <= em3Dias) {
-                            const diasRestantes = Math.ceil((dataVencimento - hoje) / (1000 * 60 * 60 * 24));
-                            
-                            // Verifica se já existe notificação para esta despesa
-                            const jaNotificado = this.notificacoes.some(n => 
-                                n.tipo === 'despesa_vencendo' && 
-                                n.dados.despesa?.descricao === despesa.descricao &&
-                                n.dados.mes === mes &&
-                                n.dados.ano === parseInt(ano)
-                            );
+                const dataVencimento = new Date(despesa.dataVencimento || despesa.data);
+                
+                if (dataVencimento >= hoje && dataVencimento <= em3Dias) {
+                    const diasRestantes = Math.ceil((dataVencimento - hoje) / (1000 * 60 * 60 * 24));
+                    
+                    const jaNotificado = this.notificacoes.some(n => 
+                        n.tipo === 'despesa_vencendo' && 
+                        n.dados.despesa?.descricao === despesa.descricao &&
+                        n.dados.mes === mesAtual &&
+                        n.dados.ano === anoAtual
+                    );
 
-                            if (!jaNotificado) {
-                                this.notificarDespesaVencendo({
-                                    ...despesa,
-                                    mes,
-                                    ano: parseInt(ano),
-                                    index
-                                }, diasRestantes);
-                            }
-                        }
-                    });
+                    if (!jaNotificado) {
+                        this.notificarDespesaVencendo({
+                            ...despesa,
+                            mes: mesAtual,
+                            ano: anoAtual,
+                            index
+                        }, diasRestantes);
+                    }
                 }
-            }
+            });
         } catch (error) {
-            console.error('❌ Erro ao verificar despesas vencendo:', error);
+            // Falha silenciosa
         }
     }
 
@@ -394,6 +353,7 @@ class SistemaNotificacoes {
         try {
             const hoje = new Date();
 
+            // Verificar todos os anos e meses para despesas vencidas
             for (const ano in window.dadosFinanceiros) {
                 const anoData = window.dadosFinanceiros[ano];
                 if (!anoData || !anoData.meses) continue;
@@ -410,7 +370,6 @@ class SistemaNotificacoes {
                         if (dataVencimento < hoje) {
                             const diasAtraso = Math.floor((hoje - dataVencimento) / (1000 * 60 * 60 * 24));
                             
-                            // Verifica se já existe notificação para esta despesa vencida
                             const jaNotificado = this.notificacoes.some(n => 
                                 n.tipo === 'despesa_vencida' && 
                                 n.dados.despesa?.descricao === despesa.descricao &&
@@ -431,70 +390,46 @@ class SistemaNotificacoes {
                 }
             }
         } catch (error) {
-            console.error('❌ Erro ao verificar despesas vencidas:', error);
+            // Falha silenciosa
         }
     }
 
     verificarSaldosNegativos() {
         try {
             if (typeof window.calcularSaldoMes !== 'function') {
-                console.log('⏳ Função calcularSaldoMes não disponível');
                 return;
             }
 
-            const anoAtual = new Date().getFullYear();
+            const hoje = new Date();
+            const mesAtual = hoje.getMonth();
+            const anoAtual = hoje.getFullYear();
             
-            for (let mes = 0; mes < 12; mes++) {
-                const saldo = window.calcularSaldoMes(mes, anoAtual);
-                
-                if (saldo && saldo.saldoFinal < 0) {
-                    // Verifica se já existe notificação para este saldo negativo
-                    const jaNotificado = this.notificacoes.some(n => 
-                        n.tipo === 'saldo_negativo' && 
-                        n.dados.mes === mes &&
-                        n.dados.ano === anoAtual
-                    );
-
-                    if (!jaNotificado) {
-                        this.notificarSaldoNegativo(mes, anoAtual, saldo.saldoFinal);
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('❌ Erro ao verificar saldos negativos:', error);
-        }
-    }
-
-    verificarBackupRecomendado() {
-        try {
-            const ultimoBackup = localStorage.getItem('ultimo_backup');
-            const agora = Date.now();
+            // Apenas mês atual para saldos negativos
+            const saldo = window.calcularSaldoMes(mesAtual, anoAtual);
             
-            // Se nunca fez backup ou fez há mais de 30 dias
-            if (!ultimoBackup || (agora - new Date(ultimoBackup)) > 30 * 24 * 60 * 60 * 1000) {
-                // Verifica se já existe notificação de backup
+            if (saldo && saldo.saldoFinal < 0) {
                 const jaNotificado = this.notificacoes.some(n => 
-                    n.tipo === 'backup_recomendado' && 
-                    !n.lida
+                    n.tipo === 'saldo_negativo' && 
+                    n.dados.mes === mesAtual &&
+                    n.dados.ano === anoAtual
                 );
 
                 if (!jaNotificado) {
-                    this.notificarBackupRecomendado();
+                    this.notificarSaldoNegativo(mesAtual, anoAtual, saldo.saldoFinal);
                 }
             }
         } catch (error) {
-            console.error('❌ Erro ao verificar backup:', error);
+            // Falha silenciosa
         }
     }
 
-    // ============================================================
+    // ================================================================
     // GERENCIAMENTO DE NOTIFICAÇÕES
-    // ============================================================
+    // ================================================================
     adicionarNotificacao(notificacao) {
         try {
             this.notificacoes.unshift(notificacao);
             
-            // Limita o número máximo de notificações
             if (this.notificacoes.length > this.maxNotificacoes) {
                 this.notificacoes = this.notificacoes.slice(0, this.maxNotificacoes);
             }
@@ -503,7 +438,7 @@ class SistemaNotificacoes {
             this.atualizarBadge();
             this.renderizarNotificacoes();
         } catch (error) {
-            console.error('❌ Erro ao adicionar notificação:', error);
+            // Falha silenciosa
         }
     }
 
@@ -517,7 +452,7 @@ class SistemaNotificacoes {
                 this.renderizarNotificacoes();
             }
         } catch (error) {
-            console.error('❌ Erro ao marcar notificação como lida:', error);
+            // Falha silenciosa
         }
     }
 
@@ -528,7 +463,7 @@ class SistemaNotificacoes {
             this.atualizarBadge();
             this.renderizarNotificacoes();
         } catch (error) {
-            console.error('❌ Erro ao marcar todas como lidas:', error);
+            // Falha silenciosa
         }
     }
 
@@ -539,7 +474,7 @@ class SistemaNotificacoes {
             this.atualizarBadge();
             this.renderizarNotificacoes();
         } catch (error) {
-            console.error('❌ Erro ao excluir notificação:', error);
+            // Falha silenciosa
         }
     }
 
@@ -550,7 +485,7 @@ class SistemaNotificacoes {
             this.atualizarBadge();
             this.renderizarNotificacoes();
         } catch (error) {
-            console.error('❌ Erro ao limpar notificações:', error);
+            // Falha silenciosa
         }
     }
 
@@ -568,16 +503,15 @@ class SistemaNotificacoes {
                 this.atualizarBadge();
             }
         } catch (error) {
-            console.error('❌ Erro ao limpar notificações expiradas:', error);
+            // Falha silenciosa
         }
     }
 
-    // ============================================================
+    // ================================================================
     // INTERFACE E RENDERIZAÇÃO
-    // ============================================================
+    // ================================================================
     configurarEventos() {
         try {
-            // Botão do sino de notificações
             const notificationBell = document.getElementById('notification-bell');
             if (notificationBell) {
                 notificationBell.addEventListener('click', () => {
@@ -585,7 +519,6 @@ class SistemaNotificacoes {
                 });
             }
 
-            // Botões do modal
             const btnMarkAllRead = document.getElementById('btn-mark-all-read');
             const btnClearNotifications = document.getElementById('btn-clear-notifications');
             const modalNotificacoes = document.getElementById('modal-notificacoes');
@@ -611,7 +544,6 @@ class SistemaNotificacoes {
                 });
             }
 
-            // Fechar modal clicando fora
             if (modalNotificacoes) {
                 modalNotificacoes.addEventListener('click', (e) => {
                     if (e.target === modalNotificacoes) {
@@ -620,7 +552,7 @@ class SistemaNotificacoes {
                 });
             }
         } catch (error) {
-            console.error('❌ Erro ao configurar eventos:', error);
+            // Falha silenciosa
         }
     }
 
@@ -633,7 +565,7 @@ class SistemaNotificacoes {
                 this.renderizarNotificacoes();
             }
         } catch (error) {
-            console.error('❌ Erro ao abrir modal:', error);
+            // Falha silenciosa
         }
     }
 
@@ -645,7 +577,7 @@ class SistemaNotificacoes {
                 modal.style.display = 'none';
             }
         } catch (error) {
-            console.error('❌ Erro ao fechar modal:', error);
+            // Falha silenciosa
         }
     }
 
@@ -673,7 +605,7 @@ class SistemaNotificacoes {
                 }
             });
         } catch (error) {
-            console.error('❌ Erro ao renderizar notificações:', error);
+            // Falha silenciosa
         }
     }
 
@@ -681,14 +613,12 @@ class SistemaNotificacoes {
         try {
             const template = document.getElementById('template-notification-item');
             if (!template) {
-                console.warn('⚠️ Template de notificação não encontrado');
                 return this.criarItemNotificacaoFallback(notificacao);
             }
 
             const clone = template.content.cloneNode(true);
             const item = clone.querySelector('.notification-item');
 
-            // Configurar dados
             item.dataset.id = notificacao.id;
             item.dataset.tipo = notificacao.tipo;
             
@@ -696,13 +626,11 @@ class SistemaNotificacoes {
                 item.classList.add('unread');
             }
 
-            // Preencher conteúdo
             clone.querySelector('.notification-icon').textContent = notificacao.icone;
             clone.querySelector('.notification-title').textContent = notificacao.titulo;
             clone.querySelector('.notification-message').textContent = notificacao.mensagem;
             clone.querySelector('.notification-time').textContent = this.formatarTempo(notificacao.dataHora);
 
-            // Configurar botões
             const btnMarkRead = clone.querySelector('.btn-mark-read');
             const btnDelete = clone.querySelector('.btn-delete-notification');
 
@@ -725,7 +653,6 @@ class SistemaNotificacoes {
                 });
             }
 
-            // Click na notificação para executar ação
             item.addEventListener('click', () => {
                 this.executarAcaoNotificacao(notificacao);
                 if (!notificacao.lida) {
@@ -735,7 +662,6 @@ class SistemaNotificacoes {
 
             return clone;
         } catch (error) {
-            console.error('❌ Erro ao criar item de notificação:', error);
             return this.criarItemNotificacaoFallback(notificacao);
         }
     }
@@ -776,7 +702,6 @@ class SistemaNotificacoes {
                     break;
                     
                 case 'abrir_dashboard':
-                    // Navegar para dashboard
                     const dashboardLink = document.querySelector('.nav-link[data-section="dashboard"]');
                     if (dashboardLink) {
                         dashboardLink.click();
@@ -785,7 +710,6 @@ class SistemaNotificacoes {
                     break;
                     
                 case 'abrir_configuracoes':
-                    // Navegar para configurações
                     const configLink = document.querySelector('.nav-link[data-section="config"]');
                     if (configLink) {
                         configLink.click();
@@ -795,11 +719,10 @@ class SistemaNotificacoes {
                     
                 case 'info':
                 default:
-                    // Apenas marcar como lida
                     break;
             }
         } catch (error) {
-            console.error('❌ Erro ao executar ação da notificação:', error);
+            // Falha silenciosa
         }
     }
 
@@ -817,13 +740,13 @@ class SistemaNotificacoes {
                 }
             }
         } catch (error) {
-            console.error('❌ Erro ao atualizar badge:', error);
+            // Falha silenciosa
         }
     }
 
-    // ============================================================
+    // ================================================================
     // PERSISTÊNCIA DE DADOS
-    // ============================================================
+    // ================================================================
     salvarNotificacoes() {
         try {
             const usuarioAtual = sessionStorage.getItem('usuarioAtual');
@@ -832,7 +755,7 @@ class SistemaNotificacoes {
                 localStorage.setItem(chave, JSON.stringify(this.notificacoes));
             }
         } catch (error) {
-            console.error('❌ Erro ao salvar notificações:', error);
+            // Falha silenciosa
         }
     }
 
@@ -848,14 +771,13 @@ class SistemaNotificacoes {
                 }
             }
         } catch (error) {
-            console.error('❌ Erro ao carregar notificações:', error);
             this.notificacoes = [];
         }
     }
 
-    // ============================================================
-    // UTILITÁRIOS SEGUROS
-    // ============================================================
+    // ================================================================
+    // UTILITÁRIOS
+    // ================================================================
     gerarId() {
         return 'notif_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     }
@@ -876,7 +798,6 @@ class SistemaNotificacoes {
             
             return data.toLocaleDateString('pt-BR');
         } catch (error) {
-            console.error('❌ Erro ao formatar tempo:', error);
             return 'Data inválida';
         }
     }
@@ -887,130 +808,85 @@ class SistemaNotificacoes {
                 return window.formatarMoeda(valor);
             }
             
-            // Fallback simples
             return new Intl.NumberFormat('pt-BR', {
                 style: 'currency',
                 currency: 'BRL'
             }).format(valor || 0);
         } catch (error) {
-            console.error('❌ Erro ao formatar moeda:', error);
             return `R$ ${(valor || 0).toFixed(2)}`;
         }
     }
 
-    // ============================================================
+    // ================================================================
     // MÉTODOS PÚBLICOS DE INTEGRAÇÃO
-    // ============================================================
+    // ================================================================
     
-    /**
-     * Método público para sistemas externos notificarem transações
-     * Deve ser chamado por receitas.js e despesas.js após salvar
-     */
     onTransacaoSalva(tipo, transacao) {
         if (!this.inicializado) {
-            console.log('⏳ Sistema de notificações não inicializado ainda');
             return;
         }
 
         try {
             this.notificarTransacaoSalva(tipo, transacao.descricao, transacao.valor);
         } catch (error) {
-            console.error('❌ Erro ao notificar transação salva:', error);
+            // Falha silenciosa
         }
     }
 
-    /**
-     * Método público para sistemas externos notificarem exclusões
-     */
     onTransacaoExcluida(tipo, transacao) {
         if (!this.inicializado) {
-            console.log('⏳ Sistema de notificações não inicializado ainda');
             return;
         }
 
         try {
             this.notificarTransacaoExcluida(tipo, transacao.descricao, transacao.valor);
         } catch (error) {
-            console.error('❌ Erro ao notificar transação excluída:', error);
+            // Falha silenciosa
         }
     }
 
-    /**
-     * Método público para sistemas externos notificarem pagamentos
-     */
     onPagamentoProcessado(despesa, valorPago) {
         if (!this.inicializado) {
-            console.log('⏳ Sistema de notificações não inicializado ainda');
             return;
         }
 
         try {
             this.notificarPagamentoProcessado(despesa, valorPago);
         } catch (error) {
-            console.error('❌ Erro ao notificar pagamento:', error);
+            // Falha silenciosa
         }
     }
 
-    /**
-     * Método público para sistemas externos notificarem fechamento de mês
-     */
     onMesFechado(mes, ano, saldo) {
         if (!this.inicializado) {
-            console.log('⏳ Sistema de notificações não inicializado ainda');
             return;
         }
 
         try {
             this.notificarMesFechado(mes, ano, saldo);
         } catch (error) {
-            console.error('❌ Erro ao notificar fechamento de mês:', error);
+            // Falha silenciosa
         }
     }
 
-    // ============================================================
-    // DIAGNÓSTICO E DEBUG
-    // ============================================================
-    diagnostico() {
-        return {
-            inicializado: this.inicializado,
-            verificandoAutomaticamente: this.verificandoAutomaticamente,
-            totalNotificacoes: this.notificacoes.length,
-            naoLidas: this.notificacoes.filter(n => !n.lida).length,
-            dependenciasDisponiveis: {
-                dadosFinanceiros: typeof window.dadosFinanceiros !== 'undefined',
-                formatarMoeda: typeof window.formatarMoeda === 'function',
-                calcularSaldoMes: typeof window.calcularSaldoMes === 'function',
-                abrirDetalhesDoMes: typeof window.abrirDetalhesDoMes === 'function'
-            },
-            elementosDOM: {
-                notificationBell: !!document.getElementById('notification-bell'),
-                modal: !!document.getElementById('modal-notificacoes'),
-                badge: !!document.getElementById('notification-count'),
-                template: !!document.getElementById('template-notification-item')
-            }
-        };
-    }
-
-    // ============================================================
-    // MÉTODOS DE LIMPEZA
-    // ============================================================
+    // ================================================================
+    // LIMPEZA
+    // ================================================================
     destruir() {
         try {
             this.verificandoAutomaticamente = false;
             this.inicializado = false;
             this.notificacoes = [];
-            console.log('🧹 SistemaNotificacoes destruído');
         } catch (error) {
-            console.error('❌ Erro ao destruir sistema:', error);
+            // Falha silenciosa
         }
     }
 }
 
 // ================================================================
-// INSTÂNCIA GLOBAL E INTEGRAÇÃO SEGURA
+// INSTÂNCIA GLOBAL E INTEGRAÇÃO
 // ================================================================
 
-// Criar instância global
 let sistemaNotificacoes = null;
 
 // Função de inicialização controlada
@@ -1032,15 +908,10 @@ function inicializarSistemaNotificacoes() {
             marcarTodasLidas: () => sistemaNotificacoes?.marcarTodasComoLidas(),
             limparTodas: () => sistemaNotificacoes?.limparTodasNotificacoes(),
             
-            // Diagnóstico
-            diagnostico: () => sistemaNotificacoes?.diagnostico(),
-            
             // Estado
             get inicializado() { return sistemaNotificacoes?.inicializado || false; },
             get totalNotificacoes() { return sistemaNotificacoes?.notificacoes?.length || 0; }
         };
-        
-        console.log('✅ SistemaNotificacoes instanciado e métodos públicos exportados');
     }
 }
 
@@ -1048,9 +919,6 @@ function inicializarSistemaNotificacoes() {
 // INICIALIZAÇÃO AUTOMÁTICA SEGURA
 // ================================================================
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 SistemaNotificacoes: DOM carregado, preparando inicialização...');
-    
-    // Aguardar um pouco antes de tentar inicializar
     setTimeout(() => {
         inicializarSistemaNotificacoes();
     }, 500);
@@ -1067,17 +935,14 @@ if (document.readyState === 'loading') {
 }
 
 // ================================================================
-// INTEGRAÇÃO COM SISTEMAS EXISTENTES (OPCIONAL)
+// INTEGRAÇÃO COM SISTEMAS EXISTENTES
 // ================================================================
 
 // Se window.addEventListener estiver disponível, aguardar evento customizado
 if (typeof window.addEventListener === 'function') {
     window.addEventListener('sistemaFinanceiroReady', function() {
-        console.log('🔔 SistemaNotificacoes: Recebido evento sistemaFinanceiroReady');
         if (!sistemaNotificacoes) {
             inicializarSistemaNotificacoes();
         }
     });
 }
-
-console.log('📦 SistemaNotificacoes carregado - aguardando inicialização segura...');
