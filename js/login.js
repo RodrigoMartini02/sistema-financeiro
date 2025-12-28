@@ -1,35 +1,7 @@
-// ================================================================
-// SISTEMA DE LOGIN OTIMIZADO - SEM TEMPORIZADORES DESNECESSÁRIOS
-// ================================================================
-// Exemplo de como seria seu código de login
-const dadosLogin = { email: "teste@teste.com", senha: "123" };
-
-enviarDados('/auth/login', dadosLogin).then(resultado => {
-    if(resultado.success) {
-        window.location.href = 'dashboard.html';
-    } else {
-        alert("Erro ao entrar!");
-    }
-});
-
-
-
-
-
-
-
-
-
-
-
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Login otimizado carregado - inicialização rápida...');
     inicializarSistemaLoginRapido();
 });
-
-// ================================================================
-// VARIÁVEIS GLOBAIS
-// ================================================================
 
 let elementos = {};
 let emailJSDisponivel = false;
@@ -40,25 +12,19 @@ const EMAIL_CONFIG = {
     userId: 'oW3fgPbnchMKc42Yf'
 };
 
-// ================================================================
-// INICIALIZAÇÃO RÁPIDA - SEM AGUARDOS
-// ================================================================
+const API_URL = 'http://localhost:3100/api';
 
 function inicializarSistemaLoginRapido() {
     try {
         console.log('Inicialização imediata do login...');
         
-        // Teste básico de localStorage
         if (!testLocalStorage()) {
             alert("Seu navegador tem o armazenamento local desativado. Por favor, ative-o nas configurações.");
             return;
         }
         
-        // Obter elementos e configurar sistema imediatamente
         elementos = obterElementosDOM();
         configurarSistemaCompleto();
-        
-        // Carregar dependências opcionais em background
         carregarDependenciasBackground();
         
         window.loginSistemaInicializado = true;
@@ -71,12 +37,6 @@ function inicializarSistemaLoginRapido() {
 }
 
 function configurarSistemaCompleto() {
-    // Inicializar estrutura de dados se necessário
-    if (!localStorage.getItem('usuarios')) {
-        localStorage.setItem('usuarios', JSON.stringify([]));
-    }
-    
-    // Configurar todos os eventos
     configurarEventListenersLogin();
     configurarEventListenersCadastro();
     configurarEventListenersRecuperacao();
@@ -88,7 +48,6 @@ function configurarSistemaCompleto() {
 }
 
 function carregarDependenciasBackground() {
-    // EmailJS em background (não bloqueia login)
     if (!window.emailjs) {
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';
@@ -107,23 +66,16 @@ function carregarDependenciasBackground() {
         emailJSDisponivel = true;
     }
     
-    // UsuarioDados se disponível
     if (window.usuarioDados && typeof window.usuarioDados.aguardarPronto === 'function') {
         window.usuarioDados.aguardarPronto().then(() => {
             console.log('UsuarioDados integrado');
         });
     }
     
-    // Limpeza automática
     verificarELimparDados();
 }
 
-// ================================================================
-// CONFIGURAÇÃO DE EVENTOS DE LOGIN
-// ================================================================
-
 function configurarEventListenersLogin() {
-    // Login principal
     if (elementos.loginForm) {
         elementos.loginForm.addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -136,7 +88,6 @@ function configurarEventListenersLogin() {
         });
     }
     
-    // Login modal
     if (elementos.modalLoginForm) {
         elementos.modalLoginForm.addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -175,10 +126,6 @@ function configurarEventListenersRecuperacao() {
     }
 }
 
-// ================================================================
-// PROCESSO DE LOGIN OTIMIZADO
-// ================================================================
-
 async function processarLogin(documento, password, isModal) {
     console.log('Processando login...');
     
@@ -191,79 +138,56 @@ async function processarLogin(documento, password, isModal) {
     setLoadingState(botaoSubmit, true);
     
     try {
-        // Validação direta e rápida
-        const loginValido = validarLoginRapido(documento, password);
+        const loginValido = await validarLoginRapido(documento, password);
         
         if (loginValido) {
-            const docLimpo = documento.replace(/[^\d]+/g, '');
-            
-            // Salvar sessão
-            sessionStorage.setItem('usuarioAtual', docLimpo);
-            salvarDadosUsuarioSessao(docLimpo);
-            
-            // Registrar tentativa em background
-            registrarTentativaBackground(documento, true);
-            
-            // Redirecionamento imediato
             window.location.href = 'index.html';
-            
-        } else {
-            mostrarErroLogin(errorElement, 'Documento ou senha incorretos');
-            registrarTentativaBackground(documento, false);
-            
-            // Limpar senha
-            const passwordField = isModal ? 
-                document.getElementById('modal-password') : 
-                document.getElementById('password');
-            if (passwordField) passwordField.value = '';
         }
         
     } catch (error) {
         console.error('Erro durante login:', error);
         mostrarErroLogin(errorElement, error.message || 'Erro no sistema. Tente novamente.');
+        
+        const passwordField = isModal ? 
+            document.getElementById('modal-password') : 
+            document.getElementById('password');
+        if (passwordField) passwordField.value = '';
+        
     } finally {
         setLoadingState(botaoSubmit, false);
     }
 }
 
-function validarLoginRapido(documento, password) {
-    const docLimpo = documento.replace(/[^\d]+/g, '');
-    
-    // Verificar bloqueio simples
-    const bloqueio = verificarBloqueio(documento);
-    if (bloqueio.bloqueado) {
-        throw new Error(`Conta bloqueada. Aguarde ${bloqueio.tempoRestante} minutos.`);
-    }
-    
-    // Validação direta
-    const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-    const usuario = usuarios.find(u => 
-        u.documento && 
-        u.documento.replace(/[^\d]+/g, '') === docLimpo && 
-        u.password === password
-    );
-    
-    return !!usuario;
-}
-
-function salvarDadosUsuarioSessao(docLimpo) {
+async function validarLoginRapido(documento, password) {
     try {
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const usuario = usuarios.find(u => 
-            u.documento && u.documento.replace(/[^\d]+/g, '') === docLimpo
-        );
-        
-        if (usuario) {
-            sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify(usuario));
+        const response = await fetch(`${API_URL}/auth/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                documento,
+                senha: password
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Erro ao fazer login');
         }
+
+        sessionStorage.setItem('token', data.data.token);
+        sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify(data.data.usuario));
+        sessionStorage.setItem('usuarioAtual', data.data.usuario.documento.replace(/[^\d]+/g, ''));
+
+        return true;
+
     } catch (error) {
-        console.warn('Erro ao salvar dados da sessão:', error);
+        console.error('Erro no login:', error);
+        throw error;
     }
 }
-
-// ================================================================
-// CADASTRO
-// ================================================================
 
 async function processarFormularioCadastro() {
     const nome = document.getElementById('cadastro-nome')?.value?.trim();
@@ -273,11 +197,9 @@ async function processarFormularioCadastro() {
     const confirmPassword = document.getElementById('cadastro-confirm-password')?.value?.trim();
     const botaoSubmit = elementos.formCadastro?.querySelector('button[type="submit"]');
     
-    // Limpar mensagens
     if (elementos.cadastroErrorMessage) elementos.cadastroErrorMessage.style.display = 'none';
     if (elementos.cadastroSuccessMessage) elementos.cadastroSuccessMessage.style.display = 'none';
     
-    // Validações
     if (!nome || !email || !documento || !password) {
         mostrarErroCadastro('Todos os campos são obrigatórios');
         return;
@@ -310,7 +232,6 @@ async function processarFormularioCadastro() {
         
         if (elementos.formCadastro) elementos.formCadastro.reset();
         
-        // Redirecionamento rápido
         setTimeout(() => {
             if (elementos.cadastroModal) elementos.cadastroModal.style.display = 'none';
             if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
@@ -324,55 +245,32 @@ async function processarFormularioCadastro() {
 }
 
 async function processarCadastro(nome, email, documento, password) {
-    const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-    const docLimpo = documento.replace(/[^\d]+/g, '');
-    
-    // Verificar se já existe
-    const jaExiste = usuarios.some(u => 
-        u.email.toLowerCase() === email.toLowerCase() || 
-        (u.documento && u.documento.replace(/[^\d]+/g, '') === docLimpo)
-    );
-    
-    if (jaExiste) {
-        throw new Error('Usuário já existe com este email ou documento');
-    }
-    
-    const novoUsuario = {
-        nome,
-        email,
-        documento,
-        password,
-        dataCadastro: new Date().toISOString(),
-        dadosFinanceiros: criarEstruturaFinanceiraInicial()
-    };
-    
-    usuarios.push(novoUsuario);
-    localStorage.setItem('usuarios', JSON.stringify(usuarios));
-    
-    return { success: true, data: novoUsuario };
-}
+    try {
+        const response = await fetch(`${API_URL}/auth/register`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                nome,
+                email,
+                documento,
+                senha: password
+            })
+        });
 
-function criarEstruturaFinanceiraInicial() {
-    const anoAtual = new Date().getFullYear();
-    const estrutura = {};
-    
-    estrutura[anoAtual] = { meses: [] };
-    for (let i = 0; i < 12; i++) {
-        estrutura[anoAtual].meses[i] = {
-            receitas: [],
-            despesas: [],
-            fechado: false,
-            saldoAnterior: 0,
-            saldoFinal: 0
-        };
-    }
-    
-    return estrutura;
-}
+        const data = await response.json();
 
-// ================================================================
-// RECUPERAÇÃO DE SENHA
-// ================================================================
+        if (!response.ok) {
+            throw new Error(data.message || 'Erro ao cadastrar');
+        }
+
+        return { success: true, data: data.data };
+
+    } catch (error) {
+        throw new Error(error.message);
+    }
+}
 
 async function processarRecuperacaoSenha() {
     const email = document.getElementById('recuperacao-email')?.value?.trim();
@@ -391,7 +289,6 @@ async function processarRecuperacaoSenha() {
     
     try {
         if (!codigo) {
-            // Enviar código
             const usuario = obterUsuarioPorEmail(email);
             if (!usuario) {
                 mostrarErroRecuperacao('Email não encontrado');
@@ -423,7 +320,6 @@ async function processarRecuperacaoSenha() {
             }
             
         } else {
-            // Verificar código
             const verificacao = verificarCodigoRecuperacao(email, codigo);
             
             if (verificacao.valido) {
@@ -455,7 +351,6 @@ async function processarNovaSenha() {
     if (elementos.novaSenhaErrorMessage) elementos.novaSenhaErrorMessage.style.display = 'none';
     if (elementos.novaSenhaSuccessMessage) elementos.novaSenhaSuccessMessage.style.display = 'none';
     
-    // Validações
     if (!novaSenha || !confirmarSenha) {
         mostrarErroNovaSenha('Todos os campos são obrigatórios');
         return;
@@ -503,12 +398,7 @@ async function processarNovaSenha() {
     }
 }
 
-// ================================================================
-// NAVEGAÇÃO ENTRE MODAIS
-// ================================================================
-
 function configurarNavegacaoModais() {
-    // Abrir login
     if (elementos.openLoginModalBtn) {
         elementos.openLoginModalBtn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -523,7 +413,6 @@ function configurarNavegacaoModais() {
         });
     }
     
-    // Navegação login <-> cadastro
     if (elementos.modalAbrirCadastroBtn) {
         elementos.modalAbrirCadastroBtn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -540,7 +429,6 @@ function configurarNavegacaoModais() {
         });
     }
     
-    // Recuperação de senha
     if (elementos.esqueceuSenhaBtn) {
         elementos.esqueceuSenhaBtn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -565,19 +453,16 @@ function configurarFechamentoModais() {
             const form = modal.querySelector('form');
             if (form) form.reset();
             
-            // Ocultar mensagens
             const error = modal.querySelector('.error-message');
             const success = modal.querySelector('.success-message');
             if (error) error.style.display = 'none';
             if (success) success.style.display = 'none';
             
-            // Ocultar campo de código
             const campoCode = modal.querySelector('#campo-codigo-container');
             if (campoCode) campoCode.style.display = 'none';
         }
     }
     
-    // Botões de fechar
     const closeButtons = [
         { btn: elementos.loginCloseBtn, modal: elementos.loginModal },
         { btn: elementos.cadastroCloseBtn, modal: elementos.cadastroModal },
@@ -591,7 +476,6 @@ function configurarFechamentoModais() {
         }
     });
     
-    // Fechar clicando fora
     window.addEventListener('click', function(event) {
         const modais = [elementos.loginModal, elementos.cadastroModal, elementos.recuperacaoModal, elementos.novaSenhaModal];
         modais.forEach(modal => {
@@ -657,26 +541,19 @@ function inicializarModais() {
     if (campoCode) campoCode.style.display = 'none';
 }
 
-// ================================================================
-// ELEMENTOS DO DOM
-// ================================================================
-
 function obterElementosDOM() {
     return {
-        // Modais
         loginModal: document.getElementById('loginModal'),
         cadastroModal: document.getElementById('cadastroModal'),
         recuperacaoModal: document.getElementById('recuperacaoSenhaModal'),
         novaSenhaModal: document.getElementById('novaSenhaModal'),
         
-        // Formulários
         loginForm: document.getElementById('login-form'),
         modalLoginForm: document.getElementById('modal-login-form'),
         formCadastro: document.getElementById('form-cadastro'),
         formRecuperacao: document.getElementById('form-recuperacao-senha'),
         formNovaSenha: document.getElementById('form-nova-senha'),
         
-        // Mensagens
         errorMessage: document.getElementById('error-message'),
         modalErrorMessage: document.getElementById('modal-error-message'),
         cadastroErrorMessage: document.getElementById('cadastro-error-message'),
@@ -686,7 +563,6 @@ function obterElementosDOM() {
         novaSenhaErrorMessage: document.getElementById('nova-senha-error-message'),
         novaSenhaSuccessMessage: document.getElementById('nova-senha-success-message'),
         
-        // Botões
         openLoginModalBtn: document.getElementById('openLoginModalBtn'),
         mobileLoginBtn: document.getElementById('mobile-login-btn'),
         modalAbrirCadastroBtn: document.getElementById('modal-abrir-cadastro'),
@@ -694,68 +570,12 @@ function obterElementosDOM() {
         esqueceuSenhaBtn: document.getElementById('modal-esqueceu-senha'),
         recuperacaoAbrirLoginBtn: document.getElementById('recuperacao-abrir-login'),
         
-        // Botões de fechar
         loginCloseBtn: document.querySelector('.login-close'),
         cadastroCloseBtn: document.querySelector('.cadastro-close'),
         recuperacaoCloseBtn: document.querySelector('.recuperacao-close'),
         novaSenhaCloseBtn: document.querySelector('.nova-senha-close')
     };
 }
-
-// ================================================================
-// SISTEMA DE SEGURANÇA OTIMIZADO
-// ================================================================
-
-function verificarBloqueio(documento) {
-    try {
-        const tentativas = JSON.parse(localStorage.getItem('tentativasLogin') || '{}');
-        const docLimpo = documento.replace(/[^\d]+/g, '');
-        const tentativasUsuario = tentativas[docLimpo] || [];
-        
-        const agora = Date.now();
-        const ultimaHora = agora - (60 * 60 * 1000);
-        
-        const falhasRecentes = tentativasUsuario.filter(t => 
-            !t.sucesso && t.timestamp > ultimaHora
-        ).length;
-        
-        return {
-            bloqueado: falhasRecentes >= 5,
-            tempoRestante: falhasRecentes >= 5 ? Math.ceil((agora - ultimaHora) / 60000) : 0
-        };
-    } catch {
-        return { bloqueado: false, tempoRestante: 0 };
-    }
-}
-
-function registrarTentativaBackground(documento, sucesso) {
-    // Execução em background para não atrasar login
-    setTimeout(() => {
-        try {
-            const tentativas = JSON.parse(localStorage.getItem('tentativasLogin') || '{}');
-            const docLimpo = documento.replace(/[^\d]+/g, '');
-            
-            if (!tentativas[docLimpo]) {
-                tentativas[docLimpo] = [];
-            }
-            
-            tentativas[docLimpo].push({
-                timestamp: Date.now(),
-                sucesso
-            });
-            
-            // Manter apenas 5 últimas
-            tentativas[docLimpo] = tentativas[docLimpo].slice(-5);
-            localStorage.setItem('tentativasLogin', JSON.stringify(tentativas));
-        } catch (error) {
-            console.warn('Erro ao registrar tentativa:', error);
-        }
-    }, 0);
-}
-
-// ================================================================
-// FUNÇÕES DE RECUPERAÇÃO DE SENHA
-// ================================================================
 
 function gerarCodigoRecuperacao() {
     return Math.floor(100000 + Math.random() * 900000).toString();
@@ -830,13 +650,9 @@ async function enviarEmailRecuperacao(email, codigo, nomeUsuario = 'Usuário') {
 }
 
 function obterUsuarioPorEmail(email) {
-    const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+    const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]');
     return usuarios.find(u => u.email.toLowerCase() === email.toLowerCase());
 }
-
-// ================================================================
-// VALIDAÇÕES
-// ================================================================
 
 function validarCPF(cpf) {
     cpf = cpf.replace(/[^\d]+/g, '');
@@ -881,7 +697,7 @@ function validarCNPJ(cnpj) {
     let resultado = soma % 11 < 2 ? 0 : 11 - soma % 11;
     if (resultado != digitos.charAt(0)) return false;
     
-    tamanho += 1;
+    tamanho++;
     numeros = cnpj.substring(0, tamanho);
     soma = 0;
     pos = tamanho - 7;
@@ -908,12 +724,10 @@ function formatarDocumento(input) {
     let documento = input.value.replace(/\D/g, '');
     
     if (documento.length <= 11) {
-        // CPF
         documento = documento.replace(/(\d{3})(\d)/, '$1.$2');
         documento = documento.replace(/(\d{3})(\d)/, '$1.$2');
         documento = documento.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
     } else {
-        // CNPJ
         documento = documento.replace(/^(\d{2})(\d)/, '$1.$2');
         documento = documento.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
         documento = documento.replace(/\.(\d{3})(\d)/, '.$1/$2');
@@ -922,10 +736,6 @@ function formatarDocumento(input) {
     
     input.value = documento.substring(0, 18);
 }
-
-// ================================================================
-// FUNÇÕES DE MENSAGENS
-// ================================================================
 
 function mostrarErroLogin(errorElement, mensagem) {
     if (errorElement) {
@@ -955,10 +765,6 @@ function mostrarErroNovaSenha(mensagem) {
     }
 }
 
-// ================================================================
-// UTILITÁRIOS
-// ================================================================
-
 function testLocalStorage() {
     try {
         localStorage.setItem('__test__', 'test');
@@ -987,7 +793,6 @@ function verificarELimparDados() {
     try {
         const agora = Date.now();
         
-        // Limpar códigos de recuperação expirados
         const codigosRecuperacao = JSON.parse(localStorage.getItem('codigosRecuperacao') || '{}');
         let alterou = false;
         
@@ -1001,38 +806,12 @@ function verificarELimparDados() {
         if (alterou) {
             localStorage.setItem('codigosRecuperacao', JSON.stringify(codigosRecuperacao));
         }
-        
-        // Limpar tentativas antigas
-        const tentativas = JSON.parse(localStorage.getItem('tentativasLogin') || '{}');
-        alterou = false;
-        
-        Object.keys(tentativas).forEach(doc => {
-            const tentativasValidas = tentativas[doc].filter(t => 
-                agora - t.timestamp < 24 * 60 * 60 * 1000
-            );
-            
-            if (tentativasValidas.length !== tentativas[doc].length) {
-                tentativas[doc] = tentativasValidas;
-                alterou = true;
-            }
-            
-            if (tentativas[doc].length === 0) {
-                delete tentativas[doc];
-                alterou = true;
-            }
-        });
-        
-        if (alterou) {
-            localStorage.setItem('tentativasLogin', JSON.stringify(tentativas));
-        }
-        
     } catch (error) {
         console.warn('Erro na limpeza:', error);
     }
 }
 
 function configurarLoginMinimo() {
-    // Fallback básico caso tudo falhe
     try {
         const loginForm = document.getElementById('login-form');
         const modalLoginForm = document.getElementById('modal-login-form');
@@ -1084,10 +863,6 @@ function processarLoginMinimo(documento, password) {
     }
 }
 
-// ================================================================
-// FUNÇÕES GLOBAIS EXPORTADAS
-// ================================================================
-
 function togglePassword(inputId, button) {
     const input = document.getElementById(inputId);
     const icon = button.querySelector('i');
@@ -1113,19 +888,18 @@ function diagnosticoLogin() {
         sistemaInicializado: window.loginSistemaInicializado || false,
         emailJSDisponivel,
         localStorage: testLocalStorage(),
-        usuarios: JSON.parse(localStorage.getItem('usuarios') || '[]').length,
-        usuarioAtual: sessionStorage.getItem('usuarioAtual'),
-        usuarioDadosDisponivel: !!window.usuarioDados
+        token: !!sessionStorage.getItem('token'),
+        usuarioAtual: sessionStorage.getItem('usuarioAtual')
     };
 }
 
 function limparSessao() {
     sessionStorage.removeItem('usuarioAtual');
     sessionStorage.removeItem('dadosUsuarioLogado');
+    sessionStorage.removeItem('token');
     console.log('Sessão limpa');
 }
 
-// Exportar para escopo global
 window.togglePassword = togglePassword;
 window.diagnosticoLogin = diagnosticoLogin;
 window.limparSessao = limparSessao;

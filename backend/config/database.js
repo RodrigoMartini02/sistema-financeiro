@@ -1,24 +1,17 @@
-// ================================================================
-// CONEXÃO COM POSTGRESQL
-// ================================================================
-
 const { Pool } = require('pg');
 require('dotenv').config();
 
 const pool = new Pool({
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 5433,
-    user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME || 'sistema_financas',
+    connectionString: process.env.DATABASE_URL || 
+        `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 2000,
-    // ADICIONE ESTAS LINHAS ABAIXO:
-    ssl: process.env.DB_HOST ? { rejectUnauthorized: false } : false
+    ssl: process.env.DATABASE_URL ? {
+        rejectUnauthorized: false
+    } : false
 });
 
-// Teste de conexão
 pool.on('connect', () => {
     console.log('✅ Conectado ao PostgreSQL');
 });
@@ -27,7 +20,6 @@ pool.on('error', (err) => {
     console.error('❌ Erro inesperado no PostgreSQL:', err);
 });
 
-// Função para verificar conexão
 const testarConexao = async () => {
     try {
         const client = await pool.connect();
@@ -41,7 +33,6 @@ const testarConexao = async () => {
     }
 };
 
-// Query helper
 const query = async (text, params) => {
     const start = Date.now();
     try {
