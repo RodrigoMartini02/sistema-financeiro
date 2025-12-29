@@ -10,8 +10,10 @@ const PORT = process.env.PORT || 3010; // Mudado para 3010 (padrão que você us
 
 // Configuração CORS
 app.use(cors({
-    origin: ['http://localhost:5500', 'http://127.0.0.1:5500', 'http://localhost:3000'],
-    credentials: true
+    origin: [
+        'http://localhost:5500',
+        'https://sistema-financeiro-kved.onrender.com'  // ← ADICIONAR ESTA
+    ]
 }));
 
 // Middleware de parsing
