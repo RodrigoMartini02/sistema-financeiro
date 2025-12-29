@@ -106,8 +106,9 @@ const iniciarServidor = async () => {
       // No seu server.js, dentro de iniciarServidor:
 const { query } = require('./config/database'); 
 
-console.log('📦 Forçando criação da estrutura...');
-// Criamos a tabela garantindo o esquema 'public' e sem acento para evitar conflitos de sistema
+console.log('📦 Sincronizando tabelas com o banco...');
+
+// 1. Criamos a tabela oficial sem acento (padrão de banco de dados)
 await query(`
     CREATE TABLE IF NOT EXISTS usuarios (
         id SERIAL PRIMARY KEY,
@@ -120,10 +121,14 @@ await query(`
     );
 `);
 
-// Criamos um "apelido" (alias) com acento, caso o seu código antigo ainda procure por "usuários"
-await query(`CREATE OR REPLACE VIEW usuários AS SELECT * FROM usuarios;`);
+// 2. Criamos uma "Vista" (View) para que, se o código procurar COM acento, 
+// ele encontre os dados da tabela SEM acento automaticamente.
+await query(`
+    CREATE OR REPLACE VIEW usuários AS 
+    SELECT * FROM usuarios;
+`);
 
-console.log('✅ Estrutura de dados sincronizada!');
+console.log('✅ Banco de dados sincronizado (usuarios + usuários)!');
 
         app.listen(PORT, () => {
             console.log('================================================');
