@@ -1,7 +1,12 @@
 // ================================================================
 // SISTEMA DE CONFIGURAÇÕES
 // ================================================================
+// ADICIONAR APENAS ESTAS LINHAS NO INÍCIO:
+window.API_URL = window.API_URL || 'http://localhost:3010/api';
 
+function getToken() {
+    return sessionStorage.getItem('token');
+}
 // ================================================================
 // VARIÁVEIS GLOBAIS
 // ================================================================
@@ -144,55 +149,79 @@ function validarValidade(validade) {
 // ================================================================
 // SISTEMA DE CATEGORIAS
 // ================================================================
-function carregarCategoriasLocal() {
-    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
-    if (!usuarioAtual) {
-        categoriasUsuario.despesas = [...categoriasPadrao.despesas];
-        return;
-    }
-    
+async function carregarCategoriasAPI() {
     try {
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const usuario = usuarios.find(u => 
-            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
-        );
-        
-        if (usuario) {
-            if (!usuario.categorias) {
-                usuario.categorias = { despesas: [...categoriasPadrao.despesas] };
-                localStorage.setItem('usuarios', JSON.stringify(usuarios));
-            }
-            
-            categoriasUsuario.despesas = usuario.categorias.despesas || [...categoriasPadrao.despesas];
-        } else {
+        const token = getToken();
+        if (!token) {
             categoriasUsuario.despesas = [...categoriasPadrao.despesas];
+            return;
+        }
+
+        const response = await fetch(`${API_URL}/categorias`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            categoriasUsuario.despesas = data.data.map(cat => cat.nome);
+        } else {
+            carregarCategoriasLocalFallback();
         }
     } catch (error) {
-        categoriasUsuario.despesas = [...categoriasPadrao.despesas];
+        carregarCategoriasLocalFallback();
     }
 }
 
-function salvarCategorias() {
-    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
-    if (!usuarioAtual) return false;
-    
+
+
+
+
+
+async function salvarCategoriasAPI(nome, acao = 'criar', categoriaId = null) {
     try {
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const index = usuarios.findIndex(u => 
-            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
-        );
-        
-        if (index !== -1) {
-            if (!usuarios[index].categorias) {
-                usuarios[index].categorias = {};
-            }
-            usuarios[index].categorias.despesas = categoriasUsuario.despesas;
-            localStorage.setItem('usuarios', JSON.stringify(usuarios));
-            return true;
+        const token = getToken();
+        if (!token) {
+            return salvarCategoriasLocalFallback();
         }
-        return false;
+
+        let response;
+        
+        if (acao === 'criar') {
+            response = await fetch(`${API_URL}/categorias`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    nome: nome,
+                    cor: '#3498db',
+                    icone: null
+                })
+            });
+        } else if (acao === 'editar') {
+            response = await fetch(`${API_URL}/categorias/${categoriaId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    nome: nome,
+                    cor: '#3498db',
+                    icone: null
+                })
+            });
+        } else if (acao === 'excluir') {
+            response = await fetch(`${API_URL}/categorias/${categoriaId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+        }
+
+        return response && response.ok;
     } catch (error) {
-        return false;
+        return salvarCategoriasLocalFallback();
     }
 }
 
@@ -218,7 +247,7 @@ function atualizarDropdowns() {
     }
 }
 
-function adicionarCategoria() {
+async function adicionarCategoria() {
     const inputNovaCategoria = document.getElementById('nova-categoria-nome');
     if (!inputNovaCategoria) return;
     
@@ -233,19 +262,18 @@ function adicionarCategoria() {
         return;
     }
     
-    categoriasUsuario.despesas.push(nomeCat);
-    categoriasUsuario.despesas.sort();
+    const sucesso = await salvarCategoriasAPI(nomeCat, 'criar');
     
-    if (salvarCategorias()) {
+    if (sucesso) {
+        categoriasUsuario.despesas.push(nomeCat);
+        categoriasUsuario.despesas.sort();
+        
         inputNovaCategoria.value = '';
+        await carregarCategoriasAPI();
         atualizarListaCategorias();
         atualizarDropdowns();
         mostrarFeedback('Alterações realizadas com sucesso!', 'success');
     } else {
-        const index = categoriasUsuario.despesas.indexOf(nomeCat);
-        if (index > -1) {
-            categoriasUsuario.despesas.splice(index, 1);
-        }
         mostrarFeedback('Erro ao salvar categoria. Tente novamente.', 'error');
     }
 }
@@ -290,26 +318,34 @@ function editarCategoria(categoria) {
     }
 }
 
-function removerCategoria(categoria) {
+async function removerCategoria(categoria) {
     const confirmar = confirm(`Tem certeza que deseja remover a categoria "${categoria}"?`);
     if (!confirmar) return;
     
-    const index = categoriasUsuario.despesas.indexOf(categoria);
-    if (index !== -1) {
-        const categoriaRemovida = categoriasUsuario.despesas.splice(index, 1)[0];
-        
-        if (salvarCategorias()) {
-            atualizarListaCategorias();
-            atualizarDropdowns();
-            mostrarFeedback('Alterações realizadas com sucesso!', 'success');
-        } else {
-            categoriasUsuario.despesas.splice(index, 0, categoriaRemovida);
-            mostrarFeedback('Erro ao remover categoria. Tente novamente.', 'error');
+    const categoriaId = await obterCategoriaId(categoria);
+    if (!categoriaId) {
+        mostrarFeedback('Erro: categoria não encontrada.', 'error');
+        return;
+    }
+    
+    const sucesso = await salvarCategoriasAPI(categoria, 'excluir', categoriaId);
+    
+    if (sucesso) {
+        const index = categoriasUsuario.despesas.indexOf(categoria);
+        if (index !== -1) {
+            categoriasUsuario.despesas.splice(index, 1);
         }
+        
+        await carregarCategoriasAPI();
+        atualizarListaCategorias();
+        atualizarDropdowns();
+        mostrarFeedback('Alterações realizadas com sucesso!', 'success');
+    } else {
+        mostrarFeedback('Erro ao remover categoria. Tente novamente.', 'error');
     }
 }
 
-function salvarEdicaoCategoria() {
+async function salvarEdicaoCategoria() {
     const nomeInput = document.getElementById('categoria-edit-nome');
     const nomeOriginalInput = document.getElementById('categoria-edit-nome-original');
     
@@ -328,97 +364,123 @@ function salvarEdicaoCategoria() {
         return;
     }
     
-    const index = categoriasUsuario.despesas.indexOf(nomeOriginal);
-    if (index !== -1) {
-        categoriasUsuario.despesas[index] = novoNome;
-        categoriasUsuario.despesas.sort();
-        
-        if (salvarCategorias()) {
-            atualizarListaCategorias();
-            atualizarDropdowns();
-            document.getElementById('modal-editar-categoria').style.display = 'none';
-            mostrarFeedback('Alterações realizadas com sucesso!', 'success');
-        } else {
-            categoriasUsuario.despesas[index] = nomeOriginal;
-            mostrarFeedback('Erro ao salvar alteração. Tente novamente.', 'error');
+    const categoriaId = await obterCategoriaId(nomeOriginal);
+    if (!categoriaId) {
+        mostrarFeedback('Erro: categoria não encontrada.', 'error');
+        return;
+    }
+    
+    const sucesso = await salvarCategoriasAPI(novoNome, 'editar', categoriaId);
+    
+    if (sucesso) {
+        const index = categoriasUsuario.despesas.indexOf(nomeOriginal);
+        if (index !== -1) {
+            categoriasUsuario.despesas[index] = novoNome;
+            categoriasUsuario.despesas.sort();
         }
+        
+        await carregarCategoriasAPI();
+        atualizarListaCategorias();
+        atualizarDropdowns();
+        document.getElementById('modal-editar-categoria').style.display = 'none';
+        mostrarFeedback('Alterações realizadas com sucesso!', 'success');
+    } else {
+        mostrarFeedback('Erro ao salvar alteração. Tente novamente.', 'error');
     }
 }
 
 // ================================================================
 // SISTEMA DE CARTÕES
 // ================================================================
-function carregarCartoesLocal() {
-    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
-    if (!usuarioAtual) {
-        cartoesUsuario = {
-            cartao1: { nome: '', validade: '', limite: 0, ativo: false },
-            cartao2: { nome: '', validade: '', limite: 0, ativo: false },
-            cartao3: { nome: '', validade: '', limite: 0, ativo: false }
-        };
-        window.cartoesUsuario = cartoesUsuario;
-        return;
-    }
-    
+async function carregarCartoesAPI() {
     try {
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const usuario = usuarios.find(u => 
-            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
-        );
-        
-        if (usuario) {
-            if (!usuario.cartoes) {
-                usuario.cartoes = {
-                    cartao1: { nome: '', validade: '', limite: 0, ativo: false },
-                    cartao2: { nome: '', validade: '', limite: 0, ativo: false },
-                    cartao3: { nome: '', validade: '', limite: 0, ativo: false }
-                };
-                localStorage.setItem('usuarios', JSON.stringify(usuarios));
-            }
-            
-            cartoesUsuario = usuario.cartoes;
-            window.cartoesUsuario = usuario.cartoes;
-        } else {
+        const token = getToken();
+        if (!token) {
             cartoesUsuario = {
                 cartao1: { nome: '', validade: '', limite: 0, ativo: false },
                 cartao2: { nome: '', validade: '', limite: 0, ativo: false },
                 cartao3: { nome: '', validade: '', limite: 0, ativo: false }
             };
             window.cartoesUsuario = cartoesUsuario;
+            return;
+        }
+
+        const response = await fetch(`${API_URL}/cartoes`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const cartoes = data.data || [];
+            
+            cartoesUsuario = {
+                cartao1: { nome: '', validade: '', limite: 0, ativo: false },
+                cartao2: { nome: '', validade: '', limite: 0, ativo: false },
+                cartao3: { nome: '', validade: '', limite: 0, ativo: false }
+            };
+            
+            cartoes.forEach((cartao, index) => {
+                if (index < 3) {
+                    const numeroCartao = index + 1;
+                    cartoesUsuario[`cartao${numeroCartao}`] = {
+                        nome: cartao.nome || '',
+                        validade: `${cartao.dia_fechamento}/${cartao.dia_vencimento}` || '',
+                        limite: parseFloat(cartao.limite) || 0,
+                        ativo: true
+                    };
+                }
+            });
+            
+            window.cartoesUsuario = cartoesUsuario;
+        } else {
+            carregarCartoesLocalFallback();
         }
     } catch (error) {
-        console.error('Erro ao carregar cartões:', error);
-        cartoesUsuario = {
-            cartao1: { nome: '', validade: '', limite: 0, ativo: false },
-            cartao2: { nome: '', validade: '', limite: 0, ativo: false },
-            cartao3: { nome: '', validade: '', limite: 0, ativo: false }
-        };
-        window.cartoesUsuario = cartoesUsuario;
+        carregarCartoesLocalFallback();
     }
 }
 
-function salvarCartoes() {
-    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
-    if (!usuarioAtual) return false;
-    
+async function salvarCartoesAPI() {
     try {
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const index = usuarios.findIndex(u => 
-            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
-        );
+        const token = getToken();
+        if (!token) {
+            return salvarCartoesLocalFallback();
+        }
+
+        const cartoesAtivos = [];
         
-        if (index !== -1) {
-            usuarios[index].cartoes = cartoesUsuario;
-            usuarios[index].ultimaAtualizacaoCartoes = new Date().toISOString();
-            localStorage.setItem('usuarios', JSON.stringify(usuarios));
-            
+        ['1', '2', '3'].forEach(num => {
+            const cartao = cartoesUsuario[`cartao${num}`];
+            if (cartao && cartao.ativo && cartao.nome && cartao.nome.trim() !== '') {
+                const [diaFechamento, diaVencimento] = (cartao.validade || '/').split('/');
+                
+                cartoesAtivos.push({
+                    nome: cartao.nome,
+                    limite: parseFloat(cartao.limite) || 0,
+                    dia_fechamento: parseInt(diaFechamento) || 1,
+                    dia_vencimento: parseInt(diaVencimento) || 1,
+                    cor: '#3498db'
+                });
+            }
+        });
+
+        const response = await fetch(`${API_URL}/cartoes`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ cartoes: cartoesAtivos })
+        });
+
+        if (response.ok) {
             window.cartoesUsuario = cartoesUsuario;
             return true;
+        } else {
+            return salvarCartoesLocalFallback();
         }
-        return false;
     } catch (error) {
-        console.error('Erro ao salvar cartões:', error);
-        return false;
+        return salvarCartoesLocalFallback();
     }
 }
 
@@ -482,7 +544,7 @@ function preencherFormularioCartoes() {
     });
 }
 
-function salvarCartoesForms() {
+async function salvarCartoesForms() {
     try {
         let cartoesAlterados = false;
         let errosValidacao = [];
@@ -541,7 +603,7 @@ function salvarCartoesForms() {
             return;
         }
         
-        if (salvarCartoes()) {
+        if (await salvarCartoesAPI()) {
             atualizarOpcoesCartoes();
             window.cartoesUsuario = cartoesUsuario;
             
@@ -1150,7 +1212,7 @@ function setupEventListeners() {
     
     const btnSalvarCartoes = document.getElementById('btn-salvar-cartoes');
     if (btnSalvarCartoes) {
-        btnSalvarCartoes.addEventListener('click', salvarCartoesForms);
+       btnSalvarCartoes.addEventListener('click', async () => await salvarCartoesForms());
     }
     
     ['1', '2', '3'].forEach(num => {
@@ -1305,7 +1367,7 @@ function setupEventListeners() {
     }
 }
 
-function inicializarConfiguracoes() {
+async function inicializarConfiguracoes() {
     if (!window.sistemaInicializado) {
         setTimeout(inicializarConfiguracoes, 200);
         return;
@@ -1314,8 +1376,8 @@ function inicializarConfiguracoes() {
     garantirUsuarioMaster();
     obterTipoUsuarioAtual();
     
-    carregarCategoriasLocal();
-    carregarCartoesLocal();
+    await carregarCategoriasAPI();
+    await carregarCartoesAPI();
     
     setupConfigTabs();
     setupEventListeners();
@@ -1328,8 +1390,153 @@ function inicializarConfiguracoes() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(inicializarConfiguracoes, 1000);
+    setTimeout(async () => await inicializarConfiguracoes(), 1000);
 });
+
+
+
+
+
+function carregarCategoriasLocalFallback() {
+    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
+    if (!usuarioAtual) {
+        categoriasUsuario.despesas = [...categoriasPadrao.despesas];
+        return;
+    }
+    
+    try {
+        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+        const usuario = usuarios.find(u => 
+            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
+        );
+        
+        if (usuario && usuario.categorias) {
+            categoriasUsuario.despesas = usuario.categorias.despesas || [...categoriasPadrao.despesas];
+        } else {
+            categoriasUsuario.despesas = [...categoriasPadrao.despesas];
+        }
+    } catch (error) {
+        categoriasUsuario.despesas = [...categoriasPadrao.despesas];
+    }
+}
+
+
+
+
+function salvarCategoriasLocalFallback() {
+    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
+    if (!usuarioAtual) return false;
+    
+    try {
+        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+        const index = usuarios.findIndex(u => 
+            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
+        );
+        
+        if (index !== -1) {
+            if (!usuarios[index].categorias) {
+                usuarios[index].categorias = {};
+            }
+            usuarios[index].categorias.despesas = categoriasUsuario.despesas;
+            localStorage.setItem('usuarios', JSON.stringify(usuarios));
+            return true;
+        }
+        return false;
+    } catch (error) {
+        return false;
+    }
+}
+
+async function obterCategoriaId(nomeCategoria) {
+    try {
+        const token = getToken();
+        if (!token) return null;
+
+        const response = await fetch(`${API_URL}/categorias`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const categoria = data.data.find(cat => cat.nome === nomeCategoria);
+            return categoria ? categoria.id : null;
+        }
+        return null;
+    } catch (error) {
+        return null;
+    }
+}
+
+
+function carregarCartoesLocalFallback() {
+    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
+    if (!usuarioAtual) {
+        cartoesUsuario = {
+            cartao1: { nome: '', validade: '', limite: 0, ativo: false },
+            cartao2: { nome: '', validade: '', limite: 0, ativo: false },
+            cartao3: { nome: '', validade: '', limite: 0, ativo: false }
+        };
+        window.cartoesUsuario = cartoesUsuario;
+        return;
+    }
+    
+    try {
+        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+        const usuario = usuarios.find(u => 
+            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
+        );
+        
+        if (usuario && usuario.cartoes) {
+            cartoesUsuario = usuario.cartoes;
+            window.cartoesUsuario = usuario.cartoes;
+        } else {
+            cartoesUsuario = {
+                cartao1: { nome: '', validade: '', limite: 0, ativo: false },
+                cartao2: { nome: '', validade: '', limite: 0, ativo: false },
+                cartao3: { nome: '', validade: '', limite: 0, ativo: false }
+            };
+            window.cartoesUsuario = cartoesUsuario;
+        }
+    } catch (error) {
+        cartoesUsuario = {
+            cartao1: { nome: '', validade: '', limite: 0, ativo: false },
+            cartao2: { nome: '', validade: '', limite: 0, ativo: false },
+            cartao3: { nome: '', validade: '', limite: 0, ativo: false }
+        };
+        window.cartoesUsuario = cartoesUsuario;
+    }
+}
+
+
+
+
+
+function salvarCartoesLocalFallback() {
+    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
+    if (!usuarioAtual) return false;
+    
+    try {
+        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+        const index = usuarios.findIndex(u => 
+            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
+        );
+        
+        if (index !== -1) {
+            usuarios[index].cartoes = cartoesUsuario;
+            usuarios[index].ultimaAtualizacaoCartoes = new Date().toISOString();
+            localStorage.setItem('usuarios', JSON.stringify(usuarios));
+            
+            window.cartoesUsuario = cartoesUsuario;
+            return true;
+        }
+        return false;
+    } catch (error) {
+        return false;
+    }
+}
+
+
+
 
 window.categoriasUsuario = categoriasUsuario;
 window.cartoesUsuario = cartoesUsuario;
@@ -1356,3 +1563,17 @@ window.validarValidade = validarValidade;
 
 window.mostrarFeedback = mostrarFeedback;
 window.inicializarConfiguracoes = inicializarConfiguracoes;
+
+
+
+
+// Novas funções da API
+window.carregarCategoriasAPI = carregarCategoriasAPI;
+window.salvarCategoriasAPI = salvarCategoriasAPI;
+window.obterCategoriaId = obterCategoriaId;
+window.carregarCartoesAPI = carregarCartoesAPI;
+window.salvarCartoesAPI = salvarCartoesAPI;
+window.carregarCategoriasLocalFallback = carregarCategoriasLocalFallback;
+window.salvarCategoriasLocalFallback = salvarCategoriasLocalFallback;
+window.carregarCartoesLocalFallback = carregarCartoesLocalFallback;
+window.salvarCartoesLocalFallback = salvarCartoesLocalFallback;

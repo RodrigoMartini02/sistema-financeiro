@@ -3,6 +3,14 @@
 // ESTRUTURA, CONSTANTES, INICIALIZAÇÃO E RENDERIZAÇÃO
 // ================================================================
 
+
+window.API_URL = window.API_URL || 'http://localhost:3010/api';
+
+function getToken() {
+    return sessionStorage.getItem('token');
+}
+
+
 let processandoDespesa = false;
 
 const ERROS = {
@@ -964,20 +972,129 @@ function coletarDadosFormularioDespesa() {
 
 async function salvarDespesaLocal(formData) {
     try {
-        window.garantirEstruturaDados(formData.ano, formData.mes);
-        
-        if (formData.id !== '' && formData.id !== null) {
-            await atualizarDespesaExistente(formData);
-        } else {
-            await adicionarNovaDespesa(formData);
+        const token = getToken();
+        if (!token) {
+            throw new Error('Usuário não autenticado');
         }
         
-        return await window.salvarDados();
+        // Preparar dados para a API
+        const dadosAPI = {
+            descricao: formData.descricao,
+            valor: formData.valor,
+            data_vencimento: formData.dataVencimento,
+            mes: formData.mes,
+            ano: formData.ano,
+           categoria_id: 1,
+            forma_pagamento: formData.formaPagamento,
+            cartao_id: formData.numeroCartao,
+            parcelado: formData.parcelado,
+            total_parcelas: formData.totalParcelas,
+            pago: formData.jaPago || false,
+            observacoes: formData.observacoes || null
+        };
+        
+        let response;
+        
+        if (formData.id !== '' && formData.id !== null) {
+            // Atualizar despesa existente
+            response = await fetch(`${API_URL}/despesas/${formData.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(dadosAPI)
+            });
+        } else {
+            // Criar nova despesa
+            response = await fetch(`${API_URL}/despesas`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(dadosAPI)
+            });
+        }
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.message || 'Erro ao salvar despesa');
+        }
+        
+        console.log('✅ Despesa salva na API:', data);
+        
+        // Recarregar despesas após salvar
+        await buscarEExibirDespesas(formData.mes, formData.ano);
+        
+        return true;
         
     } catch (error) {
+        console.error('❌ Erro ao salvar despesa:', error);
+        alert('Erro ao salvar despesa: ' + error.message);
         return false;
     }
 }
+
+
+async function buscarEExibirDespesas(mes, ano) {
+    try {
+        console.log(`🔍 Buscando despesas do mês ${mes}/${ano} via API`);
+        
+        const token = getToken();
+        if (!token) {
+            throw new Error('Usuário não autenticado');
+        }
+        
+        const response = await fetch(`${API_URL}/despesas?mes=${mes}&ano=${ano}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.message || 'Erro ao buscar despesas');
+        }
+        
+        console.log('✅ Despesas carregadas da API:', data.data);
+        
+        // Converter formato da API para formato do frontend
+        const despesasFormatadas = data.data.map(d => ({
+            id: d.id,
+            descricao: d.descricao,
+            categoria: d.categoria_nome || d.categoria_id,
+            formaPagamento: d.forma_pagamento,
+            numeroCartao: d.cartao_id,
+            valor: parseFloat(d.valor),
+            dataVencimento: d.data_vencimento,
+            mes: d.mes,
+            ano: d.ano,
+            parcelado: d.parcelado,
+            totalParcelas: d.total_parcelas,
+            parcelaAtual: d.parcela_atual,
+            pago: d.pago,
+            quitado: d.pago,
+            observacoes: d.observacoes,
+            anexos: []
+        }));
+        
+        // Renderizar as despesas usando a função existente
+        const mesFechado = false; // Verificar se o mês está fechado
+        renderizarDespesas(despesasFormatadas, mes, ano, mesFechado);
+        
+        return despesasFormatadas;
+        
+    } catch (error) {
+        console.error('❌ Erro ao buscar despesas:', error);
+        alert('Erro ao carregar despesas: ' + error.message);
+        return [];
+    }
+}
+
 
 async function adicionarNovaDespesa(formData) {
   garantirEstruturaDados(formData.ano, formData.mes);
@@ -1754,24 +1871,49 @@ async function processarExclusao(opcao, index, mes, ano, descricaoDespesa, categ
 
 async function excluirDespesaLocal(opcao, index, mes, ano, descricaoDespesa, categoriaDespesa, idGrupoParcelamento) {
     try {
-        if (opcao === 'atual') {
-            if (dadosFinanceiros[ano]?.meses[mes]?.despesas[index]) {
-                dadosFinanceiros[ano].meses[mes].despesas.splice(index, 1);
-            }
-        } 
-        else if (opcao === 'todas') {
-            if (idGrupoParcelamento) {
-                await excluirTodasParcelas(ano, descricaoDespesa, categoriaDespesa, idGrupoParcelamento);
-            } else {
-                await excluirDespesaEmTodosMeses(ano, descricaoDespesa, categoriaDespesa);
-            }
+        const token = getToken();
+        if (!token) {
+            throw new Error('Usuário não autenticado');
         }
         
-        return await salvarDados();
+        // Para simplificar inicialmente, vamos só excluir a despesa atual
+        const despesaId = obterIdDespesaPorIndex(index, mes, ano);
+        
+        if (!despesaId) {
+            throw new Error('ID da despesa não encontrado');
+        }
+        
+        const response = await fetch(`${API_URL}/despesas/${despesaId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.message || 'Erro ao excluir despesa');
+        }
+        
+        console.log('✅ Despesa excluída da API');
+        
+        // Recarregar despesas após excluir
+        await buscarEExibirDespesas(mes, ano);
+        
+        return true;
         
     } catch (error) {
+        console.error('❌ Erro ao excluir despesa:', error);
         return false;
     }
+}
+
+function obterIdDespesaPorIndex(index, mes, ano) {
+    // Esta função precisa ser implementada para mapear index para ID da API
+    const linha = document.querySelector(`[data-index="${index}"]`)?.closest('.grid-row');
+    return linha?.getAttribute('data-despesa-id');
 }
 
 async function excluirTodasParcelas(ano, descricao, categoria, idGrupo) {
@@ -2228,94 +2370,54 @@ function configurarFormPagamento(index, mes, ano, despesa) {
 
 async function processarPagamento(index, mes, ano, valorPago = null, quitarParcelasFuturas = false) {
     try {
-        if (!dadosFinanceiros[ano] || !dadosFinanceiros[ano].meses[mes]) {
-            throw new Error('Estrutura de dados do mês é inválida');
+        const token = getToken();
+        if (!token) {
+            throw new Error('Usuário não autenticado');
         }
         
-        const despesas = dadosFinanceiros[ano].meses[mes].despesas;
-        
-        if (!Array.isArray(despesas)) {
-            throw new Error('Lista de despesas inválida');
+        const despesaId = obterIdDespesaPorIndex(index, mes, ano);
+        if (!despesaId) {
+            throw new Error('ID da despesa não encontrado');
         }
         
-        if (index < 0 || index >= despesas.length || !despesas[index] || despesas[index].transferidaParaProximoMes) {
-            throw new Error('Despesa não encontrada no índice especificado');
-        }
-        
-        const despesa = despesas[index];
-        
-        if (despesa.quitado === true || despesa.valorPago > 0) {
-            throw new Error('Esta despesa já foi paga anteriormente');
-        }
-        
-        const valorFinal = valorPago !== null ? valorPago : despesa.valor;
-        
-        despesa.valorPago = parseFloat(valorFinal);
-        despesa.quitado = true;
-        despesa.status = 'quitada';
         const inputDataPagamento = document.getElementById('data-pagamento-individual');
-        despesa.dataPagamento = inputDataPagamento ? inputDataPagamento.value : 
-                        new Date().toISOString().split('T')[0];
+        const dataPagamento = inputDataPagamento ? inputDataPagamento.value : 
+                            new Date().toISOString().split('T')[0];
         
-        // NOVA FUNCIONALIDADE: Unificar anexos de cadastro com comprovantes
-        if (window.sistemaAnexos) {
-            const comprovantes = window.sistemaAnexos.obterAnexosParaSalvar('comprovante');
-            if (comprovantes.length > 0) {
-                console.log('Comprovantes encontrados:', comprovantes.length); // Debug
-                
-                // Inicializar array de anexos se não existir
-                if (!despesa.anexos) {
-                    despesa.anexos = [];
-                }
-                
-                // Marcar comprovantes como tal e adicionar aos anexos principais
-                comprovantes.forEach(comprovante => {
-                    comprovante.tipoAnexo = 'comprovante';
-                    comprovante.dataPagamento = despesa.dataPagamento;
-                    comprovante.descricaoTipo = 'Comprovante de Pagamento';
-                    console.log('Comprovante marcado:', comprovante.nome); // Debug
-                });
-                
-                // Adicionar comprovantes aos anexos principais
-                despesa.anexos.push(...comprovantes);
-                console.log('Total de anexos após adição:', despesa.anexos.length); // Debug
-            }
-            
-            // Limpar comprovantes temporários
-            window.sistemaAnexos.limparAnexosTemporarios('comprovante');
+        const dadosPagamento = {
+            valor_pago: valorPago,
+            data_pagamento: dataPagamento,
+            quitar_futuras: quitarParcelasFuturas
+        };
+        
+        const response = await fetch(`${API_URL}/despesas/${despesaId}/pagar`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(dadosPagamento)
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.message || 'Erro ao processar pagamento');
         }
         
-        if (quitarParcelasFuturas) {
-            despesa.quitacaoAntecipada = true;
-            despesa.valorQuitacaoTotal = parseFloat(valorFinal);
-        }
+        console.log('✅ Pagamento processado na API');
         
-        if (quitarParcelasFuturas && despesa.parcelado && despesa.idGrupoParcelamento) {
-            await processarParcelasFuturas(despesa, ano, mes);
-        }
-        
-        const sucessoSalvamento = await window.salvarDados();
-        if (!sucessoSalvamento) {
-            throw new Error('Falha ao salvar os dados');
-        }
-        
-        if (typeof window.carregarDadosDashboard === 'function') {
-            await window.carregarDadosDashboard(window.anoAtual || ano);
-        }
-        
-        if (typeof window.renderizarDetalhesDoMes === 'function') {
-            window.renderizarDetalhesDoMes(mes, ano);
-        }
+        // Recarregar despesas
+        await buscarEExibirDespesas(mes, ano);
         
         return true;
         
     } catch (error) {
-        console.error('Erro ao processar pagamento:', error);
-        alert("Erro ao processar pagamento: " + error.message);
+        console.error('❌ Erro ao processar pagamento:', error);
+        alert('Erro ao processar pagamento: ' + error.message);
         return false;
     }
 }
-
 
 
 
@@ -3196,6 +3298,19 @@ function toggleCamposPagamentoImediato() {
         console.log('Despesa marcada como já paga');
     }
 }
+
+
+
+function carregarDespesasAtual() {
+    const agora = new Date();
+    const mesAtual = agora.getMonth();
+    const anoAtual = agora.getFullYear();
+    buscarEExibirDespesas(mesAtual, anoAtual);
+}
+
+document.addEventListener('DOMContentLoaded', carregarDespesasAtual);
+
+
 
 // ================================================================
 // EXPORTAÇÕES GLOBAIS

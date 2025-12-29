@@ -4,9 +4,7 @@
 // Se o sistema estiver rodando no Render, use a URL do Render. 
 // Caso contrário, use o localhost (para quando você estiver testando no PC).
 // Define onde o servidor está (Render ou Local)
-const API_URL = window.location.hostname === 'localhost' 
-    ? 'http://localhost:3000/api' 
-    : 'https://sistema-financeiro-backend.onrender.com/api';
+const API_URL = 'http://localhost:3010/api'
 
 // Função padrão para enviar dados para o servidor
 async function enviarDados(rota, dados) {
@@ -35,6 +33,13 @@ let sistemaInicializado = false;
 let salvandoDados = false;
 let timerSalvamento = null;
 
+
+
+
+
+
+
+
 // ================================================================
 // INICIALIZAÇÃO
 // ================================================================
@@ -49,7 +54,7 @@ async function iniciarSistema() {
     }
     
     exportarVariaveisGlobais();
-    carregarDadosLocais();
+    await carregarDadosAPI();
     
     sistemaInicializado = true;
     window.sistemaInicializado = true;
@@ -154,7 +159,7 @@ function exportarVariaveisGlobais() {
 // CARREGAMENTO DE DADOS
 // ================================================================
 
-function carregarDadosLocais() {
+async function carregarDadosAPI() {
     const usuarioAtual = sessionStorage.getItem('usuarioAtual');
     
     if (!usuarioAtual) {
@@ -163,25 +168,18 @@ function carregarDadosLocais() {
     }
 
     try {
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const usuario = usuarios.find(u => 
-            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
-        );
+        const dadosAPI = await buscarDadosCompletosDaAPI();
         
-        if (usuario) {
-            if (!usuario.dadosFinanceiros) {
-                usuario.dadosFinanceiros = criarEstruturaVazia();
-                localStorage.setItem('usuarios', JSON.stringify(usuarios));
-            }
-            dadosFinanceiros = usuario.dadosFinanceiros;
+        if (dadosAPI) {
+            dadosFinanceiros = dadosAPI;
         } else {
-            dadosFinanceiros = criarEstruturaVazia();
+            carregarDadosLocalstorageFallback();
         }
         
         window.dadosFinanceiros = dadosFinanceiros;
+        
     } catch (error) {
-        dadosFinanceiros = criarEstruturaVazia();
-        window.dadosFinanceiros = dadosFinanceiros;
+        carregarDadosLocalstorageFallback();
     }
 }
 
@@ -221,7 +219,7 @@ async function salvarDados() {
             let sucesso = false;
             
             try {
-                sucesso = await salvarDadosLocal();
+                sucesso = await salvarDadosAPI();
             } catch (error) {
                 sucesso = false;
             } finally {
@@ -244,29 +242,19 @@ async function aguardarSalvamento() {
     return !salvandoDados;
 }
 
-async function salvarDadosLocal() {
-    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
+async function salvarDadosAPI() {
+    const token = getToken();
     
-    if (!usuarioAtual) {
-        return false;
+    if (!token) {
+        return await salvarDadosLocalstorageFallback();
     }
 
     try {
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const index = usuarios.findIndex(u => 
-            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
-        );
+        const sucessoLocalStorage = await salvarDadosLocalstorageFallback();
+        return sucessoLocalStorage;
         
-        if (index !== -1) {
-            usuarios[index].dadosFinanceiros = dadosFinanceiros;
-            usuarios[index].ultimaAtualizacao = new Date().toISOString();
-            localStorage.setItem('usuarios', JSON.stringify(usuarios));
-            return true;
-        }
-        
-        return false;
     } catch (error) {
-        return false;
+        return await salvarDadosLocalstorageFallback();
     }
 }
 
@@ -1958,6 +1946,147 @@ function atualizarBarrasCartoes(mes, ano) {
         }
     }
 }
+
+
+
+
+function getToken() {
+    return sessionStorage.getItem('token');
+}
+
+function formatarReceitaDaAPI(receita) {
+    return {
+        id: receita.id,
+        descricao: receita.descricao,
+        valor: parseFloat(receita.valor),
+        data: receita.data_recebimento,
+        mes: receita.mes,
+        ano: receita.ano,
+        categoria: receita.categoria_nome || receita.categoria_id,
+        observacoes: receita.observacoes,
+        saldo_anterior: receita.saldo_anterior
+    };
+}
+
+function formatarDespesaDaAPI(despesa) {
+    return {
+        id: despesa.id,
+        descricao: despesa.descricao,
+        categoria: despesa.categoria_nome || despesa.categoria_id,
+        formaPagamento: despesa.forma_pagamento,
+        numeroCartao: despesa.cartao_id,
+        valor: parseFloat(despesa.valor),
+        dataVencimento: despesa.data_vencimento,
+        dataCompra: despesa.data_compra,
+        dataPagamento: despesa.data_pagamento,
+        mes: despesa.mes,
+        ano: despesa.ano,
+        parcelado: despesa.parcelado,
+        totalParcelas: despesa.numero_parcelas,
+        parcelaAtual: despesa.parcela_atual,
+        pago: despesa.pago,
+        quitado: despesa.pago,
+        observacoes: despesa.observacoes
+    };
+}
+
+async function buscarDadosCompletosDaAPI() {
+    try {
+        const token = getToken();
+        if (!token) return null;
+        
+        const anoAtual = new Date().getFullYear();
+        const dadosCompletos = {};
+        
+        for (let ano = anoAtual - 1; ano <= anoAtual + 1; ano++) {
+            dadosCompletos[ano] = { meses: [] };
+            
+            for (let mes = 0; mes < 12; mes++) {
+                const receitasResponse = await fetch(`${API_URL}/receitas?mes=${mes}&ano=${ano}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                const despesasResponse = await fetch(`${API_URL}/despesas?mes=${mes}&ano=${ano}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                let receitas = [];
+                let despesas = [];
+                
+                if (receitasResponse.ok) {
+                    const receitasData = await receitasResponse.json();
+                    receitas = receitasData.data || [];
+                }
+                
+                if (despesasResponse.ok) {
+                    const despesasData = await despesasResponse.json();
+                    despesas = despesasData.data || [];
+                }
+                
+                dadosCompletos[ano].meses[mes] = {
+                    receitas: receitas.map(formatarReceitaDaAPI),
+                    despesas: despesas.map(formatarDespesaDaAPI),
+                    fechado: false,
+                    saldoAnterior: 0,
+                    saldoFinal: 0
+                };
+            }
+        }
+        
+        return dadosCompletos;
+        
+    } catch (error) {
+        return null;
+    }
+}
+
+function carregarDadosLocalstorageFallback() {
+    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
+    
+    try {
+        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+        const usuario = usuarios.find(u => 
+            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
+        );
+        
+        if (usuario && usuario.dadosFinanceiros) {
+            dadosFinanceiros = usuario.dadosFinanceiros;
+        } else {
+            dadosFinanceiros = criarEstruturaVazia();
+        }
+        
+    } catch (error) {
+        dadosFinanceiros = criarEstruturaVazia();
+    }
+}
+
+async function salvarDadosLocalstorageFallback() {
+    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
+    
+    if (!usuarioAtual) {
+        return false;
+    }
+
+    try {
+        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+        const index = usuarios.findIndex(u => 
+            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
+        );
+        
+        if (index !== -1) {
+            usuarios[index].dadosFinanceiros = dadosFinanceiros;
+            usuarios[index].ultimaAtualizacao = new Date().toISOString();
+            localStorage.setItem('usuarios', JSON.stringify(usuarios));
+            return true;
+        }
+        
+        return false;
+    } catch (error) {
+        return false;
+    }
+}
+
+
 
 // Exportar as funções globalmente
 window.atualizarBarrasCartoes = atualizarBarrasCartoes;
