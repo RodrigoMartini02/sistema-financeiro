@@ -1,10 +1,8 @@
 // ================================================================
 // SISTEMA PRINCIPAL - MAIN.JS OTIMIZADO
 // ================================================================
-// Se o sistema estiver rodando no Render, use a URL do Render. 
-// Caso contrário, use o localhost (para quando você estiver testando no PC).
-// Define onde o servidor está (Render ou Local)
-window.API_URL = 'https://sistema-financeiro-kxed.onrender.com/api';
+
+window.API_URL = 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
 // Função padrão para enviar dados para o servidor
 async function enviarDados(rota, dados) {

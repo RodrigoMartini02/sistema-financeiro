@@ -1,4 +1,4 @@
-window.API_URL = 'https://sistema-financeiro-kxed.onrender.com/api';
+window.API_URL = 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
 function getToken() {
     return sessionStorage.getItem('token');
