@@ -259,27 +259,27 @@ async function processarCadastro(nome, email, documento, password) {
     try {
         const response = await fetch(`${API_URL}/auth/register`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                nome,
-                email,
-                documento,
-                senha: password
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nome, email, documento, senha: password })
         });
 
-        const data = await response.json();
+        const text = await response.text();
+        const data = text ? JSON.parse(text) : {};
 
         if (!response.ok) {
-            throw new Error(data.message || 'Erro ao cadastrar');
+            throw new Error(data.message || 'Erro ao cadastrar no servidor');
+        }
+
+        // Verifica se o servidor enviou os dados de confirmação
+        if (Object.keys(data).length === 0) {
+            throw new Error('Servidor retornou uma resposta vazia. Verifique o banco de dados.');
         }
 
         return { success: true, data: data.data };
 
     } catch (error) {
-        throw new Error(error.message);
+        console.error('Erro no cadastro:', error);
+        throw error;
     }
 }
 
