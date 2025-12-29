@@ -657,21 +657,27 @@ function mostrarStatusCartoes(mensagem, tipo) {
 // ================================================================
 // SISTEMA DE USUÁRIOS
 // ================================================================
-function obterTipoUsuarioAtual() {
-    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
-    if (!usuarioAtual) {
-        tipoUsuarioAtual = 'padrao';
-        return;
-    }
-    
+async function obterTipoUsuarioAtual() {
     try {
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const usuario = usuarios.find(u => 
-            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
-        );
+        const token = getToken();
+        if (!token) {
+            tipoUsuarioAtual = 'padrao';
+            return;
+        }
         
-        tipoUsuarioAtual = usuario?.tipo || 'padrao';
+        const response = await fetch(`${API_URL}/usuarios/current`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            tipoUsuarioAtual = data.data.tipo || 'padrao';
+        } else {
+            tipoUsuarioAtual = 'padrao';
+        }
+        
     } catch (error) {
+        console.error('Erro ao obter tipo do usuário:', error);
         tipoUsuarioAtual = 'padrao';
     }
 }
@@ -696,28 +702,32 @@ function ajustarVisibilidadeElementos() {
     }
 }
 
-function filtrarUsuarios() {
-    const searchInput = document.getElementById('usuario-search');
-    const filterSelect = document.getElementById('filter-user-type');
-    
-    const termoBusca = (searchInput?.value || '').trim().toLowerCase();
-    const filtroTipo = filterSelect?.value || 'todos';
-    
-    const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-    
-    usuariosFiltrados = usuarios.filter(usuario => {
-        const matchesBusca = !termoBusca || 
-            (usuario.nome?.toLowerCase().includes(termoBusca)) || 
-            (usuario.email?.toLowerCase().includes(termoBusca)) || 
-            (usuario.documento?.toLowerCase().includes(termoBusca));
+async function filtrarUsuarios() {
+    try {
+        const searchTerm = document.getElementById('usuario-search')?.value || '';
+        const filterType = document.getElementById('filter-user-type')?.value || 'todos';
         
-        const matchesTipo = filtroTipo === 'todos' || usuario.tipo === filtroTipo;
+        const params = new URLSearchParams({
+            page: paginaAtual,
+            limit: itensPorPagina,
+            search: searchTerm,
+            tipo: filterType === 'todos' ? '' : filterType
+        });
         
-        return matchesBusca && matchesTipo;
-    });
-    
-    paginaAtual = 1;
-    renderizarUsuarios();
+        const response = await fetch(`${API_URL}/usuarios?${params}`, {
+            headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            usuariosFiltrados = data.data;
+            renderizarUsuarios();
+            atualizarPaginacao(data.pagination);
+        }
+    } catch (error) {
+        console.error('Erro ao buscar usuários:', error);
+    }
 }
 
 function renderizarUsuarios() {
@@ -814,26 +824,41 @@ function criarLinhaUsuario(usuario, index) {
     return linha;
 }
 
-function alternarBloqueioUsuario(usuario) {
+async function alternarBloqueioUsuario(usuario) {
     const estavaBloqueado = usuario.status === 'bloqueado';
+    const novoStatus = estavaBloqueado ? 'ativo' : 'bloqueado';
     const acao = estavaBloqueado ? 'desbloquear' : 'bloquear';
     
     if (!confirm(`Deseja ${acao} o usuário ${usuario.nome}?`)) {
         return;
     }
     
-    const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-    const index = usuarios.findIndex(u => u.documento === usuario.documento);
-    
-    if (index !== -1) {
-        usuarios[index].status = estavaBloqueado ? 'ativo' : 'bloqueado';
-        usuarios[index].dataAlteracaoStatus = new Date().toISOString();
-        localStorage.setItem('usuarios', JSON.stringify(usuarios));
+    try {
+        const response = await fetch(`${API_URL}/usuarios/${usuario.id}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getToken()}`
+            },
+            body: JSON.stringify({ status: novoStatus })
+        });
         
-        filtrarUsuarios();
-        mostrarFeedback('Alterações realizadas com sucesso!', 'success');
+        const data = await response.json();
+        
+        if (response.ok) {
+            await filtrarUsuarios();
+            mostrarFeedback('Alterações realizadas com sucesso!', 'success');
+        } else {
+            mostrarFeedback(data.message || 'Erro ao alterar status do usuário', 'error');
+        }
+        
+    } catch (error) {
+        console.error('Erro ao alterar status:', error);
+        mostrarFeedback('Erro ao alterar status do usuário', 'error');
     }
 }
+
+
 
 function excluirUsuario(usuario) {
     const nomeUsuarioElement = document.getElementById('usuario-nome-exclusao');
@@ -844,24 +869,63 @@ function excluirUsuario(usuario) {
     const modal = document.getElementById('modal-confirmar-exclusao-usuario');
     if (modal) {
         modal.style.display = 'flex';
-        modal.setAttribute('data-usuario-documento', usuario.documento);
+        modal.setAttribute('data-usuario-id', usuario.id);
     }
 }
 
-function confirmarExclusaoUsuario() {
+
+
+
+function atualizarInfoPaginacao(pagination) {
+    const paginationInfo = document.getElementById('pagination-info');
+    const btnPrevPage = document.getElementById('btn-prev-page');
+    const btnNextPage = document.getElementById('btn-next-page');
+    
+    if (paginationInfo) {
+        paginationInfo.textContent = `Página ${pagination.page} de ${pagination.pages}`;
+    }
+    
+    if (btnPrevPage) {
+        btnPrevPage.disabled = pagination.page <= 1;
+    }
+    
+    if (btnNextPage) {
+        btnNextPage.disabled = pagination.page >= pagination.pages;
+    }
+}
+
+
+
+
+async function confirmarExclusaoUsuario() {
     const modal = document.getElementById('modal-confirmar-exclusao-usuario');
-    const documento = modal?.getAttribute('data-usuario-documento');
+    const userId = modal?.getAttribute('data-usuario-id');
     
-    if (!documento) return;
+    if (!userId) return;
     
-    const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-    const novaLista = usuarios.filter(u => u.documento !== documento);
-    
-    localStorage.setItem('usuarios', JSON.stringify(novaLista));
-    
-    modal.style.display = 'none';
-    filtrarUsuarios();
-    mostrarFeedback('Alterações realizadas com sucesso!', 'success');
+    try {
+        const response = await fetch(`${API_URL}/usuarios/${userId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${getToken()}`
+            }
+        });
+        
+        const data = await response.json();
+        
+        modal.style.display = 'none';
+        
+        if (response.ok) {
+            await filtrarUsuarios();
+            mostrarFeedback('Alterações realizadas com sucesso!', 'success');
+        } else {
+            mostrarFeedback(data.message || 'Erro ao excluir usuário', 'error');
+        }
+        
+    } catch (error) {
+        console.error('Erro ao excluir usuário:', error);
+        mostrarFeedback('Erro ao excluir usuário', 'error');
+    }
 }
 
 function abrirModalEditarUsuario(usuario, isNovo = false) {
@@ -919,7 +983,7 @@ function preencherDadosUsuario(usuario) {
     }
 }
 
-function salvarEdicaoUsuario(isNovo = false) {
+async function salvarEdicaoUsuario(isNovo = false) {
     try {
         const prefixo = isNovo ? 'novo-usuario' : 'editar-usuario';
         
@@ -961,97 +1025,45 @@ function salvarEdicaoUsuario(isNovo = false) {
             }
         }
         
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+        const payload = {
+            nome: nome,
+            email: email,
+            tipo: tipoUsuarioAtual === 'master' ? tipo : 'padrao',
+            status: status
+        };
         
         if (isNovo) {
-            const docExists = usuarios.some(u => u.documento && 
-                u.documento.replace(/[^\d]+/g, '') === documento.replace(/[^\d]+/g, ''));
-                
-            if (docExists) {
-                mostrarValidacao('Este CPF/CNPJ já está cadastrado.', 'error');
-                return;
-            }
-            
-            const emailExists = usuarios.some(u => u.email === email);
-            if (emailExists) {
-                mostrarValidacao('Este e-mail já está cadastrado.', 'error');
-                return;
-            }
-            
-            const novoUsuario = {
-                nome,
-                email,
-                documento,
-                tipo: tipoUsuarioAtual === 'master' ? tipo : 'padrao',
-                status,
-                password: senha || '123456',
-                senha: senha || '123456',
-                categorias: {
-                    despesas: [...categoriasPadrao.despesas]
-                },
-                cartoes: {
-                    cartao1: { nome: '', validade: '', limite: 0, ativo: false },
-                    cartao2: { nome: '', validade: '', limite: 0, ativo: false },
-                    cartao3: { nome: '', validade: '', limite: 0, ativo: false }
-                },
-                dadosFinanceiros: {},
-                poupanca: {
-                    saldo: 0,
-                    configuracoes: {
-                        taxa: 0.5,
-                        dia_rendimento: 1
-                    },
-                    transacoes: []
-                },
-                dataCadastro: new Date().toISOString()
-            };
-            
-            usuarios.push(novoUsuario);
-            localStorage.setItem('usuarios', JSON.stringify(usuarios));
-            
+            payload.documento = documento;
+            payload.senha = senha || '123456';
         } else {
-            const index = usuarios.findIndex(u => u.documento === documento);
-            
-            if (index === -1) {
-                mostrarValidacao('Usuário não encontrado.', 'error');
-                return;
-            }
-            
-            if (tipoUsuarioAtual !== 'master' && usuarios[index].tipo !== 'padrao') {
-                mostrarValidacao('Você não tem permissão para editar este usuário.', 'error');
-                return;
-            }
-            
-            if (usuarios[index].email !== email) {
-                const emailExists = usuarios.some(u => u.email === email && u.documento !== documento);
-                if (emailExists) {
-                    mostrarValidacao('Este e-mail já está cadastrado para outro usuário.', 'error');
-                    return;
-                }
-            }
-            
-            usuarios[index].nome = nome;
-            usuarios[index].email = email;
-            usuarios[index].status = status;
-            
-            if (tipoUsuarioAtual === 'master') {
-                usuarios[index].tipo = tipo;
-            }
-            
             if (senha && senha.length > 0) {
-                usuarios[index].password = senha;
-                usuarios[index].senha = senha;
+                payload.senha = senha;
             }
-            
-            usuarios[index].dataAtualizacao = new Date().toISOString();
-            localStorage.setItem('usuarios', JSON.stringify(usuarios));
         }
         
-        const modal = document.getElementById(isNovo ? 'modal-adicionar-usuario' : 'modal-editar-usuario');
-        if (modal) modal.style.display = 'none';
+        const url = isNovo ? `${API_URL}/usuarios` : `${API_URL}/usuarios/${documento}`;
+        const method = isNovo ? 'POST' : 'PUT';
         
-        filtrarUsuarios();
-        mostrarFeedback('Alterações realizadas com sucesso!', 'success');
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getToken()}`
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            const modal = document.getElementById(isNovo ? 'modal-adicionar-usuario' : 'modal-editar-usuario');
+            if (modal) modal.style.display = 'none';
+            
+            await filtrarUsuarios();
+            mostrarFeedback('Alterações realizadas com sucesso!', 'success');
+        } else {
+            mostrarValidacao(data.message || 'Erro ao salvar usuário', 'error');
+        }
         
     } catch (error) {
         console.error('Erro ao salvar usuário:', error);
@@ -1107,57 +1119,116 @@ function mostrarValidacao(mensagem, tipo) {
     }
 }
 
-function garantirUsuarioMaster() {
+async function garantirUsuarioMaster() {
     const cpfMaster = "08996441988";
+    const dadosMaster = {
+        nome: "Administrador Master",
+        email: "admin.master@sistema.com",
+        documento: cpfMaster.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4"),
+        senha: "master123",
+        tipo: "master",
+        status: "ativo"
+    };
     
-    let usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-    
-    const usuarioExistente = usuarios.find(u => 
-        u.documento && u.documento.replace(/[^\d]+/g, '') === cpfMaster
-    );
-    
-    if (usuarioExistente) {
-        if (usuarioExistente.tipo !== 'master') {
-            usuarioExistente.tipo = 'master';
-            usuarioExistente.status = 'ativo';
-            usuarioExistente.dataAtualizacaoMaster = new Date().toISOString();
-            localStorage.setItem('usuarios', JSON.stringify(usuarios));
+    try {
+        const token = getToken();
+        if (!token) {
+            console.log('Token não encontrado, usuário master será verificado após login');
+            return;
         }
-    } else {
-        const cpfFormatado = cpfMaster.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
         
-        const novoUsuario = {
-            nome: "Administrador Master",
-            email: "admin.master@sistema.com",
-            documento: cpfFormatado,
-            tipo: "master",
-            status: "ativo",
-            password: "master123",
-            senha: "master123",
-            categorias: {
-                despesas: [...categoriasPadrao.despesas]
-            },
-            cartoes: {
-                cartao1: { nome: '', validade: '', limite: 0, ativo: false },
-                cartao2: { nome: '', validade: '', limite: 0, ativo: false },
-                cartao3: { nome: '', validade: '', limite: 0, ativo: false }
-            },
-            dadosFinanceiros: {},
-            poupanca: {
-                saldo: 0,
-                configuracoes: {
-                    taxa: 0.5,
-                    dia_rendimento: 1
-                },
-                transacoes: []
-            },
-            dataCriacaoMaster: new Date().toISOString()
-        };
+        // 1. Verificar se já existe usuário master via API
+        const statsResponse = await fetch(`${API_URL}/usuarios/stats/geral`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
         
-        usuarios.push(novoUsuario);
-        localStorage.setItem('usuarios', JSON.stringify(usuarios));
+        if (statsResponse.ok) {
+            const statsData = await statsResponse.json();
+            
+            // Se já existe master, verificar se é o correto
+            if (statsData.data.usuarios_master > 0) {
+                
+                // Buscar usuários master para verificar se é o CPF correto
+                const usuariosResponse = await fetch(`${API_URL}/usuarios?tipo=master&limit=10`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (usuariosResponse.ok) {
+                    const usuariosData = await usuariosResponse.json();
+                    const masterExistente = usuariosData.data.find(u => 
+                        u.documento && u.documento.replace(/[^\d]+/g, '') === cpfMaster
+                    );
+                    
+                    if (masterExistente) {
+                        // Master correto existe, verificar se precisa atualizar
+                        if (masterExistente.status !== 'ativo' || masterExistente.tipo !== 'master') {
+                            await fetch(`${API_URL}/usuarios/${masterExistente.id}`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${token}`
+                                },
+                                body: JSON.stringify({
+                                    tipo: 'master',
+                                    status: 'ativo'
+                                })
+                            });
+                            console.log('✅ Usuário master atualizado com sucesso');
+                        }
+                        return; // Master já existe e está correto
+                    }
+                }
+            }
+        }
+        
+        // 2. Se chegou aqui, precisa criar o usuário master
+        const criarResponse = await fetch(`${API_URL}/usuarios`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(dadosMaster)
+        });
+        
+        if (criarResponse.ok) {
+            console.log('✅ Usuário master criado com sucesso via API');
+        } else {
+            const errorData = await criarResponse.json();
+            console.warn('⚠️ Erro ao criar usuário master via API:', errorData.message);
+            
+            // Fallback: tentar buscar se já existe por email
+            const buscarResponse = await fetch(`${API_URL}/usuarios?search=${dadosMaster.email}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (buscarResponse.ok) {
+                const buscarData = await buscarResponse.json();
+                const masterPorEmail = buscarData.data.find(u => u.email === dadosMaster.email);
+                
+                if (masterPorEmail) {
+                    await fetch(`${API_URL}/usuarios/${masterPorEmail.id}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            tipo: 'master',
+                            status: 'ativo'
+                        })
+                    });
+                    console.log('✅ Usuário master existente atualizado');
+                }
+            }
+        }
+        
+    } catch (error) {
+        console.warn('⚠️ Erro ao garantir usuário master:', error);
+        // Falha silenciosa - SQL já deve ter criado master
     }
 }
+
 
 // ================================================================
 // SISTEMA DE ABAS E NAVEGAÇÃO
@@ -1373,8 +1444,8 @@ async function inicializarConfiguracoes() {
         return;
     }
     
-    garantirUsuarioMaster();
-    obterTipoUsuarioAtual();
+    await garantirUsuarioMaster();
+    await obterTipoUsuarioAtual();
     
     await carregarCategoriasAPI();
     await carregarCartoesAPI();

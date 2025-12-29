@@ -12,6 +12,8 @@ function getToken() {
 
 
 let processandoDespesa = false;
+let carregandoDados = false;
+let ultimoCarregamento = 0;
 
 const ERROS = {
     DESPESA_NAO_ENCONTRADA: 'A despesa solicitada não foi encontrada',
@@ -184,11 +186,12 @@ function renderizarDespesas(despesas, mes, ano, fechado) {
    
    setTimeout(() => {
        sincronizarIndicesDespesas();
-       // NOVO: Atualizar contadores de anexos após renderização
        if (typeof atualizarTodosContadoresAnexosDespesas === 'function') {
            atualizarTodosContadoresAnexosDespesas();
        }
    }, 100);
+   
+   console.log(`✅ Renderizadas ${despesas.length} despesas do mês ${mes}/${ano}`);
 }
 
 
@@ -907,14 +910,7 @@ async function salvarDespesa(e) {
 
         if (sucesso) {
             document.getElementById('modal-nova-despesa').style.display = 'none';
-            
-            if (typeof carregarDadosDashboard === 'function') {
-                await carregarDadosDashboard(anoAtual);
-            }
-            
-            if (typeof renderizarDetalhesDoMes === 'function') {
-                renderizarDetalhesDoMes(formData.mes, formData.ano);
-            }
+            await buscarEExibirDespesas(formData.mes, formData.ano);
         } else {
             throw new Error('Falha ao salvar despesa');
         }
@@ -922,12 +918,18 @@ async function salvarDespesa(e) {
         return false;
         
     } catch (error) {
+        console.error('Erro ao salvar despesa:', error);
         alert("Não foi possível salvar a despesa: " + error.message);
         return false;
     } finally {
         processandoDespesa = false;
     }
 }
+
+
+
+
+
 
 function coletarDadosFormularioDespesa() {
    const categoria = document.getElementById('despesa-categoria').value;
@@ -973,30 +975,27 @@ function coletarDadosFormularioDespesa() {
 async function salvarDespesaLocal(formData) {
     try {
         const token = getToken();
-        if (!token) {
-            throw new Error('Usuário não autenticado');
-        }
+        if (!token) throw new Error('Usuário não autenticado');
         
-        // Preparar dados para a API
         const dadosAPI = {
             descricao: formData.descricao,
             valor: formData.valor,
             data_vencimento: formData.dataVencimento,
+            data_compra: formData.dataCompra || null,
             mes: formData.mes,
             ano: formData.ano,
-           categoria_id: 1,
+            categoria_id: 1,
             forma_pagamento: formData.formaPagamento,
             cartao_id: formData.numeroCartao,
             parcelado: formData.parcelado,
             total_parcelas: formData.totalParcelas,
-            pago: formData.jaPago || false,
-            observacoes: formData.observacoes || null
+            observacoes: formData.observacoes || null,
+            pago: formData.jaPago || false
         };
         
         let response;
         
         if (formData.id !== '' && formData.id !== null) {
-            // Atualizar despesa existente
             response = await fetch(`${API_URL}/despesas/${formData.id}`, {
                 method: 'PUT',
                 headers: {
@@ -1006,7 +1005,6 @@ async function salvarDespesaLocal(formData) {
                 body: JSON.stringify(dadosAPI)
             });
         } else {
-            // Criar nova despesa
             response = await fetch(`${API_URL}/despesas`, {
                 method: 'POST',
                 headers: {
@@ -1018,34 +1016,26 @@ async function salvarDespesaLocal(formData) {
         }
         
         const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.message || 'Erro ao salvar despesa');
-        }
-        
-        console.log('✅ Despesa salva na API:', data);
-        
-        // Recarregar despesas após salvar
-        await buscarEExibirDespesas(formData.mes, formData.ano);
+        if (!response.ok) throw new Error(data.message || 'Erro ao salvar despesa');
         
         return true;
         
     } catch (error) {
-        console.error('❌ Erro ao salvar despesa:', error);
-        alert('Erro ao salvar despesa: ' + error.message);
+        console.error('Erro ao salvar despesa:', error);
         return false;
     }
 }
 
-
 async function buscarEExibirDespesas(mes, ano) {
+    const agora = Date.now();
+    if (agora - ultimoCarregamento < 1000 || carregandoDados) return;
+    
+    carregandoDados = true;
+    ultimoCarregamento = agora;
+    
     try {
-        console.log(`🔍 Buscando despesas do mês ${mes}/${ano} via API`);
-        
         const token = getToken();
-        if (!token) {
-            throw new Error('Usuário não autenticado');
-        }
+        if (!token) throw new Error('Usuário não autenticado');
         
         const response = await fetch(`${API_URL}/despesas?mes=${mes}&ano=${ano}`, {
             headers: {
@@ -1055,45 +1045,44 @@ async function buscarEExibirDespesas(mes, ano) {
         });
         
         const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Erro ao buscar despesas');
         
-        if (!response.ok) {
-            throw new Error(data.message || 'Erro ao buscar despesas');
-        }
-        
-        console.log('✅ Despesas carregadas da API:', data.data);
-        
-        // Converter formato da API para formato do frontend
         const despesasFormatadas = data.data.map(d => ({
             id: d.id,
             descricao: d.descricao,
-            categoria: d.categoria_nome || d.categoria_id,
+            categoria: d.categoria_nome || 'Outros',
             formaPagamento: d.forma_pagamento,
             numeroCartao: d.cartao_id,
             valor: parseFloat(d.valor),
             dataVencimento: d.data_vencimento,
+            dataCompra: d.data_compra,
+            dataPagamento: d.data_pagamento,
             mes: d.mes,
             ano: d.ano,
             parcelado: d.parcelado,
-            totalParcelas: d.total_parcelas,
+            totalParcelas: d.numero_parcelas,
             parcelaAtual: d.parcela_atual,
+            parcela: d.parcelado ? `${d.parcela_atual}/${d.numero_parcelas}` : null,
             pago: d.pago,
             quitado: d.pago,
             observacoes: d.observacoes,
-            anexos: []
+            anexos: [],
+            status: d.pago ? 'quitada' : (new Date(d.data_vencimento) < new Date() ? 'atrasada' : 'em_dia')
         }));
         
-        // Renderizar as despesas usando a função existente
-        const mesFechado = false; // Verificar se o mês está fechado
+        const mesFechado = false;
         renderizarDespesas(despesasFormatadas, mes, ano, mesFechado);
         
         return despesasFormatadas;
         
     } catch (error) {
-        console.error('❌ Erro ao buscar despesas:', error);
-        alert('Erro ao carregar despesas: ' + error.message);
+        console.error('Erro ao buscar despesas:', error);
         return [];
+    } finally {
+        carregandoDados = false;
     }
 }
+
 
 
 async function adicionarNovaDespesa(formData) {
@@ -1148,60 +1137,68 @@ async function adicionarNovaDespesa(formData) {
 
 
 
-async function criarParcelasFuturas(formData, valorPorParcela, idGrupoParcelamento, valorOriginal, valorTotalComJuros, totalJuros) {
-    const parcelasExistentes = validarGrupoParcelamento(idGrupoParcelamento, {
-        descricao: formData.descricao,
-        totalParcelas: formData.totalParcelas,
-        ano: formData.ano
-    });
-    
-    if (parcelasExistentes.valido && parcelasExistentes.encontradas > 1) {
-        console.warn('Parcelas já existem para este grupo:', idGrupoParcelamento);
-        return;
-    }
-    
-    for (let i = 1; i < formData.totalParcelas; i++) {
-        const mesParcela = (formData.mes + i) % 12;
-        const anoParcela = formData.ano + Math.floor((formData.mes + i) / 12);
+async function criarParcelasFuturas(usuarioId, despesaBase, totalParcelas) {
+    try {
+        const valorPorParcela = parseFloat(despesaBase.valor) / totalParcelas;
         
-        garantirEstruturaDados(anoParcela, mesParcela);
-        
-        const dataVencimentoBase = new Date(formData.dataVencimento);
-        dataVencimentoBase.setMonth(dataVencimentoBase.getMonth() + i);
-        const dataVencimento = dataVencimentoBase.toISOString().split('T')[0];
-        
-        const parcelaExiste = dadosFinanceiros[anoParcela].meses[mesParcela].despesas.some(d => 
-            d.idGrupoParcelamento === idGrupoParcelamento && 
-            d.parcela === `${i + 1}/${formData.totalParcelas}`
+        // Atualizar primeira parcela
+        await query(
+            `UPDATE despesas 
+             SET valor = $1, 
+                 parcela_atual = 1,
+                 descricao = $2
+             WHERE id = $3`,
+            [
+                valorPorParcela,
+                `${despesaBase.descricao} (1/${totalParcelas})`,
+                despesaBase.id
+            ]
         );
         
-        if (!parcelaExiste) {
-            dadosFinanceiros[anoParcela].meses[mesParcela].despesas.push(criarObjetoDespesa({
-                descricao: formData.descricao,
-                categoria: formData.categoria,
-                formaPagamento: formData.formaPagamento,
-                numeroCartao: formData.numeroCartao,
-                valor: valorPorParcela,
-                valorOriginal: valorOriginal / formData.totalParcelas,
-                valorTotalComJuros: null,
-                valorPago: null,
-                dataCompra: formData.dataCompra,
-                dataVencimento: dataVencimento,
-                parcelado: true,
-                parcela: `${i + 1}/${formData.totalParcelas}`,
-                totalParcelas: formData.totalParcelas,
-                metadados: {
-                    valorOriginalTotal: valorOriginal,
-                    valorTotalComJuros: valorTotalComJuros,
-                    totalJuros: totalJuros,
-                    jurosPorParcela: totalJuros / formData.totalParcelas,
-                    valorPorParcela: valorPorParcela
-                },
-                quitado: false,
-                recorrente: formData.recorrente || false,
-                idGrupoParcelamento: idGrupoParcelamento
-            }));
+        // Criar parcelas futuras
+        for (let i = 2; i <= totalParcelas; i++) {
+            let proximoMes = despesaBase.mes + (i - 1);
+            let proximoAno = despesaBase.ano;
+            
+            while (proximoMes > 11) {
+                proximoMes -= 12;
+                proximoAno += 1;
+            }
+            
+            const dataVencimentoBase = new Date(despesaBase.data_vencimento);
+            dataVencimentoBase.setMonth(dataVencimentoBase.getMonth() + (i - 1));
+            const proximaDataVencimento = dataVencimentoBase.toISOString().split('T')[0];
+            
+            await query(
+                `INSERT INTO despesas (
+                    usuario_id, descricao, valor, data_vencimento, data_compra,
+                    mes, ano, categoria_id, cartao_id, forma_pagamento,
+                    parcelado, numero_parcelas, parcela_atual, observacoes, pago,
+                    grupo_parcelamento_id
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+                [
+                    usuarioId, 
+                    `${despesaBase.descricao} (${i}/${totalParcelas})`,
+                    valorPorParcela,
+                    proximaDataVencimento,
+                    despesaBase.data_compra,
+                    proximoMes,
+                    proximoAno,
+                    despesaBase.categoria_id,
+                    despesaBase.cartao_id,
+                    despesaBase.forma_pagamento,
+                    true,
+                    totalParcelas,
+                    i,
+                    despesaBase.observacoes,
+                    false,
+                    despesaBase.id
+                ]
+            );
         }
+        
+    } catch (error) {
+        console.error('Erro ao criar parcelas futuras:', error);
     }
 }
 

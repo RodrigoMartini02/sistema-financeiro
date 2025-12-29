@@ -6,23 +6,28 @@ const { testarConexao } = require('./config/database');
 const { rateLimiter } = require('./middleware/validation');
 
 const app = express();
-const PORT = process.env.PORT || 3100;
+const PORT = process.env.PORT || 3010; // Mudado para 3010 (padrão que você usa)
 
+// Configuração CORS
 app.use(cors({
-    origin: ['http://localhost:5500', 'http://127.0.0.1:5500'],
+    origin: ['http://localhost:5500', 'http://127.0.0.1:5500', 'http://localhost:3000'],
     credentials: true
 }));
 
+// Middleware de parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Rate limiting
 app.use(rateLimiter());
 
+// Middleware de logging
 app.use((req, res, next) => {
     console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
     next();
 });
 
+// Rota de status básico
 app.get('/', (req, res) => {
     res.json({
         success: true,
@@ -32,6 +37,7 @@ app.get('/', (req, res) => {
     });
 });
 
+// Rota de health check
 app.get('/health', async (req, res) => {
     const dbOk = await testarConexao();
     
@@ -43,6 +49,7 @@ app.get('/health', async (req, res) => {
     });
 });
 
+// Importar rotas
 const authRoutes = require('./routes/auth');
 const usuariosRoutes = require('./routes/usuarios');
 const receitasRoutes = require('./routes/receitas');
@@ -52,6 +59,7 @@ const cartoesRoutes = require('./routes/cartoes');
 const mesesRoutes = require('./routes/meses');
 const reservasRoutes = require('./routes/reservas');
 
+// Registrar rotas
 app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/receitas', receitasRoutes);
@@ -61,13 +69,17 @@ app.use('/api/cartoes', cartoesRoutes);
 app.use('/api/meses', mesesRoutes);
 app.use('/api/reservas', reservasRoutes);
 
+// Middleware de rota não encontrada
 app.use((req, res) => {
     res.status(404).json({
         success: false,
-        message: 'Rota não encontrada'
+        message: 'Rota não encontrada',
+        path: req.path,
+        method: req.method
     });
 });
 
+// Middleware de tratamento de erros
 app.use((err, req, res, next) => {
     console.error('Erro não tratado:', err);
     
@@ -78,6 +90,7 @@ app.use((err, req, res, next) => {
     });
 });
 
+// Função para iniciar o servidor
 const iniciarServidor = async () => {
     try {
         console.log('🔄 Testando conexão com PostgreSQL...');
@@ -102,7 +115,14 @@ const iniciarServidor = async () => {
             console.log('   - POST /api/auth/register');
             console.log('   - POST /api/auth/login');
             console.log('   USUÁRIOS:');
-            console.log('   - GET  /api/usuarios/current');
+            console.log('   - GET    /api/usuarios/current');
+            console.log('   - GET    /api/usuarios');
+            console.log('   - POST   /api/usuarios');
+            console.log('   - GET    /api/usuarios/:id');
+            console.log('   - PUT    /api/usuarios/:id');
+            console.log('   - DELETE /api/usuarios/:id');
+            console.log('   - PUT    /api/usuarios/:id/status');
+            console.log('   - GET    /api/usuarios/stats/geral');
             console.log('   RECEITAS:');
             console.log('   - GET    /api/receitas');
             console.log('   - POST   /api/receitas');
@@ -117,14 +137,23 @@ const iniciarServidor = async () => {
             console.log('   CATEGORIAS:');
             console.log('   - GET    /api/categorias');
             console.log('   - POST   /api/categorias');
+            console.log('   - GET    /api/categorias/:id');
             console.log('   - PUT    /api/categorias/:id');
             console.log('   - DELETE /api/categorias/:id');
+            console.log('   - GET    /api/categorias/estatisticas/uso');
             console.log('   CARTÕES:');
-            console.log('   - GET /api/cartoes');
-            console.log('   - PUT /api/cartoes');
+            console.log('   - GET    /api/cartoes');
+            console.log('   - POST   /api/cartoes');
+            console.log('   - GET    /api/cartoes/:id');
+            console.log('   - PUT    /api/cartoes');
+            console.log('   - PUT    /api/cartoes/:id');
+            console.log('   - DELETE /api/cartoes/:id');
+            console.log('   - GET    /api/cartoes/estatisticas/uso');
+            console.log('   - PUT    /api/cartoes/:id/ativar');
+            console.log('   - PUT    /api/cartoes/:id/desativar');
             console.log('   MESES:');
-            console.log('   - GET  /api/meses/:ano/:mes');
-            console.log('   - POST /api/meses/:ano/:mes/fechar');
+            console.log('   - GET    /api/meses/:ano/:mes');
+            console.log('   - POST   /api/meses/:ano/:mes/fechar');
             console.log('   RESERVAS:');
             console.log('   - GET    /api/reservas');
             console.log('   - POST   /api/reservas');
@@ -138,6 +167,7 @@ const iniciarServidor = async () => {
     }
 };
 
+// Handlers para encerramento gracioso
 process.on('SIGTERM', () => {
     console.log('SIGTERM recebido. Encerrando servidor...');
     process.exit(0);
@@ -148,4 +178,16 @@ process.on('SIGINT', () => {
     process.exit(0);
 });
 
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+    process.exit(1);
+});
+
+// Inicializar servidor
 iniciarServidor();
+
+module.exports = app;

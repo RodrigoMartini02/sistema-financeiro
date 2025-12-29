@@ -4,6 +4,11 @@ const { query } = require('../config/database');
 const { authMiddleware } = require('../middleware/auth');
 const { body, validationResult } = require('express-validator');
 
+// ================================================================
+// RESERVAS - CRUD COMPLETO
+// ================================================================
+
+// GET - Buscar reservas por mês/ano ou todas
 router.get('/', authMiddleware, async (req, res) => {
     try {
         const { mes, ano } = req.query;
@@ -14,10 +19,13 @@ router.get('/', authMiddleware, async (req, res) => {
         if (mes !== undefined && ano !== undefined) {
             whereClause += ' AND mes = $2 AND ano = $3';
             params.push(parseInt(mes), parseInt(ano));
+        } else if (ano !== undefined) {
+            whereClause += ' AND ano = $2';
+            params.push(parseInt(ano));
         }
         
         const result = await query(
-            `SELECT * FROM reservas ${whereClause} ORDER BY data_criacao DESC`,
+            `SELECT * FROM reservas ${whereClause} ORDER BY data DESC, id DESC`,
             params
         );
         
@@ -35,10 +43,12 @@ router.get('/', authMiddleware, async (req, res) => {
     }
 });
 
+// POST - Criar nova reserva
 router.post('/', authMiddleware, [
     body('valor').isFloat({ min: 0.01 }).withMessage('Valor deve ser maior que zero'),
     body('mes').isInt({ min: 0, max: 11 }).withMessage('Mês inválido'),
-    body('ano').isInt({ min: 2000 }).withMessage('Ano inválido')
+    body('ano').isInt({ min: 2000 }).withMessage('Ano inválido'),
+    body('data').isISO8601().withMessage('Data inválida')
 ], async (req, res) => {
     try {
         const errors = validationResult(req);
@@ -49,13 +59,24 @@ router.post('/', authMiddleware, [
             });
         }
         
-        const { valor, mes, ano } = req.body;
+        const { valor, mes, ano, data, observacoes } = req.body;
+        
+        // Verificar se há saldo disponível para reservar
+        const verificacaoSaldo = await verificarSaldoDisponivel(req.usuario.id, mes, ano, valor);
+        
+        if (!verificacaoSaldo.sucesso) {
+            return res.status(400).json({
+                success: false,
+                message: verificacaoSaldo.mensagem,
+                saldoDisponivel: verificacaoSaldo.saldoDisponivel
+            });
+        }
         
         const result = await query(
-            `INSERT INTO reservas (usuario_id, valor, mes, ano)
-             VALUES ($1, $2, $3, $4)
+            `INSERT INTO reservas (usuario_id, valor, mes, ano, data, observacoes)
+             VALUES ($1, $2, $3, $4, $5, $6)
              RETURNING *`,
-            [req.usuario.id, parseFloat(valor), mes, ano]
+            [req.usuario.id, parseFloat(valor), mes, ano, data, observacoes || null]
         );
         
         res.status(201).json({
@@ -73,6 +94,81 @@ router.post('/', authMiddleware, [
     }
 });
 
+// PUT - Atualizar reserva existente
+router.put('/:id', authMiddleware, [
+    body('valor').isFloat({ min: 0.01 }).withMessage('Valor deve ser maior que zero'),
+    body('data').optional().isISO8601().withMessage('Data inválida')
+], async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                errors: errors.array()
+            });
+        }
+        
+        const { id } = req.params;
+        const { valor, data, observacoes } = req.body;
+        
+        // Buscar reserva atual para validação
+        const reservaAtual = await query(
+            'SELECT * FROM reservas WHERE id = $1 AND usuario_id = $2',
+            [id, req.usuario.id]
+        );
+        
+        if (reservaAtual.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Reserva não encontrada'
+            });
+        }
+        
+        const reserva = reservaAtual.rows[0];
+        const diferencaValor = parseFloat(valor) - parseFloat(reserva.valor);
+        
+        // Se aumentou o valor, verificar se há saldo disponível
+        if (diferencaValor > 0) {
+            const verificacaoSaldo = await verificarSaldoDisponivel(
+                req.usuario.id, 
+                reserva.mes, 
+                reserva.ano, 
+                diferencaValor
+            );
+            
+            if (!verificacaoSaldo.sucesso) {
+                return res.status(400).json({
+                    success: false,
+                    message: verificacaoSaldo.mensagem,
+                    saldoDisponivel: verificacaoSaldo.saldoDisponivel
+                });
+            }
+        }
+        
+        const result = await query(
+            `UPDATE reservas 
+             SET valor = $1, data = COALESCE($2, data), observacoes = $3
+             WHERE id = $4 AND usuario_id = $5
+             RETURNING *`,
+            [parseFloat(valor), data, observacoes, id, req.usuario.id]
+        );
+        
+        res.json({
+            success: true,
+            message: 'Reserva atualizada com sucesso',
+            data: result.rows[0]
+        });
+        
+    } catch (error) {
+        console.error('Erro ao atualizar reserva:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao atualizar reserva'
+        });
+    }
+});
+
+// DELETE - Excluir reserva
 router.delete('/:id', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
@@ -91,7 +187,8 @@ router.delete('/:id', authMiddleware, async (req, res) => {
         
         res.json({
             success: true,
-            message: 'Reserva excluída com sucesso'
+            message: 'Reserva excluída com sucesso',
+            data: result.rows[0]
         });
         
     } catch (error) {
@@ -102,5 +199,179 @@ router.delete('/:id', authMiddleware, async (req, res) => {
         });
     }
 });
+
+// ================================================================
+// ROTAS ADICIONAIS PARA RELATÓRIOS
+// ================================================================
+
+// GET - Total de reservas por ano
+router.get('/total/:ano', authMiddleware, async (req, res) => {
+    try {
+        const { ano } = req.params;
+        
+        const result = await query(
+            `SELECT 
+                mes,
+                COALESCE(SUM(valor), 0) as total,
+                COUNT(*) as quantidade
+             FROM reservas 
+             WHERE usuario_id = $1 AND ano = $2
+             GROUP BY mes
+             ORDER BY mes`,
+            [req.usuario.id, parseInt(ano)]
+        );
+        
+        // Criar array com todos os meses (0-11)
+        const resumoPorMes = [];
+        for (let i = 0; i < 12; i++) {
+            const dadosMes = result.rows.find(row => row.mes === i);
+            resumoPorMes.push({
+                mes: i,
+                total: dadosMes ? parseFloat(dadosMes.total) : 0,
+                quantidade: dadosMes ? parseInt(dadosMes.quantidade) : 0
+            });
+        }
+        
+        const totalAno = resumoPorMes.reduce((sum, mes) => sum + mes.total, 0);
+        
+        res.json({
+            success: true,
+            ano: parseInt(ano),
+            totalAno,
+            meses: resumoPorMes
+        });
+        
+    } catch (error) {
+        console.error('Erro ao buscar total de reservas:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao calcular total de reservas'
+        });
+    }
+});
+
+// GET - Histórico completo de reservas
+router.get('/historico', authMiddleware, async (req, res) => {
+    try {
+        const { limite = 50, pagina = 1 } = req.query;
+        const offset = (parseInt(pagina) - 1) * parseInt(limite);
+        
+        const result = await query(
+            `SELECT * FROM reservas 
+             WHERE usuario_id = $1 
+             ORDER BY ano DESC, mes DESC, data DESC
+             LIMIT $2 OFFSET $3`,
+            [req.usuario.id, parseInt(limite), offset]
+        );
+        
+        const totalResult = await query(
+            'SELECT COUNT(*) as total FROM reservas WHERE usuario_id = $1',
+            [req.usuario.id]
+        );
+        
+        const total = parseInt(totalResult.rows[0].total);
+        const totalPaginas = Math.ceil(total / parseInt(limite));
+        
+        res.json({
+            success: true,
+            data: result.rows,
+            paginacao: {
+                paginaAtual: parseInt(pagina),
+                totalPaginas,
+                totalRegistros: total,
+                limite: parseInt(limite)
+            }
+        });
+        
+    } catch (error) {
+        console.error('Erro ao buscar histórico de reservas:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao buscar histórico de reservas'
+        });
+    }
+});
+
+// ================================================================
+// FUNÇÃO AUXILIAR PARA VERIFICAR SALDO
+// ================================================================
+
+async function verificarSaldoDisponivel(usuarioId, mes, ano, valorReserva) {
+    try {
+        // Receitas do mês
+        const receitasResult = await query(
+            `SELECT COALESCE(SUM(valor), 0) as total 
+             FROM receitas 
+             WHERE usuario_id = $1 AND mes = $2 AND ano = $3`,
+            [usuarioId, mes, ano]
+        );
+        
+        // Saldo anterior
+        let mesAnterior = mes - 1;
+        let anoAnterior = ano;
+        
+        if (mesAnterior < 0) {
+            mesAnterior = 11;
+            anoAnterior = ano - 1;
+        }
+        
+        const saldoAnteriorResult = await query(
+            `SELECT 
+                COALESCE(SUM(r.valor), 0) as receitas_anterior,
+                COALESCE((SELECT SUM(d.valor) FROM despesas d WHERE d.usuario_id = $1 AND d.mes = $2 AND d.ano = $3), 0) as despesas_anterior,
+                COALESCE((SELECT SUM(res.valor) FROM reservas res WHERE res.usuario_id = $1 AND res.mes = $2 AND res.ano = $3), 0) as reservas_anterior
+             FROM receitas r 
+             WHERE r.usuario_id = $1 AND r.mes = $2 AND r.ano = $3`,
+            [usuarioId, mesAnterior, anoAnterior]
+        );
+        
+        const saldoAnterior = parseFloat(saldoAnteriorResult.rows[0].receitas_anterior) - 
+                             parseFloat(saldoAnteriorResult.rows[0].despesas_anterior) - 
+                             parseFloat(saldoAnteriorResult.rows[0].reservas_anterior);
+        
+        // Despesas do mês atual
+        const despesasResult = await query(
+            `SELECT COALESCE(SUM(valor), 0) as total 
+             FROM despesas 
+             WHERE usuario_id = $1 AND mes = $2 AND ano = $3`,
+            [usuarioId, mes, ano]
+        );
+        
+        // Reservas já feitas no mês atual
+        const reservasResult = await query(
+            `SELECT COALESCE(SUM(valor), 0) as total 
+             FROM reservas 
+             WHERE usuario_id = $1 AND mes = $2 AND ano = $3`,
+            [usuarioId, mes, ano]
+        );
+        
+        const totalDisponivel = parseFloat(receitasResult.rows[0].total) + saldoAnterior;
+        const totalDespesas = parseFloat(despesasResult.rows[0].total);
+        const totalReservas = parseFloat(reservasResult.rows[0].total);
+        
+        const saldoLivre = totalDisponivel - totalDespesas;
+        const saldoDisponivel = saldoLivre - totalReservas;
+        
+        if (saldoDisponivel < valorReserva) {
+            return {
+                sucesso: false,
+                mensagem: `Saldo insuficiente para reserva. Disponível: ${saldoDisponivel.toFixed(2)}`,
+                saldoDisponivel: saldoDisponivel
+            };
+        }
+        
+        return {
+            sucesso: true,
+            saldoDisponivel: saldoDisponivel
+        };
+        
+    } catch (error) {
+        console.error('Erro ao verificar saldo disponível:', error);
+        return {
+            sucesso: false,
+            mensagem: 'Erro ao verificar saldo disponível'
+        };
+    }
+}
 
 module.exports = router;

@@ -71,7 +71,7 @@ router.post('/login', [
         
         // Atualizar última atualização
         await query(
-            'UPDATE usuarios SET ultima_atualizacao = CURRENT_TIMESTAMP WHERE id = $1',
+            'UPDATE usuarios SET data_atualizacao = CURRENT_TIMESTAMP WHERE id = $1',
             [usuario.id]
         );
         

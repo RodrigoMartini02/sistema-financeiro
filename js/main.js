@@ -599,68 +599,62 @@ function setupSistemaBloqueio() {
         }
     };
 
-    const handleUnlockAttempt = async (event) => {
-        event.preventDefault();
-        
-        const enteredPassword = passwordInput?.value;
-        if (!enteredPassword) {
-            alert('Por favor, digite sua senha.');
-            return;
-        }
-        
-        try {
-            const usuario = obterUsuarioAtualLocal();
-            const senhaCorreta = usuario && (usuario.password === enteredPassword || usuario.senha === enteredPassword);
-            
-            if (senhaCorreta) {
-                unlockSystem();
-            } else {
-                if (modalContent) {
-                    modalContent.classList.add('shake-animation');
-                    setTimeout(() => modalContent.classList.remove('shake-animation'), 500);
-                }
-                passwordInput.value = '';
-                passwordInput.focus();
-            }
-        } catch (error) {
-            alert('Erro ao verificar senha. Tente novamente.');
-        }
-    };
+const handleUnlockAttempt = (event) => {
+    if (event) event.preventDefault();
 
-    const resetInactivityTimer = () => {
-        if (localStorage.getItem(LOCK_STATE_KEY) === 'true') return;
+    const passwordInput = document.getElementById('input-lock-password');
+    const enteredPassword = passwordInput?.value;
+    const modalContent = document.querySelector('.lock-modal-content');
 
-        clearTimeout(inactivityTimer);
-        inactivityTimer = setTimeout(lockSystem, 20 * 60 * 1000);
-    };
-
-    // Event listeners
-    lockButton.addEventListener('click', lockSystem);
-    lockForm.addEventListener('submit', handleUnlockAttempt);
-
-    ['mousemove', 'keydown', 'scroll', 'click'].forEach(evento => {
-        window.addEventListener(evento, () => {
-            if (localStorage.getItem(LOCK_STATE_KEY) !== 'true') {
-                resetInactivityTimer();
-            }
-        });
-    });
-
-    // Verificar se estava bloqueado ao carregar
-    if (localStorage.getItem(LOCK_STATE_KEY) === 'true') {
-        setTimeout(() => lockSystem(false), 100);
+    // Recupera os dados do usuário salvos no login
+    const dadosUsuario = JSON.parse(sessionStorage.getItem('dadosUsuarioLogado'));
+    
+    // Compara a senha digitada com a senha que está na sessão do navegador
+    if (enteredPassword === dadosUsuario?.senha) {
+        unlockSystem(); 
+        passwordInput.value = '';
     } else {
-        resetInactivityTimer();
+        // Efeito de erro caso a senha esteja errada
+        if (modalContent) {
+            modalContent.classList.add('shake-error');
+            setTimeout(() => modalContent.classList.remove('shake-error'), 500);
+        }
+        passwordInput.value = '';
+        passwordInput.focus();
     }
+};
 
-    // Prevenir fechamento da aba quando bloqueado
-    window.addEventListener('beforeunload', (event) => {
-        if (localStorage.getItem(LOCK_STATE_KEY) === 'true') {
-            event.preventDefault();
-            event.returnValue = 'Sistema bloqueado. Desbloqueie antes de sair.';
-            return event.returnValue;
+const resetInactivityTimer = () => {
+    if (localStorage.getItem('sistema_bloqueado') === 'true') return;
+    clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(lockSystem, 20 * 60 * 1000);
+};
+
+// Mantenha os event listeners e o restante como estão abaixo
+lockButton.addEventListener('click', lockSystem);
+lockForm.addEventListener('submit', handleUnlockAttempt);
+
+['mousemove', 'keydown', 'scroll', 'click'].forEach(evento => {
+    window.addEventListener(evento, () => {
+        if (localStorage.getItem('sistema_bloqueado') !== 'true') {
+            resetInactivityTimer();
         }
     });
+});
+
+if (localStorage.getItem('sistema_bloqueado') === 'true') {
+    setTimeout(() => lockSystem(false), 100);
+} else {
+    resetInactivityTimer();
+}
+
+window.addEventListener('beforeunload', (event) => {
+    if (localStorage.getItem('sistema_bloqueado') === 'true') {
+        event.preventDefault();
+        event.returnValue = 'Sistema bloqueado. Desbloqueie antes de sair.';
+        return event.returnValue;
+    }
+});
 }
 
 
@@ -1132,7 +1126,7 @@ function atualizarBotoesNavegacaoMes(mes, ano) {
 
 
 
-function renderizarDetalhesDoMes(mes, ano) {
+async function renderizarDetalhesDoMes(mes, ano) {
     try {
         const dadosMes = obterDadosMes(ano, mes);
         const saldo = calcularSaldoMes(mes, ano);
@@ -1145,9 +1139,11 @@ function renderizarDetalhesDoMes(mes, ano) {
         atualizarTituloDetalhes(mes, ano, fechado);
         atualizarControlesFechamento(mes, ano, fechado);
         
-        if (typeof window.renderizarReceitas === 'function') {
-            window.renderizarReceitas(dadosMes.receitas, fechado);
-        }
+        if (typeof window.buscarEExibirReceitas === 'function') {
+    await window.buscarEExibirReceitas(mes, ano);
+} else if (typeof window.renderizarReceitas === 'function') {
+    window.renderizarReceitas(dadosMes.receitas, fechado, mes, ano);
+}
         
         if (typeof window.renderizarDespesas === 'function') {
             window.renderizarDespesas(dadosMes.despesas, mes, ano, fechado);

@@ -44,7 +44,7 @@ async function aguardarSistemaReady() {
 // RENDERIZAÇÃO
 // ================================================================
 
-function renderizarReceitas(receitas, fechado) {
+function renderizarReceitas(receitas, fechado, mes, ano) {
     const listaReceitas = document.getElementById('lista-receitas');
     if (!listaReceitas) return;
    
@@ -54,7 +54,7 @@ function renderizarReceitas(receitas, fechado) {
         receitas.some(receita => receita.saldoAnterior === true);
     
     if (!temSaldoAnteriorReal) {
-        const saldoAnterior = obterSaldoAnteriorValido(window.mesAberto, window.anoAberto);
+        const saldoAnterior = obterSaldoAnteriorValido(mes, ano);
         if (saldoAnterior !== 0) {
             const trSaldo = criarLinhaSaldoAnterior(saldoAnterior, fechado);
             listaReceitas.appendChild(trSaldo);
@@ -69,7 +69,7 @@ function renderizarReceitas(receitas, fechado) {
     }
    
     if (!fechado) {
-        configurarEventosReceitas(listaReceitas, window.mesAberto, window.anoAberto);
+        configurarEventosReceitas(listaReceitas, mes, ano);
     }
     
     setTimeout(() => {
@@ -111,7 +111,7 @@ async function buscarEExibirReceitas(mes, ano) {
         }));
         
         const mesFechado = window.dadosFinanceiros[ano]?.meses[mes]?.fechado || false;
-        renderizarReceitas(receitasFormatadas, mesFechado);
+        renderizarReceitas(receitasFormatadas, mesFechado, mes, ano);
         
         return receitasFormatadas;
         
@@ -122,11 +122,22 @@ async function buscarEExibirReceitas(mes, ano) {
     }
 }
 
-function carregarReceitasAtual() {
-    const agora = new Date();
-    const mesAtual = agora.getMonth() + 1;
-    const anoAtual = agora.getFullYear();
-    buscarEExibirReceitas(mesAtual, anoAtual);
+async function carregarReceitasAtual() {
+    try {
+        const agora = new Date();
+        const mesAtual = agora.getMonth();
+        const anoAtual = agora.getFullYear();
+        
+        window.mesAberto = mesAtual;
+        window.anoAberto = anoAtual;
+        
+        const receitasData = await buscarEExibirReceitas(mesAtual, anoAtual);
+        return receitasData;
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar receitas atual:', error);
+        return [];
+    }
 }
 
 function salvarReceitaLocal(dadosReceita) {
@@ -345,26 +356,43 @@ function calcularTotalReceitas(receitas) {
     }, 0);
 }
 
-function obterSaldoAnteriorValido(mes, ano) {
-    let mesAnterior = mes - 1;
-    let anoAnterior = ano;
-    
-    if (mes === 0) {
-        mesAnterior = 11;
-        anoAnterior = ano - 1;
-    }
-    
-    if (!window.dadosFinanceiros[anoAnterior] || !window.dadosFinanceiros[anoAnterior].meses) {
+async function obterSaldoAnteriorValido(mes, ano) {
+    try {
+        console.log('🔍 Valores recebidos - mes:', mes, 'ano:', ano);
+        
+        if (mes === undefined || mes === null || ano === undefined || ano === null || isNaN(mes) || isNaN(ano)) {
+            console.log('⚠️ Mes ou ano inválido, retornando 0');
+            return 0;
+        }
+        
+        let mesAnterior = parseInt(mes) - 1;
+        let anoAnterior = parseInt(ano);
+        
+        if (mesAnterior < 0) {
+            mesAnterior = 11;
+            anoAnterior = anoAnterior - 1;
+        }
+        
+        const response = await fetch(`${API_URL}/receitas/saldo-anterior?mes=${mes}&ano=${ano}`, {
+            headers: {
+                'Authorization': `Bearer ${getToken()}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            console.warn('⚠️ Erro ao buscar saldo anterior:', data.message);
+            return 0;
+        }
+        
+        return data.saldo || 0;
+        
+    } catch (error) {
+        console.error('❌ Erro ao calcular saldo anterior:', error);
         return 0;
     }
-    
-    const dadosMesAnterior = window.dadosFinanceiros[anoAnterior].meses[mesAnterior];
-    
-    if (dadosMesAnterior && dadosMesAnterior.fechado === true) {
-        return dadosMesAnterior.saldoFinal || 0;
-    }
-    
-    return 0;
 }
 
 // ================================================================
@@ -711,26 +739,21 @@ async function processarReplicacao(receita, mes, ano) {
                 }
                 
                 if (anoAtual <= anoFinal) {
-                    window.garantirEstruturaDados(anoAtual, mesAtual);
                     await replicarParaMes(receita, mesAtual, anoAtual, diaReceita);
                 }
             }
         }
         
-        await window.salvarDados();
+        console.log('✅ Replicação concluída');
         
     } catch (error) {
         console.error('Erro na replicação:', error);
+        alert('Erro na replicação: ' + error.message);
     }
 }
 
 async function replicarParaMes(receita, mes, ano, dia) {
     try {
-        window.garantirEstruturaDados(ano, mes);
-        
-        const receitaReplicada = { ...receita };
-        receitaReplicada.anexos = [];
-        
         const novaData = new Date(ano, mes, dia);
         
         if (novaData.getMonth() !== mes) {
@@ -738,51 +761,108 @@ async function replicarParaMes(receita, mes, ano, dia) {
             novaData.setDate(ultimoDia);
         }
         
-        receitaReplicada.data = novaData.toISOString().split('T')[0];
-        receitaReplicada.id = window.gerarId ? window.gerarId() : Date.now().toString();
+        const payload = {
+            descricao: receita.descricao,
+            valor: receita.valor,
+            data_recebimento: novaData.toISOString().split('T')[0],
+            mes: mes,
+            ano: ano,
+            observacoes: receita.observacoes || null
+        };
         
-        window.dadosFinanceiros[ano].meses[mes].receitas.push(receitaReplicada);
+        const response = await fetch(`${API_URL}/receitas`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getToken()}`
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.message || 'Erro ao replicar receita');
+        }
+        
+        console.log(`✅ Receita replicada para ${mes}/${ano}`);
         
     } catch (error) {
         console.error('Erro ao replicar para mês:', error);
+        throw error;
     }
 }
-
 // ================================================================
 // EDITAR E EXCLUIR
 // ================================================================
 
-function editarReceita(index, mes, ano) {
-    console.log('🖊️ Editando receita - Index:', index, 'Mes:', mes, 'Ano:', ano);
-    
-    if (window.dadosFinanceiros[ano]?.meses[mes]?.receitas[index]) {
-        const receita = window.dadosFinanceiros[ano].meses[mes].receitas[index];
-        
-        console.log('📄 Receita encontrada:', receita);
-        
-        if (receita.saldoAnterior === true || receita.descricao?.includes('Saldo Anterior')) {
-            alert('Não é possível editar receitas de saldo anterior. Estas são geradas automaticamente.');
-            return;
-        }
-    } else {
-        console.error('❌ Receita não encontrada!');
-        alert('Receita não encontrada!');
-        return;
-    }
-    
-    abrirModalNovaReceita(index, mes, ano);
-}
-
-function excluirReceita(index, mes, ano) {
+async function editarReceita(index, mes, ano) {
     try {
-        if (!window.dadosFinanceiros[ano]?.meses[mes]?.receitas[index]) {
+        console.log('🖊️ Editando receita - Index:', index, 'Mes:', mes, 'Ano:', ano);
+        
+        const response = await fetch(`${API_URL}/receitas?mes=${mes}&ano=${ano}`, {
+            headers: {
+                'Authorization': `Bearer ${getToken()}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.message || 'Erro ao buscar receitas');
+        }
+        
+        const receitas = data.data;
+        
+        if (!receitas || !receitas[index]) {
+            console.error('❌ Receita não encontrada!');
             alert('Receita não encontrada!');
             return;
         }
         
-        const receita = window.dadosFinanceiros[ano].meses[mes].receitas[index];
+        const receita = receitas[index];
         
-        if (receita.saldoAnterior === true || receita.descricao.includes('Saldo Anterior')) {
+        console.log('📄 Receita encontrada:', receita);
+        
+        if (receita.saldo_anterior === true || receita.descricao?.includes('Saldo Anterior')) {
+            alert('Não é possível editar receitas de saldo anterior. Estas são geradas automaticamente.');
+            return;
+        }
+        
+        abrirModalNovaReceita(index, mes, ano);
+        
+    } catch (error) {
+        console.error('❌ Erro ao editar receita:', error);
+        alert('Erro ao carregar receita: ' + error.message);
+    }
+}
+
+async function excluirReceita(index, mes, ano) {
+    try {
+        const response = await fetch(`${API_URL}/receitas?mes=${mes}&ano=${ano}`, {
+            headers: {
+                'Authorization': `Bearer ${getToken()}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.message || 'Erro ao buscar receitas');
+        }
+        
+        const receitas = data.data;
+        
+        if (!receitas || !receitas[index]) {
+            alert('Receita não encontrada!');
+            return;
+        }
+        
+        const receita = receitas[index];
+        
+        if (receita.saldo_anterior === true || receita.descricao?.includes('Saldo Anterior')) {
             alert('Não é possível excluir receitas de saldo anterior. Estas são geradas automaticamente.');
             return;
         }
@@ -790,6 +870,7 @@ function excluirReceita(index, mes, ano) {
         const descricaoReceita = receita.descricao;
         
         window.dadosExclusao = {
+            id: receita.id,
             index: index,
             mes: mes,
             ano: ano,
@@ -1063,59 +1144,50 @@ function configurarEventListenersModais() {
 }
 
 
-function abrirAbaReservas() {
+async function abrirAbaReservas() {
     const mes = window.mesAberto;
     const ano = window.anoAberto;
     
     if (mes === null || ano === null) return;
     
-    window.garantirEstruturaDados(ano, mes);
-    if (!window.dadosFinanceiros[ano].meses[mes].reservas) {
-        window.dadosFinanceiros[ano].meses[mes].reservas = [];
-    }
-    
     document.getElementById('valor-reserva').value = '';
     
-    atualizarResumos(mes, ano);
-    renderizarHistorico(mes, ano);
+    await atualizarResumos(mes, ano);
+    await renderizarHistorico(mes, ano);
 }
 
-function atualizarResumos(mes, ano) {
-    const dadosMes = window.dadosFinanceiros[ano]?.meses[mes];
-    if (!dadosMes) return;
-    
-    const saldoInfo = window.calcularSaldoMes(mes, ano);
-    
-    const totalDisponivel = saldoInfo.saldoAnterior + saldoInfo.receitas;
-    const totalDespesas = saldoInfo.despesas;
-    const saldoLivre = totalDisponivel - totalDespesas;
-    
-    const reservasMes = (dadosMes.reservas || []).reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-    
-    const disponivelParaReservar = Math.max(0, saldoLivre - reservasMes);
-    
-    let totalAcumulado = 0;
-    for (const anoKey in window.dadosFinanceiros) {
-        if (anoKey === 'versao') continue;
-        const dadosAno = window.dadosFinanceiros[anoKey];
-        if (!dadosAno.meses) continue;
+
+async function atualizarResumos(mes, ano) {
+    try {
+        const response = await fetch(`${API_URL}/receitas/resumo?mes=${mes}&ano=${ano}`, {
+            headers: {
+                'Authorization': `Bearer ${getToken()}`,
+                'Content-Type': 'application/json'
+            }
+        });
         
-        for (let m = 0; m < 12; m++) {
-            const reservas = dadosAno.meses[m]?.reservas || [];
-            totalAcumulado += reservas.reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.message || 'Erro ao buscar resumo');
         }
-    }
-    
-    document.getElementById('reservas-total-receitas').textContent = window.formatarMoeda(totalDisponivel);
-    document.getElementById('reservas-ja-reservado').textContent = window.formatarMoeda(totalAcumulado);
-    
-    const elemDisponivel = document.getElementById('reservas-disponivel');
-    elemDisponivel.textContent = window.formatarMoeda(disponivelParaReservar);
-    elemDisponivel.style.color = disponivelParaReservar > 0 ? '#27ae60' : '#e74c3c';
-    
-    const inputValor = document.getElementById('valor-reserva');
-    if (inputValor) {
-        inputValor.max = disponivelParaReservar.toFixed(2);
+        
+        const { totalReceitas, totalReservas, disponivelParaReservar, totalAcumulado } = data;
+        
+        document.getElementById('reservas-total-receitas').textContent = window.formatarMoeda(totalReceitas);
+        document.getElementById('reservas-ja-reservado').textContent = window.formatarMoeda(totalAcumulado);
+        
+        const elemDisponivel = document.getElementById('reservas-disponivel');
+        elemDisponivel.textContent = window.formatarMoeda(disponivelParaReservar);
+        elemDisponivel.style.color = disponivelParaReservar > 0 ? '#27ae60' : '#e74c3c';
+        
+        const inputValor = document.getElementById('valor-reserva');
+        if (inputValor) {
+            inputValor.max = disponivelParaReservar.toFixed(2);
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao atualizar resumos:', error);
     }
 }
 
@@ -1130,103 +1202,114 @@ async function adicionarReserva(e) {
         return;
     }
     
-    const dadosMes = window.dadosFinanceiros[ano].meses[mes];
-    
-    const novaReserva = {
-        id: window.gerarId(),
-        valor: valor,
-        data: new Date().toISOString().split('T')[0]
-    };
-    
-    if (!dadosMes.reservas) dadosMes.reservas = [];
-    dadosMes.reservas.push(novaReserva);
-    
-    await window.salvarDados();
-    
-    atualizarResumos(mes, ano);
-    renderizarHistorico(mes, ano);
-    
-    const saldo = window.calcularSaldoMes(mes, ano);
-    const totalJuros = typeof window.calcularTotalJuros === 'function' ?
-                      window.calcularTotalJuros(dadosMes.despesas || []) : 0;
-    
-    window.atualizarElemento('resumo-receitas', window.formatarMoeda(saldo.receitas));
-    window.atualizarElemento('resumo-despesas', window.formatarMoeda(saldo.despesas));
-    window.atualizarElemento('resumo-juros', window.formatarMoeda(totalJuros));
-    
-    const saldoElement = document.getElementById('resumo-saldo');
-    if (saldoElement) {
-        saldoElement.textContent = window.formatarMoeda(saldo.saldoFinal);
-        saldoElement.className = saldo.saldoFinal >= 0 ? 'saldo-positivo' : 'saldo-negativo';
+    try {
+        const payload = {
+            valor: valor,
+            mes: mes,
+            ano: ano,
+            data: new Date().toISOString().split('T')[0]
+        };
+        
+        const response = await fetch(`${API_URL}/reservas`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getToken()}`
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.message || 'Erro ao adicionar reserva');
+        }
+        
+        await atualizarResumos(mes, ano);
+        await renderizarHistorico(mes, ano);
+        
+        document.getElementById('valor-reserva').value = '';
+        
+        console.log('✅ Reserva adicionada com sucesso');
+        
+    } catch (error) {
+        console.error('❌ Erro ao adicionar reserva:', error);
+        alert('Erro ao adicionar reserva: ' + error.message);
     }
-    
-    if (typeof window.renderizarMeses === 'function') {
-        window.renderizarMeses(ano);
-    }
-    
-    document.getElementById('valor-reserva').value = '';
 }
 
 
 
-function renderizarHistorico(mes, ano) {
+async function renderizarHistorico(mes, ano) {
     const lista = document.getElementById('lista-historico-reservas');
     if (!lista) return;
     
-    const reservas = window.dadosFinanceiros[ano]?.meses[mes]?.reservas || [];
-    lista.innerHTML = '';
-    
-    if (reservas.length === 0) {
-        lista.innerHTML = '<p class="historico-vazio">Nenhuma reserva neste mês.</p>';
-        return;
+    try {
+        const response = await fetch(`${API_URL}/reservas?mes=${mes}&ano=${ano}`, {
+            headers: {
+                'Authorization': `Bearer ${getToken()}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.message || 'Erro ao buscar reservas');
+        }
+        
+        const reservas = data.data || [];
+        lista.innerHTML = '';
+        
+        if (reservas.length === 0) {
+            lista.innerHTML = '<p class="historico-vazio">Nenhuma reserva neste mês.</p>';
+            return;
+        }
+        
+        const template = document.getElementById('template-historico-reserva');
+        if (!template) return;
+        
+        reservas.forEach((reserva, index) => {
+            const clone = template.content.cloneNode(true);
+            
+            clone.querySelector('.historico-data').textContent = window.formatarData(reserva.data);
+            clone.querySelector('.historico-valor').textContent = window.formatarMoeda(reserva.valor);
+            
+            const btnRemover = clone.querySelector('.btn-remover-reserva');
+            btnRemover.addEventListener('click', () => removerReserva(reserva.id, mes, ano));
+            
+            lista.appendChild(clone);
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro ao renderizar histórico:', error);
+        lista.innerHTML = '<p class="historico-erro">Erro ao carregar histórico de reservas.</p>';
     }
-    
-    const template = document.getElementById('template-historico-reserva');
-    if (!template) return;
-    
-    reservas.forEach((reserva, index) => {
-        const clone = template.content.cloneNode(true);
-        
-        clone.querySelector('.historico-data').textContent = window.formatarData(reserva.data);
-        clone.querySelector('.historico-valor').textContent = window.formatarMoeda(reserva.valor);
-        
-        const btnRemover = clone.querySelector('.btn-remover-reserva');
-        btnRemover.addEventListener('click', () => removerReserva(index, mes, ano));
-        
-        lista.appendChild(clone);
-    });
 }
 
-async function removerReserva(index, mes, ano) {
-    const reservas = window.dadosFinanceiros[ano]?.meses[mes]?.reservas;
-    if (!reservas || !reservas[index]) return;
-    
-    const valor = reservas[index].valor;
-    if (!confirm(`Remover reserva de ${window.formatarMoeda(valor)}?`)) return;
-    
-    reservas.splice(index, 1);
-    await window.salvarDados();
-    
-    atualizarResumos(mes, ano);
-    renderizarHistorico(mes, ano);
-    
-    const dadosMes = window.dadosFinanceiros[ano].meses[mes];
-    const saldo = window.calcularSaldoMes(mes, ano);
-    const totalJuros = typeof window.calcularTotalJuros === 'function' ?
-                      window.calcularTotalJuros(dadosMes.despesas || []) : 0;
-    
-    window.atualizarElemento('resumo-receitas', window.formatarMoeda(saldo.receitas));
-    window.atualizarElemento('resumo-despesas', window.formatarMoeda(saldo.despesas));
-    window.atualizarElemento('resumo-juros', window.formatarMoeda(totalJuros));
-    
-    const saldoElement = document.getElementById('resumo-saldo');
-    if (saldoElement) {
-        saldoElement.textContent = window.formatarMoeda(saldo.saldoFinal);
-        saldoElement.className = saldo.saldoFinal >= 0 ? 'saldo-positivo' : 'saldo-negativo';
-    }
-    
-    if (typeof window.renderizarMeses === 'function') {
-        window.renderizarMeses(ano);
+async function removerReserva(reservaId, mes, ano) {
+    try {
+        const response = await fetch(`${API_URL}/reservas/${reservaId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${getToken()}`
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.message || 'Erro ao remover reserva');
+        }
+        
+        await atualizarResumos(mes, ano);
+        await renderizarHistorico(mes, ano);
+        
+        console.log('✅ Reserva removida com sucesso');
+        
+    } catch (error) {
+        console.error('❌ Erro ao remover reserva:', error);
+        alert('Erro ao remover reserva: ' + error.message);
     }
 }
 
