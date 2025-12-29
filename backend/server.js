@@ -103,22 +103,27 @@ const iniciarServidor = async () => {
         }
 
         // --- NOVO BLOCO: CRIAÇÃO AUTOMÁTICA DE TABELA ---
-        const { query } = require('./config/database'); // Importa a função de consulta
-        console.log('📦 Verificando estrutura do banco de dados...');
-        
-        await query(`
-            CREATE TABLE IF NOT EXISTS usuários (
-                id SERIAL PRIMARY KEY,
-                nome VARCHAR(255) NOT NULL,
-                email VARCHAR(255) UNIQUE NOT NULL,
-                documento VARCHAR(20) UNIQUE NOT NULL,
-                senha VARCHAR(255) NOT NULL,
-                status BOOLEAN DEFAULT true,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        `);
-        console.log('✅ Tabela "usuários" pronta para uso!');
-        // ------------------------------------------------
+      // No seu server.js, dentro de iniciarServidor:
+const { query } = require('./config/database'); 
+
+console.log('📦 Forçando criação da estrutura...');
+// Criamos a tabela garantindo o esquema 'public' e sem acento para evitar conflitos de sistema
+await query(`
+    CREATE TABLE IF NOT EXISTS usuarios (
+        id SERIAL PRIMARY KEY,
+        nome VARCHAR(255) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        documento VARCHAR(20) UNIQUE NOT NULL,
+        senha VARCHAR(255) NOT NULL,
+        status BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+`);
+
+// Criamos um "apelido" (alias) com acento, caso o seu código antigo ainda procure por "usuários"
+await query(`CREATE OR REPLACE VIEW usuários AS SELECT * FROM usuarios;`);
+
+console.log('✅ Estrutura de dados sincronizada!');
 
         app.listen(PORT, () => {
             console.log('================================================');
