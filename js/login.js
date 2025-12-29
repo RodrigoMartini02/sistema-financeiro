@@ -172,10 +172,11 @@ async function validarLoginRapido(documento, password) {
         });
 
         // 1. Pega o texto bruto da resposta primeiro
-        const text = await response.text();
-        
-        // 2. Tenta converter para JSON apenas se o texto não estiver vazio
-        const data = text ? JSON.parse(text) : {};
+      const text = await response.text();
+const data = text ? JSON.parse(text) : {};
+
+// ADICIONE ESTA LINHA PARA DIAGNÓSTICO:
+console.log('Dados recebidos do servidor:', data);
 
         if (!response.ok) {
             // Agora o erro será mais claro, vindo do servidor ou uma mensagem padrão
