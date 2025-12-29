@@ -1,4 +1,4 @@
-window.API_URL = window.API_URL || 'http://localhost:3010/api';
+window.API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
 function getToken() {
     return sessionStorage.getItem('token');
