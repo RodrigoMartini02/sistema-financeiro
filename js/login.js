@@ -171,10 +171,20 @@ async function validarLoginRapido(documento, password) {
             })
         });
 
-        const data = await response.json();
+        // 1. Pega o texto bruto da resposta primeiro
+        const text = await response.text();
+        
+        // 2. Tenta converter para JSON apenas se o texto não estiver vazio
+        const data = text ? JSON.parse(text) : {};
 
         if (!response.ok) {
-            throw new Error(data.message || 'Erro ao fazer login');
+            // Agora o erro será mais claro, vindo do servidor ou uma mensagem padrão
+            throw new Error(data.message || `Erro do servidor: ${response.status}`);
+        }
+
+        // 3. Verifica se os dados esperados vieram na resposta
+        if (!data.data || !data.data.token) {
+            throw new Error('Resposta do servidor inválida (sem token)');
         }
 
         sessionStorage.setItem('token', data.data.token);
@@ -185,7 +195,7 @@ async function validarLoginRapido(documento, password) {
 
     } catch (error) {
         console.error('Erro no login:', error);
-        throw error;
+        throw error; // Repassa o erro para ser exibido na tela
     }
 }
 
