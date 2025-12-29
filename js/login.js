@@ -12,7 +12,7 @@ const EMAIL_CONFIG = {
     userId: 'oW3fgPbnchMKc42Yf'
 };
 
-const API_URL = 'https://sistema-financeiro-backend-o199.onrender.com/api';
+const API_URL = 'https://sistema-financeiro-kxed.onrender.com/api';
 
 function inicializarSistemaLoginRapido() {
     try {

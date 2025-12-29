@@ -1,4 +1,4 @@
-window.API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+window.API_URL = 'https://sistema-financeiro-kxed.onrender.com/api';
 
 function getToken() {
     return sessionStorage.getItem('token');
@@ -770,14 +770,15 @@ async function replicarParaMes(receita, mes, ano, dia) {
             observacoes: receita.observacoes || null
         };
         
-        const response = await fetch(`${API_URL}/receitas`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${getToken()}`
-            },
-            body: JSON.stringify(payload)
-        });
+       const response = await fetch(`${API_URL}/receitas`, {
+    method: 'POST',
+    headers: {
+        'Authorization': `Bearer ${getToken()}`,
+        'Content-Type': 'application/json'
+    },
+    // SEM credentials: 'include'
+    body: JSON.stringify(payload)
+});
         
         const data = await response.json();
         

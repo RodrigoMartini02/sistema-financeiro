@@ -6,17 +6,13 @@ const { testarConexao } = require('./config/database');
 const { rateLimiter } = require('./middleware/validation');
 
 const app = express();
-const PORT = process.env.PORT || 3010; // Mudado para 3010 (padrão que você usa)
+const PORT = process.env.PORT || 3010;
 
 // Configuração CORS
 app.use(cors({
-    origin: [
-        'http://localhost:5500',
-        'https://sistema-financeiro-kved.onrender.com'  // ← ADICIONAR ESTA
-    ]
+    origin: '*',
+    credentials: false
 }));
-
-
 
 // Middleware de parsing
 app.use(express.json({ limit: '10mb' }));
