@@ -16,6 +16,10 @@ app.use(cors({
     ]
 }));
 
+app.use(cors({
+    origin: true,
+    credentials: true
+}));
 
 // Middleware de parsing
 app.use(express.json({ limit: '10mb' }));
