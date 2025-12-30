@@ -155,8 +155,11 @@ async function carregarCategoriasLocal() {
     }
 
     try {
+        // ✅ Garantir que API_URL existe
+        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
         // 🔥 BUSCAR DA API
-        const response = await fetch(`${window.API_URL}/usuarios/${usuario.id}/categorias`, {
+        const response = await fetch(`${API_URL}/usuarios/${usuario.id}/categorias`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -193,8 +196,11 @@ async function salvarCategorias() {
     try {
         console.log('💾 Salvando categorias na API...', categoriasUsuario);
 
+        // ✅ Garantir que API_URL existe
+        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
         // 🔥 SALVAR NA API
-        const response = await fetch(`${window.API_URL}/usuarios/${usuario.id}/categorias`, {
+        const response = await fetch(`${API_URL}/usuarios/${usuario.id}/categorias`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -403,8 +409,11 @@ async function carregarCartoesLocal() {
     }
 
     try {
+        // ✅ Garantir que API_URL existe
+        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
         // 🔥 BUSCAR DA API
-        const response = await fetch(`${window.API_URL}/usuarios/${usuario.id}/cartoes`, {
+        const response = await fetch(`${API_URL}/usuarios/${usuario.id}/cartoes`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -445,8 +454,13 @@ async function salvarCartoes() {
     try {
         console.log('💾 Salvando cartões na API...', cartoesUsuario);
 
+        // ✅ Garantir que API_URL existe
+        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+        const url = `${API_URL}/usuarios/${usuario.id}/cartoes`;
+        console.log('📡 URL da requisição:', url);
+
         // 🔥 SALVAR NA API
-        const response = await fetch(`${window.API_URL}/usuarios/${usuario.id}/cartoes`, {
+        const response = await fetch(url, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
