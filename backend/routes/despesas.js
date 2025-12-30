@@ -9,33 +9,50 @@ const { body, validationResult } = require('express-validator');
 // ================================================================
 router.get('/', authMiddleware, async (req, res) => {
     try {
-        const { mes, ano } = req.query;
-        
-        let whereClause = 'WHERE d.usuario_id = $1';
-        let params = [req.usuario.id];
-        
-        if (mes !== undefined && ano !== undefined) {
-            whereClause += ' AND d.mes = $2 AND d.ano = $3';
-            params.push(parseInt(mes), parseInt(ano));
+        const { mes, ano, usuario_id } = req.query;
+
+        // ✅ MASTER pode ver dados de qualquer usuário
+        let whereClause = '';
+        let params = [];
+        let paramCount = 0;
+
+        if (usuario_id && req.usuario.tipo === 'master') {
+            // Master consultando dados de outro usuário
+            paramCount++;
+            whereClause = `WHERE d.usuario_id = $${paramCount}`;
+            params.push(parseInt(usuario_id));
+        } else {
+            // Usuário comum vê apenas seus dados
+            paramCount++;
+            whereClause = `WHERE d.usuario_id = $${paramCount}`;
+            params.push(req.usuario.id);
         }
-        
+
+        if (mes !== undefined && ano !== undefined) {
+            whereClause += ` AND d.mes = $${paramCount + 1} AND d.ano = $${paramCount + 2}`;
+            params.push(parseInt(mes), parseInt(ano));
+            paramCount += 2;
+        }
+
         // ✅ BUSCAR COM JOIN para pegar nome da categoria
         const result = await query(
-            `SELECT 
+            `SELECT
                 d.*,
-                c.nome as categoria_nome
+                c.nome as categoria_nome,
+                u.nome as usuario_nome
              FROM despesas d
              LEFT JOIN categorias c ON d.categoria_id = c.id
-             ${whereClause} 
+             LEFT JOIN usuarios u ON d.usuario_id = u.id
+             ${whereClause}
              ORDER BY d.data_vencimento ASC`,
             params
         );
-        
+
         res.json({
             success: true,
             data: result.rows
         });
-        
+
     } catch (error) {
         console.error('Erro ao buscar despesas:', error);
         res.status(500).json({

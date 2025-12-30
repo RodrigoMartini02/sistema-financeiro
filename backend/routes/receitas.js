@@ -10,26 +10,47 @@ const { body, validationResult } = require('express-validator');
 
 router.get('/', authMiddleware, async (req, res) => {
     try {
-        const { mes, ano } = req.query;
-        
-        let whereClause = 'WHERE usuario_id = $1';
-        let params = [req.usuario.id];
-        
-        if (mes !== undefined && ano !== undefined) {
-            whereClause += ' AND mes = $2 AND ano = $3';
-            params.push(parseInt(mes), parseInt(ano));
+        const { mes, ano, usuario_id } = req.query;
+
+        // ✅ MASTER pode ver dados de qualquer usuário
+        let whereClause = '';
+        let params = [];
+        let paramCount = 0;
+
+        if (usuario_id && req.usuario.tipo === 'master') {
+            // Master consultando dados de outro usuário
+            paramCount++;
+            whereClause = `WHERE r.usuario_id = $${paramCount}`;
+            params.push(parseInt(usuario_id));
+        } else {
+            // Usuário comum vê apenas seus dados
+            paramCount++;
+            whereClause = `WHERE r.usuario_id = $${paramCount}`;
+            params.push(req.usuario.id);
         }
-        
+
+        if (mes !== undefined && ano !== undefined) {
+            whereClause += ` AND r.mes = $${paramCount + 1} AND r.ano = $${paramCount + 2}`;
+            params.push(parseInt(mes), parseInt(ano));
+            paramCount += 2;
+        }
+
         const result = await query(
-            `SELECT * FROM receitas ${whereClause} ORDER BY data_recebimento DESC`,
+            `SELECT
+                r.*,
+                u.nome as usuario_nome
+             FROM receitas r
+             LEFT JOIN usuarios u ON r.usuario_id = u.id
+             ${whereClause}
+             ORDER BY r.data_recebimento DESC`,
             params
         );
-        
+
         res.json({
             success: true,
             data: result.rows
         });
-        
+
     } catch (error) {
         console.error('Erro ao buscar receitas:', error);
         res.status(500).json({

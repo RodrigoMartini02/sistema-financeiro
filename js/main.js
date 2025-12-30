@@ -2039,12 +2039,28 @@ function abrirModal(modalId) {
 function exibirNomeUsuario() {
     try {
         const dadosUsuario = sessionStorage.getItem('dadosUsuarioLogado');
+        const token = sessionStorage.getItem('token');
+
+        // Debug
+        console.log('🔐 Token presente:', !!token);
+        console.log('👤 Dados usuário:', !!dadosUsuario);
+
         if (dadosUsuario) {
             const usuario = JSON.parse(dadosUsuario);
             const nomeElement = document.getElementById('nome-usuario-logado');
             if (nomeElement && usuario.nome) {
                 const primeiroNome = usuario.nome.split(' ')[0];
-                nomeElement.textContent = primeiroNome + ',';
+                const tipoUsuario = usuario.tipo || 'padrao';
+
+                // Traduzir tipo de usuário
+                const tipoTexto = {
+                    'master': 'Master',
+                    'admin': 'Admin',
+                    'padrao': 'Padrão'
+                }[tipoUsuario] || 'Padrão';
+
+                // Exibir nome com tipo entre parênteses
+                nomeElement.innerHTML = `${primeiroNome} <span style="font-size: 0.85em; color: #7f8c8d;">(${tipoTexto})</span>,`;
                 nomeElement.style.fontWeight = 'bold';
                 nomeElement.style.color = '#2c3e50';
             }
