@@ -51,23 +51,18 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function aguardarSistemaCompleto() {
-    let tentativas = 0;
-    const maxTentativas = 50;
-    
-    while (tentativas < maxTentativas) {
-        if (window.sistemaInicializado && 
-            window.dadosFinanceiros && 
-            typeof window.calcularTotalDespesas === 'function' &&
-            typeof window.obterValorRealDespesa === 'function' &&
-            typeof window.obterCategoriaLimpa === 'function') {
-            return true;
+    try {
+        if (!window.usuarioDados) {
+            await new Promise(resolve => setTimeout(resolve, 500));
         }
         
-        await new Promise(resolve => setTimeout(resolve, 200));
-        tentativas++;
+        const dados = await window.usuarioDados.getDadosFinanceiros();
+        return !!(dados && (dados.receitas || dados.despesas));
+        
+    } catch (error) {
+        console.warn('Erro ao aguardar dados:', error);
+        return false;
     }
-    
-    return false;
 }
 
 function configurarObservadores() {
@@ -151,26 +146,33 @@ function limparGraficos() {
 // FUNÇÃO PRINCIPAL DE CARREGAMENTO
 // ================================================================
 
-function carregarDadosDashboard(ano) {
-    if (!window.dadosFinanceiros[ano]) {
-        return;
+async function carregarDadosDashboard(ano) {
+    try {
+        const dadosAPI = await window.usuarioDados.getDadosFinanceiros();
+        if (!dadosAPI) return;
+        
+        const dadosFormatados = converterDadosAPI(dadosAPI, ano);
+        window.dadosFinanceiros = dadosFormatados;
+        
+        const dadosProcessados = processarDadosReais(dadosFormatados, ano);
+        
+        atualizarResumoDashboard(dadosProcessados.resumoAnual);
+        await preencherSelectCategorias();
+        
+        const filtrosPadrao = { categoria: '', formaPagamento: 'todas', status: 'todos', tipo: 'ambos' };
+        
+        criarGraficoBalanco(dadosProcessados.dadosMensais);
+        criarGraficoTendenciaAnualComFiltros(dadosFormatados, ano, filtrosPadrao);
+        criarGraficoReceitasDespesasComFiltros(dadosProcessados.dadosMensais, filtrosPadrao);
+        criarGraficoBarrasCategoriasComFiltros(dadosFormatados, ano, filtrosPadrao);
+        criarGraficoCategoriasMensaisComFiltros(dadosFormatados, ano, filtrosPadrao);
+        criarGraficoJurosComFiltros(dadosFormatados, ano, filtrosPadrao);
+        criarGraficoParcelamentosComFiltros(dadosFormatados, ano, filtrosPadrao);
+        criarGraficoFormaPagamentoComFiltros(dadosFormatados, ano, filtrosPadrao);
+        
+    } catch (error) {
+        console.error('Erro ao carregar dashboard:', error);
     }
-    
-    const dadosProcessados = processarDadosReais(window.dadosFinanceiros, ano);
-    
-    atualizarResumoDashboard(dadosProcessados.resumoAnual);
-    preencherSelectCategorias();
-    
-    const filtrosPadrao = { categoria: '', formaPagamento: 'todas', status: 'todos', tipo: 'ambos' };
-    
-    criarGraficoBalanco(dadosProcessados.dadosMensais);
-    criarGraficoTendenciaAnualComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
-    criarGraficoReceitasDespesasComFiltros(dadosProcessados.dadosMensais, filtrosPadrao);
-    criarGraficoBarrasCategoriasComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
-    criarGraficoCategoriasMensaisComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
-    criarGraficoJurosComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
-    criarGraficoParcelamentosComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
-    criarGraficoFormaPagamentoComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
 }
 
 // ================================================================
@@ -1123,28 +1125,25 @@ function criarGraficoFormaPagamentoComFiltros(dadosFinanceiros, ano, filtros) {
 // SISTEMA DE FILTROS
 // ================================================================
 
-function obterCategorias(ano) {
-    const categorias = new Set();
-    
-    if (!window.dadosFinanceiros[ano]) return [];
-    
-    for (let mes = 0; mes < 12; mes++) {
-        const dadosMes = window.dadosFinanceiros[ano].meses[mes];
-        if (!dadosMes || !dadosMes.despesas) continue;
+async function obterCategorias(ano) {
+    try {
+        const dadosAPI = await window.usuarioDados.getDadosFinanceiros();
+        const categorias = new Set();
         
-        dadosMes.despesas.forEach(despesa => {
-            const categoria = window.obterCategoriaLimpa ? 
-                             window.obterCategoriaLimpa(despesa) : 
-                             (despesa.categoria || 'Sem categoria');
+        (dadosAPI.despesas || []).forEach(despesa => {
+            const categoria = despesa.categoria || 'Sem categoria';
             categorias.add(categoria);
         });
+        
+        return Array.from(categorias).sort();
+    } catch (error) {
+        return [];
     }
-    
-    return Array.from(categorias).sort();
 }
 
-function preencherSelectCategorias() {
-    const categorias = obterCategorias(window.anoAtual);
+
+async function preencherSelectCategorias() {
+    const categorias = await obterCategorias(window.anoAtual);
     const selects = document.querySelectorAll('select[id*="categoria-filter"]');
     
     selects.forEach(select => {
@@ -1204,6 +1203,27 @@ function obterFiltrosDoGrafico(prefixo) {
     const tipo = document.getElementById(`${prefixo}-tipo-filter`)?.value || 'ambos';
     
     return { categoria, formaPagamento, status, tipo };
+}
+
+
+function converterDadosAPI(dadosAPI, ano) {
+    const estrutura = { [ano]: { meses: [] } };
+    for (let i = 0; i < 12; i++) {
+        estrutura[ano].meses[i] = { receitas: [], despesas: [] };
+    }
+    (dadosAPI.receitas || []).forEach(receita => {
+        const mes = receita.mes || 0;
+        if (mes >= 0 && mes < 12) {
+            estrutura[ano].meses[mes].receitas.push(receita);
+        }
+    });
+    (dadosAPI.despesas || []).forEach(despesa => {
+        const mes = despesa.mes || 0;
+        if (mes >= 0 && mes < 12) {
+            estrutura[ano].meses[mes].despesas.push(despesa);
+        }
+    });
+    return estrutura;
 }
 
 // ================================================================

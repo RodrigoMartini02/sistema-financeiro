@@ -1,7 +1,5 @@
 // ================================================================
-// SISTEMA DE RELATÓRIOS - VERSÃO REFATORADA PARA FILTROS INLINE
-// Compatível com receita.js e despesas.js
-// PARTE 1 DE 2
+// SISTEMA DE RELATÓRIOS
 // ================================================================
 
 let processandoRelatorio = false;

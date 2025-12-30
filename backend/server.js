@@ -43,6 +43,7 @@ app.get('/health', async (req, res) => {
     });
 });
 
+// Rotas da API
 const authRoutes = require('./routes/auth');
 const usuariosRoutes = require('./routes/usuarios');
 const receitasRoutes = require('./routes/receitas');
@@ -80,35 +81,33 @@ app.use((err, req, res, next) => {
     });
 });
 
-const iniciarServidor = async () => {
+// ✅ FUNÇÃO SEGURA PARA CRIAR ESTRUTURA DO BANCO
+async function criarEstruturaBanco() {
+    const { query } = require('./config/database');
+    
     try {
-        console.log('🔄 Testando conexão com PostgreSQL...');
-        const dbOk = await testarConexao();
+        console.log('📦 Verificando/criando estrutura do banco de dados...');
+
+        // ⚠️ SÓ RECRIA TABELAS EM DESENVOLVIMENTO OU SE FORÇADO
+        const forceRecreate = process.env.FORCE_RECREATE_TABLES === 'true';
+        const isDev = process.env.NODE_ENV === 'development';
         
-        if (!dbOk) {
-            console.error('❌ Não foi possível conectar ao PostgreSQL!');
-            process.exit(1);
+        if (forceRecreate && isDev) {
+            console.log('🔄 Recriando tabelas (modo desenvolvimento)...');
+            await query(`DROP TABLE IF EXISTS meses CASCADE;`);
+            await query(`DROP TABLE IF EXISTS reservas CASCADE;`);
+            await query(`DROP TABLE IF EXISTS despesas CASCADE;`);
+            await query(`DROP TABLE IF EXISTS receitas CASCADE;`);
+            await query(`DROP TABLE IF EXISTS cartoes CASCADE;`);
+            await query(`DROP TABLE IF EXISTS categorias CASCADE;`);
+            await query(`DROP TABLE IF EXISTS usuarios CASCADE;`);
+            await query(`DROP TABLE IF EXISTS usuários CASCADE;`);
+            console.log('✅ Tabelas antigas removidas (desenvolvimento)!');
         }
 
-        const { query } = require('./config/database'); 
-
-        console.log('📦 Recriando estrutura do banco de dados...');
-
-        // Dropar todas as tabelas (garante estrutura limpa)
-        await query(`DROP TABLE IF EXISTS meses CASCADE;`);
-        await query(`DROP TABLE IF EXISTS reservas CASCADE;`);
-        await query(`DROP TABLE IF EXISTS despesas CASCADE;`);
-        await query(`DROP TABLE IF EXISTS receitas CASCADE;`);
-        await query(`DROP TABLE IF EXISTS cartoes CASCADE;`);
-        await query(`DROP TABLE IF EXISTS categorias CASCADE;`);
-        await query(`DROP TABLE IF EXISTS usuarios CASCADE;`);
-        await query(`DROP TABLE IF EXISTS usuários CASCADE;`);
-
-        console.log('✅ Tabelas antigas removidas!');
-
-        // TABELA USUARIOS
+        // ✅ TABELA USUARIOS (CREATE IF NOT EXISTS - SEGURO!)
         await query(`
-            CREATE TABLE usuarios (
+            CREATE TABLE IF NOT EXISTS usuarios (
                 id SERIAL PRIMARY KEY,
                 nome VARCHAR(255) NOT NULL,
                 email VARCHAR(255) UNIQUE NOT NULL,
@@ -121,17 +120,19 @@ const iniciarServidor = async () => {
             );
         `);
 
-        await query(`CREATE INDEX idx_usuarios_email ON usuarios(email);`);
-        await query(`CREATE INDEX idx_usuarios_documento ON usuarios(documento);`);
-        await query(`CREATE INDEX idx_usuarios_tipo ON usuarios(tipo);`);
-        await query(`CREATE INDEX idx_usuarios_status ON usuarios(status);`);
-        await query(`CREATE VIEW usuários AS SELECT * FROM usuarios;`);
+        // Índices para performance (só cria se não existir)
+        await query(`CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email);`);
+        await query(`CREATE INDEX IF NOT EXISTS idx_usuarios_documento ON usuarios(documento);`);
+        await query(`CREATE INDEX IF NOT EXISTS idx_usuarios_tipo ON usuarios(tipo);`);
+        await query(`CREATE INDEX IF NOT EXISTS idx_usuarios_status ON usuarios(status);`);
+        
+        // View compatibilidade
+        await query(`CREATE OR REPLACE VIEW usuários AS SELECT * FROM usuarios;`);
+        console.log('✅ Tabela usuarios verificada/criada!');
 
-        console.log('✅ Tabela usuarios criada!');
-
-        // TABELA CATEGORIAS
+        // ✅ TABELA CATEGORIAS
         await query(`
-            CREATE TABLE categorias (
+            CREATE TABLE IF NOT EXISTS categorias (
                 id SERIAL PRIMARY KEY,
                 usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
                 nome VARCHAR(255) NOT NULL,
@@ -142,10 +143,9 @@ const iniciarServidor = async () => {
                 UNIQUE(usuario_id, nome)
             );
         `);
+        console.log('✅ Tabela categorias verificada/criada!');
 
-        console.log('✅ Tabela categorias criada!');
-
-        // FUNÇÃO criar_categorias_padrao
+        // ✅ FUNÇÃO criar_categorias_padrao
         await query(`
             CREATE OR REPLACE FUNCTION criar_categorias_padrao(p_usuario_id INTEGER)
             RETURNS VOID AS $$
@@ -162,12 +162,11 @@ const iniciarServidor = async () => {
             END;
             $$ LANGUAGE plpgsql;
         `);
+        console.log('✅ Função criar_categorias_padrao verificada/criada!');
 
-        console.log('✅ Função criar_categorias_padrao criada!');
-
-        // TABELA CARTOES
+        // ✅ TABELA CARTOES
         await query(`
-            CREATE TABLE cartoes (
+            CREATE TABLE IF NOT EXISTS cartoes (
                 id SERIAL PRIMARY KEY,
                 usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
                 nome VARCHAR(255) NOT NULL,
@@ -180,12 +179,11 @@ const iniciarServidor = async () => {
                 data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
+        console.log('✅ Tabela cartoes verificada/criada!');
 
-        console.log('✅ Tabela cartoes criada!');
-
-        // TABELA RECEITAS
+        // ✅ TABELA RECEITAS
         await query(`
-            CREATE TABLE receitas (
+            CREATE TABLE IF NOT EXISTS receitas (
                 id SERIAL PRIMARY KEY,
                 usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
                 descricao VARCHAR(255) NOT NULL,
@@ -197,12 +195,11 @@ const iniciarServidor = async () => {
                 data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
+        console.log('✅ Tabela receitas verificada/criada!');
 
-        console.log('✅ Tabela receitas criada!');
-
-        // TABELA DESPESAS
+        // ✅ TABELA DESPESAS
         await query(`
-            CREATE TABLE despesas (
+            CREATE TABLE IF NOT EXISTS despesas (
                 id SERIAL PRIMARY KEY,
                 usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
                 descricao VARCHAR(255) NOT NULL,
@@ -225,12 +222,11 @@ const iniciarServidor = async () => {
                 data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
+        console.log('✅ Tabela despesas verificada/criada!');
 
-        console.log('✅ Tabela despesas criada!');
-
-        // TABELA RESERVAS
+        // ✅ TABELA RESERVAS
         await query(`
-            CREATE TABLE reservas (
+            CREATE TABLE IF NOT EXISTS reservas (
                 id SERIAL PRIMARY KEY,
                 usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
                 valor DECIMAL(10, 2) NOT NULL,
@@ -241,12 +237,11 @@ const iniciarServidor = async () => {
                 data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
+        console.log('✅ Tabela reservas verificada/criada!');
 
-        console.log('✅ Tabela reservas criada!');
-
-        // TABELA MESES
+        // ✅ TABELA MESES
         await query(`
-            CREATE TABLE meses (
+            CREATE TABLE IF NOT EXISTS meses (
                 id SERIAL PRIMARY KEY,
                 usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
                 ano INTEGER NOT NULL,
@@ -258,14 +253,37 @@ const iniciarServidor = async () => {
                 UNIQUE(usuario_id, ano, mes)
             );
         `);
+        console.log('✅ Tabela meses verificada/criada!');
 
-        console.log('✅ Tabela meses criada!');
-        console.log('✅ Estrutura do banco de dados criada com sucesso!');
+        console.log('🎉 Estrutura do banco de dados está pronta!');
+        return true;
+        
+    } catch (error) {
+        console.error('❌ Erro ao criar estrutura do banco:', error);
+        throw error;
+    }
+}
+
+// ✅ FUNÇÃO PRINCIPAL DE INICIALIZAÇÃO
+const iniciarServidor = async () => {
+    try {
+        console.log('🔄 Testando conexão com PostgreSQL...');
+        const dbOk = await testarConexao();
+        
+        if (!dbOk) {
+            console.error('❌ Não foi possível conectar ao PostgreSQL!');
+            process.exit(1);
+        }
+
+        // ✅ Criar/verificar estrutura do banco
+        await criarEstruturaBanco();
 
         app.listen(PORT, () => {
             console.log('================================================');
             console.log('🚀 SERVIDOR INICIADO COM SUCESSO!');
             console.log(`📡 Servidor rodando na porta: ${PORT}`);
+            console.log(`🗃️  Banco PostgreSQL: Conectado e funcionando!`);
+            console.log(`🌍 Ambiente: ${process.env.NODE_ENV || 'development'}`);
             console.log('================================================');
         });
         
@@ -275,6 +293,7 @@ const iniciarServidor = async () => {
     }
 };
 
+// ✅ TRATAMENTO DE SINAIS
 process.on('SIGTERM', () => {
     console.log('SIGTERM recebido. Encerrando servidor...');
     process.exit(0);
@@ -294,6 +313,7 @@ process.on('uncaughtException', (error) => {
     process.exit(1);
 });
 
+// ✅ INICIALIZAR SERVIDOR
 iniciarServidor();
 
 module.exports = app;
