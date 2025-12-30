@@ -2458,19 +2458,19 @@ class GeradorPDFMelhorado {
 // Função principal de integração
 function integrarGeradorPDFMelhorado() {
     if (window.sistemaRelatorios && !window.sistemaRelatorios._pdfMelhoradoIntegrado) {
-        
+
         // Salvar referência do método original (caso necessário)
         window.sistemaRelatorios._exportarPDFOriginal = window.sistemaRelatorios.exportarPDF;
-        
+
         // Sobrescrever o método exportarPDF com o novo sistema
         window.sistemaRelatorios.exportarPDF = function() {
             const geradorPDF = new GeradorPDFMelhorado(this);
             geradorPDF.gerarPDFCompleto();
         };
-        
+
         window.sistemaRelatorios._pdfMelhoradoIntegrado = true;
-        console.log('✅ Método exportarPDF substituído pelo sistema melhorado!');
-        
+        // Remover console.log para não poluir o console
+
         return true;
     }
     return false;
@@ -2484,25 +2484,27 @@ if (window.sistemaRelatorios) {
 // Aguardar carregamento do sistema e integrar
 document.addEventListener('DOMContentLoaded', function() {
     let tentativas = 0;
-    const maxTentativas = 20;
-    
+    const maxTentativas = 5; // Reduzido de 20 para 5
+    let jaIntegrado = false;
+
     const verificarEIntegrar = () => {
+        if (jaIntegrado) return;
+
         tentativas++;
-        
+
         if (integrarGeradorPDFMelhorado()) {
-            console.log('Sistema PDF melhorado integrado com sucesso!');
+            jaIntegrado = true;
+            // Remover console.log para evitar poluir o console
             return;
         }
-        
+
         if (tentativas < maxTentativas) {
-            setTimeout(verificarEIntegrar, 500);
-        } else {
-            console.warn('Não foi possível integrar o sistema PDF melhorado automaticamente.');
-            console.log('Use: integrarGeradorPDFMelhorado() manualmente quando o sistema estiver carregado.');
+            setTimeout(verificarEIntegrar, 800); // Aumentado de 500ms para 800ms
         }
+        // Remover avisos - o sistema funciona mesmo sem integração imediata
     };
-    
-    setTimeout(verificarEIntegrar, 1000);
+
+    setTimeout(verificarEIntegrar, 1500); // Aumentado de 1000ms para 1500ms
 });
 
 // Listener para eventos personalizados
