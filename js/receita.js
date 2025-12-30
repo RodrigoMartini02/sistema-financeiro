@@ -536,11 +536,20 @@ async function salvarReceita(e) {
             }
 
             document.getElementById('modal-nova-receita').style.display = 'none';
+            
             await buscarEExibirReceitas(formData.mes, formData.ano);
             
-            window.dispatchEvent(new CustomEvent('receita-salva', { 
-                detail: { mes: formData.mes, ano: formData.ano } 
-            }));
+            if (typeof window.renderizarDetalhesDoMes === 'function') {
+                await window.renderizarDetalhesDoMes(formData.mes, formData.ano);
+            }
+            
+            if (typeof window.carregarDadosDashboard === 'function') {
+                await window.carregarDadosDashboard(formData.ano);
+            }
+            
+            if (typeof window.renderizarMeses === 'function') {
+                window.renderizarMeses(formData.ano);
+            }
         }
         
         return false;
