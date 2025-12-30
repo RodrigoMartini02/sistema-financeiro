@@ -3,6 +3,7 @@
 // ================================================================
 const express = require('express');
 const router = express.Router();
+const bcrypt = require('bcryptjs');
 const { query } = require('../config/database');
 const { authMiddleware, isAdmin } = require('../middleware/auth');
 
@@ -217,13 +218,16 @@ router.post('/', authMiddleware, isMaster, async (req, res) => {
                 message: 'Este documento já está cadastrado'
             });
         }
-        
+
+        // Hash da senha
+        const senhaHash = await bcrypt.hash(senha, 10);
+
         // Criar usuário
         const result = await query(
             `INSERT INTO usuarios (nome, email, documento, senha, tipo, status)
              VALUES ($1, $2, $3, $4, $5, $6)
              RETURNING id, nome, email, documento, tipo, status, data_cadastro`,
-            [nome, email, documento, senha, tipo, status]
+            [nome, email, documento, senhaHash, tipo, status]
         );
         
         res.status(201).json({
@@ -381,13 +385,15 @@ router.put('/:id', authMiddleware, isAdminOrMaster, async (req, res) => {
             updates.push(`email = $${paramCount}`);
             params.push(email);
         }
-        
+
         if (senha) {
+            // Hash da senha antes de salvar
+            const senhaHash = await bcrypt.hash(senha, 10);
             paramCount++;
             updates.push(`senha = $${paramCount}`);
-            params.push(senha);
+            params.push(senhaHash);
         }
-        
+
         if (tipo && req.usuario.tipo === 'master') {
             paramCount++;
             updates.push(`tipo = $${paramCount}`);
@@ -731,6 +737,207 @@ router.put('/:id/dados-financeiros', authMiddleware, async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Erro ao salvar dados financeiros',
+            error: error.message
+        });
+    }
+});
+
+// ================================================================
+// GET /api/usuarios/:id/categorias
+// Buscar categorias de um usuário
+// ================================================================
+router.get('/:id/categorias', authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Verificar se o usuário está tentando acessar seus próprios dados
+        if (req.usuario.id !== parseInt(id)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Acesso negado'
+            });
+        }
+
+        const result = await query(
+            'SELECT categorias FROM usuarios WHERE id = $1',
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Usuário não encontrado'
+            });
+        }
+
+        // Estrutura padrão de categorias
+        const categoriasPadrao = {
+            despesas: ["Alimentação", "Combustível", "Moradia"]
+        };
+
+        const categorias = result.rows[0].categorias || categoriasPadrao;
+
+        res.json({
+            success: true,
+            categorias
+        });
+
+    } catch (error) {
+        console.error('Erro ao buscar categorias:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao buscar categorias',
+            error: error.message
+        });
+    }
+});
+
+// ================================================================
+// PUT /api/usuarios/:id/categorias
+// Salvar/atualizar categorias de um usuário
+// ================================================================
+router.put('/:id/categorias', authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { categorias } = req.body;
+
+        if (req.usuario.id !== parseInt(id)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Acesso negado'
+            });
+        }
+
+        if (!categorias || typeof categorias !== 'object') {
+            return res.status(400).json({
+                success: false,
+                message: 'Categorias inválidas'
+            });
+        }
+
+        const result = await query(
+            'UPDATE usuarios SET categorias = $1, data_atualizacao = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id',
+            [JSON.stringify(categorias), id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Usuário não encontrado'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Categorias salvas com sucesso'
+        });
+
+    } catch (error) {
+        console.error('Erro ao salvar categorias:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao salvar categorias',
+            error: error.message
+        });
+    }
+});
+
+// ================================================================
+// GET /api/usuarios/:id/cartoes
+// Buscar cartões de um usuário
+// ================================================================
+router.get('/:id/cartoes', authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (req.usuario.id !== parseInt(id)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Acesso negado'
+            });
+        }
+
+        const result = await query(
+            'SELECT cartoes FROM usuarios WHERE id = $1',
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Usuário não encontrado'
+            });
+        }
+
+        // Estrutura padrão de cartões
+        const cartoesPadrao = {
+            cartao1: { nome: '', validade: '', limite: 0, ativo: false },
+            cartao2: { nome: '', validade: '', limite: 0, ativo: false },
+            cartao3: { nome: '', validade: '', limite: 0, ativo: false }
+        };
+
+        const cartoes = result.rows[0].cartoes || cartoesPadrao;
+
+        res.json({
+            success: true,
+            cartoes
+        });
+
+    } catch (error) {
+        console.error('Erro ao buscar cartões:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao buscar cartões',
+            error: error.message
+        });
+    }
+});
+
+// ================================================================
+// PUT /api/usuarios/:id/cartoes
+// Salvar/atualizar cartões de um usuário
+// ================================================================
+router.put('/:id/cartoes', authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { cartoes } = req.body;
+
+        if (req.usuario.id !== parseInt(id)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Acesso negado'
+            });
+        }
+
+        if (!cartoes || typeof cartoes !== 'object') {
+            return res.status(400).json({
+                success: false,
+                message: 'Cartões inválidos'
+            });
+        }
+
+        const result = await query(
+            'UPDATE usuarios SET cartoes = $1, data_atualizacao = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id',
+            [JSON.stringify(cartoes), id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Usuário não encontrado'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Cartões salvos com sucesso'
+        });
+
+    } catch (error) {
+        console.error('Erro ao salvar cartões:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao salvar cartões',
             error: error.message
         });
     }

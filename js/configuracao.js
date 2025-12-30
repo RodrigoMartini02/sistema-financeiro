@@ -144,54 +144,63 @@ function validarValidade(validade) {
 // ================================================================
 // SISTEMA DE CATEGORIAS
 // ================================================================
-function carregarCategoriasLocal() {
-    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
-    if (!usuarioAtual) {
+async function carregarCategoriasLocal() {
+    const usuario = window.usuarioDataManager?.getUsuarioAtual();
+
+    if (!usuario || !usuario.id) {
         categoriasUsuario.despesas = [...categoriasPadrao.despesas];
         return;
     }
-    
+
     try {
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const usuario = usuarios.find(u => 
-            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
-        );
-        
-        if (usuario) {
-            if (!usuario.categorias) {
-                usuario.categorias = { despesas: [...categoriasPadrao.despesas] };
-                localStorage.setItem('usuarios', JSON.stringify(usuarios));
+        // 🔥 BUSCAR DA API
+        const response = await fetch(`${window.API_URL}/usuarios/${usuario.id}/categorias`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
             }
-            
-            categoriasUsuario.despesas = usuario.categorias.despesas || [...categoriasPadrao.despesas];
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            categoriasUsuario = data.categorias;
         } else {
             categoriasUsuario.despesas = [...categoriasPadrao.despesas];
         }
     } catch (error) {
+        console.error('❌ Erro ao carregar categorias da API:', error);
         categoriasUsuario.despesas = [...categoriasPadrao.despesas];
     }
 }
 
-function salvarCategorias() {
-    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
-    if (!usuarioAtual) return false;
-    
+async function salvarCategorias() {
+    const usuario = window.usuarioDataManager?.getUsuarioAtual();
+    if (!usuario || !usuario.id) return false;
+
     try {
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const index = usuarios.findIndex(u => 
-            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
-        );
-        
-        if (index !== -1) {
-            if (!usuarios[index].categorias) {
-                usuarios[index].categorias = {};
-            }
-            usuarios[index].categorias.despesas = categoriasUsuario.despesas;
-            localStorage.setItem('usuarios', JSON.stringify(usuarios));
+        // 🔥 SALVAR NA API
+        const response = await fetch(`${window.API_URL}/usuarios/${usuario.id}/categorias`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
+            },
+            body: JSON.stringify({ categorias: categoriasUsuario })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            console.log('✅ Categorias salvas na API!');
             return true;
+        } else {
+            console.error('❌ Erro ao salvar categorias:', data.message);
+            return false;
         }
-        return false;
     } catch (error) {
+        console.error('❌ Erro ao salvar categorias na API:', error);
         return false;
     }
 }
@@ -218,25 +227,26 @@ function atualizarDropdowns() {
     }
 }
 
-function adicionarCategoria() {
+async function adicionarCategoria() {
     const inputNovaCategoria = document.getElementById('nova-categoria-nome');
     if (!inputNovaCategoria) return;
-    
+
     const nomeCat = inputNovaCategoria.value.trim();
     if (!nomeCat) {
         mostrarFeedback('Por favor, digite um nome para a categoria.', 'warning');
         return;
     }
-    
+
     if (categoriasUsuario.despesas.includes(nomeCat)) {
         mostrarFeedback('Esta categoria já existe!', 'error');
         return;
     }
-    
+
     categoriasUsuario.despesas.push(nomeCat);
     categoriasUsuario.despesas.sort();
-    
-    if (salvarCategorias()) {
+
+    const sucesso = await salvarCategorias();
+    if (sucesso) {
         inputNovaCategoria.value = '';
         atualizarListaCategorias();
         atualizarDropdowns();
@@ -290,15 +300,16 @@ function editarCategoria(categoria) {
     }
 }
 
-function removerCategoria(categoria) {
+async function removerCategoria(categoria) {
     const confirmar = confirm(`Tem certeza que deseja remover a categoria "${categoria}"?`);
     if (!confirmar) return;
-    
+
     const index = categoriasUsuario.despesas.indexOf(categoria);
     if (index !== -1) {
         const categoriaRemovida = categoriasUsuario.despesas.splice(index, 1)[0];
-        
-        if (salvarCategorias()) {
+
+        const sucesso = await salvarCategorias();
+        if (sucesso) {
             atualizarListaCategorias();
             atualizarDropdowns();
             mostrarFeedback('Alterações realizadas com sucesso!', 'success');
@@ -309,31 +320,32 @@ function removerCategoria(categoria) {
     }
 }
 
-function salvarEdicaoCategoria() {
+async function salvarEdicaoCategoria() {
     const nomeInput = document.getElementById('categoria-edit-nome');
     const nomeOriginalInput = document.getElementById('categoria-edit-nome-original');
-    
+
     if (!nomeInput || !nomeOriginalInput) return;
-    
+
     const novoNome = nomeInput.value.trim();
     const nomeOriginal = nomeOriginalInput.value;
-    
+
     if (!novoNome) {
         mostrarFeedback('Por favor, digite um nome para a categoria.', 'warning');
         return;
     }
-    
+
     if (novoNome !== nomeOriginal && categoriasUsuario.despesas.includes(novoNome)) {
         mostrarFeedback('Já existe uma categoria com este nome!', 'error');
         return;
     }
-    
+
     const index = categoriasUsuario.despesas.indexOf(nomeOriginal);
     if (index !== -1) {
         categoriasUsuario.despesas[index] = novoNome;
         categoriasUsuario.despesas.sort();
-        
-        if (salvarCategorias()) {
+
+        const sucesso = await salvarCategorias();
+        if (sucesso) {
             atualizarListaCategorias();
             atualizarDropdowns();
             document.getElementById('modal-editar-categoria').style.display = 'none';
@@ -348,76 +360,75 @@ function salvarEdicaoCategoria() {
 // ================================================================
 // SISTEMA DE CARTÕES
 // ================================================================
-function carregarCartoesLocal() {
-    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
-    if (!usuarioAtual) {
-        cartoesUsuario = {
-            cartao1: { nome: '', validade: '', limite: 0, ativo: false },
-            cartao2: { nome: '', validade: '', limite: 0, ativo: false },
-            cartao3: { nome: '', validade: '', limite: 0, ativo: false }
-        };
+async function carregarCartoesLocal() {
+    const usuario = window.usuarioDataManager?.getUsuarioAtual();
+
+    const cartoesPadrao = {
+        cartao1: { nome: '', validade: '', limite: 0, ativo: false },
+        cartao2: { nome: '', validade: '', limite: 0, ativo: false },
+        cartao3: { nome: '', validade: '', limite: 0, ativo: false }
+    };
+
+    if (!usuario || !usuario.id) {
+        cartoesUsuario = cartoesPadrao;
         window.cartoesUsuario = cartoesUsuario;
         return;
     }
-    
+
     try {
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const usuario = usuarios.find(u => 
-            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
-        );
-        
-        if (usuario) {
-            if (!usuario.cartoes) {
-                usuario.cartoes = {
-                    cartao1: { nome: '', validade: '', limite: 0, ativo: false },
-                    cartao2: { nome: '', validade: '', limite: 0, ativo: false },
-                    cartao3: { nome: '', validade: '', limite: 0, ativo: false }
-                };
-                localStorage.setItem('usuarios', JSON.stringify(usuarios));
+        // 🔥 BUSCAR DA API
+        const response = await fetch(`${window.API_URL}/usuarios/${usuario.id}/cartoes`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
             }
-            
-            cartoesUsuario = usuario.cartoes;
-            window.cartoesUsuario = usuario.cartoes;
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            cartoesUsuario = data.cartoes;
+            window.cartoesUsuario = cartoesUsuario;
         } else {
-            cartoesUsuario = {
-                cartao1: { nome: '', validade: '', limite: 0, ativo: false },
-                cartao2: { nome: '', validade: '', limite: 0, ativo: false },
-                cartao3: { nome: '', validade: '', limite: 0, ativo: false }
-            };
+            console.warn('⚠️ Cartões não encontrados na API, usando padrão');
+            cartoesUsuario = cartoesPadrao;
             window.cartoesUsuario = cartoesUsuario;
         }
     } catch (error) {
-        console.error('Erro ao carregar cartões:', error);
-        cartoesUsuario = {
-            cartao1: { nome: '', validade: '', limite: 0, ativo: false },
-            cartao2: { nome: '', validade: '', limite: 0, ativo: false },
-            cartao3: { nome: '', validade: '', limite: 0, ativo: false }
-        };
+        console.error('❌ Erro ao carregar cartões da API:', error);
+        cartoesUsuario = cartoesPadrao;
         window.cartoesUsuario = cartoesUsuario;
     }
 }
 
-function salvarCartoes() {
-    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
-    if (!usuarioAtual) return false;
-    
+async function salvarCartoes() {
+    const usuario = window.usuarioDataManager?.getUsuarioAtual();
+    if (!usuario || !usuario.id) return false;
+
     try {
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const index = usuarios.findIndex(u => 
-            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
-        );
-        
-        if (index !== -1) {
-            usuarios[index].cartoes = cartoesUsuario;
-            usuarios[index].ultimaAtualizacaoCartoes = new Date().toISOString();
-            localStorage.setItem('usuarios', JSON.stringify(usuarios));
-            
+        // 🔥 SALVAR NA API
+        const response = await fetch(`${window.API_URL}/usuarios/${usuario.id}/cartoes`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
+            },
+            body: JSON.stringify({ cartoes: cartoesUsuario })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            console.log('✅ Cartões salvos na API!');
             window.cartoesUsuario = cartoesUsuario;
             return true;
+        } else {
+            console.error('❌ Erro ao salvar cartões:', data.message);
+            return false;
         }
-        return false;
     } catch (error) {
-        console.error('Erro ao salvar cartões:', error);
+        console.error('❌ Erro ao salvar cartões na API:', error);
         return false;
     }
 }
@@ -482,82 +493,85 @@ function preencherFormularioCartoes() {
     });
 }
 
-function salvarCartoesForms() {
+async function salvarCartoesForms() {
     try {
         let cartoesAlterados = false;
         let errosValidacao = [];
-        
+
         ['1', '2', '3'].forEach(num => {
             const nomeInput = document.getElementById(`cartao${num}-nome`);
             const validadeInput = document.getElementById(`cartao${num}-validade`);
             const limiteInput = document.getElementById(`cartao${num}-limite`);
             const ativoCheckbox = document.getElementById(`cartao${num}-ativo`);
-            
+
             if (!nomeInput || !validadeInput || !limiteInput || !ativoCheckbox) {
                 return;
             }
-            
+
             const dadosFormulario = {
                 nome: nomeInput.value.trim(),
                 validade: validadeInput.value.trim(),
                 limite: parseFloat(limiteInput.value) || 0,
                 ativo: ativoCheckbox.checked
             };
-            
+
             const cartaoAtual = cartoesUsuario[`cartao${num}`];
-            
+
             if (cartaoAtual.nome !== dadosFormulario.nome ||
                 cartaoAtual.validade !== dadosFormulario.validade ||
                 cartaoAtual.limite !== dadosFormulario.limite ||
                 cartaoAtual.ativo !== dadosFormulario.ativo) {
-                
+
                 cartoesAlterados = true;
-                
+
                 if (dadosFormulario.ativo) {
                     if (!dadosFormulario.nome) {
                         errosValidacao.push(`Cartão ${num}: Nome é obrigatório`);
                     }
-                    
+
                     if (!dadosFormulario.validade || !validarValidade(dadosFormulario.validade)) {
                         errosValidacao.push(`Cartão ${num}: Validade inválida (MM/AAAA)`);
                     }
-                    
+
                     if (dadosFormulario.limite <= 0) {
                         errosValidacao.push(`Cartão ${num}: Limite deve ser maior que zero`);
                     }
                 }
-                
+
                 cartoesUsuario[`cartao${num}`] = dadosFormulario;
             }
         });
-        
+
         if (errosValidacao.length > 0) {
             mostrarFeedback(errosValidacao.join('\n'), 'error');
             return;
         }
-        
+
         if (!cartoesAlterados) {
             mostrarFeedback('Nenhuma alteração foi detectada nos cartões.', 'warning');
             return;
         }
-        
-        if (salvarCartoes()) {
+
+        // 🔥 SALVAR COM AWAIT
+        const sucesso = await salvarCartoes();
+
+        if (sucesso) {
             atualizarOpcoesCartoes();
             window.cartoesUsuario = cartoesUsuario;
-            
+
             if (typeof window.limparCacheCartoes === 'function') {
                 window.limparCacheCartoes();
             }
-            
+
             mostrarStatusCartoes('Alterações realizadas com sucesso!', 'success');
-            
+
             setTimeout(() => {
-                if (typeof window.renderizarDetalhesDoMes === 'function' && 
+                if (typeof window.renderizarDetalhesDoMes === 'function' &&
                     window.mesAberto !== null && window.anoAberto !== null) {
                     window.renderizarDetalhesDoMes(window.mesAberto, window.anoAberto);
                 }
             }, 100);
-            
+
         } else {
             mostrarStatusCartoes('Erro ao salvar os cartões. Tente novamente.', 'error');
         }
@@ -596,22 +610,9 @@ function mostrarStatusCartoes(mensagem, tipo) {
 // SISTEMA DE USUÁRIOS
 // ================================================================
 function obterTipoUsuarioAtual() {
-    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
-    if (!usuarioAtual) {
-        tipoUsuarioAtual = 'padrao';
-        return;
-    }
-    
-    try {
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const usuario = usuarios.find(u => 
-            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
-        );
-        
-        tipoUsuarioAtual = usuario?.tipo || 'padrao';
-    } catch (error) {
-        tipoUsuarioAtual = 'padrao';
-    }
+    // 🔥 USAR USUARIO DATA MANAGER
+    const usuario = window.usuarioDataManager?.getUsuarioAtual();
+    tipoUsuarioAtual = usuario?.tipo || 'padrao';
 }
 
 function ajustarVisibilidadeElementos() {
@@ -634,26 +635,43 @@ function ajustarVisibilidadeElementos() {
     }
 }
 
-function filtrarUsuarios() {
+async function filtrarUsuarios() {
     const searchInput = document.getElementById('usuario-search');
     const filterSelect = document.getElementById('filter-user-type');
-    
-    const termoBusca = (searchInput?.value || '').trim().toLowerCase();
+
+    const termoBusca = (searchInput?.value || '').trim();
     const filtroTipo = filterSelect?.value || 'todos';
-    
-    const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-    
-    usuariosFiltrados = usuarios.filter(usuario => {
-        const matchesBusca = !termoBusca || 
-            (usuario.nome?.toLowerCase().includes(termoBusca)) || 
-            (usuario.email?.toLowerCase().includes(termoBusca)) || 
-            (usuario.documento?.toLowerCase().includes(termoBusca));
-        
-        const matchesTipo = filtroTipo === 'todos' || usuario.tipo === filtroTipo;
-        
-        return matchesBusca && matchesTipo;
-    });
-    
+
+    try {
+        // 🔥 BUSCAR DA API
+        const params = new URLSearchParams({
+            page: 1,
+            limit: 1000, // Carregar todos para filtro local funcionar
+            search: termoBusca,
+            tipo: filtroTipo
+        });
+
+        const response = await fetch(`${window.API_URL}/usuarios?${params}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            usuariosFiltrados = data.data || [];
+        } else {
+            console.error('❌ Erro ao buscar usuários:', data.message);
+            usuariosFiltrados = [];
+        }
+    } catch (error) {
+        console.error('❌ Erro ao filtrar usuários:', error);
+        usuariosFiltrados = [];
+    }
+
     paginaAtual = 1;
     renderizarUsuarios();
 }
@@ -752,24 +770,38 @@ function criarLinhaUsuario(usuario, index) {
     return linha;
 }
 
-function alternarBloqueioUsuario(usuario) {
+async function alternarBloqueioUsuario(usuario) {
     const estavaBloqueado = usuario.status === 'bloqueado';
     const acao = estavaBloqueado ? 'desbloquear' : 'bloquear';
-    
+
     if (!confirm(`Deseja ${acao} o usuário ${usuario.nome}?`)) {
         return;
     }
-    
-    const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-    const index = usuarios.findIndex(u => u.documento === usuario.documento);
-    
-    if (index !== -1) {
-        usuarios[index].status = estavaBloqueado ? 'ativo' : 'bloqueado';
-        usuarios[index].dataAlteracaoStatus = new Date().toISOString();
-        localStorage.setItem('usuarios', JSON.stringify(usuarios));
-        
-        filtrarUsuarios();
-        mostrarFeedback('Alterações realizadas com sucesso!', 'success');
+
+    try {
+        // 🔥 ATUALIZAR NA API
+        const response = await fetch(`${window.API_URL}/usuarios/${usuario.id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
+            },
+            body: JSON.stringify({
+                status: estavaBloqueado ? 'ativo' : 'bloqueado'
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            await filtrarUsuarios();
+            mostrarFeedback('Alterações realizadas com sucesso!', 'success');
+        } else {
+            mostrarFeedback(data.message || 'Erro ao alterar status do usuário', 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao alterar status:', error);
+        mostrarFeedback('Erro ao alterar status do usuário', 'error');
     }
 }
 
@@ -778,28 +810,43 @@ function excluirUsuario(usuario) {
     if (nomeUsuarioElement) {
         nomeUsuarioElement.textContent = usuario.nome;
     }
-    
+
     const modal = document.getElementById('modal-confirmar-exclusao-usuario');
     if (modal) {
         modal.style.display = 'flex';
-        modal.setAttribute('data-usuario-documento', usuario.documento);
+        modal.setAttribute('data-usuario-id', usuario.id);
     }
 }
 
-function confirmarExclusaoUsuario() {
+async function confirmarExclusaoUsuario() {
     const modal = document.getElementById('modal-confirmar-exclusao-usuario');
-    const documento = modal?.getAttribute('data-usuario-documento');
-    
-    if (!documento) return;
-    
-    const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-    const novaLista = usuarios.filter(u => u.documento !== documento);
-    
-    localStorage.setItem('usuarios', JSON.stringify(novaLista));
-    
-    modal.style.display = 'none';
-    filtrarUsuarios();
-    mostrarFeedback('Alterações realizadas com sucesso!', 'success');
+    const usuarioId = modal?.getAttribute('data-usuario-id');
+
+    if (!usuarioId) return;
+
+    try {
+        // 🔥 EXCLUIR NA API
+        const response = await fetch(`${window.API_URL}/usuarios/${usuarioId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            modal.style.display = 'none';
+            await filtrarUsuarios();
+            mostrarFeedback('Usuário excluído com sucesso!', 'success');
+        } else {
+            mostrarFeedback(data.message || 'Erro ao excluir usuário', 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao excluir usuário:', error);
+        mostrarFeedback('Erro ao excluir usuário', 'error');
+    }
 }
 
 function abrirModalEditarUsuario(usuario, isNovo = false) {
@@ -818,35 +865,36 @@ function abrirModalEditarUsuario(usuario, isNovo = false) {
 }
 
 function preencherDadosUsuario(usuario) {
+    // 🔥 USAR ID DO USUARIO AO INVÉS DE DOCUMENTO
     const campos = {
-        'editar-usuario-id': usuario.documento,
+        'editar-usuario-id': usuario.id,
         'editar-usuario-nome': usuario.nome || '',
         'editar-usuario-email': usuario.email || '',
         'editar-usuario-documento': usuario.documento || '',
         'editar-usuario-tipo': usuario.tipo || 'padrao',
         'editar-usuario-status': usuario.status || 'ativo'
     };
-    
+
     Object.entries(campos).forEach(([id, valor]) => {
         const elemento = document.getElementById(id);
         if (elemento) {
             elemento.value = valor;
         }
     });
-    
+
     const formGroupTipo = document.getElementById('form-group-tipo');
     const permissaoMessage = document.getElementById('permissao-message');
-    
+
     if (tipoUsuarioAtual !== 'master') {
         if (formGroupTipo) formGroupTipo.classList.add('hidden');
-        
+
         if (usuario.tipo !== 'padrao') {
-            ['editar-usuario-nome', 'editar-usuario-email', 'editar-usuario-status', 
+            ['editar-usuario-nome', 'editar-usuario-email', 'editar-usuario-status',
              'editar-usuario-senha', 'editar-usuario-confirmar-senha'].forEach(id => {
                 const elemento = document.getElementById(id);
                 if (elemento) elemento.disabled = true;
             });
-            
+
             if (permissaoMessage) permissaoMessage.classList.remove('hidden');
         } else {
             if (permissaoMessage) permissaoMessage.classList.add('hidden');
@@ -857,140 +905,117 @@ function preencherDadosUsuario(usuario) {
     }
 }
 
-function salvarEdicaoUsuario(isNovo = false) {
+async function salvarEdicaoUsuario(isNovo = false) {
     try {
         const prefixo = isNovo ? 'novo-usuario' : 'editar-usuario';
-        
+
         const nome = document.getElementById(`${prefixo}-nome`).value.trim();
         const email = document.getElementById(`${prefixo}-email`).value.trim();
-        const tipo = document.getElementById(`${prefixo}-tipo`).value;
-        const status = isNovo ? 'ativo' : document.getElementById(`${prefixo}-status`).value;
+        const tipo = document.getElementById(`${prefixo}-tipo`)?.value || 'padrao';
+        const status = isNovo ? 'ativo' : document.getElementById(`${prefixo}-status`)?.value || 'ativo';
         const senhaInput = document.getElementById(`${prefixo}-senha`);
         const confirmarSenhaInput = document.getElementById(`${prefixo}-confirmar-senha`);
         const senha = senhaInput ? senhaInput.value.trim() : '';
         const confirmarSenha = confirmarSenhaInput ? confirmarSenhaInput.value.trim() : '';
-        
-        let documento;
+
+        let identificador;
         if (isNovo) {
-            documento = document.getElementById(`${prefixo}-documento`).value.trim();
+            identificador = document.getElementById(`${prefixo}-documento`).value.trim();
         } else {
-            documento = document.getElementById('editar-usuario-id').value;
+            identificador = document.getElementById('editar-usuario-id').value;
         }
-        
-        if (!nome || !email || !documento) {
+
+        // Validações
+        if (!nome || !email || !identificador) {
             mostrarValidacao('Por favor, preencha todos os campos obrigatórios.', 'error');
             return;
         }
-        
+
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             mostrarValidacao('Por favor, informe um e-mail válido.', 'error');
             return;
         }
-        
+
         if (senha || confirmarSenha) {
             if (senha !== confirmarSenha) {
                 mostrarValidacao('As senhas não coincidem.', 'error');
                 return;
             }
-            
+
             if (senha.length < 6) {
                 mostrarValidacao('A senha deve ter pelo menos 6 caracteres.', 'error');
                 return;
             }
         }
-        
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        
-        if (isNovo) {
-            const docExists = usuarios.some(u => u.documento && 
-                u.documento.replace(/[^\d]+/g, '') === documento.replace(/[^\d]+/g, ''));
-                
-            if (docExists) {
-                mostrarValidacao('Este CPF/CNPJ já está cadastrado.', 'error');
-                return;
-            }
-            
-            const emailExists = usuarios.some(u => u.email === email);
-            if (emailExists) {
-                mostrarValidacao('Este e-mail já está cadastrado.', 'error');
-                return;
-            }
-            
-            const novoUsuario = {
-                nome,
-                email,
-                documento,
-                tipo: tipoUsuarioAtual === 'master' ? tipo : 'padrao',
-                status,
-                password: senha || '123456',
-                senha: senha || '123456',
-                categorias: {
-                    despesas: [...categoriasPadrao.despesas]
-                },
-                cartoes: {
-                    cartao1: { nome: '', validade: '', limite: 0, ativo: false },
-                    cartao2: { nome: '', validade: '', limite: 0, ativo: false },
-                    cartao3: { nome: '', validade: '', limite: 0, ativo: false }
-                },
-                dadosFinanceiros: {},
-                poupanca: {
-                    saldo: 0,
-                    configuracoes: {
-                        taxa: 0.5,
-                        dia_rendimento: 1
-                    },
-                    transacoes: []
-                },
-                dataCadastro: new Date().toISOString()
-            };
-            
-            usuarios.push(novoUsuario);
-            localStorage.setItem('usuarios', JSON.stringify(usuarios));
-            
-        } else {
-            const index = usuarios.findIndex(u => u.documento === documento);
-            
-            if (index === -1) {
-                mostrarValidacao('Usuário não encontrado.', 'error');
-                return;
-            }
-            
-            if (tipoUsuarioAtual !== 'master' && usuarios[index].tipo !== 'padrao') {
-                mostrarValidacao('Você não tem permissão para editar este usuário.', 'error');
-                return;
-            }
-            
-            if (usuarios[index].email !== email) {
-                const emailExists = usuarios.some(u => u.email === email && u.documento !== documento);
-                if (emailExists) {
-                    mostrarValidacao('Este e-mail já está cadastrado para outro usuário.', 'error');
+
+        // 🔥 CHAMAR API
+        try {
+            let response;
+
+            if (isNovo) {
+                // POST /api/usuarios - Criar novo usuário
+                if (!senha) {
+                    mostrarValidacao('Senha é obrigatória para novo usuário.', 'error');
                     return;
                 }
+
+                response = await fetch(`${window.API_URL}/usuarios`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
+                    },
+                    body: JSON.stringify({
+                        nome,
+                        email,
+                        documento: identificador,
+                        senha,
+                        tipo: tipoUsuarioAtual === 'master' ? tipo : 'padrao',
+                        status
+                    })
+                });
+            } else {
+                // PUT /api/usuarios/:id - Atualizar usuário existente
+                const updateData = {
+                    nome,
+                    email,
+                    status
+                };
+
+                if (tipoUsuarioAtual === 'master') {
+                    updateData.tipo = tipo;
+                }
+
+                if (senha && senha.length > 0) {
+                    updateData.senha = senha;
+                }
+
+                response = await fetch(`${window.API_URL}/usuarios/${identificador}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
+                    },
+                    body: JSON.stringify(updateData)
+                });
             }
-            
-            usuarios[index].nome = nome;
-            usuarios[index].email = email;
-            usuarios[index].status = status;
-            
-            if (tipoUsuarioAtual === 'master') {
-                usuarios[index].tipo = tipo;
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                const modal = document.getElementById(isNovo ? 'modal-adicionar-usuario' : 'modal-editar-usuario');
+                if (modal) modal.style.display = 'none';
+
+                await filtrarUsuarios();
+                mostrarFeedback(isNovo ? 'Usuário criado com sucesso!' : 'Alterações realizadas com sucesso!', 'success');
+            } else {
+                mostrarValidacao(data.message || 'Erro ao salvar usuário', 'error');
             }
-            
-            if (senha && senha.length > 0) {
-                usuarios[index].password = senha;
-                usuarios[index].senha = senha;
-            }
-            
-            usuarios[index].dataAtualizacao = new Date().toISOString();
-            localStorage.setItem('usuarios', JSON.stringify(usuarios));
+        } catch (apiError) {
+            console.error('❌ Erro ao chamar API:', apiError);
+            mostrarValidacao('Erro ao conectar com o servidor. Tente novamente.', 'error');
         }
-        
-        const modal = document.getElementById(isNovo ? 'modal-adicionar-usuario' : 'modal-editar-usuario');
-        if (modal) modal.style.display = 'none';
-        
-        filtrarUsuarios();
-        mostrarFeedback('Alterações realizadas com sucesso!', 'success');
-        
+
     } catch (error) {
         console.error('Erro ao salvar usuário:', error);
         mostrarValidacao('Erro ao salvar alterações. Tente novamente.', 'error');
@@ -1305,25 +1330,26 @@ function setupEventListeners() {
     }
 }
 
-function inicializarConfiguracoes() {
+async function inicializarConfiguracoes() {
     if (!window.sistemaInicializado) {
         setTimeout(inicializarConfiguracoes, 200);
         return;
     }
-    
+
     garantirUsuarioMaster();
     obterTipoUsuarioAtual();
-    
-    carregarCategoriasLocal();
-    carregarCartoesLocal();
-    
+
+    // 🔥 CARREGAR DADOS DA API COM AWAIT
+    await carregarCategoriasLocal();
+    await carregarCartoesLocal();
+
     setupConfigTabs();
     setupEventListeners();
     ajustarVisibilidadeElementos();
-    
+
     atualizarDropdowns();
     atualizarOpcoesCartoes();
-    
+
     console.log('Sistema de configurações inicializado com sucesso');
 }
 

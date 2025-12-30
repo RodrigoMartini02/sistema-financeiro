@@ -199,16 +199,19 @@ async function processarLogin(documento, password, isModal) {
         console.log('✅ Login bem-sucedido via API!');
 
         // Salvar token JWT e dados do usuário
-        sessionStorage.setItem('token', data.token);
+        // API retorna: { success: true, data: { token, usuario: {...} } }
+        const token = data.data?.token || data.token;
+        const usuario = data.data?.usuario || data.user || data.usuario || data;
+
+        sessionStorage.setItem('token', token);
         sessionStorage.setItem('usuarioAtual', docLimpo);
 
-        // Adaptar estrutura da resposta do backend
-        const usuario = data.user || data.usuario || data;
         sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify({
             id: usuario.id,
             nome: usuario.nome || usuario.name,
             documento: docLimpo,
             email: usuario.email,
+            tipo: usuario.tipo,
             password: password // Manter senha para desbloqueio interno
         }));
 
