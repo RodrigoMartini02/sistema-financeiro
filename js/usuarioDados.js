@@ -2,8 +2,8 @@
 // SISTEMA DE GERENCIAMENTO DE USUÁRIOS E DADOS
 // ================================================================
 
-// URL da API do Backend
-const API_URL = 'https://sistema-financeiro-backend-o199.onrender.com/api';
+// URL da API do Backend (usar variável global se já definida)
+const API_URL_DADOS = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
 class UsuarioDataManager {
     constructor() {
@@ -123,7 +123,7 @@ class UsuarioDataManager {
 
         try {
             console.log('📝 Atualizando dados do usuário via API...');
-            const response = await fetch(`${API_URL}/usuarios/${usuario.id}`, {
+            const response = await fetch(`${API_URL_DADOS}/usuarios/${usuario.id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -185,7 +185,7 @@ class UsuarioDataManager {
 
         try {
             console.log('📥 Buscando dados financeiros via API...');
-            const response = await fetch(`${API_URL}/usuarios/${usuario.id}/dados-financeiros`, {
+            const response = await fetch(`${API_URL_DADOS}/usuarios/${usuario.id}/dados-financeiros`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -283,7 +283,7 @@ class UsuarioDataManager {
 
         try {
             console.log('💾 Salvando dados financeiros via API...');
-            const response = await fetch(`${API_URL}/usuarios/${usuario.id}/dados-financeiros`, {
+            const response = await fetch(`${API_URL_DADOS}/usuarios/${usuario.id}/dados-financeiros`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -824,7 +824,7 @@ class UsuarioDataManager {
             inicializado: this.inicializado,
             localStorage: this.testLocalStorage(),
             modo: 'API - Cloud Database',
-            apiUrl: API_URL,
+            apiUrl: API_URL_DADOS,
             sistemaMain: !!(window.sistemaInicializado || window.dadosFinanceiros)
         };
     }
