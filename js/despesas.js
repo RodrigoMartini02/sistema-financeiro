@@ -26,11 +26,18 @@ let processandoDespesa = false;
 let carregandoDados = false;
 let ultimoCarregamento = 0;
 
-// Variáveis globais compartilhadas com outros módulos
-let dadosFinanceiros = window.dadosFinanceiros || {};
-let mesAberto = window.mesAberto || null;
-let anoAberto = window.anoAberto || null;
-let anoAtual = window.anoAtual || new Date().getFullYear();
+// Variáveis globais compartilhadas com outros módulos (definidas em main.js)
+// Usar referências diretas ao window para evitar redeclaração
+if (typeof window.dadosFinanceiros === 'undefined') window.dadosFinanceiros = {};
+if (typeof window.mesAberto === 'undefined') window.mesAberto = null;
+if (typeof window.anoAberto === 'undefined') window.anoAberto = null;
+if (typeof window.anoAtual === 'undefined') window.anoAtual = new Date().getFullYear();
+
+// Aliases locais
+const dadosFinanceiros = window.dadosFinanceiros;
+let mesAberto = window.mesAberto;
+let anoAberto = window.anoAberto;
+let anoAtual = window.anoAtual;
 
 // Cache simples para evitar múltiplas requisições
 let cacheApiBusca = new Map();
@@ -1071,16 +1078,31 @@ async function salvarDespesaLocal(formData) {
 }
 
 async function buscarEExibirDespesas(mes, ano) {
-    if (carregandoDados) return [];
+    // Prevenir múltiplas requisições simultâneas
+    if (carregandoDados) {
+        console.log('⏳ Já existe uma requisição em andamento, aguardando...');
+        return [];
+    }
+
+    const agora = Date.now();
+    const cacheKey = obterCacheKey(mes, ano);
+
+    // Throttle: bloquear requisições muito frequentes (mínimo 500ms entre chamadas)
+    if ((agora - ultimaRequisicao) < 500) {
+        console.log('⚠️ Requisição bloqueada por throttle');
+        return [];
+    }
+
     carregandoDados = true;
-    
+    ultimaRequisicao = agora;
+
     try {
-        const cacheKey = obterCacheKey(mes, ano);
-        const agora = Date.now();
-        
-        if (cacheApiBusca.has(cacheKey) && (agora - ultimaRequisicao) < 120000) {
+        // Cache de 2 minutos
+        if (cacheApiBusca.has(cacheKey) && (agora - ultimoCarregamento) < 120000) {
+            console.log('✅ Usando cache para', mes, '/', ano);
             const despesasCache = cacheApiBusca.get(cacheKey);
             renderizarDespesas(despesasCache, mes, ano, false);
+            carregandoDados = false;
             return despesasCache;
         }
         
@@ -1121,8 +1143,9 @@ async function buscarEExibirDespesas(mes, ano) {
         }));
         
         cacheApiBusca.set(cacheKey, despesasFormatadas);
-        ultimaRequisicao = agora;
-        
+        ultimoCarregamento = agora;
+
+        console.log('✅ Despesas carregadas da API:', despesasFormatadas.length);
         renderizarDespesas(despesasFormatadas, mes, ano, false);
         return despesasFormatadas;
         
@@ -3340,6 +3363,8 @@ window.carregarDespesasAtual = carregarDespesasAtual;
 // EXPORTAÇÕES GLOBAIS
 // ================================================================
 
+// Funções principais
+window.buscarEExibirDespesas = buscarEExibirDespesas;
 window.calcularLimiteDisponivelCartao = calcularLimiteDisponivelCartao;
 window.abrirModalNovaDespesa = abrirModalNovaDespesa;
 window.editarDespesa = editarDespesa;
