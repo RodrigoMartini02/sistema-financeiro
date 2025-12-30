@@ -120,12 +120,16 @@ async function criarEstruturaBanco() {
             );
         `);
 
+        // Adicionar coluna dados_financeiros se não existir
+        await query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS dados_financeiros JSONB DEFAULT NULL;`);
+
         // Índices para performance (só cria se não existir)
         await query(`CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email);`);
         await query(`CREATE INDEX IF NOT EXISTS idx_usuarios_documento ON usuarios(documento);`);
         await query(`CREATE INDEX IF NOT EXISTS idx_usuarios_tipo ON usuarios(tipo);`);
         await query(`CREATE INDEX IF NOT EXISTS idx_usuarios_status ON usuarios(status);`);
-        
+        await query(`CREATE INDEX IF NOT EXISTS idx_usuarios_dados_financeiros ON usuarios USING GIN (dados_financeiros);`);
+
         // View compatibilidade
         await query(`CREATE OR REPLACE VIEW usuários AS SELECT * FROM usuarios;`);
         console.log('✅ Tabela usuarios verificada/criada!');

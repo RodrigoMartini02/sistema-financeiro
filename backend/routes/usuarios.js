@@ -588,7 +588,7 @@ router.put('/:id/status', authMiddleware, isAdminOrMaster, async (req, res) => {
 router.get('/stats/geral', authMiddleware, isMaster, async (req, res) => {
     try {
         const stats = await query(`
-            SELECT 
+            SELECT
                 COUNT(*) as total_usuarios,
                 COUNT(CASE WHEN status = 'ativo' THEN 1 END) as usuarios_ativos,
                 COUNT(CASE WHEN status = 'inativo' THEN 1 END) as usuarios_inativos,
@@ -598,17 +598,139 @@ router.get('/stats/geral', authMiddleware, isMaster, async (req, res) => {
                 COUNT(CASE WHEN tipo = 'master' THEN 1 END) as usuarios_master
             FROM usuarios
         `);
-        
+
         res.json({
             success: true,
             data: stats.rows[0]
         });
-        
+
     } catch (error) {
         console.error('Erro ao buscar estatísticas:', error);
         res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',
+            error: error.message
+        });
+    }
+});
+
+// ================================================================
+// FUNÇÃO AUXILIAR: Criar estrutura inicial de dados financeiros
+// ================================================================
+function criarEstruturaInicial() {
+    const anoAtual = new Date().getFullYear();
+    const estrutura = {};
+
+    estrutura[anoAtual] = { meses: [] };
+    for (let i = 0; i < 12; i++) {
+        estrutura[anoAtual].meses[i] = {
+            receitas: [],
+            despesas: [],
+            fechado: false,
+            saldoAnterior: 0,
+            saldoFinal: 0
+        };
+    }
+
+    return estrutura;
+}
+
+// ================================================================
+// GET /api/usuarios/:id/dados-financeiros
+// Buscar dados financeiros de um usuário
+// ================================================================
+router.get('/:id/dados-financeiros', authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Verificar se o usuário está tentando acessar seus próprios dados
+        if (req.usuario.id !== parseInt(id)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Acesso negado. Você só pode acessar seus próprios dados.'
+            });
+        }
+
+        // Buscar usuário no banco de dados
+        const result = await query(
+            'SELECT dados_financeiros FROM usuarios WHERE id = $1',
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Usuário não encontrado'
+            });
+        }
+
+        // Se não houver dados financeiros, retornar estrutura inicial
+        const dadosFinanceiros = result.rows[0].dados_financeiros || criarEstruturaInicial();
+
+        res.json({
+            success: true,
+            dadosFinanceiros
+        });
+
+    } catch (error) {
+        console.error('Erro ao buscar dados financeiros:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao buscar dados financeiros',
+            error: error.message
+        });
+    }
+});
+
+// ================================================================
+// PUT /api/usuarios/:id/dados-financeiros
+// Salvar/atualizar dados financeiros de um usuário
+// ================================================================
+router.put('/:id/dados-financeiros', authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { dadosFinanceiros } = req.body;
+
+        // Verificar se o usuário está tentando atualizar seus próprios dados
+        if (req.usuario.id !== parseInt(id)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Acesso negado. Você só pode atualizar seus próprios dados.'
+            });
+        }
+
+        // Validar dados recebidos
+        if (!dadosFinanceiros || typeof dadosFinanceiros !== 'object') {
+            return res.status(400).json({
+                success: false,
+                message: 'Dados financeiros inválidos'
+            });
+        }
+
+        // Atualizar no banco de dados
+        const result = await query(
+            'UPDATE usuarios SET dados_financeiros = $1, data_atualizacao = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id',
+            [JSON.stringify(dadosFinanceiros), id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Usuário não encontrado'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Dados financeiros salvos com sucesso',
+            usuarioId: id
+        });
+
+    } catch (error) {
+        console.error('Erro ao salvar dados financeiros:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao salvar dados financeiros',
             error: error.message
         });
     }
