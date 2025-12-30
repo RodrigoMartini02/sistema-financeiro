@@ -556,29 +556,29 @@ async function salvarReceita(e) {
         console.log('💾 Resultado salvar:', sucesso);
 
         if (sucesso) {
-            console.log('✅ Receita salva! Verificando replicação...');
+            console.log('✅ Receita salva! Processando atualizações...');
             
             if (!ehEdicao) {
                 const replicar = document.getElementById('receita-replicar');
-                console.log('🔄 Checkbox replicar:', replicar?.checked);
-                
                 if (replicar && replicar.checked) {
                     console.log('🔄 Iniciando replicação...');
                     await processarReplicacao(novaReceita, formData.mes, formData.ano);
                 }
             }
 
-            console.log('✅ Fechando modal...');
             document.getElementById('modal-nova-receita').style.display = 'none';
             
-            console.log('✅ Renderizando mês...');
-            if (typeof window.renderizarDetalhesDoMes === 'function') {
-                window.renderizarDetalhesDoMes(formData.mes, formData.ano);
+            // ✅ Atualiza as receitas
+            await buscarEExibirReceitas(formData.mes, formData.ano);
+            
+            // ✅ Atualiza o dashboard
+            if (typeof window.atualizarDashboard === 'function') {
+                await window.atualizarDashboard();
             }
             
-            console.log('✅ Atualizando dashboard...');
-            if (typeof window.carregarDadosDashboard === 'function') {
-                await window.carregarDadosDashboard(formData.ano);
+            // ✅ Atualiza os totais do ano
+            if (typeof window.calcularTotaisAno === 'function') {
+                window.calcularTotaisAno(formData.ano);
             }
             
             console.log('✅ Receita salva com sucesso!');
