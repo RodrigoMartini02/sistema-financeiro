@@ -92,53 +92,46 @@ const iniciarServidor = async () => {
 
         const { query } = require('./config/database'); 
 
-        console.log('📦 Sincronizando tabelas com o banco...');
+        console.log('📦 Recriando estrutura do banco de dados...');
 
-        // ============================================================
-        // TABELA USUARIOS - CORRIGIDA
-        // ============================================================
-        // CORREÇÕES APLICADAS:
-        // 1. Campo "tipo" adicionado (FALTAVA - causava erro 500)
-        // 2. Campo "status" mudado de BOOLEAN para VARCHAR (INCOMPATÍVEL - causava erro)
-        // 3. Campo "created_at" renomeado para "data_cadastro" (INCONSISTENTE com backend)
-        // 4. Campo "data_atualizacao" adicionado (FALTAVA - usado em várias rotas)
-        // 5. CHECK constraints adicionados para validação
-        // ============================================================
+        // Dropar todas as tabelas (garante estrutura limpa)
+        await query(`DROP TABLE IF EXISTS meses CASCADE;`);
+        await query(`DROP TABLE IF EXISTS reservas CASCADE;`);
+        await query(`DROP TABLE IF EXISTS despesas CASCADE;`);
+        await query(`DROP TABLE IF EXISTS receitas CASCADE;`);
+        await query(`DROP TABLE IF EXISTS cartoes CASCADE;`);
+        await query(`DROP TABLE IF EXISTS categorias CASCADE;`);
+        await query(`DROP TABLE IF EXISTS usuarios CASCADE;`);
+        await query(`DROP VIEW IF EXISTS usuários;`);
+
+        console.log('✅ Tabelas antigas removidas!');
+
+        // TABELA USUARIOS
         await query(`
-            CREATE TABLE IF NOT EXISTS usuarios (
+            CREATE TABLE usuarios (
                 id SERIAL PRIMARY KEY,
                 nome VARCHAR(255) NOT NULL,
                 email VARCHAR(255) UNIQUE NOT NULL,
                 documento VARCHAR(20) UNIQUE NOT NULL,
                 senha VARCHAR(255) NOT NULL,
-                tipo VARCHAR(20) DEFAULT 'padrao' CHECK (tipo IN ('padrao', 'admin', 'master')),  -- CORRIGIDO: adicionado
-                status VARCHAR(20) DEFAULT 'ativo' CHECK (status IN ('ativo', 'inativo', 'bloqueado')),  -- CORRIGIDO: de BOOLEAN para VARCHAR
-                data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  -- CORRIGIDO: renomeado de created_at
-                data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP  -- CORRIGIDO: adicionado
+                tipo VARCHAR(20) DEFAULT 'padrao' CHECK (tipo IN ('padrao', 'admin', 'master')),
+                status VARCHAR(20) DEFAULT 'ativo' CHECK (status IN ('ativo', 'inativo', 'bloqueado')),
+                data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
 
-        // Índices para melhor performance
-        await query(`
-            CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email);
-            CREATE INDEX IF NOT EXISTS idx_usuarios_documento ON usuarios(documento);
-            CREATE INDEX IF NOT EXISTS idx_usuarios_tipo ON usuarios(tipo);
-            CREATE INDEX IF NOT EXISTS idx_usuarios_status ON usuarios(status);
-        `);
+        await query(`CREATE INDEX idx_usuarios_email ON usuarios(email);`);
+        await query(`CREATE INDEX idx_usuarios_documento ON usuarios(documento);`);
+        await query(`CREATE INDEX idx_usuarios_tipo ON usuarios(tipo);`);
+        await query(`CREATE INDEX idx_usuarios_status ON usuarios(status);`);
+        await query(`CREATE VIEW usuários AS SELECT * FROM usuarios;`);
 
-        // View para compatibilidade com acento
-        await query(`
-            CREATE OR REPLACE VIEW usuários AS 
-            SELECT * FROM usuarios;
-        `);
+        console.log('✅ Tabela usuarios criada!');
 
-        console.log('✅ Tabela usuarios criada/atualizada!');
-
-        // ============================================================
         // TABELA CATEGORIAS
-        // ============================================================
         await query(`
-            CREATE TABLE IF NOT EXISTS categorias (
+            CREATE TABLE categorias (
                 id SERIAL PRIMARY KEY,
                 usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
                 nome VARCHAR(255) NOT NULL,
@@ -146,42 +139,35 @@ const iniciarServidor = async () => {
                 icone VARCHAR(10),
                 data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(usuario_id, nome)  -- Evita categorias duplicadas por usuário
+                UNIQUE(usuario_id, nome)
             );
         `);
 
         console.log('✅ Tabela categorias criada!');
 
-        // ============================================================
-        // FUNÇÃO criar_categorias_padrao - CORRIGIDA
-        // ============================================================
-        // PROBLEMA: Backend chamava essa função mas ela não existia (erro 500)
-        // SOLUÇÃO: Criar a função que insere categorias padrão automaticamente
-        // ============================================================
+        // FUNÇÃO criar_categorias_padrao
         await query(`
             CREATE OR REPLACE FUNCTION criar_categorias_padrao(p_usuario_id INTEGER)
             RETURNS VOID AS $$
             BEGIN
-                INSERT INTO categorias (usuario_id, nome, cor, icone) VALUES
-                    (p_usuario_id, 'Alimentação', '#FF6B6B', '🍔'),
-                    (p_usuario_id, 'Transporte', '#4ECDC4', '🚗'),
-                    (p_usuario_id, 'Moradia', '#45B7D1', '🏠'),
-                    (p_usuario_id, 'Saúde', '#96CEB4', '💊'),
-                    (p_usuario_id, 'Educação', '#FFEAA7', '📚'),
-                    (p_usuario_id, 'Lazer', '#DFE6E9', '🎮'),
-                    (p_usuario_id, 'Outros', '#B2BEC3', '📌')
-                ON CONFLICT (usuario_id, nome) DO NOTHING;  -- Evita erro se já existir
+                INSERT INTO categorias (usuario_id, nome, cor) VALUES
+                    (p_usuario_id, 'Alimentação', '#FF6B6B'),
+                    (p_usuario_id, 'Transporte', '#4ECDC4'),
+                    (p_usuario_id, 'Moradia', '#45B7D1'),
+                    (p_usuario_id, 'Saúde', '#96CEB4'),
+                    (p_usuario_id, 'Educação', '#FFEAA7'),
+                    (p_usuario_id, 'Lazer', '#DFE6E9'),
+                    (p_usuario_id, 'Outros', '#B2BEC3')
+                ON CONFLICT (usuario_id, nome) DO NOTHING;
             END;
             $$ LANGUAGE plpgsql;
         `);
 
         console.log('✅ Função criar_categorias_padrao criada!');
 
-        // ============================================================
         // TABELA CARTOES
-        // ============================================================
         await query(`
-            CREATE TABLE IF NOT EXISTS cartoes (
+            CREATE TABLE cartoes (
                 id SERIAL PRIMARY KEY,
                 usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
                 nome VARCHAR(255) NOT NULL,
@@ -197,17 +183,15 @@ const iniciarServidor = async () => {
 
         console.log('✅ Tabela cartoes criada!');
 
-        // ============================================================
         // TABELA RECEITAS
-        // ============================================================
         await query(`
-            CREATE TABLE IF NOT EXISTS receitas (
+            CREATE TABLE receitas (
                 id SERIAL PRIMARY KEY,
                 usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
                 descricao VARCHAR(255) NOT NULL,
                 valor DECIMAL(10, 2) NOT NULL,
                 data_recebimento DATE NOT NULL,
-                mes INTEGER NOT NULL CHECK (mes BETWEEN 0 AND 11),  -- 0=janeiro, 11=dezembro
+                mes INTEGER NOT NULL CHECK (mes BETWEEN 0 AND 11),
                 ano INTEGER NOT NULL,
                 observacoes TEXT,
                 data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -216,11 +200,9 @@ const iniciarServidor = async () => {
 
         console.log('✅ Tabela receitas criada!');
 
-        // ============================================================
         // TABELA DESPESAS
-        // ============================================================
         await query(`
-            CREATE TABLE IF NOT EXISTS despesas (
+            CREATE TABLE despesas (
                 id SERIAL PRIMARY KEY,
                 usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
                 descricao VARCHAR(255) NOT NULL,
@@ -234,9 +216,9 @@ const iniciarServidor = async () => {
                 cartao_id INTEGER REFERENCES cartoes(id),
                 forma_pagamento VARCHAR(50) DEFAULT 'dinheiro',
                 parcelado BOOLEAN DEFAULT false,
-                numero_parcelas INTEGER,  -- Total de parcelas
-                parcela_atual INTEGER,  -- Parcela atual (1, 2, 3...)
-                grupo_parcelamento_id INTEGER,  -- ID da primeira parcela do grupo
+                numero_parcelas INTEGER,
+                parcela_atual INTEGER,
+                grupo_parcelamento_id INTEGER,
                 observacoes TEXT,
                 pago BOOLEAN DEFAULT false,
                 valor_pago DECIMAL(10, 2),
@@ -246,11 +228,9 @@ const iniciarServidor = async () => {
 
         console.log('✅ Tabela despesas criada!');
 
-        // ============================================================
         // TABELA RESERVAS
-        // ============================================================
         await query(`
-            CREATE TABLE IF NOT EXISTS reservas (
+            CREATE TABLE reservas (
                 id SERIAL PRIMARY KEY,
                 usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
                 valor DECIMAL(10, 2) NOT NULL,
@@ -264,11 +244,9 @@ const iniciarServidor = async () => {
 
         console.log('✅ Tabela reservas criada!');
 
-        // ============================================================
         // TABELA MESES
-        // ============================================================
         await query(`
-            CREATE TABLE IF NOT EXISTS meses (
+            CREATE TABLE meses (
                 id SERIAL PRIMARY KEY,
                 usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
                 ano INTEGER NOT NULL,
@@ -277,12 +255,12 @@ const iniciarServidor = async () => {
                 saldo_anterior DECIMAL(10, 2) DEFAULT 0,
                 saldo_final DECIMAL(10, 2) DEFAULT 0,
                 data_fechamento TIMESTAMP,
-                UNIQUE(usuario_id, ano, mes)  -- Um único registro por mês/ano por usuário
+                UNIQUE(usuario_id, ano, mes)
             );
         `);
 
         console.log('✅ Tabela meses criada!');
-        console.log('✅ Banco de dados sincronizado completamente!');
+        console.log('✅ Estrutura do banco de dados criada com sucesso!');
 
         app.listen(PORT, () => {
             console.log('================================================');
@@ -292,7 +270,7 @@ const iniciarServidor = async () => {
         });
         
     } catch (error) {
-        console.error('❌ Erro ao iniciar servidor ou criar tabelas:', error);
+        console.error('❌ Erro ao iniciar servidor:', error);
         process.exit(1);
     }
 };
