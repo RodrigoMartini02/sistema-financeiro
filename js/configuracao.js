@@ -1119,6 +1119,14 @@ function mostrarValidacao(mensagem, tipo) {
 }
 
 async function garantirUsuarioMaster() {
+    
+    const usuario = JSON.parse(sessionStorage.getItem('usuario') || '{}');
+    
+    if (usuario.tipo !== 'admin' && usuario.tipo !== 'master') {
+        console.log('Usuário padrão - verificação de master ignorada');
+        return;
+    }
+    
     const cpfMaster = "08996441988";
     const dadosMaster = {
         nome: "Administrador Master",
@@ -1136,7 +1144,11 @@ async function garantirUsuarioMaster() {
             return;
         }
         
-        // 1. Verificar se já existe usuário master via API
+        if (usuario.tipo !== 'master') {
+            console.log('Apenas usuários Master podem gerenciar outros Masters');
+            return;
+        }
+        
         const statsResponse = await fetch(`${API_URL}/usuarios/stats/geral`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -1144,10 +1156,7 @@ async function garantirUsuarioMaster() {
         if (statsResponse.ok) {
             const statsData = await statsResponse.json();
             
-            // Se já existe master, verificar se é o correto
             if (statsData.data.usuarios_master > 0) {
-                
-                // Buscar usuários master para verificar se é o CPF correto
                 const usuariosResponse = await fetch(`${API_URL}/usuarios?tipo=master&limit=10`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -1159,7 +1168,6 @@ async function garantirUsuarioMaster() {
                     );
                     
                     if (masterExistente) {
-                        // Master correto existe, verificar se precisa atualizar
                         if (masterExistente.status !== 'ativo' || masterExistente.tipo !== 'master') {
                             await fetch(`${API_URL}/usuarios/${masterExistente.id}`, {
                                 method: 'PUT',
@@ -1174,13 +1182,12 @@ async function garantirUsuarioMaster() {
                             });
                             console.log('✅ Usuário master atualizado com sucesso');
                         }
-                        return; // Master já existe e está correto
+                        return;
                     }
                 }
             }
         }
         
-        // 2. Se chegou aqui, precisa criar o usuário master
         const criarResponse = await fetch(`${API_URL}/usuarios`, {
             method: 'POST',
             headers: {
@@ -1192,39 +1199,10 @@ async function garantirUsuarioMaster() {
         
         if (criarResponse.ok) {
             console.log('✅ Usuário master criado com sucesso via API');
-        } else {
-            const errorData = await criarResponse.json();
-            console.warn('⚠️ Erro ao criar usuário master via API:', errorData.message);
-            
-            // Fallback: tentar buscar se já existe por email
-            const buscarResponse = await fetch(`${API_URL}/usuarios?search=${dadosMaster.email}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            
-            if (buscarResponse.ok) {
-                const buscarData = await buscarResponse.json();
-                const masterPorEmail = buscarData.data.find(u => u.email === dadosMaster.email);
-                
-                if (masterPorEmail) {
-                    await fetch(`${API_URL}/usuarios/${masterPorEmail.id}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({
-                            tipo: 'master',
-                            status: 'ativo'
-                        })
-                    });
-                    console.log('✅ Usuário master existente atualizado');
-                }
-            }
         }
         
     } catch (error) {
         console.warn('⚠️ Erro ao garantir usuário master:', error);
-        // Falha silenciosa - SQL já deve ter criado master
     }
 }
 
