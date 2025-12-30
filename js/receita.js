@@ -510,10 +510,14 @@ function resetarOpcoesReplicacao() {
 // ================================================================
 
 async function salvarReceita(e) {
+    console.log('🔵 FUNÇÃO SALVAR RECEITA CHAMADA!', e);
+    
     if (e && e.preventDefault) {
         e.preventDefault();
         e.stopPropagation();
     }
+    
+    console.log('🔵 ProcessandoReceita:', processandoReceita);
     
     if (processandoReceita) {
         console.log('⏳ Já está processando...');
@@ -521,6 +525,7 @@ async function salvarReceita(e) {
     }
     
     if (!window.sistemaInicializado || !window.dadosFinanceiros) {
+        console.log('❌ Sistema não inicializado');
         alert('Sistema ainda carregando. Aguarde alguns segundos e tente novamente.');
         return false;
     }
@@ -533,9 +538,12 @@ async function salvarReceita(e) {
         console.log('📝 Dados coletados:', formData);
         
         if (!validarDadosFormulario(formData)) {
+            console.log('❌ Validação falhou');
             processandoReceita = false;
             return false;
         }
+        
+        console.log('✅ Validação OK, criando objeto...');
         
         const novaReceita = criarObjetoReceita(formData);
         
@@ -543,23 +551,38 @@ async function salvarReceita(e) {
         const ehEdicao = idValue !== '' && idValue !== null && idValue !== undefined;
         
         console.log('💾 Salvando - É edição?', ehEdicao, 'ID:', idValue);
+        console.log('💾 Payload:', {
+            mes: formData.mes,
+            ano: formData.ano,
+            receita: novaReceita
+        });
         
         const sucesso = await salvarReceitaLocal(formData.mes, formData.ano, novaReceita, idValue);
 
+        console.log('💾 Resultado salvar:', sucesso);
+
         if (sucesso) {
+            console.log('✅ Receita salva! Verificando replicação...');
+            
             if (!ehEdicao) {
                 const replicar = document.getElementById('receita-replicar');
+                console.log('🔄 Checkbox replicar:', replicar?.checked);
+                
                 if (replicar && replicar.checked) {
+                    console.log('🔄 Iniciando replicação...');
                     await processarReplicacao(novaReceita, formData.mes, formData.ano);
                 }
             }
 
+            console.log('✅ Fechando modal...');
             document.getElementById('modal-nova-receita').style.display = 'none';
             
+            console.log('✅ Renderizando mês...');
             if (typeof window.renderizarDetalhesDoMes === 'function') {
                 window.renderizarDetalhesDoMes(formData.mes, formData.ano);
             }
             
+            console.log('✅ Atualizando dashboard...');
             if (typeof window.carregarDadosDashboard === 'function') {
                 await window.carregarDadosDashboard(formData.ano);
             }
@@ -577,6 +600,7 @@ async function salvarReceita(e) {
         return false;
     } finally {
         processandoReceita = false;
+        console.log('🔵 ProcessandoReceita resetado para false');
     }
 }
 
