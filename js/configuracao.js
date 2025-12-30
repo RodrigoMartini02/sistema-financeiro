@@ -613,7 +613,10 @@ async function salvarCartoesForms() {
                 window.limparCacheCartoes();
             }
 
-            mostrarStatusCartoes('Alterações realizadas com sucesso!', 'success');
+            mostrarStatusCartoes('Cartões salvos com sucesso!', 'success');
+
+            // ✅ Recarregar cartões do servidor para garantir sincronização
+            await carregarCartoesLocal();
 
             setTimeout(() => {
                 if (typeof window.renderizarDetalhesDoMes === 'function' &&
