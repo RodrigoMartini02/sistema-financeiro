@@ -721,7 +721,7 @@ async function filtrarUsuarios() {
         if (response.ok) {
             usuariosFiltrados = data.data;
             renderizarUsuarios();
-            atualizarPaginacao(data.pagination);
+            atualizarInfoPaginacao(data.pagination);
         }
     } catch (error) {
         console.error('Erro ao buscar usuários:', error);
@@ -1595,13 +1595,13 @@ window.categoriasUsuario = categoriasUsuario;
 window.cartoesUsuario = cartoesUsuario;
 window.categoriasPadrao = categoriasPadrao;
 
-window.carregarCategoriasLocal = carregarCategoriasLocal;
-window.salvarCategorias = salvarCategorias;
+window.carregarCategoriasLocal = carregarCategoriasLocalFallback;
+window.salvarCategorias = salvarCategoriasLocalFallback;
 window.atualizarDropdowns = atualizarDropdowns;
 window.atualizarListaCategorias = atualizarListaCategorias;
 
-window.carregarCartoesLocal = carregarCartoesLocal;
-window.salvarCartoes = salvarCartoes;
+window.carregarCartoesLocal = carregarCartoesLocalFallback;
+window.salvarCartoes = salvarCartoesLocalFallback;
 window.atualizarOpcoesCartoes = atualizarOpcoesCartoes;
 window.preencherFormularioCartoes = preencherFormularioCartoes;
 
