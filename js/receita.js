@@ -1,3 +1,14 @@
+
+// ⚠️ TEMPORÁRIO: Desabilitar anexos até receitas funcionarem
+window.sistemaAnexos = { 
+    limparAnexosTemporarios: () => {}, 
+    carregarAnexosExistentes: () => {}, 
+    obterAnexosParaSalvar: () => ([]),
+    abrirSeletorArquivos: () => alert('Em desenvolvimento')
+};
+window.inicializarSistemaAnexos = () => {};
+
+
 window.API_URL = 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
 function getToken() {
