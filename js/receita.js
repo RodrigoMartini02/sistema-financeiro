@@ -440,6 +440,8 @@ async function salvarReceita(e) {
         
         const sucesso = await salvarReceitaLocal(formData.mes, formData.ano, novaReceita, idValue);
 
+        console.log('🔍 Resultado do salvamento:', sucesso);
+
         if (sucesso) {
             if (!ehEdicao) {
                 const replicar = document.getElementById('receita-replicar');
@@ -573,7 +575,10 @@ async function salvarReceitaLocal(mes, ano, receita, id) {
             window.dadosFinanceiros[ano].meses[mes].receitas.push(receita);
         }
 
+        console.log('🔄 Chamando window.salvarDados()...');
         const sucesso = await window.salvarDados();
+
+        console.log('📊 window.salvarDados() retornou:', sucesso);
 
         if (sucesso) {
             console.log('✅ Receita salva com sucesso!');
@@ -581,6 +586,8 @@ async function salvarReceitaLocal(mes, ano, receita, id) {
             if (window.sistemaAnexos) {
                 window.sistemaAnexos.limparAnexosTemporarios('receita');
             }
+        } else {
+            console.error('❌ window.salvarDados() retornou false!');
         }
 
         return sucesso;
