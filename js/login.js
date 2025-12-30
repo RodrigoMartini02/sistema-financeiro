@@ -162,7 +162,7 @@ function configurarEventListenersRecuperacao() {
 // ================================================================
 
 async function processarLogin(documento, password, isModal) {
-    console.log('Processando login via API...');
+    console.log('🔐 Processando login via API...');
 
     const errorElement = isModal ? elementos.modalErrorMessage : elementos.errorMessage;
     const botaoSubmit = isModal ?
@@ -193,9 +193,9 @@ async function processarLogin(documento, password, isModal) {
             throw new Error(data.message || 'Documento ou senha incorretos');
         }
 
-        console.log('✅ Login bem-sucedido!');
+        console.log('✅ Login bem-sucedido via API!');
 
-        // Salvar token e dados do usuário
+        // Salvar token JWT e dados do usuário
         sessionStorage.setItem('token', data.token);
         sessionStorage.setItem('usuarioAtual', docLimpo);
         sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify({
@@ -203,7 +203,7 @@ async function processarLogin(documento, password, isModal) {
             nome: data.usuario.nome,
             documento: docLimpo,
             email: data.usuario.email,
-            password: password // Salvar senha para desbloqueio interno
+            password: password // Manter senha para desbloqueio interno
         }));
 
         // Registrar tentativa em background
@@ -213,7 +213,7 @@ async function processarLogin(documento, password, isModal) {
         window.location.href = 'index.html';
 
     } catch (error) {
-        console.error('Erro durante login:', error);
+        console.error('❌ Erro durante login:', error);
         mostrarErroLogin(errorElement, error.message || 'Erro no sistema. Tente novamente.');
         registrarTentativaBackground(documento, false);
 
@@ -326,32 +326,37 @@ async function processarFormularioCadastro() {
 }
 
 async function processarCadastro(nome, email, documento, password) {
-    const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
     const docLimpo = documento.replace(/[^\d]+/g, '');
-    
-    // Verificar se já existe
-    const jaExiste = usuarios.some(u => 
-        u.email.toLowerCase() === email.toLowerCase() || 
-        (u.documento && u.documento.replace(/[^\d]+/g, '') === docLimpo)
-    );
-    
-    if (jaExiste) {
-        throw new Error('Usuário já existe com este email ou documento');
+
+    try {
+        console.log('📝 Cadastrando usuário via API...');
+
+        const response = await fetch(`${API_URL}/auth/register`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                nome: nome,
+                email: email,
+                documento: docLimpo,
+                senha: password
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Erro ao cadastrar usuário');
+        }
+
+        console.log('✅ Cadastro realizado com sucesso via API!');
+        return { success: true, data: data.usuario };
+
+    } catch (error) {
+        console.error('❌ Erro no cadastro:', error);
+        throw error;
     }
-    
-    const novoUsuario = {
-        nome,
-        email,
-        documento,
-        password,
-        dataCadastro: new Date().toISOString(),
-        dadosFinanceiros: criarEstruturaFinanceiraInicial()
-    };
-    
-    usuarios.push(novoUsuario);
-    localStorage.setItem('usuarios', JSON.stringify(usuarios));
-    
-    return { success: true, data: novoUsuario };
 }
 
 function criarEstruturaFinanceiraInicial() {
