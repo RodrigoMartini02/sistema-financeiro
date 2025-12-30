@@ -102,7 +102,7 @@ const iniciarServidor = async () => {
         await query(`DROP TABLE IF EXISTS cartoes CASCADE;`);
         await query(`DROP TABLE IF EXISTS categorias CASCADE;`);
         await query(`DROP TABLE IF EXISTS usuarios CASCADE;`);
-        await query(`DROP VIEW IF EXISTS usuários;`);
+        await query(`DROP TABLE IF EXISTS usuários CASCADE;`);
 
         console.log('✅ Tabelas antigas removidas!');
 
