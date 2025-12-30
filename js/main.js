@@ -45,22 +45,23 @@ async function iniciarSistema() {
     if (!verificarAcessoUsuario()) {
         return;
     }
-    
+
     exportarVariaveisGlobais();
     carregarDadosLocais();
-    
+
     sistemaInicializado = true;
     window.sistemaInicializado = true;
-    
+
     configurarInterface();
-    
+    exibirNomeUsuario(); // Mostrar nome do usuário logado
+
     if (!dadosFinanceiros[anoAtual]) {
         abrirModalNovoAno();
     } else {
         await carregarDadosDashboard(anoAtual);
         renderizarMeses(anoAtual);
     }
-    
+
     notificarSistemaReady();
 }
 
@@ -727,13 +728,21 @@ function setupEventosFechamento() {
 }
 
 function obterUsuarioAtualLocal() {
-    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
-    if (!usuarioAtual) return null;
-    
     try {
+        // Primeiro tenta pegar do sessionStorage (dados do usuário logado via API)
+        const dadosUsuario = sessionStorage.getItem('dadosUsuarioLogado');
+        if (dadosUsuario) {
+            return JSON.parse(dadosUsuario);
+        }
+
+        // Fallback: busca no localStorage (modo antigo)
+        const usuarioAtual = sessionStorage.getItem('usuarioAtual');
+        if (!usuarioAtual) return null;
+
         const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
         return usuarios.find(u => u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual);
     } catch (error) {
+        console.error('Erro ao obter usuário:', error);
         return null;
     }
 }
@@ -1935,6 +1944,24 @@ function abrirModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.style.display = 'block';
+    }
+}
+
+function exibirNomeUsuario() {
+    try {
+        const dadosUsuario = sessionStorage.getItem('dadosUsuarioLogado');
+        if (dadosUsuario) {
+            const usuario = JSON.parse(dadosUsuario);
+            const nomeElement = document.getElementById('nome-usuario-logado');
+            if (nomeElement && usuario.nome) {
+                const primeiroNome = usuario.nome.split(' ')[0];
+                nomeElement.textContent = primeiroNome + ',';
+                nomeElement.style.fontWeight = 'bold';
+                nomeElement.style.color = '#2c3e50';
+            }
+        }
+    } catch (error) {
+        console.error('Erro ao exibir nome do usuário:', error);
     }
 }
 

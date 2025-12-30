@@ -11,12 +11,14 @@ document.addEventListener('DOMContentLoaded', function() {
 // VARIÁVEIS GLOBAIS
 // ================================================================
 
+const API_URL = 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
 let elementos = {};
 let emailJSDisponivel = false;
 
 const EMAIL_CONFIG = {
     serviceId: 'service_financas',
-    templateId: 'template_recuperacao', 
+    templateId: 'template_recuperacao',
     userId: 'oW3fgPbnchMKc42Yf'
 };
 
@@ -160,47 +162,67 @@ function configurarEventListenersRecuperacao() {
 // ================================================================
 
 async function processarLogin(documento, password, isModal) {
-    console.log('Processando login...');
-    
+    console.log('Processando login via API...');
+
     const errorElement = isModal ? elementos.modalErrorMessage : elementos.errorMessage;
-    const botaoSubmit = isModal ? 
+    const botaoSubmit = isModal ?
         document.querySelector('#modal-login-form button[type="submit"]') :
         document.querySelector('#login-form button[type="submit"]');
-    
+
     if (errorElement) errorElement.style.display = 'none';
     setLoadingState(botaoSubmit, true);
-    
+
     try {
-        // Validação direta e rápida
-        const loginValido = validarLoginRapido(documento, password);
-        
-        if (loginValido) {
-            const docLimpo = documento.replace(/[^\d]+/g, '');
-            
-            // Salvar sessão
-            sessionStorage.setItem('usuarioAtual', docLimpo);
-            salvarDadosUsuarioSessao(docLimpo);
-            
-            // Registrar tentativa em background
-            registrarTentativaBackground(documento, true);
-            
-            // Redirecionamento imediato
-            window.location.href = 'index.html';
-            
-        } else {
-            mostrarErroLogin(errorElement, 'Documento ou senha incorretos');
-            registrarTentativaBackground(documento, false);
-            
-            // Limpar senha
-            const passwordField = isModal ? 
-                document.getElementById('modal-password') : 
-                document.getElementById('password');
-            if (passwordField) passwordField.value = '';
+        const docLimpo = documento.replace(/[^\d]+/g, '');
+
+        // Login via API
+        const response = await fetch(`${API_URL}/auth/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                documento: docLimpo,
+                senha: password
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Documento ou senha incorretos');
         }
-        
+
+        console.log('✅ Login bem-sucedido!');
+
+        // Salvar token e dados do usuário
+        sessionStorage.setItem('token', data.token);
+        sessionStorage.setItem('usuarioAtual', docLimpo);
+        sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify({
+            id: data.usuario.id,
+            nome: data.usuario.nome,
+            documento: docLimpo,
+            email: data.usuario.email,
+            password: password // Salvar senha para desbloqueio interno
+        }));
+
+        // Registrar tentativa em background
+        registrarTentativaBackground(documento, true);
+
+        // Redirecionamento
+        window.location.href = 'index.html';
+
     } catch (error) {
         console.error('Erro durante login:', error);
         mostrarErroLogin(errorElement, error.message || 'Erro no sistema. Tente novamente.');
+        registrarTentativaBackground(documento, false);
+
+        // Limpar senha
+        const passwordField = isModal ?
+            document.getElementById('modal-password') :
+            document.getElementById('password');
+        if (passwordField) passwordField.value = '';
+
     } finally {
         setLoadingState(botaoSubmit, false);
     }
