@@ -575,30 +575,6 @@ function setupAbas() {
 }
 
 function setupOutrosControles() {
-    const refreshBtn = document.getElementById('btn-refresh');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', async function() {
-            try {
-                const activeSection = document.querySelector('section.active');
-                if (activeSection) {
-                    const sectionId = activeSection.id;
-                    switch(sectionId) {
-                        case 'dashboard-section':
-                            await carregarDadosDashboard(anoAtual);
-                            atualizarResumoAnual(anoAtual);
-                            break;
-                        case 'meses-section':
-                            await renderizarMeses(anoAtual);
-                            atualizarResumoAnual(anoAtual);
-                            break;
-                    }
-                }
-            } catch (error) {
-                // Falha silenciosa
-            }
-        });
-    }
-
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async function(e) {

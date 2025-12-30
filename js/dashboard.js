@@ -98,15 +98,6 @@ function configurarObservadores() {
         resetarFiltros();
         setTimeout(() => carregarDadosDashboard(window.anoAtual), 100);
     });
-    
-    const btnRefresh = document.getElementById('btn-refresh');
-    if (btnRefresh) {
-        btnRefresh.addEventListener('click', function() {
-            limparGraficos();
-            resetarFiltros();
-            setTimeout(() => carregarDadosDashboard(window.anoAtual), 100);
-        });
-    }
 }
 
 function resetarFiltros() {
