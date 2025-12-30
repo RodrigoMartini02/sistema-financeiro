@@ -47,7 +47,10 @@ async function iniciarSistema() {
     }
 
     exportarVariaveisGlobais();
-    carregarDadosLocais();
+
+    // ✅ Aguardar carregamento dos dados da API
+    console.log('🔄 Aguardando carregamento de dados da API...');
+    await carregarDadosLocais();
 
     sistemaInicializado = true;
     window.sistemaInicializado = true;
@@ -59,7 +62,7 @@ async function iniciarSistema() {
         abrirModalNovoAno();
     } else {
         await carregarDadosDashboard(anoAtual);
-        renderizarMeses(anoAtual);
+        await renderizarMeses(anoAtual);
     }
 
     notificarSistemaReady();
@@ -194,32 +197,36 @@ function mostrarNotificacao(mensagem, tipo) {
 // CARREGAMENTO DE DADOS
 // ================================================================
 
-function carregarDadosLocais() {
+async function carregarDadosLocais() {
     const usuarioAtual = sessionStorage.getItem('usuarioAtual');
-    
+
     if (!usuarioAtual) {
         dadosFinanceiros = criarEstruturaVazia();
+        window.dadosFinanceiros = dadosFinanceiros;
         return;
     }
 
     try {
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const usuario = usuarios.find(u => 
-            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
-        );
-        
-        if (usuario) {
-            if (!usuario.dadosFinanceiros) {
-                usuario.dadosFinanceiros = criarEstruturaVazia();
-                localStorage.setItem('usuarios', JSON.stringify(usuarios));
+        console.log('📥 Carregando dados financeiros do usuário via API...');
+
+        // ✅ Carregar dados da API através do usuarioDataManager
+        if (window.usuarioDataManager && typeof window.usuarioDataManager.getDadosFinanceirosUsuario === 'function') {
+            dadosFinanceiros = await window.usuarioDataManager.getDadosFinanceirosUsuario();
+
+            if (!dadosFinanceiros || Object.keys(dadosFinanceiros).length === 0) {
+                console.log('📦 Nenhum dado encontrado, criando estrutura vazia');
+                dadosFinanceiros = criarEstruturaVazia();
             }
-            dadosFinanceiros = usuario.dadosFinanceiros;
         } else {
+            console.warn('⚠️ usuarioDataManager não disponível, criando estrutura vazia');
             dadosFinanceiros = criarEstruturaVazia();
         }
-        
+
         window.dadosFinanceiros = dadosFinanceiros;
+        console.log('✅ Dados financeiros carregados:', dadosFinanceiros);
+
     } catch (error) {
+        console.error('❌ Erro ao carregar dados:', error);
         dadosFinanceiros = criarEstruturaVazia();
         window.dadosFinanceiros = dadosFinanceiros;
     }
@@ -380,20 +387,38 @@ function setupNavigation() {
 }
 
 function onSecaoAtivada(secao) {
+    console.log('🔄 Seção ativada:', secao);
     switch (secao) {
-        case 'meses':
-            setTimeout(() => {
-                renderizarMeses(anoAtual);
+        case 'dashboard':
+            // ✅ Carregar dados do dashboard automaticamente ao entrar na seção
+            setTimeout(async () => {
+                console.log('📊 Carregando dados do dashboard...');
+                await carregarDadosDashboard(anoAtual);
                 atualizarResumoAnual(anoAtual);
             }, 100);
             break;
-            
+
+        case 'meses':
+            setTimeout(async () => {
+                console.log('📅 Renderizando meses...');
+                await renderizarMeses(anoAtual);
+                atualizarResumoAnual(anoAtual);
+
+                // Se há um mês aberto, recarregar seus detalhes
+                if (window.mesAberto !== null && window.anoAberto !== null &&
+                    typeof window.renderizarDetalhesDoMes === 'function') {
+                    console.log(`🔍 Recarregando detalhes do mês ${window.mesAberto}/${window.anoAberto}`);
+                    await window.renderizarDetalhesDoMes(window.mesAberto, window.anoAberto);
+                }
+            }, 100);
+            break;
+
         case 'fin-sights':
             if (typeof onRevistaActivated === 'function') {
                 setTimeout(() => onRevistaActivated(), 100);
             }
             break;
-            
+
         case 'relatorios':
             if (window.sistemaRelatoriosTelaCheia) {
                 setTimeout(() => {
@@ -563,7 +588,7 @@ function setupOutrosControles() {
                             atualizarResumoAnual(anoAtual);
                             break;
                         case 'meses-section':
-                            renderizarMeses(anoAtual);
+                            await renderizarMeses(anoAtual);
                             atualizarResumoAnual(anoAtual);
                             break;
                     }
@@ -857,8 +882,8 @@ async function mudarAno(ano) {
         
         await carregarDadosDashboard(anoAtual);
         atualizarResumoAnual(anoAtual);
-        renderizarMeses(anoAtual);
-        
+        await renderizarMeses(anoAtual);
+
     } catch (error) {
         alert('Erro ao mudar ano: ' + error.message);
     }
@@ -891,8 +916,8 @@ async function criarAnoSimples(ano) {
         
         await carregarDadosDashboard(anoAtual);
         atualizarResumoAnual(anoAtual);
-        renderizarMeses(anoAtual);
-        
+        await renderizarMeses(anoAtual);
+
         alert(`Ano ${ano} criado com sucesso!`);
         
     } catch (error) {
@@ -947,12 +972,12 @@ async function excluirAno(ano) {
             } else {
                 await carregarDadosDashboard(anoAtual);
                 atualizarResumoAnual(anoAtual);
-                renderizarMeses(anoAtual);
+                await renderizarMeses(anoAtual);
             }
         } else {
             await carregarDadosDashboard(anoAtual);
             atualizarResumoAnual(anoAtual);
-            renderizarMeses(anoAtual);
+            await renderizarMeses(anoAtual);
         }
         
         alert(`O ano ${ano} foi excluído com sucesso!`);
@@ -974,20 +999,31 @@ function abrirModalNovoAno() {
 // RENDERIZAÇÃO DE MESES
 // ================================================================
 
-function renderizarMeses(ano) {
+async function renderizarMeses(ano) {
     try {
+        // ✅ Recarregar dados da API para garantir sincronização
+        console.log(`🔄 Recarregando dados para renderizar meses do ano ${ano}...`);
+        if (window.usuarioDataManager && typeof window.usuarioDataManager.getDadosFinanceirosUsuario === 'function') {
+            const dadosAtualizados = await window.usuarioDataManager.getDadosFinanceirosUsuario();
+            if (dadosAtualizados && Object.keys(dadosAtualizados).length > 0) {
+                window.dadosFinanceiros = dadosAtualizados;
+                dadosFinanceiros = dadosAtualizados;
+                console.log('✅ Dados recarregados da API para renderização dos meses!');
+            }
+        }
+
         const mesesContainer = document.querySelector('.meses-container');
         if (!mesesContainer) {
             return;
         }
-        
+
         mesesContainer.innerHTML = '';
-        
+
         for (let i = 0; i < 12; i++) {
             const mesCard = criarCardMes(i, ano);
             mesesContainer.appendChild(mesCard);
         }
-        
+
     } catch (error) {
         // Falha silenciosa
     }
@@ -1304,6 +1340,17 @@ async function buscarDespesasAPI(mes, ano) {
 
 async function renderizarDetalhesDoMes(mes, ano) {
     try {
+        // ✅ Recarregar dados da API para garantir sincronização
+        console.log(`🔄 Recarregando dados do mês ${mes}/${ano} da API...`);
+        if (window.usuarioDataManager && typeof window.usuarioDataManager.getDadosFinanceirosUsuario === 'function') {
+            const dadosAtualizados = await window.usuarioDataManager.getDadosFinanceirosUsuario();
+            if (dadosAtualizados && Object.keys(dadosAtualizados).length > 0) {
+                window.dadosFinanceiros = dadosAtualizados;
+                dadosFinanceiros = dadosAtualizados;
+                console.log('✅ Dados recarregados da API!');
+            }
+        }
+
         // Garantir que temos a estrutura de dados
         garantirEstruturaDados(ano, mes);
 
@@ -1466,8 +1513,20 @@ function configurarBotao(id, callback) {
 
 async function carregarDadosDashboard(ano) {
     try {
+        // ✅ Recarregar dados da API para garantir sincronização
+        console.log(`🔄 Recarregando dados para dashboard do ano ${ano}...`);
+        if (window.usuarioDataManager && typeof window.usuarioDataManager.getDadosFinanceirosUsuario === 'function') {
+            const dadosAtualizados = await window.usuarioDataManager.getDadosFinanceirosUsuario();
+            if (dadosAtualizados && Object.keys(dadosAtualizados).length > 0) {
+                window.dadosFinanceiros = dadosAtualizados;
+                dadosFinanceiros = dadosAtualizados;
+                console.log('✅ Dados recarregados da API para o dashboard!');
+            }
+        }
+
         carregarDadosDashboardLocal(ano);
     } catch (error) {
+        console.error('❌ Erro ao recarregar dados do dashboard:', error);
         carregarDadosDashboardLocal(ano);
     }
 }
@@ -1676,10 +1735,10 @@ async function confirmarFechamento() {
         
         if (sucesso) {
             fecharModal('modal-confirmar-fechamento');
-            renderizarDetalhesDoMes(mesAberto, anoAberto);
-            
+            await renderizarDetalhesDoMes(mesAberto, anoAberto);
+
             if (typeof window.renderizarMeses === 'function') {
-                window.renderizarMeses(anoAberto);
+                await window.renderizarMeses(anoAberto);
             }
         }
     } catch (error) {
@@ -1693,10 +1752,10 @@ async function confirmarReabertura() {
         
         if (sucesso) {
             fecharModal('modal-confirmar-reabertura');
-            renderizarDetalhesDoMes(mesAberto, anoAberto);
-            
+            await renderizarDetalhesDoMes(mesAberto, anoAberto);
+
             if (typeof window.renderizarMeses === 'function') {
-                window.renderizarMeses(anoAberto);
+                await window.renderizarMeses(anoAberto);
             }
         }
     } catch (error) {
@@ -1731,13 +1790,13 @@ async function fecharMes(mes, ano) {
         }
         
         await salvarDados();
-        
+
         if (typeof window.renderizarMeses === 'function') {
-            window.renderizarMeses(ano);
+            await window.renderizarMeses(ano);
         }
-        
+
         if (proximoAno !== ano && typeof window.renderizarMeses === 'function') {
-            setTimeout(() => window.renderizarMeses(proximoAno), 100);
+            setTimeout(async () => await window.renderizarMeses(proximoAno), 100);
         }
         
         return true;
@@ -1772,12 +1831,12 @@ async function reabrirMes(mes, ano) {
         await removerReceitaSaldoAnterior(proximoMes, proximoAno, mes, ano);
         
         await salvarDados();
-        
+
         if (typeof window.renderizarMeses === 'function') {
-            window.renderizarMeses(ano);
-            
+            await window.renderizarMeses(ano);
+
             if (proximoAno !== ano) {
-                setTimeout(() => window.renderizarMeses(proximoAno), 100);
+                setTimeout(async () => await window.renderizarMeses(proximoAno), 100);
             }
         }
         
@@ -1908,11 +1967,11 @@ async function fecharMesAutomatico(mes, ano) {
         }
         
         await salvarDados();
-        
+
         if (typeof window.renderizarMeses === 'function') {
-            window.renderizarMeses(ano);
+            await window.renderizarMeses(ano);
         }
-        
+
         return true;
         
     } catch (error) {
