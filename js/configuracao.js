@@ -162,15 +162,21 @@ async function carregarCategoriasLocal() {
             }
         });
 
+        if (!response.ok) {
+            // Silenciosamente usar padrão se não autenticado ou erro
+            categoriasUsuario.despesas = [...categoriasPadrao.despesas];
+            return;
+        }
+
         const data = await response.json();
 
-        if (response.ok && data.success) {
+        if (data.success) {
             categoriasUsuario = data.categorias;
         } else {
             categoriasUsuario.despesas = [...categoriasPadrao.despesas];
         }
     } catch (error) {
-        console.error('❌ Erro ao carregar categorias da API:', error);
+        // Silenciosamente usar padrão em caso de erro
         categoriasUsuario.despesas = [...categoriasPadrao.despesas];
     }
 }
@@ -190,9 +196,15 @@ async function salvarCategorias() {
             body: JSON.stringify({ categorias: categoriasUsuario })
         });
 
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
+            console.error('❌ Erro ao salvar categorias:', data.message);
+            return false;
+        }
+
         const data = await response.json();
 
-        if (response.ok && data.success) {
+        if (data.success) {
             console.log('✅ Categorias salvas na API!');
             return true;
         } else {
@@ -200,7 +212,7 @@ async function salvarCategorias() {
             return false;
         }
     } catch (error) {
-        console.error('❌ Erro ao salvar categorias na API:', error);
+        console.error('❌ Erro ao salvar categorias na API:', error.message);
         return false;
     }
 }
@@ -385,18 +397,24 @@ async function carregarCartoesLocal() {
             }
         });
 
+        if (!response.ok) {
+            // Silenciosamente usar padrão se não autenticado ou erro
+            cartoesUsuario = cartoesPadrao;
+            window.cartoesUsuario = cartoesUsuario;
+            return;
+        }
+
         const data = await response.json();
 
-        if (response.ok && data.success) {
+        if (data.success) {
             cartoesUsuario = data.cartoes;
             window.cartoesUsuario = cartoesUsuario;
         } else {
-            console.warn('⚠️ Cartões não encontrados na API, usando padrão');
             cartoesUsuario = cartoesPadrao;
             window.cartoesUsuario = cartoesUsuario;
         }
     } catch (error) {
-        console.error('❌ Erro ao carregar cartões da API:', error);
+        // Silenciosamente usar padrão em caso de erro
         cartoesUsuario = cartoesPadrao;
         window.cartoesUsuario = cartoesUsuario;
     }
@@ -417,9 +435,15 @@ async function salvarCartoes() {
             body: JSON.stringify({ cartoes: cartoesUsuario })
         });
 
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
+            console.error('❌ Erro ao salvar cartões:', data.message);
+            return false;
+        }
+
         const data = await response.json();
 
-        if (response.ok && data.success) {
+        if (data.success) {
             console.log('✅ Cartões salvos na API!');
             window.cartoesUsuario = cartoesUsuario;
             return true;
@@ -428,7 +452,7 @@ async function salvarCartoes() {
             return false;
         }
     } catch (error) {
-        console.error('❌ Erro ao salvar cartões na API:', error);
+        console.error('❌ Erro ao salvar cartões na API:', error.message);
         return false;
     }
 }
