@@ -146,8 +146,10 @@ function validarValidade(validade) {
 // ================================================================
 async function carregarCategoriasLocal() {
     const usuario = window.usuarioDataManager?.getUsuarioAtual();
+    const token = sessionStorage.getItem('token');
 
-    if (!usuario || !usuario.id) {
+    // ✅ Verificar se está autenticado ANTES de fazer API call
+    if (!usuario || !usuario.id || !token) {
         categoriasUsuario.despesas = [...categoriasPadrao.despesas];
         return;
     }
@@ -158,7 +160,7 @@ async function carregarCategoriasLocal() {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
+                'Authorization': `Bearer ${token}`
             }
         });
 
@@ -374,6 +376,7 @@ async function salvarEdicaoCategoria() {
 // ================================================================
 async function carregarCartoesLocal() {
     const usuario = window.usuarioDataManager?.getUsuarioAtual();
+    const token = sessionStorage.getItem('token');
 
     const cartoesPadrao = {
         cartao1: { nome: '', validade: '', limite: 0, ativo: false },
@@ -381,7 +384,8 @@ async function carregarCartoesLocal() {
         cartao3: { nome: '', validade: '', limite: 0, ativo: false }
     };
 
-    if (!usuario || !usuario.id) {
+    // ✅ Verificar se está autenticado ANTES de fazer API call
+    if (!usuario || !usuario.id || !token) {
         cartoesUsuario = cartoesPadrao;
         window.cartoesUsuario = cartoesUsuario;
         return;
@@ -393,7 +397,7 @@ async function carregarCartoesLocal() {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
+                'Authorization': `Bearer ${token}`
             }
         });
 

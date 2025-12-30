@@ -257,25 +257,24 @@ class UsuarioDataManager {
         }
 
         if (!dadosFinanceiros || typeof dadosFinanceiros !== 'object') {
+            console.error('❌ Dados financeiros inválidos');
             return false;
         }
 
-        if (window.salvarDados && typeof window.salvarDados === 'function') {
-            try {
-                window.dadosFinanceiros = dadosFinanceiros;
-                const sucesso = await window.salvarDados();
+        console.log('🔄 salvarDadosUsuario: iniciando salvamento...');
 
-                if (sucesso) {
-                    this.dadosCache = dadosFinanceiros;
-                    this.timestampCache = Date.now();
-                    return true;
-                }
-            } catch (error) {
-                // Fallback para salvamento via API
-            }
+        // ✅ SALVAR DIRETO NA API (evita circular call com window.salvarDados)
+        const sucesso = await this.salvarDadosAPI(dadosFinanceiros);
+
+        if (sucesso) {
+            console.log('✅ salvarDadosUsuario: dados salvos com sucesso!');
+            this.dadosCache = dadosFinanceiros;
+            this.timestampCache = Date.now();
+        } else {
+            console.error('❌ salvarDadosUsuario: falha ao salvar dados');
         }
 
-        return await this.salvarDadosAPI(dadosFinanceiros);
+        return sucesso;
     }
 
     async salvarDadosAPI(dadosFinanceiros) {

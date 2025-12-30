@@ -262,16 +262,17 @@ async function salvarDados() {
 
             try {
                 // 🔥 SALVAR NA API DO POSTGRESQL PRIMEIRO
-                if (window.usuarioDataManager && typeof window.usuarioDataManager.salvarDadosFinanceirosUsuario === 'function') {
+                if (window.usuarioDataManager && typeof window.usuarioDataManager.salvarDadosUsuario === 'function') {
                     console.log('💾 Salvando dados financeiros na API...');
-                    sucesso = await window.usuarioDataManager.salvarDadosFinanceirosUsuario(window.dadosFinanceiros);
+                    sucesso = await window.usuarioDataManager.salvarDadosUsuario(window.dadosFinanceiros);
+                    console.log('✅ Resultado do salvamento na API:', sucesso);
 
                     // Salvar também no localStorage como backup
                     if (sucesso) {
                         await salvarDadosLocal();
                     }
                 } else {
-                    // Fallback para localStorage se usuarioDataManager não estiver disponível
+                    // Fallback para localStorage se usuarioDataManager não disponível
                     console.warn('⚠️ usuarioDataManager não disponível, salvando apenas no localStorage');
                     sucesso = await salvarDadosLocal();
                 }
@@ -281,6 +282,7 @@ async function salvarDados() {
                 sucesso = await salvarDadosLocal();
             } finally {
                 salvandoDados = false;
+                console.log('📤 window.salvarDados() finalizou com sucesso:', sucesso);
                 resolve(sucesso);
             }
         }, 300);
