@@ -1320,7 +1320,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 200);
 });
 
-
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', inicializarEventListeners);
+} else {
+    setTimeout(inicializarEventListeners, 1000);
+}
 // ================================================================
 // EXPORTAR FUNÇÕES GLOBAIS
 // ================================================================
