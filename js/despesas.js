@@ -896,9 +896,14 @@ async function salvarDespesa(e) {
         
         const formData = coletarDadosFormularioDespesa();
         const ehEdicao = formData.id !== '' && formData.id !== null;
+
+        console.log('🔄 Salvando despesa...');
         const sucesso = await salvarDespesaLocal(formData);
+        console.log('🔍 Resultado do salvamento:', sucesso);
 
         if (sucesso) {
+            console.log('✅ Despesa salva com sucesso, atualizando UI...');
+
             // ✅ FECHAR MODAL
             document.getElementById('modal-nova-despesa').style.display = 'none';
 
@@ -907,14 +912,18 @@ async function salvarDespesa(e) {
                 window.mostrarMensagemSucesso(ehEdicao ? 'Despesa atualizada com sucesso!' : 'Despesa cadastrada com sucesso!');
             }
 
-            // Atualizar interface
-            if (typeof carregarDadosDashboard === 'function') {
-                await carregarDadosDashboard(anoAtual);
+            // Atualizar interface IMEDIATAMENTE
+            if (typeof window.renderizarDetalhesDoMes === 'function') {
+                console.log('🔄 Atualizando detalhes do mês...');
+                window.renderizarDetalhesDoMes(formData.mes, formData.ano);
             }
 
-            if (typeof renderizarDetalhesDoMes === 'function') {
-                renderizarDetalhesDoMes(formData.mes, formData.ano);
+            if (typeof window.carregarDadosDashboard === 'function') {
+                console.log('🔄 Atualizando dashboard...');
+                await window.carregarDadosDashboard(formData.ano);
             }
+
+            console.log('✅ UI atualizada com sucesso!');
         } else {
             console.error('❌ Falha ao salvar despesa');
             if (window.mostrarMensagemErro) {
@@ -982,17 +991,31 @@ function coletarDadosFormularioDespesa() {
 
 async function salvarDespesaLocal(formData) {
     try {
+        console.log('💾 salvarDespesaLocal: iniciando salvamento...');
         window.garantirEstruturaDados(formData.ano, formData.mes);
-        
+
         if (formData.id !== '' && formData.id !== null) {
+            console.log('📝 Atualizando despesa existente...');
             await atualizarDespesaExistente(formData);
         } else {
+            console.log('➕ Adicionando nova despesa...');
             await adicionarNovaDespesa(formData);
         }
-        
-        return await window.salvarDados();
-        
+
+        console.log('🔄 Chamando window.salvarDados()...');
+        const sucesso = await window.salvarDados();
+        console.log('📊 window.salvarDados() retornou:', sucesso);
+
+        if (sucesso) {
+            console.log('✅ Despesa salva com sucesso!');
+        } else {
+            console.error('❌ window.salvarDados() retornou false!');
+        }
+
+        return sucesso;
+
     } catch (error) {
+        console.error('❌ Erro em salvarDespesaLocal:', error);
         return false;
     }
 }
