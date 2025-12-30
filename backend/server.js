@@ -120,8 +120,10 @@ async function criarEstruturaBanco() {
             );
         `);
 
-        // Adicionar coluna dados_financeiros se não existir
+        // Adicionar colunas JSONB se não existirem
         await query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS dados_financeiros JSONB DEFAULT NULL;`);
+        await query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS categorias JSONB DEFAULT NULL;`);
+        await query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cartoes JSONB DEFAULT NULL;`);
 
         // Índices para performance (só cria se não existir)
         await query(`CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email);`);
@@ -129,6 +131,8 @@ async function criarEstruturaBanco() {
         await query(`CREATE INDEX IF NOT EXISTS idx_usuarios_tipo ON usuarios(tipo);`);
         await query(`CREATE INDEX IF NOT EXISTS idx_usuarios_status ON usuarios(status);`);
         await query(`CREATE INDEX IF NOT EXISTS idx_usuarios_dados_financeiros ON usuarios USING GIN (dados_financeiros);`);
+        await query(`CREATE INDEX IF NOT EXISTS idx_usuarios_categorias ON usuarios USING GIN (categorias);`);
+        await query(`CREATE INDEX IF NOT EXISTS idx_usuarios_cartoes ON usuarios USING GIN (cartoes);`);
 
         // View compatibilidade
         await query(`CREATE OR REPLACE VIEW usuários AS SELECT * FROM usuarios;`);
