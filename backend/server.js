@@ -272,12 +272,62 @@ async function criarEstruturaBanco() {
     }
 }
 
+// ✅ FUNÇÃO PARA CRIAR/ATUALIZAR USUÁRIO MASTER
+async function criarUsuarioMaster() {
+    const bcrypt = require('bcryptjs');
+    const { query } = require('./config/database');
+
+    try {
+        console.log('👤 Verificando usuário master...');
+
+        const nome = 'RODRIGO MARTINI';
+        const documento = '08996441988';
+        const email = 'martin.rodrigo1992@gmail.com';
+        const senha = 'qwe123';
+        const tipo = 'master';
+        const status = 'ativo';
+
+        // Verificar se usuário já existe
+        const userExists = await query(
+            'SELECT id, tipo FROM usuarios WHERE documento = $1',
+            [documento]
+        );
+
+        if (userExists.rows.length > 0) {
+            // Atualizar para master se não for
+            if (userExists.rows[0].tipo !== 'master') {
+                await query(
+                    'UPDATE usuarios SET tipo = $1, nome = $2, email = $3, status = $4 WHERE documento = $5',
+                    [tipo, nome, email, status, documento]
+                );
+                console.log('✅ Usuário atualizado para MASTER!');
+            } else {
+                console.log('✅ Usuário master já existe!');
+            }
+        } else {
+            // Criar novo usuário master
+            const senhaHash = await bcrypt.hash(senha, 10);
+            await query(
+                `INSERT INTO usuarios (nome, email, documento, senha, tipo, status)
+                 VALUES ($1, $2, $3, $4, $5, $6)`,
+                [nome, email, documento, senhaHash, tipo, status]
+            );
+            console.log('✅ Usuário master criado com sucesso!');
+        }
+
+        return true;
+    } catch (error) {
+        console.error('❌ Erro ao criar/atualizar usuário master:', error);
+        return false;
+    }
+}
+
 // ✅ FUNÇÃO PRINCIPAL DE INICIALIZAÇÃO
 const iniciarServidor = async () => {
     try {
         console.log('🔄 Testando conexão com PostgreSQL...');
         const dbOk = await testarConexao();
-        
+
         if (!dbOk) {
             console.error('❌ Não foi possível conectar ao PostgreSQL!');
             process.exit(1);
@@ -285,6 +335,9 @@ const iniciarServidor = async () => {
 
         // ✅ Criar/verificar estrutura do banco
         await criarEstruturaBanco();
+
+        // ✅ Criar/atualizar usuário master
+        await criarUsuarioMaster();
 
         app.listen(PORT, () => {
             console.log('================================================');

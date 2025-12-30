@@ -1,0 +1,1096 @@
+   MÓDULO DESPESAS
+   ================================================================ */
+
+#modal-detalhes-mes .modal-content {
+    max-width: 1800px;
+    width: 98%;
+}
+
+.despesas-grid {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #e5e7eb;
+    background: white;
+    max-height: 70vh;
+    overflow: hidden;
+}
+
+.grid-header,
+.grid-row {
+    display: grid;
+    grid-template-columns: 40px 1.2fr 130px 110px 120px 90px 120px 110px 110px 110px 110px 150px 80px;
+    gap: 6px;
+    align-items: center;
+    padding: 8px;
+    border-bottom: 1px solid #e5e7eb;
+    min-height: 20px;
+    font-size: 11px;
+}
+
+.grid-header {
+    background: #f8fafc;
+    font-weight: 600;
+    color: #374151;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    text-transform: uppercase;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.grid-content {
+    overflow-y: auto;
+    max-height: calc(70vh - 48px);
+}
+
+.grid-row {
+    border-bottom: 0.5px solid #f3f4f6;
+    transition: background-color 0.2s ease;
+}
+
+.grid-row:hover {
+    background-color: #f8fafc;
+}
+
+.grid-row.despesa-quitada {
+    opacity: 0.7;
+    background: #f0f9ff;
+}
+
+.grid-row.despesa-quitada .col-descricao {
+    text-decoration: line-through;
+    color: #9ca3af;
+}
+
+.grid-row.despesa-atrasada {
+    background: #fef2f2;
+}
+
+.grid-row.despesa-em-dia {
+    background: white;
+}
+
+.grid-row.transacao-fechada {
+    opacity: 0.8;
+    background: #f9fafb;
+}
+
+.col-descricao {
+    font-weight: 500;
+    color: #1f2937;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.col-categoria {
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.col-valor {
+    font-weight: 600;
+    color: #dc2626;
+    text-align: left;
+}
+
+.col-valor-pago {
+    color: #16a34a;
+    font-weight: 600;
+    text-align: left;
+}
+
+.col-parcela {
+    color: #6b7280;
+    font-size: 12px;
+    text-align: left;
+}
+
+.col-compra,
+.col-vencimento {
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.col-checkbox {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.col-acoes {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.despesa-checkbox {
+    width: 16px;
+    height: 16px;
+    accent-color: #6366f1;
+}
+
+.acoes-grupo {
+    display: flex;
+    gap: 2px;
+    justify-content: center;
+    align-items: center;
+}
+
+.acoes-grupo .btn {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    font-size: 11px;
+    cursor: pointer;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.2s ease;
+}
+
+.acoes-grupo .btn:hover {
+    opacity: 0.8;
+    transform: scale(1.05);
+}
+
+.btn-pagar { background: #16a34a; }
+.btn-editar { background: #f59e0b; }
+.btn-excluir { background: #dc2626; }
+.btn-mover { background: #0ea5e9; }
+
+
+
+
+
+
+
+.badge-status {
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    white-space: nowrap;
+    display: inline-block;
+    color: white;
+}
+
+.badge-em-dia { background: #10b981; }
+.badge-atrasada { background: #f59e0b; }
+.badge-quitada { background: #6b7280; }
+.badge-pendente { background: #8b5cf6; }
+
+.valor-com-juros {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    text-align: left;
+}
+
+.valor-original {
+    font-size: 11px;
+    color: #6b7280;
+    text-decoration: line-through;
+}
+
+.valor-juros {
+    font-weight: 600;
+    color: #dc2626;
+    font-size: 13px;
+}
+
+.anexos-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #ef4444;
+    color: white;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.anexos-indicator:hover {
+    opacity: 0.8;
+    transform: scale(1.05);
+}
+
+.anexos-count {
+    font-weight: 600;
+    min-width: 12px;
+    text-align: center;
+}
+
+.tab-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding: 12px;
+    background: #f8fafc;
+    gap: 16px;
+}
+
+.left-side, .right-side {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.filtros-despesas {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.filtros-despesas select {
+    padding: 6px 8px;
+    border: 1px solid #d1d5db;
+    background: white;
+    font-size: 12px;
+    min-width: 100px;
+}
+
+.btn-action {
+    padding: 6px 12px;
+    background: #6366f1;
+    color: white;
+    border: none;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.btn-action:hover {
+    background: #4f46e5;
+}
+
+.btn-action:disabled {
+    background: #d1d5db;
+    cursor: not-allowed;
+}
+
+.filtro-contador {
+    font-size: 12px;
+    color: #6b7280;
+    margin-left: 8px;
+    font-weight: 500;
+}
+
+.modal-despesa-compact {
+    max-width: 700px;
+    width: 90%;
+}
+
+.modal-despesa-compact .modal-body {
+    padding: 15px 20px;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+}
+
+.form-group-compact {
+    margin-bottom: 12px;
+}
+
+.descricao-anexos-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.descricao-anexos-row input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    font-size: 14px;
+}
+
+.btn-anexar-compact {
+    padding: 8px 12px;
+    background: #667eea;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-anexar-compact:hover {
+    background: #5568d3;
+}
+
+.lista-anexos-inline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.form-row-compact {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.form-row-valores {
+    grid-template-columns: 1fr 1fr 120px;
+}
+
+.form-col label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    color: #4a5568;
+}
+
+.form-col input,
+.form-col select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    font-size: 14px;
+}
+
+/* ================================================================
+     FORMA DE PAGAMENTO
+   ================================================================ */
+
+.payment-methods {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.payment-option {
+    display: inline-flex;
+}
+
+.payment-option.inativo {
+    display: none;
+}
+
+.payment-option-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: nowrap; /* Não quebra linha */
+}
+
+.payment-methods input[type="radio"] {
+    display: none;
+}
+
+.payment-methods label {
+    padding: 8px 16px;
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    transition: all 0.2s;
+    min-width: 60px;
+    white-space: nowrap; /* Evita quebra de texto */
+}
+
+.payment-methods input[type="radio"]:checked + label {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+.payment-methods label:hover {
+    border-color: #cbd5e0;
+    transform: translateY(-1px);
+}
+
+.payment-option.hidden {
+    display: none !important;
+}
+
+.parcelas-col input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    cursor: pointer;
+    accent-color: #667eea;
+}
+
+.parcelas-col input[type="number"] {
+    padding: 8px;
+    text-align: center;
+}
+
+.info-compact {
+    background: #f7fafc;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    font-size: 12px;
+    color: #4a5568;
+}
+
+.info-grid strong {
+    color: #667eea;
+    font-weight: 600;
+}
+
+.form-footer-compact {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 12px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.checkboxes-inline {
+    display: flex;
+    gap: 20px;
+}
+
+.checkbox-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    margin: 0;
+    color: #4a5568;
+    font-weight: 500;
+}
+
+.checkbox-inline input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    cursor: pointer;
+    accent-color: #667eea;
+}
+
+.btn-salvar-compact {
+    padding: 10px 24px;
+    background: #667eea;
+    color: white;
+    border: none;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-salvar-compact:hover {
+    background: #5568d3;
+    transform: translateY(-1px);
+}
+
+.form-group.error input,
+.form-group.error select {
+    border-color: #ef4444;
+}
+
+.form-error-categoria,
+.form-error-pagamento {
+    color: #ef4444;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.input-with-upload {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.input-with-upload input {
+    flex: 1;
+}
+
+.btn-upload {
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    background: #f9fafb;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-upload:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.btn-upload.btn-success {
+    background: #10b981;
+    border-color: #10b981;
+    color: white;
+}
+
+.btn-upload.btn-success:hover {
+    background: #059669;
+}
+
+.upload-section {
+    margin-bottom: 16px;
+}
+
+.upload-drop-area {
+    border: 2px dashed #d1d5db;
+    padding: 24px;
+    text-align: center;
+    background: #f9fafb;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-bottom: 12px;
+}
+
+.upload-drop-area:hover {
+    border-color: #3b82f6;
+    background: #eff6ff;
+}
+
+.upload-drop-area.drag-over {
+    border-color: #10b981;
+    background: #f0fdf4;
+    transform: scale(1.02);
+}
+
+.upload-drop-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.upload-icon {
+    font-size: 24px;
+    color: #6b7280;
+    margin-bottom: 4px;
+}
+
+.upload-drop-area p {
+    margin: 0;
+    font-weight: 500;
+    color: #374151;
+}
+
+.upload-drop-area small {
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.arquivos-carregados {
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.arquivos-carregados h4 {
+    margin: 0 0 12px 0;
+    color: #374151;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.arquivos-carregados h4 i {
+    color: #10b981;
+    margin-right: 6px;
+}
+
+.lista-arquivos {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.arquivo-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    border: 1px solid #e5e7eb;
+    padding: 8px 12px;
+}
+
+.arquivo-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.arquivo-icon {
+    font-size: 16px;
+    min-width: 20px;
+}
+
+.arquivo-detalhes {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+}
+
+.arquivo-nome {
+    font-weight: 500;
+    color: #374151;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.arquivo-tamanho {
+    color: #6b7280;
+    font-size: 11px;
+}
+
+.btn-remover-arquivo {
+    background: #fee2e2;
+    border: 1px solid #fecaca;
+    color: #dc2626;
+    padding: 4px 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 12px;
+}
+
+.btn-remover-arquivo:hover {
+    background: #fca5a5;
+    border-color: #f87171;
+}
+
+.modal-anexos {
+    max-width: 600px;
+}
+
+.anexos-info {
+    background: #f8fafc;
+    padding: 12px;
+    margin-bottom: 16px;
+}
+
+.anexos-info p {
+    margin: 0 0 4px 0;
+    font-size: 13px;
+}
+
+.anexos-info strong {
+    color: #374151;
+}
+
+.lista-anexos-visualizacao {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.anexo-visualizacao-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    padding: 12px;
+}
+
+.anexo-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+}
+
+.anexo-icon {
+    font-size: 20px;
+    min-width: 24px;
+}
+
+.anexo-detalhes {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+
+.anexo-nome {
+    font-weight: 500;
+    color: #374151;
+    font-size: 14px;
+}
+
+.anexo-tamanho,
+.anexo-data {
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.anexo-acoes {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-download-anexo,
+.btn-visualizar-anexo {
+    padding: 6px 8px;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 12px;
+}
+
+.btn-download-anexo {
+    background: #f0f9ff;
+    border-color: #bae6fd;
+    color: #0284c7;
+}
+
+.btn-download-anexo:hover {
+    background: #e0f2fe;
+    border-color: #7dd3fc;
+}
+
+.btn-visualizar-anexo {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+    color: #059669;
+}
+
+.btn-visualizar-anexo:hover {
+    background: #dcfce7;
+    border-color: #86efac;
+}
+
+@media (max-width: 1200px) {
+    .grid-header,
+    .grid-row {
+        grid-template-columns: 35px 1.5fr 0.8fr 0.8fr 0.8fr 70px 0.8fr 90px 90px 90px 50px 100px;
+        gap: 6px;
+        padding: 6px;
+        font-size: 12px;
+    }
+    
+    .acoes-grupo .btn {
+        width: 20px;
+        height: 20px;
+        font-size: 10px;
+    }
+}
+
+@media (max-width: 1024px) {
+    .grid-header,
+    .grid-row {
+        grid-template-columns: 30px 1.2fr 0.7fr 0.7fr 0.7fr 60px 0.7fr 80px 80px 80px 45px 90px;
+        gap: 4px;
+        padding: 4px;
+        font-size: 11px;
+    }
+    
+    .acoes-grupo .btn {
+        width: 18px;
+        height: 18px;
+        font-size: 9px;
+    }
+    
+    .badge-pagamento,
+    .badge-status {
+        font-size: 9px;
+        padding: 1px 6px;
+    }
+}
+
+@media (max-width: 768px) {
+    .despesas-grid {
+        max-height: 60vh;
+    }
+    
+    .grid-header,
+    .grid-row {
+        grid-template-columns: 25px 1fr 0.6fr 0.6fr 0.6fr 50px 0.6fr 70px 70px 70px 40px 80px;
+        gap: 2px;
+        padding: 2px;
+        font-size: 10px;
+        min-height: 35px;
+    }
+    
+    .acoes-grupo .btn {
+        width: 16px;
+        height: 16px;
+        font-size: 8px;
+    }
+    
+    .col-descricao {
+        font-size: 11px;
+    }
+    
+    .badge-pagamento,
+    .badge-status {
+        font-size: 8px;
+        padding: 1px 4px;
+    }
+    
+    .anexos-indicator {
+        font-size: 9px;
+        padding: 2px 6px;
+    }
+    
+    .input-with-upload {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .input-with-upload input {
+        width: 100%;
+    }
+    
+    .btn-upload {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .upload-drop-area {
+        padding: 16px;
+    }
+    
+    .upload-icon {
+        font-size: 20px;
+    }
+    
+    .arquivo-item {
+        flex-direction: column;
+        gap: 8px;
+        align-items: stretch;
+    }
+    
+    .arquivo-info {
+        justify-content: flex-start;
+    }
+    
+    .btn-remover-arquivo {
+        align-self: flex-end;
+    }
+    
+    .anexo-visualizacao-item {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+    }
+    
+    .anexo-acoes {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .grid-header,
+    .grid-row {
+        grid-template-columns: 20px 1fr 0.5fr 0.5fr 0.5fr 40px 0.5fr 60px 60px 60px 30px 60px;
+        gap: 1px;
+        padding: 1px;
+        font-size: 9px;
+        min-height: 30px;
+    }
+    
+    .acoes-grupo {
+        flex-direction: column;
+        gap: 1px;
+    }
+    
+    .acoes-grupo .btn {
+        width: 14px;
+        height: 14px;
+        font-size: 7px;
+    }
+    
+    .tab-actions {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .filtros-despesas {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+}
+
+.upload-loading .upload-icon {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.grid-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.grid-content::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.grid-content::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+}
+
+.grid-content::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+#modal-pagamento-lote-despesas .modal-content {
+    max-width: 500px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+#modal-pagamento-lote-despesas .modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px 25px;
+    border: none;
+}
+
+#modal-pagamento-lote-despesas .modal-header h2 {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 600;
+}
+
+#modal-pagamento-lote-despesas .modal-body {
+    padding: 25px;
+}
+
+#lote-contagem-despesas {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: #2d3748;
+    margin-bottom: 8px;
+}
+
+.info-container {
+    background: #f7fafc;
+    border-left: 4px solid #4299e1;
+    padding: 15px;
+    margin-bottom: 25px;
+}
+
+.info-container p {
+    margin: 0;
+    color: #4a5568;
+    line-height: 1.5;
+}
+
+.info-texto {
+    font-size: 0.9rem;
+    color: #718096;
+    margin-top: 8px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 500;
+    color: #2d3748;
+    margin-bottom: 8px;
+}
+
+#data-pagamento-lote {
+    width: 100%;
+    padding: 12px 15px;
+    border: 2px solid #e2e8f0;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    background: white;
+}
+
+#data-pagamento-lote:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.opcoes-pagamento-lote {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.opcoes-pagamento-lote button {
+    padding: 15px 20px;
+    border: 2px solid #e2e8f0;
+    background: white;
+    color: #2d3748;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+}
+
+.opcoes-pagamento-lote button:hover {
+    border-color: #667eea;
+    background: #f7fafc;
+    transform: translateY(-1px);
+}
+
+.opcoes-pagamento-lote button:active {
+    transform: translateY(0);
+}
+
+#btn-pagar-valor-original {
+    border-color: #38a169;
+    color: #38a169;
+}
+
+#btn-pagar-valor-original:hover {
+    background: #f0fff4;
+    border-color: #2f855a;
+}
+
+#btn-pagar-com-valor-personalizado {
+    border-color: #3182ce;
+    color: #3182ce;
+}
+
+#btn-pagar-com-valor-personalizado:hover {
+    background: #ebf8ff;
+    border-color: #2c5282;
+}
+
+@media (max-width: 600px) {
+    #modal-pagamento-lote-despesas .modal-content {
+        margin: 10px;
+        max-width: calc(100% - 20px);
+    }
+    
+    #modal-pagamento-lote-despesas .modal-body {
+        padding: 20px;
+    }
+    
+    .opcoes-pagamento-lote button {
+        padding: 12px 15px;
+        font-size: 0.95rem;
+    }
+}
+
+/* ================================================================
+   CONTINUA NO PRÓXIMO BLOCO (RELATÓRIOS)...
+   ================================================================ */
+
+
+
+/* ================================================================
