@@ -1,16 +1,15 @@
 // ================================================================
 // SISTEMA PRINCIPAL - MAIN.JS OTIMIZADO
 // ================================================================
-// IMPORTANTE: Este arquivo depende de config.js e utils.js
-// Certifique-se de que eles estão carregados primeiro!
-// ================================================================
+// Se o sistema estiver rodando no Render, use a URL do Render. 
+// Caso contrário, use o localhost (para quando você estiver testando no PC).
+// Define onde o servidor está (Render ou Local)
+const API_URL = 'https://sistema-financeiro-backend-o199.onrender.com/api'
 
-// NOTA: window.API_URL agora é definido em config.js
-
-// Função padrão para enviar dados para o servidor (mantida para compatibilidade)
+// Função padrão para enviar dados para o servidor
 async function enviarDados(rota, dados) {
     try {
-        const resposta = await fetch(`${window.API_URL}${rota}`, {
+        const resposta = await fetch(`${API_URL}${rota}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(dados)
@@ -34,13 +33,6 @@ let sistemaInicializado = false;
 let salvandoDados = false;
 let timerSalvamento = null;
 
-
-
-
-
-
-
-
 // ================================================================
 // INICIALIZAÇÃO
 // ================================================================
@@ -55,7 +47,7 @@ async function iniciarSistema() {
     }
     
     exportarVariaveisGlobais();
-    await carregarDadosAPI();
+    carregarDadosLocais();
     
     sistemaInicializado = true;
     window.sistemaInicializado = true;
@@ -160,7 +152,7 @@ function exportarVariaveisGlobais() {
 // CARREGAMENTO DE DADOS
 // ================================================================
 
-async function carregarDadosAPI() {
+function carregarDadosLocais() {
     const usuarioAtual = sessionStorage.getItem('usuarioAtual');
     
     if (!usuarioAtual) {
@@ -169,18 +161,25 @@ async function carregarDadosAPI() {
     }
 
     try {
-        const dadosAPI = await buscarDadosCompletosDaAPI();
+        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+        const usuario = usuarios.find(u => 
+            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
+        );
         
-        if (dadosAPI) {
-            dadosFinanceiros = dadosAPI;
+        if (usuario) {
+            if (!usuario.dadosFinanceiros) {
+                usuario.dadosFinanceiros = criarEstruturaVazia();
+                localStorage.setItem('usuarios', JSON.stringify(usuarios));
+            }
+            dadosFinanceiros = usuario.dadosFinanceiros;
         } else {
-            carregarDadosLocalstorageFallback();
+            dadosFinanceiros = criarEstruturaVazia();
         }
         
         window.dadosFinanceiros = dadosFinanceiros;
-        
     } catch (error) {
-        carregarDadosLocalstorageFallback();
+        dadosFinanceiros = criarEstruturaVazia();
+        window.dadosFinanceiros = dadosFinanceiros;
     }
 }
 
@@ -220,7 +219,7 @@ async function salvarDados() {
             let sucesso = false;
             
             try {
-                sucesso = await salvarDadosAPI();
+                sucesso = await salvarDadosLocal();
             } catch (error) {
                 sucesso = false;
             } finally {
@@ -243,19 +242,29 @@ async function aguardarSalvamento() {
     return !salvandoDados;
 }
 
-async function salvarDadosAPI() {
-    const token = getToken();
+async function salvarDadosLocal() {
+    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
     
-    if (!token) {
-        return await salvarDadosLocalstorageFallback();
+    if (!usuarioAtual) {
+        return false;
     }
 
     try {
-        const sucessoLocalStorage = await salvarDadosLocalstorageFallback();
-        return sucessoLocalStorage;
+        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+        const index = usuarios.findIndex(u => 
+            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
+        );
         
+        if (index !== -1) {
+            usuarios[index].dadosFinanceiros = dadosFinanceiros;
+            usuarios[index].ultimaAtualizacao = new Date().toISOString();
+            localStorage.setItem('usuarios', JSON.stringify(usuarios));
+            return true;
+        }
+        
+        return false;
     } catch (error) {
-        return await salvarDadosLocalstorageFallback();
+        return false;
     }
 }
 
@@ -600,62 +609,68 @@ function setupSistemaBloqueio() {
         }
     };
 
-const handleUnlockAttempt = (event) => {
-    if (event) event.preventDefault();
-
-    const passwordInput = document.getElementById('input-lock-password');
-    const enteredPassword = passwordInput?.value;
-    const modalContent = document.querySelector('.lock-modal-content');
-
-    // Recupera os dados do usuário salvos no login
-    const dadosUsuario = JSON.parse(sessionStorage.getItem('dadosUsuarioLogado'));
-    
-    // Compara a senha digitada com a senha que está na sessão do navegador
-    if (enteredPassword === dadosUsuario?.senha) {
-        unlockSystem(); 
-        passwordInput.value = '';
-    } else {
-        // Efeito de erro caso a senha esteja errada
-        if (modalContent) {
-            modalContent.classList.add('shake-error');
-            setTimeout(() => modalContent.classList.remove('shake-error'), 500);
+    const handleUnlockAttempt = async (event) => {
+        event.preventDefault();
+        
+        const enteredPassword = passwordInput?.value;
+        if (!enteredPassword) {
+            alert('Por favor, digite sua senha.');
+            return;
         }
-        passwordInput.value = '';
-        passwordInput.focus();
+        
+        try {
+            const usuario = obterUsuarioAtualLocal();
+            const senhaCorreta = usuario && (usuario.password === enteredPassword || usuario.senha === enteredPassword);
+            
+            if (senhaCorreta) {
+                unlockSystem();
+            } else {
+                if (modalContent) {
+                    modalContent.classList.add('shake-animation');
+                    setTimeout(() => modalContent.classList.remove('shake-animation'), 500);
+                }
+                passwordInput.value = '';
+                passwordInput.focus();
+            }
+        } catch (error) {
+            alert('Erro ao verificar senha. Tente novamente.');
+        }
+    };
+
+    const resetInactivityTimer = () => {
+        if (localStorage.getItem(LOCK_STATE_KEY) === 'true') return;
+
+        clearTimeout(inactivityTimer);
+        inactivityTimer = setTimeout(lockSystem, 20 * 60 * 1000);
+    };
+
+    // Event listeners
+    lockButton.addEventListener('click', lockSystem);
+    lockForm.addEventListener('submit', handleUnlockAttempt);
+
+    ['mousemove', 'keydown', 'scroll', 'click'].forEach(evento => {
+        window.addEventListener(evento, () => {
+            if (localStorage.getItem(LOCK_STATE_KEY) !== 'true') {
+                resetInactivityTimer();
+            }
+        });
+    });
+
+    // Verificar se estava bloqueado ao carregar
+    if (localStorage.getItem(LOCK_STATE_KEY) === 'true') {
+        setTimeout(() => lockSystem(false), 100);
+    } else {
+        resetInactivityTimer();
     }
-};
 
-const resetInactivityTimer = () => {
-    if (localStorage.getItem('sistema_bloqueado') === 'true') return;
-    clearTimeout(inactivityTimer);
-    inactivityTimer = setTimeout(lockSystem, 20 * 60 * 1000);
-};
-
-// Mantenha os event listeners e o restante como estão abaixo
-lockButton.addEventListener('click', lockSystem);
-lockForm.addEventListener('submit', handleUnlockAttempt);
-
-['mousemove', 'keydown', 'scroll', 'click'].forEach(evento => {
-    window.addEventListener(evento, () => {
-        if (localStorage.getItem('sistema_bloqueado') !== 'true') {
-            resetInactivityTimer();
+    // Prevenir fechamento da aba quando bloqueado
+    window.addEventListener('beforeunload', (event) => {
+        if (localStorage.getItem(LOCK_STATE_KEY) === 'true') {
+            event.preventDefault();
+            event.returnValue = 'Sistema bloqueado. Desbloqueie antes de sair.';
+            return event.returnValue;
         }
     });
-});
-
-if (localStorage.getItem('sistema_bloqueado') === 'true') {
-    setTimeout(() => lockSystem(false), 100);
-} else {
-    resetInactivityTimer();
-}
-
-window.addEventListener('beforeunload', (event) => {
-    if (localStorage.getItem('sistema_bloqueado') === 'true') {
-        event.preventDefault();
-        event.returnValue = 'Sistema bloqueado. Desbloqueie antes de sair.';
-        return event.returnValue;
-    }
-});
 }
 
 
@@ -1134,29 +1149,28 @@ async function renderizarDetalhesDoMes(mes, ano) {
         const totalJuros = typeof window.calcularTotalJuros === 'function' ?
                           window.calcularTotalJuros(dadosMes.despesas || []) : 0;
         const fechado = dadosMes.fechado || false;
-        
+
         atualizarResumoDetalhes(saldo, totalJuros);
         atualizarBarrasCartoes(mes, ano);
         atualizarTituloDetalhes(mes, ano, fechado);
         atualizarControlesFechamento(mes, ano, fechado);
-        
+
         if (typeof window.buscarEExibirReceitas === 'function') {
-    await window.buscarEExibirReceitas(mes, ano);
-} else if (typeof window.renderizarReceitas === 'function') {
-    window.renderizarReceitas(dadosMes.receitas, fechado, mes, ano);
-}
+            await window.buscarEExibirReceitas(mes, ano);
+        } else if (typeof window.renderizarReceitas === 'function') {
+            window.renderizarReceitas(dadosMes.receitas, fechado);
+        }
+
+        if (typeof window.buscarEExibirDespesas === 'function') {
+            await window.buscarEExibirDespesas(mes, ano);
+        } else if (typeof window.renderizarDespesas === 'function') {
+            window.renderizarDespesas(dadosMes.despesas, mes, ano, fechado);
+        }
         
-       if (window.DespesasCore && typeof window.DespesasCore.buscarEExibirDespesas === 'function') {
-    await window.DespesasCore.buscarEExibirDespesas(mes, ano);
-} else if (typeof window.renderizarDespesas === 'function') {
-    window.renderizarDespesas(dadosMes.despesas, mes, ano, fechado);
-}
+        if (typeof window.atualizarContadoresFiltro === 'function') {
+            window.atualizarContadoresFiltro();
+        }
         
-       if (window.DespesasFilters && typeof window.DespesasFilters.atualizarContadoresFiltro === 'function') {
-    window.DespesasFilters.atualizarContadoresFiltro();
-} else if (typeof window.atualizarContadoresFiltro === 'function') {
-    window.atualizarContadoresFiltro();
-}
     } catch (error) {
         // Falha silenciosa
     }
@@ -1223,13 +1237,11 @@ function configurarBotoesModal() {
         }
     });
     
-   configurarBotao('btn-nova-despesa', () => {
-    if (window.DespesasCore && typeof window.DespesasCore.abrirModalNovaDespesa === 'function') {
-        window.DespesasCore.abrirModalNovaDespesa();
-    } else if (typeof window.abrirModalNovaDespesa === 'function') {
-        window.abrirModalNovaDespesa();
-    }
-});
+    configurarBotao('btn-nova-despesa', () => {
+        if (typeof window.abrirModalNovaDespesa === 'function') {
+            window.abrirModalNovaDespesa();
+        }
+    });
     
     const checkboxTodasDespesas = document.getElementById('pagar-despesas-em-lote');
     if (checkboxTodasDespesas) {
@@ -1247,20 +1259,16 @@ function configurarBotoesModal() {
     }
     
     configurarBotao('btn-pagar-em-lote', () => {
-    if (window.DespesasActions && typeof window.DespesasActions.pagarDespesasEmLote === 'function') {
-        window.DespesasActions.pagarDespesasEmLote();
-    } else if (typeof window.pagarDespesasEmLote === 'function') {
-        window.pagarDespesasEmLote();
-    }
-});
+        if (typeof window.pagarDespesasEmLote === 'function') {
+            window.pagarDespesasEmLote();
+        }
+    });
     
-   configurarBotao('btn-limpar-filtros', () => {
-    if (window.DespesasFilters && typeof window.DespesasFilters.limparFiltros === 'function') {
-        window.DespesasFilters.limparFiltros();
-    } else if (typeof window.limparFiltros === 'function') {
-        window.limparFiltros();
-    }
-});
+    configurarBotao('btn-limpar-filtros', () => {
+        if (typeof window.limparFiltros === 'function') {
+            window.limparFiltros();
+        }
+    });
     
        configurarBotao('btn-mes-anterior', () => navegarMesModal(-1));
     configurarBotao('btn-mes-proximo', () => navegarMesModal(1));
@@ -1784,8 +1792,31 @@ function garantirEstruturaDados(ano, mes) {
     }
 }
 
-// NOTA: formatarMoeda(), formatarData() e gerarId() foram movidas para utils.js
-// Elas continuam disponíveis via window.formatarMoeda, window.formatarData, window.gerarId
+function formatarMoeda(valor) {
+    try {
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        }).format(valor || 0);
+    } catch (error) {
+        return `R$ ${(valor || 0).toFixed(2)}`;
+    }
+}
+
+function formatarData(dataString) {
+    try {
+        const data = new Date(dataString);
+        return data.toLocaleDateString('pt-BR');
+    } catch (error) {
+        return 'Data inválida';
+    }
+}
+
+function gerarId() {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substr(2, 9);
+    return `${timestamp}-${random}`;
+}
 
 function atualizarElemento(id, valor) {
     const elemento = document.getElementById(id);
@@ -1929,147 +1960,6 @@ function atualizarBarrasCartoes(mes, ano) {
         }
     }
 }
-
-
-
-
-function getToken() {
-    return sessionStorage.getItem('token');
-}
-
-function formatarReceitaDaAPI(receita) {
-    return {
-        id: receita.id,
-        descricao: receita.descricao,
-        valor: parseFloat(receita.valor),
-        data: receita.data_recebimento,
-        mes: receita.mes,
-        ano: receita.ano,
-        categoria: receita.categoria_nome || receita.categoria_id,
-        observacoes: receita.observacoes,
-        saldo_anterior: receita.saldo_anterior
-    };
-}
-
-function formatarDespesaDaAPI(despesa) {
-    return {
-        id: despesa.id,
-        descricao: despesa.descricao,
-        categoria: despesa.categoria_nome || despesa.categoria_id,
-        formaPagamento: despesa.forma_pagamento,
-        numeroCartao: despesa.cartao_id,
-        valor: parseFloat(despesa.valor),
-        dataVencimento: despesa.data_vencimento,
-        dataCompra: despesa.data_compra,
-        dataPagamento: despesa.data_pagamento,
-        mes: despesa.mes,
-        ano: despesa.ano,
-        parcelado: despesa.parcelado,
-        totalParcelas: despesa.numero_parcelas,
-        parcelaAtual: despesa.parcela_atual,
-        pago: despesa.pago,
-        quitado: despesa.pago,
-        observacoes: despesa.observacoes
-    };
-}
-
-async function buscarDadosCompletosDaAPI() {
-    try {
-        const token = getToken();
-        if (!token) return null;
-        
-        const anoAtual = new Date().getFullYear();
-        const dadosCompletos = {};
-        
-        for (let ano = anoAtual - 1; ano <= anoAtual + 1; ano++) {
-            dadosCompletos[ano] = { meses: [] };
-            
-            for (let mes = 0; mes < 12; mes++) {
-                const receitasResponse = await fetch(`${API_URL}/receitas?mes=${mes}&ano=${ano}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                
-                const despesasResponse = await fetch(`${API_URL}/despesas?mes=${mes}&ano=${ano}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                
-                let receitas = [];
-                let despesas = [];
-                
-                if (receitasResponse.ok) {
-                    const receitasData = await receitasResponse.json();
-                    receitas = receitasData.data || [];
-                }
-                
-                if (despesasResponse.ok) {
-                    const despesasData = await despesasResponse.json();
-                    despesas = despesasData.data || [];
-                }
-                
-                dadosCompletos[ano].meses[mes] = {
-                    receitas: receitas.map(formatarReceitaDaAPI),
-                    despesas: despesas.map(formatarDespesaDaAPI),
-                    fechado: false,
-                    saldoAnterior: 0,
-                    saldoFinal: 0
-                };
-            }
-        }
-        
-        return dadosCompletos;
-        
-    } catch (error) {
-        return null;
-    }
-}
-
-function carregarDadosLocalstorageFallback() {
-    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
-    
-    try {
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const usuario = usuarios.find(u => 
-            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
-        );
-        
-        if (usuario && usuario.dadosFinanceiros) {
-            dadosFinanceiros = usuario.dadosFinanceiros;
-        } else {
-            dadosFinanceiros = criarEstruturaVazia();
-        }
-        
-    } catch (error) {
-        dadosFinanceiros = criarEstruturaVazia();
-    }
-}
-
-async function salvarDadosLocalstorageFallback() {
-    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
-    
-    if (!usuarioAtual) {
-        return false;
-    }
-
-    try {
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const index = usuarios.findIndex(u => 
-            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
-        );
-        
-        if (index !== -1) {
-            usuarios[index].dadosFinanceiros = dadosFinanceiros;
-            usuarios[index].ultimaAtualizacao = new Date().toISOString();
-            localStorage.setItem('usuarios', JSON.stringify(usuarios));
-            return true;
-        }
-        
-        return false;
-    } catch (error) {
-        return false;
-    }
-}
-
-
 
 // Exportar as funções globalmente
 window.atualizarBarrasCartoes = atualizarBarrasCartoes;

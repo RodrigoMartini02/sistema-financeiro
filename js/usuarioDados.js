@@ -1,395 +1,689 @@
-const API_URL = 'https://sistema-financeiro-backend-o199.onrender.com/api';
+// ================================================================
+// SISTEMA DE GERENCIAMENTO DE USUÁRIOS E DADOS
+// ================================================================
 
-class UsuarioDados {
+class UsuarioDataManager {
     constructor() {
-        this.cache = {
-            usuario: null,
-            timestamp: null,
-            dados: null,
-            timestampDados: null
-        };
-        this.cacheDuration = 5 * 60 * 1000;
+        this.dadosCache = null;
+        this.usuarioAtualCache = null;
+        this.timestampCache = null;
+        this.timestampCacheUsuario = null;
+        this.inicializado = false;
+        
+        this.aguardarSistemaMainPronto();
     }
 
-    async verificarAcesso() {
-        const token = sessionStorage.getItem('token');
-        const usuarioAtual = sessionStorage.getItem('usuarioAtual');
+    // ================================================================
+    // INICIALIZAÇÃO
+    // ================================================================
+    
+    async aguardarSistemaMainPronto() {
+        let tentativas = 0;
+        const maxTentativas = 50;
         
-        if (!token || !usuarioAtual) {
-            this.redirecionarParaLogin();
-            return false;
-        }
-        
-        try {
-            const response = await fetch(`${API_URL}/usuarios/current`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+        const verificarMain = () => {
+            tentativas++;
             
-            if (!response.ok) {
-                this.limparSessao();
-                this.redirecionarParaLogin();
-                return false;
+            if (window.sistemaInicializado === true || window.dadosFinanceiros || window.salvarDados) {
+                this.initializeSystem();
+            } else if (tentativas >= maxTentativas) {
+                this.initializeSystem();
+            } else {
+                setTimeout(verificarMain, 200);
             }
-            
-            return true;
+        };
+        
+        verificarMain();
+    }
+
+    async initializeSystem() {
+        try {
+            this.executarMigracoes();
+            this.inicializado = true;
         } catch (error) {
-            return this.verificarAcessoLocal();
+            this.inicializado = true;
         }
     }
 
-    verificarAcessoLocal() {
+    // ================================================================
+    // VERIFICAÇÃO DE ACESSO
+    // ================================================================
+    
+    async verificarAcesso() {
+        if (!this.inicializado) {
+            await this.aguardarInicializacao();
+        }
+
         const usuarioAtual = sessionStorage.getItem('usuarioAtual');
         if (!usuarioAtual) {
             this.redirecionarParaLogin();
             return false;
         }
+        
         return true;
+    }
+
+    async aguardarInicializacao() {
+        let tentativas = 0;
+        const maxTentativas = 25;
+        
+        while (!this.inicializado && tentativas < maxTentativas) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+            tentativas++;
+        }
     }
 
     redirecionarParaLogin() {
         const pathname = window.location.pathname;
-        if (!pathname.includes('login.html')) {
+        if (pathname.includes('index.html') || 
+            pathname.includes('financeiro.html') ||
+            pathname === '/' ||
+            (!pathname.includes('login.html') && pathname.length > 1)) {
             window.location.href = 'login.html';
         }
     }
 
-    async getUsuarioAtual() {
-        if (this.isCacheUsuarioValido()) {
-            return this.cache.usuario;
+    // ================================================================
+    // GERENCIAMENTO DE USUÁRIO ATUAL
+    // ================================================================
+    
+    getUsuarioAtual() {
+        if (this.usuarioAtualCache && this.isCacheUsuarioValido()) {
+            return this.usuarioAtualCache;
         }
 
-        const token = sessionStorage.getItem('token');
-        if (token) {
+        const dadosSessao = sessionStorage.getItem('dadosUsuarioLogado');
+        if (dadosSessao) {
             try {
-                const response = await fetch(`${API_URL}/usuarios/current`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    this.cache.usuario = data.data;
-                    this.cache.timestamp = Date.now();
-                    return data.data;
-                }
+                const usuario = JSON.parse(dadosSessao);
+                this.usuarioAtualCache = usuario;
+                this.timestampCacheUsuario = Date.now();
+                return usuario;
             } catch (error) {
-                console.warn('Falha na API, usando dados da sessão');
+                // Continuar para busca local
             }
         }
 
-        return this.getUsuarioSessao();
-    }
-
-    getUsuarioSessao() {
-        try {
-            const dadosUsuario = sessionStorage.getItem('dadosUsuarioLogado');
-            if (dadosUsuario) {
-                const usuario = JSON.parse(dadosUsuario);
-                this.cache.usuario = usuario;
-                this.cache.timestamp = Date.now();
+        const documentoLogado = sessionStorage.getItem('usuarioAtual');
+        if (documentoLogado) {
+            const usuarios = this.getUsuariosLocalStorage();
+            const usuario = usuarios.find(u => 
+                u.documento && u.documento.replace(/[^\d]+/g, '') === documentoLogado
+            );
+            
+            if (usuario) {
+                this.usuarioAtualCache = usuario;
+                this.timestampCacheUsuario = Date.now();
+                sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify(usuario));
                 return usuario;
             }
-        } catch (error) {
-            console.error('Erro ao ler dados da sessão:', error);
         }
+
         return null;
     }
 
-    async atualizarUsuario(dadosAtualizados) {
-        const token = sessionStorage.getItem('token');
-        if (token) {
-            try {
-                const response = await fetch(`${API_URL}/usuarios/current`, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(dadosAtualizados)
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify(data.data));
-                    this.cache.usuario = data.data;
-                    this.cache.timestamp = Date.now();
-                    return true;
-                }
-            } catch (error) {
-                console.warn('Falha ao atualizar via API');
-            }
+    async atualizarUsuarioAtual(dadosAtualizados) {
+        if (!this.inicializado) {
+            await this.aguardarInicializacao();
         }
 
         return this.atualizarUsuarioLocal(dadosAtualizados);
     }
 
     atualizarUsuarioLocal(dadosAtualizados) {
+        const documentoLogado = sessionStorage.getItem('usuarioAtual');
+        if (!documentoLogado) {
+            return false;
+        }
+
         try {
-            const usuarioAtual = this.getUsuarioSessao();
-            if (usuarioAtual) {
-                const usuarioAtualizado = { ...usuarioAtual, ...dadosAtualizados };
-                sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify(usuarioAtualizado));
-                this.cache.usuario = usuarioAtualizado;
-                this.cache.timestamp = Date.now();
+            const usuarios = this.getUsuariosLocalStorage();
+            const index = usuarios.findIndex(u => 
+                u.documento && u.documento.replace(/[^\d]+/g, '') === documentoLogado
+            );
+            
+            if (index !== -1) {
+                usuarios[index] = { ...usuarios[index], ...dadosAtualizados };
+                localStorage.setItem('usuarios', JSON.stringify(usuarios));
+                
+                this.usuarioAtualCache = usuarios[index];
+                this.timestampCacheUsuario = Date.now();
+                sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify(usuarios[index]));
+                
                 return true;
             }
-        } catch (error) {
-            console.error('Erro ao atualizar usuário local:', error);
-        }
-        return false;
-    }
-
-    async getDadosFinanceiros() {
-        if (this.isCacheDadosValido()) {
-            return this.cache.dados;
-        }
-
-        const token = sessionStorage.getItem('token');
-        const usuario = await this.getUsuarioAtual();
-        
-        if (!usuario) return this.criarEstruturaInicial();
-
-        const dados = {
-            receitas: await this.buscarReceitas(token, usuario.id),
-            despesas: await this.buscarDespesas(token, usuario.id),
-            categorias: await this.buscarCategorias(token, usuario.id),
-            cartoes: await this.buscarCartoes(token, usuario.id)
-        };
-
-        this.cache.dados = dados;
-        this.cache.timestampDados = Date.now();
-        return dados;
-    }
-
-    async buscarReceitas(token, usuarioId) {
-        if (!token) return [];
-        
-        try {
-            const response = await fetch(`${API_URL}/receitas?usuario_id=${usuarioId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
             
-            if (response.ok) {
-                const data = await response.json();
-                return data.data || [];
+            return false;
+            
+        } catch (error) {
+            return false;
+        }
+    }
+
+    // ================================================================
+    // GERENCIAMENTO DE DADOS FINANCEIROS
+    // ================================================================
+    
+    async getDadosFinanceirosUsuario() {
+        if (!this.inicializado) {
+            await this.aguardarInicializacao();
+        }
+
+        if (this.dadosCache && this.isCacheValido()) {
+            return this.dadosCache;
+        }
+
+        if (window.dadosFinanceiros && typeof window.dadosFinanceiros === 'object') {
+            this.dadosCache = window.dadosFinanceiros;
+            this.timestampCache = Date.now();
+            return window.dadosFinanceiros;
+        }
+
+        return this.getDadosFinanceirosLocal();
+    }
+
+    getDadosFinanceirosLocal() {
+        const usuarioAtual = sessionStorage.getItem('usuarioAtual');
+        
+        if (!usuarioAtual) {
+            return this.criarEstruturaInicial();
+        }
+
+        try {
+            const usuarios = this.getUsuariosLocalStorage();
+            const usuario = usuarios.find(u => 
+                u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
+            );
+            
+            if (usuario) {
+                if (!usuario.dadosFinanceiros) {
+                    usuario.dadosFinanceiros = this.criarEstruturaInicial();
+                    localStorage.setItem('usuarios', JSON.stringify(usuarios));
+                }
+                
+                this.dadosCache = usuario.dadosFinanceiros;
+                this.timestampCache = Date.now();
+                return usuario.dadosFinanceiros;
             }
+            
+            return this.criarEstruturaInicial();
+            
         } catch (error) {
-            console.warn('Erro ao buscar receitas:', error);
+            return this.criarEstruturaInicial();
         }
-        return [];
     }
 
-    async buscarDespesas(token, usuarioId) {
-        if (!token) return [];
-        
-        try {
-            const response = await fetch(`${API_URL}/despesas?usuario_id=${usuarioId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                return data.data || [];
+    async salvarDadosUsuario(dadosFinanceiros) {
+        if (!this.inicializado) {
+            await this.aguardarInicializacao();
+        }
+
+        if (!dadosFinanceiros || typeof dadosFinanceiros !== 'object') {
+            return false;
+        }
+
+        if (window.salvarDados && typeof window.salvarDados === 'function') {
+            try {
+                window.dadosFinanceiros = dadosFinanceiros;
+                const sucesso = await window.salvarDados();
+                
+                if (sucesso) {
+                    this.dadosCache = dadosFinanceiros;
+                    this.timestampCache = Date.now();
+                    return true;
+                }
+            } catch (error) {
+                // Fallback para salvamento local
             }
-        } catch (error) {
-            console.warn('Erro ao buscar despesas:', error);
         }
-        return [];
+
+        return this.salvarDadosLocal(dadosFinanceiros);
     }
 
-    async buscarCategorias(token, usuarioId) {
-        if (!token) return [];
+    salvarDadosLocal(dadosFinanceiros) {
+        const usuarioAtual = sessionStorage.getItem('usuarioAtual');
         
-        try {
-            const response = await fetch(`${API_URL}/categorias`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                return data.data || [];
-            }
-        } catch (error) {
-            console.warn('Erro ao buscar categorias:', error);
+        if (!usuarioAtual) {
+            return false;
         }
-        return [];
-    }
-
-    async buscarCartoes(token, usuarioId) {
-        if (!token) return [];
-        
-        try {
-            const response = await fetch(`${API_URL}/cartoes`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                return data.data || [];
-            }
-        } catch (error) {
-            console.warn('Erro ao buscar cartões:', error);
-        }
-        return [];
-    }
-
-    async salvarReceita(receita) {
-        const token = sessionStorage.getItem('token');
-        if (!token) return false;
 
         try {
-            const method = receita.id ? 'PUT' : 'POST';
-            const url = receita.id ? `${API_URL}/receitas/${receita.id}` : `${API_URL}/receitas`;
+            const usuarios = this.getUsuariosLocalStorage();
+            const index = usuarios.findIndex(u => 
+                u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
+            );
             
-            const response = await fetch(url, {
-                method,
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(receita)
-            });
-            
-            if (response.ok) {
-                this.limparCacheDados();
+            if (index !== -1) {
+                usuarios[index].dadosFinanceiros = dadosFinanceiros;
+                usuarios[index].ultimaAtualizacao = new Date().toISOString();
+                localStorage.setItem('usuarios', JSON.stringify(usuarios));
+                
+                this.dadosCache = dadosFinanceiros;
+                this.timestampCache = Date.now();
                 return true;
             }
+            
+            return false;
+            
         } catch (error) {
-            console.error('Erro ao salvar receita:', error);
+            return false;
         }
-        return false;
     }
 
-    async salvarDespesa(despesa) {
-        const token = sessionStorage.getItem('token');
-        if (!token) return false;
-
+    // ================================================================
+    // INTEGRAÇÃO COM SISTEMA PRINCIPAL
+    // ================================================================
+    
+    async sincronizarComSistemaPrincipal() {
         try {
-            const method = despesa.id ? 'PUT' : 'POST';
-            const url = despesa.id ? `${API_URL}/despesas/${despesa.id}` : `${API_URL}/despesas`;
+            const dadosLocais = this.getDadosFinanceirosLocal();
             
-            const response = await fetch(url, {
-                method,
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(despesa)
-            });
-            
-            if (response.ok) {
-                this.limparCacheDados();
-                return true;
+            if (window.dadosFinanceiros) {
+                const dadosJson = JSON.stringify(dadosLocais);
+                const sistemaPrincipalJson = JSON.stringify(window.dadosFinanceiros);
+                
+                if (dadosJson !== sistemaPrincipalJson) {
+                    window.dadosFinanceiros = dadosLocais;
+                    
+                    if (typeof window.forcarAtualizacaoSistema === 'function') {
+                        await window.forcarAtualizacaoSistema();
+                    }
+                }
+            } else {
+                window.dadosFinanceiros = dadosLocais;
             }
+            
+            return true;
         } catch (error) {
-            console.error('Erro ao salvar despesa:', error);
+            return false;
         }
-        return false;
     }
 
-    async excluirReceita(receitaId) {
-        const token = sessionStorage.getItem('token');
-        if (!token) return false;
+    // ================================================================
+    // OPERAÇÕES SIMPLIFICADAS
+    // ================================================================
+    
+    async salvarReceita(mes, ano, receita, id = null) {
+        if (!this.inicializado) {
+            await this.aguardarInicializacao();
+        }
 
+        if (window.salvarReceita && typeof window.salvarReceita === 'function') {
+            try {
+                const resultado = await window.salvarReceita({ 
+                    preventDefault: () => {},
+                    mes, ano, receita, id 
+                });
+                this.limparCache();
+                return resultado;
+            } catch (error) {
+                // Fallback local
+            }
+        }
+
+        return this.salvarReceitaLocal(mes, ano, receita, id);
+    }
+
+    async salvarDespesa(mes, ano, despesa, id = null) {
+        if (!this.inicializado) {
+            await this.aguardarInicializacao();
+        }
+
+        if (window.salvarDespesa && typeof window.salvarDespesa === 'function') {
+            try {
+                const resultado = await window.salvarDespesa({ 
+                    preventDefault: () => {},
+                    mes, ano, despesa, id 
+                });
+                this.limparCache();
+                return resultado;
+            } catch (error) {
+                // Fallback local
+            }
+        }
+
+        return this.salvarDespesaLocal(mes, ano, despesa, id);
+    }
+
+    async excluirReceita(mes, ano, index, opcao, descricao) {
+        if (!this.inicializado) {
+            await this.aguardarInicializacao();
+        }
+
+        return this.excluirReceitaLocal(mes, ano, index, opcao, descricao);
+    }
+
+    async excluirDespesa(mes, ano, index, opcao, dados) {
+        if (!this.inicializado) {
+            await this.aguardarInicializacao();
+        }
+
+        return this.excluirDespesaLocal(mes, ano, index, opcao, dados);
+    }
+
+    // ================================================================
+    // OPERAÇÕES LOCAIS BÁSICAS
+    // ================================================================
+    
+    salvarReceitaLocal(mes, ano, receita, id = null) {
         try {
-            const response = await fetch(`${API_URL}/receitas/${receitaId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const dados = this.getDadosFinanceirosLocal();
             
-            if (response.ok) {
-                this.limparCacheDados();
-                return true;
+            this.garantirEstruturaMes(dados, ano, mes);
+            
+            if (id !== null && id !== '') {
+                const index = parseInt(id);
+                if (dados[ano].meses[mes].receitas[index]) {
+                    dados[ano].meses[mes].receitas[index] = { ...receita, id: receita.id || this.gerarId() };
+                }
+            } else {
+                receita.id = receita.id || this.gerarId();
+                dados[ano].meses[mes].receitas.push(receita);
             }
+            
+            return this.salvarDadosLocal(dados);
         } catch (error) {
-            console.error('Erro ao excluir receita:', error);
+            return false;
         }
-        return false;
     }
 
-    async excluirDespesa(despesaId) {
-        const token = sessionStorage.getItem('token');
-        if (!token) return false;
-
+    salvarDespesaLocal(mes, ano, despesa, id = null) {
         try {
-            const response = await fetch(`${API_URL}/despesas/${despesaId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const dados = this.getDadosFinanceirosLocal();
             
-            if (response.ok) {
-                this.limparCacheDados();
-                return true;
+            this.garantirEstruturaMes(dados, ano, mes);
+            
+            if (id !== null && id !== '') {
+                const index = parseInt(id);
+                if (dados[ano].meses[mes].despesas[index]) {
+                    dados[ano].meses[mes].despesas[index] = { ...despesa, id: despesa.id || this.gerarId() };
+                }
+            } else {
+                despesa.id = despesa.id || this.gerarId();
+                dados[ano].meses[mes].despesas.push(despesa);
             }
+            
+            return this.salvarDadosLocal(dados);
         } catch (error) {
-            console.error('Erro ao excluir despesa:', error);
+            return false;
         }
-        return false;
     }
 
+    excluirReceitaLocal(mes, ano, index, opcao, descricao) {
+        try {
+            const dados = this.getDadosFinanceirosLocal();
+            
+            if (opcao === 'atual') {
+                if (dados[ano]?.meses[mes]?.receitas[index]) {
+                    dados[ano].meses[mes].receitas.splice(index, 1);
+                }
+            } else if (opcao === 'todas') {
+                for (let m = 0; m < 12; m++) {
+                    if (dados[ano]?.meses[m]?.receitas) {
+                        dados[ano].meses[m].receitas = dados[ano].meses[m].receitas.filter(
+                            r => r.descricao !== descricao
+                        );
+                    }
+                }
+            }
+            
+            const resultado = this.salvarDadosLocal(dados);
+            if (resultado) {
+                this.sincronizarComSistemaPrincipal();
+            }
+            return resultado;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    excluirDespesaLocal(mes, ano, index, opcao, dados_params) {
+        try {
+            const dados = this.getDadosFinanceirosLocal();
+            
+            if (opcao === 'atual') {
+                if (dados[ano]?.meses[mes]?.despesas[index]) {
+                    dados[ano].meses[mes].despesas.splice(index, 1);
+                }
+            } else if (opcao === 'todas') {
+                const { descricaoDespesa, categoriaDespesa, idGrupoParcelamento } = dados_params;
+                
+                for (let anoAtual = ano; anoAtual <= ano + 3; anoAtual++) {
+                    if (!dados[anoAtual]) continue;
+                    
+                    for (let m = 0; m < 12; m++) {
+                        if (!dados[anoAtual].meses[m]?.despesas) continue;
+                        
+                        dados[anoAtual].meses[m].despesas = dados[anoAtual].meses[m].despesas.filter(d => {
+                            if (idGrupoParcelamento) {
+                                return d.idGrupoParcelamento !== idGrupoParcelamento;
+                            } else {
+                                return !(d.descricao === descricaoDespesa && d.categoria === categoriaDespesa);
+                            }
+                        });
+                    }
+                }
+            }
+            
+            const resultado = this.salvarDadosLocal(dados);
+            if (resultado) {
+                this.sincronizarComSistemaPrincipal();
+            }
+            return resultado;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    // ================================================================
+    // UTILIDADES
+    // ================================================================
+    
     criarEstruturaInicial() {
-        return {
-            receitas: [],
-            despesas: [],
-            categorias: [],
-            cartoes: []
-        };
+        const anoAtual = new Date().getFullYear();
+        const estrutura = {};
+        
+        estrutura[anoAtual] = { meses: [] };
+        for (let i = 0; i < 12; i++) {
+            estrutura[anoAtual].meses[i] = {
+                receitas: [],
+                despesas: [],
+                fechado: false,
+                saldoAnterior: 0,
+                saldoFinal: 0
+            };
+        }
+        
+        return estrutura;
+    }
+
+    garantirEstruturaMes(dados, ano, mes) {
+        if (!dados[ano]) {
+            dados[ano] = { meses: [] };
+        }
+        
+        if (!dados[ano].meses[mes]) {
+            dados[ano].meses[mes] = { 
+                receitas: [], 
+                despesas: [],
+                fechado: false,
+                saldoAnterior: 0,
+                saldoFinal: 0
+            };
+        }
+    }
+
+    gerarId() {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+
+    isCacheValido() {
+        if (!this.timestampCache) return false;
+        const CACHE_DURATION = 5 * 60 * 1000;
+        return (Date.now() - this.timestampCache) < CACHE_DURATION;
     }
 
     isCacheUsuarioValido() {
-        return this.cache.usuario && 
-               this.cache.timestamp && 
-               (Date.now() - this.cache.timestamp) < this.cacheDuration;
-    }
-
-    isCacheDadosValido() {
-        return this.cache.dados && 
-               this.cache.timestampDados && 
-               (Date.now() - this.cache.timestampDados) < this.cacheDuration;
+        if (!this.timestampCacheUsuario) return false;
+        const CACHE_DURATION = 10 * 60 * 1000;
+        return (Date.now() - this.timestampCacheUsuario) < CACHE_DURATION;
     }
 
     limparCache() {
-        this.cache.usuario = null;
-        this.cache.timestamp = null;
-        this.limparCacheDados();
+        this.dadosCache = null;
+        this.timestampCache = null;
     }
 
-    limparCacheDados() {
-        this.cache.dados = null;
-        this.cache.timestampDados = null;
+    limparCacheUsuario() {
+        this.usuarioAtualCache = null;
+        this.timestampCacheUsuario = null;
     }
 
-    limparSessao() {
-        sessionStorage.removeItem('token');
-        sessionStorage.removeItem('usuarioAtual');
-        sessionStorage.removeItem('dadosUsuarioLogado');
+    getUsuariosLocalStorage() {
+        try {
+            return JSON.parse(localStorage.getItem('usuarios')) || [];
+        } catch (error) {
+            return [];
+        }
+    }
+
+    // ================================================================
+    // MIGRAÇÃO E COMPATIBILIDADE
+    // ================================================================
+    
+    executarMigracoes() {
+        try {
+            const usuarios = this.getUsuariosLocalStorage();
+            let necessitaAtualizacao = false;
+
+            usuarios.forEach(usuario => {
+                if (!usuario.dadosFinanceiros) {
+                    usuario.dadosFinanceiros = this.criarEstruturaInicial();
+                    necessitaAtualizacao = true;
+                }
+
+                if (usuario.dadosFinanceiros) {
+                    Object.keys(usuario.dadosFinanceiros).forEach(ano => {
+                        const anoData = usuario.dadosFinanceiros[ano];
+                        if (anoData && anoData.meses) {
+                            anoData.meses.forEach(mes => {
+                                if (mes) {
+                                    if (mes.receitas) {
+                                        mes.receitas.forEach(receita => {
+                                            if (!receita.id) {
+                                                receita.id = this.gerarId();
+                                                necessitaAtualizacao = true;
+                                            }
+                                        });
+                                    }
+                                    
+                                    if (mes.despesas) {
+                                        mes.despesas.forEach(despesa => {
+                                            if (!despesa.id) {
+                                                despesa.id = this.gerarId();
+                                                necessitaAtualizacao = true;
+                                            }
+                                        });
+                                    }
+                                    
+                                    if (mes.fechado === undefined) {
+                                        mes.fechado = false;
+                                        necessitaAtualizacao = true;
+                                    }
+                                    if (mes.saldoAnterior === undefined) {
+                                        mes.saldoAnterior = 0;
+                                        necessitaAtualizacao = true;
+                                    }
+                                    if (mes.saldoFinal === undefined) {
+                                        mes.saldoFinal = 0;
+                                        necessitaAtualizacao = true;
+                                    }
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+
+            if (necessitaAtualizacao) {
+                localStorage.setItem('usuarios', JSON.stringify(usuarios));
+            }
+
+        } catch (error) {
+            // Erro silencioso
+        }
+    }
+
+    // ================================================================
+    // MÉTODOS PÚBLICOS
+    // ================================================================
+    
+    async recarregarDados() {
         this.limparCache();
+        const dados = await this.getDadosFinanceirosUsuario();
+        await this.sincronizarComSistemaPrincipal();
+        return dados;
     }
 
     getStatusConexao() {
-        const token = sessionStorage.getItem('token');
         return {
-            online: navigator.onLine,
-            token: !!token,
-            usuario: !!this.cache.usuario,
-            dados: !!this.cache.dados
+            inicializado: this.inicializado,
+            localStorage: this.testLocalStorage(),
+            modo: 'LocalStorage Only',
+            sistemaMain: !!(window.sistemaInicializado || window.dadosFinanceiros)
         };
+    }
+
+    async aguardarPronto() {
+        await this.aguardarInicializacao();
+        return this.inicializado;
+    }
+
+    testLocalStorage() {
+        try {
+            const testKey = '__test_storage_' + Date.now();
+            localStorage.setItem(testKey, 'test');
+            const retrieved = localStorage.getItem(testKey);
+            localStorage.removeItem(testKey);
+            return retrieved === 'test';
+        } catch (error) {
+            return false;
+        }
     }
 }
 
-const usuarioDados = new UsuarioDados();
+// ================================================================
+// INSTÂNCIA GLOBAL E INICIALIZAÇÃO
+// ================================================================
+
+const usuarioDataManager = new UsuarioDataManager();
+
+// ================================================================
+// INTERFACE PÚBLICA PARA COMPATIBILIDADE
+// ================================================================
 
 window.usuarioDados = {
-    verificarAcesso: () => usuarioDados.verificarAcesso(),
-    getUsuarioAtual: () => usuarioDados.getUsuarioAtual(),
-    getDadosFinanceiros: () => usuarioDados.getDadosFinanceiros(),
-    atualizarUsuario: (dados) => usuarioDados.atualizarUsuario(dados),
-    salvarReceita: (receita) => usuarioDados.salvarReceita(receita),
-    salvarDespesa: (despesa) => usuarioDados.salvarDespesa(despesa),
-    excluirReceita: (id) => usuarioDados.excluirReceita(id),
-    excluirDespesa: (id) => usuarioDados.excluirDespesa(id),
-    limparCache: () => usuarioDados.limparCache(),
-    limparSessao: () => usuarioDados.limparSessao(),
-    getStatus: () => usuarioDados.getStatusConexao()
+    verificarAcesso: () => usuarioDataManager.verificarAcesso(),
+    getUsuarioAtual: () => usuarioDataManager.getUsuarioAtual(),
+    getDadosFinanceirosUsuario: () => usuarioDataManager.getDadosFinanceirosUsuario(),
+    salvarDadosUsuario: (dados) => usuarioDataManager.salvarDadosUsuario(dados),
+    executarMigracoes: () => usuarioDataManager.executarMigracoes(),
+    
+    salvarReceita: (mes, ano, receita, id) => usuarioDataManager.salvarReceita(mes, ano, receita, id),
+    salvarDespesa: (mes, ano, despesa, id) => usuarioDataManager.salvarDespesa(mes, ano, despesa, id),
+    excluirReceita: (mes, ano, index, opcao, descricao) => usuarioDataManager.excluirReceita(mes, ano, index, opcao, descricao),
+    excluirDespesa: (mes, ano, index, opcao, dados) => usuarioDataManager.excluirDespesa(mes, ano, index, opcao, dados),
+    
+    recarregarDados: () => usuarioDataManager.recarregarDados(),
+    limparCache: () => usuarioDataManager.limparCache(),
+    getStatus: () => usuarioDataManager.getStatusConexao(),
+    
+    atualizarUsuario: (dados) => usuarioDataManager.atualizarUsuarioAtual(dados),
+    
+    aguardarPronto: () => usuarioDataManager.aguardarPronto(),
+    
+    sincronizar: () => usuarioDataManager.sincronizarComSistemaPrincipal()
 };
 
-window.UsuarioDados = UsuarioDados;
+window.UsuarioDataManager = UsuarioDataManager;
+window.usuarioDataManager = usuarioDataManager;

@@ -1,10 +1,7 @@
 // ================================================================
 // SISTEMA DE CONFIGURAÇÕES
 // ================================================================
-// DEPENDÊNCIAS: config.js, utils.js
-// ================================================================
 
-// NOTA: window.API_URL e getToken() agora são definidos em config.js e utils.js
 // ================================================================
 // VARIÁVEIS GLOBAIS
 // ================================================================
@@ -147,79 +144,55 @@ function validarValidade(validade) {
 // ================================================================
 // SISTEMA DE CATEGORIAS
 // ================================================================
-async function carregarCategoriasAPI() {
+function carregarCategoriasLocal() {
+    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
+    if (!usuarioAtual) {
+        categoriasUsuario.despesas = [...categoriasPadrao.despesas];
+        return;
+    }
+    
     try {
-        const token = getToken();
-        if (!token) {
-            categoriasUsuario.despesas = [...categoriasPadrao.despesas];
-            return;
-        }
-
-        const response = await fetch(`${API_URL}/categorias`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            categoriasUsuario.despesas = data.data.map(cat => cat.nome);
+        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+        const usuario = usuarios.find(u => 
+            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
+        );
+        
+        if (usuario) {
+            if (!usuario.categorias) {
+                usuario.categorias = { despesas: [...categoriasPadrao.despesas] };
+                localStorage.setItem('usuarios', JSON.stringify(usuarios));
+            }
+            
+            categoriasUsuario.despesas = usuario.categorias.despesas || [...categoriasPadrao.despesas];
         } else {
-            carregarCategoriasLocalFallback();
+            categoriasUsuario.despesas = [...categoriasPadrao.despesas];
         }
     } catch (error) {
-        carregarCategoriasLocalFallback();
+        categoriasUsuario.despesas = [...categoriasPadrao.despesas];
     }
 }
 
-
-
-
-
-
-async function salvarCategoriasAPI(nome, acao = 'criar', categoriaId = null) {
+function salvarCategorias() {
+    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
+    if (!usuarioAtual) return false;
+    
     try {
-        const token = getToken();
-        if (!token) {
-            return salvarCategoriasLocalFallback();
-        }
-
-        let response;
+        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+        const index = usuarios.findIndex(u => 
+            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
+        );
         
-        if (acao === 'criar') {
-            response = await fetch(`${API_URL}/categorias`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    nome: nome,
-                    cor: '#3498db',
-                    icone: null
-                })
-            });
-        } else if (acao === 'editar') {
-            response = await fetch(`${API_URL}/categorias/${categoriaId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    nome: nome,
-                    cor: '#3498db',
-                    icone: null
-                })
-            });
-        } else if (acao === 'excluir') {
-            response = await fetch(`${API_URL}/categorias/${categoriaId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+        if (index !== -1) {
+            if (!usuarios[index].categorias) {
+                usuarios[index].categorias = {};
+            }
+            usuarios[index].categorias.despesas = categoriasUsuario.despesas;
+            localStorage.setItem('usuarios', JSON.stringify(usuarios));
+            return true;
         }
-
-        return response && response.ok;
+        return false;
     } catch (error) {
-        return salvarCategoriasLocalFallback();
+        return false;
     }
 }
 
@@ -245,7 +218,7 @@ function atualizarDropdowns() {
     }
 }
 
-async function adicionarCategoria() {
+function adicionarCategoria() {
     const inputNovaCategoria = document.getElementById('nova-categoria-nome');
     if (!inputNovaCategoria) return;
     
@@ -260,18 +233,19 @@ async function adicionarCategoria() {
         return;
     }
     
-    const sucesso = await salvarCategoriasAPI(nomeCat, 'criar');
+    categoriasUsuario.despesas.push(nomeCat);
+    categoriasUsuario.despesas.sort();
     
-    if (sucesso) {
-        categoriasUsuario.despesas.push(nomeCat);
-        categoriasUsuario.despesas.sort();
-        
+    if (salvarCategorias()) {
         inputNovaCategoria.value = '';
-        await carregarCategoriasAPI();
         atualizarListaCategorias();
         atualizarDropdowns();
         mostrarFeedback('Alterações realizadas com sucesso!', 'success');
     } else {
+        const index = categoriasUsuario.despesas.indexOf(nomeCat);
+        if (index > -1) {
+            categoriasUsuario.despesas.splice(index, 1);
+        }
         mostrarFeedback('Erro ao salvar categoria. Tente novamente.', 'error');
     }
 }
@@ -316,34 +290,26 @@ function editarCategoria(categoria) {
     }
 }
 
-async function removerCategoria(categoria) {
+function removerCategoria(categoria) {
     const confirmar = confirm(`Tem certeza que deseja remover a categoria "${categoria}"?`);
     if (!confirmar) return;
     
-    const categoriaId = await obterCategoriaId(categoria);
-    if (!categoriaId) {
-        mostrarFeedback('Erro: categoria não encontrada.', 'error');
-        return;
-    }
-    
-    const sucesso = await salvarCategoriasAPI(categoria, 'excluir', categoriaId);
-    
-    if (sucesso) {
-        const index = categoriasUsuario.despesas.indexOf(categoria);
-        if (index !== -1) {
-            categoriasUsuario.despesas.splice(index, 1);
-        }
+    const index = categoriasUsuario.despesas.indexOf(categoria);
+    if (index !== -1) {
+        const categoriaRemovida = categoriasUsuario.despesas.splice(index, 1)[0];
         
-        await carregarCategoriasAPI();
-        atualizarListaCategorias();
-        atualizarDropdowns();
-        mostrarFeedback('Alterações realizadas com sucesso!', 'success');
-    } else {
-        mostrarFeedback('Erro ao remover categoria. Tente novamente.', 'error');
+        if (salvarCategorias()) {
+            atualizarListaCategorias();
+            atualizarDropdowns();
+            mostrarFeedback('Alterações realizadas com sucesso!', 'success');
+        } else {
+            categoriasUsuario.despesas.splice(index, 0, categoriaRemovida);
+            mostrarFeedback('Erro ao remover categoria. Tente novamente.', 'error');
+        }
     }
 }
 
-async function salvarEdicaoCategoria() {
+function salvarEdicaoCategoria() {
     const nomeInput = document.getElementById('categoria-edit-nome');
     const nomeOriginalInput = document.getElementById('categoria-edit-nome-original');
     
@@ -362,123 +328,97 @@ async function salvarEdicaoCategoria() {
         return;
     }
     
-    const categoriaId = await obterCategoriaId(nomeOriginal);
-    if (!categoriaId) {
-        mostrarFeedback('Erro: categoria não encontrada.', 'error');
-        return;
-    }
-    
-    const sucesso = await salvarCategoriasAPI(novoNome, 'editar', categoriaId);
-    
-    if (sucesso) {
-        const index = categoriasUsuario.despesas.indexOf(nomeOriginal);
-        if (index !== -1) {
-            categoriasUsuario.despesas[index] = novoNome;
-            categoriasUsuario.despesas.sort();
-        }
+    const index = categoriasUsuario.despesas.indexOf(nomeOriginal);
+    if (index !== -1) {
+        categoriasUsuario.despesas[index] = novoNome;
+        categoriasUsuario.despesas.sort();
         
-        await carregarCategoriasAPI();
-        atualizarListaCategorias();
-        atualizarDropdowns();
-        document.getElementById('modal-editar-categoria').style.display = 'none';
-        mostrarFeedback('Alterações realizadas com sucesso!', 'success');
-    } else {
-        mostrarFeedback('Erro ao salvar alteração. Tente novamente.', 'error');
+        if (salvarCategorias()) {
+            atualizarListaCategorias();
+            atualizarDropdowns();
+            document.getElementById('modal-editar-categoria').style.display = 'none';
+            mostrarFeedback('Alterações realizadas com sucesso!', 'success');
+        } else {
+            categoriasUsuario.despesas[index] = nomeOriginal;
+            mostrarFeedback('Erro ao salvar alteração. Tente novamente.', 'error');
+        }
     }
 }
 
 // ================================================================
 // SISTEMA DE CARTÕES
 // ================================================================
-async function carregarCartoesAPI() {
+function carregarCartoesLocal() {
+    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
+    if (!usuarioAtual) {
+        cartoesUsuario = {
+            cartao1: { nome: '', validade: '', limite: 0, ativo: false },
+            cartao2: { nome: '', validade: '', limite: 0, ativo: false },
+            cartao3: { nome: '', validade: '', limite: 0, ativo: false }
+        };
+        window.cartoesUsuario = cartoesUsuario;
+        return;
+    }
+    
     try {
-        const token = getToken();
-        if (!token) {
-            cartoesUsuario = {
-                cartao1: { nome: '', validade: '', limite: 0, ativo: false },
-                cartao2: { nome: '', validade: '', limite: 0, ativo: false },
-                cartao3: { nome: '', validade: '', limite: 0, ativo: false }
-            };
-            window.cartoesUsuario = cartoesUsuario;
-            return;
-        }
-
-        const response = await fetch(`${API_URL}/cartoes`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            const cartoes = data.data || [];
+        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+        const usuario = usuarios.find(u => 
+            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
+        );
+        
+        if (usuario) {
+            if (!usuario.cartoes) {
+                usuario.cartoes = {
+                    cartao1: { nome: '', validade: '', limite: 0, ativo: false },
+                    cartao2: { nome: '', validade: '', limite: 0, ativo: false },
+                    cartao3: { nome: '', validade: '', limite: 0, ativo: false }
+                };
+                localStorage.setItem('usuarios', JSON.stringify(usuarios));
+            }
             
-            cartoesUsuario = {
-                cartao1: { nome: '', validade: '', limite: 0, ativo: false },
-                cartao2: { nome: '', validade: '', limite: 0, ativo: false },
-                cartao3: { nome: '', validade: '', limite: 0, ativo: false }
-            };
-            
-            cartoes.forEach((cartao, index) => {
-                if (index < 3) {
-                    const numeroCartao = index + 1;
-                    cartoesUsuario[`cartao${numeroCartao}`] = {
-                        nome: cartao.nome || '',
-                        validade: `${cartao.dia_fechamento}/${cartao.dia_vencimento}` || '',
-                        limite: parseFloat(cartao.limite) || 0,
-                        ativo: true
-                    };
-                }
-            });
-            
-            window.cartoesUsuario = cartoesUsuario;
+            cartoesUsuario = usuario.cartoes;
+            window.cartoesUsuario = usuario.cartoes;
         } else {
-            carregarCartoesLocalFallback();
+            cartoesUsuario = {
+                cartao1: { nome: '', validade: '', limite: 0, ativo: false },
+                cartao2: { nome: '', validade: '', limite: 0, ativo: false },
+                cartao3: { nome: '', validade: '', limite: 0, ativo: false }
+            };
+            window.cartoesUsuario = cartoesUsuario;
         }
     } catch (error) {
-        carregarCartoesLocalFallback();
+        console.error('Erro ao carregar cartões:', error);
+        cartoesUsuario = {
+            cartao1: { nome: '', validade: '', limite: 0, ativo: false },
+            cartao2: { nome: '', validade: '', limite: 0, ativo: false },
+            cartao3: { nome: '', validade: '', limite: 0, ativo: false }
+        };
+        window.cartoesUsuario = cartoesUsuario;
     }
 }
 
-async function salvarCartoesAPI() {
+function salvarCartoes() {
+    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
+    if (!usuarioAtual) return false;
+    
     try {
-        const token = getToken();
-        if (!token) {
-            return salvarCartoesLocalFallback();
-        }
-
-        const cartoesAtivos = [];
+        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+        const index = usuarios.findIndex(u => 
+            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
+        );
         
-        ['1', '2', '3'].forEach(num => {
-            const cartao = cartoesUsuario[`cartao${num}`];
-            if (cartao && cartao.ativo && cartao.nome && cartao.nome.trim() !== '') {
-                const [diaFechamento, diaVencimento] = (cartao.validade || '/').split('/');
-                
-                cartoesAtivos.push({
-                    nome: cartao.nome,
-                    limite: parseFloat(cartao.limite) || 0,
-                    dia_fechamento: parseInt(diaFechamento) || 1,
-                    dia_vencimento: parseInt(diaVencimento) || 1,
-                    cor: '#3498db'
-                });
-            }
-        });
-
-        const response = await fetch(`${API_URL}/cartoes`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ cartoes: cartoesAtivos })
-        });
-
-        if (response.ok) {
+        if (index !== -1) {
+            usuarios[index].cartoes = cartoesUsuario;
+            usuarios[index].ultimaAtualizacaoCartoes = new Date().toISOString();
+            localStorage.setItem('usuarios', JSON.stringify(usuarios));
+            
             window.cartoesUsuario = cartoesUsuario;
             return true;
-        } else {
-            return salvarCartoesLocalFallback();
         }
+        return false;
     } catch (error) {
-        return salvarCartoesLocalFallback();
+        console.error('Erro ao salvar cartões:', error);
+        return false;
     }
 }
 
@@ -542,7 +482,7 @@ function preencherFormularioCartoes() {
     });
 }
 
-async function salvarCartoesForms() {
+function salvarCartoesForms() {
     try {
         let cartoesAlterados = false;
         let errosValidacao = [];
@@ -601,7 +541,7 @@ async function salvarCartoesForms() {
             return;
         }
         
-        if (await salvarCartoesAPI()) {
+        if (salvarCartoes()) {
             atualizarOpcoesCartoes();
             window.cartoesUsuario = cartoesUsuario;
             
@@ -655,27 +595,21 @@ function mostrarStatusCartoes(mensagem, tipo) {
 // ================================================================
 // SISTEMA DE USUÁRIOS
 // ================================================================
-async function obterTipoUsuarioAtual() {
+function obterTipoUsuarioAtual() {
+    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
+    if (!usuarioAtual) {
+        tipoUsuarioAtual = 'padrao';
+        return;
+    }
+    
     try {
-        const token = getToken();
-        if (!token) {
-            tipoUsuarioAtual = 'padrao';
-            return;
-        }
+        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+        const usuario = usuarios.find(u => 
+            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
+        );
         
-        const response = await fetch(`${API_URL}/usuarios/current`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            tipoUsuarioAtual = data.data.tipo || 'padrao';
-        } else {
-            tipoUsuarioAtual = 'padrao';
-        }
-        
+        tipoUsuarioAtual = usuario?.tipo || 'padrao';
     } catch (error) {
-        console.error('Erro ao obter tipo do usuário:', error);
         tipoUsuarioAtual = 'padrao';
     }
 }
@@ -700,32 +634,28 @@ function ajustarVisibilidadeElementos() {
     }
 }
 
-async function filtrarUsuarios() {
-    try {
-        const searchTerm = document.getElementById('usuario-search')?.value || '';
-        const filterType = document.getElementById('filter-user-type')?.value || 'todos';
+function filtrarUsuarios() {
+    const searchInput = document.getElementById('usuario-search');
+    const filterSelect = document.getElementById('filter-user-type');
+    
+    const termoBusca = (searchInput?.value || '').trim().toLowerCase();
+    const filtroTipo = filterSelect?.value || 'todos';
+    
+    const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+    
+    usuariosFiltrados = usuarios.filter(usuario => {
+        const matchesBusca = !termoBusca || 
+            (usuario.nome?.toLowerCase().includes(termoBusca)) || 
+            (usuario.email?.toLowerCase().includes(termoBusca)) || 
+            (usuario.documento?.toLowerCase().includes(termoBusca));
         
-        const params = new URLSearchParams({
-            page: paginaAtual,
-            limit: itensPorPagina,
-            search: searchTerm,
-            tipo: filterType === 'todos' ? '' : filterType
-        });
+        const matchesTipo = filtroTipo === 'todos' || usuario.tipo === filtroTipo;
         
-        const response = await fetch(`${API_URL}/usuarios?${params}`, {
-            headers: { 'Authorization': `Bearer ${getToken()}` }
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            usuariosFiltrados = data.data;
-            renderizarUsuarios();
-            atualizarInfoPaginacao(data.pagination);
-        }
-    } catch (error) {
-        console.error('Erro ao buscar usuários:', error);
-    }
+        return matchesBusca && matchesTipo;
+    });
+    
+    paginaAtual = 1;
+    renderizarUsuarios();
 }
 
 function renderizarUsuarios() {
@@ -822,41 +752,26 @@ function criarLinhaUsuario(usuario, index) {
     return linha;
 }
 
-async function alternarBloqueioUsuario(usuario) {
+function alternarBloqueioUsuario(usuario) {
     const estavaBloqueado = usuario.status === 'bloqueado';
-    const novoStatus = estavaBloqueado ? 'ativo' : 'bloqueado';
     const acao = estavaBloqueado ? 'desbloquear' : 'bloquear';
     
     if (!confirm(`Deseja ${acao} o usuário ${usuario.nome}?`)) {
         return;
     }
     
-    try {
-        const response = await fetch(`${API_URL}/usuarios/${usuario.id}/status`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${getToken()}`
-            },
-            body: JSON.stringify({ status: novoStatus })
-        });
+    const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+    const index = usuarios.findIndex(u => u.documento === usuario.documento);
+    
+    if (index !== -1) {
+        usuarios[index].status = estavaBloqueado ? 'ativo' : 'bloqueado';
+        usuarios[index].dataAlteracaoStatus = new Date().toISOString();
+        localStorage.setItem('usuarios', JSON.stringify(usuarios));
         
-        const data = await response.json();
-        
-        if (response.ok) {
-            await filtrarUsuarios();
-            mostrarFeedback('Alterações realizadas com sucesso!', 'success');
-        } else {
-            mostrarFeedback(data.message || 'Erro ao alterar status do usuário', 'error');
-        }
-        
-    } catch (error) {
-        console.error('Erro ao alterar status:', error);
-        mostrarFeedback('Erro ao alterar status do usuário', 'error');
+        filtrarUsuarios();
+        mostrarFeedback('Alterações realizadas com sucesso!', 'success');
     }
 }
-
-
 
 function excluirUsuario(usuario) {
     const nomeUsuarioElement = document.getElementById('usuario-nome-exclusao');
@@ -867,63 +782,24 @@ function excluirUsuario(usuario) {
     const modal = document.getElementById('modal-confirmar-exclusao-usuario');
     if (modal) {
         modal.style.display = 'flex';
-        modal.setAttribute('data-usuario-id', usuario.id);
+        modal.setAttribute('data-usuario-documento', usuario.documento);
     }
 }
 
-
-
-
-function atualizarInfoPaginacao(pagination) {
-    const paginationInfo = document.getElementById('pagination-info');
-    const btnPrevPage = document.getElementById('btn-prev-page');
-    const btnNextPage = document.getElementById('btn-next-page');
-    
-    if (paginationInfo) {
-        paginationInfo.textContent = `Página ${pagination.page} de ${pagination.pages}`;
-    }
-    
-    if (btnPrevPage) {
-        btnPrevPage.disabled = pagination.page <= 1;
-    }
-    
-    if (btnNextPage) {
-        btnNextPage.disabled = pagination.page >= pagination.pages;
-    }
-}
-
-
-
-
-async function confirmarExclusaoUsuario() {
+function confirmarExclusaoUsuario() {
     const modal = document.getElementById('modal-confirmar-exclusao-usuario');
-    const userId = modal?.getAttribute('data-usuario-id');
+    const documento = modal?.getAttribute('data-usuario-documento');
     
-    if (!userId) return;
+    if (!documento) return;
     
-    try {
-        const response = await fetch(`${API_URL}/usuarios/${userId}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${getToken()}`
-            }
-        });
-        
-        const data = await response.json();
-        
-        modal.style.display = 'none';
-        
-        if (response.ok) {
-            await filtrarUsuarios();
-            mostrarFeedback('Alterações realizadas com sucesso!', 'success');
-        } else {
-            mostrarFeedback(data.message || 'Erro ao excluir usuário', 'error');
-        }
-        
-    } catch (error) {
-        console.error('Erro ao excluir usuário:', error);
-        mostrarFeedback('Erro ao excluir usuário', 'error');
-    }
+    const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+    const novaLista = usuarios.filter(u => u.documento !== documento);
+    
+    localStorage.setItem('usuarios', JSON.stringify(novaLista));
+    
+    modal.style.display = 'none';
+    filtrarUsuarios();
+    mostrarFeedback('Alterações realizadas com sucesso!', 'success');
 }
 
 function abrirModalEditarUsuario(usuario, isNovo = false) {
@@ -981,7 +857,7 @@ function preencherDadosUsuario(usuario) {
     }
 }
 
-async function salvarEdicaoUsuario(isNovo = false) {
+function salvarEdicaoUsuario(isNovo = false) {
     try {
         const prefixo = isNovo ? 'novo-usuario' : 'editar-usuario';
         
@@ -1023,45 +899,97 @@ async function salvarEdicaoUsuario(isNovo = false) {
             }
         }
         
-        const payload = {
-            nome: nome,
-            email: email,
-            tipo: tipoUsuarioAtual === 'master' ? tipo : 'padrao',
-            status: status
-        };
+        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
         
         if (isNovo) {
-            payload.documento = documento;
-            payload.senha = senha || '123456';
-        } else {
-            if (senha && senha.length > 0) {
-                payload.senha = senha;
+            const docExists = usuarios.some(u => u.documento && 
+                u.documento.replace(/[^\d]+/g, '') === documento.replace(/[^\d]+/g, ''));
+                
+            if (docExists) {
+                mostrarValidacao('Este CPF/CNPJ já está cadastrado.', 'error');
+                return;
             }
-        }
-        
-        const url = isNovo ? `${API_URL}/usuarios` : `${API_URL}/usuarios/${documento}`;
-        const method = isNovo ? 'POST' : 'PUT';
-        
-        const response = await fetch(url, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${getToken()}`
-            },
-            body: JSON.stringify(payload)
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            const modal = document.getElementById(isNovo ? 'modal-adicionar-usuario' : 'modal-editar-usuario');
-            if (modal) modal.style.display = 'none';
             
-            await filtrarUsuarios();
-            mostrarFeedback('Alterações realizadas com sucesso!', 'success');
+            const emailExists = usuarios.some(u => u.email === email);
+            if (emailExists) {
+                mostrarValidacao('Este e-mail já está cadastrado.', 'error');
+                return;
+            }
+            
+            const novoUsuario = {
+                nome,
+                email,
+                documento,
+                tipo: tipoUsuarioAtual === 'master' ? tipo : 'padrao',
+                status,
+                password: senha || '123456',
+                senha: senha || '123456',
+                categorias: {
+                    despesas: [...categoriasPadrao.despesas]
+                },
+                cartoes: {
+                    cartao1: { nome: '', validade: '', limite: 0, ativo: false },
+                    cartao2: { nome: '', validade: '', limite: 0, ativo: false },
+                    cartao3: { nome: '', validade: '', limite: 0, ativo: false }
+                },
+                dadosFinanceiros: {},
+                poupanca: {
+                    saldo: 0,
+                    configuracoes: {
+                        taxa: 0.5,
+                        dia_rendimento: 1
+                    },
+                    transacoes: []
+                },
+                dataCadastro: new Date().toISOString()
+            };
+            
+            usuarios.push(novoUsuario);
+            localStorage.setItem('usuarios', JSON.stringify(usuarios));
+            
         } else {
-            mostrarValidacao(data.message || 'Erro ao salvar usuário', 'error');
+            const index = usuarios.findIndex(u => u.documento === documento);
+            
+            if (index === -1) {
+                mostrarValidacao('Usuário não encontrado.', 'error');
+                return;
+            }
+            
+            if (tipoUsuarioAtual !== 'master' && usuarios[index].tipo !== 'padrao') {
+                mostrarValidacao('Você não tem permissão para editar este usuário.', 'error');
+                return;
+            }
+            
+            if (usuarios[index].email !== email) {
+                const emailExists = usuarios.some(u => u.email === email && u.documento !== documento);
+                if (emailExists) {
+                    mostrarValidacao('Este e-mail já está cadastrado para outro usuário.', 'error');
+                    return;
+                }
+            }
+            
+            usuarios[index].nome = nome;
+            usuarios[index].email = email;
+            usuarios[index].status = status;
+            
+            if (tipoUsuarioAtual === 'master') {
+                usuarios[index].tipo = tipo;
+            }
+            
+            if (senha && senha.length > 0) {
+                usuarios[index].password = senha;
+                usuarios[index].senha = senha;
+            }
+            
+            usuarios[index].dataAtualizacao = new Date().toISOString();
+            localStorage.setItem('usuarios', JSON.stringify(usuarios));
         }
+        
+        const modal = document.getElementById(isNovo ? 'modal-adicionar-usuario' : 'modal-editar-usuario');
+        if (modal) modal.style.display = 'none';
+        
+        filtrarUsuarios();
+        mostrarFeedback('Alterações realizadas com sucesso!', 'success');
         
     } catch (error) {
         console.error('Erro ao salvar usuário:', error);
@@ -1117,94 +1045,57 @@ function mostrarValidacao(mensagem, tipo) {
     }
 }
 
-async function garantirUsuarioMaster() {
-    
-    const usuario = JSON.parse(sessionStorage.getItem('usuario') || '{}');
-    
-    if (usuario.tipo !== 'admin' && usuario.tipo !== 'master') {
-        console.log('Usuário padrão - verificação de master ignorada');
-        return;
-    }
-    
+function garantirUsuarioMaster() {
     const cpfMaster = "08996441988";
-    const dadosMaster = {
-        nome: "Administrador Master",
-        email: "admin.master@sistema.com",
-        documento: cpfMaster.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4"),
-        senha: "master123",
-        tipo: "master",
-        status: "ativo"
-    };
     
-    try {
-        const token = getToken();
-        if (!token) {
-            console.log('Token não encontrado, usuário master será verificado após login');
-            return;
+    let usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+    
+    const usuarioExistente = usuarios.find(u => 
+        u.documento && u.documento.replace(/[^\d]+/g, '') === cpfMaster
+    );
+    
+    if (usuarioExistente) {
+        if (usuarioExistente.tipo !== 'master') {
+            usuarioExistente.tipo = 'master';
+            usuarioExistente.status = 'ativo';
+            usuarioExistente.dataAtualizacaoMaster = new Date().toISOString();
+            localStorage.setItem('usuarios', JSON.stringify(usuarios));
         }
+    } else {
+        const cpfFormatado = cpfMaster.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
         
-        if (usuario.tipo !== 'master') {
-            console.log('Apenas usuários Master podem gerenciar outros Masters');
-            return;
-        }
-        
-        const statsResponse = await fetch(`${API_URL}/usuarios/stats/geral`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (statsResponse.ok) {
-            const statsData = await statsResponse.json();
-            
-            if (statsData.data.usuarios_master > 0) {
-                const usuariosResponse = await fetch(`${API_URL}/usuarios?tipo=master&limit=10`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                
-                if (usuariosResponse.ok) {
-                    const usuariosData = await usuariosResponse.json();
-                    const masterExistente = usuariosData.data.find(u => 
-                        u.documento && u.documento.replace(/[^\d]+/g, '') === cpfMaster
-                    );
-                    
-                    if (masterExistente) {
-                        if (masterExistente.status !== 'ativo' || masterExistente.tipo !== 'master') {
-                            await fetch(`${API_URL}/usuarios/${masterExistente.id}`, {
-                                method: 'PUT',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Authorization': `Bearer ${token}`
-                                },
-                                body: JSON.stringify({
-                                    tipo: 'master',
-                                    status: 'ativo'
-                                })
-                            });
-                            console.log('✅ Usuário master atualizado com sucesso');
-                        }
-                        return;
-                    }
-                }
-            }
-        }
-        
-        const criarResponse = await fetch(`${API_URL}/usuarios`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+        const novoUsuario = {
+            nome: "Administrador Master",
+            email: "admin.master@sistema.com",
+            documento: cpfFormatado,
+            tipo: "master",
+            status: "ativo",
+            password: "master123",
+            senha: "master123",
+            categorias: {
+                despesas: [...categoriasPadrao.despesas]
             },
-            body: JSON.stringify(dadosMaster)
-        });
+            cartoes: {
+                cartao1: { nome: '', validade: '', limite: 0, ativo: false },
+                cartao2: { nome: '', validade: '', limite: 0, ativo: false },
+                cartao3: { nome: '', validade: '', limite: 0, ativo: false }
+            },
+            dadosFinanceiros: {},
+            poupanca: {
+                saldo: 0,
+                configuracoes: {
+                    taxa: 0.5,
+                    dia_rendimento: 1
+                },
+                transacoes: []
+            },
+            dataCriacaoMaster: new Date().toISOString()
+        };
         
-        if (criarResponse.ok) {
-            console.log('✅ Usuário master criado com sucesso via API');
-        }
-        
-    } catch (error) {
-        console.warn('⚠️ Erro ao garantir usuário master:', error);
+        usuarios.push(novoUsuario);
+        localStorage.setItem('usuarios', JSON.stringify(usuarios));
     }
 }
-
 
 // ================================================================
 // SISTEMA DE ABAS E NAVEGAÇÃO
@@ -1259,7 +1150,7 @@ function setupEventListeners() {
     
     const btnSalvarCartoes = document.getElementById('btn-salvar-cartoes');
     if (btnSalvarCartoes) {
-       btnSalvarCartoes.addEventListener('click', async () => await salvarCartoesForms());
+        btnSalvarCartoes.addEventListener('click', salvarCartoesForms);
     }
     
     ['1', '2', '3'].forEach(num => {
@@ -1414,17 +1305,17 @@ function setupEventListeners() {
     }
 }
 
-async function inicializarConfiguracoes() {
+function inicializarConfiguracoes() {
     if (!window.sistemaInicializado) {
         setTimeout(inicializarConfiguracoes, 200);
         return;
     }
     
-    await garantirUsuarioMaster();
-    await obterTipoUsuarioAtual();
+    garantirUsuarioMaster();
+    obterTipoUsuarioAtual();
     
-    await carregarCategoriasAPI();
-    await carregarCartoesAPI();
+    carregarCategoriasLocal();
+    carregarCartoesLocal();
     
     setupConfigTabs();
     setupEventListeners();
@@ -1437,171 +1328,20 @@ async function inicializarConfiguracoes() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(async () => await inicializarConfiguracoes(), 1000);
+    setTimeout(inicializarConfiguracoes, 1000);
 });
-
-
-
-
-
-function carregarCategoriasLocalFallback() {
-    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
-    if (!usuarioAtual) {
-        categoriasUsuario.despesas = [...categoriasPadrao.despesas];
-        return;
-    }
-    
-    try {
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const usuario = usuarios.find(u => 
-            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
-        );
-        
-        if (usuario && usuario.categorias) {
-            categoriasUsuario.despesas = usuario.categorias.despesas || [...categoriasPadrao.despesas];
-        } else {
-            categoriasUsuario.despesas = [...categoriasPadrao.despesas];
-        }
-    } catch (error) {
-        categoriasUsuario.despesas = [...categoriasPadrao.despesas];
-    }
-}
-
-
-
-
-function salvarCategoriasLocalFallback() {
-    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
-    if (!usuarioAtual) return false;
-    
-    try {
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const index = usuarios.findIndex(u => 
-            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
-        );
-        
-        if (index !== -1) {
-            if (!usuarios[index].categorias) {
-                usuarios[index].categorias = {};
-            }
-            usuarios[index].categorias.despesas = categoriasUsuario.despesas;
-            localStorage.setItem('usuarios', JSON.stringify(usuarios));
-            return true;
-        }
-        return false;
-    } catch (error) {
-        return false;
-    }
-}
-
-async function obterCategoriaId(nomeCategoria) {
-    try {
-        const token = getToken();
-        if (!token) return null;
-
-        const response = await fetch(`${API_URL}/categorias`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            const categoria = data.data.find(cat => cat.nome === nomeCategoria);
-            return categoria ? categoria.id : null;
-        }
-        return null;
-    } catch (error) {
-        return null;
-    }
-}
-
-
-function carregarCartoesLocalFallback() {
-    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
-    if (!usuarioAtual) {
-        cartoesUsuario = {
-            cartao1: { nome: '', validade: '', limite: 0, ativo: false },
-            cartao2: { nome: '', validade: '', limite: 0, ativo: false },
-            cartao3: { nome: '', validade: '', limite: 0, ativo: false }
-        };
-        window.cartoesUsuario = cartoesUsuario;
-        return;
-    }
-    
-    try {
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const usuario = usuarios.find(u => 
-            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
-        );
-        
-        if (usuario && usuario.cartoes) {
-            cartoesUsuario = usuario.cartoes;
-            window.cartoesUsuario = usuario.cartoes;
-        } else {
-            cartoesUsuario = {
-                cartao1: { nome: '', validade: '', limite: 0, ativo: false },
-                cartao2: { nome: '', validade: '', limite: 0, ativo: false },
-                cartao3: { nome: '', validade: '', limite: 0, ativo: false }
-            };
-            window.cartoesUsuario = cartoesUsuario;
-        }
-    } catch (error) {
-        cartoesUsuario = {
-            cartao1: { nome: '', validade: '', limite: 0, ativo: false },
-            cartao2: { nome: '', validade: '', limite: 0, ativo: false },
-            cartao3: { nome: '', validade: '', limite: 0, ativo: false }
-        };
-        window.cartoesUsuario = cartoesUsuario;
-    }
-}
-
-
-
-
-
-function salvarCartoesLocalFallback() {
-    const usuarioAtual = sessionStorage.getItem('usuarioAtual');
-    if (!usuarioAtual) return false;
-    
-    try {
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const index = usuarios.findIndex(u => 
-            u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
-        );
-        
-        if (index !== -1) {
-            usuarios[index].cartoes = cartoesUsuario;
-            usuarios[index].ultimaAtualizacaoCartoes = new Date().toISOString();
-            localStorage.setItem('usuarios', JSON.stringify(usuarios));
-            
-            window.cartoesUsuario = cartoesUsuario;
-            return true;
-        }
-        return false;
-    } catch (error) {
-        return false;
-    }
-}
-
-// ================================================================
-// FUNÇÕES DE COMPATIBILIDADE PARA EVITAR ERROS
-// ================================================================
-
-window.carregarcategoriasLocal = function() {
-    console.log('carregarcategoriasLocal: descontinuada - agora usa API');
-};
-
 
 window.categoriasUsuario = categoriasUsuario;
 window.cartoesUsuario = cartoesUsuario;
 window.categoriasPadrao = categoriasPadrao;
 
-window.carregarCategoriasLocal = carregarCategoriasLocalFallback;
-window.salvarCategorias = salvarCategoriasLocalFallback;
+window.carregarCategoriasLocal = carregarCategoriasLocal;
+window.salvarCategorias = salvarCategorias;
 window.atualizarDropdowns = atualizarDropdowns;
 window.atualizarListaCategorias = atualizarListaCategorias;
 
-window.carregarCartoesLocal = carregarCartoesLocalFallback;
-window.salvarCartoes = salvarCartoesLocalFallback;
+window.carregarCartoesLocal = carregarCartoesLocal;
+window.salvarCartoes = salvarCartoes;
 window.atualizarOpcoesCartoes = atualizarOpcoesCartoes;
 window.preencherFormularioCartoes = preencherFormularioCartoes;
 
@@ -1616,17 +1356,3 @@ window.validarValidade = validarValidade;
 
 window.mostrarFeedback = mostrarFeedback;
 window.inicializarConfiguracoes = inicializarConfiguracoes;
-
-
-
-
-// Novas funções da API
-window.carregarCategoriasAPI = carregarCategoriasAPI;
-window.salvarCategoriasAPI = salvarCategoriasAPI;
-window.obterCategoriaId = obterCategoriaId;
-window.carregarCartoesAPI = carregarCartoesAPI;
-window.salvarCartoesAPI = salvarCartoesAPI;
-window.carregarCategoriasLocalFallback = carregarCategoriasLocalFallback;
-window.salvarCategoriasLocalFallback = salvarCategoriasLocalFallback;
-window.carregarCartoesLocalFallback = carregarCartoesLocalFallback;
-window.salvarCartoesLocalFallback = salvarCartoesLocalFallback;

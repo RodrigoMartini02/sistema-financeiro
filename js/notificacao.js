@@ -290,138 +290,138 @@ class SistemaNotificacoes {
     // ================================================================
     // VERIFICAÇÕES AUTOMÁTICAS OTIMIZADAS
     // ================================================================
-        async verificarNotificacoesPendentes() {
-            try {
-                if (!window.usuarioDados) return;
-
-                await this.verificarDespesasVencendo();
-                await this.verificarDespesasVencidas();
-                await this.verificarSaldosNegativos();
-                this.limparNotificacoesExpiradas();
-            } catch (error) {
-                // Falha silenciosa
+    verificarNotificacoesPendentes() {
+        try {
+            if (typeof window.dadosFinanceiros === 'undefined' || !window.dadosFinanceiros) {
+                return;
             }
+
+            this.verificarDespesasVencendo();
+            this.verificarDespesasVencidas();
+            this.verificarSaldosNegativos();
+            this.limparNotificacoesExpiradas();
+        } catch (error) {
+            // Falha silenciosa
         }
+    }
 
+    verificarDespesasVencendo() {
+        try {
+            const hoje = new Date();
+            const em3Dias = new Date(hoje.getTime() + 3 * 24 * 60 * 60 * 1000);
+            const mesAtual = hoje.getMonth();
+            const anoAtual = hoje.getFullYear();
 
+            // Apenas mês atual para despesas vencendo
+            const anoData = window.dadosFinanceiros[anoAtual];
+            if (!anoData || !anoData.meses) return;
 
-async verificarDespesasVencendo() {
-    try {
-        if (!window.usuarioDados) return;
-        
-        const dados = await window.usuarioDados.getDadosFinanceiros();
-        if (!dados || !dados.despesas) return;
-        
-        const hoje = new Date();
-        const em3Dias = new Date(hoje.getTime() + 3 * 24 * 60 * 60 * 1000);
-        const mesAtual = hoje.getMonth();
-        const anoAtual = hoje.getFullYear();
+            const dadosMes = anoData.meses[mesAtual];
+            if (!dadosMes?.despesas) return;
 
-        dados.despesas.forEach((despesa, index) => {
-            if (despesa.pago || despesa.quitado) return;
-            if (despesa.mes !== mesAtual || despesa.ano !== anoAtual) return;
+            dadosMes.despesas.forEach((despesa, index) => {
+                if (despesa.quitado) return;
 
-            const dataVencimento = new Date(despesa.data_vencimento || despesa.data);
-            
-            if (dataVencimento >= hoje && dataVencimento <= em3Dias) {
-                const diasRestantes = Math.ceil((dataVencimento - hoje) / (1000 * 60 * 60 * 24));
+                const dataVencimento = new Date(despesa.dataVencimento || despesa.data);
                 
+                if (dataVencimento >= hoje && dataVencimento <= em3Dias) {
+                    const diasRestantes = Math.ceil((dataVencimento - hoje) / (1000 * 60 * 60 * 24));
+                    
+                    const jaNotificado = this.notificacoes.some(n => 
+                        n.tipo === 'despesa_vencendo' && 
+                        n.dados.despesa?.descricao === despesa.descricao &&
+                        n.dados.mes === mesAtual &&
+                        n.dados.ano === anoAtual
+                    );
+
+                    if (!jaNotificado) {
+                        this.notificarDespesaVencendo({
+                            ...despesa,
+                            mes: mesAtual,
+                            ano: anoAtual,
+                            index
+                        }, diasRestantes);
+                    }
+                }
+            });
+        } catch (error) {
+            // Falha silenciosa
+        }
+    }
+
+    verificarDespesasVencidas() {
+        try {
+            const hoje = new Date();
+
+            // Verificar todos os anos e meses para despesas vencidas
+            for (const ano in window.dadosFinanceiros) {
+                const anoData = window.dadosFinanceiros[ano];
+                if (!anoData || !anoData.meses) continue;
+
+                for (let mes = 0; mes < 12; mes++) {
+                    const dadosMes = anoData.meses[mes];
+                    if (!dadosMes?.despesas) continue;
+
+                    dadosMes.despesas.forEach((despesa, index) => {
+                        if (despesa.quitado) return;
+
+                        const dataVencimento = new Date(despesa.dataVencimento || despesa.data);
+                        
+                        if (dataVencimento < hoje) {
+                            const diasAtraso = Math.floor((hoje - dataVencimento) / (1000 * 60 * 60 * 24));
+                            
+                            const jaNotificado = this.notificacoes.some(n => 
+                                n.tipo === 'despesa_vencida' && 
+                                n.dados.despesa?.descricao === despesa.descricao &&
+                                n.dados.mes === mes &&
+                                n.dados.ano === parseInt(ano)
+                            );
+
+                            if (!jaNotificado) {
+                                this.notificarDespesaVencida({
+                                    ...despesa,
+                                    mes,
+                                    ano: parseInt(ano),
+                                    index
+                                }, diasAtraso);
+                            }
+                        }
+                    });
+                }
+            }
+        } catch (error) {
+            // Falha silenciosa
+        }
+    }
+
+    verificarSaldosNegativos() {
+        try {
+            if (typeof window.calcularSaldoMes !== 'function') {
+                return;
+            }
+
+            const hoje = new Date();
+            const mesAtual = hoje.getMonth();
+            const anoAtual = hoje.getFullYear();
+            
+            // Apenas mês atual para saldos negativos
+            const saldo = window.calcularSaldoMes(mesAtual, anoAtual);
+            
+            if (saldo && saldo.saldoFinal < 0) {
                 const jaNotificado = this.notificacoes.some(n => 
-                    n.tipo === 'despesa_vencendo' && 
-                    n.dados.despesa?.descricao === despesa.descricao &&
+                    n.tipo === 'saldo_negativo' && 
                     n.dados.mes === mesAtual &&
                     n.dados.ano === anoAtual
                 );
 
                 if (!jaNotificado) {
-                    this.notificarDespesaVencendo({
-                        ...despesa,
-                        mes: mesAtual,
-                        ano: anoAtual,
-                        index
-                    }, diasRestantes);
+                    this.notificarSaldoNegativo(mesAtual, anoAtual, saldo.saldoFinal);
                 }
             }
-        });
-    } catch (error) {
-        // Falha silenciosa
-    }
-}
-
- async verificarDespesasVencidas() {
-    try {
-        if (!window.usuarioDados) return;
-        
-        const dados = await window.usuarioDados.getDadosFinanceiros();
-        if (!dados || !dados.despesas) return;
-        
-        const hoje = new Date();
-
-        dados.despesas.forEach((despesa, index) => {
-            if (despesa.pago || despesa.quitado) return;
-
-            const dataVencimento = new Date(despesa.data_vencimento || despesa.data);
-            
-            if (dataVencimento < hoje) {
-                const diasAtraso = Math.floor((hoje - dataVencimento) / (1000 * 60 * 60 * 24));
-                
-                const jaNotificado = this.notificacoes.some(n => 
-                    n.tipo === 'despesa_vencida' && 
-                    n.dados.despesa?.descricao === despesa.descricao &&
-                    n.dados.mes === despesa.mes &&
-                    n.dados.ano === despesa.ano
-                );
-
-                if (!jaNotificado) {
-                    this.notificarDespesaVencida({
-                        ...despesa,
-                        index
-                    }, diasAtraso);
-                }
-            }
-        });
-    } catch (error) {
-        // Falha silenciosa
-    }
-}
-
-   async verificarSaldosNegativos() {
-    try {
-        if (!window.usuarioDados) return;
-        
-        const dados = await window.usuarioDados.getDadosFinanceiros();
-        if (!dados) return;
-
-        const hoje = new Date();
-        const mesAtual = hoje.getMonth();
-        const anoAtual = hoje.getFullYear();
-        
-        // Calcular saldo do mês atual
-        const receitasMes = (dados.receitas || [])
-            .filter(r => r.mes === mesAtual && r.ano === anoAtual)
-            .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-            
-        const despesasMes = (dados.despesas || [])
-            .filter(d => d.mes === mesAtual && d.ano === anoAtual)
-            .reduce((sum, d) => sum + parseFloat(d.valor || 0), 0);
-            
-        const saldoFinal = receitasMes - despesasMes;
-        
-        if (saldoFinal < 0) {
-            const jaNotificado = this.notificacoes.some(n => 
-                n.tipo === 'saldo_negativo' && 
-                n.dados.mes === mesAtual &&
-                n.dados.ano === anoAtual
-            );
-
-            if (!jaNotificado) {
-                this.notificarSaldoNegativo(mesAtual, anoAtual, saldoFinal);
-            }
+        } catch (error) {
+            // Falha silenciosa
         }
-    } catch (error) {
-        // Falha silenciosa
     }
-}
 
     // ================================================================
     // GERENCIAMENTO DE NOTIFICAÇÕES
