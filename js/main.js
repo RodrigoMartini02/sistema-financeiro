@@ -1143,14 +1143,17 @@ async function renderizarDetalhesDoMes(mes, ano) {
     window.renderizarReceitas(dadosMes.receitas, fechado, mes, ano);
 }
         
-        if (typeof window.renderizarDespesas === 'function') {
-            window.renderizarDespesas(dadosMes.despesas, mes, ano, fechado);
-        }
+       if (window.DespesasCore && typeof window.DespesasCore.buscarEExibirDespesas === 'function') {
+    await window.DespesasCore.buscarEExibirDespesas(mes, ano);
+} else if (typeof window.renderizarDespesas === 'function') {
+    window.renderizarDespesas(dadosMes.despesas, mes, ano, fechado);
+}
         
-        if (typeof window.atualizarContadoresFiltro === 'function') {
-            window.atualizarContadoresFiltro();
-        }
-        
+       if (window.DespesasFilters && typeof window.DespesasFilters.atualizarContadoresFiltro === 'function') {
+    window.DespesasFilters.atualizarContadoresFiltro();
+} else if (typeof window.atualizarContadoresFiltro === 'function') {
+    window.atualizarContadoresFiltro();
+}
     } catch (error) {
         // Falha silenciosa
     }
@@ -1217,11 +1220,13 @@ function configurarBotoesModal() {
         }
     });
     
-    configurarBotao('btn-nova-despesa', () => {
-        if (typeof window.abrirModalNovaDespesa === 'function') {
-            window.abrirModalNovaDespesa();
-        }
-    });
+   configurarBotao('btn-nova-despesa', () => {
+    if (window.DespesasCore && typeof window.DespesasCore.abrirModalNovaDespesa === 'function') {
+        window.DespesasCore.abrirModalNovaDespesa();
+    } else if (typeof window.abrirModalNovaDespesa === 'function') {
+        window.abrirModalNovaDespesa();
+    }
+});
     
     const checkboxTodasDespesas = document.getElementById('pagar-despesas-em-lote');
     if (checkboxTodasDespesas) {
@@ -1239,16 +1244,20 @@ function configurarBotoesModal() {
     }
     
     configurarBotao('btn-pagar-em-lote', () => {
-        if (typeof window.pagarDespesasEmLote === 'function') {
-            window.pagarDespesasEmLote();
-        }
-    });
+    if (window.DespesasActions && typeof window.DespesasActions.pagarDespesasEmLote === 'function') {
+        window.DespesasActions.pagarDespesasEmLote();
+    } else if (typeof window.pagarDespesasEmLote === 'function') {
+        window.pagarDespesasEmLote();
+    }
+});
     
-    configurarBotao('btn-limpar-filtros', () => {
-        if (typeof window.limparFiltros === 'function') {
-            window.limparFiltros();
-        }
-    });
+   configurarBotao('btn-limpar-filtros', () => {
+    if (window.DespesasFilters && typeof window.DespesasFilters.limparFiltros === 'function') {
+        window.DespesasFilters.limparFiltros();
+    } else if (typeof window.limparFiltros === 'function') {
+        window.limparFiltros();
+    }
+});
     
        configurarBotao('btn-mes-anterior', () => navegarMesModal(-1));
     configurarBotao('btn-mes-proximo', () => navegarMesModal(1));
