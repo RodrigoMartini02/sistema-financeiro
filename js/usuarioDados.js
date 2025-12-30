@@ -2,6 +2,9 @@
 // SISTEMA DE GERENCIAMENTO DE USUÁRIOS E DADOS
 // ================================================================
 
+// URL da API do Backend
+const API_URL = 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
 class UsuarioDataManager {
     constructor() {
         this.dadosCache = null;
@@ -9,7 +12,7 @@ class UsuarioDataManager {
         this.timestampCache = null;
         this.timestampCacheUsuario = null;
         this.inicializado = false;
-        
+
         this.aguardarSistemaMainPronto();
     }
 
@@ -100,22 +103,7 @@ class UsuarioDataManager {
                 this.timestampCacheUsuario = Date.now();
                 return usuario;
             } catch (error) {
-                // Continuar para busca local
-            }
-        }
-
-        const documentoLogado = sessionStorage.getItem('usuarioAtual');
-        if (documentoLogado) {
-            const usuarios = this.getUsuariosLocalStorage();
-            const usuario = usuarios.find(u => 
-                u.documento && u.documento.replace(/[^\d]+/g, '') === documentoLogado
-            );
-            
-            if (usuario) {
-                this.usuarioAtualCache = usuario;
-                this.timestampCacheUsuario = Date.now();
-                sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify(usuario));
-                return usuario;
+                console.error('❌ Erro ao ler dados do usuário:', error);
             }
         }
 
@@ -127,35 +115,40 @@ class UsuarioDataManager {
             await this.aguardarInicializacao();
         }
 
-        return this.atualizarUsuarioLocal(dadosAtualizados);
-    }
-
-    atualizarUsuarioLocal(dadosAtualizados) {
-        const documentoLogado = sessionStorage.getItem('usuarioAtual');
-        if (!documentoLogado) {
+        const usuario = this.getUsuarioAtual();
+        if (!usuario || !usuario.id) {
+            console.error('❌ Usuário não encontrado');
             return false;
         }
 
         try {
-            const usuarios = this.getUsuariosLocalStorage();
-            const index = usuarios.findIndex(u => 
-                u.documento && u.documento.replace(/[^\d]+/g, '') === documentoLogado
-            );
-            
-            if (index !== -1) {
-                usuarios[index] = { ...usuarios[index], ...dadosAtualizados };
-                localStorage.setItem('usuarios', JSON.stringify(usuarios));
-                
-                this.usuarioAtualCache = usuarios[index];
-                this.timestampCacheUsuario = Date.now();
-                sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify(usuarios[index]));
-                
-                return true;
+            console.log('📝 Atualizando dados do usuário via API...');
+            const response = await fetch(`${API_URL}/usuarios/${usuario.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
+                },
+                body: JSON.stringify(dadosAtualizados)
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Erro ao atualizar usuário');
             }
-            
-            return false;
-            
+
+            console.log('✅ Usuário atualizado com sucesso via API!');
+
+            // Atualizar cache e sessionStorage
+            const usuarioAtualizado = { ...usuario, ...dadosAtualizados };
+            this.usuarioAtualCache = usuarioAtualizado;
+            this.timestampCacheUsuario = Date.now();
+            sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify(usuarioAtualizado));
+
+            return true;
         } catch (error) {
+            console.error('❌ Erro ao atualizar usuário:', error);
             return false;
         }
     }
@@ -179,7 +172,47 @@ class UsuarioDataManager {
             return window.dadosFinanceiros;
         }
 
-        return this.getDadosFinanceirosLocal();
+        return await this.getDadosFinanceirosAPI();
+    }
+
+    async getDadosFinanceirosAPI() {
+        const usuario = this.getUsuarioAtual();
+
+        if (!usuario || !usuario.id) {
+            console.warn('⚠️ Usuário não encontrado, retornando estrutura inicial');
+            return this.criarEstruturaInicial();
+        }
+
+        try {
+            console.log('📥 Buscando dados financeiros via API...');
+            const response = await fetch(`${API_URL}/usuarios/${usuario.id}/dados-financeiros`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
+                }
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Erro ao buscar dados financeiros');
+            }
+
+            console.log('✅ Dados financeiros carregados via API!');
+
+            // Se não houver dados, retornar estrutura inicial
+            const dadosFinanceiros = data.dadosFinanceiros || this.criarEstruturaInicial();
+
+            this.dadosCache = dadosFinanceiros;
+            this.timestampCache = Date.now();
+
+            return dadosFinanceiros;
+        } catch (error) {
+            console.error('❌ Erro ao buscar dados financeiros:', error);
+            // Fallback para estrutura inicial
+            return this.criarEstruturaInicial();
+        }
     }
 
     getDadosFinanceirosLocal() {
@@ -226,18 +259,55 @@ class UsuarioDataManager {
             try {
                 window.dadosFinanceiros = dadosFinanceiros;
                 const sucesso = await window.salvarDados();
-                
+
                 if (sucesso) {
                     this.dadosCache = dadosFinanceiros;
                     this.timestampCache = Date.now();
                     return true;
                 }
             } catch (error) {
-                // Fallback para salvamento local
+                // Fallback para salvamento via API
             }
         }
 
-        return this.salvarDadosLocal(dadosFinanceiros);
+        return await this.salvarDadosAPI(dadosFinanceiros);
+    }
+
+    async salvarDadosAPI(dadosFinanceiros) {
+        const usuario = this.getUsuarioAtual();
+
+        if (!usuario || !usuario.id) {
+            console.error('❌ Usuário não encontrado para salvar dados');
+            return false;
+        }
+
+        try {
+            console.log('💾 Salvando dados financeiros via API...');
+            const response = await fetch(`${API_URL}/usuarios/${usuario.id}/dados-financeiros`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
+                },
+                body: JSON.stringify({ dadosFinanceiros })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Erro ao salvar dados financeiros');
+            }
+
+            console.log('✅ Dados financeiros salvos via API!');
+
+            this.dadosCache = dadosFinanceiros;
+            this.timestampCache = Date.now();
+
+            return true;
+        } catch (error) {
+            console.error('❌ Erro ao salvar dados financeiros:', error);
+            return false;
+        }
     }
 
     salvarDadosLocal(dadosFinanceiros) {
@@ -310,18 +380,45 @@ class UsuarioDataManager {
 
         if (window.salvarReceita && typeof window.salvarReceita === 'function') {
             try {
-                const resultado = await window.salvarReceita({ 
+                const resultado = await window.salvarReceita({
                     preventDefault: () => {},
-                    mes, ano, receita, id 
+                    mes, ano, receita, id
                 });
                 this.limparCache();
                 return resultado;
             } catch (error) {
-                // Fallback local
+                // Fallback para API
             }
         }
 
-        return this.salvarReceitaLocal(mes, ano, receita, id);
+        return await this.salvarReceitaAPI(mes, ano, receita, id);
+    }
+
+    async salvarReceitaAPI(mes, ano, receita, id = null) {
+        try {
+            const dados = await this.getDadosFinanceirosUsuario();
+
+            this.garantirEstruturaMes(dados, ano, mes);
+
+            if (id !== null && id !== '') {
+                const index = parseInt(id);
+                if (dados[ano].meses[mes].receitas[index]) {
+                    dados[ano].meses[mes].receitas[index] = { ...receita, id: receita.id || this.gerarId() };
+                }
+            } else {
+                receita.id = receita.id || this.gerarId();
+                dados[ano].meses[mes].receitas.push(receita);
+            }
+
+            const sucesso = await this.salvarDadosAPI(dados);
+            if (sucesso) {
+                this.limparCache();
+            }
+            return sucesso;
+        } catch (error) {
+            console.error('❌ Erro ao salvar receita:', error);
+            return false;
+        }
     }
 
     async salvarDespesa(mes, ano, despesa, id = null) {
@@ -331,18 +428,45 @@ class UsuarioDataManager {
 
         if (window.salvarDespesa && typeof window.salvarDespesa === 'function') {
             try {
-                const resultado = await window.salvarDespesa({ 
+                const resultado = await window.salvarDespesa({
                     preventDefault: () => {},
-                    mes, ano, despesa, id 
+                    mes, ano, despesa, id
                 });
                 this.limparCache();
                 return resultado;
             } catch (error) {
-                // Fallback local
+                // Fallback para API
             }
         }
 
-        return this.salvarDespesaLocal(mes, ano, despesa, id);
+        return await this.salvarDespesaAPI(mes, ano, despesa, id);
+    }
+
+    async salvarDespesaAPI(mes, ano, despesa, id = null) {
+        try {
+            const dados = await this.getDadosFinanceirosUsuario();
+
+            this.garantirEstruturaMes(dados, ano, mes);
+
+            if (id !== null && id !== '') {
+                const index = parseInt(id);
+                if (dados[ano].meses[mes].despesas[index]) {
+                    dados[ano].meses[mes].despesas[index] = { ...despesa, id: despesa.id || this.gerarId() };
+                }
+            } else {
+                despesa.id = despesa.id || this.gerarId();
+                dados[ano].meses[mes].despesas.push(despesa);
+            }
+
+            const sucesso = await this.salvarDadosAPI(dados);
+            if (sucesso) {
+                this.limparCache();
+            }
+            return sucesso;
+        } catch (error) {
+            console.error('❌ Erro ao salvar despesa:', error);
+            return false;
+        }
     }
 
     async excluirReceita(mes, ano, index, opcao, descricao) {
@@ -350,7 +474,37 @@ class UsuarioDataManager {
             await this.aguardarInicializacao();
         }
 
-        return this.excluirReceitaLocal(mes, ano, index, opcao, descricao);
+        return await this.excluirReceitaAPI(mes, ano, index, opcao, descricao);
+    }
+
+    async excluirReceitaAPI(mes, ano, index, opcao, descricao) {
+        try {
+            const dados = await this.getDadosFinanceirosUsuario();
+
+            if (opcao === 'atual') {
+                if (dados[ano]?.meses[mes]?.receitas[index]) {
+                    dados[ano].meses[mes].receitas.splice(index, 1);
+                }
+            } else if (opcao === 'todas') {
+                for (let m = 0; m < 12; m++) {
+                    if (dados[ano]?.meses[m]?.receitas) {
+                        dados[ano].meses[m].receitas = dados[ano].meses[m].receitas.filter(
+                            r => r.descricao !== descricao
+                        );
+                    }
+                }
+            }
+
+            const sucesso = await this.salvarDadosAPI(dados);
+            if (sucesso) {
+                this.limparCache();
+                await this.sincronizarComSistemaPrincipal();
+            }
+            return sucesso;
+        } catch (error) {
+            console.error('❌ Erro ao excluir receita:', error);
+            return false;
+        }
     }
 
     async excluirDespesa(mes, ano, index, opcao, dados) {
@@ -358,7 +512,47 @@ class UsuarioDataManager {
             await this.aguardarInicializacao();
         }
 
-        return this.excluirDespesaLocal(mes, ano, index, opcao, dados);
+        return await this.excluirDespesaAPI(mes, ano, index, opcao, dados);
+    }
+
+    async excluirDespesaAPI(mes, ano, index, opcao, dados_params) {
+        try {
+            const dados = await this.getDadosFinanceirosUsuario();
+
+            if (opcao === 'atual') {
+                if (dados[ano]?.meses[mes]?.despesas[index]) {
+                    dados[ano].meses[mes].despesas.splice(index, 1);
+                }
+            } else if (opcao === 'todas') {
+                const { descricaoDespesa, categoriaDespesa, idGrupoParcelamento } = dados_params;
+
+                for (let anoAtual = ano; anoAtual <= ano + 3; anoAtual++) {
+                    if (!dados[anoAtual]) continue;
+
+                    for (let m = 0; m < 12; m++) {
+                        if (!dados[anoAtual].meses[m]?.despesas) continue;
+
+                        dados[anoAtual].meses[m].despesas = dados[anoAtual].meses[m].despesas.filter(d => {
+                            if (idGrupoParcelamento) {
+                                return d.idGrupoParcelamento !== idGrupoParcelamento;
+                            } else {
+                                return !(d.descricao === descricaoDespesa && d.categoria === categoriaDespesa);
+                            }
+                        });
+                    }
+                }
+            }
+
+            const sucesso = await this.salvarDadosAPI(dados);
+            if (sucesso) {
+                this.limparCache();
+                await this.sincronizarComSistemaPrincipal();
+            }
+            return sucesso;
+        } catch (error) {
+            console.error('❌ Erro ao excluir despesa:', error);
+            return false;
+        }
     }
 
     // ================================================================
@@ -629,7 +823,8 @@ class UsuarioDataManager {
         return {
             inicializado: this.inicializado,
             localStorage: this.testLocalStorage(),
-            modo: 'LocalStorage Only',
+            modo: 'API - Cloud Database',
+            apiUrl: API_URL,
             sistemaMain: !!(window.sistemaInicializado || window.dadosFinanceiros)
         };
     }
