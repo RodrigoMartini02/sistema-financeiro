@@ -151,24 +151,7 @@ async function carregarReceitasAtual() {
     }
 }
 
-function salvarReceitaLocal(dadosReceita) {
-    fetch(`${API_URL}/receitas`, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${getToken()}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(dadosReceita)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            console.log('✅ Receita salva na API!', data);
-            buscarEExibirReceitas(dadosReceita.mes, dadosReceita.ano);
-        }
-    })
-    .catch(error => console.error('❌ Erro ao salvar receita:', error));
-}
+
 
 document.addEventListener('DOMContentLoaded', carregarReceitasAtual);
 
