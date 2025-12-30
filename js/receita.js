@@ -1079,7 +1079,17 @@ function inicializarEventListeners() {
     
     const btnNovaReceita = document.getElementById('btn-nova-receita');
     if (btnNovaReceita) {
-        btnNovaReceita.addEventListener('click', () => abrirModalNovaReceita());
+        btnNovaReceita.addEventListener('click', () => {
+            const mes = window.mesAberto;
+            const ano = window.anoAberto;
+            
+            if (mes === null || mes === undefined || ano === null || ano === undefined) {
+                alert('Por favor, abra um mês antes de adicionar receitas.');
+                return;
+            }
+            
+            abrirModalNovaReceita(null, mes, ano);
+        });
     }
     
     configurarEventListenersAnexos();
