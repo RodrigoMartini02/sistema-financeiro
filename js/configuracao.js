@@ -1,11 +1,10 @@
 // ================================================================
 // SISTEMA DE CONFIGURAÇÕES
 // ================================================================
-window.API_URL = 'https://sistema-financeiro-backend-o199.onrender.com/api';
+// DEPENDÊNCIAS: config.js, utils.js
+// ================================================================
 
-function getToken() {
-    return sessionStorage.getItem('token');
-}
+// NOTA: window.API_URL e getToken() agora são definidos em config.js e utils.js
 // ================================================================
 // VARIÁVEIS GLOBAIS
 // ================================================================

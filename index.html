@@ -3047,17 +3047,28 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 <script src="https://sdk.mercadopago.com/js/v2"></script>
 
-<!-- Sistema base -->
-<script src="js/main.js"></script>   
-<script src="js/usuarioDados.js"></script> 
+<!-- ================================================================ -->
+<!-- SCRIPTS DO SISTEMA - ORDEM DE CARREGAMENTO É IMPORTANTE! -->
+<!-- ================================================================ -->
+
+<!-- 1. CONFIGURAÇÕES E UTILITÁRIOS (devem carregar primeiro) -->
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+
+<!-- 2. SISTEMA BASE -->
+<script src="js/main.js"></script>
+<script src="js/usuarioDados.js"></script>
+
+<!-- 3. MÓDULOS DE FUNCIONALIDADES -->
 <script src="js/configuracao.js"></script>
-<script src="js/receita.js"></script>    
-<script src="js/despesas.js"></script> 
+<script src="js/receita.js"></script>
+<script src="js/despesas.js"></script>
+<script src="js/despesas-filtros.js"></script> <!-- Módulo de filtros (Fase 2) -->
 <script src="js/anexos.js"></script>
 
-<!-- Módulos secundários -->
-<script src="js/dashboard.js"></script>     
-<script src="js/notificacao.js"></script>  
+<!-- 4. MÓDULOS DE VISUALIZAÇÃO -->
+<script src="js/dashboard.js"></script>
+<script src="js/notificacao.js"></script>
 <script src="js/rel.js"></script>
 </body>
 </html>

@@ -1,13 +1,16 @@
 // ================================================================
 // SISTEMA PRINCIPAL - MAIN.JS OTIMIZADO
 // ================================================================
+// IMPORTANTE: Este arquivo depende de config.js e utils.js
+// Certifique-se de que eles estão carregados primeiro!
+// ================================================================
 
-window.API_URL = 'https://sistema-financeiro-backend-o199.onrender.com/api';
+// NOTA: window.API_URL agora é definido em config.js
 
-// Função padrão para enviar dados para o servidor
+// Função padrão para enviar dados para o servidor (mantida para compatibilidade)
 async function enviarDados(rota, dados) {
     try {
-        const resposta = await fetch(`${API_URL}${rota}`, {
+        const resposta = await fetch(`${window.API_URL}${rota}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(dados)
@@ -1781,31 +1784,8 @@ function garantirEstruturaDados(ano, mes) {
     }
 }
 
-function formatarMoeda(valor) {
-    try {
-        return new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-        }).format(valor || 0);
-    } catch (error) {
-        return `R$ ${(valor || 0).toFixed(2)}`;
-    }
-}
-
-function formatarData(dataString) {
-    try {
-        const data = new Date(dataString);
-        return data.toLocaleDateString('pt-BR');
-    } catch (error) {
-        return 'Data inválida';
-    }
-}
-
-function gerarId() {
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substr(2, 9);
-    return `${timestamp}-${random}`;
-}
+// NOTA: formatarMoeda(), formatarData() e gerarId() foram movidas para utils.js
+// Elas continuam disponíveis via window.formatarMoeda, window.formatarData, window.gerarId
 
 function atualizarElemento(id, valor) {
     const elemento = document.getElementById(id);

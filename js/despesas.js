@@ -2,8 +2,10 @@
 // SISTEMA DE DESPESAS - PARTE 1/3
 // ESTRUTURA, CONSTANTES, INICIALIZAÇÃO E RENDERIZAÇÃO
 // ================================================================
+// DEPENDÊNCIAS: config.js, utils.js
+// ================================================================
 
-window.API_URL = 'https://sistema-financeiro-backend-o199.onrender.com/api';
+// NOTA: window.API_URL agora é definido em config.js
 
 // ================================================================
 // CONSTANTES E CONFIGURAÇÕES
@@ -19,9 +21,16 @@ const ERROS = {
 // VARIÁVEIS DE ESTADO
 // ================================================================
 
+// Variáveis de controle de estado
 let processandoDespesa = false;
 let carregandoDados = false;
 let ultimoCarregamento = 0;
+
+// Variáveis globais compartilhadas com outros módulos
+let dadosFinanceiros = window.dadosFinanceiros || {};
+let mesAberto = window.mesAberto || null;
+let anoAberto = window.anoAberto || null;
+let anoAtual = window.anoAtual || new Date().getFullYear();
 
 // Cache simples para evitar múltiplas requisições
 let cacheApiBusca = new Map();
@@ -33,6 +42,23 @@ let ultimaRequisicao = 0;
 
 function getToken() {
     return sessionStorage.getItem('token');
+}
+
+/**
+ * Função centralizada para tratamento de erros
+ * @param {Error} error - Objeto de erro
+ * @param {string} operacao - Descrição da operação que falhou
+ * @param {boolean} mostrarAlerta - Se deve exibir alerta ao usuário
+ */
+function handleError(error, operacao = 'operação', mostrarAlerta = true) {
+    console.error(`❌ Erro ao ${operacao}:`, error);
+
+    if (mostrarAlerta) {
+        const mensagem = error.message || 'Erro desconhecido';
+        alert(`Não foi possível ${operacao}: ${mensagem}`);
+    }
+
+    return false;
 }
 
 function obterCacheKey(mes, ano) {
@@ -1045,8 +1071,8 @@ async function salvarDespesaLocal(formData) {
 }
 
 async function buscarEExibirDespesas(mes, ano) {
-    if (carregandoDespesas) return [];
-    carregandoDespesas = true;
+    if (carregandoDados) return [];
+    carregandoDados = true;
     
     try {
         const cacheKey = obterCacheKey(mes, ano);
@@ -1104,7 +1130,7 @@ async function buscarEExibirDespesas(mes, ano) {
         alert('Erro ao carregar despesas: ' + error.message);
         return [];
     } finally {
-        carregandoDespesas = false;
+        carregandoDados = false;
     }
 }
 
@@ -1149,11 +1175,10 @@ async function adicionarNovaDespesa(formData) {
   });
   
   dadosFinanceiros[formData.ano].meses[formData.mes].despesas.push(novaDespesa);
-  
-  if (formData.parcelado && formData.totalParcelas > 1) {
-      await criarParcelasFuturas(formData, valorPorParcela, idGrupoParcelamento, valorOriginal, valorTotalComJuros, totalJuros);
-  }
-  
+
+  // NOTA: A criação de parcelas futuras agora é gerenciada pelo backend via API
+  // quando a despesa parcelada é salva através de salvarDespesaLocal()
+
   if (window.sistemaAnexos) {
       window.sistemaAnexos.limparAnexosTemporarios('despesa');
   }
@@ -1162,70 +1187,9 @@ async function adicionarNovaDespesa(formData) {
 
 
 
-async function criarParcelasFuturas(usuarioId, despesaBase, totalParcelas) {
-    try {
-        const valorPorParcela = parseFloat(despesaBase.valor) / totalParcelas;
-        
-        // Atualizar primeira parcela
-        await query(
-            `UPDATE despesas 
-             SET valor = $1, 
-                 parcela_atual = 1,
-                 descricao = $2
-             WHERE id = $3`,
-            [
-                valorPorParcela,
-                `${despesaBase.descricao} (1/${totalParcelas})`,
-                despesaBase.id
-            ]
-        );
-        
-        // Criar parcelas futuras
-        for (let i = 2; i <= totalParcelas; i++) {
-            let proximoMes = despesaBase.mes + (i - 1);
-            let proximoAno = despesaBase.ano;
-            
-            while (proximoMes > 11) {
-                proximoMes -= 12;
-                proximoAno += 1;
-            }
-            
-            const dataVencimentoBase = new Date(despesaBase.data_vencimento);
-            dataVencimentoBase.setMonth(dataVencimentoBase.getMonth() + (i - 1));
-            const proximaDataVencimento = dataVencimentoBase.toISOString().split('T')[0];
-            
-            await query(
-                `INSERT INTO despesas (
-                    usuario_id, descricao, valor, data_vencimento, data_compra,
-                    mes, ano, categoria_id, cartao_id, forma_pagamento,
-                    parcelado, numero_parcelas, parcela_atual, observacoes, pago,
-                    grupo_parcelamento_id
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
-                [
-                    usuarioId, 
-                    `${despesaBase.descricao} (${i}/${totalParcelas})`,
-                    valorPorParcela,
-                    proximaDataVencimento,
-                    despesaBase.data_compra,
-                    proximoMes,
-                    proximoAno,
-                    despesaBase.categoria_id,
-                    despesaBase.cartao_id,
-                    despesaBase.forma_pagamento,
-                    true,
-                    totalParcelas,
-                    i,
-                    despesaBase.observacoes,
-                    false,
-                    despesaBase.id
-                ]
-            );
-        }
-        
-    } catch (error) {
-        console.error('Erro ao criar parcelas futuras:', error);
-    }
-}
+// NOTA: Esta função continha código SQL que deve ser executado no backend.
+// A criação de parcelas futuras agora é gerenciada pela API ao criar uma despesa parcelada.
+// O backend cria automaticamente todas as parcelas quando uma despesa parcelada é salva.
 
 async function atualizarDespesaExistente(formData) {
     if (!dadosFinanceiros[formData.ano] || 
@@ -1673,7 +1637,7 @@ window.handleSalvarDespesa = function(event) {
 // INICIALIZAÇÃO AUTOMÁTICA
 // ================================================================
 
-document.addEventListener('DOMContentLoaded', inicializarSistemaAnexosDespesas);
+// Event listener movido para o final do arquivo para consolidação
 
 
 
@@ -1932,10 +1896,35 @@ async function excluirDespesaLocal(opcao, index, mes, ano, descricaoDespesa, cat
     }
 }
 
+/**
+ * Obtém o ID da despesa na API a partir do índice visual
+ * @param {number} index - Índice da despesa na tabela
+ * @param {number} mes - Mês da despesa (não utilizado, mantido para compatibilidade)
+ * @param {number} ano - Ano da despesa (não utilizado, mantido para compatibilidade)
+ * @returns {string|null} ID da despesa ou null se não encontrado
+ */
 function obterIdDespesaPorIndex(index, mes, ano) {
-    // Esta função precisa ser implementada para mapear index para ID da API
-    const linha = document.querySelector(`[data-index="${index}"]`)?.closest('.grid-row');
-    return linha?.getAttribute('data-despesa-id');
+    try {
+        // Buscar linha pelo data-index
+        const linha = document.querySelector(`[data-index="${index}"]`)?.closest('.grid-row');
+
+        if (!linha) {
+            console.warn(`⚠️ Linha com index ${index} não encontrada no DOM`);
+            return null;
+        }
+
+        const despesaId = linha.getAttribute('data-despesa-id');
+
+        if (!despesaId) {
+            console.warn(`⚠️ Atributo data-despesa-id não encontrado para index ${index}`);
+            return null;
+        }
+
+        return despesaId;
+    } catch (error) {
+        console.error('Erro ao obter ID da despesa:', error);
+        return null;
+    }
 }
 
 async function excluirTodasParcelas(ano, descricao, categoria, idGrupo) {
@@ -3323,14 +3312,7 @@ function toggleCamposPagamentoImediato() {
 
 
 
-function carregarDespesasAtual() {
-    const agora = new Date();
-    const mesAtual = agora.getMonth();
-    const anoAtual = agora.getFullYear();
-    buscarEExibirDespesas(mesAtual, anoAtual);
-}
-
-document.addEventListener('DOMContentLoaded', carregarDespesasAtual);
+// Função movida para o final do arquivo (linha 3340) para evitar duplicação
 
 
 // ================================================================
@@ -3350,8 +3332,7 @@ async function carregarDespesasAtual() {
 
 window.carregarDespesasAtual = carregarDespesasAtual;
 
-// Auto-inicialização
-document.addEventListener('DOMContentLoaded', carregarDespesasAtual);
+// Event listener removido - consolidado no final do arquivo
 
 
 
@@ -3395,6 +3376,19 @@ window.configurarEventosFormularioAnexosDespesa = configurarEventosFormularioAne
 window.inicializarSistemaAnexosDespesas = inicializarSistemaAnexosDespesas;
 window.toggleCamposPagamentoImediato = toggleCamposPagamentoImediato;
 
-document.addEventListener('DOMContentLoaded', configurarBotaoComprovanteSimples);
+// ================================================================
+// INICIALIZAÇÃO CONSOLIDADA
+// ================================================================
 
-console.log('Sistema de despesas com anexos carregado com sucesso');
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar sistema de anexos
+    inicializarSistemaAnexosDespesas();
+
+    // Configurar botão de comprovante
+    configurarBotaoComprovanteSimples();
+
+    // Carregar despesas do mês atual
+    carregarDespesasAtual();
+
+    console.log('✅ Sistema de despesas inicializado com sucesso');
+});
