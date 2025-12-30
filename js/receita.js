@@ -1,5 +1,3 @@
-
-// ⚠️ TEMPORÁRIO: Desabilitar anexos até receitas funcionarem
 window.sistemaAnexos = { 
     limparAnexosTemporarios: () => {}, 
     carregarAnexosExistentes: () => {}, 
@@ -8,22 +6,42 @@ window.sistemaAnexos = {
 };
 window.inicializarSistemaAnexos = () => {};
 
-
 window.API_URL = 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
 function getToken() {
     return sessionStorage.getItem('token');
 }
 
-// ================================================================
-// SISTEMA DE RECEITAS - VERSÃO FUNCIONAL COMPLETA
-// ================================================================
+class ReceitasCache {
+    constructor() {
+        this.cache = new Map();
+        this.timeout = 5 * 60 * 1000;
+    }
+    
+    get(key) {
+        const item = this.cache.get(key);
+        if (!item || Date.now() - item.timestamp > this.timeout) {
+            this.cache.delete(key);
+            return null;
+        }
+        return item.data;
+    }
+    
+    set(key, data) {
+        this.cache.set(key, { data, timestamp: Date.now() });
+    }
+    
+    invalidate(pattern) {
+        for (const key of this.cache.keys()) {
+            if (key.includes(pattern)) {
+                this.cache.delete(key);
+            }
+        }
+    }
+}
 
+const receitasCache = new ReceitasCache();
 let processandoReceita = false;
-
-// ================================================================
-// INICIALIZAÇÃO
-// ================================================================
 
 async function aguardarSistemaReady() {
     return new Promise((resolve) => {
@@ -33,27 +51,19 @@ async function aguardarSistemaReady() {
         }
         
         let tentativas = 0;
-        const maxTentativas = 50;
-        
         const verificar = () => {
             tentativas++;
-            
             if (window.sistemaInicializado && window.dadosFinanceiros && typeof window.salvarDados === 'function') {
                 resolve(true);
-            } else if (tentativas >= maxTentativas) {
+            } else if (tentativas >= 50) {
                 resolve(false);
             } else {
                 setTimeout(verificar, 100);
             }
         };
-        
         verificar();
     });
 }
-
-// ================================================================
-// RENDERIZAÇÃO
-// ================================================================
 
 function renderizarReceitas(receitas, fechado, mes, ano) {
     const listaReceitas = document.getElementById('lista-receitas');
@@ -86,14 +96,20 @@ function renderizarReceitas(receitas, fechado, mes, ano) {
     setTimeout(() => {
         configurarEventosAnexosReceitas(listaReceitas);
         atualizarTodosContadoresAnexosReceitas();
-    }, 100);
+    }, 50);
 }
 
-
 async function buscarEExibirReceitas(mes, ano) {
+    const cacheKey = `receitas_${mes}_${ano}`;
+    let receitasCache = window.receitasCache?.get(cacheKey);
+    
+    if (receitasCache) {
+        const mesFechado = window.dadosFinanceiros[ano]?.meses[mes]?.fechado || false;
+        renderizarReceitas(receitasCache, mesFechado, mes, ano);
+        return receitasCache;
+    }
+
     try {
-        console.log(`🔍 Buscando receitas do mês ${mes}/${ano} via API`);
-        
         const response = await fetch(`${API_URL}/receitas?mes=${mes}&ano=${ano}`, {
             headers: {
                 'Authorization': `Bearer ${getToken()}`,
@@ -107,8 +123,6 @@ async function buscarEExibirReceitas(mes, ano) {
             throw new Error(data.message || 'Erro ao buscar receitas');
         }
         
-        console.log('✅ Receitas carregadas da API:', data.data);
-        
         const receitasFormatadas = data.data.map(r => ({
             id: r.id,
             descricao: r.descricao,
@@ -121,13 +135,16 @@ async function buscarEExibirReceitas(mes, ano) {
             anexos: []
         }));
         
+        if (window.receitasCache) {
+            window.receitasCache.set(cacheKey, receitasFormatadas);
+        }
+        
         const mesFechado = window.dadosFinanceiros[ano]?.meses[mes]?.fechado || false;
         renderizarReceitas(receitasFormatadas, mesFechado, mes, ano);
         
         return receitasFormatadas;
         
     } catch (error) {
-        console.error('❌ Erro ao buscar receitas:', error);
         alert('Erro ao carregar receitas: ' + error.message);
         return [];
     }
@@ -142,19 +159,14 @@ async function carregarReceitasAtual() {
         window.mesAberto = mesAtual;
         window.anoAberto = anoAtual;
         
-        const receitasData = await buscarEExibirReceitas(mesAtual, anoAtual);
-        return receitasData;
+        return await buscarEExibirReceitas(mesAtual, anoAtual);
         
     } catch (error) {
-        console.error('❌ Erro ao carregar receitas atual:', error);
         return [];
     }
 }
 
-
-
 document.addEventListener('DOMContentLoaded', carregarReceitasAtual);
-
 
 function criarLinhaSaldoAnterior(saldoAnterior, fechado) {
     const template = document.getElementById('template-saldo-anterior-inline') || 
@@ -291,10 +303,6 @@ function configurarBotaoAnexos(clone, receita, index, fechado) {
     btnAnexos.disabled = false;
 }
 
-// ================================================================
-// EVENTOS
-// ================================================================
-
 function configurarEventosReceitas(container, mes, ano) {
     if (!container) return;
     
@@ -327,15 +335,7 @@ function configurarEventosReceitas(container, mes, ano) {
 
 function configurarEventosAnexosReceitas(container) {
     if (!container) return;
-    
-    // Configurar eventos reais aqui, não recursão
-    console.log('Configurando eventos de anexos para receitas');
-
 }
-
-// ================================================================
-// CÁLCULOS
-// ================================================================
 
 function calcularTotalReceitas(receitas) {
     if (!Array.isArray(receitas)) return 0;
@@ -352,19 +352,8 @@ function calcularTotalReceitas(receitas) {
 
 async function obterSaldoAnteriorValido(mes, ano) {
     try {
-        console.log('🔍 Valores recebidos - mes:', mes, 'ano:', ano);
-        
         if (mes === undefined || mes === null || ano === undefined || ano === null || isNaN(mes) || isNaN(ano)) {
-            console.log('⚠️ Mes ou ano inválido, retornando 0');
             return 0;
-        }
-        
-        let mesAnterior = parseInt(mes) - 1;
-        let anoAnterior = parseInt(ano);
-        
-        if (mesAnterior < 0) {
-            mesAnterior = 11;
-            anoAnterior = anoAnterior - 1;
         }
         
         const response = await fetch(`${API_URL}/receitas/saldo-anterior?mes=${mes}&ano=${ano}`, {
@@ -377,26 +366,18 @@ async function obterSaldoAnteriorValido(mes, ano) {
         const data = await response.json();
         
         if (!response.ok) {
-            console.warn('⚠️ Erro ao buscar saldo anterior:', data.message);
             return 0;
         }
         
         return data.saldo || 0;
         
     } catch (error) {
-        console.error('❌ Erro ao calcular saldo anterior:', error);
         return 0;
     }
 }
 
-// ================================================================
-// MODAL RECEITA - REFATORADO COMPLETAMENTE
-// ================================================================
-
 function abrirModalNovaReceita(index, mes, ano) {
     try {
-        console.log('🔵 Abrindo modal - Index:', index, 'Mes:', mes, 'Ano:', ano);
-        
         const mesReceita = mes !== undefined ? mes : window.mesAberto;
         const anoReceita = ano !== undefined ? ano : window.anoAberto;
         
@@ -421,12 +402,6 @@ function abrirModalNovaReceita(index, mes, ano) {
         const receitas = window.dadosFinanceiros[anoReceita]?.meses[mesReceita]?.receitas;
         const receitaExiste = indexValido && receitas && receitas[index];
         
-        console.log('📋 Verificação:', {
-            indexValido,
-            receitaExiste,
-            totalReceitas: receitas?.length
-        });
-        
         form.reset();
         resetarOpcoesReplicacao();
         
@@ -435,8 +410,6 @@ function abrirModalNovaReceita(index, mes, ano) {
         
         if (receitaExiste) {
             const receita = receitas[index];
-            
-            console.log('✏️ MODO EDIÇÃO - Receita:', receita);
             
             if (receita.saldoAnterior === true || receita.descricao?.includes('Saldo Anterior')) {
                 alert('Não é possível editar receitas de saldo anterior.');
@@ -448,13 +421,6 @@ function abrirModalNovaReceita(index, mes, ano) {
             document.getElementById('receita-valor').value = receita.valor || '';
             document.getElementById('receita-data').value = receita.data || '';
             
-            console.log('✅ Campos preenchidos:', {
-                id: index,
-                descricao: receita.descricao,
-                valor: receita.valor,
-                data: receita.data
-            });
-            
             if (window.sistemaAnexos && receita.anexos) {
                 window.sistemaAnexos.carregarAnexosExistentes(receita, 'receita');
             }
@@ -463,8 +429,6 @@ function abrirModalNovaReceita(index, mes, ano) {
             if (titulo) titulo.textContent = 'Editar Receita';
             
         } else {
-            console.log('➕ MODO NOVA RECEITA');
-            
             document.getElementById('receita-id').value = '';
             
             const dataAtual = new Date(anoReceita, mesReceita, new Date().getDate());
@@ -482,7 +446,6 @@ function abrirModalNovaReceita(index, mes, ano) {
         }, 100);
         
     } catch (error) {
-        console.error('❌ Erro ao abrir modal:', error);
         alert("Erro ao abrir modal: " + error.message);
     }
 }
@@ -498,10 +461,6 @@ function resetarOpcoesReplicacao() {
     if (checkboxReplicar) checkboxReplicar.checked = false;
     if (radioTodos) radioTodos.checked = true;
 }
-
-// ================================================================
-// SALVAMENTO
-// ================================================================
 
 async function salvarReceita(e) {
     if (e && e.preventDefault) {
@@ -525,7 +484,7 @@ async function salvarReceita(e) {
         const idValue = formData.id;
         const ehEdicao = idValue !== '' && idValue !== null && idValue !== undefined;
         
-        const sucesso = await salvarReceitaLocal(formData.mes, formData.ano, novaReceita, idValue);
+        const sucesso = await salvarReceitaAPI(formData.mes, formData.ano, novaReceita, idValue);
 
         if (sucesso) {
             if (!ehEdicao) {
@@ -536,6 +495,10 @@ async function salvarReceita(e) {
             }
 
             document.getElementById('modal-nova-receita').style.display = 'none';
+            
+            if (window.receitasCache) {
+                window.receitasCache.invalidate(`receitas_${formData.mes}_${formData.ano}`);
+            }
             
             await buscarEExibirReceitas(formData.mes, formData.ano);
             
@@ -610,7 +573,6 @@ function criarObjetoReceita(formData) {
                 anexosReceita = [];
             }
         } catch (error) {
-            console.warn('⚠️ Erro ao obter anexos:', error);
             anexosReceita = [];
         }
     }
@@ -627,7 +589,7 @@ function criarObjetoReceita(formData) {
     };
 }
 
-async function salvarReceitaLocal(mes, ano, receita, id) {
+async function salvarReceitaAPI(mes, ano, receita, id) {
     try {
         const ehEdicao = id !== '' && id !== null && id !== undefined;
         
@@ -643,8 +605,6 @@ async function salvarReceitaLocal(mes, ano, receita, id) {
         let response;
         
         if (ehEdicao) {
-            console.log('✏️ Editando receita via API');
-            
             const receitaId = window.dadosFinanceiros[ano]?.meses[mes]?.receitas[id]?.id;
             
             if (!receitaId) {
@@ -660,8 +620,6 @@ async function salvarReceitaLocal(mes, ano, receita, id) {
                 body: JSON.stringify(payload)
             });
         } else {
-            console.log('➕ Criando nova receita via API');
-            
             response = await fetch(`${API_URL}/receitas`, {
                 method: 'POST',
                 headers: {
@@ -678,8 +636,6 @@ async function salvarReceitaLocal(mes, ano, receita, id) {
             throw new Error(data.message || 'Erro ao salvar receita');
         }
         
-        console.log('✅ Receita salva na API:', data);
-        
         if (window.sistemaAnexos) {
             window.sistemaAnexos.limparAnexosTemporarios('receita');
         }
@@ -687,14 +643,9 @@ async function salvarReceitaLocal(mes, ano, receita, id) {
         return true;
         
     } catch (error) {
-        console.error('❌ Erro em salvarReceitaLocal:', error);
         throw new Error(`Erro ao salvar receita: ${error.message}`);
     }
 }
-
-// ================================================================
-// REPLICAÇÃO
-// ================================================================
 
 async function processarReplicacao(receita, mes, ano) {
     try {
@@ -726,10 +677,7 @@ async function processarReplicacao(receita, mes, ano) {
             }
         }
         
-        console.log('✅ Replicação concluída');
-        
     } catch (error) {
-        console.error('Erro na replicação:', error);
         alert('Erro na replicação: ' + error.message);
     }
 }
@@ -752,15 +700,14 @@ async function replicarParaMes(receita, mes, ano, dia) {
             observacoes: receita.observacoes || null
         };
         
-       const response = await fetch(`${API_URL}/receitas`, {
-    method: 'POST',
-    headers: {
-        'Authorization': `Bearer ${getToken()}`,
-        'Content-Type': 'application/json'
-    },
-    // SEM credentials: 'include'
-    body: JSON.stringify(payload)
-});
+        const response = await fetch(`${API_URL}/receitas`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${getToken()}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
         
         const data = await response.json();
         
@@ -768,21 +715,13 @@ async function replicarParaMes(receita, mes, ano, dia) {
             throw new Error(data.message || 'Erro ao replicar receita');
         }
         
-        console.log(`✅ Receita replicada para ${mes}/${ano}`);
-        
     } catch (error) {
-        console.error('Erro ao replicar para mês:', error);
         throw error;
     }
 }
-// ================================================================
-// EDITAR E EXCLUIR
-// ================================================================
 
 async function editarReceita(index, mes, ano) {
     try {
-        console.log('🖊️ Editando receita - Index:', index, 'Mes:', mes, 'Ano:', ano);
-        
         const response = await fetch(`${API_URL}/receitas?mes=${mes}&ano=${ano}`, {
             headers: {
                 'Authorization': `Bearer ${getToken()}`,
@@ -799,14 +738,11 @@ async function editarReceita(index, mes, ano) {
         const receitas = data.data;
         
         if (!receitas || !receitas[index]) {
-            console.error('❌ Receita não encontrada!');
             alert('Receita não encontrada!');
             return;
         }
         
         const receita = receitas[index];
-        
-        console.log('📄 Receita encontrada:', receita);
         
         if (receita.saldo_anterior === true || receita.descricao?.includes('Saldo Anterior')) {
             alert('Não é possível editar receitas de saldo anterior. Estas são geradas automaticamente.');
@@ -816,7 +752,6 @@ async function editarReceita(index, mes, ano) {
         abrirModalNovaReceita(index, mes, ano);
         
     } catch (error) {
-        console.error('❌ Erro ao editar receita:', error);
         alert('Erro ao carregar receita: ' + error.message);
     }
 }
@@ -870,16 +805,21 @@ async function excluirReceita(index, mes, ano) {
         modal.style.display = 'block';
         
     } catch (error) {
-        console.error("Erro ao excluir receita:", error);
         alert("Erro ao excluir receita: " + error.message);
     }
 }
 
 async function processarExclusaoReceita(opcao, index, mes, ano, descricaoReceita) {
     try {
-        const sucesso = await excluirReceitaLocal(opcao, index, mes, ano, descricaoReceita);
+        const sucesso = await excluirReceitaAPI(opcao, index, mes, ano, descricaoReceita);
 
         if (sucesso) {
+            if (window.receitasCache) {
+                window.receitasCache.invalidate(`receitas_${mes}_${ano}`);
+            }
+            
+            await buscarEExibirReceitas(mes, ano);
+            
             if (typeof window.renderizarDetalhesDoMes === 'function') {
                 window.renderizarDetalhesDoMes(mes, ano);
             }
@@ -896,7 +836,7 @@ async function processarExclusaoReceita(opcao, index, mes, ano, descricaoReceita
     }
 }
 
-async function excluirReceitaLocal(opcao, index, mes, ano, descricaoReceita) {
+async function excluirReceitaAPI(opcao, index, mes, ano, descricaoReceita) {
     try {
         if (opcao === 'atual') {
             const receita = window.dadosFinanceiros[ano]?.meses[mes]?.receitas[index];
@@ -918,10 +858,7 @@ async function excluirReceitaLocal(opcao, index, mes, ano, descricaoReceita) {
                 throw new Error(data.message || 'Erro ao excluir receita');
             }
             
-            console.log('✅ Receita excluída da API');
-            
         } else if (opcao === 'todas') {
-            // Buscar todas as receitas com essa descrição e excluir
             const response = await fetch(`${API_URL}/receitas?ano=${ano}`, {
                 headers: {
                     'Authorization': `Bearer ${getToken()}`
@@ -943,23 +880,15 @@ async function excluirReceitaLocal(opcao, index, mes, ano, descricaoReceita) {
                         }
                     });
                 }
-                
-                console.log(`✅ ${receitasParaExcluir.length} receita(s) excluída(s)`);
             }
         }
         
         return true;
         
     } catch (error) {
-        console.error('❌ Erro ao excluir receita:', error);
         return false;
     }
 }
-
-
-// ================================================================
-// OPÇÕES DE REPLICAÇÃO
-// ================================================================
 
 function configurarOpcoesReplicacao() {
     const anoSelect = document.getElementById('replicar-ate-ano');
@@ -980,10 +909,6 @@ function configurarOpcoesReplicacao() {
         mesSelect.value = '11';
     }
 }
-
-// ================================================================
-// CONTADORES DE ANEXOS
-// ================================================================
 
 function atualizarContadorAnexosReceita(index, quantidade) {
     const btnAnexos = document.querySelector(`.btn-anexos[data-index="${index}"]`);
@@ -1020,10 +945,6 @@ function atualizarTodosContadoresAnexosReceitas() {
     });
 }
 
-// ================================================================
-// FUNÇÕES GLOBAIS DE EXCLUSÃO
-// ================================================================
-
 window.excluirAtual = function() {
     if (window.dadosExclusao) {
         const modal = document.getElementById('modal-exclusao-receita');
@@ -1039,10 +960,6 @@ window.excluirTodas = function() {
         processarExclusaoReceita('todas', window.dadosExclusao.index, window.dadosExclusao.mes, window.dadosExclusao.ano, window.dadosExclusao.descricao);
     }
 };
-
-// ================================================================
-// INICIALIZAÇÃO DE EVENT LISTENERS
-// ================================================================
 
 document.addEventListener('DOMContentLoaded', async function() {
     const sistemaReady = await aguardarSistemaReady();
@@ -1136,7 +1053,6 @@ function configurarEventListenersModais() {
     });
 }
 
-
 async function abrirAbaReservas() {
     const mes = window.mesAberto;
     const ano = window.anoAberto;
@@ -1148,7 +1064,6 @@ async function abrirAbaReservas() {
     await atualizarResumos(mes, ano);
     await renderizarHistorico(mes, ano);
 }
-
 
 async function atualizarResumos(mes, ano) {
     try {
@@ -1179,9 +1094,7 @@ async function atualizarResumos(mes, ano) {
             inputValor.max = disponivelParaReservar.toFixed(2);
         }
         
-    } catch (error) {
-        console.error('❌ Erro ao atualizar resumos:', error);
-    }
+    } catch (error) {}
 }
 
 async function adicionarReserva(e) {
@@ -1223,15 +1136,10 @@ async function adicionarReserva(e) {
         
         document.getElementById('valor-reserva').value = '';
         
-        console.log('✅ Reserva adicionada com sucesso');
-        
     } catch (error) {
-        console.error('❌ Erro ao adicionar reserva:', error);
         alert('Erro ao adicionar reserva: ' + error.message);
     }
 }
-
-
 
 async function renderizarHistorico(mes, ano) {
     const lista = document.getElementById('lista-historico-reservas');
@@ -1275,7 +1183,6 @@ async function renderizarHistorico(mes, ano) {
         });
         
     } catch (error) {
-        console.error('❌ Erro ao renderizar histórico:', error);
         lista.innerHTML = '<p class="historico-erro">Erro ao carregar histórico de reservas.</p>';
     }
 }
@@ -1298,10 +1205,7 @@ async function removerReserva(reservaId, mes, ano) {
         await atualizarResumos(mes, ano);
         await renderizarHistorico(mes, ano);
         
-        console.log('✅ Reserva removida com sucesso');
-        
     } catch (error) {
-        console.error('❌ Erro ao remover reserva:', error);
         alert('Erro ao remover reserva: ' + error.message);
     }
 }
@@ -1325,10 +1229,8 @@ if (document.readyState === 'loading') {
 } else {
     setTimeout(inicializarEventListeners, 1000);
 }
-// ================================================================
-// EXPORTAR FUNÇÕES GLOBAIS
-// ================================================================
 
+window.receitasCache = receitasCache;
 window.abrirModalNovaReceita = abrirModalNovaReceita;
 window.editarReceita = editarReceita;
 window.excluirReceita = excluirReceita;
@@ -1339,5 +1241,3 @@ window.buscarEExibirReceitas = buscarEExibirReceitas;
 window.calcularTotalReceitas = calcularTotalReceitas;
 window.atualizarContadorAnexosReceita = atualizarContadorAnexosReceita;
 window.atualizarTodosContadoresAnexosReceitas = atualizarTodosContadoresAnexosReceitas;
-
-console.log('✅ Sistema de receitas carregado com logs de debug');

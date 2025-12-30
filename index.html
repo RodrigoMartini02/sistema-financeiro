@@ -3043,21 +3043,29 @@
 
 <!-- Bibliotecas externas -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.net/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.net/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 <script src="https://sdk.mercadopago.com/js/v2"></script>
 
 <!-- Sistema base -->
-<script src="js/main.js"></script>   
-<script src="js/usuarioDados.js"></script> 
+<script src="js/main.js"></script>
+<script src="js/usuarioLogado.js"></script>
 <script src="js/configuracao.js"></script>
-<script src="js/receita.js"></script>    
-<script src="js/despesas.js"></script> 
+
+<!-- Receitas otimizada -->
+<script src="js/receitas.js"></script>
+
+<!-- 🚀 DESPESAS OTIMIZADAS (3 PARTES) -->
+<script src="js/despesas-core.js"></script>      <!-- Base + CRUD -->
+<script src="js/despesas-actions.js"></script>   <!-- Pagamentos + Ações -->
+<script src="js/despesas-filters.js"></script>   <!-- Filtros + Cálculos -->
+
+<!-- Sistemas auxiliares -->
 <script src="js/anexos.js"></script>
 
 <!-- Módulos secundários -->
-<script src="js/dashboard.js"></script>     
-<script src="js/notificacao.js"></script>  
+<script src="js/dashboard.js"></script>
+<script src="js/notificacao.js"></script>
 <script src="js/rel.js"></script>
 </body>
 </html>
