@@ -3,23 +3,41 @@
 // ESTRUTURA, CONSTANTES, INICIALIZAÇÃO E RENDERIZAÇÃO
 // ================================================================
 
-
 window.API_URL = 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
-function getToken() {
-    return sessionStorage.getItem('token');
-}
-
-
-let processandoDespesa = false;
-let carregandoDados = false;
-let ultimoCarregamento = 0;
+// ================================================================
+// CONSTANTES E CONFIGURAÇÕES
+// ================================================================
 
 const ERROS = {
     DESPESA_NAO_ENCONTRADA: 'A despesa solicitada não foi encontrada',
     ESTRUTURA_DADOS_INVALIDA: 'A estrutura de dados do mês/ano é inválida',
     MODAL_NAO_ENCONTRADO: 'Modal não encontrado'
 };
+
+// ================================================================
+// VARIÁVEIS DE ESTADO
+// ================================================================
+
+let processandoDespesa = false;
+let carregandoDados = false;
+let ultimoCarregamento = 0;
+
+// Cache simples para evitar múltiplas requisições
+let cacheApiBusca = new Map();
+let ultimaRequisicao = 0;
+
+// ================================================================
+// FUNÇÕES UTILITÁRIAS
+// ================================================================
+
+function getToken() {
+    return sessionStorage.getItem('token');
+}
+
+function obterCacheKey(mes, ano) {
+    return `despesas_${mes}_${ano}`;
+}
 
 // ================================================================
 // INICIALIZAÇÃO E ESTRUTURA
@@ -1027,13 +1045,19 @@ async function salvarDespesaLocal(formData) {
 }
 
 async function buscarEExibirDespesas(mes, ano) {
-    const agora = Date.now();
-    if (agora - ultimoCarregamento < 1000 || carregandoDados) return;
-    
-    carregandoDados = true;
-    ultimoCarregamento = agora;
+    if (carregandoDespesas) return [];
+    carregandoDespesas = true;
     
     try {
+        const cacheKey = obterCacheKey(mes, ano);
+        const agora = Date.now();
+        
+        if (cacheApiBusca.has(cacheKey) && (agora - ultimaRequisicao) < 120000) {
+            const despesasCache = cacheApiBusca.get(cacheKey);
+            renderizarDespesas(despesasCache, mes, ano, false);
+            return despesasCache;
+        }
+        
         const token = getToken();
         if (!token) throw new Error('Usuário não autenticado');
         
@@ -1070,16 +1094,17 @@ async function buscarEExibirDespesas(mes, ano) {
             status: d.pago ? 'quitada' : (new Date(d.data_vencimento) < new Date() ? 'atrasada' : 'em_dia')
         }));
         
-        const mesFechado = false;
-        renderizarDespesas(despesasFormatadas, mes, ano, mesFechado);
+        cacheApiBusca.set(cacheKey, despesasFormatadas);
+        ultimaRequisicao = agora;
         
+        renderizarDespesas(despesasFormatadas, mes, ano, false);
         return despesasFormatadas;
         
     } catch (error) {
-        console.error('Erro ao buscar despesas:', error);
+        alert('Erro ao carregar despesas: ' + error.message);
         return [];
     } finally {
-        carregandoDados = false;
+        carregandoDespesas = false;
     }
 }
 
