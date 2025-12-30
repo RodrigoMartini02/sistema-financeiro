@@ -147,6 +147,47 @@ function exportarVariaveisGlobais() {
             // Falha silenciosa
         }
     };
+
+    // ✅ FUNÇÕES DE NOTIFICAÇÃO DE SUCESSO/ERRO
+    window.mostrarMensagemSucesso = function(mensagem) {
+        mostrarNotificacao(mensagem, 'sucesso');
+    };
+
+    window.mostrarMensagemErro = function(mensagem) {
+        mostrarNotificacao(mensagem, 'erro');
+    };
+}
+
+// ================================================================
+// SISTEMA DE NOTIFICAÇÕES
+// ================================================================
+
+function mostrarNotificacao(mensagem, tipo) {
+    // Remover notificação anterior se existir
+    const notificacaoExistente = document.querySelector('.notificacao-toast');
+    if (notificacaoExistente) {
+        notificacaoExistente.remove();
+    }
+
+    // Criar elemento de notificação
+    const notificacao = document.createElement('div');
+    notificacao.className = `notificacao-toast notificacao-${tipo}`;
+    notificacao.innerHTML = `
+        <i class="fas ${tipo === 'sucesso' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+        <span>${mensagem}</span>
+    `;
+
+    // Adicionar ao body
+    document.body.appendChild(notificacao);
+
+    // Mostrar animação
+    setTimeout(() => notificacao.classList.add('show'), 10);
+
+    // Remover após 3 segundos
+    setTimeout(() => {
+        notificacao.classList.remove('show');
+        setTimeout(() => notificacao.remove(), 300);
+    }, 3000);
 }
 
 // ================================================================

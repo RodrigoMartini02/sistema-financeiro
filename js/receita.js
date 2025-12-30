@@ -448,26 +448,42 @@ async function salvarReceita(e) {
                 }
             }
 
+            // ✅ FECHAR MODAL
             document.getElementById('modal-nova-receita').style.display = 'none';
-            
+
+            // ✅ EXIBIR MENSAGEM DE SUCESSO
+            if (window.mostrarMensagemSucesso) {
+                window.mostrarMensagemSucesso(ehEdicao ? 'Receita atualizada com sucesso!' : 'Receita cadastrada com sucesso!');
+            }
+
+            // Atualizar interface
             if (typeof window.renderizarDetalhesDoMes === 'function') {
                 window.renderizarDetalhesDoMes(formData.mes, formData.ano);
             }
-            
+
             if (typeof window.carregarDadosDashboard === 'function') {
                 await window.carregarDadosDashboard(formData.ano);
             }
-            
+
             console.log('✅ Receita salva com sucesso!');
         } else {
-            throw new Error('Falha ao salvar receita');
+            console.error('❌ Falha ao salvar receita');
+            if (window.mostrarMensagemErro) {
+                window.mostrarMensagemErro('Não foi possível salvar a receita. Tente novamente.');
+            } else {
+                alert('Não foi possível salvar a receita. Tente novamente.');
+            }
         }
-        
+
         return false;
-        
+
     } catch (error) {
         console.error("❌ Erro ao salvar receita:", error);
-        alert("Erro ao salvar receita: " + error.message);
+        if (window.mostrarMensagemErro) {
+            window.mostrarMensagemErro('Erro ao salvar receita: ' + error.message);
+        } else {
+            alert('Erro ao salvar receita: ' + error.message);
+        }
         return false;
     } finally {
         processandoReceita = false;

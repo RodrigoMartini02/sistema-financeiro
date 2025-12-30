@@ -895,26 +895,44 @@ async function salvarDespesa(e) {
         if (!formularioValido) return false;
         
         const formData = coletarDadosFormularioDespesa();
+        const ehEdicao = formData.id !== '' && formData.id !== null;
         const sucesso = await salvarDespesaLocal(formData);
 
         if (sucesso) {
+            // ✅ FECHAR MODAL
             document.getElementById('modal-nova-despesa').style.display = 'none';
-            
+
+            // ✅ EXIBIR MENSAGEM DE SUCESSO
+            if (window.mostrarMensagemSucesso) {
+                window.mostrarMensagemSucesso(ehEdicao ? 'Despesa atualizada com sucesso!' : 'Despesa cadastrada com sucesso!');
+            }
+
+            // Atualizar interface
             if (typeof carregarDadosDashboard === 'function') {
                 await carregarDadosDashboard(anoAtual);
             }
-            
+
             if (typeof renderizarDetalhesDoMes === 'function') {
                 renderizarDetalhesDoMes(formData.mes, formData.ano);
             }
         } else {
-            throw new Error('Falha ao salvar despesa');
+            console.error('❌ Falha ao salvar despesa');
+            if (window.mostrarMensagemErro) {
+                window.mostrarMensagemErro('Não foi possível salvar a despesa. Tente novamente.');
+            } else {
+                alert('Não foi possível salvar a despesa. Tente novamente.');
+            }
         }
-        
+
         return false;
-        
+
     } catch (error) {
-        alert("Não foi possível salvar a despesa: " + error.message);
+        console.error("❌ Erro ao salvar despesa:", error);
+        if (window.mostrarMensagemErro) {
+            window.mostrarMensagemErro('Erro ao salvar despesa: ' + error.message);
+        } else {
+            alert('Erro ao salvar despesa: ' + error.message);
+        }
         return false;
     } finally {
         processandoDespesa = false;
