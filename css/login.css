@@ -283,8 +283,9 @@ body {
     padding: 1.5rem;
     position: relative;
     animation: modalFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    max-height: none;
-    overflow: visible;
+    max-height: 85vh;
+    overflow-y: auto;
+    overflow-x: hidden;
     border: 1px solid var(--border-color);
 }
 
@@ -461,11 +462,14 @@ body {
     font-size: 0.85rem;
     font-weight: 500;
     animation: slideIn 0.3s ease-out;
-    position: absolute;
-    top: -4rem;
+    position: sticky;
+    top: 0;
     left: 0;
     right: 0;
     z-index: 10;
+    margin-top: -1.5rem;
+    margin-left: -1.5rem;
+    margin-right: -1.5rem;
 }
 
 @keyframes slideIn {
@@ -576,7 +580,13 @@ form .btn-primary:hover {
     .error-message, .success-message {
         font-size: 0.8rem;
         padding: 0.6rem 0.85rem;
-        top: -3.5rem;
+        margin-top: -1.25rem;
+        margin-left: -1.25rem;
+        margin-right: -1.25rem;
+    }
+
+    .modal-content {
+        max-height: 90vh;
     }
     
     #whatsapp-button {
