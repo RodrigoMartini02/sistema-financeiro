@@ -43,7 +43,11 @@ class UsuarioDataManager {
         try {
             this.executarMigracoes();
             this.inicializado = true;
+
+            // 🔥 CARREGAR DADOS DA API E SINCRONIZAR COM window.dadosFinanceiros
+            await this.sincronizarComSistemaPrincipal();
         } catch (error) {
+            console.error('❌ Erro ao inicializar sistema:', error);
             this.inicializado = true;
         }
     }
@@ -370,23 +374,27 @@ class UsuarioDataManager {
     
     async sincronizarComSistemaPrincipal() {
         try {
-            const dadosLocais = this.getDadosFinanceirosLocal();
-            
+            // 🔥 BUSCAR DADOS DA API PRIMEIRO (não do localStorage)
+            console.log('🔄 Sincronizando dados financeiros da API com sistema principal...');
+            const dadosAPI = await this.getDadosFinanceirosAPI();
+
             if (window.dadosFinanceiros) {
-                const dadosJson = JSON.stringify(dadosLocais);
+                const dadosJson = JSON.stringify(dadosAPI);
                 const sistemaPrincipalJson = JSON.stringify(window.dadosFinanceiros);
-                
+
                 if (dadosJson !== sistemaPrincipalJson) {
-                    window.dadosFinanceiros = dadosLocais;
-                    
+                    console.log('✅ Atualizando window.dadosFinanceiros com dados da API');
+                    window.dadosFinanceiros = dadosAPI;
+
                     if (typeof window.forcarAtualizacaoSistema === 'function') {
                         await window.forcarAtualizacaoSistema();
                     }
                 }
             } else {
-                window.dadosFinanceiros = dadosLocais;
+                console.log('✅ Criando window.dadosFinanceiros com dados da API');
+                window.dadosFinanceiros = dadosAPI;
             }
-            
+
             return true;
         } catch (error) {
             return false;

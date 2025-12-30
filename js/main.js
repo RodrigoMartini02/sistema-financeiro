@@ -209,20 +209,35 @@ async function salvarDados() {
     if (salvandoDados) {
         return await aguardarSalvamento();
     }
-    
+
     if (timerSalvamento) {
         clearTimeout(timerSalvamento);
     }
-    
+
     return new Promise((resolve) => {
         timerSalvamento = setTimeout(async () => {
             salvandoDados = true;
             let sucesso = false;
-            
+
             try {
-                sucesso = await salvarDadosLocal();
+                // 🔥 SALVAR NA API DO POSTGRESQL PRIMEIRO
+                if (window.usuarioDataManager && typeof window.usuarioDataManager.salvarDadosFinanceirosUsuario === 'function') {
+                    console.log('💾 Salvando dados financeiros na API...');
+                    sucesso = await window.usuarioDataManager.salvarDadosFinanceirosUsuario(window.dadosFinanceiros);
+
+                    // Salvar também no localStorage como backup
+                    if (sucesso) {
+                        await salvarDadosLocal();
+                    }
+                } else {
+                    // Fallback para localStorage se usuarioDataManager não estiver disponível
+                    console.warn('⚠️ usuarioDataManager não disponível, salvando apenas no localStorage');
+                    sucesso = await salvarDadosLocal();
+                }
             } catch (error) {
-                sucesso = false;
+                console.error('❌ Erro ao salvar dados:', error);
+                // Fallback para localStorage em caso de erro
+                sucesso = await salvarDadosLocal();
             } finally {
                 salvandoDados = false;
                 resolve(sucesso);
