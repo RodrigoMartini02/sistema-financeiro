@@ -1,49 +1,43 @@
 const express = require('express');
 const router = express.Router();
 const { query } = require('../config/database');
+const { authMiddleware } = require('../middleware/auth');
 
-function verificarAutenticacao(req, res, next) {
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({
-            success: false,
-            message: 'Token de autenticação necessário'
-        });
-    }
-    
-    const token = authHeader.substring(7);
-    
-    if (!token) {
-        return res.status(401).json({
-            success: false,
-            message: 'Token inválido'
-        });
-    }
-    
-    req.usuario_id = 1;
-    next();
-}
-
-router.use(verificarAutenticacao);
-
-router.get('/', async (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
     try {
+        const { usuario_id } = req.query;
+
+        // ✅ MASTER pode ver categorias de qualquer usuário
+        let targetUserId;
+        if (usuario_id && req.usuario.tipo === 'master') {
+            targetUserId = parseInt(usuario_id);
+        } else {
+            targetUserId = req.usuario.id;
+        }
+
         const queryText = `
-            SELECT id, nome, cor, icone, data_criacao, data_atualizacao
-            FROM categorias 
-            WHERE usuario_id = $1 
-            ORDER BY nome ASC
+            SELECT
+                c.id,
+                c.nome,
+                c.cor,
+                c.icone,
+                c.data_criacao,
+                c.data_atualizacao,
+                u.nome as usuario_nome
+            FROM categorias c
+            LEFT JOIN usuarios u ON c.usuario_id = u.id
+            WHERE c.usuario_id = $1
+            ORDER BY c.nome ASC
         `;
-        
-        const result = await query(queryText, [req.usuario_id]);
-        
+
+        const result = await query(queryText, [targetUserId]);
+
         res.json({
             success: true,
             message: 'Categorias carregadas com sucesso',
             data: result.rows
         });
-        
+
     } catch (error) {
         console.error('Erro ao buscar categorias:', error);
         res.status(500).json({

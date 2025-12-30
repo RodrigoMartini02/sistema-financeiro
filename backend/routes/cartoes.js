@@ -1,49 +1,46 @@
 const express = require('express');
 const router = express.Router();
 const { query } = require('../config/database');
+const { authMiddleware } = require('../middleware/auth');
 
-function verificarAutenticacao(req, res, next) {
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({
-            success: false,
-            message: 'Token de autenticação necessário'
-        });
-    }
-    
-    const token = authHeader.substring(7);
-    
-    if (!token) {
-        return res.status(401).json({
-            success: false,
-            message: 'Token inválido'
-        });
-    }
-    
-    req.usuario_id = 1;
-    next();
-}
-
-router.use(verificarAutenticacao);
-
-router.get('/', async (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
     try {
+        const { usuario_id } = req.query;
+
+        // ✅ MASTER pode ver cartões de qualquer usuário
+        let targetUserId;
+        if (usuario_id && req.usuario.tipo === 'master') {
+            targetUserId = parseInt(usuario_id);
+        } else {
+            targetUserId = req.usuario.id;
+        }
+
         const queryText = `
-            SELECT id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, data_criacao, data_atualizacao
-            FROM cartoes 
-            WHERE usuario_id = $1 
-            ORDER BY id ASC
+            SELECT
+                c.id,
+                c.nome,
+                c.limite,
+                c.dia_fechamento,
+                c.dia_vencimento,
+                c.cor,
+                c.ativo,
+                c.data_criacao,
+                c.data_atualizacao,
+                u.nome as usuario_nome
+            FROM cartoes c
+            LEFT JOIN usuarios u ON c.usuario_id = u.id
+            WHERE c.usuario_id = $1
+            ORDER BY c.id ASC
         `;
-        
-        const result = await query(queryText, [req.usuario_id]);
-        
+
+        const result = await query(queryText, [targetUserId]);
+
         res.json({
             success: true,
             message: 'Cartões carregados com sucesso',
             data: result.rows
         });
-        
+
     } catch (error) {
         console.error('Erro ao buscar cartões:', error);
         res.status(500).json({
