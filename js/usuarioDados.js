@@ -179,8 +179,8 @@ class UsuarioDataManager {
         const usuario = this.getUsuarioAtual();
 
         if (!usuario || !usuario.id) {
-            console.warn('⚠️ Usuário não encontrado, retornando estrutura inicial');
-            return this.criarEstruturaInicial();
+            console.warn('⚠️ Usuário não encontrado, usando localStorage');
+            return this.getDadosFinanceirosLocal();
         }
 
         try {
@@ -209,9 +209,10 @@ class UsuarioDataManager {
 
             return dadosFinanceiros;
         } catch (error) {
-            console.error('❌ Erro ao buscar dados financeiros:', error);
-            // Fallback para estrutura inicial
-            return this.criarEstruturaInicial();
+            console.error('❌ Erro ao buscar dados financeiros via API:', error);
+            console.warn('⚠️ Usando localStorage como fallback');
+            // Fallback para localStorage
+            return this.getDadosFinanceirosLocal();
         }
     }
 
@@ -277,8 +278,8 @@ class UsuarioDataManager {
         const usuario = this.getUsuarioAtual();
 
         if (!usuario || !usuario.id) {
-            console.error('❌ Usuário não encontrado para salvar dados');
-            return false;
+            console.error('❌ Usuário não encontrado, usando localStorage');
+            return this.salvarDadosLocal(dadosFinanceiros);
         }
 
         try {
@@ -305,37 +306,60 @@ class UsuarioDataManager {
 
             return true;
         } catch (error) {
-            console.error('❌ Erro ao salvar dados financeiros:', error);
-            return false;
+            console.error('❌ Erro ao salvar dados financeiros via API:', error);
+            console.warn('⚠️ Usando localStorage como fallback');
+            // Fallback para localStorage
+            return this.salvarDadosLocal(dadosFinanceiros);
         }
     }
 
     salvarDadosLocal(dadosFinanceiros) {
         const usuarioAtual = sessionStorage.getItem('usuarioAtual');
-        
+
         if (!usuarioAtual) {
             return false;
         }
 
         try {
             const usuarios = this.getUsuariosLocalStorage();
-            const index = usuarios.findIndex(u => 
+            let index = usuarios.findIndex(u =>
                 u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual
             );
-            
-            if (index !== -1) {
-                usuarios[index].dadosFinanceiros = dadosFinanceiros;
-                usuarios[index].ultimaAtualizacao = new Date().toISOString();
-                localStorage.setItem('usuarios', JSON.stringify(usuarios));
-                
-                this.dadosCache = dadosFinanceiros;
-                this.timestampCache = Date.now();
-                return true;
+
+            // Se usuário não existe no localStorage (veio da API), criar entrada
+            if (index === -1) {
+                const dadosUsuarioLogado = sessionStorage.getItem('dadosUsuarioLogado');
+                if (dadosUsuarioLogado) {
+                    const usuario = JSON.parse(dadosUsuarioLogado);
+                    usuarios.push({
+                        id: usuario.id,
+                        nome: usuario.nome,
+                        email: usuario.email,
+                        documento: usuarioAtual,
+                        password: usuario.password,
+                        dadosFinanceiros: dadosFinanceiros,
+                        ultimaAtualizacao: new Date().toISOString()
+                    });
+                    localStorage.setItem('usuarios', JSON.stringify(usuarios));
+
+                    this.dadosCache = dadosFinanceiros;
+                    this.timestampCache = Date.now();
+                    return true;
+                }
+                return false;
             }
-            
-            return false;
-            
+
+            // Atualizar usuário existente
+            usuarios[index].dadosFinanceiros = dadosFinanceiros;
+            usuarios[index].ultimaAtualizacao = new Date().toISOString();
+            localStorage.setItem('usuarios', JSON.stringify(usuarios));
+
+            this.dadosCache = dadosFinanceiros;
+            this.timestampCache = Date.now();
+            return true;
+
         } catch (error) {
+            console.error('❌ Erro ao salvar no localStorage:', error);
             return false;
         }
     }

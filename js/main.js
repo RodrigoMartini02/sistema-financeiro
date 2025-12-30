@@ -1246,18 +1246,14 @@ async function buscarDespesasAPI(mes, ano) {
 
 async function renderizarDetalhesDoMes(mes, ano) {
     try {
+        // Garantir que temos a estrutura de dados
+        garantirEstruturaDados(ano, mes);
+
         const fechado = dadosFinanceiros[ano]?.meses[mes]?.fechado || false;
 
-        // Buscar receitas e despesas da API em paralelo
-        const [receitas, despesas] = await Promise.all([
-            buscarReceitasAPI(mes, ano),
-            buscarDespesasAPI(mes, ano)
-        ]);
-
-        // Atualizar dadosFinanceiros local (cache para cálculos)
-        garantirEstruturaDados(ano, mes);
-        dadosFinanceiros[ano].meses[mes].receitas = receitas;
-        dadosFinanceiros[ano].meses[mes].despesas = despesas;
+        // Buscar dados do dadosFinanceiros que já está em memória (sincronizado via usuarioDados.js)
+        const receitas = dadosFinanceiros[ano]?.meses[mes]?.receitas || [];
+        const despesas = dadosFinanceiros[ano]?.meses[mes]?.despesas || [];
 
         const saldo = calcularSaldoMes(mes, ano);
         const totalJuros = typeof window.calcularTotalJuros === 'function' ?
