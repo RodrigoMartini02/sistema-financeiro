@@ -737,6 +737,12 @@ window.abrirModalVisualizarAnexosReceita = abrirModalVisualizarAnexosReceita;
 // ================================================================
 
 // Funções para receitas
+function configurarEventosAnexosReceitas(container) {
+    // Placeholder - configuração de eventos de anexos para receitas
+    if (!container) return;
+    console.log('Eventos de anexos de receitas configurados');
+}
+
 window.abrirModalVisualizarAnexosReceita = abrirModalVisualizarAnexosReceita;
 window.baixarAnexoReceita = baixarAnexoReceita;
 window.configurarEventosAnexosReceitas = configurarEventosAnexosReceitas;
@@ -749,6 +755,18 @@ window.baixarAnexoDespesa = baixarAnexoDespesa;
 window.configurarEventosAnexosDespesas = configurarEventosAnexosDespesas;
 window.atualizarContadorAnexosDespesa = atualizarContadorAnexosDespesa;
 window.atualizarTodosContadoresAnexosDespesas = atualizarTodosContadoresAnexosDespesas;
+
+// ================================================================
+// INICIALIZAÇÃO GERAL
+// ================================================================
+
+function inicializarSistemaAnexos() {
+    console.log('Inicializando sistema de anexos...');
+    inicializarSistemaAnexosDespesas();
+    // Receitas não precisam de inicialização especial
+}
+
+window.inicializarSistemaAnexos = inicializarSistemaAnexos;
 
 // ================================================================
 // INICIALIZAÇÃO AUTOMÁTICA
