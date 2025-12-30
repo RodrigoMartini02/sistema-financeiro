@@ -729,6 +729,18 @@ function baixarAnexoReceita(anexo, nomeArquivo) {
     }
 }
 
+
+// ================================================================
+// FUNÇÃO DE INICIALIZAÇÃO PARA COMPATIBILIDADE
+// ================================================================
+
+function inicializarSistemaAnexos() {
+    console.log('Sistema de anexos inicializado');
+    inicializarSistemaAnexosDespesas();
+}
+
+window.inicializarSistemaAnexos = inicializarSistemaAnexos;
+
 // Exportar função global
 window.abrirModalVisualizarAnexosReceita = abrirModalVisualizarAnexosReceita;
 

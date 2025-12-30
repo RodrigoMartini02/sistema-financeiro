@@ -3333,6 +3333,27 @@ function carregarDespesasAtual() {
 document.addEventListener('DOMContentLoaded', carregarDespesasAtual);
 
 
+// ================================================================
+// FUNÇÃO DE CARREGAMENTO INICIAL
+// ================================================================
+
+async function carregarDespesasAtual() {
+    const agora = new Date();
+    const mesAtual = agora.getMonth();
+    const anoAtual = agora.getFullYear();
+    
+    window.mesAberto = mesAtual;
+    window.anoAberto = anoAtual;
+    
+    await buscarEExibirDespesas(mesAtual, anoAtual);
+}
+
+window.carregarDespesasAtual = carregarDespesasAtual;
+
+// Auto-inicialização
+document.addEventListener('DOMContentLoaded', carregarDespesasAtual);
+
+
 
 // ================================================================
 // EXPORTAÇÕES GLOBAIS

@@ -1583,7 +1583,13 @@ function salvarCartoesLocalFallback() {
     }
 }
 
+// ================================================================
+// FUNÇÕES DE COMPATIBILIDADE PARA EVITAR ERROS
+// ================================================================
 
+window.carregarcategoriasLocal = function() {
+    console.log('carregarcategoriasLocal: descontinuada - agora usa API');
+};
 
 
 window.categoriasUsuario = categoriasUsuario;
