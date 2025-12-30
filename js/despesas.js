@@ -144,71 +144,6 @@ function atualizarFiltrosExistentes(mes, ano) {
 }
 
 // ================================================================
-// BUSCAR DESPESAS DA API
-// ================================================================
-
-function getToken() {
-    return sessionStorage.getItem('token');
-}
-
-async function buscarEExibirDespesas(mes, ano) {
-    try {
-        console.log(`🔍 Buscando despesas do mês ${mes}/${ano} via API`);
-
-        const response = await fetch(`${API_URL}/despesas?mes=${mes}&ano=${ano}`, {
-            headers: {
-                'Authorization': `Bearer ${getToken()}`
-            }
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.message || 'Erro ao buscar despesas');
-        }
-
-        console.log('✅ Despesas carregadas da API:', data.data);
-
-        // Converter formato da API para formato do frontend
-        const despesasFormatadas = data.data.map(d => ({
-            id: d.id,
-            descricao: d.descricao,
-            categoria: d.categoria_nome || 'Outros',
-            formaPagamento: d.forma_pagamento,
-            numeroCartao: d.cartao_id,
-            valor: parseFloat(d.valor),
-            dataVencimento: d.data_vencimento,
-            dataCompra: d.data_compra,
-            dataPagamento: d.data_pagamento,
-            mes: d.mes,
-            ano: d.ano,
-            parcelado: d.parcelado,
-            totalParcelas: d.numero_parcelas,
-            parcelaAtual: d.parcela_atual,
-            parcela: d.parcelado ? `${d.parcela_atual}/${d.numero_parcelas}` : null,
-            pago: d.pago,
-            quitado: d.pago,
-            observacoes: d.observacoes,
-            anexos: [],
-            status: d.pago ? 'quitada' : (new Date(d.data_vencimento) < new Date() ? 'atrasada' : 'em_dia')
-        }));
-
-        // Verificar se o mês está fechado
-        const mesFechado = window.dadosFinanceiros[ano]?.meses[mes]?.fechado || false;
-
-        // Renderizar as despesas
-        renderizarDespesas(despesasFormatadas, mes, ano, mesFechado);
-
-        return despesasFormatadas;
-
-    } catch (error) {
-        console.error('❌ Erro ao buscar despesas:', error);
-        alert('Erro ao carregar despesas: ' + error.message);
-        return [];
-    }
-}
-
-// ================================================================
 // RENDERIZAÇÃO DE DESPESAS
 // ================================================================
 
@@ -3275,7 +3210,6 @@ window.abrirModalPagamento = abrirModalPagamento;
 window.processarPagamento = processarPagamento;
 window.pagarDespesasEmLote = pagarDespesasEmLote;
 window.salvarDespesa = salvarDespesa;
-window.buscarEExibirDespesas = buscarEExibirDespesas;
 window.renderizarDespesas = renderizarDespesas;
 window.atualizarStatusDespesas = atualizarStatusDespesas;
 window.calcularTotalDespesas = calcularTotalDespesas;

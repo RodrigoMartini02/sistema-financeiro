@@ -1,9 +1,3 @@
-
-
-function getToken() {
-    return sessionStorage.getItem('token');
-}
-
 // ================================================================
 // SISTEMA DE RECEITAS - VERSÃO FUNCIONAL COMPLETA
 // ================================================================
@@ -76,53 +70,6 @@ function renderizarReceitas(receitas, fechado) {
         configurarEventosAnexosReceitas(listaReceitas);
         atualizarTodosContadoresAnexosReceitas();
     }, 100);
-}
-
-
-async function buscarEExibirReceitas(mes, ano) {
-    try {
-        console.log(`🔍 Buscando receitas do mês ${mes}/${ano} via API`);
-        
-        const response = await fetch(`${API_URL}/receitas?mes=${mes}&ano=${ano}`, {
-            headers: {
-                'Authorization': `Bearer ${getToken()}`
-            }
-        });
-        
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.message || 'Erro ao buscar receitas');
-        }
-        
-        console.log('✅ Receitas carregadas da API:', data.data);
-        
-        // Converter formato da API para formato do frontend
-        const receitasFormatadas = data.data.map(r => ({
-            id: r.id,
-            descricao: r.descricao,
-            valor: parseFloat(r.valor),
-            data: r.data_recebimento,
-            mes: r.mes,
-            ano: r.ano,
-            observacoes: r.observacoes,
-            saldoAnterior: false,
-            anexos: []
-        }));
-        
-        // Verificar se o mês está fechado
-        const mesFechado = window.dadosFinanceiros[ano]?.meses[mes]?.fechado || false;
-        
-        // Renderizar as receitas
-        renderizarReceitas(receitasFormatadas, mesFechado);
-        
-        return receitasFormatadas;
-        
-    } catch (error) {
-        console.error('❌ Erro ao buscar receitas:', error);
-        alert('Erro ao carregar receitas: ' + error.message);
-        return [];
-    }
 }
 
 
@@ -594,63 +541,34 @@ function criarObjetoReceita(formData) {
 
 async function salvarReceitaLocal(mes, ano, receita, id) {
     try {
+        window.garantirEstruturaDados(ano, mes);
+
         const ehEdicao = id !== '' && id !== null && id !== undefined;
-        
-        const payload = {
-            descricao: receita.descricao,
-            valor: receita.valor,
-            data_recebimento: receita.data,
-            mes: mes,
-            ano: ano,
-            observacoes: receita.observacoes || null
-        };
-        
-        let response;
-        
+
         if (ehEdicao) {
-            console.log('✏️ Editando receita via API');
-            
-            const receitaId = window.dadosFinanceiros[ano]?.meses[mes]?.receitas[id]?.id;
-            
-            if (!receitaId) {
-                throw new Error('ID da receita não encontrado');
-            }
-            
-            response = await fetch(`${API_URL}/receitas/${receitaId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${getToken()}`
-                },
-                body: JSON.stringify(payload)
-            });
+            console.log('✏️ Editando receita no localStorage');
+            const index = parseInt(id);
+            window.dadosFinanceiros[ano].meses[mes].receitas[index] = receita;
         } else {
-            console.log('➕ Criando nova receita via API');
-            
-            response = await fetch(`${API_URL}/receitas`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${getToken()}`
-                },
-                body: JSON.stringify(payload)
-            });
+            console.log('➕ Adicionando nova receita no localStorage');
+            if (!window.dadosFinanceiros[ano].meses[mes].receitas) {
+                window.dadosFinanceiros[ano].meses[mes].receitas = [];
+            }
+            window.dadosFinanceiros[ano].meses[mes].receitas.push(receita);
         }
-        
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.message || 'Erro ao salvar receita');
+
+        const sucesso = await window.salvarDados();
+
+        if (sucesso) {
+            console.log('✅ Receita salva com sucesso!');
+
+            if (window.sistemaAnexos) {
+                window.sistemaAnexos.limparAnexosTemporarios('receita');
+            }
         }
-        
-        console.log('✅ Receita salva na API:', data);
-        
-        if (window.sistemaAnexos) {
-            window.sistemaAnexos.limparAnexosTemporarios('receita');
-        }
-        
-        return true;
-        
+
+        return sucesso;
+
     } catch (error) {
         console.error('❌ Erro em salvarReceitaLocal:', error);
         throw new Error(`Erro ao salvar receita: ${error.message}`);
@@ -1230,7 +1148,6 @@ window.excluirReceita = excluirReceita;
 window.processarExclusaoReceita = processarExclusaoReceita;
 window.salvarReceita = salvarReceita;
 window.renderizarReceitas = renderizarReceitas;
-window.buscarEExibirReceitas = buscarEExibirReceitas;
 window.calcularTotalReceitas = calcularTotalReceitas;
 window.atualizarContadorAnexosReceita = atualizarContadorAnexosReceita;
 window.atualizarTodosContadoresAnexosReceitas = atualizarTodosContadoresAnexosReceitas;

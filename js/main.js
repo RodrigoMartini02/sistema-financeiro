@@ -1138,41 +1138,142 @@ function atualizarBotoesNavegacaoMes(mes, ano) {
     btnProximo.disabled = !dadosFinanceiros[anoProximo];
 }
 
+// ================================================================
+// FUNÇÕES DE API - CENTRALIZAÇÃO
+// ================================================================
 
+function getToken() {
+    return sessionStorage.getItem('token');
+}
 
+async function buscarReceitasAPI(mes, ano) {
+    try {
+        console.log(`🔍 Buscando receitas do mês ${mes}/${ano} via API`);
 
+        const response = await fetch(`${API_URL}/receitas?mes=${mes}&ano=${ano}`, {
+            headers: {
+                'Authorization': `Bearer ${getToken()}`
+            }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Erro ao buscar receitas');
+        }
+
+        console.log('✅ Receitas carregadas:', data.data.length);
+
+        // Converter formato da API para formato do frontend
+        return data.data.map(r => ({
+            id: r.id,
+            descricao: r.descricao,
+            valor: parseFloat(r.valor),
+            data: r.data_recebimento,
+            mes: r.mes,
+            ano: r.ano,
+            observacoes: r.observacoes,
+            saldoAnterior: false,
+            anexos: []
+        }));
+
+    } catch (error) {
+        console.error('❌ Erro ao buscar receitas:', error);
+        return [];
+    }
+}
+
+async function buscarDespesasAPI(mes, ano) {
+    try {
+        console.log(`🔍 Buscando despesas do mês ${mes}/${ano} via API`);
+
+        const response = await fetch(`${API_URL}/despesas?mes=${mes}&ano=${ano}`, {
+            headers: {
+                'Authorization': `Bearer ${getToken()}`
+            }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Erro ao buscar despesas');
+        }
+
+        console.log('✅ Despesas carregadas:', data.data.length);
+
+        // Converter formato da API para formato do frontend
+        return data.data.map(d => ({
+            id: d.id,
+            descricao: d.descricao,
+            categoria: d.categoria_nome || 'Outros',
+            formaPagamento: d.forma_pagamento,
+            numeroCartao: d.cartao_id,
+            valor: parseFloat(d.valor),
+            dataVencimento: d.data_vencimento,
+            dataCompra: d.data_compra,
+            dataPagamento: d.data_pagamento,
+            mes: d.mes,
+            ano: d.ano,
+            parcelado: d.parcelado,
+            totalParcelas: d.numero_parcelas,
+            parcelaAtual: d.parcela_atual,
+            parcela: d.parcelado ? `${d.parcela_atual}/${d.numero_parcelas}` : null,
+            pago: d.pago,
+            quitado: d.pago,
+            observacoes: d.observacoes,
+            anexos: [],
+            status: d.pago ? 'quitada' : (new Date(d.data_vencimento) < new Date() ? 'atrasada' : 'em_dia')
+        }));
+
+    } catch (error) {
+        console.error('❌ Erro ao buscar despesas:', error);
+        return [];
+    }
+}
+
+// ================================================================
+// RENDERIZAÇÃO DE DETALHES DO MÊS
+// ================================================================
 
 async function renderizarDetalhesDoMes(mes, ano) {
     try {
-        const dadosMes = obterDadosMes(ano, mes);
+        const fechado = dadosFinanceiros[ano]?.meses[mes]?.fechado || false;
+
+        // Buscar receitas e despesas da API em paralelo
+        const [receitas, despesas] = await Promise.all([
+            buscarReceitasAPI(mes, ano),
+            buscarDespesasAPI(mes, ano)
+        ]);
+
+        // Atualizar dadosFinanceiros local (cache para cálculos)
+        garantirEstruturaDados(ano, mes);
+        dadosFinanceiros[ano].meses[mes].receitas = receitas;
+        dadosFinanceiros[ano].meses[mes].despesas = despesas;
+
         const saldo = calcularSaldoMes(mes, ano);
         const totalJuros = typeof window.calcularTotalJuros === 'function' ?
-                          window.calcularTotalJuros(dadosMes.despesas || []) : 0;
-        const fechado = dadosMes.fechado || false;
+                          window.calcularTotalJuros(despesas || []) : 0;
 
         atualizarResumoDetalhes(saldo, totalJuros);
         atualizarBarrasCartoes(mes, ano);
         atualizarTituloDetalhes(mes, ano, fechado);
         atualizarControlesFechamento(mes, ano, fechado);
 
-        if (typeof window.buscarEExibirReceitas === 'function') {
-            await window.buscarEExibirReceitas(mes, ano);
-        } else if (typeof window.renderizarReceitas === 'function') {
-            window.renderizarReceitas(dadosMes.receitas, fechado);
+        if (typeof window.renderizarReceitas === 'function') {
+            window.renderizarReceitas(receitas, fechado);
         }
 
-        if (typeof window.buscarEExibirDespesas === 'function') {
-            await window.buscarEExibirDespesas(mes, ano);
-        } else if (typeof window.renderizarDespesas === 'function') {
-            window.renderizarDespesas(dadosMes.despesas, mes, ano, fechado);
+        if (typeof window.renderizarDespesas === 'function') {
+            window.renderizarDespesas(despesas, mes, ano, fechado);
         }
-        
+
         if (typeof window.atualizarContadoresFiltro === 'function') {
             window.atualizarContadoresFiltro();
         }
-        
+
     } catch (error) {
-        // Falha silenciosa
+        console.error('Erro ao renderizar detalhes do mês:', error);
+        alert('Erro ao carregar dados do mês');
     }
 }
 
