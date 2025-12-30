@@ -1146,13 +1146,15 @@ async function renderizarDetalhesDoMes(mes, ano) {
     window.renderizarReceitas(dadosMes.receitas, fechado, mes, ano);
 }
         
-       if (typeof window.buscarEExibirDespesas === 'function') {
-    await window.buscarEExibirDespesas(mes, ano);
+       if (window.DespesasCore && typeof window.DespesasCore.buscarEExibirDespesas === 'function') {
+    await window.DespesasCore.buscarEExibirDespesas(mes, ano);
 } else if (typeof window.renderizarDespesas === 'function') {
     window.renderizarDespesas(dadosMes.despesas, mes, ano, fechado);
 }
         
-       if (typeof window.atualizarContadoresFiltro === 'function') {
+       if (window.DespesasFilters && typeof window.DespesasFilters.atualizarContadoresFiltro === 'function') {
+    window.DespesasFilters.atualizarContadoresFiltro();
+} else if (typeof window.atualizarContadoresFiltro === 'function') {
     window.atualizarContadoresFiltro();
 }
     } catch (error) {
