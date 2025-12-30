@@ -185,9 +185,14 @@ async function carregarCategoriasLocal() {
 
 async function salvarCategorias() {
     const usuario = window.usuarioDataManager?.getUsuarioAtual();
-    if (!usuario || !usuario.id) return false;
+    if (!usuario || !usuario.id) {
+        console.error('❌ Usuário não encontrado para salvar categorias');
+        return false;
+    }
 
     try {
+        console.log('💾 Salvando categorias na API...', categoriasUsuario);
+
         // 🔥 SALVAR NA API
         const response = await fetch(`${window.API_URL}/usuarios/${usuario.id}/categorias`, {
             method: 'PUT',
@@ -198,23 +203,29 @@ async function salvarCategorias() {
             body: JSON.stringify({ categorias: categoriasUsuario })
         });
 
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
-            console.error('❌ Erro ao salvar categorias:', data.message);
+        // ✅ Verificar se a resposta tem conteúdo antes de parsear
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            console.error('❌ Resposta não é JSON:', await response.text());
             return false;
         }
 
         const data = await response.json();
 
+        if (!response.ok) {
+            console.error('❌ Erro ao salvar categorias:', data.message || 'Erro desconhecido');
+            return false;
+        }
+
         if (data.success) {
-            console.log('✅ Categorias salvas na API!');
+            console.log('✅ Categorias salvas na API com sucesso!');
             return true;
         } else {
-            console.error('❌ Erro ao salvar categorias:', data.message);
+            console.error('❌ API retornou sucesso=false:', data.message);
             return false;
         }
     } catch (error) {
-        console.error('❌ Erro ao salvar categorias na API:', error.message);
+        console.error('❌ Erro ao salvar categorias na API:', error);
         return false;
     }
 }
@@ -426,9 +437,14 @@ async function carregarCartoesLocal() {
 
 async function salvarCartoes() {
     const usuario = window.usuarioDataManager?.getUsuarioAtual();
-    if (!usuario || !usuario.id) return false;
+    if (!usuario || !usuario.id) {
+        console.error('❌ Usuário não encontrado para salvar cartões');
+        return false;
+    }
 
     try {
+        console.log('💾 Salvando cartões na API...', cartoesUsuario);
+
         // 🔥 SALVAR NA API
         const response = await fetch(`${window.API_URL}/usuarios/${usuario.id}/cartoes`, {
             method: 'PUT',
@@ -439,24 +455,30 @@ async function salvarCartoes() {
             body: JSON.stringify({ cartoes: cartoesUsuario })
         });
 
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
-            console.error('❌ Erro ao salvar cartões:', data.message);
+        // ✅ Verificar se a resposta tem conteúdo antes de parsear
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            console.error('❌ Resposta não é JSON:', await response.text());
             return false;
         }
 
         const data = await response.json();
 
+        if (!response.ok) {
+            console.error('❌ Erro ao salvar cartões:', data.message || 'Erro desconhecido');
+            return false;
+        }
+
         if (data.success) {
-            console.log('✅ Cartões salvos na API!');
+            console.log('✅ Cartões salvos na API com sucesso!');
             window.cartoesUsuario = cartoesUsuario;
             return true;
         } else {
-            console.error('❌ Erro ao salvar cartões:', data.message);
+            console.error('❌ API retornou sucesso=false:', data.message);
             return false;
         }
     } catch (error) {
-        console.error('❌ Erro ao salvar cartões na API:', error.message);
+        console.error('❌ Erro ao salvar cartões na API:', error);
         return false;
     }
 }
