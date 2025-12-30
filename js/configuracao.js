@@ -710,6 +710,8 @@ async function filtrarUsuarios() {
     const filtroTipo = filterSelect?.value || 'todos';
 
     try {
+        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
         // 🔥 BUSCAR DA API
         const params = new URLSearchParams({
             page: 1,
@@ -718,7 +720,7 @@ async function filtrarUsuarios() {
             tipo: filtroTipo
         });
 
-        const response = await fetch(`${window.API_URL}/usuarios?${params}`, {
+        const response = await fetch(`${API_URL}/usuarios?${params}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -846,8 +848,10 @@ async function alternarBloqueioUsuario(usuario) {
     }
 
     try {
+        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
         // 🔥 ATUALIZAR NA API
-        const response = await fetch(`${window.API_URL}/usuarios/${usuario.id}`, {
+        const response = await fetch(`${API_URL}/usuarios/${usuario.id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -892,8 +896,10 @@ async function confirmarExclusaoUsuario() {
     if (!usuarioId) return;
 
     try {
+        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
         // 🔥 EXCLUIR NA API
-        const response = await fetch(`${window.API_URL}/usuarios/${usuarioId}`, {
+        const response = await fetch(`${API_URL}/usuarios/${usuarioId}`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
@@ -1017,6 +1023,7 @@ async function salvarEdicaoUsuario(isNovo = false) {
 
         // 🔥 CHAMAR API
         try {
+            const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
             let response;
 
             if (isNovo) {
@@ -1026,7 +1033,7 @@ async function salvarEdicaoUsuario(isNovo = false) {
                     return;
                 }
 
-                response = await fetch(`${window.API_URL}/usuarios`, {
+                response = await fetch(`${API_URL}/usuarios`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1057,7 +1064,7 @@ async function salvarEdicaoUsuario(isNovo = false) {
                     updateData.senha = senha;
                 }
 
-                response = await fetch(`${window.API_URL}/usuarios/${identificador}`, {
+                response = await fetch(`${API_URL}/usuarios/${identificador}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
