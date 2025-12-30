@@ -978,14 +978,20 @@ function testLocalStorage() {
 
 function setLoadingState(button, loading = true) {
     if (!button) return;
-    
+
     if (loading) {
+        // Salvar texto original antes de alterar
+        if (!button.hasAttribute('data-original-text')) {
+            button.setAttribute('data-original-text', button.textContent);
+        }
         button.disabled = true;
         button.textContent = 'Carregando...';
         button.style.opacity = '0.7';
     } else {
         button.disabled = false;
-        button.textContent = button.getAttribute('data-original-text') || 'Entrar';
+        // Restaurar texto original
+        const originalText = button.getAttribute('data-original-text');
+        button.textContent = originalText || 'Entrar';
         button.style.opacity = '1';
     }
 }
