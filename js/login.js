@@ -174,6 +174,7 @@ async function processarLogin(documento, password, isModal) {
 
     try {
         const docLimpo = documento.replace(/[^\d]+/g, '');
+        console.log('📤 Enviando credenciais:', { documento: docLimpo, url: `${API_URL}/auth/login` });
 
         // Login via API
         const response = await fetch(`${API_URL}/auth/login`, {
@@ -187,7 +188,9 @@ async function processarLogin(documento, password, isModal) {
             })
         });
 
+        console.log('📥 Status da resposta:', response.status, response.statusText);
         const data = await response.json();
+        console.log('📥 Dados recebidos:', data);
 
         if (!response.ok) {
             throw new Error(data.message || 'Documento ou senha incorretos');
@@ -198,11 +201,14 @@ async function processarLogin(documento, password, isModal) {
         // Salvar token JWT e dados do usuário
         sessionStorage.setItem('token', data.token);
         sessionStorage.setItem('usuarioAtual', docLimpo);
+
+        // Adaptar estrutura da resposta do backend
+        const usuario = data.user || data.usuario || data;
         sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify({
-            id: data.usuario.id,
-            nome: data.usuario.nome,
+            id: usuario.id,
+            nome: usuario.nome || usuario.name,
             documento: docLimpo,
-            email: data.usuario.email,
+            email: usuario.email,
             password: password // Manter senha para desbloqueio interno
         }));
 
@@ -383,71 +389,52 @@ function criarEstruturaFinanceiraInicial() {
 
 async function processarRecuperacaoSenha() {
     const email = document.getElementById('recuperacao-email')?.value?.trim();
-    const codigo = document.getElementById('codigo-recuperacao')?.value?.trim();
     const botaoSubmit = elementos.formRecuperacao?.querySelector('button[type="submit"]');
-    
+
     if (elementos.recuperacaoErrorMessage) elementos.recuperacaoErrorMessage.style.display = 'none';
     if (elementos.recuperacaoSuccessMessage) elementos.recuperacaoSuccessMessage.style.display = 'none';
-    
+
     if (!email) {
         mostrarErroRecuperacao('Por favor, informe seu email');
         return;
     }
-    
+
     setLoadingState(botaoSubmit, true);
-    
+
     try {
-        if (!codigo) {
-            // Enviar código
-            const usuario = obterUsuarioPorEmail(email);
-            if (!usuario) {
-                mostrarErroRecuperacao('Email não encontrado');
-                return;
-            }
-            
-            if (!emailJSDisponivel) {
-                mostrarErroRecuperacao('Serviço de email temporariamente indisponível');
-                return;
-            }
-            
-            const codigoGerado = gerarCodigoRecuperacao();
-            salvarCodigoRecuperacao(email, codigoGerado);
-            
-            const resultado = await enviarEmailRecuperacao(email, codigoGerado, usuario.nome);
-            
-            if (resultado.success) {
-                if (elementos.recuperacaoSuccessMessage) {
-                    elementos.recuperacaoSuccessMessage.textContent = 'Código enviado! Verifique seu email.';
-                    elementos.recuperacaoSuccessMessage.style.display = 'block';
-                }
-                
-                const campoCodeContainer = document.getElementById('campo-codigo-container');
-                if (campoCodeContainer) {
-                    campoCodeContainer.style.display = 'block';
-                }
-            } else {
-                mostrarErroRecuperacao('Erro ao enviar email');
-            }
-            
-        } else {
-            // Verificar código
-            const verificacao = verificarCodigoRecuperacao(email, codigo);
-            
-            if (verificacao.valido) {
-                if (elementos.recuperacaoModal) elementos.recuperacaoModal.style.display = 'none';
-                if (elementos.novaSenhaModal) {
-                    elementos.novaSenhaModal.style.display = 'flex';
-                    const emailField = document.getElementById('email-nova-senha');
-                    if (emailField) emailField.value = email;
-                }
-            } else {
-                mostrarErroRecuperacao(verificacao.motivo || 'Código inválido');
-            }
+        console.log('🔐 Solicitando recuperação de senha via API...');
+
+        // Chamada para API de recuperação de senha
+        const response = await fetch(`${API_URL}/auth/forgot-password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email: email })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Email não encontrado');
         }
-        
+
+        console.log('✅ Email de recuperação enviado!');
+
+        if (elementos.recuperacaoSuccessMessage) {
+            elementos.recuperacaoSuccessMessage.textContent = 'Email enviado! Verifique sua caixa de entrada e siga as instruções.';
+            elementos.recuperacaoSuccessMessage.style.display = 'block';
+        }
+
+        // Limpar formulário após 3 segundos
+        setTimeout(() => {
+            if (elementos.formRecuperacao) elementos.formRecuperacao.reset();
+            if (elementos.recuperacaoModal) elementos.recuperacaoModal.style.display = 'none';
+        }, 3000);
+
     } catch (error) {
-        console.error('Erro na recuperação:', error);
-        mostrarErroRecuperacao('Erro no sistema. Tente novamente.');
+        console.error('❌ Erro na recuperação:', error);
+        mostrarErroRecuperacao(error.message || 'Erro ao enviar email de recuperação. Verifique se o email está correto.');
     } finally {
         setLoadingState(botaoSubmit, false);
     }
