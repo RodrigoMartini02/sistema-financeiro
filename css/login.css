@@ -61,10 +61,8 @@ body {
 .element {
     position: absolute;
     border-radius: 50%;
-    opacity: 0.15;
+    opacity: 0.1;
     background: white;
-    animation: float 20s infinite ease-in-out;
-    filter: blur(2px);
 }
 
 .element-1 {
@@ -72,8 +70,7 @@ body {
     height: 400px;
     top: -50px;
     left: -100px;
-    animation-delay: 0s;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.1));
+    background: rgba(255, 255, 255, 0.2);
 }
 
 .element-2 {
@@ -81,8 +78,7 @@ body {
     height: 300px;
     top: 50%;
     right: -50px;
-    animation-delay: -7s;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.05));
+    background: rgba(255, 255, 255, 0.15);
 }
 
 .element-3 {
@@ -90,23 +86,7 @@ body {
     height: 250px;
     bottom: -50px;
     left: 30%;
-    animation-delay: -14s;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.08));
-}
-
-@keyframes float {
-    0%, 100% {
-        transform: translateY(0) translateX(0) scale(1);
-    }
-    25% {
-        transform: translateY(-30px) translateX(20px) scale(1.05);
-    }
-    50% {
-        transform: translateY(0) translateX(40px) scale(1);
-    }
-    75% {
-        transform: translateY(30px) translateX(20px) scale(0.95);
-    }
+    background: rgba(255, 255, 255, 0.18);
 }
 
 .hero-content {
@@ -133,8 +113,7 @@ body {
     font-size: 4rem;
     font-weight: 800;
     margin: 0;
-    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-    letter-spacing: -1px;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     animation: fadeInUp 0.8s ease-out;
 }
 
@@ -203,10 +182,9 @@ body {
 
 .btn-mobile {
     display: none;
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.25);
     color: white;
-    backdrop-filter: blur(10px);
-    border: 2px solid rgba(255, 255, 255, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.4);
 }
 
 .btn-mobile:hover {
@@ -266,8 +244,7 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(8px);
+    background-color: rgba(0, 0, 0, 0.65);
     z-index: 1000;
     align-items: center;
     justify-content: center;
