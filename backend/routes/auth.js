@@ -206,4 +206,73 @@ router.post('/logout', authMiddleware, (req, res) => {
     });
 });
 
+
+// ================================================================
+// POST /api/auth/forgot-password - Solicitar recuperação de senha
+// ================================================================
+router.post('/forgot-password', [
+    body('email').isEmail().withMessage('Email inválido'),
+    validate
+], async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        const result = await query(
+            'SELECT id, nome, email FROM usuarios WHERE email = $1',
+            [email.toLowerCase()]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'E-mail não encontrado'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'E-mail validado com sucesso',
+            data: { 
+                nome: result.rows[0].nome,
+                email: result.rows[0].email 
+            }
+        });
+    } catch (error) {
+        console.error('Erro na recuperação:', error);
+        res.status(500).json({ success: false, message: 'Erro no servidor' });
+    }
+});
+
+// ================================================================
+// POST /api/auth/reset-password - Alterar senha no banco
+// ================================================================
+router.post('/reset-password', [
+    body('email').isEmail().withMessage('Email inválido'),
+    body('novaSenha').isLength({ min: 6 }).withMessage('Mínimo 6 caracteres'),
+    validate
+], async (req, res) => {
+    try {
+        const { email, novaSenha } = req.body;
+        const senhaHash = await bcrypt.hash(novaSenha, 10);
+
+        const result = await query(
+            'UPDATE usuarios SET senha = $1, data_atualizacao = CURRENT_TIMESTAMP WHERE email = $2 RETURNING id',
+            [senhaHash, email.toLowerCase()]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
+        }
+
+        res.json({ success: true, message: 'Senha alterada com sucesso no banco!' });
+    } catch (error) {
+        console.error('Erro ao resetar senha:', error);
+        res.status(500).json({ success: false, message: 'Erro ao atualizar senha' });
+    }
+});
+
+
+
 module.exports = router;
+
+

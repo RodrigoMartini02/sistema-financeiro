@@ -406,39 +406,37 @@ async function processarRecuperacaoSenha() {
     setLoadingState(botaoSubmit, true);
 
     try {
-        console.log('🔐 Solicitando recuperação de senha via API...');
+        const usuario = obterUsuarioPorEmail(email);
 
-        // Chamada para API de recuperação de senha
-        const response = await fetch(`${API_URL}/auth/forgot-password`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ email: email })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.message || 'Email não encontrado');
+        if (!usuario) {
+            throw new Error('E-mail não encontrado no sistema.');
         }
 
-        console.log('✅ Email de recuperação enviado!');
+        const codigo = gerarCodigoRecuperacao();
+        salvarCodigoRecuperacao(email, codigo);
+
+        const envio = await enviarEmailRecuperacao(email, codigo, usuario.nome);
+
+        if (!envio.success) {
+            throw new Error(envio.message);
+        }
 
         if (elementos.recuperacaoSuccessMessage) {
-            elementos.recuperacaoSuccessMessage.textContent = 'Email enviado! Verifique sua caixa de entrada e siga as instruções.';
+            elementos.recuperacaoSuccessMessage.textContent = 'Código enviado com sucesso!';
             elementos.recuperacaoSuccessMessage.style.display = 'block';
         }
 
-        // Limpar formulário após 3 segundos
         setTimeout(() => {
-            if (elementos.formRecuperacao) elementos.formRecuperacao.reset();
             if (elementos.recuperacaoModal) elementos.recuperacaoModal.style.display = 'none';
-        }, 3000);
+            if (elementos.novaSenhaModal) {
+                elementos.novaSenhaModal.style.display = 'flex';
+                const emailField = document.getElementById('email-nova-senha');
+                if (emailField) emailField.value = email;
+            }
+        }, 2000);
 
     } catch (error) {
-        console.error('❌ Erro na recuperação:', error);
-        mostrarErroRecuperacao(error.message || 'Erro ao enviar email de recuperação. Verifique se o email está correto.');
+        mostrarErroRecuperacao(error.message);
     } finally {
         setLoadingState(botaoSubmit, false);
     }
