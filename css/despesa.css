@@ -7,7 +7,7 @@
 
 #modal-detalhes-mes .modal-content {
     max-width: 98vw !important; /* Já está no limite, mas garantimos */
-    width: 98% !important;
+    width: 100% !important;
     height: 96vh !important;    /* Forçamos uma altura fixa maior */
     max-height: 96vh !important;
     margin: 1vh auto !important; /* Centraliza verticalmente com pouco respiro */
