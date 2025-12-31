@@ -29,7 +29,7 @@
 .grid-header,
 .grid-row {
     display: grid;
-    grid-template-columns: 40px 1.2fr 130px 110px 120px 90px 120px 100px 100px 100px 100px 150px 80px;
+    grid-template-columns: 40px 1.2fr 130px 110px 120px 90px 120px 110px 110px 110px 110px 150px 80px;
     gap: 6px;
     align-items: center;
     padding: 8px;
