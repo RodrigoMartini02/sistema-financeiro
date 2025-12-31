@@ -7,10 +7,10 @@
    ================================================================ */
 
 #modal-detalhes-mes .modal-content {
-    max-width: 98vw;
-    width: 98%;
-    max-height: 95vh;
-    margin: 1% auto;
+    max-width: 98vw !important;
+    width: 98% !important;
+    max-height: 95vh !important;
+    margin: 1% auto !important;
 }
 
 #modal-detalhes-mes .modal-body {
@@ -787,158 +787,6 @@
     border-color: #86efac;
 }
 
-@media (max-width: 1200px) {
-    .grid-header,
-    .grid-row {
-        grid-template-columns: 35px 1.5fr 0.8fr 0.8fr 0.8fr 70px 0.8fr 90px 90px 90px 50px 100px;
-        gap: 6px;
-        padding: 6px;
-        font-size: 12px;
-    }
-    
-    .acoes-grupo .btn {
-        width: 20px;
-        height: 20px;
-        font-size: 10px;
-    }
-}
-
-@media (max-width: 1024px) {
-    .grid-header,
-    .grid-row {
-        grid-template-columns: 30px 1.2fr 0.7fr 0.7fr 0.7fr 60px 0.7fr 80px 80px 80px 45px 90px;
-        gap: 4px;
-        padding: 4px;
-        font-size: 11px;
-    }
-    
-    .acoes-grupo .btn {
-        width: 18px;
-        height: 18px;
-        font-size: 9px;
-    }
-    
-    .badge-pagamento,
-    .badge-status {
-        font-size: 9px;
-        padding: 1px 6px;
-    }
-}
-
-@media (max-width: 768px) {
-    .despesas-grid {
-        max-height: 60vh;
-    }
-    
-    .grid-header,
-    .grid-row {
-        grid-template-columns: 25px 1fr 0.6fr 0.6fr 0.6fr 50px 0.6fr 70px 70px 70px 40px 80px;
-        gap: 2px;
-        padding: 2px;
-        font-size: 10px;
-        min-height: 35px;
-    }
-    
-    .acoes-grupo .btn {
-        width: 16px;
-        height: 16px;
-        font-size: 8px;
-    }
-    
-    .col-descricao {
-        font-size: 11px;
-    }
-    
-    .badge-pagamento,
-    .badge-status {
-        font-size: 8px;
-        padding: 1px 4px;
-    }
-    
-    .anexos-indicator {
-        font-size: 9px;
-        padding: 2px 6px;
-    }
-    
-    .input-with-upload {
-        flex-direction: column;
-        gap: 8px;
-    }
-    
-    .input-with-upload input {
-        width: 100%;
-    }
-    
-    .btn-upload {
-        width: 100%;
-        justify-content: center;
-    }
-    
-    .upload-drop-area {
-        padding: 16px;
-    }
-    
-    .upload-icon {
-        font-size: 20px;
-    }
-    
-    .arquivo-item {
-        flex-direction: column;
-        gap: 8px;
-        align-items: stretch;
-    }
-    
-    .arquivo-info {
-        justify-content: flex-start;
-    }
-    
-    .btn-remover-arquivo {
-        align-self: flex-end;
-    }
-    
-    .anexo-visualizacao-item {
-        flex-direction: column;
-        gap: 12px;
-        align-items: stretch;
-    }
-    
-    .anexo-acoes {
-        justify-content: center;
-    }
-}
-
-@media (max-width: 480px) {
-    .grid-header,
-    .grid-row {
-        grid-template-columns: 20px 1fr 0.5fr 0.5fr 0.5fr 40px 0.5fr 60px 60px 60px 30px 60px;
-        gap: 1px;
-        padding: 1px;
-        font-size: 9px;
-        min-height: 30px;
-    }
-    
-    .acoes-grupo {
-        flex-direction: column;
-        gap: 1px;
-    }
-    
-    .acoes-grupo .btn {
-        width: 14px;
-        height: 14px;
-        font-size: 7px;
-    }
-    
-    .tab-actions {
-        flex-direction: column;
-        gap: 8px;
-    }
-    
-    .filtros-despesas {
-        flex-wrap: wrap;
-        justify-content: center;
-    }
-}
-
 .upload-loading .upload-icon {
     animation: spin 1s linear infinite;
 }
@@ -1081,22 +929,6 @@
 #btn-pagar-com-valor-personalizado:hover {
     background: #ebf8ff;
     border-color: #2c5282;
-}
-
-@media (max-width: 600px) {
-    #modal-pagamento-lote-despesas .modal-content {
-        margin: 10px;
-        max-width: calc(100% - 20px);
-    }
-    
-    #modal-pagamento-lote-despesas .modal-body {
-        padding: 20px;
-    }
-    
-    .opcoes-pagamento-lote button {
-        padding: 12px 15px;
-        font-size: 0.95rem;
-    }
 }
 
 /* ================================================================

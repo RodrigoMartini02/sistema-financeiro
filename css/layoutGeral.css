@@ -710,54 +710,6 @@ textarea:focus {
 }
 
 /* ================================================================
-   RESPONSIVIDADE MESES
-   ================================================================ */
-
-@media (max-width: 1200px) {
-    .meses-container {
-        grid-template-columns: repeat(4, 1fr);
-    }
-}
-
-@media (max-width: 991px) {
-    .meses-container {
-        grid-template-columns: repeat(3, 1fr);
-        grid-template-rows: repeat(4, 1fr);
-    }
-}
-
-@media (max-width: 768px) {
-    .meses-container {
-        grid-template-columns: repeat(2, 1fr);
-        grid-template-rows: repeat(6, 1fr);
-        height: auto;
-        min-height: calc(100vh - var(--header-height) - 80px);
-    }
-    
-    .mes-nome {
-        font-size: 11px;
-    }
-    
-    .valor-anterior,
-    .mes-saldo-valor,
-    .mes-receita,
-    .mes-despesa {
-        font-size: 11px;
-    }
-}
-
-@media (max-width: 480px) {
-    .meses-container {
-        grid-template-columns: 1fr;
-        grid-template-rows: repeat(12, auto);
-    }
-    
-    .mes-card {
-        min-height: 150px;
-    }
-}
-
-/* ================================================================
    MODAL DE BLOQUEIO
    ================================================================ */
 
