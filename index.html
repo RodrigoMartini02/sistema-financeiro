@@ -1377,7 +1377,7 @@
 </template>
 
 <!-- ======================================================== -->
-<!-- MODALTELA DE BLOQUEIO -->
+<!-- TELA DE BLOQUEIO -->
 <!-- ======================================================== -->
 <div id="lock-screen-overlay" class="lock-screen-overlay"></div>
 <div id="modal-lock-screen" class="modal">
@@ -1397,7 +1397,7 @@
 </div>
 
 <!-- ======================================================== -->
-<!-- MODAL 1: CRIAÇÃO DE NOVO ANO FINANCEIRO -->
+<!-- MODAL: CRIAÇÃO DE ANO FINANCEIRO -->
 <!-- ======================================================== -->
 <div id="modal-novo-ano" class="modal">
     <div class="modal-content">
@@ -1423,7 +1423,7 @@
 
 
 <!-- ======================================================== -->
-<!-- MODAL 3: FECHAMENTO AUTOMÁTICO -->
+<!-- MODAL: FECHAMENTO AUTOMÁTICO -->
 <!-- Notifica quando um mês é fechado automaticamente -->
 <!-- ======================================================== -->
 <div id="modal-notificacao-fechamento" class="notificacao-fechamento hidden">
@@ -1438,7 +1438,7 @@
 </div>
 
 <!-- ======================================================== -->
-<!-- MODAL 5: DETALHES MENSAIS -->
+<!-- MODAL: DETALHES MENSAIS -->
 <!-- ======================================================== -->
 <div id="modal-detalhes-mes" class="modal">
     <div class="modal-content modal-lg">
@@ -1801,7 +1801,7 @@
 </template>
 
 <!-- ======================================================== -->
-<!-- MODAL 4: CADASTRO DE NOVAS RECEITAS -->
+<!-- MODAL: CADASTRO DE RECEITAS -->
 <!-- ======================================================== -->
 <div id="modal-nova-receita" class="modal modal-nova-receita">
     <div class="modal-content">
@@ -1896,7 +1896,7 @@
 </div>
 
 <!-- ======================================================== -->
-<!-- MODAL 2: EXCLUSÃO DE RECEITAS -->
+<!-- MODAL: EXCLUSÃO DE RECEITAS -->
 <!-- ======================================================== -->
 <div id="modal-exclusao-receita" class="modal">
     <div class="modal-content modal-small">
@@ -1918,7 +1918,7 @@
 <!-- MODAIS DE ANEXOS -->
 <!-- ======================================================== -->
 
-<!-- Modal para visualizar anexos da receita -->
+<!-- Modal: Visualizar anexos da receita -->
 <div id="modal-anexos-receita" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -2221,7 +2221,7 @@
     <input type="checkbox" class="despesa-checkbox">
 </template>
 
-<!-- Novos templates para anexos -->
+<!-- Templates para anexos -->
 <template id="template-botao-anexos-com-anexos">
     <button class="btn btn-anexos" data-index="" title="">
         <i class="fas fa-paperclip"></i>
@@ -2242,7 +2242,7 @@
 
 
 <!-- ======================================================== -->
-<!-- MODAL 7: CONFIRMAÇÃO DE EXCLUSÃO DE DESPESAS -->
+<!-- MODAL: CONFIRMAÇÃO DE EXCLUSÃO DE DESPESAS -->
 <!-- ======================================================== -->
 <div id="modal-confirmacao-exclusao-despesa" class="modal">
    <div class="modal-content">
@@ -2276,7 +2276,7 @@
 
 
 <!-- ======================================================== -->
-<!-- MODAL 8: PAGAMENTO INDIVIDUAL -->
+<!-- MODAL: PAGAMENTO INDIVIDUAL -->
 <!-- ======================================================== -->
 <div id="modal-pagamento-individual" class="modal">
   <div class="modal-content">
@@ -2422,7 +2422,7 @@
 </template>
 
 <!-- ======================================================== -->
-<!-- MODAL 11: SELETOR DE MÊS PARA TRANSAÇÕES RÁPIDAS -->
+<!-- MODAL: SELETOR DE MÊS PARA TRANSAÇÕES RÁPIDAS -->
 <!-- ======================================================== -->
 <div id="modal-selecionar-mes" class="modal">
     <div class="modal-content modal-medium">
@@ -2497,7 +2497,7 @@
 <!-- MODAIS DE ANEXOS PARA DESPESAS -->
 <!-- ======================================================== -->
 
-<!-- Modal para visualizar anexos da despesa -->
+<!-- Modal: Visualizar anexos da despesa -->
 <div id="modal-anexos-despesa" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -2566,7 +2566,7 @@
     </div>
 </div>
 
-<!-- Template para notificações -->
+<!-- Template: Notificações -->
 <template id="template-notification-item">
     <div class="notification-item" data-id="" data-tipo="">
         <div class="notification-content">
@@ -2583,32 +2583,6 @@
         </div>
     </div>
 </template>
-
-
-
-<!-- Templates para reutilização -->
-<template id="template-info-parcelamento">
-    <div class="info-parcelas">
-        <div><strong>Total de juros:</strong> <span class="info-juros-total"></span></div>
-        <div><strong>Juros por parcela:</strong> <span class="info-juros-parcela"></span></div>
-        <div><strong>Valor de cada parcela:</strong> <span class="info-valor-parcela"></span></div>
-        <div><strong>Valor total da compra:</strong> <span class="info-valor-total"></span></div>
-        
-    </div>
-</template>
-
-<template id="template-linha-valor-personalizado">
-    <tr>
-        <td class="despesa-descricao"></td>
-        <td class="despesa-categoria"></td>
-        <td class="despesa-forma-pagamento"></td>
-        <td class="despesa-valor-original"></td>
-        <td>
-            <input type="number" class="input-valor-pago" min="0" step="0.01" data-index="">
-        </td>
-    </tr>
-</template>
-
 <template id="template-badge-pagamento">
     <span class="badge-pagamento"></span>
 </template>
@@ -2728,36 +2702,6 @@
 <template id="template-badge-status">
     <span class="badge-status"></span>
 </template>
-
-
-
-<!-- TEMPLATES PARA RENDERIZAÇÃO -->
-<!-- Templates para reutilização -->
-<template id="template-info-parcelamento">
-    <div class="info-parcelas">
-        <div><strong>Total de juros:</strong> <span class="info-juros-total"></span></div>
-        <div><strong>Juros por parcela:</strong> <span class="info-juros-parcela"></span></div>
-        <div><strong>Valor de cada parcela:</strong> <span class="info-valor-parcela"></span></div>
-        <div><strong>Valor total da compra:</strong> <span class="info-valor-total"></span></div>
-    </div>
-</template>
-
-<template id="template-linha-valor-personalizado">
-    <tr>
-        <td class="despesa-descricao"></td>
-        <td class="despesa-categoria"></td>
-        <td class="despesa-forma-pagamento"></td>
-        <td class="despesa-valor-original"></td>
-        <td>
-            <input type="number" class="input-valor-pago" min="0" step="0.01" data-index="">
-        </td>
-    </tr>
-</template>
-
-<template id="template-badge-pagamento">
-    <span class="badge-pagamento"></span>
-</template>
-
 
 <template id="template-mes-card">
     <div class="mes-header">
