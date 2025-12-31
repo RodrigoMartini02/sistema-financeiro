@@ -1097,51 +1097,82 @@ async function salvarEdicaoUsuario(isNovo = false) {
 }
 
 // ================================================================
-// UTILITÁRIOS DE FEEDBACK E UI
+// UTILITÁRIOS DE FEEDBACK E UI - SISTEMA DE TOAST
 // ================================================================
-function mostrarFeedback(mensagem, tipo) {
-    const modal = document.getElementById('modal-feedback-sistema');
-    const titulo = document.getElementById('feedback-titulo');
-    const icone = document.getElementById('feedback-icone');
-    const texto = document.getElementById('feedback-texto');
-    
-    if (modal && titulo && icone && texto) {
-        const config = {
-            success: { titulo: 'Sucesso', icone: 'fas fa-check-circle' },
-            error: { titulo: 'Erro', icone: 'fas fa-exclamation-circle' },
-            warning: { titulo: 'Atenção', icone: 'fas fa-exclamation-triangle' }
-        };
-        
-        const conf = config[tipo] || config.error;
-        titulo.textContent = conf.titulo;
-        icone.className = `feedback-icon ${conf.icone}`;
-        texto.textContent = mensagem;
-        
-        modal.style.display = 'flex';
+function mostrarToast(mensagem, tipo = 'info', duracao = 4000) {
+    // Garantir que o container de toast existe
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        document.body.appendChild(container);
     }
+
+    // Criar elemento toast
+    const toast = document.createElement('div');
+    toast.className = `toast ${tipo}`;
+
+    // Ícones por tipo
+    const icons = {
+        success: 'fas fa-check-circle',
+        error: 'fas fa-exclamation-circle',
+        warning: 'fas fa-exclamation-triangle',
+        info: 'fas fa-info-circle'
+    };
+
+    toast.innerHTML = `
+        <i class="toast-icon ${icons[tipo] || icons.info}"></i>
+        <div class="toast-content">
+            <p class="toast-message">${mensagem}</p>
+        </div>
+        <button class="toast-close" aria-label="Fechar">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+
+    // Adicionar ao container
+    container.appendChild(toast);
+
+    // Mostrar toast com animação
+    setTimeout(() => toast.classList.add('show'), 10);
+
+    // Fechar toast ao clicar no botão X
+    const closeBtn = toast.querySelector('.toast-close');
+    closeBtn.addEventListener('click', () => {
+        fecharToast(toast);
+    });
+
+    // Auto-fechar após duração
+    if (duracao > 0) {
+        setTimeout(() => {
+            fecharToast(toast);
+        }, duracao);
+    }
+
+    return toast;
+}
+
+function fecharToast(toast) {
+    toast.classList.remove('show');
+    toast.classList.add('hide');
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.parentElement.removeChild(toast);
+        }
+    }, 300);
+}
+
+// Manter retrocompatibilidade com código existente
+function mostrarFeedback(mensagem, tipo) {
+    mostrarToast(mensagem, tipo, 4000);
 }
 
 function mostrarValidacao(mensagem, tipo) {
-    const validacaoStatus = document.getElementById('validacao-status');
-    const validacaoIcon = validacaoStatus?.querySelector('.validation-icon');
-    const validacaoText = validacaoStatus?.querySelector('.validation-text');
-    
-    if (validacaoStatus && validacaoIcon && validacaoText) {
-        const icons = {
-            success: 'fas fa-check-circle',
-            error: 'fas fa-exclamation-circle',
-            warning: 'fas fa-exclamation-triangle'
-        };
-        
-        validacaoStatus.className = `validation-feedback ${tipo}`;
-        validacaoIcon.className = `validation-icon ${icons[tipo]}`;
-        validacaoText.textContent = mensagem;
-        validacaoStatus.classList.remove('hidden');
-        
-        setTimeout(() => {
-            validacaoStatus.classList.add('hidden');
-        }, 5000);
-    }
+    mostrarToast(mensagem, tipo, 5000);
+}
+
+function mostrarStatusCartoes(mensagem, tipo) {
+    mostrarToast(mensagem, tipo, 4000);
 }
 
 function garantirUsuarioMaster() {
