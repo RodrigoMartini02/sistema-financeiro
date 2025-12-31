@@ -457,11 +457,24 @@ async function processarNovaSenha() {
     const confirmarSenha = document.getElementById('confirmar-nova-senha')?.value?.trim();
     const botaoSubmit = elementos.formNovaSenha?.querySelector('button[type="submit"]');
     
-    if (!novaSenha || novaSenha !== confirmarSenha) {
-        mostrarErroNovaSenha('As senhas não coincidem ou estão vazias');
+    if (elementos.novaSenhaErrorMessage) elementos.novaSenhaErrorMessage.style.display = 'none';
+    if (elementos.novaSenhaSuccessMessage) elementos.novaSenhaSuccessMessage.style.display = 'none';
+    
+    if (!novaSenha || !confirmarSenha) {
+        mostrarErroNovaSenha('Todos os campos são obrigatórios');
         return;
     }
-
+    
+    if (novaSenha !== confirmarSenha) {
+        mostrarErroNovaSenha('As senhas não coincidem');
+        return;
+    }
+    
+    if (novaSenha.length < 6) {
+        mostrarErroNovaSenha('A senha deve ter pelo menos 6 caracteres');
+        return;
+    }
+    
     setLoadingState(botaoSubmit, true);
     
     try {
@@ -469,7 +482,9 @@ async function processarNovaSenha() {
 
         const response = await fetch(`${API_URL}/auth/reset-password`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify({
                 email: email,
                 novaSenha: novaSenha
@@ -483,11 +498,10 @@ async function processarNovaSenha() {
         }
 
         if (elementos.novaSenhaSuccessMessage) {
-            elementos.novaSenhaSuccessMessage.textContent = 'Senha alterada com sucesso no banco de dados!';
+            elementos.novaSenhaSuccessMessage.textContent = 'Senha alterada com sucesso no banco!';
             elementos.novaSenhaSuccessMessage.style.display = 'block';
         }
         
-        // Sucesso: volta para o login
         setTimeout(() => {
             if (elementos.novaSenhaModal) elementos.novaSenhaModal.style.display = 'none';
             if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
@@ -495,7 +509,7 @@ async function processarNovaSenha() {
         
     } catch (error) {
         console.error('❌ Erro ao resetar senha:', error);
-        mostrarErroNovaSenha(error.message);
+        mostrarErroNovaSenha(error.message || 'Erro ao alterar senha no servidor.');
     } finally {
         setLoadingState(botaoSubmit, false);
     }
