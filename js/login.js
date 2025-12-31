@@ -406,14 +406,11 @@ async function processarRecuperacaoSenha() {
     setLoadingState(botaoSubmit, true);
 
     try {
-        console.log('🔐 Solicitando recuperação de senha via API...');
+        console.log('🔐 Verificando usuário na API...');
 
-        // Chamada para API de recuperação de senha
         const response = await fetch(`${API_URL}/auth/forgot-password`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: email })
         });
 
@@ -423,22 +420,32 @@ async function processarRecuperacaoSenha() {
             throw new Error(data.message || 'Email não encontrado');
         }
 
-        console.log('✅ Email de recuperação enviado!');
+        const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+        console.log('📧 Disparando EmailJS para:', email);
 
-        if (elementos.recuperacaoSuccessMessage) {
-            elementos.recuperacaoSuccessMessage.textContent = 'Email enviado! Verifique sua caixa de entrada e siga as instruções.';
-            elementos.recuperacaoSuccessMessage.style.display = 'block';
+        const envioEmail = await enviarEmailRecuperacao(email, codigo, data.data?.nome || 'Usuário');
+
+        if (envioEmail.success) {
+            salvarCodigoRecuperacao(email, codigo);
+
+            if (elementos.recuperacaoSuccessMessage) {
+                elementos.recuperacaoSuccessMessage.textContent = 'Email enviado! Verifique sua caixa de entrada.';
+                elementos.recuperacaoSuccessMessage.style.display = 'block';
+            }
+
+            const campoCodigoContainer = document.getElementById('campo-codigo-container');
+            if (campoCodigoContainer) {
+                campoCodigoContainer.style.display = 'block';
+            }
+
+            console.log('✅ Processo de recuperação iniciado com sucesso');
+        } else {
+            throw new Error(envioEmail.message || 'Erro ao enviar e-mail de recuperação');
         }
-
-        // Limpar formulário após 3 segundos
-        setTimeout(() => {
-            if (elementos.formRecuperacao) elementos.formRecuperacao.reset();
-            if (elementos.recuperacaoModal) elementos.recuperacaoModal.style.display = 'none';
-        }, 3000);
 
     } catch (error) {
         console.error('❌ Erro na recuperação:', error);
-        mostrarErroRecuperacao(error.message || 'Erro ao enviar email de recuperação. Verifique se o email está correto.');
+        mostrarErroRecuperacao(error.message);
     } finally {
         setLoadingState(botaoSubmit, false);
     }
