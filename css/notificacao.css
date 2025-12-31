@@ -676,3 +676,102 @@
 .toast.info .toast-progress-bar {
     background: #17a2b8;
 }
+
+/* ================================================================
+   MEDIA QUERIES PADRONIZADAS
+   ================================================================ */
+
+/* Tablets (768px - 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+    #modal-notificacoes {
+        width: 420px;
+    }
+
+    #toast-container {
+        max-width: 380px;
+    }
+
+    .toast {
+        min-width: 280px;
+    }
+}
+
+/* Monitores grandes (1920px+) */
+@media (min-width: 1920px) {
+    #modal-notificacoes {
+        width: 450px;
+    }
+
+    .notification-item {
+        padding: 1.2rem 1.75rem;
+    }
+
+    .notification-title {
+        font-size: 1rem;
+    }
+
+    .notification-message {
+        font-size: 0.95rem;
+    }
+
+    #toast-container {
+        max-width: 480px;
+        top: 100px;
+    }
+
+    .toast {
+        min-width: 360px;
+        max-width: 480px;
+        padding: 16px 20px;
+    }
+
+    .toast-title {
+        font-size: 16px;
+    }
+
+    .toast-message {
+        font-size: 14px;
+    }
+}
+
+/* Monitores ultra-wide (2560px+) */
+@media (min-width: 2560px) {
+    #modal-notificacoes {
+        width: 500px;
+    }
+
+    .notification-item {
+        padding: 1.4rem 2rem;
+    }
+
+    .notification-title {
+        font-size: 1.1rem;
+    }
+
+    .notification-message {
+        font-size: 1rem;
+    }
+
+    #toast-container {
+        max-width: 550px;
+        top: 120px;
+    }
+
+    .toast {
+        min-width: 400px;
+        max-width: 550px;
+        padding: 18px 24px;
+    }
+
+    .toast-icon {
+        font-size: 24px;
+    }
+
+    .toast-title {
+        font-size: 17px;
+    }
+
+    .toast-message {
+        font-size: 15px;
+    }
+}

@@ -543,9 +543,83 @@ form .btn-primary:hover {
     transform: translateY(-2px);
 }
 
+/* ================================================================
+   MEDIA QUERIES PADRONIZADAS
+   ================================================================ */
 
+/* Tablets (768px - 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+    .main-content h1 {
+        font-size: 3.5rem;
+    }
 
+    .modal-content {
+        max-width: 450px;
+        padding: 1.75rem;
+    }
 
+    #whatsapp-button a {
+        width: 60px;
+        height: 60px;
+        font-size: 1.65rem;
+    }
+}
+
+/* Monitores grandes (1920px+) */
+@media (min-width: 1920px) {
+    .main-content h1 {
+        font-size: 5rem;
+    }
+
+    .btn {
+        padding: 1.2rem 3rem;
+        font-size: 1.25rem;
+    }
+
+    .modal-content {
+        max-width: 520px;
+        padding: 2rem;
+    }
+
+    .form-group input {
+        padding: 0.85rem 1.15rem;
+        font-size: 1.05rem;
+    }
+
+    #whatsapp-button a {
+        width: 75px;
+        height: 75px;
+        font-size: 2rem;
+    }
+}
+
+/* Monitores ultra-wide (2560px+) */
+@media (min-width: 2560px) {
+    .main-content h1 {
+        font-size: 5.5rem;
+    }
+
+    .btn {
+        padding: 1.4rem 3.5rem;
+        font-size: 1.4rem;
+    }
+
+    .modal-content {
+        max-width: 600px;
+        padding: 2.5rem;
+    }
+
+    .form-group input {
+        padding: 1rem 1.3rem;
+        font-size: 1.15rem;
+    }
+
+    #whatsapp-button a {
+        width: 85px;
+        height: 85px;
+        font-size: 2.25rem;
+    }
+}
 
 
 

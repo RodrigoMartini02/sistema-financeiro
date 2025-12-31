@@ -791,11 +791,6 @@
     animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-
 .grid-content::-webkit-scrollbar {
     width: 6px;
 }
@@ -929,6 +924,82 @@
 #btn-pagar-com-valor-personalizado:hover {
     background: #ebf8ff;
     border-color: #2c5282;
+}
+
+/* ================================================================
+   MEDIA QUERIES PADRONIZADAS
+   ================================================================ */
+
+/* Tablets (768px - 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+    .despesas-grid .grid-header,
+    .despesas-grid .grid-row {
+        grid-template-columns: 35px 1.5fr 0.8fr 0.8fr 0.8fr 70px 0.8fr 90px 90px 90px 50px 100px;
+        gap: 6px;
+        padding: 6px;
+        font-size: 11px;
+    }
+
+    .acoes-grupo .btn {
+        width: 20px;
+        height: 20px;
+        font-size: 10px;
+    }
+
+    #modal-detalhes-mes .modal-content {
+        width: 95% !important;
+        max-width: 950px !important;
+    }
+}
+
+/* Monitores grandes (1920px+) */
+@media (min-width: 1920px) {
+    .despesas-grid .grid-header,
+    .despesas-grid .grid-row {
+        grid-template-columns: 50px 2fr 180px 140px 150px 110px 150px 130px 130px 130px 130px 180px 100px;
+        gap: 10px;
+        padding: 12px;
+        font-size: 13px;
+    }
+
+    .despesas-grid {
+        max-height: 80vh;
+    }
+
+    .acoes-grupo .btn {
+        width: 32px;
+        height: 32px;
+        font-size: 13px;
+    }
+
+    #modal-detalhes-mes .modal-content {
+        max-width: 1600px !important;
+    }
+}
+
+/* Monitores ultra-wide (2560px+) */
+@media (min-width: 2560px) {
+    .despesas-grid .grid-header,
+    .despesas-grid .grid-row {
+        grid-template-columns: 60px 2.5fr 200px 160px 170px 130px 170px 150px 150px 150px 150px 200px 120px;
+        gap: 12px;
+        padding: 14px;
+        font-size: 14px;
+    }
+
+    .despesas-grid {
+        max-height: 85vh;
+    }
+
+    .acoes-grupo .btn {
+        width: 36px;
+        height: 36px;
+        font-size: 14px;
+    }
+
+    #modal-detalhes-mes .modal-content {
+        max-width: 2000px !important;
+    }
 }
 
 /* ================================================================

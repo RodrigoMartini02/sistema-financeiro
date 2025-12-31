@@ -740,17 +740,6 @@
     animation: spin 1s linear infinite;
 }
 
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
 .selector-container {
     display: flex;
     gap: 8px;
@@ -831,17 +820,6 @@
     color: white;
 }
 
-@keyframes fadeInScale {
-    from {
-        opacity: 0;
-        transform: scale(0.8);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
-
 .tabela-responsiva::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -859,4 +837,92 @@
     background: #adb5bd;
 }
 
+/* ================================================================
+   MEDIA QUERIES PADRONIZADAS
+   ================================================================ */
 
+/* Tablets (768px - 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+    .filtros-linha-super-compacta {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+    }
+
+    .comparativo-cards,
+    .gastos-reais-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .resumo-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .tabela-responsiva {
+        font-size: 0.82rem;
+    }
+
+    .relatorio-tabela th,
+    .relatorio-tabela td {
+        padding: 8px 6px;
+    }
+}
+
+/* Monitores grandes (1920px+) */
+@media (min-width: 1920px) {
+    .filtros-linha-super-compacta {
+        grid-template-columns: repeat(8, 1fr);
+    }
+
+    .comparativo-cards,
+    .gastos-reais-cards {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .resumo-cards {
+        grid-template-columns: repeat(5, 1fr);
+    }
+
+    .tabela-responsiva {
+        max-height: 750px;
+    }
+
+    .relatorio-tabela th,
+    .relatorio-tabela td {
+        padding: 14px 10px;
+        font-size: 0.9rem;
+    }
+
+    .card-valor {
+        font-size: 1.6rem;
+    }
+}
+
+/* Monitores ultra-wide (2560px+) */
+@media (min-width: 2560px) {
+    .filtros-linha-super-compacta {
+        grid-template-columns: repeat(10, 1fr);
+    }
+
+    .comparativo-cards,
+    .gastos-reais-cards {
+        grid-template-columns: repeat(6, 1fr);
+    }
+
+    .resumo-cards {
+        grid-template-columns: repeat(6, 1fr);
+    }
+
+    .tabela-responsiva {
+        max-height: 900px;
+    }
+
+    .relatorio-tabela th,
+    .relatorio-tabela td {
+        padding: 16px 12px;
+        font-size: 1rem;
+    }
+
+    .card-valor {
+        font-size: 1.8rem;
+    }
+}
