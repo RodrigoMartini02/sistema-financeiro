@@ -14,6 +14,19 @@
     box-sizing: border-box;
 }
 
+.dashboard-resumo {
+    display: flex;
+    flex-wrap: nowrap; /* Mantém lado a lado */
+    gap: 15px;
+    
+    /* ADICIONE OU ALTERE ESTA LINHA: */
+    margin-top: 20px;  /* Espaço entre os botões de cima e os cards */
+    
+    margin-bottom: 30px;
+    padding: 0 16px;
+    overflow-x: auto;
+}
+
 .resumo-card {
     background: white;
     padding: 15px; /* Reduzi um pouco o padding interno */
