@@ -7,28 +7,48 @@
    ================================================================ */
 
 .dashboard-resumo {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    display: flex;
+    flex-wrap: nowrap;
     gap: 15px;
     margin-bottom: 30px;
     padding: 0 16px;
+    overflow-x: auto;
+}
+
+/* Permitir scroll horizontal em telas pequenas */
+.dashboard-resumo::-webkit-scrollbar {
+    height: 6px;
+}
+
+.dashboard-resumo::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.dashboard-resumo::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+}
+
+.dashboard-resumo::-webkit-scrollbar-thumb:hover {
+    background: #555;
 }
 
 @media (max-width: 1400px) {
     .dashboard-resumo {
-        grid-template-columns: repeat(3, 1fr);
+        flex-wrap: wrap;
     }
 }
 
 @media (max-width: 992px) {
     .dashboard-resumo {
-        grid-template-columns: repeat(2, 1fr);
+        flex-wrap: wrap;
     }
 }
 
 @media (max-width: 576px) {
     .dashboard-resumo {
-        grid-template-columns: 1fr;
+        flex-wrap: wrap;
     }
 }
 
@@ -44,6 +64,26 @@
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    flex: 1 1 0;
+    min-width: 180px;
+}
+
+@media (max-width: 1400px) {
+    .resumo-card {
+        flex: 1 1 calc(33.333% - 10px);
+    }
+}
+
+@media (max-width: 992px) {
+    .resumo-card {
+        flex: 1 1 calc(50% - 8px);
+    }
+}
+
+@media (max-width: 576px) {
+    .resumo-card {
+        flex: 1 1 100%;
+    }
 }
 
 .resumo-card.receitas { border-left-color: var(--receita-color); }
