@@ -34,24 +34,6 @@
     background: #555;
 }
 
-@media (max-width: 1400px) {
-    .dashboard-resumo {
-        flex-wrap: wrap;
-    }
-}
-
-@media (max-width: 992px) {
-    .dashboard-resumo {
-        flex-wrap: wrap;
-    }
-}
-
-@media (max-width: 576px) {
-    .dashboard-resumo {
-        flex-wrap: wrap;
-    }
-}
-
 .resumo-card {
     background: white;
     padding: 18px 20px;
@@ -66,24 +48,6 @@
     justify-content: space-between;
     flex: 1 1 0;
     min-width: 180px;
-}
-
-@media (max-width: 1400px) {
-    .resumo-card {
-        flex: 1 1 calc(33.333% - 10px);
-    }
-}
-
-@media (max-width: 992px) {
-    .resumo-card {
-        flex: 1 1 calc(50% - 8px);
-    }
-}
-
-@media (max-width: 576px) {
-    .resumo-card {
-        flex: 1 1 100%;
-    }
 }
 
 .resumo-card.receitas { border-left-color: var(--receita-color); }
@@ -165,12 +129,6 @@
     gap: 20px;
     margin-bottom: 30px;
     padding: 0 16px;
-}
-
-@media (min-width: 1200px) {
-    .dashboard-grid {
-        grid-template-columns: 1fr 1fr;
-    }
 }
 
 .dashboard-card {
@@ -281,59 +239,6 @@
     font-family: 'Courier New', monospace;
 }
 
-@media (max-width: 768px) {
-    .dashboard-resumo {
-        grid-template-columns: 1fr;
-        gap: 15px;
-    }
-    
-    .dashboard-grid {
-        grid-template-columns: 1fr;
-        gap: 15px;
-    }
-    
-    .dashboard-card,
-    .dashboard-card-full {
-        min-height: 350px;
-        max-height: 450px;
-    }
-    
-    .filtros-header {
-        flex-wrap: wrap;
-        gap: 6px;
-    }
-    
-    .filter-select {
-        min-width: 80px;
-        font-size: 10px;
-    }
-}
-
-@media (max-width: 480px) {
-    .dashboard-resumo,
-    .dashboard-grid,
-    .dashboard-card-full {
-        padding: 0 8px;
-        margin-left: 8px;
-        margin-right: 8px;
-    }
-    
-    .resumo-card p {
-        font-size: 20px;
-    }
-    
-    .dashboard-card h3 {
-        font-size: 14px;
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    .filtros-header {
-        width: 100%;
-        margin-left: 0;
-    }
-}
-
 #dashboard-total-receitas { color: var(--receita-color); }
 #dashboard-total-despesas { color: var(--despesa-color); }
 #dashboard-saldo-anual { color: var(--saldo-color); }
@@ -368,19 +273,6 @@
 .dashboard-card-full,
 .resumo-card {
     animation: fadeIn 0.3s ease-out;
-}
-
-@media print {
-    .dashboard-card,
-    .dashboard-card-full {
-        box-shadow: none;
-        border: 1px solid #e2e8f0;
-        page-break-inside: avoid;
-    }
-    
-    .filtros-header {
-        display: none;
-    }
 }
 
 /* ================================================================
@@ -590,11 +482,5 @@
 .valor-acumulado {
     font-size: 24px;
     font-weight: 700;
-}
-
-@media (max-width: 768px) {
-    .resumo-reservas {
-        grid-template-columns: 1fr;
-    }
 }
 

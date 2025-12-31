@@ -148,37 +148,6 @@
     transform: scale(1.05);
 }
 
-@media (max-width: 768px) {
-    .config-tabs {
-        flex-wrap: wrap;
-    }
-    
-    .config-tab-btn {
-        flex: 1;
-        min-width: 120px;
-        justify-content: center;
-    }
-    
-    .user-management-controls {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .search-container {
-        min-width: unset;
-    }
-    
-    .form-add-cartao .input-group {
-        grid-template-columns: 1fr;
-        gap: 10px;
-    }
-    
-    .pagination-controls {
-        flex-direction: column;
-        gap: 10px;
-    }
-}
-
 /* ================================================================
    SISTEMA DE NOTIFICAÇÕES
    ================================================================ */
@@ -706,19 +675,4 @@
 
 .toast.info .toast-progress-bar {
     background: #17a2b8;
-}
-
-/* Responsive */
-@media (max-width: 576px) {
-    #toast-container {
-        top: 60px;
-        right: 10px;
-        left: 10px;
-        max-width: none;
-    }
-
-    .toast {
-        min-width: auto;
-        max-width: none;
-    }
 }
