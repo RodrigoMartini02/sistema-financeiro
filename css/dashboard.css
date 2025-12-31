@@ -119,7 +119,7 @@
 .dashboard-card-full .chart-container {
     position: relative;
     width: 100%;
-    height: 190px; /* AJUSTE CHAVE: Altura do gráfico reduzida */
+    height: 140px; /* AJUSTE CHAVE: Altura do gráfico reduzida */
     overflow: visible;
 }
 
