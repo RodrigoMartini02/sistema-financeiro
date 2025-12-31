@@ -450,52 +450,45 @@ async function processarNovaSenha() {
     const confirmarSenha = document.getElementById('confirmar-nova-senha')?.value?.trim();
     const botaoSubmit = elementos.formNovaSenha?.querySelector('button[type="submit"]');
     
-    if (elementos.novaSenhaErrorMessage) elementos.novaSenhaErrorMessage.style.display = 'none';
-    if (elementos.novaSenhaSuccessMessage) elementos.novaSenhaSuccessMessage.style.display = 'none';
-    
-    // Validações
-    if (!novaSenha || !confirmarSenha) {
-        mostrarErroNovaSenha('Todos os campos são obrigatórios');
+    if (!novaSenha || novaSenha !== confirmarSenha) {
+        mostrarErroNovaSenha('As senhas não coincidem ou estão vazias');
         return;
     }
-    
-    if (novaSenha !== confirmarSenha) {
-        mostrarErroNovaSenha('As senhas não coincidem');
-        return;
-    }
-    
-    if (novaSenha.length < 6) {
-        mostrarErroNovaSenha('A senha deve ter pelo menos 6 caracteres');
-        return;
-    }
-    
+
     setLoadingState(botaoSubmit, true);
     
     try {
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const usuarioIndex = usuarios.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
-        
-        if (usuarioIndex === -1) {
-            mostrarErroNovaSenha('Usuário não encontrado');
-            return;
+        console.log('📤 Enviando nova senha para o servidor...');
+
+        const response = await fetch(`${API_URL}/auth/reset-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: email,
+                novaSenha: novaSenha
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Erro ao atualizar senha no servidor');
         }
-        
-        usuarios[usuarioIndex].password = novaSenha;
-        localStorage.setItem('usuarios', JSON.stringify(usuarios));
-        
+
         if (elementos.novaSenhaSuccessMessage) {
-            elementos.novaSenhaSuccessMessage.textContent = 'Senha alterada com sucesso!';
+            elementos.novaSenhaSuccessMessage.textContent = 'Senha alterada com sucesso no banco de dados!';
             elementos.novaSenhaSuccessMessage.style.display = 'block';
         }
         
+        // Sucesso: volta para o login
         setTimeout(() => {
             if (elementos.novaSenhaModal) elementos.novaSenhaModal.style.display = 'none';
             if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
-        }, 1800);
+        }, 2000);
         
     } catch (error) {
-        console.error('Erro ao alterar senha:', error);
-        mostrarErroNovaSenha('Erro ao alterar senha.');
+        console.error('❌ Erro ao resetar senha:', error);
+        mostrarErroNovaSenha(error.message);
     } finally {
         setLoadingState(botaoSubmit, false);
     }
@@ -802,9 +795,11 @@ function verificarCodigoRecuperacao(email, codigoInformado) {
 async function enviarEmailRecuperacao(email, codigo, nomeUsuario = 'Usuário') {
     try {
         if (!emailJSDisponivel || !window.emailjs) {
-            throw new Error('EmailJS não disponível');
+            console.error('❌ EmailJS não foi carregado corretamente no navegador.');
+            throw new Error('Serviço de e-mail indisponível');
         }
         
+        // Estes nomes (to_email, to_name, etc) devem ser IGUAIS aos que estão no seu template do EmailJS
         const templateParams = {
             to_email: email,
             to_name: nomeUsuario,
@@ -813,17 +808,20 @@ async function enviarEmailRecuperacao(email, codigo, nomeUsuario = 'Usuário') {
             sistema_nome: 'Sistema de Controle Financeiro'
         };
         
+        console.log('📤 Tentando disparar e-mail via EmailJS...', templateParams);
+        
         const response = await emailjs.send(
             EMAIL_CONFIG.serviceId, 
             EMAIL_CONFIG.templateId, 
             templateParams
         );
         
-        return { success: true, message: 'Email enviado com sucesso!' };
+        console.log('✅ Resposta do EmailJS:', response.status, response.text);
+        return { success: true };
         
     } catch (error) {
-        console.error('Erro ao enviar email:', error);
-        return { success: false, message: 'Erro ao enviar email: ' + error.message };
+        console.error('❌ Erro real no envio do e-mail:', error);
+        return { success: false, message: 'Erro ao enviar e-mail: ' + (error.text || error.message) };
     }
 }
 
