@@ -2259,3 +2259,58 @@ window.atualizarBotoesNavegacaoMes = atualizarBotoesNavegacaoMes;
 window.mostrarToast = mostrarToast;
 window.fecharToast = fecharToast;
 window.mostrarNotificacao = mostrarNotificacao;
+
+// ================================================================
+// EVENT LISTENERS NATIVOS - SUBSTITUINDO ONCLICK INLINE
+// ================================================================
+function configurarEventListeners() {
+    // Fechar modais com X
+    document.querySelectorAll('.close[data-modal]').forEach(closeBtn => {
+        closeBtn.addEventListener('click', function() {
+            const modalId = this.getAttribute('data-modal');
+            fecharModal(modalId);
+        });
+    });
+
+    // Botões de excluir receita
+    const btnExcluirAtual = document.getElementById('btn-excluir-atual');
+    const btnExcluirTodas = document.getElementById('btn-excluir-todas');
+
+    if (btnExcluirAtual) {
+        btnExcluirAtual.addEventListener('click', excluirAtual);
+    }
+
+    if (btnExcluirTodas) {
+        btnExcluirTodas.addEventListener('click', excluirTodas);
+    }
+
+    // Botões de nova despesa (podem existir múltiplos)
+    document.querySelectorAll('#btn-nova-despesa').forEach(btn => {
+        btn.addEventListener('click', abrirModalNovaDespesa);
+    });
+
+    // Botão pagar em lote
+    const btnPagarLote = document.getElementById('btn-pagar-em-lote');
+    if (btnPagarLote) {
+        btnPagarLote.addEventListener('click', pagarDespesasEmLote);
+    }
+
+    // Botão fechar mês (delegação de evento - criado dinamicamente)
+    document.addEventListener('click', function(e) {
+        if (e.target && e.target.id === 'btn-fechar-mes') {
+            handleFecharMes();
+        }
+        if (e.target && e.target.id === 'btn-reabrir-mes') {
+            handleReabrirMes();
+        }
+    });
+
+    // Botão limpar filtros
+    const btnLimparFiltros = document.getElementById('btn-limpar-filtros');
+    if (btnLimparFiltros) {
+        btnLimparFiltros.addEventListener('click', limparFiltros);
+    }
+}
+
+// Executar quando DOM estiver pronto
+document.addEventListener('DOMContentLoaded', configurarEventListeners);

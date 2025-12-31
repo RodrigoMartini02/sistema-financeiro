@@ -66,6 +66,7 @@ function configurarSistemaCompleto() {
     configurarFechamentoModais();
     configurarLimpezaMensagens();
     configurarFormatacaoDocumentos();
+    configurarToggleSenha();
     inicializarModais();
 }
 
@@ -1091,12 +1092,25 @@ function processarLoginMinimo(documento, password) {
 // FUNÇÕES GLOBAIS EXPORTADAS
 // ================================================================
 
+// ================================================================
+// CONFIGURAR TOGGLE DE SENHA - EVENT LISTENERS NATIVOS
+// ================================================================
+function configurarToggleSenha() {
+    // Selecionar todos os botões de toggle de senha
+    document.querySelectorAll('.password-toggle[data-target]').forEach(button => {
+        button.addEventListener('click', function() {
+            const targetId = this.getAttribute('data-target');
+            togglePassword(targetId, this);
+        });
+    });
+}
+
 function togglePassword(inputId, button) {
     const input = document.getElementById(inputId);
     const icon = button.querySelector('i');
-    
+
     if (!input || !icon) return;
-    
+
     if (input.type === 'password') {
         input.type = 'text';
         icon.classList.remove('fa-eye');

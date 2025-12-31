@@ -1403,7 +1403,7 @@
     <div class="modal-content">
         <div class="modal-header">
             <h2>Criar Novo Ano Financeiro</h2>
-            <span class="close" onclick="fecharModal('modal-novo-ano')">&times;</span>
+            <span class="close" data-modal="modal-novo-ano">&times;</span>
         </div>
         <div class="modal-body">
             <form id="form-novo-ano" onsubmit="handleCriarNovoAno(event)">
@@ -1907,8 +1907,8 @@
         <div class="modal-body">
             <p>Como deseja excluir esta receita?</p>
             <div class="opcoes-exclusao">
-                <button id="btn-excluir-atual" class="btn btn-block" onclick="excluirAtual()">Excluir apenas esta receita</button>
-                <button id="btn-excluir-todas" class="btn btn-block" onclick="excluirTodas()">Excluir todas com esta descrição neste ano</button>
+                <button id="btn-excluir-atual" class="btn btn-block">Excluir apenas esta receita</button>
+                <button id="btn-excluir-todas" class="btn btn-block">Excluir todas com esta descrição neste ano</button>
             </div>
         </div>
     </div>
@@ -1966,7 +1966,7 @@
    <div class="modal-content modal-despesa-compact">
        <div class="modal-header">
            <h2>Nova Despesa</h2>
-           <span class="close" onclick="fecharModal('modal-nova-despesa')">&times;</span>
+           <span class="close" data-modal="modal-nova-despesa">&times;</span>
        </div>
        <div class="modal-body">
            <form id="form-nova-despesa" onsubmit="handleSalvarDespesa(event)">
@@ -2094,10 +2094,10 @@
 <template id="template-estrutura-despesas-grid">
     <div class="tab-actions">
         <div class="left-side">
-            <button id="btn-nova-despesa" class="btn-action" onclick="abrirModalNovaDespesa()">
+            <button id="btn-nova-despesa" class="btn-action">
                 <i class="fas fa-plus-circle"></i> Nova Despesa
             </button>
-            <button id="btn-pagar-em-lote" class="btn-action" disabled onclick="pagarDespesasEmLote()">
+            <button id="btn-pagar-em-lote" class="btn-action" disabled>
                 <i class="fas fa-check-circle"></i> Pagar em Lote
             </button>
         </div>
@@ -2428,7 +2428,7 @@
     <div class="modal-content modal-medium">
         <div class="modal-header">
             <h2 id="selecionar-mes-titulo">Selecionar Mês</h2>
-            <span class="close" onclick="fecharModal('modal-selecionar-mes')">&times;</span>
+            <span class="close" data-modal="modal-selecionar-mes">&times;</span>
         </div>
         <div class="modal-body">
             <p>Para qual mês você deseja adicionar a transação?</p>
@@ -2471,13 +2471,13 @@
     
     <!-- Botões de Controle do Mês -->
     <div id="template-btn-reabrir">
-        <button class="btn btn-warning" onclick="handleReabrirMes()">
+        <button id="btn-reabrir-mes" class="btn btn-warning">
             <i class="fas fa-unlock"></i> Reabrir Mês
         </button>
     </div>
     
     <div id="template-btn-fechar">
-        <button class="btn btn-primary" onclick="handleFecharMes()">
+        <button id="btn-fechar-mes" class="btn btn-primary">
             <i class="fas fa-lock"></i> Fechar Mês (<span class="saldo-valor"></span>)
         </button>
     </div>
@@ -2616,10 +2616,10 @@
 <template id="template-estrutura-despesas">
     <div class="tab-actions">
         <div class="left-side">
-            <button id="btn-nova-despesa" class="btn-action" onclick="abrirModalNovaDespesa()">
+            <button id="btn-nova-despesa" class="btn-action">
                 <i class="fas fa-plus-circle"></i> Nova Despesa
             </button>
-            <button id="btn-pagar-em-lote" class="btn-action" disabled onclick="pagarDespesasEmLote()">
+            <button id="btn-pagar-em-lote" class="btn-action" disabled>
                 <i class="fas fa-check-circle"></i> Pagar em Lote
             </button>
         </div>
@@ -2642,7 +2642,7 @@
                     <option value="pagas">Pagas</option>
                     <option value="pendentes">Pendentes</option>
                 </select>
-                <button id="btn-limpar-filtros" class="btn btn-secondary" onclick="limparFiltros()">
+                <button id="btn-limpar-filtros" class="btn btn-secondary">
                     <i class="fas fa-eraser"></i>
                 </button>
                 
