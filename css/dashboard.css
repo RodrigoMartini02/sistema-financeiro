@@ -1,7 +1,3 @@
-/* ================================================================
-   DASHBOARD.CSS - Sistema Financeiro (Versão Atualizada)
-   ================================================================ */
-
 .dashboard-resumo {
     display: flex;
     flex-wrap: nowrap;
@@ -10,6 +6,24 @@
     overflow-x: auto;
     margin-top: 20px; 
     margin-bottom: 40px;
+}
+
+.dashboard-resumo::-webkit-scrollbar {
+    height: 6px;
+}
+
+.dashboard-resumo::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.dashboard-resumo::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+}
+
+.dashboard-resumo::-webkit-scrollbar-thumb:hover {
+    background: #555;
 }
 
 .resumo-card {
@@ -26,6 +40,7 @@
     justify-content: space-between;
     flex: 1 1 0;
     min-width: 180px;
+    max-width: 100%;
 }
 
 .resumo-card.receitas { border-left-color: var(--receita-color); }
@@ -74,22 +89,6 @@
     line-height: 1.3;
 }
 
-.dashboard-resumo::-webkit-scrollbar {
-    height: 6px;
-}
-
-.dashboard-resumo::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 3px;
-}
-
-.dashboard-resumo::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 3px;
-}
-
-/* --- GRÁFICO FULL WIDTH --- */
-
 .dashboard-card-full {
     background: white;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
@@ -105,7 +104,7 @@
 
 .dashboard-card-full h3 {
     font-size: 16px;
-    margin-bottom: 25px;
+    margin-bottom: 16px;
     color: #1e293b;
     font-weight: 600;
     padding-bottom: 12px;
@@ -119,13 +118,11 @@
     overflow: visible;
 }
 
-/* --- GRID DE GRÁFICOS --- */
-
 .dashboard-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+    grid-template-columns: 1fr 1fr;
     gap: 30px;
-    margin-bottom: 40px;
+    margin-bottom: 30px;
     padding: 0 16px;
 }
 
@@ -133,12 +130,11 @@
     background: white;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     padding: 25px;
-    border-radius: 8px;
     transition: transform 0.3s ease;
     display: flex;
     flex-direction: column;
-    min-height: 450px;
-    max-height: 600px;
+    min-height: 480px;
+    border-radius: 8px;
 }
 
 .dashboard-card:hover {
@@ -147,7 +143,7 @@
 
 .dashboard-card h3 {
     font-size: 16px;
-    margin-bottom: 25px;
+    margin-bottom: 16px;
     color: #1e293b;
     font-weight: 600;
     padding-bottom: 12px;
@@ -178,32 +174,40 @@
     transition: all 0.2s ease;
 }
 
+.filter-select:hover { border-color: #9ca3af; }
+.filter-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+.filter-select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .chart-container {
     position: relative;
     width: 100%;
     flex: 1;
-    min-height: 300px;
+    min-height: 280px;
+    margin-bottom: 15px;
     overflow: visible;
 }
 
-#balanco-chart,
-#tendencia-chart,
-#receitas-despesas-chart,
-#categorias-barras-chart,
-#categorias-mensais-chart,
-#juros-chart,
-#parcelamentos-chart,
-#forma-pagamento-chart {
+#balanco-chart, #tendencia-chart, #receitas-despesas-chart,
+#categorias-barras-chart, #categorias-mensais-chart,
+#juros-chart, #parcelamentos-chart, #forma-pagamento-chart {
     width: 100%;
     height: 100%;
 }
 
 .estatisticas-container {
-    margin-top: 15px;
+    margin-top: auto;
     padding: 12px;
     background: #f8fafc;
     font-size: 11px;
     border-radius: 4px;
+    border-top: 1px solid #edf2f7;
 }
 
 .estatistica-item {
@@ -213,13 +217,28 @@
     margin-bottom: 6px;
 }
 
-/* --- SEÇÃO DE RESERVAS --- */
+.estatistica-item:last-child { margin-bottom: 0; }
+.estatistica-label { color: #64748b; font-weight: 600; }
+.estatistica-valor {
+    color: #1e293b;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+}
+
+#dashboard-total-receitas { color: var(--receita-color); }
+#dashboard-total-despesas { color: var(--despesa-color); }
+#dashboard-saldo-anual { color: var(--saldo-color); }
+#dashboard-total-juros { color: var(--juros-color); }
+#dashboard-total-economias { color: var(--economia-color, #10b981); }
+
+.saldo-positivo { color: var(--receita-color); }
+.saldo-negativo { color: var(--despesa-color); }
 
 .resumo-reservas {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 15px;
-    margin-bottom: 20px;
+    margin-bottom: 15px;
 }
 
 .card-resumo-reserva {
@@ -247,6 +266,14 @@
 .card-icon.reservado { background: #e74c3c; }
 .card-icon.disponivel { background: #27ae60; }
 
+.card-info label {
+    display: block;
+    font-size: 11px;
+    color: #6c757d;
+    margin-bottom: 3px;
+    text-transform: uppercase;
+}
+
 .valor-destaque {
     display: block;
     font-size: 18px;
@@ -258,16 +285,31 @@
 .valor-destaque.disponivel { color: #27ae60; }
 
 .formulario-reserva {
-    padding: 20px;
+    padding: 15px;
     background: #f8f9fa;
-    margin-bottom: 25px;
+    margin-bottom: 15px;
     border-radius: 8px;
+}
+
+.formulario-reserva h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #2c3e50;
 }
 
 .form-group-inline {
     display: flex;
     gap: 10px;
     align-items: center;
+}
+
+.form-group-inline label { font-weight: 600; min-width: 50px; }
+.form-group-inline input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #dee2e6;
+    font-size: 14px;
 }
 
 .btn-confirmar-reserva {
@@ -280,20 +322,33 @@
     border-radius: 4px;
 }
 
+.btn-confirmar-reserva:hover { background: #5568d3; }
+
+.info-texto { margin-top: 8px; font-size: 12px; color: #6c757d; }
+
 .historico-reservas {
-    padding: 20px;
+    padding: 15px;
     background: #f8f9fa;
-    margin-bottom: 25px;
+    margin-bottom: 15px;
     border-radius: 8px;
+}
+
+.historico-reservas h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #2c3e50;
 }
 
 .lista-historico {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    max-height: 200px;
+    gap: 8px;
+    max-height: 150px;
     overflow-y: auto;
 }
+
+.historico-vazio { text-align: center; color: #6c757d; padding: 15px; font-size: 13px; }
 
 .historico-item {
     display: flex;
@@ -305,66 +360,40 @@
     border-radius: 4px;
 }
 
+.historico-icon {
+    width: 30px; height: 30px;
+    background: #667eea;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 12px;
+}
+
+.historico-detalhes { flex: 1; display: flex; justify-content: space-between; }
+.historico-data { font-size: 13px; color: #6c757d; }
+.historico-valor { font-size: 14px; font-weight: 700; color: #e74c3c; }
+
+.btn-remover-reserva {
+    width: 28px; height: 28px;
+    background: white; border: 1px solid #e74c3c;
+    color: #e74c3c; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+}
+.btn-remover-reserva:hover { background: #e74c3c; color: white; }
+
 .acumulado-card {
     display: flex;
     align-items: center;
     gap: 15px;
-    padding: 20px;
+    padding: 15px;
     background: #667eea;
     color: white;
     border-radius: 8px;
 }
 
-.valor-acumulado {
-    font-size: 24px;
-    font-weight: 700;
-}
+.acumulado-card i { font-size: 30px; }
+.acumulado-info label { display: block; font-size: 12px; margin-bottom: 3px; opacity: 0.9; }
+.valor-acumulado { font-size: 24px; font-weight: 700; }
 
-/* --- MEDIA QUERIES --- */
-
-@media (min-width: 768px) and (max-width: 1024px) {
-    .dashboard-resumo {
-        gap: 12px;
-    }
-    .resumo-card {
-        flex: 1 1 calc(50% - 10px);
-        min-width: 150px;
-    }
-    .dashboard-grid {
-        grid-template-columns: 1fr;
-        gap: 20px;
-    }
-    .resumo-reservas {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-@media (min-width: 1920px) {
-    .dashboard-resumo {
-        gap: 20px;
-    }
-    .resumo-card {
-        min-width: 220px;
-        padding: 24px 26px;
-    }
-    .dashboard-grid {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 35px;
-    }
-    .chart-container {
-        min-height: 400px;
-    }
-}
-
-@media (min-width: 2560px) {
-    .dashboard-grid {
-        grid-template-columns: repeat(4, 1fr);
-        gap: 40px;
-    }
-    .chart-container {
-        min-height: 450px;
-    }
-}
+.dashboard-card:active, .dashboard-card-full:active { transform: translateY(0); }
 
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
@@ -373,4 +402,10 @@
 
 .dashboard-card, .dashboard-card-full, .resumo-card {
     animation: fadeIn 0.3s ease-out;
+}
+
+@media (max-width: 1024px) {
+    .dashboard-grid { grid-template-columns: 1fr; }
+    .resumo-card { min-width: 150px; }
+    .resumo-reservas { grid-template-columns: 1fr 1fr; }
 }
