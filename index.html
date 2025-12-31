@@ -1574,23 +1574,19 @@
                         <i class="fas fa-plus-circle"></i> Nova Receita
                     </button>
                 </div>
-                
-                <div class="tabela-container">
-                    <table id="tabela-receitas" class="tabela-receitas">
-                        <thead class="receita-thead">
-                            <tr class="receita-header-row">
-                                <th class="col-descricao">Descrição</th>
-                                <th class="col-valor">Valor</th>
-                                <th class="col-data">Data</th>
-                                <th class="col-parcela">Parcela</th>
-                                <th class="col-acoes">Ações</th>
-                                <th class="col-anexos">Anexos</th>
-                            </tr>
-                        </thead>
-                        <tbody id="lista-receitas" class="receita-tbody">
-                            <!-- Receitas serão inseridas aqui -->
-                        </tbody>
-                    </table>
+
+                <div class="receitas-grid">
+                    <div class="grid-header">
+                        <div class="col-descricao">Descrição</div>
+                        <div class="col-valor">Valor</div>
+                        <div class="col-data">Data</div>
+                        <div class="col-parcela">Parcela</div>
+                        <div class="col-acoes">Ações</div>
+                        <div class="col-anexos">Anexos</div>
+                    </div>
+                    <div class="grid-content" id="lista-receitas">
+                        <!-- Receitas serão inseridas aqui -->
+                    </div>
                 </div>
             </div>
 
@@ -1691,53 +1687,51 @@
 <!-- ================================================================ -->
 
 <template id="template-linha-receita">
-    <tr class="receita-row" data-categoria="">
-        <td class="col-descricao">
+    <div class="grid-row receita-row" data-categoria="">
+        <div class="col-descricao">
             <span class="receita-descricao"></span>
-        </td>
-        <td class="col-valor">
+        </div>
+        <div class="col-valor">
             <span class="receita-valor"></span>
-        </td>
-        <td class="col-data">
+        </div>
+        <div class="col-data">
             <span class="receita-data"></span>
-        </td>
-        <td class="col-parcela">
+        </div>
+        <div class="col-parcela">
             <span class="receita-parcela"></span>
-        </td>
-        <td class="col-acoes">
-            <div class="receita-acoes">
-                <button class="btn btn-editar" data-index="" title="Editar">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn btn-excluir" data-index="" title="Excluir">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        </td>
-        <td class="col-anexos">
+        </div>
+        <div class="col-acoes">
+            <button class="btn btn-editar" data-index="" title="Editar">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn btn-excluir" data-index="" title="Excluir">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+        <div class="col-anexos">
             <button class="btn btn-anexos" data-index="" title="Ver anexos">
                 <i class="fas fa-paperclip"></i>
                 <span class="contador-anexos">0</span>
             </button>
-        </td>
-    </tr>
+        </div>
+    </div>
 </template>
 
 <template id="template-linha-saldo-anterior">
-    <tr class="saldo-anterior-row">
-        <td class="col-descricao">
+    <div class="grid-row saldo-anterior-row">
+        <div class="col-descricao">
             <span class="saldo-anterior-desc"></span>
-        </td>
-        <td class="col-valor">
+        </div>
+        <div class="col-valor">
             <span class="saldo-anterior-valor"></span>
-        </td>
-        <td class="col-data">-</td>
-        <td class="col-parcela">-</td>
-        <td class="col-acoes">
+        </div>
+        <div class="col-data">-</div>
+        <div class="col-parcela">-</div>
+        <div class="col-acoes">
             <span class="badge-saldo-anterior">AUTOMÁTICO</span>
-        </td>
-        <td class="col-anexos">-</td>
-    </tr>
+        </div>
+        <div class="col-anexos">-</div>
+    </div>
 </template>
         </div>
       </div>
@@ -1750,54 +1744,52 @@
 
 <!-- Template para linha de receita -->
 <template id="template-linha-receita">
-    <tr class="receita-row" data-categoria="">
-        <td class="col-descricao">
+    <div class="grid-row receita-row" data-categoria="">
+        <div class="col-descricao">
             <span class="receita-descricao"></span>
-        </td>
-        <td class="col-valor">
+        </div>
+        <div class="col-valor">
             <span class="receita-valor"></span>
-        </td>
-        <td class="col-data">
+        </div>
+        <div class="col-data">
             <span class="receita-data"></span>
-        </td>
-        <td class="col-parcela">
+        </div>
+        <div class="col-parcela">
             <span class="receita-parcela"></span>
-        </td>
-        <td class="col-acoes">
-            <div class="receita-acoes">
-                <button class="btn btn-editar" data-index="" title="Editar">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn btn-excluir" data-index="" title="Excluir">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        </td>
-        <td class="col-anexos">
+        </div>
+        <div class="col-acoes">
+            <button class="btn btn-editar" data-index="" title="Editar">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn btn-excluir" data-index="" title="Excluir">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+        <div class="col-anexos">
             <button class="btn btn-anexos" data-index="" title="Ver anexos">
                 <i class="fas fa-paperclip"></i>
                 <span class="contador-anexos">0</span>
             </button>
-        </td>
-    </tr>
+        </div>
+    </div>
 </template>
 
 <!-- Template para linha de saldo anterior -->
 <template id="template-linha-saldo-anterior">
-    <tr class="saldo-anterior-row">
-        <td class="col-descricao">
+    <div class="grid-row saldo-anterior-row">
+        <div class="col-descricao">
             <span class="saldo-anterior-desc"></span>
-        </td>
-        <td class="col-valor">
+        </div>
+        <div class="col-valor">
             <span class="saldo-anterior-valor"></span>
-        </td>
-        <td class="col-data">-</td>
-        <td class="col-parcela">-</td>
-        <td class="col-acoes">
+        </div>
+        <div class="col-data">-</div>
+        <div class="col-parcela">-</div>
+        <div class="col-acoes">
             <span class="badge-saldo-anterior">AUTOMÁTICO</span>
-        </td>
-        <td class="col-anexos">-</td>
-    </tr>
+        </div>
+        <div class="col-anexos">-</div>
+    </div>
 </template>
 
 <!-- ======================================================== -->

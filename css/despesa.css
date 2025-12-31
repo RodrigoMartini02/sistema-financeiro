@@ -7,8 +7,15 @@
    ================================================================ */
 
 #modal-detalhes-mes .modal-content {
-    max-width: 1800px;
+    max-width: 98vw;
     width: 98%;
+    max-height: 95vh;
+    margin: 1% auto;
+}
+
+#modal-detalhes-mes .modal-body {
+    max-height: calc(95vh - 120px);
+    overflow-y: auto;
 }
 
 .despesas-grid {
