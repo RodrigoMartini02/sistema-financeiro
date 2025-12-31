@@ -165,32 +165,88 @@ function exportarVariaveisGlobais() {
 // SISTEMA DE NOTIFICAÇÕES
 // ================================================================
 
-function mostrarNotificacao(mensagem, tipo) {
-    // Remover notificação anterior se existir
-    const notificacaoExistente = document.querySelector('.notificacao-toast');
-    if (notificacaoExistente) {
-        notificacaoExistente.remove();
+// ================================================================
+// SISTEMA DE TOAST NOTIFICATIONS - GLOBAL
+// ================================================================
+function mostrarToast(mensagem, tipo = 'info', duracao = 4000) {
+    // Garantir que o container de toast existe
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        document.body.appendChild(container);
     }
 
-    // Criar elemento de notificação
-    const notificacao = document.createElement('div');
-    notificacao.className = `notificacao-toast notificacao-${tipo}`;
-    notificacao.innerHTML = `
-        <i class="fas ${tipo === 'sucesso' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
-        <span>${mensagem}</span>
+    // Criar elemento toast
+    const toast = document.createElement('div');
+    toast.className = `toast ${tipo}`;
+
+    // Ícones por tipo
+    const icons = {
+        success: 'fas fa-check-circle',
+        sucesso: 'fas fa-check-circle',
+        error: 'fas fa-exclamation-circle',
+        erro: 'fas fa-exclamation-circle',
+        warning: 'fas fa-exclamation-triangle',
+        aviso: 'fas fa-exclamation-triangle',
+        info: 'fas fa-info-circle'
+    };
+
+    // Normalizar tipo (compatibilidade com português)
+    const tipoNormalizado = tipo === 'sucesso' ? 'success' :
+                           tipo === 'erro' ? 'error' :
+                           tipo === 'aviso' ? 'warning' : tipo;
+
+    toast.innerHTML = `
+        <i class="toast-icon ${icons[tipo] || icons.info}"></i>
+        <div class="toast-content">
+            <p class="toast-message">${mensagem}</p>
+        </div>
+        <button class="toast-close" aria-label="Fechar">
+            <i class="fas fa-times"></i>
+        </button>
     `;
 
-    // Adicionar ao body
-    document.body.appendChild(notificacao);
+    toast.className = `toast ${tipoNormalizado}`;
 
-    // Mostrar animação
-    setTimeout(() => notificacao.classList.add('show'), 10);
+    // Adicionar ao container
+    container.appendChild(toast);
 
-    // Remover após 3 segundos
+    // Mostrar toast com animação
+    setTimeout(() => toast.classList.add('show'), 10);
+
+    // Fechar toast ao clicar no botão X
+    const closeBtn = toast.querySelector('.toast-close');
+    closeBtn.addEventListener('click', () => {
+        fecharToast(toast);
+    });
+
+    // Auto-fechar após duração
+    if (duracao > 0) {
+        setTimeout(() => {
+            fecharToast(toast);
+        }, duracao);
+    }
+
+    return toast;
+}
+
+function fecharToast(toast) {
+    toast.classList.remove('show');
+    toast.classList.add('hide');
     setTimeout(() => {
-        notificacao.classList.remove('show');
-        setTimeout(() => notificacao.remove(), 300);
-    }, 3000);
+        if (toast.parentElement) {
+            toast.parentElement.removeChild(toast);
+        }
+    }, 300);
+}
+
+// Retrocompatibilidade com função antiga
+function mostrarNotificacao(mensagem, tipo) {
+    // Converter tipo antigo para novo formato
+    const tipoConvertido = tipo === 'sucesso' ? 'success' :
+                          tipo === 'erro' ? 'error' : tipo;
+    mostrarToast(mensagem, tipoConvertido, 4000);
 }
 
 // ================================================================
@@ -2198,3 +2254,8 @@ function atualizarBarrasCartoes(mes, ano) {
 window.atualizarBarrasCartoes = atualizarBarrasCartoes;
 window.navegarMesModal = navegarMesModal;
 window.atualizarBotoesNavegacaoMes = atualizarBotoesNavegacaoMes;
+
+// Exportar sistema de toast globalmente
+window.mostrarToast = mostrarToast;
+window.fecharToast = fecharToast;
+window.mostrarNotificacao = mostrarNotificacao;

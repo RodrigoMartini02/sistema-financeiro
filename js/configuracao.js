@@ -649,30 +649,6 @@ async function salvarCartoesForms() {
     }
 }
 
-function mostrarStatusCartoes(mensagem, tipo) {
-    const statusElement = document.getElementById('cartoes-status');
-    const iconElement = statusElement?.querySelector('.feedback-icon');
-    const textElement = statusElement?.querySelector('.feedback-text');
-    
-    if (statusElement && iconElement && textElement) {
-        statusElement.className = `status-feedback ${tipo}`;
-        textElement.textContent = mensagem;
-        
-        const icons = {
-            success: 'fas fa-check-circle',
-            error: 'fas fa-exclamation-circle',
-            warning: 'fas fa-exclamation-triangle'
-        };
-        
-        iconElement.className = `feedback-icon ${icons[tipo]}`;
-        statusElement.classList.remove('hidden');
-        
-        setTimeout(() => {
-            statusElement.classList.add('hidden');
-        }, 5000);
-    }
-}
-
 // ================================================================
 // SISTEMA DE USUÁRIOS
 // ================================================================
