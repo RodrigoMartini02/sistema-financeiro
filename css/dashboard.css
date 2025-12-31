@@ -6,26 +6,15 @@
 
 .dashboard-resumo {
     display: flex;
-    flex-wrap: wrap; /* Alterado para wrap para que eles quebrem linha se não couberem, ou mantenha nowrap se quiser scroll */
+    flex-wrap: nowrap;
     gap: 15px;
-    margin-bottom: 30px;
-    padding: 0 16px;
-    width: 100%; /* Garante que use a largura total */
-    box-sizing: border-box;
-}
-
-.dashboard-resumo {
-    display: flex;
-    flex-wrap: nowrap; /* Mantém lado a lado */
-    gap: 15px;
-    
-    /* ADICIONE OU ALTERE ESTA LINHA: */
-    margin-top: 20px;  /* Espaço entre os botões de cima e os cards */
-    
-    margin-bottom: 30px;
     padding: 0 16px;
     overflow-x: auto;
+    
+    /* ADICIONE ESTA LINHA: */
+    margin-top: 20px; 
 }
+
 
 .resumo-card {
     background: white;
