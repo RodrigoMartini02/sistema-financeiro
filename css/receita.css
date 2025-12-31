@@ -1,11 +1,7 @@
 /* ================================================================
-   RECEITA.CSS - Estilizações específicas de Receitas
-   Sistema Financeiro
+   RECEITA.CSS - Receitas  Sistema Financeiro
    ================================================================ */
 
-/* ================================================================
-   MODAL DE RECEITAS - COM ANEXOS
-   ================================================================ */
 /* Botão Salvar - Modal Receita */
 #form-nova-receita button[type="submit"] {
     padding: 10px 24px;
@@ -16,7 +12,6 @@
     cursor: pointer;
     transition: all 0.2s;
 }
-
 
 
 .descricao-anexos-container {
@@ -613,11 +608,6 @@
 }
 
 
-
-
-
-
-
 #modal-exclusao-receita .modal-content {
     max-width: 450px;
     width: 88%;
@@ -974,12 +964,3 @@
     }
 }
 
-/* ================================================================
-   CONTINUA NO PRÓXIMO BLOCO (DESPESAS)...
-   ================================================================ */
-
-
-
-
-
-/* ================================================================
