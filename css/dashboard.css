@@ -114,7 +114,7 @@
 .dashboard-card-full .chart-container {
     position: relative;
     width: 100%;
-    height: 250px; 
+    height: 100px; 
     overflow: visible;
 }
 
