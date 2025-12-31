@@ -3,16 +3,45 @@
    Sistema Financeiro
    ================================================================ */
 
-   MÓDULO 4: DASHBOARD
-   ================================================================ */
 
 .dashboard-resumo {
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap; /* Alterado para wrap para que eles quebrem linha se não couberem, ou mantenha nowrap se quiser scroll */
     gap: 15px;
     margin-bottom: 30px;
     padding: 0 16px;
-    overflow-x: auto;
+    width: 100%; /* Garante que use a largura total */
+    box-sizing: border-box;
+}
+
+.resumo-card {
+    background: white;
+    padding: 15px; /* Reduzi um pouco o padding interno */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    position: relative;
+    min-height: 90px; /* Reduzi a altura mínima */
+    border-left: 4px solid var(--primary-color);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    
+    /* O SEGREDO ESTÁ AQUI: */
+    flex: 1; /* Faz com que todos cresçam igualmente */
+    min-width: 160px; /* Largura mínima menor para caberem mais lado a lado */
+    max-width: 100%; /* Impede que estourem o container */
+}
+
+
+.resumo-card h3 {
+    font-size: 10px; /* Era 11px */
+    margin-bottom: 4px;
+}
+
+.resumo-card p {
+    font-size: 18px; /* Era 22px - ajuda a caber valores grandes em cards estreitos */
+    white-space: nowrap; /* Evita que o valor R$ quebre linha */
 }
 
 /* Permitir scroll horizontal em telas pequenas */
