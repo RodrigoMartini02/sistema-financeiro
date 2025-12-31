@@ -11,10 +11,12 @@
     padding: 0 16px;
     overflow-x: auto;
     
-    /* ADICIONE ESTA LINHA: */
+    /* ESPAÇO SUPERIOR (entre a barra cinza e os cards) */
     margin-top: 20px; 
+    
+    /* ESPAÇO INFERIOR (entre os cards e o gráfico de Balanço) */
+    margin-bottom: 40px; /* Ajusta este valor conforme preferires */
 }
-
 
 .resumo-card {
     background: white;
