@@ -667,36 +667,39 @@ function criarGraficoCategoriasMensaisComFiltros(dadosFinanceiros, ano, filtros)
     
     if (!dadosFinanceiros[ano]) return;
 
-    // 1. Mapear Contagem: Categoria -> Array de 12 meses (contando ocorrências)
+    // 1. Mapear Valores Financeiros: Categoria -> Array de 12 meses (Soma de R$)
     const categoriasMap = {};
-    const totalGeralPorCategoria = {};
+    const totalPorCategoriaGeral = {};
 
     for (let i = 0; i < 12; i++) {
         const dadosMes = dadosFinanceiros[ano].meses[i];
         if (!dadosMes || !dadosMes.despesas) continue;
 
+        // Aplica os filtros de categoria/pagamento que você já possui
         const despesasFiltradas = aplicarFiltrosDespesas(dadosMes.despesas, filtros);
 
         despesasFiltradas.forEach(despesa => {
             const categoria = window.obterCategoriaLimpa ? window.obterCategoriaLimpa(despesa) : (despesa.categoria || 'Sem categoria');
+            const valor = window.obterValorRealDespesa ? window.obterValorRealDespesa(despesa) : (despesa.valor || 0);
             
-            if (!categoriasMap[categoria]) {
-                categoriasMap[categoria] = Array(12).fill(0);
-                totalGeralPorCategoria[categoria] = 0;
+            if (!isNaN(valor) && valor > 0) {
+                if (!categoriasMap[categoria]) {
+                    categoriasMap[categoria] = Array(12).fill(0);
+                    totalPorCategoriaGeral[categoria] = 0;
+                }
+                
+                categoriasMap[categoria][i] += valor;
+                totalPorCategoriaGeral[categoria] += valor;
             }
-            
-            // Incrementa 1 unidade (contagem) em vez do valor R$
-            categoriasMap[categoria][i] += 1;
-            totalGeralPorCategoria[categoria] += 1;
         });
     }
 
-    // 2. Ordenar categorias pelas mais frequentes (Top 15)
-    const categoriasOrdenadas = Object.keys(totalGeralPorCategoria)
-        .sort((a, b) => totalGeralPorCategoria[b] - totalGeralPorCategoria[a])
-        .slice(0, 15);
+    // 2. Ordenar e Limitar (Exibe as 15 categorias com maiores gastos no ano)
+    const categoriasOrdenadas = Object.keys(totalPorCategoriaGeral)
+        .sort((a, b) => totalPorCategoriaGeral[b] - totalPorCategoriaGeral[a])
+        .slice(0, 15); 
 
-    // 3. Cores para os meses (Paleta scannable)
+    // 3. Configurar os Datasets (Um para cada mês)
     const coresMeses = [
         '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40',
         '#C9CBCF', '#46d39a', '#70a1ff', '#5352ed', '#1e90ff', '#2f3542'
@@ -707,17 +710,16 @@ function criarGraficoCategoriasMensaisComFiltros(dadosFinanceiros, ano, filtros)
             label: nomeMes,
             data: categoriasOrdenadas.map(cat => categoriasMap[cat][indexMes]),
             backgroundColor: coresMeses[indexMes],
-            borderWidth: 0,
-            stack: 'Stack 0',
+            borderWidth: 0
         };
     });
 
-    // 4. Destruir instância anterior para evitar sobreposição
+    // 4. Destruir gráfico anterior se existir
     if (window.categoriasEmpilhadasChart) {
         window.categoriasEmpilhadasChart.destroy();
     }
 
-    // 5. ATRIBUIÇÃO GLOBAL (Importante para o Zoom funcionar)
+    // 5. Criar Instância Global (O nome da variável deve ser igual ao data-chart do seu HTML)
     window.categoriasEmpilhadasChart = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -725,40 +727,36 @@ function criarGraficoCategoriasMensaisComFiltros(dadosFinanceiros, ano, filtros)
             datasets: datasets
         },
         options: {
-            indexAxis: 'y', // Barras horizontais para facilitar leitura dos nomes
+            indexAxis: 'y', // Mantém as barras horizontais como na sua imagem
             responsive: true,
             maintainAspectRatio: false,
             scales: {
                 x: {
-                    stacked: true,
+                    stacked: true, // Habilita o empilhamento
                     beginAtZero: true,
                     ticks: {
-                        stepSize: 1, // Apenas números inteiros (1 item, 2 itens...)
                         callback: function(value) {
-                            return value + (value === 1 ? ' item' : ' itens');
+                            // Usa sua função de formatar moeda se existir
+                            return window.formatarMoeda ? window.formatarMoeda(value) : 'R$ ' + value;
                         }
-                    },
-                    title: {
-                        display: true,
-                        text: 'Quantidade de Lançamentos'
                     }
                 },
                 y: {
-                    stacked: true
+                    stacked: true // Habilita o empilhamento no eixo das categorias
                 }
             },
             plugins: {
                 legend: {
                     display: true,
-                    position: 'bottom',
-                    labels: { boxWidth: 10, font: { size: 11 } }
+                    position: 'bottom'
                 },
                 tooltip: {
                     callbacks: {
                         label: function(context) {
                             const valor = context.raw;
                             if (valor === 0) return null;
-                            return `${context.dataset.label}: ${valor} ${valor === 1 ? 'lançamento' : 'lançamentos'}`;
+                            const valorFormatado = window.formatarMoeda ? window.formatarMoeda(valor) : 'R$ ' + valor;
+                            return `${context.dataset.label}: ${valorFormatado}`;
                         }
                     }
                 }
