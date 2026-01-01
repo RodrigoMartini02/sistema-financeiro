@@ -667,96 +667,86 @@ function criarGraficoCategoriasMensaisComFiltros(dadosFinanceiros, ano, filtros)
     
     if (!dadosFinanceiros[ano]) return;
 
-    // 1. Mapear Valores Financeiros: Categoria -> Array de 12 meses (Soma de R$)
     const categoriasMap = {};
-    const totalPorCategoriaGeral = {};
+    const listaCategoriasSet = new Set();
 
+    // 1. Processamento dos dados (Soma valores por categoria/mês)
     for (let i = 0; i < 12; i++) {
         const dadosMes = dadosFinanceiros[ano].meses[i];
         if (!dadosMes || !dadosMes.despesas) continue;
 
-        // Aplica os filtros de categoria/pagamento que você já possui
         const despesasFiltradas = aplicarFiltrosDespesas(dadosMes.despesas, filtros);
 
         despesasFiltradas.forEach(despesa => {
             const categoria = window.obterCategoriaLimpa ? window.obterCategoriaLimpa(despesa) : (despesa.categoria || 'Sem categoria');
             const valor = window.obterValorRealDespesa ? window.obterValorRealDespesa(despesa) : (despesa.valor || 0);
             
-            if (!isNaN(valor) && valor > 0) {
+            if (valor > 0) {
                 if (!categoriasMap[categoria]) {
                     categoriasMap[categoria] = Array(12).fill(0);
-                    totalPorCategoriaGeral[categoria] = 0;
                 }
-                
                 categoriasMap[categoria][i] += valor;
-                totalPorCategoriaGeral[categoria] += valor;
+                listaCategoriasSet.add(categoria);
             }
         });
     }
 
-    // 2. Ordenar e Limitar (Exibe as 15 categorias com maiores gastos no ano)
-    const categoriasOrdenadas = Object.keys(totalPorCategoriaGeral)
-        .sort((a, b) => totalPorCategoriaGeral[b] - totalPorCategoriaGeral[a])
-        .slice(0, 15); 
-
-    // 3. Configurar os Datasets (Um para cada mês)
-    const coresMeses = [
-        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40',
-        '#C9CBCF', '#46d39a', '#70a1ff', '#5352ed', '#1e90ff', '#2f3542'
+    // 2. Criação dos Datasets (Um para cada CATEGORIA)
+    const coresBase = [
+        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', 
+        '#FF9F40', '#C9CBCF', '#46d39a', '#70a1ff', '#5352ed'
     ];
 
-    const datasets = nomesMeses.map((nomeMes, indexMes) => {
+    const datasets = Array.from(listaCategoriasSet).map((categoria, index) => {
         return {
-            label: nomeMes,
-            data: categoriasOrdenadas.map(cat => categoriasMap[cat][indexMes]),
-            backgroundColor: coresMeses[indexMes],
+            label: categoria, // A CATEGORIA VAI PARA A LEGENDA
+            data: categoriasMap[categoria], // Valores dos 12 meses
+            backgroundColor: coresBase[index % coresBase.length],
             borderWidth: 0
         };
     });
 
-    // 4. Destruir gráfico anterior se existir
+    // 3. Destruir instância anterior
     if (window.categoriasEmpilhadasChart) {
         window.categoriasEmpilhadasChart.destroy();
     }
 
-    // 5. Criar Instância Global (O nome da variável deve ser igual ao data-chart do seu HTML)
+    // 4. Renderização (Eixo X = Meses)
     window.categoriasEmpilhadasChart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: categoriasOrdenadas,
+            labels: nomesMeses, // MESES NO EIXO X
             datasets: datasets
         },
         options: {
-            indexAxis: 'y', // Mantém as barras horizontais como na sua imagem
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                x: {
-                    stacked: true, // Habilita o empilhamento
+                x: { 
+                    stacked: true // Empilhamento no eixo X
+                },
+                y: { 
+                    stacked: true, // Empilhamento no eixo Y
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            // Usa sua função de formatar moeda se existir
                             return window.formatarMoeda ? window.formatarMoeda(value) : 'R$ ' + value;
                         }
                     }
-                },
-                y: {
-                    stacked: true // Habilita o empilhamento no eixo das categorias
                 }
             },
             plugins: {
                 legend: {
                     display: true,
-                    position: 'bottom'
+                    position: 'bottom' // Legenda de categorias embaixo
                 },
                 tooltip: {
                     callbacks: {
                         label: function(context) {
                             const valor = context.raw;
                             if (valor === 0) return null;
-                            const valorFormatado = window.formatarMoeda ? window.formatarMoeda(valor) : 'R$ ' + valor;
-                            return `${context.dataset.label}: ${valorFormatado}`;
+                            const valorF = window.formatarMoeda ? window.formatarMoeda(valor) : 'R$ ' + valor;
+                            return `${context.dataset.label}: ${valorF}`;
                         }
                     }
                 }
