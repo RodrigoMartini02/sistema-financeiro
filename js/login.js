@@ -1183,6 +1183,37 @@ function limparSessao() {
     console.log('Sessão limpa');
 }
 
+
+function configurarForcaSenha() {
+    const senhaInput = document.getElementById('nova-senha');
+    const barraForca = document.querySelector('.barra-progresso-senha'); // Verifique se a classe é esta no seu CSS
+
+    if (!senhaInput || !barraForca) return;
+
+    senhaInput.addEventListener('input', function() {
+        const senha = senhaInput.value;
+        let forca = 0;
+
+        if (senha.length >= 6) forca += 25;
+        if (senha.match(/[a-z]/) && senha.match(/[A-Z]/)) forca += 25;
+        if (senha.match(/\d/)) forca += 25;
+        if (senha.match(/[^a-zA-Z\d]/)) forca += 25;
+
+        // Atualiza a largura e a cor da barrinha
+        barraForca.style.width = forca + '%';
+
+        if (forca <= 25) {
+            barraForca.style.backgroundColor = '#ff4d4d'; // Vermelho
+        } else if (forca <= 50) {
+            barraForca.style.backgroundColor = '#ffd633'; // Amarelo
+        } else if (forca <= 75) {
+            barraForca.style.backgroundColor = '#33cc33'; // Verde claro
+        } else {
+            barraForca.style.backgroundColor = '#009900'; // Verde forte
+        }
+    });
+}
+
 // Exportar para escopo global
 window.togglePassword = togglePassword;
 window.diagnosticoLogin = diagnosticoLogin;
