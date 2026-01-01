@@ -434,8 +434,6 @@ async function processarRecuperacaoSenha() {
     setLoadingState(botaoSubmit, true);
 
     try {
-        console.log('🔐 Verificando usuário na API...');
-
         const response = await fetch(`${API_URL}/auth/forgot-password`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -449,7 +447,6 @@ async function processarRecuperacaoSenha() {
         }
 
         const codigo = Math.floor(100000 + Math.random() * 900000).toString();
-        console.log('📧 Disparando EmailJS para:', email);
 
         const envioEmail = await enviarEmailRecuperacao(email, codigo, data.data?.nome || 'Usuário');
 
@@ -465,14 +462,11 @@ async function processarRecuperacaoSenha() {
             if (campoCodigoContainer) {
                 campoCodigoContainer.style.display = 'block';
             }
-
-            console.log('✅ Processo de recuperação iniciado com sucesso');
         } else {
-            throw new Error(envioEmail.message || 'Erro ao enviar e-mail de recuperação');
+            throw new Error('Erro ao enviar e-mail de recuperação');
         }
 
     } catch (error) {
-        console.error('❌ Erro na recuperação:', error);
         mostrarErroRecuperacao(error.message);
     } finally {
         setLoadingState(botaoSubmit, false);
