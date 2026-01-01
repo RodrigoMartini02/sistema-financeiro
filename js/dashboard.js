@@ -1172,6 +1172,79 @@ function obterFiltrosDoGrafico(prefixo) {
     return { categoria, formaPagamento, status, tipo };
 }
 
+
+
+
+// Variável global para armazenar a instância do gráfico ampliado
+let chartZoomInstancia = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('modal-zoom-grafico');
+    const btnFechar = document.getElementById('fechar-modal');
+    const ctxZoom = document.getElementById('chart-zoom-canvas').getContext('2d');
+
+    // 1. Ouvinte para abrir o zoom (usando delegação de evento)
+    document.addEventListener('click', (event) => {
+        // Verifica se o clique foi em um botão com a classe btn-expandir
+        const btn = event.target.closest('.btn-expandir');
+        if (!btn) return;
+
+        // Recupera o nome da variável global do gráfico (ex: balancoChart)
+        const nomeVariavel = btn.getAttribute('data-chart');
+        const graficoOriginal = window[nomeVariavel];
+
+        if (graficoOriginal) {
+            abrirModalZoom(graficoOriginal);
+        }
+    });
+
+    // 2. Função que constrói o gráfico dentro do modal
+    function abrirModalZoom(chartOriginal) {
+        modal.classList.add('modal-ativo'); // No CSS, use isso para dar display: block
+        
+        if (chartZoomInstancia) {
+            chartZoomInstancia.destroy();
+        }
+
+        // Criamos uma nova instância com os mesmos dados, mas sem restrição de proporção
+        chartZoomInstancia = new Chart(ctxZoom, {
+            type: chartOriginal.config.type,
+            data: chartOriginal.data,
+            options: {
+                ...chartOriginal.options,
+                maintainAspectRatio: false,
+                plugins: {
+                    ...chartOriginal.options.plugins,
+                    legend: {
+                        display: true,
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+
+    // 3. Ouvinte para fechar o modal
+    btnFechar.addEventListener('click', () => {
+        fecharModalZoom();
+    });
+
+    // 4. Fechar ao clicar na área escura (fora do conteúdo)
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            fecharModalZoom();
+        }
+    });
+
+    function fecharModalZoom() {
+        modal.classList.remove('modal-ativo');
+        if (chartZoomInstancia) {
+            chartZoomInstancia.destroy();
+            chartZoomInstancia = null;
+        }
+    }
+});
+
 // ================================================================
 // FUNÇÕES DE FILTRO ESPECÍFICAS POR GRÁFICO
 // ================================================================
