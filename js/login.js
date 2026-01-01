@@ -146,10 +146,37 @@ function configurarEventListenersRecuperacao() {
     if (elementos.formRecuperacao) {
         elementos.formRecuperacao.addEventListener('submit', async function(e) {
             e.preventDefault();
-            await processarRecuperacaoSenha();
+            
+            const campoCodigoContainer = document.getElementById('campo-codigo-container');
+            const codigoInput = document.getElementById('codigo-recuperacao')?.value?.trim();
+            const email = document.getElementById('recuperacao-email')?.value?.trim();
+
+            if (campoCodigoContainer && campoCodigoContainer.style.display === 'block') {
+                if (!codigoInput) {
+                    mostrarErroRecuperacao('Por favor, digite o código recebido');
+                    return;
+                }
+
+                const validacao = verificarCodigoRecuperacao(email, codigoInput);
+
+                if (validacao.valido) {
+                    console.log('✅ Código válido! Abrindo tela de nova senha...');
+                    
+                    if (document.getElementById('email-nova-senha')) {
+                        document.getElementById('email-nova-senha').value = email;
+                    }
+                    
+                    if (elementos.recuperacaoModal) elementos.recuperacaoModal.style.display = 'none';
+                    if (elementos.novaSenhaModal) elementos.novaSenhaModal.style.display = 'flex';
+                } else {
+                    mostrarErroRecuperacao(validacao.motivo || 'Código incorreto ou expirado');
+                }
+            } else {
+                await processarRecuperacaoSenha();
+            }
         });
     }
-    
+
     if (elementos.formNovaSenha) {
         elementos.formNovaSenha.addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -157,6 +184,7 @@ function configurarEventListenersRecuperacao() {
         });
     }
 }
+
 
 // ================================================================
 // PROCESSO DE LOGIN OTIMIZADO
