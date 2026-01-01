@@ -659,19 +659,17 @@ function criarGraficoBarrasCategoriasComFiltros(dadosFinanceiros, ano, filtros) 
 // ================================================================
 
 function criarGraficoCategoriasMensaisComFiltros(dadosFinanceiros, ano, filtros) {
-    const ctx = document.getElementById('categorias-mensais-chart')?.getContext('2d');
-    if (!ctx) return;
-
+    const canvas = document.getElementById('categorias-mensais-chart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
     const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    
     if (!dadosFinanceiros[ano]) return;
 
-    if (window.categoriasEmpilhadasChart) {
-        window.categoriasEmpilhadasChart.destroy();
-    }
-
-    // 1. Mapear valores: Categoria -> [valores para cada mês]
+    // 1. Mapear Contagem: Categoria -> Array de 12 meses (contando ocorrências)
     const categoriasMap = {};
-    let totalPorCategoriaGeral = {};
+    const totalGeralPorCategoria = {};
 
     for (let i = 0; i < 12; i++) {
         const dadosMes = dadosFinanceiros[ano].meses[i];
@@ -681,25 +679,24 @@ function criarGraficoCategoriasMensaisComFiltros(dadosFinanceiros, ano, filtros)
 
         despesasFiltradas.forEach(despesa => {
             const categoria = window.obterCategoriaLimpa ? window.obterCategoriaLimpa(despesa) : (despesa.categoria || 'Sem categoria');
-            const valor = window.obterValorRealDespesa ? window.obterValorRealDespesa(despesa) : (despesa.valor || 0);
-
-            if (!isNaN(valor) && valor > 0) {
-                if (!categoriasMap[categoria]) {
-                    categoriasMap[categoria] = Array(12).fill(0);
-                    totalPorCategoriaGeral[categoria] = 0;
-                }
-                categoriasMap[categoria][i] += valor;
-                totalPorCategoriaGeral[categoria] += valor;
+            
+            if (!categoriasMap[categoria]) {
+                categoriasMap[categoria] = Array(12).fill(0);
+                totalGeralPorCategoria[categoria] = 0;
             }
+            
+            // Incrementa 1 unidade (contagem) em vez do valor R$
+            categoriasMap[categoria][i] += 1;
+            totalGeralPorCategoria[categoria] += 1;
         });
     }
 
-    // 2. Ordenar categorias pelas que têm maior gasto total e pegar as top 15 para não poluir
-    const categoriasOrdenadas = Object.keys(totalPorCategoriaGeral)
-        .sort((a, b) => totalPorCategoriaGeral[b] - totalPorCategoriaGeral[a])
+    // 2. Ordenar categorias pelas mais frequentes (Top 15)
+    const categoriasOrdenadas = Object.keys(totalGeralPorCategoria)
+        .sort((a, b) => totalGeralPorCategoria[b] - totalGeralPorCategoria[a])
         .slice(0, 15);
 
-    // 3. Criar os datasets (Cada dataset agora é um MÊS)
+    // 3. Cores para os meses (Paleta scannable)
     const coresMeses = [
         '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40',
         '#C9CBCF', '#46d39a', '#70a1ff', '#5352ed', '#1e90ff', '#2f3542'
@@ -710,28 +707,40 @@ function criarGraficoCategoriasMensaisComFiltros(dadosFinanceiros, ano, filtros)
             label: nomeMes,
             data: categoriasOrdenadas.map(cat => categoriasMap[cat][indexMes]),
             backgroundColor: coresMeses[indexMes],
-            borderWidth: 0
+            borderWidth: 0,
+            stack: 'Stack 0',
         };
     });
 
-    // 4. Gerar o gráfico
+    // 4. Destruir instância anterior para evitar sobreposição
+    if (window.categoriasEmpilhadasChart) {
+        window.categoriasEmpilhadasChart.destroy();
+    }
+
+    // 5. ATRIBUIÇÃO GLOBAL (Importante para o Zoom funcionar)
     window.categoriasEmpilhadasChart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: categoriasOrdenadas, // Categorias no eixo Y
+            labels: categoriasOrdenadas,
             datasets: datasets
         },
         options: {
-            indexAxis: 'y', // Barras horizontais
+            indexAxis: 'y', // Barras horizontais para facilitar leitura dos nomes
             responsive: true,
             maintainAspectRatio: false,
             scales: {
                 x: {
                     stacked: true,
+                    beginAtZero: true,
                     ticks: {
+                        stepSize: 1, // Apenas números inteiros (1 item, 2 itens...)
                         callback: function(value) {
-                            return window.formatarMoeda(value);
+                            return value + (value === 1 ? ' item' : ' itens');
                         }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Quantidade de Lançamentos'
                     }
                 },
                 y: {
@@ -742,15 +751,14 @@ function criarGraficoCategoriasMensaisComFiltros(dadosFinanceiros, ano, filtros)
                 legend: {
                     display: true,
                     position: 'bottom',
-                    labels: { boxWidth: 12 }
+                    labels: { boxWidth: 10, font: { size: 11 } }
                 },
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            const mes = context.dataset.label;
                             const valor = context.raw;
                             if (valor === 0) return null;
-                            return `${mes}: ${window.formatarMoeda(valor)}`;
+                            return `${context.dataset.label}: ${valor} ${valor === 1 ? 'lançamento' : 'lançamentos'}`;
                         }
                     }
                 }
