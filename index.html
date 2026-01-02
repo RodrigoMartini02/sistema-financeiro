@@ -1055,69 +1055,7 @@
     </div>
 </section>
 
-<!-- ================================================== -->
-<!-- SEÇÃO DE REGISTROS (LOGS DO SISTEMA) -->
-<!-- ================================================== -->
-<section class="registros-section" id="registros-section">
-    <div class="registros-header">
-        <h2><i class="fas fa-clipboard-list"></i> Registros do Sistema</h2>
-        <p class="registros-descricao">Visualize todas as alterações realizadas no sistema</p>
-    </div>
 
-    <!-- Ações -->
-    <div class="registros-acoes">
-        <button id="btn-exportar-logs" class="btn-success">
-            <i class="fas fa-download"></i> Exportar CSV
-        </button>
-    </div>
-
-    <!-- Tabela de Logs -->
-    <div class="registros-container">
-        <div class="tabela-responsiva">
-            <table class="tabela-registros">
-                <thead>
-                    <tr>
-                        <th>Data</th>
-                        <th>Hora</th>
-                        <th>Usuário</th>
-                        <th>Módulo</th>
-                        <th>Ação</th>
-                        <th>Status</th>
-                        <th>Detalhes</th>
-                    </tr>
-                </thead>
-                <tbody id="tabela-registros-body">
-                    <!-- Os logs serão inseridos aqui via JavaScript -->
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Paginação -->
-        <div class="registros-paginacao hidden" id="registros-paginacao">
-            <button id="btn-pagina-anterior" class="btn-paginacao">
-                <i class="fas fa-chevron-left"></i> Anterior
-            </button>
-            <span id="info-paginacao" class="info-paginacao">Página 1 de 1</span>
-            <button id="btn-pagina-proxima" class="btn-paginacao">
-                Próxima <i class="fas fa-chevron-right"></i>
-            </button>
-        </div>
-
-        <!-- Mensagem quando não há logs -->
-        <div id="sem-registros-mensagem" class="sem-dados">
-            <div class="sem-dados-icon">
-                <i class="fas fa-clipboard-list"></i>
-            </div>
-            <h4>Nenhum registro encontrado</h4>
-            <p>Não há logs de atividades para exibir com os filtros selecionados.</p>
-        </div>
-    </div>
-
-    <!-- Loading Overlay -->
-    <div id="registros-loading" class="loading-overlay hidden">
-        <div class="loading-spinner"></div>
-    </div>
-</section>
 
 <!-- ================================================== -->
 <!-- TODOS OS MODAIS DE CONFIGURAÇÕES -->
@@ -3063,6 +3001,6 @@
 <script src="js/dashboard.js"></script>
 <script src="js/notificacao.js"></script>
 <script src="js/rel.js"></script>
-<script src="js/logs.js"></script>
+
 </body>
 </html>
