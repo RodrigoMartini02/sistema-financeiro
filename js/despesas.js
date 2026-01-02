@@ -946,6 +946,11 @@ async function salvarDespesa(e) {
                 window.registrarLog('despesa', acao, 'sucesso', detalhes);
             }
 
+            // Recarregar logs se a seção estiver ativa
+            if (typeof window.recarregarLogsSeAtivo === 'function') {
+                window.recarregarLogsSeAtivo();
+            }
+
             console.log('✅ UI atualizada com sucesso!');
         } else {
             console.error('❌ Falha ao salvar despesa');
@@ -959,6 +964,11 @@ async function salvarDespesa(e) {
             if (typeof window.registrarLog === 'function') {
                 const acao = ehEdicao ? 'Falha ao atualizar despesa' : 'Falha ao cadastrar despesa';
                 window.registrarLog('despesa', acao, 'erro', 'Erro ao salvar no servidor');
+            }
+
+            // Recarregar logs se a seção estiver ativa
+            if (typeof window.recarregarLogsSeAtivo === 'function') {
+                window.recarregarLogsSeAtivo();
             }
         }
 
@@ -1832,6 +1842,11 @@ async function excluirDespesaLocal(opcao, index, mes, ano, descricaoDespesa, cat
                 if (typeof window.registrarLog === 'function') {
                     window.registrarLog('despesa', 'Despesa excluída', 'sucesso', `${descricaoDespesa} - ${categoriaDespesa} - Exclusão individual`);
                 }
+
+                // Recarregar logs se a seção estiver ativa
+                if (typeof window.recarregarLogsSeAtivo === 'function') {
+                    window.recarregarLogsSeAtivo();
+                }
             }
         }
         else if (opcao === 'todas') {
@@ -1842,12 +1857,22 @@ async function excluirDespesaLocal(opcao, index, mes, ano, descricaoDespesa, cat
                 if (typeof window.registrarLog === 'function') {
                     window.registrarLog('despesa', 'Parcelas excluídas', 'sucesso', `${descricaoDespesa} - Todas as parcelas removidas`);
                 }
+
+                // Recarregar logs se a seção estiver ativa
+                if (typeof window.recarregarLogsSeAtivo === 'function') {
+                    window.recarregarLogsSeAtivo();
+                }
             } else {
                 await excluirDespesaEmTodosMeses(ano, descricaoDespesa, categoriaDespesa);
 
                 // Registrar log de exclusão em todos os meses
                 if (typeof window.registrarLog === 'function') {
                     window.registrarLog('despesa', 'Despesas excluídas em lote', 'sucesso', `${descricaoDespesa} - ${categoriaDespesa} - Todas as ocorrências`);
+                }
+
+                // Recarregar logs se a seção estiver ativa
+                if (typeof window.recarregarLogsSeAtivo === 'function') {
+                    window.recarregarLogsSeAtivo();
                 }
             }
         }
@@ -1858,6 +1883,11 @@ async function excluirDespesaLocal(opcao, index, mes, ano, descricaoDespesa, cat
         // Registrar log de erro
         if (typeof window.registrarLog === 'function') {
             window.registrarLog('despesa', 'Falha ao excluir despesa', 'erro', error.message || 'Erro desconhecido');
+        }
+
+        // Recarregar logs se a seção estiver ativa
+        if (typeof window.recarregarLogsSeAtivo === 'function') {
+            window.recarregarLogsSeAtivo();
         }
 
         return false;

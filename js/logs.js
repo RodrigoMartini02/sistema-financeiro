@@ -554,11 +554,29 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ================================================================
+// RECARREGAR LOGS SE A SEÇÃO ESTIVER ATIVA
+// ================================================================
+
+/**
+ * Recarrega os logs apenas se a seção de registros estiver visível
+ */
+function recarregarLogsSeAtivo() {
+    const registrosSection = document.getElementById('registros-section');
+    if (registrosSection && registrosSection.classList.contains('active')) {
+        console.log('🔄 Seção de registros ativa, recarregando logs...');
+        setTimeout(() => {
+            carregarLogs();
+        }, 300);
+    }
+}
+
+// ================================================================
 // EXPORTAR FUNÇÃO GLOBAL
 // ================================================================
 
 // Tornar funções disponíveis globalmente para outros módulos
 window.registrarLog = registrarLog;
 window.carregarLogs = carregarLogs;
+window.recarregarLogsSeAtivo = recarregarLogsSeAtivo;
 
 console.log('✅ Sistema de Logs inicializado');

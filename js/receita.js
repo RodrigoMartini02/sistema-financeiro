@@ -474,6 +474,11 @@ async function salvarReceita(e) {
                 window.registrarLog('receita', acao, 'sucesso', detalhes);
             }
 
+            // Recarregar logs se a seção estiver ativa
+            if (typeof window.recarregarLogsSeAtivo === 'function') {
+                window.recarregarLogsSeAtivo();
+            }
+
             console.log('✅ Receita salva com sucesso!');
         } else {
             console.error('❌ Falha ao salvar receita');
@@ -487,6 +492,11 @@ async function salvarReceita(e) {
             if (typeof window.registrarLog === 'function') {
                 const acao = ehEdicao ? 'Falha ao atualizar receita' : 'Falha ao cadastrar receita';
                 window.registrarLog('receita', acao, 'erro', 'Erro ao salvar no servidor');
+            }
+
+            // Recarregar logs se a seção estiver ativa
+            if (typeof window.recarregarLogsSeAtivo === 'function') {
+                window.recarregarLogsSeAtivo();
             }
         }
 
@@ -790,6 +800,11 @@ async function excluirReceitaLocal(opcao, index, mes, ano, descricaoReceita) {
                 window.registrarLog('receita', 'Receita excluída', 'sucesso', `${descricaoReceita} - Exclusão individual`);
             }
 
+            // Recarregar logs se a seção estiver ativa
+            if (typeof window.recarregarLogsSeAtivo === 'function') {
+                window.recarregarLogsSeAtivo();
+            }
+
         } else if (opcao === 'todas') {
             // Buscar todas as receitas com essa descrição e excluir
             const response = await fetch(`${API_URL}/receitas?ano=${ano}`, {
@@ -820,6 +835,11 @@ async function excluirReceitaLocal(opcao, index, mes, ano, descricaoReceita) {
                 if (typeof window.registrarLog === 'function') {
                     window.registrarLog('receita', 'Receitas excluídas em lote', 'sucesso', `${descricaoReceita} - ${receitasParaExcluir.length} ocorrência(s)`);
                 }
+
+                // Recarregar logs se a seção estiver ativa
+                if (typeof window.recarregarLogsSeAtivo === 'function') {
+                    window.recarregarLogsSeAtivo();
+                }
             }
         }
 
@@ -831,6 +851,11 @@ async function excluirReceitaLocal(opcao, index, mes, ano, descricaoReceita) {
         // Registrar log de erro
         if (typeof window.registrarLog === 'function') {
             window.registrarLog('receita', 'Falha ao excluir receita', 'erro', error.message);
+        }
+
+        // Recarregar logs se a seção estiver ativa
+        if (typeof window.recarregarLogsSeAtivo === 'function') {
+            window.recarregarLogsSeAtivo();
         }
 
         return false;

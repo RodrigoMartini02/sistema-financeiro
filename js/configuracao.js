@@ -326,6 +326,11 @@ async function adicionarCategoria() {
         if (typeof window.registrarLog === 'function') {
             window.registrarLog('categoria', `Categoria "${nomeCat}" adicionada`, 'sucesso', `Nova categoria de despesa criada`);
         }
+
+        // Recarregar logs se a seção estiver ativa
+        if (typeof window.recarregarLogsSeAtivo === 'function') {
+            window.recarregarLogsSeAtivo();
+        }
     } else {
         const index = categoriasUsuario.despesas.findIndex(c => c.nome === nomeCat);
         if (index > -1) {
@@ -336,6 +341,11 @@ async function adicionarCategoria() {
         // Registrar log de erro
         if (typeof window.registrarLog === 'function') {
             window.registrarLog('categoria', `Falha ao adicionar categoria "${nomeCat}"`, 'erro', 'Erro ao salvar no servidor');
+        }
+
+        // Recarregar logs se a seção estiver ativa
+        if (typeof window.recarregarLogsSeAtivo === 'function') {
+            window.recarregarLogsSeAtivo();
         }
     }
 }
@@ -426,6 +436,11 @@ async function removerCategoria(nomeCategoria) {
             if (typeof window.registrarLog === 'function') {
                 window.registrarLog('categoria', `Categoria "${nomeCategoria}" removida`, 'sucesso', 'Categoria excluída com sucesso');
             }
+
+            // Recarregar logs se a seção estiver ativa
+            if (typeof window.recarregarLogsSeAtivo === 'function') {
+                window.recarregarLogsSeAtivo();
+            }
         } else {
             categoriasUsuario.despesas.splice(index, 0, categoriaRemovida);
             mostrarFeedback('Erro ao remover categoria. Tente novamente.', 'error');
@@ -433,6 +448,11 @@ async function removerCategoria(nomeCategoria) {
             // Registrar log de erro
             if (typeof window.registrarLog === 'function') {
                 window.registrarLog('categoria', `Falha ao remover categoria "${nomeCategoria}"`, 'erro', 'Erro ao salvar no servidor');
+            }
+
+            // Recarregar logs se a seção estiver ativa
+            if (typeof window.recarregarLogsSeAtivo === 'function') {
+                window.recarregarLogsSeAtivo();
             }
         }
     }
@@ -506,6 +526,11 @@ async function salvarEdicaoCategoria() {
             if (typeof window.registrarLog === 'function') {
                 window.registrarLog('categoria', `Categoria editada: "${nomeOriginal}" → "${novoNome}"`, 'sucesso', `Nome alterado de "${nomeOriginal}" para "${novoNome}"`);
             }
+
+            // Recarregar logs se a seção estiver ativa
+            if (typeof window.recarregarLogsSeAtivo === 'function') {
+                window.recarregarLogsSeAtivo();
+            }
         } else {
             categoriasUsuario.despesas[index] = categoriaAnterior;
             mostrarFeedback('Erro ao salvar alteração. Tente novamente.', 'error');
@@ -513,6 +538,11 @@ async function salvarEdicaoCategoria() {
             // Registrar log de erro
             if (typeof window.registrarLog === 'function') {
                 window.registrarLog('categoria', `Falha ao editar categoria "${nomeOriginal}"`, 'erro', 'Erro ao salvar no servidor');
+            }
+
+            // Recarregar logs se a seção estiver ativa
+            if (typeof window.recarregarLogsSeAtivo === 'function') {
+                window.recarregarLogsSeAtivo();
             }
         }
     }
