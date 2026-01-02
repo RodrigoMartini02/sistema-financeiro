@@ -388,124 +388,137 @@
    SEÇÃO DE RELATÓRIOS
    ================================================================ -->
 <section class="relatorios-section" id="relatorios-section">
-    <!-- Filtros Simplificados -->
-    <div class="filtros-wrapper">
-        <div class="filtros-grid">
-            <!-- Linha 1: Filtros Principais -->
-            <div class="filtro-campo">
-                <label>Período</label>
-                <select id="filtro-periodo">
-                    <option value="mes-atual">Mês Atual</option>
-                    <option value="mes-anterior">Mês Anterior</option>
-                    <option value="ultimos-3-meses">Últimos 3 Meses</option>
-                    <option value="ultimos-6-meses">Últimos 6 Meses</option>
-                    <option value="ano-atual">Ano Atual</option>
-                    <option value="ano-anterior">Ano Anterior</option>
-                    <option value="personalizado">Personalizado</option>
-                </select>
-            </div>
-
-            <div class="filtro-campo">
-                <label>Tipo</label>
-                <select id="filtro-tipo-relatorio">
-                    <option value="completo">Completo</option>
-                    <option value="apenas-receitas">Receitas</option>
-                    <option value="apenas-despesas">Despesas</option>
-                    <option value="por-categoria">Por Categoria</option>
-                    <option value="por-forma-pagamento">Por Pagamento</option>
-                    <option value="parcelamentos">Parcelamentos</option>
-                </select>
-            </div>
-
-            <div class="filtro-campo">
-                <label>Categoria</label>
-                <select id="filtro-categoria-relatorio">
-                    <option value="todas">Todas</option>
-                </select>
-            </div>
-
-            <div class="filtro-campo">
-                <label>Status</label>
-                <select id="filtro-status-relatorio">
-                    <option value="todos">Todos</option>
-                    <option value="quitadas">Pagas</option>
-                    <option value="pendentes">Pendentes</option>
-                    <option value="atrasadas">Atrasadas</option>
-                </select>
-            </div>
-
-            <div class="filtro-campo">
-                <label>Critério Data</label>
-                <select id="filtro-criterio-data">
-                    <option value="vencimento">Vencimento</option>
-                    <option value="compra">Compra</option>
-                    <option value="pagamento">Pagamento</option>
-                </select>
-            </div>
-
-            <div class="filtro-campo">
-                <label>Ordenar</label>
-                <select id="filtro-ordenacao">
-                    <option value="data">Data</option>
-                    <option value="valor-desc">Maior Valor</option>
-                    <option value="valor-asc">Menor Valor</option>
-                    <option value="categoria">Categoria</option>
-                </select>
-            </div>
-        </div>
-
-        <!-- Período Personalizado (oculto por padrão) -->
-        <div id="periodo-personalizado-container" class="periodo-custom hidden">
-            <div class="datas-grupo">
-                <div class="data-field">
-                    <label>De</label>
-                    <input type="date" id="data-inicio-relatorio">
+    <div class="relatorios-filtros-container">
+        <div class="filtros-card">
+            <h3><i class="fas fa-filter"></i> Filtros de Relatório</h3>
+            <div class="filtros-linha filtros-linha-super-compacta">
+                <div class="filtro-grupo filtro-periodo">
+                    <label for="filtro-periodo">Período:</label>
+                    <select id="filtro-periodo" class="form-select">
+                        <option value="mes-atual">Mês Atual</option>
+                        <option value="mes-anterior">Mês Anterior</option>
+                        <option value="ultimos-3-meses">Últimos 3 Meses</option>
+                        <option value="ultimos-6-meses">Últimos 6 Meses</option>
+                        <option value="ano-atual">Ano Atual</option>
+                        <option value="ano-anterior">Ano Anterior</option>
+                        <option value="personalizado">Período Personalizado</option>
+                    </select>
                 </div>
-                <div class="data-field">
-                    <label>Até</label>
-                    <input type="date" id="data-fim-relatorio">
+                
+                <div class="filtro-grupo filtro-tipo">
+                    <label for="filtro-tipo-relatorio">Tipo:</label>
+                    <select id="filtro-tipo-relatorio" class="form-select">
+                        <option value="completo">Completo</option>
+                        <option value="apenas-receitas">Receitas</option>
+                        <option value="apenas-despesas">Despesas</option>
+                        <option value="por-categoria">Por Categoria</option>
+                        <option value="por-forma-pagamento">Por Pagamento</option>
+                        <option value="parcelamentos">Parcelamentos</option>
+                        <option value="gastos-reais">Gastos Reais</option>
+                    </select>
+                </div>
+                
+                <div class="filtro-grupo filtro-criterio">
+                    <label for="filtro-criterio-data">Data:</label>
+                    <select id="filtro-criterio-data" class="form-select">
+                        <option value="vencimento">Vencimento</option>
+                        <option value="compra">Compra</option>
+                        <option value="pagamento">Pagamento</option>
+                        <option value="mista">Mista</option>
+                    </select>
+                </div>
+
+                <div class="filtro-grupo filtro-categoria">
+                    <label for="filtro-categoria-relatorio">Categoria:</label>
+                    <select id="filtro-categoria-relatorio" class="form-select">
+                        <option value="todas">Todas</option>
+                    </select>
+                </div>
+
+                <div class="filtro-grupo filtro-status">
+                    <label for="filtro-status-relatorio">Status:</label>
+                    <select id="filtro-status-relatorio" class="form-select">
+                        <option value="todos">Todos</option>
+                        <option value="quitadas">Pagas</option>
+                        <option value="pendentes">Pendentes</option>
+                        <option value="atrasadas">Atrasadas</option>
+                    </select>
+                </div>
+
+                <div class="filtro-grupo filtro-ordenacao">
+                    <label for="filtro-ordenacao">Ordenar:</label>
+                    <select id="filtro-ordenacao" class="form-select">
+                        <option value="data">Data</option>
+                        <option value="valor-desc">Maior Valor</option>
+                        <option value="valor-asc">Menor Valor</option>
+                        <option value="categoria">Categoria</option>
+                        <option value="forma-pagamento">Pagamento</option>
+                        <option value="descricao">Descrição</option>
+                    </select>
                 </div>
             </div>
 
-            <div class="opcoes-grupo">
-                <label class="check-label">
-                    <input type="checkbox" id="forma-todas" checked>
-                    <span>Todas</span>
-                </label>
-                <label class="check-label">
-                    <input type="checkbox" id="forma-pix">
-                    <span>PIX</span>
-                </label>
-                <label class="check-label">
-                    <input type="checkbox" id="forma-debito">
-                    <span>Débito</span>
-                </label>
-                <label class="check-label">
-                    <input type="checkbox" id="forma-credito">
-                    <span>Crédito</span>
-                </label>
-                <label class="check-label">
-                    <input type="checkbox" id="incluir-transferencias">
-                    <span>Transf.</span>
-                </label>
-                <label class="check-label">
-                    <input type="checkbox" id="agrupar-parcelamentos">
-                    <span>Agrupar</span>
-                </label>
+            <!-- PERÍODO PERSONALIZADO -->
+            <div id="periodo-personalizado-container" class="periodo-personalizado-ultra-compacto hidden">
+                <label for="data-inicio-relatorio">De:</label>
+                <input type="date" id="data-inicio-relatorio" class="form-input">
+                <label for="data-fim-relatorio">Até:</label>
+                <input type="date" id="data-fim-relatorio" class="form-input">
             </div>
-        </div>
+            <!-- LINHA 2: Checkboxes -->
+            <div class="filtros-linha filtros-linha-checkboxes-inline">
+                <div class="grupo-checkboxes-completo">
+                    <span class="grupo-label">Pagamento:</span>
+                    <label class="checkbox-mini">
+                        <input type="checkbox" id="forma-todas" value="todas" checked>
+                        <span>Todas</span>
+                    </label>
+                    <label class="checkbox-mini">
+                        <input type="checkbox" id="forma-pix" value="pix">
+                        <span>PIX</span>
+                    </label>
+                    <label class="checkbox-mini">
+                        <input type="checkbox" id="forma-debito" value="debito">
+                        <span>Débito</span>
+                    </label>
+                    <label class="checkbox-mini">
+                        <input type="checkbox" id="forma-credito" value="credito">
+                        <span>Crédito</span>
+                    </label>
 
-        <!-- Ações -->
-        <div class="filtros-acoes">
-            <button id="btn-gerar-relatorio" class="btn-action">
-                <i class="fas fa-chart-bar"></i> Gerar Relatório
-            </button>
-            <button id="btn-limpar-filtros-relatorio" class="btn-outline">
-                <i class="fas fa-eraser"></i> Limpar
-            </button>
-            <button id="btn-exportar-pdf-relatorio" class="btn-success" disabled>
-                <i class="fas fa-file-pdf"></i> Exportar PDF
-            </button>
+                    <span class="grupo-label grupo-label-separador">Opções:</span>
+                    <label class="checkbox-mini">
+                        <input type="checkbox" id="incluir-transferencias">
+                        <span>Transferências</span>
+                    </label>
+                    <label class="checkbox-mini">
+                        <input type="checkbox" id="agrupar-parcelamentos">
+                        <span>Agrupar</span>
+                    </label>
+                    <label class="checkbox-mini">
+                        <input type="checkbox" id="mostrar-projecoes">
+                        <span>Projeções</span>
+                    </label>
+                </div>
+            </div>
+            <div id="resumo-filtros-aplicados" class="filtros-resumo hidden">
+                <h4>Filtros Aplicados:</h4>
+                <div id="texto-filtros-resumo"></div>
+            </div>
+            <div class="filtros-acoes">
+                <button id="btn-gerar-relatorio" class="btn btn-primary">
+                    <i class="fas fa-search"></i>
+                    Gerar Relatório
+                </button>
+                <button id="btn-limpar-filtros-relatorio" class="btn btn-secondary">
+                    <i class="fas fa-times"></i>
+                    Limpar Filtros
+                </button>
+                <button id="btn-exportar-pdf-relatorio" class="btn btn-success" disabled>
+                    <i class="fas fa-file-pdf"></i>
+                    Exportar PDF
+                </button>
+            </div>
         </div>
     </div>
 
