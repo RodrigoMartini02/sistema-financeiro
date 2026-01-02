@@ -113,7 +113,7 @@ async function criarEstruturaBanco() {
                 email VARCHAR(255) UNIQUE NOT NULL,
                 documento VARCHAR(20) UNIQUE NOT NULL,
                 senha VARCHAR(255) NOT NULL,
-                tipo VARCHAR(20) DEFAULT 'padrao' CHECK (tipo IN ('padrao', 'admin', 'master')),
+                tipo VARCHAR(20) DEFAULT 'admin' CHECK (tipo IN ('padrao', 'admin', 'master')),
                 status VARCHAR(20) DEFAULT 'ativo' CHECK (status IN ('ativo', 'inativo', 'bloqueado')),
                 data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
