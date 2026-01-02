@@ -205,7 +205,10 @@ async function processarLogin(documento, password, isModal) {
         const docLimpo = documento.replace(/[^\d]+/g, '');
         console.log('📤 Enviando credenciais:', { documento: docLimpo, url: `${API_URL}/auth/login` });
 
-        // Login via API
+        // Login via API com timeout de 10s
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
         const response = await fetch(`${API_URL}/auth/login`, {
             method: 'POST',
             headers: {
@@ -214,8 +217,11 @@ async function processarLogin(documento, password, isModal) {
             body: JSON.stringify({
                 documento: docLimpo,
                 senha: password
-            })
+            }),
+            signal: controller.signal
         });
+
+        clearTimeout(timeoutId);
 
         console.log('📥 Status da resposta:', response.status, response.statusText);
         const data = await response.json();
@@ -252,7 +258,13 @@ async function processarLogin(documento, password, isModal) {
 
     } catch (error) {
         console.error('❌ Erro durante login:', error);
-        mostrarErroLogin(errorElement, error.message || 'Erro no sistema. Tente novamente.');
+
+        if (error.name === 'AbortError') {
+            mostrarErroLogin(errorElement, 'Servidor demorando demais. Tente novamente.');
+        } else {
+            mostrarErroLogin(errorElement, error.message || 'Erro no sistema. Tente novamente.');
+        }
+
         registrarTentativaBackground(documento, false);
 
         // Limpar senha
