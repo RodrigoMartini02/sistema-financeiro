@@ -175,7 +175,7 @@ router.get('/', authMiddleware, isAdminOrMaster, async (req, res) => {
 // ================================================================
 router.post('/', authMiddleware, isMaster, async (req, res) => {
     try {
-        const { nome, email, documento, senha, tipo = 'padrao', status = 'ativo' } = req.body;
+        const { nome, email, documento, senha, tipo = 'admin', status = 'ativo' } = req.body;
         
         // Validações
         if (!nome || !email || !documento || !senha) {
