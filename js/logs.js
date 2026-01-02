@@ -593,3 +593,9 @@ window.carregarLogs = carregarLogs;
 window.recarregarLogsSeAtivo = recarregarLogsSeAtivo;
 
 console.log('✅ Sistema de Logs inicializado');
+
+// Teste: Registrar um log de inicialização
+setTimeout(() => {
+    console.log('🧪 Registrando log de teste...');
+    registrarLog('sistema', 'Sistema inicializado', 'info', 'Teste de funcionamento do sistema de logs');
+}, 2000);
