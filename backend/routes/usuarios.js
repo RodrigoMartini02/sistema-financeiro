@@ -943,4 +943,29 @@ router.put('/:id/cartoes', authMiddleware, async (req, res) => {
     }
 });
 
+
+router.delete('/:id/limpar-dados', authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (req.usuario.id !== parseInt(id)) {
+            return res.status(403).json({ success: false, message: 'Acesso negado' });
+        }
+
+        const queries = [
+            query('DELETE FROM receitas WHERE usuario_id = $1', [id]),
+            query('DELETE FROM despesas WHERE usuario_id = $1', [id]),
+            query('DELETE FROM reservas WHERE usuario_id = $1', [id]),
+            query('DELETE FROM meses WHERE usuario_id = $1', [id]),
+            query('UPDATE usuarios SET dados_financeiros = NULL WHERE id = $1', [id])
+        ];
+
+        await Promise.all(queries);
+        res.json({ success: true, message: 'Dados excluídos' });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+
+
 module.exports = router;

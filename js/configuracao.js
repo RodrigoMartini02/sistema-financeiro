@@ -1547,49 +1547,33 @@ function converterCSVParaJSON(csvText) {
 }
 
 async function limparDados() {
-    if (!confirm('ATENÇÃO: Esta ação é irreversível!\n\nDeseja realmente continuar?')) return;
+    if (!confirm('Deseja excluir permanentemente todos os seus dados financeiros?')) return;
 
     try {
         const usuario = window.usuarioDataManager?.getUsuarioAtual();
-        if (!usuario || !usuario.id) {
-            alert('Erro: Usuário não identificado.');
-            return;
-        }
+        if (!usuario?.id) return alert('Usuário não autenticado');
 
-        // URL Base vinda do seu config.js
         const API_BASE = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
 
-        // TENTATIVA A: Rota com ID (mais provável se for REST)
-        // Se esta falhar, o problema é 100% no código do Backend
-        const endpoint = `${API_BASE}/usuarios/${usuario.id}/limpar-dados`;
-
-        console.log('Chamando endpoint:', endpoint);
-
-        const response = await fetch(endpoint, {
+        const response = await fetch(`${API_BASE}/usuarios/${usuario.id}/limpar-dados`, {
             method: 'DELETE',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${sessionStorage.getItem('token') || localStorage.getItem('token') || ''}`
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
             }
         });
 
-        if (response.status === 404) {
-            // TENTATIVA B: Se a primeira deu 404, tenta a rota genérica
-            console.warn('Rota com ID não encontrada, tentando rota genérica...');
-            return fazerChamadaGenerica(API_BASE, usuario.id);
-        }
-
-        const data = await response.json();
-
-        if (response.ok && data.success) {
-            alert('Dados excluídos com sucesso!');
+        if (response.ok) {
+            alert('Dados limpos com sucesso!');
             window.location.reload();
         } else {
-            alert('Erro: ' + (data.message || 'Erro no servidor'));
+            const erro = await response.json();
+            alert('Erro: ' + (erro.message || 'Falha ao excluir'));
         }
     } catch (error) {
-        console.error('Erro:', error);
-        alert('Erro de conexão com o servidor.');
+        console.error(error);
+        alert('Erro de conexão com o servidor');
     }
 }
 
