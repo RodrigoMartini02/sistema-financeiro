@@ -1547,29 +1547,28 @@ function converterCSVParaJSON(csvText) {
 }
 
 async function limparDados() {
-    // Mantida apenas uma mensagem de confirmação para tornar o processo mais ágil
-    const confirmar = confirm(
-        'ATENÇÃO: Esta ação é irreversível!\n\n' +
-        'Todos os seus dados financeiros serão permanentemente excluídos.\n' +
-        'Deseja realmente continuar?'
-    );
-
-    if (!confirmar) return;
+    // 1. Confirmação única e direta
+    if (!confirm('ATENÇÃO: Esta ação é irreversível!\n\nTodos os seus dados financeiros serão permanentemente excluídos.\nDeseja realmente continuar?')) {
+        return;
+    }
 
     try {
-        // Busca o usuário atual através do manager
+        // Busca o usuário atual
         const usuario = window.usuarioDataManager?.getUsuarioAtual();
         if (!usuario || !usuario.id) {
-            const msgErro = window.MENSAGENS?.ERRO_AUTENTICACAO || 'Usuário não encontrado';
-            mostrarFeedback(msgErro, 'error');
+            alert('Erro: Usuário não identificado. Por favor, faça login novamente.');
             return;
         }
 
-        // Garante o uso da URL correta definida no config.js
-        const API_BASE = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+        // FORÇANDO A URL DO BACKEND (Não remover o /api no final)
+        const URL_BACKEND = "https://sistema-financeiro-backend-o199.onrender.com/api";
+        
+        // Montagem da URL completa: https://sistema-financeiro-backend-o199.onrender.com/api/limpar-dados
+        const endpoint = `${URL_BACKEND}/limpar-dados`;
 
-        // Chamada corrigida para o endpoint do backend
-        const response = await fetch(`${API_BASE}/limpar-dados`, {
+        console.log('Tentando limpar dados em:', endpoint); // Para você ver no console se a URL está certa
+
+        const response = await fetch(endpoint, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
@@ -1578,33 +1577,19 @@ async function limparDados() {
             body: JSON.stringify({ usuarioId: usuario.id })
         });
 
-        const data = await response.json();
+        const data = await response.json().catch(() => ({}));
 
-        if (response.ok && data.success) {
-            mostrarFeedback(window.MENSAGENS?.SUCESSO_EXCLUIR || 'Todos os dados foram excluídos!', 'success');
+        if (response.ok && (data.success || data.status === 'success')) {
+            alert('Sucesso: Todos os dados foram excluídos!');
 
-            // Recarregar dados locais (agora vazios)
-            if (typeof window.carregarDadosLocais === 'function') {
-                await window.carregarDadosLocais();
-            }
-
-            // Atualizar dashboard
-            if (typeof window.carregarDadosDashboard === 'function') {
-                await window.carregarDadosDashboard(window.anoAtual || new Date().getFullYear());
-            }
-
-            // Redirecionar para dashboard após 1 segundo
-            setTimeout(() => {
-                if (typeof window.onSecaoAtivada === 'function') {
-                    window.onSecaoAtivada('dashboard');
-                }
-            }, 1000);
+            // Recarregar a página para limpar tudo
+            window.location.reload();
         } else {
-            mostrarFeedback(data.message || 'Erro ao limpar dados', 'error');
+            alert('Erro do Servidor: ' + (data.message || 'A rota não respondeu corretamente. Verifique se o backend está online.'));
         }
     } catch (error) {
-        console.error('Erro ao limpar dados:', error);
-        mostrarFeedback(window.MENSAGENS?.ERRO_CONEXAO || 'Erro ao conectar com o servidor', 'error');
+        console.error('Erro na requisição:', error);
+        alert('Erro de Conexão: Não foi possível alcançar o servidor. Verifique sua internet ou se o backend está rodando.');
     }
 }
 
