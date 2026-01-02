@@ -141,37 +141,66 @@ function limparGraficos() {
 
 
 
-// Função Universal de Maximizar
-document.querySelectorAll('.btn-expandir').forEach(botao => {
-    botao.onclick = function() {
-        const idGrafico = this.getAttribute('data-chart');
-        const instanciaOriginal = window[idGrafico]; // Pega o gráfico da memória
+// ================================================================
+// FUNÇÃO MAXIMIZAR
+// ================================================================
 
-        if (instanciaOriginal) {
+
+let graficoZoomInstance = null;
+
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('btn-expandir')) {
+        const nomeVariavelGrafico = e.target.getAttribute('data-chart');
+        const graficoOriginal = window[nomeVariavelGrafico];
+
+        if (graficoOriginal) {
             const modal = document.getElementById('modal-zoom-grafico');
-            const ctxZoom = document.getElementById('chart-zoom-canvas').getContext('2d');
-            
-            modal.style.display = 'block';
+            const canvasZoom = document.getElementById('canvas-zoom-render');
+            const ctx = canvasZoom.getContext('2d');
 
-            // Limpa gráfico anterior se existir
-            if (window.chartZoomInstancia) window.chartZoomInstancia.destroy();
+            modal.style.display = 'flex';
 
-            // Cria a cópia ampliada
-            window.chartZoomInstancia = new Chart(ctxZoom, {
-                type: instanciaOriginal.config.type,
-                data: instanciaOriginal.data,
+            if (graficoZoomInstance) {
+                graficoZoomInstance.destroy();
+            }
+
+            graficoZoomInstance = new Chart(ctx, {
+                type: graficoOriginal.config.type,
+                data: JSON.parse(JSON.stringify(graficoOriginal.data)),
                 options: {
-                    ...instanciaOriginal.options,
-                    maintainAspectRatio: false
+                    ...graficoOriginal.options,
+                    maintainAspectRatio: false,
+                    responsive: true,
+                    plugins: {
+                        ...graficoOriginal.options.plugins,
+                        legend: {
+                            display: true,
+                            position: 'bottom'
+                        }
+                    }
                 }
             });
         }
-    };
+    }
 });
 
-// Fechar Modal
-document.getElementById('fechar-modal').onclick = () => {
+document.getElementById('fechar-modal-zoom').onclick = function() {
     document.getElementById('modal-zoom-grafico').style.display = 'none';
+    if (graficoZoomInstance) {
+        graficoZoomInstance.destroy();
+        graficoZoomInstance = null;
+    }
+};
+
+window.onclick = function(event) {
+    const modal = document.getElementById('modal-zoom-grafico');
+    if (event.target == modal) {
+        modal.style.display = 'none';
+        if (graficoZoomInstance) {
+            graficoZoomInstance.destroy();
+            graficoZoomInstance = null;
+        }
+    }
 };
 
 
