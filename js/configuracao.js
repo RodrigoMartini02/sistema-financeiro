@@ -1295,22 +1295,83 @@ async function importarDados() {
                 return;
             }
 
+            if (dadosImportados.receitas.length === 0 && dadosImportados.despesas.length === 0) {
+                mostrarFeedback('Nenhum dado válido encontrado no arquivo CSV', 'warning');
+                return;
+            }
+
             const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+            const token = sessionStorage.getItem('token');
 
-            // Enviar dados para o backend
-            const response = await fetch(`${API_URL}/usuarios/${usuario.id}/import`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
-                },
-                body: JSON.stringify({ dados: dadosImportados })
-            });
+            let sucessos = 0;
+            let erros = 0;
+            const total = dadosImportados.receitas.length + dadosImportados.despesas.length;
 
-            const data = await response.json();
+            mostrarFeedback(`Importando ${total} registros...`, 'info');
 
-            if (response.ok && data.success) {
-                mostrarFeedback('Dados importados com sucesso!', 'success');
+            // Importar receitas usando rotas existentes
+            for (const receita of dadosImportados.receitas) {
+                try {
+                    const response = await fetch(`${API_URL}/usuarios/${usuario.id}/anos/${receita.ano}/receitas`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            mes: receita.mes,
+                            data: receita.data,
+                            descricao: receita.descricao,
+                            categoria: receita.categoria,
+                            valor: receita.valor,
+                            formaPagamento: receita.formaPagamento,
+                            parcelas: receita.parcelas,
+                            status: receita.status,
+                            observacoes: receita.observacoes
+                        })
+                    });
+
+                    if (response.ok) sucessos++;
+                    else erros++;
+                } catch (error) {
+                    erros++;
+                }
+            }
+
+            // Importar despesas usando rotas existentes
+            for (const despesa of dadosImportados.despesas) {
+                try {
+                    const response = await fetch(`${API_URL}/usuarios/${usuario.id}/anos/${despesa.ano}/despesas`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            mes: despesa.mes,
+                            data: despesa.data,
+                            descricao: despesa.descricao,
+                            categoria: despesa.categoria,
+                            valor: despesa.valor,
+                            formaPagamento: despesa.formaPagamento,
+                            parcelas: despesa.parcelas,
+                            status: despesa.status,
+                            observacoes: despesa.observacoes
+                        })
+                    });
+
+                    if (response.ok) sucessos++;
+                    else erros++;
+                } catch (error) {
+                    erros++;
+                }
+            }
+
+            if (sucessos > 0) {
+                mostrarFeedback(
+                    `Importação concluída: ${sucessos} de ${total} registros${erros > 0 ? ` (${erros} erros)` : ''}`,
+                    erros > 0 ? 'warning' : 'success'
+                );
 
                 // Recarregar dados
                 if (typeof window.carregarDadosLocais === 'function') {
@@ -1322,7 +1383,7 @@ async function importarDados() {
                     await window.carregarDadosDashboard(window.anoAtual || new Date().getFullYear());
                 }
             } else {
-                mostrarFeedback(data.message || 'Erro ao importar dados', 'error');
+                mostrarFeedback('Erro: Nenhum registro foi importado', 'error');
             }
         } catch (error) {
             console.error('Erro ao importar dados:', error);
