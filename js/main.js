@@ -636,15 +636,35 @@ function setupAbas() {
 }
 
 function setupOutrosControles() {
+    const refreshBtn = document.getElementById('btn-refresh');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            const icon = this.querySelector('i');
+            icon.classList.add('fa-spin');
+
+            await carregarDadosLocais();
+            await carregarDadosDashboard(anoAtual);
+            await renderizarMeses(anoAtual);
+
+            const secaoAtiva = document.querySelector('.nav-link.active')?.dataset.section;
+            if (secaoAtiva) {
+                onSecaoAtivada(secaoAtiva);
+            }
+
+            setTimeout(() => icon.classList.remove('fa-spin'), 500);
+        });
+    }
+
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async function(e) {
             e.preventDefault();
-            
+
             sessionStorage.removeItem('usuarioAtual');
             sessionStorage.removeItem('dadosUsuarioLogado');
             localStorage.removeItem('token');
-            
+
             window.location.href = 'login.html';
         });
     }
