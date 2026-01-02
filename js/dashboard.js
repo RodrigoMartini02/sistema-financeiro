@@ -141,7 +141,68 @@ function limparGraficos() {
 
 
 
+// ================================================================
+// LÓGICA DE MAXIMIZAÇÃO DE GRÁFICOS
+// ================================================================
 
+let chartZoomInstancia = null;
+
+// Captura cliques em qualquer botão de expansão
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.btn-expandir');
+    if (!btn) return;
+
+    const idVariavel = btn.getAttribute('data-chart');
+    const graficoOriginal = window[idVariavel];
+
+    if (graficoOriginal) {
+        abrirModalComGrafico(graficoOriginal);
+    }
+});
+
+function abrirModalComGrafico(chartOriginal) {
+    const modal = document.getElementById('modal-zoom-grafico');
+    const canvasZoom = document.getElementById('chart-zoom-canvas');
+    if (!modal || !canvasZoom) return;
+
+    // Abre o modal visualmente
+    modal.style.display = 'flex';
+
+    // Limpa instância anterior do zoom para evitar bugs de hover
+    if (chartZoomInstancia) chartZoomInstancia.destroy();
+
+    // Cria o novo gráfico no modal clonando as configurações do original
+    chartZoomInstancia = new Chart(canvasZoom.getContext('2d'), {
+        type: chartOriginal.config.type,
+        data: chartOriginal.data,
+        options: {
+            ...chartOriginal.options,
+            maintainAspectRatio: false, // Permite que o gráfico use todo o espaço do modal
+            plugins: {
+                ...chartOriginal.options.plugins,
+                legend: {
+                    display: true,
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+// Fechar o modal
+function fecharZoom() {
+    const modal = document.getElementById('modal-zoom-grafico');
+    if (modal) modal.style.display = 'none';
+    if (chartZoomInstancia) {
+        chartZoomInstancia.destroy();
+        chartZoomInstancia = null;
+    }
+}
+
+document.getElementById('fechar-modal')?.addEventListener('click', fecharZoom);
+window.addEventListener('click', (e) => {
+    if (e.target.id === 'modal-zoom-grafico') fecharZoom();
+});
 
 
 // ================================================================
