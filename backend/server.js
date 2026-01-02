@@ -106,19 +106,23 @@ async function criarEstruturaBanco() {
         }
 
         // ✅ TABELA USUARIOS (CREATE IF NOT EXISTS - SEGURO!)
-        await query(`
-            CREATE TABLE IF NOT EXISTS usuarios (
-                id SERIAL PRIMARY KEY,
-                nome VARCHAR(255) NOT NULL,
-                email VARCHAR(255) UNIQUE NOT NULL,
-                documento VARCHAR(20) UNIQUE NOT NULL,
-                senha VARCHAR(255) NOT NULL,
-                tipo VARCHAR(20) DEFAULT 'admin' CHECK (tipo IN ('padrao', 'admin', 'master')),
-                status VARCHAR(20) DEFAULT 'ativo' CHECK (status IN ('ativo', 'inativo', 'bloqueado')),
-                data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        `);
+       await query(`
+    CREATE TABLE IF NOT EXISTS usuarios (
+        id SERIAL PRIMARY KEY,
+        nome VARCHAR(255) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        documento VARCHAR(20) UNIQUE NOT NULL,
+        senha VARCHAR(255) NOT NULL,
+        tipo VARCHAR(20) DEFAULT 'admin' CHECK (tipo IN ('padrao', 'admin', 'master')),
+        status VARCHAR(20) DEFAULT 'ativo' CHECK (status IN ('ativo', 'inativo', 'bloqueado')),
+        dados_financeiros JSONB,
+        categorias JSONB,
+        cartoes JSONB,
+        notificacoes JSONB,
+        data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+`);
 
         // Adicionar colunas JSONB se não existirem
         await query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS dados_financeiros JSONB DEFAULT NULL;`);
