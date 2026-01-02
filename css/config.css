@@ -1338,6 +1338,23 @@
     font-size: 12px;
 }
 
+.filtro-grupo .form-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--config-border);
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--config-dark);
+    background: #fff;
+    transition: all 0.3s ease;
+}
+
+.filtro-grupo .form-input:focus {
+    outline: none;
+    border-color: var(--config-primary);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
 .filtro-acoes {
     display: flex;
     gap: 8px;
@@ -1357,6 +1374,14 @@
 .registros-container {
     position: relative;
     min-height: 300px;
+}
+
+.tabela-responsiva {
+    width: 100%;
+    overflow-x: auto;
+    margin-bottom: 16px;
+    border-radius: 8px;
+    border: 1px solid var(--config-border);
 }
 
 .tabela-registros {
@@ -1609,6 +1634,43 @@
 #sem-registros-mensagem p {
     color: var(--config-secondary);
     font-size: 14px;
+}
+
+/* ================================================================ */
+/* LOADING OVERLAY */
+/* ================================================================ */
+
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    border-radius: 8px;
+}
+
+.loading-overlay.hidden {
+    display: none;
+}
+
+.loading-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--config-border);
+    border-top-color: var(--config-primary);
+    border-radius: 50%;
+    animation: spin-loading 0.8s linear infinite;
+}
+
+@keyframes spin-loading {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* ================================================================ */

@@ -77,7 +77,7 @@ function inicializarEventListeners() {
  */
 async function registrarLog(modulo, acao, status = 'sucesso', detalhes = '') {
     try {
-        const usuario = localStorage.getItem('nomeUsuario') || 'Sistema';
+        const usuario = localStorage.getItem('nomeUsuario') || sessionStorage.getItem('nomeUsuario') || 'Sistema';
         const agora = new Date();
 
         const log = {
@@ -89,21 +89,25 @@ async function registrarLog(modulo, acao, status = 'sucesso', detalhes = '') {
             dataHora: agora.toISOString()
         };
 
+        console.log('📝 Tentando registrar log:', log);
+
         // Salvar no backend
+        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
         const response = await fetch(`${window.API_URL}/logs`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify(log)
         });
 
         if (!response.ok) {
-            console.warn('⚠️ Falha ao salvar log no servidor:', response.statusText);
+            const errorText = await response.text();
+            console.warn('⚠️ Falha ao salvar log no servidor:', response.status, errorText);
+        } else {
+            console.log('✅ Log registrado com sucesso:', log);
         }
-
-        console.log('✅ Log registrado:', log);
 
     } catch (error) {
         console.error('❌ Erro ao registrar log:', error);
@@ -120,6 +124,7 @@ async function registrarLog(modulo, acao, status = 'sucesso', detalhes = '') {
  */
 async function carregarLogs() {
     try {
+        console.log('🔄 Iniciando carregamento de logs...');
         mostrarLoading();
 
         // Construir query string com filtros
@@ -142,19 +147,29 @@ async function carregarLogs() {
         }
 
         const url = `${window.API_URL}/logs?${params.toString()}`;
+        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+
+        console.log('🌐 Fazendo requisição para:', url);
+        console.log('🔑 Token:', token ? 'presente' : 'ausente');
 
         const response = await fetch(url, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                'Authorization': `Bearer ${token}`
             }
         });
 
+        console.log('📡 Resposta do servidor:', response.status, response.statusText);
+
         if (!response.ok) {
-            throw new Error('Erro ao carregar logs');
+            const errorText = await response.text();
+            console.error('❌ Erro na resposta:', errorText);
+            throw new Error(`Erro ao carregar logs: ${response.status}`);
         }
 
         const logs = await response.json();
+        console.log('📊 Logs recebidos:', logs.length, 'registros');
+
         logsCache = Array.isArray(logs) ? logs : [];
 
         // Ordenar por data/hora decrescente (mais recentes primeiro)
@@ -464,9 +479,19 @@ function mostrarMensagemErro(mensagem) {
 document.addEventListener('click', function(e) {
     const navLink = e.target.closest('[data-section="registros"]');
     if (navLink) {
+        console.log('📋 Abrindo seção de registros...');
         setTimeout(() => {
             carregarLogs();
         }, 100);
+    }
+});
+
+// Também carregar logs se a seção já estiver ativa
+window.addEventListener('load', function() {
+    const registrosSection = document.getElementById('registros-section');
+    if (registrosSection && registrosSection.classList.contains('active')) {
+        console.log('📋 Seção de registros já ativa, carregando logs...');
+        carregarLogs();
     }
 });
 
