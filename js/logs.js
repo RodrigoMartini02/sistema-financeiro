@@ -75,9 +75,11 @@ async function registrarLog(modulo, acao, status = 'sucesso', detalhes = '') {
 
         console.log('📝 Tentando registrar log:', log);
 
-        // Salvar no backend
+        // Salvar no backend - usar API_URL do backend real
+        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
         const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-        const response = await fetch(`${window.API_URL}/logs`, {
+
+        const response = await fetch(`${API_URL}/logs`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -111,7 +113,9 @@ async function carregarLogs() {
         console.log('🔄 Iniciando carregamento de logs...');
         mostrarLoading();
 
-        const url = `${window.API_URL}/logs`;
+        // Usar API_URL do backend real
+        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+        const url = `${API_URL}/logs`;
         const token = sessionStorage.getItem('token') || localStorage.getItem('token');
 
         console.log('🌐 Fazendo requisição para:', url);
@@ -120,7 +124,8 @@ async function carregarLogs() {
         const response = await fetch(url, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${token}`
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
             }
         });
 
