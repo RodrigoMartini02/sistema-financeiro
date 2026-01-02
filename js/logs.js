@@ -240,54 +240,6 @@ function getTextoStatus(status) {
     return textos[status] || 'Info';
 }
 
-// ================================================================
-// FILTROS
-// ================================================================
-
-/**
- * Aplica os filtros selecionados
- */
-function aplicarFiltros() {
-    const dataInicio = document.getElementById('filtro-data-inicio')?.value || null;
-    const dataFim = document.getElementById('filtro-data-fim')?.value || null;
-    const modulo = document.getElementById('filtro-modulo')?.value || '';
-    const usuario = document.getElementById('filtro-usuario')?.value.trim() || '';
-
-    filtrosAtivos = {
-        dataInicio,
-        dataFim,
-        modulo,
-        usuario
-    };
-
-    carregarLogs();
-}
-
-/**
- * Limpa todos os filtros
- */
-function limparFiltros() {
-    // Limpar inputs
-    const inputDataInicio = document.getElementById('filtro-data-inicio');
-    const inputDataFim = document.getElementById('filtro-data-fim');
-    const selectModulo = document.getElementById('filtro-modulo');
-    const inputUsuario = document.getElementById('filtro-usuario');
-
-    if (inputDataInicio) inputDataInicio.value = '';
-    if (inputDataFim) inputDataFim.value = '';
-    if (selectModulo) selectModulo.value = '';
-    if (inputUsuario) inputUsuario.value = '';
-
-    // Resetar filtros ativos
-    filtrosAtivos = {
-        dataInicio: null,
-        dataFim: null,
-        modulo: '',
-        usuario: ''
-    };
-
-    carregarLogs();
-}
 
 // ================================================================
 // PAGINAÇÃO

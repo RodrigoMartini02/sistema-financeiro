@@ -1064,55 +1064,11 @@
         <p class="registros-descricao">Visualize todas as alterações realizadas no sistema</p>
     </div>
 
-    <!-- Filtros -->
-    <div class="registros-filtros">
-        <div class="filtro-grupo">
-            <label for="filtro-data-inicio">
-                <i class="fas fa-calendar"></i> Data Inicial:
-            </label>
-            <input type="date" id="filtro-data-inicio" class="form-input">
-        </div>
-
-        <div class="filtro-grupo">
-            <label for="filtro-data-fim">
-                <i class="fas fa-calendar"></i> Data Final:
-            </label>
-            <input type="date" id="filtro-data-fim" class="form-input">
-        </div>
-
-        <div class="filtro-grupo">
-            <label for="filtro-modulo">
-                <i class="fas fa-filter"></i> Módulo:
-            </label>
-            <select id="filtro-modulo" class="form-input">
-                <option value="">Todos</option>
-                <option value="receita">Receitas</option>
-                <option value="despesa">Despesas</option>
-                <option value="categoria">Categorias</option>
-                <option value="backup">Backups</option>
-                <option value="autenticacao">Autenticação</option>
-                <option value="sistema">Sistema</option>
-            </select>
-        </div>
-
-        <div class="filtro-grupo">
-            <label for="filtro-usuario">
-                <i class="fas fa-user"></i> Usuário:
-            </label>
-            <input type="text" id="filtro-usuario" class="form-input" placeholder="Nome do usuário">
-        </div>
-
-        <div class="filtro-acoes">
-            <button id="btn-aplicar-filtros" class="btn-action">
-                <i class="fas fa-search"></i> Filtrar
-            </button>
-            <button id="btn-limpar-filtros" class="btn-outline">
-                <i class="fas fa-times"></i> Limpar
-            </button>
-            <button id="btn-exportar-logs" class="btn-outline">
-                <i class="fas fa-download"></i> Exportar
-            </button>
-        </div>
+    <!-- Ações -->
+    <div class="registros-acoes">
+        <button id="btn-exportar-logs" class="btn-success">
+            <i class="fas fa-download"></i> Exportar CSV
+        </button>
     </div>
 
     <!-- Tabela de Logs -->

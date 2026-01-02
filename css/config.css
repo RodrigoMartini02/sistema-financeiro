@@ -1304,67 +1304,36 @@
 }
 
 /* ================================================================ */
-/* FILTROS DE REGISTROS */
+/* AÇÕES DE REGISTROS */
 /* ================================================================ */
 
-.registros-filtros {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-    margin-bottom: 24px;
-    padding: 20px;
-    background: var(--config-light);
-    border-radius: 8px;
-    border: 1px solid var(--config-border);
-}
-
-.filtro-grupo {
+.registros-acoes {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-bottom: 24px;
+    padding: 16px 0;
 }
 
-.filtro-grupo label {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--config-dark);
+.registros-acoes .btn-success {
+    padding: 12px 24px;
+    background: var(--config-success);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
     display: flex;
     align-items: center;
-    gap: 6px;
-}
-
-.filtro-grupo label i {
-    color: var(--config-primary);
-    font-size: 12px;
-}
-
-.filtro-grupo .form-input {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid var(--config-border);
-    border-radius: 6px;
-    font-size: 14px;
-    color: var(--config-dark);
-    background: #fff;
-    transition: all 0.3s ease;
-}
-
-.filtro-grupo .form-input:focus {
-    outline: none;
-    border-color: var(--config-primary);
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-}
-
-.filtro-acoes {
-    display: flex;
     gap: 8px;
-    align-items: flex-end;
-    grid-column: 1 / -1;
 }
 
-.filtro-acoes button {
-    flex: 1;
-    max-width: 150px;
+.registros-acoes .btn-success:hover {
+    background: var(--config-success-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
 /* ================================================================ */
@@ -1678,10 +1647,6 @@
 /* ================================================================ */
 
 @media (max-width: 1024px) {
-    .registros-filtros {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
     .tabela-registros {
         font-size: 13px;
     }
@@ -1697,16 +1662,13 @@
         padding: 16px;
     }
 
-    .registros-filtros {
-        grid-template-columns: 1fr;
+    .registros-acoes {
+        justify-content: center;
     }
 
-    .filtro-acoes {
-        flex-direction: column;
-    }
-
-    .filtro-acoes button {
-        max-width: 100%;
+    .registros-acoes .btn-success {
+        width: 100%;
+        justify-content: center;
     }
 
     .tabela-registros {
