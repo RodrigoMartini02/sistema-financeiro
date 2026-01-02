@@ -458,50 +458,31 @@
                 </div>
             </div>
 
-            <!-- PERÍODO PERSONALIZADO -->
-            <div id="periodo-personalizado-container" class="periodo-personalizado-ultra-compacto hidden">
-                <label for="data-inicio-relatorio">De:</label>
-                <input type="date" id="data-inicio-relatorio" class="form-input">
-                <label for="data-fim-relatorio">Até:</label>
-                <input type="date" id="data-fim-relatorio" class="form-input">
-           
-            <!-- LINHA 2: Checkboxes -->
-            
-                
-                    <span class="grupo-label">Pagamento:</span>
-                    <label class="checkbox-mini">
-                        <input type="checkbox" id="forma-todas" value="todas" checked>
-                        <span>Todas</span>
-                    </label>
-                    <label class="checkbox-mini">
-                        <input type="checkbox" id="forma-pix" value="pix">
-                        <span>PIX</span>
-                    </label>
-                    <label class="checkbox-mini">
-                        <input type="checkbox" id="forma-debito" value="debito">
-                        <span>Débito</span>
-                    </label>
-                    <label class="checkbox-mini">
-                        <input type="checkbox" id="forma-credito" value="credito">
-                        <span>Crédito</span>
-                    </label>
+           <div id="periodo-personalizado-container" class="periodo-personalizado-ultra-compacto hidden">
+    <div class="filtro-item-grupo">
+        <label for="data-inicio-relatorio">De:</label>
+        <input type="date" id="data-inicio-relatorio" class="form-input-mini">
+        <label for="data-fim-relatorio">Até:</label>
+        <input type="date" id="data-fim-relatorio" class="form-input-mini">
+    </div>
 
-                    <span class="grupo-label grupo-label-separador">Opções:</span>
-                    <label class="checkbox-mini">
-                        <input type="checkbox" id="incluir-transferencias">
-                        <span>Transferências</span>
-                    </label>
-                    <label class="checkbox-mini">
-                        <input type="checkbox" id="agrupar-parcelamentos">
-                        <span>Agrupar</span>
-                    </label>
-                    <label class="checkbox-mini">
-                        <input type="checkbox" id="mostrar-projecoes">
-                        <span>Projeções</span>
-                    </label>
-                
-            </div>
+    <div class="filtro-divisor"></div>
 
+    <div class="filtro-item-grupo">
+        <span class="grupo-label">Pagamento:</span>
+        <label class="checkbox-mini"><input type="checkbox" id="forma-todas" checked><span>Todas</span></label>
+        <label class="checkbox-mini"><input type="checkbox" id="forma-pix"><span>PIX</span></label>
+        <label class="checkbox-mini"><input type="checkbox" id="forma-debito"><span>Débito</span></label>
+        <label class="checkbox-mini"><input type="checkbox" id="forma-credito"><span>Crédito</span></label>
+    </div>
+
+    <div class="filtro-item-grupo">
+        <span class="grupo-label">Opções:</span>
+        <label class="checkbox-mini"><input type="checkbox" id="incluir-transferencias"><span>Transf.</span></label>
+        <label class="checkbox-mini"><input type="checkbox" id="agrupar-parcelamentos"><span>Agrupar</span></label>
+        <label class="checkbox-mini"><input type="checkbox" id="mostrar-projecoes"><span>Projeções</span></label>
+    </div>
+</div>
 
             
             <div id="resumo-filtros-aplicados" class="filtros-resumo hidden">
