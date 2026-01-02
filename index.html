@@ -824,7 +824,9 @@
                         <thead>
                             <tr>
                                 <th>Nome da Categoria</th>
-                                <th>Ações</th>
+                                <th>Data de Criação</th>
+                                <th>Última Edição</th>
+                                <th class="th-acoes">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="lista-categorias">
@@ -1326,12 +1328,14 @@
 <template id="template-linha-categoria">
     <tr class="categoria-item">
         <td class="categoria-nome"></td>
+        <td class="categoria-data-criacao"></td>
+        <td class="categoria-data-edicao"></td>
         <td class="categoria-acoes">
             <button class="btn-editar-categoria" data-categoria="" title="Editar categoria">
-                <i class="fas fa-edit"></i> Editar
+                <i class="fas fa-edit"></i>
             </button>
             <button class="btn-remover-categoria" data-categoria="" title="Remover categoria">
-                <i class="fas fa-trash"></i> Remover
+                <i class="fas fa-trash"></i>
             </button>
         </td>
     </tr>
@@ -1466,10 +1470,9 @@
         </div>
         <div class="modal-body">
            <div class="tabs">
-                <button class="tab-btn active" data-tab="tab-resumo">Resumo</button>                
+                <button class="tab-btn active" data-tab="tab-resumo">Resumo</button>
                 <button class="tab-btn" data-tab="tab-despesas">Despesas</button>
                 <button class="tab-btn" data-tab="tab-receitas">Receitas</button>
-                <button class="tab-btn" data-tab="tab-reservas">Reservas</button>
             </div>
 
             <!-- ABA RESUMO -->
@@ -1583,6 +1586,31 @@
 
             <!-- ABA RECEITAS -->
             <div id="tab-receitas" class="tab-content">
+                <!-- CARD DE RESERVAS INTEGRADO -->
+                <div class="card-reservas-integrado">
+                    <div class="reservas-header">
+                        <h3><i class="fas fa-piggy-bank"></i> Reservas</h3>
+                        <button id="btn-reservar-valor" class="btn-reservar-rapido">
+                            <i class="fas fa-plus"></i> Reservar Valor
+                        </button>
+                    </div>
+
+                    <div class="reservas-resumo-mini">
+                        <div class="resumo-item">
+                            <span class="label">Disponível:</span>
+                            <span id="reservas-disponivel-mini" class="valor saldo-positivo">R$ 0,00</span>
+                        </div>
+                        <div class="resumo-item">
+                            <span class="label">Reservado:</span>
+                            <span id="reservas-reservado-mini" class="valor">R$ 0,00</span>
+                        </div>
+                    </div>
+
+                    <div id="ultimas-reservas-mini" class="ultimas-reservas-lista">
+                        <!-- Últimas 5 reservas aparecerão aqui -->
+                    </div>
+                </div>
+
                 <div class="tab-actions">
                     <button id="btn-nova-receita" class="btn-action">
                         <i class="fas fa-plus-circle"></i> Nova Receita
@@ -1608,89 +1636,6 @@
             <div id="tab-despesas" class="tab-content">
                 <!-- Conteúdo gerado dinamicamente pelo despesas.js -->
             </div>
-
-
-
-       <div id="tab-reservas" class="tab-content">
-    <div class="resumo-reservas">
-        <div class="card-resumo-reserva">
-            <div class="card-icon receitas">
-                <i class="fas fa-arrow-down"></i>
-            </div>
-            <div class="card-info">
-                <label>Total de Receitas</label>
-                <span id="reservas-total-receitas" class="valor-destaque">R$ 0,00</span>
-            </div>
-        </div>
-        
-        <div class="card-resumo-reserva">
-            <div class="card-icon reservado">
-                <i class="fas fa-lock"></i>
-            </div>
-            <div class="card-info">
-                <label>Já Reservado</label>
-                <span id="reservas-ja-reservado" class="valor-destaque reservado">R$ 0,00</span>
-            </div>
-        </div>
-        
-        <div class="card-resumo-reserva">
-            <div class="card-icon disponivel">
-                <i class="fas fa-check-circle"></i>
-            </div>
-            <div class="card-info">
-                <label>Disponível</label>
-                <span id="reservas-disponivel" class="valor-destaque disponivel">R$ 0,00</span>
-            </div>
-        </div>
-    </div>
-    
-    <div class="formulario-reserva">
-        <h3><i class="fas fa-exchange-alt"></i> Migrar para Reservas</h3>
-        <form id="form-migrar-reserva">
-            <div class="form-group-inline">
-                <label for="valor-reserva">Valor:</label>
-                <input 
-                    type="number" 
-                    id="valor-reserva" 
-                    class="form-control" 
-                    placeholder="0,00" 
-                    step="0.01" 
-                    min="0.01"
-                  
-                >
-                <button type="submit" class="btn-confirmar-reserva">
-                    <i class="fas fa-check"></i> Confirmar
-                </button>
-            </div>
-            <p class="info-texto">
-                <i class="fas fa-info-circle"></i> 
-                Este valor será descontado do saldo disponível do mês.
-            </p>
-        </form>
-    </div>
-    
-    <div class="historico-reservas">
-        <h3><i class="fas fa-history"></i> Histórico deste Mês</h3>
-        <div id="lista-historico-reservas" class="lista-historico">
-            <p class="historico-vazio">Nenhuma reserva realizada neste mês.</p>
-        </div>
-    </div>
-</div>
-
-<template id="template-historico-reserva">
-    <div class="historico-item">
-        <div class="historico-icon">
-            <i class="fas fa-arrow-right"></i>
-        </div>
-        <div class="historico-detalhes">
-            <span class="historico-data"></span>
-            <span class="historico-valor"></span>
-        </div>
-        <button class="btn-remover-reserva" data-index="" title="Remover reserva">
-            <i class="fas fa-times"></i>
-        </button>
-    </div>
-</template>
 
         </div>
     </div>
@@ -1747,6 +1692,23 @@
         <div class="col-anexos">-</div>
     </div>
 </template>
+
+<template id="template-reserva-mini">
+    <div class="reserva-mini-item">
+        <div class="reserva-icon">
+            <i class="fas fa-lock"></i>
+        </div>
+        <div class="reserva-info">
+            <span class="reserva-descricao"></span>
+            <span class="reserva-data-mini"></span>
+        </div>
+        <span class="reserva-valor-mini"></span>
+        <button class="btn-remover-reserva-mini" title="Remover reserva">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+</template>
+
         </div>
       </div>
     </div>
@@ -1935,6 +1897,54 @@
             <div id="lista-anexos-visualizar" class="lista-anexos-visualizar">
                 <!-- Anexos para download serão inseridos aqui -->
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Reservar Valor -->
+<div id="modal-reservar-valor" class="modal">
+    <div class="modal-content modal-reservar-compact">
+        <div class="modal-header">
+            <h2><i class="fas fa-piggy-bank"></i> Reservar Valor</h2>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="form-reservar-valor">
+                <div class="form-group">
+                    <label for="input-valor-reserva">Valor a Reservar</label>
+                    <input
+                        type="number"
+                        id="input-valor-reserva"
+                        class="form-control"
+                        placeholder="0,00"
+                        step="0.01"
+                        min="0.01"
+                        required
+                    >
+                    <small class="form-hint">
+                        <i class="fas fa-info-circle"></i>
+                        Disponível: <span id="modal-disponivel-info">R$ 0,00</span>
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label for="input-descricao-reserva">Descrição (opcional)</label>
+                    <input
+                        type="text"
+                        id="input-descricao-reserva"
+                        class="form-control"
+                        placeholder="Ex: Viagem, Emergência..."
+                        maxlength="50"
+                    >
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancelar-modal">Cancelar</button>
+                    <button type="submit" class="btn-confirmar-modal">
+                        <i class="fas fa-check"></i> Confirmar Reserva
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

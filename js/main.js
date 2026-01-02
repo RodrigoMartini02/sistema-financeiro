@@ -1427,6 +1427,10 @@ async function renderizarDetalhesDoMes(mes, ano) {
             window.renderizarReceitas(receitas, fechado);
         }
 
+        if (typeof window.atualizarCardReservasIntegrado === 'function') {
+            window.atualizarCardReservasIntegrado();
+        }
+
         if (typeof window.renderizarDespesas === 'function') {
             window.renderizarDespesas(despesas, mes, ano, fechado);
         }

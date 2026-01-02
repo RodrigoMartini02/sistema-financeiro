@@ -240,20 +240,28 @@ function atualizarDropdowns() {
     const dropdownCategoria = document.getElementById('despesa-categoria');
     if (dropdownCategoria && categoriasUsuario.despesas) {
         const valorSelecionado = dropdownCategoria.value;
-        
+
         while (dropdownCategoria.options.length > 1) {
             dropdownCategoria.remove(1);
         }
-        
+
         categoriasUsuario.despesas.forEach(cat => {
+            const nomeCategoria = typeof cat === 'string' ? cat : cat.nome;
             const option = document.createElement('option');
-            option.value = cat;
-            option.textContent = cat;
+            option.value = nomeCategoria;
+            option.textContent = nomeCategoria;
             dropdownCategoria.appendChild(option);
         });
-        
-        if (valorSelecionado && categoriasUsuario.despesas.includes(valorSelecionado)) {
-            dropdownCategoria.value = valorSelecionado;
+
+        if (valorSelecionado) {
+            const existe = categoriasUsuario.despesas.some(cat => {
+                const nome = typeof cat === 'string' ? cat : cat.nome;
+                return nome === valorSelecionado;
+            });
+
+            if (existe) {
+                dropdownCategoria.value = valorSelecionado;
+            }
         }
     }
 }
@@ -268,13 +276,44 @@ async function adicionarCategoria() {
         return;
     }
 
-    if (categoriasUsuario.despesas.includes(nomeCat)) {
+    // Verificar se já existe (agora comparando o nome do objeto)
+    const jaExiste = Array.isArray(categoriasUsuario.despesas)
+        ? categoriasUsuario.despesas.some(cat => {
+            const nome = typeof cat === 'string' ? cat : cat.nome;
+            return nome === nomeCat;
+        })
+        : false;
+
+    if (jaExiste) {
         mostrarFeedback('Esta categoria já existe!', 'error');
         return;
     }
 
-    categoriasUsuario.despesas.push(nomeCat);
-    categoriasUsuario.despesas.sort();
+    // Criar objeto de categoria com metadados
+    const novaCategoria = {
+        nome: nomeCat,
+        dataCriacao: new Date().toISOString(),
+        dataEdicao: new Date().toISOString()
+    };
+
+    // Converter array antigo (strings) para novo formato (objetos)
+    if (!Array.isArray(categoriasUsuario.despesas)) {
+        categoriasUsuario.despesas = [];
+    } else {
+        categoriasUsuario.despesas = categoriasUsuario.despesas.map(cat => {
+            if (typeof cat === 'string') {
+                return {
+                    nome: cat,
+                    dataCriacao: new Date().toISOString(),
+                    dataEdicao: new Date().toISOString()
+                };
+            }
+            return cat;
+        });
+    }
+
+    categoriasUsuario.despesas.push(novaCategoria);
+    categoriasUsuario.despesas.sort((a, b) => a.nome.localeCompare(b.nome));
 
     const sucesso = await salvarCategorias();
     if (sucesso) {
@@ -283,7 +322,7 @@ async function adicionarCategoria() {
         atualizarDropdowns();
         mostrarFeedback('Alterações realizadas com sucesso!', 'success');
     } else {
-        const index = categoriasUsuario.despesas.indexOf(nomeCat);
+        const index = categoriasUsuario.despesas.findIndex(c => c.nome === nomeCat);
         if (index > -1) {
             categoriasUsuario.despesas.splice(index, 1);
         }
@@ -294,27 +333,51 @@ async function adicionarCategoria() {
 function atualizarListaCategorias() {
     const listaCategorias = document.getElementById('lista-categorias');
     const semCategoriasMessage = document.getElementById('sem-categorias-message');
-    
+
     if (!listaCategorias) return;
-    
+
     listaCategorias.innerHTML = '';
-    
+
     if (!categoriasUsuario.despesas || categoriasUsuario.despesas.length === 0) {
         if (semCategoriasMessage) semCategoriasMessage.classList.remove('hidden');
         return;
     }
-    
+
     if (semCategoriasMessage) semCategoriasMessage.classList.add('hidden');
-    
-    categoriasUsuario.despesas.forEach(categoria => {
+
+    // Converter strings antigas para objetos se necessário
+    const categoriasNormalizadas = categoriasUsuario.despesas.map(cat => {
+        if (typeof cat === 'string') {
+            return {
+                nome: cat,
+                dataCriacao: new Date().toISOString(),
+                dataEdicao: new Date().toISOString()
+            };
+        }
+        return cat;
+    });
+
+    categoriasNormalizadas.forEach(categoria => {
         const template = document.getElementById('template-linha-categoria');
         if (!template) return;
-        
+
         const linha = template.content.cloneNode(true);
-        linha.querySelector('.categoria-nome').textContent = categoria;
-        linha.querySelector('.btn-editar-categoria').setAttribute('data-categoria', categoria);
-        linha.querySelector('.btn-remover-categoria').setAttribute('data-categoria', categoria);
-        
+
+        // Nome da categoria
+        linha.querySelector('.categoria-nome').textContent = categoria.nome;
+
+        // Data de criação
+        const dataCriacao = categoria.dataCriacao ? new Date(categoria.dataCriacao) : new Date();
+        linha.querySelector('.categoria-data-criacao').textContent = dataCriacao.toLocaleDateString('pt-BR');
+
+        // Data de edição
+        const dataEdicao = categoria.dataEdicao ? new Date(categoria.dataEdicao) : new Date();
+        linha.querySelector('.categoria-data-edicao').textContent = dataEdicao.toLocaleDateString('pt-BR');
+
+        // Botões de ação
+        linha.querySelector('.btn-editar-categoria').setAttribute('data-categoria', categoria.nome);
+        linha.querySelector('.btn-remover-categoria').setAttribute('data-categoria', categoria.nome);
+
         listaCategorias.appendChild(linha);
     });
 }
@@ -331,11 +394,15 @@ function editarCategoria(categoria) {
     }
 }
 
-async function removerCategoria(categoria) {
-    const confirmar = confirm(`Tem certeza que deseja remover a categoria "${categoria}"?`);
+async function removerCategoria(nomeCategoria) {
+    const confirmar = confirm(`Tem certeza que deseja remover a categoria "${nomeCategoria}"?`);
     if (!confirmar) return;
 
-    const index = categoriasUsuario.despesas.indexOf(categoria);
+    const index = categoriasUsuario.despesas.findIndex(cat => {
+        const nome = typeof cat === 'string' ? cat : cat.nome;
+        return nome === nomeCategoria;
+    });
+
     if (index !== -1) {
         const categoriaRemovida = categoriasUsuario.despesas.splice(index, 1)[0];
 
@@ -365,15 +432,48 @@ async function salvarEdicaoCategoria() {
         return;
     }
 
-    if (novoNome !== nomeOriginal && categoriasUsuario.despesas.includes(novoNome)) {
-        mostrarFeedback('Já existe uma categoria com este nome!', 'error');
-        return;
+    // Verificar se novo nome já existe (excluindo a categoria atual)
+    if (novoNome !== nomeOriginal) {
+        const jaExiste = categoriasUsuario.despesas.some(cat => {
+            const nome = typeof cat === 'string' ? cat : cat.nome;
+            return nome === novoNome;
+        });
+
+        if (jaExiste) {
+            mostrarFeedback('Já existe uma categoria com este nome!', 'error');
+            return;
+        }
     }
 
-    const index = categoriasUsuario.despesas.indexOf(nomeOriginal);
+    const index = categoriasUsuario.despesas.findIndex(cat => {
+        const nome = typeof cat === 'string' ? cat : cat.nome;
+        return nome === nomeOriginal;
+    });
+
     if (index !== -1) {
-        categoriasUsuario.despesas[index] = novoNome;
-        categoriasUsuario.despesas.sort();
+        const categoriaAtual = categoriasUsuario.despesas[index];
+        const categoriaAnterior = {...categoriaAtual};
+
+        // Atualizar categoria mantendo metadados
+        if (typeof categoriaAtual === 'string') {
+            categoriasUsuario.despesas[index] = {
+                nome: novoNome,
+                dataCriacao: new Date().toISOString(),
+                dataEdicao: new Date().toISOString()
+            };
+        } else {
+            categoriasUsuario.despesas[index] = {
+                ...categoriaAtual,
+                nome: novoNome,
+                dataEdicao: new Date().toISOString()
+            };
+        }
+
+        categoriasUsuario.despesas.sort((a, b) => {
+            const nomeA = typeof a === 'string' ? a : a.nome;
+            const nomeB = typeof b === 'string' ? b : b.nome;
+            return nomeA.localeCompare(nomeB);
+        });
 
         const sucesso = await salvarCategorias();
         if (sucesso) {
@@ -382,7 +482,7 @@ async function salvarEdicaoCategoria() {
             document.getElementById('modal-editar-categoria').style.display = 'none';
             mostrarFeedback('Alterações realizadas com sucesso!', 'success');
         } else {
-            categoriasUsuario.despesas[index] = nomeOriginal;
+            categoriasUsuario.despesas[index] = categoriaAnterior;
             mostrarFeedback('Erro ao salvar alteração. Tente novamente.', 'error');
         }
     }

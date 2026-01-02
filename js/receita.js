@@ -979,188 +979,6 @@ function configurarEventListenersModais() {
 }
 
 
-function abrirAbaReservas() {
-    const mes = window.mesAberto;
-    const ano = window.anoAberto;
-    
-    if (mes === null || ano === null) return;
-    
-    window.garantirEstruturaDados(ano, mes);
-    if (!window.dadosFinanceiros[ano].meses[mes].reservas) {
-        window.dadosFinanceiros[ano].meses[mes].reservas = [];
-    }
-    
-    document.getElementById('valor-reserva').value = '';
-    
-    atualizarResumos(mes, ano);
-    renderizarHistorico(mes, ano);
-}
-
-function atualizarResumos(mes, ano) {
-    const dadosMes = window.dadosFinanceiros[ano]?.meses[mes];
-    if (!dadosMes) return;
-    
-    const saldoInfo = window.calcularSaldoMes(mes, ano);
-    
-    const totalDisponivel = saldoInfo.saldoAnterior + saldoInfo.receitas;
-    const totalDespesas = saldoInfo.despesas;
-    const saldoLivre = totalDisponivel - totalDespesas;
-    
-    const reservasMes = (dadosMes.reservas || []).reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-    
-    const disponivelParaReservar = Math.max(0, saldoLivre - reservasMes);
-    
-    let totalAcumulado = 0;
-    for (const anoKey in window.dadosFinanceiros) {
-        if (anoKey === 'versao') continue;
-        const dadosAno = window.dadosFinanceiros[anoKey];
-        if (!dadosAno.meses) continue;
-        
-        for (let m = 0; m < 12; m++) {
-            const reservas = dadosAno.meses[m]?.reservas || [];
-            totalAcumulado += reservas.reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-        }
-    }
-    
-    document.getElementById('reservas-total-receitas').textContent = window.formatarMoeda(totalDisponivel);
-    document.getElementById('reservas-ja-reservado').textContent = window.formatarMoeda(totalAcumulado);
-    
-    const elemDisponivel = document.getElementById('reservas-disponivel');
-    elemDisponivel.textContent = window.formatarMoeda(disponivelParaReservar);
-    elemDisponivel.style.color = disponivelParaReservar > 0 ? '#27ae60' : '#e74c3c';
-    
-    const inputValor = document.getElementById('valor-reserva');
-    if (inputValor) {
-        inputValor.max = disponivelParaReservar.toFixed(2);
-    }
-}
-
-async function adicionarReserva(e) {
-    e.preventDefault();
-    
-    const mes = window.mesAberto;
-    const ano = window.anoAberto;
-    const valor = parseFloat(document.getElementById('valor-reserva').value);
-    
-    if (isNaN(valor) || valor <= 0) {
-        return;
-    }
-    
-    const dadosMes = window.dadosFinanceiros[ano].meses[mes];
-    
-    const novaReserva = {
-        id: window.gerarId(),
-        valor: valor,
-        data: new Date().toISOString().split('T')[0]
-    };
-    
-    if (!dadosMes.reservas) dadosMes.reservas = [];
-    dadosMes.reservas.push(novaReserva);
-    
-    await window.salvarDados();
-    
-    atualizarResumos(mes, ano);
-    renderizarHistorico(mes, ano);
-    
-    const saldo = window.calcularSaldoMes(mes, ano);
-    const totalJuros = typeof window.calcularTotalJuros === 'function' ?
-                      window.calcularTotalJuros(dadosMes.despesas || []) : 0;
-    
-    window.atualizarElemento('resumo-receitas', window.formatarMoeda(saldo.receitas));
-    window.atualizarElemento('resumo-despesas', window.formatarMoeda(saldo.despesas));
-    window.atualizarElemento('resumo-juros', window.formatarMoeda(totalJuros));
-    
-    const saldoElement = document.getElementById('resumo-saldo');
-    if (saldoElement) {
-        saldoElement.textContent = window.formatarMoeda(saldo.saldoFinal);
-        saldoElement.className = saldo.saldoFinal >= 0 ? 'saldo-positivo' : 'saldo-negativo';
-    }
-    
-    if (typeof window.renderizarMeses === 'function') {
-        window.renderizarMeses(ano);
-    }
-    
-    document.getElementById('valor-reserva').value = '';
-}
-
-
-
-function renderizarHistorico(mes, ano) {
-    const lista = document.getElementById('lista-historico-reservas');
-    if (!lista) return;
-    
-    const reservas = window.dadosFinanceiros[ano]?.meses[mes]?.reservas || [];
-    lista.innerHTML = '';
-    
-    if (reservas.length === 0) {
-        lista.innerHTML = '<p class="historico-vazio">Nenhuma reserva neste mês.</p>';
-        return;
-    }
-    
-    const template = document.getElementById('template-historico-reserva');
-    if (!template) return;
-    
-    reservas.forEach((reserva, index) => {
-        const clone = template.content.cloneNode(true);
-        
-        clone.querySelector('.historico-data').textContent = window.formatarData(reserva.data);
-        clone.querySelector('.historico-valor').textContent = window.formatarMoeda(reserva.valor);
-        
-        const btnRemover = clone.querySelector('.btn-remover-reserva');
-        btnRemover.addEventListener('click', () => removerReserva(index, mes, ano));
-        
-        lista.appendChild(clone);
-    });
-}
-
-async function removerReserva(index, mes, ano) {
-    const reservas = window.dadosFinanceiros[ano]?.meses[mes]?.reservas;
-    if (!reservas || !reservas[index]) return;
-    
-    const valor = reservas[index].valor;
-    if (!confirm(`Remover reserva de ${window.formatarMoeda(valor)}?`)) return;
-    
-    reservas.splice(index, 1);
-    await window.salvarDados();
-    
-    atualizarResumos(mes, ano);
-    renderizarHistorico(mes, ano);
-    
-    const dadosMes = window.dadosFinanceiros[ano].meses[mes];
-    const saldo = window.calcularSaldoMes(mes, ano);
-    const totalJuros = typeof window.calcularTotalJuros === 'function' ?
-                      window.calcularTotalJuros(dadosMes.despesas || []) : 0;
-    
-    window.atualizarElemento('resumo-receitas', window.formatarMoeda(saldo.receitas));
-    window.atualizarElemento('resumo-despesas', window.formatarMoeda(saldo.despesas));
-    window.atualizarElemento('resumo-juros', window.formatarMoeda(totalJuros));
-    
-    const saldoElement = document.getElementById('resumo-saldo');
-    if (saldoElement) {
-        saldoElement.textContent = window.formatarMoeda(saldo.saldoFinal);
-        saldoElement.className = saldo.saldoFinal >= 0 ? 'saldo-positivo' : 'saldo-negativo';
-    }
-    
-    if (typeof window.renderizarMeses === 'function') {
-        window.renderizarMeses(ano);
-    }
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(() => {
-        const tabBtnReservas = document.querySelector('.tab-btn[data-tab="tab-reservas"]');
-        if (tabBtnReservas) {
-            tabBtnReservas.addEventListener('click', abrirAbaReservas);
-        }
-        
-        const form = document.getElementById('form-migrar-reserva');
-        if (form) {
-            form.addEventListener('submit', adicionarReserva);
-        }
-    }, 200);
-});
-
-
 // ================================================================
 // EXPORTAR FUNÇÕES GLOBAIS
 // ================================================================
@@ -1176,3 +994,293 @@ window.atualizarContadorAnexosReceita = atualizarContadorAnexosReceita;
 window.atualizarTodosContadoresAnexosReceitas = atualizarTodosContadoresAnexosReceitas;
 
 console.log('✅ Sistema de receitas carregado com logs de debug');
+
+// ================================================================
+// SISTEMA DE RESERVAS INTEGRADO
+// ================================================================
+
+/**
+ * Atualiza o card de reservas integrado na aba Receitas
+ */
+function atualizarCardReservasIntegrado() {
+    const mes = window.mesAberto;
+    const ano = window.anoAberto;
+
+    if (mes === null || ano === null) return;
+
+    window.garantirEstruturaDados(ano, mes);
+    const dadosMes = window.dadosFinanceiros[ano]?.meses[mes];
+    if (!dadosMes) return;
+
+    // Calcular valores
+    const saldoInfo = window.calcularSaldoMes(mes, ano);
+    const totalDisponivel = saldoInfo.saldoAnterior + saldoInfo.receitas;
+    const totalDespesas = saldoInfo.despesas;
+    const saldoLivre = totalDisponivel - totalDespesas;
+
+    // Calcular total acumulado de reservas (todos os meses/anos)
+    let totalAcumulado = 0;
+    for (const anoKey in window.dadosFinanceiros) {
+        if (anoKey === 'versao') continue;
+        const dadosAno = window.dadosFinanceiros[anoKey];
+        if (!dadosAno.meses) continue;
+
+        for (let m = 0; m < 12; m++) {
+            const reservas = dadosAno.meses[m]?.reservas || [];
+            totalAcumulado += reservas.reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+        }
+    }
+
+    const disponivelParaReservar = Math.max(0, saldoLivre - totalAcumulado);
+
+    // Atualizar elementos do DOM
+    const elemDisponivel = document.getElementById('reservas-disponivel-mini');
+    const elemReservado = document.getElementById('reservas-reservado-mini');
+
+    if (elemDisponivel) {
+        elemDisponivel.textContent = window.formatarMoeda(disponivelParaReservar);
+        elemDisponivel.className = disponivelParaReservar >= 0 ? 'valor saldo-positivo' : 'valor saldo-negativo';
+    }
+
+    if (elemReservado) {
+        elemReservado.textContent = window.formatarMoeda(totalAcumulado);
+    }
+
+    // Renderizar últimas 5 reservas
+    renderizarUltimasReservas(mes, ano);
+}
+
+/**
+ * Renderiza as últimas 5 reservas de todos os meses
+ */
+function renderizarUltimasReservas(mes, ano) {
+    const lista = document.getElementById('ultimas-reservas-mini');
+    if (!lista) return;
+
+    // Coletar todas as reservas de todos os meses
+    const todasReservas = [];
+
+    for (const anoKey in window.dadosFinanceiros) {
+        if (anoKey === 'versao') continue;
+        const dadosAno = window.dadosFinanceiros[anoKey];
+        if (!dadosAno.meses) continue;
+
+        for (let m = 0; m < 12; m++) {
+            const reservas = dadosAno.meses[m]?.reservas || [];
+            reservas.forEach(reserva => {
+                todasReservas.push({
+                    ...reserva,
+                    mes: m,
+                    ano: parseInt(anoKey)
+                });
+            });
+        }
+    }
+
+    // Ordenar por data (mais recentes primeiro)
+    todasReservas.sort((a, b) => new Date(b.data) - new Date(a.data));
+
+    // Pegar apenas as 5 mais recentes
+    const ultimas5 = todasReservas.slice(0, 5);
+
+    lista.innerHTML = '';
+
+    if (ultimas5.length === 0) {
+        lista.innerHTML = '<div class="reservas-vazio">Nenhuma reserva ainda</div>';
+        return;
+    }
+
+    const template = document.getElementById('template-reserva-mini');
+    if (!template) return;
+
+    ultimas5.forEach((reserva, index) => {
+        const clone = template.content.cloneNode(true);
+
+        const descricao = reserva.descricao || 'Reserva';
+        clone.querySelector('.reserva-descricao').textContent = descricao;
+        clone.querySelector('.reserva-data-mini').textContent = window.formatarData(reserva.data);
+        clone.querySelector('.reserva-valor-mini').textContent = window.formatarMoeda(reserva.valor);
+
+        const btnRemover = clone.querySelector('.btn-remover-reserva-mini');
+        btnRemover.addEventListener('click', () => removerReservaIntegrada(reserva.mes, reserva.ano, reserva.id));
+
+        lista.appendChild(clone);
+    });
+}
+
+/**
+ * Abre o modal para reservar valor
+ */
+function abrirModalReservarValor() {
+    const mes = window.mesAberto;
+    const ano = window.anoAberto;
+
+    if (mes === null || ano === null) {
+        alert('Selecione um mês primeiro');
+        return;
+    }
+
+    // Calcular disponível
+    const saldoInfo = window.calcularSaldoMes(mes, ano);
+    const totalDisponivel = saldoInfo.saldoAnterior + saldoInfo.receitas;
+    const totalDespesas = saldoInfo.despesas;
+    const saldoLivre = totalDisponivel - totalDespesas;
+
+    let totalAcumulado = 0;
+    for (const anoKey in window.dadosFinanceiros) {
+        if (anoKey === 'versao') continue;
+        const dadosAno = window.dadosFinanceiros[anoKey];
+        if (!dadosAno.meses) continue;
+
+        for (let m = 0; m < 12; m++) {
+            const reservas = dadosAno.meses[m]?.reservas || [];
+            totalAcumulado += reservas.reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+        }
+    }
+
+    const disponivelParaReservar = Math.max(0, saldoLivre - totalAcumulado);
+
+    // Atualizar modal
+    const modalDisponivel = document.getElementById('modal-disponivel-info');
+    if (modalDisponivel) {
+        modalDisponivel.textContent = window.formatarMoeda(disponivelParaReservar);
+    }
+
+    const inputValor = document.getElementById('input-valor-reserva');
+    if (inputValor) {
+        inputValor.max = disponivelParaReservar.toFixed(2);
+        inputValor.value = '';
+    }
+
+    const inputDescricao = document.getElementById('input-descricao-reserva');
+    if (inputDescricao) {
+        inputDescricao.value = '';
+    }
+
+    // Abrir modal
+    const modal = document.getElementById('modal-reservar-valor');
+    if (modal) {
+        modal.style.display = 'block';
+    }
+}
+
+/**
+ * Processa o formulário de reservar valor
+ */
+async function processarReservarValor(e) {
+    e.preventDefault();
+
+    const mes = window.mesAberto;
+    const ano = window.anoAberto;
+    const valor = parseFloat(document.getElementById('input-valor-reserva').value);
+    const descricao = document.getElementById('input-descricao-reserva').value.trim() || 'Reserva';
+
+    if (isNaN(valor) || valor <= 0) {
+        alert('Informe um valor válido');
+        return;
+    }
+
+    window.garantirEstruturaDados(ano, mes);
+    const dadosMes = window.dadosFinanceiros[ano].meses[mes];
+
+    const novaReserva = {
+        id: window.gerarId(),
+        valor: valor,
+        descricao: descricao,
+        data: new Date().toISOString().split('T')[0]
+    };
+
+    if (!dadosMes.reservas) dadosMes.reservas = [];
+    dadosMes.reservas.push(novaReserva);
+
+    await window.salvarDados();
+
+    // Fechar modal
+    document.getElementById('modal-reservar-valor').style.display = 'none';
+
+    // Atualizar interface
+    atualizarCardReservasIntegrado();
+
+    if (typeof window.renderizarDetalhesDoMes === 'function') {
+        window.renderizarDetalhesDoMes(mes, ano);
+    }
+
+    if (typeof window.carregarDadosDashboard === 'function') {
+        await window.carregarDadosDashboard(ano);
+    }
+
+    if (window.mostrarMensagemSucesso) {
+        window.mostrarMensagemSucesso('Reserva criada com sucesso!');
+    }
+}
+
+/**
+ * Remove uma reserva
+ */
+async function removerReservaIntegrada(mes, ano, reservaId) {
+    const reservas = window.dadosFinanceiros[ano]?.meses[mes]?.reservas;
+    if (!reservas) return;
+
+    const index = reservas.findIndex(r => r.id === reservaId);
+    if (index === -1) return;
+
+    const valor = reservas[index].valor;
+    if (!confirm(`Remover reserva de ${window.formatarMoeda(valor)}?`)) return;
+
+    reservas.splice(index, 1);
+    await window.salvarDados();
+
+    // Atualizar interface
+    atualizarCardReservasIntegrado();
+
+    if (typeof window.renderizarDetalhesDoMes === 'function') {
+        window.renderizarDetalhesDoMes(window.mesAberto, window.anoAberto);
+    }
+
+    if (typeof window.carregarDadosDashboard === 'function') {
+        await window.carregarDadosDashboard(window.anoAberto);
+    }
+
+    if (window.mostrarMensagemSucesso) {
+        window.mostrarMensagemSucesso('Reserva removida com sucesso!');
+    }
+}
+
+/**
+ * Inicializa eventos das reservas integradas
+ */
+function inicializarEventosReservasIntegradas() {
+    // Botão "Reservar Valor"
+    const btnReservar = document.getElementById('btn-reservar-valor');
+    if (btnReservar) {
+        btnReservar.addEventListener('click', abrirModalReservarValor);
+    }
+
+    // Formulário de reservar
+    const formReservar = document.getElementById('form-reservar-valor');
+    if (formReservar) {
+        formReservar.addEventListener('submit', processarReservarValor);
+    }
+
+    // Botão cancelar do modal
+    const btnCancelar = document.querySelector('#modal-reservar-valor .btn-cancelar-modal');
+    if (btnCancelar) {
+        btnCancelar.addEventListener('click', () => {
+            document.getElementById('modal-reservar-valor').style.display = 'none';
+        });
+    }
+
+    console.log('✅ Eventos de reservas integradas inicializados');
+}
+
+// Aguardar DOM e inicializar
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        inicializarEventosReservasIntegradas();
+    }, 300);
+});
+
+// Exportar funções
+window.atualizarCardReservasIntegrado = atualizarCardReservasIntegrado;
+window.abrirModalReservarValor = abrirModalReservarValor;
+window.removerReservaIntegrada = removerReservaIntegrada;

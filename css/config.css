@@ -530,6 +530,7 @@
 .tabela-categorias {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed;
 }
 
 .tabela-categorias thead {
@@ -545,6 +546,20 @@
     border-bottom: 2px solid var(--config-border);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+}
+
+.tabela-categorias th:nth-child(1) {
+    width: 35%;
+}
+
+.tabela-categorias th:nth-child(2),
+.tabela-categorias th:nth-child(3) {
+    width: 20%;
+}
+
+.tabela-categorias th.th-acoes {
+    width: 25%;
+    text-align: center;
 }
 
 .tabela-categorias tbody tr {
@@ -564,16 +579,24 @@
     padding: 14px 16px;
     font-size: 14px;
     color: var(--config-dark);
+    vertical-align: middle;
 }
 
 .categoria-nome {
     font-weight: 500;
 }
 
+.categoria-data-criacao,
+.categoria-data-edicao {
+    font-size: 13px;
+    color: var(--config-secondary);
+}
+
 .categoria-acoes {
     display: flex;
     gap: 8px;
-    justify-content: flex-end;
+    justify-content: center;
+    align-items: center;
 }
 
 .btn-editar-categoria,
@@ -925,5 +948,320 @@
 
     .form-add-cartao h4 {
         font-size: 14px;
+    }
+}
+
+/* ================================================================ */
+/* CARD DE RESERVAS INTEGRADO NA ABA RECEITAS */
+/* ================================================================ */
+
+.card-reservas-integrado {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.reservas-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.reservas-header h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.reservas-header h3 i {
+    font-size: 24px;
+}
+
+.btn-reservar-rapido {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-reservar-rapido:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-2px);
+}
+
+.reservas-resumo-mini {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+}
+
+.resumo-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.resumo-item .label {
+    font-size: 13px;
+    opacity: 0.9;
+    font-weight: 500;
+}
+
+.resumo-item .valor {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.ultimas-reservas-lista {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.ultimas-reservas-lista::-webkit-scrollbar {
+    width: 6px;
+}
+
+.ultimas-reservas-lista::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+}
+
+.ultimas-reservas-lista::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+}
+
+.reserva-mini-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    transition: all 0.2s ease;
+}
+
+.reserva-mini-item:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.reserva-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.reserva-icon i {
+    font-size: 18px;
+}
+
+.reserva-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.reserva-descricao {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.reserva-data-mini {
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+.reserva-valor-mini {
+    font-size: 16px;
+    font-weight: 700;
+    margin-right: 8px;
+}
+
+.btn-remover-reserva-mini {
+    width: 32px;
+    height: 32px;
+    background: rgba(231, 76, 60, 0.3);
+    border: 1px solid rgba(231, 76, 60, 0.5);
+    border-radius: 6px;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.btn-remover-reserva-mini:hover {
+    background: rgba(231, 76, 60, 0.5);
+    transform: scale(1.1);
+}
+
+.reservas-vazio {
+    text-align: center;
+    padding: 20px;
+    font-size: 14px;
+    opacity: 0.7;
+}
+
+/* ================================================================ */
+/* MODAL RESERVAR VALOR */
+/* ================================================================ */
+
+.modal-reservar-compact .modal-content {
+    max-width: 450px;
+}
+
+.modal-reservar-compact .form-group {
+    margin-bottom: 20px;
+}
+
+.modal-reservar-compact label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: var(--config-dark);
+    font-size: 14px;
+}
+
+.modal-reservar-compact .form-control {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid var(--config-border);
+    border-radius: 8px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.modal-reservar-compact .form-control:focus {
+    outline: none;
+    border-color: var(--config-primary);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.modal-reservar-compact .form-hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--config-secondary);
+}
+
+.modal-reservar-compact .form-hint i {
+    color: var(--config-primary);
+}
+
+.modal-reservar-compact #modal-disponivel-info {
+    font-weight: 700;
+    color: var(--config-success);
+}
+
+.modal-reservar-compact .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 2px solid var(--config-border);
+}
+
+.btn-cancelar-modal {
+    padding: 12px 24px;
+    background: var(--config-light);
+    color: var(--config-dark);
+    border: 2px solid var(--config-border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-cancelar-modal:hover {
+    background: var(--config-border);
+}
+
+.btn-confirmar-modal {
+    padding: 12px 24px;
+    background: var(--config-success);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-confirmar-modal:hover {
+    background: #229954;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+}
+
+/* ================================================================ */
+/* RESPONSIVO - RESERVAS INTEGRADAS */
+/* ================================================================ */
+
+@media (max-width: 768px) {
+    .reservas-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .btn-reservar-rapido {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .reservas-resumo-mini {
+        grid-template-columns: 1fr;
+    }
+
+    .resumo-item .valor {
+        font-size: 18px;
+    }
+
+    .reserva-mini-item {
+        flex-wrap: wrap;
+    }
+
+    .reserva-valor-mini {
+        order: 3;
+        width: 100%;
+        text-align: right;
     }
 }
