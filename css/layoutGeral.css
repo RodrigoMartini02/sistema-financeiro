@@ -532,7 +532,8 @@ textarea:focus {
 .meses-section,
 .relatorios-section,
 .fin-sights-section,
-.config-section {
+.config-section,
+.registros-section {
     display: none;
     animation: fadeIn var(--transition-base);
 }
@@ -541,7 +542,8 @@ textarea:focus {
 .meses-section.active,
 .relatorios-section.active,
 .fin-sights-section.active,
-.config-section.active {
+.config-section.active,
+.registros-section.active {
     display: block;
 }
 

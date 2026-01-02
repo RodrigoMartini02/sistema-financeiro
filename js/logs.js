@@ -470,6 +470,15 @@ document.addEventListener('click', function(e) {
     }
 });
 
+// Inicializar a visualização quando o DOM carregar
+document.addEventListener('DOMContentLoaded', function() {
+    // Mostrar mensagem inicial de "sem dados" até que os logs sejam carregados
+    const semDados = document.getElementById('sem-registros-mensagem');
+    if (semDados) {
+        semDados.classList.add('active');
+    }
+});
+
 // ================================================================
 // EXPORTAR FUNÇÃO GLOBAL
 // ================================================================
