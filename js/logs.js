@@ -11,13 +11,7 @@
 
 let logsCache = [];
 let paginaAtual = 1;
-const LOGS_POR_PAGINA = 20;
-let filtrosAtivos = {
-    dataInicio: null,
-    dataFim: null,
-    modulo: '',
-    usuario: ''
-};
+const LOGS_POR_PAGINA = 50;
 
 // ================================================================
 // INICIALIZAÇÃO
@@ -34,18 +28,8 @@ document.addEventListener('DOMContentLoaded', function() {
  * Inicializa todos os event listeners da página de logs
  */
 function inicializarEventListeners() {
-    // Botões de filtro
-    const btnAplicarFiltros = document.getElementById('btn-aplicar-filtros');
-    const btnLimparFiltros = document.getElementById('btn-limpar-filtros');
+    // Botão de exportar
     const btnExportarLogs = document.getElementById('btn-exportar-logs');
-
-    if (btnAplicarFiltros) {
-        btnAplicarFiltros.addEventListener('click', aplicarFiltros);
-    }
-
-    if (btnLimparFiltros) {
-        btnLimparFiltros.addEventListener('click', limparFiltros);
-    }
 
     if (btnExportarLogs) {
         btnExportarLogs.addEventListener('click', exportarLogs);
@@ -127,26 +111,7 @@ async function carregarLogs() {
         console.log('🔄 Iniciando carregamento de logs...');
         mostrarLoading();
 
-        // Construir query string com filtros
-        const params = new URLSearchParams();
-
-        if (filtrosAtivos.dataInicio) {
-            params.append('dataInicio', filtrosAtivos.dataInicio);
-        }
-
-        if (filtrosAtivos.dataFim) {
-            params.append('dataFim', filtrosAtivos.dataFim);
-        }
-
-        if (filtrosAtivos.modulo) {
-            params.append('modulo', filtrosAtivos.modulo);
-        }
-
-        if (filtrosAtivos.usuario) {
-            params.append('usuario', filtrosAtivos.usuario);
-        }
-
-        const url = `${window.API_URL}/logs?${params.toString()}`;
+        const url = `${window.API_URL}/logs`;
         const token = sessionStorage.getItem('token') || localStorage.getItem('token');
 
         console.log('🌐 Fazendo requisição para:', url);
