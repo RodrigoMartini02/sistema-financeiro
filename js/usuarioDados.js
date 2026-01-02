@@ -47,7 +47,7 @@ class UsuarioDataManager {
             // 🔥 CARREGAR DADOS DA API E SINCRONIZAR COM window.dadosFinanceiros
             await this.sincronizarComSistemaPrincipal();
         } catch (error) {
-            console.error('❌ Erro ao inicializar sistema:', error);
+
             this.inicializado = true;
         }
     }
@@ -107,7 +107,7 @@ class UsuarioDataManager {
                 this.timestampCacheUsuario = Date.now();
                 return usuario;
             } catch (error) {
-                console.error('❌ Erro ao ler dados do usuário:', error);
+
             }
         }
 
@@ -121,12 +121,12 @@ class UsuarioDataManager {
 
         const usuario = this.getUsuarioAtual();
         if (!usuario || !usuario.id) {
-            console.error('❌ Usuário não encontrado');
+
             return false;
         }
 
         try {
-            console.log('📝 Atualizando dados do usuário via API...');
+
             const response = await fetch(`${API_URL_DADOS}/usuarios/${usuario.id}`, {
                 method: 'PUT',
                 headers: {
@@ -142,9 +142,6 @@ class UsuarioDataManager {
                 throw new Error(data.message || 'Erro ao atualizar usuário');
             }
 
-            console.log('✅ Usuário atualizado com sucesso via API!');
-
-            // Atualizar cache e sessionStorage
             const usuarioAtualizado = { ...usuario, ...dadosAtualizados };
             this.usuarioAtualCache = usuarioAtualizado;
             this.timestampCacheUsuario = Date.now();
@@ -152,7 +149,7 @@ class UsuarioDataManager {
 
             return true;
         } catch (error) {
-            console.error('❌ Erro ao atualizar usuário:', error);
+
             return false;
         }
     }
@@ -188,7 +185,7 @@ class UsuarioDataManager {
         }
 
         try {
-            console.log('📥 Buscando dados financeiros via API...');
+
             const response = await fetch(`${API_URL_DADOS}/usuarios/${usuario.id}/dados-financeiros`, {
                 method: 'GET',
                 headers: {
@@ -203,9 +200,6 @@ class UsuarioDataManager {
                 throw new Error(data.message || 'Erro ao buscar dados financeiros');
             }
 
-            console.log('✅ Dados financeiros carregados via API!');
-
-            // Se não houver dados, retornar estrutura inicial
             const dadosFinanceiros = data.dadosFinanceiros || this.criarEstruturaInicial();
 
             this.dadosCache = dadosFinanceiros;
@@ -213,7 +207,7 @@ class UsuarioDataManager {
 
             return dadosFinanceiros;
         } catch (error) {
-            console.error('❌ Erro ao buscar dados financeiros via API:', error);
+
             console.warn('⚠️ Usando localStorage como fallback');
             // Fallback para localStorage
             return this.getDadosFinanceirosLocal();
@@ -257,21 +251,18 @@ class UsuarioDataManager {
         }
 
         if (!dadosFinanceiros || typeof dadosFinanceiros !== 'object') {
-            console.error('❌ Dados financeiros inválidos');
+
             return false;
         }
 
-        console.log('🔄 salvarDadosUsuario: iniciando salvamento...');
-
-        // ✅ SALVAR DIRETO NA API (evita circular call com window.salvarDados)
         const sucesso = await this.salvarDadosAPI(dadosFinanceiros);
 
         if (sucesso) {
-            console.log('✅ salvarDadosUsuario: dados salvos com sucesso!');
+
             this.dadosCache = dadosFinanceiros;
             this.timestampCache = Date.now();
         } else {
-            console.error('❌ salvarDadosUsuario: falha ao salvar dados');
+
         }
 
         return sucesso;
@@ -281,12 +272,12 @@ class UsuarioDataManager {
         const usuario = this.getUsuarioAtual();
 
         if (!usuario || !usuario.id) {
-            console.error('❌ Usuário não encontrado, usando localStorage');
+
             return this.salvarDadosLocal(dadosFinanceiros);
         }
 
         try {
-            console.log('💾 Salvando dados financeiros via API...');
+
             const response = await fetch(`${API_URL_DADOS}/usuarios/${usuario.id}/dados-financeiros`, {
                 method: 'PUT',
                 headers: {
@@ -302,14 +293,12 @@ class UsuarioDataManager {
                 throw new Error(data.message || 'Erro ao salvar dados financeiros');
             }
 
-            console.log('✅ Dados financeiros salvos via API!');
-
             this.dadosCache = dadosFinanceiros;
             this.timestampCache = Date.now();
 
             return true;
         } catch (error) {
-            console.error('❌ Erro ao salvar dados financeiros via API:', error);
+
             console.warn('⚠️ Usando localStorage como fallback');
             // Fallback para localStorage
             return this.salvarDadosLocal(dadosFinanceiros);
@@ -362,7 +351,7 @@ class UsuarioDataManager {
             return true;
 
         } catch (error) {
-            console.error('❌ Erro ao salvar no localStorage:', error);
+
             return false;
         }
     }
@@ -374,7 +363,7 @@ class UsuarioDataManager {
     async sincronizarComSistemaPrincipal() {
         try {
             // 🔥 BUSCAR DADOS DA API PRIMEIRO (não do localStorage)
-            console.log('🔄 Sincronizando dados financeiros da API com sistema principal...');
+
             const dadosAPI = await this.getDadosFinanceirosAPI();
 
             if (window.dadosFinanceiros) {
@@ -382,7 +371,7 @@ class UsuarioDataManager {
                 const sistemaPrincipalJson = JSON.stringify(window.dadosFinanceiros);
 
                 if (dadosJson !== sistemaPrincipalJson) {
-                    console.log('✅ Atualizando window.dadosFinanceiros com dados da API');
+
                     window.dadosFinanceiros = dadosAPI;
 
                     if (typeof window.forcarAtualizacaoSistema === 'function') {
@@ -390,7 +379,7 @@ class UsuarioDataManager {
                     }
                 }
             } else {
-                console.log('✅ Criando window.dadosFinanceiros com dados da API');
+
                 window.dadosFinanceiros = dadosAPI;
             }
 
@@ -447,7 +436,7 @@ class UsuarioDataManager {
             }
             return sucesso;
         } catch (error) {
-            console.error('❌ Erro ao salvar receita:', error);
+
             return false;
         }
     }
@@ -495,7 +484,7 @@ class UsuarioDataManager {
             }
             return sucesso;
         } catch (error) {
-            console.error('❌ Erro ao salvar despesa:', error);
+
             return false;
         }
     }
@@ -533,7 +522,7 @@ class UsuarioDataManager {
             }
             return sucesso;
         } catch (error) {
-            console.error('❌ Erro ao excluir receita:', error);
+
             return false;
         }
     }
@@ -581,7 +570,7 @@ class UsuarioDataManager {
             }
             return sucesso;
         } catch (error) {
-            console.error('❌ Erro ao excluir despesa:', error);
+
             return false;
         }
     }

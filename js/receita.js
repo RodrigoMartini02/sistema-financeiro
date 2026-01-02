@@ -295,8 +295,6 @@ function obterSaldoAnteriorValido(mes, ano) {
 
 function abrirModalNovaReceita(index, mes, ano) {
     try {
-        console.log('🔵 Abrindo modal - Index:', index, 'Mes:', mes, 'Ano:', ano);
-        
         const mesReceita = mes !== undefined ? mes : window.mesAberto;
         const anoReceita = ano !== undefined ? ano : window.anoAberto;
         
@@ -320,13 +318,7 @@ function abrirModalNovaReceita(index, mes, ano) {
         const indexValido = typeof index === 'number' && !isNaN(index) && index >= 0;
         const receitas = window.dadosFinanceiros[anoReceita]?.meses[mesReceita]?.receitas;
         const receitaExiste = indexValido && receitas && receitas[index];
-        
-        console.log('📋 Verificação:', {
-            indexValido,
-            receitaExiste,
-            totalReceitas: receitas?.length
-        });
-        
+
         form.reset();
         resetarOpcoesReplicacao();
         
@@ -336,7 +328,6 @@ function abrirModalNovaReceita(index, mes, ano) {
         if (receitaExiste) {
             const receita = receitas[index];
             
-            console.log('✏️ MODO EDIÇÃO - Receita:', receita);
             
             if (receita.saldoAnterior === true || receita.descricao?.includes('Saldo Anterior')) {
                 alert('Não é possível editar receitas de saldo anterior.');
@@ -348,12 +339,6 @@ function abrirModalNovaReceita(index, mes, ano) {
             document.getElementById('receita-valor').value = receita.valor || '';
             document.getElementById('receita-data').value = receita.data || '';
             
-            console.log('✅ Campos preenchidos:', {
-                id: index,
-                descricao: receita.descricao,
-                valor: receita.valor,
-                data: receita.data
-            });
             
             if (window.sistemaAnexos && receita.anexos) {
                 window.sistemaAnexos.carregarAnexosExistentes(receita, 'receita');
@@ -363,7 +348,6 @@ function abrirModalNovaReceita(index, mes, ano) {
             if (titulo) titulo.textContent = 'Editar Receita';
             
         } else {
-            console.log('➕ MODO NOVA RECEITA');
             
             document.getElementById('receita-id').value = '';
             
@@ -382,7 +366,6 @@ function abrirModalNovaReceita(index, mes, ano) {
         }, 100);
         
     } catch (error) {
-        console.error('❌ Erro ao abrir modal:', error);
         alert("Erro ao abrir modal: " + error.message);
     }
 }
@@ -410,7 +393,6 @@ async function salvarReceita(e) {
     }
     
     if (processandoReceita) {
-        console.log('⏳ Já está processando...');
         return false;
     }
     
@@ -423,9 +405,7 @@ async function salvarReceita(e) {
     
     try {
         const formData = coletarDadosFormulario();
-        
-        console.log('📝 Dados coletados:', formData);
-        
+
         if (!validarDadosFormulario(formData)) {
             processandoReceita = false;
             return false;
@@ -435,12 +415,8 @@ async function salvarReceita(e) {
         
         const idValue = formData.id;
         const ehEdicao = idValue !== '' && idValue !== null && idValue !== undefined;
-        
-        console.log('💾 Salvando - É edição?', ehEdicao, 'ID:', idValue);
-        
-        const sucesso = await salvarReceitaLocal(formData.mes, formData.ano, novaReceita, idValue);
 
-        console.log('🔍 Resultado do salvamento:', sucesso);
+        const sucesso = await salvarReceitaLocal(formData.mes, formData.ano, novaReceita, idValue);
 
         if (sucesso) {
             if (!ehEdicao) {
@@ -467,43 +443,17 @@ async function salvarReceita(e) {
                 await window.carregarDadosDashboard(formData.ano);
             }
 
-            // Registrar log de sucesso
-            if (typeof window.registrarLog === 'function') {
-                const acao = ehEdicao ? 'Receita atualizada' : 'Receita cadastrada';
-                const detalhes = `${novaReceita.descricao} - R$ ${novaReceita.valor.toFixed(2)}`;
-                window.registrarLog('receita', acao, 'sucesso', detalhes);
-            }
-
-            // Recarregar logs se a seção estiver ativa
-            if (typeof window.recarregarLogsSeAtivo === 'function') {
-                window.recarregarLogsSeAtivo();
-            }
-
-            console.log('✅ Receita salva com sucesso!');
         } else {
-            console.error('❌ Falha ao salvar receita');
             if (window.mostrarMensagemErro) {
                 window.mostrarMensagemErro('Não foi possível salvar a receita. Tente novamente.');
             } else {
                 alert('Não foi possível salvar a receita. Tente novamente.');
-            }
-
-            // Registrar log de erro
-            if (typeof window.registrarLog === 'function') {
-                const acao = ehEdicao ? 'Falha ao atualizar receita' : 'Falha ao cadastrar receita';
-                window.registrarLog('receita', acao, 'erro', 'Erro ao salvar no servidor');
-            }
-
-            // Recarregar logs se a seção estiver ativa
-            if (typeof window.recarregarLogsSeAtivo === 'function') {
-                window.recarregarLogsSeAtivo();
             }
         }
 
         return false;
 
     } catch (error) {
-        console.error("❌ Erro ao salvar receita:", error);
         if (window.mostrarMensagemErro) {
             window.mostrarMensagemErro('Erro ao salvar receita: ' + error.message);
         } else {
@@ -563,7 +513,6 @@ function criarObjetoReceita(formData) {
                 anexosReceita = [];
             }
         } catch (error) {
-            console.warn('⚠️ Erro ao obter anexos:', error);
             anexosReceita = [];
         }
     }
@@ -587,36 +536,39 @@ async function salvarReceitaLocal(mes, ano, receita, id) {
         const ehEdicao = id !== '' && id !== null && id !== undefined;
 
         if (ehEdicao) {
-            console.log('✏️ Editando receita no localStorage');
             const index = parseInt(id);
             window.dadosFinanceiros[ano].meses[mes].receitas[index] = receita;
         } else {
-            console.log('➕ Adicionando nova receita no localStorage');
             if (!window.dadosFinanceiros[ano].meses[mes].receitas) {
                 window.dadosFinanceiros[ano].meses[mes].receitas = [];
             }
             window.dadosFinanceiros[ano].meses[mes].receitas.push(receita);
         }
 
-        console.log('🔄 Chamando window.salvarDados()...');
         const sucesso = await window.salvarDados();
 
-        console.log('📊 window.salvarDados() retornou:', sucesso);
-
         if (sucesso) {
-            console.log('✅ Receita salva com sucesso!');
+            // Registrar log da ação
+            if (window.logManager) {
+                window.logManager.registrar({
+                    modulo: 'Receitas',
+                    acao: ehEdicao ? 'Editado' : 'Criado',
+                    categoria: '-',
+                    descricao: receita.descricao,
+                    valor: receita.valor,
+                    detalhes: `${ehEdicao ? 'Editou' : 'Criou'} receita em ${mes + 1}/${ano}`
+                });
+            }
 
             if (window.sistemaAnexos) {
                 window.sistemaAnexos.limparAnexosTemporarios('receita');
             }
         } else {
-            console.error('❌ window.salvarDados() retornou false!');
         }
 
         return sucesso;
 
     } catch (error) {
-        console.error('❌ Erro em salvarReceitaLocal:', error);
         throw new Error(`Erro ao salvar receita: ${error.message}`);
     }
 }
@@ -659,7 +611,6 @@ async function processarReplicacao(receita, mes, ano) {
         await window.salvarDados();
         
     } catch (error) {
-        console.error('Erro na replicação:', error);
     }
 }
 
@@ -683,7 +634,6 @@ async function replicarParaMes(receita, mes, ano, dia) {
         window.dadosFinanceiros[ano].meses[mes].receitas.push(receitaReplicada);
         
     } catch (error) {
-        console.error('Erro ao replicar para mês:', error);
     }
 }
 
@@ -692,19 +642,14 @@ async function replicarParaMes(receita, mes, ano, dia) {
 // ================================================================
 
 function editarReceita(index, mes, ano) {
-    console.log('🖊️ Editando receita - Index:', index, 'Mes:', mes, 'Ano:', ano);
-    
     if (window.dadosFinanceiros[ano]?.meses[mes]?.receitas[index]) {
         const receita = window.dadosFinanceiros[ano].meses[mes].receitas[index];
-        
-        console.log('📄 Receita encontrada:', receita);
-        
+
         if (receita.saldoAnterior === true || receita.descricao?.includes('Saldo Anterior')) {
             alert('Não é possível editar receitas de saldo anterior. Estas são geradas automaticamente.');
             return;
         }
     } else {
-        console.error('❌ Receita não encontrada!');
         alert('Receita não encontrada!');
         return;
     }
@@ -745,7 +690,6 @@ function excluirReceita(index, mes, ano) {
         modal.style.display = 'block';
         
     } catch (error) {
-        console.error("Erro ao excluir receita:", error);
         alert("Erro ao excluir receita: " + error.message);
     }
 }
@@ -773,36 +717,40 @@ async function processarExclusaoReceita(opcao, index, mes, ano, descricaoReceita
 
 async function excluirReceitaLocal(opcao, index, mes, ano, descricaoReceita) {
     try {
+        let valorExcluido = 0;
+
         if (opcao === 'atual') {
             const receita = window.dadosFinanceiros[ano]?.meses[mes]?.receitas[index];
-            
+
             if (!receita || !receita.id) {
                 throw new Error('Receita não encontrada');
             }
-            
+
+            valorExcluido = receita.valor;
+
             const response = await fetch(`${API_URL}/receitas/${receita.id}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${getToken()}`
                 }
             });
-            
+
             const data = await response.json();
-            
+
             if (!response.ok) {
                 throw new Error(data.message || 'Erro ao excluir receita');
             }
-            
-            console.log('✅ Receita excluída da API');
 
-            // Registrar log de sucesso
-            if (typeof window.registrarLog === 'function') {
-                window.registrarLog('receita', 'Receita excluída', 'sucesso', `${descricaoReceita} - Exclusão individual`);
-            }
-
-            // Recarregar logs se a seção estiver ativa
-            if (typeof window.recarregarLogsSeAtivo === 'function') {
-                window.recarregarLogsSeAtivo();
+            // Registrar log da exclusão
+            if (window.logManager) {
+                window.logManager.registrar({
+                    modulo: 'Receitas',
+                    acao: 'Excluído',
+                    categoria: '-',
+                    descricao: descricaoReceita,
+                    valor: valorExcluido,
+                    detalhes: `Excluiu receita de ${mes + 1}/${ano}`
+                });
             }
 
         } else if (opcao === 'todas') {
@@ -812,14 +760,14 @@ async function excluirReceitaLocal(opcao, index, mes, ano, descricaoReceita) {
                     'Authorization': `Bearer ${getToken()}`
                 }
             });
-            
+
             const data = await response.json();
-            
+
             if (response.ok && data.data) {
-                const receitasParaExcluir = data.data.filter(r => 
+                const receitasParaExcluir = data.data.filter(r =>
                     r.descricao === descricaoReceita && !r.saldo_anterior
                 );
-                
+
                 for (const receita of receitasParaExcluir) {
                     await fetch(`${API_URL}/receitas/${receita.id}`, {
                         method: 'DELETE',
@@ -828,17 +776,17 @@ async function excluirReceitaLocal(opcao, index, mes, ano, descricaoReceita) {
                         }
                     });
                 }
-                
-                console.log(`✅ ${receitasParaExcluir.length} receita(s) excluída(s)`);
 
-                // Registrar log de sucesso
-                if (typeof window.registrarLog === 'function') {
-                    window.registrarLog('receita', 'Receitas excluídas em lote', 'sucesso', `${descricaoReceita} - ${receitasParaExcluir.length} ocorrência(s)`);
-                }
-
-                // Recarregar logs se a seção estiver ativa
-                if (typeof window.recarregarLogsSeAtivo === 'function') {
-                    window.recarregarLogsSeAtivo();
+                // Registrar log da exclusão em lote
+                if (window.logManager && receitasParaExcluir.length > 0) {
+                    window.logManager.registrar({
+                        modulo: 'Receitas',
+                        acao: 'Excluído',
+                        categoria: '-',
+                        descricao: descricaoReceita,
+                        valor: receitasParaExcluir.reduce((sum, r) => sum + parseFloat(r.valor || 0), 0),
+                        detalhes: `Excluiu ${receitasParaExcluir.length} receita(s) com a mesma descrição`
+                    });
                 }
             }
         }
@@ -846,18 +794,6 @@ async function excluirReceitaLocal(opcao, index, mes, ano, descricaoReceita) {
         return true;
 
     } catch (error) {
-        console.error('❌ Erro ao excluir receita:', error);
-
-        // Registrar log de erro
-        if (typeof window.registrarLog === 'function') {
-            window.registrarLog('receita', 'Falha ao excluir receita', 'erro', error.message);
-        }
-
-        // Recarregar logs se a seção estiver ativa
-        if (typeof window.recarregarLogsSeAtivo === 'function') {
-            window.recarregarLogsSeAtivo();
-        }
-
         return false;
     }
 }
@@ -1047,7 +983,6 @@ window.calcularTotalReceitas = calcularTotalReceitas;
 window.atualizarContadorAnexosReceita = atualizarContadorAnexosReceita;
 window.atualizarTodosContadoresAnexosReceitas = atualizarTodosContadoresAnexosReceitas;
 
-console.log('✅ Sistema de receitas carregado com logs de debug');
 
 // ================================================================
 // SISTEMA DE RESERVAS INTEGRADO
@@ -1324,7 +1259,6 @@ function inicializarEventosReservasIntegradas() {
         });
     }
 
-    console.log('✅ Eventos de reservas integradas inicializados');
 }
 
 // Aguardar DOM e inicializar

@@ -800,6 +800,9 @@
         <button class="config-tab-btn" data-tab="cartoes">
             <i class="fas fa-credit-card"></i> Cartões de Crédito
         </button>
+        <button class="config-tab-btn" data-tab="logs">
+            <i class="fas fa-history"></i> Logs do Sistema
+        </button>
     </div>
     
     <div class="config-tab-content">
@@ -1054,6 +1057,122 @@
                     <li>Use o checkbox "Ativo" para cartões que você realmente utiliza</li>
                     <li>O sistema ajudará você a controlar gastos por cartão</li>
                     <li>Cartões inativos não aparecerão nos formulários de despesas</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- ABA: LOGS DO SISTEMA -->
+        <!-- ============================================== -->
+        <div id="logs-tab" class="config-tab-pane">
+            <div class="config-card">
+                <h3><i class="fas fa-history"></i> Logs do Sistema - Receitas</h3>
+                <p>Visualize o histórico de todas as ações realizadas no módulo de Receitas.</p>
+
+                <!-- Filtros de Logs -->
+                <div class="logs-filtros">
+                    <div class="filtro-grupo">
+                        <label for="filtro-data-inicio">Data Início:</label>
+                        <input type="date" id="filtro-data-inicio" class="form-input">
+                    </div>
+
+                    <div class="filtro-grupo">
+                        <label for="filtro-data-fim">Data Fim:</label>
+                        <input type="date" id="filtro-data-fim" class="form-input">
+                    </div>
+
+                    <div class="filtro-grupo">
+                        <label for="filtro-acao">Ação:</label>
+                        <select id="filtro-acao" class="form-select">
+                            <option value="todos">Todas</option>
+                            <option value="criado">Criado</option>
+                            <option value="editado">Editado</option>
+                            <option value="excluído">Excluído</option>
+                        </select>
+                    </div>
+
+                    <div class="filtro-grupo">
+                        <label for="filtro-busca">Buscar:</label>
+                        <input type="text" id="filtro-busca" class="form-input" placeholder="Descrição, categoria...">
+                    </div>
+
+                    <div class="filtro-acoes">
+                        <button id="btn-filtrar-logs" class="btn-action">
+                            <i class="fas fa-filter"></i> Filtrar
+                        </button>
+                        <button id="btn-limpar-filtros-logs" class="btn-outline">
+                            <i class="fas fa-eraser"></i> Limpar
+                        </button>
+                        <button id="btn-exportar-logs" class="btn-outline">
+                            <i class="fas fa-download"></i> Exportar CSV
+                        </button>
+                        <button id="btn-limpar-todos-logs" class="btn-danger">
+                            <i class="fas fa-trash"></i> Limpar Logs
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Estatísticas dos Logs -->
+                <div class="logs-stats">
+                    <div class="stat-item">
+                        <i class="fas fa-database"></i>
+                        <span id="total-logs">0</span>
+                        <small>Total de Logs</small>
+                    </div>
+                    <div class="stat-item">
+                        <i class="fas fa-plus-circle"></i>
+                        <span id="total-criados">0</span>
+                        <small>Criados</small>
+                    </div>
+                    <div class="stat-item">
+                        <i class="fas fa-edit"></i>
+                        <span id="total-editados">0</span>
+                        <small>Editados</small>
+                    </div>
+                    <div class="stat-item">
+                        <i class="fas fa-trash-alt"></i>
+                        <span id="total-excluidos">0</span>
+                        <small>Excluídos</small>
+                    </div>
+                </div>
+
+                <!-- Tabela de Logs -->
+                <div class="lista-logs-container">
+                    <table id="tabela-logs" class="tabela-logs">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Hora</th>
+                                <th>Módulo</th>
+                                <th>Ação</th>
+                                <th>Usuário</th>
+                                <th>Categoria</th>
+                                <th>Descrição</th>
+                                <th>Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lista-logs">
+                            <!-- Preenchido dinamicamente -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Mensagem quando não há logs -->
+                <div id="sem-logs-message" class="empty-state hidden">
+                    <i class="fas fa-inbox"></i>
+                    <p>Nenhum log encontrado</p>
+                    <small>As ações realizadas em Receitas aparecerão aqui</small>
+                </div>
+            </div>
+
+            <div class="config-card info-card">
+                <h3><i class="fas fa-info-circle"></i> Sobre os Logs</h3>
+                <ul>
+                    <li>Os logs registram todas as ações realizadas no módulo de Receitas</li>
+                    <li>Cada log contém: data, hora, ação, usuário e detalhes da operação</li>
+                    <li>Use os filtros para encontrar logs específicos</li>
+                    <li>Você pode exportar os logs em formato CSV</li>
+                    <li>O sistema mantém os últimos 1000 registros automaticamente</li>
                 </ul>
             </div>
         </div>
@@ -2998,9 +3117,10 @@
 <!-- Sistema base -->
 <script src="js/usuarioDados.js"></script>
 <script src="js/main.js"></script>
+<script src="js/logs.js"></script>
 <script src="js/configuracao.js"></script>
-<script src="js/receita.js"></script>    
-<script src="js/despesas.js"></script> 
+<script src="js/receita.js"></script>
+<script src="js/despesas.js"></script>
 <script src="js/anexos.js"></script>
 
 <!-- Módulos secundários -->

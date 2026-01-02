@@ -53,8 +53,7 @@ class SistemaRelatorios {
     
     async inicializar() {
         try {
-            console.log('Inicializando Sistema de Relatórios...');
-            
+
             await this.aguardarSistemaFinanceiro();
             
             this.configurarEventos();
@@ -62,10 +61,9 @@ class SistemaRelatorios {
             this.carregarCategorias();
             
             this.sistemaInicializado = true;
-            console.log('Sistema de Relatórios inicializado com sucesso');
-            
+
         } catch (error) {
-            console.error('Erro ao inicializar Sistema de Relatórios:', error);
+
         }
     }
     
@@ -480,7 +478,7 @@ class SistemaRelatorios {
             if (btnPDF) btnPDF.disabled = false;
             
         } catch (error) {
-            console.error('Erro ao gerar relatório:', error);
+
             alert('Erro ao gerar relatório: ' + error.message);
         } finally {
             this.mostrarLoading(false);
@@ -518,8 +516,6 @@ class SistemaRelatorios {
         const elemento = document.getElementById(id);
         return elemento ? elemento.value : valorDefault;
     }
-
-
 
   // ================================================================
     // CONTINUAÇÃO DA PARTE 1 - FILTROS E PROCESSAMENTO DE DADOS
@@ -1324,15 +1320,14 @@ class SistemaRelatorios {
             alert('Gere um relatório primeiro!');
             return;
         }
-        
-        console.log('Gerando PDF...');
+
         this.mostrarLoading(true);
         
         setTimeout(() => {
             try {
                 this.gerarPDF();
             } catch (error) {
-                console.error('Erro ao gerar PDF:', error);
+
                 alert('Erro ao gerar PDF: ' + error.message);
             } finally {
                 this.mostrarLoading(false);
@@ -1404,8 +1399,7 @@ class SistemaRelatorios {
         // Salvar arquivo
         const nomeArquivo = this.gerarNomeArquivo();
         doc.save(nomeArquivo);
-        
-        console.log('PDF gerado com sucesso:', nomeArquivo);
+
     }
     
     adicionarCabecalhoPDF(doc, y) {
@@ -1711,10 +1705,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Integrar com a navegação existente
             integrarComNavegacao();
-            
-            console.log('Sistema de Relatórios integrado com sucesso!');
+
         } catch (error) {
-            console.error('Erro ao inicializar sistema de relatórios:', error);
+
         }
     }, 1000);
 });
@@ -1727,7 +1720,7 @@ window.addEventListener('sistemaFinanceiroReady', function() {
                 sistemaRelatorios = new SistemaRelatorios();
                 integrarComNavegacao();
             } catch (error) {
-                console.error('Erro ao inicializar sistema de relatórios via evento:', error);
+
             }
         }, 200);
     }
@@ -1762,16 +1755,6 @@ function integrarComNavegacao() {
     });
 }
 
-
-
-
-
-
-
-
-
-
-
 // ================================================================
 // EXPORTAÇÕES GLOBAIS
 // ================================================================
@@ -1785,20 +1768,6 @@ window.CRITERIOS_DATA = CRITERIOS_DATA;
 // Funções de compatibilidade com o sistema original
 window.RelatoriosTelaCheia = SistemaRelatorios; // Alias para compatibilidade
 
-console.log('Sistema de Relatórios refatorado carregado com sucesso');  
-
-
-
-
-
-
-
-
-
-
-
-
-// ================================================================
 // SISTEMA DE GERAÇÃO DE PDF MELHORADO - CAPTURA DADOS DA INTERFACE
 // Versão que replica exatamente os dados mostrados na tela
 // ================================================================
@@ -1820,7 +1789,6 @@ class GeradorPDFMelhorado {
             return;
         }
 
-        console.log('Gerando PDF completo com dados da interface...');
         this.sistema.mostrarLoading(true);
 
         try {
@@ -1851,11 +1819,9 @@ class GeradorPDFMelhorado {
             // Salvar
             const nomeArquivo = this.gerarNomeArquivo();
             doc.save(nomeArquivo);
-            
-            console.log('PDF gerado com sucesso:', nomeArquivo);
-            
+
         } catch (error) {
-            console.error('Erro ao gerar PDF:', error);
+
             alert('Erro ao gerar PDF: ' + error.message);
         } finally {
             this.sistema.mostrarLoading(false);
@@ -2469,7 +2435,6 @@ function integrarGeradorPDFMelhorado() {
         };
 
         window.sistemaRelatorios._pdfMelhoradoIntegrado = true;
-        // Remover console.log para não poluir o console
 
         return true;
     }
@@ -2494,7 +2459,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (integrarGeradorPDFMelhorado()) {
             jaIntegrado = true;
-            // Remover console.log para evitar poluir o console
             return;
         }
 
@@ -2672,24 +2636,19 @@ window.GeradorPDFMelhorado = GeradorPDFMelhorado;
 window.CapturadorDadosInterface = CapturadorDadosInterface;
 window.FormatacoesFinanceiras = FormatacoesFinanceiras;
 
-console.log('Sistema de PDF melhorado carregado com captura de dados da interface');
-
-// ================================================================
 // FUNÇÃO DE TESTE PARA VERIFICAR INTEGRAÇÃO
 // ================================================================
 
 window.testarPDFMelhorado = function() {
-    console.log('=== TESTE DO SISTEMA PDF MELHORADO ===');
-    
-    // Verificar se jsPDF está disponível
+
     if (!window.jspdf) {
-        console.error('❌ jsPDF não está carregado');
+
         return false;
     }
     
     // Verificar se sistema de relatórios está disponível
     if (!window.sistemaRelatorios) {
-        console.error('❌ Sistema de relatórios não está disponível');
+
         return false;
     }
     
@@ -2701,19 +2660,11 @@ window.testarPDFMelhorado = function() {
     
     // Verificar seções visíveis
     const secoesVisiveis = CapturadorDadosInterface.capturarSecoesVisiveis();
-    console.log('✅ Seções visíveis:', secoesVisiveis);
-    
-    // Verificar dados dos cards
+
     const dadosResumo = CapturadorDadosInterface.capturarDadosCard('resumo-total-receitas');
-    console.log('✅ Dados do card receitas:', dadosResumo);
-    
-    // Verificar filtros
+
     const filtros = CapturadorDadosInterface.capturarFiltrosAtivos();
-    console.log('✅ Filtros ativos:', filtros);
-    
-    console.log('✅ Sistema PDF melhorado está funcionando corretamente!');
-    console.log('💡 Use sistemaRelatorios.exportarPDF() para gerar o PDF melhorado');
-    
+
     return true;
 };
 

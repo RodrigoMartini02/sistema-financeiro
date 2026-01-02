@@ -1269,3 +1269,255 @@
 /* ================================================================ */
 /* CSS DE REGISTROS MOVIDO PARA layoutGeral.css */
 /* ================================================================ */
+
+/* ================================================================ */
+/* LOGS DO SISTEMA - ESTILOS */
+/* ================================================================ */
+
+/* Filtros de Logs */
+.logs-filtros {
+    background: var(--config-light);
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.filtro-grupo {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.filtro-grupo label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--config-dark);
+}
+
+.filtro-acoes {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+/* Estatísticas dos Logs */
+.logs-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.stat-item {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: var(--config-shadow);
+}
+
+.stat-item:nth-child(1) {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.stat-item:nth-child(2) {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+}
+
+.stat-item:nth-child(3) {
+    background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+}
+
+.stat-item:nth-child(4) {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+}
+
+.stat-item i {
+    font-size: 24px;
+    margin-bottom: 10px;
+    display: block;
+    opacity: 0.9;
+}
+
+.stat-item span {
+    font-size: 32px;
+    font-weight: bold;
+    display: block;
+    margin: 5px 0;
+}
+
+.stat-item small {
+    font-size: 12px;
+    opacity: 0.9;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Tabela de Logs */
+.lista-logs-container {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: var(--config-shadow);
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.tabela-logs {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.tabela-logs thead {
+    background: var(--config-primary);
+    color: white;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.tabela-logs thead th {
+    padding: 12px 15px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tabela-logs tbody tr {
+    border-bottom: 1px solid var(--config-border);
+    transition: background 0.2s ease;
+}
+
+.tabela-logs tbody tr:hover {
+    background: var(--config-light);
+}
+
+.tabela-logs tbody td {
+    padding: 12px 15px;
+    font-size: 14px;
+    color: var(--config-dark);
+}
+
+/* Badges de Ação */
+.badge-acao {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.acao-criado {
+    background: #d4edda;
+    color: #155724;
+}
+
+.acao-editado {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.acao-excluído {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Linhas coloridas por tipo de ação */
+.log-criado {
+    border-left: 3px solid #28a745;
+}
+
+.log-editado {
+    border-left: 3px solid #ffc107;
+}
+
+.log-excluido {
+    border-left: 3px solid #dc3545;
+}
+
+/* Estado vazio */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--config-secondary);
+}
+
+.empty-state i {
+    font-size: 64px;
+    color: var(--config-border);
+    margin-bottom: 20px;
+}
+
+.empty-state p {
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 10px;
+}
+
+.empty-state small {
+    font-size: 14px;
+    color: var(--config-secondary);
+}
+
+/* Botão de perigo */
+.btn-danger {
+    background: var(--config-danger);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-danger:hover {
+    background: var(--config-danger-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--config-shadow-hover);
+}
+
+.btn-danger i {
+    font-size: 16px;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .logs-filtros {
+        grid-template-columns: 1fr;
+    }
+
+    .filtro-acoes {
+        flex-direction: column;
+    }
+
+    .filtro-acoes button {
+        width: 100%;
+    }
+
+    .logs-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .lista-logs-container {
+        overflow-x: auto;
+    }
+
+    .tabela-logs {
+        min-width: 800px;
+    }
+}

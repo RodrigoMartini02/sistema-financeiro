@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python remove_logs.py:*)",
+      "Bash(ls:*)"
+    ]
+  }
+}

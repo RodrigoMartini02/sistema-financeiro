@@ -189,13 +189,10 @@ async function carregarCategoriasLocal() {
 async function salvarCategorias() {
     const usuario = window.usuarioDataManager?.getUsuarioAtual();
     if (!usuario || !usuario.id) {
-        console.error('❌ Usuário não encontrado para salvar categorias');
         return false;
     }
 
     try {
-        console.log('💾 Salvando categorias na API...', categoriasUsuario);
-
         // ✅ Garantir que API_URL existe
         const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
@@ -212,26 +209,21 @@ async function salvarCategorias() {
         // ✅ Verificar se a resposta tem conteúdo antes de parsear
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
-            console.error('❌ Resposta não é JSON:', await response.text());
             return false;
         }
 
         const data = await response.json();
 
         if (!response.ok) {
-            console.error('❌ Erro ao salvar categorias:', data.message || 'Erro desconhecido');
             return false;
         }
 
         if (data.success) {
-            console.log('✅ Categorias salvas na API com sucesso!');
             return true;
         } else {
-            console.error('❌ API retornou sucesso=false:', data.message);
             return false;
         }
     } catch (error) {
-        console.error('❌ Erro ao salvar categorias na API:', error);
         return false;
     }
 }
@@ -321,32 +313,12 @@ async function adicionarCategoria() {
         atualizarListaCategorias();
         atualizarDropdowns();
         mostrarFeedback('Alterações realizadas com sucesso!', 'success');
-
-        // Registrar log de sucesso
-        if (typeof window.registrarLog === 'function') {
-            window.registrarLog('categoria', `Categoria "${nomeCat}" adicionada`, 'sucesso', `Nova categoria de despesa criada`);
-        }
-
-        // Recarregar logs se a seção estiver ativa
-        if (typeof window.recarregarLogsSeAtivo === 'function') {
-            window.recarregarLogsSeAtivo();
-        }
     } else {
         const index = categoriasUsuario.despesas.findIndex(c => c.nome === nomeCat);
         if (index > -1) {
             categoriasUsuario.despesas.splice(index, 1);
         }
         mostrarFeedback('Erro ao salvar categoria. Tente novamente.', 'error');
-
-        // Registrar log de erro
-        if (typeof window.registrarLog === 'function') {
-            window.registrarLog('categoria', `Falha ao adicionar categoria "${nomeCat}"`, 'erro', 'Erro ao salvar no servidor');
-        }
-
-        // Recarregar logs se a seção estiver ativa
-        if (typeof window.recarregarLogsSeAtivo === 'function') {
-            window.recarregarLogsSeAtivo();
-        }
     }
 }
 
@@ -431,29 +403,9 @@ async function removerCategoria(nomeCategoria) {
             atualizarListaCategorias();
             atualizarDropdowns();
             mostrarFeedback('Alterações realizadas com sucesso!', 'success');
-
-            // Registrar log de sucesso
-            if (typeof window.registrarLog === 'function') {
-                window.registrarLog('categoria', `Categoria "${nomeCategoria}" removida`, 'sucesso', 'Categoria excluída com sucesso');
-            }
-
-            // Recarregar logs se a seção estiver ativa
-            if (typeof window.recarregarLogsSeAtivo === 'function') {
-                window.recarregarLogsSeAtivo();
-            }
         } else {
             categoriasUsuario.despesas.splice(index, 0, categoriaRemovida);
             mostrarFeedback('Erro ao remover categoria. Tente novamente.', 'error');
-
-            // Registrar log de erro
-            if (typeof window.registrarLog === 'function') {
-                window.registrarLog('categoria', `Falha ao remover categoria "${nomeCategoria}"`, 'erro', 'Erro ao salvar no servidor');
-            }
-
-            // Recarregar logs se a seção estiver ativa
-            if (typeof window.recarregarLogsSeAtivo === 'function') {
-                window.recarregarLogsSeAtivo();
-            }
         }
     }
 }
@@ -521,29 +473,9 @@ async function salvarEdicaoCategoria() {
             atualizarDropdowns();
             document.getElementById('modal-editar-categoria').style.display = 'none';
             mostrarFeedback('Alterações realizadas com sucesso!', 'success');
-
-            // Registrar log de sucesso
-            if (typeof window.registrarLog === 'function') {
-                window.registrarLog('categoria', `Categoria editada: "${nomeOriginal}" → "${novoNome}"`, 'sucesso', `Nome alterado de "${nomeOriginal}" para "${novoNome}"`);
-            }
-
-            // Recarregar logs se a seção estiver ativa
-            if (typeof window.recarregarLogsSeAtivo === 'function') {
-                window.recarregarLogsSeAtivo();
-            }
         } else {
             categoriasUsuario.despesas[index] = categoriaAnterior;
             mostrarFeedback('Erro ao salvar alteração. Tente novamente.', 'error');
-
-            // Registrar log de erro
-            if (typeof window.registrarLog === 'function') {
-                window.registrarLog('categoria', `Falha ao editar categoria "${nomeOriginal}"`, 'erro', 'Erro ao salvar no servidor');
-            }
-
-            // Recarregar logs se a seção estiver ativa
-            if (typeof window.recarregarLogsSeAtivo === 'function') {
-                window.recarregarLogsSeAtivo();
-            }
         }
     }
 }
@@ -607,17 +539,13 @@ async function carregarCartoesLocal() {
 async function salvarCartoes() {
     const usuario = window.usuarioDataManager?.getUsuarioAtual();
     if (!usuario || !usuario.id) {
-        console.error('❌ Usuário não encontrado para salvar cartões');
         return false;
     }
 
     try {
-        console.log('💾 Salvando cartões na API...', cartoesUsuario);
-
         // ✅ Garantir que API_URL existe
         const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
         const url = `${API_URL}/usuarios/${usuario.id}/cartoes`;
-        console.log('📡 URL da requisição:', url);
 
         // 🔥 SALVAR NA API
         const response = await fetch(url, {
@@ -632,27 +560,22 @@ async function salvarCartoes() {
         // ✅ Verificar se a resposta tem conteúdo antes de parsear
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
-            console.error('❌ Resposta não é JSON:', await response.text());
             return false;
         }
 
         const data = await response.json();
 
         if (!response.ok) {
-            console.error('❌ Erro ao salvar cartões:', data.message || 'Erro desconhecido');
             return false;
         }
 
         if (data.success) {
-            console.log('✅ Cartões salvos na API com sucesso!');
             window.cartoesUsuario = cartoesUsuario;
             return true;
         } else {
-            console.error('❌ API retornou sucesso=false:', data.message);
             return false;
         }
     } catch (error) {
-        console.error('❌ Erro ao salvar cartões na API:', error);
         return false;
     }
 }
@@ -682,12 +605,12 @@ function atualizarOpcoesCartoes() {
                 }
             }
         });
-        
+
         const creditoOptions = document.getElementById('credito-options');
         if (creditoOptions) {
             if (cartoesVisiveis === 0) {
                 creditoOptions.classList.add('hidden');
-                
+
                 const radioPix = document.getElementById('pagamento-pix');
                 if (radioPix && !document.querySelector('input[name="forma-pagamento"]:checked')) {
                     radioPix.checked = true;
@@ -697,7 +620,7 @@ function atualizarOpcoesCartoes() {
             }
         }
     } catch (error) {
-        console.error('Erro ao atualizar opções de cartões:', error);
+        // Erro ao atualizar opções de cartões - silencioso
     }
 }
 
@@ -802,9 +725,8 @@ async function salvarCartoesForms() {
         } else {
             mostrarStatusCartoes('Erro ao salvar os cartões. Tente novamente.', 'error');
         }
-        
+
     } catch (error) {
-        console.error('Erro ao salvar cartões:', error);
         mostrarStatusCartoes('Erro inesperado ao salvar cartões.', 'error');
     }
 }
@@ -1007,7 +929,6 @@ async function alternarBloqueioUsuario(usuario) {
             mostrarFeedback(data.message || 'Erro ao alterar status do usuário', 'error');
         }
     } catch (error) {
-        console.error('❌ Erro ao alterar status:', error);
         mostrarFeedback('Erro ao alterar status do usuário', 'error');
     }
 }
@@ -1053,7 +974,6 @@ async function confirmarExclusaoUsuario() {
             mostrarFeedback(data.message || 'Erro ao excluir usuário', 'error');
         }
     } catch (error) {
-        console.error('❌ Erro ao excluir usuário:', error);
         mostrarFeedback('Erro ao excluir usuário', 'error');
     }
 }
@@ -1222,12 +1142,10 @@ async function salvarEdicaoUsuario(isNovo = false) {
                 mostrarValidacao(data.message || 'Erro ao salvar usuário', 'error');
             }
         } catch (apiError) {
-            console.error('❌ Erro ao chamar API:', apiError);
             mostrarValidacao('Erro ao conectar com o servidor. Tente novamente.', 'error');
         }
 
     } catch (error) {
-        console.error('Erro ao salvar usuário:', error);
         mostrarValidacao('Erro ao salvar alterações. Tente novamente.', 'error');
     }
 }
@@ -1546,7 +1464,6 @@ async function importarDados() {
                 mostrarFeedback('Erro: Nenhum registro foi importado', 'error');
             }
         } catch (error) {
-            console.error('Erro ao importar dados:', error);
             mostrarFeedback('Erro ao processar arquivo CSV', 'error');
         }
     };
@@ -1633,7 +1550,7 @@ async function limparDados() {
             alert('Erro ao limpar dados no servidor.');
         }
     } catch (error) {
-        console.error('Erro de conexão:', error);
+        // Erro de conexão - silencioso
     }
 }
 
@@ -1684,6 +1601,12 @@ function setupConfigTabs() {
                     setTimeout(() => preencherFormularioCartoes(), 100);
                 } else if (targetTab === 'usuarios') {
                     setTimeout(() => filtrarUsuarios(), 100);
+                } else if (targetTab === 'logs') {
+                    setTimeout(() => {
+                        if (typeof window.renderizarLogs === 'function') {
+                            window.renderizarLogs();
+                        }
+                    }, 100);
                 }
             }
         });
@@ -1900,8 +1823,6 @@ async function inicializarConfiguracoes() {
 
     atualizarDropdowns();
     atualizarOpcoesCartoes();
-
-    console.log('Sistema de configurações inicializado com sucesso');
 }
 
 document.addEventListener('DOMContentLoaded', function() {

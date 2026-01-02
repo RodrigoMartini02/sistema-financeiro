@@ -24,13 +24,13 @@ if (!window.sistemaAnexos) {
             
             const inputId = inputMap[tipo];
             if (!inputId) {
-                console.error(`Tipo de anexo inválido: ${tipo}`);
+
                 return;
             }
             
             const input = document.getElementById(inputId);
             if (!input) {
-                console.error(`Input file não encontrado: ${inputId}`);
+
                 return;
             }
             
@@ -262,7 +262,7 @@ window.abrirSeletorArquivos = function(tipo) {
     if (window.sistemaAnexos) {
         window.sistemaAnexos.abrirSeletorArquivos(tipo);
     } else {
-        console.error('Sistema de anexos não inicializado');
+
     }
 };
 
@@ -302,7 +302,7 @@ function abrirModalVisualizarAnexosDespesa(index) {
         }
         
     } catch (error) {
-        console.error('Erro ao abrir modal de anexos da despesa:', error);
+
         alert('Erro ao carregar anexos da despesa');
     }
 }
@@ -361,7 +361,6 @@ function preencherModalAnexosDespesa(descricaoDespesa, anexos) {
         listaAnexos.innerHTML = '<p class="sem-anexos">Nenhum anexo encontrado</p>';
     }
 }
-
 
 // Função para criar item de anexo para download
 function criarItemAnexoDespesaParaDownload(anexo, indice, tipo = 'cadastro') {
@@ -459,7 +458,7 @@ function baixarAnexoDespesa(anexo, nomeArquivo) {
         setTimeout(() => URL.revokeObjectURL(url), 100);
         
     } catch (error) {
-        console.error('Erro ao baixar anexo da despesa:', error);
+
         alert('Erro ao baixar anexo. Verifique se o arquivo está íntegro.');
     }
 }
@@ -606,7 +605,6 @@ function inicializarSistemaAnexosDespesas() {
     }
 }
 
-
 // Função para abrir modal de visualização de anexos de RECEITA
 function abrirModalVisualizarAnexosReceita(index) {
     try {
@@ -639,7 +637,7 @@ function abrirModalVisualizarAnexosReceita(index) {
         }
         
     } catch (error) {
-        console.error('Erro ao abrir modal de anexos da receita:', error);
+
         alert('Erro ao carregar anexos da receita');
     }
 }
@@ -724,7 +722,7 @@ function baixarAnexoReceita(anexo, nomeArquivo) {
         setTimeout(() => URL.revokeObjectURL(url), 100);
         
     } catch (error) {
-        console.error('Erro ao baixar anexo:', error);
+
         alert('Erro ao baixar anexo. Verifique se o arquivo está íntegro.');
     }
 }
@@ -740,7 +738,7 @@ window.abrirModalVisualizarAnexosReceita = abrirModalVisualizarAnexosReceita;
 function configurarEventosAnexosReceitas(container) {
     // Placeholder - configuração de eventos de anexos para receitas
     if (!container) return;
-    console.log('Eventos de anexos de receitas configurados');
+
 }
 
 window.abrirModalVisualizarAnexosReceita = abrirModalVisualizarAnexosReceita;
@@ -761,7 +759,7 @@ window.atualizarTodosContadoresAnexosDespesas = atualizarTodosContadoresAnexosDe
 // ================================================================
 
 function inicializarSistemaAnexos() {
-    console.log('Inicializando sistema de anexos...');
+
     inicializarSistemaAnexosDespesas();
     // Receitas não precisam de inicialização especial
 }
@@ -786,5 +784,3 @@ window.addEventListener('sistemaFinanceiroReady', function() {
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
     setTimeout(inicializarSistemaAnexos, 100);
 }
-
-console.log('Sistema de anexos completo (receitas e despesas) carregado com sucesso');

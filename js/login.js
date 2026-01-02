@@ -3,7 +3,6 @@
 // ================================================================
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Login otimizado carregado - inicialização rápida...');
     inicializarSistemaLoginRapido();
 });
 
@@ -28,8 +27,6 @@ const EMAIL_CONFIG = {
 
 function inicializarSistemaLoginRapido() {
     try {
-        console.log('Inicialização imediata do login...');
-        
         // Teste básico de localStorage
         if (!testLocalStorage()) {
             alert("Seu navegador tem o armazenamento local desativado. Por favor, ative-o nas configurações.");
@@ -42,12 +39,10 @@ function inicializarSistemaLoginRapido() {
         
         // Carregar dependências opcionais em background
         carregarDependenciasBackground();
-        
+
         window.loginSistemaInicializado = true;
-        console.log('Login pronto para uso');
-        
+
     } catch (error) {
-        console.error('Erro na inicialização:', error);
         configurarLoginMinimo();
     }
 }
@@ -79,12 +74,13 @@ function carregarDependenciasBackground() {
             try {
                 emailjs.init(EMAIL_CONFIG.userId);
                 emailJSDisponivel = true;
-                console.log('EmailJS carregado');
             } catch (e) {
-                console.warn('EmailJS erro:', e);
+                // EmailJS erro silencioso
             }
         };
-        script.onerror = () => console.warn('EmailJS falhou');
+        script.onerror = () => {
+            // EmailJS falhou silenciosamente
+        };
         document.head.appendChild(script);
     } else {
         emailJSDisponivel = true;
@@ -93,7 +89,7 @@ function carregarDependenciasBackground() {
     // UsuarioDados se disponível
     if (window.usuarioDados && typeof window.usuarioDados.aguardarPronto === 'function') {
         window.usuarioDados.aguardarPronto().then(() => {
-            console.log('UsuarioDados integrado');
+            // UsuarioDados integrado silenciosamente
         });
     }
     
@@ -160,8 +156,6 @@ function configurarEventListenersRecuperacao() {
                 const validacao = verificarCodigoRecuperacao(email, codigoInput);
 
                 if (validacao.valido) {
-                    console.log('✅ Código válido! Abrindo tela de nova senha...');
-                    
                     if (document.getElementById('email-nova-senha')) {
                         document.getElementById('email-nova-senha').value = email;
                     }
@@ -191,8 +185,6 @@ function configurarEventListenersRecuperacao() {
 // ================================================================
 
 async function processarLogin(documento, password, isModal) {
-    console.log('🔐 Processando login via API...');
-
     const errorElement = isModal ? elementos.modalErrorMessage : elementos.errorMessage;
     const botaoSubmit = isModal ?
         document.querySelector('#modal-login-form button[type="submit"]') :
@@ -203,7 +195,6 @@ async function processarLogin(documento, password, isModal) {
 
     try {
         const docLimpo = documento.replace(/[^\d]+/g, '');
-        console.log('📤 Enviando credenciais:', { documento: docLimpo, url: `${API_URL}/auth/login` });
 
         // Login via API com timeout de 10s
         const controller = new AbortController();
@@ -223,15 +214,11 @@ async function processarLogin(documento, password, isModal) {
 
         clearTimeout(timeoutId);
 
-        console.log('📥 Status da resposta:', response.status, response.statusText);
         const data = await response.json();
-        console.log('📥 Dados recebidos:', data);
 
         if (!response.ok) {
             throw new Error(data.message || 'Documento ou senha incorretos');
         }
-
-        console.log('✅ Login bem-sucedido via API!');
 
         // Salvar token JWT e dados do usuário
         // API retorna: { success: true, data: { token, usuario: {...} } }
@@ -257,8 +244,6 @@ async function processarLogin(documento, password, isModal) {
         window.location.href = 'index.html';
 
     } catch (error) {
-        console.error('❌ Erro durante login:', error);
-
         if (error.name === 'AbortError') {
             mostrarErroLogin(errorElement, 'Servidor demorando demais. Tente novamente.');
         } else {
@@ -309,7 +294,7 @@ function salvarDadosUsuarioSessao(docLimpo) {
             sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify(usuario));
         }
     } catch (error) {
-        console.warn('Erro ao salvar dados da sessão:', error);
+        // Erro ao salvar dados da sessão - silencioso
     }
 }
 
@@ -379,8 +364,6 @@ async function processarCadastro(nome, email, documento, password) {
     const docLimpo = documento.replace(/[^\d]+/g, '');
 
     try {
-        console.log('📝 Cadastrando usuário via API...');
-
         const response = await fetch(`${API_URL}/auth/register`, {
             method: 'POST',
             headers: {
@@ -400,11 +383,9 @@ async function processarCadastro(nome, email, documento, password) {
             throw new Error(data.message || 'Erro ao cadastrar usuário');
         }
 
-        console.log('✅ Cadastro realizado com sucesso via API!');
         return { success: true, data: data.usuario };
 
     } catch (error) {
-        console.error('❌ Erro no cadastro:', error);
         throw error;
     }
 }
@@ -510,10 +491,8 @@ async function processarNovaSenha() {
     }
     
     setLoadingState(botaoSubmit, true);
-    
-    try {
-        console.log('📤 Enviando nova senha para o servidor...');
 
+    try {
         const response = await fetch(`${API_URL}/auth/reset-password`, {
             method: 'POST',
             headers: {
@@ -540,9 +519,8 @@ async function processarNovaSenha() {
             if (elementos.novaSenhaModal) elementos.novaSenhaModal.style.display = 'none';
             if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
         }, 2000);
-        
+
     } catch (error) {
-        console.error('❌ Erro ao resetar senha:', error);
         mostrarErroNovaSenha(error.message || 'Erro ao alterar senha no servidor.');
     } finally {
         setLoadingState(botaoSubmit, false);
@@ -794,7 +772,7 @@ function registrarTentativaBackground(documento, sucesso) {
             tentativas[docLimpo] = tentativas[docLimpo].slice(-5);
             localStorage.setItem('tentativasLogin', JSON.stringify(tentativas));
         } catch (error) {
-            console.warn('Erro ao registrar tentativa:', error);
+            // Erro ao registrar tentativa - silencioso
         }
     }, 0);
 }
@@ -850,7 +828,6 @@ function verificarCodigoRecuperacao(email, codigoInformado) {
 async function enviarEmailRecuperacao(email, codigo, nomeUsuario = 'Usuário') {
     try {
         if (!emailJSDisponivel || !window.emailjs) {
-            console.error('❌ EmailJS não foi carregado corretamente no navegador.');
             throw new Error('Serviço de e-mail indisponível');
         }
         
@@ -862,20 +839,16 @@ async function enviarEmailRecuperacao(email, codigo, nomeUsuario = 'Usuário') {
             validade: '15 minutos',
             sistema_nome: 'Sistema de Controle Financeiro'
         };
-        
-        console.log('📤 Tentando disparar e-mail via EmailJS...', templateParams);
-        
+
         const response = await emailjs.send(
             EMAIL_CONFIG.serviceId, 
             EMAIL_CONFIG.templateId, 
             templateParams
         );
-        
-        console.log('✅ Resposta do EmailJS:', response.status, response.text);
+
         return { success: true };
-        
+
     } catch (error) {
-        console.error('❌ Erro real no envio do e-mail:', error);
         return { success: false, message: 'Erro ao enviar e-mail: ' + (error.text || error.message) };
     }
 }
@@ -1082,9 +1055,9 @@ function verificarELimparDados() {
         if (alterou) {
             localStorage.setItem('tentativasLogin', JSON.stringify(tentativas));
         }
-        
+
     } catch (error) {
-        console.warn('Erro na limpeza:', error);
+        // Erro na limpeza - silencioso
     }
 }
 
@@ -1111,10 +1084,8 @@ function configurarLoginMinimo() {
                 if (doc && pass) processarLoginMinimo(doc, pass);
             });
         }
-        
-        console.log('Login mínimo configurado');
     } catch (error) {
-        console.error('Falha total:', error);
+        // Falha total - silencioso
     }
 }
 
@@ -1136,7 +1107,6 @@ function processarLoginMinimo(documento, password) {
             alert('Login inválido');
         }
     } catch (error) {
-        console.error('Erro no login mínimo:', error);
         alert('Erro no sistema');
     }
 }
@@ -1192,7 +1162,6 @@ function diagnosticoLogin() {
 function limparSessao() {
     sessionStorage.removeItem('usuarioAtual');
     sessionStorage.removeItem('dadosUsuarioLogado');
-    console.log('Sessão limpa');
 }
 
 

@@ -13,7 +13,7 @@ async function enviarDados(rota, dados) {
         });
         return await resposta.json();
     } catch (erro) {
-        console.error("Erro na conexão:", erro);
+        // Erro na conexão - silencioso
     }
 }
 // ================================================================
@@ -46,7 +46,6 @@ async function iniciarSistema() {
     exportarVariaveisGlobais();
 
     // ✅ Aguardar carregamento dos dados da API
-    console.log('🔄 Aguardando carregamento de dados da API...');
     await carregarDadosLocais();
 
     sistemaInicializado = true;
@@ -265,26 +264,20 @@ async function carregarDadosLocais() {
     }
 
     try {
-        console.log('📥 Carregando dados financeiros do usuário via API...');
-
         // ✅ Carregar dados da API através do usuarioDataManager
         if (window.usuarioDataManager && typeof window.usuarioDataManager.getDadosFinanceirosUsuario === 'function') {
             dadosFinanceiros = await window.usuarioDataManager.getDadosFinanceirosUsuario();
 
             if (!dadosFinanceiros || Object.keys(dadosFinanceiros).length === 0) {
-                console.log('📦 Nenhum dado encontrado, criando estrutura vazia');
                 dadosFinanceiros = criarEstruturaVazia();
             }
         } else {
-            console.warn('⚠️ usuarioDataManager não disponível, criando estrutura vazia');
             dadosFinanceiros = criarEstruturaVazia();
         }
 
         window.dadosFinanceiros = dadosFinanceiros;
-        console.log('✅ Dados financeiros carregados:', dadosFinanceiros);
 
     } catch (error) {
-        console.error('❌ Erro ao carregar dados:', error);
         dadosFinanceiros = criarEstruturaVazia();
         window.dadosFinanceiros = dadosFinanceiros;
     }
@@ -328,9 +321,7 @@ async function salvarDados() {
             try {
                 // 🔥 SALVAR NA API DO POSTGRESQL PRIMEIRO
                 if (window.usuarioDataManager && typeof window.usuarioDataManager.salvarDadosUsuario === 'function') {
-                    console.log('💾 Salvando dados financeiros na API...');
                     sucesso = await window.usuarioDataManager.salvarDadosUsuario(window.dadosFinanceiros);
-                    console.log('✅ Resultado do salvamento na API:', sucesso);
 
                     // Salvar também no localStorage como backup
                     if (sucesso) {
@@ -338,16 +329,13 @@ async function salvarDados() {
                     }
                 } else {
                     // Fallback para localStorage se usuarioDataManager não disponível
-                    console.warn('⚠️ usuarioDataManager não disponível, salvando apenas no localStorage');
                     sucesso = await salvarDadosLocal();
                 }
             } catch (error) {
-                console.error('❌ Erro ao salvar dados:', error);
                 // Fallback para localStorage em caso de erro
                 sucesso = await salvarDadosLocal();
             } finally {
                 salvandoDados = false;
-                console.log('📤 window.salvarDados() finalizou com sucesso:', sucesso);
                 resolve(sucesso);
             }
         }, 300);
@@ -445,12 +433,10 @@ function setupNavigation() {
 }
 
 function onSecaoAtivada(secao) {
-    console.log('🔄 Seção ativada:', secao);
     switch (secao) {
         case 'dashboard':
             // ✅ Carregar dados do dashboard automaticamente ao entrar na seção
             setTimeout(async () => {
-                console.log('📊 Carregando dados do dashboard...');
                 await carregarDadosDashboard(anoAtual);
                 atualizarResumoAnual(anoAtual);
             }, 100);
@@ -458,14 +444,12 @@ function onSecaoAtivada(secao) {
 
         case 'meses':
             setTimeout(async () => {
-                console.log('📅 Renderizando meses...');
                 await renderizarMeses(anoAtual);
                 atualizarResumoAnual(anoAtual);
 
                 // Se há um mês aberto, recarregar seus detalhes
                 if (window.mesAberto !== null && window.anoAberto !== null &&
                     typeof window.renderizarDetalhesDoMes === 'function') {
-                    console.log(`🔍 Recarregando detalhes do mês ${window.mesAberto}/${window.anoAberto}`);
                     await window.renderizarDetalhesDoMes(window.mesAberto, window.anoAberto);
                 }
             }, 100);
@@ -486,13 +470,7 @@ function onSecaoAtivada(secao) {
             break;
 
         case 'registros':
-            // Carregar logs quando a seção de registros for ativada
-            if (typeof window.carregarLogs === 'function') {
-                setTimeout(() => {
-                    console.log('📋 Carregando logs do sistema...');
-                    window.carregarLogs();
-                }, 100);
-            }
+            // Seção removida
             break;
     }
 }
@@ -889,7 +867,6 @@ function obterUsuarioAtualLocal() {
         const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
         return usuarios.find(u => u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual);
     } catch (error) {
-        console.error('Erro ao obter usuário:', error);
         return null;
     }
 }
@@ -1066,13 +1043,11 @@ function abrirModalNovoAno() {
 async function renderizarMeses(ano) {
     try {
         // ✅ Recarregar dados da API para garantir sincronização
-        console.log(`🔄 Recarregando dados para renderizar meses do ano ${ano}...`);
         if (window.usuarioDataManager && typeof window.usuarioDataManager.getDadosFinanceirosUsuario === 'function') {
             const dadosAtualizados = await window.usuarioDataManager.getDadosFinanceirosUsuario();
             if (dadosAtualizados && Object.keys(dadosAtualizados).length > 0) {
                 window.dadosFinanceiros = dadosAtualizados;
                 dadosFinanceiros = dadosAtualizados;
-                console.log('✅ Dados recarregados da API para renderização dos meses!');
             }
         }
 
@@ -1252,7 +1227,6 @@ function abrirDetalhesDoMes(mes, ano) {
 function navegarMesModal(direcao) {
     // Garantir que mesAberto e anoAberto existem
     if (mesAberto === null || anoAberto === null) {
-        console.error('❌ mesAberto ou anoAberto não definidos!');
         return;
     }
     
@@ -1315,8 +1289,6 @@ function getToken() {
 
 async function buscarReceitasAPI(mes, ano) {
     try {
-        console.log(`🔍 Buscando receitas do mês ${mes}/${ano} via API`);
-
         const response = await fetch(`${API_URL}/receitas?mes=${mes}&ano=${ano}`, {
             headers: {
                 'Authorization': `Bearer ${getToken()}`
@@ -1328,8 +1300,6 @@ async function buscarReceitasAPI(mes, ano) {
         if (!response.ok) {
             throw new Error(data.message || 'Erro ao buscar receitas');
         }
-
-        console.log('✅ Receitas carregadas:', data.data.length);
 
         // Converter formato da API para formato do frontend
         return data.data.map(r => ({
@@ -1345,15 +1315,12 @@ async function buscarReceitasAPI(mes, ano) {
         }));
 
     } catch (error) {
-        console.error('❌ Erro ao buscar receitas:', error);
         return [];
     }
 }
 
 async function buscarDespesasAPI(mes, ano) {
     try {
-        console.log(`🔍 Buscando despesas do mês ${mes}/${ano} via API`);
-
         const response = await fetch(`${API_URL}/despesas?mes=${mes}&ano=${ano}`, {
             headers: {
                 'Authorization': `Bearer ${getToken()}`
@@ -1365,8 +1332,6 @@ async function buscarDespesasAPI(mes, ano) {
         if (!response.ok) {
             throw new Error(data.message || 'Erro ao buscar despesas');
         }
-
-        console.log('✅ Despesas carregadas:', data.data.length);
 
         // Converter formato da API para formato do frontend
         return data.data.map(d => ({
@@ -1393,7 +1358,6 @@ async function buscarDespesasAPI(mes, ano) {
         }));
 
     } catch (error) {
-        console.error('❌ Erro ao buscar despesas:', error);
         return [];
     }
 }
@@ -1405,13 +1369,11 @@ async function buscarDespesasAPI(mes, ano) {
 async function renderizarDetalhesDoMes(mes, ano) {
     try {
         // ✅ Recarregar dados da API para garantir sincronização
-        console.log(`🔄 Recarregando dados do mês ${mes}/${ano} da API...`);
         if (window.usuarioDataManager && typeof window.usuarioDataManager.getDadosFinanceirosUsuario === 'function') {
             const dadosAtualizados = await window.usuarioDataManager.getDadosFinanceirosUsuario();
             if (dadosAtualizados && Object.keys(dadosAtualizados).length > 0) {
                 window.dadosFinanceiros = dadosAtualizados;
                 dadosFinanceiros = dadosAtualizados;
-                console.log('✅ Dados recarregados da API!');
             }
         }
 
@@ -1450,7 +1412,6 @@ async function renderizarDetalhesDoMes(mes, ano) {
         }
 
     } catch (error) {
-        console.error('Erro ao renderizar detalhes do mês:', error);
         alert('Erro ao carregar dados do mês');
     }
 }
@@ -1582,19 +1543,16 @@ function configurarBotao(id, callback) {
 async function carregarDadosDashboard(ano) {
     try {
         // ✅ Recarregar dados da API para garantir sincronização
-        console.log(`🔄 Recarregando dados para dashboard do ano ${ano}...`);
         if (window.usuarioDataManager && typeof window.usuarioDataManager.getDadosFinanceirosUsuario === 'function') {
             const dadosAtualizados = await window.usuarioDataManager.getDadosFinanceirosUsuario();
             if (dadosAtualizados && Object.keys(dadosAtualizados).length > 0) {
                 window.dadosFinanceiros = dadosAtualizados;
                 dadosFinanceiros = dadosAtualizados;
-                console.log('✅ Dados recarregados da API para o dashboard!');
             }
         }
 
         carregarDadosDashboardLocal(ano);
     } catch (error) {
-        console.error('❌ Erro ao recarregar dados do dashboard:', error);
         carregarDadosDashboardLocal(ano);
     }
 }
@@ -1868,9 +1826,8 @@ async function fecharMes(mes, ano) {
         }
         
         return true;
-        
+
     } catch (error) {
-        console.error('Erro ao fechar mês:', error);
         alert('Erro ao fechar mês: ' + error.message);
         return false;
     }
@@ -1909,9 +1866,8 @@ async function reabrirMes(mes, ano) {
         }
         
         return true;
-        
+
     } catch (error) {
-        console.error('Erro ao reabrir mês:', error);
         alert('Erro ao reabrir mês: ' + error.message);
         return false;
     }
@@ -1926,12 +1882,11 @@ async function criarReceitaSaldoAnterior(mes, ano, valor, mesOrigem, anoOrigem) 
         garantirEstruturaDados(ano, mes);
         
         const receitasExistentes = dadosFinanceiros[ano].meses[mes].receitas;
-        const jaExisteSaldo = receitasExistentes.some(receita => 
+        const jaExisteSaldo = receitasExistentes.some(receita =>
             receita.saldoAnterior === true || receita.descricao.includes('Saldo Anterior')
         );
-        
+
         if (jaExisteSaldo) {
-            console.warn('Já existe receita de saldo anterior neste mês');
             return;
         }
         
@@ -1949,13 +1904,10 @@ async function criarReceitaSaldoAnterior(mes, ano, valor, mesOrigem, anoOrigem) 
             anoOrigem: anoOrigem,
             dataTransferencia: new Date().toISOString().split('T')[0]
         };
-        
+
         dadosFinanceiros[ano].meses[mes].receitas.unshift(receitaSaldoAnterior);
-        
-        console.log(`✅ Receita de saldo anterior criada: ${tipoDescricao} - ${formatarMoeda(valor)}`);
-        
+
     } catch (error) {
-        console.error('Erro ao criar receita de saldo anterior:', error);
         throw error;
     }
 }
@@ -1977,9 +1929,9 @@ async function removerReceitaSaldoAnterior(mes, ano, mesOrigem, anoOrigem) {
                 break;
             }
         }
-        
+
     } catch (error) {
-        console.error('Erro ao remover receita de saldo anterior:', error);
+        // Erro ao remover receita de saldo anterior - silencioso
     }
 }
 
@@ -2133,10 +2085,6 @@ function exibirNomeUsuario() {
         const dadosUsuario = sessionStorage.getItem('dadosUsuarioLogado');
         const token = sessionStorage.getItem('token');
 
-        // Debug
-        console.log('🔐 Token presente:', !!token);
-        console.log('👤 Dados usuário:', !!dadosUsuario);
-
         if (dadosUsuario) {
             const usuario = JSON.parse(dadosUsuario);
             const nomeElement = document.getElementById('nome-usuario-logado');
@@ -2158,7 +2106,7 @@ function exibirNomeUsuario() {
             }
         }
     } catch (error) {
-        console.error('Erro ao exibir nome do usuário:', error);
+        // Erro ao exibir nome do usuário - silencioso
     }
 }
 

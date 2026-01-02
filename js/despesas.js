@@ -18,13 +18,13 @@ const ERROS = {
 function inicializarTabelaDespesasGrid() {
     const tabDespesas = document.getElementById('tab-despesas');
     if (!tabDespesas) {
-        console.error('Container tab-despesas não encontrado');
+
         return false;
     }
     
     const template = document.getElementById('template-estrutura-despesas-grid');
     if (!template) {
-        console.error('Template estrutura-despesas-grid não encontrado');
+
         return false;
     }
     
@@ -33,8 +33,7 @@ function inicializarTabelaDespesasGrid() {
     tabDespesas.appendChild(clone);
     
     configurarEventosGrid();
-    
-    console.log('Estrutura CSS Grid da tabela de despesas criada');
+
     return true;
 }
 
@@ -118,9 +117,6 @@ function aplicarTodosFiltros() {
     atualizarContadoresFiltro();
 }
 
-
-
-
 function configurarEventosFiltros() {
     const filtros = [
         { id: 'filtro-categoria', handler: filtrarDespesasPorCategoria },
@@ -199,13 +195,10 @@ function renderizarDespesas(despesas, mes, ano, fechado) {
    }, 100);
 }
 
-
-
-
 function criarLinhaDespesaGrid(despesa, index, fechado, mes, ano) {
   const template = document.getElementById('template-linha-despesa-grid');
   if (!template) {
-      console.error('Template linha-despesa-grid não encontrado');
+
       return null;
   }
   
@@ -231,9 +224,6 @@ function criarLinhaDespesaGrid(despesa, index, fechado, mes, ano) {
   return clone;
 }
 
-
-
-
 function sincronizarIndicesDespesas() {
   const linhasDespesas = document.querySelectorAll('.grid-row.despesa-row');
   
@@ -258,9 +248,6 @@ function sincronizarIndicesDespesas() {
   });
 }
 
-
-
-
 function preencherCelulasGrid(clone, despesa, index, fechado, mes, ano) {
    preencherCelulaCheckbox(clone, despesa, index, fechado);
    preencherCelulaDescricao(clone, despesa);
@@ -275,7 +262,6 @@ function preencherCelulasGrid(clone, despesa, index, fechado, mes, ano) {
    preencherCelulaAcoes(clone, despesa, index, fechado);
    preencherCelulaAnexos(clone, despesa, index, fechado);
 }
-
 
 function preencherCelulaCheckbox(clone, despesa, index, fechado) {
     const celulaCheckbox = clone.querySelector('.col-checkbox');
@@ -381,8 +367,6 @@ function preencherCelulaDatas(clone, despesa) {
     celulaVencimento.textContent = dataVencimentoExibir || '-';
 }
 
-
-
 function preencherCelulaAcoes(clone, despesa, index, fechado) {
     const celulaAcoes = clone.querySelector('.col-acoes');
     const template = document.getElementById('template-botoes-acao-despesa');
@@ -454,7 +438,7 @@ function configurarEventosDespesas(container, mes, ano) {
               await abrirModalVisualizarAnexosDespesa(index);
           }
       } catch (error) {
-          console.error('Erro ao processar ação:', error);
+
           alert('Erro ao processar ação: ' + error.message);
       }
   };
@@ -596,8 +580,6 @@ function atualizarBotaoLote() {
     }
 }
 
-
-
 // FUNÇÃO: preencherCelulaAnexos()
 function preencherCelulaAnexos(clone, despesa, index, fechado) {
    const celulaAnexos = clone.querySelector('.col-anexos');
@@ -641,9 +623,6 @@ function preencherCelulaAnexos(clone, despesa, index, fechado) {
        }
    }
 }
-
-
-
 
 function configurarEventosFormularioAnexosDespesa() {
     const btnAnexarDespesa = document.getElementById('btn-anexar-despesa');
@@ -694,7 +673,6 @@ function inicializarSistemaAnexosDespesas() {
        observer.observe(listaDespesas, { childList: true, subtree: true });
    }
 }
-
 
 // ================================================================
 // MODAL NOVA DESPESA
@@ -756,8 +734,6 @@ function abrirModalNovaDespesa(index) {
    }
 }
 
-
-
 function resetarEstadoFormularioDespesa() {
     const info = document.getElementById('info-parcelamento');
     if (info) info.classList.add('hidden');
@@ -804,8 +780,6 @@ function resetarEstadoFormularioDespesa() {
     const warningElements = document.querySelectorAll('.form-warning');
     warningElements.forEach(el => el.remove());
 }
-
-
 
 function preencherFormularioEdicao(index) {
    if (!dadosFinanceiros[anoAberto]?.meses[mesAberto]?.despesas[index]) {
@@ -871,8 +845,6 @@ function preencherFormularioEdicao(index) {
    }
 }
 
-
-
 // ================================================================
 // SALVAMENTO DE DESPESAS
 // ================================================================
@@ -909,14 +881,10 @@ async function salvarDespesa(e) {
         const formData = coletarDadosFormularioDespesa();
         const ehEdicao = formData.id !== '' && formData.id !== null;
 
-        console.log('🔄 Salvando despesa...');
         const sucesso = await salvarDespesaLocal(formData);
-        console.log('🔍 Resultado do salvamento:', sucesso);
 
         if (sucesso) {
-            console.log('✅ Despesa salva com sucesso, atualizando UI...');
 
-            // ✅ FECHAR MODAL
             const modal = document.getElementById('modal-nova-despesa');
             if (modal) {
                 modal.classList.remove('active');
@@ -930,52 +898,27 @@ async function salvarDespesa(e) {
 
             // Atualizar interface IMEDIATAMENTE
             if (typeof window.renderizarDetalhesDoMes === 'function') {
-                console.log('🔄 Atualizando detalhes do mês...');
+
                 window.renderizarDetalhesDoMes(formData.mes, formData.ano);
             }
 
             if (typeof window.carregarDadosDashboard === 'function') {
-                console.log('🔄 Atualizando dashboard...');
+
                 await window.carregarDadosDashboard(formData.ano);
             }
-
-            // Registrar log de sucesso
-            if (typeof window.registrarLog === 'function') {
-                const acao = ehEdicao ? 'Despesa atualizada' : 'Despesa cadastrada';
-                const detalhes = `${formData.descricao} - R$ ${parseFloat(formData.valor).toFixed(2)} - ${formData.categoria}`;
-                window.registrarLog('despesa', acao, 'sucesso', detalhes);
-            }
-
-            // Recarregar logs se a seção estiver ativa
-            if (typeof window.recarregarLogsSeAtivo === 'function') {
-                window.recarregarLogsSeAtivo();
-            }
-
-            console.log('✅ UI atualizada com sucesso!');
         } else {
-            console.error('❌ Falha ao salvar despesa');
+
             if (window.mostrarMensagemErro) {
                 window.mostrarMensagemErro('Não foi possível salvar a despesa. Tente novamente.');
             } else {
                 alert('Não foi possível salvar a despesa. Tente novamente.');
-            }
-
-            // Registrar log de erro
-            if (typeof window.registrarLog === 'function') {
-                const acao = ehEdicao ? 'Falha ao atualizar despesa' : 'Falha ao cadastrar despesa';
-                window.registrarLog('despesa', acao, 'erro', 'Erro ao salvar no servidor');
-            }
-
-            // Recarregar logs se a seção estiver ativa
-            if (typeof window.recarregarLogsSeAtivo === 'function') {
-                window.recarregarLogsSeAtivo();
             }
         }
 
         return false;
 
     } catch (error) {
-        console.error("❌ Erro ao salvar despesa:", error);
+
         if (window.mostrarMensagemErro) {
             window.mostrarMensagemErro('Erro ao salvar despesa: ' + error.message);
         } else {
@@ -1030,31 +973,23 @@ function coletarDadosFormularioDespesa() {
 
 async function salvarDespesaLocal(formData) {
     try {
-        console.log('💾 salvarDespesaLocal: iniciando salvamento...');
+
         window.garantirEstruturaDados(formData.ano, formData.mes);
 
         if (formData.id !== '' && formData.id !== null) {
-            console.log('📝 Atualizando despesa existente...');
+
             await atualizarDespesaExistente(formData);
         } else {
-            console.log('➕ Adicionando nova despesa...');
+
             await adicionarNovaDespesa(formData);
         }
 
-        console.log('🔄 Chamando window.salvarDados()...');
         const sucesso = await window.salvarDados();
-        console.log('📊 window.salvarDados() retornou:', sucesso);
-
-        if (sucesso) {
-            console.log('✅ Despesa salva com sucesso!');
-        } else {
-            console.error('❌ window.salvarDados() retornou false!');
-        }
 
         return sucesso;
 
     } catch (error) {
-        console.error('❌ Erro em salvarDespesaLocal:', error);
+
         return false;
     }
 }
@@ -1107,9 +1042,6 @@ async function adicionarNovaDespesa(formData) {
       window.sistemaAnexos.limparAnexosTemporarios('despesa');
   }
 }
-
-
-
 
 async function criarParcelasFuturas(formData, valorPorParcela, idGrupoParcelamento, valorOriginal, valorTotalComJuros, totalJuros) {
     const parcelasExistentes = validarGrupoParcelamento(idGrupoParcelamento, {
@@ -1260,7 +1192,6 @@ async function editarDespesa(index, mes, ano) {
     abrirModalNovaDespesa(index);
 }
 
-
 function validarGrupoParcelamento(idGrupo, despesaOriginal) {
     if (!idGrupo || !despesaOriginal) return { valido: false, erro: 'Parâmetros inválidos' };
     
@@ -1304,14 +1235,13 @@ function validarGrupoParcelamento(idGrupo, despesaOriginal) {
     };
 }
 
-
 function sincronizarParcelasGrupo(idGrupo, despesaReferencia) {
     if (!idGrupo || !despesaReferencia) return false;
     
     const validacao = validarGrupoParcelamento(idGrupo, despesaReferencia);
     
     if (!validacao.valido) {
-        console.error('Grupo de parcelas inconsistente:', validacao.erro);
+
         return false;
     }
     
@@ -1326,7 +1256,6 @@ function sincronizarParcelasGrupo(idGrupo, despesaReferencia) {
     
     return true;
 }
-
 
 function contarParcelasGrupo(idGrupo, descricao) {
     if (!idGrupo) return 0;
@@ -1367,7 +1296,7 @@ async function excluirApenasParcela(index, mes, ano) {
         
         return await salvarDados();
     } catch (error) {
-        console.error('Erro ao excluir parcela:', error);
+
         return false;
     }
 }
@@ -1410,11 +1339,10 @@ async function excluirParcelaEFuturas(index, mes, ano) {
         
         return await salvarDados();
     } catch (error) {
-        console.error('Erro ao excluir parcela e futuras:', error);
+
         return false;
     }
 }
-
 
 function validarCategoria() {
     const selectCategoria = document.getElementById('despesa-categoria');
@@ -1616,8 +1544,6 @@ window.handleSalvarDespesa = function(event) {
 
 document.addEventListener('DOMContentLoaded', inicializarSistemaAnexosDespesas);
 
-
-
 // ================================================================
 // SISTEMA DE DESPESAS - PARTE 2/4
 // EXCLUSÕES E MOVIMENTAÇÕES DE DESPESAS
@@ -1779,9 +1705,6 @@ function configurarBotoesExclusaoParcelada(despesa, index, mes, ano) {
     }
 }
 
-
-
-
 async function processarExclusao(opcao, index, mes, ano, descricaoDespesa, categoriaDespesa, idGrupoParcelamento) {
     try {
         let sucesso = false;
@@ -1827,69 +1750,24 @@ async function processarExclusao(opcao, index, mes, ano, descricaoDespesa, categ
     }
 }
 
-
-
-
-
-
 async function excluirDespesaLocal(opcao, index, mes, ano, descricaoDespesa, categoriaDespesa, idGrupoParcelamento) {
     try {
         if (opcao === 'atual') {
             if (dadosFinanceiros[ano]?.meses[mes]?.despesas[index]) {
                 dadosFinanceiros[ano].meses[mes].despesas.splice(index, 1);
-
-                // Registrar log de exclusão individual
-                if (typeof window.registrarLog === 'function') {
-                    window.registrarLog('despesa', 'Despesa excluída', 'sucesso', `${descricaoDespesa} - ${categoriaDespesa} - Exclusão individual`);
-                }
-
-                // Recarregar logs se a seção estiver ativa
-                if (typeof window.recarregarLogsSeAtivo === 'function') {
-                    window.recarregarLogsSeAtivo();
-                }
             }
         }
         else if (opcao === 'todas') {
             if (idGrupoParcelamento) {
                 await excluirTodasParcelas(ano, descricaoDespesa, categoriaDespesa, idGrupoParcelamento);
-
-                // Registrar log de exclusão de parcelas
-                if (typeof window.registrarLog === 'function') {
-                    window.registrarLog('despesa', 'Parcelas excluídas', 'sucesso', `${descricaoDespesa} - Todas as parcelas removidas`);
-                }
-
-                // Recarregar logs se a seção estiver ativa
-                if (typeof window.recarregarLogsSeAtivo === 'function') {
-                    window.recarregarLogsSeAtivo();
-                }
             } else {
                 await excluirDespesaEmTodosMeses(ano, descricaoDespesa, categoriaDespesa);
-
-                // Registrar log de exclusão em todos os meses
-                if (typeof window.registrarLog === 'function') {
-                    window.registrarLog('despesa', 'Despesas excluídas em lote', 'sucesso', `${descricaoDespesa} - ${categoriaDespesa} - Todas as ocorrências`);
-                }
-
-                // Recarregar logs se a seção estiver ativa
-                if (typeof window.recarregarLogsSeAtivo === 'function') {
-                    window.recarregarLogsSeAtivo();
-                }
             }
         }
 
         return await salvarDados();
 
     } catch (error) {
-        // Registrar log de erro
-        if (typeof window.registrarLog === 'function') {
-            window.registrarLog('despesa', 'Falha ao excluir despesa', 'erro', error.message || 'Erro desconhecido');
-        }
-
-        // Recarregar logs se a seção estiver ativa
-        if (typeof window.recarregarLogsSeAtivo === 'function') {
-            window.recarregarLogsSeAtivo();
-        }
-
         return false;
     }
 }
@@ -1921,17 +1799,13 @@ async function excluirTodasParcelas(ano, descricao, categoria, idGrupo) {
                 }
             }
         }
-        
-        console.log(`Removidas ${parcelasRemovidas} parcelas do grupo ${idGrupo}`);
+
         return await salvarDados();
     } catch (error) {
-        console.error('Erro ao excluir todas as parcelas:', error);
+
         return false;
     }
 }
-
-
-
 
 function reindexarParcelasAposExclusao(idGrupo, descricao) {
     const parcelas = [];
@@ -2014,8 +1888,6 @@ function verificarOrfaosParcelamento() {
     
     return problemas;
 }
-
-
 
 async function excluirDespesaEmTodosMeses(ano, descricao, categoria) {
     if (!dadosFinanceiros[ano]) return;
@@ -2248,13 +2120,10 @@ async function abrirModalPagamento(index, mes, ano) {
         }
         
     } catch (error) {
-        console.error('Erro ao abrir modal de pagamento:', error);
+
         alert("Não foi possível abrir o modal de pagamento: " + error.message);
     }
 }
-
-
-
 
 function preencherInfoDespesaPagamento(despesa) {
     const elementos = {
@@ -2344,8 +2213,6 @@ function configurarFormPagamento(index, mes, ano, despesa) {
     }
 }
 
-
-
 async function processarPagamento(index, mes, ano, valorPago = null, quitarParcelasFuturas = false) {
     try {
         if (!dadosFinanceiros[ano] || !dadosFinanceiros[ano].meses[mes]) {
@@ -2381,7 +2248,7 @@ async function processarPagamento(index, mes, ano, valorPago = null, quitarParce
         if (window.sistemaAnexos) {
             const comprovantes = window.sistemaAnexos.obterAnexosParaSalvar('comprovante');
             if (comprovantes.length > 0) {
-                console.log('Comprovantes encontrados:', comprovantes.length); // Debug
+
                 
                 // Inicializar array de anexos se não existir
                 if (!despesa.anexos) {
@@ -2393,12 +2260,12 @@ async function processarPagamento(index, mes, ano, valorPago = null, quitarParce
                     comprovante.tipoAnexo = 'comprovante';
                     comprovante.dataPagamento = despesa.dataPagamento;
                     comprovante.descricaoTipo = 'Comprovante de Pagamento';
-                    console.log('Comprovante marcado:', comprovante.nome); // Debug
+
                 });
                 
                 // Adicionar comprovantes aos anexos principais
                 despesa.anexos.push(...comprovantes);
-                console.log('Total de anexos após adição:', despesa.anexos.length); // Debug
+
             }
             
             // Limpar comprovantes temporários
@@ -2430,14 +2297,11 @@ async function processarPagamento(index, mes, ano, valorPago = null, quitarParce
         return true;
         
     } catch (error) {
-        console.error('Erro ao processar pagamento:', error);
+
         alert("Erro ao processar pagamento: " + error.message);
         return false;
     }
 }
-
-
-
 
 async function processarParcelasFuturas(despesa, anoAtual, mesAtual) {
     if (!despesa.idGrupoParcelamento) return;
@@ -2469,9 +2333,6 @@ async function processarParcelasFuturas(despesa, anoAtual, mesAtual) {
         }
     }
 }
-
-
-
 
 // ================================================================
 // SISTEMA DE DESPESAS - PARTE 3/4
@@ -2566,8 +2427,6 @@ async function configurarModalPagamentoLote(checkboxes) {
    });
 }
 
-
-
 function configurarModalValoresPersonalizados(checkboxes) {
    const indices = Array.from(checkboxes).map(checkbox => parseInt(checkbox.dataset.index));
    const tbody = document.getElementById('valores-personalizados-body');
@@ -2644,8 +2503,6 @@ if (inputDataPersonalizada) {
    }
 }
 
-
-
 async function processarValoresPersonalizados() {
    const inputs = document.querySelectorAll('.input-valor-pago');
    
@@ -2700,7 +2557,6 @@ async function processarValoresPersonalizados() {
    }
 }
 
-
 async function processarPagamentoComData(index, mes, ano, valorPago = null, quitarParcelasFuturas = false, dataPagamento = null) {
     // Salvar temporariamente a data no DOM para a função processarPagamento usar
     const inputDataTemp = document.getElementById('data-pagamento-individual');
@@ -2720,10 +2576,6 @@ async function processarPagamentoComData(index, mes, ano, valorPago = null, quit
     
     return resultado;
 }
-
-
-
-
 
 async function pagarLoteComValoresOriginais(checkboxes) {
    const indices = Array.from(checkboxes).map(checkbox => parseInt(checkbox.dataset.index));
@@ -2802,10 +2654,6 @@ function criarFiltrosCategorias(mes, ano) {
         selectCategoria.addEventListener('change', selectCategoria._filterHandler);
     }
 }
-
-
-
-
 
 function criarFiltrosFormaPagamento(mes, ano) {
     const selectFormaPagamento = document.getElementById('filtro-forma-pagamento-tabela');
@@ -2983,7 +2831,6 @@ function limparFiltros() {
     aplicarOrdenacaoDespesas('original');
 }
 
-
 // Event listener para ordenação
 function configurarEventoOrdenacao() {
     const filtroOrdenacao = document.getElementById('filtro-ordenacao-despesas');
@@ -3083,9 +2930,6 @@ function compararDatas(dataA, dataB) {
     return dateA.getTime() - dateB.getTime();
 }
 
-
-
-
 function atualizarContadoresFiltro() {
    const linhasVisiveis = document.querySelectorAll('.grid-row.despesa-row:not([style*="display: none"])');
    const totalLinhas = document.querySelectorAll('.grid-row.despesa-row').length;
@@ -3109,9 +2953,6 @@ function atualizarContadoresFiltro() {
        }
    }, 50);
 }
-
-
-
 
 function calcularValorDespesaLinha(linha) {
     const index = obterIndexDespesa(linha);
@@ -3188,9 +3029,6 @@ function obterValorRealDespesa(despesa) {
     return parseFloat(despesa.valor) || 0;
 }
 
-
-
-
 // ================================================================
 // FUNÇÃO PARA CALCULAR ECONOMIAS TOTAIS
 // Cenário 1: Quando valor com juros < valor original (economia no cadastro)
@@ -3252,7 +3090,6 @@ function calcularTotalEconomias(despesas) {
     }, 0);
 }
 
-
 function configurarBotaoComprovanteSimples() {
     const btn = document.getElementById('btn-anexar-comprovante');
     if (btn) {
@@ -3264,7 +3101,6 @@ function configurarBotaoComprovanteSimples() {
         };
     }
 }
-
 
 function calcularLimiteDisponivelCartao(numeroCartao, mes, ano) {
     if (!numeroCartao || !window.cartoesUsuario) return null;
@@ -3307,13 +3143,11 @@ function calcularLimiteDisponivelCartao(numeroCartao, mes, ano) {
     };
 }
 
-
-
 function toggleCamposPagamentoImediato() {
     const checkbox = document.getElementById('despesa-ja-pago');
     
     if (checkbox && checkbox.checked) {
-        console.log('Despesa marcada como já paga');
+
     }
 }
 
@@ -3358,5 +3192,3 @@ window.inicializarSistemaAnexosDespesas = inicializarSistemaAnexosDespesas;
 window.toggleCamposPagamentoImediato = toggleCamposPagamentoImediato;
 
 document.addEventListener('DOMContentLoaded', configurarBotaoComprovanteSimples);
-
-console.log('Sistema de despesas com anexos carregado com sucesso');
