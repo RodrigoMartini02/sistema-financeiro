@@ -321,12 +321,22 @@ async function adicionarCategoria() {
         atualizarListaCategorias();
         atualizarDropdowns();
         mostrarFeedback('Alterações realizadas com sucesso!', 'success');
+
+        // Registrar log de sucesso
+        if (typeof window.registrarLog === 'function') {
+            window.registrarLog('categoria', `Categoria "${nomeCat}" adicionada`, 'sucesso', `Nova categoria de despesa criada`);
+        }
     } else {
         const index = categoriasUsuario.despesas.findIndex(c => c.nome === nomeCat);
         if (index > -1) {
             categoriasUsuario.despesas.splice(index, 1);
         }
         mostrarFeedback('Erro ao salvar categoria. Tente novamente.', 'error');
+
+        // Registrar log de erro
+        if (typeof window.registrarLog === 'function') {
+            window.registrarLog('categoria', `Falha ao adicionar categoria "${nomeCat}"`, 'erro', 'Erro ao salvar no servidor');
+        }
     }
 }
 
@@ -411,9 +421,19 @@ async function removerCategoria(nomeCategoria) {
             atualizarListaCategorias();
             atualizarDropdowns();
             mostrarFeedback('Alterações realizadas com sucesso!', 'success');
+
+            // Registrar log de sucesso
+            if (typeof window.registrarLog === 'function') {
+                window.registrarLog('categoria', `Categoria "${nomeCategoria}" removida`, 'sucesso', 'Categoria excluída com sucesso');
+            }
         } else {
             categoriasUsuario.despesas.splice(index, 0, categoriaRemovida);
             mostrarFeedback('Erro ao remover categoria. Tente novamente.', 'error');
+
+            // Registrar log de erro
+            if (typeof window.registrarLog === 'function') {
+                window.registrarLog('categoria', `Falha ao remover categoria "${nomeCategoria}"`, 'erro', 'Erro ao salvar no servidor');
+            }
         }
     }
 }
@@ -481,9 +501,19 @@ async function salvarEdicaoCategoria() {
             atualizarDropdowns();
             document.getElementById('modal-editar-categoria').style.display = 'none';
             mostrarFeedback('Alterações realizadas com sucesso!', 'success');
+
+            // Registrar log de sucesso
+            if (typeof window.registrarLog === 'function') {
+                window.registrarLog('categoria', `Categoria editada: "${nomeOriginal}" → "${novoNome}"`, 'sucesso', `Nome alterado de "${nomeOriginal}" para "${novoNome}"`);
+            }
         } else {
             categoriasUsuario.despesas[index] = categoriaAnterior;
             mostrarFeedback('Erro ao salvar alteração. Tente novamente.', 'error');
+
+            // Registrar log de erro
+            if (typeof window.registrarLog === 'function') {
+                window.registrarLog('categoria', `Falha ao editar categoria "${nomeOriginal}"`, 'erro', 'Erro ao salvar no servidor');
+            }
         }
     }
 }

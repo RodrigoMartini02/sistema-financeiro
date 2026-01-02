@@ -939,6 +939,13 @@ async function salvarDespesa(e) {
                 await window.carregarDadosDashboard(formData.ano);
             }
 
+            // Registrar log de sucesso
+            if (typeof window.registrarLog === 'function') {
+                const acao = ehEdicao ? 'Despesa atualizada' : 'Despesa cadastrada';
+                const detalhes = `${formData.descricao} - R$ ${parseFloat(formData.valor).toFixed(2)} - ${formData.categoria}`;
+                window.registrarLog('despesa', acao, 'sucesso', detalhes);
+            }
+
             console.log('✅ UI atualizada com sucesso!');
         } else {
             console.error('❌ Falha ao salvar despesa');
@@ -946,6 +953,12 @@ async function salvarDespesa(e) {
                 window.mostrarMensagemErro('Não foi possível salvar a despesa. Tente novamente.');
             } else {
                 alert('Não foi possível salvar a despesa. Tente novamente.');
+            }
+
+            // Registrar log de erro
+            if (typeof window.registrarLog === 'function') {
+                const acao = ehEdicao ? 'Falha ao atualizar despesa' : 'Falha ao cadastrar despesa';
+                window.registrarLog('despesa', acao, 'erro', 'Erro ao salvar no servidor');
             }
         }
 
@@ -1814,19 +1827,39 @@ async function excluirDespesaLocal(opcao, index, mes, ano, descricaoDespesa, cat
         if (opcao === 'atual') {
             if (dadosFinanceiros[ano]?.meses[mes]?.despesas[index]) {
                 dadosFinanceiros[ano].meses[mes].despesas.splice(index, 1);
+
+                // Registrar log de exclusão individual
+                if (typeof window.registrarLog === 'function') {
+                    window.registrarLog('despesa', 'Despesa excluída', 'sucesso', `${descricaoDespesa} - ${categoriaDespesa} - Exclusão individual`);
+                }
             }
-        } 
+        }
         else if (opcao === 'todas') {
             if (idGrupoParcelamento) {
                 await excluirTodasParcelas(ano, descricaoDespesa, categoriaDespesa, idGrupoParcelamento);
+
+                // Registrar log de exclusão de parcelas
+                if (typeof window.registrarLog === 'function') {
+                    window.registrarLog('despesa', 'Parcelas excluídas', 'sucesso', `${descricaoDespesa} - Todas as parcelas removidas`);
+                }
             } else {
                 await excluirDespesaEmTodosMeses(ano, descricaoDespesa, categoriaDespesa);
+
+                // Registrar log de exclusão em todos os meses
+                if (typeof window.registrarLog === 'function') {
+                    window.registrarLog('despesa', 'Despesas excluídas em lote', 'sucesso', `${descricaoDespesa} - ${categoriaDespesa} - Todas as ocorrências`);
+                }
             }
         }
-        
+
         return await salvarDados();
-        
+
     } catch (error) {
+        // Registrar log de erro
+        if (typeof window.registrarLog === 'function') {
+            window.registrarLog('despesa', 'Falha ao excluir despesa', 'erro', error.message || 'Erro desconhecido');
+        }
+
         return false;
     }
 }

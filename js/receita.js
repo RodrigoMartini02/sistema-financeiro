@@ -467,6 +467,13 @@ async function salvarReceita(e) {
                 await window.carregarDadosDashboard(formData.ano);
             }
 
+            // Registrar log de sucesso
+            if (typeof window.registrarLog === 'function') {
+                const acao = ehEdicao ? 'Receita atualizada' : 'Receita cadastrada';
+                const detalhes = `${novaReceita.descricao} - R$ ${novaReceita.valor.toFixed(2)}`;
+                window.registrarLog('receita', acao, 'sucesso', detalhes);
+            }
+
             console.log('✅ Receita salva com sucesso!');
         } else {
             console.error('❌ Falha ao salvar receita');
@@ -474,6 +481,12 @@ async function salvarReceita(e) {
                 window.mostrarMensagemErro('Não foi possível salvar a receita. Tente novamente.');
             } else {
                 alert('Não foi possível salvar a receita. Tente novamente.');
+            }
+
+            // Registrar log de erro
+            if (typeof window.registrarLog === 'function') {
+                const acao = ehEdicao ? 'Falha ao atualizar receita' : 'Falha ao cadastrar receita';
+                window.registrarLog('receita', acao, 'erro', 'Erro ao salvar no servidor');
             }
         }
 
@@ -771,7 +784,12 @@ async function excluirReceitaLocal(opcao, index, mes, ano, descricaoReceita) {
             }
             
             console.log('✅ Receita excluída da API');
-            
+
+            // Registrar log de sucesso
+            if (typeof window.registrarLog === 'function') {
+                window.registrarLog('receita', 'Receita excluída', 'sucesso', `${descricaoReceita} - Exclusão individual`);
+            }
+
         } else if (opcao === 'todas') {
             // Buscar todas as receitas com essa descrição e excluir
             const response = await fetch(`${API_URL}/receitas?ano=${ano}`, {
@@ -797,13 +815,24 @@ async function excluirReceitaLocal(opcao, index, mes, ano, descricaoReceita) {
                 }
                 
                 console.log(`✅ ${receitasParaExcluir.length} receita(s) excluída(s)`);
+
+                // Registrar log de sucesso
+                if (typeof window.registrarLog === 'function') {
+                    window.registrarLog('receita', 'Receitas excluídas em lote', 'sucesso', `${descricaoReceita} - ${receitasParaExcluir.length} ocorrência(s)`);
+                }
             }
         }
-        
+
         return true;
-        
+
     } catch (error) {
         console.error('❌ Erro ao excluir receita:', error);
+
+        // Registrar log de erro
+        if (typeof window.registrarLog === 'function') {
+            window.registrarLog('receita', 'Falha ao excluir receita', 'erro', error.message);
+        }
+
         return false;
     }
 }

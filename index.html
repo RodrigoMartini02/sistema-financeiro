@@ -54,7 +54,14 @@
                     <span class="nav-text">Relatórios</span>
                 </a>
             </li>
-           
+
+            <li class="nav-item">
+                <a href="#" class="nav-link" data-section="registros">
+                    <span class="nav-icon"><i class="fas fa-clipboard-list"></i></span>
+                    <span class="nav-text">Registros</span>
+                </a>
+            </li>
+
             <li class="nav-item">
                 <a href="#" class="nav-link" data-section="config">
                     <span class="nav-icon"><i class="fas fa-cog"></i></span>
@@ -1044,6 +1051,114 @@
             </div>
         </div>
 
+    </div>
+</section>
+
+<!-- ================================================== -->
+<!-- SEÇÃO DE REGISTROS (LOGS DO SISTEMA) -->
+<!-- ================================================== -->
+<section class="registros-section hidden" id="registros-section">
+    <div class="registros-header">
+        <h2><i class="fas fa-clipboard-list"></i> Registros do Sistema</h2>
+        <p class="registros-descricao">Visualize todas as alterações realizadas no sistema</p>
+    </div>
+
+    <!-- Filtros -->
+    <div class="registros-filtros">
+        <div class="filtro-grupo">
+            <label for="filtro-data-inicio">
+                <i class="fas fa-calendar"></i> Data Inicial:
+            </label>
+            <input type="date" id="filtro-data-inicio" class="form-input">
+        </div>
+
+        <div class="filtro-grupo">
+            <label for="filtro-data-fim">
+                <i class="fas fa-calendar"></i> Data Final:
+            </label>
+            <input type="date" id="filtro-data-fim" class="form-input">
+        </div>
+
+        <div class="filtro-grupo">
+            <label for="filtro-modulo">
+                <i class="fas fa-filter"></i> Módulo:
+            </label>
+            <select id="filtro-modulo" class="form-input">
+                <option value="">Todos</option>
+                <option value="receita">Receitas</option>
+                <option value="despesa">Despesas</option>
+                <option value="categoria">Categorias</option>
+                <option value="backup">Backups</option>
+                <option value="autenticacao">Autenticação</option>
+                <option value="sistema">Sistema</option>
+            </select>
+        </div>
+
+        <div class="filtro-grupo">
+            <label for="filtro-usuario">
+                <i class="fas fa-user"></i> Usuário:
+            </label>
+            <input type="text" id="filtro-usuario" class="form-input" placeholder="Nome do usuário">
+        </div>
+
+        <div class="filtro-acoes">
+            <button id="btn-aplicar-filtros" class="btn-action">
+                <i class="fas fa-search"></i> Filtrar
+            </button>
+            <button id="btn-limpar-filtros" class="btn-outline">
+                <i class="fas fa-times"></i> Limpar
+            </button>
+            <button id="btn-exportar-logs" class="btn-outline">
+                <i class="fas fa-download"></i> Exportar
+            </button>
+        </div>
+    </div>
+
+    <!-- Tabela de Logs -->
+    <div class="registros-container">
+        <div class="tabela-responsiva">
+            <table class="tabela-registros">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Hora</th>
+                        <th>Usuário</th>
+                        <th>Módulo</th>
+                        <th>Ação</th>
+                        <th>Status</th>
+                        <th>Detalhes</th>
+                    </tr>
+                </thead>
+                <tbody id="tabela-registros-body">
+                    <!-- Os logs serão inseridos aqui via JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginação -->
+        <div class="registros-paginacao hidden" id="registros-paginacao">
+            <button id="btn-pagina-anterior" class="btn-paginacao">
+                <i class="fas fa-chevron-left"></i> Anterior
+            </button>
+            <span id="info-paginacao" class="info-paginacao">Página 1 de 1</span>
+            <button id="btn-pagina-proxima" class="btn-paginacao">
+                Próxima <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+
+        <!-- Mensagem quando não há logs -->
+        <div id="sem-registros-mensagem" class="sem-dados">
+            <div class="sem-dados-icon">
+                <i class="fas fa-clipboard-list"></i>
+            </div>
+            <h4>Nenhum registro encontrado</h4>
+            <p>Não há logs de atividades para exibir com os filtros selecionados.</p>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="registros-loading" class="loading-overlay hidden">
+        <div class="loading-spinner"></div>
     </div>
 </section>
 
@@ -2988,8 +3103,9 @@
 <script src="js/anexos.js"></script>
 
 <!-- Módulos secundários -->
-<script src="js/dashboard.js"></script>     
-<script src="js/notificacao.js"></script>  
+<script src="js/dashboard.js"></script>
+<script src="js/notificacao.js"></script>
 <script src="js/rel.js"></script>
+<script src="js/logs.js"></script>
 </body>
 </html>
