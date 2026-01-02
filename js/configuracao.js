@@ -1547,6 +1547,7 @@ function converterCSVParaJSON(csvText) {
 }
 
 async function limparDados() {
+    // Mantida apenas uma mensagem de confirmação para tornar o processo mais ágil
     const confirmar = confirm(
         'ATENÇÃO: Esta ação é irreversível!\n\n' +
         'Todos os seus dados financeiros serão permanentemente excluídos.\n' +
@@ -1555,47 +1556,44 @@ async function limparDados() {
 
     if (!confirmar) return;
 
-    const confirmarNovamente = confirm(
-        'ÚLTIMA CONFIRMAÇÃO!\n\n' +
-        'Tem ABSOLUTA CERTEZA que deseja excluir TODOS os seus dados?\n' +
-        'Esta ação NÃO pode ser desfeita!'
-    );
-
-    if (!confirmarNovamente) return;
-
     try {
+        // Busca o usuário atual através do manager
         const usuario = window.usuarioDataManager?.getUsuarioAtual();
         if (!usuario || !usuario.id) {
-            mostrarFeedback('Usuário não encontrado', 'error');
+            const msgErro = window.MENSAGENS?.ERRO_AUTENTICACAO || 'Usuário não encontrado';
+            mostrarFeedback(msgErro, 'error');
             return;
         }
 
-        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+        // Garante o uso da URL correta definida no config.js
+        const API_BASE = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
-        const response = await fetch(`${API_URL}/usuarios/${usuario.id}/limpar-dados`, {
+        // Chamada corrigida para o endpoint do backend
+        const response = await fetch(`${API_BASE}/limpar-dados`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
-            }
+                'Authorization': `Bearer ${sessionStorage.getItem('token') || localStorage.getItem('token') || ''}`
+            },
+            body: JSON.stringify({ usuarioId: usuario.id })
         });
 
         const data = await response.json();
 
         if (response.ok && data.success) {
-            mostrarFeedback('Todos os dados foram excluídos!', 'success');
+            mostrarFeedback(window.MENSAGENS?.SUCESSO_EXCLUIR || 'Todos os dados foram excluídos!', 'success');
 
-            // Recarregar dados (agora vazios)
+            // Recarregar dados locais (agora vazios)
             if (typeof window.carregarDadosLocais === 'function') {
                 await window.carregarDadosLocais();
             }
 
-            // Limpar dashboard
+            // Atualizar dashboard
             if (typeof window.carregarDadosDashboard === 'function') {
                 await window.carregarDadosDashboard(window.anoAtual || new Date().getFullYear());
             }
 
-            // Redirecionar para dashboard
+            // Redirecionar para dashboard após 1 segundo
             setTimeout(() => {
                 if (typeof window.onSecaoAtivada === 'function') {
                     window.onSecaoAtivada('dashboard');
@@ -1606,7 +1604,7 @@ async function limparDados() {
         }
     } catch (error) {
         console.error('Erro ao limpar dados:', error);
-        mostrarFeedback('Erro ao limpar dados', 'error');
+        mostrarFeedback(window.MENSAGENS?.ERRO_CONEXAO || 'Erro ao conectar com o servidor', 'error');
     }
 }
 
