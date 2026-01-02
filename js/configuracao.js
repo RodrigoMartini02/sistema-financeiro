@@ -1547,15 +1547,13 @@ function converterCSVParaJSON(csvText) {
 }
 
 async function limparDados() {
-    if (!confirm('Deseja excluir permanentemente todos os seus dados financeiros?')) return;
+    if (!confirm('Deseja apagar TUDO? (Dados, Categorias, Cartões e Notificações)')) return;
+
+    const usuario = window.usuarioDataManager?.getUsuarioAtual();
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+    const API_BASE = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
     try {
-        const usuario = window.usuarioDataManager?.getUsuarioAtual();
-        if (!usuario?.id) return alert('Usuário não autenticado');
-
-        const API_BASE = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
-        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-
         const response = await fetch(`${API_BASE}/usuarios/${usuario.id}/limpar-dados`, {
             method: 'DELETE',
             headers: {
@@ -1565,15 +1563,17 @@ async function limparDados() {
         });
 
         if (response.ok) {
-            alert('Dados limpos com sucesso!');
+            // Limpa lixo do cache local do navegador
+            localStorage.removeItem('notificacoes');
+            localStorage.removeItem('dashboard_data');
+            
+            alert('Tudo limpo com sucesso!');
             window.location.reload();
         } else {
-            const erro = await response.json();
-            alert('Erro: ' + (erro.message || 'Falha ao excluir'));
+            alert('Erro ao limpar dados no servidor.');
         }
     } catch (error) {
-        console.error(error);
-        alert('Erro de conexão com o servidor');
+        console.error('Erro de conexão:', error);
     }
 }
 
