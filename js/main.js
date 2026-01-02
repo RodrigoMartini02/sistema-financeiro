@@ -484,6 +484,16 @@ function onSecaoAtivada(secao) {
                 }, 100);
             }
             break;
+
+        case 'registros':
+            // Carregar logs quando a seção de registros for ativada
+            if (typeof window.carregarLogs === 'function') {
+                setTimeout(() => {
+                    console.log('📋 Carregando logs do sistema...');
+                    window.carregarLogs();
+                }, 100);
+            }
+            break;
     }
 }
 

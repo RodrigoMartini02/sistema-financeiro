@@ -141,6 +141,7 @@ function salvarLogLocal(log) {
 async function carregarLogs() {
     try {
         console.log('🔄 Iniciando carregamento de logs...');
+        console.log('📊 Estado atual - logsCache:', logsCache.length, 'registros');
         mostrarLoading();
 
         let logs = [];
@@ -154,6 +155,7 @@ async function carregarLogs() {
                 const token = sessionStorage.getItem('token') || localStorage.getItem('token');
 
                 console.log('🌐 Tentando carregar do servidor:', url);
+                console.log('🔑 Token presente:', !!token);
 
                 const response = await fetch(url, {
                     method: 'GET',
@@ -211,8 +213,16 @@ async function carregarLogs() {
  */
 function carregarLogsLocal() {
     try {
-        const logsLocais = JSON.parse(localStorage.getItem('systemLogs') || '[]');
+        const logsJSON = localStorage.getItem('systemLogs');
+        console.log('💾 Conteúdo bruto do localStorage.systemLogs:', logsJSON ? logsJSON.substring(0, 100) + '...' : 'null');
+
+        const logsLocais = JSON.parse(logsJSON || '[]');
         console.log('💾 Logs carregados do localStorage:', logsLocais.length);
+
+        if (logsLocais.length > 0) {
+            console.log('📝 Exemplo de log:', logsLocais[0]);
+        }
+
         return logsLocais;
     } catch (error) {
         console.error('❌ Erro ao carregar logs locais:', error);
@@ -224,6 +234,8 @@ function carregarLogsLocal() {
  * Renderiza os logs na tabela
  */
 function renderizarLogs() {
+    console.log('🎨 Renderizando logs... Total no cache:', logsCache.length);
+
     const tbody = document.getElementById('tabela-registros-body');
     const semDados = document.getElementById('sem-registros-mensagem');
     const paginacao = document.getElementById('registros-paginacao');
@@ -236,6 +248,7 @@ function renderizarLogs() {
     tbody.innerHTML = '';
 
     if (logsCache.length === 0) {
+        console.log('⚠️ Cache de logs vazio, exibindo mensagem de "sem dados"');
         if (semDados) {
             semDados.classList.add('active');
             // Atualizar mensagem se necessário
