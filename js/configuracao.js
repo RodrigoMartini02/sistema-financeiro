@@ -1547,49 +1547,68 @@ function converterCSVParaJSON(csvText) {
 }
 
 async function limparDados() {
-    // 1. Confirmação única e direta
-    if (!confirm('ATENÇÃO: Esta ação é irreversível!\n\nTodos os seus dados financeiros serão permanentemente excluídos.\nDeseja realmente continuar?')) {
-        return;
-    }
+    if (!confirm('ATENÇÃO: Esta ação é irreversível!\n\nDeseja realmente continuar?')) return;
 
     try {
-        // Busca o usuário atual
         const usuario = window.usuarioDataManager?.getUsuarioAtual();
         if (!usuario || !usuario.id) {
-            alert('Erro: Usuário não identificado. Por favor, faça login novamente.');
+            alert('Erro: Usuário não identificado.');
             return;
         }
 
-        // FORÇANDO A URL DO BACKEND (Não remover o /api no final)
-        const URL_BACKEND = "https://sistema-financeiro-backend-o199.onrender.com/api";
-        
-        // Montagem da URL completa: https://sistema-financeiro-backend-o199.onrender.com/api/limpar-dados
-        const endpoint = `${URL_BACKEND}/limpar-dados`;
+        // URL Base vinda do seu config.js
+        const API_BASE = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
-        console.log('Tentando limpar dados em:', endpoint); // Para você ver no console se a URL está certa
+        // TENTATIVA A: Rota com ID (mais provável se for REST)
+        // Se esta falhar, o problema é 100% no código do Backend
+        const endpoint = `${API_BASE}/usuarios/${usuario.id}/limpar-dados`;
+
+        console.log('Chamando endpoint:', endpoint);
 
         const response = await fetch(endpoint, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${sessionStorage.getItem('token') || localStorage.getItem('token') || ''}`
-            },
-            body: JSON.stringify({ usuarioId: usuario.id })
+            }
         });
 
-        const data = await response.json().catch(() => ({}));
+        if (response.status === 404) {
+            // TENTATIVA B: Se a primeira deu 404, tenta a rota genérica
+            console.warn('Rota com ID não encontrada, tentando rota genérica...');
+            return fazerChamadaGenerica(API_BASE, usuario.id);
+        }
 
-        if (response.ok && (data.success || data.status === 'success')) {
-            alert('Sucesso: Todos os dados foram excluídos!');
+        const data = await response.json();
 
-            // Recarregar a página para limpar tudo
+        if (response.ok && data.success) {
+            alert('Dados excluídos com sucesso!');
             window.location.reload();
         } else {
-            alert('Erro do Servidor: ' + (data.message || 'A rota não respondeu corretamente. Verifique se o backend está online.'));
+            alert('Erro: ' + (data.message || 'Erro no servidor'));
         }
     } catch (error) {
-        console.error('Erro na requisição:', error);
-        alert('Erro de Conexão: Não foi possível alcançar o servidor. Verifique sua internet ou se o backend está rodando.');
+        console.error('Erro:', error);
+        alert('Erro de conexão com o servidor.');
+    }
+}
+
+// Função de apoio para tentar a segunda rota caso a primeira falhe
+async function fazerChamadaGenerica(apiBase, usuarioId) {
+    const response = await fetch(`${apiBase}/limpar-dados`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
+        },
+        body: JSON.stringify({ usuarioId })
+    });
+    
+    if (response.ok) {
+        alert('Dados excluídos!');
+        window.location.reload();
+    } else {
+        alert('Erro Crítico: A rota de limpeza não existe no Backend. Verifique o código do servidor.');
     }
 }
 
