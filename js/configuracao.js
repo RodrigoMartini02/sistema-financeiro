@@ -308,6 +308,18 @@ async function adicionarCategoria() {
     categoriasUsuario.despesas.sort((a, b) => a.nome.localeCompare(b.nome));
 
     const sucesso = await salvarCategorias();
+
+    // Registrar log da ação
+    if (sucesso && window.logManager) {
+        window.logManager.registrar({
+            modulo: 'Configurações',
+            acao: 'Criado',
+            categoria: 'Categoria',
+            descricao: nomeCat,
+            valor: null,
+            detalhes: 'Criou nova categoria'
+        });
+    }
     if (sucesso) {
         inputNovaCategoria.value = '';
         atualizarListaCategorias();
@@ -399,6 +411,19 @@ async function removerCategoria(nomeCategoria) {
         const categoriaRemovida = categoriasUsuario.despesas.splice(index, 1)[0];
 
         const sucesso = await salvarCategorias();
+
+        // Registrar log da ação
+        if (sucesso && window.logManager) {
+            window.logManager.registrar({
+                modulo: 'Configurações',
+                acao: 'Excluído',
+                categoria: 'Categoria',
+                descricao: nomeCategoria,
+                valor: null,
+                detalhes: 'Excluiu categoria'
+            });
+        }
+
         if (sucesso) {
             atualizarListaCategorias();
             atualizarDropdowns();
@@ -468,6 +493,19 @@ async function salvarEdicaoCategoria() {
         });
 
         const sucesso = await salvarCategorias();
+
+        // Registrar log da ação
+        if (sucesso && window.logManager) {
+            window.logManager.registrar({
+                modulo: 'Configurações',
+                acao: 'Editado',
+                categoria: 'Categoria',
+                descricao: `${nomeOriginal} → ${novoNome}`,
+                valor: null,
+                detalhes: 'Editou categoria'
+            });
+        }
+
         if (sucesso) {
             atualizarListaCategorias();
             atualizarDropdowns();

@@ -976,7 +976,9 @@ async function salvarDespesaLocal(formData) {
 
         window.garantirEstruturaDados(formData.ano, formData.mes);
 
-        if (formData.id !== '' && formData.id !== null) {
+        const ehEdicao = formData.id !== '' && formData.id !== null;
+
+        if (ehEdicao) {
 
             await atualizarDespesaExistente(formData);
         } else {
@@ -985,6 +987,18 @@ async function salvarDespesaLocal(formData) {
         }
 
         const sucesso = await window.salvarDados();
+
+        // Registrar log da ação
+        if (sucesso && window.logManager) {
+            window.logManager.registrar({
+                modulo: 'Despesas',
+                acao: ehEdicao ? 'Editado' : 'Criado',
+                categoria: formData.categoria || '-',
+                descricao: formData.descricao,
+                valor: formData.valor,
+                detalhes: `${ehEdicao ? 'Editou' : 'Criou'} despesa em ${formData.mes + 1}/${formData.ano}`
+            });
+        }
 
         return sucesso;
 
@@ -1752,20 +1766,45 @@ async function processarExclusao(opcao, index, mes, ano, descricaoDespesa, categ
 
 async function excluirDespesaLocal(opcao, index, mes, ano, descricaoDespesa, categoriaDespesa, idGrupoParcelamento) {
     try {
+        let valorExcluido = 0;
+        let quantidadeExcluida = 0;
+
         if (opcao === 'atual') {
             if (dadosFinanceiros[ano]?.meses[mes]?.despesas[index]) {
+                valorExcluido = dadosFinanceiros[ano].meses[mes].despesas[index].valor || 0;
                 dadosFinanceiros[ano].meses[mes].despesas.splice(index, 1);
+                quantidadeExcluida = 1;
             }
         }
         else if (opcao === 'todas') {
             if (idGrupoParcelamento) {
-                await excluirTodasParcelas(ano, descricaoDespesa, categoriaDespesa, idGrupoParcelamento);
+                const resultado = await excluirTodasParcelas(ano, descricaoDespesa, categoriaDespesa, idGrupoParcelamento);
+                quantidadeExcluida = resultado.quantidade || 0;
+                valorExcluido = resultado.valorTotal || 0;
             } else {
-                await excluirDespesaEmTodosMeses(ano, descricaoDespesa, categoriaDespesa);
+                const resultado = await excluirDespesaEmTodosMeses(ano, descricaoDespesa, categoriaDespesa);
+                quantidadeExcluida = resultado.quantidade || 0;
+                valorExcluido = resultado.valorTotal || 0;
             }
         }
 
-        return await salvarDados();
+        const sucesso = await salvarDados();
+
+        // Registrar log da exclusão
+        if (sucesso && window.logManager) {
+            window.logManager.registrar({
+                modulo: 'Despesas',
+                acao: 'Excluído',
+                categoria: categoriaDespesa || '-',
+                descricao: descricaoDespesa,
+                valor: valorExcluido,
+                detalhes: quantidadeExcluida > 1
+                    ? `Excluiu ${quantidadeExcluida} despesa(s)`
+                    : `Excluiu despesa de ${mes + 1}/${ano}`
+            });
+        }
+
+        return sucesso;
 
     } catch (error) {
         return false;
@@ -1773,26 +1812,28 @@ async function excluirDespesaLocal(opcao, index, mes, ano, descricaoDespesa, cat
 }
 
 async function excluirTodasParcelas(ano, descricao, categoria, idGrupo) {
-    if (!idGrupo) return false;
-    
+    if (!idGrupo) return { quantidade: 0, valorTotal: 0 };
+
     try {
         let parcelasRemovidas = 0;
-        
+        let valorTotal = 0;
+
         for (let anoAtual = ano; anoAtual <= ano + 3; anoAtual++) {
             if (!dadosFinanceiros[anoAtual]) continue;
-            
+
             for (let m = 0; m < 12; m++) {
                 if (!dadosFinanceiros[anoAtual].meses[m]?.despesas) continue;
-                
+
                 const despesas = dadosFinanceiros[anoAtual].meses[m].despesas;
-                
+
                 for (let i = despesas.length - 1; i >= 0; i--) {
                     const d = despesas[i];
-                    
-                    if (d.idGrupoParcelamento === idGrupo && 
-                        d.descricao === descricao && 
+
+                    if (d.idGrupoParcelamento === idGrupo &&
+                        d.descricao === descricao &&
                         d.categoria === categoria) {
-                        
+
+                        valorTotal += parseFloat(d.valor || 0);
                         despesas.splice(i, 1);
                         parcelasRemovidas++;
                     }
@@ -1800,10 +1841,10 @@ async function excluirTodasParcelas(ano, descricao, categoria, idGrupo) {
             }
         }
 
-        return await salvarDados();
+        return { quantidade: parcelasRemovidas, valorTotal: valorTotal };
     } catch (error) {
 
-        return false;
+        return { quantidade: 0, valorTotal: 0 };
     }
 }
 
@@ -1890,20 +1931,27 @@ function verificarOrfaosParcelamento() {
 }
 
 async function excluirDespesaEmTodosMeses(ano, descricao, categoria) {
-    if (!dadosFinanceiros[ano]) return;
-    
+    if (!dadosFinanceiros[ano]) return { quantidade: 0, valorTotal: 0 };
+
+    let despesasRemovidas = 0;
+    let valorTotal = 0;
+
     for (let m = 0; m < 12; m++) {
         if (!dadosFinanceiros[ano].meses[m] || !dadosFinanceiros[ano].meses[m].despesas) continue;
-        
+
         const despesas = dadosFinanceiros[ano].meses[m].despesas;
-        
+
         for (let i = despesas.length - 1; i >= 0; i--) {
             const d = despesas[i];
             if (d.descricao === descricao && d.categoria === categoria && !d.parcelado) {
+                valorTotal += parseFloat(d.valor || 0);
                 despesas.splice(i, 1);
+                despesasRemovidas++;
             }
         }
     }
+
+    return { quantidade: despesasRemovidas, valorTotal: valorTotal };
 }
 
 window.excluirDespesaAtual = async function() {
