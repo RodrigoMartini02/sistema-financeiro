@@ -12,7 +12,7 @@
     margin-bottom: 25px; /* Reduzi margem externa */
 }
 
-/* Scrollbar do Resumo */
+/* Scrollbar específico do resumo dashboard */
 .dashboard-resumo::-webkit-scrollbar {
     height: 6px;
 }
