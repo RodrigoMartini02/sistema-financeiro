@@ -659,100 +659,120 @@ function criarGraficoBarrasCategoriasComFiltros(dadosFinanceiros, ano, filtros) 
 // ================================================================
 
 function criarGraficoCategoriasMensaisComFiltros(dadosFinanceiros, ano, filtros) {
-    const canvas = document.getElementById('categorias-mensais-chart');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = document.getElementById('categorias-mensais-chart')?.getContext('2d');
+    if (!ctx) return;
     
     const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     
     if (!dadosFinanceiros[ano]) return;
-
-    const categoriasMap = {};
-    const listaCategoriasSet = new Set();
-
-    // 1. Processamento dos dados (Soma valores por categoria/mês)
+    
+    if (window.categoriasEmpilhadasChart) {
+        window.categoriasEmpilhadasChart.destroy();
+    }
+    
+    const dadosMensaisPorCategoria = {};
+    let todasCategorias = new Set();
+    
     for (let i = 0; i < 12; i++) {
         const dadosMes = dadosFinanceiros[ano].meses[i];
+        dadosMensaisPorCategoria[i] = { mes: nomesMeses[i], total: 0 };
+        
         if (!dadosMes || !dadosMes.despesas) continue;
-
+        
         const despesasFiltradas = aplicarFiltrosDespesas(dadosMes.despesas, filtros);
-
+        
         despesasFiltradas.forEach(despesa => {
             const categoria = window.obterCategoriaLimpa ? window.obterCategoriaLimpa(despesa) : (despesa.categoria || 'Sem categoria');
             const valor = window.obterValorRealDespesa ? window.obterValorRealDespesa(despesa) : (despesa.valor || 0);
             
-            if (valor > 0) {
-                if (!categoriasMap[categoria]) {
-                    categoriasMap[categoria] = Array(12).fill(0);
-                }
-                categoriasMap[categoria][i] += valor;
-                listaCategoriasSet.add(categoria);
+            if (!isNaN(valor) && valor > 0) {
+                todasCategorias.add(categoria);
+                dadosMensaisPorCategoria[i][categoria] = (dadosMensaisPorCategoria[i][categoria] || 0) + valor;
+                dadosMensaisPorCategoria[i].total += valor;
             }
         });
     }
-
-    // 2. Criação dos Datasets (Um para cada CATEGORIA)
-    const coresBase = [
-        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', 
-        '#FF9F40', '#C9CBCF', '#46d39a', '#70a1ff', '#5352ed'
-    ];
-
-    const datasets = Array.from(listaCategoriasSet).map((categoria, index) => {
+    
+    const categorias = Array.from(todasCategorias);
+    let categoriasParaExibir = categorias;
+    
+    if (categorias.length > 20) {
+        const totalPorCategoria = {};
+        categorias.forEach(cat => {
+            totalPorCategoria[cat] = 0;
+            for (let i = 0; i < 12; i++) {
+                if (dadosMensaisPorCategoria[i][cat]) totalPorCategoria[cat] += dadosMensaisPorCategoria[i][cat];
+            }
+        });
+        const ordenadas = Object.keys(totalPorCategoria).sort((a,b) => totalPorCategoria[b] - totalPorCategoria[a]).slice(0, 20);
+        categoriasParaExibir = [...ordenadas, "Outros"];
+        for (let i = 0; i < 12; i++) {
+            let outrosValor = 0;
+            categorias.forEach(cat => {
+                if (!ordenadas.includes(cat) && dadosMensaisPorCategoria[i][cat]) {
+                    outrosValor += dadosMensaisPorCategoria[i][cat];
+                    delete dadosMensaisPorCategoria[i][cat];
+                }
+            });
+            if (outrosValor > 0) dadosMensaisPorCategoria[i]["Outros"] = outrosValor;
+        }
+    }
+    
+    const dadosParaGrafico = Object.values(dadosMensaisPorCategoria);
+    
+    const datasets = categoriasParaExibir.map((categoria) => {
         return {
-            label: categoria, // A CATEGORIA VAI PARA A LEGENDA
-            data: categoriasMap[categoria], // Valores dos 12 meses
-            backgroundColor: coresBase[index % coresBase.length],
-            borderWidth: 0
+            label: categoria,
+            data: dadosParaGrafico.map(dadosMes => dadosMes[categoria] || 0),
+            backgroundColor: obterCorCategoria(categoria),
+            borderColor: obterCorCategoria(categoria).replace('0.7', '1'),
+            borderWidth: 1
         };
     });
-
-    // 3. Destruir instância anterior
-    if (window.categoriasEmpilhadasChart) {
-        window.categoriasEmpilhadasChart.destroy();
-    }
-
-    // 4. Renderização (Eixo X = Meses)
-    window.categoriasEmpilhadasChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: nomesMeses, // MESES NO EIXO X
-            datasets: datasets
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: { 
-                    stacked: true // Empilhamento no eixo X
-                },
-                y: { 
-                    stacked: true, // Empilhamento no eixo Y
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) {
-                            return window.formatarMoeda ? window.formatarMoeda(value) : 'R$ ' + value;
-                        }
-                    }
-                }
+    
+    if (dadosParaGrafico.length > 0 && categoriasParaExibir.length > 0) {
+        window.categoriasEmpilhadasChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: nomesMeses,
+                datasets: datasets
             },
-            plugins: {
-                legend: {
-                    display: true,
-                    position: 'bottom' // Legenda de categorias embaixo
+            options: {
+                indexAxis: 'y', // Ativa barras horizontais
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { 
+                        stacked: true, // Empilhamento no eixo X (valores)
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return window.formatarMoeda(value);
+                            }
+                        }
+                    },
+                    y: { 
+                        stacked: true // Empilhamento no eixo Y (meses)
+                    }
                 },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const valor = context.raw;
-                            if (valor === 0) return null;
-                            const valorF = window.formatarMoeda ? window.formatarMoeda(valor) : 'R$ ' + valor;
-                            return `${context.dataset.label}: ${valorF}`;
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const valor = context.raw;
+                                const categoria = context.dataset.label;
+                                const mesIndex = context.dataIndex;
+                                const totalMes = dadosParaGrafico[mesIndex].total;
+                                const porcentagem = totalMes > 0 ? ((valor / totalMes) * 100).toFixed(1) : 0;
+                                return `${categoria}: ${window.formatarMoeda(valor)} (${porcentagem}%)`;
+                            }
                         }
                     }
                 }
             }
-        }
-    });
+        });
+    }
 }
 
 // ================================================================
