@@ -688,60 +688,56 @@ function abrirModalNovaDespesa(index) {
    if (typeof recarregarEAtualizarCartoes === 'function') {
        recarregarEAtualizarCartoes();
    }
-   
-   setTimeout(() => {
-       try {
-           if (window.mesAberto === null || window.anoAberto === null) {
-               window.mesAberto = new Date().getMonth();
-               window.anoAberto = new Date().getFullYear();
-           }
-        
-           const modal = document.getElementById('modal-nova-despesa');
-           const form = document.getElementById('form-nova-despesa');
-           
-           if (!modal || !form) {
-               throw new Error(ERROS.MODAL_NAO_ENCONTRADO);
-           }
-           
-           form.reset();
-           resetarEstadoFormularioDespesa();
-           processandoDespesa = false;
-           
-           if (window.sistemaAnexos) {
-               window.sistemaAnexos.limparAnexosTemporarios('despesa');
-               window.sistemaAnexos.limparAnexosTemporarios('comprovante');
-           }
-           
-           document.getElementById('despesa-mes').value = window.mesAberto;
-           document.getElementById('despesa-ano').value = window.anoAberto;
-           
-           if (typeof atualizarOpcoesCartoes === 'function') {
-               atualizarOpcoesCartoes();
-           }
-           
-           const dataAtual = new Date(window.anoAberto, window.mesAberto, new Date().getDate());
-           const dataFormatada = dataAtual.toISOString().split('T')[0];
-           document.getElementById('despesa-data-compra').value = dataFormatada;
-           document.getElementById('despesa-data-vencimento').value = dataFormatada;
-           
-           if (index !== undefined && window.dadosFinanceiros[window.anoAberto]?.meses[window.mesAberto]?.despesas?.[index]) {
-               preencherFormularioEdicao(index);
-           } else {
-               document.getElementById('despesa-id').value = '';
-           }
-           
-           modal.classList.add('active');
-           modal.style.display = 'block';
-           
-           setTimeout(() => {
-               const descricaoInput = document.getElementById('despesa-descricao');
-               if (descricaoInput) descricaoInput.focus();
-           }, 300);
-           
-       } catch (error) {
-           alert("Não foi possível abrir o formulário: " + error.message);
+
+   try {
+       if (window.mesAberto === null || window.anoAberto === null) {
+           window.mesAberto = new Date().getMonth();
+           window.anoAberto = new Date().getFullYear();
        }
-   }, 200);
+
+       const modal = document.getElementById('modal-nova-despesa');
+       const form = document.getElementById('form-nova-despesa');
+
+       if (!modal || !form) {
+           throw new Error(ERROS.MODAL_NAO_ENCONTRADO);
+       }
+
+       form.reset();
+       resetarEstadoFormularioDespesa();
+       processandoDespesa = false;
+
+       if (window.sistemaAnexos) {
+           window.sistemaAnexos.limparAnexosTemporarios('despesa');
+           window.sistemaAnexos.limparAnexosTemporarios('comprovante');
+       }
+
+       document.getElementById('despesa-mes').value = window.mesAberto;
+       document.getElementById('despesa-ano').value = window.anoAberto;
+
+       if (typeof atualizarOpcoesCartoes === 'function') {
+           atualizarOpcoesCartoes();
+       }
+
+       const dataAtual = new Date(window.anoAberto, window.mesAberto, new Date().getDate());
+       const dataFormatada = dataAtual.toISOString().split('T')[0];
+       document.getElementById('despesa-data-compra').value = dataFormatada;
+       document.getElementById('despesa-data-vencimento').value = dataFormatada;
+
+       if (index !== undefined && window.dadosFinanceiros[window.anoAberto]?.meses[window.mesAberto]?.despesas?.[index]) {
+           preencherFormularioEdicao(index);
+       } else {
+           document.getElementById('despesa-id').value = '';
+       }
+
+       modal.classList.add('active');
+       modal.style.display = 'block';
+
+       const descricaoInput = document.getElementById('despesa-descricao');
+       if (descricaoInput) descricaoInput.focus();
+
+   } catch (error) {
+       alert("Não foi possível abrir o formulário: " + error.message);
+   }
 }
 
 
@@ -905,7 +901,11 @@ async function salvarDespesa(e) {
             console.log('✅ Despesa salva com sucesso, atualizando UI...');
 
             // ✅ FECHAR MODAL
-            document.getElementById('modal-nova-despesa').style.display = 'none';
+            const modal = document.getElementById('modal-nova-despesa');
+            if (modal) {
+                modal.classList.remove('active');
+                modal.style.display = 'none';
+            }
 
             // ✅ EXIBIR MENSAGEM DE SUCESSO
             if (window.mostrarMensagemSucesso) {
