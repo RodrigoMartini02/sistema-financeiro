@@ -1278,11 +1278,12 @@
 .logs-filtros {
     background: var(--config-light);
     padding: 20px;
-    border-radius: 8px;
+    border-radius: 0;
     margin-bottom: 20px;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(5, 1fr);
     gap: 15px;
+    align-items: end;
 }
 
 .filtro-grupo {
@@ -1297,6 +1298,12 @@
     color: var(--config-dark);
 }
 
+.filtro-grupo .form-input,
+.filtro-grupo .form-select {
+    border-radius: 0;
+    height: 38px;
+}
+
 .filtro-acoes {
     grid-column: 1 / -1;
     display: flex;
@@ -1305,10 +1312,14 @@
     margin-top: 10px;
 }
 
+.filtro-acoes button {
+    border-radius: 0;
+}
+
 /* Tabela de Logs */
 .lista-logs-container {
     background: white;
-    border-radius: 8px;
+    border-radius: 0;
     overflow: hidden;
     box-shadow: var(--config-shadow);
     max-height: 500px;
@@ -1357,7 +1368,7 @@
 .badge-acao {
     display: inline-block;
     padding: 4px 10px;
-    border-radius: 12px;
+    border-radius: 0;
     font-size: 12px;
     font-weight: 600;
     text-transform: uppercase;
@@ -1427,7 +1438,7 @@
     color: white;
     border: none;
     padding: 10px 20px;
-    border-radius: 6px;
+    border-radius: 0;
     cursor: pointer;
     font-size: 14px;
     font-weight: 500;
@@ -1439,8 +1450,6 @@
 
 .btn-danger:hover {
     background: var(--config-danger-hover);
-    transform: translateY(-2px);
-    box-shadow: var(--config-shadow-hover);
 }
 
 .btn-danger i {
