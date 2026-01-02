@@ -300,7 +300,7 @@ function renderizarLogs(logs = null) {
         tr.innerHTML = `
             <td>${formatarDataLog(log.data)}</td>
             <td>${log.hora}</td>
-            <td>${log.modulo}</td>
+            <td><span class="badge-modulo">${log.modulo}</span></td>
             <td><span class="badge-acao acao-${log.acao.toLowerCase()}">${log.acao}</span></td>
             <td>${log.usuario}</td>
             <td>${log.categoria}</td>
@@ -310,8 +310,6 @@ function renderizarLogs(logs = null) {
 
         listaLogs.appendChild(tr);
     });
-
-    atualizarEstatisticasLogs(logsParaRenderizar);
 }
 
 /**
@@ -327,45 +325,21 @@ function formatarDataLog(dataString) {
 }
 
 /**
- * Atualiza as estatísticas dos logs
- */
-function atualizarEstatisticasLogs(logs) {
-    const totalLogs = document.getElementById('total-logs');
-    const totalCriados = document.getElementById('total-criados');
-    const totalEditados = document.getElementById('total-editados');
-    const totalExcluidos = document.getElementById('total-excluidos');
-
-    if (!totalLogs) return;
-
-    const stats = {
-        total: logs.length,
-        criados: logs.filter(l => l.acao.toLowerCase() === 'criado').length,
-        editados: logs.filter(l => l.acao.toLowerCase() === 'editado').length,
-        excluidos: logs.filter(l => l.acao.toLowerCase() === 'excluído').length
-    };
-
-    totalLogs.textContent = stats.total;
-    if (totalCriados) totalCriados.textContent = stats.criados;
-    if (totalEditados) totalEditados.textContent = stats.editados;
-    if (totalExcluidos) totalExcluidos.textContent = stats.excluidos;
-}
-
-/**
  * Aplica filtros aos logs
  */
 function filtrarLogs() {
+    const modulo = document.getElementById('filtro-modulo')?.value;
     const dataInicio = document.getElementById('filtro-data-inicio')?.value;
     const dataFim = document.getElementById('filtro-data-fim')?.value;
     const acao = document.getElementById('filtro-acao')?.value;
     const busca = document.getElementById('filtro-busca')?.value;
 
-    const filtros = {
-        modulo: 'Receitas' // Por enquanto apenas Receitas
-    };
+    const filtros = {};
 
+    if (modulo && modulo !== 'todos') filtros.modulo = modulo;
     if (dataInicio) filtros.dataInicio = dataInicio;
     if (dataFim) filtros.dataFim = dataFim;
-    if (acao) filtros.acao = acao;
+    if (acao && acao !== 'todos') filtros.acao = acao;
     if (busca) filtros.busca = busca;
 
     const logsFiltrados = window.logManager.filtrar(filtros);
@@ -376,11 +350,13 @@ function filtrarLogs() {
  * Limpa todos os filtros
  */
 function limparFiltrosLogs() {
+    const modulo = document.getElementById('filtro-modulo');
     const dataInicio = document.getElementById('filtro-data-inicio');
     const dataFim = document.getElementById('filtro-data-fim');
     const acao = document.getElementById('filtro-acao');
     const busca = document.getElementById('filtro-busca');
 
+    if (modulo) modulo.value = 'todos';
     if (dataInicio) dataInicio.value = '';
     if (dataFim) dataFim.value = '';
     if (acao) acao.value = 'todos';
@@ -393,6 +369,7 @@ function limparFiltrosLogs() {
  * Exporta logs para CSV
  */
 function exportarLogsCSV() {
+    const modulo = document.getElementById('filtro-modulo')?.value;
     const dataInicio = document.getElementById('filtro-data-inicio')?.value;
     const dataFim = document.getElementById('filtro-data-fim')?.value;
     const acao = document.getElementById('filtro-acao')?.value;
@@ -401,11 +378,12 @@ function exportarLogsCSV() {
     let logsParaExportar;
 
     // Se há filtros, exportar apenas os filtrados
-    if (dataInicio || dataFim || (acao && acao !== 'todos') || busca) {
-        const filtros = { modulo: 'Receitas' };
+    if (modulo || dataInicio || dataFim || acao || busca) {
+        const filtros = {};
+        if (modulo && modulo !== 'todos') filtros.modulo = modulo;
         if (dataInicio) filtros.dataInicio = dataInicio;
         if (dataFim) filtros.dataFim = dataFim;
-        if (acao) filtros.acao = acao;
+        if (acao && acao !== 'todos') filtros.acao = acao;
         if (busca) filtros.busca = busca;
 
         logsParaExportar = window.logManager.filtrar(filtros);

@@ -1305,60 +1305,6 @@
     margin-top: 10px;
 }
 
-/* Estatísticas dos Logs */
-.logs-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-    margin-bottom: 20px;
-}
-
-.stat-item {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 20px;
-    border-radius: 8px;
-    text-align: center;
-    box-shadow: var(--config-shadow);
-}
-
-.stat-item:nth-child(1) {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.stat-item:nth-child(2) {
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-}
-
-.stat-item:nth-child(3) {
-    background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
-}
-
-.stat-item:nth-child(4) {
-    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-}
-
-.stat-item i {
-    font-size: 24px;
-    margin-bottom: 10px;
-    display: block;
-    opacity: 0.9;
-}
-
-.stat-item span {
-    font-size: 32px;
-    font-weight: bold;
-    display: block;
-    margin: 5px 0;
-}
-
-.stat-item small {
-    font-size: 12px;
-    opacity: 0.9;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
 /* Tabela de Logs */
 .lista-logs-container {
     background: white;
@@ -1406,7 +1352,8 @@
     color: var(--config-dark);
 }
 
-/* Badges de Ação */
+/* Badges de Módulo e Ação */
+.badge-modulo,
 .badge-acao {
     display: inline-block;
     padding: 4px 10px;
@@ -1415,6 +1362,11 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.3px;
+}
+
+.badge-modulo {
+    background: #e3f2fd;
+    color: #1565c0;
 }
 
 .acao-criado {

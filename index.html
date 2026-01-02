@@ -1066,11 +1066,20 @@
         <!-- ============================================== -->
         <div id="logs-tab" class="config-tab-pane">
             <div class="config-card">
-                <h3><i class="fas fa-history"></i> Logs do Sistema - Receitas</h3>
-                <p>Visualize o histórico de todas as ações realizadas no módulo de Receitas.</p>
+                <h3><i class="fas fa-history"></i> Logs do Sistema</h3>
 
-                <!-- Filtros de Logs -->
+                <!-- Filtros -->
                 <div class="logs-filtros">
+                    <div class="filtro-grupo">
+                        <label for="filtro-modulo">Módulo:</label>
+                        <select id="filtro-modulo" class="form-select">
+                            <option value="todos">Todos</option>
+                            <option value="Receitas">Receitas</option>
+                            <option value="Despesas">Despesas</option>
+                            <option value="Configurações">Configurações</option>
+                        </select>
+                    </div>
+
                     <div class="filtro-grupo">
                         <label for="filtro-data-inicio">Data Início:</label>
                         <input type="date" id="filtro-data-inicio" class="form-input">
@@ -1112,30 +1121,6 @@
                     </div>
                 </div>
 
-                <!-- Estatísticas dos Logs -->
-                <div class="logs-stats">
-                    <div class="stat-item">
-                        <i class="fas fa-database"></i>
-                        <span id="total-logs">0</span>
-                        <small>Total de Logs</small>
-                    </div>
-                    <div class="stat-item">
-                        <i class="fas fa-plus-circle"></i>
-                        <span id="total-criados">0</span>
-                        <small>Criados</small>
-                    </div>
-                    <div class="stat-item">
-                        <i class="fas fa-edit"></i>
-                        <span id="total-editados">0</span>
-                        <small>Editados</small>
-                    </div>
-                    <div class="stat-item">
-                        <i class="fas fa-trash-alt"></i>
-                        <span id="total-excluidos">0</span>
-                        <small>Excluídos</small>
-                    </div>
-                </div>
-
                 <!-- Tabela de Logs -->
                 <div class="lista-logs-container">
                     <table id="tabela-logs" class="tabela-logs">
@@ -1161,19 +1146,8 @@
                 <div id="sem-logs-message" class="empty-state hidden">
                     <i class="fas fa-inbox"></i>
                     <p>Nenhum log encontrado</p>
-                    <small>As ações realizadas em Receitas aparecerão aqui</small>
+                    <small>As ações realizadas no sistema aparecerão aqui</small>
                 </div>
-            </div>
-
-            <div class="config-card info-card">
-                <h3><i class="fas fa-info-circle"></i> Sobre os Logs</h3>
-                <ul>
-                    <li>Os logs registram todas as ações realizadas no módulo de Receitas</li>
-                    <li>Cada log contém: data, hora, ação, usuário e detalhes da operação</li>
-                    <li>Use os filtros para encontrar logs específicos</li>
-                    <li>Você pode exportar os logs em formato CSV</li>
-                    <li>O sistema mantém os últimos 1000 registros automaticamente</li>
-                </ul>
             </div>
         </div>
 
