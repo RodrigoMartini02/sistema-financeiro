@@ -770,6 +770,171 @@ async function salvarCartoesForms() {
 }
 
 // ================================================================
+// SISTEMA DE USUÁRIOS - PERMISSÕES
+// ================================================================
+
+/**
+ * Verifica se o usuário atual pode visualizar outro usuário
+ * @param {Object} usuario - Usuário a ser visualizado
+ * @returns {boolean} - True se pode visualizar
+ */
+function podeVisualizarUsuario(usuario) {
+    const usuarioAtual = window.usuarioDataManager?.getUsuarioAtual();
+    if (!usuarioAtual) return false;
+
+    const tipoAtual = usuarioAtual.tipo || 'padrao';
+
+    // MASTER: Vê todos
+    if (tipoAtual === 'master') return true;
+
+    // ADMINISTRADOR: Vê apenas padrão e ele mesmo
+    if (tipoAtual === 'admin') {
+        if (usuario.id === usuarioAtual.id) return true;
+        if (usuario.tipo === 'padrao') return true;
+        return false;
+    }
+
+    // PADRÃO: Vê apenas ele mesmo
+    if (tipoAtual === 'padrao') {
+        return usuario.id === usuarioAtual.id;
+    }
+
+    return false;
+}
+
+/**
+ * Verifica se o usuário atual pode editar outro usuário
+ * @param {Object} usuario - Usuário a ser editado
+ * @returns {boolean} - True se pode editar
+ */
+function podeEditarUsuario(usuario) {
+    const usuarioAtual = window.usuarioDataManager?.getUsuarioAtual();
+    if (!usuarioAtual) return false;
+
+    const tipoAtual = usuarioAtual.tipo || 'padrao';
+
+    // MASTER: Edita todos
+    if (tipoAtual === 'master') return true;
+
+    // ADMINISTRADOR: Edita apenas padrão e ele mesmo
+    if (tipoAtual === 'admin') {
+        if (usuario.id === usuarioAtual.id) return true;
+        if (usuario.tipo === 'padrao') return true;
+        return false;
+    }
+
+    // PADRÃO: Edita apenas ele mesmo
+    if (tipoAtual === 'padrao') {
+        return usuario.id === usuarioAtual.id;
+    }
+
+    return false;
+}
+
+/**
+ * Verifica se o usuário atual pode excluir outro usuário
+ * @param {Object} usuario - Usuário a ser excluído
+ * @returns {boolean} - True se pode excluir
+ */
+function podeExcluirUsuario(usuario) {
+    const usuarioAtual = window.usuarioDataManager?.getUsuarioAtual();
+    if (!usuarioAtual) return false;
+
+    const tipoAtual = usuarioAtual.tipo || 'padrao';
+
+    // MASTER: Exclui todos (exceto ele mesmo para segurança)
+    if (tipoAtual === 'master') {
+        return usuario.id !== usuarioAtual.id;
+    }
+
+    // ADMINISTRADOR: Não pode excluir
+    if (tipoAtual === 'admin') return false;
+
+    // PADRÃO: Não pode excluir (nem ele mesmo)
+    if (tipoAtual === 'padrao') return false;
+
+    return false;
+}
+
+/**
+ * Verifica se o usuário atual pode bloquear/desbloquear outro usuário
+ * @param {Object} usuario - Usuário a ser bloqueado
+ * @returns {boolean} - True se pode bloquear
+ */
+function podeBloquearUsuario(usuario) {
+    const usuarioAtual = window.usuarioDataManager?.getUsuarioAtual();
+    if (!usuarioAtual) return false;
+
+    const tipoAtual = usuarioAtual.tipo || 'padrao';
+
+    // MASTER: Bloqueia todos (exceto ele mesmo)
+    if (tipoAtual === 'master') {
+        return usuario.id !== usuarioAtual.id;
+    }
+
+    // ADMINISTRADOR: Bloqueia apenas padrão (não pode bloquear a si mesmo)
+    if (tipoAtual === 'admin') {
+        if (usuario.id === usuarioAtual.id) return false;
+        return usuario.tipo === 'padrao';
+    }
+
+    // PADRÃO: Não pode bloquear
+    return false;
+}
+
+/**
+ * Verifica se o usuário atual pode criar novos usuários
+ * @returns {boolean} - True se pode criar
+ */
+function podeCriarUsuario() {
+    const usuarioAtual = window.usuarioDataManager?.getUsuarioAtual();
+    if (!usuarioAtual) return false;
+
+    const tipoAtual = usuarioAtual.tipo || 'padrao';
+
+    // MASTER e ADMINISTRADOR: Podem criar usuários
+    return tipoAtual === 'master' || tipoAtual === 'admin';
+}
+
+/**
+ * Verifica se o usuário atual pode limpar logs
+ * @returns {boolean} - True se pode limpar logs
+ */
+function podeLimparLogs() {
+    const usuarioAtual = window.usuarioDataManager?.getUsuarioAtual();
+    if (!usuarioAtual) return false;
+
+    const tipoAtual = usuarioAtual.tipo || 'padrao';
+
+    // Apenas MASTER pode limpar logs
+    return tipoAtual === 'master';
+}
+
+/**
+ * Retorna os tipos de usuário que podem ser criados pelo usuário atual
+ * @returns {Array} - Array de tipos permitidos ['padrao', 'admin', 'master']
+ */
+function obterTiposPermitidos() {
+    const usuarioAtual = window.usuarioDataManager?.getUsuarioAtual();
+    if (!usuarioAtual) return ['padrao'];
+
+    const tipoAtual = usuarioAtual.tipo || 'padrao';
+
+    // MASTER: Pode criar todos os tipos
+    if (tipoAtual === 'master') {
+        return ['padrao', 'admin', 'master'];
+    }
+
+    // ADMINISTRADOR: Pode criar apenas padrão e admin
+    if (tipoAtual === 'admin') {
+        return ['padrao', 'admin'];
+    }
+
+    // PADRÃO: Não pode criar (mas retorna array vazio para evitar erros)
+    return [];
+}
+
+// ================================================================
 // SISTEMA DE USUÁRIOS
 // ================================================================
 function obterTipoUsuarioAtual() {
@@ -787,13 +952,24 @@ function ajustarVisibilidadeElementos() {
             tabUsuarios.classList.add('hidden');
         }
     }
-    
+
+    // Botão "Novo Usuário" - Visível para MASTER e ADMINISTRADOR
     const btnAdicionarUsuario = document.getElementById('btn-adicionar-usuario');
     if (btnAdicionarUsuario) {
-        if (tipoUsuarioAtual === 'master') {
+        if (podeCriarUsuario()) {
             btnAdicionarUsuario.classList.remove('hidden');
         } else {
             btnAdicionarUsuario.classList.add('hidden');
+        }
+    }
+
+    // Botão "Limpar Logs" - Visível apenas para MASTER
+    const btnLimparTodosLogs = document.getElementById('btn-limpar-todos-logs');
+    if (btnLimparTodosLogs) {
+        if (podeLimparLogs()) {
+            btnLimparTodosLogs.classList.remove('hidden');
+        } else {
+            btnLimparTodosLogs.classList.add('hidden');
         }
     }
 }
@@ -827,7 +1003,9 @@ async function filtrarUsuarios() {
         const data = await response.json();
 
         if (response.ok && data.success) {
-            usuariosFiltrados = data.data || [];
+            // 🔥 APLICAR FILTRO DE PERMISSÕES
+            const todosUsuarios = data.data || [];
+            usuariosFiltrados = todosUsuarios.filter(usuario => podeVisualizarUsuario(usuario));
         } else {
             console.error('❌ Erro ao buscar usuários:', data.message);
             usuariosFiltrados = [];
@@ -880,62 +1058,79 @@ function renderizarUsuarios() {
 function criarLinhaUsuario(usuario, index) {
     const template = document.getElementById('template-linha-usuario');
     if (!template) return null;
-    
+
     const linha = template.content.cloneNode(true);
-    
+
     const tipo = usuario.tipo || 'padrao';
     const status = usuario.status || 'ativo';
-    
+
     linha.querySelector('.usuario-nome').textContent = usuario.nome || '-';
     linha.querySelector('.usuario-documento').textContent = usuario.documento || '-';
     linha.querySelector('.usuario-email').textContent = usuario.email || '-';
-    
+
     const tipoBadge = linha.querySelector('.tipo-badge');
     tipoBadge.textContent = tipo === 'padrao' ? 'Padrão' : tipo === 'admin' ? 'Admin' : 'Master';
     tipoBadge.className = `tipo-badge tipo-${tipo}`;
-    
+
     const statusBadge = linha.querySelector('.status-badge');
     statusBadge.textContent = status === 'ativo' ? 'Ativo' : status === 'inativo' ? 'Inativo' : 'Bloqueado';
     statusBadge.className = `status-badge status-${status}`;
-    
+
     const btnEditar = linha.querySelector('.btn-editar-usuario');
     const btnBloquear = linha.querySelector('.btn-bloquear-usuario');
     const btnExcluir = linha.querySelector('.btn-excluir-usuario');
     const textoSemPermissao = linha.querySelector('.texto-sem-permissao');
-    
+
     btnEditar.setAttribute('data-index', index);
     btnBloquear.setAttribute('data-index', index);
     btnExcluir.setAttribute('data-index', index);
-    
+
     if (status === 'bloqueado') {
         btnBloquear.title = 'Desbloquear usuário';
         btnBloquear.querySelector('i').className = 'fas fa-unlock';
         btnBloquear.classList.add('btn-desbloquear');
     }
-    
-    if (tipoUsuarioAtual === 'master') {
+
+    // 🔥 USAR FUNÇÕES DE PERMISSÃO
+    const podeEditar = podeEditarUsuario(usuario);
+    const podeBloquear = podeBloquearUsuario(usuario);
+    const podeExcluir = podeExcluirUsuario(usuario);
+    const temAlgumaPermissao = podeEditar || podeBloquear || podeExcluir;
+
+    if (podeEditar) {
         btnEditar.classList.remove('hidden');
-        btnBloquear.classList.remove('hidden');
-        btnExcluir.classList.remove('hidden');
-        textoSemPermissao.classList.add('hidden');
-    } else if (tipoUsuarioAtual === 'admin') {
-        if (tipo === 'padrao') {
-            btnEditar.classList.remove('hidden');
-            btnBloquear.classList.remove('hidden');
-            btnExcluir.classList.add('hidden');
-            textoSemPermissao.classList.add('hidden');
-        } else {
-            btnEditar.classList.add('hidden');
-            btnBloquear.classList.add('hidden');
-            btnExcluir.classList.add('hidden');
-            textoSemPermissao.classList.remove('hidden');
-        }
+    } else {
+        btnEditar.classList.add('hidden');
     }
-    
+
+    if (podeBloquear) {
+        btnBloquear.classList.remove('hidden');
+    } else {
+        btnBloquear.classList.add('hidden');
+    }
+
+    if (podeExcluir) {
+        btnExcluir.classList.remove('hidden');
+    } else {
+        btnExcluir.classList.add('hidden');
+    }
+
+    if (temAlgumaPermissao) {
+        textoSemPermissao.classList.add('hidden');
+    } else {
+        textoSemPermissao.classList.remove('hidden');
+    }
+
     return linha;
 }
 
 async function alternarBloqueioUsuario(usuario) {
+    // 🔥 VERIFICAR PERMISSÃO
+    if (!podeBloquearUsuario(usuario)) {
+        mostrarFeedback('Você não tem permissão para bloquear/desbloquear este usuário', 'error');
+        return;
+    }
+
     const estavaBloqueado = usuario.status === 'bloqueado';
     const acao = estavaBloqueado ? 'desbloquear' : 'bloquear';
 
@@ -972,6 +1167,12 @@ async function alternarBloqueioUsuario(usuario) {
 }
 
 function excluirUsuario(usuario) {
+    // 🔥 VERIFICAR PERMISSÃO
+    if (!podeExcluirUsuario(usuario)) {
+        mostrarFeedback('Você não tem permissão para excluir este usuário', 'error');
+        return;
+    }
+
     const nomeUsuarioElement = document.getElementById('usuario-nome-exclusao');
     if (nomeUsuarioElement) {
         nomeUsuarioElement.textContent = usuario.nome;
@@ -1019,16 +1220,54 @@ async function confirmarExclusaoUsuario() {
 function abrirModalEditarUsuario(usuario, isNovo = false) {
     const modal = document.getElementById(isNovo ? 'modal-adicionar-usuario' : 'modal-editar-usuario');
     const form = document.getElementById(isNovo ? 'form-adicionar-usuario' : 'form-editar-usuario');
-    
+
     if (!modal || !form) return;
-    
+
     form.reset();
-    
+
     if (!isNovo && usuario) {
         preencherDadosUsuario(usuario);
+    } else if (isNovo) {
+        // 🔥 CONFIGURAR DROPDOWN DE TIPOS PERMITIDOS PARA NOVO USUÁRIO
+        configurarDropdownTipos(isNovo);
     }
-    
+
     modal.style.display = 'flex';
+}
+
+/**
+ * Configura o dropdown de tipos de usuário baseado nas permissões
+ * @param {boolean} isNovo - Se é um novo usuário ou edição
+ */
+function configurarDropdownTipos(isNovo = false) {
+    const selectTipo = document.getElementById(isNovo ? 'novo-usuario-tipo' : 'editar-usuario-tipo');
+    if (!selectTipo) return;
+
+    const tiposPermitidos = obterTiposPermitidos();
+
+    // Limpar opções existentes
+    selectTipo.innerHTML = '';
+
+    // Adicionar apenas os tipos permitidos
+    tiposPermitidos.forEach(tipo => {
+        const option = document.createElement('option');
+        option.value = tipo;
+
+        if (tipo === 'padrao') {
+            option.textContent = 'Padrão';
+        } else if (tipo === 'admin') {
+            option.textContent = 'Administrador';
+        } else if (tipo === 'master') {
+            option.textContent = 'Master';
+        }
+
+        selectTipo.appendChild(option);
+    });
+
+    // Definir valor padrão
+    if (tiposPermitidos.length > 0) {
+        selectTipo.value = 'padrao';
+    }
 }
 
 function preencherDadosUsuario(usuario) {
@@ -1038,7 +1277,6 @@ function preencherDadosUsuario(usuario) {
         'editar-usuario-nome': usuario.nome || '',
         'editar-usuario-email': usuario.email || '',
         'editar-usuario-documento': usuario.documento || '',
-        'editar-usuario-tipo': usuario.tipo || 'padrao',
         'editar-usuario-status': usuario.status || 'ativo'
     };
 
@@ -1049,32 +1287,83 @@ function preencherDadosUsuario(usuario) {
         }
     });
 
+    // 🔥 CONFIGURAR DROPDOWN DE TIPOS BASEADO EM PERMISSÕES
+    const tiposPermitidos = obterTiposPermitidos();
+    const selectTipo = document.getElementById('editar-usuario-tipo');
+
+    if (selectTipo) {
+        // Limpar e recriar opções
+        selectTipo.innerHTML = '';
+
+        tiposPermitidos.forEach(tipo => {
+            const option = document.createElement('option');
+            option.value = tipo;
+
+            if (tipo === 'padrao') {
+                option.textContent = 'Padrão';
+            } else if (tipo === 'admin') {
+                option.textContent = 'Administrador';
+            } else if (tipo === 'master') {
+                option.textContent = 'Master';
+            }
+
+            selectTipo.appendChild(option);
+        });
+
+        // Definir o valor do usuário (se permitido)
+        if (tiposPermitidos.includes(usuario.tipo)) {
+            selectTipo.value = usuario.tipo || 'padrao';
+        } else {
+            // Se o tipo do usuário não está permitido, desabilitar o campo
+            selectTipo.value = usuario.tipo || 'padrao';
+            selectTipo.disabled = true;
+        }
+    }
+
     const formGroupTipo = document.getElementById('form-group-tipo');
     const permissaoMessage = document.getElementById('permissao-message');
 
-    if (tipoUsuarioAtual !== 'master') {
+    // 🔥 VERIFICAR SE PODE EDITAR ESTE USUÁRIO
+    const podeEditar = podeEditarUsuario(usuario);
+
+    if (!podeEditar) {
+        // Desabilitar todos os campos
+        ['editar-usuario-nome', 'editar-usuario-email', 'editar-usuario-status',
+         'editar-usuario-senha', 'editar-usuario-confirmar-senha', 'editar-usuario-tipo'].forEach(id => {
+            const elemento = document.getElementById(id);
+            if (elemento) elemento.disabled = true;
+        });
+
+        if (permissaoMessage) permissaoMessage.classList.remove('hidden');
         if (formGroupTipo) formGroupTipo.classList.add('hidden');
-
-        if (usuario.tipo !== 'padrao') {
-            ['editar-usuario-nome', 'editar-usuario-email', 'editar-usuario-status',
-             'editar-usuario-senha', 'editar-usuario-confirmar-senha'].forEach(id => {
-                const elemento = document.getElementById(id);
-                if (elemento) elemento.disabled = true;
-            });
-
-            if (permissaoMessage) permissaoMessage.classList.remove('hidden');
-        } else {
-            if (permissaoMessage) permissaoMessage.classList.add('hidden');
-        }
     } else {
-        if (formGroupTipo) formGroupTipo.classList.remove('hidden');
+        // Habilitar campos
+        ['editar-usuario-nome', 'editar-usuario-email', 'editar-usuario-status',
+         'editar-usuario-senha', 'editar-usuario-confirmar-senha'].forEach(id => {
+            const elemento = document.getElementById(id);
+            if (elemento) elemento.disabled = false;
+        });
+
         if (permissaoMessage) permissaoMessage.classList.add('hidden');
+
+        // Mostrar/ocultar campo de tipo baseado em permissões
+        if (tipoUsuarioAtual === 'master') {
+            if (formGroupTipo) formGroupTipo.classList.remove('hidden');
+        } else {
+            if (formGroupTipo) formGroupTipo.classList.add('hidden');
+        }
     }
 }
 
 async function salvarEdicaoUsuario(isNovo = false) {
     try {
         const prefixo = isNovo ? 'novo-usuario' : 'editar-usuario';
+
+        // 🔥 VERIFICAR PERMISSÃO PARA CRIAR/EDITAR
+        if (isNovo && !podeCriarUsuario()) {
+            mostrarValidacao('Você não tem permissão para criar usuários', 'error');
+            return;
+        }
 
         const nome = document.getElementById(`${prefixo}-nome`).value.trim();
         const email = document.getElementById(`${prefixo}-email`).value.trim();
@@ -1090,6 +1379,22 @@ async function salvarEdicaoUsuario(isNovo = false) {
             identificador = document.getElementById(`${prefixo}-documento`).value.trim();
         } else {
             identificador = document.getElementById('editar-usuario-id').value;
+        }
+
+        // 🔥 VERIFICAR SE TEM PERMISSÃO PARA EDITAR (se não é novo)
+        if (!isNovo) {
+            const usuarioParaEditar = usuariosFiltrados.find(u => u.id === identificador);
+            if (usuarioParaEditar && !podeEditarUsuario(usuarioParaEditar)) {
+                mostrarValidacao('Você não tem permissão para editar este usuário', 'error');
+                return;
+            }
+        }
+
+        // 🔥 VERIFICAR SE O TIPO SELECIONADO ESTÁ PERMITIDO
+        const tiposPermitidos = obterTiposPermitidos();
+        if (!tiposPermitidos.includes(tipo)) {
+            mostrarValidacao('Você não tem permissão para criar/editar usuários com este tipo', 'error');
+            return;
         }
 
         // Validações
@@ -1896,3 +2201,12 @@ window.inicializarConfiguracoes = inicializarConfiguracoes;
 window.exportarDados = exportarDados;
 window.importarDados = importarDados;
 window.limparDados = limparDados;
+
+// Funções de permissão
+window.podeVisualizarUsuario = podeVisualizarUsuario;
+window.podeEditarUsuario = podeEditarUsuario;
+window.podeExcluirUsuario = podeExcluirUsuario;
+window.podeBloquearUsuario = podeBloquearUsuario;
+window.podeCriarUsuario = podeCriarUsuario;
+window.podeLimparLogs = podeLimparLogs;
+window.obterTiposPermitidos = obterTiposPermitidos;
