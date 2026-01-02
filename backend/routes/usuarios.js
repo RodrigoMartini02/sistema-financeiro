@@ -951,17 +951,25 @@ router.delete('/:id/limpar-dados', authMiddleware, async (req, res) => {
             return res.status(403).json({ success: false, message: 'Acesso negado' });
         }
 
+        // Deleta os registros de todas as tabelas vinculadas ao usuario_id
         const queries = [
             query('DELETE FROM receitas WHERE usuario_id = $1', [id]),
             query('DELETE FROM despesas WHERE usuario_id = $1', [id]),
             query('DELETE FROM reservas WHERE usuario_id = $1', [id]),
             query('DELETE FROM meses WHERE usuario_id = $1', [id]),
-            query('UPDATE usuarios SET dados_financeiros = NULL WHERE id = $1', [id])
+            query('DELETE FROM categorias WHERE usuario_id = $1', [id]), // <--- LIMPA CATEGORIAS
+            query('DELETE FROM cartoes WHERE usuario_id = $1', [id]),    // <--- LIMPA CARTÕES
+            query('UPDATE usuarios SET dados_financeiros = NULL, categorias = NULL, cartoes = NULL WHERE id = $1', [id])
         ];
 
         await Promise.all(queries);
-        res.json({ success: true, message: 'Dados excluídos' });
+
+        // Opcional: Recriar categorias padrão após a limpeza
+        await query('SELECT criar_categorias_padrao($1)', [id]);
+
+        res.json({ success: true, message: 'Dados e categorias excluídos com sucesso' });
     } catch (error) {
+        console.error(error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
