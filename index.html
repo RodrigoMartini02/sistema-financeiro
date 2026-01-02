@@ -17,7 +17,8 @@
     <link rel="stylesheet" href="css/receita.css">
     <link rel="stylesheet" href="css/despesa.css">
     <link rel="stylesheet" href="css/notificacao.css">
-    <link rel="stylesheet" href="css/rel.css">    
+    <link rel="stylesheet" href="css/rel.css">
+    <link rel="stylesheet" href="css/config.css">
 </head>
 <body>
 
@@ -812,12 +813,10 @@
                 <h3><i class="fas fa-tags"></i> Gerenciamento de Categorias</h3>
                    
                 <div class="form-add-categoria">
-                    <div class="input-group">
-                        <input type="text" id="nova-categoria-nome" placeholder="Nome da categoria" maxlength="50">
-                        <button id="btn-adicionar-categoria" class="btn-action">
-                            <i class="fas fa-plus"></i> Adicionar
-                        </button>
-                    </div>
+                    <input type="text" id="nova-categoria-nome" placeholder="Nome da categoria" maxlength="50">
+                    <button id="btn-adicionar-categoria" class="btn-action">
+                        <i class="fas fa-plus"></i> Adicionar
+                    </button>
                 </div>
                 
                 <div class="lista-categorias-container">
@@ -1325,14 +1324,14 @@
 
 <!-- Template: Linha de Categoria -->
 <template id="template-linha-categoria">
-    <tr class="categoria-row">
+    <tr class="categoria-item">
         <td class="categoria-nome"></td>
-        <td class="acoes-categoria">
+        <td class="categoria-acoes">
             <button class="btn-editar-categoria" data-categoria="" title="Editar categoria">
-                <i class="fas fa-edit"></i>
+                <i class="fas fa-edit"></i> Editar
             </button>
             <button class="btn-remover-categoria" data-categoria="" title="Remover categoria">
-                <i class="fas fa-trash"></i>
+                <i class="fas fa-trash"></i> Remover
             </button>
         </td>
     </tr>

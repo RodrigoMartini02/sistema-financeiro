@@ -1208,37 +1208,16 @@ function garantirUsuarioMaster() {
 // ================================================================
 async function exportarDados() {
     try {
-        const usuario = window.usuarioDataManager?.getUsuarioAtual();
-        if (!usuario || !usuario.id) {
-            mostrarFeedback('Usuário não encontrado', 'error');
-            return;
-        }
+        // Usar dados já carregados no sistema
+        const dadosFinanceiros = window.dadosFinanceiros || {};
 
-        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
-
-        // Buscar todos os dados do usuário
-        const response = await fetch(`${API_URL}/usuarios/${usuario.id}/export`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
-            }
-        });
-
-        if (!response.ok) {
-            mostrarFeedback('Erro ao buscar dados para exportação', 'error');
-            return;
-        }
-
-        const data = await response.json();
-
-        if (!data.success) {
-            mostrarFeedback('Erro ao exportar dados', 'error');
+        if (!dadosFinanceiros || Object.keys(dadosFinanceiros).length === 0) {
+            mostrarFeedback('Não há dados para exportar', 'warning');
             return;
         }
 
         // Converter para CSV
-        const csvContent = converterParaCSV(data.dados);
+        const csvContent = converterParaCSV({ dadosFinanceiros });
 
         // Download do arquivo
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
