@@ -100,6 +100,7 @@ function configurarObservadores() {
     });
 }
 
+
 function resetarFiltros() {
     document.querySelectorAll('select[id*="tipo-filter"]').forEach(select => {
         select.value = 'ambos';
@@ -137,6 +138,75 @@ function limparGraficos() {
         }
     });
 }
+
+
+// ================================================================
+// SISTEMA DE ZOOM (MAXIMIZAR GRÁFICOS)
+// ================================================================
+
+let chartZoomInstancia = null;
+
+// Escuta cliques em qualquer botão que tenha a classe btn-expandir
+document.addEventListener('click', (event) => {
+    const btn = event.target.closest('.btn-expandir');
+    if (!btn) return;
+
+    // Pega o nome da variável global (ex: categoriasEmpilhadasChart)
+    const nomeVariavel = btn.getAttribute('data-chart');
+    const graficoOriginal = window[nomeVariavel];
+
+    if (graficoOriginal) {
+        abrirModalZoom(graficoOriginal);
+    }
+});
+
+function abrirModalZoom(chartOriginal) {
+    const modal = document.getElementById('modal-zoom-grafico');
+    const canvasZoom = document.getElementById('chart-zoom-canvas');
+    
+    if (!modal || !canvasZoom) return;
+
+    const ctxZoom = canvasZoom.getContext('2d');
+    modal.classList.add('modal-ativo');
+    
+    // Destrói versão anterior do zoom se existir
+    if (chartZoomInstancia) chartZoomInstancia.destroy();
+
+    // Cria a cópia ampliada
+    chartZoomInstancia = new Chart(ctxZoom, {
+        type: chartOriginal.config.type,
+        data: chartOriginal.data,
+        options: {
+            ...chartOriginal.options,
+            maintainAspectRatio: false,
+            plugins: {
+                ...chartOriginal.options.plugins,
+                legend: {
+                    display: true, // Força a legenda no zoom para facilitar leitura
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+// Lógica para fechar o modal
+function fecharModalZoom() {
+    const modal = document.getElementById('modal-zoom-grafico');
+    if (modal) modal.classList.remove('modal-ativo');
+    if (chartZoomInstancia) {
+        chartZoomInstancia.destroy();
+        chartZoomInstancia = null;
+    }
+}
+
+// Vincula os eventos de fechar
+document.getElementById('fechar-modal')?.addEventListener('click', fecharModalZoom);
+document.getElementById('modal-zoom-grafico')?.addEventListener('click', (e) => {
+    if (e.target.id === 'modal-zoom-grafico') fecharModalZoom();
+});
+
+
 
 // ================================================================
 // FUNÇÃO PRINCIPAL DE CARREGAMENTO
@@ -1189,70 +1259,6 @@ function obterFiltrosDoGrafico(prefixo) {
 }
 
 
-
-// ================================================================
-// SISTEMA DE ZOOM (MAXIMIZAR GRÁFICOS)
-// ================================================================
-
-let chartZoomInstancia = null;
-
-// Ouvinte de clique para os botões de expandir
-document.addEventListener('click', (event) => {
-    const btn = event.target.closest('.btn-expandir');
-    if (!btn) return;
-
-    const nomeVariavel = btn.getAttribute('data-chart');
-    const graficoOriginal = window[nomeVariavel];
-
-    if (graficoOriginal) {
-        abrirModalZoom(graficoOriginal);
-    }
-});
-
-function abrirModalZoom(chartOriginal) {
-    const modal = document.getElementById('modal-zoom-grafico');
-    const ctxZoom = document.getElementById('chart-zoom-canvas').getContext('2d');
-    
-    if (!modal || !ctxZoom) return;
-
-    modal.classList.add('modal-ativo');
-    
-    if (chartZoomInstancia) {
-        chartZoomInstancia.destroy();
-    }
-
-    // Cria uma cópia do gráfico no modal
-    chartZoomInstancia = new Chart(ctxZoom, {
-        type: chartOriginal.config.type,
-        data: chartOriginal.data,
-        options: {
-            ...chartOriginal.options,
-            maintainAspectRatio: false, // Importante para preencher o modal
-            plugins: {
-                ...chartOriginal.options.plugins,
-                legend: {
-                    display: true,
-                    position: 'bottom'
-                }
-            }
-        }
-    });
-}
-
-// Fechar o modal
-document.getElementById('fechar-modal')?.addEventListener('click', fecharModalZoom);
-document.getElementById('modal-zoom-grafico')?.addEventListener('click', (e) => {
-    if (e.target.id === 'modal-zoom-grafico') fecharModalZoom();
-});
-
-function fecharModalZoom() {
-    const modal = document.getElementById('modal-zoom-grafico');
-    modal.classList.remove('modal-ativo');
-    if (chartZoomInstancia) {
-        chartZoomInstancia.destroy();
-        chartZoomInstancia = null;
-    }
-}
 
 // ================================================================
 // FUNÇÕES DE FILTRO ESPECÍFICAS POR GRÁFICO
