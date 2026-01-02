@@ -128,65 +128,66 @@
             </div>
         </div>
 
-      <div class="content-area">
-    <section class="dashboard-section active" id="dashboard-section">
-        
-        <div class="dashboard-resumo">
-            <div class="resumo-card receitas">
-                <h3><i class="fas fa-arrow-up"></i> RECEITAS TOTAIS</h3>
-                <p id="dashboard-total-receitas">R$ 0,00</p>
-                <small>Todas as receitas do ano</small>
-            </div>
-            <div class="resumo-card despesas">
-                <h3><i class="fas fa-arrow-down"></i> DESPESAS TOTAIS</h3>
-                <p id="dashboard-total-despesas">R$ 0,00</p>
-                <small>Todas as despesas do ano</small>
-            </div>
-            <div class="resumo-card saldo">
-                <h3><i class="fas fa-wallet"></i> SALDO ANUAL</h3>
-                <p id="dashboard-saldo-anual">R$ 0,00</p>
-                <small>Balanço receitas - despesas</small>
-            </div>
-            <div class="resumo-card juros">
-                <h3><i class="fas fa-percentage"></i> JUROS PAGOS</h3>
-                <p id="dashboard-total-juros">R$ 0,00</p>
-                <small>Total de juros pagos no ano</small>
-            </div>
-            <div class="resumo-card economias">
-                <h3><i class="fas fa-piggy-bank"></i> ECONOMIAS</h3>
-                <p id="dashboard-total-economias">R$ 0,00</p>
-                <small>Valor economizado no ano</small>
-            </div>
-        </div>
+        <!-- ======================================================== -->
+        <!-- CONTAINER DE TODAS AS SEÇÕES -->
+        <!-- SEÇÃO 1: DASHBOARD/ANÁLISE FINANCEIRA -->
+        <!-- ======================================================== -->
+        <div class="content-area">
+            <section class="dashboard-section active" id="dashboard-section">
+                <div class="dashboard-resumo">
+                    <div class="resumo-card receitas">
+                        <h3><i class="fas fa-arrow-up"></i> RECEITAS TOTAIS</h3>
+                        <p id="dashboard-total-receitas">R$ 0,00</p>
+                        <small>Todas as receitas do ano</small>
+                    </div>
+                    <div class="resumo-card despesas">
+                        <h3><i class="fas fa-arrow-down"></i> DESPESAS TOTAIS</h3>
+                        <p id="dashboard-total-despesas">R$ 0,00</p>
+                        <small>Todas as despesas do ano</small>
+                    </div>
+                    <div class="resumo-card saldo">
+                        <h3><i class="fas fa-wallet"></i> SALDO ANUAL</h3>
+                        <p id="dashboard-saldo-anual">R$ 0,00</p>
+                        <small>Balanço receitas - despesas</small>
+                    </div>
+                    <div class="resumo-card juros">
+                        <h3><i class="fas fa-percentage"></i> JUROS PAGOS</h3>
+                        <p id="dashboard-total-juros">R$ 0,00</p>
+                        <small>Total de juros pagos no ano</small>
+                    </div>
+                    <div class="resumo-card economias">
+                        <h3><i class="fas fa-piggy-bank"></i> ECONOMIAS</h3>
+                        <p id="dashboard-total-economias">R$ 0,00</p>
+                        <small>Valor economizado no ano</small>
+                    </div>
+                </div>
+                <div class="dashboard-card dashboard-card-full">
+                    <h3>BALANÇO</h3>
+                    <div class="chart-container">
+                        <canvas id="balanco-chart"></canvas>
+                    </div>
+                </div>
+                <div class="dashboard-grid">
 
-        <div class="dashboard-card dashboard-card-full">
-            <h3>
-                <span>BALANÇO</span>
-                <button class="btn-expandir" data-chart="balancoChart">[ ]</button>
-            </h3>
-            <div class="chart-container">
-                <canvas id="balanco-chart"></canvas>
-            </div>
-        </div>
-
-        <div class="dashboard-grid">
-
+            <!-- GRÁFICO 2: TENDÊNCIA ANUAL -->
             <div class="dashboard-card">
                 <h3>
                     <span>TENDÊNCIA ANUAL</span>
                     <div class="filtros-header">
-                        <select class="filter-select" id="tendencia-tipo-filter">
+                        <select class="filter-select" id="tendencia-tipo-filter" onchange="filtrarTendencia()">
                             <option value="ambos">Receitas e Despesas</option>
                             <option value="receitas">Apenas Receitas</option>
                             <option value="despesas">Apenas Despesas</option>
                         </select>
-                        <select class="filter-select" id="tendencia-categoria-filter">
+                        <select class="filter-select" id="tendencia-categoria-filter" onchange="filtrarTendencia()">
                             <option value="">Todas as categorias</option>
                         </select>
-                        <select class="filter-select" id="tendencia-pagamento-filter">
+                        <select class="filter-select" id="tendencia-pagamento-filter" onchange="filtrarTendencia()">
                             <option value="todas">Todas as formas</option>
+                            <option value="pix">PIX</option>
+                            <option value="debito">Débito</option>
+                            <option value="credito">Crédito</option>
                         </select>
-                        <button class="btn-expandir" data-chart="tendenciaChart">[ ]</button>
                     </div>
                 </h3>
                 <div class="chart-container">
@@ -194,17 +195,25 @@
                 </div>
             </div>
 
+            <!-- GRÁFICO 3: ENTRADAS E SAÍDAS -->
             <div class="dashboard-card">
                 <h3>
                     <span>ENTRADAS E SAÍDAS</span>
                     <div class="filtros-header">
-                        <select class="filter-select" id="receitas-despesas-tipo-filter">
+                        <select class="filter-select" id="receitas-despesas-tipo-filter" onchange="filtrarReceitasDespesas()">
                             <option value="ambos">Receitas e Despesas</option>
+                            <option value="receitas">Apenas Receitas</option>
+                            <option value="despesas">Apenas Despesas</option>
                         </select>
-                        <select class="filter-select" id="receitas-despesas-categoria-filter">
+                        <select class="filter-select" id="receitas-despesas-categoria-filter" onchange="filtrarReceitasDespesas()">
                             <option value="">Todas as categorias</option>
                         </select>
-                        <button class="btn-expandir" data-chart="receitasDespesasChart">[ ]</button>
+                        <select class="filter-select" id="receitas-despesas-pagamento-filter" onchange="filtrarReceitasDespesas()">
+                            <option value="todas">Todas as formas</option>
+                            <option value="pix">PIX</option>
+                            <option value="debito">Débito</option>
+                            <option value="credito">Crédito</option>
+                        </select>
                     </div>
                 </h3>
                 <div class="chart-container">
@@ -212,14 +221,20 @@
                 </div>
             </div>
 
+            <!-- GRÁFICO 4: CATEGORIAS ANUAIS -->
             <div class="dashboard-card">
                 <h3>
                     <span>CATEGORIAS ANUAIS</span>
                     <div class="filtros-header">
-                        <select class="filter-select" id="categorias-anual-categoria-filter">
+                        <select class="filter-select" id="categorias-anual-categoria-filter" onchange="filtrarCategoriasAnual()">
                             <option value="">Todas as categorias</option>
                         </select>
-                        <button class="btn-expandir" data-chart="categoriasBarrasChart">[ ]</button>
+                        <select class="filter-select" id="categorias-anual-pagamento-filter" onchange="filtrarCategoriasAnual()">
+                            <option value="todas">Todas as formas</option>
+                            <option value="pix">PIX</option>
+                            <option value="debito">Débito</option>
+                            <option value="credito">Crédito</option>
+                        </select>
                     </div>
                 </h3>
                 <div class="chart-container">
@@ -227,14 +242,20 @@
                 </div>
             </div>
             
+            <!-- GRÁFICO 5: CATEGORIAS MENSAIS -->
             <div class="dashboard-card">
                 <h3>
                     <span>CATEGORIAS MENSAIS</span>
                     <div class="filtros-header">
-                        <select class="filter-select" id="categorias-mensal-categoria-filter">
+                        <select class="filter-select" id="categorias-mensal-categoria-filter" onchange="filtrarCategoriasMensal()">
                             <option value="">Todas as categorias</option>
                         </select>
-                        <button class="btn-expandir" data-chart="categoriasEmpilhadasChart">[ ]</button>
+                        <select class="filter-select" id="categorias-mensal-pagamento-filter" onchange="filtrarCategoriasMensal()">
+                            <option value="todas">Todas as formas</option>
+                            <option value="pix">PIX</option>
+                            <option value="debito">Débito</option>
+                            <option value="credito">Crédito</option>
+                        </select>
                     </div>
                 </h3>
                 <div class="chart-container">
@@ -242,14 +263,25 @@
                 </div>
             </div>
         
+            <!-- GRÁFICO 6: JUROS MENSAIS -->
             <div class="dashboard-card">
                 <h3>
                     <span>JUROS MENSAIS</span>
                     <div class="filtros-header">
-                        <select class="filter-select" id="juros-status-filter">
-                            <option value="todos">Todos</option>
+                        <select class="filter-select" id="juros-categoria-filter" onchange="filtrarJuros()">
+                            <option value="">Todas as categorias</option>
                         </select>
-                        <button class="btn-expandir" data-chart="jurosChart">[ ]</button>
+                        <select class="filter-select" id="juros-pagamento-filter" onchange="filtrarJuros()">
+                            <option value="todas">Todas as formas</option>
+                            <option value="pix">PIX</option>
+                            <option value="debito">Débito</option>
+                            <option value="credito">Crédito</option>
+                        </select>
+                        <select class="filter-select" id="juros-status-filter" onchange="filtrarJuros()">
+                            <option value="todos">Todos</option>
+                            <option value="pagos">Apenas Pagos</option>
+                            <option value="pendentes">Apenas Pendentes</option>
+                        </select>
                     </div>
                 </h3>
                 <div class="chart-container">
@@ -260,32 +292,63 @@
                         <span class="estatistica-label">Juros Pendentes:</span>
                         <span class="estatistica-valor" id="juros-pendentes-valor">R$ 0,00</span>
                     </div>
+                    <div class="estatistica-item">
+                        <span class="estatistica-label">% Juros Pagos:</span>
+                        <span class="estatistica-valor" id="juros-pagos-percentual">0%</span>
+                    </div>
                 </div>
             </div>
 
+            <!-- GRÁFICO 7: PARCELAMENTOS MENSAIS -->
             <div class="dashboard-card">
                 <h3>
                     <span>PARCELAMENTOS MENSAIS</span>
                     <div class="filtros-header">
-                        <select class="filter-select" id="parcelamentos-status-filter">
-                            <option value="todos">Todos</option>
+                        <select class="filter-select" id="parcelamentos-categoria-filter" onchange="filtrarParcelamentos()">
+                            <option value="">Todas as categorias</option>
                         </select>
-                        <button class="btn-expandir" data-chart="parcelamentosChart">[ ]</button>
+                        <select class="filter-select" id="parcelamentos-pagamento-filter" onchange="filtrarParcelamentos()">
+                            <option value="todas">Todas as formas</option>
+                            <option value="pix">PIX</option>
+                            <option value="debito">Débito</option>
+                            <option value="credito">Crédito</option>
+                        </select>
+                        <select class="filter-select" id="parcelamentos-status-filter" onchange="filtrarParcelamentos()">
+                            <option value="todos">Todos</option>
+                            <option value="pagos">Apenas Pagos</option>
+                            <option value="pendentes">Apenas Pendentes</option>
+                        </select>
                     </div>
                 </h3>
                 <div class="chart-container">
                     <canvas id="parcelamentos-chart"></canvas>
                 </div>
+                <div class="estatisticas-container">
+                    <div class="estatistica-item">
+                        <span class="estatistica-label">Parcelas Pendentes:</span>
+                        <span class="estatistica-valor" id="parcelas-pendentes-valor">R$ 0,00</span>
+                    </div>
+                    <div class="estatistica-item">
+                        <span class="estatistica-label">% Parcelas Pagas:</span>
+                        <span class="estatistica-valor" id="parcelas-pagas-percentual">0%</span>
+                    </div>
+                </div>
             </div>
 
+            <!-- GRÁFICO 8: FORMAS DE PAGAMENTO -->
             <div class="dashboard-card">
                 <h3>
                     <span>FORMAS DE PAGAMENTO</span>
                     <div class="filtros-header">
-                        <select class="filter-select" id="forma-pagamento-pagamento-filter">
-                            <option value="todas">Todas as formas</option>
+                        <select class="filter-select" id="forma-pagamento-categoria-filter" onchange="filtrarFormaPagamento()">
+                            <option value="">Todas as categorias</option>
                         </select>
-                        <button class="btn-expandir" data-chart="formaPagamentoChart">[ ]</button>
+                        <select class="filter-select" id="forma-pagamento-pagamento-filter" onchange="filtrarFormaPagamento()">
+                            <option value="todas">Todas as formas</option>
+                            <option value="pix">PIX</option>
+                            <option value="debito">Débito</option>
+                            <option value="credito">Crédito</option>
+                        </select>
                     </div>
                 </h3>
                 <div class="chart-container">
@@ -295,16 +358,7 @@
 
         </div>
     </section>
-</div>
 
-<div id="modal-zoom-grafico" class="modal-oculto">
-    <div id="modal-zoom-content">
-        <button id="fechar-modal">FECHAR</button>
-        <div id="modal-zoom-body">
-            <canvas id="chart-zoom-canvas"></canvas>
-        </div>
-    </div>
-</div>
 
     <!-- ================================================== -->
     <!-- SEÇÃO 2: VISUALIZAÇÃO MENSAL -->
