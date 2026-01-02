@@ -33,7 +33,7 @@
     gap: 8px;
     background: var(--config-light);
     padding: 8px 8px 0 8px;
-    border-radius: 8px 8px 0 0;
+    border-radius: 0;
 }
 
 .config-tab-btn {
@@ -49,7 +49,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    border-radius: 8px 8px 0 0;
+    border-radius: 0;
 }
 
 .config-tab-btn:hover:not(.active) {
@@ -106,7 +106,7 @@
     box-shadow: var(--config-shadow);
     padding: 24px;
     margin-bottom: 20px;
-    border-radius: 8px;
+    border-radius: 0;
     border: 1px solid var(--config-border);
     transition: box-shadow 0.3s ease;
 }
@@ -176,7 +176,7 @@
     background: var(--config-primary);
     color: #fff;
     border: none;
-    border-radius: 6px;
+    border-radius: 0;
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
@@ -206,7 +206,7 @@
     background: var(--config-danger);
     color: #fff;
     border: none;
-    border-radius: 6px;
+    border-radius: 0;
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
@@ -228,7 +228,7 @@
     background: transparent;
     color: var(--config-primary);
     border: 2px solid var(--config-primary);
-    border-radius: 6px;
+    border-radius: 0;
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
@@ -248,7 +248,7 @@
     background: var(--config-primary);
     color: #fff;
     border: none;
-    border-radius: 6px;
+    border-radius: 0;
     cursor: pointer;
     transition: all 0.3s ease;
     display: inline-flex;
@@ -265,7 +265,7 @@
     background: #fff;
     color: var(--config-primary);
     border: 1px solid var(--config-border);
-    border-radius: 6px;
+    border-radius: 0;
     font-size: 14px;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -312,7 +312,7 @@
 .input-group input[type="password"] {
     padding: 10px 12px;
     border: 1px solid var(--config-border);
-    border-radius: 6px;
+    border-radius: 0;
     font-size: 14px;
     transition: all 0.3s ease;
 }
@@ -341,7 +341,7 @@
 .filter-select {
     padding: 10px 12px;
     border: 1px solid var(--config-border);
-    border-radius: 6px;
+    border-radius: 0;
     font-size: 14px;
     background: #fff;
     cursor: pointer;
@@ -374,7 +374,7 @@
     flex: 1;
     padding: 10px 12px;
     border: 1px solid var(--config-border);
-    border-radius: 6px;
+    border-radius: 0;
     font-size: 14px;
 }
 
@@ -393,7 +393,7 @@
 /* ================================================================ */
 .table-responsive {
     overflow-x: auto;
-    border-radius: 8px;
+    border-radius: 0;
     border: 1px solid var(--config-border);
     margin-bottom: 16px;
 }
@@ -441,7 +441,7 @@
 .status-badge {
     display: inline-block;
     padding: 4px 12px;
-    border-radius: 12px;
+    border-radius: 0;
     font-size: 12px;
     font-weight: 600;
     text-transform: uppercase;
@@ -488,7 +488,7 @@
     margin-top: 16px;
     padding: 12px;
     background: var(--config-light);
-    border-radius: 6px;
+    border-radius: 0;
 }
 
 #pagination-info {
@@ -510,7 +510,7 @@
     flex: 1;
     padding: 12px 16px;
     border: 2px solid var(--config-border);
-    border-radius: 8px;
+    border-radius: 0;
     font-size: 14px;
     transition: all 0.3s ease;
 }
@@ -523,7 +523,7 @@
 
 .lista-categorias-container {
     border: 1px solid var(--config-border);
-    border-radius: 8px;
+    border-radius: 0;
     overflow: hidden;
 }
 
@@ -606,7 +606,7 @@
 .btn-excluir-usuario {
     padding: 6px 10px;
     border: none;
-    border-radius: 4px;
+    border-radius: 0;
     cursor: pointer;
     font-size: 12px;
     transition: all 0.3s ease;
@@ -668,7 +668,7 @@
 .form-add-cartao {
     background: #fff;
     padding: 20px;
-    border-radius: 8px;
+    border-radius: 0;
     border: 2px solid var(--config-border);
     transition: all 0.3s ease;
 }
@@ -698,7 +698,7 @@
 .form-add-cartao input[type="number"] {
     padding: 10px 12px;
     border: 1px solid var(--config-border);
-    border-radius: 6px;
+    border-radius: 0;
     font-size: 14px;
     transition: all 0.3s ease;
 }
@@ -733,7 +733,7 @@
     background: var(--config-success);
     color: #fff;
     border: none;
-    border-radius: 8px;
+    border-radius: 0;
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
@@ -830,7 +830,7 @@
 .status-feedback {
     margin-top: 16px;
     padding: 12px;
-    border-radius: 6px;
+    border-radius: 0;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -863,12 +863,12 @@
 
 .config-tab-content::-webkit-scrollbar-track {
     background: var(--config-light);
-    border-radius: 10px;
+    border-radius: 0;
 }
 
 .config-tab-content::-webkit-scrollbar-thumb {
     background: var(--config-secondary);
-    border-radius: 10px;
+    border-radius: 0;
     transition: background 0.3s ease;
 }
 
@@ -952,184 +952,80 @@
 }
 
 /* ================================================================ */
-/* CARD DE RESERVAS INTEGRADO NA ABA RECEITAS */
+/* RESERVAS INLINE - DESIGN CLEAN */
 /* ================================================================ */
 
-.card-reservas-integrado {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 24px;
-    color: #fff;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-}
-
-.reservas-header {
+.tab-actions-with-reservas {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    background: var(--config-light);
+    border: 1px solid var(--config-border);
+    gap: 20px;
 }
 
-.reservas-header h3 {
-    margin: 0;
-    font-size: 20px;
-    font-weight: 600;
+.reservas-inline {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 16px;
 }
 
-.reservas-header h3 i {
-    font-size: 24px;
-}
-
-.btn-reservar-rapido {
-    background: rgba(255, 255, 255, 0.2);
-    color: #fff;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    padding: 10px 20px;
-    border-radius: 8px;
+.reservas-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 14px;
+    color: var(--config-dark);
+}
+
+.reservas-info i {
+    color: #667eea;
+    font-size: 16px;
+}
+
+.reservas-label {
+    font-weight: 500;
+    color: var(--config-secondary);
+    font-size: 13px;
+}
+
+.reservas-valor {
+    font-weight: 700;
+    color: #667eea;
+    font-size: 15px;
+}
+
+.reservas-separator {
+    color: var(--config-border);
+    margin: 0 4px;
+}
+
+.btn-reservar-inline {
+    padding: 8px 16px;
+    background: #667eea;
+    color: #fff;
+    border: none;
+    border-radius: 0;
+    font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
     display: flex;
     align-items: center;
-    gap: 8px;
-}
-
-.btn-reservar-rapido:hover {
-    background: rgba(255, 255, 255, 0.3);
-    border-color: rgba(255, 255, 255, 0.5);
-    transform: translateY(-2px);
-}
-
-.reservas-resumo-mini {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 16px;
-    padding: 16px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    backdrop-filter: blur(10px);
-}
-
-.resumo-item {
-    display: flex;
-    flex-direction: column;
     gap: 6px;
+    white-space: nowrap;
 }
 
-.resumo-item .label {
-    font-size: 13px;
-    opacity: 0.9;
-    font-weight: 500;
+.btn-reservar-inline:hover {
+    background: #5568d3;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
 
-.resumo-item .valor {
-    font-size: 20px;
-    font-weight: 700;
-}
-
-.ultimas-reservas-lista {
-    max-height: 200px;
-    overflow-y: auto;
-}
-
-.ultimas-reservas-lista::-webkit-scrollbar {
-    width: 6px;
-}
-
-.ultimas-reservas-lista::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 10px;
-}
-
-.ultimas-reservas-lista::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 10px;
-}
-
-.reserva-mini-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    margin-bottom: 8px;
-    transition: all 0.2s ease;
-}
-
-.reserva-mini-item:hover {
-    background: rgba(255, 255, 255, 0.15);
-}
-
-.reserva-icon {
-    width: 40px;
-    height: 40px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.reserva-icon i {
-    font-size: 18px;
-}
-
-.reserva-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.reserva-descricao {
-    font-size: 14px;
-    font-weight: 600;
-}
-
-.reserva-data-mini {
+.btn-reservar-inline i {
     font-size: 12px;
-    opacity: 0.8;
-}
-
-.reserva-valor-mini {
-    font-size: 16px;
-    font-weight: 700;
-    margin-right: 8px;
-}
-
-.btn-remover-reserva-mini {
-    width: 32px;
-    height: 32px;
-    background: rgba(231, 76, 60, 0.3);
-    border: 1px solid rgba(231, 76, 60, 0.5);
-    border-radius: 6px;
-    color: #fff;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.btn-remover-reserva-mini:hover {
-    background: rgba(231, 76, 60, 0.5);
-    transform: scale(1.1);
-}
-
-.reservas-vazio {
-    text-align: center;
-    padding: 20px;
-    font-size: 14px;
-    opacity: 0.7;
 }
 
 /* ================================================================ */
@@ -1156,7 +1052,7 @@
     width: 100%;
     padding: 12px;
     border: 2px solid var(--config-border);
-    border-radius: 8px;
+    border-radius: 0;
     font-size: 16px;
     transition: all 0.3s ease;
 }
@@ -1199,7 +1095,7 @@
     background: var(--config-light);
     color: var(--config-dark);
     border: 2px solid var(--config-border);
-    border-radius: 8px;
+    border-radius: 0;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
@@ -1215,7 +1111,7 @@
     background: var(--config-success);
     color: #fff;
     border: none;
-    border-radius: 8px;
+    border-radius: 0;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
@@ -1232,37 +1128,30 @@
 }
 
 /* ================================================================ */
-/* RESPONSIVO - RESERVAS INTEGRADAS */
+/* RESPONSIVO - RESERVAS INLINE */
 /* ================================================================ */
 
 @media (max-width: 768px) {
-    .reservas-header {
+    .tab-actions-with-reservas {
         flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch;
         gap: 12px;
     }
 
-    .btn-reservar-rapido {
-        width: 100%;
+    .reservas-inline {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .reservas-info {
+        flex-wrap: wrap;
         justify-content: center;
     }
 
-    .reservas-resumo-mini {
-        grid-template-columns: 1fr;
-    }
-
-    .resumo-item .valor {
-        font-size: 18px;
-    }
-
-    .reserva-mini-item {
-        flex-wrap: wrap;
-    }
-
-    .reserva-valor-mini {
-        order: 3;
+    .btn-reservar-inline {
         width: 100%;
-        text-align: right;
+        justify-content: center;
     }
 }
 
