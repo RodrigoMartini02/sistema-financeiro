@@ -2626,45 +2626,56 @@
 <!-- ======================================================== -->
 <!-- MODAL: CENTRO DE NOTIFICAÇÕES SIMPLES -->
 <!-- ======================================================== -->
+<!-- MODAL DE NOTIFICAÇÕES - DESIGN FORMAL E CLEAN -->
+<!-- ======================================================== -->
 <div id="modal-notificacoes" class="modal hidden">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2></h2>
-            <div class="header-actions">
-                <button id="btn-mark-all-read" title="Marcar todas como lidas">
-                    ✓ Todas
+    <div class="modal-content modal-notificacoes-content">
+        <div class="notificacoes-header">
+            <h2 class="notificacoes-titulo">
+                <i class="fas fa-bell"></i>
+                Central de Notificações
+            </h2>
+            <div class="notificacoes-actions">
+                <button id="btn-mark-all-read" class="btn-notif-action" title="Marcar todas como lidas">
+                    <i class="fas fa-check"></i> Marcar Todas
                 </button>
-                <button id="btn-clear-notifications" title="Limpar todas">
-                    🗑️ Limpar
+                <button id="btn-clear-notifications" class="btn-notif-action btn-notif-danger" title="Limpar todas">
+                    <i class="fas fa-trash"></i> Limpar Todas
                 </button>
-                <span class="close">&times;</span>
+                <button class="close btn-notif-close">&times;</button>
             </div>
         </div>
-        <div class="modal-body">
-            <div id="notifications-list">
+        <div class="notificacoes-body">
+            <div id="notifications-list" class="notificacoes-lista">
                 <div class="notification-empty">
-                    <div class="empty-icon">🔔</div>
-                    <p>Nenhuma notificação</p>
+                    <i class="fas fa-bell-slash empty-icon-notif"></i>
+                    <p class="empty-text-notif">Nenhuma notificação no momento</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Template: Notificações -->
+<!-- Template: Item de Notificação -->
 <template id="template-notification-item">
     <div class="notification-item" data-id="" data-tipo="">
+        <div class="notification-icon-container">
+            <i class="fas notification-icon"></i>
+        </div>
         <div class="notification-content">
-            <div class="notification-header">
-                <span class="notification-icon"></span>
+            <div class="notification-header-inline">
                 <h4 class="notification-title"></h4>
                 <span class="notification-time"></span>
             </div>
             <p class="notification-message"></p>
         </div>
         <div class="notification-actions">
-            <button class="btn-mark-read">✓</button>
-            <button class="btn-delete-notification">✕</button>
+            <button class="btn-mark-read" title="Marcar como lida">
+                <i class="fas fa-check"></i>
+            </button>
+            <button class="btn-delete-notification" title="Excluir">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
     </div>
 </template>

@@ -40,74 +40,38 @@ class SistemaNotificacoes {
     }
 
     // ================================================================
-    // TIPOS DE NOTIFICAÇÕES (SEM BACKUP)
+    // TIPOS DE NOTIFICAÇÕES
     // ================================================================
     tipos = {
         DESPESA_VENCENDO: {
             codigo: 'despesa_vencendo',
-            icone: '⚠️',
+            icone: 'fa-clock',
             titulo: 'Despesa Vencendo',
             prioridade: 'alta'
         },
         DESPESA_VENCIDA: {
             codigo: 'despesa_vencida',
-            icone: '🔴',
+            icone: 'fa-exclamation-circle',
             titulo: 'Despesa Vencida',
             prioridade: 'critica'
         },
-        RECEITA_RECEBIDA: {
-            codigo: 'receita_recebida',
-            icone: '💰',
-            titulo: 'Receita Recebida',
-            prioridade: 'info'
-        },
         MES_FECHADO: {
             codigo: 'mes_fechado',
-            icone: '🔒',
+            icone: 'fa-lock',
             titulo: 'Mês Fechado',
             prioridade: 'info'
         },
         SALDO_NEGATIVO: {
             codigo: 'saldo_negativo',
-            icone: '⚡',
+            icone: 'fa-exclamation-triangle',
             titulo: 'Saldo Negativo',
             prioridade: 'alta'
         },
-        META_ATINGIDA: {
-            codigo: 'meta_atingida',
-            icone: '🎯',
-            titulo: 'Meta Atingida',
-            prioridade: 'sucesso'
-        },
-        GASTOS_ELEVADOS: {
-            codigo: 'gastos_elevados',
-            icone: '📈',
-            titulo: 'Gastos Elevados',
-            prioridade: 'media'
-        },
         PAGAMENTO_PROCESSADO: {
             codigo: 'pagamento_processado',
-            icone: '✅',
+            icone: 'fa-check-circle',
             titulo: 'Pagamento Processado',
             prioridade: 'sucesso'
-        },
-        SISTEMA_ATUALIZADO: {
-            codigo: 'sistema_atualizado',
-            icone: '🔄',
-            titulo: 'Sistema Atualizado',
-            prioridade: 'info'
-        },
-        TRANSACAO_SALVA: {
-            codigo: 'transacao_salva',
-            icone: '💾',
-            titulo: 'Transação Salva',
-            prioridade: 'sucesso'
-        },
-        TRANSACAO_EXCLUIDA: {
-            codigo: 'transacao_excluida',
-            icone: '🗑️',
-            titulo: 'Transação Excluída',
-            prioridade: 'info'
         }
     };
 
@@ -178,34 +142,6 @@ class SistemaNotificacoes {
     // ================================================================
     // NOTIFICAÇÕES ESPECÍFICAS
     // ================================================================
-    
-    notificarTransacaoSalva(tipo, descricao, valor) {
-        const tipoTexto = tipo === 'receita' ? 'Receita' : 'Despesa';
-        const icone = tipo === 'receita' ? '💰' : '💸';
-        const mensagem = `${tipoTexto} "${descricao}" salva com sucesso. Valor: ${this.formatarMoedaSeguro(valor)}`;
-        
-        return this.criarNotificacao('TRANSACAO_SALVA', {
-            mensagem,
-            tipo,
-            descricao,
-            valor,
-            icone,
-            acao: 'info'
-        });
-    }
-
-    notificarTransacaoExcluida(tipo, descricao, valor) {
-        const tipoTexto = tipo === 'receita' ? 'Receita' : 'Despesa';
-        const mensagem = `${tipoTexto} "${descricao}" excluída. Valor: ${this.formatarMoedaSeguro(valor)}`;
-        
-        return this.criarNotificacao('TRANSACAO_EXCLUIDA', {
-            mensagem,
-            tipo,
-            descricao,
-            valor,
-            acao: 'info'
-        });
-    }
 
     notificarDespesaVencendo(despesa, diasRestantes) {
         const mensagem = `A despesa "${despesa.descricao}" vence em ${diasRestantes} dia(s). Valor: ${this.formatarMoedaSeguro(despesa.valor)}`;
@@ -235,16 +171,6 @@ class SistemaNotificacoes {
             mes: despesa.mes,
             ano: despesa.ano,
             index: despesa.index
-        });
-    }
-
-    notificarReceitaRecebida(receita) {
-        const mensagem = `Receita "${receita.descricao}" no valor de ${this.formatarMoedaSeguro(receita.valor)} foi registrada`;
-        
-        return this.criarNotificacao('RECEITA_RECEBIDA', {
-            mensagem,
-            receita: receita,
-            acao: 'abrir_mes'
         });
     }
 
@@ -591,8 +517,8 @@ class SistemaNotificacoes {
             if (this.notificacoes.length === 0) {
                 container.innerHTML = `
                     <div class="notification-empty">
-                        <div class="empty-icon">🔔</div>
-                        <p>Nenhuma notificação</p>
+                        <i class="fas fa-bell-slash empty-icon-notif"></i>
+                        <p class="empty-text-notif">Nenhuma notificação no momento</p>
                     </div>
                 `;
                 return;
@@ -621,12 +547,15 @@ class SistemaNotificacoes {
 
             item.dataset.id = notificacao.id;
             item.dataset.tipo = notificacao.tipo;
-            
+
             if (!notificacao.lida) {
                 item.classList.add('unread');
             }
 
-            clone.querySelector('.notification-icon').textContent = notificacao.icone;
+            // Usar ícone FontAwesome
+            const iconElement = clone.querySelector('.notification-icon');
+            iconElement.className = `fas ${notificacao.icone} notification-icon`;
+
             clone.querySelector('.notification-title').textContent = notificacao.titulo;
             clone.querySelector('.notification-message').textContent = notificacao.mensagem;
             clone.querySelector('.notification-time').textContent = this.formatarTempo(notificacao.dataHora);
@@ -670,21 +599,25 @@ class SistemaNotificacoes {
         const div = document.createElement('div');
         div.className = 'notification-item' + (notificacao.lida ? '' : ' unread');
         div.innerHTML = `
-            <span class="notification-icon">${notificacao.icone}</span>
+            <div class="notification-icon-container">
+                <i class="fas ${notificacao.icone} notification-icon"></i>
+            </div>
             <div class="notification-content">
-                <div class="notification-title">${notificacao.titulo}</div>
-                <div class="notification-message">${notificacao.mensagem}</div>
-                <div class="notification-time">${this.formatarTempo(notificacao.dataHora)}</div>
+                <div class="notification-header-inline">
+                    <h4 class="notification-title">${notificacao.titulo}</h4>
+                    <span class="notification-time">${this.formatarTempo(notificacao.dataHora)}</span>
+                </div>
+                <p class="notification-message">${notificacao.mensagem}</p>
             </div>
         `;
-        
+
         div.addEventListener('click', () => {
             this.executarAcaoNotificacao(notificacao);
             if (!notificacao.lida) {
                 this.marcarComoLida(notificacao.id);
             }
         });
-        
+
         return div;
     }
 
@@ -820,30 +753,6 @@ class SistemaNotificacoes {
     // ================================================================
     // MÉTODOS PÚBLICOS DE INTEGRAÇÃO
     // ================================================================
-    
-    onTransacaoSalva(tipo, transacao) {
-        if (!this.inicializado) {
-            return;
-        }
-
-        try {
-            this.notificarTransacaoSalva(tipo, transacao.descricao, transacao.valor);
-        } catch (error) {
-            // Falha silenciosa
-        }
-    }
-
-    onTransacaoExcluida(tipo, transacao) {
-        if (!this.inicializado) {
-            return;
-        }
-
-        try {
-            this.notificarTransacaoExcluida(tipo, transacao.descricao, transacao.valor);
-        } catch (error) {
-            // Falha silenciosa
-        }
-    }
 
     onPagamentoProcessado(despesa, valorPago) {
         if (!this.inicializado) {
@@ -897,17 +806,15 @@ function inicializarSistemaNotificacoes() {
         // Exportar métodos públicos para integração
         window.SistemaNotificacoes = {
             // Métodos para sistemas externos chamarem
-            onTransacaoSalva: (tipo, transacao) => sistemaNotificacoes?.onTransacaoSalva(tipo, transacao),
-            onTransacaoExcluida: (tipo, transacao) => sistemaNotificacoes?.onTransacaoExcluida(tipo, transacao),
             onPagamentoProcessado: (despesa, valor) => sistemaNotificacoes?.onPagamentoProcessado(despesa, valor),
             onMesFechado: (mes, ano, saldo) => sistemaNotificacoes?.onMesFechado(mes, ano, saldo),
-            
+
             // Métodos de controle
             abrir: () => sistemaNotificacoes?.abrirModal(),
             fechar: () => sistemaNotificacoes?.fecharModal(),
             marcarTodasLidas: () => sistemaNotificacoes?.marcarTodasComoLidas(),
             limparTodas: () => sistemaNotificacoes?.limparTodasNotificacoes(),
-            
+
             // Estado
             get inicializado() { return sistemaNotificacoes?.inicializado || false; },
             get totalNotificacoes() { return sistemaNotificacoes?.notificacoes?.length || 0; }

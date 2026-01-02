@@ -133,12 +133,6 @@ function exportarVariaveisGlobais() {
         try {
             if (typeof window.SistemaNotificacoes !== 'undefined') {
                 switch(tipo) {
-                    case 'transacao_salva':
-                        window.SistemaNotificacoes.onTransacaoSalva(dados.tipo, dados.transacao);
-                        break;
-                    case 'transacao_excluida':
-                        window.SistemaNotificacoes.onTransacaoExcluida(dados.tipo, dados.transacao);
-                        break;
                     case 'pagamento_processado':
                         window.SistemaNotificacoes.onPagamentoProcessado(dados.despesa, dados.valor);
                         break;
