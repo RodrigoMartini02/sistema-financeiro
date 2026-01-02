@@ -397,24 +397,58 @@ function mostrarMensagemErro(mensagem) {
 // EVENTO DE NAVEGAÇÃO
 // ================================================================
 
-// Carregar logs quando a seção for aberta
+// Carregar logs quando a seção for aberta - múltiplas formas de detecção
 document.addEventListener('click', function(e) {
     const navLink = e.target.closest('[data-section="registros"]');
     if (navLink) {
-        console.log('📋 Abrindo seção de registros...');
+        console.log('📋 Abrindo seção de registros via click...');
         setTimeout(() => {
             carregarLogs();
-        }, 100);
+        }, 200);
     }
 });
+
+// Observar mudanças na seção de registros
+const observarSecaoRegistros = () => {
+    const registrosSection = document.getElementById('registros-section');
+    if (!registrosSection) {
+        console.log('⚠️ Seção de registros não encontrada');
+        return;
+    }
+
+    // Observer para detectar quando a seção fica visível
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                const section = mutation.target;
+                if (section.classList.contains('active')) {
+                    console.log('📋 Seção de registros ativada via observer, carregando logs...');
+                    setTimeout(() => {
+                        carregarLogs();
+                    }, 100);
+                }
+            }
+        });
+    });
+
+    observer.observe(registrosSection, {
+        attributes: true,
+        attributeFilter: ['class']
+    });
+
+    console.log('👁️ Observer de registros inicializado');
+};
 
 // Também carregar logs se a seção já estiver ativa
 window.addEventListener('load', function() {
     const registrosSection = document.getElementById('registros-section');
     if (registrosSection && registrosSection.classList.contains('active')) {
-        console.log('📋 Seção de registros já ativa, carregando logs...');
+        console.log('📋 Seção de registros já ativa no load, carregando logs...');
         carregarLogs();
     }
+
+    // Iniciar observer
+    observarSecaoRegistros();
 });
 
 // Inicializar a visualização quando o DOM carregar
@@ -424,13 +458,19 @@ document.addEventListener('DOMContentLoaded', function() {
     if (semDados) {
         semDados.classList.add('active');
     }
+
+    // Iniciar observer se a página já carregou
+    if (document.readyState === 'complete') {
+        observarSecaoRegistros();
+    }
 });
 
 // ================================================================
 // EXPORTAR FUNÇÃO GLOBAL
 // ================================================================
 
-// Tornar registrarLog disponível globalmente para outros módulos
+// Tornar funções disponíveis globalmente para outros módulos
 window.registrarLog = registrarLog;
+window.carregarLogs = carregarLogs;
 
 console.log('✅ Sistema de Logs inicializado');
