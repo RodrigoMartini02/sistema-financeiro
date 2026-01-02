@@ -2716,10 +2716,3 @@ window.testarPDFMelhorado = function() {
     
     return true;
 };
-
-// Executar teste automático se estiver em desenvolvimento
-if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    setTimeout(() => {
-        window.testarPDFMelhorado();
-    }, 3000);
-}

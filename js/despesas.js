@@ -39,6 +39,22 @@ function inicializarTabelaDespesasGrid() {
 }
 
 function configurarEventosGrid() {
+    const btnNovaDespesa = document.getElementById('btn-nova-despesa');
+    if (btnNovaDespesa) {
+        btnNovaDespesa.addEventListener('click', function(e) {
+            e.preventDefault();
+            abrirModalNovaDespesa();
+        });
+    }
+
+    const btnPagarLote = document.getElementById('btn-pagar-em-lote');
+    if (btnPagarLote) {
+        btnPagarLote.addEventListener('click', function(e) {
+            e.preventDefault();
+            abrirModalPagamentoLote();
+        });
+    }
+
     const checkboxTodas = document.getElementById('select-all-despesas');
     if (checkboxTodas) {
         checkboxTodas.addEventListener('change', function() {
@@ -49,16 +65,16 @@ function configurarEventosGrid() {
             atualizarBotaoLote();
         });
     }
-    
+
     document.addEventListener('change', function(e) {
         if (e.target && e.target.classList.contains('despesa-checkbox')) {
             atualizarBotaoLote();
         }
     });
-    
+
     configurarEventosFiltros();
-    configurarEventoBotaoLimpar();    // ADICIONAR
-    configurarEventoOrdenacao();      // ADICIONAR
+    configurarEventoBotaoLimpar();
+    configurarEventoOrdenacao();
 }
 
 // ================================================================

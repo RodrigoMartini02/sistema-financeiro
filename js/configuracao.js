@@ -1204,6 +1204,273 @@ function garantirUsuarioMaster() {
 }
 
 // ================================================================
+// BACKUP E RESTAURAÇÃO - EXPORTAR/IMPORTAR/LIMPAR
+// ================================================================
+async function exportarDados() {
+    try {
+        const usuario = window.usuarioDataManager?.getUsuarioAtual();
+        if (!usuario || !usuario.id) {
+            mostrarFeedback('Usuário não encontrado', 'error');
+            return;
+        }
+
+        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
+        // Buscar todos os dados do usuário
+        const response = await fetch(`${API_URL}/usuarios/${usuario.id}/export`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
+            }
+        });
+
+        if (!response.ok) {
+            mostrarFeedback('Erro ao buscar dados para exportação', 'error');
+            return;
+        }
+
+        const data = await response.json();
+
+        if (!data.success) {
+            mostrarFeedback('Erro ao exportar dados', 'error');
+            return;
+        }
+
+        // Converter para CSV
+        const csvContent = converterParaCSV(data.dados);
+
+        // Download do arquivo
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+
+        const dataAtual = new Date().toISOString().split('T')[0];
+        link.setAttribute('href', url);
+        link.setAttribute('download', `backup_financeiro_${dataAtual}.csv`);
+        link.style.visibility = 'hidden';
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        mostrarFeedback('Dados exportados com sucesso!', 'success');
+    } catch (error) {
+        console.error('Erro ao exportar dados:', error);
+        mostrarFeedback('Erro ao exportar dados', 'error');
+    }
+}
+
+function converterParaCSV(dados) {
+    let csv = '';
+
+    // Cabeçalho
+    csv += 'Tipo,Ano,Mês,Data,Descrição,Categoria,Valor,FormaPagamento,Parcelas,Status,Observações\n';
+
+    // Processar dados financeiros
+    if (dados.dadosFinanceiros) {
+        Object.keys(dados.dadosFinanceiros).forEach(ano => {
+            const anoData = dados.dadosFinanceiros[ano];
+
+            // Receitas
+            if (anoData.receitas) {
+                anoData.receitas.forEach(receita => {
+                    csv += `Receita,${ano},${receita.mes || ''},${receita.data || ''},`;
+                    csv += `"${receita.descricao || ''}","${receita.categoria || ''}",`;
+                    csv += `${receita.valor || 0},"${receita.formaPagamento || ''}",`;
+                    csv += `${receita.parcelas || ''},"${receita.status || ''}","${receita.observacoes || ''}"\n`;
+                });
+            }
+
+            // Despesas
+            if (anoData.despesas) {
+                anoData.despesas.forEach(despesa => {
+                    csv += `Despesa,${ano},${despesa.mes || ''},${despesa.data || ''},`;
+                    csv += `"${despesa.descricao || ''}","${despesa.categoria || ''}",`;
+                    csv += `${despesa.valor || 0},"${despesa.formaPagamento || ''}",`;
+                    csv += `${despesa.parcelas || ''},"${despesa.status || ''}","${despesa.observacoes || ''}"\n`;
+                });
+            }
+        });
+    }
+
+    return csv;
+}
+
+async function importarDados() {
+    const inputFile = document.createElement('input');
+    inputFile.type = 'file';
+    inputFile.accept = '.csv';
+
+    inputFile.onchange = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        try {
+            const csvText = await file.text();
+            const dadosImportados = converterCSVParaJSON(csvText);
+
+            const usuario = window.usuarioDataManager?.getUsuarioAtual();
+            if (!usuario || !usuario.id) {
+                mostrarFeedback('Usuário não encontrado', 'error');
+                return;
+            }
+
+            const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
+            // Enviar dados para o backend
+            const response = await fetch(`${API_URL}/usuarios/${usuario.id}/import`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
+                },
+                body: JSON.stringify({ dados: dadosImportados })
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                mostrarFeedback('Dados importados com sucesso!', 'success');
+
+                // Recarregar dados
+                if (typeof window.carregarDadosLocais === 'function') {
+                    await window.carregarDadosLocais();
+                }
+
+                // Atualizar dashboard
+                if (typeof window.carregarDadosDashboard === 'function') {
+                    await window.carregarDadosDashboard(window.anoAtual || new Date().getFullYear());
+                }
+            } else {
+                mostrarFeedback(data.message || 'Erro ao importar dados', 'error');
+            }
+        } catch (error) {
+            console.error('Erro ao importar dados:', error);
+            mostrarFeedback('Erro ao processar arquivo CSV', 'error');
+        }
+    };
+
+    inputFile.click();
+}
+
+function converterCSVParaJSON(csvText) {
+    const lines = csvText.split('\n');
+    const dados = { receitas: [], despesas: [] };
+
+    // Pular cabeçalho
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        // Parse CSV com suporte a aspas
+        const valores = [];
+        let valorAtual = '';
+        let dentroAspas = false;
+
+        for (let char of line) {
+            if (char === '"') {
+                dentroAspas = !dentroAspas;
+            } else if (char === ',' && !dentroAspas) {
+                valores.push(valorAtual);
+                valorAtual = '';
+            } else {
+                valorAtual += char;
+            }
+        }
+        valores.push(valorAtual);
+
+        if (valores.length < 11) continue;
+
+        const item = {
+            tipo: valores[0],
+            ano: parseInt(valores[1]) || new Date().getFullYear(),
+            mes: parseInt(valores[2]) || 1,
+            data: valores[3],
+            descricao: valores[4],
+            categoria: valores[5],
+            valor: parseFloat(valores[6]) || 0,
+            formaPagamento: valores[7],
+            parcelas: parseInt(valores[8]) || null,
+            status: valores[9] || 'Pago',
+            observacoes: valores[10]
+        };
+
+        if (item.tipo === 'Receita') {
+            dados.receitas.push(item);
+        } else if (item.tipo === 'Despesa') {
+            dados.despesas.push(item);
+        }
+    }
+
+    return dados;
+}
+
+async function limparDados() {
+    const confirmar = confirm(
+        'ATENÇÃO: Esta ação é irreversível!\n\n' +
+        'Todos os seus dados financeiros serão permanentemente excluídos.\n' +
+        'Deseja realmente continuar?'
+    );
+
+    if (!confirmar) return;
+
+    const confirmarNovamente = confirm(
+        'ÚLTIMA CONFIRMAÇÃO!\n\n' +
+        'Tem ABSOLUTA CERTEZA que deseja excluir TODOS os seus dados?\n' +
+        'Esta ação NÃO pode ser desfeita!'
+    );
+
+    if (!confirmarNovamente) return;
+
+    try {
+        const usuario = window.usuarioDataManager?.getUsuarioAtual();
+        if (!usuario || !usuario.id) {
+            mostrarFeedback('Usuário não encontrado', 'error');
+            return;
+        }
+
+        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
+        const response = await fetch(`${API_URL}/usuarios/${usuario.id}/limpar-dados`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            mostrarFeedback('Todos os dados foram excluídos!', 'success');
+
+            // Recarregar dados (agora vazios)
+            if (typeof window.carregarDadosLocais === 'function') {
+                await window.carregarDadosLocais();
+            }
+
+            // Limpar dashboard
+            if (typeof window.carregarDadosDashboard === 'function') {
+                await window.carregarDadosDashboard(window.anoAtual || new Date().getFullYear());
+            }
+
+            // Redirecionar para dashboard
+            setTimeout(() => {
+                if (typeof window.onSecaoAtivada === 'function') {
+                    window.onSecaoAtivada('dashboard');
+                }
+            }, 1000);
+        } else {
+            mostrarFeedback(data.message || 'Erro ao limpar dados', 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao limpar dados:', error);
+        mostrarFeedback('Erro ao limpar dados', 'error');
+    }
+}
+
+// ================================================================
 // SISTEMA DE ABAS E NAVEGAÇÃO
 // ================================================================
 function setupConfigTabs() {
@@ -1409,6 +1676,23 @@ function setupEventListeners() {
             document.getElementById('modal-feedback-sistema').style.display = 'none';
         });
     }
+
+    // Botões de backup e restauração
+    const btnExportarDados = document.getElementById('btn-exportar-dados');
+    const btnImportarDados = document.getElementById('btn-importar-dados');
+    const btnLimparDados = document.getElementById('btn-limpar-dados');
+
+    if (btnExportarDados) {
+        btnExportarDados.addEventListener('click', exportarDados);
+    }
+
+    if (btnImportarDados) {
+        btnImportarDados.addEventListener('click', importarDados);
+    }
+
+    if (btnLimparDados) {
+        btnLimparDados.addEventListener('click', limparDados);
+    }
 }
 
 async function inicializarConfiguracoes() {
@@ -1463,3 +1747,7 @@ window.validarValidade = validarValidade;
 
 window.mostrarFeedback = mostrarFeedback;
 window.inicializarConfiguracoes = inicializarConfiguracoes;
+
+window.exportarDados = exportarDados;
+window.importarDados = importarDados;
+window.limparDados = limparDados;
