@@ -947,30 +947,42 @@ router.put('/:id/cartoes', authMiddleware, async (req, res) => {
 router.delete('/:id/limpar-dados', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
+
+        // Segurança: verifica se o ID da URL é o mesmo do token
         if (req.usuario.id !== parseInt(id)) {
             return res.status(403).json({ success: false, message: 'Acesso negado' });
         }
 
-        // Deleta os registros de todas as tabelas vinculadas ao usuario_id
-        const queries = [
-            query('DELETE FROM receitas WHERE usuario_id = $1', [id]),
-            query('DELETE FROM despesas WHERE usuario_id = $1', [id]),
-            query('DELETE FROM reservas WHERE usuario_id = $1', [id]),
-            query('DELETE FROM meses WHERE usuario_id = $1', [id]),
-            query('DELETE FROM categorias WHERE usuario_id = $1', [id]), // <--- LIMPA CATEGORIAS
-            query('DELETE FROM cartoes WHERE usuario_id = $1', [id]),    // <--- LIMPA CARTÕES
-            query('UPDATE usuarios SET dados_financeiros = NULL, categorias = NULL, cartoes = NULL WHERE id = $1', [id])
-        ];
+        // Executa a limpeza em todas as tabelas relacionadas
+        await query('DELETE FROM receitas WHERE usuario_id = $1', [id]);
+        await query('DELETE FROM despesas WHERE usuario_id = $1', [id]);
+        await query('DELETE FROM reservas WHERE usuario_id = $1', [id]);
+        await query('DELETE FROM meses WHERE usuario_id = $1', [id]);
+        await query('DELETE FROM categorias WHERE usuario_id = $1', [id]);
+        await query('DELETE FROM cartoes WHERE usuario_id = $1', [id]);
 
-        await Promise.all(queries);
+        // Limpa os campos JSON e notificações na tabela usuarios
+        await query(`
+            UPDATE usuarios 
+            SET dados_financeiros = NULL, 
+                categorias = NULL, 
+                cartoes = NULL,
+                data_atualizacao = CURRENT_TIMESTAMP 
+            WHERE id = $1`, 
+            [id]
+        );
 
-        // Opcional: Recriar categorias padrão após a limpeza
+        // Opcional: Recria as categorias padrão (Alimentação, Moradia, etc.) para o usuário não ficar sem nada
         await query('SELECT criar_categorias_padrao($1)', [id]);
 
-        res.json({ success: true, message: 'Dados e categorias excluídos com sucesso' });
+        res.json({ 
+            success: true, 
+            message: 'Sistema resetado: Dados, Categorias, Cartões e Notificações apagados.' 
+        });
+
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false, error: error.message });
+        console.error('Erro na limpeza:', error);
+        res.status(500).json({ success: false, message: 'Erro interno ao limpar dados' });
     }
 });
 
