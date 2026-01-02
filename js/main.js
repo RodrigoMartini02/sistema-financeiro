@@ -63,6 +63,11 @@ async function iniciarSistema() {
     } else {
         await carregarDadosDashboard(anoAtual);
         await renderizarMeses(anoAtual);
+
+        // Garantir que dashboard inicia visível
+        setTimeout(() => {
+            onSecaoAtivada('dashboard');
+        }, 200);
     }
 
     notificarSistemaReady();
