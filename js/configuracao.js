@@ -1868,29 +1868,32 @@ async function importarDados() {
             // Importar receitas
             for (const receita of backup.receitas) {
                 try {
-                    const response = await fetch(`${API_URL}/usuarios/${usuario.id}/anos/${receita.ano}/receitas`, {
+                    const response = await fetch(`${API_URL}/receitas`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${token}`
                         },
                         body: JSON.stringify({
-                            mes: receita.mes,
-                            data: receita.data,
                             descricao: receita.descricao,
-                            categoria: receita.categoria,
                             valor: receita.valor,
-                            formaPagamento: receita.formaPagamento,
-                            parcelas: receita.parcelas,
-                            status: receita.status,
-                            observacoes: receita.observacoes
+                            data_recebimento: receita.data,
+                            mes: receita.mes,
+                            ano: receita.ano,
+                            observacoes: receita.observacoes || ''
                         })
                     });
 
-                    if (response.ok) sucessos++;
-                    else erros++;
+                    if (response.ok) {
+                        sucessos++;
+                    } else {
+                        erros++;
+                        const errorData = await response.json();
+                        console.error('Erro ao importar receita:', errorData);
+                    }
                 } catch (error) {
                     erros++;
+                    console.error('Erro ao importar receita:', error);
                 }
 
                 processados++;
@@ -1902,27 +1905,29 @@ async function importarDados() {
             // Importar despesas
             for (const despesa of backup.despesas) {
                 try {
-                    const response = await fetch(`${API_URL}/usuarios/${usuario.id}/anos/${despesa.ano}/despesas`, {
+                    const response = await fetch(`${API_URL}/despesas`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${token}`
                         },
                         body: JSON.stringify({
-                            mes: despesa.mes,
-                            data: despesa.data,
                             descricao: despesa.descricao,
-                            categoria: despesa.categoria,
                             valor: despesa.valor,
-                            formaPagamento: despesa.formaPagamento,
-                            parcelas: despesa.parcelas,
-                            status: despesa.status,
-                            observacoes: despesa.observacoes
+                            data_vencimento: despesa.data,
+                            mes: despesa.mes,
+                            ano: despesa.ano,
+                            observacoes: despesa.observacoes || ''
                         })
                     });
 
-                    if (response.ok) sucessos++;
-                    else erros++;
+                    if (response.ok) {
+                        sucessos++;
+                    } else {
+                        erros++;
+                        const errorData = await response.json();
+                        console.error('Erro ao importar despesa:', errorData);
+                    }
                 } catch (error) {
                     erros++;
                 }
