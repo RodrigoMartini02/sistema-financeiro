@@ -766,31 +766,46 @@ textarea:focus {
 }
 
 
+/* Container Pai: Garante o alinhamento ao lado da sidebar */
+.header-actions {
+    display: flex;
+    flex-direction: column; /* Empilha: Usuário em cima, Aviso embaixo */
+    align-items: flex-start; /* Alinha ambos no início (colado na sidebar) */
+    gap: 8px;
+    padding: 10px 20px;
+    overflow: hidden;
+}
+
+/* Estilo do bloco do Usuário - Saindo da sidebar */
+.user-welcome {
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    animation: slideFromSidebar 0.6s ease-out both;
+}
+
+/* Estilo do Banner de Aviso - Saindo da sidebar logo abaixo */
 .banner-alerta {
     background: linear-gradient(90deg, #4e73df, #224abe);
     color: white;
-    padding: 12px 25px;
-    /* Margem para não colar no topo e dar respiro lateral */
-    margin: 10px 20px 20px 0; 
-    border-radius: 0 4px 4px 0; /* Arredondado apenas do lado direito */
-    box-shadow: 4px 4px 10px rgba(0,0,0,0.1);
+    padding: 8px 15px;
+    border-radius: 0 4px 4px 0; /* Canto reto na esquerda para simular saída da borda */
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
     
-    /* Lógica da Animação */
-    overflow: hidden;
-    white-space: nowrap;
-    animation: slideFromLeft 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+    /* Animação com pequeno atraso para efeito visual melhor */
+    animation: slideFromSidebar 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.15s both;
 }
 
 .banner-conteudo {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 10px;
+    font-size: 13px;
     font-weight: 600;
-    font-size: 14px;
 }
 
-/* Keyframes para o efeito de "deslizar saindo da borda" */
-@keyframes slideFromLeft {
+/* Animação de deslize da esquerda para a direita */
+@keyframes slideFromSidebar {
     0% {
         transform: translateX(-100%);
         opacity: 0;
