@@ -24,21 +24,31 @@ app.use((req, res, next) => {
 });
 
 app.get('/', (req, res) => {
+    const packageJson = require('./package.json');
     res.json({
         success: true,
         message: 'API Sistema Financeiro está funcionando!',
-        version: '1.0.1',
+        version: packageJson.version,
         timestamp: new Date().toISOString()
     });
 });
 
 app.get('/health', async (req, res) => {
     const dbOk = await testarConexao();
-    
+
     res.json({
         success: true,
         status: dbOk ? 'OK' : 'ERROR',
         database: dbOk ? 'Conectado' : 'Desconectado',
+        timestamp: new Date().toISOString()
+    });
+});
+
+app.get('/version', (req, res) => {
+    const packageJson = require('./package.json');
+    res.json({
+        success: true,
+        version: packageJson.version,
         timestamp: new Date().toISOString()
     });
 });
