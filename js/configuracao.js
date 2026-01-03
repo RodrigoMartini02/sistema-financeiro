@@ -2198,6 +2198,43 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(inicializarConfiguracoes, 1000);
 });
 
+
+
+const calendarioFinanceiro = {
+    // Datas de 2026 baseadas no calendário oficial
+    "2026-01-27": "Início da reunião do COPOM (Taxa Selic)",
+    "2026-01-28": "Decisão da Taxa Selic hoje!",
+    "2026-02-16": "Feriado de Carnaval - Sem expediente bancário/B3",
+    "2026-02-17": "Feriado de Carnaval - Sem expediente bancário/B3",
+    "2026-03-10": "Divulgação do IPCA (Inflação oficial)",
+    "2026-03-18": "Decisão da Taxa Selic hoje!",
+    "2026-04-30": "Último dia para entrega do Imposto de Renda!",
+    "2026-06-04": "Feriado Corpus Christi - Mercados fechados",
+    "2026-11-30": "Prazo final para pagamento da 1ª parcela do 13º Salário",
+    "2026-12-20": "Prazo final para pagamento da 2ª parcela do 13º Salário",
+    "2026-12-31": "Feriado Bancário - Sem expediente ao público"
+};
+
+function verificarEventos() {
+    // Obtém data no formato YYYY-MM-DD (Horário Local)
+    const hoje = new Date().toISOString().split('T')[0];
+    const banner = document.getElementById('banner-financeiro');
+    const displayMensagem = document.getElementById('mensagem-dia');
+
+    if (calendarioFinanceiro[hoje]) {
+        displayMensagem.innerText = `AVISO: ${calendarioFinanceiro[hoje]}`;
+        banner.style.display = 'block';
+    }
+}
+
+// Executa ao carregar a página
+window.onload = verificarEventos;
+
+
+
+
+
+
 window.categoriasUsuario = categoriasUsuario;
 window.cartoesUsuario = cartoesUsuario;
 window.categoriasPadrao = categoriasPadrao;

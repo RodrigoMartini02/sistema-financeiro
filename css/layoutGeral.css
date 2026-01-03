@@ -765,6 +765,30 @@ textarea:focus {
     background: #aaa;
 }
 
+
+.banner-alerta {
+    background: linear-gradient(90deg, var(--primary-color), #4e73df);
+    color: white;
+    padding: 12px 20px;
+    margin: 10px 20px;
+    border-left: 5px solid var(--warning);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    animation: slideDown 0.5s ease-out;
+}
+
+.banner-conteudo {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+@keyframes slideDown {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
 /* ================================================================
    MODAL DE BLOQUEIO
    ================================================================ */
