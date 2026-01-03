@@ -2201,10 +2201,30 @@ async function limparDados() {
         });
 
         if (response.ok) {
-            // Limpa lixo do cache local do navegador
+            // Limpa notificações do backend
+            try {
+                await fetch(`${API_BASE}/notificacoes`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+            } catch (err) {
+                console.warn('Erro ao limpar notificações:', err);
+            }
+
+            // Limpa cache local do navegador
             localStorage.removeItem('notificacoes');
             localStorage.removeItem('dashboard_data');
-            
+
+            // Limpa contador de notificações
+            const notificationCount = document.getElementById('notification-count');
+            if (notificationCount) {
+                notificationCount.textContent = '0';
+                notificationCount.classList.add('hidden');
+            }
+
             alert('Tudo limpo com sucesso!');
             window.location.reload();
         } else {
