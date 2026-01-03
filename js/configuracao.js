@@ -1865,7 +1865,31 @@ async function importarDados() {
             let erros = 0;
             let processados = 0;
 
-            // ✅ PASSO 1: Importar categorias PRIMEIRO (para criar os IDs no banco)
+            // ✅ PASSO 0: Criar categorias padrão no PostgreSQL PRIMEIRO
+            if (progressText) progressText.textContent = 'Criando categorias padrão no banco de dados...';
+            console.log('🏗️ Criando categorias padrão no PostgreSQL...');
+
+            try {
+                const responsePadrao = await fetch(`${API_URL}/categorias/padrao`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (responsePadrao.ok) {
+                    const data = await responsePadrao.json();
+                    console.log('✅ Categorias padrão criadas:', data.data?.length || 0);
+                } else {
+                    const errorData = await responsePadrao.json();
+                    console.warn('⚠️ Categorias padrão já existem ou erro:', errorData.message);
+                }
+            } catch (error) {
+                console.warn('⚠️ Erro ao criar categorias padrão:', error);
+            }
+
+            // ✅ PASSO 1: Importar categorias DEPOIS (para o campo JSON no usuarios)
             if (backup.categorias) {
                 const totalCategorias = (backup.categorias.receitas?.length || 0) + (backup.categorias.despesas?.length || 0);
                 if (progressText) progressText.textContent = `Importando ${totalCategorias} categorias...`;
@@ -2000,6 +2024,9 @@ async function importarDados() {
             }
 
             // ✅ PASSO 4: Importar despesas
+            let despesasProcessadas = 0;
+            console.log('💳 Total de despesas a importar:', totalDespesas);
+
             for (const despesa of backup.despesas) {
                 try {
                     // Validar e converter data_vencimento para formato ISO8601
@@ -2079,8 +2106,8 @@ async function importarDados() {
                     console.error('❌ Exceção ao importar despesa:', error);
                 }
 
+                despesasProcessadas++;
                 processados++;
-                const despesasProcessadas = processados - totalReceitas;
                 if (progressText) {
                     progressText.textContent = `Despesas: ${despesasProcessadas} de ${totalDespesas}`;
                 }

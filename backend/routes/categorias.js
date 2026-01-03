@@ -336,4 +336,38 @@ router.get('/estatisticas/uso', async (req, res) => {
     }
 });
 
+// ================================================================
+// CRIAR CATEGORIAS PADRÃO
+// ================================================================
+router.post('/padrao', authMiddleware, async (req, res) => {
+    try {
+        console.log('📝 Criando categorias padrão para usuário:', req.usuario.id);
+
+        // Chamar a função do PostgreSQL para criar categorias padrão
+        await query('SELECT criar_categorias_padrao($1)', [req.usuario.id]);
+
+        // Buscar as categorias criadas
+        const result = await query(
+            'SELECT * FROM categorias WHERE usuario_id = $1 ORDER BY nome ASC',
+            [req.usuario.id]
+        );
+
+        console.log('✅ Categorias padrão criadas:', result.rows.length);
+
+        res.json({
+            success: true,
+            message: 'Categorias padrão criadas com sucesso',
+            data: result.rows
+        });
+
+    } catch (error) {
+        console.error('❌ Erro ao criar categorias padrão:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao criar categorias padrão',
+            error: error.message
+        });
+    }
+});
+
 module.exports = router;
