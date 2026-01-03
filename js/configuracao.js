@@ -1922,10 +1922,16 @@ async function importarDados() {
             }
 
             // ✅ PASSO 3: Importar receitas
+            console.log('📊 Total de receitas a importar:', backup.receitas.length);
+
             for (const receita of backup.receitas) {
                 try {
+                    console.log('🔍 Processando receita:', receita);
+
                     // Validar e converter data para formato ISO8601
                     let dataRecebimento = receita.data_recebimento || receita.data;
+
+                    console.log('📅 Data original:', dataRecebimento);
 
                     // Se a data não estiver no formato YYYY-MM-DD, converter
                     if (dataRecebimento && !dataRecebimento.match(/^\d{4}-\d{2}-\d{2}$/)) {
@@ -1936,6 +1942,8 @@ async function importarDados() {
                         }
                     }
 
+                    console.log('📅 Data convertida:', dataRecebimento);
+
                     const dadosReceita = {
                         descricao: receita.descricao,
                         valor: parseFloat(receita.valor),
@@ -1944,6 +1952,8 @@ async function importarDados() {
                         ano: parseInt(receita.ano),
                         observacoes: receita.observacoes || ''
                     };
+
+                    console.log('📤 Enviando para API:', dadosReceita);
 
                     const response = await fetch(`${API_URL}/receitas`, {
                         method: 'POST',
@@ -1956,6 +1966,7 @@ async function importarDados() {
 
                     if (response.ok) {
                         sucessos++;
+                        console.log('✅ Receita importada com sucesso');
                     } else {
                         erros++;
                         let errorData;
@@ -1964,13 +1975,22 @@ async function importarDados() {
                         } catch (e) {
                             errorData = { message: await response.text() };
                         }
-                        console.error('❌ Erro ao importar receita:', errorData);
-                        console.error('📤 Dados enviados:', dadosReceita);
-                        console.error('📊 Status:', response.status, response.statusText);
+                        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                        console.error('❌ ERRO AO IMPORTAR RECEITA');
+                        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                        console.error('📊 Status HTTP:', response.status, response.statusText);
+                        console.error('📤 Dados enviados:', JSON.stringify(dadosReceita, null, 2));
+                        console.error('📥 Resposta do servidor:', JSON.stringify(errorData, null, 2));
+                        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
                     }
                 } catch (error) {
                     erros++;
-                    console.error('❌ Exceção ao importar receita:', error);
+                    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                    console.error('❌ EXCEÇÃO AO IMPORTAR RECEITA');
+                    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                    console.error('Erro:', error.message);
+                    console.error('Stack:', error.stack);
+                    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
                 }
 
                 processados++;
