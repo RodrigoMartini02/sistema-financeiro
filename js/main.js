@@ -593,59 +593,7 @@ function atualizarDisplayAno(ano) {
     atualizarElemento('ano-atual', ano);
 }
 
-// ✅ Atualizar resumo financeiro na barra
-function atualizarResumoFinanceiroBarra() {
-    const saldoAnualDisplay = document.getElementById('saldo-anual-display');
-    const saldoMesDisplay = document.getElementById('saldo-mes-display');
-
-    if (!saldoAnualDisplay && !saldoMesDisplay) return;
-
-    // Calcular saldo anual
-    let totalReceitasAno = 0;
-    let totalDespesasAno = 0;
-
-    if (window.dadosFinanceiros && window.dadosFinanceiros[anoAtual]) {
-        const mesesDoAno = window.dadosFinanceiros[anoAtual].meses || [];
-
-        mesesDoAno.forEach(mes => {
-            if (mes) {
-                const receitas = mes.receitas || [];
-                const despesas = mes.despesas || [];
-
-                totalReceitasAno += receitas.reduce((sum, r) => sum + (parseFloat(r.valor) || 0), 0);
-                totalDespesasAno += despesas.reduce((sum, d) => sum + (parseFloat(d.valor) || 0), 0);
-            }
-        });
-    }
-
-    const saldoAnual = totalReceitasAno - totalDespesasAno;
-
-    // Calcular saldo do mês atual
-    let saldoMesAtual = 0;
-    if (window.dadosFinanceiros && window.dadosFinanceiros[anoAtual]?.meses?.[mesAtual]) {
-        const mesData = window.dadosFinanceiros[anoAtual].meses[mesAtual];
-        const receitas = mesData.receitas || [];
-        const despesas = mesData.despesas || [];
-
-        const totalReceitasMes = receitas.reduce((sum, r) => sum + (parseFloat(r.valor) || 0), 0);
-        const totalDespesasMes = despesas.reduce((sum, d) => sum + (parseFloat(d.valor) || 0), 0);
-        saldoMesAtual = totalReceitasMes - totalDespesasMes;
-    }
-
-    // Atualizar elementos
-    if (saldoAnualDisplay) {
-        saldoAnualDisplay.textContent = window.formatarMoeda(saldoAnual);
-        saldoAnualDisplay.className = 'resumo-valor ' + (saldoAnual >= 0 ? 'positivo' : 'negativo');
-    }
-
-    if (saldoMesDisplay) {
-        saldoMesDisplay.textContent = window.formatarMoeda(saldoMesAtual);
-        saldoMesDisplay.className = 'resumo-valor ' + (saldoMesAtual >= 0 ? 'positivo' : 'negativo');
-    }
-}
-
-// Chamar atualização do resumo quando dados mudarem
-window.atualizarResumoFinanceiroBarra = atualizarResumoFinanceiroBarra;
+// ✅ Função removida - saldo agora está apenas no dashboard
 
 function setupModais() {
     document.querySelectorAll('.close').forEach(closeBtn => {
@@ -1696,11 +1644,6 @@ async function carregarDadosDashboard(ano) {
         }
 
         carregarDadosDashboardLocal(ano);
-
-        // ✅ Atualizar resumo financeiro na barra
-        if (typeof window.atualizarResumoFinanceiroBarra === 'function') {
-            window.atualizarResumoFinanceiroBarra();
-        }
     } catch (error) {
         carregarDadosDashboardLocal(ano);
     }

@@ -211,8 +211,30 @@ class UsuarioDataManager {
 
             console.log(`📊 Carregadas ${receitas.length} receitas e ${despesas.length} despesas da API`);
 
-            // ✅ ORGANIZAR POR ANO E MÊS
-            const dadosFinanceiros = this.criarEstruturaInicial();
+            // ✅ DESCOBRIR TODOS OS ANOS QUE TÊM DADOS
+            const anosComDados = new Set();
+            receitas.forEach(r => anosComDados.add(parseInt(r.ano)));
+            despesas.forEach(d => anosComDados.add(parseInt(d.ano)));
+
+            // Sempre incluir o ano atual
+            anosComDados.add(new Date().getFullYear());
+
+            // ✅ ORGANIZAR POR ANO E MÊS - criar estrutura para TODOS os anos com dados
+            const dadosFinanceiros = {};
+            anosComDados.forEach(ano => {
+                dadosFinanceiros[ano] = { meses: [] };
+                for (let i = 0; i < 12; i++) {
+                    dadosFinanceiros[ano].meses[i] = {
+                        receitas: [],
+                        despesas: [],
+                        fechado: false,
+                        saldoAnterior: 0,
+                        saldoFinal: 0
+                    };
+                }
+            });
+
+            console.log(`📅 Anos carregados: ${Array.from(anosComDados).sort().join(', ')}`);
 
             // Processar receitas
             receitas.forEach(receita => {
