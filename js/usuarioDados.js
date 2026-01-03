@@ -238,12 +238,15 @@ class UsuarioDataManager {
 
                 this.garantirEstruturaMes(dadosFinanceiros, ano, mes);
 
+                const valor = parseFloat(despesa.valor);
+
                 dadosFinanceiros[ano].meses[mes].despesas.push({
                     id: despesa.id,
                     descricao: despesa.descricao,
-                    valor: parseFloat(despesa.valor),
+                    valor: valor,
                     categoria: despesa.categoria_nome || despesa.categoria || 'Sem categoria',
                     categoria_id: despesa.categoria_id,
+                    cartao_id: despesa.cartao_id,
                     dataCompra: despesa.data_compra,
                     dataVencimento: despesa.data_vencimento,
                     dataPagamento: despesa.data_pagamento,
@@ -253,6 +256,10 @@ class UsuarioDataManager {
                     parcelaAtual: despesa.parcela_atual,
                     pago: despesa.pago,
                     quitado: despesa.pago,
+                    // Campos para juros e economias
+                    valorPago: despesa.pago ? valor : null,
+                    valorOriginal: despesa.valor_original || null,
+                    valorTotalComJuros: despesa.valor_total_juros || null,
                     observacoes: despesa.observacoes || ''
                 });
             });
