@@ -1629,35 +1629,124 @@ function garantirUsuarioMaster() {
 // ================================================================
 async function exportarDados() {
     try {
-        // Usar dados já carregados no sistema
-        const dadosFinanceiros = window.dadosFinanceiros || {};
-
-        if (!dadosFinanceiros || Object.keys(dadosFinanceiros).length === 0) {
-            mostrarFeedback('Não há dados para exportar', 'warning');
+        const usuario = window.usuarioDataManager?.getUsuarioAtual();
+        if (!usuario || !usuario.id) {
+            mostrarFeedback('Usuário não encontrado', 'error');
             return;
         }
 
-        // Converter para CSV
-        const csvContent = converterParaCSV({ dadosFinanceiros });
+        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+        const token = sessionStorage.getItem('token');
 
-        // Download do arquivo
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        if (!token) {
+            mostrarFeedback('Token de autenticação não encontrado', 'error');
+            return;
+        }
+
+        mostrarFeedback('Buscando dados do banco...', 'info');
+
+        // Buscar todos os dados do banco de dados via API
+        const anosParaBuscar = [];
+        const anoAtual = new Date().getFullYear();
+        for (let ano = anoAtual - 5; ano <= anoAtual + 1; ano++) {
+            anosParaBuscar.push(ano);
+        }
+
+        let todasReceitas = [];
+        let todasDespesas = [];
+
+        // Buscar dados de cada ano
+        for (const ano of anosParaBuscar) {
+            try {
+                const response = await fetch(`${API_URL}/usuarios/${usuario.id}/anos/${ano}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const anoData = await response.json();
+
+                    // Adicionar receitas
+                    if (anoData.receitas && Array.isArray(anoData.receitas)) {
+                        anoData.receitas.forEach(receita => {
+                            todasReceitas.push({
+                                ano: parseInt(ano),
+                                mes: receita.mes,
+                                data: receita.data,
+                                descricao: receita.descricao,
+                                categoria: receita.categoria,
+                                valor: receita.valor,
+                                formaPagamento: receita.formaPagamento,
+                                parcelas: receita.parcelas || null,
+                                status: receita.status || 'pago',
+                                observacoes: receita.observacoes || ''
+                            });
+                        });
+                    }
+
+                    // Adicionar despesas
+                    if (anoData.despesas && Array.isArray(anoData.despesas)) {
+                        anoData.despesas.forEach(despesa => {
+                            todasDespesas.push({
+                                ano: parseInt(ano),
+                                mes: despesa.mes,
+                                data: despesa.data,
+                                descricao: despesa.descricao,
+                                categoria: despesa.categoria,
+                                valor: despesa.valor,
+                                formaPagamento: despesa.formaPagamento,
+                                parcelas: despesa.parcelas || null,
+                                status: despesa.status || 'pago',
+                                observacoes: despesa.observacoes || ''
+                            });
+                        });
+                    }
+                }
+            } catch (error) {
+                console.warn(`Erro ao buscar dados do ano ${ano}:`, error);
+            }
+        }
+
+        if (todasReceitas.length === 0 && todasDespesas.length === 0) {
+            mostrarFeedback('Não há dados para exportar no banco de dados', 'warning');
+            return;
+        }
+
+        // Buscar categorias
+        const categoriasUsuario = window.categoriasUsuario || { receitas: [], despesas: [] };
+
+        // Estrutura do backup
+        const backup = {
+            versao: '1.0',
+            dataExportacao: new Date().toISOString(),
+            usuario: usuario.nome,
+            receitas: todasReceitas,
+            despesas: todasDespesas,
+            categorias: categoriasUsuario
+        };
+
+        // Criar arquivo JSON
+        const jsonContent = JSON.stringify(backup, null, 2);
+        const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
 
         const dataAtual = new Date().toISOString().split('T')[0];
         link.setAttribute('href', url);
-        link.setAttribute('download', `backup_financeiro_${dataAtual}.csv`);
+        link.setAttribute('download', `backup_financeiro_${dataAtual}.json`);
         link.style.visibility = 'hidden';
 
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
 
-        mostrarFeedback('Dados exportados com sucesso!', 'success');
+        mostrarFeedback(`✅ Exportados: ${todasReceitas.length} receitas e ${todasDespesas.length} despesas`, 'success');
     } catch (error) {
         console.error('Erro ao exportar dados:', error);
-        mostrarFeedback('Erro ao exportar dados', 'error');
+        mostrarFeedback('Erro ao exportar dados: ' + error.message, 'error');
     }
 }
 
@@ -1700,7 +1789,7 @@ function converterParaCSV(dados) {
 async function importarDados() {
     const inputFile = document.createElement('input');
     inputFile.type = 'file';
-    inputFile.accept = '.csv';
+    inputFile.accept = '.json';
 
     inputFile.onchange = async (event) => {
         const file = event.target.files[0];
@@ -1710,8 +1799,14 @@ async function importarDados() {
         const progressText = document.getElementById('loader-progress');
 
         try {
-            const csvText = await file.text();
-            const dadosImportados = converterCSVParaJSON(csvText);
+            const fileText = await file.text();
+            const backup = JSON.parse(fileText);
+
+            // Validar estrutura do backup
+            if (!backup.receitas || !backup.despesas) {
+                mostrarFeedback('Arquivo inválido: formato de backup incorreto', 'error');
+                return;
+            }
 
             const usuario = window.usuarioDataManager?.getUsuarioAtual();
             if (!usuario || !usuario.id) {
@@ -1719,8 +1814,17 @@ async function importarDados() {
                 return;
             }
 
-            if (dadosImportados.receitas.length === 0 && dadosImportados.despesas.length === 0) {
-                mostrarFeedback('Nenhum dado válido encontrado no arquivo CSV', 'warning');
+            const totalReceitas = backup.receitas.length;
+            const totalDespesas = backup.despesas.length;
+            const total = totalReceitas + totalDespesas;
+
+            if (total === 0) {
+                mostrarFeedback('Nenhum dado válido encontrado no arquivo', 'warning');
+                return;
+            }
+
+            // Confirmar importação
+            if (!confirm(`Importar ${totalReceitas} receitas e ${totalDespesas} despesas?\n\nIsso adicionará os dados ao sistema.`)) {
                 return;
             }
 
@@ -1732,11 +1836,10 @@ async function importarDados() {
 
             let sucessos = 0;
             let erros = 0;
-            const total = dadosImportados.receitas.length + dadosImportados.despesas.length;
             let processados = 0;
 
-            // Importar receitas usando rotas existentes
-            for (const receita of dadosImportados.receitas) {
+            // Importar receitas
+            for (const receita of backup.receitas) {
                 try {
                     const response = await fetch(`${API_URL}/usuarios/${usuario.id}/anos/${receita.ano}/receitas`, {
                         method: 'POST',
@@ -1769,8 +1872,8 @@ async function importarDados() {
                 }
             }
 
-            // Importar despesas usando rotas existentes
-            for (const despesa of dadosImportados.despesas) {
+            // Importar despesas
+            for (const despesa of backup.despesas) {
                 try {
                     const response = await fetch(`${API_URL}/usuarios/${usuario.id}/anos/${despesa.ano}/despesas`, {
                         method: 'POST',
@@ -1830,7 +1933,7 @@ async function importarDados() {
             if (loader) loader.classList.remove('show');
             if (progressText) progressText.textContent = '';
 
-            mostrarFeedback('Erro ao processar arquivo CSV: ' + error.message, 'error');
+            mostrarFeedback('Erro ao processar arquivo: ' + error.message, 'error');
         }
     };
 
