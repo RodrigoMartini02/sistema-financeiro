@@ -469,8 +469,75 @@ textarea:focus {
     flex-shrink: 0;
 }
 
+.periodo-selector {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.periodo-selector button {
+    background: none;
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 0;
+}
+
+.periodo-selector button:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+
 .periodo-selector button i {
-    color: #4361ee;
+    color: inherit;
+    font-size: 0.9rem;
+}
+
+.periodo-selector span {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-color);
+    min-width: 80px;
+    text-align: center;
+}
+
+/* Header Actions - Botão Sair */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#logout-btn {
+    background: none;
+    border: 2px solid var(--danger);
+    color: var(--danger);
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 0;
+    text-decoration: none;
+    padding: 0;
+}
+
+#logout-btn:hover {
+    background-color: var(--danger);
+    color: white;
+    text-decoration: none;
+}
+
+#logout-btn i {
+    font-size: 1.1rem;
 }
 
 /* ================================================================
@@ -2679,5 +2746,34 @@ table tr:hover {
 
     .dashboard-grid {
         grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+
+/* ================================================================
+   EXIBIÇÃO DO NOME DO USUÁRIO
+   ================================================================ */
+.user-welcome {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 14px;
+    color: #555;
+    margin-right: 20px;
+}
+
+.user-welcome #nome-usuario-logado {
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.user-welcome .welcome-text {
+    font-weight: normal;
+    color: #666;
+}
+
+@media (max-width: 768px) {
+    .user-welcome .welcome-text {
+        display: none;
     }
 }
