@@ -2385,8 +2385,8 @@ document.addEventListener("DOMContentLoaded", () => {
 const API_KEY_NEWS = 'f5b5fe911dc347bda08e58e160ebb938';
 let noticiasAtivas = false;
 
-async function buscarNoticiasDoDia() {
-    // Busca notícias principais (top-headlines) em português
+async function buscarNoticiasInternacionais() {
+    // Busca notícias gerais em português para garantir conteúdo
     const url = `https://newsapi.org/v2/top-headlines?language=pt&apiKey=${API_KEY_NEWS}`;
     
     try {
@@ -2394,17 +2394,20 @@ async function buscarNoticiasDoDia() {
         const dados = await response.json();
         
         if (dados.articles && dados.articles.length > 0) {
-            // Pega as 10 primeiras notícias e separa por um símbolo
-            return dados.articles.slice(0, 10).map(a => a.title).join('  •  ');
+            // Filtra e junta os títulos de 10 notícias com um separador visual
+            return dados.articles
+                .slice(0, 10)
+                .map(a => a.title)
+                .join(' <span style="color: var(--primary-color)">●</span> ');
         }
-        return "Nenhuma notícia encontrada no momento.";
+        return "Nenhuma notícia disponível no momento.";
     } catch (erro) {
-        console.error("Erro ao buscar notícias:", erro);
-        return "Serviço de notícias temporariamente indisponível.";
+        console.error("Erro na API:", erro);
+        return "Serviço de notícias indisponível.";
     }
 }
 
-async function toggleLetreiroNoticias() {
+async function toggleNoticias() {
     const marquee = document.getElementById('marquee-noticias');
     const btn = document.getElementById('btn-toggle-noticias');
     const conteudo = document.getElementById('conteudo-noticias');
@@ -2412,30 +2415,25 @@ async function toggleLetreiroNoticias() {
     noticiasAtivas = !noticiasAtivas;
 
     if (noticiasAtivas) {
+        btn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i>';
         btn.classList.add('btn-success');
-        btn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Carregando...';
 
-        // Busca as notícias da API
-        const textoNoticias = await buscarNoticiasDoDia();
-        
-        // Adiciona a notícia manual de hoje (Maduro) no início se existir
-        const hoje = new Date().toLocaleDateString('sv-SE');
-        const noticiaManual = calendarioFinanceiro[hoje] ? `[DESTAQUE] ${calendarioFinanceiro[hoje]}  •  ` : "";
+        const textoNoticias = await buscarNoticiasInternacionais();
 
-        conteudo.innerHTML = `<span>${noticiaManual}${textoNoticias}</span>`;
+        conteudo.innerHTML = `<span>${textoNoticias}</span>`;
         marquee.style.display = 'block';
-        btn.innerHTML = '<i class="fas fa-times"></i> Fechar Notícias';
+        btn.innerHTML = '<i class="fas fa-times"></i> Notícias';
     } else {
         marquee.style.display = 'none';
         btn.classList.remove('btn-success');
-        btn.innerHTML = '<i class="fas fa-newspaper"></i> Notícias do Dia';
+        btn.innerHTML = '<i class="fas fa-newspaper"></i> Notícias';
     }
 }
 
-// Configura o evento do botão
+// Inicializa o evento no botão existente na sua secondary-action-bar
 document.addEventListener("DOMContentLoaded", () => {
     const btn = document.getElementById('btn-toggle-noticias');
-    if (btn) btn.addEventListener('click', toggleLetreiroNoticias);
+    if (btn) btn.addEventListener('click', toggleNoticias);
 });
 
 
