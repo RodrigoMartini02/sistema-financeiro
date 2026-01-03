@@ -2014,7 +2014,8 @@ async function importarDados() {
                         data_pagamento: dataPagamento,
                         mes: parseInt(despesa.mes),
                         ano: parseInt(despesa.ano),
-                        categoria_id: despesa.categoria_id || despesa.categoria || 1,
+                        // ✅ NÃO enviar categoria_id - backend usa padrão 1
+                        // categoria_id será definido pelo backend como 1 (padrão)
                         cartao_id: despesa.cartao_id || despesa.cartao || null,
                         forma_pagamento: despesa.forma_pagamento || despesa.formaPagamento || 'dinheiro',
                         parcelado: despesa.parcelado || false,
