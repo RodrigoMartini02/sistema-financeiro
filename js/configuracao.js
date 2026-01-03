@@ -2145,6 +2145,36 @@ async function importarDados() {
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
 
+            // ✅ PASSO 5: Salvar anos na tabela 'anos'
+            const anosImportados = new Set();
+            if (backup.receitas) {
+                backup.receitas.forEach(r => anosImportados.add(parseInt(r.ano)));
+            }
+            if (backup.despesas) {
+                backup.despesas.forEach(d => anosImportados.add(parseInt(d.ano)));
+            }
+
+            if (anosImportados.size > 0) {
+                if (progressText) progressText.textContent = `Salvando ${anosImportados.size} anos...`;
+                console.log(`📅 Salvando anos: ${Array.from(anosImportados).sort().join(', ')}`);
+
+                for (const ano of anosImportados) {
+                    try {
+                        await fetch(`${API_URL}/anos`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify({ ano: parseInt(ano) })
+                        });
+                        console.log(`✅ Ano ${ano} salvo`);
+                    } catch (error) {
+                        console.warn(`⚠️ Erro ao salvar ano ${ano}:`, error);
+                    }
+                }
+            }
+
             // Ocultar loader
             if (loader) loader.classList.remove('show');
             if (progressText) progressText.textContent = '';

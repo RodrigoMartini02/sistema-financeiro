@@ -60,9 +60,12 @@ async function iniciarSistema() {
         await carregarDadosDashboard(anoAtual);
         await renderizarMeses(anoAtual);
 
-        // Garantir que dashboard inicia visível
+        // Garantir que dashboard inicia visível (sem recarregar)
         setTimeout(() => {
-            onSecaoAtivada('dashboard');
+            const dashboardLink = document.querySelector('[data-section="dashboard"]');
+            if (dashboardLink && !dashboardLink.classList.contains('active')) {
+                dashboardLink.click();
+            }
         }, 200);
     }
 
@@ -720,10 +723,32 @@ function setupOutrosControles() {
             const icon = this.querySelector('i');
             icon.classList.add('fa-spin');
 
+            // Limpar cache do usuarioDataManager
+            if (window.usuarioDataManager && typeof window.usuarioDataManager.limparCache === 'function') {
+                window.usuarioDataManager.limparCache();
+            }
+
+            // Recarregar dados principais
             await carregarDadosLocais();
             await carregarDadosDashboard(anoAtual);
             await renderizarMeses(anoAtual);
 
+            // Recarregar categorias
+            if (typeof window.carregarCategoriasDoServidor === 'function') {
+                await window.carregarCategoriasDoServidor();
+            }
+
+            // Recarregar cartões
+            if (typeof window.carregarCartoesDoServidor === 'function') {
+                await window.carregarCartoesDoServidor();
+            }
+
+            // Recarregar notificações
+            if (typeof window.carregarNotificacoes === 'function') {
+                await window.carregarNotificacoes();
+            }
+
+            // Recarregar seção ativa
             const secaoAtiva = document.querySelector('.nav-link.active')?.dataset.section;
             if (secaoAtiva) {
                 onSecaoAtivada(secaoAtiva);

@@ -6,7 +6,10 @@
       "Bash(grep -rn \"exportarDados\\\\|importarDados\\\\|limparDados\" \"c:\\\\Users\\\\rodri\\\\Music\\\\sistema financas - Copia\\\\js\"\" --include=\"*.js \")",
       "Bash(grep:*)",
       "Bash(cat:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(node -c:*)",
+      "Bash(findstr:*)",
+      "Bash(dir \"c:\\\\Users\\\\rodri\\\\Music\\\\sistema financas\\\\backend\\\\routes\")"
     ]
   }
 }
