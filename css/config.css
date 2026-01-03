@@ -1472,3 +1472,139 @@
 .form-redefinir-senha .btn {
     margin-top: 10px;
 }
+
+/* ================================================================ */
+/* MODAL DE ALTERAR SENHA - COMPACTO */
+/* ================================================================ */
+#modal-alterar-senha .modal-content {
+    max-width: 450px;
+    padding: 0;
+}
+
+#modal-alterar-senha .modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px 24px;
+    border-radius: 12px 12px 0 0;
+}
+
+#modal-alterar-senha .modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#modal-alterar-senha .modal-header i {
+    font-size: 20px;
+}
+
+#modal-alterar-senha .modal-header .close {
+    color: white;
+    opacity: 0.9;
+}
+
+#modal-alterar-senha .modal-header .close:hover {
+    opacity: 1;
+}
+
+#modal-alterar-senha .modal-body {
+    padding: 24px;
+}
+
+#modal-alterar-senha .form-group {
+    margin-bottom: 18px;
+}
+
+#modal-alterar-senha .form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: #333;
+    font-size: 13px;
+}
+
+#modal-alterar-senha .form-control {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+#modal-alterar-senha .form-control:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+#modal-alterar-senha .form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 24px;
+}
+
+#modal-alterar-senha .btn-action {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+#modal-alterar-senha .btn-action:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+#modal-alterar-senha .btn-action-secondary {
+    flex: 0.5;
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: white;
+    color: #666;
+}
+
+#modal-alterar-senha .btn-action-secondary:hover {
+    background: #f5f5f5;
+    border-color: #ccc;
+}
+
+#modal-alterar-senha .info-box {
+    background: #f8f9ff;
+    border-left: 4px solid #667eea;
+    padding: 16px;
+    border-radius: 6px;
+    margin-top: 20px;
+}
+
+#modal-alterar-senha .info-box p {
+    margin: 0 0 10px 0;
+    font-weight: 600;
+    color: #667eea;
+    font-size: 13px;
+}
+
+#modal-alterar-senha .info-box ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+#modal-alterar-senha .info-box li {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 6px;
+}

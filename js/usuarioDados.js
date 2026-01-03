@@ -242,6 +242,8 @@ class UsuarioDataManager {
                     id: despesa.id,
                     descricao: despesa.descricao,
                     valor: parseFloat(despesa.valor),
+                    categoria: despesa.categoria_nome || despesa.categoria || 'Sem categoria',
+                    categoria_id: despesa.categoria_id,
                     dataCompra: despesa.data_compra,
                     dataVencimento: despesa.data_vencimento,
                     dataPagamento: despesa.data_pagamento,
