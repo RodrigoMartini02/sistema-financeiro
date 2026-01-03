@@ -1867,7 +1867,10 @@ async function importarDados() {
 
             // ✅ PASSO 1: Importar categorias PRIMEIRO (para criar os IDs no banco)
             if (backup.categorias) {
+                const totalCategorias = (backup.categorias.receitas?.length || 0) + (backup.categorias.despesas?.length || 0);
+                if (progressText) progressText.textContent = `Importando ${totalCategorias} categorias...`;
                 console.log('📁 Importando categorias...');
+
                 try {
                     const responseCategorias = await fetch(`${API_URL}/usuarios/${usuario.id}/categorias`, {
                         method: 'PUT',
@@ -1892,7 +1895,10 @@ async function importarDados() {
 
             // ✅ PASSO 2: Importar cartões
             if (backup.cartoes) {
+                const totalCartoes = Object.values(backup.cartoes).filter(c => c.ativo).length;
+                if (progressText) progressText.textContent = `Importando ${totalCartoes} cartões...`;
                 console.log('💳 Importando cartões...');
+
                 try {
                     const responseCartoes = await fetch(`${API_URL}/usuarios/${usuario.id}/cartoes`, {
                         method: 'PUT',
@@ -1919,7 +1925,7 @@ async function importarDados() {
             for (const receita of backup.receitas) {
                 try {
                     // Validar e converter data para formato ISO8601
-                    let dataRecebimento = receita.data;
+                    let dataRecebimento = receita.data_recebimento || receita.data;
 
                     // Se a data não estiver no formato YYYY-MM-DD, converter
                     if (dataRecebimento && !dataRecebimento.match(/^\d{4}-\d{2}-\d{2}$/)) {
@@ -1963,11 +1969,11 @@ async function importarDados() {
 
                 processados++;
                 if (progressText) {
-                    progressText.textContent = `${processados} de ${total} registros`;
+                    progressText.textContent = `Receitas: ${processados} de ${totalReceitas}`;
                 }
             }
 
-            // Importar despesas
+            // ✅ PASSO 4: Importar despesas
             for (const despesa of backup.despesas) {
                 try {
                     // Validar e converter data_vencimento para formato ISO8601
@@ -2047,8 +2053,9 @@ async function importarDados() {
                 }
 
                 processados++;
+                const despesasProcessadas = processados - totalReceitas;
                 if (progressText) {
-                    progressText.textContent = `${processados} de ${total} registros`;
+                    progressText.textContent = `Despesas: ${despesasProcessadas} de ${totalDespesas}`;
                 }
             }
 
