@@ -1880,10 +1880,13 @@ async function importarDados() {
 
                 if (responsePadrao.ok) {
                     const data = await responsePadrao.json();
-                    console.log('✅ Categorias padrão criadas:', data.data?.length || 0);
+                    console.log('✅ Categorias padrão:', data.message);
+                    console.log('📋 Total de categorias:', data.resumo?.total);
+                    console.log('📋 IDs disponíveis:', data.resumo?.ids);
+                    console.log('📊 Detalhes:', data.data);
                 } else {
                     const errorData = await responsePadrao.json();
-                    console.warn('⚠️ Categorias padrão já existem ou erro:', errorData.message);
+                    console.error('❌ Erro ao criar categorias padrão:', errorData);
                 }
             } catch (error) {
                 console.warn('⚠️ Erro ao criar categorias padrão:', error);
@@ -2119,19 +2122,14 @@ async function importarDados() {
 
             if (sucessos > 0) {
                 mostrarFeedback(
-                    `Importação concluída: ${sucessos} de ${total} registros${erros > 0 ? ` (${erros} erros)` : ''}`,
+                    `Importação concluída: ${sucessos} de ${total} registros${erros > 0 ? ` (${erros} erros)` : ''}. Recarregando página...`,
                     erros > 0 ? 'warning' : 'success'
                 );
 
-                // Recarregar dados
-                if (typeof window.carregarDadosLocais === 'function') {
-                    await window.carregarDadosLocais();
-                }
-
-                // Atualizar dashboard
-                if (typeof window.carregarDadosDashboard === 'function') {
-                    await window.carregarDadosDashboard(window.anoAtual || new Date().getFullYear());
-                }
+                // ✅ PRODUÇÃO: Recarregar a página completamente para buscar dados do backend
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
             } else {
                 mostrarFeedback('Erro: Nenhum registro foi importado', 'error');
             }
