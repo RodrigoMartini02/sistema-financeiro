@@ -2382,28 +2382,31 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
-// Configurações da API de Notícias
-const API_KEY_NEWS = 'f5b5fe911dc347bda08e58e160ebb938';
-let noticiasAtivas = false;
+const GNEWS_API_KEY = 'f05356298e67cf7fac62f78ae0b54708';
 
-/**
- * Busca as notícias reais através da API
- */
 async function buscarNoticiasAPI() {
-    // Filtra notícias em português
-    const url = `https://newsapi.org/v2/top-headlines?language=pt&apiKey=${API_KEY_NEWS}`;
-    
+    // Configuração para buscar as 10 notícias mais recentes do Brasil em português
+    const url = `https://gnews.io/api/v4/top-headlines?category=general&lang=pt&country=br&max=10&apikey=${GNEWS_API_KEY}`;
+
     try {
         const response = await fetch(url);
-        const dados = await response.json();
         
-        if (dados.articles && dados.articles.length > 0) {
-            // Retorna os títulos das notícias separados por um símbolo de ponto
-            return dados.articles.slice(0, 10).map(a => a.title).join('  •  ');
+        if (!response.ok) {
+            // Se a cota diária acabar ou houver erro na chave, lança o erro
+            throw new Error(`Erro GNews: ${response.status}`);
         }
+
+        const dados = await response.json();
+
+        if (dados.articles && dados.articles.length > 0) {
+            // Mapeia os títulos reais e junta-os com o separador visual
+            return dados.articles.map(a => a.title).join('  •  ');
+        }
+        
         return "Nenhuma notícia encontrada no momento.";
+
     } catch (erro) {
-        console.error("Erro na API de notícias:", erro);
+        console.error("Erro ao carregar notícias reais:", erro);
         return "Serviço de notícias temporariamente indisponível.";
     }
 }
