@@ -2382,53 +2382,57 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
+// Configurações da API (GNews)
 const GNEWS_API_KEY = 'f05356298e67cf7fac62f78ae0b54708';
+let noticiasAtivas = false;
 
+/**
+ * Busca notícias reais do Brasil via GNews API
+ */
 async function buscarNoticiasAPI() {
-    // Configuração para buscar as 10 notícias mais recentes do Brasil em português
+    // Busca as 10 principais notícias do Brasil em português
     const url = `https://gnews.io/api/v4/top-headlines?category=general&lang=pt&country=br&max=10&apikey=${GNEWS_API_KEY}`;
 
     try {
         const response = await fetch(url);
         
         if (!response.ok) {
-            // Se a cota diária acabar ou houver erro na chave, lança o erro
             throw new Error(`Erro GNews: ${response.status}`);
         }
 
         const dados = await response.json();
 
         if (dados.articles && dados.articles.length > 0) {
-            // Mapeia os títulos reais e junta-os com o separador visual
+            // Retorna os títulos das notícias separados por um ponto
             return dados.articles.map(a => a.title).join('  •  ');
         }
         
         return "Nenhuma notícia encontrada no momento.";
 
     } catch (erro) {
-        console.error("Erro ao carregar notícias reais:", erro);
+        console.error("Erro ao buscar notícias reais:", erro);
         return "Serviço de notícias temporariamente indisponível.";
     }
 }
 
 /**
- * Controla a exibição do letreiro (Marquee)
+ * Função de Toggle (Liga/Desliga) do Letreiro
  */
 async function toggleNoticias() {
     const marquee = document.getElementById('marquee-noticias');
     const conteudo = document.getElementById('conteudo-noticias');
     
-    // Se os elementos não existirem no DOM, interrompe a função
+    // Verifica se os elementos existem
     if (!marquee || !conteudo) return;
 
     noticiasAtivas = !noticiasAtivas;
 
     if (noticiasAtivas) {
-        // Busca os dados e preenche o conteúdo antes de exibir
+        // Busca as notícias reais e injeta no letreiro
         const textoNoticias = await buscarNoticiasAPI();
         conteudo.innerHTML = `<span>${textoNoticias}</span>`;
         
-        // Mostra o container do letreiro
+        // Exibe o container do letreiro
         marquee.style.display = 'block';
     } else {
         // Esconde o container do letreiro
@@ -2437,13 +2441,12 @@ async function toggleNoticias() {
 }
 
 /**
- * Inicialização dos eventos
+ * Inicializa o evento no seu botão existente
  */
 document.addEventListener("DOMContentLoaded", () => {
-    const btnNoticias = document.getElementById('btn-toggle-noticias');
-    
-    if (btnNoticias) {
-        btnNoticias.addEventListener('click', toggleNoticias);
+    const btn = document.getElementById('btn-toggle-noticias');
+    if (btn) {
+        btn.addEventListener('click', toggleNoticias);
     }
 });
 
