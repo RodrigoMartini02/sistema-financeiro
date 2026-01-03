@@ -2382,6 +2382,67 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
+const API_KEY_NEWS = 'f5b5fe911dc347bda08e58e160ebb938';
+let noticiasAtivas = false;
+
+async function buscarNoticiasDoDia() {
+    // Busca notícias principais (top-headlines) em português
+    const url = `https://newsapi.org/v2/top-headlines?language=pt&apiKey=${API_KEY_NEWS}`;
+    
+    try {
+        const response = await fetch(url);
+        const dados = await response.json();
+        
+        if (dados.articles && dados.articles.length > 0) {
+            // Pega as 10 primeiras notícias e separa por um símbolo
+            return dados.articles.slice(0, 10).map(a => a.title).join('  •  ');
+        }
+        return "Nenhuma notícia encontrada no momento.";
+    } catch (erro) {
+        console.error("Erro ao buscar notícias:", erro);
+        return "Serviço de notícias temporariamente indisponível.";
+    }
+}
+
+async function toggleLetreiroNoticias() {
+    const marquee = document.getElementById('marquee-noticias');
+    const btn = document.getElementById('btn-toggle-noticias');
+    const conteudo = document.getElementById('conteudo-noticias');
+    
+    noticiasAtivas = !noticiasAtivas;
+
+    if (noticiasAtivas) {
+        btn.classList.add('btn-success');
+        btn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Carregando...';
+
+        // Busca as notícias da API
+        const textoNoticias = await buscarNoticiasDoDia();
+        
+        // Adiciona a notícia manual de hoje (Maduro) no início se existir
+        const hoje = new Date().toLocaleDateString('sv-SE');
+        const noticiaManual = calendarioFinanceiro[hoje] ? `[DESTAQUE] ${calendarioFinanceiro[hoje]}  •  ` : "";
+
+        conteudo.innerHTML = `<span>${noticiaManual}${textoNoticias}</span>`;
+        marquee.style.display = 'block';
+        btn.innerHTML = '<i class="fas fa-times"></i> Fechar Notícias';
+    } else {
+        marquee.style.display = 'none';
+        btn.classList.remove('btn-success');
+        btn.innerHTML = '<i class="fas fa-newspaper"></i> Notícias do Dia';
+    }
+}
+
+// Configura o evento do botão
+document.addEventListener("DOMContentLoaded", () => {
+    const btn = document.getElementById('btn-toggle-noticias');
+    if (btn) btn.addEventListener('click', toggleLetreiroNoticias);
+});
+
+
+
+
+
+
 
 function iniciarAtualizacaoCotacoes() {
     const elemento = document.getElementById('cotacoes');

@@ -73,14 +73,22 @@
     <!-- ============================================================ -->
     <main class="main-content">
         <header class="main-header">
-            <div id="banner-financeiro" class="banner-alerta" style="display: none;">
-                <div class="banner-conteudo">
-                    <i class="fas fa-info-circle"></i>
-                    <span id="mensagem-dia"></span>
+            <div class="secondary-action-bar">
+                <div class="action-group">
+                    <button id="btn-toggle-noticias" class="btn btn-secondary" title="Ativar/Desativar Letreiro de Notícias">
+                        <i class="fas fa-newspaper"></i> Notícias
+                    </button>
                 </div>
-                <button type="button" class="btn-fechar-banner" id="btn-fechar-banner">
-                    <i class="fas fa-times"></i>
-                </button>
+
+                <div class="cambio-container">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span id="cotacoes">Carregando...</span>
+                </div>
+            </div>
+
+            <div id="marquee-noticias" class="marquee-container" style="display: none;">
+                <div class="marquee-content" id="conteudo-noticias">
+                    </div>
             </div>
             <div class="header-actions">
                 <div class="periodo-selector">

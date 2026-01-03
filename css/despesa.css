@@ -55,9 +55,6 @@
     font-size: 11px;
 }
 
-.grid-content {
-    /* Conteúdo sem scroll próprio */
-}
 
 .grid-row {
     border-bottom: 0.5px solid #f3f4f6;
