@@ -2290,6 +2290,98 @@ function configurarEventListeners() {
 
 
 
+const calendarioFinanceiro = {
+    // Datas de 2026
+   "2026-01-01": "Início do ano fiscal em muitos países. Planejamento orçamentário é essencial para governos, empresas e famílias.",
+
+    "2026-01-15": "O que são Bancos Centrais? Instituições responsáveis por controlar a inflação e os juros de uma economia.",
+
+    "2026-02-01": "Inflação: quando os preços sobem de forma contínua, o poder de compra da população diminui.",
+
+    "2026-02-15": "Juros altos combatem a inflação, mas podem desacelerar a economia. Juros baixos estimulam o consumo.",
+
+    "2026-03-01": "O que é o PIB? Ele mede a soma de todas as riquezas produzidas por um país em determinado período.",
+
+    "2026-03-15": "Câmbio: a valorização ou desvalorização da moeda afeta importações, exportações e viagens internacionais.",
+
+    "2026-04-01": "Globalização econômica conecta países, mas também transmite crises financeiras rapidamente.",
+
+    "2026-05-01": "Trabalho e economia: emprego formal aumenta renda, consumo e arrecadação de impostos.",
+
+    "2026-06-01": "Crises econômicas ensinam a importância de reservas financeiras e políticas fiscais responsáveis.",
+
+    "2026-07-01": "Dívida pública: governos se endividam para investir, mas precisam manter sustentabilidade fiscal.",
+
+    "2026-08-01": "Mercado financeiro canaliza recursos para investimentos produtivos e crescimento econômico.",
+
+    "2026-09-01": "Política monetária influencia crédito, consumo e investimentos no curto e médio prazo.",
+
+    "2026-10-01": "Educação financeira ajuda famílias a evitar endividamento excessivo e planejar o futuro.",
+
+    "2026-11-01": "Comércio internacional permite ganhos de escala, mas depende de estabilidade cambial.",
+
+    "2026-12-01": "Crescimento econômico sustentável equilibra desenvolvimento, inclusão social e meio ambiente.",
+     
+    "2026-01-05": "O orçamento público define como o governo arrecada e gasta recursos ao longo do ano.",
+
+    "2026-02-05": "O IPCA mede a inflação oficial do Brasil e impacta salários, benefícios e contratos.",
+
+    "2026-03-05": "A Taxa Selic influencia empréstimos, financiamentos e aplicações financeiras.",
+
+    "2026-04-05": "Impostos financiam serviços públicos como saúde, educação e infraestrutura.",
+
+    "2026-05-05": "Empreendedorismo impulsiona inovação, geração de empregos e crescimento econômico.",
+
+    "2026-06-05": "O sistema bancário conecta poupadores e tomadores de crédito.",
+
+    "2026-07-05": "Déficit e superávit fiscal indicam se o governo gasta mais ou menos do que arrecada.",
+
+    "2026-08-05": "Exportações fortalecem a economia ao gerar divisas e empregos.",
+
+    "2026-09-05": "A indústria transforma matérias-primas em produtos de maior valor agregado.",
+
+    "2026-10-05": "Programas sociais movimentam a economia local e reduzem desigualdades.",
+
+    "2026-11-05": "Consumo consciente ajuda no equilíbrio financeiro das famílias.",
+
+    "2026-12-05": "Planejamento financeiro anual prepara famílias e empresas para o próximo ciclo econômico."
+};
+
+function verificarMensagens() {
+    // Pega a data local respeitando o fuso horário do usuário
+    const data = new Date();
+    const ano = data.getFullYear();
+    const mes = String(data.getMonth() + 1).padStart(2, '0');
+    const dia = String(data.getDate()).padStart(2, '0');
+    const hoje = `${ano}-${mes}-${dia}`;
+
+    const banner = document.getElementById('banner-financeiro');
+    const displayMensagem = document.getElementById('mensagem-dia');
+
+    if (calendarioFinanceiro[hoje]) {
+        displayMensagem.innerText = calendarioFinanceiro[hoje];
+        banner.style.display = 'flex';
+    } else {
+        banner.style.display = 'none';
+    }
+}
+// Event listener para fechar o banner
+function fecharBanner() {
+    const banner = document.getElementById('banner-financeiro');
+    banner.style.display = 'none';
+}
+
+// Inicia a verificação assim que a página carregar
+document.addEventListener("DOMContentLoaded", () => {
+    verificarMensagens();
+
+    const btnFechar = document.getElementById('btn-fechar-banner');
+    if (btnFechar) {
+        btnFechar.addEventListener('click', fecharBanner);
+    }
+});
+
+
 
 function iniciarAtualizacaoCotacoes() {
     const elemento = document.getElementById('cotacoes');
