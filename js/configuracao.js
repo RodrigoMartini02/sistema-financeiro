@@ -2202,7 +2202,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 const calendarioFinanceiro = {
     // Datas de 2026 baseadas no calendário oficial
-    "2026-01-27": "Início da reunião do COPOM (Taxa Selic)",
+    "2026-01-03": "Início da reunião do COPOM (Taxa Selic)",
     "2026-01-28": "Decisão da Taxa Selic hoje!",
     "2026-02-16": "Feriado de Carnaval - Sem expediente bancário/B3",
     "2026-02-17": "Feriado de Carnaval - Sem expediente bancário/B3",
