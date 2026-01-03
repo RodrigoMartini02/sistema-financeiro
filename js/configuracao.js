@@ -2220,15 +2220,28 @@ function verificarMensagens() {
     const displayMensagem = document.getElementById('mensagem-dia');
 
     if (calendarioFinanceiro[hoje]) {
-        displayMensagem.innerText = `AVISO: ${calendarioFinanceiro[hoje]}`;
+        displayMensagem.innerText = calendarioFinanceiro[hoje];
         banner.style.display = 'flex';
     } else {
         banner.style.display = 'none';
     }
 }
 
+// Event listener para fechar o banner
+function fecharBanner() {
+    const banner = document.getElementById('banner-financeiro');
+    banner.style.display = 'none';
+}
+
 // Inicia a verificação assim que a página carregar
-document.addEventListener("DOMContentLoaded", verificarMensagens);
+document.addEventListener("DOMContentLoaded", () => {
+    verificarMensagens();
+
+    const btnFechar = document.getElementById('btn-fechar-banner');
+    if (btnFechar) {
+        btnFechar.addEventListener('click', fecharBanner);
+    }
+});
 
 
 

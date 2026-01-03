@@ -73,21 +73,20 @@
             <div class="header-left">
                 <div class="user-welcome hidden" id="nome-usuario"></div>
             </div>
-            <div id="banner-financeiro" class="banner-alerta" style="display: none;">
-                <div class="banner-conteudo">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span id="mensagem-dia"></span>
-                </div>
-                <button type="button" class="btn-fechar-banner" onclick="this.parentElement.style.display='none'">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-                        <div class="header-actions">
+            <div class="header-actions">
                 <div class="user-welcome">
                     <span id="nome-usuario-logado"></span>
                     <span class="welcome-text">Aqui você organiza sua vida financeira</span>
                 </div>
-
+            </div>
+            <div id="banner-financeiro" class="banner-alerta" style="display: none;">
+                <i class="fas fa-info-circle"></i>
+                <span id="mensagem-dia"></span>
+                <button type="button" class="btn-fechar-banner" id="btn-fechar-banner">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="header-actions">
                 <div class="periodo-selector">
                     <button id="btn-ano-anterior"><i class="fas fa-chevron-left"></i></button>
                     <span id="ano-atual"></span>
