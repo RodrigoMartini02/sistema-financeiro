@@ -2216,17 +2216,14 @@ const calendarioFinanceiro = {
 };
 
 function verificarEventos() {
+    // Obtém data no formato YYYY-MM-DD (Horário Local)
     const hoje = new Date().toISOString().split('T')[0];
     const banner = document.getElementById('banner-financeiro');
     const displayMensagem = document.getElementById('mensagem-dia');
 
     if (calendarioFinanceiro[hoje]) {
         displayMensagem.innerText = `AVISO: ${calendarioFinanceiro[hoje]}`;
-        
-        // Pequeno atraso para o usuário ver a transição após carregar o dashboard
-        setTimeout(() => {
-            banner.style.display = 'block';
-        }, 500);
+        banner.style.display = 'block';
     }
 }
 
