@@ -2294,7 +2294,7 @@ const calendarioFinanceiro = {
     // Datas de 2026
    "2026-01-01": "Início do ano fiscal em muitos países. Planejamento orçamentário é essencial para governos, empresas e famílias.",
 
-    "2026-01-15": "O que são Bancos Centrais? Instituições responsáveis por controlar a inflação e os juros de uma economia.",
+    "2026-01-03": "O que são Bancos Centrais? Instituições responsáveis por controlar a inflação e os juros de uma economia.",
 
     "2026-02-01": "Inflação: quando os preços sobem de forma contínua, o poder de compra da população diminui.",
 
