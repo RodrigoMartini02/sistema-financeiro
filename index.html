@@ -112,6 +112,10 @@
                         <button id="btn-excluir-ano-menu" class="dropdown-item dropdown-item-danger">
                             <i class="fas fa-calendar-times"></i> Excluir Ano Atual
                         </button>
+                        <div class="dropdown-divider"></div>
+                        <button id="btn-alterar-senha-menu" class="dropdown-item">
+                            <i class="fas fa-key"></i> Alterar Senha
+                        </button>
                     </div>
                 </div>
 
@@ -848,9 +852,6 @@
         <button class="config-tab-btn" data-tab="usuarios">
             <i class="fas fa-users"></i> Usuários
         </button>
-        <button class="config-tab-btn" data-tab="senha">
-            <i class="fas fa-key"></i> Redefinir Senha
-        </button>
         <button class="config-tab-btn" data-tab="logs">
             <i class="fas fa-history"></i> Logs do Sistema
         </button>
@@ -1043,46 +1044,6 @@
                     <li>Administradores só podem editar usuários do tipo Padrão</li>
                     <li>A exclusão de usuários também remove todos os seus dados</li>
                     <li>Cada usuário possui suas próprias categorias personalizadas</li>
-                </ul>
-            </div>
-        </div>
-
-        <!-- ============================================== -->
-        <!-- ABA: REDEFINIR SENHA -->
-        <!-- ============================================== -->
-        <div id="senha-tab" class="config-tab-pane">
-            <div class="config-card">
-                <h3><i class="fas fa-key"></i> Alterar Senha</h3>
-
-                <form id="form-redefinir-senha" class="form-redefinir-senha">
-                    <div class="form-group">
-                        <label for="senha-atual">Senha Atual</label>
-                        <input type="password" id="senha-atual" class="form-control" placeholder="Digite sua senha atual" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="senha-nova">Nova Senha</label>
-                        <input type="password" id="senha-nova" class="form-control" placeholder="Digite a nova senha" required minlength="6">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="senha-confirmar">Confirmar Nova Senha</label>
-                        <input type="password" id="senha-confirmar" class="form-control" placeholder="Digite novamente a nova senha" required minlength="6">
-                    </div>
-
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> Alterar Senha
-                    </button>
-                </form>
-            </div>
-
-            <div class="config-card info-card">
-                <h3><i class="fas fa-shield-alt"></i> Segurança da Senha</h3>
-                <ul>
-                    <li>Use uma senha com no mínimo 6 caracteres</li>
-                    <li>Combine letras maiúsculas, minúsculas e números</li>
-                    <li>Não compartilhe sua senha com outras pessoas</li>
-                    <li>Altere sua senha periodicamente</li>
                 </ul>
             </div>
         </div>
@@ -1495,6 +1456,50 @@
             </div>
             <div class="form-actions">
                 <button id="btn-feedback-ok" class="btn-action btn-block">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Alterar Senha -->
+<div id="modal-alterar-senha" class="modal">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h3><i class="fas fa-key"></i> Alterar Senha</h3>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="form-alterar-senha">
+                <div class="form-group">
+                    <label for="senha-atual-modal">Senha Atual</label>
+                    <input type="password" id="senha-atual-modal" class="form-control" placeholder="Digite sua senha atual" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="senha-nova-modal">Nova Senha</label>
+                    <input type="password" id="senha-nova-modal" class="form-control" placeholder="Digite a nova senha" required minlength="6">
+                </div>
+
+                <div class="form-group">
+                    <label for="senha-confirmar-modal">Confirmar Nova Senha</label>
+                    <input type="password" id="senha-confirmar-modal" class="form-control" placeholder="Digite novamente a nova senha" required minlength="6">
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-action">
+                        <i class="fas fa-save"></i> Alterar Senha
+                    </button>
+                    <button type="button" class="btn-action-secondary close">Cancelar</button>
+                </div>
+            </form>
+
+            <div class="info-box">
+                <p><strong><i class="fas fa-shield-alt"></i> Dicas de Segurança:</strong></p>
+                <ul>
+                    <li>Use no mínimo 6 caracteres</li>
+                    <li>Combine letras e números</li>
+                    <li>Altere sua senha periodicamente</li>
+                </ul>
             </div>
         </div>
     </div>

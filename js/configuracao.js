@@ -1643,71 +1643,58 @@ async function exportarDados() {
             return;
         }
 
-        mostrarFeedback('Buscando dados do banco...', 'info');
+        mostrarFeedback('Buscando dados do PostgreSQL...', 'info');
+        console.log('📦 Iniciando exportação dos dados do PostgreSQL...');
 
-        // Buscar todos os dados do banco de dados via API
-        const anosParaBuscar = [];
-        const anoAtual = new Date().getFullYear();
-        for (let ano = anoAtual - 5; ano <= anoAtual + 1; ano++) {
-            anosParaBuscar.push(ano);
-        }
+        // ✅ BUSCAR RECEITAS DIRETAMENTE DA TABELA receitas
+        const receitasResponse = await fetch(`${API_URL}/receitas`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
 
         let todasReceitas = [];
-        let todasDespesas = [];
+        if (receitasResponse.ok) {
+            const receitasData = await receitasResponse.json();
+            todasReceitas = (receitasData.data || []).map(receita => ({
+                ano: parseInt(receita.ano),
+                mes: parseInt(receita.mes),
+                data_recebimento: receita.data_recebimento,
+                descricao: receita.descricao,
+                valor: parseFloat(receita.valor),
+                observacoes: receita.observacoes || ''
+            }));
+        }
 
-        // Buscar dados de cada ano
-        for (const ano of anosParaBuscar) {
-            try {
-                const response = await fetch(`${API_URL}/usuarios/${usuario.id}/anos/${ano}`, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                if (response.ok) {
-                    const anoData = await response.json();
-
-                    // Adicionar receitas
-                    if (anoData.receitas && Array.isArray(anoData.receitas)) {
-                        anoData.receitas.forEach(receita => {
-                            todasReceitas.push({
-                                ano: parseInt(ano),
-                                mes: receita.mes,
-                                data: receita.data,
-                                descricao: receita.descricao,
-                                categoria: receita.categoria,
-                                valor: receita.valor,
-                                formaPagamento: receita.formaPagamento,
-                                parcelas: receita.parcelas || null,
-                                status: receita.status || 'pago',
-                                observacoes: receita.observacoes || ''
-                            });
-                        });
-                    }
-
-                    // Adicionar despesas
-                    if (anoData.despesas && Array.isArray(anoData.despesas)) {
-                        anoData.despesas.forEach(despesa => {
-                            todasDespesas.push({
-                                ano: parseInt(ano),
-                                mes: despesa.mes,
-                                data: despesa.data,
-                                descricao: despesa.descricao,
-                                categoria: despesa.categoria,
-                                valor: despesa.valor,
-                                formaPagamento: despesa.formaPagamento,
-                                parcelas: despesa.parcelas || null,
-                                status: despesa.status || 'pago',
-                                observacoes: despesa.observacoes || ''
-                            });
-                        });
-                    }
-                }
-            } catch (error) {
-                console.warn(`Erro ao buscar dados do ano ${ano}:`, error);
+        // ✅ BUSCAR DESPESAS DIRETAMENTE DA TABELA despesas
+        const despesasResponse = await fetch(`${API_URL}/despesas`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
             }
+        });
+
+        let todasDespesas = [];
+        if (despesasResponse.ok) {
+            const despesasData = await despesasResponse.json();
+            todasDespesas = (despesasData.data || []).map(despesa => ({
+                ano: parseInt(despesa.ano),
+                mes: parseInt(despesa.mes),
+                data_vencimento: despesa.data_vencimento,
+                data_compra: despesa.data_compra || null,
+                data_pagamento: despesa.data_pagamento || null,
+                descricao: despesa.descricao,
+                valor: parseFloat(despesa.valor),
+                forma_pagamento: despesa.forma_pagamento || 'dinheiro',
+                parcelado: despesa.parcelado || false,
+                total_parcelas: despesa.total_parcelas || null,
+                parcela_atual: despesa.parcela_atual || null,
+                observacoes: despesa.observacoes || '',
+                pago: despesa.pago || false
+            }));
         }
 
         // Buscar categorias do cache/localStorage
@@ -1724,19 +1711,16 @@ async function exportarDados() {
         const cartoesAtivos = Object.values(cartoesUsuario).filter(c => c.ativo).length;
 
         // Debug
-        console.log('📊 Dados encontrados:');
+        const totalCategorias = (categoriasUsuario.receitas?.length || 0) + (categoriasUsuario.despesas?.length || 0);
+
+        console.log('📊 Dados encontrados no PostgreSQL:');
         console.log('  - Receitas:', todasReceitas.length);
         console.log('  - Despesas:', todasDespesas.length);
-        console.log('  - Categorias receitas:', categoriasUsuario.receitas?.length || 0);
-        console.log('  - Categorias despesas:', categoriasUsuario.despesas?.length || 0);
+        console.log('  - Categorias:', totalCategorias);
         console.log('  - Cartões ativos:', cartoesAtivos);
 
-        // Verificar se há ALGUM dado para exportar
-        const totalCategorias = (categoriasUsuario.receitas?.length || 0) + (categoriasUsuario.despesas?.length || 0);
-        const totalDados = todasReceitas.length + todasDespesas.length + totalCategorias + cartoesAtivos;
-
-        if (totalDados === 0) {
-            mostrarFeedback('Não há dados para exportar (transações, categorias ou cartões)', 'warning');
+        if (todasReceitas.length === 0 && todasDespesas.length === 0) {
+            mostrarFeedback('Não há dados para exportar', 'warning');
             return;
         }
 
@@ -1761,7 +1745,7 @@ async function exportarDados() {
 
         const dataAtual = new Date().toISOString().split('T')[0];
         link.setAttribute('href', url);
-        link.setAttribute('download', `backup_financeiro_${dataAtual}.json`);
+        link.setAttribute('download', `backup_producao_${dataAtual}.json`);
         link.style.visibility = 'hidden';
 
         document.body.appendChild(link);
@@ -2552,18 +2536,34 @@ window.podeLimparLogs = podeLimparLogs;
 window.obterTiposPermitidos = obterTiposPermitidos;
 
 // ================================================================
-// REDEFINIR SENHA
+// ALTERAR SENHA - MODAL
 // ================================================================
 document.addEventListener('DOMContentLoaded', function() {
-    const formRedefinirSenha = document.getElementById('form-redefinir-senha');
+    // Abrir modal ao clicar no botão do dropdown
+    const btnAlterarSenhaMenu = document.getElementById('btn-alterar-senha-menu');
+    const modalAlterarSenha = document.getElementById('modal-alterar-senha');
 
-    if (formRedefinirSenha) {
-        formRedefinirSenha.addEventListener('submit', async function(e) {
+    if (btnAlterarSenhaMenu && modalAlterarSenha) {
+        btnAlterarSenhaMenu.addEventListener('click', function() {
+            modalAlterarSenha.style.display = 'flex';
+            // Fechar o dropdown
+            const dropdownAnoMenu = document.getElementById('dropdown-ano-menu');
+            if (dropdownAnoMenu) {
+                dropdownAnoMenu.style.display = 'none';
+            }
+        });
+    }
+
+    // Formulário de alterar senha
+    const formAlterarSenha = document.getElementById('form-alterar-senha');
+
+    if (formAlterarSenha) {
+        formAlterarSenha.addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            const senhaAtual = document.getElementById('senha-atual').value;
-            const senhaNova = document.getElementById('senha-nova').value;
-            const senhaConfirmar = document.getElementById('senha-confirmar').value;
+            const senhaAtual = document.getElementById('senha-atual-modal').value;
+            const senhaNova = document.getElementById('senha-nova-modal').value;
+            const senhaConfirmar = document.getElementById('senha-confirmar-modal').value;
 
             // Validar se as senhas novas coincidem
             if (senhaNova !== senhaConfirmar) {
@@ -2598,7 +2598,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (response.ok) {
                     alert('Senha alterada com sucesso!');
-                    formRedefinirSenha.reset();
+                    formAlterarSenha.reset();
+                    modalAlterarSenha.style.display = 'none';
                 } else {
                     alert(data.message || 'Erro ao alterar senha. Verifique se a senha atual está correta.');
                 }
