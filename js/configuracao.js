@@ -2016,6 +2016,15 @@ async function importarDados() {
 
             for (const despesa of backup.despesas) {
                 try {
+                    // ✅ FILTRO: Ignorar parcelas que não sejam a primeira
+                    // Se for parcelada E parcela_atual não for 1, PULAR
+                    if (despesa.parcelado && despesa.parcela_atual && despesa.parcela_atual !== 1) {
+                        console.log(`⏭️ Pulando parcela ${despesa.parcela_atual} de: ${despesa.descricao}`);
+                        despesasProcessadas++;
+                        processados++;
+                        continue;
+                    }
+
                     // Validar e converter data_vencimento para formato ISO8601
                     let dataVencimento = despesa.data || despesa.data_vencimento;
 
