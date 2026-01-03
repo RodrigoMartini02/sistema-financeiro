@@ -2288,5 +2288,51 @@ function configurarEventListeners() {
     }
 }
 
+
+
+
+function iniciarAtualizacaoCotacoes() {
+    const elemento = document.getElementById('cotacoes');
+    const INTERVALO_ATUALIZACAO = 300000; // 5 minutos
+
+    async function carregarCotacoesEmReal() {
+        try {
+            const pares = ['USD-BRL', 'EUR-BRL', 'GBP-BRL', 'JPY-BRL'];
+
+            const response = await fetch(
+                `https://economia.awesomeapi.com.br/json/last/${pares.join(',')}`,
+                { cache: 'no-store' }
+            );
+
+            const dados = await response.json();
+
+            const formatarMoeda = (codigo, valor) =>
+                `${codigo} R$ ${parseFloat(valor).toFixed(2)}`;
+
+            const cotacoes = [];
+
+            if (dados.USDBRL) cotacoes.push(formatarMoeda('USD', dados.USDBRL.bid));
+            if (dados.EURBRL) cotacoes.push(formatarMoeda('EUR', dados.EURBRL.bid));
+            if (dados.GBPBRL) cotacoes.push(formatarMoeda('GBP', dados.GBPBRL.bid));
+            if (dados.JPYBRL) cotacoes.push(formatarMoeda('JPY', dados.JPYBRL.bid));
+
+            elemento.innerText = cotacoes.join(' | ');
+
+            elemento.parentElement.title =
+                'Cotações do câmbio comercial convertidas para Real (BRL)';
+        } catch (erro) {
+            elemento.innerText = 'Câmbio indisponível';
+            console.error('Erro ao atualizar cotações:', erro);
+        }
+    }
+
+    // Primeira carga imediata
+    carregarCotacoesEmReal();
+
+    // Atualização automática
+    setInterval(carregarCotacoesEmReal, INTERVALO_ATUALIZACAO);
+}
+
+
 // Executar quando DOM estiver pronto
 document.addEventListener('DOMContentLoaded', configurarEventListeners);

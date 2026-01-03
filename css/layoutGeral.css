@@ -2729,6 +2729,21 @@ table tr:hover {
 /* ================================================================
    FIM DA REFATORAÇÃO CSS
    ================================================================ */
+.cambio-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background-color: #f5f7fa;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.cambio-container i {
+    color: #2980b3;
+}
 
 /* ================================================================
    EXIBIÇÃO DO NOME DO USUÁRIO
