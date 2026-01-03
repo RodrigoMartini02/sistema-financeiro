@@ -70,32 +70,43 @@ router.post('/', authMiddleware, [
     try {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
+            console.error('❌ Erros de validação na receita:', errors.array());
             return res.status(400).json({
                 success: false,
                 errors: errors.array()
             });
         }
-        
+
         const { descricao, valor, data_recebimento, mes, ano, observacoes } = req.body;
-        
+
+        console.log('📝 Criando receita:', {
+            descricao, valor, data_recebimento, mes, ano,
+            usuario_id: req.usuario.id
+        });
+
         const result = await query(
             `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, observacoes)
              VALUES ($1, $2, $3, $4, $5, $6, $7)
              RETURNING *`,
             [req.usuario.id, descricao, parseFloat(valor), data_recebimento, mes, ano, observacoes || null]
         );
-        
+
+        console.log('✅ Receita criada com sucesso:', result.rows[0].id);
+
         res.status(201).json({
             success: true,
             message: 'Receita cadastrada com sucesso',
             data: result.rows[0]
         });
-        
+
     } catch (error) {
-        console.error('Erro ao criar receita:', error);
+        console.error('❌ Erro detalhado ao criar receita:', error);
+        console.error('Stack trace:', error.stack);
         res.status(500).json({
             success: false,
-            message: 'Erro ao criar receita'
+            message: 'Erro ao criar receita',
+            error: error.message,
+            detalhes: error.detail || error.hint
         });
     }
 });
