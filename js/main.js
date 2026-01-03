@@ -2431,7 +2431,7 @@ async function toggleNoticias() {
         mostrarProximaNoticia();
         
         // Define o intervalo de 30 segundos para trocar a notícia
-        intervaloNoticias = setInterval(mostrarProximaNoticia, 30000);
+        intervaloNoticias = setInterval(mostrarProximaNoticia, 10000);
     } else {
         marquee.style.display = 'none';
         clearInterval(intervaloNoticias); // Para o cronômetro
