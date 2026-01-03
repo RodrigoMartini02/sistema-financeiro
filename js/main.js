@@ -2382,45 +2382,37 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
-// --- CONFIGURAÇÃO DE NOTÍCIAS REAIS ---
-const GNEWS_API_KEY = 'f05356298e67cf7fac62f78ae0b54708'; 
+// --- CONFIGURAÇÃO NEWSDATA.IO ---
+const NEWSDATA_API_KEY = 'pub_5cfccab63ba54e729b804382b4f3d0cb'; 
 let noticiasAtivas = false;
 
 /**
- * Busca notícias reais do Brasil usando GNews
+ * Busca notícias reais do Brasil via NewsData.io
  */
 async function buscarNoticiasAPI() {
-    // Busca as 10 principais notícias do Brasil em português
-    // Adicionamos um parâmetro de tempo para evitar cache do navegador
-    const url = `https://gnews.io/api/v4/top-headlines?category=general&lang=pt&country=br&max=10&apikey=${GNEWS_API_KEY}&t=${new Date().getTime()}`;
+    // Configurado para: Notícias do Brasil, Idioma Português, Categoria Top (Principais)
+    const url = `https://newsdata.io/api/1/news?apikey=${NEWSDATA_API_KEY}&country=br&language=pt&category=top`;
 
     try {
         const response = await fetch(url);
-        
-        if (!response.ok) {
-            const erroDados = await response.json();
-            console.error("Erro detalhado da API:", erroDados);
-            throw new Error(`Status: ${response.status}`);
-        }
-
         const dados = await response.json();
 
-        if (dados.articles && dados.articles.length > 0) {
-            // Une os títulos das notícias reais
-            return dados.articles.map(a => a.title).join('  •  ');
+        // NewsData retorna "success" no campo status
+        if (dados.status === "success" && dados.results && dados.results.length > 0) {
+            // Mapeia os títulos e une com um separador elegante
+            return dados.results.map(n => n.title).join('  •  ');
         }
         
-        return "Aguardando novas atualizações de notícias...";
+        return "Buscando novas atualizações no Brasil...";
 
     } catch (erro) {
-        console.error("Falha ao conectar com GNews:", erro);
-        // Retorna uma mensagem amigável caso a cota da API (100/dia) tenha acabado
-        return "As notícias reais estão indisponíveis no momento (limite de acesso atingido).";
+        console.error("Erro na conexão NewsData:", erro);
+        return "Conectando ao servidor de notícias mundiais...";
     }
 }
 
 /**
- * Função de Toggle (Gatilho) para o Letreiro
+ * Função de Toggle para o Letreiro (Marquee)
  */
 async function toggleNoticias() {
     const marquee = document.getElementById('marquee-noticias');
@@ -2431,10 +2423,11 @@ async function toggleNoticias() {
     noticiasAtivas = !noticiasAtivas;
 
     if (noticiasAtivas) {
-        // Mostra o letreiro e carrega as notícias
-        conteudo.innerHTML = "<span>Carregando notícias reais do Brasil...</span>";
+        // Exibe o letreiro imediatamente com mensagem de carregamento
+        conteudo.innerHTML = "<span>Carregando manchetes reais...</span>";
         marquee.style.display = 'block';
 
+        // Busca as notícias e atualiza o conteúdo
         const textoFinal = await buscarNoticiasAPI();
         conteudo.innerHTML = `<span>${textoFinal}</span>`;
     } else {
@@ -2443,11 +2436,11 @@ async function toggleNoticias() {
     }
 }
 
-// Inicializa o evento de clique ao carregar a página
+// Vincula o clique ao carregar a página
 document.addEventListener("DOMContentLoaded", () => {
     const btn = document.getElementById('btn-toggle-noticias');
     if (btn) {
-        btn.onclick = toggleNoticias; // Garante o vínculo do clique
+        btn.onclick = toggleNoticias;
     }
 });
 
