@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const { query } = require('../config/database');
-const { authenticate } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 
 // ================================================================
 // LISTAR ANOS DO USUÁRIO
 // ================================================================
-router.get('/', authenticate, async (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
     try {
         const result = await query(
             'SELECT DISTINCT ano FROM anos WHERE usuario_id = $1 ORDER BY ano DESC',
@@ -31,7 +31,7 @@ router.get('/', authenticate, async (req, res) => {
 // ================================================================
 // CRIAR ANO
 // ================================================================
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
     try {
         const { ano } = req.body;
 
@@ -80,7 +80,7 @@ router.post('/', authenticate, async (req, res) => {
 // ================================================================
 // EXCLUIR ANO
 // ================================================================
-router.delete('/:ano', authenticate, async (req, res) => {
+router.delete('/:ano', authMiddleware, async (req, res) => {
     try {
         const ano = parseInt(req.params.ano);
 
