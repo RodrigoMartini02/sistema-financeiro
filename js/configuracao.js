@@ -1904,6 +1904,29 @@ async function importarDados() {
                 }
             }
 
+            // ✅ Buscar categorias do backend para criar mapa nome → ID
+            let mapaCategorias = {};
+            try {
+                const responseCatList = await fetch(`${API_URL}/categorias`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (responseCatList.ok) {
+                    const categoriasData = await responseCatList.json();
+                    // Criar mapa: { "Alimentação": 1, "Transporte": 2, ... }
+                    (categoriasData.data || []).forEach(cat => {
+                        mapaCategorias[cat.nome] = cat.id;
+                    });
+                    console.log('📋 Mapa de categorias criado:', mapaCategorias);
+                }
+            } catch (error) {
+                console.warn('⚠️ Erro ao buscar categorias para mapeamento:', error);
+            }
+
             // ✅ PASSO 2: Importar cartões
             if (backup.cartoes) {
                 const totalCartoes = Object.values(backup.cartoes).filter(c => c.ativo).length;
@@ -2058,6 +2081,13 @@ async function importarDados() {
                         }
                     }
 
+                    // ✅ Mapear nome da categoria para ID
+                    let categoriaId = null;
+                    if (despesa.categoria && mapaCategorias[despesa.categoria]) {
+                        categoriaId = mapaCategorias[despesa.categoria];
+                        console.log(`📁 Mapeando categoria "${despesa.categoria}" → ID ${categoriaId}`);
+                    }
+
                     const dadosDespesa = {
                         descricao: despesa.descricao,
                         valor: parseFloat(despesa.valor),
@@ -2066,8 +2096,7 @@ async function importarDados() {
                         data_pagamento: dataPagamento,
                         mes: parseInt(despesa.mes),
                         ano: parseInt(despesa.ano),
-                        // ✅ NÃO enviar categoria_id - backend usa padrão 1
-                        // categoria_id será definido pelo backend como 1 (padrão)
+                        categoria_id: categoriaId,
                         cartao_id: despesa.cartao_id || despesa.cartao || null,
                         forma_pagamento: despesa.forma_pagamento || despesa.formaPagamento || 'dinheiro',
                         parcelado: despesa.parcelado || false,

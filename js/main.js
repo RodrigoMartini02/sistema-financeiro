@@ -2629,9 +2629,9 @@ function iniciarAtualizacaoCotacoes() {
                 const valorNumerico = parseFloat(valor);
                 let valorFormatado;
 
-                // Bitcoin usa notação k (milhares)
-                if (codigo === 'BTC' && valorNumerico > 1000) {
-                    valorFormatado = (valorNumerico / 1000).toFixed(0) + 'k';
+                // Bitcoin mostra valor completo formatado
+                if (codigo === 'BTC') {
+                    valorFormatado = valorNumerico.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 } else {
                     valorFormatado = valorNumerico.toFixed(2);
                 }
