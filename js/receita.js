@@ -531,9 +531,51 @@ function criarObjetoReceita(formData) {
 
 async function salvarReceitaLocal(mes, ano, receita, id) {
     try {
-        window.garantirEstruturaDados(ano, mes);
-
         const ehEdicao = id !== '' && id !== null && id !== undefined;
+
+        // ✅ PRODUÇÃO: Usar API de receitas via usuarioDataManager
+        if (window.usuarioDataManager && typeof window.usuarioDataManager.salvarReceita === 'function') {
+            console.log('💾 Salvando receita via API:', { mes, ano, receita, id });
+
+            const sucesso = await window.usuarioDataManager.salvarReceita(mes, ano, receita, id);
+
+            if (sucesso) {
+                // ✅ Atualizar memória local APÓS salvar na API
+                window.garantirEstruturaDados(ano, mes);
+
+                if (ehEdicao) {
+                    const index = parseInt(id);
+                    window.dadosFinanceiros[ano].meses[mes].receitas[index] = receita;
+                } else {
+                    if (!window.dadosFinanceiros[ano].meses[mes].receitas) {
+                        window.dadosFinanceiros[ano].meses[mes].receitas = [];
+                    }
+                    window.dadosFinanceiros[ano].meses[mes].receitas.push(receita);
+                }
+
+                // Registrar log da ação
+                if (window.logManager) {
+                    window.logManager.registrar({
+                        modulo: 'Receitas',
+                        acao: ehEdicao ? 'Editado' : 'Criado',
+                        categoria: '-',
+                        descricao: receita.descricao,
+                        valor: receita.valor,
+                        detalhes: `${ehEdicao ? 'Editou' : 'Criou'} receita em ${mes + 1}/${ano}`
+                    });
+                }
+
+                if (window.sistemaAnexos) {
+                    window.sistemaAnexos.limparAnexosTemporarios('receita');
+                }
+            }
+
+            return sucesso;
+        }
+
+        // ❌ FALLBACK: Salvamento antigo (localStorage) se API não disponível
+        console.warn('⚠️ usuarioDataManager não disponível, usando fallback localStorage');
+        window.garantirEstruturaDados(ano, mes);
 
         if (ehEdicao) {
             const index = parseInt(id);
@@ -548,7 +590,6 @@ async function salvarReceitaLocal(mes, ano, receita, id) {
         const sucesso = await window.salvarDados();
 
         if (sucesso) {
-            // Registrar log da ação
             if (window.logManager) {
                 window.logManager.registrar({
                     modulo: 'Receitas',
@@ -563,12 +604,12 @@ async function salvarReceitaLocal(mes, ano, receita, id) {
             if (window.sistemaAnexos) {
                 window.sistemaAnexos.limparAnexosTemporarios('receita');
             }
-        } else {
         }
 
         return sucesso;
 
     } catch (error) {
+        console.error('❌ Erro ao salvar receita:', error);
         throw new Error(`Erro ao salvar receita: ${error.message}`);
     }
 }

@@ -185,31 +185,83 @@ class UsuarioDataManager {
         }
 
         try {
+            const token = sessionStorage.getItem('token') || '';
 
-            const response = await fetch(`${API_URL_DADOS}/usuarios/${usuario.id}/dados-financeiros`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
-                }
+            // ✅ BUSCAR RECEITAS E DESPESAS DAS TABELAS SEPARADAS
+            const [receitasResponse, despesasResponse] = await Promise.all([
+                fetch(`${API_URL_DADOS}/receitas`, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                }),
+                fetch(`${API_URL_DADOS}/despesas`, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                })
+            ]);
+
+            const receitasData = await receitasResponse.json();
+            const despesasData = await despesasResponse.json();
+
+            const receitas = receitasData.data || [];
+            const despesas = despesasData.data || [];
+
+            console.log(`📊 Carregadas ${receitas.length} receitas e ${despesas.length} despesas da API`);
+
+            // ✅ ORGANIZAR POR ANO E MÊS
+            const dadosFinanceiros = this.criarEstruturaInicial();
+
+            // Processar receitas
+            receitas.forEach(receita => {
+                const ano = parseInt(receita.ano);
+                const mes = parseInt(receita.mes);
+
+                this.garantirEstruturaMes(dadosFinanceiros, ano, mes);
+
+                dadosFinanceiros[ano].meses[mes].receitas.push({
+                    id: receita.id,
+                    descricao: receita.descricao,
+                    valor: parseFloat(receita.valor),
+                    data: receita.data_recebimento,
+                    dataRecebimento: receita.data_recebimento,
+                    observacoes: receita.observacoes || ''
+                });
             });
 
-            const data = await response.json();
+            // Processar despesas
+            despesas.forEach(despesa => {
+                const ano = parseInt(despesa.ano);
+                const mes = parseInt(despesa.mes);
 
-            if (!response.ok) {
-                throw new Error(data.message || 'Erro ao buscar dados financeiros');
-            }
+                this.garantirEstruturaMes(dadosFinanceiros, ano, mes);
 
-            const dadosFinanceiros = data.dadosFinanceiros || this.criarEstruturaInicial();
+                dadosFinanceiros[ano].meses[mes].despesas.push({
+                    id: despesa.id,
+                    descricao: despesa.descricao,
+                    valor: parseFloat(despesa.valor),
+                    dataCompra: despesa.data_compra,
+                    dataVencimento: despesa.data_vencimento,
+                    dataPagamento: despesa.data_pagamento,
+                    formaPagamento: despesa.forma_pagamento,
+                    parcelado: despesa.parcelado,
+                    totalParcelas: despesa.numero_parcelas,
+                    parcelaAtual: despesa.parcela_atual,
+                    pago: despesa.pago,
+                    quitado: despesa.pago,
+                    observacoes: despesa.observacoes || ''
+                });
+            });
 
             this.dadosCache = dadosFinanceiros;
             this.timestampCache = Date.now();
 
             return dadosFinanceiros;
         } catch (error) {
-
+            console.error('❌ Erro ao buscar dados da API:', error);
             console.warn('⚠️ Usando localStorage como fallback');
-            // Fallback para localStorage
             return this.getDadosFinanceirosLocal();
         }
     }
@@ -416,27 +468,57 @@ class UsuarioDataManager {
 
     async salvarReceitaAPI(mes, ano, receita, id = null) {
         try {
-            const dados = await this.getDadosFinanceirosUsuario();
+            const usuario = this.getUsuarioAtual();
+            if (!usuario || !usuario.id) {
+                return false;
+            }
 
-            this.garantirEstruturaMes(dados, ano, mes);
+            const token = sessionStorage.getItem('token');
+            const ehEdicao = id !== null && id !== '' && id !== undefined;
 
-            if (id !== null && id !== '') {
-                const index = parseInt(id);
-                if (dados[ano].meses[mes].receitas[index]) {
-                    dados[ano].meses[mes].receitas[index] = { ...receita, id: receita.id || this.gerarId() };
-                }
+            // Preparar dados para API
+            const dadosReceita = {
+                descricao: receita.descricao,
+                valor: parseFloat(receita.valor),
+                data_recebimento: receita.data || receita.dataRecebimento || receita.data_recebimento,
+                mes: parseInt(mes),
+                ano: parseInt(ano),
+                observacoes: receita.observacoes || ''
+            };
+
+            let response;
+            if (ehEdicao) {
+                // ✅ EDITAR RECEITA EXISTENTE
+                response = await fetch(`${API_URL_DADOS}/receitas/${receita.id || id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(dadosReceita)
+                });
             } else {
-                receita.id = receita.id || this.gerarId();
-                dados[ano].meses[mes].receitas.push(receita);
+                // ✅ CRIAR NOVA RECEITA
+                response = await fetch(`${API_URL_DADOS}/receitas`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(dadosReceita)
+                });
             }
 
-            const sucesso = await this.salvarDadosAPI(dados);
-            if (sucesso) {
+            if (response.ok) {
                 this.limparCache();
+                return true;
+            } else {
+                const errorData = await response.json();
+                console.error('❌ Erro ao salvar receita:', errorData);
+                return false;
             }
-            return sucesso;
         } catch (error) {
-
+            console.error('❌ Erro ao salvar receita:', error);
             return false;
         }
     }
@@ -464,27 +546,64 @@ class UsuarioDataManager {
 
     async salvarDespesaAPI(mes, ano, despesa, id = null) {
         try {
-            const dados = await this.getDadosFinanceirosUsuario();
+            const usuario = this.getUsuarioAtual();
+            if (!usuario || !usuario.id) {
+                return false;
+            }
 
-            this.garantirEstruturaMes(dados, ano, mes);
+            const token = sessionStorage.getItem('token');
+            const ehEdicao = id !== null && id !== '' && id !== undefined;
 
-            if (id !== null && id !== '') {
-                const index = parseInt(id);
-                if (dados[ano].meses[mes].despesas[index]) {
-                    dados[ano].meses[mes].despesas[index] = { ...despesa, id: despesa.id || this.gerarId() };
-                }
+            // Preparar dados para API
+            const dadosDespesa = {
+                descricao: despesa.descricao,
+                valor: parseFloat(despesa.valor),
+                data_vencimento: despesa.dataVencimento || despesa.data_vencimento || despesa.data,
+                data_compra: despesa.dataCompra || despesa.data_compra || null,
+                data_pagamento: despesa.dataPagamento || despesa.data_pagamento || null,
+                mes: parseInt(mes),
+                ano: parseInt(ano),
+                forma_pagamento: despesa.formaPagamento || despesa.forma_pagamento || 'dinheiro',
+                parcelado: despesa.parcelado || false,
+                total_parcelas: despesa.totalParcelas || despesa.total_parcelas || null,
+                parcela_atual: despesa.parcelaAtual || despesa.parcela_atual || null,
+                pago: despesa.pago || despesa.quitado || false,
+                observacoes: despesa.observacoes || ''
+            };
+
+            let response;
+            if (ehEdicao) {
+                // ✅ EDITAR DESPESA EXISTENTE
+                response = await fetch(`${API_URL_DADOS}/despesas/${despesa.id || id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(dadosDespesa)
+                });
             } else {
-                despesa.id = despesa.id || this.gerarId();
-                dados[ano].meses[mes].despesas.push(despesa);
+                // ✅ CRIAR NOVA DESPESA
+                response = await fetch(`${API_URL_DADOS}/despesas`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(dadosDespesa)
+                });
             }
 
-            const sucesso = await this.salvarDadosAPI(dados);
-            if (sucesso) {
+            if (response.ok) {
                 this.limparCache();
+                return true;
+            } else {
+                const errorData = await response.json();
+                console.error('❌ Erro ao salvar despesa:', errorData);
+                return false;
             }
-            return sucesso;
         } catch (error) {
-
+            console.error('❌ Erro ao salvar despesa:', error);
             return false;
         }
     }

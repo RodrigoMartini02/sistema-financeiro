@@ -973,22 +973,77 @@ function coletarDadosFormularioDespesa() {
 
 async function salvarDespesaLocal(formData) {
     try {
-
-        window.garantirEstruturaDados(formData.ano, formData.mes);
-
         const ehEdicao = formData.id !== '' && formData.id !== null;
 
-        if (ehEdicao) {
+        // ✅ PRODUÇÃO: Usar API de despesas via usuarioDataManager
+        if (window.usuarioDataManager && typeof window.usuarioDataManager.salvarDespesa === 'function') {
+            console.log('💾 Salvando despesa via API:', formData);
 
+            // Preparar objeto despesa para API
+            const despesa = {
+                descricao: formData.descricao,
+                categoria: formData.categoria,
+                formaPagamento: formData.formaPagamento,
+                numeroCartao: formData.numeroCartao,
+                valor: parseFloat(formData.valor),
+                valorPago: formData.valorPago || null,
+                dataCompra: formData.dataCompra,
+                dataVencimento: formData.dataVencimento,
+                dataPagamento: formData.jaPago ? formData.dataCompra : null,
+                parcelado: formData.parcelado || false,
+                totalParcelas: formData.parcelado ? formData.totalParcelas : null,
+                quitado: formData.jaPago || false,
+                pago: formData.jaPago || false,
+                recorrente: formData.recorrente || false,
+                observacoes: formData.observacoes || '',
+                anexos: formData.anexos || []
+            };
+
+            const sucesso = await window.usuarioDataManager.salvarDespesa(
+                formData.mes,
+                formData.ano,
+                despesa,
+                ehEdicao ? formData.id : null
+            );
+
+            if (sucesso) {
+                // ✅ Atualizar memória local APÓS salvar na API
+                window.garantirEstruturaDados(formData.ano, formData.mes);
+
+                if (ehEdicao) {
+                    await atualizarDespesaExistente(formData);
+                } else {
+                    await adicionarNovaDespesa(formData);
+                }
+
+                // Registrar log da ação
+                if (window.logManager) {
+                    window.logManager.registrar({
+                        modulo: 'Despesas',
+                        acao: ehEdicao ? 'Editado' : 'Criado',
+                        categoria: formData.categoria || '-',
+                        descricao: formData.descricao,
+                        valor: formData.valor,
+                        detalhes: `${ehEdicao ? 'Editou' : 'Criou'} despesa em ${formData.mes + 1}/${formData.ano}`
+                    });
+                }
+            }
+
+            return sucesso;
+        }
+
+        // ❌ FALLBACK: Salvamento antigo (localStorage) se API não disponível
+        console.warn('⚠️ usuarioDataManager não disponível, usando fallback localStorage');
+        window.garantirEstruturaDados(formData.ano, formData.mes);
+
+        if (ehEdicao) {
             await atualizarDespesaExistente(formData);
         } else {
-
             await adicionarNovaDespesa(formData);
         }
 
         const sucesso = await window.salvarDados();
 
-        // Registrar log da ação
         if (sucesso && window.logManager) {
             window.logManager.registrar({
                 modulo: 'Despesas',
@@ -1003,7 +1058,7 @@ async function salvarDespesaLocal(formData) {
         return sucesso;
 
     } catch (error) {
-
+        console.error('❌ Erro ao salvar despesa:', error);
         return false;
     }
 }
