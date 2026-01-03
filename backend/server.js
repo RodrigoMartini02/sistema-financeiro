@@ -246,6 +246,11 @@ async function criarEstruturaBanco() {
                 data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
+
+        // Adicionar colunas para cálculo de juros e economias (se não existirem)
+        await query(`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS valor_original DECIMAL(10, 2);`);
+        await query(`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS valor_total_com_juros DECIMAL(10, 2);`);
+
         console.log('✅ Tabela despesas verificada/criada!');
 
         // ✅ TABELA RESERVAS

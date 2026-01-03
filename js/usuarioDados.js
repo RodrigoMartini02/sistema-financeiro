@@ -301,9 +301,9 @@ class UsuarioDataManager {
                     pago: despesa.pago,
                     quitado: despesa.pago,
                     // Campos para juros e economias
-                    valorPago: despesa.pago ? valor : null,
+                    valorPago: despesa.valor_pago || null,
                     valorOriginal: despesa.valor_original || null,
-                    valorTotalComJuros: despesa.valor_total_juros || null,
+                    valorTotalComJuros: despesa.valor_total_com_juros || null,
                     observacoes: despesa.observacoes || ''
                 });
             });
@@ -616,12 +616,17 @@ class UsuarioDataManager {
                 data_pagamento: despesa.dataPagamento || despesa.data_pagamento || null,
                 mes: parseInt(mes),
                 ano: parseInt(ano),
+                categoria_id: despesa.categoria_id || null,
+                cartao_id: despesa.cartao_id || despesa.numeroCartao || null,
                 forma_pagamento: despesa.formaPagamento || despesa.forma_pagamento || 'dinheiro',
                 parcelado: despesa.parcelado || false,
                 total_parcelas: despesa.totalParcelas || despesa.total_parcelas || null,
                 parcela_atual: despesa.parcelaAtual || despesa.parcela_atual || null,
                 pago: despesa.pago || despesa.quitado || false,
-                observacoes: despesa.observacoes || ''
+                observacoes: despesa.observacoes || '',
+                valor_original: despesa.valorOriginal ? parseFloat(despesa.valorOriginal) : null,
+                valor_total_com_juros: despesa.valorTotalComJuros ? parseFloat(despesa.valorTotalComJuros) : null,
+                valor_pago: despesa.valorPago ? parseFloat(despesa.valorPago) : null
             };
 
             let response;

@@ -3116,26 +3116,33 @@ function calcularTotalDespesas(despesas) {
 
 function calcularTotalJuros(despesas) {
     if (!Array.isArray(despesas)) return 0;
-    
+
     return despesas.reduce((total, despesa) => {
         let jurosCalculado = 0;
-        
+
+        // Proteção contra dados inválidos
+        if (!despesa || typeof despesa !== 'object') return total;
+
         if (despesa.quitacaoAntecipada === true || despesa.quitadaAntecipadamente === true) {
             return total;
         }
-        
-        if (despesa.valorPago !== null && despesa.valorPago !== undefined && 
-            despesa.valorOriginal && despesa.valorPago > despesa.valorOriginal) {
-            jurosCalculado = despesa.valorPago - despesa.valorOriginal;
+
+        // Garantir que valores sejam números
+        const valorPago = parseFloat(despesa.valorPago) || 0;
+        const valorOriginal = parseFloat(despesa.valorOriginal) || 0;
+        const valor = parseFloat(despesa.valor) || 0;
+
+        if (valorPago > 0 && valorOriginal > 0 && valorPago > valorOriginal) {
+            jurosCalculado = valorPago - valorOriginal;
         }
         else if (despesa.parcelado && despesa.metadados?.jurosPorParcela && despesa.quitado) {
-            jurosCalculado = despesa.metadados.jurosPorParcela;
+            jurosCalculado = parseFloat(despesa.metadados.jurosPorParcela) || 0;
         }
-        else if (despesa.valorOriginal && despesa.valor > despesa.valorOriginal && despesa.quitado) {
-            jurosCalculado = despesa.valor - despesa.valorOriginal;
+        else if (valorOriginal > 0 && valor > valorOriginal && despesa.quitado) {
+            jurosCalculado = valor - valorOriginal;
         }
-        
-        return total + jurosCalculado;
+
+        return total + (jurosCalculado > 0 ? jurosCalculado : 0);
     }, 0);
 }
 
@@ -3154,56 +3161,62 @@ function obterValorRealDespesa(despesa) {
 
 function calcularTotalEconomias(despesas) {
     if (!Array.isArray(despesas)) return 0;
-    
+
     return despesas.reduce((total, despesa) => {
         let economiaCalculada = 0;
-        
+
+        // Proteção contra dados inválidos
+        if (!despesa || typeof despesa !== 'object') return total;
+
         // Pular despesas transferidas para próximo mês
         if (despesa.transferidaParaProximoMes === true) {
             return total;
         }
-        
+
+        // Garantir que valores sejam números
+        const valorTotalComJuros = parseFloat(despesa.valorTotalComJuros) || 0;
+        const valorOriginal = parseFloat(despesa.valorOriginal) || 0;
+        const valorPago = parseFloat(despesa.valorPago) || 0;
+        const valor = parseFloat(despesa.valor) || 0;
+
         // CENÁRIO 1: Economia no cadastro da despesa
         // Quando valor com juros/total é menor que valor original
-        if (despesa.valorTotalComJuros !== null && 
-            despesa.valorTotalComJuros !== undefined && 
-            despesa.valorOriginal && 
-            despesa.valorTotalComJuros < despesa.valorOriginal) {
-            
-            economiaCalculada += despesa.valorOriginal - despesa.valorTotalComJuros;
+        if (valorTotalComJuros > 0 && valorOriginal > 0 && valorTotalComJuros < valorOriginal) {
+            economiaCalculada += valorOriginal - valorTotalComJuros;
         }
-        
+
         // CENÁRIO 2: Economia no pagamento
         // Quando valor pago é menor que o valor devido
-        if (despesa.quitado === true && 
-            despesa.valorPago !== null && 
-            despesa.valorPago !== undefined) {
-            
+        if (despesa.quitado === true && valorPago > 0) {
+
             // Determinar qual é o valor devido (com ou sem juros)
-            let valorDevido = despesa.valor || 0;
-            
+            let valorDevido = valor;
+
             // Se tem valor original definido, usar ele como base
-            if (despesa.valorOriginal) {
-                valorDevido = despesa.valorOriginal;
+            if (valorOriginal > 0) {
+                valorDevido = valorOriginal;
             }
-            
+
             // Se tem valor total com juros, usar ele como valor devido
-            if (despesa.valorTotalComJuros) {
-                valorDevido = despesa.valorTotalComJuros;
+            if (valorTotalComJuros > 0) {
+                valorDevido = valorTotalComJuros;
             }
-            
+
             // Para parcelamentos, usar valor da parcela
             if (despesa.parcelado && despesa.metadados?.valorPorParcela) {
-                valorDevido = despesa.metadados.valorPorParcela;
+                const valorPorParcela = parseFloat(despesa.metadados.valorPorParcela) || 0;
+                if (valorPorParcela > 0) {
+                    valorDevido = valorPorParcela;
+                }
             }
-            
+
             // Calcular economia se pagou menos que o devido
-            if (despesa.valorPago < valorDevido) {
-                economiaCalculada += valorDevido - despesa.valorPago;
+            if (valorPago < valorDevido) {
+                economiaCalculada += valorDevido - valorPago;
             }
         }
-        
-        return total + economiaCalculada;
+
+        return total + (economiaCalculada > 0 ? economiaCalculada : 0);
     }, 0);
 }
 

@@ -1586,7 +1586,12 @@ async function renderizarDetalhesDoMes(mes, ano) {
         }
 
     } catch (error) {
-        alert('Erro ao carregar dados do mês');
+        console.error('❌ Erro ao carregar dados do mês:', error);
+        if (window.mostrarToast) {
+            window.mostrarToast('Erro ao carregar dados do mês: ' + error.message, 'error');
+        } else {
+            alert('Erro ao carregar dados do mês: ' + error.message);
+        }
     }
 }
 

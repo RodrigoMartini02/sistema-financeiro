@@ -85,7 +85,8 @@ router.post('/', authMiddleware, [
         const {
             descricao, valor, data_vencimento, data_compra, data_pagamento,
             mes, ano, categoria_id, cartao_id, forma_pagamento,
-            parcelado, total_parcelas, parcela_atual, observacoes, pago
+            parcelado, total_parcelas, parcela_atual, observacoes, pago,
+            valor_original, valor_total_com_juros, valor_pago
         } = req.body;
 
         console.log('📝 Criando despesa:', {
@@ -117,15 +118,19 @@ router.post('/', authMiddleware, [
             `INSERT INTO despesas (
                 usuario_id, descricao, valor, data_vencimento, data_compra, data_pagamento,
                 mes, ano, categoria_id, cartao_id, forma_pagamento,
-                parcelado, numero_parcelas, parcela_atual, observacoes, pago
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+                parcelado, numero_parcelas, parcela_atual, observacoes, pago,
+                valor_original, valor_total_com_juros, valor_pago
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
             RETURNING *`,
             [
                 req.usuario.id, descricao, parseFloat(valor), data_vencimento,
                 data_compra || null, data_pagamento || null, mes, ano,
                 categoriaFinal, cartao_id || null, forma_pagamento || 'dinheiro',
                 parcelado || false, numeroParcelas, parcelaAtual,
-                observacoes || null, pago || false
+                observacoes || null, pago || false,
+                valor_original ? parseFloat(valor_original) : null,
+                valor_total_com_juros ? parseFloat(valor_total_com_juros) : null,
+                valor_pago ? parseFloat(valor_pago) : null
             ]
         );
 
