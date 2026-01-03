@@ -620,36 +620,48 @@ textarea:focus {
    LETREIRO (MARQUEE)
    ================================================================ */
 
+/* Container fixo para a notícia individual */
 .marquee-container {
     width: 100%;
+    height: 50px; /* Altura fixa para não empurrar o layout */
     background: #000;
     color: #fff;
-    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     overflow: hidden;
-    padding: 10px 0;
     border-bottom: 2px solid var(--primary-color);
 }
 
+/* Estilo da notícia com animação de escala e opacidade */
 .marquee-content {
-    display: inline-block;
-    padding-left: 100%;
-    animation: marquee-anim 180s linear infinite; /* Velocidade lenta para leitura */
     font-weight: bold;
     font-family: sans-serif;
+    font-size: 1.1rem;
+    text-align: center;
+    padding: 0 20px;
+    opacity: 0;
+    transform: scale(0.8);
+    animation: news-fade-in-out 30s infinite; /* Duração de 30 segundos por notícia */
 }
 
-.marquee-content:hover {
-    animation-play-state: paused;
-}
-
-@keyframes marquee-anim {
-    from { transform: translateX(0); }
-    to { transform: translateX(-100%); }
-}
-
-@keyframes slideFromSidebar {
-    0% { transform: translateX(-20px); opacity: 0; }
-    100% { transform: translateX(0); opacity: 1; }
+@keyframes news-fade-in-out {
+    0% {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    10% {
+        opacity: 1;
+        transform: scale(1); /* Cresce até o tamanho original */
+    }
+    90% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(1.1); /* Termina sumindo e crescendo levemente */
+    }
 }
 
 /* ================================================================

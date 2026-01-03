@@ -2383,69 +2383,66 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 // --- CONFIGURAÇÃO NEWSDATA.IO ---
-const NEWSDATA_API_KEY = 'pub_5cfccab63ba54e729b804382b4f3d0cb'; 
+const NEWSDATA_API_KEY = 'pub_5cfccab63ba54e729b804382b4f3d0cb';
+let listaNoticias = [];
+let noticiaAtualIndex = 0;
+let intervaloNoticias = null;
 let noticiasAtivas = false;
 
-/**
- * Busca notícias reais do Brasil via NewsData.io
- */
 async function buscarNoticiasAPI() {
-    // Configurado para: Notícias do Brasil, Idioma Português, Categoria Top (Principais)
     const url = `https://newsdata.io/api/1/news?apikey=${NEWSDATA_API_KEY}&country=br&language=pt&category=top`;
-
     try {
         const response = await fetch(url);
         const dados = await response.json();
-
-        // NewsData retorna "success" no campo status
-        if (dados.status === "success" && dados.results && dados.results.length > 0) {
-            // Mapeia os títulos e une com um separador elegante
-            return dados.results.map(n => n.title).join('  •  ');
+        if (dados.status === "success" && dados.results) {
+            return dados.results.map(n => n.title); // Retorna uma lista de títulos
         }
-        
-        return "Buscando novas atualizações no Brasil...";
-
+        return ["Buscando novas atualizações no Brasil..."];
     } catch (erro) {
-        console.error("Erro na conexão NewsData:", erro);
-        return "Conectando ao servidor de notícias mundiais...";
+        return ["Conectando ao servidor de notícias..."];
     }
 }
 
-/**
- * Função de Toggle para o Letreiro (Marquee)
- */
+function mostrarProximaNoticia() {
+    const conteudo = document.getElementById('conteudo-noticias');
+    if (!conteudo || listaNoticias.length === 0) return;
+
+    // Aplica o texto da notícia atual
+    conteudo.innerHTML = `<div class="marquee-content">${listaNoticias[noticiaAtualIndex]}</div>`;
+
+    // Incrementa o índice para a próxima notícia
+    noticiaAtualIndex = (noticiaAtualIndex + 1) % listaNoticias.length;
+}
+
 async function toggleNoticias() {
     const marquee = document.getElementById('marquee-noticias');
     const conteudo = document.getElementById('conteudo-noticias');
     
-    if (!marquee || !conteudo) return;
-
     noticiasAtivas = !noticiasAtivas;
 
     if (noticiasAtivas) {
-        // Limpa e mostra o carregamento
-        conteudo.innerHTML = "<span>Carregando manchetes reais...</span>";
-        marquee.style.display = 'block';
-
-        // Busca os dados da API
-        const textoFinal = await buscarNoticiasAPI();
+        marquee.style.display = 'flex';
+        conteudo.innerHTML = '<div class="marquee-content">Carregando notícias reais...</div>';
         
-        // Injeta o texto final dentro de um span (importante para o CSS de animação)
-        conteudo.innerHTML = `<span>${textoFinal}</span>`;
+        // Busca as notícias e inicia o ciclo
+        listaNoticias = await buscarNoticiasAPI();
+        noticiaAtualIndex = 0;
+        
+        mostrarProximaNoticia();
+        
+        // Define o intervalo de 30 segundos para trocar a notícia
+        intervaloNoticias = setInterval(mostrarProximaNoticia, 30000);
     } else {
         marquee.style.display = 'none';
-        conteudo.innerHTML = ""; // Limpa ao fechar para evitar sobreposição
+        clearInterval(intervaloNoticias); // Para o cronômetro
+        conteudo.innerHTML = "";
     }
 }
 
-// Vincula o clique ao carregar a página
 document.addEventListener("DOMContentLoaded", () => {
     const btn = document.getElementById('btn-toggle-noticias');
-    if (btn) {
-        btn.onclick = toggleNoticias;
-    }
+    if (btn) btn.onclick = toggleNoticias;
 });
-
 
 
 
