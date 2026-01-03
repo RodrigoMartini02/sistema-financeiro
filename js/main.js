@@ -2385,8 +2385,8 @@ document.addEventListener("DOMContentLoaded", () => {
 const API_KEY_NEWS = 'f5b5fe911dc347bda08e58e160ebb938';
 let noticiasAtivas = false;
 
-async function buscarNoticiasInternacionais() {
-    // Busca notícias gerais em português para garantir conteúdo
+async function buscarNoticiasAPI() {
+    // Busca as principais notícias em português
     const url = `https://newsapi.org/v2/top-headlines?language=pt&apiKey=${API_KEY_NEWS}`;
     
     try {
@@ -2394,16 +2394,12 @@ async function buscarNoticiasInternacionais() {
         const dados = await response.json();
         
         if (dados.articles && dados.articles.length > 0) {
-            // Filtra e junta os títulos de 10 notícias com um separador visual
-            return dados.articles
-                .slice(0, 10)
-                .map(a => a.title)
-                .join(' <span style="color: var(--primary-color)">●</span> ');
+            // Retorna os títulos das notícias separados por um símbolo
+            return dados.articles.slice(0, 10).map(a => a.title).join('  •  ');
         }
-        return "Nenhuma notícia disponível no momento.";
+        return "Nenhuma notícia encontrada.";
     } catch (erro) {
-        console.error("Erro na API:", erro);
-        return "Serviço de notícias indisponível.";
+        return "Erro ao carregar notícias.";
     }
 }
 
@@ -2415,12 +2411,13 @@ async function toggleNoticias() {
     noticiasAtivas = !noticiasAtivas;
 
     if (noticiasAtivas) {
-        btn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i>';
+        // Estilo visual do botão ativo
         btn.classList.add('btn-success');
+        btn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i>';
 
-        const textoNoticias = await buscarNoticiasInternacionais();
-
-        conteudo.innerHTML = `<span>${textoNoticias}</span>`;
+        const texto = await buscarNoticiasAPI();
+        
+        conteudo.innerHTML = `<span>${texto}</span>`;
         marquee.style.display = 'block';
         btn.innerHTML = '<i class="fas fa-times"></i> Notícias';
     } else {
@@ -2430,7 +2427,7 @@ async function toggleNoticias() {
     }
 }
 
-// Inicializa o evento no botão existente na sua secondary-action-bar
+// Vincula o clique ao botão que já existe no seu HTML
 document.addEventListener("DOMContentLoaded", () => {
     const btn = document.getElementById('btn-toggle-noticias');
     if (btn) btn.addEventListener('click', toggleNoticias);
