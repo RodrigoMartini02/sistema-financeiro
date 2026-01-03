@@ -2201,34 +2201,34 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 const calendarioFinanceiro = {
-    // Datas de 2026 baseadas no calendário oficial
-    "2026-01-03": "Início da reunião do COPOM (Taxa Selic)",
-    "2026-01-28": "Decisão da Taxa Selic hoje!",
-    "2026-02-16": "Feriado de Carnaval - Sem expediente bancário/B3",
-    "2026-02-17": "Feriado de Carnaval - Sem expediente bancário/B3",
-    "2026-03-10": "Divulgação do IPCA (Inflação oficial)",
-    "2026-03-18": "Decisão da Taxa Selic hoje!",
-    "2026-04-30": "Último dia para entrega do Imposto de Renda!",
-    "2026-06-04": "Feriado Corpus Christi - Mercados fechados",
+    // Datas de 2026
+    "2026-01-01": "Confraternização Universal - Feriado Bancário",
+    "2026-01-03": "Bem-vindo a 2026! Organize suas metas financeiras para este mês.",
+    "2026-01-28": "Decisão da Taxa Selic (COPOM) hoje! Fique atento aos investimentos",
+    "2026-02-17": "Feriado de Carnaval - Mercados e Bancos fechados",
+    "2026-03-10": "Divulgação do IPCA (Inflação oficial do mês)",
+    "2026-04-30": "Prazo final para entrega do Imposto de Renda",
+    "2026-06-04": "Corpus Christi - Feriado Bancário (B3 fechada)",
     "2026-11-30": "Prazo final para pagamento da 1ª parcela do 13º Salário",
-    "2026-12-20": "Prazo final para pagamento da 2ª parcela do 13º Salário",
     "2026-12-31": "Feriado Bancário - Sem expediente ao público"
 };
 
-function verificarEventos() {
-    // Obtém data no formato YYYY-MM-DD (Horário Local)
+function verificarMensagens() {
+    // Pega a data de hoje no formato YYYY-MM-DD
     const hoje = new Date().toISOString().split('T')[0];
     const banner = document.getElementById('banner-financeiro');
     const displayMensagem = document.getElementById('mensagem-dia');
 
     if (calendarioFinanceiro[hoje]) {
         displayMensagem.innerText = `AVISO: ${calendarioFinanceiro[hoje]}`;
-        banner.style.display = 'block';
+        banner.style.display = 'flex';
+    } else {
+        banner.style.display = 'none';
     }
 }
 
-// Executa ao carregar a página
-window.onload = verificarEventos;
+// Inicia a verificação assim que a página carregar
+document.addEventListener("DOMContentLoaded", verificarMensagens);
 
 
 
