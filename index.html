@@ -60,7 +60,7 @@
 
             <li class="nav-item">
                 <a href="#" class="nav-link" data-section="config">
-                    <span class="nav-icon"><i class="fas fa-cog"></i></span>
+                    <span class="nav-icon"><i class="fas fa-user-cog"></i></span>
                     <span class="nav-text">Configurações</span>
                 </a>
             </li>
@@ -847,13 +847,16 @@
         </button>
         <button class="config-tab-btn" data-tab="usuarios">
             <i class="fas fa-users"></i> Usuários
-        </button>             
+        </button>
+        <button class="config-tab-btn" data-tab="senha">
+            <i class="fas fa-key"></i> Redefinir Senha
+        </button>
         <button class="config-tab-btn" data-tab="logs">
             <i class="fas fa-history"></i> Logs do Sistema
         </button>
         <button class="config-tab-btn" data-tab="sistema">
             <i class="fas fa-cogs"></i> Sistema
-        </button> 
+        </button>
     </div>
     
     <div class="config-tab-content">
@@ -1040,6 +1043,46 @@
                     <li>Administradores só podem editar usuários do tipo Padrão</li>
                     <li>A exclusão de usuários também remove todos os seus dados</li>
                     <li>Cada usuário possui suas próprias categorias personalizadas</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- ABA: REDEFINIR SENHA -->
+        <!-- ============================================== -->
+        <div id="senha-tab" class="config-tab-pane">
+            <div class="config-card">
+                <h3><i class="fas fa-key"></i> Alterar Senha</h3>
+
+                <form id="form-redefinir-senha" class="form-redefinir-senha">
+                    <div class="form-group">
+                        <label for="senha-atual">Senha Atual</label>
+                        <input type="password" id="senha-atual" class="form-control" placeholder="Digite sua senha atual" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="senha-nova">Nova Senha</label>
+                        <input type="password" id="senha-nova" class="form-control" placeholder="Digite a nova senha" required minlength="6">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="senha-confirmar">Confirmar Nova Senha</label>
+                        <input type="password" id="senha-confirmar" class="form-control" placeholder="Digite novamente a nova senha" required minlength="6">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Alterar Senha
+                    </button>
+                </form>
+            </div>
+
+            <div class="config-card info-card">
+                <h3><i class="fas fa-shield-alt"></i> Segurança da Senha</h3>
+                <ul>
+                    <li>Use uma senha com no mínimo 6 caracteres</li>
+                    <li>Combine letras maiúsculas, minúsculas e números</li>
+                    <li>Não compartilhe sua senha com outras pessoas</li>
+                    <li>Altere sua senha periodicamente</li>
                 </ul>
             </div>
         </div>

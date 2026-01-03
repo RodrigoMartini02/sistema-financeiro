@@ -28,10 +28,10 @@
 }
 
 #notification-bell {
-    background: none;
-    border: 2px solid var(--notif-primary);
-    color: var(--notif-primary);
-    font-size: 1.1rem;
+    background: none !important;
+    border: none !important;
+    color: #4a90e2;
+    font-size: 1.3rem;
     padding: 0;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -44,9 +44,9 @@
 }
 
 #notification-bell:hover {
-    background-color: var(--notif-primary);
-    color: white;
-    border-color: var(--notif-primary);
+    background: none !important;
+    color: #357abd;
+    transform: scale(1.1);
 }
 
 #notification-bell:active {

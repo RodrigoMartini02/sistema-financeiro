@@ -2550,3 +2550,62 @@ window.podeBloquearUsuario = podeBloquearUsuario;
 window.podeCriarUsuario = podeCriarUsuario;
 window.podeLimparLogs = podeLimparLogs;
 window.obterTiposPermitidos = obterTiposPermitidos;
+
+// ================================================================
+// REDEFINIR SENHA
+// ================================================================
+document.addEventListener('DOMContentLoaded', function() {
+    const formRedefinirSenha = document.getElementById('form-redefinir-senha');
+
+    if (formRedefinirSenha) {
+        formRedefinirSenha.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const senhaAtual = document.getElementById('senha-atual').value;
+            const senhaNova = document.getElementById('senha-nova').value;
+            const senhaConfirmar = document.getElementById('senha-confirmar').value;
+
+            // Validar se as senhas novas coincidem
+            if (senhaNova !== senhaConfirmar) {
+                alert('As senhas não coincidem!');
+                return;
+            }
+
+            // Validar tamanho mínimo
+            if (senhaNova.length < 6) {
+                alert('A senha deve ter no mínimo 6 caracteres!');
+                return;
+            }
+
+            const usuario = window.usuarioDataManager?.getUsuarioAtual();
+            const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+            const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
+            try {
+                const response = await fetch(`${API_URL}/usuarios/${usuario.id}/alterar-senha`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        senhaAtual: senhaAtual,
+                        senhaNova: senhaNova
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('Senha alterada com sucesso!');
+                    formRedefinirSenha.reset();
+                } else {
+                    alert(data.message || 'Erro ao alterar senha. Verifique se a senha atual está correta.');
+                }
+            } catch (error) {
+                console.error('Erro ao alterar senha:', error);
+                alert('Erro ao alterar senha. Tente novamente.');
+            }
+        });
+    }
+});

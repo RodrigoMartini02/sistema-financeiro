@@ -1434,3 +1434,41 @@
     color: var(--config-primary);
     font-weight: 700;
 }
+
+/* ================================================================ */
+/* FORMULÁRIO DE REDEFINIR SENHA */
+/* ================================================================ */
+.form-redefinir-senha {
+    max-width: 500px;
+}
+
+.form-redefinir-senha .form-group {
+    margin-bottom: 20px;
+}
+
+.form-redefinir-senha label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: var(--config-dark);
+    font-size: 14px;
+}
+
+.form-redefinir-senha .form-control {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid var(--config-border);
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.form-redefinir-senha .form-control:focus {
+    outline: none;
+    border-color: var(--config-primary);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-redefinir-senha .btn {
+    margin-top: 10px;
+}
