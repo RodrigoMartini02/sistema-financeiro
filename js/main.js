@@ -2423,16 +2423,18 @@ async function toggleNoticias() {
     noticiasAtivas = !noticiasAtivas;
 
     if (noticiasAtivas) {
-        // Exibe o letreiro imediatamente com mensagem de carregamento
+        // Limpa e mostra o carregamento
         conteudo.innerHTML = "<span>Carregando manchetes reais...</span>";
         marquee.style.display = 'block';
 
-        // Busca as notícias e atualiza o conteúdo
+        // Busca os dados da API
         const textoFinal = await buscarNoticiasAPI();
+        
+        // Injeta o texto final dentro de um span (importante para o CSS de animação)
         conteudo.innerHTML = `<span>${textoFinal}</span>`;
     } else {
-        // Esconde o letreiro
         marquee.style.display = 'none';
+        conteudo.innerHTML = ""; // Limpa ao fechar para evitar sobreposição
     }
 }
 
