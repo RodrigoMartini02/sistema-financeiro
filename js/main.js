@@ -1025,12 +1025,35 @@ async function mudarAno(ano) {
 async function criarAnoSimples(ano) {
     try {
         if (dadosFinanceiros[ano]) {
-            alert(`O ano ${ano} já existe!`);
+            if (window.mostrarToast) {
+                window.mostrarToast(`O ano ${ano} já existe!`, 'warning');
+            } else {
+                alert(`O ano ${ano} já existe!`);
+            }
             return;
         }
-        
+
+        // ✅ Salvar ano no backend primeiro
+        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
+        const response = await fetch(`${API_URL}/anos`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ ano: parseInt(ano) })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erro ao criar ano no servidor');
+        }
+
+        // Criar estrutura local
         dadosFinanceiros[ano] = { meses: [] };
-        
+
         for (let i = 0; i < 12; i++) {
             dadosFinanceiros[ano].meses[i] = {
                 receitas: [],
@@ -1040,21 +1063,28 @@ async function criarAnoSimples(ano) {
                 saldoFinal: 0
             };
         }
-        
-        await salvarDados();
-        
+
         anoAtual = ano;
         window.anoAtual = anoAtual;
         atualizarDisplayAno(anoAtual);
-        
+
         await carregarDadosDashboard(anoAtual);
         atualizarResumoAnual(anoAtual);
         await renderizarMeses(anoAtual);
 
-        alert(`Ano ${ano} criado com sucesso!`);
-        
+        if (window.mostrarToast) {
+            window.mostrarToast(`Ano ${ano} criado com sucesso!`, 'success');
+        } else {
+            alert(`Ano ${ano} criado com sucesso!`);
+        }
+
     } catch (error) {
-        alert('Erro ao criar ano: ' + error.message);
+        console.error('Erro ao criar ano:', error);
+        if (window.mostrarToast) {
+            window.mostrarToast('Erro ao criar ano: ' + error.message, 'error');
+        } else {
+            alert('Erro ao criar ano: ' + error.message);
+        }
     }
 }
 

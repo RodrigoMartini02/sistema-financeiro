@@ -211,15 +211,37 @@ class UsuarioDataManager {
 
             console.log(`📊 Carregadas ${receitas.length} receitas e ${despesas.length} despesas da API`);
 
-            // ✅ DESCOBRIR TODOS OS ANOS QUE TÊM DADOS
+            // ✅ BUSCAR ANOS CRIADOS PELO USUÁRIO DA TABELA 'anos'
+            let anosDoBackend = [];
+            try {
+                const anosResponse = await fetch(`${API_URL_DADOS}/anos`, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (anosResponse.ok) {
+                    const anosData = await anosResponse.json();
+                    anosDoBackend = anosData.data || [];
+                    console.log(`📅 Anos salvos no backend: ${anosDoBackend.join(', ')}`);
+                }
+            } catch (error) {
+                console.warn('⚠️ Erro ao buscar anos do backend:', error);
+            }
+
+            // ✅ DESCOBRIR TODOS OS ANOS QUE TÊM DADOS (receitas/despesas)
             const anosComDados = new Set();
             receitas.forEach(r => anosComDados.add(parseInt(r.ano)));
             despesas.forEach(d => anosComDados.add(parseInt(d.ano)));
 
+            // Adicionar anos criados pelo usuário (mesmo sem receitas/despesas)
+            anosDoBackend.forEach(ano => anosComDados.add(parseInt(ano)));
+
             // Sempre incluir o ano atual
             anosComDados.add(new Date().getFullYear());
 
-            // ✅ ORGANIZAR POR ANO E MÊS - criar estrutura para TODOS os anos com dados
+            // ✅ ORGANIZAR POR ANO E MÊS - criar estrutura para TODOS os anos
             const dadosFinanceiros = {};
             anosComDados.forEach(ano => {
                 dadosFinanceiros[ano] = { meses: [] };

@@ -52,6 +52,7 @@ const categoriasRoutes = require('./routes/categorias');
 const cartoesRoutes = require('./routes/cartoes');
 const mesesRoutes = require('./routes/meses');
 const reservasRoutes = require('./routes/reservas');
+const anosRoutes = require('./routes/anos');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', usuariosRoutes);
@@ -61,6 +62,7 @@ app.use('/api/categorias', categoriasRoutes);
 app.use('/api/cartoes', cartoesRoutes);
 app.use('/api/meses', mesesRoutes);
 app.use('/api/reservas', reservasRoutes);
+app.use('/api/anos', anosRoutes);
 
 app.use((req, res) => {
     res.status(404).json({
@@ -266,6 +268,19 @@ async function criarEstruturaBanco() {
             );
         `);
         console.log('✅ Tabela meses verificada/criada!');
+
+        // ✅ TABELA ANOS
+        await query(`
+            CREATE TABLE IF NOT EXISTS anos (
+                id SERIAL PRIMARY KEY,
+                usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                ano INTEGER NOT NULL CHECK (ano BETWEEN 2000 AND 2100),
+                data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(usuario_id, ano)
+            );
+        `);
+        await query(`CREATE INDEX IF NOT EXISTS idx_anos_usuario_ano ON anos(usuario_id, ano);`);
+        console.log('✅ Tabela anos verificada/criada!');
 
         console.log('🎉 Estrutura do banco de dados está pronta!');
         return true;

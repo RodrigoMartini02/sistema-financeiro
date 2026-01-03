@@ -494,16 +494,18 @@ function atualizarStatusDespesas(despesas) {
     
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
-    
+
     despesas.forEach(despesa => {
-        if (despesa.quitado === true) {
+        // ✅ Se foi paga/quitada, status é "quitada"
+        if (despesa.quitado === true || despesa.pago === true) {
+            despesa.status = 'quitada';
             return;
         }
-        
-        const dataVencimento = despesa.dataVencimento ? new Date(despesa.dataVencimento) : 
+
+        const dataVencimento = despesa.dataVencimento ? new Date(despesa.dataVencimento) :
                               (despesa.data ? new Date(despesa.data) : new Date());
         dataVencimento.setHours(0, 0, 0, 0);
-        
+
         if (dataVencimento < hoje) {
             despesa.status = 'atrasada';
         } else {
@@ -2300,17 +2302,29 @@ function configurarFormPagamento(index, mes, ano, despesa) {
                 }
                 
                 const sucesso = await processarPagamento(index, mes, ano, valorPago, quitarFuturas);
-                
+
                 if (sucesso) {
                     const modal = document.getElementById('modal-pagamento-individual');
                     if (modal) modal.style.display = 'none';
-                    alert('Pagamento processado com sucesso!');
+
+                    // Usar toast notification em vez de alert
+                    if (window.mostrarToast) {
+                        window.mostrarToast('Pagamento processado com sucesso!', 'success');
+                    }
                 } else {
-                    alert('Ocorreu um erro ao processar o pagamento.');
+                    if (window.mostrarToast) {
+                        window.mostrarToast('Ocorreu um erro ao processar o pagamento.', 'error');
+                    } else {
+                        alert('Ocorreu um erro ao processar o pagamento.');
+                    }
                 }
-                
+
             } catch (error) {
-                alert('Erro ao processar pagamento: ' + error.message);
+                if (window.mostrarToast) {
+                    window.mostrarToast('Erro ao processar pagamento: ' + error.message, 'error');
+                } else {
+                    alert('Erro ao processar pagamento: ' + error.message);
+                }
             }
         });
     }
