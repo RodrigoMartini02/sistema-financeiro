@@ -2081,22 +2081,20 @@ function exibirNomeUsuario() {
 
         if (dadosUsuario) {
             const usuario = JSON.parse(dadosUsuario);
-            const nomeElement = document.getElementById('nome-usuario-logado');
-            if (nomeElement && usuario.nome) {
-                const primeiroNome = usuario.nome.split(' ')[0];
-                const tipoUsuario = usuario.tipo || 'padrao';
+            const primeiroNome = usuario.nome?.split(' ')[0] || 'Usuário';
+            const tipoUsuario = usuario.tipo || 'padrao';
 
-                // Traduzir tipo de usuário
-                const tipoTexto = {
-                    'master': 'Master',
-                    'admin': 'Admin',
-                    'padrao': 'Padrão'
-                }[tipoUsuario] || 'Padrão';
+            // Traduzir tipo de usuário
+            const tipoTexto = {
+                'master': 'Master',
+                'admin': 'Admin',
+                'padrao': 'Padrão'
+            }[tipoUsuario] || 'Padrão';
 
-                // Exibir nome com tipo entre parênteses
-                nomeElement.innerHTML = `${primeiroNome} <span style="font-size: 0.85em; color: #7f8c8d;">(${tipoTexto})</span>,`;
-                nomeElement.style.fontWeight = 'bold';
-                nomeElement.style.color = '#2c3e50';
+            // Preencher sidebar
+            const nomeSidebar = document.getElementById('nome-usuario-sidebar');
+            if (nomeSidebar) {
+                nomeSidebar.textContent = `${primeiroNome} (${tipoTexto})`;
             }
         }
     } catch (error) {

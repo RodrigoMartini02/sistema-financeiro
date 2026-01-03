@@ -34,6 +34,9 @@
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <h3>Sistema Financeiro</h3>
+            <div class="user-info-sidebar">
+                <span id="nome-usuario-sidebar"></span>
+            </div>
         </div>
         <ul class="sidebar-nav">
             <li class="nav-item">
@@ -71,17 +74,15 @@
     <main class="main-content">
         <header class="main-header">
             <div class="header-left">
-                <div class="user-welcome hidden" id="nome-usuario"></div>
-            </div>
-            <div class="header-actions">
                 <div class="user-welcome">
-                    <span id="nome-usuario-logado"></span>
                     <span class="welcome-text">Aqui você organiza sua vida financeira</span>
                 </div>
             </div>
             <div id="banner-financeiro" class="banner-alerta" style="display: none;">
-                <i class="fas fa-info-circle"></i>
-                <span id="mensagem-dia"></span>
+                <div class="banner-conteudo">
+                    <i class="fas fa-info-circle"></i>
+                    <span id="mensagem-dia"></span>
+                </div>
                 <button type="button" class="btn-fechar-banner" id="btn-fechar-banner">
                     <i class="fas fa-times"></i>
                 </button>
