@@ -723,23 +723,29 @@ async function excluirReceitaLocal(opcao, index, mes, ano, descricaoReceita) {
             const receita = window.dadosFinanceiros[ano]?.meses[mes]?.receitas[index];
 
             if (!receita || !receita.id) {
+                console.error('❌ Receita não encontrada:', { ano, mes, index, dadosDisponiveis: window.dadosFinanceiros[ano]?.meses[mes]?.receitas });
                 throw new Error('Receita não encontrada');
             }
 
             valorExcluido = receita.valor;
 
+            console.log('🗑️ Excluindo receita:', { id: receita.id, descricao: receita.descricao });
+
             const response = await fetch(`${API_URL}/receitas/${receita.id}`, {
                 method: 'DELETE',
                 headers: {
+                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${getToken()}`
                 }
             });
 
-            const data = await response.json();
-
             if (!response.ok) {
-                throw new Error(data.message || 'Erro ao excluir receita');
+                const errorText = await response.text();
+                console.error('❌ Erro do servidor:', response.status, errorText);
+                throw new Error(`Erro ao excluir receita: ${response.status}`);
             }
+
+            const data = await response.json();
 
             // Registrar log da exclusão
             if (window.logManager) {

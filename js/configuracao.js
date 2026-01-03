@@ -1868,20 +1868,34 @@ async function importarDados() {
             // Importar receitas
             for (const receita of backup.receitas) {
                 try {
+                    // Validar e converter data para formato ISO8601
+                    let dataRecebimento = receita.data;
+
+                    // Se a data não estiver no formato YYYY-MM-DD, converter
+                    if (dataRecebimento && !dataRecebimento.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                        // Tentar converter de DD/MM/YYYY para YYYY-MM-DD
+                        const partes = dataRecebimento.split('/');
+                        if (partes.length === 3) {
+                            dataRecebimento = `${partes[2]}-${partes[1]}-${partes[0]}`;
+                        }
+                    }
+
+                    const dadosReceita = {
+                        descricao: receita.descricao,
+                        valor: parseFloat(receita.valor),
+                        data_recebimento: dataRecebimento,
+                        mes: parseInt(receita.mes),
+                        ano: parseInt(receita.ano),
+                        observacoes: receita.observacoes || ''
+                    };
+
                     const response = await fetch(`${API_URL}/receitas`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${token}`
                         },
-                        body: JSON.stringify({
-                            descricao: receita.descricao,
-                            valor: receita.valor,
-                            data_recebimento: receita.data,
-                            mes: receita.mes,
-                            ano: receita.ano,
-                            observacoes: receita.observacoes || ''
-                        })
+                        body: JSON.stringify(dadosReceita)
                     });
 
                     if (response.ok) {
@@ -1889,11 +1903,12 @@ async function importarDados() {
                     } else {
                         erros++;
                         const errorData = await response.json();
-                        console.error('Erro ao importar receita:', errorData);
+                        console.error('❌ Erro ao importar receita:', errorData);
+                        console.error('Dados enviados:', dadosReceita);
                     }
                 } catch (error) {
                     erros++;
-                    console.error('Erro ao importar receita:', error);
+                    console.error('❌ Exceção ao importar receita:', error);
                 }
 
                 processados++;
@@ -1905,20 +1920,61 @@ async function importarDados() {
             // Importar despesas
             for (const despesa of backup.despesas) {
                 try {
+                    // Validar e converter data_vencimento para formato ISO8601
+                    let dataVencimento = despesa.data || despesa.data_vencimento;
+
+                    // Se a data não estiver no formato YYYY-MM-DD, converter
+                    if (dataVencimento && !dataVencimento.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                        // Tentar converter de DD/MM/YYYY para YYYY-MM-DD
+                        const partes = dataVencimento.split('/');
+                        if (partes.length === 3) {
+                            dataVencimento = `${partes[2]}-${partes[1]}-${partes[0]}`;
+                        }
+                    }
+
+                    // Converter data_compra se existir
+                    let dataCompra = despesa.data_compra || null;
+                    if (dataCompra && !dataCompra.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                        const partes = dataCompra.split('/');
+                        if (partes.length === 3) {
+                            dataCompra = `${partes[2]}-${partes[1]}-${partes[0]}`;
+                        }
+                    }
+
+                    // Converter data_pagamento se existir
+                    let dataPagamento = despesa.data_pagamento || null;
+                    if (dataPagamento && !dataPagamento.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                        const partes = dataPagamento.split('/');
+                        if (partes.length === 3) {
+                            dataPagamento = `${partes[2]}-${partes[1]}-${partes[0]}`;
+                        }
+                    }
+
+                    const dadosDespesa = {
+                        descricao: despesa.descricao,
+                        valor: parseFloat(despesa.valor),
+                        data_vencimento: dataVencimento,
+                        data_compra: dataCompra,
+                        data_pagamento: dataPagamento,
+                        mes: parseInt(despesa.mes),
+                        ano: parseInt(despesa.ano),
+                        categoria_id: despesa.categoria_id || despesa.categoria || 1,
+                        cartao_id: despesa.cartao_id || despesa.cartao || null,
+                        forma_pagamento: despesa.forma_pagamento || despesa.formaPagamento || 'dinheiro',
+                        parcelado: despesa.parcelado || false,
+                        total_parcelas: despesa.total_parcelas || despesa.numeroParcelas || null,
+                        parcela_atual: despesa.parcela_atual || despesa.parcelaAtual || null,
+                        observacoes: despesa.observacoes || '',
+                        pago: despesa.pago || false
+                    };
+
                     const response = await fetch(`${API_URL}/despesas`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${token}`
                         },
-                        body: JSON.stringify({
-                            descricao: despesa.descricao,
-                            valor: despesa.valor,
-                            data_vencimento: despesa.data,
-                            mes: despesa.mes,
-                            ano: despesa.ano,
-                            observacoes: despesa.observacoes || ''
-                        })
+                        body: JSON.stringify(dadosDespesa)
                     });
 
                     if (response.ok) {
@@ -1926,10 +1982,12 @@ async function importarDados() {
                     } else {
                         erros++;
                         const errorData = await response.json();
-                        console.error('Erro ao importar despesa:', errorData);
+                        console.error('❌ Erro ao importar despesa:', errorData);
+                        console.error('Dados enviados:', dadosDespesa);
                     }
                 } catch (error) {
                     erros++;
+                    console.error('❌ Exceção ao importar despesa:', error);
                 }
 
                 processados++;

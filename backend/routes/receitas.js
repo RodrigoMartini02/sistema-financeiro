@@ -138,29 +138,35 @@ router.put('/:id', authMiddleware, async (req, res) => {
 router.delete('/:id', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
-        
+
+        console.log('🗑️ Tentando excluir receita:', { id, usuario_id: req.usuario.id, tipo_id: typeof id });
+
         const result = await query(
             'DELETE FROM receitas WHERE id = $1 AND usuario_id = $2 RETURNING *',
-            [id, req.usuario.id]
+            [parseInt(id), req.usuario.id]
         );
-        
+
+        console.log('✅ Resultado da exclusão:', { rows: result.rows.length, deletada: result.rows[0] });
+
         if (result.rows.length === 0) {
+            console.warn('⚠️ Receita não encontrada para exclusão');
             return res.status(404).json({
                 success: false,
                 message: 'Receita não encontrada'
             });
         }
-        
+
         res.json({
             success: true,
             message: 'Receita excluída com sucesso'
         });
-        
+
     } catch (error) {
-        console.error('Erro ao excluir receita:', error);
+        console.error('❌ Erro ao excluir receita:', error);
         res.status(500).json({
             success: false,
-            message: 'Erro ao excluir receita'
+            message: 'Erro ao excluir receita',
+            error: error.message
         });
     }
 });
