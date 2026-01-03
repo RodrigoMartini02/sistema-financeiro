@@ -1865,7 +1865,57 @@ async function importarDados() {
             let erros = 0;
             let processados = 0;
 
-            // Importar receitas
+            // ✅ PASSO 1: Importar categorias PRIMEIRO (para criar os IDs no banco)
+            if (backup.categorias) {
+                console.log('📁 Importando categorias...');
+                try {
+                    const responseCategorias = await fetch(`${API_URL}/usuarios/${usuario.id}/categorias`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ categorias: backup.categorias })  // ✅ Backend espera { categorias: {...} }
+                    });
+
+                    if (responseCategorias.ok) {
+                        console.log('✅ Categorias importadas com sucesso');
+                        window.categoriasUsuario = backup.categorias;
+                    } else {
+                        const errorData = await responseCategorias.json();
+                        console.error('⚠️ Erro ao importar categorias:', errorData);
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Erro ao importar categorias:', error);
+                }
+            }
+
+            // ✅ PASSO 2: Importar cartões
+            if (backup.cartoes) {
+                console.log('💳 Importando cartões...');
+                try {
+                    const responseCartoes = await fetch(`${API_URL}/usuarios/${usuario.id}/cartoes`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ cartoes: backup.cartoes })  // ✅ Backend espera { cartoes: {...} }
+                    });
+
+                    if (responseCartoes.ok) {
+                        console.log('✅ Cartões importados com sucesso');
+                        window.cartoesUsuario = backup.cartoes;
+                    } else {
+                        const errorData = await responseCartoes.json();
+                        console.error('⚠️ Erro ao importar cartões:', errorData);
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Erro ao importar cartões:', error);
+                }
+            }
+
+            // ✅ PASSO 3: Importar receitas
             for (const receita of backup.receitas) {
                 try {
                     // Validar e converter data para formato ISO8601
@@ -1999,50 +2049,6 @@ async function importarDados() {
                 processados++;
                 if (progressText) {
                     progressText.textContent = `${processados} de ${total} registros`;
-                }
-            }
-
-            // Importar categorias se existirem
-            if (backup.categorias) {
-                console.log('📁 Importando categorias...');
-                try {
-                    const responseCategorias = await fetch(`${API_URL}/usuarios/${usuario.id}/categorias`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify(backup.categorias)
-                    });
-
-                    if (responseCategorias.ok) {
-                        console.log('✅ Categorias importadas');
-                        window.categoriasUsuario = backup.categorias;
-                    }
-                } catch (error) {
-                    console.warn('⚠️ Erro ao importar categorias:', error);
-                }
-            }
-
-            // Importar cartões se existirem
-            if (backup.cartoes) {
-                console.log('💳 Importando cartões...');
-                try {
-                    const responseCartoes = await fetch(`${API_URL}/usuarios/${usuario.id}/cartoes`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify(backup.cartoes)
-                    });
-
-                    if (responseCartoes.ok) {
-                        console.log('✅ Cartões importados');
-                        window.cartoesUsuario = backup.cartoes;
-                    }
-                } catch (error) {
-                    console.warn('⚠️ Erro ao importar cartões:', error);
                 }
             }
 
