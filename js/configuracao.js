@@ -1981,9 +1981,15 @@ async function importarDados() {
                         sucessos++;
                     } else {
                         erros++;
-                        const errorData = await response.json();
+                        let errorData;
+                        try {
+                            errorData = await response.json();
+                        } catch (e) {
+                            errorData = { message: await response.text() };
+                        }
                         console.error('❌ Erro ao importar despesa:', errorData);
-                        console.error('Dados enviados:', dadosDespesa);
+                        console.error('📤 Dados enviados:', dadosDespesa);
+                        console.error('📊 Status:', response.status, response.statusText);
                     }
                 } catch (error) {
                     erros++;

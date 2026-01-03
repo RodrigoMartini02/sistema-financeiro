@@ -75,22 +75,28 @@ router.post('/', authMiddleware, [
     try {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
+            console.error('❌ Erros de validação na despesa:', errors.array());
             return res.status(400).json({
                 success: false,
                 errors: errors.array()
             });
         }
-        
-        const { 
+
+        const {
             descricao, valor, data_vencimento, data_compra, data_pagamento,
             mes, ano, categoria_id, cartao_id, forma_pagamento,
             parcelado, total_parcelas, parcela_atual, observacoes, pago
         } = req.body;
-        
+
+        console.log('📝 Criando despesa:', {
+            descricao, valor, data_vencimento, mes, ano,
+            categoria_id, forma_pagamento, parcelado, usuario_id: req.usuario.id
+        });
+
         // ✅ CORRIGIR: aceitar total_parcelas do frontend
         const numeroParcelas = total_parcelas || null;
         const parcelaAtual = parcela_atual || (parcelado ? 1 : null);
-        
+
         const result = await query(
             `INSERT INTO despesas (
                 usuario_id, descricao, valor, data_vencimento, data_compra, data_pagamento,
@@ -99,30 +105,35 @@ router.post('/', authMiddleware, [
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
             RETURNING *`,
             [
-                req.usuario.id, descricao, parseFloat(valor), data_vencimento, 
+                req.usuario.id, descricao, parseFloat(valor), data_vencimento,
                 data_compra || null, data_pagamento || null, mes, ano,
                 categoria_id || 1, cartao_id || null, forma_pagamento || 'dinheiro',
                 parcelado || false, numeroParcelas, parcelaAtual,
                 observacoes || null, pago || false
             ]
         );
-        
+
+        console.log('✅ Despesa criada com sucesso:', result.rows[0].id);
+
         // ✅ Se for parcelado, criar as parcelas futuras
         if (parcelado && numeroParcelas && numeroParcelas > 1) {
             await criarParcelasFuturas(req.usuario.id, result.rows[0], numeroParcelas);
         }
-        
+
         res.status(201).json({
             success: true,
             message: 'Despesa cadastrada com sucesso',
             data: result.rows[0]
         });
-        
+
     } catch (error) {
-        console.error('Erro ao criar despesa:', error);
+        console.error('❌ Erro detalhado ao criar despesa:', error);
+        console.error('Stack trace:', error.stack);
         res.status(500).json({
             success: false,
-            message: 'Erro ao criar despesa'
+            message: 'Erro ao criar despesa',
+            error: error.message,
+            detalhes: error.detail || error.hint
         });
     }
 });
