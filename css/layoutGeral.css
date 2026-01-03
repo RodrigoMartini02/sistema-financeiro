@@ -611,23 +611,17 @@ textarea:focus {
 .config-section.active {
     display: block;
 }
-/* ================================================================
-   SEÇÃO MESES - LAYOUT RESPONSIVO (SEMPRE VISÍVEL)
-   ================================================================ */
-
 .meses-container {
     display: grid;
-    /* Divide em 4 colunas e 3 linhas para fechar os 12 meses na tela */
     grid-template-columns: repeat(4, 1fr);
     grid-template-rows: repeat(3, 1fr);
     gap: 4px;
     padding: 8px;
     width: 100%;
-    /* Ajusta a altura para ocupar a tela inteira descontando margens/headers */
-    height: calc(100vh - 120px); 
-    min-height: 500px;
+    height: calc(100vh - 160px);
     margin: 0;
     box-sizing: border-box;
+    overflow: hidden;
 }
 
 .mes-card {
@@ -640,7 +634,7 @@ textarea:focus {
     display: flex;
     flex-direction: column;
     margin: 0;
-    min-height: 0; /* Permite que o card encolha conforme o grid */
+    min-height: 0;
 }
 
 .mes-card:hover {
@@ -651,34 +645,34 @@ textarea:focus {
 .mes-header {
     background: var(--primary-color);
     color: var(--white);
-    padding: 6px 10px; /* Padding reduzido para economia de espaço */
+    padding: 6px;
     text-align: center;
     flex-shrink: 0;
     border-bottom: 1px solid var(--gray-300);
 }
 
 .mes-nome {
-    font-size: 0.75rem;
+    font-size: 11px;
     font-weight: var(--font-weight-semibold);
     text-transform: uppercase;
     margin: 0;
-    line-height: 1.1;
+    line-height: 1;
 }
 
 .mes-body {
-    padding: 6px 8px; /* Padding otimizado */
+    padding: 6px;
     flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: space-evenly; /* Distribui elementos verticalmente */
-    overflow: hidden;
+    justify-content: space-evenly;
+    min-height: 0;
 }
 
 .mes-saldos-container {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 4px;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .mes-saldo-anterior,
@@ -698,9 +692,8 @@ textarea:focus {
     border-left: 2px solid var(--saldo-color);
 }
 
-.mes-saldo-anterior .mes-label,
-.mes-saldo .mes-label {
-    font-size: 8px; /* Fonte reduzida para garantir visibilidade */
+.mes-label {
+    font-size: 8px;
     color: var(--gray-600);
     margin-bottom: 2px;
     text-transform: uppercase;
@@ -720,22 +713,12 @@ textarea:focus {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 4px;
-    margin-bottom: 4px;
 }
 
 .mes-valor {
     text-align: center;
     padding: 4px;
     border: 1px solid var(--gray-200);
-}
-
-.mes-valor .mes-label {
-    display: block;
-    font-size: 8px;
-    color: var(--gray-500);
-    margin-bottom: 2px;
-    text-transform: uppercase;
-    line-height: 1;
 }
 
 .mes-receita,
@@ -758,37 +741,32 @@ textarea:focus {
 }
 
 .btn-mes-acao {
-    padding: 4px 8px;
+    padding: 4px 10px;
     border: none;
     font-size: 9px;
     cursor: pointer;
-    transition: var(--transition-base);
-    font-weight: var(--font-weight-medium);
-    border-radius: 2px;
+    border-radius: 3px;
+    line-height: 1;
 }
 
 .btn-detalhes { display: none !important; }
-
 .btn-reabrir { background: var(--warning); color: var(--gray-800); }
 .btn-fechar { background: var(--success); color: var(--white); }
 
-/* Ajustes para telas menores (Tablets/Laptops pequenos) */
 @media (max-width: 1024px) {
     .meses-container {
         grid-template-columns: repeat(3, 1fr);
         grid-template-rows: repeat(4, 1fr);
-        height: auto; /* Permite scroll apenas em telas realmente pequenas */
+        height: auto;
+        overflow-y: auto;
     }
 }
 
-/* Ajustes para Smartphones */
 @media (max-width: 600px) {
     .meses-container {
         grid-template-columns: repeat(2, 1fr);
         grid-template-rows: repeat(6, 1fr);
     }
-    .mes-label { font-size: 7px; }
-    .valor-anterior, .mes-saldo-valor, .mes-receita, .mes-despesa { font-size: 10px; }
 }
 
 /* ================================================================
