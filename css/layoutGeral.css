@@ -2746,6 +2746,21 @@ table tr:hover {
 }
 
 /* Container que esconde o texto que sai da tela */
+
+
+.btn-noticia-inline {
+    background: white;
+    border: 1px solid #ccc;
+    color: #333;
+    padding: 5px 12px;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .marquee-container {
     width: 100%;
     background: #000;
@@ -2775,11 +2790,6 @@ table tr:hover {
     to { transform: translateX(-100%); }
 }
 
-/* Cor para destacar o botão quando ligado */
-.btn-success {
-    background-color: #28a745 !important;
-    color: white !important;
-}
 
 
 

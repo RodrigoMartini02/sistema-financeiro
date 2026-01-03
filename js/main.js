@@ -2382,11 +2382,15 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
+// Configurações da API de Notícias
 const API_KEY_NEWS = 'f5b5fe911dc347bda08e58e160ebb938';
 let noticiasAtivas = false;
 
+/**
+ * Busca as notícias reais através da API
+ */
 async function buscarNoticiasAPI() {
-    // Busca as principais notícias em português
+    // Filtra notícias em português
     const url = `https://newsapi.org/v2/top-headlines?language=pt&apiKey=${API_KEY_NEWS}`;
     
     try {
@@ -2394,43 +2398,50 @@ async function buscarNoticiasAPI() {
         const dados = await response.json();
         
         if (dados.articles && dados.articles.length > 0) {
-            // Retorna os títulos das notícias separados por um símbolo
+            // Retorna os títulos das notícias separados por um símbolo de ponto
             return dados.articles.slice(0, 10).map(a => a.title).join('  •  ');
         }
-        return "Nenhuma notícia encontrada.";
+        return "Nenhuma notícia encontrada no momento.";
     } catch (erro) {
-        return "Erro ao carregar notícias.";
+        console.error("Erro na API de notícias:", erro);
+        return "Serviço de notícias temporariamente indisponível.";
     }
 }
 
+/**
+ * Controla a exibição do letreiro (Marquee)
+ */
 async function toggleNoticias() {
     const marquee = document.getElementById('marquee-noticias');
-    const btn = document.getElementById('btn-toggle-noticias');
     const conteudo = document.getElementById('conteudo-noticias');
     
+    // Se os elementos não existirem no DOM, interrompe a função
+    if (!marquee || !conteudo) return;
+
     noticiasAtivas = !noticiasAtivas;
 
     if (noticiasAtivas) {
-        // Estilo visual do botão ativo
-        btn.classList.add('btn-success');
-        btn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i>';
-
-        const texto = await buscarNoticiasAPI();
+        // Busca os dados e preenche o conteúdo antes de exibir
+        const textoNoticias = await buscarNoticiasAPI();
+        conteudo.innerHTML = `<span>${textoNoticias}</span>`;
         
-        conteudo.innerHTML = `<span>${texto}</span>`;
+        // Mostra o container do letreiro
         marquee.style.display = 'block';
-        btn.innerHTML = '<i class="fas fa-times"></i> Notícias';
     } else {
+        // Esconde o container do letreiro
         marquee.style.display = 'none';
-        btn.classList.remove('btn-success');
-        btn.innerHTML = '<i class="fas fa-newspaper"></i> Notícias';
     }
 }
 
-// Vincula o clique ao botão que já existe no seu HTML
+/**
+ * Inicialização dos eventos
+ */
 document.addEventListener("DOMContentLoaded", () => {
-    const btn = document.getElementById('btn-toggle-noticias');
-    if (btn) btn.addEventListener('click', toggleNoticias);
+    const btnNoticias = document.getElementById('btn-toggle-noticias');
+    
+    if (btnNoticias) {
+        btnNoticias.addEventListener('click', toggleNoticias);
+    }
 });
 
 
