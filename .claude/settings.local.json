@@ -9,7 +9,8 @@
       "Bash(python:*)",
       "Bash(node -c:*)",
       "Bash(findstr:*)",
-      "Bash(dir \"c:\\\\Users\\\\rodri\\\\Music\\\\sistema financas\\\\backend\\\\routes\")"
+      "Bash(dir \"c:\\\\Users\\\\rodri\\\\Music\\\\sistema financas\\\\backend\\\\routes\")",
+      "Bash(node importar-dados.js:*)"
     ]
   }
 }
