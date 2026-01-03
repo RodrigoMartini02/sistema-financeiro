@@ -343,21 +343,37 @@ router.post('/padrao', authMiddleware, async (req, res) => {
     try {
         console.log('📝 Criando categorias padrão para usuário:', req.usuario.id);
 
+        // Primeiro, verificar quantas categorias já existem
+        const existentes = await query(
+            'SELECT * FROM categorias WHERE usuario_id = $1',
+            [req.usuario.id]
+        );
+        console.log('📊 Categorias existentes ANTES:', existentes.rows.length);
+        if (existentes.rows.length > 0) {
+            console.log('📋 IDs existentes:', existentes.rows.map(r => `${r.id}:${r.nome}`).join(', '));
+        }
+
         // Chamar a função do PostgreSQL para criar categorias padrão
         await query('SELECT criar_categorias_padrao($1)', [req.usuario.id]);
 
-        // Buscar as categorias criadas
+        // Buscar as categorias criadas/existentes
         const result = await query(
-            'SELECT * FROM categorias WHERE usuario_id = $1 ORDER BY nome ASC',
+            'SELECT * FROM categorias WHERE usuario_id = $1 ORDER BY id ASC',
             [req.usuario.id]
         );
 
-        console.log('✅ Categorias padrão criadas:', result.rows.length);
+        console.log('✅ Total de categorias DEPOIS:', result.rows.length);
+        console.log('📋 IDs das categorias:', result.rows.map(r => `${r.id}:${r.nome}`).join(', '));
 
         res.json({
             success: true,
-            message: 'Categorias padrão criadas com sucesso',
-            data: result.rows
+            message: `${result.rows.length} categorias disponíveis (${result.rows.length - existentes.rows.length} novas criadas)`,
+            data: result.rows,
+            resumo: {
+                total: result.rows.length,
+                novas: result.rows.length - existentes.rows.length,
+                ids: result.rows.map(r => r.id)
+            }
         });
 
     } catch (error) {

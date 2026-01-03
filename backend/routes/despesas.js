@@ -93,6 +93,22 @@ router.post('/', authMiddleware, [
             categoria_id, forma_pagamento, parcelado, usuario_id: req.usuario.id
         });
 
+        // ✅ Se categoria_id não foi fornecida, buscar a primeira categoria do usuário
+        let categoriaFinal = categoria_id;
+        if (!categoriaFinal) {
+            const catResult = await query(
+                'SELECT id FROM categorias WHERE usuario_id = $1 ORDER BY id ASC LIMIT 1',
+                [req.usuario.id]
+            );
+            if (catResult.rows.length > 0) {
+                categoriaFinal = catResult.rows[0].id;
+                console.log('📁 Usando categoria padrão:', categoriaFinal);
+            } else {
+                console.warn('⚠️ Nenhuma categoria encontrada para o usuário');
+                categoriaFinal = null; // Permitir NULL na tabela
+            }
+        }
+
         // ✅ CORRIGIR: aceitar total_parcelas do frontend
         const numeroParcelas = total_parcelas || null;
         const parcelaAtual = parcela_atual || (parcelado ? 1 : null);
@@ -107,7 +123,7 @@ router.post('/', authMiddleware, [
             [
                 req.usuario.id, descricao, parseFloat(valor), data_vencimento,
                 data_compra || null, data_pagamento || null, mes, ano,
-                categoria_id || 1, cartao_id || null, forma_pagamento || 'dinheiro',
+                categoriaFinal, cartao_id || null, forma_pagamento || 'dinheiro',
                 parcelado || false, numeroParcelas, parcelaAtual,
                 observacoes || null, pago || false
             ]
