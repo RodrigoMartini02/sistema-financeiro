@@ -489,12 +489,88 @@ textarea:focus {
     justify-content: space-between;
     z-index: var(--z-sticky);
     flex-shrink: 0;
+    gap: 10px; /* Distância reduzida entre o botão notícias e o banner */
 }
 
+/* Estilo do botão notícias alinhado ao banner */
+.btn-noticia-inline {
+    background: white;
+    border: 1px solid #ccc;
+    color: #333;
+    height: 38px;        /* Altura idêntica ao banner */
+    padding: 0 15px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;      /* Impede o botão de esmagar */
+    transition: all 0.2s ease;
+}
+
+.btn-noticia-inline:hover {
+    background-color: #f8f9fa;
+    border-color: #bbb;
+}
+
+/* Banner de Alerta Ajustado */
+.banner-alerta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    height: 38px;        /* Mesma altura do botão */
+    padding: 0 15px;
+    margin: 0;           /* Removido margens para alinhar com o botão */
+    border-radius: 4px;  /* Arredondamento uniforme */
+    box-shadow: 3px 3px 10px rgba(0,0,0,0.1);
+    font-size: 13px;
+    font-weight: 500;
+    flex: 1;             /* Ocupa o espaço central disponível */
+    box-sizing: border-box;
+    overflow: hidden;
+    animation: slideFromSidebar 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+.banner-conteudo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.banner-conteudo i {
+    font-size: 16px;
+    opacity: 0.9;
+    flex-shrink: 0;
+}
+
+.btn-fechar-banner {
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,0.8);
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 10px;
+}
+
+/* Seletores de Período e Ações (Direita) */
 .periodo-selector {
     display: flex;
     align-items: center;
     gap: 1rem;
+    margin-left: 10px;
 }
 
 .periodo-selector button {
@@ -508,28 +584,17 @@ textarea:focus {
     justify-content: center;
     cursor: pointer;
     transition: all 0.3s ease;
-    border-radius: 0;
-}
-
-.periodo-selector button:hover {
-    background-color: var(--primary-color);
-    color: white;
-}
-
-.periodo-selector button i {
-    color: inherit;
-    font-size: 0.9rem;
+    border-radius: 4px; /* Ajustado para leve arredondamento */
 }
 
 .periodo-selector span {
     font-size: 1.1rem;
     font-weight: 600;
     color: var(--text-color);
-    min-width: 80px;
+    min-width: 60px;
     text-align: center;
 }
 
-/* Header Actions - Botão Sair */
 .header-actions {
     display: flex;
     align-items: center;
@@ -547,19 +612,44 @@ textarea:focus {
     justify-content: center;
     cursor: pointer;
     transition: all 0.3s ease;
-    border-radius: 0;
-    text-decoration: none;
-    padding: 0;
-}
-
-#logout-btn:hover {
-    background-color: var(--danger);
-    color: white;
+    border-radius: 4px;
     text-decoration: none;
 }
 
-#logout-btn i {
-    font-size: 1.1rem;
+/* ================================================================
+   LETREIRO (MARQUEE)
+   ================================================================ */
+
+.marquee-container {
+    width: 100%;
+    background: #000;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    padding: 10px 0;
+    border-bottom: 2px solid var(--primary-color);
+}
+
+.marquee-content {
+    display: inline-block;
+    padding-left: 100%;
+    animation: marquee-anim 180s linear infinite; /* Velocidade lenta para leitura */
+    font-weight: bold;
+    font-family: sans-serif;
+}
+
+.marquee-content:hover {
+    animation-play-state: paused;
+}
+
+@keyframes marquee-anim {
+    from { transform: translateX(0); }
+    to { transform: translateX(-100%); }
+}
+
+@keyframes slideFromSidebar {
+    0% { transform: translateX(-20px); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
 }
 
 /* ================================================================
@@ -790,77 +880,6 @@ textarea:focus {
 
 
 
-
-
-
-.banner-alerta {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 10px 20px;
-    margin: 10px 20px;
-    border-radius: 0 6px 6px 0;
-    box-shadow: 3px 3px 10px rgba(0,0,0,0.1);
-    font-size: 13px;
-    font-weight: 500;
-    max-width: calc(100% - 40px);
-    box-sizing: border-box;
-    overflow: hidden;
-    animation: slideFromSidebar 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
-}
-
-.banner-conteudo {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex: 1;
-}
-
-.banner-conteudo i {
-    font-size: 16px;
-    opacity: 0.9;
-    flex-shrink: 0;
-}
-
-.banner-conteudo #mensagem-dia {
-    flex: 1;
-    line-height: 1.4;
-}
-
-.btn-fechar-banner {
-    background: transparent;
-    border: none;
-    color: rgba(255,255,255,0.8);
-    cursor: pointer;
-    font-size: 14px;
-    transition: all 0.2s ease;
-    padding: 4px;
-    border-radius: 3px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: 10px;
-}
-
-.btn-fechar-banner:hover {
-    color: white;
-    background: rgba(255,255,255,0.15);
-}
-
-/* Animação de entrada da sidebar */
-@keyframes slideFromSidebar {
-    0% {
-        transform: translateX(-100%);
-        opacity: 0;
-    }
-    100% {
-        transform: translateX(0);
-        opacity: 1;
-    }
-}
 
 
 /* ================================================================
@@ -2743,53 +2762,6 @@ table tr:hover {
 
 .cambio-container i {
     color: #2980b3;
-}
-
-/* Container que esconde o texto que sai da tela */
-
-
-/* Estilo fixo para o botão */
-.btn-noticia-inline {
-    background: white;
-    border: 1px solid #ccc;
-    color: #333;
-    padding: 4px 12px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: bold;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin-right: 10px;
-}
-
-/* O seu CSS de letreiro */
-.marquee-container {
-    width: 100%;
-    background: #000;
-    color: #fff;
-    white-space: nowrap;
-    overflow: hidden;
-    padding: 10px 0;
-    border-bottom: 2px solid var(--primary-color);
-}
-
-.marquee-content {
-    display: inline-block;
-    padding-left: 100%;
-    animation: marquee-anim 180s linear infinite;
-    font-weight: bold;
-    font-family: sans-serif;
-}
-
-.marquee-content:hover {
-    animation-play-state: paused;
-}
-
-@keyframes marquee-anim {
-    from { transform: translateX(0); }
-    to { transform: translateX(-100%); }
 }
 
 
