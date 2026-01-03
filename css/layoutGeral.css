@@ -732,7 +732,7 @@ textarea:focus {
 .mes-despesa { color: var(--despesa-color); }
 
 .mes-acoes {
-    padding: 4px;
+    padding: 12px 4px; /* Aumentado espaço vertical dentro do card */
     border-top: 1px solid var(--gray-200);
     display: flex;
     gap: 4px;
@@ -741,12 +741,15 @@ textarea:focus {
 }
 
 .btn-mes-acao {
-    padding: 4px 10px;
+    padding: 10px 20px; /* Aumentado tamanho do botão */
     border: none;
-    font-size: 9px;
+    font-size: 11px; /* Texto levemente maior */
     cursor: pointer;
-    border-radius: 3px;
+    border-radius: 0; /* Removida borda arredondada */
     line-height: 1;
+    width: 80%; /* Botão mais largo para destaque */
+    font-weight: var(--font-weight-bold);
+    text-transform: uppercase;
 }
 
 .btn-detalhes { display: none !important; }
@@ -766,6 +769,10 @@ textarea:focus {
     .meses-container {
         grid-template-columns: repeat(2, 1fr);
         grid-template-rows: repeat(6, 1fr);
+    }
+    .btn-mes-acao {
+        padding: 8px 12px;
+        width: 90%;
     }
 }
 
