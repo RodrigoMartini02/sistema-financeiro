@@ -2293,46 +2293,57 @@ function configurarEventListeners() {
 
 function iniciarAtualizacaoCotacoes() {
     const elemento = document.getElementById('cotacoes');
+    if (!elemento) return; // Segurança caso o elemento não exista na página
+
     const INTERVALO_ATUALIZACAO = 300000; // 5 minutos
 
     async function carregarCotacoesEmReal() {
         try {
-            const pares = ['USD-BRL', 'EUR-BRL', 'GBP-BRL', 'JPY-BRL'];
-
+            // Adicionado cabeçalho para evitar problemas de CORS e Cache
+            const pares = 'USD-BRL,EUR-BRL,GBP-BRL,JPY-BRL';
             const response = await fetch(
-                `https://economia.awesomeapi.com.br/json/last/${pares.join(',')}`,
+                `https://economia.awesomeapi.com.br/json/last/${pares}`,
                 { cache: 'no-store' }
             );
 
+            if (!response.ok) throw new Error('Falha na rede');
+            
             const dados = await response.json();
 
             const formatarMoeda = (codigo, valor) =>
-                `${codigo} R$ ${parseFloat(valor).toFixed(2)}`;
+                `<strong>${codigo}</strong> R$ ${parseFloat(valor).toFixed(2)}`;
 
             const cotacoes = [];
 
+            // A API retorna as chaves sem o hífen (USDBRL)
             if (dados.USDBRL) cotacoes.push(formatarMoeda('USD', dados.USDBRL.bid));
             if (dados.EURBRL) cotacoes.push(formatarMoeda('EUR', dados.EURBRL.bid));
             if (dados.GBPBRL) cotacoes.push(formatarMoeda('GBP', dados.GBPBRL.bid));
             if (dados.JPYBRL) cotacoes.push(formatarMoeda('JPY', dados.JPYBRL.bid));
 
-            elemento.innerText = cotacoes.join(' | ');
+            // Usamos innerHTML para aceitar as tags <strong> caso queira destacar o código
+            elemento.innerHTML = cotacoes.join(' <span style="margin: 0 8px; color: #ccc;">|</span> ');
 
-            elemento.parentElement.title =
-                'Cotações do câmbio comercial convertidas para Real (BRL)';
+            // Atualiza o title do container pai para acessibilidade
+            if (elemento.parentElement) {
+                elemento.parentElement.title = 'Cotações atualizadas em: ' + new Date().toLocaleTimeString();
+            }
+
         } catch (erro) {
             elemento.innerText = 'Câmbio indisponível';
             console.error('Erro ao atualizar cotações:', erro);
         }
     }
 
-    // Primeira carga imediata
+    // Executa a primeira carga imediatamente
     carregarCotacoesEmReal();
 
-    // Atualização automática
+    // Inicia o intervalo de atualização
     setInterval(carregarCotacoesEmReal, INTERVALO_ATUALIZACAO);
 }
 
+// IMPORTANTE: Chame a função para ela começar a rodar!
+document.addEventListener('DOMContentLoaded', iniciarAtualizacaoCotacoes);
 
 // Executar quando DOM estiver pronto
 document.addEventListener('DOMContentLoaded', configurarEventListeners);
