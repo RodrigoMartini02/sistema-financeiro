@@ -69,39 +69,69 @@
 
    <main class="main-content">
         <header class="main-header">
-            <button id="btn-toggle-noticias" class="btn-noticia-inline" type="button">
-            <i class="fas fa-newspaper"></i> NOTÍCIAS
-        </button>
-
-        <div id="banner-financeiro" class="banner-alerta" style="display: none;">
-            <div class="banner-conteudo">
-                <i class="fas fa-info-circle"></i>
-                <span id="mensagem-dia"></span>
+            <!-- ✅ LOGO E TÍTULO -->
+            <div class="header-brand">
+                <i class="fas fa-chart-line"></i>
+                <h1>Sistema Financeiro</h1>
             </div>
-            <button type="button" class="btn-fechar-banner" id="btn-fechar-banner">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-            <div class="header-actions">
-                <div class="periodo-selector">
-                    <button id="btn-ano-anterior"><i class="fas fa-chevron-left"></i></button>
-                    <span id="ano-atual"></span>
-                    <button id="btn-proximo-ano"><i class="fas fa-chevron-right"></i></button>
+
+            <!-- ✅ BANNER DE MENSAGENS ESPECIAIS -->
+            <div id="banner-financeiro" class="banner-alerta" style="display: none;">
+                <div class="banner-conteudo">
+                    <i class="fas fa-info-circle"></i>
+                    <span id="mensagem-dia"></span>
                 </div>
-                
-                
+                <button type="button" class="btn-fechar-banner" id="btn-fechar-banner">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- ✅ AÇÕES DO HEADER -->
+            <div class="header-actions">
+                <!-- Seletor de Ano com Dropdown -->
+                <div class="periodo-selector">
+                    <button id="btn-ano-anterior" title="Ano Anterior"><i class="fas fa-chevron-left"></i></button>
+                    <div class="ano-dropdown">
+                        <button id="ano-atual-btn" class="ano-atual-display">2026</button>
+                        <div id="dropdown-anos" class="dropdown-anos-lista" style="display: none;">
+                            <!-- Será preenchido dinamicamente -->
+                        </div>
+                    </div>
+                    <button id="btn-proximo-ano" title="Próximo Ano"><i class="fas fa-chevron-right"></i></button>
+                </div>
+
+                <!-- Menu de Gerenciamento de Ano -->
+                <div class="ano-menu-container">
+                    <button class="btn-ano-menu" id="btn-ano-menu" title="Gerenciar Ano">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                    <div id="dropdown-ano-menu" class="dropdown-ano-menu" style="display: none;">
+                        <button id="btn-novo-ano-menu" class="dropdown-item">
+                            <i class="fas fa-calendar-plus"></i> Criar Novo Ano
+                        </button>
+                        <button id="btn-excluir-ano-menu" class="dropdown-item dropdown-item-danger">
+                            <i class="fas fa-calendar-times"></i> Excluir Ano Atual
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Notícias -->
+                <button id="btn-toggle-noticias" class="btn-icon" type="button" title="Ver Notícias">
+                    <i class="fas fa-newspaper"></i>
+                </button>
+
+                <!-- Notificações -->
                 <div class="notification-icon-container">
-                    <button class="notification-icon" id="notification-bell" type="button" aria-label="Notificações">
+                    <button class="btn-icon" id="notification-bell" type="button" aria-label="Notificações">
                         <i class="fas fa-bell"></i>
                     </button>
                     <span class="notification-badge hidden" id="notification-count">0</span>
                 </div>
 
-                <div class="header-actions">
-                    <a href="#" class="btn btn-outline-danger" id="logout-btn">
-                        <i class="fas fa-sign-out-alt action-icon logout-icon" title="Sair"></i>
-                    </a>
-                </div>
+                <!-- Logout -->
+                <button class="btn-icon btn-logout" id="logout-btn" title="Sair">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
             </div>
         </header>
 
@@ -114,32 +144,40 @@
         <!-- BARRA DE AÇÕES RÁPIDAS -->
         <!-- ======================================================== -->
         <div class="secondary-action-bar">
-            <div class="action-group">
-                <button id="btn-adicionar-receita-rapida" class="btn btn-success">
-                    <i class="fas fa-plus"></i> Receita
+            <!-- ✅ AÇÕES PRINCIPAIS -->
+            <div class="action-group action-primary">
+                <button id="btn-adicionar-receita-rapida" class="btn btn-success btn-lg">
+                    <i class="fas fa-plus"></i> RECEITA
                 </button>
-                <button id="btn-adicionar-despesa-rapida" class="btn btn-danger">
-                    <i class="fas fa-plus"></i> Despesa
+                <button id="btn-adicionar-despesa-rapida" class="btn btn-danger btn-lg">
+                    <i class="fas fa-plus"></i> DESPESA
                 </button>
-            </div>
-            <div class="action-group">
-                <button id="btn-novo-ano" class="btn btn-primary" title="Adicionar Novo Ano">
-                    <i class="fas fa-calendar-plus"></i> Novo Ano
-                </button>
-                <button id="btn-excluir-ano-atual" class="btn btn-danger" title="Excluir Ano Atual">
-                    <i class="fas fa-calendar-times"></i> Excluir Ano
-                </button>
-            </div>
-            <div class="cambio-container" title="Cotações convertidas para Real (BRL)">
-                <i class="fas fa-exchange-alt"></i>
-                <span id="cotacoes">Carregando...</span>
             </div>
 
+            <!-- ✅ RESUMO FINANCEIRO -->
+            <div class="resumo-financeiro">
+                <div class="resumo-item">
+                    <span class="resumo-label">📊 Saldo Anual:</span>
+                    <span class="resumo-valor" id="saldo-anual-display">R$ 0,00</span>
+                </div>
+                <div class="resumo-item">
+                    <span class="resumo-label">📅 Este Mês:</span>
+                    <span class="resumo-valor" id="saldo-mes-display">R$ 0,00</span>
+                </div>
+            </div>
+
+            <!-- ✅ COTAÇÕES COMPACTAS -->
+            <div class="cambio-container-compact" title="Cotações em tempo real">
+                <i class="fas fa-exchange-alt"></i>
+                <span id="cotacoes-compact">Carregando...</span>
+            </div>
+
+            <!-- ✅ AÇÕES SECUNDÁRIAS -->
             <div class="action-group action-group-right">
-                <button id="btn-refresh" class="btn btn-secondary" title="Atualizar Dados">
+                <button id="btn-refresh" class="btn btn-icon-secondary" title="Atualizar Dados">
                     <i class="fas fa-sync-alt"></i>
                 </button>
-                <button id="btn-lock-system" class="btn btn-secondary" title="Bloquear Sistema">
+                <button id="btn-lock-system" class="btn btn-icon-secondary" title="Bloquear Sistema">
                     <i class="fas fa-lock"></i>
                 </button>
             </div>

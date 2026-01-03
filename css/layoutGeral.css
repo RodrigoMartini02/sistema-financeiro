@@ -479,40 +479,223 @@ textarea:focus {
    HEADER PRINCIPAL
    ================================================================ */
 
+/* ================================================================
+   HEADER PRINCIPAL - REDESENHADO
+   ================================================================ */
 .main-header {
     height: var(--header-height);
     background-color: var(--white);
     box-shadow: var(--shadow-md);
-    padding: 0 var(--space-md);
+    padding: 0 24px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     z-index: var(--z-sticky);
     flex-shrink: 0;
-    gap: 10px; /* Distância reduzida entre o botão notícias e o banner */
+    gap: 16px;
 }
 
-/* Estilo do botão notícias alinhado ao banner */
-.btn-noticia-inline {
-    background: white;
-    border: 1px solid #ccc;
-    color: #333;
-    height: 38px;        /* Altura idêntica ao banner */
-    padding: 0 15px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: bold;
-    cursor: pointer;
-    display: inline-flex;
+/* ✅ LOGO E TÍTULO */
+.header-brand {
+    display: flex;
     align-items: center;
-    gap: 8px;
-    flex-shrink: 0;      /* Impede o botão de esmagar */
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.header-brand i {
+    font-size: 24px;
+    color: var(--primary-color);
+}
+
+.header-brand h1 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-color);
+    margin: 0;
+    white-space: nowrap;
+}
+
+/* ✅ AÇÕES DO HEADER */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
+}
+
+/* ✅ BOTÕES ÍCONE */
+.btn-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: 1px solid var(--gray-300);
+    background: var(--white);
+    color: var(--gray-600);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
     transition: all 0.2s ease;
 }
 
-.btn-noticia-inline:hover {
-    background-color: #f8f9fa;
-    border-color: #bbb;
+.btn-icon:hover {
+    background-color: var(--gray-100);
+    border-color: var(--gray-400);
+    color: var(--primary-color);
+}
+
+.btn-icon i {
+    font-size: 16px;
+}
+
+.btn-logout:hover {
+    background-color: #fee;
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+/* ✅ SELETOR DE ANO COM DROPDOWN */
+.periodo-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--gray-50);
+    padding: 4px;
+    border-radius: 8px;
+}
+
+.periodo-selector button {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: none;
+    background: var(--white);
+    color: var(--gray-600);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.periodo-selector button:hover {
+    background: var(--primary-color);
+    color: white;
+}
+
+.ano-dropdown {
+    position: relative;
+}
+
+.ano-atual-display {
+    min-width: 70px;
+    height: 32px;
+    border-radius: 6px;
+    border: none;
+    background: var(--white);
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--primary-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.ano-atual-display:hover {
+    background: var(--primary-color);
+    color: white;
+}
+
+.dropdown-anos-lista {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 4px;
+    background: white;
+    border: 1px solid var(--gray-300);
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+    min-width: 120px;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: var(--z-dropdown);
+}
+
+.dropdown-anos-lista button {
+    width: 100%;
+    padding: 10px 16px;
+    border: none;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    font-size: 14px;
+}
+
+.dropdown-anos-lista button:hover {
+    background: var(--gray-100);
+}
+
+.dropdown-anos-lista button.active {
+    background: var(--primary-color);
+    color: white;
+    font-weight: 600;
+}
+
+/* ✅ MENU DE GERENCIAMENTO DE ANO */
+.ano-menu-container {
+    position: relative;
+}
+
+.btn-ano-menu {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: 1px solid var(--gray-300);
+    background: var(--white);
+    color: var(--gray-600);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-ano-menu:hover {
+    background: var(--gray-100);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.dropdown-ano-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 8px;
+    background: white;
+    border: 1px solid var(--gray-300);
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+    min-width: 200px;
+    z-index: var(--z-dropdown);
+    overflow: hidden;
+}
+
+.dropdown-item {
+    width: 100%;
+    padding: 12px 16px;
+    border: none;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.dropdown-item:hover {
+    background: var(--gray-100);
+}
+
+.dropdown-item-danger:hover {
+    background: #fee;
+    color: var(--danger);
 }
 
 /* Banner de Alerta Ajustado */
@@ -672,39 +855,144 @@ textarea:focus {
    BARRA DE AÇÕES SECUNDÁRIA
    ================================================================ */
 
+/* ================================================================
+   BARRA DE AÇÕES SECUNDÁRIA - REDESENHADA
+   ================================================================ */
 .secondary-action-bar {
     display: flex;
     align-items: center;
-    padding: 10px 24px;
+    padding: 12px 24px;
     background-color: var(--white);
     border-bottom: 1px solid var(--gray-200);
-    gap: var(--space-md);
+    gap: 20px;
     flex-wrap: wrap;
 }
 
+/* ✅ AÇÕES PRINCIPAIS (Receita/Despesa) */
+.action-primary {
+    display: flex;
+    gap: 12px;
+}
+
+.action-primary .btn-lg {
+    padding: 12px 24px;
+    font-size: 14px;
+    font-weight: 700;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.action-primary .btn-success {
+    background: var(--success-color);
+    color: white;
+}
+
+.action-primary .btn-success:hover {
+    background: #23903d;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+.action-primary .btn-danger {
+    background: var(--despesa-color);
+    color: white;
+}
+
+.action-primary .btn-danger:hover {
+    background: #e85555;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+}
+
+/* ✅ RESUMO FINANCEIRO */
+.resumo-financeiro {
+    display: flex;
+    gap: 24px;
+    padding: 0 20px;
+    border-left: 2px solid var(--gray-200);
+    border-right: 2px solid var(--gray-200);
+}
+
+.resumo-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.resumo-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.resumo-valor {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.resumo-valor.positivo {
+    color: var(--success-color);
+}
+
+.resumo-valor.negativo {
+    color: var(--despesa-color);
+}
+
+/* ✅ COTAÇÕES COMPACTAS */
+.cambio-container-compact {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background-color: var(--gray-50);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray-700);
+}
+
+.cambio-container-compact i {
+    color: var(--primary-color);
+    font-size: 14px;
+}
+
+/* ✅ GRUPOS DE AÇÕES */
 .action-group {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding-right: var(--space-md);
-    border-right: 1px solid var(--gray-200);
-}
-
-.action-group:last-child {
-    border-right: none;
+    gap: 8px;
 }
 
 .action-group-right {
     margin-left: auto;
-    border-right: none;
 }
 
-.secondary-action-bar .btn {
+.btn-icon-secondary {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    border: 1px solid var(--gray-300);
+    background: var(--white);
+    color: var(--gray-600);
+    cursor: pointer;
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
-    gap: var(--space-sm);
-    padding: var(--space-sm) 12px;
-    font-size: 0.9rem;
+    justify-content: center;
+}
+
+.btn-icon-secondary:hover {
+    background: var(--gray-100);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
 }
 
 /* ================================================================
@@ -2764,21 +3052,7 @@ table tr:hover {
 /* ================================================================
    FIM DA REFATORAÇÃO CSS
    ================================================================ */
-.cambio-container {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    border-radius: 6px;
-    background-color: #f5f7fa;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #2c3e50;
-}
-
-.cambio-container i {
-    color: #2980b3;
-}
+/* Removido - agora usa .cambio-container-compact */
 
 
 

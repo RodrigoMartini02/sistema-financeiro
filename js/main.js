@@ -389,7 +389,7 @@ function configurarInterface() {
     setupEventosFechamento();
     configurarObservadorModal(); // ADICIONAR ESTA LINHA
     
-    atualizarElemento('ano-atual', anoAtual);
+    atualizarDisplayAno(anoAtual);
 }
 
 function setupNavigation() {
@@ -470,32 +470,182 @@ function onSecaoAtivada(secao) {
 }
 
 function setupControlesAno() {
+    // ✅ Botões de navegação de ano
     const btnAnoAnterior = document.getElementById('btn-ano-anterior');
     const btnProximoAno = document.getElementById('btn-proximo-ano');
+    const btnAnoAtualDisplay = document.getElementById('ano-atual-btn');
+    const dropdownAnos = document.getElementById('dropdown-anos');
+
+    // ✅ Menu de gerenciamento de ano
+    const btnAnoMenu = document.getElementById('btn-ano-menu');
+    const dropdownAnoMenu = document.getElementById('dropdown-ano-menu');
+    const btnNovoAnoMenu = document.getElementById('btn-novo-ano-menu');
+    const btnExcluirAnoMenu = document.getElementById('btn-excluir-ano-menu');
+
+    // ✅ Botões antigos (manter compatibilidade)
     const btnNovoAno = document.getElementById('btn-novo-ano');
     const btnExcluirAno = document.getElementById('btn-excluir-ano-atual');
-    
+
+    // Navegação anterior/próximo
     if (btnAnoAnterior) {
         btnAnoAnterior.addEventListener('click', () => mudarAno(anoAtual - 1));
     }
-    
+
     if (btnProximoAno) {
         btnProximoAno.addEventListener('click', () => mudarAno(anoAtual + 1));
     }
-    
+
+    // ✅ Dropdown de anos ao clicar no ano atual
+    if (btnAnoAtualDisplay && dropdownAnos) {
+        btnAnoAtualDisplay.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isVisible = dropdownAnos.style.display === 'block';
+            dropdownAnos.style.display = isVisible ? 'none' : 'block';
+
+            if (!isVisible) {
+                preencherDropdownAnos();
+            }
+        });
+    }
+
+    // ✅ Menu de gerenciamento de ano
+    if (btnAnoMenu && dropdownAnoMenu) {
+        btnAnoMenu.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isVisible = dropdownAnoMenu.style.display === 'block';
+            dropdownAnoMenu.style.display = isVisible ? 'none' : 'block';
+        });
+    }
+
+    // Botões do menu dropdown
+    if (btnNovoAnoMenu) {
+        btnNovoAnoMenu.addEventListener('click', () => {
+            dropdownAnoMenu.style.display = 'none';
+            abrirModalNovoAno();
+        });
+    }
+
+    if (btnExcluirAnoMenu) {
+        btnExcluirAnoMenu.addEventListener('click', () => {
+            dropdownAnoMenu.style.display = 'none';
+            excluirAno(anoAtual);
+        });
+    }
+
+    // Manter compatibilidade com botões antigos
     if (btnNovoAno) {
         btnNovoAno.addEventListener('click', abrirModalNovoAno);
     }
-    
+
     if (btnExcluirAno) {
         btnExcluirAno.addEventListener('click', () => excluirAno(anoAtual));
     }
-    
+
+    // ✅ Fechar dropdowns ao clicar fora
+    document.addEventListener('click', () => {
+        if (dropdownAnos) dropdownAnos.style.display = 'none';
+        if (dropdownAnoMenu) dropdownAnoMenu.style.display = 'none';
+    });
+
     const formNovoAno = document.getElementById('form-novo-ano');
     if (formNovoAno) {
         formNovoAno.addEventListener('submit', criarNovoAno);
     }
 }
+
+// ✅ Preencher dropdown com anos disponíveis
+function preencherDropdownAnos() {
+    const dropdownAnos = document.getElementById('dropdown-anos');
+    if (!dropdownAnos) return;
+
+    const anosDisponiveis = Object.keys(window.dadosFinanceiros || {})
+        .map(ano => parseInt(ano))
+        .sort((a, b) => b - a); // Mais recente primeiro
+
+    dropdownAnos.innerHTML = '';
+
+    if (anosDisponiveis.length === 0) {
+        dropdownAnos.innerHTML = '<button disabled style="padding: 10px;">Nenhum ano disponível</button>';
+        return;
+    }
+
+    anosDisponiveis.forEach(ano => {
+        const btn = document.createElement('button');
+        btn.textContent = ano;
+        btn.className = ano === anoAtual ? 'active' : '';
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            mudarAno(ano);
+            dropdownAnos.style.display = 'none';
+        });
+        dropdownAnos.appendChild(btn);
+    });
+}
+
+// ✅ Atualizar display do ano no botão
+function atualizarDisplayAno(ano) {
+    const btnAnoAtualDisplay = document.getElementById('ano-atual-btn');
+    if (btnAnoAtualDisplay) {
+        btnAnoAtualDisplay.textContent = ano;
+    }
+
+    // Manter compatibilidade com elemento antigo
+    atualizarElemento('ano-atual', ano);
+}
+
+// ✅ Atualizar resumo financeiro na barra
+function atualizarResumoFinanceiroBarra() {
+    const saldoAnualDisplay = document.getElementById('saldo-anual-display');
+    const saldoMesDisplay = document.getElementById('saldo-mes-display');
+
+    if (!saldoAnualDisplay && !saldoMesDisplay) return;
+
+    // Calcular saldo anual
+    let totalReceitasAno = 0;
+    let totalDespesasAno = 0;
+
+    if (window.dadosFinanceiros && window.dadosFinanceiros[anoAtual]) {
+        const mesesDoAno = window.dadosFinanceiros[anoAtual].meses || [];
+
+        mesesDoAno.forEach(mes => {
+            if (mes) {
+                const receitas = mes.receitas || [];
+                const despesas = mes.despesas || [];
+
+                totalReceitasAno += receitas.reduce((sum, r) => sum + (parseFloat(r.valor) || 0), 0);
+                totalDespesasAno += despesas.reduce((sum, d) => sum + (parseFloat(d.valor) || 0), 0);
+            }
+        });
+    }
+
+    const saldoAnual = totalReceitasAno - totalDespesasAno;
+
+    // Calcular saldo do mês atual
+    let saldoMesAtual = 0;
+    if (window.dadosFinanceiros && window.dadosFinanceiros[anoAtual]?.meses?.[mesAtual]) {
+        const mesData = window.dadosFinanceiros[anoAtual].meses[mesAtual];
+        const receitas = mesData.receitas || [];
+        const despesas = mesData.despesas || [];
+
+        const totalReceitasMes = receitas.reduce((sum, r) => sum + (parseFloat(r.valor) || 0), 0);
+        const totalDespesasMes = despesas.reduce((sum, d) => sum + (parseFloat(d.valor) || 0), 0);
+        saldoMesAtual = totalReceitasMes - totalDespesasMes;
+    }
+
+    // Atualizar elementos
+    if (saldoAnualDisplay) {
+        saldoAnualDisplay.textContent = window.formatarMoeda(saldoAnual);
+        saldoAnualDisplay.className = 'resumo-valor ' + (saldoAnual >= 0 ? 'positivo' : 'negativo');
+    }
+
+    if (saldoMesDisplay) {
+        saldoMesDisplay.textContent = window.formatarMoeda(saldoMesAtual);
+        saldoMesDisplay.className = 'resumo-valor ' + (saldoMesAtual >= 0 ? 'positivo' : 'negativo');
+    }
+}
+
+// Chamar atualização do resumo quando dados mudarem
+window.atualizarResumoFinanceiroBarra = atualizarResumoFinanceiroBarra;
 
 function setupModais() {
     document.querySelectorAll('.close').forEach(closeBtn => {
@@ -913,7 +1063,7 @@ async function mudarAno(ano) {
         
         anoAtual = ano;
         window.anoAtual = anoAtual;
-        atualizarElemento('ano-atual', anoAtual);
+        atualizarDisplayAno(anoAtual);
         
         await carregarDadosDashboard(anoAtual);
         atualizarResumoAnual(anoAtual);
@@ -947,7 +1097,7 @@ async function criarAnoSimples(ano) {
         
         anoAtual = ano;
         window.anoAtual = anoAtual;
-        atualizarElemento('ano-atual', anoAtual);
+        atualizarDisplayAno(anoAtual);
         
         await carregarDadosDashboard(anoAtual);
         atualizarResumoAnual(anoAtual);
@@ -1546,6 +1696,11 @@ async function carregarDadosDashboard(ano) {
         }
 
         carregarDadosDashboardLocal(ano);
+
+        // ✅ Atualizar resumo financeiro na barra
+        if (typeof window.atualizarResumoFinanceiroBarra === 'function') {
+            window.atualizarResumoFinanceiroBarra();
+        }
     } catch (error) {
         carregarDadosDashboardLocal(ano);
     }
@@ -2450,7 +2605,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 function iniciarAtualizacaoCotacoes() {
-    const elemento = document.getElementById('cotacoes');
+    // ✅ Suportar ambos os elementos (antigo e novo)
+    const elemento = document.getElementById('cotacoes') || document.getElementById('cotacoes-compact');
     if (!elemento) return;
 
     const INTERVALO_ATUALIZACAO = 300000; // 5 minutos
@@ -2468,31 +2624,29 @@ function iniciarAtualizacaoCotacoes() {
             
             const dados = await response.json();
 
-            // Função de formatação ajustada para lidar com valores altos
-            const formatarMoeda = (codigo, valor) => {
+            // Função de formatação compacta
+            const formatarCompacto = (codigo, valor) => {
                 const valorNumerico = parseFloat(valor);
-                const valorFormatado = valorNumerico.toLocaleString('pt-BR', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                });
-                return `<strong>${codigo}</strong> R$ ${valorFormatado}`;
+                let valorFormatado;
+
+                // Bitcoin usa notação k (milhares)
+                if (codigo === 'BTC' && valorNumerico > 1000) {
+                    valorFormatado = (valorNumerico / 1000).toFixed(0) + 'k';
+                } else {
+                    valorFormatado = valorNumerico.toFixed(2);
+                }
+
+                return `<strong>${codigo}</strong> ${valorFormatado}`;
             };
 
             const cotacoes = [];
 
-            // Verificação e inclusão das moedas
-            if (dados.USDBRL) cotacoes.push(formatarMoeda('USD', dados.USDBRL.bid));
-            if (dados.EURBRL) cotacoes.push(formatarMoeda('EUR', dados.EURBRL.bid));
-            if (dados.GBPBRL) cotacoes.push(formatarMoeda('GBP', dados.GBPBRL.bid));
-            if (dados.JPYBRL) cotacoes.push(formatarMoeda('JPY', dados.JPYBRL.bid));
-            
-            // Adicionando o Bitcoin
-            if (dados.BTCBRL) {
-                // O Bitcoin geralmente vem como "580453" (exemplo), tratamos igual às outras
-                cotacoes.push(formatarMoeda('BTC', dados.BTCBRL.bid));
-            }
+            // Incluir apenas USD, EUR e BTC (as mais relevantes)
+            if (dados.USDBRL) cotacoes.push(formatarCompacto('USD', dados.USDBRL.bid));
+            if (dados.EURBRL) cotacoes.push(formatarCompacto('EUR', dados.EURBRL.bid));
+            if (dados.BTCBRL) cotacoes.push(formatarCompacto('BTC', dados.BTCBRL.bid));
 
-            elemento.innerHTML = cotacoes.join(' <span style="margin: 0 8px; color: #ccc;">|</span> ');
+            elemento.innerHTML = cotacoes.join(' <span style="margin: 0 6px; color: #ddd;">·</span> ');
 
             if (elemento.parentElement) {
                 elemento.parentElement.title = 'Última atualização: ' + new Date().toLocaleTimeString();
