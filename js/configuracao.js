@@ -2008,6 +2008,9 @@ async function importarDados() {
                 if (progressText) {
                     progressText.textContent = `Receitas: ${processados} de ${totalReceitas}`;
                 }
+
+                // ✅ DELAY para evitar erro 429 (Too Many Requests)
+                await new Promise(resolve => setTimeout(resolve, 100));
             }
 
             // ✅ PASSO 4: Importar despesas
@@ -2107,6 +2110,10 @@ async function importarDados() {
                 if (progressText) {
                     progressText.textContent = `Despesas: ${despesasProcessadas} de ${totalDespesas}`;
                 }
+
+                // ✅ DELAY para evitar erro 429 (Too Many Requests)
+                // Aguardar 100ms entre cada requisição
+                await new Promise(resolve => setTimeout(resolve, 100));
             }
 
             // Ocultar loader
