@@ -611,22 +611,27 @@ textarea:focus {
 .config-section.active {
     display: block;
 }
+/* ================================================================
+   SEÇÃO MESES - COM ROLAGEM E BOTÕES ATUALIZADOS
+   ================================================================ */
+
 .meses-container {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: repeat(3, 1fr);
-    gap: 4px;
-    padding: 8px;
+    /* Grid responsivo: adapta o número de colunas conforme o espaço */
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 15px;
+    padding: 20px;
     width: 100%;
-    height: calc(100vh - 160px);
-    margin: 0;
+    /* Altura máxima para permitir o scroll interno na área dos meses */
+    height: calc(100vh - 180px); 
+    overflow-y: auto;
     box-sizing: border-box;
-    overflow: hidden;
+    align-content: start;
 }
 
 .mes-card {
     background: var(--white);
-    box-shadow: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     overflow: hidden;
     cursor: pointer;
     transition: var(--transition-base);
@@ -634,146 +639,130 @@ textarea:focus {
     display: flex;
     flex-direction: column;
     margin: 0;
-    min-height: 0;
+    min-height: 220px; /* Garante um tamanho mínimo confortável */
 }
 
 .mes-card:hover {
-    box-shadow: inset 0 0 0 2px var(--primary-color);
-    z-index: 1;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
 }
 
 .mes-header {
     background: var(--primary-color);
     color: var(--white);
-    padding: 6px;
+    padding: 10px;
     text-align: center;
     flex-shrink: 0;
-    border-bottom: 1px solid var(--gray-300);
 }
 
 .mes-nome {
-    font-size: 11px;
-    font-weight: var(--font-weight-semibold);
+    font-size: 14px;
+    font-weight: var(--font-weight-bold);
     text-transform: uppercase;
     margin: 0;
-    line-height: 1;
+    letter-spacing: 1px;
 }
 
 .mes-body {
-    padding: 6px;
+    padding: 15px;
     flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: space-evenly;
-    min-height: 0;
+    gap: 10px;
 }
 
-.mes-saldos-container {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4px;
-    margin-bottom: 2px;
-}
-
-.mes-saldo-anterior,
-.mes-saldo {
-    padding: 4px;
-    text-align: center;
-    border: 1px solid var(--gray-200);
-}
-
-.mes-saldo-anterior {
-    background: rgba(23, 162, 184, 0.05);
-    border-left: 2px solid var(--info);
-}
-
-.mes-saldo {
-    background: var(--gray-50);
-    border-left: 2px solid var(--saldo-color);
-}
-
-.mes-label {
-    font-size: 8px;
-    color: var(--gray-600);
-    margin-bottom: 2px;
-    text-transform: uppercase;
-    font-weight: var(--font-weight-semibold);
-    display: block;
-    line-height: 1;
-}
-
-.valor-anterior,
-.mes-saldo-valor {
-    font-size: 11px;
-    font-weight: var(--font-weight-bold);
-    line-height: 1;
-}
-
+.mes-saldos-container,
 .mes-resumo {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 4px;
+    gap: 10px;
 }
 
+.mes-saldo-anterior,
+.mes-saldo,
 .mes-valor {
+    padding: 8px;
     text-align: center;
-    padding: 4px;
     border: 1px solid var(--gray-200);
 }
 
+.mes-label {
+    font-size: 9px;
+    color: var(--gray-600);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    font-weight: 700;
+    display: block;
+}
+
+.valor-anterior,
+.mes-saldo-valor,
 .mes-receita,
 .mes-despesa {
-    font-weight: var(--font-weight-bold);
-    font-size: 11px;
-    line-height: 1;
+    font-size: 13px;
+    font-weight: 800;
 }
 
 .mes-receita { color: var(--receita-color); }
 .mes-despesa { color: var(--despesa-color); }
 
+/* --- SEÇÃO DE AÇÕES / BOTÕES --- */
+
 .mes-acoes {
-    padding: 12px 4px; /* Aumentado espaço vertical dentro do card */
-    border-top: 1px solid var(--gray-200);
+    padding: 0; /* Remove padding para o botão encostar nas bordas se desejar */
     display: flex;
-    gap: 4px;
-    justify-content: center;
+    flex-direction: column;
     flex-shrink: 0;
 }
 
 .btn-mes-acao {
-    padding: 10px 20px; /* Aumentado tamanho do botão */
+    width: 100%;
+    padding: 12px; /* Aumenta o espaço vertical interno */
     border: none;
-    font-size: 11px; /* Texto levemente maior */
-    cursor: pointer;
-    border-radius: 0; /* Removida borda arredondada */
-    line-height: 1;
-    width: 80%; /* Botão mais largo para destaque */
-    font-weight: var(--font-weight-bold);
+    font-size: 12px;
+    font-weight: 800;
     text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 0; /* REMOVE bordas arredondadas */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: filter 0.2s;
+}
+
+.btn-mes-acao:hover {
+    filter: brightness(0.9);
 }
 
 .btn-detalhes { display: none !important; }
-.btn-reabrir { background: var(--warning); color: var(--gray-800); }
-.btn-fechar { background: var(--success); color: var(--white); }
 
-@media (max-width: 1024px) {
-    .meses-container {
-        grid-template-columns: repeat(3, 1fr);
-        grid-template-rows: repeat(4, 1fr);
-        height: auto;
-        overflow-y: auto;
-    }
+.btn-reabrir { 
+    background: var(--warning); 
+    color: var(--gray-800); 
 }
 
-@media (max-width: 600px) {
-    .meses-container {
-        grid-template-columns: repeat(2, 1fr);
-        grid-template-rows: repeat(6, 1fr);
-    }
-    .btn-mes-acao {
-        padding: 8px 12px;
-        width: 90%;
-    }
+.btn-fechar { 
+    background: var(--success); 
+    color: var(--white); 
+}
+
+/* Customização da Barra de Rolagem (Opcional) */
+.meses-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.meses-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.meses-container::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 4px;
+}
+
+.meses-container::-webkit-scrollbar-thumb:hover {
+    background: #aaa;
 }
 
 /* ================================================================
