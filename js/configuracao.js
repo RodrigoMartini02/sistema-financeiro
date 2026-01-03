@@ -1710,13 +1710,35 @@ async function exportarDados() {
             }
         }
 
-        if (todasReceitas.length === 0 && todasDespesas.length === 0) {
-            mostrarFeedback('Não há dados para exportar no banco de dados', 'warning');
+        // Buscar categorias do cache/localStorage
+        const categoriasUsuario = window.categoriasUsuario || { receitas: [], despesas: [] };
+
+        // Buscar cartões do cache/localStorage
+        const cartoesUsuario = window.cartoesUsuario || {
+            cartao1: { nome: '', validade: '', limite: 0, ativo: false },
+            cartao2: { nome: '', validade: '', limite: 0, ativo: false },
+            cartao3: { nome: '', validade: '', limite: 0, ativo: false }
+        };
+
+        // Contar cartões ativos
+        const cartoesAtivos = Object.values(cartoesUsuario).filter(c => c.ativo).length;
+
+        // Debug
+        console.log('📊 Dados encontrados:');
+        console.log('  - Receitas:', todasReceitas.length);
+        console.log('  - Despesas:', todasDespesas.length);
+        console.log('  - Categorias receitas:', categoriasUsuario.receitas?.length || 0);
+        console.log('  - Categorias despesas:', categoriasUsuario.despesas?.length || 0);
+        console.log('  - Cartões ativos:', cartoesAtivos);
+
+        // Verificar se há ALGUM dado para exportar
+        const totalCategorias = (categoriasUsuario.receitas?.length || 0) + (categoriasUsuario.despesas?.length || 0);
+        const totalDados = todasReceitas.length + todasDespesas.length + totalCategorias + cartoesAtivos;
+
+        if (totalDados === 0) {
+            mostrarFeedback('Não há dados para exportar (transações, categorias ou cartões)', 'warning');
             return;
         }
-
-        // Buscar categorias
-        const categoriasUsuario = window.categoriasUsuario || { receitas: [], despesas: [] };
 
         // Estrutura do backup
         const backup = {
@@ -1725,8 +1747,11 @@ async function exportarDados() {
             usuario: usuario.nome,
             receitas: todasReceitas,
             despesas: todasDespesas,
-            categorias: categoriasUsuario
+            categorias: categoriasUsuario,
+            cartoes: cartoesUsuario
         };
+
+        console.log('📦 Backup gerado:', backup);
 
         // Criar arquivo JSON
         const jsonContent = JSON.stringify(backup, null, 2);
@@ -1743,7 +1768,9 @@ async function exportarDados() {
         link.click();
         document.body.removeChild(link);
 
-        mostrarFeedback(`✅ Exportados: ${todasReceitas.length} receitas e ${todasDespesas.length} despesas`, 'success');
+        const mensagem = `✅ Exportados: ${todasReceitas.length} receitas, ${todasDespesas.length} despesas, ${totalCategorias} categorias e ${cartoesAtivos} cartões`;
+        mostrarFeedback(mensagem, 'success');
+        console.log(mensagem);
     } catch (error) {
         console.error('Erro ao exportar dados:', error);
         mostrarFeedback('Erro ao exportar dados: ' + error.message, 'error');
@@ -1903,6 +1930,50 @@ async function importarDados() {
                 processados++;
                 if (progressText) {
                     progressText.textContent = `${processados} de ${total} registros`;
+                }
+            }
+
+            // Importar categorias se existirem
+            if (backup.categorias) {
+                console.log('📁 Importando categorias...');
+                try {
+                    const responseCategorias = await fetch(`${API_URL}/usuarios/${usuario.id}/categorias`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify(backup.categorias)
+                    });
+
+                    if (responseCategorias.ok) {
+                        console.log('✅ Categorias importadas');
+                        window.categoriasUsuario = backup.categorias;
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Erro ao importar categorias:', error);
+                }
+            }
+
+            // Importar cartões se existirem
+            if (backup.cartoes) {
+                console.log('💳 Importando cartões...');
+                try {
+                    const responseCartoes = await fetch(`${API_URL}/usuarios/${usuario.id}/cartoes`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify(backup.cartoes)
+                    });
+
+                    if (responseCartoes.ok) {
+                        console.log('✅ Cartões importados');
+                        window.cartoesUsuario = backup.cartoes;
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Erro ao importar cartões:', error);
                 }
             }
 
