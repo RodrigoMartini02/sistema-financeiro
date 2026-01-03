@@ -1706,6 +1706,9 @@ async function importarDados() {
         const file = event.target.files[0];
         if (!file) return;
 
+        const loader = document.getElementById('global-loader');
+        const progressText = document.getElementById('loader-progress');
+
         try {
             const csvText = await file.text();
             const dadosImportados = converterCSVParaJSON(csvText);
@@ -1721,14 +1724,16 @@ async function importarDados() {
                 return;
             }
 
+            // Mostrar loader
+            if (loader) loader.classList.add('show');
+
             const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
             const token = sessionStorage.getItem('token');
 
             let sucessos = 0;
             let erros = 0;
             const total = dadosImportados.receitas.length + dadosImportados.despesas.length;
-
-            mostrarFeedback(`Importando ${total} registros...`, 'info');
+            let processados = 0;
 
             // Importar receitas usando rotas existentes
             for (const receita of dadosImportados.receitas) {
@@ -1756,6 +1761,11 @@ async function importarDados() {
                     else erros++;
                 } catch (error) {
                     erros++;
+                }
+
+                processados++;
+                if (progressText) {
+                    progressText.textContent = `${processados} de ${total} registros`;
                 }
             }
 
@@ -1786,7 +1796,16 @@ async function importarDados() {
                 } catch (error) {
                     erros++;
                 }
+
+                processados++;
+                if (progressText) {
+                    progressText.textContent = `${processados} de ${total} registros`;
+                }
             }
+
+            // Ocultar loader
+            if (loader) loader.classList.remove('show');
+            if (progressText) progressText.textContent = '';
 
             if (sucessos > 0) {
                 mostrarFeedback(
@@ -1807,7 +1826,11 @@ async function importarDados() {
                 mostrarFeedback('Erro: Nenhum registro foi importado', 'error');
             }
         } catch (error) {
-            mostrarFeedback('Erro ao processar arquivo CSV', 'error');
+            // Ocultar loader em caso de erro
+            if (loader) loader.classList.remove('show');
+            if (progressText) progressText.textContent = '';
+
+            mostrarFeedback('Erro ao processar arquivo CSV: ' + error.message, 'error');
         }
     };
 
@@ -1842,18 +1865,21 @@ function converterCSVParaJSON(csvText) {
 
         if (valores.length < 11) continue;
 
+        // Limpar aspas duplas escapadas ("") -> (")
+        const limparValor = (val) => val.replace(/""/g, '"').trim();
+
         const item = {
-            tipo: valores[0],
+            tipo: limparValor(valores[0]),
             ano: parseInt(valores[1]) || new Date().getFullYear(),
-            mes: parseInt(valores[2]) || 1,
-            data: valores[3],
-            descricao: valores[4],
-            categoria: valores[5],
+            mes: parseInt(valores[2]) || 0,
+            data: limparValor(valores[3]),
+            descricao: limparValor(valores[4]),
+            categoria: limparValor(valores[5]),
             valor: parseFloat(valores[6]) || 0,
-            formaPagamento: valores[7],
+            formaPagamento: limparValor(valores[7]),
             parcelas: parseInt(valores[8]) || null,
-            status: valores[9] || 'Pago',
-            observacoes: valores[10]
+            status: limparValor(valores[9]) || 'Pago',
+            observacoes: limparValor(valores[10])
         };
 
         if (item.tipo === 'Receita') {

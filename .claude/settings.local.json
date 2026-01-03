@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(python remove_logs.py:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(grep -rn \"exportarDados\\\\|importarDados\\\\|limparDados\" \"c:\\\\Users\\\\rodri\\\\Music\\\\sistema financas - Copia\\\\js\"\" --include=\"*.js \")",
+      "Bash(grep:*)"
     ]
   }
 }
