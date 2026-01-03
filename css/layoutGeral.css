@@ -633,18 +633,19 @@ textarea:focus {
 .config-section.active {
     display: block;
 }
+
+
+
 /* ================================================================
-   SEÇÃO MESES - COM ROLAGEM E BOTÕES ATUALIZADOS
+   SEÇÃO MESES 
    ================================================================ */
 
 .meses-container {
     display: grid;
-    /* Grid responsivo: adapta o número de colunas conforme o espaço */
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 15px;
     padding: 20px;
     width: 100%;
-    /* Altura máxima para permitir o scroll interno na área dos meses */
     height: calc(100vh - 180px); 
     overflow-y: auto;
     box-sizing: border-box;
@@ -661,7 +662,7 @@ textarea:focus {
     display: flex;
     flex-direction: column;
     margin: 0;
-    min-height: 220px; /* Garante um tamanho mínimo confortável */
+    min-height: 180px;
 }
 
 .mes-card:hover {
@@ -672,13 +673,13 @@ textarea:focus {
 .mes-header {
     background: var(--primary-color);
     color: var(--white);
-    padding: 10px;
+    padding: 8px;
     text-align: center;
     flex-shrink: 0;
 }
 
 .mes-nome {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: var(--font-weight-bold);
     text-transform: uppercase;
     margin: 0;
@@ -686,32 +687,33 @@ textarea:focus {
 }
 
 .mes-body {
-    padding: 15px;
+    padding: 10px 12px;
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    justify-content: center;
+    gap: 6px;
 }
 
 .mes-saldos-container,
 .mes-resumo {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 8px;
 }
 
 .mes-saldo-anterior,
 .mes-saldo,
 .mes-valor {
-    padding: 8px;
+    padding: 5px;
     text-align: center;
     border: 1px solid var(--gray-200);
 }
 
 .mes-label {
-    font-size: 9px;
+    font-size: 8px;
     color: var(--gray-600);
-    margin-bottom: 4px;
+    margin-bottom: 2px;
     text-transform: uppercase;
     font-weight: 700;
     display: block;
@@ -721,7 +723,7 @@ textarea:focus {
 .mes-saldo-valor,
 .mes-receita,
 .mes-despesa {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 800;
 }
 
@@ -731,7 +733,7 @@ textarea:focus {
 /* --- SEÇÃO DE AÇÕES / BOTÕES --- */
 
 .mes-acoes {
-    padding: 0; /* Remove padding para o botão encostar nas bordas se desejar */
+    padding: 0;
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
@@ -739,13 +741,13 @@ textarea:focus {
 
 .btn-mes-acao {
     width: 100%;
-    padding: 12px; /* Aumenta o espaço vertical interno */
+    padding: 8px;
     border: none;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 800;
     text-transform: uppercase;
     cursor: pointer;
-    border-radius: 0; /* REMOVE bordas arredondadas */
+    border-radius: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -769,7 +771,6 @@ textarea:focus {
     color: var(--white); 
 }
 
-/* Customização da Barra de Rolagem (Opcional) */
 .meses-container::-webkit-scrollbar {
     width: 8px;
 }
@@ -786,6 +787,11 @@ textarea:focus {
 .meses-container::-webkit-scrollbar-thumb:hover {
     background: #aaa;
 }
+
+
+
+
+
 
 .banner-alerta {
     display: flex;
