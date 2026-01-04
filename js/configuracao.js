@@ -1813,11 +1813,34 @@ async function importarDados() {
             const fileText = await file.text();
             const backup = JSON.parse(fileText);
 
-            // Validar estrutura do backup
-            if (!backup.receitas || !backup.despesas) {
-                mostrarFeedback('Arquivo inválido: formato de backup incorreto', 'error');
+            // Detectar e validar estrutura do backup (suporta v1.0 e v2.0)
+            let receitas, despesas, categorias, cartoes;
+            const versao = backup.versao || '1.0';
+
+            if (versao === '2.0' && backup.dados) {
+                // Formato novo (exportarDadosMesAMes)
+                receitas = backup.dados.receitas || [];
+                despesas = backup.dados.despesas || [];
+                categorias = backup.dados.categorias || [];
+                cartoes = backup.dados.cartoes || {};
+                console.log('📦 Backup v2.0 detectado (mês a mês)');
+            } else if (backup.receitas && backup.despesas) {
+                // Formato antigo
+                receitas = backup.receitas || [];
+                despesas = backup.despesas || [];
+                categorias = backup.categorias || {};
+                cartoes = backup.cartoes || {};
+                console.log('📦 Backup v1.0 detectado (completo)');
+            } else {
+                mostrarFeedback('Arquivo inválido: formato de backup não reconhecido', 'error');
                 return;
             }
+
+            // Substituir backup com estrutura normalizada
+            backup.receitas = receitas;
+            backup.despesas = despesas;
+            backup.categorias = categorias;
+            backup.cartoes = cartoes;
 
             const usuario = window.usuarioDataManager?.getUsuarioAtual();
             if (!usuario || !usuario.id) {
