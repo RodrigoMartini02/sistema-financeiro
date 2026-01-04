@@ -618,24 +618,27 @@ class UsuarioDataManager {
                 }
             }
 
-            // ✅ BUSCAR CARTAO_ID SE FORNECIDO NUMEROCARTAO
+            // ✅ BUSCAR CARTAO_ID
             let cartaoId = despesa.cartao_id || null;
+
+            // Se não tem cartao_id mas tem numeroCartao, buscar da API
             if (!cartaoId && despesa.numeroCartao) {
                 const cartoesUsuario = await this.carregarCartoes();
-                // numeroCartao é a posição do cartão (1, 2, 3...), não o ID
-                const cartaoEncontrado = cartoesUsuario.find(c => {
-                    // Tentar mapear por nome do cartão salvo no localStorage
-                    if (window.usuarioAtual && window.usuarioAtual.cartoes) {
-                        const cartaoLocal = window.usuarioAtual.cartoes[`cartao${despesa.numeroCartao}`];
-                        return cartaoLocal && c.nome === cartaoLocal.nome;
+                const numeroCartao = parseInt(despesa.numeroCartao);
+
+                // numeroCartao é a posição do cartão (1, 2, 3...), mapear para ID real
+                if (cartoesUsuario && cartoesUsuario.length >= numeroCartao) {
+                    // Pegar o cartão na posição (numeroCartao - 1) porque array começa em 0
+                    const cartaoEncontrado = cartoesUsuario[numeroCartao - 1];
+                    if (cartaoEncontrado) {
+                        cartaoId = cartaoEncontrado.id;
+                        console.log(`💳 Cartão mapeado: posição ${numeroCartao} → ID ${cartaoId} (${cartaoEncontrado.nome})`);
                     }
-                    return false;
-                });
-                if (cartaoEncontrado) {
-                    cartaoId = cartaoEncontrado.id;
-                    console.log(`💳 Cartão mapeado: numeroCartao ${despesa.numeroCartao} → ID ${cartaoId}`);
-                } else {
-                    console.warn(`⚠️ Cartão não encontrado para numeroCartao: ${despesa.numeroCartao}`);
+                }
+
+                // Se não encontrou, avisar mas continuar
+                if (!cartaoId) {
+                    console.warn(`⚠️ Cartão na posição ${numeroCartao} não encontrado, criando despesa sem cartão`);
                 }
             }
 
