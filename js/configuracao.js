@@ -2636,7 +2636,72 @@ async function processarImportacaoDespesas(json) {
 }
 
 
+async function importarDadosJSON(event) {
+    const arquivo = event.target.files[0];
+    if (!arquivo) return;
 
+    const leitor = new FileReader();
+    leitor.onload = async (e) => {
+        try {
+            const json = JSON.parse(e.target.result);
+            
+            // 1. Busca os dados REAIS do banco (Você provavelmente já tem isso)
+            const categoriasNoBanco = await window.usuarioDataManager.carregarCategorias();
+            const cartoesNoBanco = await window.usuarioDataManager.carregarCartoes();
+
+            // 2. 🔍 AQUI ESTÁ O QUE FALTA: Mapear o ID real do Cartão
+            // Pegamos o nome "CRÉD-MERPAGO" do seu arquivo JSON
+            const nomeCartaoArquivo = json.cartoes.cartao1.nome; 
+            const cartaoEncontrado = cartoesNoBanco.find(c => 
+                c.nome.toLowerCase() === nomeCartaoArquivo.toLowerCase()
+            );
+
+            // Se não achar o cartão, usamos o primeiro disponível ou damos erro
+            const idCartaoReal = cartaoEncontrado ? cartaoEncontrado.id : (cartoesNoBanco[0]?.id || null);
+
+            console.log(`💳 Cartão Identificado: ${nomeCartaoArquivo} -> ID Real no Banco: ${idCartaoReal}`);
+
+            for (const item of json.despesas) {
+                // 3. Mapeamento de categoria (Isso você já tem e está funcionando!)
+                const catEncontrada = categoriasNoBanco.find(c => 
+                    c.nome.toLowerCase() === item.categoria.toLowerCase()
+                );
+
+                // 4. Montagem do objeto final
+                const dadosParaEnviar = {
+                    descricao: item.descricao,
+                    valor: item.valor,
+                    data_vencimento: item.data_vencimento,
+                    data_compra: item.data_compra,
+                    data_pagamento: item.data_pagamento,
+                    parcelado: item.parcelado,
+                    total_parcelas: item.total_parcelas,
+                    parcela_atual: item.parcela_atual,
+                    pago: item.pago,
+                    recorrente: item.recorrente,
+                    observacoes: item.observacoes,
+                    
+                    // ✅ A MUDANÇA CRUCIAL:
+                    // Em vez de item.cartao_id (que vale 1), usamos a variável idCartaoReal
+                    cartao_id: idCartaoReal, 
+                    
+                    categoria_id: catEncontrada ? catEncontrada.id : null
+                };
+
+                // 5. Envio para a API
+                await realizarPostImportacao(dadosParaEnviar);
+            }
+
+            alert("✅ Importação finalizada!");
+            window.location.reload();
+
+        } catch (erro) {
+            console.error("❌ Erro ao importar:", erro);
+            alert("Erro: " + erro.message);
+        }
+    };
+    leitor.readAsText(arquivo);
+}
 
 window.categoriasUsuario = categoriasUsuario;
 window.cartoesUsuario = cartoesUsuario;
