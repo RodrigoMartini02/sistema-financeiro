@@ -2588,7 +2588,58 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
+async function importarDadosJSON(event) {
+    const arquivo = event.target.files[0];
+    if (!arquivo) return;
 
+    const leitor = new FileReader();
+    leitor.onload = async (e) => {
+        try {
+            const json = JSON.parse(e.target.result);
+            
+            // 1. Sincroniza com o banco do Render para saber os IDs novos
+            const categoriasNoBanco = await window.usuarioDataManager.carregarCategorias();
+            const cartoesNoBanco = await window.usuarioDataManager.carregarCartoes();
+
+            // 2. Descobre qual o ID que o Render deu para o "CRÉD-MERPAGO"
+            const nomeCartaoNoArquivo = json.cartoes.cartao1.nome; // "CRÉD-MERPAGO"
+            const cartaoReal = cartoesNoBanco.find(c => 
+                c.nome.toLowerCase() === nomeCartaoNoArquivo.toLowerCase()
+            );
+
+            if (!cartaoReal) {
+                alert(`Erro: O cartão "${nomeCartaoNoArquivo}" não existe no banco do Render.`);
+                return;
+            }
+
+            // 3. Processa as despesas trocando o ID '1' pelo ID correto (ex: 395)
+            for (const item of json.despesas) {
+                const catEncontrada = categoriasNoBanco.find(c => 
+                    c.nome.toLowerCase() === item.categoria.toLowerCase()
+                );
+
+                const dadosParaEnviar = {
+                    ...item,
+                    cartao_id: cartaoReal.id, // ✅ AQUI ESTÁ A SOLUÇÃO DEFINITIVA
+                    categoria_id: catEncontrada ? catEncontrada.id : null,
+                    usuario_id: window.usuarioDataManager.getUsuarioAtual().id
+                };
+
+                delete dadosParaEnviar.categoria; // Remove campo de texto para evitar erro
+
+                await enviarParaAPI(dadosParaEnviar);
+            }
+
+            alert("✅ Importação realizada com sucesso!");
+            window.location.reload();
+
+        } catch (erro) {
+            console.error("Erro na importação:", erro);
+            alert("Erro: " + erro.message);
+        }
+    };
+    leitor.readAsText(arquivo);
+}
 
 
 window.categoriasUsuario = categoriasUsuario;
