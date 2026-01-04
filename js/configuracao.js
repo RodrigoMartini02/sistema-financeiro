@@ -2599,7 +2599,41 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 
+async function processarImportacaoDespesas(json) {
+    // 1. Buscamos a lista atualizada de cartões e categorias que acabaram de ser criados no banco
+    const cartoesNoBanco = await window.usuarioDataManager.carregarCartoes();
+    const categoriasNoBanco = await window.usuarioDataManager.carregarCategorias();
+    
+    // Pegamos o nome do cartão que está no seu JSON
+    const nomeCartaoArquivo = json.cartoes.cartao1.nome; // "CRÉD-MERPAGO"
+    
+    // Descobrimos qual ID o Render deu para esse cartão agora
+    const cartaoReal = cartoesNoBanco.find(c => c.nome.toLowerCase() === nomeCartaoArquivo.toLowerCase());
 
+    if (!cartaoReal) {
+        console.error("Cartão não encontrado no banco para vincular a despesa.");
+        return;
+    }
+
+    for (const despesa of json.despesas) {
+        // Traduzimos o nome da categoria para o ID real do banco
+        const catReal = categoriasNoBanco.find(c => c.nome.toLowerCase() === despesa.categoria.toLowerCase());
+
+        const despesaParaEnviar = {
+            ...despesa,
+            // 🚀 AQUI ESTÁ A CORREÇÃO:
+            cartao_id: cartaoReal.id, // Usa o ID (ex: 15) em vez do "1" do arquivo
+            categoria_id: catReal ? catReal.id : null,
+            usuario_id: window.usuarioDataManager.getUsuarioAtual().id
+        };
+
+        // Removemos o campo 'categoria' em texto para o banco não reclamar
+        delete despesaParaEnviar.categoria;
+
+        // Enviamos para a API
+        await enviarParaAPI(despesaParaEnviar);
+    }
+}
 
 
 
