@@ -598,143 +598,107 @@ class UsuarioDataManager {
     }
 
     async salvarDespesaAPI(mes, ano, despesa, id = null) {
-        try {
-            const usuario = this.getUsuarioAtual();
-            if (!usuario || !usuario.id) {
-                return false;
+    try {
+        const usuario = this.getUsuarioAtual();
+        if (!usuario || !usuario.id) {
+            console.error('❌ Usuário não autenticado');
+            return false;
+        }
+
+        const token = sessionStorage.getItem('token');
+        const ehEdicao = id !== null && id !== '' && id !== undefined;
+
+        // 1. ✅ MAPEAMENTO DINÂMICO DE CATEGORIA
+        let categoriaId = despesa.categoria_id || null;
+        if (!categoriaId && despesa.categoria) {
+            // Agora this.carregarCategorias() existe e busca dados do seu backend
+            const categoriasUsuario = await this.carregarCategorias();
+            const categoriaEncontrada = categoriasUsuario.find(c => 
+                c.nome.toLowerCase() === despesa.categoria.toLowerCase()
+            );
+            if (categoriaEncontrada) {
+                categoriaId = categoriaEncontrada.id;
+                console.log(`📁 Categoria mapeada: ${despesa.categoria} → ID ${categoriaId}`);
             }
+        }
 
-            const token = sessionStorage.getItem('token');
-            const ehEdicao = id !== null && id !== '' && id !== undefined;
-
-            // ✅ BUSCAR CATEGORIA_ID SE FORNECIDO NOME DA CATEGORIA
-            let categoriaId = despesa.categoria_id || null;
-            if (!categoriaId && despesa.categoria) {
-                const categoriasUsuario = await this.carregarCategorias();
-                const categoriaEncontrada = categoriasUsuario.find(c => c.nome === despesa.categoria);
-                if (categoriaEncontrada) {
-                    categoriaId = categoriaEncontrada.id;
-                    console.log(`📁 Categoria mapeada: ${despesa.categoria} → ID ${categoriaId}`);
-                }
-            }
-
-            // ✅ BUSCAR CARTAO_ID SE FORNECIDO NUMEROCARTAO
-            let cartaoId = despesa.cartao_id || null;
-            if (!cartaoId && despesa.numeroCartao) {
-                const cartoesUsuario = await this.carregarCartoes();
-                // numeroCartao é a posição do cartão (1, 2, 3...), não o ID
-                const cartaoEncontrado = cartoesUsuario.find(c => {
-                    // Tentar mapear por nome do cartão salvo no localStorage
-                    if (window.usuarioAtual && window.usuarioAtual.cartoes) {
-                        const cartaoLocal = window.usuarioAtual.cartoes[`cartao${despesa.numeroCartao}`];
-                        return cartaoLocal && c.nome === cartaoLocal.nome;
-                    }
-                    return false;
-                });
+        // 2. ✅ MAPEAMENTO DINÂMICO DE CARTÃO (Fim do erro cartao_id=1)
+        let cartaoId = despesa.cartao_id || null;
+        if (!cartaoId && (despesa.numeroCartao || despesa.cartao)) {
+            const cartoesUsuario = await this.carregarCartoes();
+            
+            // Tenta encontrar pelo nome do cartão enviado no objeto despesa
+            const nomeParaBuscar = despesa.cartao || (window.usuarioAtual?.cartoes?.[`cartao${despesa.numeroCartao}`]?.nome);
+            
+            if (nomeParaBuscar) {
+                const cartaoEncontrado = cartoesUsuario.find(c => 
+                    c.nome.toLowerCase() === nomeParaBuscar.toLowerCase()
+                );
                 if (cartaoEncontrado) {
                     cartaoId = cartaoEncontrado.id;
-                    console.log(`💳 Cartão mapeado: numeroCartao ${despesa.numeroCartao} → ID ${cartaoId}`);
-                } else {
-                    console.warn(`⚠️ Cartão não encontrado para numeroCartao: ${despesa.numeroCartao}`);
+                    console.log(`💳 Cartão mapeado: ${nomeParaBuscar} → ID ${cartaoId}`);
                 }
             }
-
-            // Preparar dados para API
-            const dadosDespesa = {
-                descricao: despesa.descricao,
-                valor: parseFloat(despesa.valor),
-                data_vencimento: despesa.dataVencimento || despesa.data_vencimento || despesa.data,
-                data_compra: despesa.dataCompra || despesa.data_compra || null,
-                data_pagamento: despesa.dataPagamento || despesa.data_pagamento || null,
-                mes: parseInt(mes),
-                ano: parseInt(ano),
-                categoria_id: categoriaId,
-                cartao_id: cartaoId,
-                forma_pagamento: despesa.formaPagamento || despesa.forma_pagamento || 'dinheiro',
-                parcelado: despesa.parcelado || false,
-                total_parcelas: despesa.totalParcelas || despesa.total_parcelas || null,
-                parcela_atual: despesa.parcelaAtual || despesa.parcela_atual || null,
-                pago: despesa.pago || despesa.quitado || false,
-                observacoes: despesa.observacoes || '',
-                valor_original: despesa.valorOriginal ? parseFloat(despesa.valorOriginal) : null,
-                valor_total_com_juros: despesa.valorTotalComJuros ? parseFloat(despesa.valorTotalComJuros) : null,
-                valor_pago: despesa.valorPago ? parseFloat(despesa.valorPago) : null
-            };
-
-            let response;
-            if (ehEdicao) {
-                // ✅ EDITAR DESPESA EXISTENTE
-                response = await fetch(`${API_URL_DADOS}/despesas/${despesa.id || id}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(dadosDespesa)
-                });
-            } else {
-                // ✅ CRIAR NOVA DESPESA
-                response = await fetch(`${API_URL_DADOS}/despesas`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(dadosDespesa)
-                });
+            
+            // Se ainda não achou e é crédito, usa o primeiro cartão disponível para evitar erro de banco
+            if (!cartaoId && (despesa.formaPagamento === 'credito' || despesa.forma_pagamento === 'credito')) {
+                cartaoId = cartoesUsuario.length > 0 ? cartoesUsuario[0].id : null;
+                console.warn(`⚠️ Cartão não identificado. Usando ID reserva: ${cartaoId}`);
             }
+        }
 
-            if (response.ok) {
-                this.limparCache();
-                return true;
-            } else {
-                const errorData = await response.json();
-                console.error('❌ Erro ao salvar despesa:', errorData);
-                return false;
-            }
-        } catch (error) {
-            console.error('❌ Erro ao salvar despesa:', error);
+        // 3. ✅ PREPARAR DADOS PARA O BACKEND (Padronizado com seu Node.js)
+        const dadosDespesa = {
+            descricao: despesa.descricao,
+            valor: parseFloat(despesa.valor),
+            data_vencimento: despesa.dataVencimento || despesa.data_vencimento || despesa.data,
+            data_compra: despesa.dataCompra || despesa.data_compra || despesa.data || null,
+            data_pagamento: despesa.dataPagamento || despesa.data_pagamento || null,
+            mes: parseInt(mes),
+            ano: parseInt(ano),
+            categoria_id: categoriaId,
+            cartao_id: cartaoId,
+            forma_pagamento: despesa.formaPagamento || despesa.forma_pagamento || 'dinheiro',
+            parcelado: !!(despesa.parcelado),
+            total_parcelas: parseInt(despesa.totalParcelas || despesa.total_parcelas) || 1,
+            parcela_atual: parseInt(despesa.parcelaAtual || despesa.parcela_atual) || 1,
+            pago: despesa.pago || despesa.quitado || false,
+            observacoes: despesa.observacoes || '',
+            valor_original: despesa.valorOriginal ? parseFloat(despesa.valorOriginal) : null,
+            valor_total_com_juros: despesa.valorTotalComJuros ? parseFloat(despesa.valorTotalComJuros) : null,
+            valor_pago: despesa.valorPago ? parseFloat(despesa.valorPago) : null
+        };
+
+        console.log("📤 Enviando para API:", dadosDespesa);
+
+        let response;
+        const url = ehEdicao ? `${API_URL_DADOS}/despesas/${despesa.id || id}` : `${API_URL_DADOS}/despesas`;
+        const metodo = ehEdicao ? 'PUT' : 'POST';
+
+        response = await fetch(url, {
+            method: metodo,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(dadosDespesa)
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            console.log('✅ Despesa salva com sucesso!');
+            this.limparCache();
+            return true;
+        } else {
+            console.error('❌ Erro retornado pelo servidor:', result.message || result.error);
             return false;
         }
+    } catch (error) {
+        console.error('❌ Erro crítico ao salvar despesa:', error);
+        return false;
     }
-
-    async excluirReceita(mes, ano, index, opcao, descricao) {
-        if (!this.inicializado) {
-            await this.aguardarInicializacao();
-        }
-
-        return await this.excluirReceitaAPI(mes, ano, index, opcao, descricao);
-    }
-
-    async excluirReceitaAPI(mes, ano, index, opcao, descricao) {
-        try {
-            const dados = await this.getDadosFinanceirosUsuario();
-
-            if (opcao === 'atual') {
-                if (dados[ano]?.meses[mes]?.receitas[index]) {
-                    dados[ano].meses[mes].receitas.splice(index, 1);
-                }
-            } else if (opcao === 'todas') {
-                for (let m = 0; m < 12; m++) {
-                    if (dados[ano]?.meses[m]?.receitas) {
-                        dados[ano].meses[m].receitas = dados[ano].meses[m].receitas.filter(
-                            r => r.descricao !== descricao
-                        );
-                    }
-                }
-            }
-
-            const sucesso = await this.salvarDadosAPI(dados);
-            if (sucesso) {
-                this.limparCache();
-                await this.sincronizarComSistemaPrincipal();
-            }
-            return sucesso;
-        } catch (error) {
-
-            return false;
-        }
-    }
+}
 
     async excluirDespesa(mes, ano, index, opcao, dados) {
         if (!this.inicializado) {
@@ -1075,6 +1039,7 @@ class UsuarioDataManager {
         }
     }
 
+// Adicione dentro da classe UsuarioDataManager no frontend
 async carregarCategorias() {
     try {
         const token = sessionStorage.getItem('token');

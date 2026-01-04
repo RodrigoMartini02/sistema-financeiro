@@ -148,18 +148,20 @@ async function carregarCategoriasLocal() {
     const usuario = window.usuarioDataManager?.getUsuarioAtual();
     const token = sessionStorage.getItem('token');
 
-    // ✅ Verificar se está autenticado ANTES de fazer API call
+    // 1. ✅ Verificação de Autenticação
     if (!usuario || !usuario.id || !token) {
-        categoriasUsuario.despesas = [...categoriasPadrao.despesas];
+        categoriasUsuario.despesas = categoriasPadrao.despesas.map(nome => ({ nome, id: null }));
         return;
     }
 
     try {
-        // ✅ Garantir que API_URL existe
-        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+        // 2. 🔗 O LINK DO SEU SISTEMA (Centralizado ou fixo)
+        const API_URL = window.API_URL_DADOS || 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
-        // 🔥 BUSCAR DA API
-        const response = await fetch(`${API_URL}/usuarios/${usuario.id}/categorias`, {
+        console.log("🔍 Buscando categorias em: " + API_URL);
+
+        // 3. 🔥 Chamada para o servidor
+        const response = await fetch(`${API_URL}/despesas/categorias`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -167,22 +169,27 @@ async function carregarCategoriasLocal() {
             }
         });
 
-        if (!response.ok) {
-            // Silenciosamente usar padrão se não autenticado ou erro
-            categoriasUsuario.despesas = [...categoriasPadrao.despesas];
-            return;
-        }
+        if (!response.ok) throw new Error('Erro na resposta da rede');
 
         const data = await response.json();
 
-        if (data.success) {
-            categoriasUsuario = data.categorias;
+        // 4. ✅ Sincronização: Se o banco retornar sucesso, usamos os OBJETOS (nome + id)
+        if (data.success && data.data) {
+            categoriasUsuario.despesas = data.data;
+            console.log("✅ Categorias carregadas com IDs reais.");
         } else {
-            categoriasUsuario.despesas = [...categoriasPadrao.despesas];
+            // Fallback: se não houver categorias no banco, usa as padrão
+            categoriasUsuario.despesas = categoriasPadrao.despesas.map(nome => ({ nome, id: null }));
         }
+
+        // 5. 🔄 Atualiza a interface
+        atualizarListaCategorias();
+        atualizarDropdowns();
+
     } catch (error) {
-        // Silenciosamente usar padrão em caso de erro
-        categoriasUsuario.despesas = [...categoriasPadrao.despesas];
+        console.error("❌ Erro ao buscar no link do sistema:", error);
+        // Garante que a tela não fique vazia
+        categoriasUsuario.despesas = categoriasPadrao.despesas.map(nome => ({ nome, id: null }));
     }
 }
 
@@ -257,6 +264,8 @@ function atualizarDropdowns() {
         }
     }
 }
+
+
 
 async function adicionarCategoria() {
     const inputNovaCategoria = document.getElementById('nova-categoria-nome');
@@ -741,6 +750,10 @@ async function salvarCartoesForms() {
         const sucesso = await salvarCartoes();
 
         if (sucesso) {
+            // Força o DataManager a limpar o cache e buscar os novos IDs gerados pelo banco
+            if (window.usuarioDataManager) {
+                await window.usuarioDataManager.carregarCartoes();
+            }
             atualizarOpcoesCartoes();
             window.cartoesUsuario = cartoesUsuario;
 
