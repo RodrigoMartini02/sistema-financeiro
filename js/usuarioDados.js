@@ -1038,9 +1038,55 @@ class UsuarioDataManager {
     }
 
     // ================================================================
+    // CARREGAR CATEGORIAS E CARTÕES DA API
+    // ================================================================
+
+    async carregarCategorias() {
+        try {
+            const token = sessionStorage.getItem('token') || '';
+            const response = await fetch(`${API_URL_DADOS}/categorias`, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                return data.data || [];
+            }
+            return [];
+        } catch (error) {
+            console.error('❌ Erro ao carregar categorias:', error);
+            return [];
+        }
+    }
+
+    async carregarCartoes() {
+        try {
+            const token = sessionStorage.getItem('token') || '';
+            const response = await fetch(`${API_URL_DADOS}/cartoes`, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                return data.data || [];
+            }
+            return [];
+        } catch (error) {
+            console.error('❌ Erro ao carregar cartões:', error);
+            return [];
+        }
+    }
+
+    // ================================================================
     // MÉTODOS PÚBLICOS
     // ================================================================
-    
+
     async recarregarDados() {
         this.limparCache();
         const dados = await this.getDadosFinanceirosUsuario();
