@@ -2666,7 +2666,28 @@ async function enviarDespesaParaAPI(dados) {
     }
 }
 
-
+// ================================================================
+// INICIALIZAÇÃO DOS EVENTOS DE IMPORTAÇÃO
+// ================================================================
+document.addEventListener('DOMContentLoaded', () => {
+    const btnImportar = document.getElementById('btn-importar-dados');
+    
+    if (btnImportar) {
+        btnImportar.addEventListener('click', () => {
+            // Cria um input de arquivo "invisível" para abrir a janela de seleção
+            const inputParaArquivo = document.createElement('input');
+            inputParaArquivo.type = 'file';
+            inputParaArquivo.accept = '.json';
+            
+            // Quando o usuário selecionar o arquivo, chama a função de importação
+            inputParaArquivo.onchange = (event) => {
+                importarDadosJSON(event);
+            };
+            
+            inputParaArquivo.click();
+        });
+    }
+});
 
 
 window.categoriasUsuario = categoriasUsuario;
