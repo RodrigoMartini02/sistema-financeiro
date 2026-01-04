@@ -618,16 +618,19 @@ async function salvarCartoes() {
     }
 }
 
-function atualizarOpcoesCartoes() {
+async function atualizarOpcoesCartoes() {
     try {
+        // ✅ SEMPRE buscar cartões atualizados da API
+        await carregarCartoesLocal();
+
         let cartoesVisiveis = 0;
-        
+
         ['1', '2', '3'].forEach(num => {
             const label = document.getElementById(`label-cartao${num}`);
             const option = document.getElementById(`cartao${num}-option`);
             const radioInput = document.getElementById(`pagamento-cartao${num}`);
-            const cartao = cartoesUsuario[`cartao${num}`];
-            
+            const cartao = cartoesUsuario[`cartao${num}`] || window.cartoesUsuario?.[`cartao${num}`];
+
             if (label && option && radioInput && cartao) {
                 if (cartao.ativo && cartao.nome && cartao.nome.trim() !== '') {
                     label.textContent = cartao.nome.toUpperCase();
@@ -635,6 +638,7 @@ function atualizarOpcoesCartoes() {
                     radioInput.disabled = false;
                     radioInput.setAttribute('data-cartao', num);
                     cartoesVisiveis++;
+                    console.log(`💳 Cartão ${num} disponível: ${cartao.nome}`);
                 } else {
                     label.textContent = `CARTÃO ${num}`;
                     option.classList.add('hidden');
