@@ -607,6 +607,38 @@ class UsuarioDataManager {
             const token = sessionStorage.getItem('token');
             const ehEdicao = id !== null && id !== '' && id !== undefined;
 
+            // ✅ BUSCAR CATEGORIA_ID SE FORNECIDO NOME DA CATEGORIA
+            let categoriaId = despesa.categoria_id || null;
+            if (!categoriaId && despesa.categoria) {
+                const categoriasUsuario = await this.carregarCategorias();
+                const categoriaEncontrada = categoriasUsuario.find(c => c.nome === despesa.categoria);
+                if (categoriaEncontrada) {
+                    categoriaId = categoriaEncontrada.id;
+                    console.log(`📁 Categoria mapeada: ${despesa.categoria} → ID ${categoriaId}`);
+                }
+            }
+
+            // ✅ BUSCAR CARTAO_ID SE FORNECIDO NUMEROCARTAO
+            let cartaoId = despesa.cartao_id || null;
+            if (!cartaoId && despesa.numeroCartao) {
+                const cartoesUsuario = await this.carregarCartoes();
+                // numeroCartao é a posição do cartão (1, 2, 3...), não o ID
+                const cartaoEncontrado = cartoesUsuario.find(c => {
+                    // Tentar mapear por nome do cartão salvo no localStorage
+                    if (window.usuarioAtual && window.usuarioAtual.cartoes) {
+                        const cartaoLocal = window.usuarioAtual.cartoes[`cartao${despesa.numeroCartao}`];
+                        return cartaoLocal && c.nome === cartaoLocal.nome;
+                    }
+                    return false;
+                });
+                if (cartaoEncontrado) {
+                    cartaoId = cartaoEncontrado.id;
+                    console.log(`💳 Cartão mapeado: numeroCartao ${despesa.numeroCartao} → ID ${cartaoId}`);
+                } else {
+                    console.warn(`⚠️ Cartão não encontrado para numeroCartao: ${despesa.numeroCartao}`);
+                }
+            }
+
             // Preparar dados para API
             const dadosDespesa = {
                 descricao: despesa.descricao,
@@ -616,8 +648,8 @@ class UsuarioDataManager {
                 data_pagamento: despesa.dataPagamento || despesa.data_pagamento || null,
                 mes: parseInt(mes),
                 ano: parseInt(ano),
-                categoria_id: despesa.categoria_id || null,
-                cartao_id: despesa.cartao_id || despesa.numeroCartao || null,
+                categoria_id: categoriaId,
+                cartao_id: cartaoId,
                 forma_pagamento: despesa.formaPagamento || despesa.forma_pagamento || 'dinheiro',
                 parcelado: despesa.parcelado || false,
                 total_parcelas: despesa.totalParcelas || despesa.total_parcelas || null,
