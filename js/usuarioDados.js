@@ -1074,6 +1074,54 @@ class UsuarioDataManager {
             return false;
         }
     }
+
+async carregarCategorias() {
+        try {
+            const token = sessionStorage.getItem('token');
+            // Busca na rota do backend de despesas que você enviou
+            const response = await fetch(`${API_URL_DADOS}/despesas/categorias`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            const result = await response.json();
+            return result.success ? result.data : [];
+        } catch (error) {
+            console.error('❌ Erro ao buscar categorias:', error);
+            return [];
+        }
+    }
+
+    async carregarCartoes() {
+        try {
+            const token = sessionStorage.getItem('token');
+            // Busca na rota do backend de cartões que você enviou
+            const response = await fetch(`${API_URL_DADOS}/cartoes`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            const result = await response.json();
+            return result.success ? result.data : [];
+        } catch (error) {
+            console.error('❌ Erro ao buscar cartões:', error);
+            return [];
+        }
+    }
+
+    // Função necessária para gerar ID temporário no front se precisar
+    gerarId() {
+        return Math.floor(Date.now() / 1000);
+    }
+
+
+
+
+
+
+    
 }
 
 // ================================================================
