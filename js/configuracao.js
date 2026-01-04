@@ -148,20 +148,18 @@ async function carregarCategoriasLocal() {
     const usuario = window.usuarioDataManager?.getUsuarioAtual();
     const token = sessionStorage.getItem('token');
 
-    // 1. ✅ Verificação de Autenticação
+    // ✅ Verificar se está autenticado ANTES de fazer API call
     if (!usuario || !usuario.id || !token) {
-        categoriasUsuario.despesas = categoriasPadrao.despesas.map(nome => ({ nome, id: null }));
+        categoriasUsuario.despesas = [...categoriasPadrao.despesas];
         return;
     }
 
     try {
-        // 2. 🔗 O LINK DO SEU SISTEMA (Centralizado ou fixo)
-        const API_URL = window.API_URL_DADOS || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+        // ✅ Garantir que API_URL existe
+        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
-        console.log("🔍 Buscando categorias em: " + API_URL);
-
-        // 3. 🔥 Chamada para o servidor
-        const response = await fetch(`${API_URL}/despesas/categorias`, {
+        // 🔥 BUSCAR DA API
+        const response = await fetch(`${API_URL}/usuarios/${usuario.id}/categorias`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -169,27 +167,22 @@ async function carregarCategoriasLocal() {
             }
         });
 
-        if (!response.ok) throw new Error('Erro na resposta da rede');
+        if (!response.ok) {
+            // Silenciosamente usar padrão se não autenticado ou erro
+            categoriasUsuario.despesas = [...categoriasPadrao.despesas];
+            return;
+        }
 
         const data = await response.json();
 
-        // 4. ✅ Sincronização: Se o banco retornar sucesso, usamos os OBJETOS (nome + id)
-        if (data.success && data.data) {
-            categoriasUsuario.despesas = data.data;
-            console.log("✅ Categorias carregadas com IDs reais.");
+        if (data.success) {
+            categoriasUsuario = data.categorias;
         } else {
-            // Fallback: se não houver categorias no banco, usa as padrão
-            categoriasUsuario.despesas = categoriasPadrao.despesas.map(nome => ({ nome, id: null }));
+            categoriasUsuario.despesas = [...categoriasPadrao.despesas];
         }
-
-        // 5. 🔄 Atualiza a interface
-        atualizarListaCategorias();
-        atualizarDropdowns();
-
     } catch (error) {
-        console.error("❌ Erro ao buscar no link do sistema:", error);
-        // Garante que a tela não fique vazia
-        categoriasUsuario.despesas = categoriasPadrao.despesas.map(nome => ({ nome, id: null }));
+        // Silenciosamente usar padrão em caso de erro
+        categoriasUsuario.despesas = [...categoriasPadrao.despesas];
     }
 }
 
@@ -264,8 +257,6 @@ function atualizarDropdowns() {
         }
     }
 }
-
-
 
 async function adicionarCategoria() {
     const inputNovaCategoria = document.getElementById('nova-categoria-nome');
@@ -750,10 +741,6 @@ async function salvarCartoesForms() {
         const sucesso = await salvarCartoes();
 
         if (sucesso) {
-            // Força o DataManager a limpar o cache e buscar os novos IDs gerados pelo banco
-            if (window.usuarioDataManager) {
-                await window.usuarioDataManager.carregarCartoes();
-            }
             atualizarOpcoesCartoes();
             window.cartoesUsuario = cartoesUsuario;
 
@@ -2599,109 +2586,10 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 
-async function processarImportacaoDespesas(json) {
-    // 1. Buscamos a lista atualizada de cartões e categorias que acabaram de ser criados no banco
-    const cartoesNoBanco = await window.usuarioDataManager.carregarCartoes();
-    const categoriasNoBanco = await window.usuarioDataManager.carregarCategorias();
-    
-    // Pegamos o nome do cartão que está no seu JSON
-    const nomeCartaoArquivo = json.cartoes.cartao1.nome; // "CRÉD-MERPAGO"
-    
-    // Descobrimos qual ID o Render deu para esse cartão agora
-    const cartaoReal = cartoesNoBanco.find(c => c.nome.toLowerCase() === nomeCartaoArquivo.toLowerCase());
-
-    if (!cartaoReal) {
-        console.error("Cartão não encontrado no banco para vincular a despesa.");
-        return;
-    }
-
-    for (const despesa of json.despesas) {
-        // Traduzimos o nome da categoria para o ID real do banco
-        const catReal = categoriasNoBanco.find(c => c.nome.toLowerCase() === despesa.categoria.toLowerCase());
-
-        const despesaParaEnviar = {
-            ...despesa,
-            // 🚀 AQUI ESTÁ A CORREÇÃO:
-            cartao_id: cartaoReal.id, // Usa o ID (ex: 15) em vez do "1" do arquivo
-            categoria_id: catReal ? catReal.id : null,
-            usuario_id: window.usuarioDataManager.getUsuarioAtual().id
-        };
-
-        // Removemos o campo 'categoria' em texto para o banco não reclamar
-        delete despesaParaEnviar.categoria;
-
-        // Enviamos para a API
-        await enviarParaAPI(despesaParaEnviar);
-    }
-}
 
 
-async function importarDadosJSON(event) {
-    const arquivo = event.target.files[0];
-    if (!arquivo) return;
 
-    const leitor = new FileReader();
-    leitor.onload = async (e) => {
-        try {
-            const json = JSON.parse(e.target.result);
-            
-            // 1. Busca os dados REAIS do banco (Você provavelmente já tem isso)
-            const categoriasNoBanco = await window.usuarioDataManager.carregarCategorias();
-            const cartoesNoBanco = await window.usuarioDataManager.carregarCartoes();
 
-            // 2. 🔍 AQUI ESTÁ O QUE FALTA: Mapear o ID real do Cartão
-            // Pegamos o nome "CRÉD-MERPAGO" do seu arquivo JSON
-            const nomeCartaoArquivo = json.cartoes.cartao1.nome; 
-            const cartaoEncontrado = cartoesNoBanco.find(c => 
-                c.nome.toLowerCase() === nomeCartaoArquivo.toLowerCase()
-            );
-
-            // Se não achar o cartão, usamos o primeiro disponível ou damos erro
-            const idCartaoReal = cartaoEncontrado ? cartaoEncontrado.id : (cartoesNoBanco[0]?.id || null);
-
-            console.log(`💳 Cartão Identificado: ${nomeCartaoArquivo} -> ID Real no Banco: ${idCartaoReal}`);
-
-            for (const item of json.despesas) {
-                // 3. Mapeamento de categoria (Isso você já tem e está funcionando!)
-                const catEncontrada = categoriasNoBanco.find(c => 
-                    c.nome.toLowerCase() === item.categoria.toLowerCase()
-                );
-
-                // 4. Montagem do objeto final
-                const dadosParaEnviar = {
-                    descricao: item.descricao,
-                    valor: item.valor,
-                    data_vencimento: item.data_vencimento,
-                    data_compra: item.data_compra,
-                    data_pagamento: item.data_pagamento,
-                    parcelado: item.parcelado,
-                    total_parcelas: item.total_parcelas,
-                    parcela_atual: item.parcela_atual,
-                    pago: item.pago,
-                    recorrente: item.recorrente,
-                    observacoes: item.observacoes,
-                    
-                    // ✅ A MUDANÇA CRUCIAL:
-                    // Em vez de item.cartao_id (que vale 1), usamos a variável idCartaoReal
-                    cartao_id: idCartaoReal, 
-                    
-                    categoria_id: catEncontrada ? catEncontrada.id : null
-                };
-
-                // 5. Envio para a API
-                await realizarPostImportacao(dadosParaEnviar);
-            }
-
-            alert("✅ Importação finalizada!");
-            window.location.reload();
-
-        } catch (erro) {
-            console.error("❌ Erro ao importar:", erro);
-            alert("Erro: " + erro.message);
-        }
-    };
-    leitor.readAsText(arquivo);
-}
 
 window.categoriasUsuario = categoriasUsuario;
 window.cartoesUsuario = cartoesUsuario;
