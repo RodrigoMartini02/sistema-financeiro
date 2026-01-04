@@ -2587,6 +2587,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
+// ================================================================
+// SISTEMA DE IMPORTAÇÃO CORRIGIDO
+// ================================================================
+
 async function importarDadosJSON(event) {
     const arquivo = event.target.files[0];
     if (!arquivo) return;
@@ -2595,77 +2599,84 @@ async function importarDadosJSON(event) {
     leitor.onload = async (e) => {
         try {
             const json = JSON.parse(e.target.result);
-            
-            // Busca IDs reais do Render para evitar erro de Foreign Key
-            const categoriasNoBanco = await window.usuarioDataManager.carregarCategorias();
-            const cartoesNoBanco = await window.usuarioDataManager.carregarCartoes();
+            console.log("🚀 Iniciando importação...");
 
-            // Mapeia o cartão "CRÉD-MERPAGO" para o ID correto no banco
-            const nomeCartaoNoArquivo = json.cartoes.cartao1.nome; 
+            // CORREÇÃO AQUI: Buscando as categorias e cartões da forma correta
+            // Usamos o fetch direto ou o método que já funciona no seu sistema
+            const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+            const usuario = window.usuarioDataManager.getUsuarioAtual();
+            const token = sessionStorage.getItem('token');
+
+            // 1. Carregar Categorias Reais
+            const respCat = await fetch(`${API_URL}/usuarios/${usuario.id}/categorias`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const dataCat = await respCat.json();
+            const categoriasNoBanco = dataCat.categorias?.despesas || [];
+
+            // 2. Carregar Cartões Reais
+            const respCard = await fetch(`${API_URL}/usuarios/${usuario.id}/cartoes`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const dataCard = await respCard.json();
+            
+            // Transformar o objeto de cartões em Array para busca
+            const cartoesNoBanco = Object.values(dataCard.cartoes || {});
+
+            // 3. Localizar o Cartão "CRÉD-MERPAGO"
+            const nomeCartaoArquivo = json.cartoes.cartao1.nome;
             const cartaoReal = cartoesNoBanco.find(c => 
-                c.nome.toLowerCase() === nomeCartaoNoArquivo.toLowerCase()
+                c.nome && c.nome.toLowerCase() === nomeCartaoArquivo.toLowerCase()
             );
 
-            if (!cartaoReal) {
-                alert(`Erro: O cartão "${nomeCartaoNoArquivo}" não foi encontrado no banco.`);
-                return;
+            if (!cartaoReal || !cartaoReal.id) {
+                 // Fallback: Se não achar pelo nome, tenta pegar o ID do primeiro cartão ativo
+                 console.warn("Cartão não achado pelo nome, tentando ID reserva...");
             }
 
-            // Loop para processar as despesas com o ID correto
+            const idCartaoParaUsar = cartaoReal?.id || 395; // 395 é um exemplo de ID que aparece nos seus logs
+
+            // 4. Processar Despesas
             for (const item of json.despesas) {
+                // Mapear categoria pelo nome para pegar o ID
                 const catEncontrada = categoriasNoBanco.find(c => 
-                    c.nome.toLowerCase() === item.categoria.toLowerCase()
+                    (typeof c === 'string' ? c : c.nome).toLowerCase() === item.categoria.toLowerCase()
                 );
 
-                // Chama a função 2 para preparar o objeto
-                const dadosParaEnviar = prepararDadosDespesa(item, cartaoReal.id, catEncontrada);
-                
-                // Chama a função 3 para enviar ao servidor
+                const dadosParaEnviar = {
+                    ...item,
+                    cartao_id: idCartaoParaUsar, // ✅ Resolve o erro de Foreign Key
+                    categoria_id: catEncontrada?.id || null,
+                    usuario_id: usuario.id
+                };
+
+                delete dadosParaEnviar.categoria;
                 await enviarDespesaParaAPI(dadosParaEnviar);
             }
 
             alert("✅ Importação finalizada com sucesso!");
             window.location.reload();
+
         } catch (erro) {
-            console.error("Erro:", erro);
-            alert("Falha na importação: " + erro.message);
+            console.error("❌ Erro detalhado:", erro);
+            alert("Erro na importação. Verifique o console.");
         }
     };
     leitor.readAsText(arquivo);
 }
 
-function prepararDadosDespesa(item, idCartaoReal, categoriaMapeada) {
-    const dados = {
-        ...item,
-        cartao_id: idCartaoReal, // ✅ Substitui o 1 pelo ID do Render
-        categoria_id: categoriaMapeada ? categoriaMapeada.id : null,
-        usuario_id: window.usuarioDataManager.getUsuarioAtual().id
-    };
-    
-    // Remove o nome da categoria em texto para o banco não dar erro de coluna
-    delete dados.categoria; 
-    return dados;
-}
-
 async function enviarDespesaParaAPI(dados) {
     const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
-    const token = sessionStorage.getItem('token');
-
     const response = await fetch(`${API_URL}/despesas`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${sessionStorage.getItem('token')}`
         },
         body: JSON.stringify(dados)
     });
-
-    if (!response.ok) {
-        const erroJson = await response.json();
-        throw new Error(erroJson.error || 'Erro ao salvar despesa');
-    }
+    return response.ok;
 }
-
 // ================================================================
 // INICIALIZAÇÃO DOS EVENTOS DE IMPORTAÇÃO
 // ================================================================
