@@ -1954,6 +1954,31 @@ async function importarDados() {
                 console.warn('⚠️ Erro ao buscar categorias para mapeamento:', error);
             }
 
+            // ✅ Buscar cartões do backend para criar mapa numero_cartao → ID
+            let mapaCartoes = {};
+            try {
+                const responseCartList = await fetch(`${API_URL}/cartoes`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (responseCartList.ok) {
+                    const cartoesData = await responseCartList.json();
+                    // Criar mapa: { 1: 123, 2: 124, 3: 125 } (numero_cartao → id do banco)
+                    (cartoesData.data || []).forEach(cartao => {
+                        if (cartao.numero_cartao) {
+                            mapaCartoes[cartao.numero_cartao] = cartao.id;
+                        }
+                    });
+                    console.log('💳 Mapa de cartões criado:', mapaCartoes);
+                }
+            } catch (error) {
+                console.warn('⚠️ Erro ao buscar cartões para mapeamento:', error);
+            }
+
             // ✅ PASSO 2: Importar cartões
             if (backup.cartoes) {
                 const totalCartoes = Object.values(backup.cartoes).filter(c => c.ativo).length;
@@ -2115,6 +2140,14 @@ async function importarDados() {
                         console.log(`📁 Mapeando categoria "${despesa.categoria}" → ID ${categoriaId}`);
                     }
 
+                    // ✅ Mapear cartao_id_original para ID real do banco
+                    let cartaoId = null;
+                    const cartaoOriginal = despesa.cartao_id_original || despesa.cartao_id || despesa.cartao || despesa.numeroCartao;
+                    if (cartaoOriginal && mapaCartoes[cartaoOriginal]) {
+                        cartaoId = mapaCartoes[cartaoOriginal];
+                        console.log(`💳 Mapeando cartão ${cartaoOriginal} → ID ${cartaoId}`);
+                    }
+
                     const dadosDespesa = {
                         descricao: despesa.descricao,
                         valor: parseFloat(despesa.valor),
@@ -2124,7 +2157,7 @@ async function importarDados() {
                         mes: parseInt(despesa.mes),
                         ano: parseInt(despesa.ano),
                         categoria_id: categoriaId,
-                        cartao_id: despesa.cartao_id || despesa.cartao || null,
+                        cartao_id: cartaoId,
                         forma_pagamento: despesa.forma_pagamento || despesa.formaPagamento || 'dinheiro',
                         parcelado: despesa.parcelado || false,
                         total_parcelas: despesa.total_parcelas || despesa.numeroParcelas || null,

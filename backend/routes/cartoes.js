@@ -24,13 +24,14 @@ router.get('/', authMiddleware, async (req, res) => {
                 c.dia_vencimento,
                 c.cor,
                 c.ativo,
+                c.numero_cartao,
                 c.data_criacao,
                 c.data_atualizacao,
                 u.nome as usuario_nome
             FROM cartoes c
             LEFT JOIN usuarios u ON c.usuario_id = u.id
             WHERE c.usuario_id = $1
-            ORDER BY c.id ASC
+            ORDER BY c.numero_cartao ASC NULLS LAST, c.id ASC
         `;
 
         const result = await query(queryText, [targetUserId]);
@@ -167,13 +168,13 @@ router.put('/', async (req, res) => {
             
             for (let i = 0; i < cartoes.length; i++) {
                 const cartao = cartoes[i];
-                
+
                 const insertQuery = `
-                    INSERT INTO cartoes (usuario_id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7)
-                    RETURNING id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, data_criacao, data_atualizacao
+                    INSERT INTO cartoes (usuario_id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    RETURNING id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao, data_criacao, data_atualizacao
                 `;
-                
+
                 const values = [
                     req.usuario_id,
                     cartao.nome.trim(),
@@ -181,9 +182,10 @@ router.put('/', async (req, res) => {
                     parseInt(cartao.dia_fechamento),
                     parseInt(cartao.dia_vencimento),
                     cartao.cor || '#3498db',
-                    true
+                    true,
+                    cartao.numero_cartao || (i + 1)
                 ];
-                
+
                 const result = await query(insertQuery, values);
                 cartoesInseridos.push(result.rows[0]);
             }
