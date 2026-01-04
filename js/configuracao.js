@@ -2587,7 +2587,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
-
 async function importarDadosJSON(event) {
     const arquivo = event.target.files[0];
     if (!arquivo) return;
@@ -2597,49 +2596,77 @@ async function importarDadosJSON(event) {
         try {
             const json = JSON.parse(e.target.result);
             
-            // 1. Sincroniza com o banco do Render para saber os IDs novos
+            // Busca IDs reais do Render para evitar erro de Foreign Key
             const categoriasNoBanco = await window.usuarioDataManager.carregarCategorias();
             const cartoesNoBanco = await window.usuarioDataManager.carregarCartoes();
 
-            // 2. Descobre qual o ID que o Render deu para o "CRÉD-MERPAGO"
-            const nomeCartaoNoArquivo = json.cartoes.cartao1.nome; // "CRÉD-MERPAGO"
+            // Mapeia o cartão "CRÉD-MERPAGO" para o ID correto no banco
+            const nomeCartaoNoArquivo = json.cartoes.cartao1.nome; 
             const cartaoReal = cartoesNoBanco.find(c => 
                 c.nome.toLowerCase() === nomeCartaoNoArquivo.toLowerCase()
             );
 
             if (!cartaoReal) {
-                alert(`Erro: O cartão "${nomeCartaoNoArquivo}" não existe no banco do Render.`);
+                alert(`Erro: O cartão "${nomeCartaoNoArquivo}" não foi encontrado no banco.`);
                 return;
             }
 
-            // 3. Processa as despesas trocando o ID '1' pelo ID correto (ex: 395)
+            // Loop para processar as despesas com o ID correto
             for (const item of json.despesas) {
                 const catEncontrada = categoriasNoBanco.find(c => 
                     c.nome.toLowerCase() === item.categoria.toLowerCase()
                 );
 
-                const dadosParaEnviar = {
-                    ...item,
-                    cartao_id: cartaoReal.id, // ✅ AQUI ESTÁ A SOLUÇÃO DEFINITIVA
-                    categoria_id: catEncontrada ? catEncontrada.id : null,
-                    usuario_id: window.usuarioDataManager.getUsuarioAtual().id
-                };
-
-                delete dadosParaEnviar.categoria; // Remove campo de texto para evitar erro
-
-                await enviarParaAPI(dadosParaEnviar);
+                // Chama a função 2 para preparar o objeto
+                const dadosParaEnviar = prepararDadosDespesa(item, cartaoReal.id, catEncontrada);
+                
+                // Chama a função 3 para enviar ao servidor
+                await enviarDespesaParaAPI(dadosParaEnviar);
             }
 
-            alert("✅ Importação realizada com sucesso!");
+            alert("✅ Importação finalizada com sucesso!");
             window.location.reload();
-
         } catch (erro) {
-            console.error("Erro na importação:", erro);
-            alert("Erro: " + erro.message);
+            console.error("Erro:", erro);
+            alert("Falha na importação: " + erro.message);
         }
     };
     leitor.readAsText(arquivo);
 }
+
+function prepararDadosDespesa(item, idCartaoReal, categoriaMapeada) {
+    const dados = {
+        ...item,
+        cartao_id: idCartaoReal, // ✅ Substitui o 1 pelo ID do Render
+        categoria_id: categoriaMapeada ? categoriaMapeada.id : null,
+        usuario_id: window.usuarioDataManager.getUsuarioAtual().id
+    };
+    
+    // Remove o nome da categoria em texto para o banco não dar erro de coluna
+    delete dados.categoria; 
+    return dados;
+}
+
+async function enviarDespesaParaAPI(dados) {
+    const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+    const token = sessionStorage.getItem('token');
+
+    const response = await fetch(`${API_URL}/despesas`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(dados)
+    });
+
+    if (!response.ok) {
+        const erroJson = await response.json();
+        throw new Error(erroJson.error || 'Erro ao salvar despesa');
+    }
+}
+
+
 
 
 window.categoriasUsuario = categoriasUsuario;
