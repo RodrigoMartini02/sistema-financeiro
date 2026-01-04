@@ -636,8 +636,8 @@ class UsuarioDataManager {
                     }
                 }
 
-                // Se não encontrou, avisar mas continuar
-                if (!cartaoId) {
+                // Se não encontrou, continuar sem cartão (silencioso se não houver cartões cadastrados)
+                if (!cartaoId && cartoesUsuario && cartoesUsuario.length > 0) {
                     console.warn(`⚠️ Cartão na posição ${numeroCartao} não encontrado, criando despesa sem cartão`);
                 }
             }
