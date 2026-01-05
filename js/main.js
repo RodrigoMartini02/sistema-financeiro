@@ -2622,71 +2622,48 @@ async function iniciarAtualizacaoCotacoes() {
     const elemento = document.getElementById('cotacoes') || document.getElementById('cotacoes-compact');
     if (!elemento) return;
 
-    const INTERVALO_MOEDAS = 300000; // 5 minutos para câmbio
-    
-    async function carregarDados() {
+    async function atualizarPainel() {
         try {
-            // 1. URLs de Câmbio (Tempo Real) e Indicadores (Fixos/Mensais)
             const urlCambio = 'https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL,BTC-BRL';
             const urlSelic = 'https://economia.awesomeapi.com.br/json/daily/selic/1';
             const urlIpca = 'https://economia.awesomeapi.com.br/json/daily/ipca/1';
 
-            // Faz as requisições em paralelo para ganhar velocidade
             const [resCambio, resSelic, resIpca] = await Promise.all([
                 fetch(urlCambio, { cache: 'no-store' }),
                 fetch(urlSelic),
                 fetch(urlIpca)
             ]);
 
-            const dadosCambio = await resCambio.json();
-            const dadosSelic = await resSelic.json();
-            const dadosIpca = await resIpca.json();
-
-            // 2. Função auxiliar de formatação
-            const formatarCompcto = (label, valor, isPercent = false) => {
-                const num = parseFloat(valor);
-                const valorFormatado = label === 'BTC' 
-                    ? num.toLocaleString('pt-BR', { minimumFractionDigits: 0 }) 
-                    : num.toFixed(2).replace('.', ',');
-                
-                return `<strong>${label}</strong> ${valorFormatado}${isPercent ? '%' : ''}`;
+            const dados = {
+                cambio: await resCambio.json(),
+                selic: await resSelic.json(),
+                ipca: await resIpca.json()
             };
 
-            const listaExibicao = [];
+            const formatar = (label, valor, sufixo = '') => {
+                const num = parseFloat(valor);
+                const formatado = label === 'BTC' 
+                    ? num.toLocaleString('pt-BR') 
+                    : num.toFixed(2).replace('.', ',');
+                return `<strong>${label}</strong> ${formatado}${sufixo}`;
+            };
 
-            // 3. Processar Moedas
-            if (dadosCambio.USDBRL) listaExibicao.push(formatarCompcto('USD', dadosCambio.USDBRL.bid));
-            if (dadosCambio.EURBRL) listaExibicao.push(formatarCompcto('EUR', dadosCambio.EURBRL.bid));
-            if (dadosCambio.BTCBRL) listaExibicao.push(formatarCompcto('BTC', dadosCambio.BTCBRL.bid));
+            const itens = [];
+            if (dados.cambio.USDBRL) itens.push(formatar('USD', dados.cambio.USDBRL.bid));
+            if (dados.cambio.EURBRL) itens.push(formatar('EUR', dados.cambio.EURBRL.bid));
+            if (dados.cambio.BTCBRL) itens.push(formatar('BTC', dados.cambio.BTCBRL.bid));
+            if (dados.selic[0])      itens.push(formatar('SELIC', dados.selic[0].valor, '%'));
+            if (dados.ipca[0])       itens.push(formatar('IPCA', dados.ipca[0].valor, '%'));
 
-            // 4. Processar Indicadores (Selic e IPCA)
-            // A AwesomeAPI retorna um array para esses indicadores
-            if (dadosSelic && dadosSelic[0]) {
-                listaExibicao.push(formatarCompcto('SELIC', dadosSelic[0].valor, true));
-            }
-            if (dadosIpca && dadosIpca[0]) {
-                listaExibicao.push(formatarCompcto('IPCA', dadosIpca[0].valor, true));
-            }
-
-            // 5. Atualizar o DOM
-            elemento.innerHTML = listaExibicao.join(' <span style="margin: 0 8px; color: #ddd;">·</span> ');
-
-            // Tooltip de última atualização
-            if (elemento.parentElement) {
-                elemento.parentElement.title = 'Câmbio atualizado: ' + new Date().toLocaleTimeString();
-            }
-
+            elemento.innerHTML = itens.join(' <span style="margin: 0 8px; color: #ddd;">·</span> ');
         } catch (erro) {
-            console.error('Erro ao buscar dados financeiros:', erro);
-            elemento.innerText = 'Dados financeiros temporariamente indisponíveis';
+            console.error('Erro na API Financeira:', erro);
+            elemento.innerText = 'Câmbio/Indicadores indisponíveis';
         }
     }
 
-    // Execução inicial
-    carregarDados();
-
-    // Atualização periódica (apenas para moedas, mas recarrega tudo por simplicidade)
-    setInterval(carregarDados, INTERVALO_MOEDAS);
+    atualizarPainel();
+    setInterval(atualizarPainel, 300000); // Atualiza a cada 5 min
 }
 
 // IMPORTANTE: Chame a função para ela começar a rodar!
