@@ -2476,60 +2476,44 @@ function configurarEventListeners() {
 
 
 const calendarioFinanceiro = {
-    // Datas de 2026
-   "2026-01-01": "Início do ano fiscal em muitos países. Planejamento orçamentário é essencial para governos, empresas e famílias.",
-
-    "2026-01-15": "O que são Bancos Centrais? Instituições responsáveis por controlar a inflação e os juros de uma economia.",
-
-    "2026-02-01": "Inflação: quando os preços sobem de forma contínua, o poder de compra da população diminui.",
-
-    "2026-02-15": "Juros altos combatem a inflação, mas podem desacelerar a economia. Juros baixos estimulam o consumo.",
-
-    "2026-03-01": "O que é o PIB? Ele mede a soma de todas as riquezas produzidas por um país em determinado período.",
-
-    "2026-03-15": "Câmbio: a valorização ou desvalorização da moeda afeta importações, exportações e viagens internacionais.",
-
-    "2026-04-01": "Globalização econômica conecta países, mas também transmite crises financeiras rapidamente.",
-
-    "2026-05-01": "Trabalho e economia: emprego formal aumenta renda, consumo e arrecadação de impostos.",
-
-    "2026-06-01": "Crises econômicas ensinam a importância de reservas financeiras e políticas fiscais responsáveis.",
-
-    "2026-07-01": "Dívida pública: governos se endividam para investir, mas precisam manter sustentabilidade fiscal.",
-
-    "2026-08-01": "Mercado financeiro canaliza recursos para investimentos produtivos e crescimento econômico.",
-
-    "2026-09-01": "Política monetária influencia crédito, consumo e investimentos no curto e médio prazo.",
-
-    "2026-10-01": "Educação financeira ajuda famílias a evitar endividamento excessivo e planejar o futuro.",
-
-    "2026-11-01": "Comércio internacional permite ganhos de escala, mas depende de estabilidade cambial.",
-
-    "2026-12-01": "Crescimento econômico sustentável equilibra desenvolvimento, inclusão social e meio ambiente.",
-     
-    "2026-01-05": "O orçamento público define como o governo arrecada e gasta recursos ao longo do ano.",
-
-    "2026-02-05": "O IPCA mede a inflação oficial do Brasil e impacta salários, benefícios e contratos.",
-
-    "2026-03-05": "A Taxa Selic influencia empréstimos, financiamentos e aplicações financeiras.",
-
-    "2026-04-05": "Impostos financiam serviços públicos como saúde, educação e infraestrutura.",
-
-    "2026-05-05": "Empreendedorismo impulsiona inovação, geração de empregos e crescimento econômico.",
-
-    "2026-06-05": "O sistema bancário conecta poupadores e tomadores de crédito.",
-
-    "2026-07-05": "Déficit e superávit fiscal indicam se o governo gasta mais ou menos do que arrecada.",
-
-    "2026-08-05": "Exportações fortalecem a economia ao gerar divisas e empregos.",
-
-    "2026-09-05": "A indústria transforma matérias-primas em produtos de maior valor agregado.",
-
-    "2026-10-05": "Programas sociais movimentam a economia local e reduzem desigualdades.",
-
-    "2026-11-05": "Consumo consciente ajuda no equilíbrio financeiro das famílias.",
-
-    "2026-12-05": "Planejamento financeiro anual prepara famílias e empresas para o próximo ciclo econômico."
+    "2026-01-01": "Você sabia que hoje começa o ano fiscal em muitos países? É o momento perfeito para o planejamento orçamentário, essencial para governos, empresas e famílias.",
+    "2026-01-05": "Já parou para pensar em como o governo decide onde gastar? O orçamento público, definido hoje, dita como os recursos serão arrecadados e aplicados no ano.",
+    "2026-01-15": "Você sabe qual é o papel dos Bancos Centrais? Eles são as instituições fundamentais para controlar a inflação e calibrar os juros de uma economia.",
+    
+    "2026-02-01": "Atenção ao seu bolso: a inflação ocorre quando os preços sobem de forma contínua, fazendo com que o poder de compra da população diminua.",
+    "2026-02-05": "Fique de olho no IPCA! Esse índice mede a inflação oficial do Brasil e impacta diretamente salários, benefícios e contratos.",
+    "2026-02-15": "Entenda o dilema dos juros: taxas altas combatem a inflação, mas podem frear a economia. Já juros baixos são usados para estimular o consumo.",
+    
+    "2026-03-01": "Você sabia que o PIB é o 'termômetro' de um país? Ele mede a soma de todas as riquezas produzidas em um determinado período.",
+    "2026-03-05": "Como a Taxa Selic te afeta? Ela influencia desde o custo de empréstimos e financiamentos até o rendimento das suas aplicações financeiras.",
+    "2026-03-15": "Vai viajar ou comprar algo de fora? O câmbio e a oscilação da moeda afetam diretamente as importações, exportações e o turismo internacional.",
+    
+    "2026-04-01": "Você sabia que vivemos em um mundo conectado? A globalização econômica une países pelo comércio, mas também transmite crises financeiras com rapidez.",
+    "2026-04-05": "Para onde vai o seu imposto? É através dele que o Estado financia serviços públicos essenciais, como saúde, educação e infraestrutura.",
+    
+    "2026-05-01": "No Dia do Trabalho, lembre-se: o emprego formal é um motor econômico que aumenta a renda, o consumo e a arrecadação de impostos.",
+    "2026-05-05": "O poder de empreender: você sabia que o empreendedorismo impulsiona a inovação e é um dos maiores geradores de empregos no país?",
+    
+    "2026-06-01": "Lição do dia: crises econômicas, embora difíceis, ensinam a importância vital de manter reservas financeiras e políticas fiscais responsáveis.",
+    "2026-06-05": "Você sabe como o dinheiro circula? O sistema bancário funciona como a ponte que conecta quem quer poupar com quem precisa de crédito.",
+    
+    "2026-07-01": "O que é a dívida pública? Governos se endividam para investir no país, mas precisam manter o equilíbrio para que a conta seja sustentável.",
+    "2026-07-05": "Déficit ou Superávit? Esses termos indicam, de forma simples, se o governo está gastando mais ou menos do que consegue arrecadar.",
+    
+    "2026-08-01": "Como o mercado financeiro ajuda o país? Ele canaliza recursos de investidores para projetos produtivos que geram crescimento econômico.",
+    "2026-08-05": "A força das exportações: vender para o exterior fortalece a economia nacional ao gerar divisas (moeda estrangeira) e novos empregos.",
+    
+    "2026-09-01": "Você entende a política monetária? Ela é a ferramenta que influencia o crédito, o consumo e os investimentos no curto e médio prazo.",
+    "2026-09-05": "O valor da indústria: você sabia que ela é vital por transformar matérias-primas em produtos de maior valor, acelerando o desenvolvimento.",
+    
+    "2026-10-01": "Dica de ouro: a educação financeira ajuda as famílias a evitar o endividamento excessivo e a planejar um futuro mais tranquilo.",
+    "2026-10-05": "O impacto social na economia: programas de auxílio movimentam o comércio local e ajudam a reduzir as desigualdades do país.",
+    
+    "2026-11-01": "Conexão global: o comércio internacional permite ganhos de escala para as empresas, mas sua eficiência depende da estabilidade do câmbio.",
+    "2026-11-05": "Consuma com consciência! Pequenas mudanças de hábito ajudam a manter o equilíbrio financeiro e a saúde do orçamento familiar.",
+    
+    "2026-12-01": "O futuro é sustentável: o verdadeiro crescimento econômico deve equilibrar desenvolvimento, inclusão social e preservação do meio ambiente.",
+    "2026-12-05": "Hora de planejar 2027! Um bom planejamento financeiro anual prepara famílias e empresas para o sucesso no próximo ciclo econômico."
 };
 
 function verificarMensagens() {
@@ -2634,62 +2618,75 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-function iniciarAtualizacaoCotacoes() {
-    // ✅ Suportar ambos os elementos (antigo e novo)
+async function iniciarAtualizacaoCotacoes() {
     const elemento = document.getElementById('cotacoes') || document.getElementById('cotacoes-compact');
     if (!elemento) return;
 
-    const INTERVALO_ATUALIZACAO = 300000; // 5 minutos
-
-    async function carregarCotacoesEmReal() {
+    const INTERVALO_MOEDAS = 300000; // 5 minutos para câmbio
+    
+    async function carregarDados() {
         try {
-            // Adicionado BTC-BRL na lista de pares
-            const pares = 'USD-BRL,EUR-BRL,GBP-BRL,JPY-BRL,BTC-BRL';
-            const response = await fetch(
-                `https://economia.awesomeapi.com.br/json/last/${pares}`,
-                { cache: 'no-store' }
-            );
+            // 1. URLs de Câmbio (Tempo Real) e Indicadores (Fixos/Mensais)
+            const urlCambio = 'https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL,BTC-BRL';
+            const urlSelic = 'https://economia.awesomeapi.com.br/json/daily/selic/1';
+            const urlIpca = 'https://economia.awesomeapi.com.br/json/daily/ipca/1';
 
-            if (!response.ok) throw new Error('Falha na rede');
-            
-            const dados = await response.json();
+            // Faz as requisições em paralelo para ganhar velocidade
+            const [resCambio, resSelic, resIpca] = await Promise.all([
+                fetch(urlCambio, { cache: 'no-store' }),
+                fetch(urlSelic),
+                fetch(urlIpca)
+            ]);
 
-            // Função de formatação compacta
-            const formatarCompacto = (codigo, valor) => {
-                const valorNumerico = parseFloat(valor);
-                let valorFormatado;
+            const dadosCambio = await resCambio.json();
+            const dadosSelic = await resSelic.json();
+            const dadosIpca = await resIpca.json();
 
-                // Bitcoin mostra valor completo formatado
-                if (codigo === 'BTC') {
-                    valorFormatado = valorNumerico.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                } else {
-                    valorFormatado = valorNumerico.toFixed(2);
-                }
-
-                return `<strong>${codigo}</strong> ${valorFormatado}`;
+            // 2. Função auxiliar de formatação
+            const formatarCompcto = (label, valor, isPercent = false) => {
+                const num = parseFloat(valor);
+                const valorFormatado = label === 'BTC' 
+                    ? num.toLocaleString('pt-BR', { minimumFractionDigits: 0 }) 
+                    : num.toFixed(2).replace('.', ',');
+                
+                return `<strong>${label}</strong> ${valorFormatado}${isPercent ? '%' : ''}`;
             };
 
-            const cotacoes = [];
+            const listaExibicao = [];
 
-            // Incluir apenas USD, EUR e BTC (as mais relevantes)
-            if (dados.USDBRL) cotacoes.push(formatarCompacto('USD', dados.USDBRL.bid));
-            if (dados.EURBRL) cotacoes.push(formatarCompacto('EUR', dados.EURBRL.bid));
-            if (dados.BTCBRL) cotacoes.push(formatarCompacto('BTC', dados.BTCBRL.bid));
+            // 3. Processar Moedas
+            if (dadosCambio.USDBRL) listaExibicao.push(formatarCompcto('USD', dadosCambio.USDBRL.bid));
+            if (dadosCambio.EURBRL) listaExibicao.push(formatarCompcto('EUR', dadosCambio.EURBRL.bid));
+            if (dadosCambio.BTCBRL) listaExibicao.push(formatarCompcto('BTC', dadosCambio.BTCBRL.bid));
 
-            elemento.innerHTML = cotacoes.join(' <span style="margin: 0 6px; color: #ddd;">·</span> ');
+            // 4. Processar Indicadores (Selic e IPCA)
+            // A AwesomeAPI retorna um array para esses indicadores
+            if (dadosSelic && dadosSelic[0]) {
+                listaExibicao.push(formatarCompcto('SELIC', dadosSelic[0].valor, true));
+            }
+            if (dadosIpca && dadosIpca[0]) {
+                listaExibicao.push(formatarCompcto('IPCA', dadosIpca[0].valor, true));
+            }
 
+            // 5. Atualizar o DOM
+            elemento.innerHTML = listaExibicao.join(' <span style="margin: 0 8px; color: #ddd;">·</span> ');
+
+            // Tooltip de última atualização
             if (elemento.parentElement) {
-                elemento.parentElement.title = 'Última atualização: ' + new Date().toLocaleTimeString();
+                elemento.parentElement.title = 'Câmbio atualizado: ' + new Date().toLocaleTimeString();
             }
 
         } catch (erro) {
-            elemento.innerText = 'Câmbio indisponível';
-            console.error('Erro ao atualizar cotações:', erro);
+            console.error('Erro ao buscar dados financeiros:', erro);
+            elemento.innerText = 'Dados financeiros temporariamente indisponíveis';
         }
     }
 
-    carregarCotacoesEmReal();
-    setInterval(carregarCotacoesEmReal, INTERVALO_ATUALIZACAO);
+    // Execução inicial
+    carregarDados();
+
+    // Atualização periódica (apenas para moedas, mas recarrega tudo por simplicidade)
+    setInterval(carregarDados, INTERVALO_MOEDAS);
 }
 
 // IMPORTANTE: Chame a função para ela começar a rodar!
