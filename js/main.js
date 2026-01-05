@@ -2618,52 +2618,62 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-async function iniciarAtualizacaoCotacoes() {
+function iniciarAtualizacaoCotacoes() {
+    // ✅ Suportar ambos os elementos (antigo e novo)
     const elemento = document.getElementById('cotacoes') || document.getElementById('cotacoes-compact');
     if (!elemento) return;
 
-    async function atualizarPainel() {
+    const INTERVALO_ATUALIZACAO = 300000; // 5 minutos
+
+    async function carregarCotacoesEmReal() {
         try {
-            const urlCambio = 'https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL,BTC-BRL';
-            const urlSelic = 'https://economia.awesomeapi.com.br/json/daily/selic/1';
-            const urlIpca = 'https://economia.awesomeapi.com.br/json/daily/ipca/1';
+            // Adicionado BTC-BRL na lista de pares
+            const pares = 'USD-BRL,EUR-BRL,GBP-BRL,JPY-BRL,BTC-BRL';
+            const response = await fetch(
+                `https://economia.awesomeapi.com.br/json/last/${pares}`,
+                { cache: 'no-store' }
+            );
 
-            const [resCambio, resSelic, resIpca] = await Promise.all([
-                fetch(urlCambio, { cache: 'no-store' }),
-                fetch(urlSelic),
-                fetch(urlIpca)
-            ]);
+            if (!response.ok) throw new Error('Falha na rede');
+            
+            const dados = await response.json();
 
-            const dados = {
-                cambio: await resCambio.json(),
-                selic: await resSelic.json(),
-                ipca: await resIpca.json()
+            // Função de formatação compacta
+            const formatarCompacto = (codigo, valor) => {
+                const valorNumerico = parseFloat(valor);
+                let valorFormatado;
+
+                // Bitcoin mostra valor completo formatado
+                if (codigo === 'BTC') {
+                    valorFormatado = valorNumerico.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                } else {
+                    valorFormatado = valorNumerico.toFixed(2);
+                }
+
+                return `<strong>${codigo}</strong> ${valorFormatado}`;
             };
 
-            const formatar = (label, valor, sufixo = '') => {
-                const num = parseFloat(valor);
-                const formatado = label === 'BTC' 
-                    ? num.toLocaleString('pt-BR') 
-                    : num.toFixed(2).replace('.', ',');
-                return `<strong>${label}</strong> ${formatado}${sufixo}`;
-            };
+            const cotacoes = [];
 
-            const itens = [];
-            if (dados.cambio.USDBRL) itens.push(formatar('USD', dados.cambio.USDBRL.bid));
-            if (dados.cambio.EURBRL) itens.push(formatar('EUR', dados.cambio.EURBRL.bid));
-            if (dados.cambio.BTCBRL) itens.push(formatar('BTC', dados.cambio.BTCBRL.bid));
-            if (dados.selic[0])      itens.push(formatar('SELIC', dados.selic[0].valor, '%'));
-            if (dados.ipca[0])       itens.push(formatar('IPCA', dados.ipca[0].valor, '%'));
+            // Incluir apenas USD, EUR e BTC (as mais relevantes)
+            if (dados.USDBRL) cotacoes.push(formatarCompacto('USD', dados.USDBRL.bid));
+            if (dados.EURBRL) cotacoes.push(formatarCompacto('EUR', dados.EURBRL.bid));
+            if (dados.BTCBRL) cotacoes.push(formatarCompacto('BTC', dados.BTCBRL.bid));
 
-            elemento.innerHTML = itens.join(' <span style="margin: 0 8px; color: #ddd;">·</span> ');
+            elemento.innerHTML = cotacoes.join(' <span style="margin: 0 6px; color: #ddd;">·</span> ');
+
+            if (elemento.parentElement) {
+                elemento.parentElement.title = 'Última atualização: ' + new Date().toLocaleTimeString();
+            }
+
         } catch (erro) {
-            console.error('Erro na API Financeira:', erro);
-            elemento.innerText = 'Câmbio/Indicadores indisponíveis';
+            elemento.innerText = 'Câmbio indisponível';
+            console.error('Erro ao atualizar cotações:', erro);
         }
     }
 
-    atualizarPainel();
-    setInterval(atualizarPainel, 300000); // Atualiza a cada 5 min
+    carregarCotacoesEmReal();
+    setInterval(carregarCotacoesEmReal, INTERVALO_ATUALIZACAO);
 }
 
 // IMPORTANTE: Chame a função para ela começar a rodar!
