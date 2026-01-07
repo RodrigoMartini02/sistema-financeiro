@@ -158,8 +158,8 @@ function preencherLinhaReceitaNormal(clone, receita, index, fechado) {
     const dataEl = clone.querySelector('.receita-data');
     const parcelaEl = clone.querySelector('.receita-parcela');
 
-    if (numeroEl && receita.numero) {
-        numeroEl.textContent = `#${receita.numero.toString().padStart(3, '0')}`;
+    if (numeroEl && receita.id_registro) {
+        numeroEl.textContent = `#${receita.id_registro.toString().padStart(3, '0')}`;
         numeroEl.style.fontWeight = 'bold';
         numeroEl.style.color = '#6366f1';
         numeroEl.style.fontSize = '0.9em';

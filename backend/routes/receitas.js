@@ -9,7 +9,7 @@ const { body, validationResult } = require('express-validator');
 // ================================================================
 async function obterProximoNumero(usuarioId) {
     const result = await query(
-        'SELECT COALESCE(MAX(numero), 0) + 1 as proximo FROM receitas WHERE usuario_id = $1',
+        'SELECT COALESCE(MAX(id_registro), 0) + 1 as proximo FROM receitas WHERE usuario_id = $1',
         [usuarioId]
     );
     return result.rows[0].proximo;
@@ -99,7 +99,7 @@ router.post('/', authMiddleware, [
         const proximoNumero = await obterProximoNumero(req.usuario.id);
 
         const result = await query(
-            `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, observacoes, numero)
+            `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, observacoes, id_registro)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING *`,
             [req.usuario.id, descricao, parseFloat(valor), data_recebimento, mes, ano, observacoes || null, proximoNumero]
@@ -173,7 +173,7 @@ router.post('/numerar', authMiddleware, async (req, res) => {
                 WHERE usuario_id = $1
             )
             UPDATE receitas r
-            SET numero = ranked.rn
+            SET id_registro = ranked.rn
             FROM ranked
             WHERE r.id = ranked.id;
         `, [req.usuario.id]);
