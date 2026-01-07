@@ -323,10 +323,10 @@ async function criarEstruturaBanco() {
             ADD COLUMN IF NOT EXISTS numero INTEGER;
         `);
 
-        // Adicionar coluna id_sequencial em RECEITAS
+        // Adicionar coluna id_registro em RECEITAS
         await query(`
             ALTER TABLE receitas
-            ADD COLUMN IF NOT EXISTS id_sequencial INTEGER;
+            ADD COLUMN IF NOT EXISTS id_registro INTEGER;
         `);
 
         // Adicionar coluna numero em DESPESAS
@@ -386,10 +386,10 @@ async function criarEstruturaBanco() {
             WITH ranked AS (
                 SELECT id, ROW_NUMBER() OVER (PARTITION BY usuario_id ORDER BY id) as rn
                 FROM receitas
-                WHERE id_sequencial IS NULL
+                WHERE id_registro IS NULL
             )
             UPDATE receitas r
-            SET id_sequencial = ranked.rn
+            SET id_registro = ranked.rn
             FROM ranked
             WHERE r.id = ranked.id;
         `);
