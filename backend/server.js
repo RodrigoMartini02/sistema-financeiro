@@ -170,6 +170,9 @@ async function criarEstruturaBanco() {
         console.log('✅ Tabela categorias verificada/criada!');
 
         // ✅ FUNÇÃO criar_categorias_padrao
+        // Drop function first if it exists with different signature
+        await query(`DROP FUNCTION IF EXISTS criar_categorias_padrao(integer);`);
+
         await query(`
             CREATE OR REPLACE FUNCTION criar_categorias_padrao(p_usuario_id INTEGER)
             RETURNS VOID AS $$
