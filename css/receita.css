@@ -131,7 +131,7 @@
 .receitas-grid .grid-header,
 .receitas-grid .grid-row {
     display: grid;
-    grid-template-columns: 60px 2fr 150px 120px 100px 150px 100px;
+    grid-template-columns: 2fr 150px 120px 100px 150px 100px;
     gap: 8px;
     align-items: center;
     padding: 10px 12px;
@@ -163,13 +163,6 @@
 
 .receitas-grid .grid-row:hover {
     background-color: #f8fafc;
-}
-
-.receitas-grid .grid-row .col-id {
-    font-weight: 600;
-    color: #6366f1;
-    font-size: 0.9em;
-    text-align: center;
 }
 
 .receitas-grid .col-descricao {

@@ -5,17 +5,6 @@ const { authMiddleware } = require('../middleware/auth');
 const { body, validationResult } = require('express-validator');
 
 // ================================================================
-// FUNÇÃO AUXILIAR - OBTER PRÓXIMO NÚMERO PARA RECEITA
-// ================================================================
-async function obterProximoNumero(usuarioId) {
-    const result = await query(
-        'SELECT COALESCE(MAX(id_registro), 0) + 1 as proximo FROM receitas WHERE usuario_id = $1',
-        [usuarioId]
-    );
-    return result.rows[0].proximo;
-}
-
-// ================================================================
 // ROTAS ORIGINAIS (mantidas)
 // ================================================================
 
@@ -95,14 +84,11 @@ router.post('/', authMiddleware, [
             usuario_id: req.usuario.id
         });
 
-        // ✅ OBTER PRÓXIMO NÚMERO
-        const proximoNumero = await obterProximoNumero(req.usuario.id);
-
         const result = await query(
-            `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, observacoes, id_registro)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, observacoes)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
              RETURNING *`,
-            [req.usuario.id, descricao, parseFloat(valor), data_recebimento, mes, ano, observacoes || null, proximoNumero]
+            [req.usuario.id, descricao, parseFloat(valor), data_recebimento, mes, ano, observacoes || null]
         );
 
         console.log('✅ Receita criada com sucesso:', result.rows[0].id);
@@ -156,38 +142,6 @@ router.put('/:id', authMiddleware, async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Erro ao atualizar receita'
-        });
-    }
-});
-
-// ================================================================
-// POST /api/receitas/numerar - Numerar receitas existentes (TEMPORÁRIO)
-// ================================================================
-router.post('/numerar', authMiddleware, async (req, res) => {
-    try {
-        // Numerar receitas do usuário
-        await query(`
-            WITH ranked AS (
-                SELECT id, ROW_NUMBER() OVER (PARTITION BY usuario_id ORDER BY id) as rn
-                FROM receitas
-                WHERE usuario_id = $1
-            )
-            UPDATE receitas r
-            SET id_registro = ranked.rn
-            FROM ranked
-            WHERE r.id = ranked.id;
-        `, [req.usuario.id]);
-
-        res.json({
-            success: true,
-            message: 'Receitas numeradas com sucesso!'
-        });
-
-    } catch (error) {
-        console.error('Erro ao numerar receitas:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Erro ao numerar receitas'
         });
     }
 });

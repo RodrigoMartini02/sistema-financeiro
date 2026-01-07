@@ -1478,7 +1478,6 @@ async function buscarReceitasAPI(mes, ano) {
         // Converter formato da API para formato do frontend
         return data.data.map(r => ({
             id: r.id,
-            id_registro: r.id_registro,
             descricao: r.descricao,
             valor: parseFloat(r.valor),
             data: r.data_recebimento,

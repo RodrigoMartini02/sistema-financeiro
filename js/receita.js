@@ -152,18 +152,11 @@ function preencherLinhaSaldoAnterior(clone, receita) {
 }
 
 function preencherLinhaReceitaNormal(clone, receita, index, fechado) {
-    const numeroEl = clone.querySelector('.receita-numero');
     const descricaoEl = clone.querySelector('.receita-descricao');
     const valorEl = clone.querySelector('.receita-valor');
     const dataEl = clone.querySelector('.receita-data');
     const parcelaEl = clone.querySelector('.receita-parcela');
 
-    if (numeroEl && receita.id_registro) {
-        numeroEl.textContent = `#${receita.id_registro.toString().padStart(3, '0')}`;
-        numeroEl.style.fontWeight = 'bold';
-        numeroEl.style.color = '#6366f1';
-        numeroEl.style.fontSize = '0.9em';
-    }
     if (descricaoEl) descricaoEl.textContent = receita.descricao || 'Sem descrição';
     if (valorEl) valorEl.textContent = window.formatarMoeda(receita.valor || 0);
     if (dataEl) dataEl.textContent = window.formatarData(receita.data || new Date());
