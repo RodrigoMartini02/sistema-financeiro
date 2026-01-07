@@ -3,6 +3,17 @@ const router = express.Router();
 const { query } = require('../config/database');
 const { authMiddleware } = require('../middleware/auth');
 
+// ================================================================
+// FUNÇÃO AUXILIAR - OBTER PRÓXIMO NÚMERO PARA CARTÃO
+// ================================================================
+async function obterProximoNumero(usuarioId) {
+    const result = await query(
+        'SELECT COALESCE(MAX(numero), 0) + 1 as proximo FROM cartoes WHERE usuario_id = $1',
+        [usuarioId]
+    );
+    return result.rows[0].proximo;
+}
+
 router.get('/', authMiddleware, async (req, res) => {
     try {
         const { usuario_id } = req.query;
@@ -271,12 +282,15 @@ router.post('/', async (req, res) => {
             });
         }
         
+        // ✅ OBTER PRÓXIMO NÚMERO
+        const proximoNumero = await obterProximoNumero(req.usuario.id);
+
         const queryText = `
-            INSERT INTO cartoes (usuario_id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            RETURNING id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, data_criacao, data_atualizacao
+            INSERT INTO cartoes (usuario_id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero, data_criacao, data_atualizacao
         `;
-        
+
         const values = [
             req.usuario_id,
             nome.trim(),
@@ -284,7 +298,8 @@ router.post('/', async (req, res) => {
             parseInt(dia_fechamento) || 1,
             parseInt(dia_vencimento) || 1,
             cor || '#3498db',
-            true
+            true,
+            proximoNumero
         ];
         
         const result = await query(queryText, values);

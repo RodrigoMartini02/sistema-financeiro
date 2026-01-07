@@ -5,6 +5,17 @@ const { authMiddleware } = require('../middleware/auth');
 const { body, validationResult } = require('express-validator');
 
 // ================================================================
+// FUNÇÃO AUXILIAR - OBTER PRÓXIMO NÚMERO PARA RECEITA
+// ================================================================
+async function obterProximoNumero(usuarioId) {
+    const result = await query(
+        'SELECT COALESCE(MAX(numero), 0) + 1 as proximo FROM receitas WHERE usuario_id = $1',
+        [usuarioId]
+    );
+    return result.rows[0].proximo;
+}
+
+// ================================================================
 // ROTAS ORIGINAIS (mantidas)
 // ================================================================
 
@@ -84,11 +95,14 @@ router.post('/', authMiddleware, [
             usuario_id: req.usuario.id
         });
 
+        // ✅ OBTER PRÓXIMO NÚMERO
+        const proximoNumero = await obterProximoNumero(req.usuario.id);
+
         const result = await query(
-            `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, observacoes)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, observacoes, numero)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING *`,
-            [req.usuario.id, descricao, parseFloat(valor), data_recebimento, mes, ano, observacoes || null]
+            [req.usuario.id, descricao, parseFloat(valor), data_recebimento, mes, ano, observacoes || null, proximoNumero]
         );
 
         console.log('✅ Receita criada com sucesso:', result.rows[0].id);

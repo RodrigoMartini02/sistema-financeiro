@@ -297,6 +297,115 @@ async function criarEstruturaBanco() {
         await query(`CREATE INDEX IF NOT EXISTS idx_anos_usuario_ano ON anos(usuario_id, ano);`);
         console.log('✅ Tabela anos verificada/criada!');
 
+        // ================================================================
+        // MIGRATIONS - ADICIONAR CAMPO NUMERO NAS TABELAS
+        // ================================================================
+        console.log('🔄 Verificando/adicionando campo numero...');
+
+        // Adicionar coluna numero em USUARIOS
+        await query(`
+            ALTER TABLE usuarios
+            ADD COLUMN IF NOT EXISTS numero INTEGER;
+        `);
+
+        // Adicionar coluna numero em CATEGORIAS
+        await query(`
+            ALTER TABLE categorias
+            ADD COLUMN IF NOT EXISTS numero INTEGER;
+        `);
+
+        // Adicionar coluna numero em CARTOES
+        await query(`
+            ALTER TABLE cartoes
+            ADD COLUMN IF NOT EXISTS numero INTEGER;
+        `);
+
+        // Adicionar coluna numero em RECEITAS
+        await query(`
+            ALTER TABLE receitas
+            ADD COLUMN IF NOT EXISTS numero INTEGER;
+        `);
+
+        // Adicionar coluna numero em DESPESAS
+        await query(`
+            ALTER TABLE despesas
+            ADD COLUMN IF NOT EXISTS numero INTEGER;
+        `);
+
+        console.log('✅ Campo numero adicionado em todas as tabelas!');
+
+        // ================================================================
+        // POPULAR CAMPO NUMERO PARA REGISTROS EXISTENTES
+        // ================================================================
+        console.log('🔄 Numerando registros existentes...');
+
+        // Numerar USUARIOS existentes
+        await query(`
+            WITH ranked AS (
+                SELECT id, ROW_NUMBER() OVER (ORDER BY id) as rn
+                FROM usuarios
+                WHERE numero IS NULL
+            )
+            UPDATE usuarios u
+            SET numero = r.rn
+            FROM ranked r
+            WHERE u.id = r.id;
+        `);
+
+        // Numerar CATEGORIAS existentes (por usuário)
+        await query(`
+            WITH ranked AS (
+                SELECT id, ROW_NUMBER() OVER (PARTITION BY usuario_id ORDER BY id) as rn
+                FROM categorias
+                WHERE numero IS NULL
+            )
+            UPDATE categorias c
+            SET numero = r.rn
+            FROM ranked r
+            WHERE c.id = r.id;
+        `);
+
+        // Numerar CARTOES existentes (por usuário)
+        await query(`
+            WITH ranked AS (
+                SELECT id, ROW_NUMBER() OVER (PARTITION BY usuario_id ORDER BY id) as rn
+                FROM cartoes
+                WHERE numero IS NULL
+            )
+            UPDATE cartoes c
+            SET numero = r.rn
+            FROM ranked r
+            WHERE c.id = r.id;
+        `);
+
+        // Numerar RECEITAS existentes (por usuário)
+        await query(`
+            WITH ranked AS (
+                SELECT id, ROW_NUMBER() OVER (PARTITION BY usuario_id ORDER BY id) as rn
+                FROM receitas
+                WHERE numero IS NULL
+            )
+            UPDATE receitas r
+            SET numero = ranked.rn
+            FROM ranked
+            WHERE r.id = ranked.id;
+        `);
+
+        // Numerar DESPESAS existentes (por usuário)
+        await query(`
+            WITH ranked AS (
+                SELECT id, ROW_NUMBER() OVER (PARTITION BY usuario_id ORDER BY id) as rn
+                FROM despesas
+                WHERE numero IS NULL
+            )
+            UPDATE despesas d
+            SET numero = r.rn
+            FROM ranked r
+            WHERE d.id = r.id;
+        `);
+
+        console.log('✅ Registros existentes numerados com sucesso!');
+
         console.log('🎉 Estrutura do banco de dados está pronta!');
         return true;
         

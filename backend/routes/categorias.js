@@ -3,6 +3,17 @@ const router = express.Router();
 const { query } = require('../config/database');
 const { authMiddleware } = require('../middleware/auth');
 
+// ================================================================
+// FUNÇÃO AUXILIAR - OBTER PRÓXIMO NÚMERO PARA CATEGORIA
+// ================================================================
+async function obterProximoNumero(usuarioId) {
+    const result = await query(
+        'SELECT COALESCE(MAX(numero), 0) + 1 as proximo FROM categorias WHERE usuario_id = $1',
+        [usuarioId]
+    );
+    return result.rows[0].proximo;
+}
+
 router.get('/', authMiddleware, async (req, res) => {
     try {
         const { usuario_id } = req.query;
@@ -80,17 +91,21 @@ router.post('/', async (req, res) => {
             });
         }
         
+        // ✅ OBTER PRÓXIMO NÚMERO
+        const proximoNumero = await obterProximoNumero(req.usuario_id);
+
         const queryText = `
-            INSERT INTO categorias (usuario_id, nome, cor, icone)
-            VALUES ($1, $2, $3, $4)
-            RETURNING id, nome, cor, icone, data_criacao, data_atualizacao
+            INSERT INTO categorias (usuario_id, nome, cor, icone, numero)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id, nome, cor, icone, numero, data_criacao, data_atualizacao
         `;
-        
+
         const values = [
             req.usuario_id,
             nome.trim(),
             cor || '#3498db',
-            icone || null
+            icone || null,
+            proximoNumero
         ];
         
         const result = await query(queryText, values);

@@ -1974,27 +1974,44 @@ async function fecharMes(mes, ano) {
         alert('Mês já está fechado ou não existe!');
         return false;
     }
-   
+
     const saldo = calcularSaldoMes(mes, ano);
-    
+
     let proximoMes = mes + 1;
     let proximoAno = ano;
-    
+
     if (proximoMes > 11) {
         proximoMes = 0;
         proximoAno = ano + 1;
     }
-    
+
     try {
+        // ✅ CHAMAR ENDPOINT DA API PARA FECHAR MÊS
+        const token = sessionStorage.getItem('token');
+        const response = await fetch(`${API_URL}/meses/${ano}/${mes}/fechar`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                saldo_final: saldo.saldoFinal
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erro ao fechar mês na API');
+        }
+
+        // Atualizar dados locais após confirmar sucesso na API
         dadosMes.fechado = true;
         dadosMes.saldoFinal = saldo.saldoFinal;
         dadosMes.dataFechamento = new Date().toISOString().split('T')[0];
-        
+
         if (saldo.saldoFinal !== 0) {
             await criarReceitaSaldoAnterior(proximoMes, proximoAno, saldo.saldoFinal, mes, ano);
         }
-        
-        await salvarDados();
 
         if (typeof window.renderizarMeses === 'function') {
             await window.renderizarMeses(ano);
@@ -2003,10 +2020,11 @@ async function fecharMes(mes, ano) {
         if (proximoAno !== ano && typeof window.renderizarMeses === 'function') {
             setTimeout(async () => await window.renderizarMeses(proximoAno), 100);
         }
-        
+
         return true;
 
     } catch (error) {
+        console.error('Erro ao fechar mês:', error);
         alert('Erro ao fechar mês: ' + error.message);
         return false;
     }
@@ -2018,23 +2036,37 @@ async function reabrirMes(mes, ano) {
         alert('Mês já está aberto ou não existe!');
         return false;
     }
-   
+
     let proximoMes = mes + 1;
     let proximoAno = ano;
-    
+
     if (proximoMes > 11) {
         proximoMes = 0;
         proximoAno = ano + 1;
     }
-   
+
     try {
+        // ✅ CHAMAR ENDPOINT DA API PARA REABRIR MÊS
+        const token = sessionStorage.getItem('token');
+        const response = await fetch(`${API_URL}/meses/${ano}/${mes}/reabrir`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erro ao reabrir mês na API');
+        }
+
+        // Atualizar dados locais após confirmar sucesso na API
         dadosMes.fechado = false;
         dadosMes.dataFechamento = null;
         dadosMes.saldoFinal = 0;
-        
+
         await removerReceitaSaldoAnterior(proximoMes, proximoAno, mes, ano);
-        
-        await salvarDados();
 
         if (typeof window.renderizarMeses === 'function') {
             await window.renderizarMeses(ano);
@@ -2043,10 +2075,11 @@ async function reabrirMes(mes, ano) {
                 setTimeout(async () => await window.renderizarMeses(proximoAno), 100);
             }
         }
-        
+
         return true;
 
     } catch (error) {
+        console.error('Erro ao reabrir mês:', error);
         alert('Erro ao reabrir mês: ' + error.message);
         return false;
     }
@@ -2371,9 +2404,10 @@ function atualizarBarrasCartoes(mes, ano) {
         
         if (cartao && cartao.ativo && cartao.nome && cartao.nome.trim() !== '') {
             temCartaoAtivo = true;
-            
+
             if (barraContainer) barraContainer.style.display = 'block';
-            if (nomeDisplay) nomeDisplay.textContent = cartao.nome || `Cartão ${num}`;
+            const numeroFormatado = cartao.numero ? `#${cartao.numero.toString().padStart(3, '0')} - ` : '';
+            if (nomeDisplay) nomeDisplay.textContent = `${numeroFormatado}${cartao.nome}` || `Cartão ${num}`;
             if (valorUsado) valorUsado.textContent = formatarMoeda(uso);
             if (valorLimite) valorLimite.textContent = formatarMoeda(cartao.limite);
             if (status) status.textContent = 'Ativo';

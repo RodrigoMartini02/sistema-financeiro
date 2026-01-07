@@ -3,6 +3,33 @@ const router = express.Router();
 const { query } = require('../config/database');
 const { authMiddleware } = require('../middleware/auth');
 
+// ================================================================
+// GET /api/meses - Buscar todos os meses do usuário
+// ================================================================
+router.get('/', authMiddleware, async (req, res) => {
+    try {
+        const result = await query(
+            `SELECT ano, mes, fechado, saldo_final, data_fechamento
+             FROM meses
+             WHERE usuario_id = $1
+             ORDER BY ano DESC, mes DESC`,
+            [req.usuario.id]
+        );
+
+        res.json({
+            success: true,
+            data: result.rows
+        });
+
+    } catch (error) {
+        console.error('Erro ao buscar meses:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao buscar meses'
+        });
+    }
+});
+
 router.get('/:ano/:mes', authMiddleware, async (req, res) => {
     try {
         const { ano, mes } = req.params;

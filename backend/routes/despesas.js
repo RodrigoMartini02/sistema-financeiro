@@ -5,6 +5,17 @@ const { authMiddleware } = require('../middleware/auth');
 const { body, validationResult } = require('express-validator');
 
 // ================================================================
+// FUNÇÃO AUXILIAR - OBTER PRÓXIMO NÚMERO PARA DESPESA
+// ================================================================
+async function obterProximoNumero(usuarioId) {
+    const result = await query(
+        'SELECT COALESCE(MAX(numero), 0) + 1 as proximo FROM despesas WHERE usuario_id = $1',
+        [usuarioId]
+    );
+    return result.rows[0].proximo;
+}
+
+// ================================================================
 // BUSCAR DESPESAS - COMPATÍVEL COM FRONTEND
 // ================================================================
 router.get('/', authMiddleware, async (req, res) => {
@@ -114,13 +125,16 @@ router.post('/', authMiddleware, [
         const numeroParcelas = total_parcelas || null;
         const parcelaAtual = parcela_atual || (parcelado ? 1 : null);
 
+        // ✅ OBTER PRÓXIMO NÚMERO
+        const proximoNumero = await obterProximoNumero(req.usuario.id);
+
         const result = await query(
             `INSERT INTO despesas (
                 usuario_id, descricao, valor, data_vencimento, data_compra, data_pagamento,
                 mes, ano, categoria_id, cartao_id, forma_pagamento,
                 parcelado, numero_parcelas, parcela_atual, observacoes, pago,
-                valor_original, valor_total_com_juros, valor_pago
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+                valor_original, valor_total_com_juros, valor_pago, numero
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
             RETURNING *`,
             [
                 req.usuario.id, descricao, parseFloat(valor), data_vencimento,
@@ -130,7 +144,8 @@ router.post('/', authMiddleware, [
                 observacoes || null, pago || false,
                 valor_original ? parseFloat(valor_original) : null,
                 valor_total_com_juros ? parseFloat(valor_total_com_juros) : null,
-                valor_pago ? parseFloat(valor_pago) : null
+                valor_pago ? parseFloat(valor_pago) : null,
+                proximoNumero
             ]
         );
 

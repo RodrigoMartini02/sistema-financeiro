@@ -187,8 +187,8 @@ class UsuarioDataManager {
         try {
             const token = sessionStorage.getItem('token') || '';
 
-            // ✅ BUSCAR RECEITAS E DESPESAS DAS TABELAS SEPARADAS
-            const [receitasResponse, despesasResponse] = await Promise.all([
+            // ✅ BUSCAR RECEITAS, DESPESAS E STATUS DOS MESES DAS TABELAS SEPARADAS
+            const [receitasResponse, despesasResponse, mesesResponse] = await Promise.all([
                 fetch(`${API_URL_DADOS}/receitas`, {
                     headers: {
                         'Content-Type': 'application/json',
@@ -200,14 +200,22 @@ class UsuarioDataManager {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     }
+                }),
+                fetch(`${API_URL_DADOS}/meses`, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
                 })
             ]);
 
             const receitasData = await receitasResponse.json();
             const despesasData = await despesasResponse.json();
+            const mesesData = await mesesResponse.json();
 
             const receitas = receitasData.data || [];
             const despesas = despesasData.data || [];
+            const mesesStatus = mesesData.data || [];
 
             console.log(`📊 Carregadas ${receitas.length} receitas e ${despesas.length} despesas da API`);
 
@@ -306,6 +314,19 @@ class UsuarioDataManager {
                     valorTotalComJuros: despesa.valor_total_com_juros || null,
                     observacoes: despesa.observacoes || ''
                 });
+            });
+
+            // ✅ APLICAR STATUS DOS MESES (fechado/aberto, saldo final)
+            console.log(`🔒 Carregando status de ${mesesStatus.length} meses da API`);
+            mesesStatus.forEach(mesInfo => {
+                const ano = parseInt(mesInfo.ano);
+                const mes = parseInt(mesInfo.mes);
+
+                this.garantirEstruturaMes(dadosFinanceiros, ano, mes);
+
+                dadosFinanceiros[ano].meses[mes].fechado = mesInfo.fechado || false;
+                dadosFinanceiros[ano].meses[mes].saldoFinal = parseFloat(mesInfo.saldo_final) || 0;
+                dadosFinanceiros[ano].meses[mes].dataFechamento = mesInfo.data_fechamento || null;
             });
 
             this.dadosCache = dadosFinanceiros;

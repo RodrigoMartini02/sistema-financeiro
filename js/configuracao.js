@@ -368,7 +368,8 @@ function atualizarListaCategorias() {
         const linha = template.content.cloneNode(true);
 
         // Nome da categoria
-        linha.querySelector('.categoria-nome').textContent = categoria.nome;
+        const numeroFormatado = categoria.numero ? `#${categoria.numero.toString().padStart(3, '0')} - ` : '';
+        linha.querySelector('.categoria-nome').textContent = `${numeroFormatado}${categoria.nome}`;
 
         // Data de criação
         const dataCriacao = categoria.dataCriacao ? new Date(categoria.dataCriacao) : new Date();
@@ -633,12 +634,13 @@ async function atualizarOpcoesCartoes() {
 
             if (label && option && radioInput && cartao) {
                 if (cartao.ativo && cartao.nome && cartao.nome.trim() !== '') {
-                    label.textContent = cartao.nome.toUpperCase();
+                    const numeroFormatado = cartao.numero ? `#${cartao.numero.toString().padStart(3, '0')} - ` : '';
+                    label.textContent = `${numeroFormatado}${cartao.nome.toUpperCase()}`;
                     option.classList.remove('hidden');
                     radioInput.disabled = false;
                     radioInput.setAttribute('data-cartao', num);
                     cartoesVisiveis++;
-                    console.log(`💳 Cartão ${num} disponível: ${cartao.nome}`);
+                    console.log(`💳 Cartão ${num} disponível: ${numeroFormatado}${cartao.nome}`);
                 } else {
                     label.textContent = `CARTÃO ${num}`;
                     option.classList.add('hidden');

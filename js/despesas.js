@@ -250,6 +250,7 @@ function sincronizarIndicesDespesas() {
 
 function preencherCelulasGrid(clone, despesa, index, fechado, mes, ano) {
    preencherCelulaCheckbox(clone, despesa, index, fechado);
+   preencherCelulaNumero(clone, despesa);
    preencherCelulaDescricao(clone, despesa);
    preencherCelulaCategoria(clone, despesa);
    preencherCelulaFormaPagamento(clone, despesa);
@@ -258,7 +259,7 @@ function preencherCelulasGrid(clone, despesa, index, fechado, mes, ano) {
    preencherCelulaValorPago(clone, despesa);
    preencherCelulaStatus(clone, despesa);
    preencherCelulaDatas(clone, despesa);
-   preencherCelulaDataPagamento(clone, despesa); 
+   preencherCelulaDataPagamento(clone, despesa);
    preencherCelulaAcoes(clone, despesa, index, fechado);
    preencherCelulaAnexos(clone, despesa, index, fechado);
 }
@@ -273,6 +274,16 @@ function preencherCelulaCheckbox(clone, despesa, index, fechado) {
             checkbox.setAttribute('data-index', index);
             celulaCheckbox.appendChild(checkboxClone);
         }
+    }
+}
+
+function preencherCelulaNumero(clone, despesa) {
+    const celulaNumero = clone.querySelector('.col-numero');
+    if (celulaNumero && despesa.numero) {
+        celulaNumero.textContent = `#${despesa.numero.toString().padStart(3, '0')}`;
+        celulaNumero.style.fontWeight = 'bold';
+        celulaNumero.style.color = '#6366f1';
+        celulaNumero.style.fontSize = '0.9em';
     }
 }
 
