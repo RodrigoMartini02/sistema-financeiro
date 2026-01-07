@@ -158,6 +158,8 @@ function preencherLinhaReceitaNormal(clone, receita, index, fechado) {
     const dataEl = clone.querySelector('.receita-data');
     const parcelaEl = clone.querySelector('.receita-parcela');
 
+    console.log('🔍 Receita:', receita.descricao, '- Numero:', receita.numero, '- NumeroEl:', numeroEl);
+
     if (numeroEl && receita.numero) {
         numeroEl.textContent = `#${receita.numero.toString().padStart(3, '0')}`;
         numeroEl.style.fontWeight = 'bold';
