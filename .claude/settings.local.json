@@ -12,7 +12,8 @@
       "Bash(dir \"c:\\\\Users\\\\rodri\\\\Music\\\\sistema financas\\\\backend\\\\routes\")",
       "Bash(node importar-dados.js:*)",
       "Bash(dir:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(git add:*)"
     ]
   }
 }
