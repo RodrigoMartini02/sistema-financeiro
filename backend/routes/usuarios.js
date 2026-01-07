@@ -443,6 +443,95 @@ router.put('/:id', authMiddleware, isAdminOrMaster, async (req, res) => {
 });
 
 // ================================================================
+// PUT /api/usuarios/:id/alterar-senha - Alterar senha do usuário
+// ================================================================
+router.put('/:id/alterar-senha', authMiddleware, async (req, res) => {
+    try {
+        const userId = parseInt(req.params.id);
+        const { senhaAtual, senhaNova } = req.body;
+
+        // Validações
+        if (isNaN(userId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'ID do usuário deve ser um número válido'
+            });
+        }
+
+        // Usuário só pode alterar sua própria senha
+        if (userId !== req.usuario.id) {
+            return res.status(403).json({
+                success: false,
+                message: 'Você só pode alterar sua própria senha'
+            });
+        }
+
+        if (!senhaAtual || !senhaNova) {
+            return res.status(400).json({
+                success: false,
+                message: 'Senha atual e senha nova são obrigatórias'
+            });
+        }
+
+        if (senhaNova.length < 6) {
+            return res.status(400).json({
+                success: false,
+                message: 'A senha nova deve ter pelo menos 6 caracteres'
+            });
+        }
+
+        // Buscar usuário e verificar senha atual
+        const userResult = await query(
+            'SELECT id, senha FROM usuarios WHERE id = $1',
+            [userId]
+        );
+
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Usuário não encontrado'
+            });
+        }
+
+        const usuario = userResult.rows[0];
+
+        // Verificar se a senha atual está correta
+        const senhaValida = await bcrypt.compare(senhaAtual, usuario.senha);
+
+        if (!senhaValida) {
+            return res.status(401).json({
+                success: false,
+                message: 'Senha atual incorreta'
+            });
+        }
+
+        // Hash da senha nova
+        const senhaNovaHash = await bcrypt.hash(senhaNova, 10);
+
+        // Atualizar senha
+        await query(
+            `UPDATE usuarios
+             SET senha = $1, data_atualizacao = CURRENT_TIMESTAMP
+             WHERE id = $2`,
+            [senhaNovaHash, userId]
+        );
+
+        res.json({
+            success: true,
+            message: 'Senha alterada com sucesso'
+        });
+
+    } catch (error) {
+        console.error('Erro ao alterar senha:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro interno do servidor',
+            error: error.message
+        });
+    }
+});
+
+// ================================================================
 // DELETE /api/usuarios/:id - Excluir usuário (Apenas Master)
 // ================================================================
 router.delete('/:id', authMiddleware, isMaster, async (req, res) => {
