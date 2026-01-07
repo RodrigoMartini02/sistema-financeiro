@@ -65,7 +65,7 @@
     background-color: #f8fafc;
 }
 
-.col-numero {
+.grid-row .col-numero {
     font-weight: 600;
     color: #6366f1;
     font-size: 0.9em;
