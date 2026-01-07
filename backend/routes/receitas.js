@@ -160,6 +160,38 @@ router.put('/:id', authMiddleware, async (req, res) => {
     }
 });
 
+// ================================================================
+// POST /api/receitas/numerar - Numerar receitas existentes (TEMPORÁRIO)
+// ================================================================
+router.post('/numerar', authMiddleware, async (req, res) => {
+    try {
+        // Numerar receitas do usuário
+        await query(`
+            WITH ranked AS (
+                SELECT id, ROW_NUMBER() OVER (PARTITION BY usuario_id ORDER BY id) as rn
+                FROM receitas
+                WHERE usuario_id = $1
+            )
+            UPDATE receitas r
+            SET numero = ranked.rn
+            FROM ranked
+            WHERE r.id = ranked.id;
+        `, [req.usuario.id]);
+
+        res.json({
+            success: true,
+            message: 'Receitas numeradas com sucesso!'
+        });
+
+    } catch (error) {
+        console.error('Erro ao numerar receitas:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao numerar receitas'
+        });
+    }
+});
+
 router.delete('/:id', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
