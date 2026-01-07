@@ -1871,10 +1871,37 @@ async function excluirDespesaLocal(opcao, index, mes, ano, descricaoDespesa, cat
         let quantidadeExcluida = 0;
 
         if (opcao === 'atual') {
-            if (dadosFinanceiros[ano]?.meses[mes]?.despesas[index]) {
-                valorExcluido = dadosFinanceiros[ano].meses[mes].despesas[index].valor || 0;
-                dadosFinanceiros[ano].meses[mes].despesas.splice(index, 1);
-                quantidadeExcluida = 1;
+            const despesa = dadosFinanceiros[ano]?.meses[mes]?.despesas[index];
+            if (!despesa) {
+                throw new Error('Despesa não encontrada');
+            }
+
+            // Validar ID antes de excluir
+            if (!despesa.id || despesa.id > 2147483647) {
+                alert('Esta despesa ainda não foi salva no servidor. Por favor, recarregue a página.');
+                return false;
+            }
+
+            valorExcluido = despesa.valor || 0;
+            quantidadeExcluida = 1;
+
+            const response = await fetch(`${API_URL}/despesas/${despesa.id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${getToken()}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Erro ao excluir despesa: ${response.status}`);
+            }
+
+            // Recarregar dados do mês
+            if (typeof window.buscarDespesasAPI === 'function') {
+                const despesasAtualizadas = await window.buscarDespesasAPI(mes, ano);
+                if (dadosFinanceiros[ano]?.meses[mes]) {
+                    dadosFinanceiros[ano].meses[mes].despesas = despesasAtualizadas;
+                }
             }
         }
         else if (opcao === 'todas') {
@@ -1889,10 +1916,8 @@ async function excluirDespesaLocal(opcao, index, mes, ano, descricaoDespesa, cat
             }
         }
 
-        const sucesso = await salvarDados();
-
         // Registrar log da exclusão
-        if (sucesso && window.logManager) {
+        if (window.logManager && quantidadeExcluida > 0) {
             window.logManager.registrar({
                 modulo: 'Despesas',
                 acao: 'Excluído',
@@ -1905,9 +1930,10 @@ async function excluirDespesaLocal(opcao, index, mes, ano, descricaoDespesa, cat
             });
         }
 
-        return sucesso;
+        return true;
 
     } catch (error) {
+        console.error('Erro ao excluir despesa:', error);
         return false;
     }
 }
@@ -1918,6 +1944,7 @@ async function excluirTodasParcelas(ano, descricao, categoria, idGrupo) {
     try {
         let parcelasRemovidas = 0;
         let valorTotal = 0;
+        const mesesAfetados = new Map();
 
         for (let anoAtual = ano; anoAtual <= ano + 3; anoAtual++) {
             if (!dadosFinanceiros[anoAtual]) continue;
@@ -1927,16 +1954,40 @@ async function excluirTodasParcelas(ano, descricao, categoria, idGrupo) {
 
                 const despesas = dadosFinanceiros[anoAtual].meses[m].despesas;
 
-                for (let i = despesas.length - 1; i >= 0; i--) {
-                    const d = despesas[i];
-
+                for (const d of despesas) {
                     if (d.idGrupoParcelamento === idGrupo &&
                         d.descricao === descricao &&
                         d.categoria === categoria) {
 
-                        valorTotal += parseFloat(d.valor || 0);
-                        despesas.splice(i, 1);
-                        parcelasRemovidas++;
+                        // Validar ID antes de excluir
+                        if (d.id && d.id <= 2147483647) {
+                            await fetch(`${API_URL}/despesas/${d.id}`, {
+                                method: 'DELETE',
+                                headers: {
+                                    'Authorization': `Bearer ${getToken()}`
+                                }
+                            });
+
+                            valorTotal += parseFloat(d.valor || 0);
+                            parcelasRemovidas++;
+
+                            if (!mesesAfetados.has(anoAtual)) {
+                                mesesAfetados.set(anoAtual, new Set());
+                            }
+                            mesesAfetados.get(anoAtual).add(m);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Recarregar dados dos meses afetados
+        if (typeof window.buscarDespesasAPI === 'function') {
+            for (const [anoAfetado, meses] of mesesAfetados) {
+                for (const mesAfetado of meses) {
+                    const despesasAtualizadas = await window.buscarDespesasAPI(mesAfetado, anoAfetado);
+                    if (dadosFinanceiros[anoAfetado]?.meses[mesAfetado]) {
+                        dadosFinanceiros[anoAfetado].meses[mesAfetado].despesas = despesasAtualizadas;
                     }
                 }
             }
@@ -1944,7 +1995,7 @@ async function excluirTodasParcelas(ano, descricao, categoria, idGrupo) {
 
         return { quantidade: parcelasRemovidas, valorTotal: valorTotal };
     } catch (error) {
-
+        console.error('Erro ao excluir todas as parcelas:', error);
         return { quantidade: 0, valorTotal: 0 };
     }
 }
@@ -2036,18 +2087,38 @@ async function excluirDespesaEmTodosMeses(ano, descricao, categoria) {
 
     let despesasRemovidas = 0;
     let valorTotal = 0;
+    const mesesAfetados = new Set();
 
     for (let m = 0; m < 12; m++) {
         if (!dadosFinanceiros[ano].meses[m] || !dadosFinanceiros[ano].meses[m].despesas) continue;
 
         const despesas = dadosFinanceiros[ano].meses[m].despesas;
 
-        for (let i = despesas.length - 1; i >= 0; i--) {
-            const d = despesas[i];
+        for (const d of despesas) {
             if (d.descricao === descricao && d.categoria === categoria && !d.parcelado) {
-                valorTotal += parseFloat(d.valor || 0);
-                despesas.splice(i, 1);
-                despesasRemovidas++;
+                // Validar ID antes de excluir
+                if (d.id && d.id <= 2147483647) {
+                    await fetch(`${API_URL}/despesas/${d.id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${getToken()}`
+                        }
+                    });
+
+                    valorTotal += parseFloat(d.valor || 0);
+                    despesasRemovidas++;
+                    mesesAfetados.add(m);
+                }
+            }
+        }
+    }
+
+    // Recarregar dados dos meses afetados
+    if (typeof window.buscarDespesasAPI === 'function') {
+        for (const mesAfetado of mesesAfetados) {
+            const despesasAtualizadas = await window.buscarDespesasAPI(mesAfetado, ano);
+            if (dadosFinanceiros[ano]?.meses[mesAfetado]) {
+                dadosFinanceiros[ano].meses[mesAfetado].despesas = despesasAtualizadas;
             }
         }
     }
