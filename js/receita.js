@@ -740,17 +740,26 @@ async function processarExclusaoReceita(opcao, index, mes, ano, descricaoReceita
         const sucesso = await excluirReceitaLocal(opcao, index, mes, ano, descricaoReceita);
 
         if (sucesso) {
+            // Recarregar dados da API
+            if (typeof window.buscarReceitasAPI === 'function') {
+                const receitasAtualizadas = await window.buscarReceitasAPI(mes, ano);
+                if (window.dadosFinanceiros[ano]?.meses[mes]) {
+                    window.dadosFinanceiros[ano].meses[mes].receitas = receitasAtualizadas;
+                }
+            }
+
+            // Renderizar interface
             if (typeof window.renderizarDetalhesDoMes === 'function') {
                 window.renderizarDetalhesDoMes(mes, ano);
             }
-            
+
             if (typeof window.carregarDadosDashboard === 'function') {
                 await window.carregarDadosDashboard(window.anoAtual);
             }
         } else {
             throw new Error('Falha ao excluir receita');
         }
-        
+
     } catch (error) {
         alert("Erro ao processar exclusão: " + error.message);
     }
@@ -815,6 +824,8 @@ async function excluirReceitaLocal(opcao, index, mes, ano, descricaoReceita) {
                     r.descricao === descricaoReceita && !r.saldo_anterior
                 );
 
+                const mesesAfetados = new Set();
+
                 for (const receita of receitasParaExcluir) {
                     await fetch(`${API_URL}/receitas/${receita.id}`, {
                         method: 'DELETE',
@@ -822,6 +833,17 @@ async function excluirReceitaLocal(opcao, index, mes, ano, descricaoReceita) {
                             'Authorization': `Bearer ${getToken()}`
                         }
                     });
+                    mesesAfetados.add(receita.mes);
+                }
+
+                // Recarregar dados de todos os meses afetados
+                if (typeof window.buscarReceitasAPI === 'function') {
+                    for (const mesAfetado of mesesAfetados) {
+                        const receitasAtualizadas = await window.buscarReceitasAPI(mesAfetado, ano);
+                        if (window.dadosFinanceiros[ano]?.meses[mesAfetado]) {
+                            window.dadosFinanceiros[ano].meses[mesAfetado].receitas = receitasAtualizadas;
+                        }
+                    }
                 }
 
                 // Registrar log da exclusão em lote
@@ -1007,12 +1029,23 @@ function configurarEventListenersModais() {
             }
         });
     });
-    
+
     window.addEventListener('click', function(event) {
         if (event.target.classList.contains('modal')) {
             event.target.style.display = 'none';
         }
     });
+
+    // Configurar botões do modal de exclusão
+    const btnExcluirAtual = document.getElementById('btn-excluir-atual');
+    if (btnExcluirAtual) {
+        btnExcluirAtual.addEventListener('click', window.excluirAtual);
+    }
+
+    const btnExcluirTodas = document.getElementById('btn-excluir-todas');
+    if (btnExcluirTodas) {
+        btnExcluirTodas.addEventListener('click', window.excluirTodas);
+    }
 }
 
 
