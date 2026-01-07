@@ -129,34 +129,38 @@ function criarLinhaReceita(receita, index, fechado) {
 
 function preencherLinhaSaldoAnterior(clone, receita) {
     const tipoSaldo = receita.valor >= 0 ? 'positivo' : 'negativo';
-    
+
+    const idEl = clone.querySelector('.receita-id');
     const descricaoEl = clone.querySelector('.receita-descricao');
     const valorEl = clone.querySelector('.receita-valor');
     const dataEl = clone.querySelector('.receita-data');
     const parcelaEl = clone.querySelector('.receita-parcela');
     const acoesEl = clone.querySelector('.receita-acoes');
-    
+
+    if (idEl) idEl.textContent = '-';
     if (descricaoEl) {
         descricaoEl.textContent = receita.descricao;
         descricaoEl.classList.add('saldo-anterior-desc', tipoSaldo);
     }
-    
+
     if (valorEl) {
         valorEl.textContent = window.formatarMoeda(receita.valor);
         valorEl.classList.add('saldo-anterior-valor', tipoSaldo);
     }
-    
+
     if (dataEl) dataEl.textContent = '-';
     if (parcelaEl) parcelaEl.textContent = '-';
     if (acoesEl) acoesEl.innerHTML = '<span class="badge-saldo-anterior">AUTOMÁTICO</span>';
 }
 
 function preencherLinhaReceitaNormal(clone, receita, index, fechado) {
+    const idEl = clone.querySelector('.receita-id');
     const descricaoEl = clone.querySelector('.receita-descricao');
     const valorEl = clone.querySelector('.receita-valor');
     const dataEl = clone.querySelector('.receita-data');
     const parcelaEl = clone.querySelector('.receita-parcela');
 
+    if (idEl) idEl.textContent = receita.id || '-';
     if (descricaoEl) descricaoEl.textContent = receita.descricao || 'Sem descrição';
     if (valorEl) valorEl.textContent = window.formatarMoeda(receita.valor || 0);
     if (dataEl) dataEl.textContent = window.formatarData(receita.data || new Date());
