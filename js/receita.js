@@ -772,9 +772,16 @@ async function excluirReceitaLocal(opcao, index, mes, ano, descricaoReceita) {
         if (opcao === 'atual') {
             const receita = window.dadosFinanceiros[ano]?.meses[mes]?.receitas[index];
 
-            if (!receita || !receita.id) {
-                console.error('❌ Receita não encontrada:', { ano, mes, index, dadosDisponiveis: window.dadosFinanceiros[ano]?.meses[mes]?.receitas });
+            if (!receita) {
+                console.error('❌ Receita não encontrada:', { ano, mes, index });
                 throw new Error('Receita não encontrada');
+            }
+
+            // Verificar se é um ID válido do banco (não um timestamp)
+            if (!receita.id || receita.id > 2147483647) {
+                console.warn('⚠️ Receita com ID inválido ou timestamp, não foi salva no backend:', receita);
+                alert('Esta receita ainda não foi salva no servidor. Por favor, recarregue a página.');
+                return false;
             }
 
             valorExcluido = receita.valor;
