@@ -13,7 +13,9 @@
       "Bash(node importar-dados.js:*)",
       "Bash(dir:*)",
       "Bash(npm run dev:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }

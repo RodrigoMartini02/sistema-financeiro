@@ -57,8 +57,6 @@ router.get('/', authMiddleware, async (req, res) => {
             params
         );
 
-        console.log('🔍 DEBUG - Primeira receita retornada:', result.rows[0]);
-
         res.json({
             success: true,
             data: result.rows
