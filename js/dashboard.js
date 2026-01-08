@@ -1339,6 +1339,54 @@ window.filtrarMediaItens = function() {
     criarGraficoMediaDespesas(window.dadosFinanceiros, window.anoAtual, filtros);
 };
 
+
+
+function renderizarGraficoMediaAnual(ano) {
+    const dadosAno = window.dadosFinanceiros[ano];
+    if (!dadosAno || !dadosAno.meses) return;
+
+    const totaisPorItem = {};
+    const contagemMeses = 12;
+
+    // 1. Agrupar todas as despesas do ano por nome
+    dadosAno.meses.forEach(mes => {
+        if (mes.despesas) {
+            mes.despesas.forEach(d => {
+                const descricao = d.descricao || "Sem Nome";
+                const valor = parseFloat(d.valor) || 0;
+                totaisPorItem[descricao] = (totaisPorItem[descricao] || 0) + valor;
+            });
+        }
+    });
+
+    // 2. Preparar os dados para o Chart.js (Média = Total / 12)
+    const labels = Object.keys(totaisPorItem);
+    const valoresMedios = labels.map(label => (totaisPorItem[label] / contagemMeses).toFixed(2));
+
+    // 3. Renderizar no Canvas
+    const ctx = document.getElementById('graficoMediaAnual')?.getContext('2d');
+    if (!ctx) return;
+
+    // Destruir gráfico anterior se existir para evitar sobreposição
+    if (window.meuGraficoMedia) window.meuGraficoMedia.destroy();
+
+    window.meuGraficoMedia = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Média Mensal (R$)',
+                data: valoresMedios,
+                backgroundColor: '#3498db'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+}
+
 // ================================================================
 // SISTEMA DE FILTROS
 // ================================================================

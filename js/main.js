@@ -458,14 +458,17 @@ function setupNavigation() {
 
 function onSecaoAtivada(secao) {
     switch (secao) {
-        case 'dashboard':
-            // ✅ Carregar dados do dashboard automaticamente ao entrar na seção
-            setTimeout(async () => {
-                await carregarDadosDashboard(anoAtual);
-                atualizarResumoAnual(anoAtual);
-            }, 100);
-            break;
-
+      case 'dashboard':
+    setTimeout(async () => {
+        await carregarDadosDashboard(anoAtual);
+        atualizarResumoAnual(anoAtual);
+        
+        // ADICIONE ESTA LINHA:
+        if (typeof renderizarGraficoMediaAnual === 'function') {
+            renderizarGraficoMediaAnual(anoAtual);
+        }
+    }, 100);
+    break;
         case 'meses':
             setTimeout(async () => {
                 await renderizarMeses(anoAtual);
