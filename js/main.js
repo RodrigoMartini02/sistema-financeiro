@@ -458,17 +458,18 @@ function setupNavigation() {
 
 function onSecaoAtivada(secao) {
     switch (secao) {
-      case 'dashboard':
-    setTimeout(async () => {
-        await carregarDadosDashboard(anoAtual);
-        atualizarResumoAnual(anoAtual);
-        
-        // ADICIONE ESTA LINHA:
-        if (typeof renderizarGraficoMediaAnual === 'function') {
-            renderizarGraficoMediaAnual(anoAtual);
-        }
-    }, 100);
-    break;
+            case 'dashboard':
+            setTimeout(async () => {
+                await carregarDadosDashboard(anoAtual);
+                atualizarResumoAnual(anoAtual);
+                
+                // Agora o gráfico com a sua estrutura é chamado aqui
+                if (typeof window.renderizarGraficoMediaAnual === 'function') {
+                    window.renderizarGraficoMediaAnual(window.anoAtual);
+                }
+            }, 100);
+            break;
+
         case 'meses':
             setTimeout(async () => {
                 await renderizarMeses(anoAtual);

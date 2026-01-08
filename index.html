@@ -423,7 +423,13 @@
                         <select class="filter-select" id="media-item-categoria-filter" onchange="filtrarMediaItens()">
                             <option value="">Todas as categorias</option>
                         </select>
-                        <button class="btn-expandir" data-chart="mediaItensChart">[ ]</button>
+                        <select class="filter-select" id="media-item-pagamento-filter" onchange="filtrarMediaItens()">
+                            <option value="todas">Todas as formas</option>
+                            <option value="pix">PIX</option>
+                            <option value="debito">Débito</option>
+                            <option value="credito">Crédito</option>
+                        </select>
+                        <button class="btn-expandir" data-chart="media-itens-chart">[ ]</button>
                     </div>
                 </h3>
                 <div class="chart-container">
