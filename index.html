@@ -1047,68 +1047,96 @@
             </div>
         </div>
 
-        <!-- ============================================== -->
-        <!-- ABA: CARTÕES DE CRÉDITO -->
-        <!-- ============================================== -->
-        <div id="cartoes-tab" class="config-tab-pane">
-            <div class="config-card">
-                
-                <div class="cartoes-fixos-container">
-                    <div class="form-add-cartao">
-                        <h4>Cartão 1</h4>
-                        <div class="input-group">
-                            <input type="text" id="cartao1-nome" placeholder="Nome do cartão" maxlength="50">
-                            <input type="text" id="cartao1-validade" placeholder="MM/AAAA" maxlength="7">
-                            <input type="number" id="cartao1-limite" placeholder="Limite" step="0.01" min="0">
-                            <label><input type="checkbox" id="cartao1-ativo"> Ativo</label>
-                        </div>
+       <div id="cartoes-tab" class="config-tab-pane">
+    <div class="config-card">
+        
+        <div class="cartoes-fixos-container">
+            
+            <div class="form-add-cartao">
+                <h4>Cartão 1</h4>
+                <div class="input-group">
+                    <div class="field">
+                        <label for="cartao1-nome">Banco</label>
+                        <input type="text" id="cartao1-nome" placeholder="Ex: NuBank" maxlength="50">
                     </div>
-                    
-                    <div class="form-add-cartao">
-                        <h4>Cartão 2</h4>
-                        <div class="input-group">
-                            <input type="text" id="cartao2-nome" placeholder="Nome do cartão" maxlength="50">
-                            <input type="text" id="cartao2-validade" placeholder="MM/AAAA" maxlength="7">
-                            <input type="number" id="cartao2-limite" placeholder="Limite" step="0.01" min="0">
-                            <label><input type="checkbox" id="cartao2-ativo"> Ativo</label>
-                        </div>
+                    <div class="field">
+                        <label for="cartao1-validade">Validade</label>
+                        <input type="text" id="cartao1-validade" placeholder="MM/AAAA" maxlength="7">
                     </div>
-                    
-                    <div class="form-add-cartao">
-                        <h4>Cartão 3</h4>
-                        <div class="input-group">
-                            <input type="text" id="cartao3-nome" placeholder="Nome do cartão" maxlength="50">
-                            <input type="text" id="cartao3-validade" placeholder="MM/AAAA" maxlength="7">
-                            <input type="number" id="cartao3-limite" placeholder="Limite" step="0.01" min="0">
-                            <label><input type="checkbox" id="cartao3-ativo"> Ativo</label>
-                        </div>
+                    <div class="field">
+                        <label for="cartao1-limite">Limite</label>
+                        <input type="number" id="cartao1-limite" placeholder="R$ 0,00" step="0.01" min="0">
                     </div>
-                    
-                    <button id="btn-salvar-cartoes" class="btn-action">
-                        <i class="fas fa-save"></i> Salvar Cartões
-                    </button>
-                </div>
-
-                <!-- Status de salvamento dos cartões -->
-                <div id="cartoes-status" class="status-feedback hidden">
-                    <div class="feedback-message">
-                        <i class="feedback-icon"></i>
-                        <span class="feedback-text"></span>
-                    </div>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="cartao1-ativo"> Ativo
+                    </label>
                 </div>
             </div>
-            
-            <div class="config-card info-card">
-                <h3><i class="fas fa-info-circle"></i> Dicas sobre Cartões</h3>
-                <ul>
-                    <li>Mantenha sempre o controle dos limites dos seus cartões</li>
-                    <li>Verifique regularmente as datas de validade</li>
-                    <li>Use o checkbox "Ativo" para cartões que você realmente utiliza</li>
-                    <li>O sistema ajudará você a controlar gastos por cartão</li>
-                    <li>Cartões inativos não aparecerão nos formulários de despesas</li>
-                </ul>
+
+            <div class="form-add-cartao">
+                <h4>Cartão 2</h4>
+                <div class="input-group">
+                    <div class="field">
+                        <label for="cartao2-nome">Banco</label>
+                        <input type="text" id="cartao2-nome" placeholder="Ex: Itaú" maxlength="50">
+                    </div>
+                    <div class="field">
+                        <label for="cartao2-validade">Validade</label>
+                        <input type="text" id="cartao2-validade" placeholder="MM/AAAA" maxlength="7">
+                    </div>
+                    <div class="field">
+                        <label for="cartao2-limite">Limite</label>
+                        <input type="number" id="cartao2-limite" placeholder="R$ 0,00" step="0.01" min="0">
+                    </div>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="cartao2-ativo"> Ativo
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-add-cartao">
+                <h4>Cartão 3</h4>
+                <div class="input-group">
+                    <div class="field">
+                        <label for="cartao3-nome">Banco</label>
+                        <input type="text" id="cartao3-nome" placeholder="Ex: Inter" maxlength="50">
+                    </div>
+                    <div class="field">
+                        <label for="cartao3-validade">Validade</label>
+                        <input type="text" id="cartao3-validade" placeholder="MM/AAAA" maxlength="7">
+                    </div>
+                    <div class="field">
+                        <label for="cartao3-limite">Limite</label>
+                        <input type="number" id="cartao3-limite" placeholder="R$ 0,00" step="0.01" min="0">
+                    </div>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="cartao3-ativo"> Ativo
+                    </label>
+                </div>
+            </div>
+
+            <button id="btn-salvar-cartoes" class="btn-action">
+                <i class="fas fa-save"></i> Salvar Cartões
+            </button>
+        </div>
+
+        <div id="cartoes-status" class="status-feedback hidden">
+            <div class="feedback-message">
+                <i class="feedback-icon"></i>
+                <span class="feedback-text"></span>
             </div>
         </div>
+    </div>
+    
+    <div class="config-card info-card">
+        <h3><i class="fas fa-info-circle"></i> Dicas sobre Cartões</h3>
+        <ul>
+            <li>Mantenha sempre o controle dos limites dos seus cartões</li>
+            <li>Verifique regularmente as datas de validade</li>
+            <li>Use o checkbox "Ativo" para cartões que você realmente utiliza</li>
+        </ul>
+    </div>
+</div>
 
         <!-- ============================================== -->
         <!-- ABA: LOGS DO SISTEMA -->
