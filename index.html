@@ -414,6 +414,23 @@
                     <canvas id="forma-pagamento-chart"></canvas>
                 </div>
             </div>
+
+
+            <div class="dashboard-card">
+                <h3>
+                    <span>MÉDIA POR ITEM (ANUAL)</span>
+                    <div class="filtros-header">
+                        <select class="filter-select" id="media-item-categoria-filter" onchange="filtrarMediaItens()">
+                            <option value="">Todas as categorias</option>
+                        </select>
+                        <button class="btn-expandir" data-chart="mediaItensChart">[ ]</button>
+                    </div>
+                </h3>
+                <div class="chart-container">
+                    <canvas id="media-itens-chart"></canvas>
+                </div>
+            </div>
+
         </div>
     </section>
 </div>
