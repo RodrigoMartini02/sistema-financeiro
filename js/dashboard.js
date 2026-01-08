@@ -1252,48 +1252,49 @@ function criarGraficoMediaItens(dadosFinanceiros, ano, filtros) {
     });
 }
 
-let mediaItensChart = null;
+let mediaCategoriasChart = null;
 
-function renderizarGraficoMediaAnual(ano) {
+function renderizarGraficoMediaCategorias() {
+    // Busca o ano ativo do sistema global
+    const ano = window.anoAtual || new Date().getFullYear();
     const dadosAno = window.dadosFinanceiros[ano];
-    if (!dadosAno || !dadosAno.meses) return;
 
-    const filtroCategoria = document.getElementById('media-item-categoria-filter').value;
-    const filtroPagamento = document.getElementById('media-item-pagamento-filter').value;
-
-    const totaisPorItem = {};
-    const categoriasEncontradas = new Set();
-
-    // 1. Processar dados do ano
-    dadosAno.meses.forEach(mes => {
-        mes.despesas.forEach(d => {
-            const valor = parseFloat(d.valor || 0);
-            const forma = (d.formaPagamento || 'outros').toLowerCase();
-            const cat = d.categoria || 'Outros';
-            const desc = d.descricao || 'Sem nome';
-
-            categoriasEncontradas.add(cat);
-
-            // Aplicar Filtros Dinâmicos
-            if (filtroCategoria && cat !== filtroCategoria) return;
-            if (filtroPagamento !== 'todas' && forma !== filtroPagamento) return;
-
-            totaisPorItem[desc] = (totaisPorItem[desc] || 0) + valor;
-        });
-    });
-
-    // 2. Preparar dados para o gráfico (Média Mensal = Total / 12)
-    const labels = Object.keys(totaisPorItem);
-    const valoresMedios = labels.map(label => (totaisPorItem[label] / 12).toFixed(2));
-
-    // 3. Renderizar com Chart.js
-    const ctx = document.getElementById('media-itens-chart').getContext('2d');
-    
-    if (mediaItensChart) {
-        mediaItensChart.destroy();
+    if (!dadosAno || !dadosAno.meses) {
+        console.warn("Dados não encontrados para o gráfico de médias.");
+        return;
     }
 
-    mediaItensChart = new Chart(ctx, {
+    const filtroPagamento = document.getElementById('media-cat-pagamento-filter').value;
+    const totaisPorCategoria = {};
+
+    // 1. Processamento dos dados: Soma anual agrupada por categoria
+    dadosAno.meses.forEach(mes => {
+        if (mes.despesas) {
+            mes.despesas.forEach(d => {
+                const valor = parseFloat(d.valor || 0);
+                const forma = (d.formaPagamento || 'outros').toLowerCase();
+                const categoria = d.categoria || 'Sem Categoria';
+
+                // Aplica filtro de forma de pagamento se selecionado
+                if (filtroPagamento !== 'todas' && forma !== filtroPagamento) return;
+
+                totaisPorCategoria[categoria] = (totaisPorCategoria[categoria] || 0) + valor;
+            });
+        }
+    });
+
+    // 2. Cálculo da média mensal (Total Anual / 12 meses)
+    const labels = Object.keys(totaisPorCategoria).sort();
+    const valoresMedios = labels.map(cat => (totaisPorCategoria[cat] / 12).toFixed(2));
+
+    // 3. Renderização visual com Chart.js
+    const ctx = document.getElementById('media-categorias-chart').getContext('2d');
+    
+    if (mediaCategoriasChart) {
+        mediaCategoriasChart.destroy();
+    }
+
+    mediaCategoriasChart = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: labels,
@@ -1301,42 +1302,38 @@ function renderizarGraficoMediaAnual(ano) {
                 label: 'Média Mensal (R$)',
                 data: valoresMedios,
                 backgroundColor: '#3498db',
-                borderRadius: 5
+                borderColor: '#2980b9',
+                borderWidth: 1,
+                borderRadius: 4
             }]
         },
         options: {
+            indexAxis: 'y', // Barras horizontais para facilitar leitura das categorias
             responsive: true,
             maintainAspectRatio: false,
-            indexAxis: 'y', // Barra horizontal fica melhor para nomes de itens longos
             plugins: {
-                legend: { display: false }
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => ` Média: R$ ${parseFloat(context.raw).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+                    }
+                }
+            },
+            scales: {
+                x: { 
+                    beginAtZero: true,
+                    grid: { display: true, drawBorder: false }
+                },
+                y: { 
+                    grid: { display: false }
+                }
             }
         }
     });
-
-    // Atualizar o select de categorias deste gráfico
-    popularFiltroCategoriasMedia(Array.from(categoriasEncontradas));
 }
 
-// Funções de Controle
-function filtrarMediaItens() {
-    renderizarGraficoMediaAnual(window.anoAtual);
-}
-
-function popularFiltroCategoriasMedia(categorias) {
-    const select = document.getElementById('media-item-categoria-filter');
-    if (select.options.length > 1) return; 
-    
-    categorias.sort().forEach(cat => {
-        const opt = document.createElement('option');
-        opt.value = cat;
-        opt.textContent = cat;
-        select.appendChild(opt);
-    });
-}
-
-// Exportar para o sistema reconhecer
-window.renderizarGraficoMediaAnual = renderizarGraficoMediaAnual;
+// Torna a função disponível para o main.js
+window.renderizarGraficoMediaCategorias = renderizarGraficoMediaCategorias;
 
 
 // ================================================================

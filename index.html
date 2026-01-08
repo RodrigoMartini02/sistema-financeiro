@@ -418,22 +418,19 @@
 
             <div class="dashboard-card">
                 <h3>
-                    <span>MÉDIA POR ITEM (ANUAL)</span>
+                    <span>MÉDIA POR CATEGORIA (ANUAL)</span>
                     <div class="filtros-header">
-                        <select class="filter-select" id="media-item-categoria-filter" onchange="filtrarMediaItens()">
-                            <option value="">Todas as categorias</option>
-                        </select>
-                        <select class="filter-select" id="media-item-pagamento-filter" onchange="filtrarMediaItens()">
+                        <select class="filter-select" id="media-cat-pagamento-filter" onchange="renderizarGraficoMediaCategorias()">
                             <option value="todas">Todas as formas</option>
                             <option value="pix">PIX</option>
                             <option value="debito">Débito</option>
                             <option value="credito">Crédito</option>
                         </select>
-                        <button class="btn-expandir" data-chart="media-itens-chart">[ ]</button>
+                        <button class="btn-expandir" data-chart="media-categorias-chart">[ ]</button>
                     </div>
                 </h3>
-                <div class="chart-container">
-                    <canvas id="media-itens-chart"></canvas>
+                <div class="chart-container" style="position: relative; height: 350px;">
+                    <canvas id="media-categorias-chart"></canvas>
                 </div>
             </div>
 
