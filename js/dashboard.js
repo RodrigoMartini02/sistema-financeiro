@@ -1254,6 +1254,92 @@ function criarGraficoMediaItens(dadosFinanceiros, ano, filtros) {
 
 
 // ================================================================
+// GRÁFICO: MÉDIA DE GASTO POR ITEM (ANUAL)
+// ================================================================
+
+function criarGraficoMediaDespesas(dadosFinanceiros, ano, filtros) {
+    const ctx = document.getElementById('media-itens-chart')?.getContext('2d');
+    if (!ctx || !dadosFinanceiros[ano]) return;
+
+    const mapaItens = {}; // { "Netflix": { soma: 150, qtd: 3 } }
+
+    for (let i = 0; i < 12; i++) {
+        const dadosMes = dadosFinanceiros[ano].meses[i];
+        if (!dadosMes || !dadosMes.despesas) continue;
+
+        const despesasFiltradas = aplicarFiltrosDespesas(dadosMes.despesas, filtros);
+
+        despesasFiltradas.forEach(despesa => {
+            const nome = despesa.descricao || 'Sem descrição';
+            const valor = window.obterValorRealDespesa ? window.obterValorRealDespesa(despesa) : (despesa.valor || 0);
+
+            if (valor > 0) {
+                if (!mapaItens[nome]) {
+                    mapaItens[nome] = { soma: 0, qtd: 0 };
+                }
+                mapaItens[nome].soma += valor;
+                mapaItens[nome].qtd += 1;
+            }
+        });
+    }
+
+    // Transformar em array, calcular média e ordenar pelos maiores
+    const mediasArray = Object.keys(mapaItens).map(nome => ({
+        nome: nome,
+        media: mapaItens[nome].soma / mapaItens[nome].qtd
+    }))
+    .sort((a, b) => b.media - a.media)
+    .slice(0, 12); // Pega os 12 itens com as maiores médias
+
+    if (window.mediaDespesasChart) {
+        window.mediaDespesasChart.destroy();
+    }
+
+    window.mediaDespesasChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: mediasArray.map(m => m.nome),
+            datasets: [{
+                label: 'Média de Valor (R$)',
+                data: mediasArray.map(m => m.media),
+                backgroundColor: 'rgba(75, 192, 192, 0.7)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            indexAxis: 'y', // Barra horizontal para facilitar leitura de nomes
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => `Média: ${window.formatarMoeda(context.raw)}`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { callback: (val) => window.formatarMoeda(val) }
+                }
+            }
+        }
+    });
+}
+
+// Função de gatilho para o select de filtro do HTML
+window.filtrarMediaItens = function() {
+    const filtros = {
+        categoria: document.getElementById('media-item-categoria-filter').value,
+        formaPagamento: 'todas',
+        status: 'todos',
+        tipo: 'despesas'
+    };
+    criarGraficoMediaDespesas(window.dadosFinanceiros, window.anoAtual, filtros);
+};
+
+// ================================================================
 // SISTEMA DE FILTROS
 // ================================================================
 
