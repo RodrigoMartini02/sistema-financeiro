@@ -131,10 +131,10 @@
 .receitas-grid .grid-header,
 .receitas-grid .grid-row {
     display: grid;
-    /* Ajuste de colunas: 
-       ID fixo, Descrição flexível, e o restante com tamanhos específicos */
-    grid-template-columns: 180px 1fr 100px 100px 80px 100px; 
-    gap: 15px; /* Aumentado para melhor respiro */
+    /* Aumentamos a primeira coluna (ID) para 220px ou 250px */
+    /* Estrutura: ID, Descrição (flex), Valor, Data, Parcela, Ações */
+    grid-template-columns: 220px 1fr 120px 110px 80px 100px; 
+    gap: 12px;
     align-items: center;
     padding: 12px 16px;
     border-bottom: 1px solid #e5e7eb;
@@ -142,25 +142,19 @@
     font-size: 13px;
 }
 
-/* Evita que o ID quebre o layout se for muito grande */
-.receitas-grid .grid-row .col-id {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: #6b7280;
+/* Garante que o ID longo seja exibido corretamente */
+.receitas-grid .col-id {
+    font-family: monospace; /* Opcional: ajuda na leitura de IDs */
+    font-size: 11px;
+    word-break: break-all; /* Se o espaço acabar, ele quebra o texto */
+    color: #4b5563;
 }
 
-/* Alinhamento numérico para o Valor */
-.receitas-grid .col-valor {
-    text-align: right;
-    font-weight: 600;
-}
-
-/* Centralização das Ações */
-.receitas-grid .col-acoes {
+/* Ajuste para o campo de Anexos que aparece abaixo do ID na imagem */
+.receitas-grid .anexos-wrapper {
+    margin-top: 4px;
     display: flex;
-    justify-content: flex-end;
-    gap: 8px;
+    align-items: center;
 }
 
 .receitas-grid .grid-header {
