@@ -186,45 +186,23 @@ async function carregarCategoriasLocal() {
     }
 }
 
-async function salvarCategorias() {
-    const usuario = window.usuarioDataManager?.getUsuarioAtual();
-    if (!usuario || !usuario.id) {
-        return false;
-    }
-
+// ✅ NOVO: Buscar categorias da API (tabela categorias)
+async function buscarCategoriasAPI() {
+    const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
     try {
-        // ✅ Garantir que API_URL existe
-        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
-
-        // 🔥 SALVAR NA API
-        const response = await fetch(`${API_URL}/usuarios/${usuario.id}/categorias`, {
-            method: 'PUT',
+        const response = await fetch(`${API_URL}/categorias`, {
             headers: {
-                'Content-Type': 'application/json',
                 'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
-            },
-            body: JSON.stringify({ categorias: categoriasUsuario })
+            }
         });
-
-        // ✅ Verificar se a resposta tem conteúdo antes de parsear
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            return false;
+        if (response.ok) {
+            const data = await response.json();
+            return data.data || [];
         }
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            return false;
-        }
-
-        if (data.success) {
-            return true;
-        } else {
-            return false;
-        }
+        return [];
     } catch (error) {
-        return false;
+        console.error('Erro ao buscar categorias:', error);
+        return [];
     }
 }
 
@@ -268,73 +246,46 @@ async function adicionarCategoria() {
         return;
     }
 
-    // Verificar se já existe (agora comparando o nome do objeto)
-    const jaExiste = Array.isArray(categoriasUsuario.despesas)
-        ? categoriasUsuario.despesas.some(cat => {
-            const nome = typeof cat === 'string' ? cat : cat.nome;
-            return nome === nomeCat;
-        })
-        : false;
+    const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
-    if (jaExiste) {
-        mostrarFeedback('Esta categoria já existe!', 'error');
-        return;
-    }
+    try {
+        // ✅ CORRIGIDO: POST para criar categoria na tabela
+        const response = await fetch(`${API_URL}/categorias`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
+            },
+            body: JSON.stringify({ nome: nomeCat })
+        });
 
-    // Criar objeto de categoria com metadados
-    const novaCategoria = {
-        nome: nomeCat,
-        dataCriacao: new Date().toISOString(),
-        dataEdicao: new Date().toISOString()
-    };
+        if (response.ok) {
+            inputNovaCategoria.value = '';
+            await atualizarListaCategorias();
+            atualizarDropdowns();
+            mostrarFeedback('Categoria criada com sucesso!', 'success');
 
-    // Converter array antigo (strings) para novo formato (objetos)
-    if (!Array.isArray(categoriasUsuario.despesas)) {
-        categoriasUsuario.despesas = [];
-    } else {
-        categoriasUsuario.despesas = categoriasUsuario.despesas.map(cat => {
-            if (typeof cat === 'string') {
-                return {
-                    nome: cat,
-                    dataCriacao: new Date().toISOString(),
-                    dataEdicao: new Date().toISOString()
-                };
+            if (window.logManager) {
+                window.logManager.registrar({
+                    modulo: 'Configurações',
+                    acao: 'Criado',
+                    categoria: 'Categoria',
+                    descricao: nomeCat,
+                    valor: null,
+                    detalhes: 'Criou nova categoria'
+                });
             }
-            return cat;
-        });
-    }
-
-    categoriasUsuario.despesas.push(novaCategoria);
-    categoriasUsuario.despesas.sort((a, b) => a.nome.localeCompare(b.nome));
-
-    const sucesso = await salvarCategorias();
-
-    // Registrar log da ação
-    if (sucesso && window.logManager) {
-        window.logManager.registrar({
-            modulo: 'Configurações',
-            acao: 'Criado',
-            categoria: 'Categoria',
-            descricao: nomeCat,
-            valor: null,
-            detalhes: 'Criou nova categoria'
-        });
-    }
-    if (sucesso) {
-        inputNovaCategoria.value = '';
-        atualizarListaCategorias();
-        atualizarDropdowns();
-        mostrarFeedback('Alterações realizadas com sucesso!', 'success');
-    } else {
-        const index = categoriasUsuario.despesas.findIndex(c => c.nome === nomeCat);
-        if (index > -1) {
-            categoriasUsuario.despesas.splice(index, 1);
+        } else {
+            const data = await response.json();
+            mostrarFeedback(data.message || 'Erro ao criar categoria', 'error');
         }
+    } catch (error) {
+        console.error('Erro ao adicionar categoria:', error);
         mostrarFeedback('Erro ao salvar categoria. Tente novamente.', 'error');
     }
 }
 
-function atualizarListaCategorias() {
+async function atualizarListaCategorias() {
     const listaCategorias = document.getElementById('lista-categorias');
     const semCategoriasMessage = document.getElementById('sem-categorias-message');
 
@@ -342,189 +293,156 @@ function atualizarListaCategorias() {
 
     listaCategorias.innerHTML = '';
 
-    if (!categoriasUsuario.despesas || categoriasUsuario.despesas.length === 0) {
+    // ✅ CORRIGIDO: Buscar categorias da API
+    const categorias = await buscarCategoriasAPI();
+
+    if (!categorias || categorias.length === 0) {
         if (semCategoriasMessage) semCategoriasMessage.classList.remove('hidden');
         return;
     }
 
     if (semCategoriasMessage) semCategoriasMessage.classList.add('hidden');
 
-    // Converter strings antigas para objetos se necessário
-    const categoriasNormalizadas = categoriasUsuario.despesas.map(cat => {
-        if (typeof cat === 'string') {
-            return {
-                nome: cat,
-                dataCriacao: new Date().toISOString(),
-                dataEdicao: new Date().toISOString()
-            };
-        }
-        return cat;
-    });
-
-    categoriasNormalizadas.forEach(categoria => {
+    categorias.forEach(categoria => {
         const template = document.getElementById('template-linha-categoria');
         if (!template) return;
 
         const linha = template.content.cloneNode(true);
 
-        // ✅ ID da categoria
+        // ID da categoria
         const idElement = linha.querySelector('.categoria-id');
         if (idElement) {
             idElement.textContent = categoria.id || '-';
         }
 
         // Nome da categoria
-        const numeroFormatado = categoria.numero ? `#${categoria.numero.toString().padStart(3, '0')} - ` : '';
-        linha.querySelector('.categoria-nome').textContent = `${numeroFormatado}${categoria.nome}`;
+        linha.querySelector('.categoria-nome').textContent = categoria.nome;
 
         // Data de criação
-        const dataCriacao = categoria.dataCriacao || categoria.data_criacao ?
-            new Date(categoria.dataCriacao || categoria.data_criacao) : new Date();
+        const dataCriacao = categoria.data_criacao ? new Date(categoria.data_criacao) : new Date();
         linha.querySelector('.categoria-data-criacao').textContent = dataCriacao.toLocaleDateString('pt-BR');
 
         // Data de edição
-        const dataEdicao = categoria.dataEdicao || categoria.data_atualizacao ?
-            new Date(categoria.dataEdicao || categoria.data_atualizacao) : new Date();
+        const dataEdicao = categoria.data_atualizacao ? new Date(categoria.data_atualizacao) : new Date();
         linha.querySelector('.categoria-data-edicao').textContent = dataEdicao.toLocaleDateString('pt-BR');
 
-        // Botões de ação - usar ID se disponível, senão usar nome
-        const identificador = categoria.id || categoria.nome;
-        linha.querySelector('.btn-editar-categoria').setAttribute('data-categoria', identificador);
-        linha.querySelector('.btn-remover-categoria').setAttribute('data-categoria', identificador);
+        // Botões de ação - usar ID
+        linha.querySelector('.btn-editar-categoria').setAttribute('data-categoria-id', categoria.id);
+        linha.querySelector('.btn-remover-categoria').setAttribute('data-categoria-id', categoria.id);
 
         listaCategorias.appendChild(linha);
     });
 }
 
-function editarCategoria(categoria) {
+async function editarCategoria(categoriaId) {
+    const categorias = await buscarCategoriasAPI();
+    const categoria = categorias.find(c => c.id == categoriaId);
+    if (!categoria) return;
+
     const modalEditar = document.getElementById('modal-editar-categoria');
     const nomeInput = document.getElementById('categoria-edit-nome');
-    const nomeOriginalInput = document.getElementById('categoria-edit-nome-original');
-    
-    if (modalEditar && nomeInput && nomeOriginalInput) {
-        nomeInput.value = categoria;
-        nomeOriginalInput.value = categoria;
+    const idInput = document.getElementById('categoria-edit-id');
+
+    if (modalEditar && nomeInput && idInput) {
+        nomeInput.value = categoria.nome;
+        idInput.value = categoria.id;
         modalEditar.style.display = 'flex';
     }
 }
 
-async function removerCategoria(nomeCategoria) {
-    const confirmar = confirm(`Tem certeza que deseja remover a categoria "${nomeCategoria}"?`);
+async function removerCategoria(categoriaId) {
+    const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
+    // Buscar nome da categoria para confirmação
+    const categorias = await buscarCategoriasAPI();
+    const categoria = categorias.find(c => c.id == categoriaId);
+    if (!categoria) return;
+
+    const confirmar = confirm(`Tem certeza que deseja remover a categoria "${categoria.nome}"?`);
     if (!confirmar) return;
 
-    const index = categoriasUsuario.despesas.findIndex(cat => {
-        const nome = typeof cat === 'string' ? cat : cat.nome;
-        return nome === nomeCategoria;
-    });
+    try {
+        // ✅ CORRIGIDO: DELETE para remover categoria da tabela
+        const response = await fetch(`${API_URL}/categorias/${categoriaId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
+            }
+        });
 
-    if (index !== -1) {
-        const categoriaRemovida = categoriasUsuario.despesas.splice(index, 1)[0];
-
-        const sucesso = await salvarCategorias();
-
-        // Registrar log da ação
-        if (sucesso && window.logManager) {
-            window.logManager.registrar({
-                modulo: 'Configurações',
-                acao: 'Excluído',
-                categoria: 'Categoria',
-                descricao: nomeCategoria,
-                valor: null,
-                detalhes: 'Excluiu categoria'
-            });
-        }
-
-        if (sucesso) {
-            atualizarListaCategorias();
+        if (response.ok) {
+            await atualizarListaCategorias();
             atualizarDropdowns();
-            mostrarFeedback('Alterações realizadas com sucesso!', 'success');
+            mostrarFeedback('Categoria removida com sucesso!', 'success');
+
+            if (window.logManager) {
+                window.logManager.registrar({
+                    modulo: 'Configurações',
+                    acao: 'Excluído',
+                    categoria: 'Categoria',
+                    descricao: categoria.nome,
+                    valor: null,
+                    detalhes: 'Excluiu categoria'
+                });
+            }
         } else {
-            categoriasUsuario.despesas.splice(index, 0, categoriaRemovida);
             mostrarFeedback('Erro ao remover categoria. Tente novamente.', 'error');
         }
+    } catch (error) {
+        console.error('Erro ao remover categoria:', error);
+        mostrarFeedback('Erro ao remover categoria. Tente novamente.', 'error');
     }
 }
 
 async function salvarEdicaoCategoria() {
     const nomeInput = document.getElementById('categoria-edit-nome');
-    const nomeOriginalInput = document.getElementById('categoria-edit-nome-original');
+    const idInput = document.getElementById('categoria-edit-id');
 
-    if (!nomeInput || !nomeOriginalInput) return;
+    if (!nomeInput || !idInput) return;
 
     const novoNome = nomeInput.value.trim();
-    const nomeOriginal = nomeOriginalInput.value;
+    const categoriaId = idInput.value;
 
     if (!novoNome) {
         mostrarFeedback('Por favor, digite um nome para a categoria.', 'warning');
         return;
     }
 
-    // Verificar se novo nome já existe (excluindo a categoria atual)
-    if (novoNome !== nomeOriginal) {
-        const jaExiste = categoriasUsuario.despesas.some(cat => {
-            const nome = typeof cat === 'string' ? cat : cat.nome;
-            return nome === novoNome;
+    const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
+    try {
+        // ✅ CORRIGIDO: PUT para atualizar categoria na tabela
+        const response = await fetch(`${API_URL}/categorias/${categoriaId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
+            },
+            body: JSON.stringify({ nome: novoNome })
         });
 
-        if (jaExiste) {
-            mostrarFeedback('Já existe uma categoria com este nome!', 'error');
-            return;
-        }
-    }
-
-    const index = categoriasUsuario.despesas.findIndex(cat => {
-        const nome = typeof cat === 'string' ? cat : cat.nome;
-        return nome === nomeOriginal;
-    });
-
-    if (index !== -1) {
-        const categoriaAtual = categoriasUsuario.despesas[index];
-        const categoriaAnterior = {...categoriaAtual};
-
-        // Atualizar categoria mantendo metadados
-        if (typeof categoriaAtual === 'string') {
-            categoriasUsuario.despesas[index] = {
-                nome: novoNome,
-                dataCriacao: new Date().toISOString(),
-                dataEdicao: new Date().toISOString()
-            };
-        } else {
-            categoriasUsuario.despesas[index] = {
-                ...categoriaAtual,
-                nome: novoNome,
-                dataEdicao: new Date().toISOString()
-            };
-        }
-
-        categoriasUsuario.despesas.sort((a, b) => {
-            const nomeA = typeof a === 'string' ? a : a.nome;
-            const nomeB = typeof b === 'string' ? b : b.nome;
-            return nomeA.localeCompare(nomeB);
-        });
-
-        const sucesso = await salvarCategorias();
-
-        // Registrar log da ação
-        if (sucesso && window.logManager) {
-            window.logManager.registrar({
-                modulo: 'Configurações',
-                acao: 'Editado',
-                categoria: 'Categoria',
-                descricao: `${nomeOriginal} → ${novoNome}`,
-                valor: null,
-                detalhes: 'Editou categoria'
-            });
-        }
-
-        if (sucesso) {
-            atualizarListaCategorias();
+        if (response.ok) {
+            await atualizarListaCategorias();
             atualizarDropdowns();
             document.getElementById('modal-editar-categoria').style.display = 'none';
-            mostrarFeedback('Alterações realizadas com sucesso!', 'success');
+            mostrarFeedback('Categoria atualizada com sucesso!', 'success');
+
+            if (window.logManager) {
+                window.logManager.registrar({
+                    modulo: 'Configurações',
+                    acao: 'Editado',
+                    categoria: 'Categoria',
+                    descricao: novoNome,
+                    valor: null,
+                    detalhes: 'Editou categoria'
+                });
+            }
         } else {
-            categoriasUsuario.despesas[index] = categoriaAnterior;
             mostrarFeedback('Erro ao salvar alteração. Tente novamente.', 'error');
         }
+    } catch (error) {
+        console.error('Erro ao editar categoria:', error);
+        mostrarFeedback('Erro ao salvar alteração. Tente novamente.', 'error');
     }
 }
 
@@ -2569,13 +2487,13 @@ function setupEventListeners() {
         if (!target) return;
         
         if (target.classList.contains('btn-editar-categoria')) {
-            const categoria = target.getAttribute('data-categoria');
-            if (categoria) editarCategoria(categoria);
+            const categoriaId = target.getAttribute('data-categoria-id');
+            if (categoriaId) editarCategoria(categoriaId);
         }
-        
+
         if (target.classList.contains('btn-remover-categoria')) {
-            const categoria = target.getAttribute('data-categoria');
-            if (categoria) removerCategoria(categoria);
+            const categoriaId = target.getAttribute('data-categoria-id');
+            if (categoriaId) removerCategoria(categoriaId);
         }
         
         if (target.classList.contains('btn-editar-usuario')) {

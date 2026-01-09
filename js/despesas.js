@@ -279,11 +279,16 @@ function preencherCelulaCheckbox(clone, despesa, index, fechado) {
 
 function preencherCelulaNumero(clone, despesa) {
     const celulaNumero = clone.querySelector('.col-numero');
-    if (celulaNumero && despesa.numero) {
-        celulaNumero.textContent = `#${despesa.numero.toString().padStart(3, '0')}`;
-        celulaNumero.style.fontWeight = 'bold';
-        celulaNumero.style.color = '#6366f1';
-        celulaNumero.style.fontSize = '0.9em';
+    if (celulaNumero) {
+        // ✅ CORRIGIDO: Exibir o ID (não o número)
+        if (despesa.id) {
+            celulaNumero.textContent = despesa.id;
+            celulaNumero.style.fontWeight = 'bold';
+            celulaNumero.style.color = '#6366f1';
+            celulaNumero.style.fontSize = '0.9em';
+        } else {
+            celulaNumero.textContent = '-';
+        }
     }
 }
 
