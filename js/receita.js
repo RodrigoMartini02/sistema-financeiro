@@ -1206,7 +1206,7 @@ function renderizarUltimasReservas(mes, ano) {
 }
 
 /**
- * Abre o modal para reservar valor
+ * Abre o modal para gerenciar reservas
  */
 function abrirModalReservarValor() {
     const mes = window.mesAberto;
@@ -1237,21 +1237,51 @@ function abrirModalReservarValor() {
 
     const disponivelParaReservar = Math.max(0, saldoLivre - totalAcumulado);
 
-    // Atualizar modal
-    const modalDisponivel = document.getElementById('modal-disponivel-info');
-    if (modalDisponivel) {
-        modalDisponivel.textContent = window.formatarMoeda(disponivelParaReservar);
+    // Atualizar aba ADICIONAR
+    const modalDisponivelAdicionar = document.getElementById('modal-disponivel-adicionar');
+    if (modalDisponivelAdicionar) {
+        modalDisponivelAdicionar.textContent = window.formatarMoeda(disponivelParaReservar);
     }
 
-    const inputValor = document.getElementById('input-valor-reserva');
-    if (inputValor) {
-        inputValor.max = disponivelParaReservar.toFixed(2);
-        inputValor.value = '';
+    const inputValorAdicionar = document.getElementById('input-valor-adicionar');
+    if (inputValorAdicionar) {
+        inputValorAdicionar.max = disponivelParaReservar.toFixed(2);
+        inputValorAdicionar.value = '';
     }
 
-    const inputDescricao = document.getElementById('input-descricao-reserva');
-    if (inputDescricao) {
-        inputDescricao.value = '';
+    const inputDescricaoAdicionar = document.getElementById('input-descricao-adicionar');
+    if (inputDescricaoAdicionar) {
+        inputDescricaoAdicionar.value = '';
+    }
+
+    // Atualizar aba RETIRAR
+    const modalReservadoRetirar = document.getElementById('modal-reservado-retirar');
+    if (modalReservadoRetirar) {
+        modalReservadoRetirar.textContent = window.formatarMoeda(totalAcumulado);
+    }
+
+    const inputValorRetirar = document.getElementById('input-valor-retirar');
+    if (inputValorRetirar) {
+        inputValorRetirar.max = totalAcumulado.toFixed(2);
+        inputValorRetirar.value = '';
+    }
+
+    const inputDescricaoRetirar = document.getElementById('input-descricao-retirar');
+    if (inputDescricaoRetirar) {
+        inputDescricaoRetirar.value = '';
+    }
+
+    // Resetar para a aba "Adicionar"
+    const tabAdicionar = document.querySelector('.tab-reserva[data-tab="adicionar"]');
+    const tabRetirar = document.querySelector('.tab-reserva[data-tab="retirar"]');
+    const formAdicionar = document.getElementById('form-adicionar-reserva');
+    const formRetirar = document.getElementById('form-retirar-reserva');
+
+    if (tabAdicionar && tabRetirar && formAdicionar && formRetirar) {
+        tabAdicionar.classList.add('active');
+        tabRetirar.classList.remove('active');
+        formAdicionar.classList.add('active');
+        formRetirar.classList.remove('active');
     }
 
     // Abrir modal
@@ -1262,18 +1292,22 @@ function abrirModalReservarValor() {
 }
 
 /**
- * Processa o formulário de reservar valor
+ * Processa o formulário de adicionar reserva
  */
-async function processarReservarValor(e) {
+async function processarAdicionarReserva(e) {
     e.preventDefault();
 
     const mes = window.mesAberto;
     const ano = window.anoAberto;
-    const valor = parseFloat(document.getElementById('input-valor-reserva').value);
-    const descricao = document.getElementById('input-descricao-reserva').value.trim() || 'Reserva';
+    const valor = parseFloat(document.getElementById('input-valor-adicionar').value);
+    const descricao = document.getElementById('input-descricao-adicionar').value.trim() || 'Reserva';
 
     if (isNaN(valor) || valor <= 0) {
-        alert('Informe um valor válido');
+        if (window.mostrarMensagemErro) {
+            window.mostrarMensagemErro('Informe um valor válido');
+        } else {
+            alert('Informe um valor válido');
+        }
         return;
     }
 
@@ -1284,7 +1318,8 @@ async function processarReservarValor(e) {
         id: window.gerarId(),
         valor: valor,
         descricao: descricao,
-        data: new Date().toISOString().split('T')[0]
+        data: new Date().toISOString().split('T')[0],
+        tipo: 'adicionar'
     };
 
     if (!dadosMes.reservas) dadosMes.reservas = [];
@@ -1307,7 +1342,84 @@ async function processarReservarValor(e) {
     }
 
     if (window.mostrarMensagemSucesso) {
-        window.mostrarMensagemSucesso('Reserva criada com sucesso!');
+        window.mostrarMensagemSucesso('Reserva adicionada com sucesso!');
+    }
+}
+
+/**
+ * Processa o formulário de retirar reserva
+ */
+async function processarRetirarReserva(e) {
+    e.preventDefault();
+
+    const mes = window.mesAberto;
+    const ano = window.anoAberto;
+    const valor = parseFloat(document.getElementById('input-valor-retirar').value);
+    const descricao = document.getElementById('input-descricao-retirar').value.trim() || 'Retirada';
+
+    if (isNaN(valor) || valor <= 0) {
+        if (window.mostrarMensagemErro) {
+            window.mostrarMensagemErro('Informe um valor válido');
+        } else {
+            alert('Informe um valor válido');
+        }
+        return;
+    }
+
+    // Calcular total reservado
+    let totalReservado = 0;
+    for (const anoKey in window.dadosFinanceiros) {
+        if (anoKey === 'versao') continue;
+        const dadosAno = window.dadosFinanceiros[anoKey];
+        if (!dadosAno.meses) continue;
+
+        for (let m = 0; m < 12; m++) {
+            const reservas = dadosAno.meses[m]?.reservas || [];
+            totalReservado += reservas.reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+        }
+    }
+
+    if (valor > totalReservado) {
+        if (window.mostrarMensagemErro) {
+            window.mostrarMensagemErro(`Valor superior ao reservado (${window.formatarMoeda(totalReservado)})`);
+        } else {
+            alert(`Valor superior ao reservado (${window.formatarMoeda(totalReservado)})`);
+        }
+        return;
+    }
+
+    window.garantirEstruturaDados(ano, mes);
+    const dadosMes = window.dadosFinanceiros[ano].meses[mes];
+
+    const novaRetirada = {
+        id: window.gerarId(),
+        valor: -valor, // Valor negativo para representar retirada
+        descricao: descricao,
+        data: new Date().toISOString().split('T')[0],
+        tipo: 'retirar'
+    };
+
+    if (!dadosMes.reservas) dadosMes.reservas = [];
+    dadosMes.reservas.push(novaRetirada);
+
+    await window.salvarDados();
+
+    // Fechar modal
+    document.getElementById('modal-reservar-valor').style.display = 'none';
+
+    // Atualizar interface
+    atualizarCardReservasIntegrado();
+
+    if (typeof window.renderizarDetalhesDoMes === 'function') {
+        window.renderizarDetalhesDoMes(mes, ano);
+    }
+
+    if (typeof window.carregarDadosDashboard === 'function') {
+        await window.carregarDadosDashboard(ano);
+    }
+
+    if (window.mostrarMensagemSucesso) {
+        window.mostrarMensagemSucesso('Valor retirado com sucesso!');
     }
 }
 
@@ -1347,26 +1459,55 @@ async function removerReservaIntegrada(mes, ano, reservaId) {
  * Inicializa eventos das reservas integradas
  */
 function inicializarEventosReservasIntegradas() {
-    // Botão "Reservar Valor"
+    // Botão "Reservas"
     const btnReservar = document.getElementById('btn-reservar-valor');
     if (btnReservar) {
         btnReservar.addEventListener('click', abrirModalReservarValor);
     }
 
-    // Formulário de reservar
-    const formReservar = document.getElementById('form-reservar-valor');
-    if (formReservar) {
-        formReservar.addEventListener('submit', processarReservarValor);
+    // Abas do modal
+    const tabsReservas = document.querySelectorAll('.tab-reserva');
+    tabsReservas.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const targetTab = tab.getAttribute('data-tab');
+
+            // Atualizar abas ativas
+            tabsReservas.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+
+            // Mostrar formulário correspondente
+            const formAdicionar = document.getElementById('form-adicionar-reserva');
+            const formRetirar = document.getElementById('form-retirar-reserva');
+
+            if (targetTab === 'adicionar') {
+                formAdicionar.classList.add('active');
+                formRetirar.classList.remove('active');
+            } else if (targetTab === 'retirar') {
+                formRetirar.classList.add('active');
+                formAdicionar.classList.remove('active');
+            }
+        });
+    });
+
+    // Formulário de adicionar reserva
+    const formAdicionar = document.getElementById('form-adicionar-reserva');
+    if (formAdicionar) {
+        formAdicionar.addEventListener('submit', processarAdicionarReserva);
     }
 
-    // Botão cancelar do modal
-    const btnCancelar = document.querySelector('#modal-reservar-valor .btn-cancelar-modal');
-    if (btnCancelar) {
-        btnCancelar.addEventListener('click', () => {
+    // Formulário de retirar reserva
+    const formRetirar = document.getElementById('form-retirar-reserva');
+    if (formRetirar) {
+        formRetirar.addEventListener('submit', processarRetirarReserva);
+    }
+
+    // Botões cancelar do modal
+    const btnsCancelar = document.querySelectorAll('#modal-reservar-valor .btn-cancelar-modal');
+    btnsCancelar.forEach(btn => {
+        btn.addEventListener('click', () => {
             document.getElementById('modal-reservar-valor').style.display = 'none';
         });
-    }
-
+    });
 }
 
 // Aguardar DOM e inicializar

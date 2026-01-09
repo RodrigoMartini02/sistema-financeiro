@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="css/notificacao.css">
     <link rel="stylesheet" href="css/rel.css">
     <link rel="stylesheet" href="css/config.css">
+    <link rel="stylesheet" href="css/reservas-tabs.css">
 </head>
 <body>
 
@@ -1822,7 +1823,7 @@
                             <span id="reservas-reservado-mini" class="reservas-valor">R$ 0,00</span>
                         </div>
                         <button id="btn-reservar-valor" class="btn-reservar-inline">
-                            <i class="fas fa-plus"></i> Reservar
+                            <i class="fas fa-piggy-bank"></i> Reservas
                         </button>
                     </div>
                 </div>
@@ -2136,20 +2137,31 @@
     </div>
 </div>
 
-<!-- Modal Reservar Valor -->
+<!-- Modal Reservas -->
 <div id="modal-reservar-valor" class="modal">
     <div class="modal-content modal-reservar-compact">
         <div class="modal-header">
-            <h2><i class="fas fa-piggy-bank"></i> Reservar Valor</h2>
+            <h2><i class="fas fa-piggy-bank"></i> Gerenciar Reservas</h2>
             <span class="close">&times;</span>
         </div>
         <div class="modal-body">
-            <form id="form-reservar-valor">
+            <!-- Abas de Ação -->
+            <div class="tabs-reservas">
+                <button class="tab-reserva active" data-tab="adicionar">
+                    <i class="fas fa-plus-circle"></i> Adicionar
+                </button>
+                <button class="tab-reserva" data-tab="retirar">
+                    <i class="fas fa-minus-circle"></i> Retirar
+                </button>
+            </div>
+
+            <!-- Formulário Adicionar Reserva -->
+            <form id="form-adicionar-reserva" class="form-tab active">
                 <div class="form-group">
-                    <label for="input-valor-reserva">Valor a Reservar</label>
+                    <label for="input-valor-adicionar">Valor a Reservar</label>
                     <input
                         type="number"
-                        id="input-valor-reserva"
+                        id="input-valor-adicionar"
                         class="form-control"
                         placeholder="0,00"
                         step="0.01"
@@ -2158,15 +2170,15 @@
                     >
                     <small class="form-hint">
                         <i class="fas fa-info-circle"></i>
-                        Disponível: <span id="modal-disponivel-info">R$ 0,00</span>
+                        Disponível: <span id="modal-disponivel-adicionar">R$ 0,00</span>
                     </small>
                 </div>
 
                 <div class="form-group">
-                    <label for="input-descricao-reserva">Descrição (opcional)</label>
+                    <label for="input-descricao-adicionar">Descrição (opcional)</label>
                     <input
                         type="text"
-                        id="input-descricao-reserva"
+                        id="input-descricao-adicionar"
                         class="form-control"
                         placeholder="Ex: Viagem, Emergência..."
                         maxlength="50"
@@ -2177,6 +2189,44 @@
                     <button type="button" class="btn-cancelar-modal">Cancelar</button>
                     <button type="submit" class="btn-confirmar-modal">
                         <i class="fas fa-check"></i> Confirmar Reserva
+                    </button>
+                </div>
+            </form>
+
+            <!-- Formulário Retirar Reserva -->
+            <form id="form-retirar-reserva" class="form-tab">
+                <div class="form-group">
+                    <label for="input-valor-retirar">Valor a Retirar</label>
+                    <input
+                        type="number"
+                        id="input-valor-retirar"
+                        class="form-control"
+                        placeholder="0,00"
+                        step="0.01"
+                        min="0.01"
+                        required
+                    >
+                    <small class="form-hint">
+                        <i class="fas fa-info-circle"></i>
+                        Reservado: <span id="modal-reservado-retirar">R$ 0,00</span>
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label for="input-descricao-retirar">Motivo (opcional)</label>
+                    <input
+                        type="text"
+                        id="input-descricao-retirar"
+                        class="form-control"
+                        placeholder="Ex: Emergência médica..."
+                        maxlength="50"
+                    >
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancelar-modal">Cancelar</button>
+                    <button type="submit" class="btn-confirmar-modal btn-retirar">
+                        <i class="fas fa-check"></i> Confirmar Retirada
                     </button>
                 </div>
             </form>
