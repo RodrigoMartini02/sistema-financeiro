@@ -2197,42 +2197,88 @@ function obterNomesMeses(mes, proximoMes) {
 }
 
 async function executarMovimentoDespesa(despesa, index, mes, ano, proximoMes, proximoAno, mesAtualNome, proximoMesNome) {
-    garantirEstruturaDados(proximoAno, proximoMes);
-    
-    const despesaMovida = { ...despesa };
-    
-    despesaMovida.movidaEm = new Date().toISOString().split('T')[0];
-    despesaMovida.mesOriginalMovimento = mes;
-    despesaMovida.anoOriginalMovimento = ano;
-    despesaMovida.mesDestinoMovimento = proximoMes;
-    despesaMovida.anoDestinoMovimento = proximoAno;
-    despesaMovida.movidaDeOutroMes = true;
-    
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    const dataVencimento = new Date(despesaMovida.dataVencimento);
-    dataVencimento.setHours(0, 0, 0, 0);
-    
-    if (despesaMovida.quitado) {
-        despesaMovida.status = 'quitada';
-    } else if (dataVencimento < hoje) {
-        despesaMovida.status = 'atrasada';
-    } else {
-        despesaMovida.status = 'em_dia';
+    try {
+        // Validar se despesa tem ID
+        if (!despesa.id) {
+            throw new Error('Despesa sem ID. Por favor, recarregue a página.');
+        }
+
+        // 1. Excluir despesa do mês original via API
+        const responseDelete = await fetch(`${API_URL}/despesas/${despesa.id}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${getToken()}`
+            }
+        });
+
+        if (!responseDelete.ok) {
+            throw new Error(`Erro ao excluir despesa do mês original: ${responseDelete.status}`);
+        }
+
+        // 2. Criar nova despesa no mês destino via API
+        const novaDespesa = {
+            descricao: despesa.descricao,
+            valor: despesa.valor,
+            data_vencimento: despesa.dataVencimento || despesa.data_vencimento,
+            data_compra: despesa.dataCompra || despesa.data_compra,
+            mes: proximoMes,
+            ano: proximoAno,
+            categoria_id: despesa.categoriaId || despesa.categoria_id,
+            cartao_id: despesa.cartaoId || despesa.cartao_id,
+            forma_pagamento: despesa.formaPagamento || despesa.forma_pagamento,
+            parcelado: despesa.parcelado || false,
+            total_parcelas: despesa.totalParcelas || despesa.numero_parcelas,
+            parcela_atual: despesa.parcelaAtual || despesa.parcela_atual,
+            observacoes: despesa.observacoes,
+            pago: false,
+            valor_original: despesa.valorOriginal || despesa.valor_original,
+            valor_total_com_juros: despesa.valorTotalComJuros || despesa.valor_total_com_juros
+        };
+
+        const responseCreate = await fetch(`${API_URL}/despesas`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getToken()}`
+            },
+            body: JSON.stringify(novaDespesa)
+        });
+
+        if (!responseCreate.ok) {
+            throw new Error(`Erro ao criar despesa no mês destino: ${responseCreate.status}`);
+        }
+
+        // 3. Recarregar dados dos dois meses afetados
+        if (typeof window.buscarDespesasAPI === 'function') {
+            // Recarregar mês original
+            const despesasOriginal = await window.buscarDespesasAPI(mes, ano);
+            if (dadosFinanceiros[ano]?.meses[mes]) {
+                dadosFinanceiros[ano].meses[mes].despesas = despesasOriginal;
+            }
+
+            // Garantir estrutura do mês destino
+            garantirEstruturaDados(proximoAno, proximoMes);
+
+            // Recarregar mês destino
+            const despesasDestino = await window.buscarDespesasAPI(proximoMes, proximoAno);
+            if (dadosFinanceiros[proximoAno]?.meses[proximoMes]) {
+                dadosFinanceiros[proximoAno].meses[proximoMes].despesas = despesasDestino;
+            }
+        }
+
+        // 4. Atualizar interface
+        renderizarDetalhesDoMes(mes, ano);
+
+        if (typeof carregarDadosDashboard === 'function') {
+            await carregarDadosDashboard(anoAtual);
+        }
+
+        alert(`Despesa movida com sucesso para ${proximoMesNome} de ${proximoAno}!`);
+
+    } catch (error) {
+        console.error('Erro ao mover despesa:', error);
+        throw error;
     }
-    
-    dadosFinanceiros[proximoAno].meses[proximoMes].despesas.push(despesaMovida);
-    dadosFinanceiros[ano].meses[mes].despesas.splice(index, 1);
-    
-    await salvarDados();
-    
-    renderizarDetalhesDoMes(mes, ano);
-    
-    if (typeof carregarDadosDashboard === 'function') {
-        await carregarDadosDashboard(anoAtual);
-    }
-    
-    alert(`Despesa movida com sucesso para ${proximoMesNome} de ${proximoAno}!`);
 }
 
 // ================================================================
