@@ -2276,10 +2276,14 @@ async function importarDados() {
                         cartao_id: cartaoId,
                         forma_pagamento: despesa.forma_pagamento || despesa.formaPagamento || 'dinheiro',
                         parcelado: despesa.parcelado || false,
-                        total_parcelas: despesa.total_parcelas || despesa.numeroParcelas || null,
+                        total_parcelas: despesa.numero_parcelas || despesa.total_parcelas || despesa.numeroParcelas || null, // ✅ CORRIGIDO: aceita numero_parcelas
                         parcela_atual: despesa.parcela_atual || despesa.parcelaAtual || null,
                         observacoes: despesa.observacoes || '',
-                        pago: statusPago  // ✅ Usa lógica que respeita mes_fechado
+                        pago: statusPago, // ✅ Usa lógica que respeita mes_fechado
+                        // ✅ NOVO: Campos de juros e economias
+                        valor_original: despesa.valor_original ? parseFloat(despesa.valor_original) : null,
+                        valor_total_com_juros: despesa.valor_total_com_juros ? parseFloat(despesa.valor_total_com_juros) : null,
+                        valor_pago: despesa.valor_pago ? parseFloat(despesa.valor_pago) : null
                     };
 
                     const response = await fetch(`${API_URL}/despesas`, {

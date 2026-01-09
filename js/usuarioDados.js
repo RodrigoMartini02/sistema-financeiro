@@ -693,7 +693,7 @@ class UsuarioDataManager {
                 cartao_id: cartaoId,
                 forma_pagamento: despesa.formaPagamento || despesa.forma_pagamento || 'dinheiro',
                 parcelado: despesa.parcelado || false,
-                total_parcelas: despesa.totalParcelas || despesa.total_parcelas || null,
+                total_parcelas: despesa.totalParcelas || despesa.total_parcelas || despesa.numero_parcelas || null, // ✅ CORRIGIDO: aceita numero_parcelas também
                 parcela_atual: despesa.parcelaAtual || despesa.parcela_atual || null,
                 pago: despesa.pago || despesa.quitado || false,
                 observacoes: despesa.observacoes || '',
