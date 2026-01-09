@@ -142,6 +142,8 @@ function exportarVariaveisGlobais() {
     window.renderizarDetalhesDoMes = renderizarDetalhesDoMes;
     window.carregarDadosDashboard = carregarDadosDashboard;
     window.atualizarResumoAnual = atualizarResumoAnual;
+    window.atualizarLimitesCartoes = atualizarLimitesCartoes;
+    window.calcularLimiteCartao = calcularLimiteCartao;
     
     // Funções de fechamento de mês
     window.fecharMes = fecharMes;
@@ -1836,6 +1838,124 @@ function atualizarElementosDashboard(dados) {
 
 async function atualizarResumoAnual(ano) {
     await carregarDadosDashboard(ano);
+    atualizarLimitesCartoes(mesAberto, anoAberto);
+}
+
+/**
+ * Atualiza os limites dos cartões na tela de resumo
+ */
+function atualizarLimitesCartoes(mes, ano) {
+    const container = document.getElementById('lista-barras-cartoes');
+    if (!container) return;
+
+    // Limpar container
+    container.innerHTML = '';
+
+    // Buscar cartões do usuário
+    const cartoes = window.cartoesUsuario || [];
+
+    if (!Array.isArray(cartoes) || cartoes.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Nenhum cartão cadastrado</p>';
+        return;
+    }
+
+    // Filtrar apenas cartões ativos
+    const cartoesAtivos = cartoes.filter(c => c.ativo);
+
+    if (cartoesAtivos.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Nenhum cartão ativo</p>';
+        return;
+    }
+
+    // Renderizar cada cartão ativo
+    cartoesAtivos.forEach(cartao => {
+        const limiteInfo = calcularLimiteCartao(cartao.id, mes, ano);
+
+        const cartaoDiv = document.createElement('div');
+        cartaoDiv.className = 'cartao-limite-item';
+        cartaoDiv.setAttribute('data-cartao-id', cartao.id);
+
+        const percentualUsado = limiteInfo.percentualUsado;
+        let statusClass = 'status-ok';
+        if (percentualUsado >= 90) statusClass = 'status-critico';
+        else if (percentualUsado >= 70) statusClass = 'status-alerta';
+
+        cartaoDiv.innerHTML = `
+            <div class="cartao-info-header">
+                <span class="cartao-nome">${cartao.banco.toUpperCase()}</span>
+                <div class="cartao-valores">
+                    <span class="valor-usado">${formatarMoeda(limiteInfo.limiteUtilizado)}</span>
+                    <span class="separador">/</span>
+                    <span class="valor-limite">${formatarMoeda(limiteInfo.limiteTotal)}</span>
+                </div>
+            </div>
+
+            <div class="cartao-barra-progresso">
+                <div class="barra-fundo">
+                    <div class="barra-preenchida ${statusClass}" style="width: ${percentualUsado}%"></div>
+                </div>
+                <div class="cartao-percentual">
+                    <span class="percentual-texto">${percentualUsado.toFixed(1)}% usado</span>
+                    <span class="disponivel-texto">Disponível: ${formatarMoeda(limiteInfo.limiteDisponivel)}</span>
+                </div>
+            </div>
+
+            <div class="cartao-status">
+                <span class="status-ativo">ATIVO</span>
+            </div>
+        `;
+
+        container.appendChild(cartaoDiv);
+    });
+}
+
+/**
+ * Calcula limite disponível de um cartão específico
+ */
+function calcularLimiteCartao(cartaoId, mes, ano) {
+    const cartao = (window.cartoesUsuario || []).find(c => c.id === cartaoId);
+
+    if (!cartao) {
+        return {
+            limiteTotal: 0,
+            limiteUtilizado: 0,
+            limiteDisponivel: 0,
+            percentualUsado: 0
+        };
+    }
+
+    const limiteTotal = parseFloat(cartao.limite) || 0;
+    let limiteUtilizado = 0;
+
+    // Calcular uso em todos os meses (considerar parcelamentos futuros)
+    for (let anoAtual = ano; anoAtual <= ano + 3; anoAtual++) {
+        if (!dadosFinanceiros[anoAtual]) continue;
+
+        for (let mesAtual = 0; mesAtual < 12; mesAtual++) {
+            const despesas = dadosFinanceiros[anoAtual].meses[mesAtual]?.despesas || [];
+
+            despesas.forEach(despesa => {
+                // Verificar se é despesa do cartão específico
+                if (despesa.forma_pagamento === 'credito' &&
+                    (despesa.cartao_id === cartaoId || despesa.cartaoId === cartaoId) &&
+                    !despesa.quitado &&
+                    !despesa.pago) {
+
+                    limiteUtilizado += parseFloat(despesa.valor) || 0;
+                }
+            });
+        }
+    }
+
+    const limiteDisponivel = Math.max(0, limiteTotal - limiteUtilizado);
+    const percentualUsado = limiteTotal > 0 ? (limiteUtilizado / limiteTotal) * 100 : 0;
+
+    return {
+        limiteTotal,
+        limiteUtilizado,
+        limiteDisponivel,
+        percentualUsado
+    };
 }
 
 // ================================================================

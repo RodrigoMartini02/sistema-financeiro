@@ -19,7 +19,6 @@
     <link rel="stylesheet" href="css/notificacao.css">
     <link rel="stylesheet" href="css/rel.css">
     <link rel="stylesheet" href="css/config.css">
-    <link rel="stylesheet" href="css/reservas-tabs.css">
 </head>
 <body>
 
@@ -1699,108 +1698,64 @@
             <!-- ABA RESUMO -->
             <div id="tab-resumo" class="tab-content active">
                 <div class="resumo-cards">
-                    <div class="card">
-                        <h3>Total Receitas</h3>
-                        <p id="resumo-receitas">R$ 0,00</p>
+                    <div class="card card-receitas">
+                        <div class="card-icon">
+                            <i class="fas fa-arrow-up"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>RECEITAS TOTAIS</h3>
+                            <p id="resumo-receitas" class="card-valor">R$ 7.254,19</p>
+                            <span class="card-subtitle">Todas as receitas do ano</span>
+                        </div>
                     </div>
-                    <div class="card">
-                        <h3>Total Despesas</h3>
-                        <p id="resumo-despesas">R$ 0,00</p>
+                    <div class="card card-despesas">
+                        <div class="card-icon">
+                            <i class="fas fa-arrow-down"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>DESPESAS TOTAIS</h3>
+                            <p id="resumo-despesas" class="card-valor">R$ 0,00</p>
+                            <span class="card-subtitle">Todas as despesas do ano</span>
+                        </div>
                     </div>
-                    <div class="card">
-                        <h3>Juros Pagos</h3>
-                        <p id="resumo-juros">R$ 0,00</p>
+                    <div class="card card-saldo">
+                        <div class="card-icon">
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>SALDO ANUAL</h3>
+                            <p id="resumo-saldo" class="card-valor">R$ 0,00</p>
+                            <span class="card-subtitle">Balanço receitas - despesas</span>
+                        </div>
                     </div>
-                    <div class="card">
-                        <h3>Saldo</h3>
-                        <p id="resumo-saldo">R$ 0,00</p>
+                    <div class="card card-juros">
+                        <div class="card-icon">
+                            <i class="fas fa-percentage"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>JUROS PAGOS</h3>
+                            <p id="resumo-juros" class="card-valor">R$ 0,01</p>
+                            <span class="card-subtitle">Total de juros pagos no ano</span>
+                        </div>
+                    </div>
+                    <div class="card card-economias">
+                        <div class="card-icon">
+                            <i class="fas fa-piggy-bank"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>ECONOMIAS</h3>
+                            <p id="resumo-economias" class="card-valor">R$ 0,00</p>
+                            <span class="card-subtitle">Valor economizado no ano</span>
+                        </div>
                     </div>
                 </div>
                 
                 <!-- Barras de Limite dos Cartões -->
                 <div id="limites-cartoes-container" class="limites-cartoes-container">
                     <h3><i class="fas fa-credit-card"></i> Limites dos Cartões</h3>
-                    
+
                     <div id="lista-barras-cartoes" class="lista-barras-cartoes">
-                        
-                        <!-- Cartão 1 -->
-                        <div class="cartao-limite-item" data-cartao="1" id="cartao1-barra">
-                            <div class="cartao-info-header">
-                                <span class="cartao-nome" id="cartao1-nome-display">Cartão 1</span>
-                                <div class="cartao-valores">
-                                    <span class="valor-usado" id="cartao1-valor-usado">R$ 0,00</span>
-                                    <span class="separador">/</span>
-                                    <span class="valor-limite" id="cartao1-valor-limite">R$ 0,00</span>
-                                </div>
-                            </div>
-                            
-                            <div class="cartao-barra-progresso">
-                                <div class="barra-fundo">
-                                    <div class="barra-preenchida" id="cartao1-barra-preenchida" style="width: 0%"></div>
-                                </div>
-                                <div class="cartao-percentual">
-                                    <span class="percentual-texto" id="cartao1-percentual">0% usado</span>
-                                    <span class="disponivel-texto" id="cartao1-disponivel">Disponível: R$ 0,00</span>
-                                </div>
-                            </div>
-                            
-                            <div class="cartao-status">
-                                <span class="status-ativo" id="cartao1-status">Inativo</span>
-                            </div>
-                        </div>
-
-                        <!-- Cartão 2 -->
-                        <div class="cartao-limite-item" data-cartao="2" id="cartao2-barra">
-                            <div class="cartao-info-header">
-                                <span class="cartao-nome" id="cartao2-nome-display">Cartão 2</span>
-                                <div class="cartao-valores">
-                                    <span class="valor-usado" id="cartao2-valor-usado">R$ 0,00</span>
-                                    <span class="separador">/</span>
-                                    <span class="valor-limite" id="cartao2-valor-limite">R$ 0,00</span>
-                                </div>
-                            </div>
-                            
-                            <div class="cartao-barra-progresso">
-                                <div class="barra-fundo">
-                                    <div class="barra-preenchida" id="cartao2-barra-preenchida" style="width: 0%"></div>
-                                </div>
-                                <div class="cartao-percentual">
-                                    <span class="percentual-texto" id="cartao2-percentual">0% usado</span>
-                                    <span class="disponivel-texto" id="cartao2-disponivel">Disponível: R$ 0,00</span>
-                                </div>
-                            </div>
-                            
-                            <div class="cartao-status">
-                                <span class="status-ativo" id="cartao2-status">Inativo</span>
-                            </div>
-                        </div>
-
-                        <!-- Cartão 3 -->
-                        <div class="cartao-limite-item" data-cartao="3" id="cartao3-barra">
-                            <div class="cartao-info-header">
-                                <span class="cartao-nome" id="cartao3-nome-display">Cartão 3</span>
-                                <div class="cartao-valores">
-                                    <span class="valor-usado" id="cartao3-valor-usado">R$ 0,00</span>
-                                    <span class="separador">/</span>
-                                    <span class="valor-limite" id="cartao3-valor-limite">R$ 0,00</span>
-                                </div>
-                            </div>
-                            
-                            <div class="cartao-barra-progresso">
-                                <div class="barra-fundo">
-                                    <div class="barra-preenchida" id="cartao3-barra-preenchida" style="width: 0%"></div>
-                                </div>
-                                <div class="cartao-percentual">
-                                    <span class="percentual-texto" id="cartao3-percentual">0% usado</span>
-                                    <span class="disponivel-texto" id="cartao3-disponivel">Disponível: R$ 0,00</span>
-                                </div>
-                            </div>
-                            
-                            <div class="cartao-status">
-                                <span class="status-ativo" id="cartao3-status">Inativo</span>
-                            </div>
-                        </div>
-                        
+                        <!-- Cartões serão inseridos dinamicamente aqui -->
                     </div>
                 </div>
             </div>

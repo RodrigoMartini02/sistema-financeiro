@@ -3159,3 +3159,208 @@ table tr:hover {
         display: none;
     }
 }
+
+/* ================================================================
+   CARDS DE RESUMO ESTILIZADOS
+   ================================================================ */
+
+.resumo-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.resumo-cards .card {
+    background: white;
+    border-radius: 8px;
+    padding: 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+    border-left: 4px solid transparent;
+}
+
+.resumo-cards .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Ícone lateral */
+.resumo-cards .card .card-icon {
+    width: 60px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: white;
+    flex-shrink: 0;
+    padding: 24px 0;
+}
+
+/* Conteúdo do card */
+.resumo-cards .card .card-content {
+    flex: 1;
+    padding: 16px 20px 16px 0;
+}
+
+.resumo-cards .card .card-content h3 {
+    margin: 0 0 8px 0;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: #666;
+}
+
+.resumo-cards .card .card-valor {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.resumo-cards .card .card-subtitle {
+    display: block;
+    font-size: 12px;
+    color: #888;
+    margin-top: 4px;
+}
+
+/* Card Receitas - Verde */
+.resumo-cards .card-receitas {
+    border-left-color: #28a745;
+}
+
+.resumo-cards .card-receitas .card-icon {
+    background: #28a745;
+}
+
+.resumo-cards .card-receitas .card-valor {
+    color: #28a745;
+}
+
+/* Card Despesas - Vermelho */
+.resumo-cards .card-despesas {
+    border-left-color: #dc3545;
+}
+
+.resumo-cards .card-despesas .card-icon {
+    background: #dc3545;
+}
+
+.resumo-cards .card-despesas .card-valor {
+    color: #dc3545;
+}
+
+/* Card Saldo - Azul */
+.resumo-cards .card-saldo {
+    border-left-color: #007bff;
+}
+
+.resumo-cards .card-saldo .card-icon {
+    background: #007bff;
+}
+
+.resumo-cards .card-saldo .card-valor {
+    color: #007bff;
+}
+
+/* Card Juros - Laranja */
+.resumo-cards .card-juros {
+    border-left-color: #fd7e14;
+}
+
+.resumo-cards .card-juros .card-icon {
+    background: #fd7e14;
+}
+
+.resumo-cards .card-juros .card-valor {
+    color: #fd7e14;
+}
+
+/* Card Economias - Teal */
+.resumo-cards .card-economias {
+    border-left-color: #20c997;
+}
+
+.resumo-cards .card-economias .card-icon {
+    background: #20c997;
+}
+
+.resumo-cards .card-economias .card-valor {
+    color: #20c997;
+}
+
+/* Responsividade */
+@media (max-width: 1200px) {
+    .resumo-cards {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .resumo-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .resumo-cards .card .card-valor {
+        font-size: 24px;
+    }
+}
+/* Abas de Reservas */
+.tabs-reservas {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.tab-reserva {
+    flex: 1;
+    padding: 12px 20px;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 500;
+    color: #666;
+    transition: all 0.3s ease;
+}
+
+.tab-reserva:hover {
+    color: #4361ee;
+    background: #f8f9fa;
+}
+
+.tab-reserva.active {
+    color: #4361ee;
+    border-bottom-color: #4361ee;
+    background: #f0f4ff;
+}
+
+.tab-reserva i {
+    margin-right: 8px;
+}
+
+/* Formulários das Abas */
+.form-tab {
+    display: none;
+}
+
+.form-tab.active {
+    display: block;
+}
+
+/* Botão Retirar */
+.btn-retirar {
+    background: #dc3545 !important;
+}
+
+.btn-retirar:hover {
+    background: #c82333 !important;
+}
