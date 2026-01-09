@@ -367,21 +367,30 @@ function atualizarListaCategorias() {
 
         const linha = template.content.cloneNode(true);
 
+        // ✅ ID da categoria
+        const idElement = linha.querySelector('.categoria-id');
+        if (idElement) {
+            idElement.textContent = categoria.id || '-';
+        }
+
         // Nome da categoria
         const numeroFormatado = categoria.numero ? `#${categoria.numero.toString().padStart(3, '0')} - ` : '';
         linha.querySelector('.categoria-nome').textContent = `${numeroFormatado}${categoria.nome}`;
 
         // Data de criação
-        const dataCriacao = categoria.dataCriacao ? new Date(categoria.dataCriacao) : new Date();
+        const dataCriacao = categoria.dataCriacao || categoria.data_criacao ?
+            new Date(categoria.dataCriacao || categoria.data_criacao) : new Date();
         linha.querySelector('.categoria-data-criacao').textContent = dataCriacao.toLocaleDateString('pt-BR');
 
         // Data de edição
-        const dataEdicao = categoria.dataEdicao ? new Date(categoria.dataEdicao) : new Date();
+        const dataEdicao = categoria.dataEdicao || categoria.data_atualizacao ?
+            new Date(categoria.dataEdicao || categoria.data_atualizacao) : new Date();
         linha.querySelector('.categoria-data-edicao').textContent = dataEdicao.toLocaleDateString('pt-BR');
 
-        // Botões de ação
-        linha.querySelector('.btn-editar-categoria').setAttribute('data-categoria', categoria.nome);
-        linha.querySelector('.btn-remover-categoria').setAttribute('data-categoria', categoria.nome);
+        // Botões de ação - usar ID se disponível, senão usar nome
+        const identificador = categoria.id || categoria.nome;
+        linha.querySelector('.btn-editar-categoria').setAttribute('data-categoria', identificador);
+        linha.querySelector('.btn-remover-categoria').setAttribute('data-categoria', identificador);
 
         listaCategorias.appendChild(linha);
     });
