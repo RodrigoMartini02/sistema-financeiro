@@ -191,23 +191,18 @@ async function processarLogin(documento, password, isModal, tentativa = 1) {
         document.querySelector('#login-form button[type="submit"]');
 
     if (errorElement) errorElement.style.display = 'none';
-    setLoadingState(botaoSubmit, true);
+
+    // ✅ Mostrar loading screen com imagens
+    if (typeof window.showLoadingScreen === 'function') {
+        window.showLoadingScreen();
+    }
 
     try {
         const docLimpo = documento.replace(/[^\d]+/g, '');
 
-        // Login via API com timeout de 60s (para servidor no Onrender que pode estar "dormindo")
+        // Login via API com timeout de 60s
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 60000);
-
-        // Mostrar mensagem informativa na primeira tentativa se demorar mais de 5 segundos
-        const loadingTimeoutId = setTimeout(() => {
-            if (tentativa === 1 && errorElement) {
-                errorElement.textContent = 'Servidor inicializando... Por favor, aguarde.';
-                errorElement.style.display = 'block';
-                errorElement.style.color = '#ffa500';
-            }
-        }, 5000);
 
         const response = await fetch(`${API_URL}/auth/login`, {
             method: 'POST',
@@ -222,7 +217,6 @@ async function processarLogin(documento, password, isModal, tentativa = 1) {
         });
 
         clearTimeout(timeoutId);
-        clearTimeout(loadingTimeoutId);
 
         const data = await response.json();
 
@@ -254,15 +248,20 @@ async function processarLogin(documento, password, isModal, tentativa = 1) {
         window.location.href = 'index.html';
 
     } catch (error) {
+        // ✅ Esconder loading screen em caso de erro
+        if (typeof window.hideLoadingScreen === 'function') {
+            window.hideLoadingScreen();
+        }
+
         if (error.name === 'AbortError') {
             // Tentar novamente automaticamente até 2 vezes
             if (tentativa < 2) {
                 mostrarErroLogin(errorElement, `Servidor demorou muito. Tentando novamente (${tentativa + 1}/2)...`);
                 errorElement.style.color = '#ffa500';
-                await new Promise(resolve => setTimeout(resolve, 2000)); // Aguardar 2 segundos
+                await new Promise(resolve => setTimeout(resolve, 2000));
                 return processarLogin(documento, password, isModal, tentativa + 1);
             } else {
-                mostrarErroLogin(errorElement, 'Servidor demorando demais. O servidor pode estar desligado. Tente novamente em alguns minutos.');
+                mostrarErroLogin(errorElement, 'Servidor demorando demais. Tente novamente em alguns minutos.');
             }
         } else {
             mostrarErroLogin(errorElement, error.message || 'Erro no sistema. Tente novamente.');
@@ -276,11 +275,6 @@ async function processarLogin(documento, password, isModal, tentativa = 1) {
                 document.getElementById('modal-password') :
                 document.getElementById('password');
             if (passwordField) passwordField.value = '';
-        }
-
-    } finally {
-        if (tentativa >= 2 || error?.name !== 'AbortError') {
-            setLoadingState(botaoSubmit, false);
         }
     }
 }

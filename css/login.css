@@ -615,7 +615,7 @@ form .btn-primary:hover {
 
 
 /* ================================================================ */
-/* LOADING SCREEN - ESTILO WARZONE */
+/* LOADING SCREEN - IMAGENS NÍTIDAS COM TELA DE LOGIN EMBAÇADA */
 /* ================================================================ */
 
 .loading-screen {
@@ -633,7 +633,7 @@ form .btn-primary:hover {
     display: block;
 }
 
-/* Background com Slider de Imagens */
+/* Background com Slider de Imagens NÍTIDAS */
 .loading-background-slider {
     position: absolute;
     top: 0;
@@ -652,9 +652,8 @@ form .btn-primary:hover {
     background-position: center;
     background-repeat: no-repeat;
     opacity: 0;
-    transition: opacity 2s ease-in-out;
-    filter: blur(0px);
-    animation: slideZoom 12s ease-in-out infinite;
+    transition: opacity 2.5s ease-in-out;
+    animation: slideZoomSharp 15s ease-in-out infinite;
 }
 
 .loading-slide.active {
@@ -662,191 +661,97 @@ form .btn-primary:hover {
     z-index: 1;
 }
 
-@keyframes slideZoom {
+/* Zoom suave SEM blur - imagens ficam nítidas */
+@keyframes slideZoomSharp {
     0% {
         transform: scale(1);
-        filter: blur(0px);
     }
     50% {
-        transform: scale(1.1);
-        filter: blur(2px);
+        transform: scale(1.08);
     }
     100% {
         transform: scale(1);
-        filter: blur(0px);
     }
 }
 
-/* Overlay escuro e embaçado */
-.loading-overlay {
+/* Pontinhos de loading no canto inferior direito */
+.loading-dots {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(
-        135deg,
-        rgba(15, 23, 42, 0.85) 0%,
-        rgba(30, 41, 59, 0.75) 50%,
-        rgba(15, 23, 42, 0.85) 100%
-    );
-    backdrop-filter: blur(8px);
-    z-index: 2;
-}
-
-/* Conteúdo centralizado */
-.loading-content {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    bottom: 40px;
+    right: 40px;
+    display: flex;
+    gap: 10px;
     z-index: 3;
-    text-align: center;
-    width: 90%;
-    max-width: 600px;
 }
 
-/* Logo e Título */
-.loading-logo {
-    margin-bottom: 60px;
-    animation: fadeInDown 1s ease-out;
-}
-
-.loading-logo i {
-    font-size: 80px;
-    color: #5680e9;
-    margin-bottom: 20px;
-    display: block;
-    animation: pulse 2s ease-in-out infinite;
-}
-
-.loading-logo h1 {
-    font-size: 42px;
-    font-weight: 800;
-    color: #ffffff;
-    margin: 0;
-    text-shadow: 0 4px 20px rgba(86, 128, 233, 0.5);
-    letter-spacing: 2px;
-}
-
-/* Status de carregamento */
-.loading-status {
-    margin-bottom: 80px;
-}
-
-/* Spinner customizado (3 anéis) */
-.loading-spinner {
-    position: relative;
-    width: 120px;
-    height: 120px;
-    margin: 0 auto 30px;
-}
-
-.spinner-ring {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 80%;
-    height: 80%;
-    margin: -40% 0 0 -40%;
-    border: 4px solid transparent;
-    border-top-color: #5680e9;
+.loading-dots .dot {
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
-    animation: spinRing 1.5s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    animation: dotPulse 1.4s ease-in-out infinite;
 }
 
-.spinner-ring:nth-child(1) {
-    width: 100%;
-    height: 100%;
-    margin: -50% 0 0 -50%;
-    border-width: 5px;
-    animation-delay: -0.45s;
+.loading-dots .dot:nth-child(1) {
+    animation-delay: 0s;
 }
 
-.spinner-ring:nth-child(2) {
-    width: 80%;
-    height: 80%;
-    margin: -40% 0 0 -40%;
-    border-width: 4px;
-    animation-delay: -0.3s;
-    border-top-color: #84c1ff;
+.loading-dots .dot:nth-child(2) {
+    animation-delay: 0.2s;
 }
 
-.spinner-ring:nth-child(3) {
-    width: 60%;
-    height: 60%;
-    margin: -30% 0 0 -30%;
-    border-width: 3px;
-    animation-delay: -0.15s;
-    border-top-color: #c3ddfd;
+.loading-dots .dot:nth-child(3) {
+    animation-delay: 0.4s;
 }
 
-@keyframes spinRing {
-    0% {
-        transform: rotate(0deg);
+@keyframes dotPulse {
+    0%, 100% {
+        transform: scale(0.8);
+        opacity: 0.5;
     }
-    100% {
-        transform: rotate(360deg);
+    50% {
+        transform: scale(1.2);
+        opacity: 1;
     }
 }
 
-/* Texto de status */
-.loading-text {
-    font-size: 18px;
-    font-weight: 600;
-    color: #e2e8f0;
-    margin: 0;
-    animation: pulse 2s ease-in-out infinite;
-}
-
-/* Dicas rotativas */
+/* Dicas rotativas no canto inferior esquerdo */
 .loading-tips {
     position: absolute;
-    bottom: 60px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 100%;
+    bottom: 40px;
+    left: 40px;
+    max-width: 450px;
+    z-index: 3;
 }
 
 .tip-text {
-    font-size: 15px;
-    color: #cbd5e0;
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.95);
     font-weight: 500;
     margin: 0;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
     opacity: 0;
-    animation: tipFade 6s ease-in-out infinite;
+    animation: tipFadeIn 8s ease-in-out infinite;
     font-style: italic;
+    line-height: 1.5;
 }
 
-@keyframes tipFade {
+@keyframes tipFadeIn {
     0%, 100% {
         opacity: 0;
-        transform: translateY(10px);
+        transform: translateX(-10px);
     }
     10%, 90% {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateX(0);
     }
 }
 
-@keyframes fadeInDown {
-    from {
-        opacity: 0;
-        transform: translateY(-30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes pulse {
-    0%, 100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.7;
-    }
+/* Quando loading está ativo, embaçar TELA DE LOGIN */
+.loading-screen.active ~ .hero {
+    filter: blur(12px);
+    pointer-events: none;
 }
 
 /* Animação de saída */
@@ -863,25 +768,24 @@ form .btn-primary:hover {
 
 /* Responsividade */
 @media (max-width: 768px) {
-    .loading-logo i {
-        font-size: 60px;
+    .loading-dots {
+        bottom: 30px;
+        right: 30px;
     }
-    
-    .loading-logo h1 {
-        font-size: 32px;
+
+    .loading-dots .dot {
+        width: 10px;
+        height: 10px;
     }
-    
-    .loading-spinner {
-        width: 80px;
-        height: 80px;
+
+    .loading-tips {
+        bottom: 80px;
+        left: 30px;
+        right: 30px;
+        max-width: 100%;
     }
-    
-    .loading-text {
-        font-size: 16px;
-    }
-    
+
     .tip-text {
-        font-size: 13px;
-        padding: 0 20px;
+        font-size: 14px;
     }
 }

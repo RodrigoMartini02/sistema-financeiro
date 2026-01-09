@@ -11,8 +11,8 @@
     <link rel="stylesheet" href="css/login.css">
 </head>
 <body>
-    <!-- Loading Screen - Estilo Warzone -->
-    <div id="loading-screen" class="loading-screen active">
+    <!-- Loading Screen - Aparece após Login -->
+    <div id="loading-screen" class="loading-screen">
         <div class="loading-background-slider">
             <div class="loading-slide active" style="background-image: url('imagens/pexels-goumbik-590041.jpg');"></div>
             <div class="loading-slide" style="background-image: url('imagens/pexels-karola-g-4475523.jpg');"></div>
@@ -20,26 +20,14 @@
             <div class="loading-slide" style="background-image: url('imagens/pexels-pixabay-265087.jpg');"></div>
         </div>
 
-        <div class="loading-overlay"></div>
+        <div class="loading-dots">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+        </div>
 
-        <div class="loading-content">
-            <div class="loading-logo">
-                <i class="fas fa-chart-line"></i>
-                <h1>Sistema Financeiro</h1>
-            </div>
-
-            <div class="loading-status">
-                <div class="loading-spinner">
-                    <div class="spinner-ring"></div>
-                    <div class="spinner-ring"></div>
-                    <div class="spinner-ring"></div>
-                </div>
-                <p class="loading-text">Conectando ao servidor...</p>
-            </div>
-
-            <div class="loading-tips">
-                <p class="tip-text"></p>
-            </div>
+        <div class="loading-tips">
+            <p class="tip-text"></p>
         </div>
     </div>
 
@@ -331,21 +319,21 @@
     <!-- 2. Loading Screen Script -->
     <script>
         // ================================================================
-        // LOADING SCREEN - ESTILO WARZONE
+        // LOADING SCREEN - Aparece após clicar em ENTRAR
         // ================================================================
 
-        (function() {
+        window.showLoadingScreen = function() {
             const loadingScreen = document.getElementById('loading-screen');
             const slides = document.querySelectorAll('.loading-slide');
             const tipText = document.querySelector('.tip-text');
 
             // Dicas financeiras que aparecem durante carregamento
             const tips = [
-                'Dica: Organize suas finanças mensalmente para melhor controle',
-                'Você sabia? Pequenas economias diárias podem gerar grandes resultados',
-                'Lembre-se: Sempre reserve uma parte para emergências',
-                'Planeje seus gastos antes de comprar',
-                'Investir no futuro é investir em você'
+                'Organizando suas finanças...',
+                'Carregando dashboard personalizado...',
+                'Preparando relatórios financeiros...',
+                'Sincronizando dados...',
+                'Quase lá, aguarde mais um instante...'
             ];
 
             let currentSlide = 0;
@@ -365,64 +353,25 @@
                 currentTip = (currentTip + 1) % tips.length;
             }
 
-            // Iniciar animações
-            function startLoading() {
-                rotateTips(); // Mostrar primeira dica
-                slideInterval = setInterval(rotateSlides, 4000); // Troca imagem a cada 4s
-                tipInterval = setInterval(rotateTips, 6000); // Troca dica a cada 6s
-            }
+            // Mostrar loading screen
+            loadingScreen.classList.add('active');
 
-            // Parar animações e esconder loading
-            function hideLoading() {
+            // Iniciar animações
+            rotateTips(); // Mostrar primeira dica
+            slideInterval = setInterval(rotateSlides, 5000); // Troca imagem a cada 5s
+            tipInterval = setInterval(rotateTips, 8000); // Troca dica a cada 8s
+
+            // Função global para esconder loading (chamada pelo login.js após sucesso)
+            window.hideLoadingScreen = function() {
                 clearInterval(slideInterval);
                 clearInterval(tipInterval);
 
                 loadingScreen.classList.add('fade-out');
                 setTimeout(() => {
-                    loadingScreen.classList.remove('active');
-                    loadingScreen.style.display = 'none';
+                    loadingScreen.classList.remove('active', 'fade-out');
                 }, 1000);
-            }
-
-            // Simular carregamento do servidor
-            function checkServerConnection() {
-                const loadingText = document.querySelector('.loading-text');
-                let attempts = 0;
-                const maxAttempts = 3;
-
-                const messages = [
-                    'Conectando ao servidor...',
-                    'Verificando autenticação...',
-                    'Carregando recursos...',
-                    'Preparando interface...'
-                ];
-
-                const checkInterval = setInterval(() => {
-                    if (attempts < messages.length) {
-                        loadingText.textContent = messages[attempts];
-                        attempts++;
-                    } else {
-                        clearInterval(checkInterval);
-                        loadingText.textContent = 'Pronto!';
-                        setTimeout(hideLoading, 800);
-                    }
-                }, 1200);
-            }
-
-            // Iniciar quando página carregar
-            window.addEventListener('DOMContentLoaded', () => {
-                startLoading();
-                checkServerConnection();
-            });
-
-            // Fallback: Esconder após 8 segundos mesmo se algo falhar
-            setTimeout(() => {
-                if (loadingScreen.classList.contains('active')) {
-                    hideLoading();
-                }
-            }, 8000);
-
-        })();
+            };
+        };
     </script>
 
     <!-- 3. Login por último -->
