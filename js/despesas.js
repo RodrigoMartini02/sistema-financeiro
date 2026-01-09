@@ -2501,10 +2501,20 @@ async function processarPagamento(index, mes, ano, valorPago = null, quitarParce
         if (quitarParcelasFuturas && despesa.parcelado && despesa.idGrupoParcelamento) {
             await processarParcelasFuturas(despesa, ano, mes);
         }
-        
-        const sucessoSalvamento = await window.salvarDados();
-        if (!sucessoSalvamento) {
-            throw new Error('Falha ao salvar os dados');
+
+        // ✅ CORRIGIDO: Salvar via API em vez de localStorage
+        if (window.usuarioDataManager && typeof window.usuarioDataManager.salvarDespesa === 'function') {
+            console.log('💾 Salvando pagamento via API:', despesa);
+            const sucesso = await window.usuarioDataManager.salvarDespesa(mes, ano, despesa, despesa.id);
+            if (!sucesso) {
+                throw new Error('Falha ao salvar pagamento na API');
+            }
+        } else {
+            // Fallback para localStorage
+            const sucessoSalvamento = await window.salvarDados();
+            if (!sucessoSalvamento) {
+                throw new Error('Falha ao salvar os dados');
+            }
         }
         
         if (typeof window.carregarDadosDashboard === 'function') {
