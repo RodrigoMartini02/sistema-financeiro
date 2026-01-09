@@ -74,15 +74,15 @@ function renderizarReceitas(receitas, fechado) {
 
 
 function criarLinhaSaldoAnterior(saldoAnterior, fechado) {
-    const template = document.getElementById('template-saldo-anterior-inline') || 
+    const template = document.getElementById('template-saldo-anterior-inline') ||
                     document.getElementById('template-linha-saldo-anterior');
-    
-    if (!template) return document.createElement('tr');
-    
+
+    if (!template) return document.createElement('div');
+
     const clone = template.content.cloneNode(true);
-    const tr = clone.querySelector('tr');
-    
-    if (fechado) tr.classList.add('transacao-fechada');
+    const row = clone.querySelector('.grid-row');
+
+    if (row && fechado) row.classList.add('transacao-fechada');
     
     const tipoSaldo = saldoAnterior >= 0 ? 'positivo' : 'negativo';
     const descricaoSaldo = saldoAnterior >= 0 ?
@@ -107,28 +107,31 @@ function criarLinhaSaldoAnterior(saldoAnterior, fechado) {
 
 function criarLinhaReceita(receita, index, fechado) {
     const template = document.getElementById('template-linha-receita');
-    if (!template) return document.createElement('tr');
+    if (!template) {
+        console.error('❌ Template não encontrado');
+        return document.createElement('div');
+    }
 
     const clone = template.content.cloneNode(true);
-    const tr = clone.querySelector('tr');
+    const row = clone.querySelector('.grid-row'); // ✅ CORRIGIDO: buscar .grid-row ao invés de tr
 
-    // ✅ CORRIGIDO: Verificar se tr existe antes de acessar classList
-    if (!tr) {
-        console.error('❌ Erro: template TR não encontrado');
-        return document.createElement('tr');
+    // ✅ CORRIGIDO: Verificar se row existe antes de acessar classList
+    if (!row) {
+        console.error('❌ Erro: template .grid-row não encontrado');
+        return document.createElement('div');
     }
 
     const eSaldoAnterior = receita.saldoAnterior === true ||
                           receita.descricao.includes('Saldo Anterior');
 
     if (eSaldoAnterior) {
-        tr.classList.add('saldo-anterior-row');
+        row.classList.add('saldo-anterior-row');
         preencherLinhaSaldoAnterior(clone, receita);
     } else {
         preencherLinhaReceitaNormal(clone, receita, index, fechado);
     }
 
-    if (fechado) tr.classList.add('transacao-fechada');
+    if (fechado) row.classList.add('transacao-fechada');
 
     return clone;
 }
