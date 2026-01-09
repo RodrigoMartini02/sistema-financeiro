@@ -354,13 +354,19 @@ function preencherCelulaValor(clone, despesa) {
 function preencherCelulaParcela(clone, despesa) {
     const celulaParcela = clone.querySelector('.col-parcela');
 
-    // ✅ CORRIGIDO: Calcular parcela a partir dos campos do banco
-    if (despesa.parcelado && despesa.parcela_atual && despesa.numero_parcelas) {
-        celulaParcela.textContent = `${despesa.parcela_atual}/${despesa.numero_parcelas}`;
-    } else if (despesa.parcela) {
-        // Fallback para campo parcela antigo (compatibilidade)
+    // ✅ CORRIGIDO: Usar campo parcela pré-construído do main.js
+    if (despesa.parcela) {
         celulaParcela.textContent = despesa.parcela;
-    } else {
+    }
+    // Fallback para camelCase (transformação do main.js)
+    else if (despesa.parcelado && despesa.parcelaAtual && despesa.totalParcelas) {
+        celulaParcela.textContent = `${despesa.parcelaAtual}/${despesa.totalParcelas}`;
+    }
+    // Fallback para snake_case (dados diretos do backend)
+    else if (despesa.parcelado && despesa.parcela_atual && despesa.numero_parcelas) {
+        celulaParcela.textContent = `${despesa.parcela_atual}/${despesa.numero_parcelas}`;
+    }
+    else {
         celulaParcela.textContent = '-';
     }
 }
