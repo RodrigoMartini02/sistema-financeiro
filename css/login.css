@@ -615,7 +615,7 @@ form .btn-primary:hover {
 
 
 /* ================================================================ */
-/* LOADING SCREEN - IMAGENS NÍTIDAS COM TELA DE LOGIN EMBAÇADA */
+/* LOADING SCREEN - CARROSSEL CIRCULAR TIPO PIÃO */
 /* ================================================================ */
 
 .loading-screen {
@@ -627,51 +627,70 @@ form .btn-primary:hover {
     z-index: 10000;
     display: none;
     overflow: hidden;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
 }
 
 .loading-screen.active {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    perspective: 1200px;
 }
 
-/* Background com Slider de Imagens NÍTIDAS */
-.loading-background-slider {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+/* Container do carrossel circular */
+.loading-carousel {
+    position: relative;
+    width: 400px;
+    height: 400px;
+    transform-style: preserve-3d;
+    animation: spinCarousel 8s linear infinite;
 }
 
-.loading-slide {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    opacity: 0;
-    transition: opacity 2.5s ease-in-out;
-    animation: slideZoomSharp 15s ease-in-out infinite;
-}
-
-.loading-slide.active {
-    opacity: 1;
-    z-index: 1;
-}
-
-/* Zoom suave SEM blur - imagens ficam nítidas */
-@keyframes slideZoomSharp {
+/* Animação de rotação do carrossel - permanência mínima 2s */
+@keyframes spinCarousel {
     0% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.08);
+        transform: rotateY(0deg);
     }
     100% {
-        transform: scale(1);
+        transform: rotateY(360deg);
     }
+}
+
+/* Cada imagem no carrossel */
+.carousel-image {
+    position: absolute;
+    width: 280px;
+    height: 180px;
+    top: 50%;
+    left: 50%;
+    transform-origin: center;
+    transition: all 0.6s ease-in-out;
+}
+
+.carousel-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    border: 3px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Posicionamento circular das 4 imagens */
+.carousel-image[data-index="0"] {
+    transform: translate(-50%, -50%) rotateY(0deg) translateZ(300px);
+}
+
+.carousel-image[data-index="1"] {
+    transform: translate(-50%, -50%) rotateY(90deg) translateZ(300px);
+}
+
+.carousel-image[data-index="2"] {
+    transform: translate(-50%, -50%) rotateY(180deg) translateZ(300px);
+}
+
+.carousel-image[data-index="3"] {
+    transform: translate(-50%, -50%) rotateY(270deg) translateZ(300px);
 }
 
 /* Pontinhos de loading no canto inferior direito */
@@ -768,6 +787,23 @@ form .btn-primary:hover {
 
 /* Responsividade */
 @media (max-width: 768px) {
+    .loading-carousel {
+        width: 300px;
+        height: 300px;
+    }
+
+    .carousel-image {
+        width: 200px;
+        height: 130px;
+    }
+
+    .carousel-image[data-index="0"],
+    .carousel-image[data-index="1"],
+    .carousel-image[data-index="2"],
+    .carousel-image[data-index="3"] {
+        transform: translate(-50%, -50%) rotateY(var(--rotation, 0deg)) translateZ(200px);
+    }
+
     .loading-dots {
         bottom: 30px;
         right: 30px;
@@ -787,5 +823,24 @@ form .btn-primary:hover {
 
     .tip-text {
         font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .loading-carousel {
+        width: 250px;
+        height: 250px;
+    }
+
+    .carousel-image {
+        width: 160px;
+        height: 100px;
+    }
+
+    .carousel-image[data-index="0"],
+    .carousel-image[data-index="1"],
+    .carousel-image[data-index="2"],
+    .carousel-image[data-index="3"] {
+        transform: translate(-50%, -50%) rotateY(var(--rotation, 0deg)) translateZ(150px);
     }
 }

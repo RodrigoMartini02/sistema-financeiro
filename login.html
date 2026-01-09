@@ -13,11 +13,20 @@
 <body>
     <!-- Loading Screen - Aparece após Login -->
     <div id="loading-screen" class="loading-screen">
-        <div class="loading-background-slider">
-            <div class="loading-slide active" style="background-image: url('imagens/pexels-goumbik-590041.jpg');"></div>
-            <div class="loading-slide" style="background-image: url('imagens/pexels-karola-g-4475523.jpg');"></div>
-            <div class="loading-slide" style="background-image: url('imagens/pexels-pixabay-164686.jpg');"></div>
-            <div class="loading-slide" style="background-image: url('imagens/pexels-pixabay-265087.jpg');"></div>
+        <!-- Carrossel circular de imagens -->
+        <div class="loading-carousel">
+            <div class="carousel-image" data-index="0">
+                <img src="imagens/pexels-goumbik-590041.jpg" alt="Loading 1">
+            </div>
+            <div class="carousel-image" data-index="1">
+                <img src="imagens/pexels-karola-g-4475523.jpg" alt="Loading 2">
+            </div>
+            <div class="carousel-image" data-index="2">
+                <img src="imagens/pexels-pixabay-164686.jpg" alt="Loading 3">
+            </div>
+            <div class="carousel-image" data-index="3">
+                <img src="imagens/pexels-pixabay-265087.jpg" alt="Loading 4">
+            </div>
         </div>
 
         <div class="loading-dots">
@@ -319,12 +328,11 @@
     <!-- 2. Loading Screen Script -->
     <script>
         // ================================================================
-        // LOADING SCREEN - Aparece após clicar em ENTRAR
+        // LOADING SCREEN - Carrossel 3D tipo pião
         // ================================================================
 
         window.showLoadingScreen = function() {
             const loadingScreen = document.getElementById('loading-screen');
-            const slides = document.querySelectorAll('.loading-slide');
             const tipText = document.querySelector('.tip-text');
 
             // Dicas financeiras que aparecem durante carregamento
@@ -336,18 +344,10 @@
                 'Quase lá, aguarde mais um instante...'
             ];
 
-            let currentSlide = 0;
             let currentTip = 0;
-            let slideInterval, tipInterval;
+            let tipInterval;
 
-            // Rotação de imagens de fundo
-            function rotateSlides() {
-                slides[currentSlide].classList.remove('active');
-                currentSlide = (currentSlide + 1) % slides.length;
-                slides[currentSlide].classList.add('active');
-            }
-
-            // Rotação de dicas
+            // Rotação de dicas a cada 3 segundos
             function rotateTips() {
                 tipText.textContent = tips[currentTip];
                 currentTip = (currentTip + 1) % tips.length;
@@ -356,14 +356,12 @@
             // Mostrar loading screen
             loadingScreen.classList.add('active');
 
-            // Iniciar animações
+            // Iniciar rotação de dicas
             rotateTips(); // Mostrar primeira dica
-            slideInterval = setInterval(rotateSlides, 5000); // Troca imagem a cada 5s
-            tipInterval = setInterval(rotateTips, 8000); // Troca dica a cada 8s
+            tipInterval = setInterval(rotateTips, 3000); // Troca dica a cada 3s
 
             // Função global para esconder loading (chamada pelo login.js após sucesso)
             window.hideLoadingScreen = function() {
-                clearInterval(slideInterval);
                 clearInterval(tipInterval);
 
                 loadingScreen.classList.add('fade-out');
