@@ -475,8 +475,10 @@ function encontrarDespesaPorIndice(index, despesas) {
 }
 
 function criarObjetoDespesa(dados) {
+   // ✅ CORRIGIDO: Não gera mais ID temporário
+   // O ID será atribuído pelo backend após o POST
    return {
-       id: dados.id || gerarId(),
+       id: dados.id || null,  // Apenas usa ID se já existir (edição)
        descricao: dados.descricao || '',
        categoria: dados.categoria || '',
        formaPagamento: dados.formaPagamento || null,
@@ -1020,13 +1022,21 @@ async function salvarDespesaLocal(formData) {
             );
 
             if (sucesso) {
-                // ✅ Atualizar memória local APÓS salvar na API
-                window.garantirEstruturaDados(formData.ano, formData.mes);
+                // ✅ CORRIGIDO: Recarregar dados do backend para obter IDs reais
+                console.log('🔄 Recarregando despesas do backend...');
 
-                if (ehEdicao) {
-                    await atualizarDespesaExistente(formData);
-                } else {
-                    await adicionarNovaDespesa(formData);
+                if (typeof window.buscarDespesasAPI === 'function') {
+                    const despesasAtualizadas = await window.buscarDespesasAPI(formData.mes, formData.ano);
+                    if (despesasAtualizadas) {
+                        window.garantirEstruturaDados(formData.ano, formData.mes);
+                        window.dadosFinanceiros[formData.ano].meses[formData.mes].despesas = despesasAtualizadas;
+                        console.log('✅ Despesas atualizadas com IDs reais do backend');
+                    }
+                }
+
+                // Limpar anexos temporários
+                if (window.sistemaAnexos) {
+                    window.sistemaAnexos.limparAnexosTemporarios('despesa');
                 }
 
                 // Registrar log da ação
@@ -1077,52 +1087,16 @@ async function salvarDespesaLocal(formData) {
 }
 
 async function adicionarNovaDespesa(formData) {
-  garantirEstruturaDados(formData.ano, formData.mes);
-  
-  let valorOriginal = formData.valor;
-  let valorTotalComJuros = formData.valorPago !== null ? formData.valorPago : valorOriginal;
-  let totalJuros = valorTotalComJuros - valorOriginal;
-  let valorPorParcela = formData.parcelado ? arredondarParaDuasCasas(valorTotalComJuros / formData.totalParcelas) : valorTotalComJuros;
-  
-  const idGrupoParcelamento = formData.parcelado ? gerarId() : null;
-  
-  const novaDespesa = criarObjetoDespesa({
-      descricao: formData.descricao,
-      categoria: formData.categoria,
-      formaPagamento: formData.formaPagamento,
-      numeroCartao: formData.numeroCartao,
-      valor: valorPorParcela,
-      valorOriginal: formData.parcelado ? valorOriginal / formData.totalParcelas : valorOriginal,
-      valorTotalComJuros: valorTotalComJuros,
-      valorPago: formData.jaPago ? (formData.valorPago || valorPorParcela) : null,
-      dataCompra: formData.dataCompra,
-      dataVencimento: formData.dataVencimento,
-      dataPagamento: formData.jaPago ? formData.dataCompra : null,
-      parcelado: formData.parcelado,
-      parcela: formData.parcelado ? '1/' + formData.totalParcelas : null,
-      totalParcelas: formData.parcelado ? formData.totalParcelas : null,
-      metadados: formData.parcelado || totalJuros > 0 ? {
-          valorOriginalTotal: valorOriginal,
-          valorTotalComJuros: valorTotalComJuros,
-          totalJuros: totalJuros,
-          jurosPorParcela: formData.parcelado ? totalJuros / formData.totalParcelas : 0,
-          valorPorParcela: valorPorParcela
-      } : null,
-      quitado: formData.jaPago || false,
-      recorrente: formData.recorrente || false,
-      idGrupoParcelamento: idGrupoParcelamento,
-      anexos: formData.anexos || []
-  });
-  
-  dadosFinanceiros[formData.ano].meses[formData.mes].despesas.push(novaDespesa);
-  
-  if (formData.parcelado && formData.totalParcelas > 1) {
-      await criarParcelasFuturas(formData, valorPorParcela, idGrupoParcelamento, valorOriginal, valorTotalComJuros, totalJuros);
-  }
-  
+  // ✅ CORRIGIDO: Não adiciona mais despesas na memória local
+  // O backend cria a despesa e todas as parcelas
+  // Depois recarregamos do backend para obter IDs reais
+
   if (window.sistemaAnexos) {
       window.sistemaAnexos.limparAnexosTemporarios('despesa');
   }
+
+  // Nota: A despesa já foi salva via API em salvarDespesaLocal()
+  // Aqui apenas fazemos limpeza se necessário
 }
 
 async function criarParcelasFuturas(formData, valorPorParcela, idGrupoParcelamento, valorOriginal, valorTotalComJuros, totalJuros) {
@@ -1876,9 +1850,10 @@ async function excluirDespesaLocal(opcao, index, mes, ano, descricaoDespesa, cat
                 throw new Error('Despesa não encontrada');
             }
 
-            // Validar ID antes de excluir
-            if (!despesa.id || despesa.id > 2147483647) {
-                alert('Esta despesa ainda não foi salva no servidor. Por favor, recarregue a página.');
+            // ✅ CORRIGIDO: Validação simplificada - agora sempre temos IDs reais do backend
+            if (!despesa.id) {
+                console.error('❌ Despesa sem ID:', despesa);
+                alert('Erro: Despesa sem identificador. Por favor, recarregue a página.');
                 return false;
             }
 
