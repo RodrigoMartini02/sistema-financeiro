@@ -3128,7 +3128,7 @@ window.cartoesUsuario = cartoesUsuario;
 window.categoriasPadrao = categoriasPadrao;
 
 window.carregarCategoriasLocal = carregarCategoriasLocal;
-window.salvarCategorias = salvarCategorias;
+// window.salvarCategorias = salvarCategorias; // ✅ REMOVIDO: função não existe
 window.atualizarDropdowns = atualizarDropdowns;
 window.atualizarListaCategorias = atualizarListaCategorias;
 
