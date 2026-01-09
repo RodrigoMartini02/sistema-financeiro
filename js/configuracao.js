@@ -1710,6 +1710,258 @@ function garantirUsuarioMaster() {
 // ================================================================
 // BACKUP E RESTAURAÇÃO - EXPORTAR/IMPORTAR/LIMPAR
 // ================================================================
+// ================================================================
+// EXPORTAR DADOS MÊS A MÊS (PRODUÇÃO - PostgreSQL)
+// ================================================================
+async function exportarDadosMesAMes() {
+    try {
+        const usuario = window.usuarioDataManager?.getUsuarioAtual();
+        if (!usuario || !usuario.id) {
+            mostrarFeedback('Usuário não encontrado', 'error');
+            return;
+        }
+
+        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+        const token = sessionStorage.getItem('token');
+
+        if (!token) {
+            mostrarFeedback('Token de autenticação não encontrado', 'error');
+            return;
+        }
+
+        console.log('📤 Iniciando exportação MÊS A MÊS (PostgreSQL)...');
+        mostrarFeedback('Buscando dados do PostgreSQL...', 'info');
+
+        // ✅ BUSCAR TODAS AS RECEITAS
+        const receitasResponse = await fetch(`${API_URL}/receitas`, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        let todasReceitas = [];
+        if (receitasResponse.ok) {
+            const receitasData = await receitasResponse.json();
+            todasReceitas = receitasData.data || [];
+        }
+
+        // ✅ BUSCAR TODAS AS DESPESAS
+        const despesasResponse = await fetch(`${API_URL}/despesas`, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        let todasDespesas = [];
+        if (despesasResponse.ok) {
+            const despesasData = await despesasResponse.json();
+            todasDespesas = despesasData.data || [];
+        }
+
+        // ✅ BUSCAR MESES FECHADOS
+        const mesesResponse = await fetch(`${API_URL}/meses`, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        let mesesFechados = [];
+        if (mesesResponse.ok) {
+            const mesesData = await mesesResponse.json();
+            mesesFechados = (mesesData.data || []).filter(m => m.fechado === true);
+        }
+
+        // ✅ BUSCAR CARTÕES
+        const cartoesResponse = await fetch(`${API_URL}/cartoes`, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        let cartoesUsuario = {};
+        if (cartoesResponse.ok) {
+            const cartoesData = await cartoesResponse.json();
+            const cartoes = cartoesData.data || [];
+
+            // Formatar cartões no formato esperado
+            cartoes.forEach(cartao => {
+                const numeroCartao = cartao.numero_cartao || cartao.id;
+                const key = `cartao${numeroCartao}`;
+                cartoesUsuario[key] = {
+                    numero_cartao: numeroCartao,
+                    nome: cartao.nome,
+                    limite: parseFloat(cartao.limite) || 0,
+                    diaFechamento: parseInt(cartao.dia_fechamento) || 1,
+                    diaVencimento: parseInt(cartao.dia_vencimento) || 10,
+                    cor: cartao.cor || '#3498db',
+                    ativo: cartao.ativo !== false
+                };
+            });
+        }
+
+        // ✅ BUSCAR CATEGORIAS
+        const categoriasResponse = await fetch(`${API_URL}/categorias`, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        let categorias = [];
+        if (categoriasResponse.ok) {
+            const categoriasData = await categoriasResponse.json();
+            categorias = (categoriasData.data || []).map(c => c.nome);
+        }
+
+        // ✅ AGRUPAR DADOS POR ANO/MÊS
+        const dadosPorMes = {};
+
+        // Agrupar receitas
+        todasReceitas.forEach(receita => {
+            const chave = `${receita.ano}-${String(receita.mes).padStart(2, '0')}`;
+
+            if (!dadosPorMes[chave]) {
+                dadosPorMes[chave] = {
+                    ano: parseInt(receita.ano),
+                    mes: parseInt(receita.mes),
+                    receitas: [],
+                    despesas: []
+                };
+            }
+
+            dadosPorMes[chave].receitas.push({
+                ano: parseInt(receita.ano),
+                mes: parseInt(receita.mes),
+                mes_fechado: mesesFechados.some(m => m.ano === receita.ano && m.mes === receita.mes),
+                data_recebimento: receita.data_recebimento,
+                descricao: receita.descricao || '',
+                valor: parseFloat(receita.valor) || 0,
+                observacoes: receita.observacoes || ''
+            });
+        });
+
+        // Agrupar despesas
+        todasDespesas.forEach(despesa => {
+            const chave = `${despesa.ano}-${String(despesa.mes).padStart(2, '0')}`;
+
+            if (!dadosPorMes[chave]) {
+                dadosPorMes[chave] = {
+                    ano: parseInt(despesa.ano),
+                    mes: parseInt(despesa.mes),
+                    receitas: [],
+                    despesas: []
+                };
+            }
+
+            const mesFechado = mesesFechados.some(m => m.ano === despesa.ano && m.mes === despesa.mes);
+
+            dadosPorMes[chave].despesas.push({
+                ano: parseInt(despesa.ano),
+                mes: parseInt(despesa.mes),
+                mes_fechado: mesFechado,
+                descricao: despesa.descricao || '',
+                valor: parseFloat(despesa.valor) || 0,
+                data_vencimento: despesa.data_vencimento,
+                data_compra: despesa.data_compra || null,
+                data_pagamento: despesa.data_pagamento || null,
+                categoria: despesa.categoria_nome || 'Sem categoria',
+                categoria_id_original: despesa.categoria_id || null,
+                cartao_id_original: despesa.cartao_id || null,
+                forma_pagamento: despesa.forma_pagamento || 'dinheiro',
+                parcelado: despesa.parcelado || false,
+                numero_parcelas: despesa.numero_parcelas || null,
+                parcela_atual: despesa.parcela_atual || null,
+                pago: despesa.pago || false,
+                observacoes: despesa.observacoes || '',
+                valor_original: despesa.valor_original ? parseFloat(despesa.valor_original) : null,
+                valor_total_com_juros: despesa.valor_total_com_juros ? parseFloat(despesa.valor_total_com_juros) : null,
+                valor_pago: despesa.valor_pago ? parseFloat(despesa.valor_pago) : null
+            });
+        });
+
+        // ✅ FILTRAR APENAS MESES COM DADOS
+        const mesesComDados = Object.keys(dadosPorMes).filter(chave => {
+            const mes = dadosPorMes[chave];
+            return mes.receitas.length > 0 || mes.despesas.length > 0;
+        }).sort();
+
+        if (mesesComDados.length === 0) {
+            mostrarFeedback('Não há dados para exportar', 'warning');
+            return;
+        }
+
+        console.log(`📊 Encontrados ${mesesComDados.length} meses com dados`);
+
+        // ✅ EXPORTAR CADA MÊS
+        for (const chave of mesesComDados) {
+            const mesData = dadosPorMes[chave];
+
+            // Verificar se este mês está fechado
+            const mesFechadoAtual = mesesFechados.find(m => m.ano === mesData.ano && m.mes === mesData.mes);
+
+            const backup = {
+                versao: '2.0',
+                data_exportacao: new Date().toISOString(),
+                usuario: {
+                    nome: usuario?.nome || 'Produção',
+                    email: usuario?.email || '',
+                    documento: usuario?.documento || ''
+                },
+                estatisticas: {
+                    total_receitas: mesData.receitas.length,
+                    total_despesas: mesData.despesas.length,
+                    total_categorias: categorias.length,
+                    total_cartoes: Object.keys(cartoesUsuario).length,
+                    ano: mesData.ano,
+                    mes: mesData.mes
+                },
+                mesesFechados: mesFechadoAtual ? [{ano: mesFechadoAtual.ano, mes: mesFechadoAtual.mes}] : [],
+                dados: {
+                    receitas: mesData.receitas,
+                    despesas: mesData.despesas,
+                    categorias: categorias,
+                    cartoes: cartoesUsuario
+                }
+            };
+
+            // Criar arquivo JSON
+            const jsonContent = JSON.stringify(backup, null, 2);
+            const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+
+            const [ano, mes] = chave.split('-');
+            const nomeArquivo = `backup_producao_${ano}_mes${String(parseInt(mes) + 1).padStart(2, '0')}.json`;
+
+            link.setAttribute('href', url);
+            link.setAttribute('download', nomeArquivo);
+            link.style.visibility = 'hidden';
+
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            console.log(`✅ Exportado: ${nomeArquivo} (${mesData.receitas.length} receitas, ${mesData.despesas.length} despesas)`);
+
+            // Aguardar entre downloads
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
+        mostrarFeedback(`✅ Exportação concluída! ${mesesComDados.length} arquivos gerados (um por mês)`, 'success');
+
+    } catch (error) {
+        console.error('❌ Erro ao exportar dados mês a mês:', error);
+        mostrarFeedback('Erro ao exportar dados: ' + error.message, 'error');
+    }
+}
+
+// ================================================================
+// EXPORTAR TODOS OS DADOS (PRODUÇÃO - Backup Completo)
+// ================================================================
 async function exportarDados() {
     try {
         const usuario = window.usuarioDataManager?.getUsuarioAtual();
@@ -1727,7 +1979,7 @@ async function exportarDados() {
         }
 
         mostrarFeedback('Buscando dados do PostgreSQL...', 'info');
-        console.log('📦 Iniciando exportação dos dados do PostgreSQL...');
+        console.log('📦 Iniciando exportação COMPLETA dos dados do PostgreSQL...');
 
         // ✅ BUSCAR RECEITAS DIRETAMENTE DA TABELA receitas
         const receitasResponse = await fetch(`${API_URL}/receitas`, {
@@ -2818,11 +3070,17 @@ function setupEventListeners() {
 
     // Botões de backup e restauração
     const btnExportarDados = document.getElementById('btn-exportar-dados');
+    const btnExportarMesAMes = document.getElementById('btn-exportar-mes-a-mes'); // ✅ NOVO
     const btnImportarDados = document.getElementById('btn-importar-dados');
     const btnLimparDados = document.getElementById('btn-limpar-dados');
 
     if (btnExportarDados) {
         btnExportarDados.addEventListener('click', exportarDados);
+    }
+
+    // ✅ NOVO: Event listener para exportar mês a mês
+    if (btnExportarMesAMes) {
+        btnExportarMesAMes.addEventListener('click', exportarDadosMesAMes);
     }
 
     if (btnImportarDados) {
