@@ -1704,8 +1704,8 @@
                         </div>
                         <div class="card-content">
                             <h3>RECEITAS TOTAIS</h3>
-                            <p id="resumo-receitas" class="card-valor">R$ 7.254,19</p>
-                            <span class="card-subtitle">Todas as receitas do ano</span>
+                            <p id="resumo-receitas" class="card-valor">R$ 0,00</p>
+                            <span class="card-subtitle">Total de receitas do mês</span>
                         </div>
                     </div>
                     <div class="card card-despesas">
@@ -1715,7 +1715,7 @@
                         <div class="card-content">
                             <h3>DESPESAS TOTAIS</h3>
                             <p id="resumo-despesas" class="card-valor">R$ 0,00</p>
-                            <span class="card-subtitle">Todas as despesas do ano</span>
+                            <span class="card-subtitle">Total de despesas do mês</span>
                         </div>
                     </div>
                     <div class="card card-saldo">
@@ -1723,7 +1723,7 @@
                             <i class="fas fa-wallet"></i>
                         </div>
                         <div class="card-content">
-                            <h3>SALDO ANUAL</h3>
+                            <h3>SALDO MENSAL</h3>
                             <p id="resumo-saldo" class="card-valor">R$ 0,00</p>
                             <span class="card-subtitle">Balanço receitas - despesas</span>
                         </div>
@@ -1734,8 +1734,8 @@
                         </div>
                         <div class="card-content">
                             <h3>JUROS PAGOS</h3>
-                            <p id="resumo-juros" class="card-valor">R$ 0,01</p>
-                            <span class="card-subtitle">Total de juros pagos no ano</span>
+                            <p id="resumo-juros" class="card-valor">R$ 0,00</p>
+                            <span class="card-subtitle">Total de juros pagos no mês</span>
                         </div>
                     </div>
                     <div class="card card-economias">
@@ -1745,7 +1745,7 @@
                         <div class="card-content">
                             <h3>ECONOMIAS</h3>
                             <p id="resumo-economias" class="card-valor">R$ 0,00</p>
-                            <span class="card-subtitle">Valor economizado no ano</span>
+                            <span class="card-subtitle">Valor economizado no mês</span>
                         </div>
                     </div>
                 </div>
@@ -2100,91 +2100,43 @@
             <span class="close">&times;</span>
         </div>
         <div class="modal-body">
-            <!-- Abas de Ação -->
-            <div class="tabs-reservas">
-                <button class="tab-reserva active" data-tab="adicionar">
+            <div class="form-group">
+                <label for="input-valor-reserva">Valor</label>
+                <input
+                    type="number"
+                    id="input-valor-reserva"
+                    class="form-control"
+                    placeholder="0,00"
+                    step="0.01"
+                    min="0.01"
+                    required
+                >
+                <small class="form-hint">
+                    <i class="fas fa-info-circle"></i>
+                    Disponível: <span id="modal-disponivel-reserva">R$ 0,00</span> |
+                    Reservado: <span id="modal-reservado-reserva">R$ 0,00</span>
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="input-descricao-reserva">Descrição (opcional)</label>
+                <input
+                    type="text"
+                    id="input-descricao-reserva"
+                    class="form-control"
+                    placeholder="Ex: Viagem, Emergência..."
+                    maxlength="50"
+                >
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" id="btn-adicionar-reserva" class="btn-confirmar-modal">
                     <i class="fas fa-plus-circle"></i> Adicionar
                 </button>
-                <button class="tab-reserva" data-tab="retirar">
+                <button type="button" id="btn-retirar-reserva" class="btn-confirmar-modal btn-retirar">
                     <i class="fas fa-minus-circle"></i> Retirar
                 </button>
             </div>
-
-            <!-- Formulário Adicionar Reserva -->
-            <form id="form-adicionar-reserva" class="form-tab active">
-                <div class="form-group">
-                    <label for="input-valor-adicionar">Valor a Reservar</label>
-                    <input
-                        type="number"
-                        id="input-valor-adicionar"
-                        class="form-control"
-                        placeholder="0,00"
-                        step="0.01"
-                        min="0.01"
-                        required
-                    >
-                    <small class="form-hint">
-                        <i class="fas fa-info-circle"></i>
-                        Disponível: <span id="modal-disponivel-adicionar">R$ 0,00</span>
-                    </small>
-                </div>
-
-                <div class="form-group">
-                    <label for="input-descricao-adicionar">Descrição (opcional)</label>
-                    <input
-                        type="text"
-                        id="input-descricao-adicionar"
-                        class="form-control"
-                        placeholder="Ex: Viagem, Emergência..."
-                        maxlength="50"
-                    >
-                </div>
-
-                <div class="modal-footer">
-                    <button type="button" class="btn-cancelar-modal">Cancelar</button>
-                    <button type="submit" class="btn-confirmar-modal">
-                        <i class="fas fa-check"></i> Confirmar Reserva
-                    </button>
-                </div>
-            </form>
-
-            <!-- Formulário Retirar Reserva -->
-            <form id="form-retirar-reserva" class="form-tab">
-                <div class="form-group">
-                    <label for="input-valor-retirar">Valor a Retirar</label>
-                    <input
-                        type="number"
-                        id="input-valor-retirar"
-                        class="form-control"
-                        placeholder="0,00"
-                        step="0.01"
-                        min="0.01"
-                        required
-                    >
-                    <small class="form-hint">
-                        <i class="fas fa-info-circle"></i>
-                        Reservado: <span id="modal-reservado-retirar">R$ 0,00</span>
-                    </small>
-                </div>
-
-                <div class="form-group">
-                    <label for="input-descricao-retirar">Motivo (opcional)</label>
-                    <input
-                        type="text"
-                        id="input-descricao-retirar"
-                        class="form-control"
-                        placeholder="Ex: Emergência médica..."
-                        maxlength="50"
-                    >
-                </div>
-
-                <div class="modal-footer">
-                    <button type="button" class="btn-cancelar-modal">Cancelar</button>
-                    <button type="submit" class="btn-confirmar-modal btn-retirar">
-                        <i class="fas fa-check"></i> Confirmar Retirada
-                    </button>
-                </div>
-            </form>
         </div>
     </div>
 </div>

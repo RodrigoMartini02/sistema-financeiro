@@ -1237,51 +1237,25 @@ function abrirModalReservarValor() {
 
     const disponivelParaReservar = Math.max(0, saldoLivre - totalAcumulado);
 
-    // Atualizar aba ADICIONAR
-    const modalDisponivelAdicionar = document.getElementById('modal-disponivel-adicionar');
-    if (modalDisponivelAdicionar) {
-        modalDisponivelAdicionar.textContent = window.formatarMoeda(disponivelParaReservar);
+    // Atualizar informações do modal
+    const modalDisponivel = document.getElementById('modal-disponivel-reserva');
+    if (modalDisponivel) {
+        modalDisponivel.textContent = window.formatarMoeda(disponivelParaReservar);
     }
 
-    const inputValorAdicionar = document.getElementById('input-valor-adicionar');
-    if (inputValorAdicionar) {
-        inputValorAdicionar.max = disponivelParaReservar.toFixed(2);
-        inputValorAdicionar.value = '';
+    const modalReservado = document.getElementById('modal-reservado-reserva');
+    if (modalReservado) {
+        modalReservado.textContent = window.formatarMoeda(totalAcumulado);
     }
 
-    const inputDescricaoAdicionar = document.getElementById('input-descricao-adicionar');
-    if (inputDescricaoAdicionar) {
-        inputDescricaoAdicionar.value = '';
+    const inputValor = document.getElementById('input-valor-reserva');
+    if (inputValor) {
+        inputValor.value = '';
     }
 
-    // Atualizar aba RETIRAR
-    const modalReservadoRetirar = document.getElementById('modal-reservado-retirar');
-    if (modalReservadoRetirar) {
-        modalReservadoRetirar.textContent = window.formatarMoeda(totalAcumulado);
-    }
-
-    const inputValorRetirar = document.getElementById('input-valor-retirar');
-    if (inputValorRetirar) {
-        inputValorRetirar.max = totalAcumulado.toFixed(2);
-        inputValorRetirar.value = '';
-    }
-
-    const inputDescricaoRetirar = document.getElementById('input-descricao-retirar');
-    if (inputDescricaoRetirar) {
-        inputDescricaoRetirar.value = '';
-    }
-
-    // Resetar para a aba "Adicionar"
-    const tabAdicionar = document.querySelector('.tab-reserva[data-tab="adicionar"]');
-    const tabRetirar = document.querySelector('.tab-reserva[data-tab="retirar"]');
-    const formAdicionar = document.getElementById('form-adicionar-reserva');
-    const formRetirar = document.getElementById('form-retirar-reserva');
-
-    if (tabAdicionar && tabRetirar && formAdicionar && formRetirar) {
-        tabAdicionar.classList.add('active');
-        tabRetirar.classList.remove('active');
-        formAdicionar.classList.add('active');
-        formRetirar.classList.remove('active');
+    const inputDescricao = document.getElementById('input-descricao-reserva');
+    if (inputDescricao) {
+        inputDescricao.value = '';
     }
 
     // Abrir modal
@@ -1292,15 +1266,13 @@ function abrirModalReservarValor() {
 }
 
 /**
- * Processa o formulário de adicionar reserva
+ * Processa adicionar reserva
  */
-async function processarAdicionarReserva(e) {
-    e.preventDefault();
-
+async function processarAdicionarReserva() {
     const mes = window.mesAberto;
     const ano = window.anoAberto;
-    const valor = parseFloat(document.getElementById('input-valor-adicionar').value);
-    const descricao = document.getElementById('input-descricao-adicionar').value.trim() || 'Reserva';
+    const valor = parseFloat(document.getElementById('input-valor-reserva').value);
+    const descricao = document.getElementById('input-descricao-reserva').value.trim() || 'Reserva';
 
     if (isNaN(valor) || valor <= 0) {
         if (window.mostrarMensagemErro) {
@@ -1327,8 +1299,10 @@ async function processarAdicionarReserva(e) {
 
     await window.salvarDados();
 
-    // Fechar modal
+    // Fechar modal e limpar campos
     document.getElementById('modal-reservar-valor').style.display = 'none';
+    document.getElementById('input-valor-reserva').value = '';
+    document.getElementById('input-descricao-reserva').value = '';
 
     // Atualizar interface
     atualizarCardReservasIntegrado();
@@ -1347,15 +1321,13 @@ async function processarAdicionarReserva(e) {
 }
 
 /**
- * Processa o formulário de retirar reserva
+ * Processa retirar reserva
  */
-async function processarRetirarReserva(e) {
-    e.preventDefault();
-
+async function processarRetirarReserva() {
     const mes = window.mesAberto;
     const ano = window.anoAberto;
-    const valor = parseFloat(document.getElementById('input-valor-retirar').value);
-    const descricao = document.getElementById('input-descricao-retirar').value.trim() || 'Retirada';
+    const valor = parseFloat(document.getElementById('input-valor-reserva').value);
+    const descricao = document.getElementById('input-descricao-reserva').value.trim() || 'Retirada';
 
     if (isNaN(valor) || valor <= 0) {
         if (window.mostrarMensagemErro) {
@@ -1404,8 +1376,10 @@ async function processarRetirarReserva(e) {
 
     await window.salvarDados();
 
-    // Fechar modal
+    // Fechar modal e limpar campos
     document.getElementById('modal-reservar-valor').style.display = 'none';
+    document.getElementById('input-valor-reserva').value = '';
+    document.getElementById('input-descricao-reserva').value = '';
 
     // Atualizar interface
     atualizarCardReservasIntegrado();
@@ -1465,49 +1439,17 @@ function inicializarEventosReservasIntegradas() {
         btnReservar.addEventListener('click', abrirModalReservarValor);
     }
 
-    // Abas do modal
-    const tabsReservas = document.querySelectorAll('.tab-reserva');
-    tabsReservas.forEach(tab => {
-        tab.addEventListener('click', () => {
-            const targetTab = tab.getAttribute('data-tab');
-
-            // Atualizar abas ativas
-            tabsReservas.forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-
-            // Mostrar formulário correspondente
-            const formAdicionar = document.getElementById('form-adicionar-reserva');
-            const formRetirar = document.getElementById('form-retirar-reserva');
-
-            if (targetTab === 'adicionar') {
-                formAdicionar.classList.add('active');
-                formRetirar.classList.remove('active');
-            } else if (targetTab === 'retirar') {
-                formRetirar.classList.add('active');
-                formAdicionar.classList.remove('active');
-            }
-        });
-    });
-
-    // Formulário de adicionar reserva
-    const formAdicionar = document.getElementById('form-adicionar-reserva');
-    if (formAdicionar) {
-        formAdicionar.addEventListener('submit', processarAdicionarReserva);
+    // Botão Adicionar
+    const btnAdicionar = document.getElementById('btn-adicionar-reserva');
+    if (btnAdicionar) {
+        btnAdicionar.addEventListener('click', processarAdicionarReserva);
     }
 
-    // Formulário de retirar reserva
-    const formRetirar = document.getElementById('form-retirar-reserva');
-    if (formRetirar) {
-        formRetirar.addEventListener('submit', processarRetirarReserva);
+    // Botão Retirar
+    const btnRetirar = document.getElementById('btn-retirar-reserva');
+    if (btnRetirar) {
+        btnRetirar.addEventListener('click', processarRetirarReserva);
     }
-
-    // Botões cancelar do modal
-    const btnsCancelar = document.querySelectorAll('#modal-reservar-valor .btn-cancelar-modal');
-    btnsCancelar.forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.getElementById('modal-reservar-valor').style.display = 'none';
-        });
-    });
 }
 
 // Aguardar DOM e inicializar

@@ -1582,7 +1582,7 @@ async function renderizarDetalhesDoMes(mes, ano) {
                           window.calcularTotalJuros(despesas || []) : 0;
 
         atualizarResumoDetalhes(saldo, totalJuros);
-        atualizarBarrasCartoes(mes, ano);
+        atualizarLimitesCartoes(mes, ano);
         atualizarTituloDetalhes(mes, ano, fechado);
         atualizarControlesFechamento(mes, ano, fechado);
 
