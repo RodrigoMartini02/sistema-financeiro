@@ -747,6 +747,10 @@ function abrirModalNovaDespesa(index) {
            atualizarOpcoesCartoes();
        }
 
+       if (typeof atualizarDropdowns === 'function') {
+           atualizarDropdowns();
+       }
+
        const dataAtual = new Date(window.anoAberto, window.mesAberto, new Date().getDate());
        const dataFormatada = dataAtual.toISOString().split('T')[0];
        document.getElementById('despesa-data-compra').value = dataFormatada;

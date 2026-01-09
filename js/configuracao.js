@@ -581,6 +581,18 @@ async function salvarCartoes() {
 }
 
 /**
+ * Recarrega os cartões do backend e atualiza as opções no formulário
+ */
+async function recarregarEAtualizarCartoes() {
+    try {
+        await carregarCartoesLocal();
+        await atualizarOpcoesCartoes();
+    } catch (error) {
+        console.error('Erro ao recarregar e atualizar cartões:', error);
+    }
+}
+
+/**
  * Atualiza as opções de cartões no formulário de despesas
  */
 async function atualizarOpcoesCartoes() {
@@ -621,6 +633,8 @@ async function atualizarOpcoesCartoes() {
                     name="forma-pagamento"
                     value="credito"
                     data-cartao-id="${cartao.id}"
+                    required
+                    onchange="validarFormaPagamento()"
                 >
                 <label for="pagamento-cartao${cartao.id}" id="label-cartao${cartao.id}">
                     ${cartao.banco.toUpperCase()}
@@ -3182,6 +3196,7 @@ window.atualizarListaCategorias = atualizarListaCategorias;
 window.carregarCartoesLocal = carregarCartoesLocal;
 window.salvarCartoes = salvarCartoes;
 window.atualizarOpcoesCartoes = atualizarOpcoesCartoes;
+window.recarregarEAtualizarCartoes = recarregarEAtualizarCartoes;
 window.renderizarListaCartoes = renderizarListaCartoes;
 window.adicionarCartao = adicionarCartao;
 window.abrirModalEditarCartao = abrirModalEditarCartao;
