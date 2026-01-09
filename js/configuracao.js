@@ -2150,6 +2150,10 @@ async function importarDados() {
                         console.log(`💳 Mapeando cartão ${cartaoOriginal} → ID ${cartaoId}`);
                     }
 
+                    // ✅ CORRIGIDO: Respeitar campo mes_fechado da exportação
+                    // Se o mês estava fechado na exportação, todas as despesas devem ser marcadas como pagas
+                    const statusPago = despesa.mes_fechado ? true : (despesa.pago || false);
+
                     const dadosDespesa = {
                         descricao: despesa.descricao,
                         valor: parseFloat(despesa.valor),
@@ -2165,7 +2169,7 @@ async function importarDados() {
                         total_parcelas: despesa.total_parcelas || despesa.numeroParcelas || null,
                         parcela_atual: despesa.parcela_atual || despesa.parcelaAtual || null,
                         observacoes: despesa.observacoes || '',
-                        pago: despesa.pago || false
+                        pago: statusPago  // ✅ Usa lógica que respeita mes_fechado
                     };
 
                     const response = await fetch(`${API_URL}/despesas`, {
