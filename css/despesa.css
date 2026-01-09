@@ -22,13 +22,49 @@
     background: white;
     max-height: 70vh;
     overflow-y: auto;
-    overflow-x: hidden;
+    overflow-x: auto; /* ✅ CORRIGIDO: Permite scroll horizontal */
     position: relative;
+    width: 100%;
+}
+
+/* ✅ NOVO: Estilizar scrollbar para melhor UX */
+.despesas-grid::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.despesas-grid::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.despesas-grid::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.despesas-grid::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }
 
 .grid-header {
     display: grid;
-    grid-template-columns: 40px 60px 1fr 0.8fr 0.8fr 0.8fr 70px 0.8fr 90px 90px 90px 90px 1fr 80px;
+    /* ✅ CORRIGIDO: Larguras responsivas com mínimos garantidos */
+    grid-template-columns:
+        40px              /* checkbox */
+        60px              /* ID */
+        minmax(120px, 2fr) /* Descrição */
+        minmax(100px, 1fr) /* Categoria */
+        minmax(80px, 0.8fr) /* Método */
+        minmax(80px, 0.8fr) /* Valor */
+        70px              /* Parcela */
+        minmax(80px, 0.8fr) /* Valor Pago */
+        90px              /* Status */
+        90px              /* Compra */
+        90px              /* Vencimento */
+        90px              /* Pagamento */
+        minmax(100px, 1fr) /* Ações */
+        80px;             /* Anexos */
     gap: 6px;
     align-items: center;
     padding: 8px;
@@ -42,17 +78,34 @@
     position: sticky;
     top: 0;
     z-index: 10;
+    min-width: max-content; /* ✅ Garante que não quebre */
 }
 
 .grid-row {
     display: grid;
-    grid-template-columns: 40px 60px 1fr 0.8fr 0.8fr 0.8fr 70px 0.8fr 90px 90px 90px 90px 1fr 80px;
+    /* ✅ CORRIGIDO: Mesmas larguras do header para alinhamento perfeito */
+    grid-template-columns:
+        40px              /* checkbox */
+        60px              /* ID */
+        minmax(120px, 2fr) /* Descrição */
+        minmax(100px, 1fr) /* Categoria */
+        minmax(80px, 0.8fr) /* Método */
+        minmax(80px, 0.8fr) /* Valor */
+        70px              /* Parcela */
+        minmax(80px, 0.8fr) /* Valor Pago */
+        90px              /* Status */
+        90px              /* Compra */
+        90px              /* Vencimento */
+        90px              /* Pagamento */
+        minmax(100px, 1fr) /* Ações */
+        80px;             /* Anexos */
     gap: 6px;
     align-items: center;
     padding: 8px;
     border-bottom: 1px solid #e5e7eb;
     min-height: 20px;
     font-size: 11px;
+    min-width: max-content; /* ✅ Garante que não quebre */
 }
 
 
@@ -98,6 +151,16 @@
 .col-descricao {
     font-weight: 500;
     color: #1f2937;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0; /* ✅ Permite que ellipsis funcione dentro de grid */
+}
+
+/* ✅ NOVO: Garantir que todas as colunas com texto não quebrem */
+.grid-header > div,
+.grid-row > div {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
