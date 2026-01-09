@@ -1050,75 +1050,32 @@
 
        <div id="cartoes-tab" class="config-tab-pane">
     <div class="config-card">
-        
-        <div class="cartoes-fixos-container">
-            
-            <div class="form-add-cartao">
-                <h4>Cartão 1</h4>
-                <div class="input-group">
-                    <div class="field">
-                        <label for="cartao1-nome">Banco</label>
-                        <input type="text" id="cartao1-nome" placeholder="Nome do Banco" maxlength="50">
-                    </div>
-                    <div class="field">
-                        <label for="cartao1-validade">Validade</label>
-                        <input type="text" id="cartao1-validade" placeholder="MM/AAAA" maxlength="7">
-                    </div>
-                    <div class="field">
-                        <label for="cartao1-limite">Limite</label>
-                        <input type="number" id="cartao1-limite" placeholder="R$ 0,00" step="0.01" min="0">
-                    </div>
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="cartao1-ativo"> Ativo
-                    </label>
-                </div>
-            </div>
 
-            <div class="form-add-cartao">
-                <h4>Cartão 2</h4>
-                <div class="input-group">
-                    <div class="field">
-                        <label for="cartao2-nome">Banco</label>
-                        <input type="text" id="cartao2-nome" placeholder="Nome do Banco" maxlength="50">
-                    </div>
-                    <div class="field">
-                        <label for="cartao2-validade">Validade</label>
-                        <input type="text" id="cartao2-validade" placeholder="MM/AAAA" maxlength="7">
-                    </div>
-                    <div class="field">
-                        <label for="cartao2-limite">Limite</label>
-                        <input type="number" id="cartao2-limite" placeholder="R$ 0,00" step="0.01" min="0">
-                    </div>
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="cartao2-ativo"> Ativo
-                    </label>
-                </div>
-            </div>
-
-            <div class="form-add-cartao">
-                <h4>Cartão 3</h4>
-                <div class="input-group">
-                    <div class="field">
-                        <label for="cartao3-nome">Banco</label>
-                        <input type="text" id="cartao3-nome" placeholder="Nome do Banco" maxlength="50">
-                    </div>
-                    <div class="field">
-                        <label for="cartao3-validade">Validade</label>
-                        <input type="text" id="cartao3-validade" placeholder="MM/AAAA" maxlength="7">
-                    </div>
-                    <div class="field">
-                        <label for="cartao3-limite">Limite</label>
-                        <input type="number" id="cartao3-limite" placeholder="R$ 0,00" step="0.01" min="0">
-                    </div>
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="cartao3-ativo"> Ativo
-                    </label>
-                </div>
-            </div>
-
-            <button id="btn-salvar-cartoes" class="btn-action">
-                <i class="fas fa-save"></i> Salvar Cartões
+        <div class="form-add-cartao">
+            <input type="text" id="novo-cartao-banco" placeholder="Nome do Banco" maxlength="50">
+            <input type="text" id="novo-cartao-validade" placeholder="MM/AAAA" maxlength="7">
+            <input type="number" id="novo-cartao-limite" placeholder="Limite (R$)" step="0.01" min="0">
+            <button id="btn-adicionar-cartao" class="btn-action">
+                <i class="fas fa-plus"></i> Adicionar Cartão
             </button>
+        </div>
+
+        <div class="lista-cartoes-container">
+            <table id="tabela-cartoes" class="tabela-cartoes">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Banco</th>
+                        <th>Validade</th>
+                        <th>Limite</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="lista-cartoes">
+                    <!-- Cartões serão inseridos aqui dinamicamente -->
+                </tbody>
+            </table>
         </div>
 
         <div id="cartoes-status" class="status-feedback hidden">
@@ -1254,7 +1211,59 @@
                     </label>
                     <input type="text" id="categoria-edit-nome" class="form-input" required maxlength="50">
                 </div>
-                
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-action">
+                        <i class="fas fa-save"></i> Salvar Alterações
+                    </button>
+                    <button type="button" class="btn-outline" data-action="cancelar">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Editar Cartão -->
+<div id="modal-editar-cartao" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-credit-card"></i> Editar Cartão</h2>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="form-editar-cartao">
+                <input type="hidden" id="cartao-edit-id">
+
+                <div class="form-group">
+                    <label for="cartao-edit-banco">
+                        <i class="fas fa-university"></i> Nome do Banco: <span class="required">*</span>
+                    </label>
+                    <input type="text" id="cartao-edit-banco" class="form-input" required maxlength="50">
+                </div>
+
+                <div class="form-group">
+                    <label for="cartao-edit-validade">
+                        <i class="fas fa-calendar-alt"></i> Validade (MM/AAAA): <span class="required">*</span>
+                    </label>
+                    <input type="text" id="cartao-edit-validade" class="form-input" placeholder="MM/AAAA" required maxlength="7">
+                </div>
+
+                <div class="form-group">
+                    <label for="cartao-edit-limite">
+                        <i class="fas fa-dollar-sign"></i> Limite (R$): <span class="required">*</span>
+                    </label>
+                    <input type="number" id="cartao-edit-limite" class="form-input" step="0.01" min="0" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="cartao-edit-ativo">
+                        <span>Cartão Ativo</span>
+                    </label>
+                </div>
+
                 <div class="form-actions">
                     <button type="submit" class="btn-action">
                         <i class="fas fa-save"></i> Salvar Alterações

@@ -1608,3 +1608,168 @@
     color: #666;
     margin-bottom: 6px;
 }
+
+/* ================================================================ */
+/* CARTÕES DE CRÉDITO - SISTEMA DINÂMICO */
+/* ================================================================ */
+.form-add-cartao {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.form-add-cartao input {
+    flex: 1;
+    min-width: 150px;
+    padding: 12px 16px;
+    border: 2px solid var(--config-border);
+    border-radius: 0;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.form-add-cartao input:focus {
+    outline: none;
+    border-color: var(--config-primary);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.lista-cartoes-container {
+    border: 1px solid var(--config-border);
+    border-radius: 0;
+    overflow: hidden;
+    margin-top: 20px;
+}
+
+.tabela-cartoes {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+}
+
+.tabela-cartoes thead {
+    background: var(--config-light);
+}
+
+.tabela-cartoes th {
+    padding: 14px 16px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--config-dark);
+    border-bottom: 2px solid var(--config-border);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tabela-cartoes th:nth-child(1) { width: 80px; }  /* ID */
+.tabela-cartoes th:nth-child(2) { width: auto; }   /* Banco */
+.tabela-cartoes th:nth-child(3) { width: 120px; }  /* Validade */
+.tabela-cartoes th:nth-child(4) { width: 140px; }  /* Limite */
+.tabela-cartoes th:nth-child(5) { width: 100px; }  /* Status */
+.tabela-cartoes th:nth-child(6) { width: 140px; text-align: center; }  /* Ações */
+
+.tabela-cartoes tbody tr {
+    border-bottom: 1px solid var(--config-border);
+    transition: background 0.2s ease;
+}
+
+.tabela-cartoes tbody tr:hover {
+    background: rgba(0, 123, 255, 0.03);
+}
+
+.tabela-cartoes td {
+    padding: 14px 16px;
+    font-size: 14px;
+    color: var(--config-dark);
+    vertical-align: middle;
+}
+
+.tabela-cartoes .cartao-id {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: var(--config-secondary);
+    font-weight: 600;
+}
+
+.tabela-cartoes .cartao-banco {
+    font-weight: 500;
+}
+
+.tabela-cartoes .cartao-validade {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+}
+
+.tabela-cartoes .cartao-limite {
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    color: var(--config-success);
+}
+
+.tabela-cartoes .badge-status {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tabela-cartoes .badge-status.ativo {
+    background: rgba(40, 167, 69, 0.1);
+    color: var(--config-success);
+    border: 1px solid var(--config-success);
+}
+
+.tabela-cartoes .badge-status.inativo {
+    background: rgba(108, 117, 125, 0.1);
+    color: var(--config-secondary);
+    border: 1px solid var(--config-secondary);
+}
+
+.tabela-cartoes .cartao-acoes {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    align-items: center;
+}
+
+.tabela-cartoes .btn-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+}
+
+.tabela-cartoes .btn-editar-cartao {
+    background: rgba(255, 193, 7, 0.1);
+    color: var(--config-warning);
+}
+
+.tabela-cartoes .btn-editar-cartao:hover {
+    background: var(--config-warning);
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: var(--config-shadow);
+}
+
+.tabela-cartoes .btn-excluir-cartao {
+    background: rgba(220, 53, 69, 0.1);
+    color: var(--config-danger);
+}
+
+.tabela-cartoes .btn-excluir-cartao:hover {
+    background: var(--config-danger);
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: var(--config-shadow);
+}

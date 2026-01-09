@@ -18,13 +18,14 @@
 }
 
 .despesas-grid {
-    border: 1px solid #e5e7eb;
+    border: 1px solid #d1d5db;
     background: white;
     max-height: 70vh;
-    overflow-y: auto;
-    overflow-x: auto; /* ✅ CORRIGIDO: Permite scroll horizontal */
+    overflow: auto; /* Scroll horizontal e vertical */
     position: relative;
     width: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 /* ✅ NOVO: Estilizar scrollbar para melhor UX */
@@ -49,26 +50,25 @@
 
 .grid-header {
     display: grid;
-    /* ✅ CORRIGIDO: Larguras responsivas com mínimos garantidos */
     grid-template-columns:
         40px              /* checkbox */
-        60px              /* ID */
-        minmax(120px, 2fr) /* Descrição */
-        minmax(100px, 1fr) /* Categoria */
-        minmax(80px, 0.8fr) /* Método */
-        minmax(80px, 0.8fr) /* Valor */
+        80px              /* ID */
+        minmax(150px, 2fr) /* Descrição */
+        minmax(110px, 1fr) /* Categoria */
+        90px              /* Método */
+        100px             /* Valor */
         70px              /* Parcela */
-        minmax(80px, 0.8fr) /* Valor Pago */
-        90px              /* Status */
-        90px              /* Compra */
-        90px              /* Vencimento */
-        90px              /* Pagamento */
-        minmax(100px, 1fr) /* Ações */
-        80px;             /* Anexos */
-    gap: 6px;
+        100px             /* Valor Pago */
+        95px              /* Status */
+        100px             /* Compra */
+        100px             /* Vencimento */
+        100px             /* Pagamento */
+        minmax(120px, 1fr) /* Ações */
+        85px;             /* Anexos */
+    gap: 0;
     align-items: center;
-    padding: 8px;
-    border-bottom: 2px solid #e5e7eb;
+    padding: 0;
+    border-bottom: 2px solid #d1d5db;
     min-height: 48px;
     font-size: 11px;
     background: #f8fafc;
@@ -78,7 +78,21 @@
     position: sticky;
     top: 0;
     z-index: 10;
-    min-width: max-content; /* ✅ Garante que não quebre */
+    min-width: fit-content;
+}
+
+/* Adiciona bordas verticais finas entre as colunas do cabeçalho */
+.grid-header > div {
+    padding: 12px 8px;
+    border-right: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.grid-header > div:last-child {
+    border-right: none;
 }
 
 /* ✅ NOVO: Colunas com posição relativa para resizers */
@@ -110,35 +124,45 @@
 
 .grid-row {
     display: grid;
-    /* ✅ CORRIGIDO: Mesmas larguras do header para alinhamento perfeito */
+    /* MESMAS larguras do header para alinhamento perfeito */
     grid-template-columns:
         40px              /* checkbox */
-        60px              /* ID */
-        minmax(120px, 2fr) /* Descrição */
-        minmax(100px, 1fr) /* Categoria */
-        minmax(80px, 0.8fr) /* Método */
-        minmax(80px, 0.8fr) /* Valor */
+        80px              /* ID */
+        minmax(150px, 2fr) /* Descrição */
+        minmax(110px, 1fr) /* Categoria */
+        90px              /* Método */
+        100px             /* Valor */
         70px              /* Parcela */
-        minmax(80px, 0.8fr) /* Valor Pago */
-        90px              /* Status */
-        90px              /* Compra */
-        90px              /* Vencimento */
-        90px              /* Pagamento */
-        minmax(100px, 1fr) /* Ações */
-        80px;             /* Anexos */
-    gap: 6px;
+        100px             /* Valor Pago */
+        95px              /* Status */
+        100px             /* Compra */
+        100px             /* Vencimento */
+        100px             /* Pagamento */
+        minmax(120px, 1fr) /* Ações */
+        85px;             /* Anexos */
+    gap: 0;
     align-items: center;
-    padding: 8px;
+    padding: 0;
     border-bottom: 1px solid #e5e7eb;
-    min-height: 20px;
-    font-size: 11px;
-    min-width: max-content; /* ✅ Garante que não quebre */
+    min-height: 52px;
+    font-size: 12px;
+    min-width: fit-content;
+    transition: background-color 0.2s ease;
 }
 
+/* Adiciona bordas verticais finas entre as colunas das linhas */
+.grid-row > div,
+.grid-row > * {
+    padding: 10px 8px;
+    border-right: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    min-height: 52px;
+}
 
-.grid-row {
-    border-bottom: 0.5px solid #f3f4f6;
-    transition: background-color 0.2s ease;
+.grid-row > div:last-child,
+.grid-row > *:last-child {
+    border-right: none;
 }
 
 .grid-row:hover {
@@ -178,60 +202,74 @@
 .col-descricao {
     font-weight: 500;
     color: #1f2937;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    min-width: 0; /* ✅ Permite que ellipsis funcione dentro de grid */
+    justify-content: flex-start !important;
 }
 
-/* ✅ NOVO: Garantir que todas as colunas com texto não quebrem */
-.grid-header > div,
-.grid-row > div {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+.col-checkbox {
+    justify-content: center !important;
+}
+
+.col-numero,
+.col-id {
+    justify-content: center !important;
+    font-family: monospace;
+    font-size: 11px;
+    color: #6b7280;
 }
 
 .col-categoria {
     color: #6b7280;
-    font-size: 12px;
+    font-size: 11px;
+    justify-content: flex-start !important;
+}
+
+.col-metodo,
+.col-metodo-pagamento {
+    font-size: 11px;
+    font-weight: 500;
+    justify-content: center !important;
 }
 
 .col-valor {
     font-weight: 600;
     color: #dc2626;
-    text-align: left;
+    justify-content: flex-end !important;
+    font-family: monospace;
 }
 
 .col-valor-pago {
     color: #16a34a;
     font-weight: 600;
-    text-align: left;
+    justify-content: flex-end !important;
+    font-family: monospace;
 }
 
 .col-parcela {
     color: #6b7280;
-    font-size: 12px;
-    text-align: left;
+    font-size: 11px;
+    justify-content: center !important;
 }
 
 .col-compra,
-.col-vencimento {
+.col-vencimento,
+.col-pagamento {
     color: #6b7280;
-    font-size: 12px;
+    font-size: 11px;
+    justify-content: center !important;
+    font-family: monospace;
 }
 
-.col-checkbox {
-    display: flex;
-    justify-content: center;
-    align-items: center;
+.col-status {
+    justify-content: center !important;
 }
 
 .col-acoes {
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    justify-content: center !important;
+    gap: 4px;
+}
+
+.col-anexos {
+    justify-content: center !important;
 }
 
 .despesa-checkbox {
@@ -887,6 +925,13 @@
 
 .upload-loading .upload-icon {
     animation: spin 1s linear infinite;
+}
+
+.grid-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-width: 100%;
 }
 
 /* Scrollbar específico do grid de despesas */

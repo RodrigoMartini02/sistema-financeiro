@@ -6,11 +6,8 @@
 // VARIÁVEIS GLOBAIS
 // ================================================================
 let categoriasUsuario = { despesas: [] };
-let cartoesUsuario = {
-    cartao1: { nome: '', validade: '', limite: 0, ativo: false },
-    cartao2: { nome: '', validade: '', limite: 0, ativo: false },
-    cartao3: { nome: '', validade: '', limite: 0, ativo: false }
-};
+let cartoesUsuario = []; // Array dinâmico de cartões com IDs únicos
+let proximoIdCartao = 1; // Contador para gerar IDs únicos
 let usuariosFiltrados = [];
 let paginaAtual = 1;
 let tipoUsuarioAtual = null;
@@ -447,30 +444,28 @@ async function salvarEdicaoCategoria() {
 }
 
 // ================================================================
-// SISTEMA DE CARTÕES
+// SISTEMA DE CARTÕES - DINÂMICO COM IDs
 // ================================================================
+
+/**
+ * Carrega os cartões do usuário da API
+ */
 async function carregarCartoesLocal() {
     const usuario = window.usuarioDataManager?.getUsuarioAtual();
     const token = sessionStorage.getItem('token');
 
-    const cartoesPadrao = {
-        cartao1: { nome: '', validade: '', limite: 0, ativo: false },
-        cartao2: { nome: '', validade: '', limite: 0, ativo: false },
-        cartao3: { nome: '', validade: '', limite: 0, ativo: false }
-    };
-
-    // ✅ Verificar se está autenticado ANTES de fazer API call
+    // Se não está autenticado, inicializar vazio
     if (!usuario || !usuario.id || !token) {
-        cartoesUsuario = cartoesPadrao;
+        cartoesUsuario = [];
         window.cartoesUsuario = cartoesUsuario;
+        renderizarListaCartoes();
         return;
     }
 
     try {
-        // ✅ Garantir que API_URL existe
         const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
-        // 🔥 BUSCAR DA API
+        // Buscar cartões da API
         const response = await fetch(`${API_URL}/usuarios/${usuario.id}/cartoes`, {
             method: 'GET',
             headers: {
@@ -480,225 +475,380 @@ async function carregarCartoesLocal() {
         });
 
         if (!response.ok) {
-            // Silenciosamente usar padrão se não autenticado ou erro
-            cartoesUsuario = cartoesPadrao;
+            cartoesUsuario = [];
             window.cartoesUsuario = cartoesUsuario;
+            renderizarListaCartoes();
             return;
         }
 
         const data = await response.json();
 
-        if (data.success) {
-            cartoesUsuario = data.cartoes;
+        if (data.success && data.cartoes) {
+            // Migrar formato antigo para novo (se necessário)
+            cartoesUsuario = migrarCartoesSeNecessario(data.cartoes);
             window.cartoesUsuario = cartoesUsuario;
         } else {
-            cartoesUsuario = cartoesPadrao;
+            cartoesUsuario = [];
             window.cartoesUsuario = cartoesUsuario;
         }
+
+        // Atualizar o próximo ID
+        if (cartoesUsuario.length > 0) {
+            const maxId = Math.max(...cartoesUsuario.map(c => c.id || 0));
+            proximoIdCartao = maxId + 1;
+        }
+
+        // Renderizar a lista
+        renderizarListaCartoes();
+
+        // Atualizar as opções de cartões nas despesas
+        atualizarOpcoesCartoes();
+
     } catch (error) {
-        // Silenciosamente usar padrão em caso de erro
-        cartoesUsuario = cartoesPadrao;
+        console.error('Erro ao carregar cartões:', error);
+        cartoesUsuario = [];
         window.cartoesUsuario = cartoesUsuario;
+        renderizarListaCartoes();
     }
 }
 
+/**
+ * Migra cartões do formato antigo {cartao1, cartao2, cartao3} para array com IDs
+ */
+function migrarCartoesSeNecessario(cartoes) {
+    // Se já é um array, retornar
+    if (Array.isArray(cartoes)) {
+        return cartoes.filter(c => c.banco && c.banco.trim() !== '');
+    }
+
+    // Se é objeto no formato antigo, converter
+    const cartoesArray = [];
+    let id = 1;
+
+    ['cartao1', 'cartao2', 'cartao3'].forEach(key => {
+        if (cartoes[key] && cartoes[key].nome && cartoes[key].nome.trim() !== '') {
+            cartoesArray.push({
+                id: id++,
+                banco: cartoes[key].nome,
+                validade: cartoes[key].validade || '',
+                limite: parseFloat(cartoes[key].limite) || 0,
+                ativo: cartoes[key].ativo || false
+            });
+        }
+    });
+
+    return cartoesArray;
+}
+
+/**
+ * Salva os cartões na API
+ */
 async function salvarCartoes() {
     const usuario = window.usuarioDataManager?.getUsuarioAtual();
-    if (!usuario || !usuario.id) {
+    const token = sessionStorage.getItem('token');
+
+    if (!usuario || !usuario.id || !token) {
         return false;
     }
 
     try {
-        // ✅ Garantir que API_URL existe
         const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
-        const url = `${API_URL}/usuarios/${usuario.id}/cartoes`;
 
-        // 🔥 SALVAR NA API
-        const response = await fetch(url, {
+        const response = await fetch(`${API_URL}/usuarios/${usuario.id}/cartoes`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({ cartoes: cartoesUsuario })
         });
-
-        // ✅ Verificar se a resposta tem conteúdo antes de parsear
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            return false;
-        }
-
-        const data = await response.json();
 
         if (!response.ok) {
             return false;
         }
 
+        const data = await response.json();
         if (data.success) {
             window.cartoesUsuario = cartoesUsuario;
             return true;
-        } else {
-            return false;
         }
+        return false;
+
     } catch (error) {
+        console.error('Erro ao salvar cartões:', error);
         return false;
     }
 }
 
+/**
+ * Atualiza as opções de cartões no formulário de despesas
+ */
 async function atualizarOpcoesCartoes() {
     try {
-        // ✅ SEMPRE buscar cartões atualizados da API
-        await carregarCartoesLocal();
+        const creditoOptions = document.getElementById('credito-options');
+        if (!creditoOptions) return;
 
-        let cartoesVisiveis = 0;
+        // Limpar opções existentes
+        const container = creditoOptions.querySelector('.payment-options-grid') || creditoOptions;
+        const existingOptions = container.querySelectorAll('.cartao-option');
+        existingOptions.forEach(opt => opt.remove());
 
-        ['1', '2', '3'].forEach(num => {
-            const label = document.getElementById(`label-cartao${num}`);
-            const option = document.getElementById(`cartao${num}-option`);
-            const radioInput = document.getElementById(`pagamento-cartao${num}`);
-            const cartao = cartoesUsuario[`cartao${num}`] || window.cartoesUsuario?.[`cartao${num}`];
+        // Filtrar apenas cartões ativos
+        const cartoesAtivos = cartoesUsuario.filter(c => c.ativo);
 
-            if (label && option && radioInput && cartao) {
-                if (cartao.ativo && cartao.nome && cartao.nome.trim() !== '') {
-                    const numeroFormatado = cartao.numero ? `#${cartao.numero.toString().padStart(3, '0')} - ` : '';
-                    label.textContent = `${numeroFormatado}${cartao.nome.toUpperCase()}`;
-                    option.classList.remove('hidden');
-                    radioInput.disabled = false;
-                    radioInput.setAttribute('data-cartao', num);
-                    cartoesVisiveis++;
-                    console.log(`💳 Cartão ${num} disponível: ${numeroFormatado}${cartao.nome}`);
-                } else {
-                    label.textContent = `CARTÃO ${num}`;
-                    option.classList.add('hidden');
-                    radioInput.disabled = true;
-                    radioInput.checked = false;
-                }
+        if (cartoesAtivos.length === 0) {
+            creditoOptions.classList.add('hidden');
+            // Selecionar PIX por padrão se não há cartões
+            const radioPix = document.getElementById('pagamento-pix');
+            if (radioPix && !document.querySelector('input[name="forma-pagamento"]:checked')) {
+                radioPix.checked = true;
             }
+            return;
+        }
+
+        creditoOptions.classList.remove('hidden');
+
+        // Criar opções dinâmicas para cada cartão
+        cartoesAtivos.forEach((cartao, index) => {
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'payment-option cartao-option';
+            optionDiv.id = `cartao${cartao.id}-option`;
+
+            optionDiv.innerHTML = `
+                <input
+                    type="radio"
+                    id="pagamento-cartao${cartao.id}"
+                    name="forma-pagamento"
+                    value="credito"
+                    data-cartao-id="${cartao.id}"
+                >
+                <label for="pagamento-cartao${cartao.id}" id="label-cartao${cartao.id}">
+                    ${cartao.banco.toUpperCase()}
+                </label>
+            `;
+
+            container.appendChild(optionDiv);
         });
 
-        const creditoOptions = document.getElementById('credito-options');
-        if (creditoOptions) {
-            if (cartoesVisiveis === 0) {
-                creditoOptions.classList.add('hidden');
-
-                const radioPix = document.getElementById('pagamento-pix');
-                if (radioPix && !document.querySelector('input[name="forma-pagamento"]:checked')) {
-                    radioPix.checked = true;
-                }
-            } else {
-                creditoOptions.classList.remove('hidden');
-            }
-        }
     } catch (error) {
-        // Erro ao atualizar opções de cartões - silencioso
+        console.error('Erro ao atualizar opções de cartões:', error);
     }
 }
 
-function preencherFormularioCartoes() {
-    ['1', '2', '3'].forEach(num => {
-        const cartao = cartoesUsuario[`cartao${num}`];
-        
-        const nomeInput = document.getElementById(`cartao${num}-nome`);
-        const validadeInput = document.getElementById(`cartao${num}-validade`);
-        const limiteInput = document.getElementById(`cartao${num}-limite`);
-        const ativoCheckbox = document.getElementById(`cartao${num}-ativo`);
-        
-        if (nomeInput) nomeInput.value = cartao.nome || '';
-        if (validadeInput) validadeInput.value = cartao.validade || '';
-        if (limiteInput) limiteInput.value = cartao.limite || 0;
-        if (ativoCheckbox) ativoCheckbox.checked = cartao.ativo || false;
+/**
+ * Renderiza a lista de cartões na tabela de configurações
+ */
+function renderizarListaCartoes() {
+    const listaCartoes = document.getElementById('lista-cartoes');
+    if (!listaCartoes) return;
+
+    listaCartoes.innerHTML = '';
+
+    if (cartoesUsuario.length === 0) {
+        listaCartoes.innerHTML = `
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 40px; color: #6c757d;">
+                    <i class="fas fa-credit-card" style="font-size: 48px; margin-bottom: 16px; opacity: 0.3;"></i>
+                    <p style="margin: 0;">Nenhum cartão cadastrado. Adicione seu primeiro cartão acima.</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    cartoesUsuario.forEach(cartao => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><span class="cartao-id">#${cartao.id}</span></td>
+            <td><span class="cartao-banco">${cartao.banco}</span></td>
+            <td><span class="cartao-validade">${cartao.validade || '-'}</span></td>
+            <td><span class="cartao-limite">R$ ${formatarValorCartao(cartao.limite)}</span></td>
+            <td>
+                <span class="badge-status ${cartao.ativo ? 'ativo' : 'inativo'}">
+                    ${cartao.ativo ? 'Ativo' : 'Inativo'}
+                </span>
+            </td>
+            <td>
+                <div class="cartao-acoes">
+                    <button class="btn-icon btn-editar-cartao" onclick="abrirModalEditarCartao(${cartao.id})" title="Editar cartão">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-icon btn-excluir-cartao" onclick="excluirCartao(${cartao.id})" title="Excluir cartão">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+        listaCartoes.appendChild(tr);
     });
 }
 
-async function salvarCartoesForms() {
-    try {
-        let cartoesAlterados = false;
-        let errosValidacao = [];
+/**
+ * Formata valor monetário
+ */
+function formatarValorCartao(valor) {
+    return parseFloat(valor).toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
 
-        ['1', '2', '3'].forEach(num => {
-            const nomeInput = document.getElementById(`cartao${num}-nome`);
-            const validadeInput = document.getElementById(`cartao${num}-validade`);
-            const limiteInput = document.getElementById(`cartao${num}-limite`);
-            const ativoCheckbox = document.getElementById(`cartao${num}-ativo`);
+/**
+ * Adiciona um novo cartão
+ */
+async function adicionarCartao() {
+    const inputBanco = document.getElementById('novo-cartao-banco');
+    const inputValidade = document.getElementById('novo-cartao-validade');
+    const inputLimite = document.getElementById('novo-cartao-limite');
 
-            if (!nomeInput || !validadeInput || !limiteInput || !ativoCheckbox) {
-                return;
-            }
+    if (!inputBanco || !inputValidade || !inputLimite) return;
 
-            const dadosFormulario = {
-                nome: nomeInput.value.trim(),
-                validade: validadeInput.value.trim(),
-                limite: parseFloat(limiteInput.value) || 0,
-                ativo: ativoCheckbox.checked
-            };
+    const banco = inputBanco.value.trim();
+    const validade = inputValidade.value.trim();
+    const limite = parseFloat(inputLimite.value) || 0;
 
-            const cartaoAtual = cartoesUsuario[`cartao${num}`];
+    // Validações
+    if (!banco) {
+        mostrarStatusCartoes('Por favor, informe o nome do banco', 'error');
+        inputBanco.focus();
+        return;
+    }
 
-            if (cartaoAtual.nome !== dadosFormulario.nome ||
-                cartaoAtual.validade !== dadosFormulario.validade ||
-                cartaoAtual.limite !== dadosFormulario.limite ||
-                cartaoAtual.ativo !== dadosFormulario.ativo) {
+    if (!validade) {
+        mostrarStatusCartoes('Por favor, informe a validade (MM/AAAA)', 'error');
+        inputValidade.focus();
+        return;
+    }
 
-                cartoesAlterados = true;
+    if (!validarValidade(validade)) {
+        mostrarStatusCartoes('Formato de validade inválido. Use MM/AAAA', 'error');
+        inputValidade.focus();
+        return;
+    }
 
-                if (dadosFormulario.ativo) {
-                    if (!dadosFormulario.nome) {
-                        errosValidacao.push(`Cartão ${num}: Nome é obrigatório`);
-                    }
+    if (limite <= 0) {
+        mostrarStatusCartoes('O limite deve ser maior que zero', 'error');
+        inputLimite.focus();
+        return;
+    }
 
-                    if (!dadosFormulario.validade || !validarValidade(dadosFormulario.validade)) {
-                        errosValidacao.push(`Cartão ${num}: Validade inválida (MM/AAAA)`);
-                    }
+    // Criar novo cartão
+    const novoCartao = {
+        id: proximoIdCartao++,
+        banco: banco,
+        validade: validade,
+        limite: limite,
+        ativo: true
+    };
 
-                    if (dadosFormulario.limite <= 0) {
-                        errosValidacao.push(`Cartão ${num}: Limite deve ser maior que zero`);
-                    }
-                }
+    cartoesUsuario.push(novoCartao);
 
-                cartoesUsuario[`cartao${num}`] = dadosFormulario;
-            }
-        });
+    // Salvar na API
+    const sucesso = await salvarCartoes();
 
-        if (errosValidacao.length > 0) {
-            mostrarFeedback(errosValidacao.join('\n'), 'error');
-            return;
-        }
+    if (sucesso) {
+        mostrarStatusCartoes('Cartão adicionado com sucesso!', 'success');
+        inputBanco.value = '';
+        inputValidade.value = '';
+        inputLimite.value = '';
+        renderizarListaCartoes();
+        atualizarOpcoesCartoes();
+    } else {
+        mostrarStatusCartoes('Erro ao salvar o cartão. Tente novamente.', 'error');
+        cartoesUsuario.pop();
+        proximoIdCartao--;
+    }
+}
 
-        if (!cartoesAlterados) {
-            mostrarFeedback('Nenhuma alteração foi detectada nos cartões.', 'warning');
-            return;
-        }
+/**
+ * Abre modal para editar cartão
+ */
+function abrirModalEditarCartao(id) {
+    const cartao = cartoesUsuario.find(c => c.id === id);
+    if (!cartao) return;
 
-        // 🔥 SALVAR COM AWAIT
-        const sucesso = await salvarCartoes();
+    document.getElementById('cartao-edit-id').value = cartao.id;
+    document.getElementById('cartao-edit-banco').value = cartao.banco;
+    document.getElementById('cartao-edit-validade').value = cartao.validade;
+    document.getElementById('cartao-edit-limite').value = cartao.limite;
+    document.getElementById('cartao-edit-ativo').checked = cartao.ativo;
 
-        if (sucesso) {
-            atualizarOpcoesCartoes();
-            window.cartoesUsuario = cartoesUsuario;
+    const modal = document.getElementById('modal-editar-cartao');
+    if (modal) {
+        modal.style.display = 'block';
+        setTimeout(() => modal.classList.add('show'), 10);
+    }
+}
 
-            if (typeof window.limparCacheCartoes === 'function') {
-                window.limparCacheCartoes();
-            }
+/**
+ * Salva edição de cartão
+ */
+async function salvarEdicaoCartao(e) {
+    e.preventDefault();
 
-            mostrarStatusCartoes('Cartões salvos com sucesso!', 'success');
+    const id = parseInt(document.getElementById('cartao-edit-id').value);
+    const banco = document.getElementById('cartao-edit-banco').value.trim();
+    const validade = document.getElementById('cartao-edit-validade').value.trim();
+    const limite = parseFloat(document.getElementById('cartao-edit-limite').value) || 0;
+    const ativo = document.getElementById('cartao-edit-ativo').checked;
 
-            // ✅ Recarregar cartões do servidor para garantir sincronização
-            await carregarCartoesLocal();
+    if (!banco || !validade || limite <= 0) {
+        mostrarStatusCartoes('Preencha todos os campos corretamente', 'error');
+        return;
+    }
 
-            setTimeout(() => {
-                if (typeof window.renderizarDetalhesDoMes === 'function' &&
-                    window.mesAberto !== null && window.anoAberto !== null) {
-                    window.renderizarDetalhesDoMes(window.mesAberto, window.anoAberto);
-                }
-            }, 100);
+    if (!validarValidade(validade)) {
+        mostrarStatusCartoes('Formato de validade inválido. Use MM/AAAA', 'error');
+        return;
+    }
 
-        } else {
-            mostrarStatusCartoes('Erro ao salvar os cartões. Tente novamente.', 'error');
-        }
+    const index = cartoesUsuario.findIndex(c => c.id === id);
+    if (index === -1) return;
 
-    } catch (error) {
-        mostrarStatusCartoes('Erro inesperado ao salvar cartões.', 'error');
+    cartoesUsuario[index] = { id, banco, validade, limite, ativo };
+
+    const sucesso = await salvarCartoes();
+
+    if (sucesso) {
+        mostrarStatusCartoes('Cartão atualizado com sucesso!', 'success');
+        fecharModalCartao('modal-editar-cartao');
+        renderizarListaCartoes();
+        atualizarOpcoesCartoes();
+    } else {
+        mostrarStatusCartoes('Erro ao atualizar o cartão', 'error');
+    }
+}
+
+/**
+ * Exclui um cartão
+ */
+async function excluirCartao(id) {
+    const cartao = cartoesUsuario.find(c => c.id === id);
+    if (!cartao) return;
+
+    if (!confirm(`Deseja realmente excluir o cartão "${cartao.banco}"?`)) return;
+
+    const index = cartoesUsuario.findIndex(c => c.id === id);
+    const removido = cartoesUsuario.splice(index, 1)[0];
+
+    const sucesso = await salvarCartoes();
+
+    if (sucesso) {
+        mostrarStatusCartoes('Cartão excluído com sucesso!', 'success');
+        renderizarListaCartoes();
+        atualizarOpcoesCartoes();
+    } else {
+        mostrarStatusCartoes('Erro ao excluir o cartão', 'error');
+        cartoesUsuario.splice(index, 0, removido);
+        renderizarListaCartoes();
+    }
+}
+
+function fecharModalCartao(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.remove('show');
+        setTimeout(() => modal.style.display = 'none', 300);
     }
 }
 
@@ -2347,7 +2497,7 @@ function setupConfigTabs() {
                 if (targetTab === 'categorias') {
                     setTimeout(() => atualizarListaCategorias(), 100);
                 } else if (targetTab === 'cartoes') {
-                    setTimeout(() => preencherFormularioCartoes(), 100);
+                    setTimeout(() => renderizarListaCartoes(), 100);
                 } else if (targetTab === 'usuarios') {
                     setTimeout(() => filtrarUsuarios(), 100);
                 } else if (targetTab === 'logs') {
@@ -2379,18 +2529,29 @@ function setupEventListeners() {
         });
     }
     
-    const btnSalvarCartoes = document.getElementById('btn-salvar-cartoes');
-    if (btnSalvarCartoes) {
-        btnSalvarCartoes.addEventListener('click', salvarCartoesForms);
+    // Event listeners para cartões
+    const btnAdicionarCartao = document.getElementById('btn-adicionar-cartao');
+    if (btnAdicionarCartao) {
+        btnAdicionarCartao.addEventListener('click', adicionarCartao);
     }
-    
-    ['1', '2', '3'].forEach(num => {
-        const validadeInput = document.getElementById(`cartao${num}-validade`);
-        if (validadeInput) {
-            validadeInput.addEventListener('input', function() {
-                formatarValidade(this);
-            });
-        }
+
+    const inputValidadeCartao = document.getElementById('novo-cartao-validade');
+    if (inputValidadeCartao) {
+        inputValidadeCartao.addEventListener('input', function() {
+            formatarValidade(this);
+        });
+    }
+
+    // Modal de editar cartão
+    const formEditarCartao = document.getElementById('form-editar-cartao');
+    if (formEditarCartao) {
+        formEditarCartao.addEventListener('submit', salvarEdicaoCartao);
+    }
+
+    // Fechar modal de editar cartão
+    const closeEditarCartao = document.querySelectorAll('#modal-editar-cartao .close, #modal-editar-cartao [data-action="cancelar"]');
+    closeEditarCartao.forEach(btn => {
+        btn.addEventListener('click', () => fecharModalCartao('modal-editar-cartao'));
     });
     
     const btnSearchUser = document.getElementById('btn-search-user');
@@ -2596,7 +2757,10 @@ window.atualizarListaCategorias = atualizarListaCategorias;
 window.carregarCartoesLocal = carregarCartoesLocal;
 window.salvarCartoes = salvarCartoes;
 window.atualizarOpcoesCartoes = atualizarOpcoesCartoes;
-window.preencherFormularioCartoes = preencherFormularioCartoes;
+window.renderizarListaCartoes = renderizarListaCartoes;
+window.adicionarCartao = adicionarCartao;
+window.abrirModalEditarCartao = abrirModalEditarCartao;
+window.excluirCartao = excluirCartao;
 
 window.obterTipoUsuarioAtual = obterTipoUsuarioAtual;
 window.filtrarUsuarios = filtrarUsuarios;
