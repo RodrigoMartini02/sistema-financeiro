@@ -167,11 +167,12 @@ function preencherLinhaSaldoAnterior(clone, receita) {
 }
 
 function preencherLinhaReceitaNormal(clone, receita, index, fechado) {
-    const idEl = clone.querySelector('.receita-id');
-    const descricaoEl = clone.querySelector('.receita-descricao');
-    const valorEl = clone.querySelector('.receita-valor');
-    const dataEl = clone.querySelector('.receita-data');
-    const parcelaEl = clone.querySelector('.receita-parcela');
+    // Usar seletores .col-* para grid
+    const idEl = clone.querySelector('.col-id');
+    const descricaoEl = clone.querySelector('.col-descricao');
+    const valorEl = clone.querySelector('.col-valor');
+    const dataEl = clone.querySelector('.col-data');
+    const parcelaEl = clone.querySelector('.col-parcela');
 
     if (idEl) idEl.textContent = receita.id || '-';
     if (descricaoEl) descricaoEl.textContent = receita.descricao || 'Sem descrição';
