@@ -243,27 +243,33 @@ async function criarParcelasFuturas(usuarioId, despesaBase, totalParcelas) {
 router.put('/:id', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
-        const { 
+        const {
             descricao, valor, data_vencimento, data_compra, data_pagamento,
             categoria_id, cartao_id, forma_pagamento, observacoes, pago,
-            total_parcelas
+            total_parcelas, parcela_atual, valor_original, valor_total_com_juros, valor_pago
         } = req.body;
-        
-        // ✅ ACEITAR total_parcelas do frontend
+
+        // ✅ ACEITAR total_parcelas e parcela_atual do frontend
         const numeroParcelas = total_parcelas || null;
-        
+        const parcelaAtual = parcela_atual || null;
+
         const result = await query(
-            `UPDATE despesas 
+            `UPDATE despesas
              SET descricao = $1, valor = $2, data_vencimento = $3, data_compra = $4,
                  data_pagamento = $5, categoria_id = $6, cartao_id = $7,
                  forma_pagamento = $8, observacoes = $9, pago = $10,
-                 numero_parcelas = $11
-             WHERE id = $12 AND usuario_id = $13
+                 numero_parcelas = $11, parcela_atual = $12,
+                 valor_original = $13, valor_total_com_juros = $14, valor_pago = $15
+             WHERE id = $16 AND usuario_id = $17
              RETURNING *`,
             [
                 descricao, parseFloat(valor), data_vencimento, data_compra,
                 data_pagamento, categoria_id || 1, cartao_id, forma_pagamento,
-                observacoes, pago, numeroParcelas, id, req.usuario.id
+                observacoes, pago, numeroParcelas, parcelaAtual,
+                valor_original ? parseFloat(valor_original) : null,
+                valor_total_com_juros ? parseFloat(valor_total_com_juros) : null,
+                valor_pago ? parseFloat(valor_pago) : null,
+                id, req.usuario.id
             ]
         );
         
