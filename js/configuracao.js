@@ -2318,6 +2318,37 @@ async function importarDados() {
                 }
             }
 
+            // ✅ PASSO 6: Salvar meses fechados na tabela 'meses_fechados'
+            if (backup.mesesFechados && backup.mesesFechados.length > 0) {
+                if (progressText) progressText.textContent = `Fechando ${backup.mesesFechados.length} meses...`;
+                console.log(`🔒 Fechando ${backup.mesesFechados.length} meses`);
+
+                for (const mesFechado of backup.mesesFechados) {
+                    try {
+                        const response = await fetch(`${API_URL}/meses-fechados`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify({
+                                ano: parseInt(mesFechado.ano),
+                                mes: parseInt(mesFechado.mes)
+                            })
+                        });
+
+                        if (response.ok) {
+                            console.log(`✅ Mês ${mesFechado.mes + 1}/${mesFechado.ano} fechado com sucesso`);
+                        } else {
+                            const errorData = await response.json();
+                            console.warn(`⚠️ Erro ao fechar mês ${mesFechado.mes + 1}/${mesFechado.ano}:`, errorData);
+                        }
+                    } catch (error) {
+                        console.warn(`⚠️ Exceção ao fechar mês ${mesFechado.mes + 1}/${mesFechado.ano}:`, error);
+                    }
+                }
+            }
+
             // Ocultar loader
             if (loader) loader.classList.remove('show');
             if (progressText) progressText.textContent = '';
