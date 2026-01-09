@@ -2646,15 +2646,15 @@ async function importarDados() {
 
                 for (const mesFechado of backup.mesesFechados) {
                     try {
-                        const response = await fetch(`${API_URL}/meses-fechados`, {
+                        // ✅ CORRIGIDO: Rota correta é /meses/:ano/:mes/fechar
+                        const response = await fetch(`${API_URL}/meses/${mesFechado.ano}/${mesFechado.mes}/fechar`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
                                 'Authorization': `Bearer ${token}`
                             },
                             body: JSON.stringify({
-                                ano: parseInt(mesFechado.ano),
-                                mes: parseInt(mesFechado.mes)
+                                saldo_final: 0  // ✅ Backend espera saldo_final
                             })
                         });
 
