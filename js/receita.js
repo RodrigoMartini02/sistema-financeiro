@@ -108,22 +108,28 @@ function criarLinhaSaldoAnterior(saldoAnterior, fechado) {
 function criarLinhaReceita(receita, index, fechado) {
     const template = document.getElementById('template-linha-receita');
     if (!template) return document.createElement('tr');
-    
+
     const clone = template.content.cloneNode(true);
     const tr = clone.querySelector('tr');
-    
-    const eSaldoAnterior = receita.saldoAnterior === true || 
+
+    // ✅ CORRIGIDO: Verificar se tr existe antes de acessar classList
+    if (!tr) {
+        console.error('❌ Erro: template TR não encontrado');
+        return document.createElement('tr');
+    }
+
+    const eSaldoAnterior = receita.saldoAnterior === true ||
                           receita.descricao.includes('Saldo Anterior');
-    
+
     if (eSaldoAnterior) {
         tr.classList.add('saldo-anterior-row');
         preencherLinhaSaldoAnterior(clone, receita);
     } else {
         preencherLinhaReceitaNormal(clone, receita, index, fechado);
     }
-    
+
     if (fechado) tr.classList.add('transacao-fechada');
-    
+
     return clone;
 }
 
