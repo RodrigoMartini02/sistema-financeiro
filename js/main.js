@@ -288,6 +288,17 @@ async function carregarDadosLocais() {
     }
 
     try {
+        // ✅ Aguardar inicialização do usuarioDataManager
+        if (window.usuarioDataManager) {
+            // Aguardar até que o usuarioDataManager esteja pronto
+            let tentativas = 0;
+            const maxTentativas = 50;
+            while (!window.usuarioDataManager.inicializado && tentativas < maxTentativas) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                tentativas++;
+            }
+        }
+
         // ✅ Carregar dados da API através do usuarioDataManager
         if (window.usuarioDataManager && typeof window.usuarioDataManager.getDadosFinanceirosUsuario === 'function') {
             dadosFinanceiros = await window.usuarioDataManager.getDadosFinanceirosUsuario();
@@ -302,6 +313,7 @@ async function carregarDadosLocais() {
         window.dadosFinanceiros = dadosFinanceiros;
 
     } catch (error) {
+        console.error('Erro ao carregar dados:', error);
         dadosFinanceiros = criarEstruturaVazia();
         window.dadosFinanceiros = dadosFinanceiros;
     }
