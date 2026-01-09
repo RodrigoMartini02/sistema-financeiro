@@ -203,33 +203,48 @@ async function buscarCategoriasAPI() {
     }
 }
 
-function atualizarDropdowns() {
+async function atualizarDropdowns() {
     const dropdownCategoria = document.getElementById('despesa-categoria');
-    if (dropdownCategoria && categoriasUsuario.despesas) {
+    if (!dropdownCategoria) return;
+
+    try {
         const valorSelecionado = dropdownCategoria.value;
 
+        // Limpar opções existentes (manter apenas o "Selecione...")
         while (dropdownCategoria.options.length > 1) {
             dropdownCategoria.remove(1);
         }
 
-        categoriasUsuario.despesas.forEach(cat => {
-            const nomeCategoria = typeof cat === 'string' ? cat : cat.nome;
-            const option = document.createElement('option');
-            option.value = nomeCategoria;
-            option.textContent = nomeCategoria;
-            dropdownCategoria.appendChild(option);
-        });
+        // Buscar categorias da API
+        const categorias = await buscarCategoriasAPI();
 
-        if (valorSelecionado) {
-            const existe = categoriasUsuario.despesas.some(cat => {
-                const nome = typeof cat === 'string' ? cat : cat.nome;
-                return nome === valorSelecionado;
+        if (categorias && categorias.length > 0) {
+            // Atualizar categoriasUsuario para manter compatibilidade
+            categoriasUsuario.despesas = categorias;
+
+            // Adicionar cada categoria ao dropdown
+            categorias.forEach(cat => {
+                const nomeCategoria = typeof cat === 'string' ? cat : cat.nome;
+                const option = document.createElement('option');
+                option.value = nomeCategoria;
+                option.textContent = nomeCategoria;
+                dropdownCategoria.appendChild(option);
             });
 
-            if (existe) {
-                dropdownCategoria.value = valorSelecionado;
+            // Restaurar valor selecionado se ainda existir
+            if (valorSelecionado) {
+                const existe = categorias.some(cat => {
+                    const nome = typeof cat === 'string' ? cat : cat.nome;
+                    return nome === valorSelecionado;
+                });
+
+                if (existe) {
+                    dropdownCategoria.value = valorSelecionado;
+                }
             }
         }
+    } catch (error) {
+        console.error('Erro ao atualizar dropdowns:', error);
     }
 }
 
