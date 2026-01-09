@@ -123,20 +123,26 @@ function limparGraficos() {
     const graficos = [
         'balancoChart',
         'tendenciaChart',
-        'receitasDespesasChart', 
+        'receitasDespesasChart',
         'categoriasBarrasChart',
         'categoriasEmpilhadasChart',
-        'jurosChart', 
+        'jurosChart',
         'parcelamentosChart',
         'formaPagamentoChart'
     ];
-    
+
     graficos.forEach(grafico => {
         if (window[grafico]) {
             window[grafico].destroy();
             window[grafico] = null;
         }
     });
+
+    // Limpar gráfico de média de categorias
+    if (window.mediaCategoriasChart) {
+        window.mediaCategoriasChart.destroy();
+        window.mediaCategoriasChart = null;
+    }
 }
 
 
@@ -212,14 +218,14 @@ function carregarDadosDashboard(ano) {
     if (!window.dadosFinanceiros[ano]) {
         return;
     }
-    
+
     const dadosProcessados = processarDadosReais(window.dadosFinanceiros, ano);
-    
+
     atualizarResumoDashboard(dadosProcessados.resumoAnual);
     preencherSelectCategorias();
-    
+
     const filtrosPadrao = { categoria: '', formaPagamento: 'todas', status: 'todos', tipo: 'ambos' };
-    
+
     criarGraficoBalanco(dadosProcessados.dadosMensais);
     criarGraficoTendenciaAnualComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
     criarGraficoReceitasDespesasComFiltros(dadosProcessados.dadosMensais, filtrosPadrao);
@@ -228,6 +234,7 @@ function carregarDadosDashboard(ano) {
     criarGraficoJurosComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
     criarGraficoParcelamentosComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
     criarGraficoFormaPagamentoComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
+    renderizarGraficoMediaCategorias();
 }
 
 // ================================================================
@@ -1252,9 +1259,10 @@ function criarGraficoMediaItens(dadosFinanceiros, ano, filtros) {
     });
 }
 
-let mediaCategoriasChart = null;
-
 function renderizarGraficoMediaCategorias() {
+    const ctx = document.getElementById('media-categorias-chart')?.getContext('2d');
+    if (!ctx) return;
+
     // Busca o ano ativo do sistema global
     const ano = window.anoAtual || new Date().getFullYear();
     const dadosAno = window.dadosFinanceiros[ano];
@@ -1264,72 +1272,86 @@ function renderizarGraficoMediaCategorias() {
         return;
     }
 
-    const filtroPagamento = document.getElementById('media-cat-pagamento-filter').value;
+    const filtroPagamento = document.getElementById('media-cat-pagamento-filter')?.value || 'todas';
     const totaisPorCategoria = {};
 
     // 1. Processamento dos dados: Soma anual agrupada por categoria
-    dadosAno.meses.forEach(mes => {
-        if (mes.despesas) {
-            mes.despesas.forEach(d => {
-                const valor = parseFloat(d.valor || 0);
-                const forma = (d.formaPagamento || 'outros').toLowerCase();
-                const categoria = d.categoria || 'Sem Categoria';
+    for (let i = 0; i < 12; i++) {
+        const mes = dadosAno.meses[i];
+        if (mes && mes.despesas) {
+            mes.despesas.forEach(despesa => {
+                // Usa a função obterValorRealDespesa para calcular o valor correto (com juros, quitação antecipada, etc)
+                const valor = window.obterValorRealDespesa ? window.obterValorRealDespesa(despesa) : (despesa.valor || 0);
+                const forma = (despesa.formaPagamento || '').toLowerCase();
+
+                // Usa obterCategoriaLimpa para padronizar categoria
+                const categoria = window.obterCategoriaLimpa ? window.obterCategoriaLimpa(despesa) : (despesa.categoria || 'Sem Categoria');
 
                 // Aplica filtro de forma de pagamento se selecionado
                 if (filtroPagamento !== 'todas' && forma !== filtroPagamento) return;
 
-                totaisPorCategoria[categoria] = (totaisPorCategoria[categoria] || 0) + valor;
+                if (!isNaN(valor) && valor > 0) {
+                    totaisPorCategoria[categoria] = (totaisPorCategoria[categoria] || 0) + valor;
+                }
             });
         }
-    });
+    }
 
     // 2. Cálculo da média mensal (Total Anual / 12 meses)
     const labels = Object.keys(totaisPorCategoria).sort();
-    const valoresMedios = labels.map(cat => (totaisPorCategoria[cat] / 12).toFixed(2));
+    const valoresMedios = labels.map(cat => totaisPorCategoria[cat] / 12);
+    const cores = obterCoresParaCategorias(labels);
 
     // 3. Renderização visual com Chart.js
-    const ctx = document.getElementById('media-categorias-chart').getContext('2d');
-    
-    if (mediaCategoriasChart) {
-        mediaCategoriasChart.destroy();
+    if (window.mediaCategoriasChart) {
+        window.mediaCategoriasChart.destroy();
     }
 
-    mediaCategoriasChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Média Mensal (R$)',
-                data: valoresMedios,
-                backgroundColor: '#3498db',
-                borderColor: '#2980b9',
-                borderWidth: 1,
-                borderRadius: 4
-            }]
-        },
-        options: {
-            indexAxis: 'y', // Barras horizontais para facilitar leitura das categorias
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: (context) => ` Média: R$ ${parseFloat(context.raw).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+    if (labels.length > 0) {
+        window.mediaCategoriasChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Média Mensal',
+                    data: valoresMedios,
+                    backgroundColor: cores,
+                    borderColor: cores.map(cor => cor.replace('0.7', '1')),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'Média Mensal: ' + window.formatarMoeda(context.raw);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return window.formatarMoeda(value);
+                            }
+                        }
+                    },
+                    y: {
+                        ticks: {
+                            autoSkip: false
+                        }
                     }
                 }
-            },
-            scales: {
-                x: { 
-                    beginAtZero: true,
-                    grid: { display: true, drawBorder: false }
-                },
-                y: { 
-                    grid: { display: false }
-                }
             }
-        }
-    });
+        });
+    }
 }
 
 // Torna a função disponível para o main.js
