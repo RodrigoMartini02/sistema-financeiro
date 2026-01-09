@@ -168,6 +168,33 @@
     border-bottom: 2px solid #e5e7eb;
 }
 
+/* Colunas com posição relativa para resizers */
+.receitas-grid .grid-header > div {
+    position: relative;
+}
+
+/* Divisores de coluna (resizers) */
+.receitas-grid .column-resizer {
+    position: absolute;
+    right: -6px;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    cursor: col-resize;
+    user-select: none;
+    z-index: 20;
+    background: transparent;
+    transition: background 0.2s ease;
+}
+
+.receitas-grid .column-resizer:hover {
+    background: rgba(99, 102, 241, 0.3);
+}
+
+.receitas-grid .column-resizer.resizing {
+    background: rgba(99, 102, 241, 0.6);
+}
+
 .receitas-grid .grid-content {
     overflow-y: auto;
     max-height: calc(70vh - 48px);

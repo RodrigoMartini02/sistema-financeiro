@@ -3465,17 +3465,10 @@ document.addEventListener('DOMContentLoaded', configurarBotaoComprovanteSimples)
     function resize(e) {
         if (!isResizing) return;
 
-        const header = document.getElementById('despesas-grid-header');
-        const column = header.children[currentColumnIndex];
-
         const diff = e.clientX - startX;
         const newWidth = Math.max(40, startWidth + diff);
 
-        column.style.width = newWidth + 'px';
-        column.style.minWidth = newWidth + 'px';
-        column.style.maxWidth = newWidth + 'px';
-
-        updateGridTemplateColumns();
+        updateGridTemplateColumns(currentColumnIndex, newWidth);
     }
 
     function stopResize() {
@@ -3492,19 +3485,39 @@ document.addEventListener('DOMContentLoaded', configurarBotaoComprovanteSimples)
         saveColumnWidths();
     }
 
-    function updateGridTemplateColumns() {
+    function updateGridTemplateColumns(columnIndex = null, newWidth = null) {
         const header = document.getElementById('despesas-grid-header');
         if (!header) return;
 
         const columns = Array.from(header.children);
-        const widths = columns.map(col => {
-            const width = col.style.width || getComputedStyle(col).width;
-            return width;
-        });
+
+        // Se está redimensionando, atualiza a largura específica
+        if (columnIndex !== null && newWidth !== null) {
+            if (!header.dataset.columnWidths) {
+                // Inicializa com larguras computadas atuais
+                const currentWidths = columns.map(col => getComputedStyle(col).width);
+                header.dataset.columnWidths = JSON.stringify(currentWidths);
+            }
+
+            const widths = JSON.parse(header.dataset.columnWidths);
+            widths[columnIndex] = newWidth + 'px';
+            header.dataset.columnWidths = JSON.stringify(widths);
+        }
+
+        // Obtém larguras armazenadas ou computadas
+        let widths;
+        if (header.dataset.columnWidths) {
+            widths = JSON.parse(header.dataset.columnWidths);
+        } else {
+            widths = columns.map(col => getComputedStyle(col).width);
+        }
 
         const gridTemplate = widths.join(' ');
+
+        // Aplica ao header
         header.style.gridTemplateColumns = gridTemplate;
 
+        // Aplica a todas as linhas
         const gridContainer = header.parentElement;
         const rows = gridContainer.querySelectorAll('.grid-row');
         rows.forEach(row => {
@@ -3516,13 +3529,10 @@ document.addEventListener('DOMContentLoaded', configurarBotaoComprovanteSimples)
         const header = document.getElementById('despesas-grid-header');
         if (!header) return;
 
-        const columns = Array.from(header.children);
-        const widths = columns.map(col => {
-            return col.style.width || getComputedStyle(col).width;
-        });
+        if (!header.dataset.columnWidths) return;
 
         try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(widths));
+            localStorage.setItem(STORAGE_KEY, header.dataset.columnWidths);
         } catch (error) {
             console.error('Erro ao salvar larguras:', error);
         }
@@ -3533,20 +3543,10 @@ document.addEventListener('DOMContentLoaded', configurarBotaoComprovanteSimples)
             const saved = localStorage.getItem(STORAGE_KEY);
             if (!saved) return;
 
-            const widths = JSON.parse(saved);
             const header = document.getElementById('despesas-grid-header');
             if (!header) return;
 
-            const columns = Array.from(header.children);
-
-            columns.forEach((col, index) => {
-                if (widths[index]) {
-                    col.style.width = widths[index];
-                    col.style.minWidth = widths[index];
-                    col.style.maxWidth = widths[index];
-                }
-            });
-
+            header.dataset.columnWidths = saved;
             updateGridTemplateColumns();
         } catch (error) {
             console.error('Erro ao carregar larguras:', error);
