@@ -3591,10 +3591,52 @@ table tr:hover {
     gap: 4px;
 }
 
+/* Ações em Categorias - sem resize */
+.categorias-grid .col-acoes {
+    width: 100px;
+    min-width: 100px;
+    flex-shrink: 0;
+}
+
 .col-anexos {
     width: 80px;
     min-width: 80px;
     justify-content: center;
+}
+
+/* Linha de Saldo Anterior - Receitas */
+.grid-row.saldo-anterior-row {
+    background-color: #f0f4ff;
+    border-left: 4px solid #4361ee;
+    font-weight: 600;
+}
+
+.grid-row.saldo-anterior-row .col-id {
+    color: #6c757d;
+    font-weight: normal;
+}
+
+.grid-row.saldo-anterior-row .col-descricao {
+    color: #4361ee;
+    font-weight: 600;
+}
+
+.grid-row.saldo-anterior-row .col-valor {
+    font-weight: 700;
+    font-size: 14px;
+}
+
+.grid-row.saldo-anterior-row .col-data,
+.grid-row.saldo-anterior-row .col-parcela {
+    color: #6c757d;
+}
+
+.saldo-anterior-valor.positivo {
+    color: #28a745 !important;
+}
+
+.saldo-anterior-valor.negativo {
+    color: #dc3545 !important;
 }
 
 /* Badges de Status */

@@ -139,14 +139,17 @@ function criarLinhaReceita(receita, index, fechado) {
 function preencherLinhaSaldoAnterior(clone, receita) {
     const tipoSaldo = receita.valor >= 0 ? 'positivo' : 'negativo';
 
-    const idEl = clone.querySelector('.receita-id');
-    const descricaoEl = clone.querySelector('.receita-descricao');
-    const valorEl = clone.querySelector('.receita-valor');
-    const dataEl = clone.querySelector('.receita-data');
-    const parcelaEl = clone.querySelector('.receita-parcela');
-    const acoesEl = clone.querySelector('.receita-acoes');
+    // Usar seletores .col-* para grid
+    const idEl = clone.querySelector('.col-id');
+    const descricaoEl = clone.querySelector('.col-descricao');
+    const valorEl = clone.querySelector('.col-valor');
+    const dataEl = clone.querySelector('.col-data');
+    const parcelaEl = clone.querySelector('.col-parcela');
+    const acoesEl = clone.querySelector('.col-acoes');
+    const anexosEl = clone.querySelector('.col-anexos');
 
     if (idEl) idEl.textContent = '-';
+
     if (descricaoEl) {
         descricaoEl.textContent = receita.descricao;
         descricaoEl.classList.add('saldo-anterior-desc', tipoSaldo);
@@ -159,6 +162,7 @@ function preencherLinhaSaldoAnterior(clone, receita) {
 
     if (dataEl) dataEl.textContent = '-';
     if (parcelaEl) parcelaEl.textContent = '-';
+    if (anexosEl) anexosEl.textContent = '-';
     if (acoesEl) acoesEl.innerHTML = '<span class="badge-saldo-anterior">AUTOMÁTICO</span>';
 }
 
