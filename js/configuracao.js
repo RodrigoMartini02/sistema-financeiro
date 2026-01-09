@@ -2234,29 +2234,61 @@ async function importarDados() {
                 console.warn('⚠️ Erro ao criar categorias padrão:', error);
             }
 
-            // ✅ PASSO 1: Importar categorias DEPOIS (para o campo JSON no usuarios)
-            if (backup.categorias) {
-                const totalCategorias = (backup.categorias.receitas?.length || 0) + (backup.categorias.despesas?.length || 0);
+            // ✅ PASSO 1: Importar categorias (criar na tabela categorias)
+            if (backup.categorias && backup.categorias.despesas) {
+                const totalCategorias = backup.categorias.despesas.length;
                 if (progressText) progressText.textContent = `Importando ${totalCategorias} categorias...`;
-                console.log('📁 Importando categorias...');
+                console.log('📁 Importando categorias para tabela categorias...');
 
                 try {
-                    const responseCategorias = await fetch(`${API_URL}/usuarios/${usuario.id}/categorias`, {
-                        method: 'PUT',
+                    // Buscar categorias existentes
+                    const responseCatExistentes = await fetch(`${API_URL}/categorias`, {
+                        method: 'GET',
                         headers: {
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({ categorias: backup.categorias })  // ✅ Backend espera { categorias: {...} }
+                        }
                     });
 
-                    if (responseCategorias.ok) {
-                        console.log('✅ Categorias importadas com sucesso');
-                        window.categoriasUsuario = backup.categorias;
-                    } else {
-                        const errorData = await responseCategorias.json();
-                        console.error('⚠️ Erro ao importar categorias:', errorData);
+                    let categoriasExistentes = [];
+                    if (responseCatExistentes.ok) {
+                        const data = await responseCatExistentes.json();
+                        categoriasExistentes = (data.data || []).map(c => c.nome.toLowerCase());
+                        console.log('📋 Categorias já existentes:', categoriasExistentes);
                     }
+
+                    // Criar cada categoria do backup que ainda não existe
+                    for (const nomeCategoria of backup.categorias.despesas) {
+                        if (!categoriasExistentes.includes(nomeCategoria.toLowerCase())) {
+                            try {
+                                const responseCreate = await fetch(`${API_URL}/categorias`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': `Bearer ${token}`
+                                    },
+                                    body: JSON.stringify({
+                                        nome: nomeCategoria,
+                                        cor: '#3498db',
+                                        icone: null
+                                    })
+                                });
+
+                                if (responseCreate.ok) {
+                                    console.log(`✅ Categoria "${nomeCategoria}" criada`);
+                                } else {
+                                    const errorData = await responseCreate.json();
+                                    console.warn(`⚠️ Erro ao criar categoria "${nomeCategoria}":`, errorData);
+                                }
+                            } catch (error) {
+                                console.warn(`⚠️ Exceção ao criar categoria "${nomeCategoria}":`, error);
+                            }
+                        } else {
+                            console.log(`⏭️ Categoria "${nomeCategoria}" já existe, pulando...`);
+                        }
+                    }
+
+                    console.log('✅ Importação de categorias concluída');
                 } catch (error) {
                     console.warn('⚠️ Erro ao importar categorias:', error);
                 }

@@ -59,30 +59,30 @@ router.get('/', authMiddleware, async (req, res) => {
     }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
     try {
         const { nome, cor, icone } = req.body;
-        
+
         if (!nome || nome.trim() === '') {
             return res.status(400).json({
                 success: false,
                 message: 'Nome da categoria é obrigatório'
             });
         }
-        
+
         if (nome.length > 255) {
             return res.status(400).json({
                 success: false,
                 message: 'Nome da categoria deve ter no máximo 255 caracteres'
             });
         }
-        
+
         const verificarExistente = `
-            SELECT id FROM categorias 
+            SELECT id FROM categorias
             WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2)
         `;
-        
-        const existente = await query(verificarExistente, [req.usuario_id, nome.trim()]);
+
+        const existente = await query(verificarExistente, [req.usuario.id, nome.trim()]);
         
         if (existente.rows.length > 0) {
             return res.status(400).json({
@@ -92,7 +92,7 @@ router.post('/', async (req, res) => {
         }
         
         // ✅ OBTER PRÓXIMO NÚMERO
-        const proximoNumero = await obterProximoNumero(req.usuario_id);
+        const proximoNumero = await obterProximoNumero(req.usuario.id);
 
         const queryText = `
             INSERT INTO categorias (usuario_id, nome, cor, icone, numero)
@@ -101,7 +101,7 @@ router.post('/', async (req, res) => {
         `;
 
         const values = [
-            req.usuario_id,
+            req.usuario.id,
             nome.trim(),
             cor || '#3498db',
             icone || null,
@@ -126,7 +126,7 @@ router.post('/', async (req, res) => {
     }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', authMiddleware, async (req, res) => {
     try {
         const categoriaId = parseInt(req.params.id);
         
@@ -143,7 +143,7 @@ router.get('/:id', async (req, res) => {
             WHERE id = $1 AND usuario_id = $2
         `;
         
-        const result = await query(queryText, [categoriaId, req.usuario_id]);
+        const result = await query(queryText, [categoriaId, req.usuario.id]);
         
         if (result.rows.length === 0) {
             return res.status(404).json({
@@ -168,7 +168,7 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', authMiddleware, async (req, res) => {
     try {
         const categoriaId = parseInt(req.params.id);
         const { nome, cor, icone } = req.body;
@@ -199,7 +199,7 @@ router.put('/:id', async (req, res) => {
             WHERE id = $1 AND usuario_id = $2
         `;
         
-        const existeCategoria = await query(verificarExistencia, [categoriaId, req.usuario_id]);
+        const existeCategoria = await query(verificarExistencia, [categoriaId, req.usuario.id]);
         
         if (existeCategoria.rows.length === 0) {
             return res.status(404).json({
@@ -213,7 +213,7 @@ router.put('/:id', async (req, res) => {
             WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2) AND id != $3
         `;
         
-        const nomeDuplicado = await query(verificarNomeDuplicado, [req.usuario_id, nome.trim(), categoriaId]);
+        const nomeDuplicado = await query(verificarNomeDuplicado, [req.usuario.id, nome.trim(), categoriaId]);
         
         if (nomeDuplicado.rows.length > 0) {
             return res.status(400).json({
@@ -234,7 +234,7 @@ router.put('/:id', async (req, res) => {
             cor || '#3498db',
             icone || null,
             categoriaId,
-            req.usuario_id
+            req.usuario.id
         ];
         
         const result = await query(queryText, values);
@@ -255,7 +255,7 @@ router.put('/:id', async (req, res) => {
     }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authMiddleware, async (req, res) => {
     try {
         const categoriaId = parseInt(req.params.id);
         
@@ -271,7 +271,7 @@ router.delete('/:id', async (req, res) => {
             WHERE id = $1 AND usuario_id = $2
         `;
         
-        const existeCategoria = await query(verificarExistencia, [categoriaId, req.usuario_id]);
+        const existeCategoria = await query(verificarExistencia, [categoriaId, req.usuario.id]);
         
         if (existeCategoria.rows.length === 0) {
             return res.status(404).json({
@@ -285,7 +285,7 @@ router.delete('/:id', async (req, res) => {
             WHERE categoria_id = $1 AND usuario_id = $2
         `;
         
-        const usoCategoria = await query(verificarUso, [categoriaId, req.usuario_id]);
+        const usoCategoria = await query(verificarUso, [categoriaId, req.usuario.id]);
         const totalUsos = parseInt(usoCategoria.rows[0].total);
         
         if (totalUsos > 0) {
@@ -300,7 +300,7 @@ router.delete('/:id', async (req, res) => {
             WHERE id = $1 AND usuario_id = $2
         `;
         
-        await query(queryText, [categoriaId, req.usuario_id]);
+        await query(queryText, [categoriaId, req.usuario.id]);
         
         res.json({
             success: true,
@@ -317,7 +317,7 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
-router.get('/estatisticas/uso', async (req, res) => {
+router.get('/estatisticas/uso', authMiddleware, async (req, res) => {
     try {
         const queryText = `
             SELECT 
@@ -333,7 +333,7 @@ router.get('/estatisticas/uso', async (req, res) => {
             ORDER BY total_uso DESC, c.nome ASC
         `;
         
-        const result = await query(queryText, [req.usuario_id]);
+        const result = await query(queryText, [req.usuario.id]);
         
         res.json({
             success: true,
