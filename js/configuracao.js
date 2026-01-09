@@ -2646,7 +2646,22 @@ async function importarDados() {
 
                 for (const mesFechado of backup.mesesFechados) {
                     try {
-                        // ✅ CORRIGIDO: Rota correta é /meses/:ano/:mes/fechar
+                        // ✅ Buscar saldo do mês antes de fechar
+                        const saldoResponse = await fetch(`${API_URL}/meses/${mesFechado.ano}/${mesFechado.mes}/saldo`, {
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            }
+                        });
+
+                        let saldoFinal = 0;
+                        if (saldoResponse.ok) {
+                            const saldoData = await saldoResponse.json();
+                            saldoFinal = saldoData.data?.saldo_final || 0;
+                            console.log(`📊 Saldo calculado para ${mesFechado.mes + 1}/${mesFechado.ano}: R$ ${saldoFinal}`);
+                        }
+
+                        // ✅ CORRIGIDO: Fechar com saldo correto
                         const response = await fetch(`${API_URL}/meses/${mesFechado.ano}/${mesFechado.mes}/fechar`, {
                             method: 'POST',
                             headers: {
@@ -2654,12 +2669,12 @@ async function importarDados() {
                                 'Authorization': `Bearer ${token}`
                             },
                             body: JSON.stringify({
-                                saldo_final: 0  // ✅ Backend espera saldo_final
+                                saldo_final: saldoFinal
                             })
                         });
 
                         if (response.ok) {
-                            console.log(`✅ Mês ${mesFechado.mes + 1}/${mesFechado.ano} fechado com sucesso`);
+                            console.log(`✅ Mês ${mesFechado.mes + 1}/${mesFechado.ano} fechado com sucesso (saldo: R$ ${saldoFinal})`);
                         } else {
                             const errorData = await response.json();
                             console.warn(`⚠️ Erro ao fechar mês ${mesFechado.mes + 1}/${mesFechado.ano}:`, errorData);
