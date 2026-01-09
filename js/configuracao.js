@@ -2131,7 +2131,12 @@ async function importarDados() {
 
                     if (response.ok) {
                         sucessos++;
-                        console.log('✅ Receita importada com sucesso');
+                        const resultado = await response.json();
+                        if (resultado.data && resultado.data.id) {
+                            console.log(`✅ Receita importada com ID ${resultado.data.id}`);
+                        } else {
+                            console.log('✅ Receita importada com sucesso');
+                        }
                     } else {
                         erros++;
                         let errorData;
@@ -2260,6 +2265,10 @@ async function importarDados() {
 
                     if (response.ok) {
                         sucessos++;
+                        const resultado = await response.json();
+                        if (resultado.data && resultado.data.id) {
+                            console.log(`✅ Despesa importada com ID ${resultado.data.id}`);
+                        }
                     } else {
                         erros++;
                         let errorData;
@@ -2359,9 +2368,12 @@ async function importarDados() {
                     erros > 0 ? 'warning' : 'success'
                 );
 
-                // ✅ PRODUÇÃO: Recarregar a página completamente para buscar dados do backend
+                // ✅ PRODUÇÃO: Limpar cache e recarregar página para buscar dados do backend com IDs reais
+                if (window.usuarioDataManager && typeof window.usuarioDataManager.limparCache === 'function') {
+                    window.usuarioDataManager.limparCache();
+                }
                 setTimeout(() => {
-                    window.location.reload();
+                    window.location.reload(true);  // true = forçar reload do servidor
                 }, 2000);
             } else {
                 mostrarFeedback('Erro: Nenhum registro foi importado', 'error');
