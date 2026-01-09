@@ -469,8 +469,11 @@ function configurarEventosDespesas(container, mes, ano) {
               await abrirModalVisualizarAnexosDespesa(index);
           }
       } catch (error) {
-
-          alert('Erro ao processar ação: ' + error.message);
+          if (window.mostrarMensagemErro) {
+              window.mostrarMensagemErro('Erro ao processar ação: ' + error.message);
+          } else {
+              alert('Erro ao processar ação: ' + error.message);
+          }
       }
   };
   
@@ -769,7 +772,11 @@ function abrirModalNovaDespesa(index) {
        if (descricaoInput) descricaoInput.focus();
 
    } catch (error) {
-       alert("Não foi possível abrir o formulário: " + error.message);
+       if (window.mostrarMensagemErro) {
+           window.mostrarMensagemErro("Não foi possível abrir o formulário: " + error.message);
+       } else {
+           alert("Não foi possível abrir o formulário: " + error.message);
+       }
    }
 }
 
@@ -1754,7 +1761,15 @@ function configurarBotoesExclusaoSimples(despesa, index, mes, ano) {
             try {
                 await processarExclusao('atual', index, mes, ano, despesa.descricao, despesa.categoria, despesa.idGrupoParcelamento);
             } catch (error) {
-                alert('Erro ao excluir: ' + error.message);
+                if (window.mostrarMensagemErro) {
+                    window.mostrarMensagemErro('Erro ao excluir: ' + error.message);
+                } else {
+                    if (window.mostrarMensagemErro) {
+                    window.mostrarMensagemErro('Erro ao excluir: ' + error.message);
+                } else {
+                    alert('Erro ao excluir: ' + error.message);
+                }
+                }
             }
         };
     }
@@ -1767,7 +1782,11 @@ function configurarBotoesExclusaoSimples(despesa, index, mes, ano) {
             try {
                 await processarExclusao('todas', index, mes, ano, despesa.descricao, despesa.categoria, despesa.idGrupoParcelamento);
             } catch (error) {
-                alert('Erro ao excluir: ' + error.message);
+                if (window.mostrarMensagemErro) {
+                    window.mostrarMensagemErro('Erro ao excluir: ' + error.message);
+                } else {
+                    alert('Erro ao excluir: ' + error.message);
+                }
             }
         };
     }
@@ -1786,7 +1805,11 @@ function configurarBotoesExclusaoParcelada(despesa, index, mes, ano) {
             try {
                 await processarExclusao('parcela', index, mes, ano, despesa.descricao, despesa.categoria, despesa.idGrupoParcelamento);
             } catch (error) {
-                alert('Erro ao excluir parcela: ' + error.message);
+                if (window.mostrarMensagemErro) {
+                    window.mostrarMensagemErro('Erro ao excluir parcela: ' + error.message);
+                } else {
+                    alert('Erro ao excluir parcela: ' + error.message);
+                }
             }
         };
     }
@@ -1799,7 +1822,11 @@ function configurarBotoesExclusaoParcelada(despesa, index, mes, ano) {
             try {
                 await processarExclusao('futuras', index, mes, ano, despesa.descricao, despesa.categoria, despesa.idGrupoParcelamento);
             } catch (error) {
-                alert('Erro ao excluir parcelas futuras: ' + error.message);
+                if (window.mostrarMensagemErro) {
+                    window.mostrarMensagemErro('Erro ao excluir parcelas futuras: ' + error.message);
+                } else {
+                    alert('Erro ao excluir parcelas futuras: ' + error.message);
+                }
             }
         };
     }
@@ -1812,7 +1839,11 @@ function configurarBotoesExclusaoParcelada(despesa, index, mes, ano) {
             try {
                 await processarExclusao('todas', index, mes, ano, despesa.descricao, despesa.categoria, despesa.idGrupoParcelamento);
             } catch (error) {
-                alert('Erro ao excluir todas as parcelas: ' + error.message);
+                if (window.mostrarMensagemErro) {
+                    window.mostrarMensagemErro('Erro ao excluir todas as parcelas: ' + error.message);
+                } else {
+                    alert('Erro ao excluir todas as parcelas: ' + error.message);
+                }
             }
         };
     }
@@ -1859,7 +1890,11 @@ async function processarExclusao(opcao, index, mes, ano, descricaoDespesa, categ
         if (modal) modal.style.display = 'none';
         
     } catch (error) {
-        alert('Erro ao processar exclusão: ' + error.message);
+        if (window.mostrarMensagemErro) {
+            window.mostrarMensagemErro('Erro ao processar exclusão: ' + error.message);
+        } else {
+            alert('Erro ao processar exclusão: ' + error.message);
+        }
     }
 }
 
@@ -1877,7 +1912,11 @@ async function excluirDespesaLocal(opcao, index, mes, ano, descricaoDespesa, cat
             // ✅ CORRIGIDO: Validação simplificada - agora sempre temos IDs reais do backend
             if (!despesa.id) {
                 console.error('❌ Despesa sem ID:', despesa);
-                alert('Erro: Despesa sem identificador. Por favor, recarregue a página.');
+                if (window.mostrarMensagemErro) {
+                    window.mostrarMensagemErro('Erro: Despesa sem identificador. Por favor, recarregue a página.');
+                } else {
+                    alert('Erro: Despesa sem identificador. Por favor, recarregue a página.');
+                }
                 return false;
             }
 
@@ -2154,23 +2193,31 @@ async function moverParaProximoMes(index, mes, ano) {
         }
         
         const despesa = dadosFinanceiros[ano].meses[mes].despesas[index];
-        
+
         if (despesa.quitado === true) {
-            alert("Não é possível mover uma despesa que já foi paga.");
+            if (window.mostrarMensagemErro) {
+                window.mostrarMensagemErro("Não é possível mover uma despesa que já foi paga.");
+            } else {
+                alert("Não é possível mover uma despesa que já foi paga.");
+            }
             return;
         }
-        
+
         const { proximoMes, proximoAno } = calcularProximoMes(mes, ano);
         const { mesAtualNome, proximoMesNome } = obterNomesMeses(mes, proximoMes);
-        
+
         if (!confirm(`Mover despesa "${despesa.descricao}" de ${mesAtualNome} para ${proximoMesNome} de ${proximoAno}?`)) {
             return;
         }
-        
+
         await executarMovimentoDespesa(despesa, index, mes, ano, proximoMes, proximoAno, mesAtualNome, proximoMesNome);
-        
+
     } catch (error) {
-        alert("Não foi possível mover a despesa: " + error.message);
+        if (window.mostrarMensagemErro) {
+            window.mostrarMensagemErro("Não foi possível mover a despesa: " + error.message);
+        } else {
+            alert("Não foi possível mover a despesa: " + error.message);
+        }
     }
 }
 
@@ -2273,7 +2320,12 @@ async function executarMovimentoDespesa(despesa, index, mes, ano, proximoMes, pr
             await carregarDadosDashboard(anoAtual);
         }
 
-        alert(`Despesa movida com sucesso para ${proximoMesNome} de ${proximoAno}!`);
+        // 5. Exibir mensagem de sucesso
+        if (window.mostrarMensagemSucesso) {
+            window.mostrarMensagemSucesso(`Despesa movida com sucesso para ${proximoMesNome} de ${proximoAno}!`);
+        } else {
+            alert(`Despesa movida com sucesso para ${proximoMesNome} de ${proximoAno}!`);
+        }
 
     } catch (error) {
         console.error('Erro ao mover despesa:', error);
