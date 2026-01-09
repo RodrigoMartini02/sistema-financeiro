@@ -2172,6 +2172,34 @@ async function importarDados() {
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
 
+            // ✅ PASSO 3.5: Buscar receitas do banco para obter IDs reais
+            if (progressText) progressText.textContent = 'Sincronizando receitas com banco de dados...';
+            console.log('🔄 Buscando receitas do banco para obter IDs reais...');
+
+            try {
+                // Buscar anos únicos das receitas importadas
+                const anosReceitas = [...new Set(backup.receitas.map(r => parseInt(r.ano)))];
+
+                for (const ano of anosReceitas) {
+                    const mesesAno = [...new Set(backup.receitas.filter(r => r.ano === ano).map(r => parseInt(r.mes)))];
+
+                    for (const mes of mesesAno) {
+                        const responseReceitas = await fetch(`${API_URL}/receitas?mes=${mes}&ano=${ano}`, {
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        });
+
+                        if (responseReceitas.ok) {
+                            const receitasData = await responseReceitas.json();
+                            console.log(`✅ Receitas ${mes+1}/${ano} sincronizadas: ${receitasData.data?.length || 0} registros com IDs`);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn('⚠️ Erro ao sincronizar receitas:', error);
+            }
+
             // ✅ PASSO 4: Importar despesas
             let despesasProcessadas = 0;
             console.log('💳 Total de despesas a importar:', totalDespesas);
@@ -2297,6 +2325,34 @@ async function importarDados() {
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
 
+            // ✅ PASSO 4.5: Buscar despesas do banco para obter IDs reais
+            if (progressText) progressText.textContent = 'Sincronizando despesas com banco de dados...';
+            console.log('🔄 Buscando despesas do banco para obter IDs reais...');
+
+            try {
+                // Buscar anos únicos das despesas importadas
+                const anosDespesas = [...new Set(backup.despesas.map(d => parseInt(d.ano)))];
+
+                for (const ano of anosDespesas) {
+                    const mesesAno = [...new Set(backup.despesas.filter(d => d.ano === ano).map(d => parseInt(d.mes)))];
+
+                    for (const mes of mesesAno) {
+                        const responseDespesas = await fetch(`${API_URL}/despesas?mes=${mes}&ano=${ano}`, {
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        });
+
+                        if (responseDespesas.ok) {
+                            const despesasData = await responseDespesas.json();
+                            console.log(`✅ Despesas ${mes+1}/${ano} sincronizadas: ${despesasData.data?.length || 0} registros com IDs`);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn('⚠️ Erro ao sincronizar despesas:', error);
+            }
+
             // ✅ PASSO 5: Salvar anos na tabela 'anos'
             const anosImportados = new Set();
             if (backup.receitas) {
@@ -2358,20 +2414,37 @@ async function importarDados() {
                 }
             }
 
+            // ✅ PASSO 7: Forçar recarga dos dados do banco com IDs reais
+            if (progressText) progressText.textContent = 'Finalizando e atualizando dados...';
+            console.log('🔄 Forçando recarga de dados do banco de dados...');
+
+            // Limpar cache do usuarioDataManager
+            if (window.usuarioDataManager && typeof window.usuarioDataManager.limparCache === 'function') {
+                console.log('🗑️ Limpando cache do usuarioDataManager...');
+                window.usuarioDataManager.limparCache();
+            }
+
+            // Recarregar dados financeiros do banco
+            if (window.usuarioDataManager && typeof window.usuarioDataManager.getDadosFinanceirosUsuario === 'function') {
+                console.log('📥 Buscando dados atualizados do banco...');
+                const dadosAtualizados = await window.usuarioDataManager.getDadosFinanceirosUsuario();
+                if (dadosAtualizados) {
+                    window.dadosFinanceiros = dadosAtualizados;
+                    console.log('✅ Dados financeiros atualizados em memória com IDs do PostgreSQL');
+                }
+            }
+
             // Ocultar loader
             if (loader) loader.classList.remove('show');
             if (progressText) progressText.textContent = '';
 
             if (sucessos > 0) {
                 mostrarFeedback(
-                    `Importação concluída: ${sucessos} de ${total} registros${erros > 0 ? ` (${erros} erros)` : ''}. Recarregando página...`,
+                    `Importação concluída: ${sucessos} de ${total} registros${erros > 0 ? ` (${erros} erros)` : ''}. Dados sincronizados com sucesso!`,
                     erros > 0 ? 'warning' : 'success'
                 );
 
-                // ✅ PRODUÇÃO: Limpar cache e recarregar página para buscar dados do backend com IDs reais
-                if (window.usuarioDataManager && typeof window.usuarioDataManager.limparCache === 'function') {
-                    window.usuarioDataManager.limparCache();
-                }
+                // ✅ PRODUÇÃO: Recarregar página para garantir interface atualizada
                 setTimeout(() => {
                     window.location.reload(true);  // true = forçar reload do servidor
                 }, 2000);
