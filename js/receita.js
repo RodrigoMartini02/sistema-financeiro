@@ -520,9 +520,10 @@ function criarObjetoReceita(formData) {
             anexosReceita = [];
         }
     }
-    
+
+    // ✅ CORRIGIDO: Não gera mais ID temporário
+    // O ID será atribuído pelo backend após o POST
     return {
-        id: window.gerarId ? window.gerarId() : Date.now().toString(),
         descricao: formData.descricao,
         valor: formData.valor,
         data: formData.data,
@@ -544,17 +545,16 @@ async function salvarReceitaLocal(mes, ano, receita, id) {
             const sucesso = await window.usuarioDataManager.salvarReceita(mes, ano, receita, id);
 
             if (sucesso) {
-                // ✅ Atualizar memória local APÓS salvar na API
-                window.garantirEstruturaDados(ano, mes);
+                // ✅ CORRIGIDO: Recarregar dados do backend para obter o ID real
+                console.log('🔄 Recarregando receitas do backend...');
 
-                if (ehEdicao) {
-                    const index = parseInt(id);
-                    window.dadosFinanceiros[ano].meses[mes].receitas[index] = receita;
-                } else {
-                    if (!window.dadosFinanceiros[ano].meses[mes].receitas) {
-                        window.dadosFinanceiros[ano].meses[mes].receitas = [];
+                if (typeof window.buscarReceitasAPI === 'function') {
+                    const receitasAtualizadas = await window.buscarReceitasAPI(mes, ano);
+                    if (receitasAtualizadas) {
+                        window.garantirEstruturaDados(ano, mes);
+                        window.dadosFinanceiros[ano].meses[mes].receitas = receitasAtualizadas;
+                        console.log('✅ Receitas atualizadas com IDs reais do backend');
                     }
-                    window.dadosFinanceiros[ano].meses[mes].receitas.push(receita);
                 }
 
                 // Registrar log da ação
@@ -647,38 +647,46 @@ async function processarReplicacao(receita, mes, ano) {
                 }
                 
                 if (anoAtual <= anoFinal) {
-                    window.garantirEstruturaDados(anoAtual, mesAtual);
                     await replicarParaMes(receita, mesAtual, anoAtual, diaReceita);
                 }
             }
         }
-        
-        await window.salvarDados();
-        
+
+        // ✅ CORRIGIDO: Não precisa mais salvar dados locais, cada replicação já salva via API
+
     } catch (error) {
+        console.error('❌ Erro no processamento de replicação:', error);
     }
 }
 
 async function replicarParaMes(receita, mes, ano, dia) {
     try {
-        window.garantirEstruturaDados(ano, mes);
-        
-        const receitaReplicada = { ...receita };
-        receitaReplicada.anexos = [];
-        
         const novaData = new Date(ano, mes, dia);
-        
+
         if (novaData.getMonth() !== mes) {
             const ultimoDia = new Date(ano, mes + 1, 0).getDate();
             novaData.setDate(ultimoDia);
         }
-        
-        receitaReplicada.data = novaData.toISOString().split('T')[0];
-        receitaReplicada.id = window.gerarId ? window.gerarId() : Date.now().toString();
-        
-        window.dadosFinanceiros[ano].meses[mes].receitas.push(receitaReplicada);
-        
+
+        // ✅ CORRIGIDO: Criar receita replicada SEM ID (será gerado pelo backend)
+        const receitaReplicada = {
+            descricao: receita.descricao,
+            valor: receita.valor,
+            data: novaData.toISOString().split('T')[0],
+            parcelado: false,
+            parcela: null,
+            saldoAnterior: false,
+            anexos: [] // Replicações não copiam anexos
+        };
+
+        // Salvar via API para obter ID real do backend
+        if (window.usuarioDataManager && typeof window.usuarioDataManager.salvarReceita === 'function') {
+            await window.usuarioDataManager.salvarReceita(mes, ano, receitaReplicada, null);
+            console.log(`✅ Receita replicada para ${mes + 1}/${ano}`);
+        }
+
     } catch (error) {
+        console.error('❌ Erro ao replicar receita:', error);
     }
 }
 
@@ -781,10 +789,10 @@ async function excluirReceitaLocal(opcao, index, mes, ano, descricaoReceita) {
                 throw new Error('Receita não encontrada');
             }
 
-            // Verificar se é um ID válido do banco (não um timestamp)
-            if (!receita.id || receita.id > 2147483647) {
-                console.warn('⚠️ Receita com ID inválido ou timestamp, não foi salva no backend:', receita);
-                alert('Esta receita ainda não foi salva no servidor. Por favor, recarregue a página.');
+            // ✅ CORRIGIDO: Validação simplificada - agora sempre temos IDs reais do backend
+            if (!receita.id) {
+                console.error('❌ Receita sem ID:', receita);
+                alert('Erro: Receita sem identificador. Por favor, recarregue a página.');
                 return false;
             }
 

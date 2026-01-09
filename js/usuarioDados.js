@@ -584,6 +584,23 @@ class UsuarioDataManager {
             }
 
             if (response.ok) {
+                const resultado = await response.json();
+
+                // ✅ CORRIGIDO: Atualizar ID local com o ID retornado pelo backend
+                if (!ehEdicao && resultado.data && resultado.data.id) {
+                    receita.id = resultado.data.id;
+                    console.log('✅ ID atualizado após criação:', resultado.data.id);
+
+                    // Atualizar também na memória local
+                    if (window.dadosFinanceiros && window.dadosFinanceiros[ano]?.meses[mes]) {
+                        const receitas = window.dadosFinanceiros[ano].meses[mes].receitas;
+                        const ultimaReceita = receitas[receitas.length - 1];
+                        if (ultimaReceita && ultimaReceita.descricao === receita.descricao) {
+                            ultimaReceita.id = resultado.data.id;
+                        }
+                    }
+                }
+
                 this.limparCache();
                 return true;
             } else {
@@ -815,19 +832,21 @@ class UsuarioDataManager {
     salvarReceitaLocal(mes, ano, receita, id = null) {
         try {
             const dados = this.getDadosFinanceirosLocal();
-            
+
             this.garantirEstruturaMes(dados, ano, mes);
-            
+
             if (id !== null && id !== '') {
                 const index = parseInt(id);
                 if (dados[ano].meses[mes].receitas[index]) {
-                    dados[ano].meses[mes].receitas[index] = { ...receita, id: receita.id || this.gerarId() };
+                    // ✅ CORRIGIDO: Não gera mais ID temporário
+                    dados[ano].meses[mes].receitas[index] = receita;
                 }
             } else {
-                receita.id = receita.id || this.gerarId();
+                // ✅ CORRIGIDO: Não gera mais ID temporário
+                // O ID virá do backend após o POST
                 dados[ano].meses[mes].receitas.push(receita);
             }
-            
+
             return this.salvarDadosLocal(dados);
         } catch (error) {
             return false;
@@ -1015,14 +1034,8 @@ class UsuarioDataManager {
                         if (anoData && anoData.meses) {
                             anoData.meses.forEach(mes => {
                                 if (mes) {
-                                    if (mes.receitas) {
-                                        mes.receitas.forEach(receita => {
-                                            if (!receita.id) {
-                                                receita.id = this.gerarId();
-                                                necessitaAtualizacao = true;
-                                            }
-                                        });
-                                    }
+                                    // ✅ CORRIGIDO: Removida migração de IDs temporários
+                                    // Os IDs agora sempre vêm do backend
                                     
                                     if (mes.despesas) {
                                         mes.despesas.forEach(despesa => {
