@@ -3364,3 +3364,411 @@ table tr:hover {
 .btn-retirar:hover {
     background: #c82333 !important;
 }
+
+/* ================================================================
+   SISTEMA GRID COMPARTILHADO
+   Estilos para tabelas grid (Despesas, Receitas, Categorias)
+   ================================================================ */
+
+/* Container Principal */
+.despesas-grid,
+.receitas-grid,
+.categorias-grid {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+/* Cabeçalho do Grid */
+.grid-header {
+    display: flex;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid #5568d3;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.grid-header > div {
+    padding: 12px 8px;
+    display: flex;
+    align-items: center;
+    position: relative;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.grid-header > div:last-child {
+    border-right: none;
+}
+
+/* Redimensionador de Colunas */
+.column-resizer {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    cursor: col-resize;
+    background: transparent;
+    transition: background 0.2s;
+}
+
+.column-resizer:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.column-resizer.resizing {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* Linhas do Grid */
+.grid-row {
+    display: flex;
+    border-bottom: 1px solid #e9ecef;
+    transition: background-color 0.2s;
+    min-height: 45px;
+    align-items: center;
+}
+
+.grid-row:hover {
+    background-color: #f8f9fa;
+}
+
+.grid-row > div,
+.grid-row > * {
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    color: #495057;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.grid-row > div:last-child,
+.grid-row > *:last-child {
+    border-right: none;
+}
+
+/* Estados das Linhas - Despesas */
+.grid-row.despesa-quitada {
+    background-color: #d4edda;
+    opacity: 0.8;
+}
+
+.grid-row.despesa-quitada .col-descricao {
+    text-decoration: line-through;
+    color: #6c757d;
+}
+
+.grid-row.despesa-atrasada {
+    background-color: #f8d7da;
+}
+
+.grid-row.despesa-em-dia {
+    background-color: #fff3cd;
+}
+
+.grid-row.transacao-fechada {
+    opacity: 0.7;
+    background-color: #e9ecef;
+}
+
+/* Container de Conteúdo com Scroll */
+.grid-content {
+    max-height: 600px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.grid-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.grid-content::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.grid-content::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.grid-content::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Colunas Específicas */
+.col-checkbox {
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
+    justify-content: center;
+}
+
+.col-id,
+.col-numero {
+    width: 60px;
+    min-width: 60px;
+    max-width: 60px;
+    font-weight: 600;
+    color: #6366f1;
+}
+
+.col-descricao {
+    flex: 1;
+    min-width: 180px;
+}
+
+.col-nome {
+    flex: 1;
+    min-width: 200px;
+}
+
+.col-categoria {
+    width: 120px;
+    min-width: 120px;
+}
+
+.col-forma-pagamento {
+    width: 100px;
+    min-width: 100px;
+    justify-content: center;
+}
+
+.col-valor {
+    width: 120px;
+    min-width: 120px;
+    text-align: right;
+    justify-content: flex-end;
+    font-weight: 600;
+}
+
+.col-parcela {
+    width: 80px;
+    min-width: 80px;
+    text-align: center;
+    justify-content: center;
+}
+
+.col-valor-pago {
+    width: 120px;
+    min-width: 120px;
+    text-align: right;
+    justify-content: flex-end;
+}
+
+.col-status {
+    width: 100px;
+    min-width: 100px;
+    justify-content: center;
+}
+
+.col-data,
+.col-compra,
+.col-vencimento,
+.col-data-pagamento,
+.col-data-criacao,
+.col-data-edicao {
+    width: 100px;
+    min-width: 100px;
+    text-align: center;
+    justify-content: center;
+}
+
+.col-acoes {
+    width: 140px;
+    min-width: 140px;
+    justify-content: center;
+    gap: 4px;
+}
+
+.col-anexos {
+    width: 80px;
+    min-width: 80px;
+    justify-content: center;
+}
+
+/* Badges de Status */
+.badge-status,
+.badge-pagamento {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge-status.quitada {
+    background: #d4edda;
+    color: #155724;
+}
+
+.badge-status.pendente {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.badge-status.atrasada {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.badge-pagamento.pix {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.badge-pagamento.debito {
+    background: #cce5ff;
+    color: #004085;
+}
+
+.badge-pagamento.credito {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.badge-pagamento.dinheiro {
+    background: #d4edda;
+    color: #155724;
+}
+
+/* Botões de Ação */
+.acoes-grupo {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 12px;
+    border: none;
+    background: transparent;
+    color: #6c757d;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.btn-sm:hover {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.btn-editar:hover {
+    background: #cce5ff;
+    color: #004085;
+}
+
+.btn-excluir:hover {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.btn-pagar:hover {
+    background: #d4edda;
+    color: #155724;
+}
+
+.btn-mover:hover {
+    background: #fff3cd;
+    color: #856404;
+}
+
+/* Responsividade Grid */
+@media (max-width: 1024px) {
+    .grid-header,
+    .grid-row {
+        font-size: 11px;
+    }
+
+    .col-descricao,
+    .col-nome {
+        min-width: 150px;
+    }
+
+    .col-categoria,
+    .col-valor,
+    .col-valor-pago {
+        min-width: 100px;
+    }
+
+    .col-acoes {
+        min-width: 100px;
+    }
+}
+
+@media (max-width: 768px) {
+    .grid-content {
+        max-height: 400px;
+    }
+
+    .grid-header > div,
+    .grid-row > div {
+        padding: 6px 4px;
+        font-size: 10px;
+    }
+
+    .col-descricao,
+    .col-nome {
+        min-width: 120px;
+    }
+
+    .col-categoria,
+    .col-data,
+    .col-parcela {
+        min-width: 80px;
+    }
+
+    .col-valor,
+    .col-valor-pago {
+        min-width: 90px;
+    }
+
+    .col-acoes {
+        min-width: 80px;
+    }
+
+    .btn-sm {
+        padding: 2px 6px;
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 480px) {
+    .grid-content {
+        max-height: 300px;
+    }
+
+    .grid-header,
+    .grid-row {
+        font-size: 9px;
+    }
+
+    .col-checkbox {
+        width: 30px;
+        min-width: 30px;
+    }
+
+    .col-id,
+    .col-numero {
+        width: 50px;
+        min-width: 50px;
+    }
+
+    .col-acoes {
+        flex-direction: column;
+        gap: 2px;
+    }
+}

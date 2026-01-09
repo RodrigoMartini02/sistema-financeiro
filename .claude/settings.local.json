@@ -22,7 +22,8 @@
       "Bash(node verificar-parceladas.js:*)",
       "Bash(node:*)",
       "Bash(del:*)",
-      "Bash(head:*)"
+      "Bash(head:*)",
+      "Bash(wc:*)"
     ]
   }
 }

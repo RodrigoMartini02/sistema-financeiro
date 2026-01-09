@@ -1,102 +1,14 @@
 /* ================================================================
-   DASHBOARD.CSS
+   DASHBOARD.CSS - Otimizado
+   Estilos específicos para gráficos e visualizações do dashboard
+   (Cards de resumo agora usam .resumo-cards de layoutGeral.css)
    ================================================================ */
 
-.dashboard-resumo {
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 15px;
-    padding: 0 16px;
-    overflow-x: auto;
-    margin-top: 20px; 
-    margin-bottom: 25px; /* Reduzi margem externa */
-}
-
-/* Scrollbar específico do resumo dashboard */
-.dashboard-resumo::-webkit-scrollbar {
-    height: 6px;
-}
-
-.dashboard-resumo::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 3px;
-}
-
-.dashboard-resumo::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 3px;
-}
-
-.dashboard-resumo::-webkit-scrollbar-thumb:hover {
-    background: #555;
-}
-
-/* Cards de Resumo */
-.resumo-card {
-    background: white;
-    padding: 15px 20px; /* Mais compacto */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    border-radius: 8px;
-    transition: all 0.3s ease;
-    position: relative;
-    min-height: 85px; /* Reduzi altura dos cards superiores */
-    border-left: 4px solid var(--primary-color);
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    flex: 1 1 0;
-    min-width: 180px;
-    max-width: 100%;
-}
-
-.resumo-card.receitas { border-left-color: var(--receita-color); }
-.resumo-card.despesas { border-left-color: var(--despesa-color); }
-.resumo-card.saldo { border-left-color: var(--saldo-color); }
-.resumo-card.juros { border-left-color: var(--juros-color); }
-.resumo-card.economias { border-left-color: var(--economia-color, #10b981); }
-
-.resumo-card:hover {
-    transform: translateY(-3px);
-}
-
-.resumo-card h3 {
-    font-size: 11px;
-    color: #64748b;
-    margin-bottom: 5px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.resumo-card p {
-    font-size: 20px; /* Levemente menor para caber melhor */
-    font-weight: 700;
-    margin: 0;
-    color: #1e293b;
-    white-space: nowrap;
-}
-
-.resumo-card.receitas p { color: var(--receita-color); }
-.resumo-card.despesas p { color: var(--despesa-color); }
-.resumo-card.saldo p { color: var(--saldo-color); }
-.resumo-card.juros p { color: var(--juros-color); }
-.resumo-card.economias p { color: var(--economia-color, #10b981); }
-
-.resumo-card small {
-    display: block;
-    margin-top: 4px;
-    font-size: 10px;
-    color: #94a3b8;
-}
-
-/* --- GRÁFICO BALANÇO (MENOR NA VERTICAL) --- */
+/* --- GRÁFICO BALANÇO --- */
 .dashboard-card-full {
     background: white;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    padding: 10px 25px; /* Padding menor para o gráfico usar o espaço */
+    padding: 10px 25px;
     margin: 0 16px 20px 16px;
     transition: transform 0.3s ease;
     border-radius: 8px;
@@ -118,14 +30,14 @@
 .dashboard-card-full .chart-container {
     position: relative;
     width: 100%;
-    height: 140px; /* AJUSTE CHAVE: Altura do gráfico reduzida */
+    height: 140px;
     overflow: visible;
 }
 
 /* --- GRID DE GRÁFICOS LADO A LADO --- */
 .dashboard-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr; /* Forçando 2 colunas */
+    grid-template-columns: repeat(2, 1fr);
     gap: 25px;
     margin-bottom: 25px;
     padding: 0 16px;
@@ -138,7 +50,7 @@
     transition: transform 0.3s ease;
     display: flex;
     flex-direction: column;
-    height: 390px; /* AJUSTE CHAVE: Altura total reduzida */
+    height: 390px;
     border-radius: 8px;
 }
 
@@ -160,7 +72,7 @@
     flex-wrap: wrap;
 }
 
-/* Filtros e Selects Original */
+/* Filtros e Selects */
 .filtros-header {
     display: flex;
     align-items: center;
@@ -177,13 +89,14 @@
     color: #374151;
     cursor: pointer;
     min-width: 90px;
+    border-radius: 4px;
 }
 
 /* Containers de Gráficos */
 .chart-container {
     position: relative;
     width: 100%;
-    flex: 1; /* Faz o gráfico preencher o vazio interno */
+    flex: 1;
     min-height: 180px;
 }
 
@@ -194,7 +107,7 @@
     height: 100%;
 }
 
-/* Estatísticas Originais */
+/* Estatísticas */
 .estatisticas-container {
     margin-top: 10px;
     padding: 8px;
@@ -209,94 +122,34 @@
     margin-bottom: 4px;
 }
 
-.estatistica-label { color: #64748b; font-weight: 500; }
-.estatistica-valor { color: #1e293b; font-weight: 600; font-family: 'Courier New', monospace; }
-
-#dashboard-total-receitas { color: var(--receita-color); }
-#dashboard-total-despesas { color: var(--despesa-color); }
-#dashboard-saldo-anual { color: var(--saldo-color); }
-#dashboard-total-juros { color: var(--juros-color); }
-#dashboard-total-economias { color: var(--economia-color, #10b981); }
-
-/* Seção de Reservas Original */
-.resumo-reservas {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 15px;
-    margin-bottom: 15px;
+.estatistica-label {
+    color: #64748b;
+    font-weight: 500;
 }
 
-.card-resumo-reserva {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px;
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
-}
-
-.card-icon {
-    width: 35px; height: 35px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 16px; color: white; border-radius: 4px;
-}
-
-.card-icon.receitas { background: #667eea; }
-.card-icon.reservado { background: #e74c3c; }
-.card-icon.disponivel { background: #27ae60; }
-
-.valor-destaque { font-size: 17px; font-weight: 700; color: #2c3e50; }
-.valor-destaque.reservado { color: #e74c3c; }
-.valor-destaque.disponivel { color: #27ae60; }
-
-.formulario-reserva, .historico-reservas {
-    padding: 15px;
-    background: #f8f9fa;
-    margin-bottom: 15px;
-    border-radius: 8px;
-}
-
-.btn-confirmar-reserva {
-    padding: 8px 20px;
-    background: #667eea;
-    color: white;
-    border: none;
+.estatistica-valor {
+    color: #1e293b;
     font-weight: 600;
-    cursor: pointer;
-    border-radius: 4px;
+    font-family: 'Courier New', monospace;
 }
 
-.acumulado-card {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    padding: 15px;
-    background: #667eea;
-    color: white;
-    border-radius: 8px;
-}
-
-
-
-/* 1. CONTAINER DO MODAL (OVERLAY) */
+/* --- MODAL ZOOM GRÁFICO --- */
 .modal-zoom-container {
-    display: none; /* Controlado pelo JS */
+    display: none;
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.85); /* Fundo preto semi-transparente */
-    z-index: 10000; /* Garante que fique acima de tudo */
+    background-color: rgba(0, 0, 0, 0.85);
+    z-index: 10000;
     justify-content: center;
     align-items: center;
-    backdrop-filter: blur(8px); /* Efeito de desfoque no fundo */
+    backdrop-filter: blur(8px);
     padding: 20px;
     animation: fadeIn 0.3s ease;
 }
 
-/* 2. CAIXA DE CONTEÚDO DO MODAL */
 .modal-zoom-content {
     background-color: #ffffff;
     width: 95%;
@@ -310,7 +163,6 @@
     flex-direction: column;
 }
 
-/* 3. BOTÃO FECHAR */
 .modal-zoom-close {
     position: absolute;
     top: 15px;
@@ -325,33 +177,66 @@
 }
 
 .modal-zoom-close:hover {
-    color: #dc3545; /* Muda para vermelho ao passar o mouse */
+    color: #dc3545;
 }
 
-/* 4. O CANVAS DENTRO DO ZOOM */
-/* Importante: O Chart.js precisa que o container pai tenha altura definida */
 #canvas-zoom-render {
     width: 100% !important;
     height: 100% !important;
 }
 
-
-
-
-
-
-/* Animações Originais */
+/* Animações */
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-.dashboard-card, .dashboard-card-full, .resumo-card {
+.dashboard-card, .dashboard-card-full {
     animation: fadeIn 0.3s ease-out;
 }
 
-/* Media Queries Originais */
+/* --- RESPONSIVIDADE --- */
 @media (max-width: 1024px) {
-    .dashboard-grid { grid-template-columns: 1fr; }
-    .resumo-reservas { grid-template-columns: repeat(2, 1fr); }
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-card {
+        height: auto;
+        min-height: 300px;
+    }
+
+    .dashboard-card-full .chart-container {
+        height: 200px;
+    }
+
+    .chart-container {
+        min-height: 250px;
+    }
+}
+
+@media (max-width: 480px) {
+    .dashboard-grid,
+    .dashboard-card-full {
+        padding: 0 8px;
+        margin: 0 8px 15px 8px;
+    }
+
+    .dashboard-card h3 {
+        font-size: 13px;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .filtros-header {
+        width: 100%;
+    }
 }
