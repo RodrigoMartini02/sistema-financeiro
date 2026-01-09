@@ -1052,12 +1052,13 @@ router.delete('/:id/limpar-dados', authMiddleware, async (req, res) => {
 
         // Limpa os campos JSON e notificações na tabela usuarios
         await query(`
-            UPDATE usuarios 
-            SET dados_financeiros = NULL, 
-                categorias = NULL, 
+            UPDATE usuarios
+            SET dados_financeiros = NULL,
+                categorias = NULL,
                 cartoes = NULL,
-                data_atualizacao = CURRENT_TIMESTAMP 
-            WHERE id = $1`, 
+                notificacoes = NULL,
+                data_atualizacao = CURRENT_TIMESTAMP
+            WHERE id = $1`,
             [id]
         );
 
