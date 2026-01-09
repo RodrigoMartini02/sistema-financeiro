@@ -1512,6 +1512,15 @@ window.removerReservaIntegrada = removerReservaIntegrada;
         location.reload();
     };
 
+    // ✅ NOVO: Função para reinicializar resizer (chamada ao abrir modal)
+    window.reinitReceitasResizer = function() {
+        const header = document.getElementById('receitas-grid-header');
+        if (header) {
+            header.dataset.resizerInitialized = '';  // Reset flag
+            initColumnResizer();
+        }
+    };
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initColumnResizer);
     } else {

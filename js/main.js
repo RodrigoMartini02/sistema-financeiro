@@ -1588,6 +1588,18 @@ async function renderizarDetalhesDoMes(mes, ano) {
             window.atualizarContadoresFiltro();
         }
 
+        // ✅ NOVO: Forçar inicialização dos resizers de coluna após renderização
+        setTimeout(() => {
+            // Reinicializar resizer de receitas
+            if (typeof window.reinitReceitasResizer === 'function') {
+                window.reinitReceitasResizer();
+            }
+            // Reinicializar resizer de despesas
+            if (typeof window.reinitDespesasResizer === 'function') {
+                window.reinitDespesasResizer();
+            }
+        }, 100);
+
     } catch (error) {
         console.error('❌ Erro ao carregar dados do mês:', error);
         if (window.mostrarToast) {

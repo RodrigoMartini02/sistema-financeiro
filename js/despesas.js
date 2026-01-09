@@ -3558,6 +3558,15 @@ document.addEventListener('DOMContentLoaded', configurarBotaoComprovanteSimples)
         location.reload();
     };
 
+    // ✅ NOVO: Função para reinicializar resizer (chamada ao abrir modal)
+    window.reinitDespesasResizer = function() {
+        const header = document.getElementById('despesas-grid-header');
+        if (header) {
+            header.dataset.resizerInitialized = '';  // Reset flag
+            initColumnResizer();
+        }
+    };
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initColumnResizer);
     } else {
