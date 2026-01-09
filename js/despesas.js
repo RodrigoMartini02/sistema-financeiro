@@ -3417,3 +3417,167 @@ window.inicializarSistemaAnexosDespesas = inicializarSistemaAnexosDespesas;
 window.toggleCamposPagamentoImediato = toggleCamposPagamentoImediato;
 
 document.addEventListener('DOMContentLoaded', configurarBotaoComprovanteSimples);
+
+// ================================================================
+// REDIMENSIONAMENTO DE COLUNAS
+// ================================================================
+
+(function() {
+    let isResizing = false;
+    let currentResizer = null;
+    let startX = 0;
+    let startWidth = 0;
+    let currentColumnIndex = 0;
+
+    const STORAGE_KEY = 'despesas-column-widths';
+
+    function initColumnResizer() {
+        const header = document.getElementById('despesas-grid-header');
+        if (!header) return;
+
+        loadColumnWidths();
+
+        const resizers = header.querySelectorAll('.column-resizer');
+        resizers.forEach((resizer, index) => {
+            resizer.addEventListener('mousedown', startResize.bind(null, resizer, index));
+        });
+
+        document.addEventListener('mousemove', resize);
+        document.addEventListener('mouseup', stopResize);
+    }
+
+    function startResize(resizer, columnIndex, e) {
+        e.preventDefault();
+        isResizing = true;
+        currentResizer = resizer;
+        currentColumnIndex = columnIndex;
+        startX = e.clientX;
+
+        const header = document.getElementById('despesas-grid-header');
+        const column = header.children[columnIndex];
+        startWidth = column.offsetWidth;
+
+        resizer.classList.add('resizing');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+    }
+
+    function resize(e) {
+        if (!isResizing) return;
+
+        const header = document.getElementById('despesas-grid-header');
+        const column = header.children[currentColumnIndex];
+
+        const diff = e.clientX - startX;
+        const newWidth = Math.max(40, startWidth + diff);
+
+        column.style.width = newWidth + 'px';
+        column.style.minWidth = newWidth + 'px';
+        column.style.maxWidth = newWidth + 'px';
+
+        updateGridTemplateColumns();
+    }
+
+    function stopResize() {
+        if (!isResizing) return;
+
+        isResizing = false;
+        if (currentResizer) {
+            currentResizer.classList.remove('resizing');
+        }
+        currentResizer = null;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+
+        saveColumnWidths();
+    }
+
+    function updateGridTemplateColumns() {
+        const header = document.getElementById('despesas-grid-header');
+        if (!header) return;
+
+        const columns = Array.from(header.children);
+        const widths = columns.map(col => {
+            const width = col.style.width || getComputedStyle(col).width;
+            return width;
+        });
+
+        const gridTemplate = widths.join(' ');
+        header.style.gridTemplateColumns = gridTemplate;
+
+        const gridContainer = header.parentElement;
+        const rows = gridContainer.querySelectorAll('.grid-row');
+        rows.forEach(row => {
+            row.style.gridTemplateColumns = gridTemplate;
+        });
+    }
+
+    function saveColumnWidths() {
+        const header = document.getElementById('despesas-grid-header');
+        if (!header) return;
+
+        const columns = Array.from(header.children);
+        const widths = columns.map(col => {
+            return col.style.width || getComputedStyle(col).width;
+        });
+
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(widths));
+        } catch (error) {
+            console.error('Erro ao salvar larguras:', error);
+        }
+    }
+
+    function loadColumnWidths() {
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (!saved) return;
+
+            const widths = JSON.parse(saved);
+            const header = document.getElementById('despesas-grid-header');
+            if (!header) return;
+
+            const columns = Array.from(header.children);
+
+            columns.forEach((col, index) => {
+                if (widths[index]) {
+                    col.style.width = widths[index];
+                    col.style.minWidth = widths[index];
+                    col.style.maxWidth = widths[index];
+                }
+            });
+
+            updateGridTemplateColumns();
+        } catch (error) {
+            console.error('Erro ao carregar larguras:', error);
+        }
+    }
+
+    window.resetColumnWidths = function() {
+        localStorage.removeItem(STORAGE_KEY);
+        location.reload();
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initColumnResizer);
+    } else {
+        initColumnResizer();
+    }
+
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.addedNodes.length) {
+                const header = document.getElementById('despesas-grid-header');
+                if (header && !header.dataset.resizerInitialized) {
+                    header.dataset.resizerInitialized = 'true';
+                    initColumnResizer();
+                }
+            }
+        });
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+})();

@@ -81,6 +81,33 @@
     min-width: max-content; /* ✅ Garante que não quebre */
 }
 
+/* ✅ NOVO: Colunas com posição relativa para resizers */
+.grid-header > div {
+    position: relative;
+}
+
+/* ✅ NOVO: Divisores de coluna (resizers) */
+.column-resizer {
+    position: absolute;
+    right: -3px;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    cursor: col-resize;
+    user-select: none;
+    z-index: 20;
+    background: transparent;
+    transition: background 0.2s ease;
+}
+
+.column-resizer:hover {
+    background: rgba(99, 102, 241, 0.3);
+}
+
+.column-resizer.resizing {
+    background: rgba(99, 102, 241, 0.6);
+}
+
 .grid-row {
     display: grid;
     /* ✅ CORRIGIDO: Mesmas larguras do header para alinhamento perfeito */

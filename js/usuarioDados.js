@@ -858,17 +858,16 @@ class UsuarioDataManager {
             const dados = this.getDadosFinanceirosLocal();
             
             this.garantirEstruturaMes(dados, ano, mes);
-            
+
             if (id !== null && id !== '') {
                 const index = parseInt(id);
                 if (dados[ano].meses[mes].despesas[index]) {
-                    dados[ano].meses[mes].despesas[index] = { ...despesa, id: despesa.id || this.gerarId() };
+                    dados[ano].meses[mes].despesas[index] = { ...despesa };
                 }
             } else {
-                despesa.id = despesa.id || this.gerarId();
                 dados[ano].meses[mes].despesas.push(despesa);
             }
-            
+
             return this.salvarDadosLocal(dados);
         } catch (error) {
             return false;
@@ -979,10 +978,6 @@ class UsuarioDataManager {
         }
     }
 
-    gerarId() {
-        return Date.now().toString(36) + Math.random().toString(36).substr(2);
-    }
-
     isCacheValido() {
         if (!this.timestampCache) return false;
         const CACHE_DURATION = 5 * 60 * 1000;
@@ -1035,17 +1030,8 @@ class UsuarioDataManager {
                             anoData.meses.forEach(mes => {
                                 if (mes) {
                                     // ✅ CORRIGIDO: Removida migração de IDs temporários
-                                    // Os IDs agora sempre vêm do backend
-                                    
-                                    if (mes.despesas) {
-                                        mes.despesas.forEach(despesa => {
-                                            if (!despesa.id) {
-                                                despesa.id = this.gerarId();
-                                                necessitaAtualizacao = true;
-                                            }
-                                        });
-                                    }
-                                    
+                                    // Os IDs agora sempre vêm do backend - não gera mais IDs localmente
+
                                     if (mes.fechado === undefined) {
                                         mes.fechado = false;
                                         necessitaAtualizacao = true;
