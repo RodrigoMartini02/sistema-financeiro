@@ -353,7 +353,16 @@ function preencherCelulaValor(clone, despesa) {
 
 function preencherCelulaParcela(clone, despesa) {
     const celulaParcela = clone.querySelector('.col-parcela');
-    celulaParcela.textContent = despesa.parcela || '-';
+
+    // ✅ CORRIGIDO: Calcular parcela a partir dos campos do banco
+    if (despesa.parcelado && despesa.parcela_atual && despesa.numero_parcelas) {
+        celulaParcela.textContent = `${despesa.parcela_atual}/${despesa.numero_parcelas}`;
+    } else if (despesa.parcela) {
+        // Fallback para campo parcela antigo (compatibilidade)
+        celulaParcela.textContent = despesa.parcela;
+    } else {
+        celulaParcela.textContent = '-';
+    }
 }
 
 function preencherCelulaValorPago(clone, despesa) {
