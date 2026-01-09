@@ -321,26 +321,42 @@ async function atualizarListaCategorias() {
 
         const linha = template.content.cloneNode(true);
 
-        // ID da categoria
-        const idElement = linha.querySelector('.categoria-id');
-        if (idElement) {
-            idElement.textContent = categoria.id || '-';
-        }
+        // Preencher colunas
+        const colId = linha.querySelector('.col-id');
+        const colNome = linha.querySelector('.col-nome');
+        const colDataCriacao = linha.querySelector('.col-data-criacao');
+        const colDataEdicao = linha.querySelector('.col-data-edicao');
+        const colAcoes = linha.querySelector('.col-acoes');
 
-        // Nome da categoria
-        linha.querySelector('.categoria-nome').textContent = categoria.nome;
+        if (colId) colId.textContent = categoria.id || '-';
+        if (colNome) colNome.textContent = categoria.nome;
 
         // Data de criação
-        const dataCriacao = categoria.data_criacao ? new Date(categoria.data_criacao) : new Date();
-        linha.querySelector('.categoria-data-criacao').textContent = dataCriacao.toLocaleDateString('pt-BR');
+        if (colDataCriacao) {
+            const dataCriacao = categoria.data_criacao ? new Date(categoria.data_criacao) : new Date();
+            colDataCriacao.textContent = dataCriacao.toLocaleDateString('pt-BR');
+        }
 
         // Data de edição
-        const dataEdicao = categoria.data_atualizacao ? new Date(categoria.data_atualizacao) : new Date();
-        linha.querySelector('.categoria-data-edicao').textContent = dataEdicao.toLocaleDateString('pt-BR');
+        if (colDataEdicao) {
+            const dataEdicao = categoria.data_atualizacao ? new Date(categoria.data_atualizacao) : new Date();
+            colDataEdicao.textContent = dataEdicao.toLocaleDateString('pt-BR');
+        }
 
-        // Botões de ação - usar ID
-        linha.querySelector('.btn-editar-categoria').setAttribute('data-categoria-id', categoria.id);
-        linha.querySelector('.btn-remover-categoria').setAttribute('data-categoria-id', categoria.id);
+        // Botões de ação
+        if (colAcoes) {
+            const templateBotoes = document.getElementById('template-botoes-acao-categoria');
+            if (templateBotoes) {
+                const botoesClone = templateBotoes.content.cloneNode(true);
+                const btnEditar = botoesClone.querySelector('.btn-editar-categoria');
+                const btnRemover = botoesClone.querySelector('.btn-remover-categoria');
+
+                if (btnEditar) btnEditar.setAttribute('data-categoria-id', categoria.id);
+                if (btnRemover) btnRemover.setAttribute('data-categoria-id', categoria.id);
+
+                colAcoes.appendChild(botoesClone);
+            }
+        }
 
         listaCategorias.appendChild(linha);
     });
@@ -3317,3 +3333,114 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// ================================================================
+// REDIMENSIONAMENTO DE COLUNAS - CATEGORIAS
+// ================================================================
+(function() {
+    let isResizing = false;
+    let currentResizer = null;
+    let startX = 0;
+    let startWidth = 0;
+    let currentColumnIndex = 0;
+
+    const STORAGE_KEY = 'categorias-column-widths';
+
+    function initColumnResizer() {
+        const header = document.getElementById('categorias-grid-header');
+        if (!header) return;
+
+        loadColumnWidths();
+
+        const resizers = header.querySelectorAll('.column-resizer');
+        resizers.forEach((resizer, index) => {
+            resizer.addEventListener('mousedown', startResize.bind(null, resizer, index));
+        });
+
+        document.addEventListener('mousemove', resize);
+        document.addEventListener('mouseup', stopResize);
+    }
+
+    function startResize(resizer, columnIndex, e) {
+        isResizing = true;
+        currentResizer = resizer;
+        currentColumnIndex = columnIndex;
+        startX = e.pageX;
+
+        const header = resizer.parentElement;
+        startWidth = header.offsetWidth;
+
+        e.preventDefault();
+    }
+
+    function resize(e) {
+        if (!isResizing) return;
+
+        const header = currentResizer.parentElement;
+        const diff = e.pageX - startX;
+        const newWidth = Math.max(50, startWidth + diff);
+
+        header.style.width = newWidth + 'px';
+        header.style.minWidth = newWidth + 'px';
+        header.style.maxWidth = newWidth + 'px';
+
+        syncColumnWidth(currentColumnIndex, newWidth);
+    }
+
+    function stopResize() {
+        if (isResizing) {
+            saveColumnWidths();
+            isResizing = false;
+        }
+    }
+
+    function syncColumnWidth(columnIndex, width) {
+        const headers = document.querySelectorAll('#categorias-grid-header > div');
+        const rows = document.querySelectorAll('#lista-categorias .grid-row');
+
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('div');
+            if (cells[columnIndex]) {
+                cells[columnIndex].style.width = width + 'px';
+                cells[columnIndex].style.minWidth = width + 'px';
+                cells[columnIndex].style.maxWidth = width + 'px';
+            }
+        });
+    }
+
+    function saveColumnWidths() {
+        const headers = document.querySelectorAll('#categorias-grid-header > div');
+        const widths = Array.from(headers).map(h => h.offsetWidth);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(widths));
+    }
+
+    function loadColumnWidths() {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (!saved) return;
+
+        try {
+            const widths = JSON.parse(saved);
+            const headers = document.querySelectorAll('#categorias-grid-header > div');
+
+            headers.forEach((header, index) => {
+                if (widths[index]) {
+                    header.style.width = widths[index] + 'px';
+                    header.style.minWidth = widths[index] + 'px';
+                    header.style.maxWidth = widths[index] + 'px';
+                }
+            });
+        } catch (e) {
+            console.error('Erro ao carregar larguras das colunas:', e);
+        }
+    }
+
+    // Inicializar quando o DOM estiver pronto
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initColumnResizer);
+    } else {
+        initColumnResizer();
+    }
+
+    // Reinicializar após renderizar lista
+    window.reinitCategoriasResizer = initColumnResizer;
+})();

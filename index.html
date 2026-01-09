@@ -188,31 +188,56 @@
         <!-- ======================================================== -->
        <div class="content-area">
     <section class="dashboard-section active" id="dashboard-section">
-        <div class="dashboard-resumo">
-            <div class="resumo-card receitas">
-                <h3><i class="fas fa-arrow-up"></i> RECEITAS TOTAIS</h3>
-                <p id="dashboard-total-receitas">R$ 0,00</p>
-                <small>Todas as receitas do ano</small>
+        <div class="resumo-cards">
+            <div class="card card-receitas">
+                <div class="card-icon">
+                    <i class="fas fa-arrow-up"></i>
+                </div>
+                <div class="card-content">
+                    <h3>RECEITAS TOTAIS</h3>
+                    <p id="dashboard-total-receitas" class="card-valor">R$ 0,00</p>
+                    <span class="card-subtitle">Todas as receitas do ano</span>
+                </div>
             </div>
-            <div class="resumo-card despesas">
-                <h3><i class="fas fa-arrow-down"></i> DESPESAS TOTAIS</h3>
-                <p id="dashboard-total-despesas">R$ 0,00</p>
-                <small>Todas as despesas do ano</small>
+            <div class="card card-despesas">
+                <div class="card-icon">
+                    <i class="fas fa-arrow-down"></i>
+                </div>
+                <div class="card-content">
+                    <h3>DESPESAS TOTAIS</h3>
+                    <p id="dashboard-total-despesas" class="card-valor">R$ 0,00</p>
+                    <span class="card-subtitle">Todas as despesas do ano</span>
+                </div>
             </div>
-            <div class="resumo-card saldo">
-                <h3><i class="fas fa-wallet"></i> SALDO ANUAL</h3>
-                <p id="dashboard-saldo-anual">R$ 0,00</p>
-                <small>Balanço receitas - despesas</small>
+            <div class="card card-saldo">
+                <div class="card-icon">
+                    <i class="fas fa-wallet"></i>
+                </div>
+                <div class="card-content">
+                    <h3>SALDO ANUAL</h3>
+                    <p id="dashboard-saldo-anual" class="card-valor">R$ 0,00</p>
+                    <span class="card-subtitle">Balanço receitas - despesas</span>
+                </div>
             </div>
-            <div class="resumo-card juros">
-                <h3><i class="fas fa-percentage"></i> JUROS PAGOS</h3>
-                <p id="dashboard-total-juros">R$ 0,00</p>
-                <small>Total de juros pagos no ano</small>
+            <div class="card card-juros">
+                <div class="card-icon">
+                    <i class="fas fa-percentage"></i>
+                </div>
+                <div class="card-content">
+                    <h3>JUROS PAGOS</h3>
+                    <p id="dashboard-total-juros" class="card-valor">R$ 0,00</p>
+                    <span class="card-subtitle">Total de juros pagos no ano</span>
+                </div>
             </div>
-            <div class="resumo-card economias">
-                <h3><i class="fas fa-piggy-bank"></i> ECONOMIAS</h3>
-                <p id="dashboard-total-economias">R$ 0,00</p>
-                <small>Valor economizado no ano</small>
+            <div class="card card-economias">
+                <div class="card-icon">
+                    <i class="fas fa-piggy-bank"></i>
+                </div>
+                <div class="card-content">
+                    <h3>ECONOMIAS</h3>
+                    <p id="dashboard-total-economias" class="card-valor">R$ 0,00</p>
+                    <span class="card-subtitle">Valor economizado no ano</span>
+                </div>
             </div>
         </div>
 
@@ -894,21 +919,29 @@
                     </button>
                 </div>
                 
-                <div class="lista-categorias-container">
-                    <table id="tabela-categorias" class="tabela-categorias">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Nome da Categoria</th>
-                                <th>Data de Criação</th>
-                                <th>Última Edição</th>
-                                <th class="th-acoes">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="lista-categorias">
-                            <!-- Preenchido dinamicamente via template -->
-                        </tbody>
-                    </table>
+                <div class="categorias-grid">
+                    <div class="grid-header" id="categorias-grid-header">
+                        <div class="col-id">
+                            ID
+                            <div class="column-resizer"></div>
+                        </div>
+                        <div class="col-nome">
+                            Nome da Categoria
+                            <div class="column-resizer"></div>
+                        </div>
+                        <div class="col-data-criacao">
+                            Data de Criação
+                            <div class="column-resizer"></div>
+                        </div>
+                        <div class="col-data-edicao">
+                            Última Edição
+                            <div class="column-resizer"></div>
+                        </div>
+                        <div class="col-acoes">Ações</div>
+                    </div>
+                    <div class="grid-content" id="lista-categorias">
+                        <!-- Categorias serão inseridas aqui -->
+                    </div>
                 </div>
 
                 <!-- Mensagem quando não há categorias -->
@@ -1545,20 +1578,25 @@
 
 <!-- Template: Linha de Categoria -->
 <template id="template-linha-categoria">
-    <tr class="categoria-item">
-        <td class="categoria-id"></td>
-        <td class="categoria-nome"></td>
-        <td class="categoria-data-criacao"></td>
-        <td class="categoria-data-edicao"></td>
-        <td class="categoria-acoes">
-            <button class="btn-editar-categoria" data-categoria="" title="Editar categoria">
-                <i class="fas fa-edit"></i>
-            </button>
-            <button class="btn-remover-categoria" data-categoria="" title="Remover categoria">
-                <i class="fas fa-trash"></i>
-            </button>
-        </td>
-    </tr>
+    <div class="grid-row categoria-row">
+        <div class="col-id"></div>
+        <div class="col-nome"></div>
+        <div class="col-data-criacao"></div>
+        <div class="col-data-edicao"></div>
+        <div class="col-acoes"></div>
+    </div>
+</template>
+
+<!-- Template: Botões de Ação para Categoria -->
+<template id="template-botoes-acao-categoria">
+    <div class="acoes-grupo">
+        <button class="btn btn-sm btn-editar-categoria" data-categoria-id="" title="Editar">
+            <i class="fas fa-edit"></i>
+        </button>
+        <button class="btn btn-sm btn-remover-categoria" data-categoria-id="" title="Excluir">
+            <i class="fas fa-trash"></i>
+        </button>
+    </div>
 </template>
 
 <!-- Template: Linha de Usuário -->
@@ -1905,41 +1943,6 @@
 <!-- ======================================================== -->
 <!-- TEMPLATES -->
 <!-- ======================================================== -->
-
-<!-- Template para linha de receita -->
-<template id="template-linha-receita">
-    <div class="grid-row receita-row" data-categoria="">
-        <div class="col-id">
-            <span class="receita-id"></span>
-        </div>
-        <div class="col-descricao">
-            <span class="receita-descricao"></span>
-        </div>
-        <div class="col-valor">
-            <span class="receita-valor"></span>
-        </div>
-        <div class="col-data">
-            <span class="receita-data"></span>
-        </div>
-        <div class="col-parcela">
-            <span class="receita-parcela"></span>
-        </div>
-        <div class="col-acoes">
-            <button class="btn btn-editar" data-index="" title="Editar">
-                <i class="fas fa-edit"></i>
-            </button>
-            <button class="btn btn-excluir" data-index="" title="Excluir">
-                <i class="fas fa-trash"></i>
-            </button>
-        </div>
-        <div class="col-anexos">
-            <button class="btn btn-anexos" data-index="" title="Ver anexos">
-                <i class="fas fa-paperclip"></i>
-                <span class="contador-anexos">0</span>
-            </button>
-        </div>
-    </div>
-</template>
 
 <!-- Template para linha de saldo anterior -->
 <template id="template-linha-saldo-anterior">
@@ -2970,24 +2973,6 @@
         <button class="btn-mes-acao btn-fechar hidden">🔒 Fechar</button>
         <button class="btn-mes-acao btn-detalhes"></button>
     </div>
-</template>
-
-<template id="template-linha-receita">
-    <tr>
-        <td class="receita-numero"></td>
-        <td class="receita-descricao"></td>
-        <td class="receita-valor"></td>
-        <td class="receita-data"></td>
-        <td class="receita-parcela"></td>
-        <td class="receita-acoes">
-            <button class="btn-editar" data-index="">
-                <i class="fas fa-edit"></i>
-            </button>
-            <button class="btn-excluir" data-index="">
-                <i class="fas fa-trash-alt"></i>
-            </button>
-        </td>
-    </tr>
 </template>
 
 <div id="modal-feedback-sistema" class="modal">
