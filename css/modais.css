@@ -1,0 +1,387 @@
+/* ================================================================
+   SISTEMA DE MODAIS PADRONIZADO
+   ================================================================ */
+
+/* ================================================================
+   MODAL BASE
+   ================================================================ */
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: var(--z-modal);
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.5);
+    animation: fadeIn var(--transition-base);
+}
+
+.modal.active {
+    display: block;
+}
+
+.modal-content {
+    position: relative;
+    background-color: var(--card-bg);
+    margin: var(--space-md) auto;
+    box-shadow: var(--shadow-xl);
+    width: 98%;
+    max-width: 1000px;
+    animation: slideIn var(--transition-base);
+    border: 1px solid var(--border-color);
+}
+
+/* ================================================================
+   TAMANHOS DE MODAIS
+   ================================================================ */
+
+.modal-sm {
+    max-width: 500px;
+    width: 90%;
+}
+
+.modal-md {
+    max-width: 700px;
+    width: 95%;
+}
+
+.modal-lg {
+    max-width: 1400px;
+    width: 99%;
+}
+
+.modal-xl {
+    max-width: 1600px;
+    width: 99%;
+}
+
+/* ================================================================
+   ESTRUTURA DO MODAL
+   ================================================================ */
+
+.modal-header {
+    padding: 16px 24px;
+    background-color: var(--primary-color);
+    color: var(--white);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-medium);
+    flex: 1;
+}
+
+.modal-body {
+    padding: var(--space-md);
+    max-height: calc(100vh - 150px);
+    overflow-y: auto;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: var(--space-md) var(--space-md);
+    border-top: 1px solid var(--gray-200);
+    background-color: var(--gray-50);
+}
+
+.close {
+    color: var(--white);
+    font-size: 28px;
+    font-weight: var(--font-weight-bold);
+    cursor: pointer;
+    transition: var(--transition-base);
+    background: none;
+    border: none;
+    padding: 0;
+    line-height: 1;
+}
+
+.close:hover {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* ================================================================
+   MODAIS ESPECÍFICOS - ANEXOS
+   ================================================================ */
+
+#modal-anexos-receita .modal-content,
+.modal-anexos {
+    max-width: 600px;
+    width: 90%;
+}
+
+.lista-anexos-visualizar {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+/* ================================================================
+   MODAIS ESPECÍFICOS - EXCLUSÃO
+   ================================================================ */
+
+#modal-exclusao-receita .modal-content {
+    max-width: 450px;
+    width: 88%;
+    margin: 18vh auto;
+}
+
+#modal-exclusao-receita .modal-header {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    padding: 16px 20px;
+}
+
+#modal-exclusao-receita .modal-header h3 {
+    font-size: 18px;
+    margin: 0;
+    font-weight: var(--font-weight-semibold);
+}
+
+#modal-exclusao-receita .modal-body {
+    padding: 24px 20px;
+}
+
+#modal-exclusao-receita .modal-body p {
+    color: var(--gray-700);
+    font-size: 15px;
+    margin-bottom: 20px;
+    text-align: center;
+    line-height: 1.5;
+}
+
+/* ================================================================
+   MODAIS ESPECÍFICOS - DETALHES DO MÊS
+   ================================================================ */
+
+#modal-detalhes-mes .modal-content {
+    max-width: 98vw !important;
+    width: 98% !important;
+    max-height: 95vh !important;
+    margin: 1% auto !important;
+}
+
+#modal-detalhes-mes .modal-body {
+    max-height: calc(95vh - 120px);
+    overflow-y: auto;
+}
+
+/* ================================================================
+   MODAIS ESPECÍFICOS - DESPESA COMPACT
+   ================================================================ */
+
+.modal-despesa-compact {
+    max-width: 700px;
+    width: 90%;
+}
+
+.modal-despesa-compact .modal-body {
+    padding: 15px 20px;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+}
+
+/* ================================================================
+   MODAIS ESPECÍFICOS - PAGAMENTO EM LOTE
+   ================================================================ */
+
+#modal-pagamento-lote-despesas .modal-content {
+    max-width: 500px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+#modal-pagamento-lote-despesas .modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px 25px;
+    border: none;
+}
+
+#modal-pagamento-lote-despesas .modal-header h2 {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 600;
+}
+
+#modal-pagamento-lote-despesas .modal-body {
+    padding: 25px;
+}
+
+/* ================================================================
+   MODAIS ESPECÍFICOS - RESERVAR COMPACT
+   ================================================================ */
+
+.modal-reservar-compact .modal-content {
+    max-width: 450px;
+}
+
+.modal-reservar-compact .form-group {
+    margin-bottom: 20px;
+}
+
+.modal-reservar-compact label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: var(--config-dark);
+    font-size: 14px;
+}
+
+.modal-reservar-compact .form-control {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid var(--gray-300);
+    border-radius: 0;
+    font-size: 16px;
+    transition: border-color 0.3s ease;
+}
+
+.modal-reservar-compact .form-control:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.modal-reservar-compact .form-hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--gray-600);
+}
+
+.modal-reservar-compact .form-hint i {
+    color: var(--primary-color);
+}
+
+.modal-reservar-compact #modal-disponivel-info {
+    font-weight: 700;
+    color: var(--success);
+}
+
+.modal-reservar-compact .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 2px solid var(--gray-200);
+}
+
+/* ================================================================
+   MODAIS ESPECÍFICOS - ALTERAR SENHA
+   ================================================================ */
+
+#modal-alterar-senha .modal-content {
+    max-width: 450px;
+    padding: 0;
+}
+
+#modal-alterar-senha .modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px 24px;
+    border-radius: 12px 12px 0 0;
+}
+
+#modal-alterar-senha .modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#modal-alterar-senha .modal-header i {
+    font-size: 20px;
+}
+
+#modal-alterar-senha .modal-header .close {
+    color: white;
+    opacity: 0.9;
+}
+
+#modal-alterar-senha .modal-header .close:hover {
+    opacity: 1;
+}
+
+#modal-alterar-senha .modal-body {
+    padding: 24px;
+}
+
+#modal-alterar-senha .form-group {
+    margin-bottom: 18px;
+}
+
+/* ================================================================
+   MODAIS ESPECÍFICOS - CARTÃO EDITAR
+   ================================================================ */
+
+.modal-cartao-editar {
+    max-width: 600px;
+}
+
+.modal-cartao-editar .form-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    padding-top: 20px;
+    border-top: 2px solid #e1e8ed;
+    margin-top: 24px;
+}
+
+.modal-cartao-editar .required {
+    color: #e53e3e;
+    font-weight: bold;
+}
+
+/* ================================================================
+   NAVEGAÇÃO DE HEADER (para modais com navegação)
+   ================================================================ */
+
+.header-navigation {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* ================================================================
+   RESPONSIVIDADE
+   ================================================================ */
+
+@media (min-width: 768px) and (max-width: 1024px) {
+    #modal-detalhes-mes .modal-content {
+        width: 95% !important;
+        max-width: 950px !important;
+    }
+}
+
+@media (min-width: 1440px) {
+    #modal-detalhes-mes .modal-content {
+        max-width: 1600px !important;
+    }
+}
+
+@media (min-width: 2560px) {
+    #modal-detalhes-mes .modal-content {
+        max-width: 2000px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .modal-cartao-editar .form-actions {
+        flex-direction: column-reverse;
+    }
+}

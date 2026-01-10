@@ -320,11 +320,6 @@
 }
 
 
-#modal-anexos-receita .modal-content {
-    max-width: 600px;
-    width: 90%;
-}
-
 .lista-anexos-visualizar {
     min-height: 100px;
     max-height: 400px;
@@ -452,35 +447,6 @@
 }
 
 
-#modal-exclusao-receita .modal-content {
-    max-width: 450px;
-    width: 88%;
-    margin: 18vh auto;
-}
-
-#modal-exclusao-receita .modal-header {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-    color: white;
-    padding: 16px 20px;
-}
-
-#modal-exclusao-receita .modal-header h3 {
-    font-size: 18px;
-    margin: 0;
-    font-weight: var(--font-weight-semibold);
-}
-
-#modal-exclusao-receita .modal-body {
-    padding: 24px 20px;
-}
-
-#modal-exclusao-receita .modal-body p {
-    color: var(--gray-700);
-    font-size: 15px;
-    margin-bottom: 20px;
-    text-align: center;
-    line-height: 1.5;
-}
 
 .opcoes-exclusao {
     display: flex;
@@ -489,36 +455,6 @@
 }
 
 
-/* ================================================================
-   NAVEGAÇÃO NO MODAL
-   ================================================================ */
-
-.modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 20px;
-    border-bottom: 1px solid #ddd;
-    gap: 15px;
-}
-
-.modal-header h2 {
-    flex: 1;
-    margin: 0;
-}
-
-.header-navigation {
-    display: flex;
-    gap: 10px;
-}
-
-
-.modal-header .close {
-    font-size: 28px;
-    cursor: pointer;
-    color: #999;
-    margin-left: 15px;
-}
 
 /* ================================================================
    RESUMO DOS CARTÕES

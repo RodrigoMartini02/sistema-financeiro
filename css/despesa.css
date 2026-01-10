@@ -1,21 +1,7 @@
 /* ================================================================
-   DESPESA.CSS - Estilizações específicas de Despesas  
+   DESPESA.CSS - Estilizações específicas de Despesas
    Sistema Financeiro
    ================================================================ */
-
-
-
-#modal-detalhes-mes .modal-content {
-    max-width: 98vw !important;
-    width: 98% !important;
-    max-height: 95vh !important;
-    margin: 1% auto !important;
-}
-
-#modal-detalhes-mes .modal-body {
-    max-height: calc(95vh - 120px);
-    overflow-y: auto;
-}
 
 .despesas-grid {
     border: 1px solid #d1d5db;
@@ -369,16 +355,6 @@
     font-weight: 500;
 }
 
-.modal-despesa-compact {
-    max-width: 700px;
-    width: 90%;
-}
-
-.modal-despesa-compact .modal-body {
-    padding: 15px 20px;
-    max-height: calc(100vh - 200px);
-    overflow-y: auto;
-}
 
 .form-group-compact {
     margin-bottom: 12px;
@@ -693,9 +669,6 @@
 }
 
 
-.modal-anexos {
-    max-width: 600px;
-}
 
 .anexos-info {
     background: #f8fafc;
@@ -777,27 +750,6 @@
 }
 
 /* Scrollbar específico do grid de despesas */
-#modal-pagamento-lote-despesas .modal-content {
-    max-width: 500px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-}
-
-#modal-pagamento-lote-despesas .modal-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 20px 25px;
-    border: none;
-}
-
-#modal-pagamento-lote-despesas .modal-header h2 {
-    margin: 0;
-    font-size: 1.4rem;
-    font-weight: 600;
-}
-
-#modal-pagamento-lote-despesas .modal-body {
-    padding: 25px;
-}
 
 #lote-contagem-despesas {
     font-size: 1.1rem;
@@ -916,10 +868,6 @@
         font-size: 10px;
     }
 
-    #modal-detalhes-mes .modal-content {
-        width: 95% !important;
-        max-width: 950px !important;
-    }
 }
 
 /* Monitores grandes (1920px+) */
@@ -942,9 +890,6 @@
         font-size: 13px;
     }
 
-    #modal-detalhes-mes .modal-content {
-        max-width: 1600px !important;
-    }
 }
 
 /* Monitores ultra-wide (2560px+) */
@@ -967,9 +912,6 @@
         font-size: 14px;
     }
 
-    #modal-detalhes-mes .modal-content {
-        max-width: 2000px !important;
-    }
 }
 
 /* ================================================================

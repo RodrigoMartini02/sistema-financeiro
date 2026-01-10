@@ -772,68 +772,6 @@
 }
 
 
-/* ================================================================ */
-/* MODAL RESERVAR VALOR */
-/* ================================================================ */
-
-.modal-reservar-compact .modal-content {
-    max-width: 450px;
-}
-
-.modal-reservar-compact .form-group {
-    margin-bottom: 20px;
-}
-
-.modal-reservar-compact label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: 600;
-    color: var(--config-dark);
-    font-size: 14px;
-}
-
-.modal-reservar-compact .form-control {
-    width: 100%;
-    padding: 12px;
-    border: 2px solid var(--gray-300);
-    border-radius: 0;
-    font-size: 16px;
-    transition: all 0.3s ease;
-}
-
-.modal-reservar-compact .form-control:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.modal-reservar-compact .form-hint {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 8px;
-    font-size: 13px;
-    color: var(--gray-500);
-}
-
-.modal-reservar-compact .form-hint i {
-    color: var(--primary-color);
-}
-
-.modal-reservar-compact #modal-disponivel-info {
-    font-weight: 700;
-    color: var(--success);
-}
-
-.modal-reservar-compact .modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    margin-top: 24px;
-    padding-top: 20px;
-    border-top: 2px solid var(--gray-300);
-}
-
 
 /* ================================================================ */
 /* RESPONSIVO - RESERVAS INLINE */
@@ -1157,43 +1095,6 @@
 /* ================================================================ */
 /* MODAL DE ALTERAR SENHA - COMPACTO */
 /* ================================================================ */
-#modal-alterar-senha .modal-content {
-    max-width: 450px;
-    padding: 0;
-}
-
-#modal-alterar-senha .modal-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 20px 24px;
-    border-radius: 12px 12px 0 0;
-}
-
-#modal-alterar-senha .modal-header h3 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-#modal-alterar-senha .modal-header i {
-    font-size: 20px;
-}
-
-#modal-alterar-senha .modal-header .close {
-    color: white;
-    opacity: 0.9;
-}
-
-#modal-alterar-senha .modal-header .close:hover {
-    opacity: 1;
-}
-
-#modal-alterar-senha .modal-body {
-    padding: 24px;
-}
 
 #modal-alterar-senha .form-group {
     margin-bottom: 18px;
@@ -1388,10 +1289,6 @@
 /* MODAL EDITAR CARTÃO - ESTILIZAÇÃO MELHORADA */
 /* ================================================================ */
 
-.modal-cartao-editar {
-    max-width: 600px;
-}
-
 .cartao-form-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1481,29 +1378,10 @@
     color: #48bb78;
 }
 
-.modal-cartao-editar .form-actions {
-    display: flex;
-    gap: 12px;
-    justify-content: flex-end;
-    padding-top: 20px;
-    border-top: 2px solid #e1e8ed;
-}
-
-
-.modal-cartao-editar .required {
-    color: #e53e3e;
-    font-weight: bold;
-}
-
 /* Responsividade */
 @media (max-width: 640px) {
     .cartao-form-grid {
         grid-template-columns: 1fr;
         gap: 16px;
     }
-    
-    .modal-cartao-editar .form-actions {
-        flex-direction: column-reverse;
-    }
-    
 }
