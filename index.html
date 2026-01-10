@@ -89,7 +89,7 @@
                     <i class="fas fa-info-circle"></i>
                     <span id="mensagem-dia"></span>
                 </div>
-                <button type="button" class="btn-fechar-banner" id="btn-fechar-banner">
+                <button type="button" class="btn btn-icon btn-danger" id="btn-fechar-banner" title="Fechar banner">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -98,19 +98,19 @@
             <div class="header-actions">
                 <!-- Seletor de Ano com Dropdown -->
                 <div class="periodo-selector">
-                    <button id="btn-ano-anterior" title="Ano Anterior"><i class="fas fa-chevron-left"></i></button>
+                    <button class="btn btn-icon" id="btn-ano-anterior" title="Ano Anterior"><i class="fas fa-chevron-left"></i></button>
                     <div class="ano-dropdown">
-                        <button id="ano-atual-btn" class="ano-atual-display">2026</button>
+                        <button class="btn ano-atual-display" id="ano-atual-btn">2026</button>
                         <div id="dropdown-anos" class="dropdown-anos-lista" style="display: none;">
                             <!-- Será preenchido dinamicamente -->
                         </div>
                     </div>
-                    <button id="btn-proximo-ano" title="Próximo Ano"><i class="fas fa-chevron-right"></i></button>
+                    <button class="btn btn-icon" id="btn-proximo-ano" title="Próximo Ano"><i class="fas fa-chevron-right"></i></button>
                 </div>
 
                 <!-- Menu de Gerenciamento de Ano -->
                 <div class="ano-menu-container">
-                    <button class="btn-ano-menu" id="btn-ano-menu" title="Gerenciar Ano">
+                    <button class="btn btn-icon" id="btn-ano-menu" title="Gerenciar Ano">
                         <i class="fas fa-cog"></i>
                     </button>
                     <div id="dropdown-ano-menu" class="dropdown-ano-menu" style="display: none;">
@@ -128,20 +128,20 @@
                 </div>
 
                 <!-- Notícias -->
-                <button id="btn-toggle-noticias" class="btn-icon" type="button" title="Ver Notícias">
+                <button id="btn-toggle-noticias" class="btn btn-icon" type="button" title="Ver Notícias">
                     <i class="fas fa-newspaper"></i>
                 </button>
 
                 <!-- Notificações -->
                 <div class="notification-icon-container">
-                    <button class="btn-icon" id="notification-bell" type="button" aria-label="Notificações">
+                    <button class="btn btn-icon" id="notification-bell" type="button" aria-label="Notificações">
                         <i class="fas fa-bell"></i>
                     </button>
                     <span class="notification-badge hidden" id="notification-count">0</span>
                 </div>
 
                 <!-- Logout -->
-                <button class="btn-icon btn-logout" id="logout-btn" title="Sair">
+                <button class="btn btn-icon btn-logout" id="logout-btn" title="Sair">
                     <i class="fas fa-sign-out-alt"></i>
                 </button>
             </div>
@@ -174,10 +174,10 @@
 
             <!-- ✅ AÇÕES SECUNDÁRIAS -->
             <div class="action-group action-group-right">
-                <button id="btn-refresh" class="btn btn-icon-secondary" title="Atualizar Dados">
+                <button id="btn-refresh" class="btn btn-icon btn-secondary" title="Atualizar Dados">
                     <i class="fas fa-sync-alt"></i>
                 </button>
-                <button id="btn-lock-system" class="btn btn-icon-secondary" title="Bloquear Sistema">
+                <button id="btn-lock-system" class="btn btn-icon btn-secondary" title="Bloquear Sistema">
                     <i class="fas fa-lock"></i>
                 </button>
             </div>
@@ -235,7 +235,7 @@
         <div class="dashboard-card dashboard-card-full">
             <h3 class="header-com-zoom">
                 <span>BALANÇO</span>
-                <button class="btn-expandir" data-chart="balancoChart">[ ]</button>
+                <button class="btn btn-icon btn-outline" data-chart="balancoChart">[ ]</button>
             </h3>
             <div class="chart-container">
                 <canvas id="balanco-chart"></canvas>
@@ -262,7 +262,7 @@
                             <option value="debito">Débito</option>
                             <option value="credito">Crédito</option>
                         </select>
-                        <button class="btn-expandir" data-chart="tendenciaChart">[ ]</button>
+                        <button class="btn btn-icon btn-outline" data-chart="tendenciaChart">[ ]</button>
                     </div>
                 </h3>
                 <div class="chart-container">
@@ -288,7 +288,7 @@
                             <option value="debito">Débito</option>
                             <option value="credito">Crédito</option>
                         </select>
-                        <button class="btn-expandir" data-chart="receitasDespesasChart">[ ]</button>
+                        <button class="btn btn-icon btn-outline" data-chart="receitasDespesasChart">[ ]</button>
                     </div>
                 </h3>
                 <div class="chart-container">
@@ -309,7 +309,7 @@
                             <option value="debito">Débito</option>
                             <option value="credito">Crédito</option>
                         </select>
-                        <button class="btn-expandir" data-chart="categoriasBarrasChart">[ ]</button>
+                        <button class="btn btn-icon btn-outline" data-chart="categoriasBarrasChart">[ ]</button>
                     </div>
                 </h3>
                 <div class="chart-container">
@@ -330,7 +330,7 @@
                             <option value="debito">Débito</option>
                             <option value="credito">Crédito</option>
                         </select>
-                        <button class="btn-expandir" data-chart="categoriasEmpilhadasChart">[ ]</button>
+                        <button class="btn btn-icon btn-outline" data-chart="categoriasEmpilhadasChart">[ ]</button>
                     </div>
                 </h3>
                 <div class="chart-container">
@@ -351,7 +351,7 @@
                             <option value="debito">Débito</option>
                             <option value="credito">Crédito</option>
                         </select>
-                        <button class="btn-expandir" data-chart="formaPagamentoChart">[ ]</button>
+                        <button class="btn btn-icon btn-outline" data-chart="formaPagamentoChart">[ ]</button>
                     </div>
                 </h3>
                 <div class="chart-container">
@@ -370,7 +370,7 @@
                             <option value="debito">Débito</option>
                             <option value="credito">Crédito</option>
                         </select>
-                        <button class="btn-expandir" data-chart="mediaCategoriasChart">[ ]</button>
+                        <button class="btn btn-icon btn-outline" data-chart="mediaCategoriasChart">[ ]</button>
                     </div>
                 </h3>
                 <div class="chart-container" style="position: relative; height: 350px;">
@@ -398,7 +398,7 @@
                             <option value="pagos">Apenas Pagos</option>
                             <option value="pendentes">Apenas Pendentes</option>
                         </select>
-                        <button class="btn-expandir" data-chart="jurosChart">[ ]</button>
+                        <button class="btn btn-icon btn-outline" data-chart="jurosChart">[ ]</button>
                     </div>
                 </h3>
                 <div class="chart-container">
@@ -434,7 +434,7 @@
                             <option value="pagos">Apenas Pagos</option>
                             <option value="pendentes">Apenas Pendentes</option>
                         </select>
-                        <button class="btn-expandir" data-chart="parcelamentosChart">[ ]</button>
+                        <button class="btn btn-icon btn-outline" data-chart="parcelamentosChart">[ ]</button>
                     </div>
                 </h3>
                 <div class="chart-container">
@@ -905,7 +905,7 @@
                 
                 <div class="form-add-categoria">
                     <input type="text" id="nova-categoria-nome" placeholder="Nome da categoria" maxlength="50">
-                    <button id="btn-adicionar-categoria" class="btn-action">
+                    <button id="btn-adicionar-categoria" class="btn btn-primary">
                         <i class="fas fa-plus"></i> Adicionar
                     </button>
                 </div>
@@ -955,13 +955,13 @@
                 <div class="form-group">
                     <h4><i class="fas fa-download"></i> Backup e Restauração</h4>
                     <div class="btn-group">
-                        <button id="btn-exportar-dados" class="btn-action">
+                        <button id="btn-exportar-dados" class="btn btn-primary">
                             <i class="fas fa-download"></i> Exportar Todos os Dados
                         </button>
-                        <button id="btn-exportar-mes-a-mes" class="btn-action">
+                        <button id="btn-exportar-mes-a-mes" class="btn btn-primary">
                             <i class="fas fa-calendar-alt"></i> Exportar Mês a Mês
                         </button>
-                        <button id="btn-importar-dados" class="btn-action">
+                        <button id="btn-importar-dados" class="btn btn-primary">
                             <i class="fas fa-upload"></i> Importar Dados
                         </button>
                     </div>
@@ -1001,7 +1001,7 @@
                 <div class="user-management-controls">
                     <div class="search-container">
                         <input type="text" id="usuario-search" placeholder="Buscar usuário..." maxlength="100">
-                        <button id="btn-search-user" class="btn-search">
+                        <button id="btn-search-user" class="btn btn-primary">
                             <i class="fas fa-search"></i>
                         </button>
                     </div>
@@ -1015,7 +1015,7 @@
                         </select>
                     </div>
                     
-                    <button id="btn-adicionar-usuario" class="btn-action">
+                    <button id="btn-adicionar-usuario" class="btn btn-primary">
                         <i class="fas fa-user-plus"></i> Novo Usuário
                     </button>
                 </div>
@@ -1047,11 +1047,11 @@
 
                 <!-- Controles de Paginação -->
                 <div class="pagination-controls">
-                    <button id="btn-prev-page" class="btn-pagination" disabled>
+                    <button id="btn-prev-page" class="btn btn-secondary btn-sm" disabled>
                         <i class="fas fa-chevron-left"></i> Anterior
                     </button>
                     <span id="pagination-info">Página 1 de 1</span>
-                    <button id="btn-next-page" class="btn-pagination" disabled>
+                    <button id="btn-next-page" class="btn btn-secondary btn-sm" disabled>
                         Próxima <i class="fas fa-chevron-right"></i>
                     </button>
                 </div>
@@ -1078,7 +1078,7 @@
             <input type="text" id="novo-cartao-banco" placeholder="Nome do Banco" maxlength="50">
             <input type="text" id="novo-cartao-validade" placeholder="MM/AAAA" maxlength="7">
             <input type="number" id="novo-cartao-limite" placeholder="Limite (R$)" step="0.01" min="0">
-            <button id="btn-adicionar-cartao" class="btn-action">
+            <button id="btn-adicionar-cartao" class="btn btn-primary">
                 <i class="fas fa-plus"></i> Adicionar Cartão
             </button>
         </div>
@@ -1163,7 +1163,7 @@
                     </div>
 
                     <div class="filtro-acoes">
-                        <button id="btn-filtrar-logs" class="btn-action">
+                        <button id="btn-filtrar-logs" class="btn btn-primary">
                             <i class="fas fa-filter"></i> Filtrar
                         </button>
                         <button id="btn-limpar-filtros-logs" class="btn-outline">
@@ -1236,7 +1236,7 @@
                 </div>
 
                 <div class="form-actions">
-                    <button type="submit" class="btn-action">
+                    <button type="submit" class="btn btn-primary">
                         <i class="fas fa-save"></i> Salvar Alterações
                     </button>
                     <button type="button" class="btn-outline" data-action="cancelar">
@@ -1368,7 +1368,7 @@
                 </div>
                 
                 <div class="form-actions">
-                    <button type="submit" class="btn-action">
+                    <button type="submit" class="btn btn-primary">
                         <i class="fas fa-user-plus"></i> Adicionar Usuário
                     </button>
                     <button type="button" class="btn-outline" data-action="cancelar">
@@ -1459,7 +1459,7 @@
                 </div>
                 
                 <div class="form-actions">
-                    <button type="submit" class="btn-action">
+                    <button type="submit" class="btn btn-primary">
                         <i class="fas fa-save"></i> Salvar Alterações
                     </button>
                     <button type="button" class="btn-outline" data-action="cancelar">
@@ -1546,7 +1546,7 @@
                 </div>
 
                 <div class="form-actions">
-                    <button type="submit" class="btn-action"></i> Alterar Senha
+                    <button type="submit" class="btn btn-primary"></i> Alterar Senha
                     </button>
                     <button type="button" class="btn-action-secondary close">Cancelar</button>
                 </div>
@@ -1644,7 +1644,7 @@
                 <div class="form-group">
                     <input type="password" id="lock-screen-password" placeholder="Sua Senha" required>
                 </div>
-                <button type="submit" class="btn-submit btn-full-width">Desbloquear</button>
+                <button type="submit" class="btn btn-submit btn-full-width">Desbloquear</button>
             </form>
         </div>
     </div>
@@ -1669,7 +1669,7 @@
                     <label for="receita-mensal">Receita Mensal Padrão:</label>
                     <input type="number" id="receita-mensal" min="0" step="0.01" placeholder="0.00">
                 </div>
-                <button type="submit" class="btn-submit">Criar</button>
+                <button type="submit" class="btn btn-submit">Criar</button>
             </form>
         </div>
     </div>
@@ -1770,7 +1770,7 @@
             <div id="tab-receitas" class="tab-content">
                 <!-- BARRA DE AÇÕES COM RESERVAS -->
                 <div class="tab-actions-with-reservas">
-                    <button id="btn-nova-receita" class="btn-action">
+                    <button id="btn-nova-receita" class="btn btn-primary">
                         <i class="fas fa-plus-circle"></i> Nova Receita
                     </button>
 
@@ -2263,10 +2263,10 @@
 <template id="template-estrutura-despesas-grid">
     <div class="tab-actions">
         <div class="left-side">
-            <button id="btn-nova-despesa" class="btn-action">
+            <button id="btn-nova-despesa" class="btn btn-primary">
                 <i class="fas fa-plus-circle"></i> Nova Despesa
             </button>
-            <button id="btn-pagar-em-lote" class="btn-action" disabled>
+            <button id="btn-pagar-em-lote" class="btn btn-primary" disabled>
                 <i class="fas fa-check-circle"></i> Pagar em Lote
             </button>
         </div>
@@ -2542,7 +2542,7 @@
               </div>
 
               <div class="form-group">
-                  <button type="submit" class="btn-submit">Confirmar Pagamento</button>
+                  <button type="submit" class="btn btn-submit">Confirmar Pagamento</button>
               </div>
           </form>
       </div>
@@ -2806,10 +2806,10 @@
 <template id="template-estrutura-despesas">
     <div class="tab-actions">
         <div class="left-side">
-            <button id="btn-nova-despesa" class="btn-action">
+            <button id="btn-nova-despesa" class="btn btn-primary">
                 <i class="fas fa-plus-circle"></i> Nova Despesa
             </button>
-            <button id="btn-pagar-em-lote" class="btn-action" disabled>
+            <button id="btn-pagar-em-lote" class="btn btn-primary" disabled>
                 <i class="fas fa-check-circle"></i> Pagar em Lote
             </button>
         </div>

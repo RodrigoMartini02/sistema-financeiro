@@ -612,14 +612,14 @@ function preencherDropdownAnos() {
     dropdownAnos.innerHTML = '';
 
     if (anosDisponiveis.length === 0) {
-        dropdownAnos.innerHTML = '<button disabled style="padding: 10px;">Nenhum ano disponível</button>';
+        dropdownAnos.innerHTML = '<button class="btn btn-secondary" disabled>Nenhum ano disponível</button>';
         return;
     }
 
     anosDisponiveis.forEach(ano => {
         const btn = document.createElement('button');
         btn.textContent = ano;
-        btn.className = ano === anoAtual ? 'active' : '';
+        btn.className = ano === anoAtual ? 'btn btn-secondary active' : 'btn btn-secondary';
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             mudarAno(ano);

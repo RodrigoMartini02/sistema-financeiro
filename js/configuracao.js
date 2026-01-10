@@ -1206,7 +1206,6 @@ function criarLinhaUsuario(usuario, index) {
     if (status === 'bloqueado') {
         btnBloquear.title = 'Desbloquear usuário';
         btnBloquear.querySelector('i').className = 'fas fa-unlock';
-        btnBloquear.classList.add('btn-desbloquear');
     }
 
     // 🔥 USAR FUNÇÕES DE PERMISSÃO
