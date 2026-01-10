@@ -3591,52 +3591,41 @@ table tr:hover {
     gap: 4px;
 }
 
-/* Ações em Categorias - sem resize */
-.categorias-grid .col-acoes {
-    width: 100px;
-    min-width: 100px;
-    flex-shrink: 0;
-}
 
-.col-anexos {
-    width: 80px;
-    min-width: 80px;
-    justify-content: center;
-}
-
-/* Linha de Saldo Anterior - Receitas */
-.grid-row.saldo-anterior-row {
-    background-color: #f0f4ff;
+/* Saldo Anterior Fora da Tabela */
+.saldo-anterior-info {
+    background: linear-gradient(135deg, #f0f4ff 0%, #e8eeff 100%);
     border-left: 4px solid #4361ee;
-    font-weight: 600;
+    padding: 12px 20px;
+    margin: 0 16px 15px 16px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(67, 97, 238, 0.1);
 }
 
-.grid-row.saldo-anterior-row .col-id {
-    color: #6c757d;
-    font-weight: normal;
+.saldo-anterior-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
 }
 
-.grid-row.saldo-anterior-row .col-descricao {
+.saldo-anterior-label {
     color: #4361ee;
     font-weight: 600;
 }
 
-.grid-row.saldo-anterior-row .col-valor {
+.saldo-anterior-info .saldo-anterior-valor {
+    font-size: 16px;
     font-weight: 700;
-    font-size: 14px;
+    font-family: 'Courier New', monospace;
 }
 
-.grid-row.saldo-anterior-row .col-data,
-.grid-row.saldo-anterior-row .col-parcela {
-    color: #6c757d;
+.saldo-anterior-info .saldo-anterior-valor.positivo {
+    color: #28a745;
 }
 
-.saldo-anterior-valor.positivo {
-    color: #28a745 !important;
-}
-
-.saldo-anterior-valor.negativo {
-    color: #dc3545 !important;
+.saldo-anterior-info .saldo-anterior-valor.negativo {
+    color: #dc3545;
 }
 
 /* Badges de Status */

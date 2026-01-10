@@ -41,31 +41,45 @@ async function aguardarSistemaReady() {
 function renderizarReceitas(receitas, fechado) {
     const listaReceitas = document.getElementById('lista-receitas');
     if (!listaReceitas) return;
-   
+
     listaReceitas.innerHTML = '';
-   
-    const temSaldoAnteriorReal = Array.isArray(receitas) && 
+
+    // Atualizar saldo anterior fora da tabela
+    const saldoAnteriorInfo = document.getElementById('saldo-anterior-info');
+    const saldoAnteriorValor = document.getElementById('saldo-anterior-valor');
+
+    const temSaldoAnteriorReal = Array.isArray(receitas) &&
         receitas.some(receita => receita.saldoAnterior === true);
-    
+
     if (!temSaldoAnteriorReal) {
         const saldoAnterior = obterSaldoAnteriorValido(window.mesAberto, window.anoAberto);
-        if (saldoAnterior !== 0) {
-            const trSaldo = criarLinhaSaldoAnterior(saldoAnterior, fechado);
-            listaReceitas.appendChild(trSaldo);
+        if (saldoAnterior !== 0 && saldoAnteriorInfo && saldoAnteriorValor) {
+            saldoAnteriorValor.textContent = window.formatarMoeda(saldoAnterior);
+            saldoAnteriorValor.className = 'saldo-anterior-valor ' + (saldoAnterior >= 0 ? 'positivo' : 'negativo');
+            saldoAnteriorInfo.style.display = 'block';
+        } else if (saldoAnteriorInfo) {
+            saldoAnteriorInfo.style.display = 'none';
         }
+    } else if (saldoAnteriorInfo) {
+        saldoAnteriorInfo.style.display = 'none';
     }
-   
+
+    // Renderizar receitas (sem saldo anterior na tabela)
     if (Array.isArray(receitas)) {
         receitas.forEach((receita, index) => {
+            // Ignorar saldoAnterior dentro da tabela
+            if (receita.saldoAnterior === true || receita.descricao.includes('Saldo Anterior')) {
+                return;
+            }
             const tr = criarLinhaReceita(receita, index, fechado);
             listaReceitas.appendChild(tr);
         });
     }
-   
+
     if (!fechado) {
         configurarEventosReceitas(listaReceitas, window.mesAberto, window.anoAberto);
     }
-    
+
     setTimeout(() => {
         configurarEventosAnexosReceitas(listaReceitas);
         atualizarTodosContadoresAnexosReceitas();
