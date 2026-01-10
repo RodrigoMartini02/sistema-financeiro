@@ -169,127 +169,8 @@
 }
 
 /* ================================================================ */
-/* BOTÕES */
+/* BOTÕES - REMOVIDO - USAR css/botoes.css */
 /* ================================================================ */
-.btn-action {
-    padding: 10px 20px;
-    background: var(--config-primary);
-    color: #fff;
-    border: none;
-    border-radius: 0;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    box-shadow: var(--config-shadow);
-}
-
-.btn-action:hover:not(:disabled) {
-    background: var(--config-primary-hover);
-    transform: translateY(-2px);
-    box-shadow: var(--config-shadow-hover);
-}
-
-.btn-action:active:not(:disabled) {
-    transform: translateY(0);
-}
-
-.btn-action i {
-    font-size: 14px;
-}
-
-.btn-danger {
-    padding: 10px 20px;
-    background: var(--config-danger);
-    color: #fff;
-    border: none;
-    border-radius: 0;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    box-shadow: var(--config-shadow);
-}
-
-.btn-danger:hover:not(:disabled) {
-    background: var(--config-danger-hover);
-    transform: translateY(-2px);
-    box-shadow: var(--config-shadow-hover);
-}
-
-.btn-outline {
-    padding: 10px 20px;
-    background: transparent;
-    color: var(--config-primary);
-    border: 2px solid var(--config-primary);
-    border-radius: 0;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.btn-outline:hover:not(:disabled) {
-    background: var(--config-primary);
-    color: #fff;
-}
-
-.btn-search {
-    padding: 10px 16px;
-    background: var(--config-primary);
-    color: #fff;
-    border: none;
-    border-radius: 0;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.btn-search:hover {
-    background: var(--config-primary-hover);
-}
-
-.btn-pagination {
-    padding: 8px 16px;
-    background: #fff;
-    color: var(--config-primary);
-    border: 1px solid var(--config-border);
-    border-radius: 0;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.btn-pagination:hover:not(:disabled) {
-    background: var(--config-light);
-    border-color: var(--config-primary);
-}
-
-.btn-pagination:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.btn-group {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-top: 12px;
-}
 
 /* ================================================================ */
 /* INPUTS E FORMULÁRIOS */
@@ -599,61 +480,6 @@
     align-items: center;
 }
 
-.btn-editar-categoria,
-.btn-remover-categoria,
-.btn-editar-usuario,
-.btn-bloquear-usuario,
-.btn-excluir-usuario {
-    padding: 6px 10px;
-    border: none;
-    border-radius: 0;
-    cursor: pointer;
-    font-size: 12px;
-    transition: all 0.3s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.btn-editar-categoria,
-.btn-editar-usuario {
-    background: var(--config-info);
-    color: #fff;
-}
-
-.btn-editar-categoria:hover,
-.btn-editar-usuario:hover {
-    background: #138496;
-}
-
-.btn-bloquear-usuario {
-    background: var(--config-warning);
-    color: var(--config-dark);
-}
-
-.btn-bloquear-usuario:hover {
-    background: var(--config-warning-hover);
-}
-
-.btn-remover-categoria,
-.btn-excluir-usuario {
-    background: var(--config-danger);
-    color: #fff;
-}
-
-.btn-remover-categoria:hover,
-.btn-excluir-usuario:hover {
-    background: var(--config-danger-hover);
-}
-
-.btn-desbloquear {
-    background: var(--config-success) !important;
-    color: #fff !important;
-}
-
-.btn-desbloquear:hover {
-    background: var(--config-success-hover) !important;
-}
 
 /* ================================================================ */
 /* CARTÕES */
@@ -914,16 +740,6 @@
         padding: 12px;
     }
 
-    .btn-group {
-        flex-direction: column;
-    }
-
-    .btn-action,
-    .btn-danger,
-    .btn-outline {
-        width: 100%;
-        justify-content: center;
-    }
 
     .table-responsive {
         font-size: 12px;
@@ -1010,31 +826,6 @@
     margin: 0 4px;
 }
 
-.btn-reservar-inline {
-    padding: 8px 16px;
-    background: #667eea;
-    color: #fff;
-    border: none;
-    border-radius: 0;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    white-space: nowrap;
-}
-
-.btn-reservar-inline:hover {
-    background: #5568d3;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-}
-
-.btn-reservar-inline i {
-    font-size: 12px;
-}
 
 /* ================================================================ */
 /* MODAL RESERVAR VALOR */
@@ -1098,42 +889,6 @@
     border-top: 2px solid var(--config-border);
 }
 
-.btn-cancelar-modal {
-    padding: 12px 24px;
-    background: var(--config-light);
-    color: var(--config-dark);
-    border: 2px solid var(--config-border);
-    border-radius: 0;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.btn-cancelar-modal:hover {
-    background: var(--config-border);
-}
-
-.btn-confirmar-modal {
-    padding: 12px 24px;
-    background: var(--config-success);
-    color: #fff;
-    border: none;
-    border-radius: 0;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.btn-confirmar-modal:hover {
-    background: #229954;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
-}
 
 /* ================================================================ */
 /* RESPONSIVO - RESERVAS INLINE */
@@ -1157,10 +912,6 @@
         justify-content: center;
     }
 
-    .btn-reservar-inline {
-        width: 100%;
-        justify-content: center;
-    }
 }
 
 /* ================================================================ */
@@ -1329,29 +1080,6 @@
     color: var(--config-secondary);
 }
 
-/* Botão de perigo */
-.btn-danger {
-    background: var(--config-danger);
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 0;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.btn-danger:hover {
-    background: var(--config-danger-hover);
-}
-
-.btn-danger i {
-    font-size: 16px;
-}
 
 /* Responsividade */
 @media (max-width: 768px) {
@@ -1555,41 +1283,6 @@
     margin-top: 24px;
 }
 
-#modal-alterar-senha .btn-action {
-    flex: 1;
-    padding: 12px;
-    border: none;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-}
-
-#modal-alterar-senha .btn-action:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-}
-
-#modal-alterar-senha .btn-action-secondary {
-    flex: 0.5;
-    padding: 12px;
-    border: 2px solid #e0e0e0;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    background: white;
-    color: #666;
-}
-
-#modal-alterar-senha .btn-action-secondary:hover {
-    background: #f5f5f5;
-    border-color: #ccc;
-}
 
 #modal-alterar-senha .info-box {
     background: #f8f9ff;
@@ -1745,42 +1438,6 @@
     align-items: center;
 }
 
-.tabela-cartoes .btn-icon {
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 14px;
-}
-
-.tabela-cartoes .btn-editar-cartao {
-    background: rgba(255, 193, 7, 0.1);
-    color: var(--config-warning);
-}
-
-.tabela-cartoes .btn-editar-cartao:hover {
-    background: var(--config-warning);
-    color: #fff;
-    transform: translateY(-2px);
-    box-shadow: var(--config-shadow);
-}
-
-.tabela-cartoes .btn-excluir-cartao {
-    background: rgba(220, 53, 69, 0.1);
-    color: var(--config-danger);
-}
-
-.tabela-cartoes .btn-excluir-cartao:hover {
-    background: var(--config-danger);
-    color: #fff;
-    transform: translateY(-2px);
-    box-shadow: var(--config-shadow);
-}
 
 /* ================================================================ */
 /* MODAL EDITAR CARTÃO - ESTILIZAÇÃO MELHORADA */
@@ -1887,43 +1544,6 @@
     border-top: 2px solid #e1e8ed;
 }
 
-.modal-cartao-editar .btn-primary {
-    background: linear-gradient(135deg, #5680e9 0%, #4568dc 100%);
-    color: white;
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-weight: 600;
-    border: none;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.modal-cartao-editar .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(86, 128, 233, 0.3);
-}
-
-.modal-cartao-editar .btn-secondary {
-    background: white;
-    color: #4a5568;
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-weight: 600;
-    border: 2px solid #e1e8ed;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.modal-cartao-editar .btn-secondary:hover {
-    background: #f7fafc;
-    border-color: #cbd5e0;
-}
 
 .modal-cartao-editar .required {
     color: #e53e3e;
@@ -1941,8 +1561,4 @@
         flex-direction: column-reverse;
     }
     
-    .modal-cartao-editar .form-actions button {
-        width: 100%;
-        justify-content: center;
-    }
 }

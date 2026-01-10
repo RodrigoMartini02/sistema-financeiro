@@ -3388,29 +3388,29 @@ function calcularTotalJuros(despesas) {
         const valorTotalComJuros = parseFloat(despesa.valorTotalComJuros) || 0;
         const valor = parseFloat(despesa.valor) || 0;
 
-        // PRIORIDADE 1: Juros registrados no pagamento (quando valor pago difere do original)
-        if (despesa.metadados?.jurosPagamento && despesa.quitado) {
-            jurosCalculado = parseFloat(despesa.metadados.jurosPagamento);
-        }
-        // PRIORIDADE 2: Calcular pela diferença entre valorPago e valorOriginal
-        else if (valorPago > 0 && valorOriginal > 0 && valorPago > valorOriginal && despesa.quitado) {
+        // PRIORIDADE 1: Calcular pela diferença entre valorPago e valorOriginal (quando já pago)
+        if (valorPago > 0 && valorOriginal > 0 && valorPago > valorOriginal && despesa.quitado) {
             jurosCalculado = valorPago - valorOriginal;
         }
-        // PRIORIDADE 3: Juros de parcelamento (quando cadastrado com juros)
+        // PRIORIDADE 2: Juros de parcelamento (quando cadastrado com juros)
         else if (despesa.parcelado && despesa.metadados?.jurosPorParcela && despesa.quitado) {
             jurosCalculado = parseFloat(despesa.metadados.jurosPorParcela) || 0;
         }
-        // PRIORIDADE 4: Juros registrados no cadastro (campo "Com Juros" diferente de "Valor Original")
+        // PRIORIDADE 3: Juros registrados no cadastro (campo "Com Juros" diferente de "Valor Original")
         else if (despesa.metadados?.totalJuros && despesa.quitado) {
             jurosCalculado = despesa.parcelado ?
                 (parseFloat(despesa.metadados.totalJuros) / (despesa.totalParcelas || 1)) :
                 parseFloat(despesa.metadados.totalJuros);
         }
-        // PRIORIDADE 5: Calcular pela diferença entre valorTotalComJuros e valorOriginal (cadastro)
+        // PRIORIDADE 4: Calcular pela diferença entre valorTotalComJuros e valorOriginal (cadastro)
         else if (valorTotalComJuros > 0 && valorOriginal > 0 && valorTotalComJuros > valorOriginal && despesa.quitado) {
             jurosCalculado = despesa.parcelado ?
                 ((valorTotalComJuros - valorOriginal) / (despesa.totalParcelas || 1)) :
                 (valorTotalComJuros - valorOriginal);
+        }
+        // PRIORIDADE 5: Juros registrados no metadados.jurosPagamento
+        else if (despesa.metadados?.jurosPagamento && despesa.quitado) {
+            jurosCalculado = parseFloat(despesa.metadados.jurosPagamento);
         }
 
         return total + (jurosCalculado > 0 ? jurosCalculado : 0);
@@ -3457,11 +3457,11 @@ function calcularTotalEconomias(despesas) {
 
         // CENÁRIO 2: Economia no pagamento (Valor Pago < Valor devido)
         if (despesa.quitado === true && valorPago > 0) {
-            // Determinar valor devido: usa valorTotalComJuros se existir, senão usa valor ou valorOriginal
-            let valorDevido = valorTotalComJuros > 0 ? valorTotalComJuros :
-                             (valorOriginal > 0 ? valorOriginal : valor);
+            // Determinar valor devido: sempre usar valorOriginal como base para comparar economia
+            // Caso especial: Se valorOriginal não existe, usar valor da despesa
+            let valorDevido = valorOriginal > 0 ? valorOriginal : valor;
 
-            // Para parcelamentos, usar valor da parcela
+            // Para parcelamentos, usar valor da parcela original
             if (despesa.parcelado && despesa.metadados?.valorPorParcela) {
                 const valorPorParcela = parseFloat(despesa.metadados.valorPorParcela) || 0;
                 if (valorPorParcela > 0) {
@@ -3469,7 +3469,7 @@ function calcularTotalEconomias(despesas) {
                 }
             }
 
-            // Calcular economia
+            // Calcular economia comparando o valor pago com o valor original devido
             if (valorPago < valorDevido) {
                 economiaCalculada += valorDevido - valorPago;
             }

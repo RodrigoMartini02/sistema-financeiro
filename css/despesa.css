@@ -285,29 +285,6 @@
     align-items: center;
 }
 
-.acoes-grupo .btn {
-    width: 22px;
-    height: 22px;
-    padding: 0;
-    border: none;
-    font-size: 11px;
-    cursor: pointer;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: opacity 0.2s ease;
-}
-
-.acoes-grupo .btn:hover {
-    opacity: 0.8;
-    transform: scale(1.05);
-}
-
-.btn-pagar { background: #16a34a; }
-.btn-editar { background: #f59e0b; }
-.btn-excluir { background: #dc2626; }
-.btn-mover { background: #0ea5e9; }
 
 
 
@@ -403,25 +380,6 @@
     min-width: 100px;
 }
 
-.btn-action {
-    padding: 6px 12px;
-    background: #6366f1;
-    color: white;
-    border: none;
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-}
-
-.btn-action:hover {
-    background: #4f46e5;
-}
-
-.btn-action:disabled {
-    background: #d1d5db;
-    cursor: not-allowed;
-}
 
 .filtro-contador {
     font-size: 12px;
@@ -458,18 +416,6 @@
     font-size: 14px;
 }
 
-.btn-anexar-compact {
-    padding: 8px 12px;
-    background: #667eea;
-    color: white;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.btn-anexar-compact:hover {
-    background: #5568d3;
-}
 
 .lista-anexos-inline {
     display: flex;
@@ -625,21 +571,6 @@
     accent-color: #667eea;
 }
 
-.btn-salvar-compact {
-    padding: 10px 24px;
-    background: #667eea;
-    color: white;
-    border: none;
-    font-weight: 600;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.btn-salvar-compact:hover {
-    background: #5568d3;
-    transform: translateY(-1px);
-}
 
 .form-group.error input,
 .form-group.error select {
@@ -663,32 +594,6 @@
     flex: 1;
 }
 
-.btn-upload {
-    padding: 8px 12px;
-    border: 1px solid #d1d5db;
-    background: #f9fafb;
-    cursor: pointer;
-    transition: all 0.2s;
-    min-width: 45px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.btn-upload:hover {
-    background: #f3f4f6;
-    border-color: #9ca3af;
-}
-
-.btn-upload.btn-success {
-    background: #10b981;
-    border-color: #10b981;
-    color: white;
-}
-
-.btn-upload.btn-success:hover {
-    background: #059669;
-}
 
 .upload-section {
     margin-bottom: 16px;
@@ -806,20 +711,6 @@
     font-size: 11px;
 }
 
-.btn-remover-arquivo {
-    background: #fee2e2;
-    border: 1px solid #fecaca;
-    color: #dc2626;
-    padding: 4px 6px;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 12px;
-}
-
-.btn-remover-arquivo:hover {
-    background: #fca5a5;
-    border-color: #f87171;
-}
 
 .modal-anexos {
     max-width: 600px;
@@ -892,36 +783,6 @@
     gap: 8px;
 }
 
-.btn-download-anexo,
-.btn-visualizar-anexo {
-    padding: 6px 8px;
-    border: 1px solid;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 12px;
-}
-
-.btn-download-anexo {
-    background: #f0f9ff;
-    border-color: #bae6fd;
-    color: #0284c7;
-}
-
-.btn-download-anexo:hover {
-    background: #e0f2fe;
-    border-color: #7dd3fc;
-}
-
-.btn-visualizar-anexo {
-    background: #f0fdf4;
-    border-color: #bbf7d0;
-    color: #059669;
-}
-
-.btn-visualizar-anexo:hover {
-    background: #dcfce7;
-    border-color: #86efac;
-}
 
 .upload-loading .upload-icon {
     animation: spin 1s linear infinite;
@@ -1188,29 +1049,6 @@
     margin-bottom: 12px;
 }
 
-.btn-anexar-inline {
-    background: #6366f1;
-    color: white;
-    border: none;
-    padding: 10px 16px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 13px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    height: 40px;
-    transition: background 0.2s;
-    white-space: nowrap;
-}
-
-.btn-anexar-inline:hover {
-    background: #4f46e5;
-}
-
-.btn-anexar-inline i {
-    font-size: 14px;
-}
 
 .diferenca-info {
     padding: 10px 12px;
