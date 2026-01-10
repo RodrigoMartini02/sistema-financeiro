@@ -1935,16 +1935,29 @@ function calcularLimiteCartao(cartaoId, mes, ano) {
             const despesas = dadosFinanceiros[anoAtual].meses[mesAtual]?.despesas || [];
 
             despesas.forEach(despesa => {
-                // Verificar se é despesa do cartão específico
                 const formaPag = despesa.formaPagamento || despesa.forma_pagamento;
-                const cartaoIdDespesa = despesa.numeroCartao || despesa.cartao_id || despesa.cartaoId;
+                const numeroCartaoDespesa = despesa.numeroCartao;
 
-                if (formaPag === 'credito' &&
-                    cartaoIdDespesa === cartaoId &&
-                    !despesa.quitado &&
-                    !despesa.pago) {
+                // Pular se recorrente ou já pago
+                if (despesa.recorrente || despesa.quitado || despesa.pago) {
+                    return;
+                }
 
+                // Se for crédito e tem numeroCartao, comparar diretamente
+                if (formaPag === 'credito' && numeroCartaoDespesa === cartaoId) {
                     limiteUtilizado += parseFloat(despesa.valor) || 0;
+                    return;
+                }
+
+                // Se for crédito mas não tem numeroCartao, usar CRÉD-MERPAGO como padrão
+                if (formaPag === 'credito' && !numeroCartaoDespesa) {
+                    const cartaoMerpago = (window.cartoesUsuario || []).find(c =>
+                        c.banco && c.banco.toUpperCase().includes('MERPAGO')
+                    );
+
+                    if (cartaoMerpago && cartaoMerpago.id === cartaoId) {
+                        limiteUtilizado += parseFloat(despesa.valor) || 0;
+                    }
                 }
             });
         }

@@ -3491,38 +3491,55 @@ function configurarBotaoComprovanteSimples() {
     }
 }
 
-function calcularLimiteDisponivelCartao(numeroCartao, mes, ano) {
-    if (!numeroCartao || !window.cartoesUsuario) return null;
-    
-    const cartao = window.cartoesUsuario[`cartao${numeroCartao}`];
+function calcularLimiteDisponivelCartao(cartaoId, mes, ano) {
+    if (!cartaoId || !window.cartoesUsuario) return null;
+
+    const cartao = (window.cartoesUsuario || []).find(c => c.id === cartaoId);
     if (!cartao || !cartao.ativo) return null;
-    
+
     const limiteTotal = parseFloat(cartao.limite) || 0;
     let limiteUtilizado = 0;
-    
+
     for (let anoAtual = ano; anoAtual <= ano + 3; anoAtual++) {
         if (!dadosFinanceiros[anoAtual]) continue;
-        
+
         for (let mesAtual = 0; mesAtual < 12; mesAtual++) {
             if (!dadosFinanceiros[anoAtual].meses[mesAtual]?.despesas) continue;
-            
+
             const despesas = dadosFinanceiros[anoAtual].meses[mesAtual].despesas;
-            
+
             despesas.forEach(despesa => {
-                if (despesa.formaPagamento === 'credito' && 
-                    despesa.numeroCartao === numeroCartao && 
-                    !despesa.quitado &&
-                    !despesa.recorrente) {
-                    
+                const formaPag = despesa.formaPagamento || despesa.forma_pagamento;
+                const numeroCartaoDespesa = despesa.numeroCartao;
+
+                // Pular se recorrente ou já pago
+                if (despesa.recorrente || despesa.quitado || despesa.pago) {
+                    return;
+                }
+
+                // Se for crédito e tem numeroCartao, comparar diretamente
+                if (formaPag === 'credito' && numeroCartaoDespesa === cartaoId) {
                     limiteUtilizado += parseFloat(despesa.valor) || 0;
+                    return;
+                }
+
+                // Se for crédito mas não tem numeroCartao, usar CRÉD-MERPAGO como padrão
+                if (formaPag === 'credito' && !numeroCartaoDespesa) {
+                    const cartaoMerpago = (window.cartoesUsuario || []).find(c =>
+                        c.banco && c.banco.toUpperCase().includes('MERPAGO')
+                    );
+
+                    if (cartaoMerpago && cartaoMerpago.id === cartaoId) {
+                        limiteUtilizado += parseFloat(despesa.valor) || 0;
+                    }
                 }
             });
         }
     }
-    
+
     const limiteDisponivel = limiteTotal - limiteUtilizado;
     const percentualUsado = limiteTotal > 0 ? (limiteUtilizado / limiteTotal) * 100 : 0;
-    
+
     return {
         limiteTotal,
         limiteUtilizado,
