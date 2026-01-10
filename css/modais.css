@@ -58,6 +58,17 @@
     width: 99%;
 }
 
+/* Aliases para compatibilidade com código legado */
+.modal-small {
+    max-width: 500px;
+    width: 90%;
+}
+
+.modal-medium {
+    max-width: 700px;
+    width: 95%;
+}
+
 /* ================================================================
    ESTRUTURA DO MODAL
    ================================================================ */
@@ -136,21 +147,6 @@
     margin: 18vh auto;
 }
 
-#modal-exclusao-receita .modal-header {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-    color: white;
-    padding: 16px 20px;
-}
-
-#modal-exclusao-receita .modal-header h3 {
-    font-size: 18px;
-    margin: 0;
-    font-weight: var(--font-weight-semibold);
-}
-
-#modal-exclusao-receita .modal-body {
-    padding: 24px 20px;
-}
 
 #modal-exclusao-receita .modal-body p {
     color: var(--gray-700);
@@ -200,22 +196,6 @@
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
 }
 
-#modal-pagamento-lote-despesas .modal-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 20px 25px;
-    border: none;
-}
-
-#modal-pagamento-lote-despesas .modal-header h2 {
-    margin: 0;
-    font-size: 1.4rem;
-    font-weight: 600;
-}
-
-#modal-pagamento-lote-despesas .modal-body {
-    padding: 25px;
-}
 
 /* ================================================================
    MODAIS ESPECÍFICOS - RESERVAR COMPACT
@@ -288,38 +268,6 @@
     padding: 0;
 }
 
-#modal-alterar-senha .modal-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 20px 24px;
-    border-radius: 12px 12px 0 0;
-}
-
-#modal-alterar-senha .modal-header h3 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-#modal-alterar-senha .modal-header i {
-    font-size: 20px;
-}
-
-#modal-alterar-senha .modal-header .close {
-    color: white;
-    opacity: 0.9;
-}
-
-#modal-alterar-senha .modal-header .close:hover {
-    opacity: 1;
-}
-
-#modal-alterar-senha .modal-body {
-    padding: 24px;
-}
 
 #modal-alterar-senha .form-group {
     margin-bottom: 18px;

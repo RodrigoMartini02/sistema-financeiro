@@ -1220,7 +1220,7 @@
 
 <!-- Modal: Editar Categoria -->
 <div id="modal-editar-categoria" class="modal">
-    <div class="modal-content">
+    <div class="modal-content modal-sm">
         <div class="modal-header">
             <h2><i class="fas fa-edit"></i> Editar Categoria</h2>
             <span class="close">&times;</span>
@@ -1235,23 +1235,22 @@
                     </label>
                     <input type="text" id="categoria-edit-nome" class="form-input" required maxlength="50">
                 </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn btn-cancel" data-action="cancelar">
-                        <i class="fas fa-times"></i> Cancelar
-                    </button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> Salvar Alterações
-                    </button>
-                </div>
             </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-action="cancelar">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
+            <button type="submit" form="form-editar-categoria" class="btn btn-primary">
+                <i class="fas fa-save"></i> Salvar
+            </button>
         </div>
     </div>
 </div>
 
 <!-- Modal: Editar Cartão -->
 <div id="modal-editar-cartao" class="modal">
-    <div class="modal-content modal-cartao-editar">
+    <div class="modal-content modal-md">
         <div class="modal-header">
             <h2><i class="fas fa-credit-card"></i> Editar Cartão</h2>
             <span class="close">&times;</span>
@@ -1289,16 +1288,15 @@
                         </label>
                     </div>
                 </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn btn-cancel" data-action="cancelar">
-                        <i class="fas fa-times"></i> Cancelar
-                    </button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> Salvar Alterações
-                    </button>
-                </div>
             </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-action="cancelar">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
+            <button type="submit" form="form-editar-cartao" class="btn btn-primary">
+                <i class="fas fa-save"></i> Salvar
+            </button>
         </div>
     </div>
 </div>
@@ -1383,7 +1381,7 @@
 
 <!-- Modal: Editar Usuário -->
 <div id="modal-editar-usuario" class="modal">
-    <div class="modal-content">
+    <div class="modal-content modal-md">
         <div class="modal-header">
             <h2 id="editar-usuario-titulo">
                 <i class="fas fa-user-edit"></i> Editar Usuário
@@ -1393,21 +1391,21 @@
         <div class="modal-body">
             <form id="form-editar-usuario">
                 <input type="hidden" id="editar-usuario-id">
-                
+
                 <div class="form-group">
                     <label for="editar-usuario-nome">
                         <i class="fas fa-user"></i> Nome: <span class="required">*</span>
                     </label>
                     <input type="text" id="editar-usuario-nome" class="form-input" required maxlength="100">
                 </div>
-                
+
                 <div class="form-group">
                     <label for="editar-usuario-email">
                         <i class="fas fa-envelope"></i> E-mail: <span class="required">*</span>
                     </label>
                     <input type="email" id="editar-usuario-email" class="form-input" required maxlength="100">
                 </div>
-                
+
                 <div class="form-group">
                     <label for="editar-usuario-documento">
                         <i class="fas fa-id-card"></i> Documento (CPF/CNPJ): <span class="required">*</span>
@@ -1415,7 +1413,7 @@
                     <input type="text" id="editar-usuario-documento" class="form-input" required maxlength="18" disabled>
                     <small class="field-help">O documento não pode ser alterado após o cadastro</small>
                 </div>
-                
+
                 <div id="form-group-tipo" class="form-group">
                     <label for="editar-usuario-tipo">
                         <i class="fas fa-user-tag"></i> Tipo de Usuário:
@@ -1426,7 +1424,7 @@
                         <option value="master">Master</option>
                     </select>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="editar-usuario-status">
                         <i class="fas fa-toggle-on"></i> Status:
@@ -1437,7 +1435,7 @@
                         <option value="bloqueado">Bloqueado</option>
                     </select>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="editar-usuario-senha">
                         <i class="fas fa-key"></i> Nova Senha:
@@ -1445,7 +1443,7 @@
                     <input type="password" id="editar-usuario-senha" class="form-input" placeholder="Deixe em branco para manter a atual" minlength="6">
                     <small class="field-help">Mínimo 6 caracteres</small>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="editar-usuario-confirmar-senha">
                         <i class="fas fa-key"></i> Confirmar Nova Senha:
@@ -1458,16 +1456,15 @@
                     <i class="fas fa-exclamation-triangle"></i>
                     <span>Você só pode editar usuários do tipo Padrão</span>
                 </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn btn-cancel" data-action="cancelar">
-                        <i class="fas fa-times"></i> Cancelar
-                    </button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> Salvar Alterações
-                    </button>
-                </div>
             </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-action="cancelar">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
+            <button type="submit" form="form-editar-usuario" class="btn btn-primary">
+                <i class="fas fa-save"></i> Salvar
+            </button>
         </div>
     </div>
 </div>
@@ -1525,8 +1522,9 @@
 
 <!-- Modal: Alterar Senha -->
 <div id="modal-alterar-senha" class="modal">
-    <div class="modal-content modal-small">
-        <div class="modal-header"></i> Alterar Senha</h3>
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h2><i class="fas fa-key"></i> Alterar Senha</h2>
             <span class="close">&times;</span>
         </div>
         <div class="modal-body">
@@ -1545,13 +1543,15 @@
                     <label for="senha-confirmar-modal">Confirmar Nova Senha</label>
                     <input type="password" id="senha-confirmar-modal" class="form-control" placeholder="Digite novamente a nova senha" required minlength="6">
                 </div>
-
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary"></i> Alterar Senha
-                    </button>
-                    <button type="button" class="btn btn-action-secondary close">Cancelar</button>
-                </div>
-            </form>           
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary close" data-action="cancelar">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
+            <button type="submit" form="form-alterar-senha" class="btn btn-primary">
+                <i class="fas fa-save"></i> Salvar
+            </button>
         </div>
     </div>
 </div>
@@ -1659,7 +1659,7 @@
 <!-- MODAL: CRIAÇÃO DE ANO FINANCEIRO -->
 <!-- ======================================================== -->
 <div id="modal-novo-ano" class="modal">
-    <div class="modal-content">
+    <div class="modal-content modal-sm">
         <div class="modal-header">
             <h2>Criar Novo Ano Financeiro</h2>
             <span class="close" data-modal="modal-novo-ano">&times;</span>
@@ -1674,8 +1674,15 @@
                     <label for="receita-mensal">Receita Mensal Padrão:</label>
                     <input type="number" id="receita-mensal" min="0" step="0.01" placeholder="0.00">
                 </div>
-                <button type="submit" class="btn btn-submit">Criar</button>
             </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-action="cancelar">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
+            <button type="submit" form="form-novo-ano" class="btn btn-primary">
+                <i class="fas fa-save"></i> Criar
+            </button>
         </div>
     </div>
 </div>
@@ -1948,7 +1955,7 @@
 <!-- MODAL: CADASTRO DE RECEITAS -->
 <!-- ======================================================== -->
 <div id="modal-nova-receita" class="modal modal-nova-receita">
-    <div class="modal-content">
+    <div class="modal-content modal-md">
         <div class="modal-header">
             <h2>Nova Receita</h2>
             <span class="close">&times;</span>
@@ -2081,7 +2088,7 @@
 
 <!-- Modal Reservas -->
 <div id="modal-reservar-valor" class="modal">
-    <div class="modal-content modal-reservar-compact">
+    <div class="modal-content modal-sm">
         <div class="modal-header">
             <h2><i class="fas fa-piggy-bank"></i> Gerenciar Reservas</h2>
             <span class="close">&times;</span>
@@ -2158,7 +2165,7 @@
 
 
 <div id="modal-nova-despesa" class="modal modal-nova-despesa">
-   <div class="modal-content modal-despesa-compact">
+   <div class="modal-content modal-md">
        <div class="modal-header">
            <h2>Nova Despesa</h2>
            <span class="close" data-modal="modal-nova-despesa">&times;</span>
