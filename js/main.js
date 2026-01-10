@@ -1663,7 +1663,7 @@ function atualizarResumoDetalhes(saldo, totalJuros) {
     const saldoElement = document.getElementById('resumo-saldo');
     if (saldoElement) {
         saldoElement.textContent = formatarMoeda(saldo.saldoFinal);
-        saldoElement.className = saldo.saldoFinal >= 0 ? 'saldo-positivo' : 'saldo-negativo';
+        saldoElement.className = 'card-value';
     }
 }
 
@@ -1936,8 +1936,11 @@ function calcularLimiteCartao(cartaoId, mes, ano) {
 
             despesas.forEach(despesa => {
                 // Verificar se é despesa do cartão específico
-                if (despesa.forma_pagamento === 'credito' &&
-                    (despesa.cartao_id === cartaoId || despesa.cartaoId === cartaoId) &&
+                const formaPag = despesa.formaPagamento || despesa.forma_pagamento;
+                const cartaoIdDespesa = despesa.numeroCartao || despesa.cartao_id || despesa.cartaoId;
+
+                if (formaPag === 'credito' &&
+                    cartaoIdDespesa === cartaoId &&
                     !despesa.quitado &&
                     !despesa.pago) {
 
