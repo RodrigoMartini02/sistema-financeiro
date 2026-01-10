@@ -2594,16 +2594,39 @@ async function processarPagamento(index, mes, ano, valorPago = null, quitarParce
         despesa.dataPagamento = inputDataPagamento ? inputDataPagamento.value :
                         new Date().toISOString().split('T')[0];
 
-        // Calcular juros no pagamento
+        // Calcular juros ou economia no pagamento
         const valorOriginalDespesa = parseFloat(despesa.valorOriginal) || parseFloat(despesa.valor);
         const valorPagoNumerico = parseFloat(valorFinal);
 
-        if (valorPagoNumerico > valorOriginalDespesa) {
-            const jurosCalculado = valorPagoNumerico - valorOriginalDespesa;
-            if (!despesa.metadados) {
-                despesa.metadados = {};
+        if (!despesa.metadados) {
+            despesa.metadados = {};
+        }
+
+        // Calcular diferença entre valor pago e valor original
+        const diferencaValor = valorPagoNumerico - valorOriginalDespesa;
+
+        if (diferencaValor > 0) {
+            // Pagou MAIS que o original = JUROS
+            despesa.metadados.jurosPagamento = diferencaValor;
+            // Limpar economia se existir
+            if (despesa.metadados.economiaPagamento) {
+                delete despesa.metadados.economiaPagamento;
             }
-            despesa.metadados.jurosPagamento = jurosCalculado;
+        } else if (diferencaValor < 0) {
+            // Pagou MENOS que o original = ECONOMIA (desconto)
+            despesa.metadados.economiaPagamento = Math.abs(diferencaValor);
+            // Limpar juros se existir
+            if (despesa.metadados.jurosPagamento) {
+                delete despesa.metadados.jurosPagamento;
+            }
+        } else {
+            // Valores iguais = sem juros nem economia
+            if (despesa.metadados.jurosPagamento) {
+                delete despesa.metadados.jurosPagamento;
+            }
+            if (despesa.metadados.economiaPagamento) {
+                delete despesa.metadados.economiaPagamento;
+            }
         }
         
         // NOVA FUNCIONALIDADE: Unificar anexos de cadastro com comprovantes
@@ -3403,12 +3426,21 @@ function calcularTotalJuros(despesas) {
                 parseFloat(despesa.metadados.totalJuros);
         }
         // PRIORIDADE 4: Calcular pela diferença entre valorTotalComJuros e valorOriginal (cadastro)
+        // Quando Valor Original < Valor Final e despesa está paga (juros cobrados)
         else if (valorTotalComJuros > 0 && valorOriginal > 0 && valorTotalComJuros > valorOriginal && despesa.quitado) {
             jurosCalculado = despesa.parcelado ?
                 ((valorTotalComJuros - valorOriginal) / (despesa.totalParcelas || 1)) :
                 (valorTotalComJuros - valorOriginal);
         }
-        // PRIORIDADE 5: Juros registrados no metadados.jurosPagamento
+        // PRIORIDADE 5: Juros quando Valor Final > Valor Original e não tem valorPago
+        // Quando marca "Já está Paga" com Valor Final maior que Valor Original
+        else if (despesa.quitado === true && valorOriginal > 0 && valorTotalComJuros > 0 &&
+                 valorTotalComJuros > valorOriginal && valorPago === 0) {
+            jurosCalculado = despesa.parcelado ?
+                ((valorTotalComJuros - valorOriginal) / (despesa.totalParcelas || 1)) :
+                (valorTotalComJuros - valorOriginal);
+        }
+        // PRIORIDADE 6: Juros registrados no metadados.jurosPagamento
         else if (despesa.metadados?.jurosPagamento && despesa.quitado) {
             jurosCalculado = parseFloat(despesa.metadados.jurosPagamento);
         }
@@ -3428,6 +3460,7 @@ function obterValorRealDespesa(despesa) {
 // FUNÇÃO PARA CALCULAR ECONOMIAS TOTAIS
 // Cenário 1: Quando valor com juros < valor original (economia no cadastro)
 // Cenário 2: Quando valor pago < valor devido (economia no pagamento)
+// Cenário 3: Quando valor original > valor final E despesa está paga (desconto obtido)
 // ================================================================
 
 function calcularTotalEconomias(despesas) {
@@ -3455,8 +3488,12 @@ function calcularTotalEconomias(despesas) {
             economiaCalculada += valorOriginal - valorTotalComJuros;
         }
 
-        // CENÁRIO 2: Economia no pagamento (Valor Pago < Valor devido)
-        if (despesa.quitado === true && valorPago > 0) {
+        // PRIORIDADE 1: Economia registrada no modal de pagamento
+        if (despesa.quitado === true && despesa.metadados?.economiaPagamento) {
+            economiaCalculada += parseFloat(despesa.metadados.economiaPagamento);
+        }
+        // CENÁRIO 2: Economia no pagamento (Valor Pago < Valor devido) - quando não tem economiaPagamento registrado
+        else if (despesa.quitado === true && valorPago > 0) {
             // Determinar valor devido: sempre usar valorOriginal como base para comparar economia
             // Caso especial: Se valorOriginal não existe, usar valor da despesa
             let valorDevido = valorOriginal > 0 ? valorOriginal : valor;
@@ -3472,6 +3509,15 @@ function calcularTotalEconomias(despesas) {
             // Calcular economia comparando o valor pago com o valor original devido
             if (valorPago < valorDevido) {
                 economiaCalculada += valorDevido - valorPago;
+            }
+        }
+        // CENÁRIO 3: Desconto quando Valor Original > Valor Final e despesa está paga
+        // Quando marca "Já está Paga" e teve desconto (Valor Original maior que Valor Final)
+        else if (despesa.quitado === true && valorOriginal > 0 && valorTotalComJuros > 0 && valorOriginal > valorTotalComJuros) {
+            // Evitar duplicação: só calcular se não foi contabilizado nos cenários anteriores
+            // Se não tem valorPago ou valorPago é zero, significa que usou valorTotalComJuros como valor final
+            if (valorPago === 0) {
+                economiaCalculada += valorOriginal - valorTotalComJuros;
             }
         }
 

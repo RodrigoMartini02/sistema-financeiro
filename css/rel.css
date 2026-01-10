@@ -488,23 +488,6 @@
 .col-data-vencimento { width: 100px; }
 .col-anexos { width: 80px; text-align: center; }
 
-.badge {
-    display: inline-block;
-    padding: 3px 8px;
-    font-size: 0.7rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    min-width: 50px;
-    text-align: center;
-}
-
-.badge-success { background-color: #d4edda; color: #155724; }
-.badge-warning { background-color: #fff3cd; color: #856404; }
-.badge-danger { background-color: #f8d7da; color: #721c24; }
-.badge-info { background-color: #d1ecf1; color: #0c5460; }
-.badge-secondary { background-color: #e2e3e5; color: #383d41; }
-
 .badge-tipo {
     display: inline-block;
     padding: 3px 8px;
@@ -817,23 +800,6 @@
 .btn-remover-item:hover {
     background-color: #d32f2f;
     color: white;
-}
-
-.tabela-responsiva::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-.tabela-responsiva::-webkit-scrollbar-track {
-    background: #f8f9fa;
-}
-
-.tabela-responsiva::-webkit-scrollbar-thumb {
-    background: #dee2e6;
-}
-
-.tabela-responsiva::-webkit-scrollbar-thumb:hover {
-    background: #adb5bd;
 }
 
 /* ================================================================

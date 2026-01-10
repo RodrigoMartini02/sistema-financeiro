@@ -3,35 +3,14 @@
 /* ================================================================ */
 
 /* ================================================================ */
-/* VARIÁVEIS DE COR E TEMA */
-/* ================================================================ */
-:root {
-    --config-primary: #007bff;
-    --config-primary-hover: #0056b3;
-    --config-success: #28a745;
-    --config-success-hover: #218838;
-    --config-danger: #dc3545;
-    --config-danger-hover: #c82333;
-    --config-warning: #ffc107;
-    --config-warning-hover: #e0a800;
-    --config-info: #17a2b8;
-    --config-secondary: #6c757d;
-    --config-light: #f8f9fa;
-    --config-dark: #212529;
-    --config-border: #dee2e6;
-    --config-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    --config-shadow-hover: 0 4px 8px rgba(0,0,0,0.15);
-}
-
-/* ================================================================ */
 /* ABAS DE CONFIGURAÇÃO */
 /* ================================================================ */
 .config-tabs {
     display: flex;
-    border-bottom: 2px solid var(--config-border);
+    border-bottom: 2px solid var(--gray-300);
     margin-bottom: 24px;
     gap: 8px;
-    background: var(--config-light);
+    background: var(--gray-100);
     padding: 8px 8px 0 8px;
     border-radius: 0;
 }
@@ -41,7 +20,7 @@
     background: transparent;
     border: none;
     border-bottom: 3px solid transparent;
-    color: var(--config-secondary);
+    color: var(--gray-500);
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
@@ -54,15 +33,15 @@
 
 .config-tab-btn:hover:not(.active) {
     background: rgba(0, 123, 255, 0.1);
-    color: var(--config-primary);
+    color: var(--primary-color);
 }
 
 .config-tab-btn.active {
     background: #fff;
-    color: var(--config-primary);
+    color: var(--primary-color);
     font-weight: 600;
-    border-bottom-color: var(--config-primary);
-    box-shadow: var(--config-shadow);
+    border-bottom-color: var(--primary-color);
+    box-shadow: var(--shadow-sm);
 }
 
 .config-tab-btn i {
@@ -87,32 +66,21 @@
     display: block;
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
 /* ================================================================ */
 /* CARDS DE CONFIGURAÇÃO */
 /* ================================================================ */
 .config-card {
     background: #fff;
-    box-shadow: var(--config-shadow);
+    box-shadow: var(--shadow-sm);
     padding: 24px;
     margin-bottom: 20px;
     border-radius: 0;
-    border: 1px solid var(--config-border);
+    border: 1px solid var(--gray-300);
     transition: box-shadow 0.3s ease;
 }
 
 .config-card:hover {
-    box-shadow: var(--config-shadow-hover);
+    box-shadow: var(--shadow-md);
 }
 
 .config-card h3 {
@@ -126,7 +94,7 @@
 }
 
 .config-card h3 i {
-    color: var(--config-primary);
+    color: var(--primary-color);
     font-size: 20px;
 }
 
@@ -141,12 +109,12 @@
 }
 
 .config-card h4 i {
-    color: var(--config-secondary);
+    color: var(--gray-500);
     font-size: 16px;
 }
 
 .config-card p {
-    color: var(--config-secondary);
+    color: var(--gray-500);
     margin-bottom: 16px;
     line-height: 1.6;
     font-size: 14px;
@@ -154,23 +122,19 @@
 
 .config-card.info-card {
     background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border-left: 4px solid var(--config-info);
+    border-left: 4px solid var(--info);
 }
 
 .config-card ul {
     margin: 12px 0;
     padding-left: 24px;
-    color: var(--config-secondary);
+    color: var(--gray-500);
 }
 
 .config-card ul li {
     margin-bottom: 8px;
     line-height: 1.5;
 }
-
-/* ================================================================ */
-/* BOTÕES - REMOVIDO - USAR css/botoes.css */
-/* ================================================================ */
 
 /* ================================================================ */
 /* INPUTS E FORMULÁRIOS */
@@ -192,7 +156,7 @@
 .input-group input[type="email"],
 .input-group input[type="password"] {
     padding: 10px 12px;
-    border: 1px solid var(--config-border);
+    border: 1px solid var(--gray-300);
     border-radius: 0;
     font-size: 14px;
     transition: all 0.3s ease;
@@ -200,7 +164,7 @@
 
 .input-group input:focus {
     outline: none;
-    border-color: var(--config-primary);
+    border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
@@ -221,7 +185,7 @@
 
 .filter-select {
     padding: 10px 12px;
-    border: 1px solid var(--config-border);
+    border: 1px solid var(--gray-300);
     border-radius: 0;
     font-size: 14px;
     background: #fff;
@@ -231,7 +195,7 @@
 
 .filter-select:focus {
     outline: none;
-    border-color: var(--config-primary);
+    border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
@@ -254,14 +218,14 @@
 .search-container input {
     flex: 1;
     padding: 10px 12px;
-    border: 1px solid var(--config-border);
+    border: 1px solid var(--gray-300);
     border-radius: 0;
     font-size: 14px;
 }
 
 .search-container input:focus {
     outline: none;
-    border-color: var(--config-primary);
+    border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
@@ -275,7 +239,7 @@
 .table-responsive {
     overflow-x: auto;
     border-radius: 0;
-    border: 1px solid var(--config-border);
+    border: 1px solid var(--gray-300);
     margin-bottom: 16px;
 }
 
@@ -286,7 +250,7 @@
 }
 
 .tabela-usuarios thead {
-    background: var(--config-light);
+    background: var(--gray-100);
 }
 
 .tabela-usuarios th {
@@ -295,18 +259,18 @@
     font-weight: 600;
     font-size: 13px;
     color: var(--config-dark);
-    border-bottom: 2px solid var(--config-border);
+    border-bottom: 2px solid var(--gray-300);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
 .tabela-usuarios tbody tr {
-    border-bottom: 1px solid var(--config-border);
+    border-bottom: 1px solid var(--gray-300);
     transition: background-color 0.2s ease;
 }
 
 .tabela-usuarios tbody tr:hover {
-    background: var(--config-light);
+    background: var(--gray-100);
 }
 
 .tabela-usuarios td {
@@ -341,7 +305,7 @@
 
 .tipo-badge.tipo-padrao {
     background: #e9ecef;
-    color: var(--config-secondary);
+    color: var(--gray-500);
 }
 
 .status-badge.status-ativo {
@@ -368,13 +332,13 @@
     align-items: center;
     margin-top: 16px;
     padding: 12px;
-    background: var(--config-light);
+    background: var(--gray-100);
     border-radius: 0;
 }
 
 #pagination-info {
     font-size: 14px;
-    color: var(--config-secondary);
+    color: var(--gray-500);
     font-weight: 500;
 }
 
@@ -390,7 +354,7 @@
 .form-add-categoria input {
     flex: 1;
     padding: 12px 16px;
-    border: 2px solid var(--config-border);
+    border: 2px solid var(--gray-300);
     border-radius: 0;
     font-size: 14px;
     transition: all 0.3s ease;
@@ -398,12 +362,12 @@
 
 .form-add-categoria input:focus {
     outline: none;
-    border-color: var(--config-primary);
+    border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
 .lista-categorias-container {
-    border: 1px solid var(--config-border);
+    border: 1px solid var(--gray-300);
     border-radius: 0;
     overflow: hidden;
 }
@@ -415,7 +379,7 @@
 }
 
 .tabela-categorias thead {
-    background: var(--config-light);
+    background: var(--gray-100);
 }
 
 .tabela-categorias th {
@@ -424,7 +388,7 @@
     font-weight: 600;
     font-size: 13px;
     color: var(--config-dark);
-    border-bottom: 2px solid var(--config-border);
+    border-bottom: 2px solid var(--gray-300);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -444,12 +408,12 @@
 }
 
 .tabela-categorias tbody tr {
-    border-bottom: 1px solid var(--config-border);
+    border-bottom: 1px solid var(--gray-300);
     transition: background-color 0.2s ease;
 }
 
 .tabela-categorias tbody tr:hover {
-    background: var(--config-light);
+    background: var(--gray-100);
 }
 
 .tabela-categorias tbody tr:last-child {
@@ -470,7 +434,7 @@
 .categoria-data-criacao,
 .categoria-data-edicao {
     font-size: 13px;
-    color: var(--config-secondary);
+    color: var(--gray-500);
 }
 
 .categoria-acoes {
@@ -495,22 +459,22 @@
     background: #fff;
     padding: 20px;
     border-radius: 0;
-    border: 2px solid var(--config-border);
+    border: 2px solid var(--gray-300);
     transition: all 0.3s ease;
 }
 
 .form-add-cartao:hover {
-    border-color: var(--config-primary);
-    box-shadow: var(--config-shadow);
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-sm);
 }
 
 .form-add-cartao h4 {
     margin: 0 0 16px 0;
-    color: var(--config-primary);
+    color: var(--primary-color);
     font-size: 16px;
     font-weight: 600;
     padding-bottom: 12px;
-    border-bottom: 2px solid var(--config-light);
+    border-bottom: 2px solid var(--gray-100);
 }
 
 .form-add-cartao .input-group {
@@ -523,7 +487,7 @@
 .form-add-cartao input[type="text"],
 .form-add-cartao input[type="number"] {
     padding: 10px 12px;
-    border: 1px solid var(--config-border);
+    border: 1px solid var(--gray-300);
     border-radius: 0;
     font-size: 14px;
     transition: all 0.3s ease;
@@ -532,7 +496,7 @@
 .form-add-cartao input[type="text"]:focus,
 .form-add-cartao input[type="number"]:focus {
     outline: none;
-    border-color: var(--config-primary);
+    border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
@@ -556,7 +520,7 @@
 #btn-salvar-cartoes {
     width: 100%;
     padding: 14px;
-    background: var(--config-success);
+    background: var(--success);
     color: #fff;
     border: none;
     border-radius: 0;
@@ -568,13 +532,13 @@
     align-items: center;
     justify-content: center;
     gap: 10px;
-    box-shadow: var(--config-shadow);
+    box-shadow: var(--shadow-sm);
 }
 
 #btn-salvar-cartoes:hover {
     background: var(--config-success-hover);
     transform: translateY(-2px);
-    box-shadow: var(--config-shadow-hover);
+    box-shadow: var(--shadow-md);
 }
 
 #btn-salvar-cartoes i {
@@ -592,7 +556,7 @@
     display: flex;
     justify-content: space-between;
     padding: 12px 0;
-    border-bottom: 1px solid var(--config-border);
+    border-bottom: 1px solid var(--gray-300);
 }
 
 .info-item:last-child {
@@ -606,12 +570,12 @@
 }
 
 .info-value {
-    color: var(--config-secondary);
+    color: var(--gray-500);
     font-size: 14px;
 }
 
 .texto-alerta {
-    color: var(--config-danger);
+    color: var(--danger);
     font-weight: 500;
     font-size: 13px;
     margin-top: 8px;
@@ -621,7 +585,7 @@
 }
 
 .texto-sem-permissao {
-    color: var(--config-secondary);
+    color: var(--gray-500);
     font-size: 13px;
     font-style: italic;
 }
@@ -632,7 +596,7 @@
 .notification-empty {
     text-align: center;
     padding: 40px 20px;
-    color: var(--config-secondary);
+    color: var(--gray-500);
 }
 
 .notification-empty i {
@@ -683,29 +647,10 @@
 /* ================================================================ */
 /* SCROLLBAR PERSONALIZADO */
 /* ================================================================ */
-.config-tab-content::-webkit-scrollbar {
-    width: 8px;
-}
-
-.config-tab-content::-webkit-scrollbar-track {
-    background: var(--config-light);
-    border-radius: 0;
-}
-
-.config-tab-content::-webkit-scrollbar-thumb {
-    background: var(--config-secondary);
-    border-radius: 0;
-    transition: background 0.3s ease;
-}
-
-.config-tab-content::-webkit-scrollbar-thumb:hover {
-    background: var(--config-primary);
-}
-
 /* Firefox */
 .config-tab-content {
     scrollbar-width: thin;
-    scrollbar-color: var(--config-secondary) var(--config-light);
+    scrollbar-color: var(--gray-500) var(--gray-100);
 }
 
 /* ================================================================ */
@@ -777,8 +722,8 @@
     align-items: center;
     margin-bottom: 20px;
     padding: 12px 16px;
-    background: var(--config-light);
-    border: 1px solid var(--config-border);
+    background: var(--gray-100);
+    border: 1px solid var(--gray-300);
     gap: 20px;
 }
 
@@ -803,7 +748,7 @@
 
 .reservas-label {
     font-weight: 500;
-    color: var(--config-secondary);
+    color: var(--gray-500);
     font-size: 13px;
 }
 
@@ -822,7 +767,7 @@
 }
 
 .reservas-separator {
-    color: var(--config-border);
+    color: var(--gray-300);
     margin: 0 4px;
 }
 
@@ -850,7 +795,7 @@
 .modal-reservar-compact .form-control {
     width: 100%;
     padding: 12px;
-    border: 2px solid var(--config-border);
+    border: 2px solid var(--gray-300);
     border-radius: 0;
     font-size: 16px;
     transition: all 0.3s ease;
@@ -858,7 +803,7 @@
 
 .modal-reservar-compact .form-control:focus {
     outline: none;
-    border-color: var(--config-primary);
+    border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
@@ -868,16 +813,16 @@
     gap: 6px;
     margin-top: 8px;
     font-size: 13px;
-    color: var(--config-secondary);
+    color: var(--gray-500);
 }
 
 .modal-reservar-compact .form-hint i {
-    color: var(--config-primary);
+    color: var(--primary-color);
 }
 
 .modal-reservar-compact #modal-disponivel-info {
     font-weight: 700;
-    color: var(--config-success);
+    color: var(--success);
 }
 
 .modal-reservar-compact .modal-footer {
@@ -886,7 +831,7 @@
     gap: 12px;
     margin-top: 24px;
     padding-top: 20px;
-    border-top: 2px solid var(--config-border);
+    border-top: 2px solid var(--gray-300);
 }
 
 
@@ -924,7 +869,7 @@
 
 /* Filtros de Logs */
 .logs-filtros {
-    background: var(--config-light);
+    background: var(--gray-100);
     padding: 20px;
     border-radius: 0;
     margin-bottom: 20px;
@@ -969,7 +914,7 @@
     background: white;
     border-radius: 0;
     overflow: hidden;
-    box-shadow: var(--config-shadow);
+    box-shadow: var(--shadow-sm);
     max-height: 500px;
     overflow-y: auto;
 }
@@ -980,7 +925,7 @@
 }
 
 .tabela-logs thead {
-    background: var(--config-primary);
+    background: var(--primary-color);
     color: white;
     position: sticky;
     top: 0;
@@ -997,12 +942,12 @@
 }
 
 .tabela-logs tbody tr {
-    border-bottom: 1px solid var(--config-border);
+    border-bottom: 1px solid var(--gray-300);
     transition: background 0.2s ease;
 }
 
 .tabela-logs tbody tr:hover {
-    background: var(--config-light);
+    background: var(--gray-100);
 }
 
 .tabela-logs tbody td {
@@ -1060,12 +1005,12 @@
 .empty-state {
     text-align: center;
     padding: 60px 20px;
-    color: var(--config-secondary);
+    color: var(--gray-500);
 }
 
 .empty-state i {
     font-size: 64px;
-    color: var(--config-border);
+    color: var(--gray-300);
     margin-bottom: 20px;
 }
 
@@ -1077,7 +1022,7 @@
 
 .empty-state small {
     font-size: 14px;
-    color: var(--config-secondary);
+    color: var(--gray-500);
 }
 
 
@@ -1141,7 +1086,7 @@
     width: 60px;
     height: 60px;
     border: 6px solid #f3f3f3;
-    border-top: 6px solid var(--config-primary);
+    border-top: 6px solid var(--primary-color);
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin: 0 auto 20px;
@@ -1161,13 +1106,13 @@
 
 .loader-subtext {
     font-size: 13px;
-    color: var(--config-secondary);
+    color: var(--gray-500);
 }
 
 .loader-progress {
     margin-top: 15px;
     font-size: 14px;
-    color: var(--config-primary);
+    color: var(--primary-color);
     font-weight: 700;
 }
 
@@ -1193,7 +1138,7 @@
 .form-redefinir-senha .form-control {
     width: 100%;
     padding: 12px;
-    border: 2px solid var(--config-border);
+    border: 2px solid var(--gray-300);
     border-radius: 8px;
     font-size: 14px;
     transition: all 0.3s ease;
@@ -1201,7 +1146,7 @@
 
 .form-redefinir-senha .form-control:focus {
     outline: none;
-    border-color: var(--config-primary);
+    border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
@@ -1324,7 +1269,7 @@
     flex: 1;
     min-width: 150px;
     padding: 12px 16px;
-    border: 2px solid var(--config-border);
+    border: 2px solid var(--gray-300);
     border-radius: 0;
     font-size: 14px;
     transition: all 0.3s ease;
@@ -1332,12 +1277,12 @@
 
 .form-add-cartao input:focus {
     outline: none;
-    border-color: var(--config-primary);
+    border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
 .lista-cartoes-container {
-    border: 1px solid var(--config-border);
+    border: 1px solid var(--gray-300);
     border-radius: 0;
     overflow: hidden;
     margin-top: 20px;
@@ -1350,7 +1295,7 @@
 }
 
 .tabela-cartoes thead {
-    background: var(--config-light);
+    background: var(--gray-100);
 }
 
 .tabela-cartoes th {
@@ -1359,7 +1304,7 @@
     font-weight: 600;
     font-size: 13px;
     color: var(--config-dark);
-    border-bottom: 2px solid var(--config-border);
+    border-bottom: 2px solid var(--gray-300);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -1372,7 +1317,7 @@
 .tabela-cartoes th:nth-child(6) { width: 140px; text-align: center; }  /* Ações */
 
 .tabela-cartoes tbody tr {
-    border-bottom: 1px solid var(--config-border);
+    border-bottom: 1px solid var(--gray-300);
     transition: background 0.2s ease;
 }
 
@@ -1390,7 +1335,7 @@
 .tabela-cartoes .cartao-id {
     font-family: 'Courier New', monospace;
     font-size: 12px;
-    color: var(--config-secondary);
+    color: var(--gray-500);
     font-weight: 600;
 }
 
@@ -1406,7 +1351,7 @@
 .tabela-cartoes .cartao-limite {
     font-family: 'Courier New', monospace;
     font-weight: 600;
-    color: var(--config-success);
+    color: var(--success);
 }
 
 .tabela-cartoes .badge-status {
@@ -1421,14 +1366,14 @@
 
 .tabela-cartoes .badge-status.ativo {
     background: rgba(40, 167, 69, 0.1);
-    color: var(--config-success);
-    border: 1px solid var(--config-success);
+    color: var(--success);
+    border: 1px solid var(--success);
 }
 
 .tabela-cartoes .badge-status.inativo {
     background: rgba(108, 117, 125, 0.1);
-    color: var(--config-secondary);
-    border: 1px solid var(--config-secondary);
+    color: var(--gray-500);
+    border: 1px solid var(--gray-500);
 }
 
 .tabela-cartoes .cartao-acoes {

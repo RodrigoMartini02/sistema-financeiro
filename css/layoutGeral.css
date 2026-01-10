@@ -1295,8 +1295,6 @@ textarea:focus {
    MÓDULO 3: COMPONENTES BASE
    ================================================================ */
 
-/* BOTÕES REMOVIDOS - USAR css/botoes.css */
-
 /* ================================================================
    SISTEMA DE CARDS BASE
    ================================================================ */
@@ -2643,10 +2641,6 @@ table tr:hover {
 /* ================================================================
    FIM DA REFATORAÇÃO CSS
    ================================================================ */
-/* Removido - agora usa .cambio-container-compact */
-
-
-
 
 
 /* ================================================================
@@ -2721,36 +2715,6 @@ table tr:hover {
         grid-template-columns: repeat(4, 1fr);
     }
 }
-
-
-/* ================================================================
-   EXIBIÇÃO DO NOME DO USUÁRIO
-   ================================================================ */
-.user-welcome {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 14px;
-    color: #555;
-    margin-right: 20px;
-}
-
-.user-welcome #nome-usuario-logado {
-    font-weight: bold;
-    color: #2c3e50;
-}
-
-.user-welcome .welcome-text {
-    font-weight: normal;
-    color: #666;
-}
-
-@media (max-width: 768px) {
-    .user-welcome .welcome-text {
-        display: none;
-    }
-}
-
 /* ================================================================
    CARDS DE RESUMO ESTILIZADOS
    ================================================================ */

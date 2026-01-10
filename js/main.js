@@ -1880,6 +1880,9 @@ function atualizarLimitesCartoes(mes, ano) {
         if (percentualUsado >= 90) statusClass = 'status-critico';
         else if (percentualUsado >= 70) statusClass = 'status-alerta';
 
+        // Limitar largura da barra em 100% (mesmo que percentual seja maior)
+        const larguraBarra = Math.min(percentualUsado, 100);
+
         cartaoDiv.innerHTML = `
             <div class="cartao-info-header">
                 <span class="cartao-nome">${cartao.banco.toUpperCase()}</span>
@@ -1892,7 +1895,7 @@ function atualizarLimitesCartoes(mes, ano) {
 
             <div class="cartao-barra-progresso">
                 <div class="barra-fundo">
-                    <div class="barra-preenchida ${statusClass}" style="width: ${percentualUsado}%"></div>
+                    <div class="barra-preenchida ${statusClass}" style="width: ${larguraBarra}%"></div>
                 </div>
                 <div class="cartao-percentual">
                     <span class="percentual-texto">${percentualUsado.toFixed(1)}% usado</span>
@@ -1927,41 +1930,63 @@ function calcularLimiteCartao(cartaoId, mes, ano) {
     const limiteTotal = parseFloat(cartao.limite) || 0;
     let limiteUtilizado = 0;
 
-    // Calcular uso em todos os meses (considerar parcelamentos futuros)
-    for (let anoAtual = ano; anoAtual <= ano + 3; anoAtual++) {
-        if (!dadosFinanceiros[anoAtual]) continue;
+    // Calcular uso apenas no mês atual (não considerar parcelamentos futuros)
+    const despesasMesAtual = dadosFinanceiros[ano]?.meses[mes]?.despesas || [];
 
-        for (let mesAtual = 0; mesAtual < 12; mesAtual++) {
-            const despesas = dadosFinanceiros[anoAtual].meses[mesAtual]?.despesas || [];
-
-            despesas.forEach(despesa => {
-                const formaPag = despesa.formaPagamento || despesa.forma_pagamento;
-                const numeroCartaoDespesa = despesa.numeroCartao;
-
-                // Pular se recorrente ou já pago
-                if (despesa.recorrente || despesa.quitado || despesa.pago) {
-                    return;
-                }
-
-                // Se for crédito e tem numeroCartao, comparar diretamente
-                if (formaPag === 'credito' && numeroCartaoDespesa === cartaoId) {
-                    limiteUtilizado += parseFloat(despesa.valor) || 0;
-                    return;
-                }
-
-                // Se for crédito mas não tem numeroCartao, usar CRÉD-MERPAGO como padrão
-                if (formaPag === 'credito' && !numeroCartaoDespesa) {
-                    const cartaoMerpago = (window.cartoesUsuario || []).find(c =>
-                        c.banco && c.banco.toUpperCase().includes('MERPAGO')
-                    );
-
-                    if (cartaoMerpago && cartaoMerpago.id === cartaoId) {
-                        limiteUtilizado += parseFloat(despesa.valor) || 0;
-                    }
-                }
-            });
+    despesasMesAtual.forEach(despesa => {
+        // Pular despesas transferidas para próximo mês
+        if (despesa.transferidaParaProximoMes === true) {
+            return;
         }
-    }
+
+        const formaPag = (despesa.formaPagamento || despesa.forma_pagamento || '').toLowerCase();
+        const numeroCartaoDespesa = despesa.numeroCartao;
+
+        // Verificar se é despesa de crédito
+        const eCreditoOuVariacao = formaPag === 'credito' ||
+                                    formaPag === 'crédito' ||
+                                    formaPag === 'cred-merpago' ||
+                                    formaPag === 'créd-merpago';
+
+        if (!eCreditoOuVariacao) {
+            return;
+        }
+
+        // Determinar se a despesa pertence a este cartão
+        let pertenceAoCartao = false;
+
+        // Se tem numeroCartao, comparar diretamente
+        if (numeroCartaoDespesa) {
+            pertenceAoCartao = numeroCartaoDespesa === cartaoId;
+        }
+        // Se não tem numeroCartao, verificar se cartão é MERPAGO
+        else {
+            const cartaoMerpago = (window.cartoesUsuario || []).find(c =>
+                c.banco && c.banco.toUpperCase().includes('MERPAGO')
+            );
+            pertenceAoCartao = cartaoMerpago && cartaoMerpago.id === cartaoId;
+        }
+
+        if (!pertenceAoCartao) {
+            return;
+        }
+
+        // Calcular valor a contabilizar usando a estrutura atual
+        let valorContabilizar = 0;
+
+        if (despesa.quitado === true && despesa.valorPago > 0) {
+            // Se já foi paga, usar valor pago
+            valorContabilizar = parseFloat(despesa.valorPago);
+        } else if (despesa.valorTotalComJuros !== null && despesa.valorTotalComJuros !== undefined) {
+            // Se tem valor total com juros, usar ele
+            valorContabilizar = parseFloat(despesa.valorTotalComJuros);
+        } else {
+            // Caso contrário, usar valor padrão
+            valorContabilizar = parseFloat(despesa.valor) || 0;
+        }
+
+        limiteUtilizado += valorContabilizar;
+    });
 
     const limiteDisponivel = Math.max(0, limiteTotal - limiteUtilizado);
     const percentualUsado = limiteTotal > 0 ? (limiteUtilizado / limiteTotal) * 100 : 0;

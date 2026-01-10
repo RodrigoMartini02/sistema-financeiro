@@ -3,21 +3,6 @@
    ================================================================ */
 
 /* ================================================================
-   VARIÁVEIS CSS
-   ================================================================ */
-:root {
-    --notif-primary: #2c3e50;
-    --notif-secondary: #7f8c8d;
-    --notif-border: #ddd;
-    --notif-bg: #fff;
-    --notif-bg-hover: #f8f9fa;
-    --notif-success: #27ae60;
-    --notif-danger: #e74c3c;
-    --notif-warning: #f39c12;
-    --notif-info: #3498db;
-}
-
-/* ================================================================
    ÍCONE DE NOTIFICAÇÃO NO HEADER
    ================================================================ */
 .notification-icon-container {
@@ -57,7 +42,7 @@
     position: absolute;
     top: -2px;
     right: -2px;
-    background: var(--notif-danger);
+    background: var(--danger);
     color: white;
     min-width: 18px;
     height: 18px;
@@ -115,9 +100,9 @@
     padding: 0 !important;
     display: flex;
     flex-direction: column;
-    background: var(--notif-bg);
+    background: var(--white);
     border: none;
-    border-left: 1px solid var(--notif-border);
+    border-left: 1px solid var(--gray-300);
     overflow: hidden;
     box-sizing: border-box;
     border-radius: 0;
@@ -128,11 +113,11 @@
    ================================================================ */
 .notificacoes-header {
     padding: 1.25rem 1.5rem;
-    border-bottom: 2px solid var(--notif-border);
+    border-bottom: 2px solid var(--gray-300);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: var(--notif-bg);
+    background: var(--white);
     flex-shrink: 0;
 }
 
@@ -140,7 +125,7 @@
     margin: 0;
     font-size: 1.1rem;
     font-weight: 600;
-    color: var(--notif-primary);
+    color: var(--gray-800);
     display: flex;
     align-items: center;
     gap: 0.6rem;
@@ -148,7 +133,7 @@
 
 .notificacoes-titulo i {
     font-size: 1.2rem;
-    color: var(--notif-primary);
+    color: var(--gray-800);
 }
 
 .notificacoes-actions {
@@ -158,13 +143,13 @@
 }
 
 .btn-notif-action {
-    background: var(--notif-bg-hover);
-    border: 1px solid var(--notif-border);
+    background: var(--gray-100);
+    border: 1px solid var(--gray-300);
     padding: 0.5rem 0.9rem;
     font-size: 0.8rem;
     cursor: pointer;
     transition: all 0.2s ease;
-    color: var(--notif-primary);
+    color: var(--gray-800);
     font-weight: 500;
     display: flex;
     align-items: center;
@@ -173,9 +158,9 @@
 }
 
 .btn-notif-action:hover {
-    background: var(--notif-primary);
+    background: var(--gray-800);
     color: white;
-    border-color: var(--notif-primary);
+    border-color: var(--gray-800);
 }
 
 .btn-notif-action i {
@@ -183,12 +168,12 @@
 }
 
 .btn-notif-danger {
-    color: var(--notif-danger);
-    border-color: var(--notif-danger);
+    color: var(--danger);
+    border-color: var(--danger);
 }
 
 .btn-notif-danger:hover {
-    background: var(--notif-danger);
+    background: var(--danger);
     color: white;
 }
 
@@ -198,7 +183,7 @@
     font-size: 1.8rem;
     cursor: pointer;
     padding: 0.2rem 0.4rem;
-    color: var(--notif-secondary);
+    color: var(--gray-500);
     transition: color 0.2s ease;
     margin-left: 0.5rem;
     line-height: 1;
@@ -206,7 +191,7 @@
 }
 
 .btn-notif-close:hover {
-    color: var(--notif-primary);
+    color: var(--gray-800);
 }
 
 /* ================================================================
@@ -219,7 +204,7 @@
     flex-direction: column;
     padding: 0 !important;
     margin: 0 !important;
-    background: var(--notif-bg);
+    background: var(--white);
     height: calc(100vh - 72px);
     min-height: calc(100vh - 72px);
 }
@@ -230,24 +215,7 @@
     padding: 0 !important;
     margin: 0 !important;
     height: 100%;
-    background: var(--notif-bg);
-}
-
-.notificacoes-lista::-webkit-scrollbar {
-    width: 6px;
-}
-
-.notificacoes-lista::-webkit-scrollbar-track {
-    background: var(--notif-bg-hover);
-}
-
-.notificacoes-lista::-webkit-scrollbar-thumb {
-    background: var(--notif-border);
-    border-radius: 0;
-}
-
-.notificacoes-lista::-webkit-scrollbar-thumb:hover {
-    background: var(--notif-secondary);
+    background: var(--white);
 }
 
 /* ================================================================
@@ -261,12 +229,12 @@
     cursor: pointer;
     transition: background 0.2s ease;
     position: relative;
-    background: var(--notif-bg);
+    background: var(--white);
     gap: 1rem;
 }
 
 .notification-item:hover {
-    background: var(--notif-bg-hover);
+    background: var(--gray-100);
 }
 
 .notification-item:last-child {
@@ -275,7 +243,7 @@
 
 .notification-item.unread {
     background: #f7fbff;
-    border-left: 3px solid var(--notif-info);
+    border-left: 3px solid var(--info);
 }
 
 .notification-item.unread::after {
@@ -285,7 +253,7 @@
     right: 1.2rem;
     width: 7px;
     height: 7px;
-    background: var(--notif-info);
+    background: var(--info);
     border-radius: 0;
 }
 
@@ -299,14 +267,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--notif-bg-hover);
-    border: 1px solid var(--notif-border);
+    background: var(--gray-100);
+    border: 1px solid var(--gray-300);
     border-radius: 0;
 }
 
 .notification-icon {
     font-size: 1rem;
-    color: var(--notif-secondary);
+    color: var(--gray-500);
 }
 
 /* Cores específicas por tipo de notificação */
@@ -316,7 +284,7 @@
 }
 
 .notification-item[data-tipo="despesa_vencida"] .notification-icon {
-    color: var(--notif-danger);
+    color: var(--danger);
 }
 
 .notification-item[data-tipo="despesa_vencendo"] .notification-icon-container {
@@ -325,7 +293,7 @@
 }
 
 .notification-item[data-tipo="despesa_vencendo"] .notification-icon {
-    color: var(--notif-warning);
+    color: var(--warning);
 }
 
 .notification-item[data-tipo="mes_fechado"] .notification-icon-container {
@@ -334,7 +302,7 @@
 }
 
 .notification-item[data-tipo="mes_fechado"] .notification-icon {
-    color: var(--notif-info);
+    color: var(--info);
 }
 
 .notification-item[data-tipo="saldo_negativo"] .notification-icon-container {
@@ -343,7 +311,7 @@
 }
 
 .notification-item[data-tipo="saldo_negativo"] .notification-icon {
-    color: var(--notif-danger);
+    color: var(--danger);
 }
 
 .notification-item[data-tipo="pagamento_processado"] .notification-icon-container {
@@ -352,7 +320,7 @@
 }
 
 .notification-item[data-tipo="pagamento_processado"] .notification-icon {
-    color: var(--notif-success);
+    color: var(--success);
 }
 
 /* ================================================================
@@ -373,7 +341,7 @@
 
 .notification-title {
     font-weight: 600;
-    color: var(--notif-primary);
+    color: var(--gray-800);
     font-size: 0.875rem;
     margin: 0;
     flex: 1;
@@ -382,7 +350,7 @@
 
 .notification-time {
     font-size: 0.7rem;
-    color: var(--notif-secondary);
+    color: var(--gray-500);
     font-weight: 500;
     white-space: nowrap;
     flex-shrink: 0;
@@ -413,8 +381,8 @@
 
 .notification-actions button {
     background: white;
-    border: 1px solid var(--notif-border);
-    color: var(--notif-secondary);
+    border: 1px solid var(--gray-300);
+    color: var(--gray-500);
     padding: 0.4rem;
     cursor: pointer;
     font-size: 0.75rem;
@@ -428,9 +396,9 @@
 }
 
 .btn-mark-read:hover {
-    background: var(--notif-success);
+    background: var(--success);
     color: white;
-    border-color: var(--notif-success);
+    border-color: var(--success);
 }
 
 .btn-mark-read:disabled {
@@ -439,9 +407,9 @@
 }
 
 .btn-delete-notification:hover {
-    background: var(--notif-danger);
+    background: var(--danger);
     color: white;
-    border-color: var(--notif-danger);
+    border-color: var(--danger);
 }
 
 /* ================================================================
@@ -450,21 +418,21 @@
 .notification-empty {
     text-align: center;
     padding: 4rem 2rem;
-    color: var(--notif-secondary);
+    color: var(--gray-500);
 }
 
 .empty-icon-notif {
     font-size: 3.5rem;
     margin-bottom: 1rem;
     opacity: 0.4;
-    color: var(--notif-secondary);
+    color: var(--gray-500);
 }
 
 .empty-text-notif {
     font-size: 0.95rem;
     margin: 0;
     font-weight: 500;
-    color: var(--notif-secondary);
+    color: var(--gray-500);
 }
 
 /* ================================================================
@@ -484,7 +452,7 @@
 
 .toast {
     background: white;
-    border-left: 3px solid var(--notif-info);
+    border-left: 3px solid var(--info);
     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
     border-radius: 0;
     padding: 14px 18px;
@@ -513,19 +481,19 @@
 }
 
 .toast.success {
-    border-left-color: var(--notif-success);
+    border-left-color: var(--success);
 }
 
 .toast.error {
-    border-left-color: var(--notif-danger);
+    border-left-color: var(--danger);
 }
 
 .toast.warning {
-    border-left-color: var(--notif-warning);
+    border-left-color: var(--warning);
 }
 
 .toast.info {
-    border-left-color: var(--notif-info);
+    border-left-color: var(--info);
 }
 
 .toast-icon {
@@ -539,19 +507,19 @@
 }
 
 .toast.success .toast-icon {
-    color: var(--notif-success);
+    color: var(--success);
 }
 
 .toast.error .toast-icon {
-    color: var(--notif-danger);
+    color: var(--danger);
 }
 
 .toast.warning .toast-icon {
-    color: var(--notif-warning);
+    color: var(--warning);
 }
 
 .toast.info .toast-icon {
-    color: var(--notif-info);
+    color: var(--info);
 }
 
 .toast-content {
@@ -562,14 +530,14 @@
 .toast-title {
     font-weight: 600;
     font-size: 14px;
-    color: var(--notif-primary);
+    color: var(--gray-800);
     margin: 0 0 4px 0;
     line-height: 1.3;
 }
 
 .toast-message {
     font-size: 13px;
-    color: var(--notif-secondary);
+    color: var(--gray-500);
     margin: 0;
     line-height: 1.4;
     word-wrap: break-word;
@@ -579,7 +547,7 @@
     flex-shrink: 0;
     background: none;
     border: none;
-    color: var(--notif-secondary);
+    color: var(--gray-500);
     font-size: 18px;
     cursor: pointer;
     padding: 0;
@@ -593,7 +561,7 @@
 }
 
 .toast-close:hover {
-    color: var(--notif-primary);
+    color: var(--gray-800);
 }
 
 /* Progress bar */
@@ -615,19 +583,19 @@
 }
 
 .toast.success .toast-progress-bar {
-    background: var(--notif-success);
+    background: var(--success);
 }
 
 .toast.error .toast-progress-bar {
-    background: var(--notif-danger);
+    background: var(--danger);
 }
 
 .toast.warning .toast-progress-bar {
-    background: var(--notif-warning);
+    background: var(--warning);
 }
 
 .toast.info .toast-progress-bar {
-    background: var(--notif-info);
+    background: var(--info);
 }
 
 /* ================================================================

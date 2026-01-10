@@ -29,25 +29,6 @@
 }
 
 /* ✅ NOVO: Estilizar scrollbar para melhor UX */
-.despesas-grid::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-.despesas-grid::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 4px;
-}
-
-.despesas-grid::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 4px;
-}
-
-.despesas-grid::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
-}
-
 .grid-header {
     display: grid;
     grid-template-columns:
@@ -796,22 +777,6 @@
 }
 
 /* Scrollbar específico do grid de despesas */
-.grid-content::-webkit-scrollbar {
-    width: 6px;
-}
-
-.grid-content::-webkit-scrollbar-track {
-    background: #f1f1f1;
-}
-
-.grid-content::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-}
-
-.grid-content::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
-}
-
 #modal-pagamento-lote-despesas .modal-content {
     max-width: 500px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
