@@ -989,6 +989,9 @@ function coletarDadosFormularioDespesa() {
    const jaPago = document.getElementById('despesa-ja-pago') && document.getElementById('despesa-ja-pago').checked;
    const recorrente = document.getElementById('despesa-recorrente') && document.getElementById('despesa-recorrente').checked;
    
+   const numParcelas = parseInt(document.getElementById('despesa-parcelas').value) || 1;
+   const parcelado = numParcelas > 1;
+
    const formData = {
        id: document.getElementById('despesa-id').value,
        mes: parseInt(document.getElementById('despesa-mes').value),
@@ -998,13 +1001,12 @@ function coletarDadosFormularioDespesa() {
        formaPagamento: formaPagamento,
        numeroCartao: numeroCartao,
        valor: parseFloat(document.getElementById('despesa-valor').value),
-       valorPago: document.getElementById('despesa-valor-pago').value ? 
+       valorPago: document.getElementById('despesa-valor-pago').value ?
                  parseFloat(document.getElementById('despesa-valor-pago').value) : null,
        dataCompra: document.getElementById('despesa-data-compra').value,
        dataVencimento: document.getElementById('despesa-data-vencimento').value,
-       parcelado: document.getElementById('despesa-parcelado').checked,
-       totalParcelas: document.getElementById('despesa-parcelado').checked ? 
-                     parseInt(document.getElementById('despesa-parcelas').value) : 1,
+       parcelado: parcelado,
+       totalParcelas: numParcelas,
        anexos: window.sistemaAnexos ? window.sistemaAnexos.obterAnexosParaSalvar('despesa') : [],
        jaPago: jaPago,
        recorrente: recorrente
@@ -1025,14 +1027,21 @@ async function salvarDespesaLocal(formData) {
         if (window.usuarioDataManager && typeof window.usuarioDataManager.salvarDespesa === 'function') {
             console.log('💾 Salvando despesa via API:', formData);
 
+            // Calcular valores originais e juros
+            const valorOriginal = parseFloat(formData.valor);
+            const valorComJuros = formData.valorPago ? parseFloat(formData.valorPago) : valorOriginal;
+            const totalJuros = valorComJuros - valorOriginal;
+
             // Preparar objeto despesa para API
             const despesa = {
                 descricao: formData.descricao,
                 categoria: formData.categoria,
                 formaPagamento: formData.formaPagamento,
                 numeroCartao: formData.numeroCartao,
-                valor: parseFloat(formData.valor),
-                valorPago: formData.valorPago || null,
+                valor: valorOriginal,
+                valorOriginal: valorOriginal,
+                valorTotalComJuros: valorComJuros,
+                valorPago: formData.jaPago ? valorComJuros : null,
                 dataCompra: formData.dataCompra,
                 dataVencimento: formData.dataVencimento,
                 dataPagamento: formData.jaPago ? formData.dataCompra : null,
@@ -1042,7 +1051,13 @@ async function salvarDespesaLocal(formData) {
                 pago: formData.jaPago || false,
                 recorrente: formData.recorrente || false,
                 observacoes: formData.observacoes || '',
-                anexos: formData.anexos || []
+                anexos: formData.anexos || [],
+                metadados: totalJuros !== 0 ? {
+                    valorOriginalTotal: valorOriginal,
+                    valorTotalComJuros: valorComJuros,
+                    totalJuros: totalJuros,
+                    jurosPorParcela: formData.parcelado ? totalJuros / formData.totalParcelas : totalJuros
+                } : null
             };
 
             const sucesso = await window.usuarioDataManager.salvarDespesa(
@@ -1523,39 +1538,32 @@ function validarFormaPagamento() {
 // ================================================================
 
 function calcularInfoParcelamento() {
-    const checkboxParcelado = document.getElementById('despesa-parcelado');
     const inputValorOriginal = document.getElementById('despesa-valor');
     const inputValorPago = document.getElementById('despesa-valor-pago');
     const inputNumParcelas = document.getElementById('despesa-parcelas');
-    
-    if (!checkboxParcelado || !checkboxParcelado.checked) {
-        const info = document.getElementById('info-parcelamento');
-        if (info) info.classList.add('hidden');
-        return;
-    }
-    
+
     const valorOriginal = parseFloat(inputValorOriginal.value) || 0;
     const valorPagoTotal = parseFloat(inputValorPago.value) || valorOriginal;
-    const numParcelas = parseInt(inputNumParcelas.value) || 2;
-    
-    if (valorOriginal <= 0 || valorPagoTotal <= 0 || numParcelas < 2) {
+    const numParcelas = parseInt(inputNumParcelas.value) || 1;
+
+    if (valorOriginal <= 0 || valorPagoTotal <= 0 || numParcelas < 1) {
         const info = document.getElementById('info-parcelamento');
         if (info) info.classList.add('hidden');
         return;
     }
-    
+
     const totalJuros = valorPagoTotal - valorOriginal;
     const valorParcela = arredondarParaDuasCasas(valorPagoTotal / numParcelas);
-    
+
     const infoContainer = document.getElementById('info-parcelamento');
-    if (infoContainer) {
+    if (infoContainer && numParcelas > 1) {
         infoContainer.classList.remove('hidden');
-        
+
         const elementoJurosTotal = document.getElementById('info-juros-total');
         const elementoJurosParcela = document.getElementById('info-juros-parcela');
         const elementoValorParcela = document.getElementById('info-valor-parcela');
         const elementoValorTotal = document.getElementById('info-valor-total');
-        
+
         if (elementoJurosTotal) elementoJurosTotal.textContent = formatarMoeda(totalJuros);
         if (elementoJurosParcela) elementoJurosParcela.textContent = formatarMoeda(totalJuros / numParcelas);
         if (elementoValorParcela) elementoValorParcela.textContent = formatarMoeda(valorParcela);
@@ -1564,6 +1572,8 @@ function calcularInfoParcelamento() {
         const corJuros = totalJuros > 0 ? '#ef4444' : '#16a34a';
         if (elementoJurosTotal) elementoJurosTotal.style.color = corJuros;
         if (elementoJurosParcela) elementoJurosParcela.style.color = corJuros;
+    } else if (infoContainer) {
+        infoContainer.classList.add('hidden');
     }
 }
 
@@ -1572,21 +1582,6 @@ function calcularInfoParcelamento() {
 // ================================================================
 
 function configurarEventosFormularioDespesa() {
-    const despesaParcelado = document.getElementById('despesa-parcelado');
-    if (despesaParcelado) {
-        despesaParcelado.addEventListener('change', function() {
-            const info = document.getElementById('info-parcelamento');
-            
-            if (this.checked) {
-                info?.classList.remove('hidden');
-            } else {
-                info?.classList.add('hidden');
-            }
-            
-            calcularInfoParcelamento();
-        });
-    }
-
     const formasPagamento = document.querySelectorAll('input[name="forma-pagamento"]');
     formasPagamento.forEach(radio => {
         radio.addEventListener('change', function() {
@@ -1637,20 +1632,6 @@ function configurarEventosFormularioDespesa() {
 // FUNÇÕES GLOBAIS PARA O HTML
 // ================================================================
 
-window.toggleParcelamentoDespesa = function(checkbox) {
-    const inputParcelas = document.getElementById('despesa-parcelas');
-    const infoParcelamento = document.getElementById('info-parcelamento');
-    
-    if (checkbox.checked) {
-        if (inputParcelas) inputParcelas.disabled = false;
-        if (infoParcelamento) infoParcelamento.classList.remove('hidden');
-    } else {
-        if (inputParcelas) inputParcelas.disabled = true;
-        if (infoParcelamento) infoParcelamento.classList.add('hidden');
-    }
-    
-    calcularInfoParcelamento();
-};
 
 window.handleSalvarDespesa = function(event) {
     event.preventDefault();
@@ -2442,35 +2423,45 @@ async function abrirModalPagamento(index, mes, ano) {
     }
 }
 
+// Variável global para armazenar o valor original da despesa sendo paga
+let valorOriginalDespesaPagamento = 0;
+
 function preencherInfoDespesaPagamento(despesa) {
     const elementos = {
         'pagamento-descricao': despesa.descricao || 'Sem descrição',
         'pagamento-categoria': despesa.categoria || 'Sem categoria',
         'pagamento-valor-original': window.formatarMoeda ? window.formatarMoeda(despesa.valor || 0) : `R$ ${(despesa.valor || 0).toFixed(2)}`
     };
-    
+
     Object.entries(elementos).forEach(([id, valor]) => {
         const elemento = document.getElementById(id);
         if (elemento) elemento.textContent = valor;
     });
-    
+
     const formaPagamentoContainer = document.getElementById('pagamento-forma-container');
     const formaPagamentoElemento = document.getElementById('pagamento-forma');
-    
+
     if (despesa.formaPagamento && formaPagamentoElemento) {
         formaPagamentoElemento.textContent = despesa.formaPagamento.toUpperCase();
         if (formaPagamentoContainer) formaPagamentoContainer.style.display = 'block';
     } else {
         if (formaPagamentoContainer) formaPagamentoContainer.style.display = 'none';
     }
-    
+
+    // Armazenar valor original para cálculo de diferença
+    valorOriginalDespesaPagamento = despesa.valor || 0;
+
     const valorPagoInput = document.getElementById('valor-pago-individual');
-    if (valorPagoInput) valorPagoInput.value = despesa.valor || 0;
-    
+    if (valorPagoInput) {
+        valorPagoInput.value = despesa.valor || 0;
+        // Calcular diferença inicial
+        calcularDiferencaPagamento();
+    }
+
     const quitadoCheckbox = document.getElementById('despesa-quitado-individual');
     const infoParcelasFuturas = document.getElementById('info-parcelas-futuras');
     const eParcelado = despesa.parcelado === true && despesa.parcela;
-    
+
     if (eParcelado) {
         if (quitadoCheckbox) {
             quitadoCheckbox.parentElement.style.display = 'block';
@@ -2480,6 +2471,36 @@ function preencherInfoDespesaPagamento(despesa) {
     } else {
         if (quitadoCheckbox) quitadoCheckbox.parentElement.style.display = 'none';
         if (infoParcelasFuturas) infoParcelasFuturas.classList.add('hidden');
+    }
+}
+
+// Função para calcular e exibir diferença entre valor pago e valor original
+function calcularDiferencaPagamento() {
+    const valorPagoInput = document.getElementById('valor-pago-individual');
+    const diferencaInfo = document.getElementById('diferenca-pagamento-info');
+    const diferencaTexto = document.getElementById('diferenca-texto');
+
+    if (!valorPagoInput || !diferencaInfo || !diferencaTexto) return;
+
+    const valorPago = parseFloat(valorPagoInput.value) || 0;
+    const valorOriginal = valorOriginalDespesaPagamento;
+
+    // Calcular diferença
+    const diferenca = valorOriginal - valorPago;
+
+    if (Math.abs(diferenca) < 0.01) {
+        // Valores iguais
+        diferencaInfo.classList.add('hidden');
+    } else if (diferenca > 0) {
+        // Economia (pagou menos que o original)
+        diferencaInfo.classList.remove('hidden');
+        diferencaInfo.className = 'diferenca-info economia';
+        diferencaTexto.textContent = `Economia: ${window.formatarMoeda ? window.formatarMoeda(diferenca) : `R$ ${diferenca.toFixed(2)}`}`;
+    } else {
+        // Juros (pagou mais que o original)
+        diferencaInfo.classList.remove('hidden');
+        diferencaInfo.className = 'diferenca-info juros';
+        diferencaTexto.textContent = `Juros: ${window.formatarMoeda ? window.formatarMoeda(Math.abs(diferenca)) : `R$ ${Math.abs(diferenca).toFixed(2)}`}`;
     }
 }
 
@@ -2559,19 +2580,31 @@ async function processarPagamento(index, mes, ano, valorPago = null, quitarParce
         }
         
         const despesa = despesas[index];
-        
+
         if (despesa.quitado === true || despesa.valorPago > 0) {
             throw new Error('Esta despesa já foi paga anteriormente');
         }
-        
+
         const valorFinal = valorPago !== null ? valorPago : despesa.valor;
-        
+
         despesa.valorPago = parseFloat(valorFinal);
         despesa.quitado = true;
         despesa.status = 'quitada';
         const inputDataPagamento = document.getElementById('data-pagamento-individual');
-        despesa.dataPagamento = inputDataPagamento ? inputDataPagamento.value : 
+        despesa.dataPagamento = inputDataPagamento ? inputDataPagamento.value :
                         new Date().toISOString().split('T')[0];
+
+        // Calcular juros no pagamento
+        const valorOriginalDespesa = parseFloat(despesa.valorOriginal) || parseFloat(despesa.valor);
+        const valorPagoNumerico = parseFloat(valorFinal);
+
+        if (valorPagoNumerico > valorOriginalDespesa) {
+            const jurosCalculado = valorPagoNumerico - valorOriginalDespesa;
+            if (!despesa.metadados) {
+                despesa.metadados = {};
+            }
+            despesa.metadados.jurosPagamento = jurosCalculado;
+        }
         
         // NOVA FUNCIONALIDADE: Unificar anexos de cadastro com comprovantes
         if (window.sistemaAnexos) {
@@ -3352,16 +3385,32 @@ function calcularTotalJuros(despesas) {
         // Garantir que valores sejam números
         const valorPago = parseFloat(despesa.valorPago) || 0;
         const valorOriginal = parseFloat(despesa.valorOriginal) || 0;
+        const valorTotalComJuros = parseFloat(despesa.valorTotalComJuros) || 0;
         const valor = parseFloat(despesa.valor) || 0;
 
-        if (valorPago > 0 && valorOriginal > 0 && valorPago > valorOriginal) {
+        // PRIORIDADE 1: Juros registrados no pagamento (quando valor pago difere do original)
+        if (despesa.metadados?.jurosPagamento && despesa.quitado) {
+            jurosCalculado = parseFloat(despesa.metadados.jurosPagamento);
+        }
+        // PRIORIDADE 2: Calcular pela diferença entre valorPago e valorOriginal
+        else if (valorPago > 0 && valorOriginal > 0 && valorPago > valorOriginal && despesa.quitado) {
             jurosCalculado = valorPago - valorOriginal;
         }
+        // PRIORIDADE 3: Juros de parcelamento (quando cadastrado com juros)
         else if (despesa.parcelado && despesa.metadados?.jurosPorParcela && despesa.quitado) {
             jurosCalculado = parseFloat(despesa.metadados.jurosPorParcela) || 0;
         }
-        else if (valorOriginal > 0 && valor > valorOriginal && despesa.quitado) {
-            jurosCalculado = valor - valorOriginal;
+        // PRIORIDADE 4: Juros registrados no cadastro (campo "Com Juros" diferente de "Valor Original")
+        else if (despesa.metadados?.totalJuros && despesa.quitado) {
+            jurosCalculado = despesa.parcelado ?
+                (parseFloat(despesa.metadados.totalJuros) / (despesa.totalParcelas || 1)) :
+                parseFloat(despesa.metadados.totalJuros);
+        }
+        // PRIORIDADE 5: Calcular pela diferença entre valorTotalComJuros e valorOriginal (cadastro)
+        else if (valorTotalComJuros > 0 && valorOriginal > 0 && valorTotalComJuros > valorOriginal && despesa.quitado) {
+            jurosCalculado = despesa.parcelado ?
+                ((valorTotalComJuros - valorOriginal) / (despesa.totalParcelas || 1)) :
+                (valorTotalComJuros - valorOriginal);
         }
 
         return total + (jurosCalculado > 0 ? jurosCalculado : 0);
@@ -3401,28 +3450,16 @@ function calcularTotalEconomias(despesas) {
         const valorPago = parseFloat(despesa.valorPago) || 0;
         const valor = parseFloat(despesa.valor) || 0;
 
-        // CENÁRIO 1: Economia no cadastro da despesa
-        // Quando valor com juros/total é menor que valor original
-        if (valorTotalComJuros > 0 && valorOriginal > 0 && valorTotalComJuros < valorOriginal) {
+        // CENÁRIO 1: Economia no cadastro (Valor Final < Valor Original)
+        if (valorTotalComJuros > 0 && valorOriginal > 0 && valorTotalComJuros < valorOriginal && !despesa.quitado) {
             economiaCalculada += valorOriginal - valorTotalComJuros;
         }
 
-        // CENÁRIO 2: Economia no pagamento
-        // Quando valor pago é menor que o valor devido
+        // CENÁRIO 2: Economia no pagamento (Valor Pago < Valor devido)
         if (despesa.quitado === true && valorPago > 0) {
-
-            // Determinar qual é o valor devido (com ou sem juros)
-            let valorDevido = valor;
-
-            // Se tem valor original definido, usar ele como base
-            if (valorOriginal > 0) {
-                valorDevido = valorOriginal;
-            }
-
-            // Se tem valor total com juros, usar ele como valor devido
-            if (valorTotalComJuros > 0) {
-                valorDevido = valorTotalComJuros;
-            }
+            // Determinar valor devido: usa valorTotalComJuros se existir, senão usa valor ou valorOriginal
+            let valorDevido = valorTotalComJuros > 0 ? valorTotalComJuros :
+                             (valorOriginal > 0 ? valorOriginal : valor);
 
             // Para parcelamentos, usar valor da parcela
             if (despesa.parcelado && despesa.metadados?.valorPorParcela) {
@@ -3432,7 +3469,7 @@ function calcularTotalEconomias(despesas) {
                 }
             }
 
-            // Calcular economia se pagou menos que o devido
+            // Calcular economia
             if (valorPago < valorDevido) {
                 economiaCalculada += valorDevido - valorPago;
             }

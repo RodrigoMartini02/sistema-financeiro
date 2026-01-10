@@ -3166,19 +3166,18 @@ table tr:hover {
 
 .resumo-cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
     margin-bottom: 30px;
 }
 
 .resumo-cards .card {
     background: white;
     border-radius: 8px;
-    padding: 0;
+    padding: 16px 20px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     display: flex;
-    align-items: center;
-    gap: 15px;
+    flex-direction: column;
     overflow: hidden;
     transition: transform 0.2s, box-shadow 0.2s;
     border-left: 4px solid transparent;
@@ -3189,45 +3188,35 @@ table tr:hover {
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
-/* Ícone lateral */
-.resumo-cards .card .card-icon {
-    width: 60px;
-    height: 100%;
+.resumo-cards .card .card-header {
     display: flex;
     align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    color: white;
-    flex-shrink: 0;
-    padding: 24px 0;
+    gap: 8px;
+    margin-bottom: 12px;
 }
 
-/* Conteúdo do card */
-.resumo-cards .card .card-content {
-    flex: 1;
-    padding: 16px 20px 16px 0;
+.resumo-cards .card .card-header i {
+    font-size: 16px;
 }
 
-.resumo-cards .card .card-content h3 {
-    margin: 0 0 8px 0;
+.resumo-cards .card .card-header span {
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.5px;
-    color: #666;
+    color: #64748B;
+    text-transform: uppercase;
 }
 
-.resumo-cards .card .card-valor {
-    margin: 0;
+.resumo-cards .card .card-value {
     font-size: 28px;
     font-weight: 700;
     line-height: 1.2;
+    margin-bottom: 4px;
 }
 
-.resumo-cards .card .card-subtitle {
-    display: block;
+.resumo-cards .card .card-footer {
     font-size: 12px;
-    color: #888;
-    margin-top: 4px;
+    color: #94A3B8;
 }
 
 /* Card Receitas - Verde */
@@ -3235,11 +3224,11 @@ table tr:hover {
     border-left-color: #28a745;
 }
 
-.resumo-cards .card-receitas .card-icon {
-    background: #28a745;
+.resumo-cards .card-receitas .card-header i {
+    color: #28a745;
 }
 
-.resumo-cards .card-receitas .card-valor {
+.resumo-cards .card-receitas .card-value {
     color: #28a745;
 }
 
@@ -3248,11 +3237,11 @@ table tr:hover {
     border-left-color: #dc3545;
 }
 
-.resumo-cards .card-despesas .card-icon {
-    background: #dc3545;
+.resumo-cards .card-despesas .card-header i {
+    color: #dc3545;
 }
 
-.resumo-cards .card-despesas .card-valor {
+.resumo-cards .card-despesas .card-value {
     color: #dc3545;
 }
 
@@ -3261,11 +3250,11 @@ table tr:hover {
     border-left-color: #007bff;
 }
 
-.resumo-cards .card-saldo .card-icon {
-    background: #007bff;
+.resumo-cards .card-saldo .card-header i {
+    color: #007bff;
 }
 
-.resumo-cards .card-saldo .card-valor {
+.resumo-cards .card-saldo .card-value {
     color: #007bff;
 }
 
@@ -3274,11 +3263,11 @@ table tr:hover {
     border-left-color: #fd7e14;
 }
 
-.resumo-cards .card-juros .card-icon {
-    background: #fd7e14;
+.resumo-cards .card-juros .card-header i {
+    color: #fd7e14;
 }
 
-.resumo-cards .card-juros .card-valor {
+.resumo-cards .card-juros .card-value {
     color: #fd7e14;
 }
 
@@ -3287,18 +3276,18 @@ table tr:hover {
     border-left-color: #20c997;
 }
 
-.resumo-cards .card-economias .card-icon {
-    background: #20c997;
+.resumo-cards .card-economias .card-header i {
+    color: #20c997;
 }
 
-.resumo-cards .card-economias .card-valor {
+.resumo-cards .card-economias .card-value {
     color: #20c997;
 }
 
 /* Responsividade */
 @media (max-width: 1200px) {
     .resumo-cards {
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     }
 }
 
@@ -3306,8 +3295,8 @@ table tr:hover {
     .resumo-cards {
         grid-template-columns: 1fr;
     }
-    
-    .resumo-cards .card .card-valor {
+
+    .resumo-cards .card .card-value {
         font-size: 24px;
     }
 }
@@ -3591,42 +3580,6 @@ table tr:hover {
     gap: 4px;
 }
 
-
-/* Saldo Anterior Fora da Tabela */
-.saldo-anterior-info {
-    background: linear-gradient(135deg, #f0f4ff 0%, #e8eeff 100%);
-    border-left: 4px solid #4361ee;
-    padding: 12px 20px;
-    margin: 0 16px 15px 16px;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(67, 97, 238, 0.1);
-}
-
-.saldo-anterior-content {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 14px;
-}
-
-.saldo-anterior-label {
-    color: #4361ee;
-    font-weight: 600;
-}
-
-.saldo-anterior-info .saldo-anterior-valor {
-    font-size: 16px;
-    font-weight: 700;
-    font-family: 'Courier New', monospace;
-}
-
-.saldo-anterior-info .saldo-anterior-valor.positivo {
-    color: #28a745;
-}
-
-.saldo-anterior-info .saldo-anterior-valor.negativo {
-    color: #dc3545;
-}
 
 /* Badges de Status */
 .badge-status,

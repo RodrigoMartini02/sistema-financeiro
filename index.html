@@ -190,54 +190,44 @@
     <section class="dashboard-section active" id="dashboard-section">
         <div class="resumo-cards">
             <div class="card card-receitas">
-                <div class="card-icon">
+                <div class="card-header">
                     <i class="fas fa-arrow-up"></i>
+                    <span>RECEITAS TOTAIS</span>
                 </div>
-                <div class="card-content">
-                    <h3>RECEITAS TOTAIS</h3>
-                    <p id="dashboard-total-receitas" class="card-valor">R$ 0,00</p>
-                    <span class="card-subtitle">Todas as receitas do ano</span>
-                </div>
+                <div class="card-value" id="dashboard-total-receitas">R$ 0,00</div>
+                <div class="card-footer">Todas as receitas do ano</div>
             </div>
             <div class="card card-despesas">
-                <div class="card-icon">
+                <div class="card-header">
                     <i class="fas fa-arrow-down"></i>
+                    <span>DESPESAS TOTAIS</span>
                 </div>
-                <div class="card-content">
-                    <h3>DESPESAS TOTAIS</h3>
-                    <p id="dashboard-total-despesas" class="card-valor">R$ 0,00</p>
-                    <span class="card-subtitle">Todas as despesas do ano</span>
-                </div>
+                <div class="card-value" id="dashboard-total-despesas">R$ 0,00</div>
+                <div class="card-footer">Todas as despesas do ano</div>
             </div>
             <div class="card card-saldo">
-                <div class="card-icon">
+                <div class="card-header">
                     <i class="fas fa-wallet"></i>
+                    <span>SALDO ANUAL</span>
                 </div>
-                <div class="card-content">
-                    <h3>SALDO ANUAL</h3>
-                    <p id="dashboard-saldo-anual" class="card-valor">R$ 0,00</p>
-                    <span class="card-subtitle">Balanço receitas - despesas</span>
-                </div>
+                <div class="card-value" id="dashboard-saldo-anual">R$ 0,00</div>
+                <div class="card-footer">Balanço receitas - despesas</div>
             </div>
             <div class="card card-juros">
-                <div class="card-icon">
+                <div class="card-header">
                     <i class="fas fa-percentage"></i>
+                    <span>JUROS PAGOS</span>
                 </div>
-                <div class="card-content">
-                    <h3>JUROS PAGOS</h3>
-                    <p id="dashboard-total-juros" class="card-valor">R$ 0,00</p>
-                    <span class="card-subtitle">Total de juros pagos no ano</span>
-                </div>
+                <div class="card-value" id="dashboard-total-juros">R$ 0,00</div>
+                <div class="card-footer">Total de juros pagos no ano</div>
             </div>
             <div class="card card-economias">
-                <div class="card-icon">
+                <div class="card-header">
                     <i class="fas fa-piggy-bank"></i>
+                    <span>ECONOMIAS</span>
                 </div>
-                <div class="card-content">
-                    <h3>ECONOMIAS</h3>
-                    <p id="dashboard-total-economias" class="card-valor">R$ 0,00</p>
-                    <span class="card-subtitle">Valor economizado no ano</span>
-                </div>
+                <div class="card-value" id="dashboard-total-economias">R$ 0,00</div>
+                <div class="card-footer">Valor economizado no ano</div>
             </div>
         </div>
 
@@ -919,32 +909,21 @@
                     </button>
                 </div>
                 
-                <div class="categorias-grid">
-                    <div class="grid-header" id="categorias-grid-header">
-                        <div class="col-id">
-                            ID
-                            <div class="column-resizer"></div>
-                        </div>
-                        <div class="col-nome">
-                            Nome da Categoria
-                            <div class="column-resizer"></div>
-                        </div>
-                        <div class="col-data-criacao">
-                            Data de Criação
-                            <div class="column-resizer"></div>
-                        </div>
-                        <div class="col-data-edicao">
-                            Última Edição
-                            <div class="column-resizer"></div>
-                        </div>
-                        <div class="col-acoes">
-                            Ações
-                            <div class="column-resizer"></div>
-                        </div>
-                    </div>
-                    <div class="grid-content" id="lista-categorias">
-                        <!-- Categorias serão inseridas aqui -->
-                    </div>
+                <div class="table-responsive">
+                    <table class="tabela-categorias">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nome da Categoria</th>
+                                <th>Data de Criação</th>
+                                <th>Última Edição</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lista-categorias">
+                            <!-- Categorias serão inseridas aqui -->
+                        </tbody>
+                    </table>
                 </div>
 
                 <!-- Mensagem quando não há categorias -->
@@ -1581,25 +1560,20 @@
 
 <!-- Template: Linha de Categoria -->
 <template id="template-linha-categoria">
-    <div class="grid-row categoria-row">
-        <div class="col-id"></div>
-        <div class="col-nome"></div>
-        <div class="col-data-criacao"></div>
-        <div class="col-data-edicao"></div>
-        <div class="col-acoes"></div>
-    </div>
-</template>
-
-<!-- Template: Botões de Ação para Categoria -->
-<template id="template-botoes-acao-categoria">
-    <div class="acoes-grupo">
-        <button class="btn btn-sm btn-editar-categoria" data-categoria-id="" title="Editar">
-            <i class="fas fa-edit"></i>
-        </button>
-        <button class="btn btn-sm btn-remover-categoria" data-categoria-id="" title="Excluir">
-            <i class="fas fa-trash"></i>
-        </button>
-    </div>
+    <tr class="categoria-row">
+        <td class="categoria-id"></td>
+        <td class="categoria-nome"></td>
+        <td class="categoria-data-criacao"></td>
+        <td class="categoria-data-edicao"></td>
+        <td class="categoria-acoes">
+            <button class="btn btn-sm btn-editar-categoria" data-categoria-id="" title="Editar">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn btn-sm btn-remover-categoria" data-categoria-id="" title="Excluir">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    </tr>
 </template>
 
 <!-- Template: Linha de Usuário -->
@@ -1740,54 +1714,44 @@
             <div id="tab-resumo" class="tab-content active">
                 <div class="resumo-cards">
                     <div class="card card-receitas">
-                        <div class="card-icon">
+                        <div class="card-header">
                             <i class="fas fa-arrow-up"></i>
+                            <span>RECEITAS TOTAIS</span>
                         </div>
-                        <div class="card-content">
-                            <h3>RECEITAS TOTAIS</h3>
-                            <p id="resumo-receitas" class="card-valor">R$ 0,00</p>
-                            <span class="card-subtitle">Total de receitas do mês</span>
-                        </div>
+                        <div class="card-value" id="resumo-receitas">R$ 0,00</div>
+                        <div class="card-footer">Total de receitas do mês</div>
                     </div>
                     <div class="card card-despesas">
-                        <div class="card-icon">
+                        <div class="card-header">
                             <i class="fas fa-arrow-down"></i>
+                            <span>DESPESAS TOTAIS</span>
                         </div>
-                        <div class="card-content">
-                            <h3>DESPESAS TOTAIS</h3>
-                            <p id="resumo-despesas" class="card-valor">R$ 0,00</p>
-                            <span class="card-subtitle">Total de despesas do mês</span>
-                        </div>
+                        <div class="card-value" id="resumo-despesas">R$ 0,00</div>
+                        <div class="card-footer">Total de despesas do mês</div>
                     </div>
                     <div class="card card-saldo">
-                        <div class="card-icon">
+                        <div class="card-header">
                             <i class="fas fa-wallet"></i>
+                            <span>SALDO MENSAL</span>
                         </div>
-                        <div class="card-content">
-                            <h3>SALDO MENSAL</h3>
-                            <p id="resumo-saldo" class="card-valor">R$ 0,00</p>
-                            <span class="card-subtitle">Balanço receitas - despesas</span>
-                        </div>
+                        <div class="card-value" id="resumo-saldo">R$ 0,00</div>
+                        <div class="card-footer">Balanço receitas - despesas</div>
                     </div>
                     <div class="card card-juros">
-                        <div class="card-icon">
+                        <div class="card-header">
                             <i class="fas fa-percentage"></i>
+                            <span>JUROS PAGOS</span>
                         </div>
-                        <div class="card-content">
-                            <h3>JUROS PAGOS</h3>
-                            <p id="resumo-juros" class="card-valor">R$ 0,00</p>
-                            <span class="card-subtitle">Total de juros pagos no mês</span>
-                        </div>
+                        <div class="card-value" id="resumo-juros">R$ 0,00</div>
+                        <div class="card-footer">Total de juros pagos no mês</div>
                     </div>
                     <div class="card card-economias">
-                        <div class="card-icon">
+                        <div class="card-header">
                             <i class="fas fa-piggy-bank"></i>
+                            <span>ECONOMIAS</span>
                         </div>
-                        <div class="card-content">
-                            <h3>ECONOMIAS</h3>
-                            <p id="resumo-economias" class="card-valor">R$ 0,00</p>
-                            <span class="card-subtitle">Valor economizado no mês</span>
-                        </div>
+                        <div class="card-value" id="resumo-economias">R$ 0,00</div>
+                        <div class="card-footer">Valor economizado no mês</div>
                     </div>
                 </div>
                 
@@ -1811,6 +1775,10 @@
 
                     <div class="reservas-inline">
                         <div class="reservas-info">
+                            <span id="saldo-anterior-info" class="reservas-label" style="display: none;">
+                                Saldo Anterior: <span id="saldo-anterior-valor" class="reservas-valor">R$ 0,00</span>
+                            </span>
+                            <span id="saldo-anterior-separator" class="reservas-separator" style="display: none;">|</span>
                             <i class="fas fa-piggy-bank"></i>
                             <span class="reservas-label">Disponível:</span>
                             <span id="reservas-disponivel-mini" class="reservas-valor">R$ 0,00</span>
@@ -1821,14 +1789,6 @@
                         <button id="btn-reservar-valor" class="btn-reservar-inline">
                             <i class="fas fa-piggy-bank"></i> Reservas
                         </button>
-                    </div>
-                </div>
-
-                <!-- SALDO ANTERIOR (FORA DA TABELA) -->
-                <div id="saldo-anterior-info" class="saldo-anterior-info" style="display: none;">
-                    <div class="saldo-anterior-content">
-                        <span class="saldo-anterior-label">Saldo Anterior:</span>
-                        <span id="saldo-anterior-valor" class="saldo-anterior-valor">R$ 0,00</span>
                     </div>
                 </div>
 
@@ -2245,13 +2205,12 @@
                        <input type="number" id="despesa-valor" min="0.01" step="0.01" placeholder="0,00" required onchange="calcularInfoParcelamento()">
                    </div>
                    <div class="form-col">
-                       <label>Com juros</label>
+                       <label>Valor Final</label>
                        <input type="number" id="despesa-valor-pago" min="0" step="0.01" placeholder="0,00" onchange="calcularInfoParcelamento()">
                    </div>
                    <div class="form-col parcelas-col">
-                       <label>
-                           <input type="checkbox" id="despesa-parcelado" onchange="toggleParcelamentoDespesa(this)">Parcelas</label>
-                       <input type="number" id="despesa-parcelas" min="2" max="999" value="2" disabled onchange="calcularInfoParcelamento()">
+                       <label>Parcelas</label>
+                       <input type="number" id="despesa-parcelas" min="1" max="999" value="1" onchange="calcularInfoParcelamento()">
                    </div>
                </div>
 
@@ -2525,34 +2484,52 @@
           <span class="close">&times;</span>
       </div>
       <div class="modal-body">
-          <div id="info-despesa-pagamento" class="info-despesa-container">
-              <div class="info-item">
+          <div id="info-despesa-pagamento" class="info-despesa-container-compact">
+              <div class="info-row">
                   <span class="info-label">Descrição:</span>
                   <span class="info-valor" id="pagamento-descricao">-</span>
               </div>
-              <div class="info-item">
+              <div class="info-row">
                   <span class="info-label">Categoria:</span>
                   <span class="info-valor" id="pagamento-categoria">-</span>
               </div>
-              <div class="info-item" id="pagamento-forma-container">
-                  <span class="info-label">Forma de Pagamento:</span>
+              <div class="info-row" id="pagamento-forma-container">
+                  <span class="info-label">Forma:</span>
                   <span class="info-valor" id="pagamento-forma">-</span>
               </div>
-              <div class="info-item">
+              <div class="info-row">
                   <span class="info-label">Valor Original:</span>
                   <span class="info-valor" id="pagamento-valor-original">R$ 0,00</span>
               </div>
           </div>
-          
+
           <form id="form-pagamento-individual">
-              <div class="form-group">
-                  <label for="valor-pago-individual">Valor Pago:</label>
-                  <input type="number" id="valor-pago-individual" class="form-control" step="0.01" min="0">
+              <div class="form-row-inline">
+                  <div class="form-group" style="flex: 1;">
+                      <label for="valor-pago-individual">Valor Pago:</label>
+                      <input type="number" id="valor-pago-individual" class="form-control" step="0.01" min="0" oninput="calcularDiferencaPagamento()">
+                  </div>
+                  <div class="form-group" style="width: 180px; margin-left: 10px;">
+                      <label>&nbsp;</label>
+                      <button type="button" id="btn-anexar-comprovante" class="btn-anexar-inline">
+                          <i class="fas fa-paperclip"></i> Anexar Comprovante
+                      </button>
+                  </div>
               </div>
+
+              <div id="diferenca-pagamento-info" class="diferenca-info hidden">
+                  <span id="diferenca-texto"></span>
+              </div>
+
+              <div id="lista-comprovantes" class="lista-anexos-container">
+                  <!-- Comprovantes serão inseridos aqui -->
+              </div>
+
               <div class="form-group">
                 <label for="data-pagamento-individual">Data do Pagamento:</label>
                 <input type="date" id="data-pagamento-individual" class="form-control">
-            </div>
+              </div>
+
               <div class="form-group">
                   <div class="checkbox-row">
                       <input type="checkbox" id="despesa-quitado-individual">
@@ -2562,19 +2539,7 @@
                       Quando marcado, todas as parcelas futuras serão marcadas como pagas e seus valores zerados.
                   </div>
               </div>
-              
-              <div class="form-group">
-                  <label>Comprovante de Pagamento:</label>
-                  <div class="comprovante-anexo-container">
-                      <button type="button" id="btn-anexar-comprovante" class="btn-anexar">
-                          <i class="fas fa-paperclip"></i> Anexar Comprovante
-                      </button>
-                  </div>
-                  <div id="lista-comprovantes" class="lista-anexos-container">
-                      <!-- Comprovantes serão inseridos aqui -->
-                  </div>
-              </div>
-              
+
               <div class="form-group">
                   <button type="submit" class="btn-submit">Confirmar Pagamento</button>
               </div>

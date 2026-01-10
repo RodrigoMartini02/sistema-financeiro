@@ -44,9 +44,10 @@ function renderizarReceitas(receitas, fechado) {
 
     listaReceitas.innerHTML = '';
 
-    // Atualizar saldo anterior fora da tabela
+    // Atualizar saldo anterior na barra de ações
     const saldoAnteriorInfo = document.getElementById('saldo-anterior-info');
     const saldoAnteriorValor = document.getElementById('saldo-anterior-valor');
+    const saldoAnteriorSeparator = document.getElementById('saldo-anterior-separator');
 
     const temSaldoAnteriorReal = Array.isArray(receitas) &&
         receitas.some(receita => receita.saldoAnterior === true);
@@ -55,13 +56,16 @@ function renderizarReceitas(receitas, fechado) {
         const saldoAnterior = obterSaldoAnteriorValido(window.mesAberto, window.anoAberto);
         if (saldoAnterior !== 0 && saldoAnteriorInfo && saldoAnteriorValor) {
             saldoAnteriorValor.textContent = window.formatarMoeda(saldoAnterior);
-            saldoAnteriorValor.className = 'saldo-anterior-valor ' + (saldoAnterior >= 0 ? 'positivo' : 'negativo');
-            saldoAnteriorInfo.style.display = 'block';
-        } else if (saldoAnteriorInfo) {
-            saldoAnteriorInfo.style.display = 'none';
+            saldoAnteriorValor.className = 'reservas-valor ' + (saldoAnterior >= 0 ? 'positivo' : 'negativo');
+            saldoAnteriorInfo.style.display = 'inline';
+            if (saldoAnteriorSeparator) saldoAnteriorSeparator.style.display = 'inline';
+        } else {
+            if (saldoAnteriorInfo) saldoAnteriorInfo.style.display = 'none';
+            if (saldoAnteriorSeparator) saldoAnteriorSeparator.style.display = 'none';
         }
-    } else if (saldoAnteriorInfo) {
-        saldoAnteriorInfo.style.display = 'none';
+    } else {
+        if (saldoAnteriorInfo) saldoAnteriorInfo.style.display = 'none';
+        if (saldoAnteriorSeparator) saldoAnteriorSeparator.style.display = 'none';
     }
 
     // Renderizar receitas (sem saldo anterior na tabela)

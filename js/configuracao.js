@@ -321,42 +321,32 @@ async function atualizarListaCategorias() {
 
         const linha = template.content.cloneNode(true);
 
-        // Preencher colunas
-        const colId = linha.querySelector('.col-id');
-        const colNome = linha.querySelector('.col-nome');
-        const colDataCriacao = linha.querySelector('.col-data-criacao');
-        const colDataEdicao = linha.querySelector('.col-data-edicao');
-        const colAcoes = linha.querySelector('.col-acoes');
+        // Preencher células
+        const tdId = linha.querySelector('.categoria-id');
+        const tdNome = linha.querySelector('.categoria-nome');
+        const tdDataCriacao = linha.querySelector('.categoria-data-criacao');
+        const tdDataEdicao = linha.querySelector('.categoria-data-edicao');
+        const btnEditar = linha.querySelector('.btn-editar-categoria');
+        const btnRemover = linha.querySelector('.btn-remover-categoria');
 
-        if (colId) colId.textContent = categoria.id || '-';
-        if (colNome) colNome.textContent = categoria.nome;
+        if (tdId) tdId.textContent = categoria.id || '-';
+        if (tdNome) tdNome.textContent = categoria.nome;
 
         // Data de criação
-        if (colDataCriacao) {
+        if (tdDataCriacao) {
             const dataCriacao = categoria.data_criacao ? new Date(categoria.data_criacao) : new Date();
-            colDataCriacao.textContent = dataCriacao.toLocaleDateString('pt-BR');
+            tdDataCriacao.textContent = dataCriacao.toLocaleDateString('pt-BR');
         }
 
         // Data de edição
-        if (colDataEdicao) {
+        if (tdDataEdicao) {
             const dataEdicao = categoria.data_atualizacao ? new Date(categoria.data_atualizacao) : new Date();
-            colDataEdicao.textContent = dataEdicao.toLocaleDateString('pt-BR');
+            tdDataEdicao.textContent = dataEdicao.toLocaleDateString('pt-BR');
         }
 
-        // Botões de ação
-        if (colAcoes) {
-            const templateBotoes = document.getElementById('template-botoes-acao-categoria');
-            if (templateBotoes) {
-                const botoesClone = templateBotoes.content.cloneNode(true);
-                const btnEditar = botoesClone.querySelector('.btn-editar-categoria');
-                const btnRemover = botoesClone.querySelector('.btn-remover-categoria');
-
-                if (btnEditar) btnEditar.setAttribute('data-categoria-id', categoria.id);
-                if (btnRemover) btnRemover.setAttribute('data-categoria-id', categoria.id);
-
-                colAcoes.appendChild(botoesClone);
-            }
-        }
+        // Configurar botões
+        if (btnEditar) btnEditar.setAttribute('data-categoria-id', categoria.id);
+        if (btnRemover) btnRemover.setAttribute('data-categoria-id', categoria.id);
 
         listaCategorias.appendChild(linha);
     });

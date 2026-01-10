@@ -997,6 +997,14 @@
     font-size: 15px;
 }
 
+.reservas-valor.positivo {
+    color: #28a745;
+}
+
+.reservas-valor.negativo {
+    color: #dc3545;
+}
+
 .reservas-separator {
     color: var(--config-border);
     margin: 0 4px;
