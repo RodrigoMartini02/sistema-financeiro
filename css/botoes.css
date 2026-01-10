@@ -151,36 +151,70 @@
    ================================================================ */
 
 .btn-pagar {
-    background-color: #16a34a;
+    background-color: #22c55e;
     color: #ffffff;
-    border-color: #16a34a;
+    border-color: #22c55e;
 }
 
 .btn-pagar:hover:not(:disabled) {
-    background-color: #15803d;
-    border-color: #166534;
+    background-color: #16a34a;
+    border-color: #15803d;
 }
 
-.btn-editar {
-    background-color: #f59e0b;
+.btn-editar,
+.btn-editar-categoria,
+.btn-editar-cartao,
+.btn-editar-usuario {
+    background-color: #f97316;
     color: #ffffff;
-    border-color: #f59e0b;
+    border-color: #f97316;
 }
 
-.btn-editar:hover:not(:disabled) {
-    background-color: #d97706;
-    border-color: #b45309;
+.btn-editar:hover:not(:disabled),
+.btn-editar-categoria:hover:not(:disabled),
+.btn-editar-cartao:hover:not(:disabled),
+.btn-editar-usuario:hover:not(:disabled) {
+    background-color: #ea580c;
+    border-color: #c2410c;
 }
 
-.btn-excluir {
+.btn-excluir,
+.btn-remover-categoria,
+.btn-excluir-cartao,
+.btn-excluir-usuario {
+    background-color: #ef4444;
+    color: #ffffff;
+    border-color: #ef4444;
+}
+
+.btn-excluir:hover:not(:disabled),
+.btn-remover-categoria:hover:not(:disabled),
+.btn-excluir-cartao:hover:not(:disabled),
+.btn-excluir-usuario:hover:not(:disabled) {
     background-color: #dc2626;
-    color: #ffffff;
-    border-color: #dc2626;
+    border-color: #b91c1c;
 }
 
-.btn-excluir:hover:not(:disabled) {
-    background-color: #b91c1c;
-    border-color: #991b1b;
+.btn-bloquear-usuario {
+    background-color: #eab308;
+    color: #ffffff;
+    border-color: #eab308;
+}
+
+.btn-bloquear-usuario:hover:not(:disabled) {
+    background-color: #ca8a04;
+    border-color: #a16207;
+}
+
+.btn-avancar {
+    background-color: #3b82f6;
+    color: #ffffff;
+    border-color: #3b82f6;
+}
+
+.btn-avancar:hover:not(:disabled) {
+    background-color: #2563eb;
+    border-color: #1d4ed8;
 }
 
 .btn-mover {
@@ -194,15 +228,50 @@
     border-color: #0369a1;
 }
 
-.btn-anexar {
-    background-color: #8b5cf6;
+.btn-anexar,
+.btn-anexos {
+    background-color: #3b82f6;
     color: #ffffff;
-    border-color: #8b5cf6;
+    border-color: #3b82f6;
+    min-width: 50px;
 }
 
-.btn-anexar:hover:not(:disabled) {
-    background-color: #7c3aed;
-    border-color: #6d28d9;
+.btn-anexar:hover:not(:disabled),
+.btn-anexos:hover:not(:disabled) {
+    background-color: #2563eb;
+    border-color: #1d4ed8;
+}
+
+.btn-anexos.tem-anexos {
+    background-color: #3b82f6;
+}
+
+/* ================================================================
+   GRUPO DE AÇÕES (TABELAS)
+   ================================================================ */
+
+.acoes-grupo {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+    align-items: center;
+}
+
+.acoes-grupo .btn {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    padding: 0;
+    border-radius: 2px;
+}
+
+.acoes-grupo .btn:hover {
+    transform: scale(1.1);
+}
+
+.acoes-grupo .btn:active {
+    transform: scale(0.95);
 }
 
 /* ================================================================
@@ -213,6 +282,15 @@
     padding: 0.25rem 0.5rem;
     font-size: 12px;
     min-height: 28px;
+}
+
+.acoes-grupo .btn-sm {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    padding: 0;
+    font-size: 12px;
 }
 
 .btn-lg {
@@ -633,10 +711,38 @@
         min-height: 24px;
     }
 
+    .acoes-grupo .btn-sm {
+        width: 24px;
+        height: 24px;
+        min-width: 24px;
+        min-height: 24px;
+        font-size: 11px;
+    }
+
     .btn-icon {
         min-width: 28px;
         max-width: 28px;
         min-height: 28px;
         max-height: 28px;
+    }
+}
+
+@media (min-width: 1920px) {
+    .acoes-grupo .btn-sm {
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+        min-height: 32px;
+        font-size: 13px;
+    }
+}
+
+@media (min-width: 2560px) {
+    .acoes-grupo .btn-sm {
+        width: 36px;
+        height: 36px;
+        min-width: 36px;
+        min-height: 36px;
+        font-size: 14px;
     }
 }

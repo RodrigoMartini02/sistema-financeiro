@@ -232,7 +232,6 @@
 
 .col-acoes {
     justify-content: center !important;
-    gap: 4px;
 }
 
 .col-anexos {
@@ -243,13 +242,6 @@
     width: 16px;
     height: 16px;
     accent-color: #6366f1;
-}
-
-.acoes-grupo {
-    display: flex;
-    gap: 2px;
-    justify-content: center;
-    align-items: center;
 }
 
 

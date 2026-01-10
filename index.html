@@ -1568,12 +1568,14 @@
         <td class="categoria-data-criacao"></td>
         <td class="categoria-data-edicao"></td>
         <td class="categoria-acoes">
-            <button class="btn btn-sm btn-editar-categoria" data-categoria-id="" title="Editar">
-                <i class="fas fa-edit"></i>
-            </button>
-            <button class="btn btn-sm btn-remover-categoria" data-categoria-id="" title="Excluir">
-                <i class="fas fa-trash"></i>
-            </button>
+            <div class="acoes-grupo">
+                <button class="btn btn-sm btn-editar-categoria" data-categoria-id="" title="Editar">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-remover-categoria" data-categoria-id="" title="Excluir">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
         </td>
     </tr>
 </template>
@@ -1591,16 +1593,18 @@
             <span class="status-badge"></span>
         </td>
         <td class="acoes-usuario">
-            <button class="btn btn-usuario btn-editar-usuario" data-index="" title="Editar usuário">
-                <i class="fas fa-edit"></i>
-            </button>
-            <button class="btn btn-usuario btn-bloquear-usuario" data-index="" title="Bloquear usuário">
-                <i class="fas fa-ban"></i>
-            </button>
-            <button class="btn btn-usuario btn-excluir-usuario" data-index="" title="Excluir usuário">
-                <i class="fas fa-trash"></i>
-            </button>
-            <span class="texto-sem-permissao hidden">Sem permissão</span>
+            <div class="acoes-grupo">
+                <button class="btn btn-sm btn-editar-usuario" data-index="" title="Editar usuário">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-bloquear-usuario" data-index="" title="Bloquear usuário">
+                    <i class="fas fa-ban"></i>
+                </button>
+                <button class="btn btn-sm btn-excluir-usuario" data-index="" title="Excluir usuário">
+                    <i class="fas fa-trash"></i>
+                </button>
+                <span class="texto-sem-permissao hidden">Sem permissão</span>
+            </div>
         </td>
     </tr>
 </template>
@@ -1862,12 +1866,14 @@
             <span class="receita-parcela"></span>
         </div>
         <div class="col-acoes">
-            <button class="btn btn-editar" data-index="" title="Editar">
-                <i class="fas fa-edit"></i>
-            </button>
-            <button class="btn btn-excluir" data-index="" title="Excluir">
-                <i class="fas fa-trash"></i>
-            </button>
+            <div class="acoes-grupo">
+                <button class="btn btn-sm btn-editar" data-index="" title="Editar">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-excluir" data-index="" title="Excluir">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
         </div>
         <div class="col-anexos">
             <button class="btn btn-anexos" data-index="" title="Ver anexos">
@@ -2302,7 +2308,7 @@
                     <option value="valor-desc">Maior Valor</option>
                 </select>
                 <button id="btn-limpar-filtros" class="btn btn-secondary">
-                    <i class="fas fa-eraser"></i>
+                    <i class="fas fa-eraser"></i> Limpar
                 </button>
                 <span id="contador-filtro" class="filtro-contador"></span>
             </div>
@@ -2836,7 +2842,7 @@
                     <option value="pendentes">Pendentes</option>
                 </select>
                 <button id="btn-limpar-filtros" class="btn btn-secondary">
-                    <i class="fas fa-eraser"></i>
+                    <i class="fas fa-eraser"></i> Limpar
                 </button>
                 
                 <span id="contador-filtro" class="filtro-contador"></span>

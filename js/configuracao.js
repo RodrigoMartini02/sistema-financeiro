@@ -703,12 +703,12 @@ function renderizarListaCartoes() {
                     ${cartao.ativo ? 'Ativo' : 'Inativo'}
                 </span>
             </td>
-            <td>
-                <div class="cartao-acoes">
-                    <button class="btn-icon btn-editar-cartao" onclick="abrirModalEditarCartao(${cartao.id})" title="Editar cartão">
+            <td class="cartao-acoes">
+                <div class="acoes-grupo">
+                    <button class="btn btn-sm btn-editar-cartao" onclick="abrirModalEditarCartao(${cartao.id})" title="Editar cartão">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button class="btn-icon btn-excluir-cartao" onclick="excluirCartao(${cartao.id})" title="Excluir cartão">
+                    <button class="btn btn-sm btn-excluir-cartao" onclick="excluirCartao(${cartao.id})" title="Excluir cartão">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>

@@ -353,13 +353,6 @@
     font-family: monospace;
 }
 
-.receita-acoes {
-    display: flex;
-    gap: 6px;
-    justify-content: center;
-    align-items: center;
-}
-
 .saldo-anterior-row {
     background: rgba(23, 162, 184, 0.05);
     border-left: 4px solid var(--info);

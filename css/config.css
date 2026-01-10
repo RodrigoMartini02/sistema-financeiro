@@ -437,12 +437,6 @@
     color: var(--gray-500);
 }
 
-.categoria-acoes {
-    display: flex;
-    gap: 8px;
-    justify-content: center;
-    align-items: center;
-}
 
 
 /* ================================================================ */
@@ -1277,12 +1271,6 @@
     border: 1px solid var(--gray-500);
 }
 
-.tabela-cartoes .cartao-acoes {
-    display: flex;
-    gap: 8px;
-    justify-content: center;
-    align-items: center;
-}
 
 
 /* ================================================================ */
