@@ -853,7 +853,6 @@ function setupSistemaBloqueio() {
     };
 
     const unlockSystem = () => {
-        console.log('Desbloqueando sistema...');
         overlay.classList.remove('visible');
         modal.classList.remove('visible');
         document.body.classList.remove('body-locked');
@@ -861,7 +860,6 @@ function setupSistemaBloqueio() {
         localStorage.removeItem(LOCK_STATE_KEY);
         desbloquearModal();
         resetInactivityTimer();
-        console.log('Sistema desbloqueado com sucesso!');
     };
 
     const bloquearModal = () => {
@@ -909,23 +907,17 @@ function setupSistemaBloqueio() {
 
         try {
             const usuario = obterUsuarioAtualLocal();
-            console.log('Usuário obtido:', usuario ? 'Encontrado' : 'Não encontrado');
 
             if (!usuario) {
                 alert('Erro: Usuário não encontrado. Recarregue a página e faça login novamente.');
                 return;
             }
 
-            console.log('Verificando senha...');
-            console.log('Propriedades do usuário:', Object.keys(usuario));
-
             const senhaCorreta = usuario.password === enteredPassword || usuario.senha === enteredPassword;
-            console.log('Senha correta:', senhaCorreta);
 
             if (senhaCorreta) {
                 unlockSystem();
             } else {
-                console.log('Senha incorreta');
                 if (modalContent) {
                     modalContent.classList.add('shake-animation');
                     setTimeout(() => modalContent.classList.remove('shake-animation'), 500);

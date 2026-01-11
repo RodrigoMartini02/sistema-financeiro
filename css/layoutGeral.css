@@ -561,56 +561,27 @@ textarea:focus {
     margin-left: auto;
 }
 
-/* ✅ BOTÕES DE ÍCONE DO HEADER - PADRONIZADOS */
+/* ✅ BOTÕES DE ÍCONE DO HEADER - SIMPLES */
 .header-icon-btn {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
+    width: 40px;
+    height: 40px;
     border: none;
     background: transparent;
     cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 20px;
+    transition: opacity 0.2s ease;
+    font-size: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0;
+    color: var(--text-primary);
 }
 
 .header-icon-btn:hover {
-    transform: scale(1.1);
+    opacity: 0.7;
 }
 
-.header-icon-btn:active {
-    transform: scale(0.95);
-}
-
-/* Cores específicas por função */
-#btn-toggle-noticias {
-    color: #3b82f6; /* Azul para notícias */
-}
-
-#btn-toggle-noticias:hover {
-    background: rgba(59, 130, 246, 0.1);
-}
-
-#notification-bell {
-    color: #f59e0b; /* Laranja/Amarelo para notificações */
-}
-
-#notification-bell:hover {
-    background: rgba(245, 158, 11, 0.1);
-}
-
-#logout-btn {
-    color: #ef4444; /* Vermelho para logout */
-}
-
-#logout-btn:hover {
-    background: rgba(239, 68, 68, 0.1);
-}
-
-/* ✅ SELETOR DE ANO COM DROPDOWN */
+/* ✅ SELETOR DE ANO - SIMPLES */
 .periodo-selector {
     display: flex;
     align-items: center;
@@ -620,12 +591,11 @@ textarea:focus {
 .periodo-selector button {
     width: 40px;
     height: 40px;
-    border-radius: 50%;
     border: none;
     background: transparent;
-    color: var(--primary-color);
+    color: var(--text-primary);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: opacity 0.2s ease;
     font-size: 18px;
     display: flex;
     align-items: center;
@@ -633,8 +603,7 @@ textarea:focus {
 }
 
 .periodo-selector button:hover {
-    background: rgba(67, 97, 238, 0.1);
-    transform: scale(1.1);
+    opacity: 0.7;
 }
 
 .ano-dropdown {
@@ -644,19 +613,17 @@ textarea:focus {
 .ano-atual-display {
     min-width: 80px;
     height: 40px;
-    border-radius: 20px;
     border: none;
     background: transparent;
-    font-weight: 700;
+    font-weight: 600;
     font-size: 18px;
-    color: var(--primary-color);
+    color: var(--text-primary);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: opacity 0.2s ease;
 }
 
 .ano-atual-display:hover {
-    background: rgba(67, 97, 238, 0.1);
-    transform: scale(1.05);
+    opacity: 0.7;
 }
 
 .dropdown-anos-lista {
@@ -1080,7 +1047,7 @@ textarea:focus {
    MODAL DE BLOQUEIO
    ================================================================ */
 
-#modal-lock-screen {
+.lock-screen-overlay {
     position: fixed;
     top: 0;
     left: 0;
@@ -1088,10 +1055,25 @@ textarea:focus {
     height: 100%;
     background: rgba(0, 0, 0, 0.7);
     backdrop-filter: blur(8px);
+    z-index: 9999;
+    display: none;
+}
+
+.lock-screen-overlay.visible {
+    display: block;
+}
+
+#modal-lock-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     z-index: 10000;
     display: none;
     align-items: center;
     justify-content: center;
+    pointer-events: none;
 }
 
 #modal-lock-screen.visible {
@@ -1104,6 +1086,7 @@ textarea:focus {
     padding: 30px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.1);
+    pointer-events: auto;
 }
 
 #modal-lock-screen .modal-header {
@@ -1131,6 +1114,13 @@ textarea:focus {
 
 #modal-lock-screen .modal-body {
     padding: 0;
+}
+
+#modal-lock-screen .modal-footer {
+    padding: 0;
+    margin-top: 20px;
+    border: none;
+    background: transparent;
 }
 
 #form-lock-screen {
@@ -1163,6 +1153,7 @@ textarea:focus {
     font-style: normal;
 }
 
+#modal-lock-screen .modal-footer .btn,
 #form-lock-screen .btn-submit {
     width: 100%;
     padding: 14px;
@@ -1179,6 +1170,7 @@ textarea:focus {
     gap: 8px;
 }
 
+#modal-lock-screen .modal-footer .btn:hover,
 #form-lock-screen .btn-submit:hover {
     background: linear-gradient(135deg, #3f37c9, #3730a3);
     transform: translateY(-1px);
