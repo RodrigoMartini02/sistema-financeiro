@@ -530,42 +530,61 @@
    BOTÕES DE FECHAR/REABRIR MÊS
    ================================================================ */
 
-.btn-mes-acao {
+/* Container que envolve os botões */
+.controles-mes {
     width: 100%;
-    padding: 12px;
+    margin-top: auto; /* Empurra para o fundo se estiver em um flexbox */
+}
+
+.botoes-controle {
+    display: flex;
+    width: 100%;
+}
+
+/* Estilização Base dos Botões */
+.btn-fechar-mes, 
+.btn-reabrir-mes {
+    width: 100%;
+    padding: 15px;
     border: none;
     font-size: 16px;
     font-weight: 700;
     text-transform: uppercase;
     cursor: pointer;
-    transition: background 0.3s ease;
-    border-radius: 0 0 5px 5px;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 10px;
+    border-radius: 0 !important; /* Remove qualquer arredondamento */
+    margin: 0; /* Garante que não haja espaço externo */
+    transition: background 0.3s ease;
 }
 
-.btn-fechar {
+/* Cores específicas */
+.btn-fechar-mes {
     background-color: #2ecc71;
-    color: #ffffff;
+    color: white;
 }
 
-.btn-fechar:hover:not(:disabled) {
+.btn-fechar-mes:hover {
     background-color: #27ae60;
 }
 
-.btn-reabrir {
+.btn-reabrir-mes {
+    background-color: #f39c12; /* Laranja para reabertura */
+    color: white;
+}
+
+.btn-reabrir-mes:hover {
     background-color: #e67e22;
-    color: #ffffff;
 }
 
-.btn-reabrir:hover:not(:disabled) {
-    background-color: #d35400;
-}
-
-.btn-mes-acao i {
-    font-size: 18px;
+/* Forçar o container pai a não ter espaços */
+.controles-mes {
+    margin-bottom: -20px; /* Ajuste este valor se o seu card tiver padding-bottom */
+    margin-left: -20px;   /* Ajuste este valor se o seu card tiver padding-left */
+    margin-right: -20px;  /* Ajuste este valor se o seu card tiver padding-right */
+    width: calc(100% + 40px); /* Compensa as margens negativas */
 }
 
 
