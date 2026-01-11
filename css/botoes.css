@@ -527,6 +527,62 @@
 }
 
 /* ================================================================
+   BOTÕES DE FECHAR/REABRIR MÊS
+   ================================================================ */
+
+.btn-mes-acao {
+    padding: 8px 16px;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-mes-acao:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.btn-mes-acao:active {
+    transform: translateY(0);
+}
+
+/* Botão Fechar Mês - Verde */
+.btn-fechar {
+    background-color: #22c55e;
+    color: #ffffff;
+}
+
+.btn-fechar:hover:not(:disabled) {
+    background-color: #16a34a;
+}
+
+/* Botão Reabrir Mês - Laranja */
+.btn-reabrir {
+    background-color: #f97316;
+    color: #ffffff;
+}
+
+.btn-reabrir:hover:not(:disabled) {
+    background-color: #ea580c;
+}
+
+/* Botão Detalhes - Azul */
+.btn-detalhes {
+    background-color: #3b82f6;
+    color: #ffffff;
+}
+
+.btn-detalhes:hover:not(:disabled) {
+    background-color: #2563eb;
+}
+
+/* ================================================================
    BOTÕES DE USUÁRIO
    ================================================================ */
 

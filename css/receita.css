@@ -424,20 +424,7 @@
     align-items: center;
 }
 
-.select-grupo select {
-    padding: 6px 10px;
-    border: 1px solid var(--border-color);
-    font-size: var(--font-size-sm);
-    background: var(--white);
-    color: var(--gray-700);
-    cursor: pointer;
-}
-
-.select-grupo select:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
-}
+/* Removido - agora usa .form-control padrão de layoutGeral.css */
 
 
 

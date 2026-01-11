@@ -561,6 +561,54 @@ textarea:focus {
     margin-left: auto;
 }
 
+/* ✅ BOTÕES DE ÍCONE DO HEADER - PADRONIZADOS */
+.header-icon-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.header-icon-btn:hover {
+    transform: scale(1.1);
+}
+
+.header-icon-btn:active {
+    transform: scale(0.95);
+}
+
+/* Cores específicas por função */
+#btn-toggle-noticias {
+    color: #3b82f6; /* Azul para notícias */
+}
+
+#btn-toggle-noticias:hover {
+    background: rgba(59, 130, 246, 0.1);
+}
+
+#notification-bell {
+    color: #f59e0b; /* Laranja/Amarelo para notificações */
+}
+
+#notification-bell:hover {
+    background: rgba(245, 158, 11, 0.1);
+}
+
+#logout-btn {
+    color: #ef4444; /* Vermelho para logout */
+}
+
+#logout-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+}
 
 /* ✅ SELETOR DE ANO COM DROPDOWN */
 .periodo-selector {
@@ -1824,12 +1872,12 @@ table tr:hover {
    ================================================================ */
 
 .form-control {
-    padding: 10px 12px;
+    padding: 6px 8px;
     border: 1px solid #d1d5db;
     border-radius: 4px;
     background: #fff;
-    font-size: 14px;
-    min-width: 180px;
+    font-size: 12px;
+    min-width: 100px;
     color: #374151;
     transition: all 0.2s ease;
     cursor: pointer;
@@ -1848,12 +1896,12 @@ table tr:hover {
 /* Aliases legados para compatibilidade */
 .filter-select,
 .form-select {
-    padding: 10px 12px;
+    padding: 6px 8px;
     border: 1px solid #d1d5db;
     border-radius: 4px;
     background: #fff;
-    font-size: 14px;
-    min-width: 180px;
+    font-size: 12px;
+    min-width: 100px;
     color: #374151;
     transition: all 0.2s ease;
     cursor: pointer;

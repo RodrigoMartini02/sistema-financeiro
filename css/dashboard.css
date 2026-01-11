@@ -81,16 +81,7 @@
     margin-left: auto;
 }
 
-.filter-select {
-    padding: 3px 6px;
-    border: 1px solid #d1d5db;
-    background: white;
-    font-size: 11px;
-    color: #374151;
-    cursor: pointer;
-    min-width: 90px;
-    border-radius: 4px;
-}
+/* Removido - agora usa .form-control padrão de layoutGeral.css */
 
 /* Containers de Gráficos */
 .chart-container {

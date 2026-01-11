@@ -5,37 +5,12 @@
 /* ================================================================
    ÍCONE DE NOTIFICAÇÃO NO HEADER
    ================================================================ */
+/* Removido - agora usa .header-icon-btn padrão de layoutGeral.css */
+
 .notification-icon-container {
     position: relative;
     display: inline-flex;
     align-items: center;
-    margin-right: 1rem;
-}
-
-#notification-bell {
-    background: none !important;
-    border: none !important;
-    color: #4a90e2;
-    font-size: 1.3rem;
-    padding: 0;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 0;
-}
-
-#notification-bell:hover {
-    background: none !important;
-    color: #357abd;
-    transform: scale(1.1);
-}
-
-#notification-bell:active {
-    transform: scale(0.95);
 }
 
 #notification-count {

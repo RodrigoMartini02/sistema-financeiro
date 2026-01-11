@@ -46,15 +46,12 @@
     margin-bottom: 4px;
 }
 
+/* Removido - agora usa .form-control padrão de layoutGeral.css */
 .filtro-grupo .form-select {
     width: 100%;
-    padding: 6px 8px;
-    border: 1px solid #ced4da;
-    font-size: 0.85rem;
-    background-color: white;
 }
 
-.form-select,
+/* Removido - agora usa .form-control padrão de layoutGeral.css */
 .form-input {
     width: 100%;
     padding: 8px 12px;
@@ -64,7 +61,6 @@
     transition: all 0.2s ease;
 }
 
-.form-select:focus,
 .form-input:focus {
     outline: none;
     border-color: #007bff;

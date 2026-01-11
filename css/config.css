@@ -183,21 +183,7 @@
     cursor: pointer;
 }
 
-.filter-select {
-    padding: 10px 12px;
-    border: 1px solid var(--gray-300);
-    border-radius: 0;
-    font-size: 14px;
-    background: #fff;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.filter-select:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-}
+/* Removido - agora usa .form-control padrão de layoutGeral.css */
 
 /* ================================================================ */
 /* CONTROLES DE GERENCIAMENTO */
@@ -823,8 +809,8 @@
     color: var(--config-dark);
 }
 
-.filtro-grupo .form-input,
-.filtro-grupo .form-select {
+/* Removido select - agora usa .form-control padrão de layoutGeral.css */
+.filtro-grupo .form-input {
     border-radius: 0;
     height: 38px;
 }

@@ -219,17 +219,6 @@
 
 .modal-reservar-compact .form-control {
     width: 100%;
-    padding: 12px;
-    border: 2px solid var(--gray-300);
-    border-radius: 0;
-    font-size: 16px;
-    transition: border-color 0.3s ease;
-}
-
-.modal-reservar-compact .form-control:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .modal-reservar-compact .form-hint {
@@ -268,6 +257,10 @@
     padding: 0;
 }
 
+#modal-alterar-senha .modal-body {
+    padding: 20px 24px;
+    max-height: none;
+}
 
 #modal-alterar-senha .form-group {
     margin-bottom: 18px;

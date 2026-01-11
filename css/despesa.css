@@ -331,13 +331,7 @@
     align-items: center;
 }
 
-.filtros-despesas select {
-    padding: 6px 8px;
-    border: 1px solid #d1d5db;
-    background: white;
-    font-size: 12px;
-    min-width: 100px;
-}
+/* Removido - agora usa .form-control padrão de layoutGeral.css */
 
 
 .filtro-contador {
@@ -391,12 +385,16 @@
     color: #4a5568;
 }
 
-.form-col input,
-.form-col select {
+/* Removido select - agora usa .form-control padrão de layoutGeral.css */
+.form-col input {
     width: 100%;
     padding: 8px 12px;
     border: 1px solid #e2e8f0;
     font-size: 14px;
+}
+
+.form-col select {
+    width: 100%;
 }
 
 /* ================================================================
