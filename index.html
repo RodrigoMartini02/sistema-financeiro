@@ -1488,15 +1488,14 @@
                     <p><strong>ATENÇÃO:</strong> Todos os dados deste usuário serão perdidos permanentemente. Esta ação não pode ser desfeita.</p>
                 </div>
             </div>
-            
-            <div class="form-actions">
-                <button id="btn-cancelar-exclusao-usuario" class="btn btn-cancel">
-                    <i class="fas fa-times"></i> Cancelar
-                </button>
-                <button id="btn-confirmar-exclusao-usuario" class="btn btn-danger">
-                    <i class="fas fa-trash"></i> Sim, Excluir
-                </button>
-            </div>
+        </div>
+        <div class="modal-footer">
+            <button id="btn-cancelar-exclusao-usuario" class="btn btn-secondary">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
+            <button id="btn-confirmar-exclusao-usuario" class="btn btn-danger">
+                <i class="fas fa-trash"></i> Sim, Excluir
+            </button>
         </div>
     </div>
 </div>
@@ -1513,9 +1512,9 @@
                 <div id="feedback-icone" class="feedback-icon"></div>
                 <p id="feedback-texto">Mensagem</p>
             </div>
-            <div class="form-actions">
-                <button id="btn-feedback-ok" class="btn btn-action btn-block">OK</button>
-            </div>
+        </div>
+        <div class="modal-footer">
+            <button id="btn-feedback-ok" class="btn btn-primary btn-block">OK</button>
         </div>
     </div>
 </div>
@@ -1640,7 +1639,7 @@
 <!-- ======================================================== -->
 <div id="lock-screen-overlay" class="lock-screen-overlay"></div>
 <div id="modal-lock-screen" class="modal">
-    <div class="modal-content">
+    <div class="modal-content modal-sm">
         <div class="modal-header">
             <h2><i class="fas fa-lock"></i> Sistema Bloqueado</h2>
         </div>
@@ -1649,8 +1648,12 @@
                 <div class="form-group">
                     <input type="password" id="lock-screen-password" placeholder="Sua Senha" required>
                 </div>
-                <button type="submit" class="btn btn-submit btn-full-width">Desbloquear</button>
             </form>
+        </div>
+        <div class="modal-footer">
+            <button type="submit" form="form-lock-screen" class="btn btn-primary btn-block">
+                <i class="fas fa-unlock"></i> Desbloquear
+            </button>
         </div>
     </div>
 </div>
@@ -1971,7 +1974,7 @@
                     <div class="descricao-anexos-container">
                         <input type="text" id="receita-descricao" placeholder="Descrição" required>
                         <button type="button" id="btn-anexar-receita" class="btn btn-anexar">
-                            <i class="fas fa-paperclip"></i></button>
+                            <i class="fas fa-paperclip"></i>Anexos</button>
                     </div>
                 </div>
                 
@@ -2051,17 +2054,21 @@
 <!-- MODAL: EXCLUSÃO DE RECEITAS -->
 <!-- ======================================================== -->
 <div id="modal-exclusao-receita" class="modal">
-    <div class="modal-content modal-small">
+    <div class="modal-content modal-sm">
         <div class="modal-header">
             <h2>Excluir receita</h2>
             <span class="close">&times;</span>
         </div>
         <div class="modal-body">
             <p>Como deseja excluir esta receita?</p>
-            <div class="opcoes-exclusao">
-                <button id="btn-excluir-atual" class="btn btn-block">Excluir apenas esta receita</button>
-                <button id="btn-excluir-todas" class="btn btn-block">Excluir todas com esta descrição neste ano</button>
-            </div>
+        </div>
+        <div class="modal-footer">
+            <button id="btn-excluir-atual" class="btn btn-secondary">
+                <i class="fas fa-times"></i> Excluir apenas esta receita
+            </button>
+            <button id="btn-excluir-todas" class="btn btn-danger">
+                <i class="fas fa-trash"></i> Excluir todas com esta descrição
+            </button>
         </div>
     </div>
 </div>
@@ -2072,7 +2079,7 @@
 
 <!-- Modal: Visualizar anexos da receita -->
 <div id="modal-anexos-receita" class="modal">
-    <div class="modal-content">
+    <div class="modal-content modal-md">
         <div class="modal-header">
             <h2>Anexos da Receita</h2>
             <span class="close">&times;</span>
@@ -2081,6 +2088,11 @@
             <div id="lista-anexos-visualizar" class="lista-anexos-visualizar">
                 <!-- Anexos para download serão inseridos aqui -->
             </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary close">
+                <i class="fas fa-times"></i> Fechar
+            </button>
         </div>
     </div>
 </div>
@@ -2180,8 +2192,7 @@
                     <div class="descricao-anexos-row">
                         <input type="text" id="despesa-descricao" placeholder="Descrição da despesa" required>
                         <button type="button" id="btn-anexar-despesa" class="btn btn-anexar">
-                            <i class="fas fa-paperclip"></i>
-                        </button>
+                            <i class="fas fa-paperclip"></i>Anexos</button>
                     </div>
                     <div id="lista-anexos-despesa" class="lista-anexos-inline"></div>
                 </div>
@@ -2313,8 +2324,9 @@
                     <option value="valor-asc">Menor Valor</option>
                     <option value="valor-desc">Maior Valor</option>
                 </select>
-                <button id="btn-limpar-filtros" class="btn btn-secondary">
-                    <i class="fas fa-eraser"></i></button>
+                <button id="btn-limpar-filtros" class="btn btn-secondary btn-sm" title="Limpar Filtros">
+                    <i class="fas fa-eraser"></i>
+                </button>
                 <span id="contador-filtro" class="filtro-contador"></span>
             </div>
         </div>
@@ -2463,27 +2475,27 @@
 <!-- MODAL: CONFIRMAÇÃO DE EXCLUSÃO DE DESPESAS -->
 <!-- ======================================================== -->
 <div id="modal-confirmacao-exclusao-despesa" class="modal">
-   <div class="modal-content">
+   <div class="modal-content modal-sm">
        <div class="modal-header">
            <h2 id="exclusao-titulo">Excluir despesa</h2>
            <span class="close" data-action="fechar-modal-exclusao">&times;</span>
        </div>
        <div class="modal-body">
            <p id="exclusao-mensagem">Como deseja excluir esta despesa?</p>
-           <div class="opcoes-exclusao">
-               <button id="btn-excluir-todos-meses" class="btn btn-block opcao-exclusao-basica">
-                   Excluir Despesa
-               </button>
-               <button id="btn-excluir-parcela-atual" class="btn btn-block opcao-exclusao-parcelada">
-                   Excluir apenas esta parcela
-               </button>
-               <button id="btn-excluir-parcelas-futuras" class="btn btn-block opcao-exclusao-parcelada">
-                   Excluir esta e parcelas futuras
-               </button>
-               <button id="btn-excluir-todas-parcelas" class="btn btn-block opcao-exclusao-parcelada">
-                   Excluir todas as parcelas
-               </button>
-           </div>
+       </div>
+       <div class="modal-footer">
+           <button id="btn-excluir-todos-meses" class="btn btn-danger btn-block opcao-exclusao-basica">
+               <i class="fas fa-trash"></i> Excluir Despesa
+           </button>
+           <button id="btn-excluir-parcela-atual" class="btn btn-secondary btn-block opcao-exclusao-parcelada">
+               <i class="fas fa-times"></i> Excluir apenas esta parcela
+           </button>
+           <button id="btn-excluir-parcelas-futuras" class="btn btn-warning btn-block opcao-exclusao-parcelada">
+               <i class="fas fa-arrow-right"></i> Excluir esta e parcelas futuras
+           </button>
+           <button id="btn-excluir-todas-parcelas" class="btn btn-danger btn-block opcao-exclusao-parcelada">
+               <i class="fas fa-trash"></i> Excluir todas as parcelas
+           </button>
        </div>
    </div>
 </div>
@@ -2493,7 +2505,7 @@
 <!-- MODAL: PAGAMENTO INDIVIDUAL -->
 <!-- ======================================================== -->
 <div id="modal-pagamento-individual" class="modal">
-  <div class="modal-content">
+  <div class="modal-content modal-md">
       <div class="modal-header">
           <h2>Pagar Despesa</h2>
           <span class="close">&times;</span>
@@ -2553,11 +2565,15 @@
                       Quando marcado, todas as parcelas futuras serão marcadas como pagas e seus valores zerados.
                   </div>
               </div>
-
-              <div class="form-group">
-                  <button type="submit" class="btn btn-submit">Confirmar Pagamento</button>
-              </div>
           </form>
+      </div>
+      <div class="modal-footer">
+          <button type="button" class="btn btn-secondary close">
+              <i class="fas fa-times"></i> Cancelar
+          </button>
+          <button type="submit" form="form-pagamento-individual" class="btn btn-primary">
+              <i class="fas fa-check"></i> Confirmar Pagamento
+          </button>
       </div>
   </div>
 </div>
@@ -2566,7 +2582,7 @@
 <!-- MODAL: PAGAMENTO EM LOTE -->
 <!-- ======================================================== -->
 <div id="modal-pagamento-lote-despesas" class="modal">
-   <div class="modal-content">
+   <div class="modal-content modal-md">
        <div class="modal-header">
            <h2>Pagar Despesas em Lote</h2>
            <span class="close">&times;</span>
@@ -2576,18 +2592,21 @@
                <p id="lote-contagem-despesas">Você está prestes a pagar despesas em lote.</p>
                <p class="info-texto">O pagamento em lote afeta apenas as despesas do mês atual.</p>
            </div>
-           <div class="opcoes-pagamento-lote">
-               <button id="btn-pagar-valor-original" class="btn btn-block">
-                   Pagar com valores originais
-               </button>
-               <button id="btn-pagar-com-valor-personalizado" class="btn btn-block">
-                   Personalizar valores
-               </button>
-               <div class="form-group">
-                    <label for="data-pagamento-lote">Data do Pagamento (para todas):</label>
-                    <input type="date" id="data-pagamento-lote" class="form-control">
-                </div>
-           </div>
+           <div class="form-group">
+                <label for="data-pagamento-lote">Data do Pagamento (para todas):</label>
+                <input type="date" id="data-pagamento-lote" class="form-control">
+            </div>
+       </div>
+       <div class="modal-footer">
+           <button type="button" class="btn btn-secondary close">
+               <i class="fas fa-times"></i> Cancelar
+           </button>
+           <button id="btn-pagar-valor-original" class="btn btn-primary">
+               <i class="fas fa-check"></i> Pagar com valores originais
+           </button>
+           <button id="btn-pagar-com-valor-personalizado" class="btn btn-warning">
+               <i class="fas fa-edit"></i> Personalizar valores
+           </button>
        </div>
    </div>
 </div>
@@ -2618,7 +2637,14 @@
                    <tbody id="valores-personalizados-body"></tbody>
                </table>
            </div>
-           <button id="btn-confirmar-valores" class="btn btn-primary">Confirmar Pagamento</button>
+       </div>
+       <div class="modal-footer">
+           <button type="button" class="btn btn-secondary close">
+               <i class="fas fa-times"></i> Cancelar
+           </button>
+           <button id="btn-confirmar-valores" class="btn btn-primary">
+               <i class="fas fa-check"></i> Confirmar Pagamento
+           </button>
        </div>
    </div>
 </div>
@@ -2718,7 +2744,7 @@
 
 <!-- Modal: Visualizar anexos da despesa -->
 <div id="modal-anexos-despesa" class="modal">
-    <div class="modal-content">
+    <div class="modal-content modal-md">
         <div class="modal-header">
             <h2>Anexos da Despesa</h2>
             <span class="close">&times;</span>
@@ -2727,6 +2753,11 @@
             <div id="lista-anexos-despesa-visualizar" class="lista-anexos-visualizar">
                 <!-- Anexos para download serão inseridos aqui -->
             </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary close">
+                <i class="fas fa-times"></i> Fechar
+            </button>
         </div>
     </div>
 </div>
@@ -3044,15 +3075,14 @@
                     </div>
                 </div>
             </div>
-            
-            <div class="modal-actions">
-                <button id="btn-cancelar-fechamento" class="btn btn-secondary">
-                    <i class="fas fa-times"></i> Cancelar
-                </button>
-                <button id="btn-confirmar-fechamento" class="btn btn-primary">
-                    <i class="fas fa-lock"></i> Confirmar Fechamento
-                </button>
-            </div>
+        </div>
+        <div class="modal-footer">
+            <button id="btn-cancelar-fechamento" class="btn btn-secondary">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
+            <button id="btn-confirmar-fechamento" class="btn btn-primary">
+                <i class="fas fa-lock"></i> Confirmar Fechamento
+            </button>
         </div>
     </div>
 </div>
@@ -3103,15 +3133,14 @@
                     </div>
                 </div>
             </div>
-            
-            <div class="modal-actions">
-                <button id="btn-cancelar-reabertura" class="btn btn-secondary">
-                    <i class="fas fa-times"></i> Cancelar
-                </button>
-                <button id="btn-confirmar-reabertura" class="btn btn-danger">
-                    <i class="fas fa-unlock"></i> Confirmar Reabertura
-                </button>
-            </div>
+        </div>
+        <div class="modal-footer">
+            <button id="btn-cancelar-reabertura" class="btn btn-secondary">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
+            <button id="btn-confirmar-reabertura" class="btn btn-danger">
+                <i class="fas fa-unlock"></i> Confirmar Reabertura
+            </button>
         </div>
     </div>
 </div>
