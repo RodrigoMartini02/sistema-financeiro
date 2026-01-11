@@ -529,75 +529,59 @@
 /* ================================================================
    BOTÕES DE FECHAR/REABRIR MÊS
    ================================================================ */
-/* Container que agrupa os botões no card */
-.controles-mes {
-    width: 100%;
-    margin-top: auto; /* Empurra os botões para a base do card */
-    display: flex;
-    flex-direction: column;
-}
+/* ================================================================
+   BOTÕES DE FECHAR/REABRIR MÊS - AJUSTADO (ESTILO CARD)
+   ================================================================ */
 
-.botoes-controle {
-    display: flex;
-    width: 100%;
-}
-
-/* Estilização Base dos Botões */
+.btn-mes-acao, 
 .btn-fechar-mes, 
 .btn-reabrir-mes {
     width: 100%;
-    padding: 14px 0; /* Altura confortável para o clique */
+    padding: 15px;
     border: none;
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 800;
     text-transform: uppercase;
     cursor: pointer;
+    transition: background 0.2s ease;
+    border-radius: 0; /* REMOVIDO ARREDONDAMENTO */
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 10px;
-    border-radius: 0 !important; /* Remove qualquer arredondamento */
     margin: 0;
-    transition: background 0.2s ease, transform 0.1s ease;
 }
 
-/* Botão Fechar (Verde) */
+/* Botão Fechar Mês - Verde Vibrante (Conforme a imagem) */
+.btn-fechar, 
 .btn-fechar-mes {
     background-color: #2ecc71;
     color: #ffffff;
 }
 
+.btn-fechar:hover:not(:disabled),
 .btn-fechar-mes:hover {
     background-color: #27ae60;
 }
 
-/* Botão Reabrir (Laranja/Amarelo) */
+/* Botão Reabrir Mês - Laranja Vibrante */
+.btn-reabrir, 
 .btn-reabrir-mes {
     background-color: #f39c12;
     color: #ffffff;
 }
 
+.btn-reabrir:hover:not(:disabled),
 .btn-reabrir-mes:hover {
     background-color: #e67e22;
 }
 
-/* Feedback visual ao clicar */
-.btn-fechar-mes:active, 
-.btn-reabrir-mes:active {
-    filter: brightness(0.9);
-}
-
-/* Estilo do ícone de cadeado conforme a imagem */
+/* Ajuste do ícone para o estilo da imagem */
+.btn-mes-acao i, 
 .btn-fechar-mes i, 
 .btn-reabrir-mes i {
-    font-size: 14px;
+    font-size: 16px;
 }
-
-/* Classe utilitária para esconder botões (usada no seu HTML) */
-.hidden {
-    display: none !important;
-}
-
 
 
 /* ================================================================
