@@ -853,13 +853,15 @@ function setupSistemaBloqueio() {
     };
 
     const unlockSystem = () => {
+        console.log('Desbloqueando sistema...');
         overlay.classList.remove('visible');
         modal.classList.remove('visible');
         document.body.classList.remove('body-locked');
-        
+
         localStorage.removeItem(LOCK_STATE_KEY);
         desbloquearModal();
         resetInactivityTimer();
+        console.log('Sistema desbloqueado com sucesso!');
     };
 
     const bloquearModal = () => {
@@ -898,20 +900,32 @@ function setupSistemaBloqueio() {
 
     const handleUnlockAttempt = async (event) => {
         event.preventDefault();
-        
+
         const enteredPassword = passwordInput?.value;
         if (!enteredPassword) {
             alert('Por favor, digite sua senha.');
             return;
         }
-        
+
         try {
             const usuario = obterUsuarioAtualLocal();
-            const senhaCorreta = usuario && (usuario.password === enteredPassword || usuario.senha === enteredPassword);
-            
+            console.log('Usuário obtido:', usuario ? 'Encontrado' : 'Não encontrado');
+
+            if (!usuario) {
+                alert('Erro: Usuário não encontrado. Recarregue a página e faça login novamente.');
+                return;
+            }
+
+            console.log('Verificando senha...');
+            console.log('Propriedades do usuário:', Object.keys(usuario));
+
+            const senhaCorreta = usuario.password === enteredPassword || usuario.senha === enteredPassword;
+            console.log('Senha correta:', senhaCorreta);
+
             if (senhaCorreta) {
                 unlockSystem();
             } else {
+                console.log('Senha incorreta');
                 if (modalContent) {
                     modalContent.classList.add('shake-animation');
                     setTimeout(() => modalContent.classList.remove('shake-animation'), 500);
@@ -920,6 +934,7 @@ function setupSistemaBloqueio() {
                 passwordInput.focus();
             }
         } catch (error) {
+            console.error('Erro ao verificar senha:', error);
             alert('Erro ao verificar senha. Tente novamente.');
         }
     };
