@@ -572,15 +572,7 @@
     background-color: #ea580c;
 }
 
-/* Botão Detalhes - Azul */
-.btn-detalhes {
-    background-color: #3b82f6;
-    color: #ffffff;
-}
 
-.btn-detalhes:hover:not(:disabled) {
-    background-color: #2563eb;
-}
 
 /* ================================================================
    BOTÕES DE USUÁRIO
