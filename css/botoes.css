@@ -564,12 +564,12 @@
 
 /* Botão Reabrir Mês - Laranja */
 .btn-reabrir {
-    background-color: #f97316;
+    background-color: #f58433;
     color: #ffffff;
 }
 
 .btn-reabrir:hover:not(:disabled) {
-    background-color: #ea580c;
+    background-color: #f88445;
 }
 
 
