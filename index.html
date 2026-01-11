@@ -249,15 +249,15 @@
                 <h3>
                     <span>TENDÊNCIA ANUAL</span>
                     <div class="filtros-header">
-                        <select class="filter-select" id="tendencia-tipo-filter" onchange="filtrarTendencia()">
+                        <select class="form-control" id="tendencia-tipo-filter" onchange="filtrarTendencia()">
                             <option value="ambos">Receitas e Despesas</option>
                             <option value="receitas">Apenas Receitas</option>
                             <option value="despesas">Apenas Despesas</option>
                         </select>
-                        <select class="filter-select" id="tendencia-categoria-filter" onchange="filtrarTendencia()">
+                        <select class="form-control" id="tendencia-categoria-filter" onchange="filtrarTendencia()">
                             <option value="">Todas as categorias</option>
                         </select>
-                        <select class="filter-select" id="tendencia-pagamento-filter" onchange="filtrarTendencia()">
+                        <select class="form-control" id="tendencia-pagamento-filter" onchange="filtrarTendencia()">
                             <option value="todas">Todas as formas</option>
                             <option value="pix">PIX</option>
                             <option value="debito">Débito</option>
@@ -275,15 +275,15 @@
                 <h3>
                     <span>ENTRADAS E SAÍDAS</span>
                     <div class="filtros-header">
-                        <select class="filter-select" id="receitas-despesas-tipo-filter" onchange="filtrarReceitasDespesas()">
+                        <select class="form-control" id="receitas-despesas-tipo-filter" onchange="filtrarReceitasDespesas()">
                             <option value="ambos">Receitas e Despesas</option>
                             <option value="receitas">Apenas Receitas</option>
                             <option value="despesas">Apenas Despesas</option>
                         </select>
-                        <select class="filter-select" id="receitas-despesas-categoria-filter" onchange="filtrarReceitasDespesas()">
+                        <select class="form-control" id="receitas-despesas-categoria-filter" onchange="filtrarReceitasDespesas()">
                             <option value="">Todas as categorias</option>
                         </select>
-                        <select class="filter-select" id="receitas-despesas-pagamento-filter" onchange="filtrarReceitasDespesas()">
+                        <select class="form-control" id="receitas-despesas-pagamento-filter" onchange="filtrarReceitasDespesas()">
                             <option value="todas">Todas as formas</option>
                             <option value="pix">PIX</option>
                             <option value="debito">Débito</option>
@@ -301,10 +301,10 @@
                 <h3>
                     <span>CATEGORIAS ANUAIS</span>
                     <div class="filtros-header">
-                        <select class="filter-select" id="categorias-anual-categoria-filter" onchange="filtrarCategoriasAnual()">
+                        <select class="form-control" id="categorias-anual-categoria-filter" onchange="filtrarCategoriasAnual()">
                             <option value="">Todas as categorias</option>
                         </select>
-                        <select class="filter-select" id="categorias-anual-pagamento-filter" onchange="filtrarCategoriasAnual()">
+                        <select class="form-control" id="categorias-anual-pagamento-filter" onchange="filtrarCategoriasAnual()">
                             <option value="todas">Todas as formas</option>
                             <option value="pix">PIX</option>
                             <option value="debito">Débito</option>
@@ -322,10 +322,10 @@
                 <h3>
                     <span>CATEGORIAS MENSAIS</span>
                     <div class="filtros-header">
-                        <select class="filter-select" id="categorias-mensal-categoria-filter" onchange="filtrarCategoriasMensal()">
+                        <select class="form-control" id="categorias-mensal-categoria-filter" onchange="filtrarCategoriasMensal()">
                             <option value="">Todas as categorias</option>
                         </select>
-                        <select class="filter-select" id="categorias-mensal-pagamento-filter" onchange="filtrarCategoriasMensal()">
+                        <select class="form-control" id="categorias-mensal-pagamento-filter" onchange="filtrarCategoriasMensal()">
                             <option value="todas">Todas as formas</option>
                             <option value="pix">PIX</option>
                             <option value="debito">Débito</option>
@@ -343,10 +343,10 @@
                 <h3>
                     <span>FORMAS DE PAGAMENTO</span>
                     <div class="filtros-header">
-                        <select class="filter-select" id="forma-pagamento-categoria-filter" onchange="filtrarFormaPagamento()">
+                        <select class="form-control" id="forma-pagamento-categoria-filter" onchange="filtrarFormaPagamento()">
                             <option value="">Todas as categorias</option>
                         </select>
-                        <select class="filter-select" id="forma-pagamento-pagamento-filter" onchange="filtrarFormaPagamento()">
+                        <select class="form-control" id="forma-pagamento-pagamento-filter" onchange="filtrarFormaPagamento()">
                             <option value="todas">Todas as formas</option>
                             <option value="pix">PIX</option>
                             <option value="debito">Débito</option>
@@ -365,7 +365,7 @@
                 <h3>
                     <span>MÉDIA POR CATEGORIA (ANUAL)</span>
                     <div class="filtros-header">
-                        <select class="filter-select" id="media-cat-pagamento-filter" onchange="renderizarGraficoMediaCategorias()">
+                        <select class="form-control" id="media-cat-pagamento-filter" onchange="renderizarGraficoMediaCategorias()">
                             <option value="todas">Todas as formas</option>
                             <option value="pix">PIX</option>
                             <option value="debito">Débito</option>
@@ -385,16 +385,16 @@
                 <h3>
                     <span>JUROS MENSAIS</span>
                     <div class="filtros-header">
-                        <select class="filter-select" id="juros-categoria-filter" onchange="filtrarJuros()">
+                        <select class="form-control" id="juros-categoria-filter" onchange="filtrarJuros()">
                             <option value="">Todas as categorias</option>
                         </select>
-                        <select class="filter-select" id="juros-pagamento-filter" onchange="filtrarJuros()">
+                        <select class="form-control" id="juros-pagamento-filter" onchange="filtrarJuros()">
                             <option value="todas">Todas as formas</option>
                             <option value="pix">PIX</option>
                             <option value="debito">Débito</option>
                             <option value="credito">Crédito</option>
                         </select>
-                        <select class="filter-select" id="juros-status-filter" onchange="filtrarJuros()">
+                        <select class="form-control" id="juros-status-filter" onchange="filtrarJuros()">
                             <option value="todos">Todos</option>
                             <option value="pagos">Apenas Pagos</option>
                             <option value="pendentes">Apenas Pendentes</option>
@@ -421,16 +421,16 @@
                 <h3>
                     <span>PARCELAMENTOS MENSAIS</span>
                     <div class="filtros-header">
-                        <select class="filter-select" id="parcelamentos-categoria-filter" onchange="filtrarParcelamentos()">
+                        <select class="form-control" id="parcelamentos-categoria-filter" onchange="filtrarParcelamentos()">
                             <option value="">Todas as categorias</option>
                         </select>
-                        <select class="filter-select" id="parcelamentos-pagamento-filter" onchange="filtrarParcelamentos()">
+                        <select class="form-control" id="parcelamentos-pagamento-filter" onchange="filtrarParcelamentos()">
                             <option value="todas">Todas as formas</option>
                             <option value="pix">PIX</option>
                             <option value="debito">Débito</option>
                             <option value="credito">Crédito</option>
                         </select>
-                        <select class="filter-select" id="parcelamentos-status-filter" onchange="filtrarParcelamentos()">
+                        <select class="form-control" id="parcelamentos-status-filter" onchange="filtrarParcelamentos()">
                             <option value="todos">Todos</option>
                             <option value="pagos">Apenas Pagos</option>
                             <option value="pendentes">Apenas Pendentes</option>
@@ -485,7 +485,7 @@
             <div class="filtros-linha filtros-linha-super-compacta">
                 <div class="filtro-grupo filtro-periodo">
                     <label for="filtro-periodo">Período:</label>
-                    <select id="filtro-periodo" class="form-select">
+                    <select id="filtro-periodo" class="form-control">
                         <option value="mes-atual">Mês Atual</option>
                         <option value="mes-anterior">Mês Anterior</option>
                         <option value="ultimos-3-meses">Últimos 3 Meses</option>
@@ -498,7 +498,7 @@
                 
                 <div class="filtro-grupo filtro-tipo">
                     <label for="filtro-tipo-relatorio">Tipo:</label>
-                    <select id="filtro-tipo-relatorio" class="form-select">
+                    <select id="filtro-tipo-relatorio" class="form-control">
                         <option value="completo">Completo</option>
                         <option value="apenas-receitas">Receitas</option>
                         <option value="apenas-despesas">Despesas</option>
@@ -511,7 +511,7 @@
                 
                 <div class="filtro-grupo filtro-criterio">
                     <label for="filtro-criterio-data">Data:</label>
-                    <select id="filtro-criterio-data" class="form-select">
+                    <select id="filtro-criterio-data" class="form-control">
                         <option value="vencimento">Vencimento</option>
                         <option value="compra">Compra</option>
                         <option value="pagamento">Pagamento</option>
@@ -521,14 +521,14 @@
 
                 <div class="filtro-grupo filtro-categoria">
                     <label for="filtro-categoria-relatorio">Categoria:</label>
-                    <select id="filtro-categoria-relatorio" class="form-select">
+                    <select id="filtro-categoria-relatorio" class="form-control">
                         <option value="todas">Todas</option>
                     </select>
                 </div>
 
                 <div class="filtro-grupo filtro-status">
                     <label for="filtro-status-relatorio">Status:</label>
-                    <select id="filtro-status-relatorio" class="form-select">
+                    <select id="filtro-status-relatorio" class="form-control">
                         <option value="todos">Todos</option>
                         <option value="quitadas">Pagas</option>
                         <option value="pendentes">Pendentes</option>
@@ -538,7 +538,7 @@
 
                 <div class="filtro-grupo filtro-ordenacao">
                     <label for="filtro-ordenacao">Ordenar:</label>
-                    <select id="filtro-ordenacao" class="form-select">
+                    <select id="filtro-ordenacao" class="form-control">
                         <option value="data">Data</option>
                         <option value="valor-desc">Maior Valor</option>
                         <option value="valor-asc">Menor Valor</option>
@@ -1008,7 +1008,7 @@
                     </div>
                     
                     <div class="filter-container">
-                        <select id="filter-user-type" class="filter-select">
+                        <select id="filter-user-type" class="form-control">
                             <option value="todos">Todos os usuários</option>
                             <option value="master">Master</option>
                             <option value="admin">Administradores</option>
@@ -1130,7 +1130,7 @@
                 <div class="logs-filtros">
                     <div class="filtro-grupo">
                         <label for="filtro-modulo">Módulo:</label>
-                        <select id="filtro-modulo" class="form-select">
+                        <select id="filtro-modulo" class="form-control">
                             <option value="todos">Todos</option>
                             <option value="Receitas">Receitas</option>
                             <option value="Despesas">Despesas</option>
@@ -1150,7 +1150,7 @@
 
                     <div class="filtro-grupo">
                         <label for="filtro-acao">Ação:</label>
-                        <select id="filtro-acao" class="form-select">
+                        <select id="filtro-acao" class="form-control">
                             <option value="todos">Todas</option>
                             <option value="criado">Criado</option>
                             <option value="editado">Editado</option>
@@ -1336,7 +1336,7 @@
                     <label for="novo-usuario-tipo">
                         <i class="fas fa-user-tag"></i> Tipo de Usuário:
                     </label>
-                    <select id="novo-usuario-tipo" class="form-select">
+                    <select id="novo-usuario-tipo" class="form-control">
                         <option value="padrao">Usuário Padrão</option>
                         <option value="admin">Administrador</option>
                         <option value="master">Master</option>
@@ -1418,7 +1418,7 @@
                     <label for="editar-usuario-tipo">
                         <i class="fas fa-user-tag"></i> Tipo de Usuário:
                     </label>
-                    <select id="editar-usuario-tipo" class="form-select">
+                    <select id="editar-usuario-tipo" class="form-control">
                         <option value="padrao">Usuário Padrão</option>
                         <option value="admin">Administrador</option>
                         <option value="master">Master</option>
@@ -1429,7 +1429,7 @@
                     <label for="editar-usuario-status">
                         <i class="fas fa-toggle-on"></i> Status:
                     </label>
-                    <select id="editar-usuario-status" class="form-select">
+                    <select id="editar-usuario-status" class="form-control">
                         <option value="ativo">Ativo</option>
                         <option value="inativo">Inativo</option>
                         <option value="bloqueado">Bloqueado</option>
@@ -2021,7 +2021,7 @@
                             
                             <div id="selector-ate-container" class="hidden">
                                 <div class="select-grupo">
-                                    <select id="replicar-ate-mes">
+                                    <select id="replicar-ate-mes" class="form-control">
                                         <option value="0">Janeiro</option>
                                         <option value="1">Fevereiro</option>
                                         <option value="2">Março</option>
@@ -2035,7 +2035,7 @@
                                         <option value="10">Novembro</option>
                                         <option value="11">Dezembro</option>
                                     </select>
-                                    <select id="replicar-ate-ano"></select>
+                                    <select id="replicar-ate-ano" class="form-control"></select>
                                 </div>
                             </div>
                         </div>

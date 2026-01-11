@@ -1867,7 +1867,11 @@ table tr:hover {
 }
 
 
-.filter-select {
+/* ================================================================
+   FORM CONTROLS - SELECTS DE FILTRO PADRONIZADOS
+   ================================================================ */
+
+.form-control {
     padding: 10px 12px;
     border: 1px solid #d1d5db;
     border-radius: 4px;
@@ -1879,11 +1883,37 @@ table tr:hover {
     cursor: pointer;
 }
 
-.filter-select:hover {
+.form-control:hover {
     border-color: #9ca3af;
 }
 
-.filter-select:focus {
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary-color, #007bff);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+/* Aliases legados para compatibilidade */
+.filter-select,
+.form-select {
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    background: #fff;
+    font-size: 14px;
+    min-width: 180px;
+    color: #374151;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.filter-select:hover,
+.form-select:hover {
+    border-color: #9ca3af;
+}
+
+.filter-select:focus,
+.form-select:focus {
     outline: none;
     border-color: var(--primary-color, #007bff);
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
