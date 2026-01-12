@@ -97,25 +97,21 @@
 
             <!-- ✅ AÇÕES DO HEADER -->
             <div class="header-actions">
-    
+                <!-- Seletor de Ano com Dropdown -->
                 <div class="periodo-selector">
-                    <button class="header-icon-btn" id="btn-ano-anterior" title="Ano Anterior">
-                        <i class="fas fa-chevron-left"></i>
-                    </button>
-                    
+                    <button class="btn btn-icon" id="btn-ano-anterior" title="Ano Anterior"><i class="fas fa-chevron-left"></i></button>
                     <div class="ano-dropdown">
                         <button class="btn ano-atual-display" id="ano-atual-btn">2026</button>
                         <div id="dropdown-anos" class="dropdown-anos-lista" style="display: none;">
-                            </div>
+                            <!-- Será preenchido dinamicamente -->
+                        </div>
                     </div>
-
-                    <button class="header-icon-btn" id="btn-proximo-ano" title="Próximo Ano">
-                        <i class="fas fa-chevron-right"></i>
-                    </button>
+                    <button class="btn btn-icon" id="btn-proximo-ano" title="Próximo Ano"><i class="fas fa-chevron-right"></i></button>
                 </div>
 
+                <!-- Menu de Gerenciamento de Ano -->
                 <div class="ano-menu-container">
-                    <button class="header-icon-btn" id="btn-ano-menu" title="Gerenciar Ano">
+                    <button class="btn btn-icon" id="btn-ano-menu" title="Gerenciar Ano">
                         <i class="fas fa-cog"></i>
                     </button>
                     <div id="dropdown-ano-menu" class="dropdown-ano-menu" style="display: none;">
@@ -132,28 +128,29 @@
                     </div>
                 </div>
 
-                <div class="noticias-container">
-                    <button id="btn-toggle-noticias" class="header-icon-btn" type="button" title="Ver Notícias">
-                        <i class="fas fa-newspaper"></i>
-                    </button>
-                </div>
+                <!-- Notícias -->
+                <button id="btn-toggle-noticias" class="header-icon-btn" type="button" title="Ver Notícias">
+                    <i class="fas fa-newspaper"></i>
+                </button>
 
+                <!-- Notificações -->
                 <div class="notification-icon-container">
-                    <button id="notification-bell" class="header-icon-btn" type="button" aria-label="Notificações">
+                    <button class="header-icon-btn" id="notification-bell" type="button" aria-label="Notificações">
                         <i class="fas fa-bell"></i>
                     </button>
                     <span class="notification-badge hidden" id="notification-count">0</span>
                 </div>
 
-                <div class="logout-container">
-                    <button id="logout-btn" class="header-icon-btn" type="button" title="Sair">
-                        <i class="fas fa-sign-out-alt"></i>
-                    </button>
-                </div>
-
-            </div> <div id="marquee-noticias" class="marquee-container" style="display: none;">
-                <div class="marquee-content" id="conteudo-noticias"></div>
+                <!-- Logout -->
+                <button class="header-icon-btn" id="logout-btn" title="Sair">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
             </div>
+        </header>
+
+        <div id="marquee-noticias" class="marquee-container" style="display: none;">
+            <div class="marquee-content" id="conteudo-noticias">
+        </div>
     </div>
 
         <!-- ======================================================== -->
@@ -2996,8 +2993,9 @@
         </div>
     </div>
     <div class="mes-acoes">
-        <button class="btn-mes-acao btn-reabrir hidden">🔓 Reabrir Mês</button>
-        <button class="btn-mes-acao btn-fechar hidden">🔒 Fechar Mês</button>
+        <button class="btn-mes-acao btn-reabrir hidden">🔓 Reabrir</button>
+        <button class="btn-mes-acao btn-fechar hidden">🔒 Fechar</button>
+        
     </div>
 </template>
 
