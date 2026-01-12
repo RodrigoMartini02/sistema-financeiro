@@ -1329,7 +1329,6 @@ function preencherConteudoMes(mesCard, mes, ano, saldo, fechado, temTransacoes) 
     
     const btnReabrir = clone.querySelector('.btn-reabrir');
     const btnFechar = clone.querySelector('.btn-fechar');
-    const btnDetalhes = clone.querySelector('.btn-detalhes');
     
     if (fechado) {
         btnReabrir.classList.remove('hidden');
@@ -1344,11 +1343,6 @@ function preencherConteudoMes(mesCard, mes, ano, saldo, fechado, temTransacoes) 
             fecharMes(mes, ano);
         };
     }
-    
-    btnDetalhes.onclick = (e) => {
-        e.stopPropagation();
-        abrirDetalhesDoMes(mes, ano);
-    };
     
     mesCard.appendChild(clone);
 }

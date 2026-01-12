@@ -553,7 +553,9 @@ textarea:focus {
     white-space: nowrap;
 }
 
-/* ✅ AÇÕES DO HEADER */
+
+
+/* ✅ CONTAINER PRINCIPAL */
 .header-actions {
     display: flex;
     align-items: center;
@@ -561,124 +563,62 @@ textarea:focus {
     margin-left: auto;
 }
 
-/* ✅ BOTÕES DE ÍCONE DO HEADER - SIMPLES */
-.header-icon-btn {
-    width: 40px;
-    height: 40px;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    transition: opacity 0.2s ease;
-    font-size: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    color: var(--text-primary);
-}
-
-.header-icon-btn:hover {
-    opacity: 0.7;
-}
-
-/* ✅ SELETOR DE ANO - SIMPLES */
-.periodo-selector {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
+/* ✅ PADRONIZAÇÃO: BOTÕES DE ÍCONE */
+.header-icon-btn, 
 .periodo-selector button {
+    background: transparent;
+    border: none;
     width: 40px;
     height: 40px;
-    border: none;
-    background: transparent;
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: opacity 0.2s ease;
-    font-size: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
+    border-radius: 50%;
+    cursor: pointer;
+    color: #5f6368;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
 }
 
+.header-icon-btn i { font-size: 1.2rem; }
+
+.header-icon-btn:hover, 
 .periodo-selector button:hover {
-    opacity: 0.7;
+    background-color: rgba(26, 115, 232, 0.08);
+    color: #1a73e8;
 }
 
-.ano-dropdown {
-    position: relative;
-}
+/* ✅ SELETOR DE ANO & DROPDOWNS */
+.periodo-selector { display: flex; align-items: center; gap: 4px; }
 
 .ano-atual-display {
     min-width: 80px;
     height: 40px;
     border: none;
     background: transparent;
-    font-weight: 600;
-    font-size: 18px;
-    color: var(--text-primary);
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #3c4043;
     cursor: pointer;
-    transition: opacity 0.2s ease;
-}
-
-.ano-atual-display:hover {
-    opacity: 0.7;
-}
-
-.dropdown-anos-lista {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    margin-top: 4px;
-    background: white;
-    border: 1px solid var(--gray-300);
     border-radius: 8px;
-    box-shadow: var(--shadow-lg);
-    min-width: 120px;
-    max-height: 300px;
-    overflow-y: auto;
-    z-index: var(--z-dropdown);
+    transition: background 0.2s;
 }
 
-.dropdown-anos-lista button {
-    width: 100%;
-    padding: 10px 16px;
-    border: none;
-    background: none;
-    text-align: left;
-    cursor: pointer;
-    transition: background 0.2s ease;
-    font-size: 14px;
-}
+.ano-atual-display:hover { background: rgba(0, 0, 0, 0.04); }
 
-.dropdown-anos-lista button:hover {
-    background: var(--gray-100);
-}
-
-.dropdown-anos-lista button.active {
-    background: var(--primary-color);
-    color: white;
-    font-weight: 600;
-}
-
-/* ✅ MENU DE GERENCIAMENTO DE ANO */
-.ano-menu-container {
-    position: relative;
-}
-
+.dropdown-anos-lista, 
 .dropdown-ano-menu {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 8px);
     right: 0;
-    margin-top: 8px;
-    background: white;
-    border: 1px solid var(--gray-300);
+    background: #fff;
+    border: 1px solid #dadce0;
     border-radius: 8px;
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
     min-width: 200px;
-    z-index: var(--z-dropdown);
+    z-index: 1000;
     overflow: hidden;
+    animation: fadeIn 0.2s ease;
 }
 
 .dropdown-item {
@@ -688,60 +628,69 @@ textarea:focus {
     background: none;
     text-align: left;
     cursor: pointer;
-    transition: background 0.2s ease;
-    font-size: 14px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
+    color: #3c4043;
+    font-size: 0.9rem;
 }
 
-.dropdown-item:hover {
-    background: var(--gray-100);
+.dropdown-item:hover { background: #f8f9fa; }
+.dropdown-item-danger:hover { background: #fce8e6; color: #d93025; }
+
+/* ✅ NOTIFICAÇÕES & BADGE */
+.notification-icon-container { position: relative; }
+
+.notification-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: #d93025;
+    color: #fff;
+    font-size: 10px;
+    font-weight: bold;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #fff;
+    line-height: 1;
 }
 
-.dropdown-item-danger:hover {
-    background: #fee;
-    color: var(--danger);
-}
-
-/* Banner de Alerta Ajustado */
+/* ✅ BANNER DE ALERTA (MODERNO) */
 .banner-alerta {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    height: 38px;        /* Mesma altura do botão */
-    padding: 0 15px;
-    margin: 0;           /* Removido margens para alinhar com o botão */
-    border-radius: 4px;  /* Arredondamento uniforme */
-    box-shadow: 3px 3px 10px rgba(0,0,0,0.1);
-    font-size: 13px;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    height: 38px;
+    padding: 0 16px;
+    border-radius: 20px;
+    box-shadow: 0 4px 12px rgba(118, 75, 162, 0.3);
+    font-size: 0.85rem;
     font-weight: 500;
-    flex: 1;             /* Ocupa o espaço central disponível */
-    box-sizing: border-box;
-    overflow: hidden;
-    animation: slideFromSidebar 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+    flex: 1;
+    animation: slideIn 0.5s ease-out;
 }
 
 .banner-conteudo {
     display: flex;
     align-items: center;
-    gap: 12px;
-    flex: 1;
-    white-space: nowrap;
+    gap: 10px;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.banner-conteudo i {
-    font-size: 16px;
-    opacity: 0.9;
-    flex-shrink: 0;
-}
+/* ✅ ANIMAÇÕES & AUXILIARES */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+.hidden { display: none !important; }
 
 
-/* Estilos do periodo-selector e header-actions já definidos acima (linha 566-837) */
 
 /* ================================================================
    LETREIRO (MARQUEE)
@@ -928,117 +877,96 @@ textarea:focus {
     gap: 15px;
     padding: 20px;
     width: 100%;
-    height: calc(100vh - 180px); 
+    height: calc(100vh - 180px);
     overflow-y: auto;
     box-sizing: border-box;
     align-content: start;
 }
 
 .mes-card {
-    background: var(--white);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    overflow: hidden;
-    cursor: pointer;
-    transition: var(--transition-base);
-    border: 1px solid var(--gray-300);
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
     display: flex;
     flex-direction: column;
-    margin: 0;
     min-height: 230px;
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .mes-card:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     transform: translateY(-2px);
 }
 
 .mes-header {
-    background: var(--primary-color);
-    color: var(--white);
-    padding: 8px;
+    background: #3498db;
+    color: #ffffff;
+    padding: 10px;
     text-align: center;
-    flex-shrink: 0;
 }
 
 .mes-nome {
-    font-size: 13px;
-    font-weight: var(--font-weight-bold);
+    font-size: 14px;
+    font-weight: 700;
     text-transform: uppercase;
-    margin: 0;
-    letter-spacing: 1px;
 }
 
 .mes-body {
-    padding: 10px 12px;
+    padding: 15px;
     flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    gap: 6px;
+    gap: 10px;
 }
 
 .mes-saldos-container,
 .mes-resumo {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    gap: 10px;
 }
 
 .mes-saldo-anterior,
 .mes-saldo,
 .mes-valor {
-    padding: 5px;
+    padding: 8px;
     text-align: center;
-    border: 1px solid var(--gray-200);
+    border: 1px solid #f0f0f0;
+    background: #fafafa;
 }
 
 .mes-label {
-    font-size: 8px;
-    color: var(--gray-600);
-    margin-bottom: 2px;
+    font-size: 10px;
+    color: #7f8c8d;
     text-transform: uppercase;
     font-weight: 700;
     display: block;
+    margin-bottom: 2px;
 }
 
 .valor-anterior,
 .mes-saldo-valor,
 .mes-receita,
 .mes-despesa {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 800;
 }
 
-.mes-receita { color: var(--receita-color); }
-.mes-despesa { color: var(--despesa-color); }
-
-/* --- SEÇÃO DE AÇÕES / BOTÕES --- */
+.mes-receita { color: #2ecc71; }
+.mes-despesa { color: #e74c3c; }
 
 .mes-acoes {
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
+    width: 100%;
+    margin-top: auto;
 }
-
 
 .meses-container::-webkit-scrollbar {
-    width: 8px;
-}
-
-.meses-container::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    width: 6px;
 }
 
 .meses-container::-webkit-scrollbar-thumb {
     background: #ccc;
-    border-radius: 4px;
+    border-radius: 10px;
 }
-
-.meses-container::-webkit-scrollbar-thumb:hover {
-    background: #aaa;
-}
-
 
 
 
