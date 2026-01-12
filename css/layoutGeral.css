@@ -919,7 +919,7 @@ textarea:focus {
 
 
 /* ================================================================
-   SEÇÃO MESES - VERSÃO FINAL (ESTÁVEL)
+   SEÇÃO MESES 
    ================================================================ */
 
 .meses-container {
@@ -937,7 +937,7 @@ textarea:focus {
 .mes-card {
     background: var(--white);
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    overflow: hidden; 
+    overflow: hidden;
     cursor: pointer;
     transition: var(--transition-base);
     border: 1px solid var(--gray-300);
@@ -1015,37 +1015,13 @@ textarea:focus {
 /* --- SEÇÃO DE AÇÕES / BOTÕES --- */
 
 .mes-acoes {
-    width: 100%;
     padding: 0;
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     flex-shrink: 0;
-    margin-top: auto;
 }
 
-.btn-mes-acao {
-    flex: 1;
-    border: none;
-    padding: 12px;
-    font-weight: bold;
-    cursor: pointer;
-    font-size: 13px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    border-radius: 0;
-    transition: background 0.2s;
-}
 
-.btn-fechar { background-color: #27ae60; color: white; }
-.btn-reabrir { background-color: #e67e22; color: white; }
-
-.btn-mes-acao:hover {
-    filter: brightness(0.9);
-}
-
-/* Scrollbar */
 .meses-container::-webkit-scrollbar {
     width: 8px;
 }
