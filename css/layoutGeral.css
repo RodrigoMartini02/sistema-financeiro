@@ -513,6 +513,10 @@ textarea:focus {
 }
 
 /* ================================================================
+   HEADER PRINCIPAL
+   ================================================================ */
+
+/* ================================================================
    HEADER PRINCIPAL - REDESENHADO
    ================================================================ */
 .main-header {
@@ -549,42 +553,7 @@ textarea:focus {
     white-space: nowrap;
 }
 
-/* ✅ CONTAINER PRINCIPAL */
-
-/* RESET AGRESSIVO PARA O HEADER (COLOQUE NO TOPO) */
-.header-actions *, 
-.header-actions *:focus, 
-.header-actions *:active, 
-.header-actions *:focus-visible {
-    outline: none !important;
-    box-shadow: none !important;
-    border: none !important; /* Remove bordas de botões e containers */
-    -webkit-tap-highlight-color: transparent !important;
-}
-
-/* REAPLICAR APENAS O NECESSÁRIO PARA O SINO */
-.notification-icon-container {
-    background: none !important;
-    border: none !important;
-    padding: 0 !important;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* O BOTÃO DO SINO DEVE SER REDONDO */
-#notification-bell {
-    border-radius: 50% !important;
-    background-color: transparent !important;
-}
-
-/* AJUSTE DA BADGE PARA NÃO PARECER UMA BORDA */
-.notification-badge {
-    border: 2px solid var(--white) !important; /* Borda branca interna apenas na badge */
-    pointer-events: none;
-}
-
-
+/* ✅ AÇÕES DO HEADER */
 .header-actions {
     display: flex;
     align-items: center;
@@ -592,73 +561,124 @@ textarea:focus {
     margin-left: auto;
 }
 
-/* ✅ PADRONIZAÇÃO: BOTÕES DE ÍCONE */
-.header-icon-btn, 
-.periodo-selector button {
-    background: transparent;
-    border: none;
+/* ✅ BOTÕES DE ÍCONE DO HEADER - SIMPLES */
+.header-icon-btn {
     width: 40px;
     height: 40px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+    font-size: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
+    padding: 0;
+    color: var(--text-primary);
+}
+
+.header-icon-btn:hover {
+    opacity: 0.7;
+}
+
+/* ✅ SELETOR DE ANO - SIMPLES */
+.periodo-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.periodo-selector button {
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
     cursor: pointer;
-    color: #5f6368;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    /* Remove a borda azul/preta padrão do navegador ao clicar */
-    outline: none !important;
-    box-shadow: none !important;
-    -webkit-tap-highlight-color: transparent;
+    transition: opacity 0.2s ease;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.header-icon-btn i { font-size: 1.2rem; }
-
-.header-icon-btn:hover, 
 .periodo-selector button:hover {
-    background-color: rgba(26, 115, 232, 0.08);
-    color: #1a73e8;
+    opacity: 0.7;
 }
 
-/* Garante que não haja bordas em foco ativo */
-.header-icon-btn:focus,
-.periodo-selector button:focus,
-.ano-atual-display:focus {
-    outline: none !important;
+.ano-dropdown {
+    position: relative;
 }
-
-/* ✅ SELETOR DE ANO & DROPDOWNS */
-.periodo-selector { display: flex; align-items: center; gap: 4px; }
 
 .ano-atual-display {
     min-width: 80px;
     height: 40px;
     border: none;
     background: transparent;
-    font-weight: 700;
-    font-size: 1.1rem;
-    color: #3c4043;
+    font-weight: 600;
+    font-size: 18px;
+    color: var(--text-primary);
     cursor: pointer;
-    border-radius: 8px;
-    transition: background 0.2s;
-    outline: none;
+    transition: opacity 0.2s ease;
 }
 
-.ano-atual-display:hover { background: rgba(0, 0, 0, 0.04); }
+.ano-atual-display:hover {
+    opacity: 0.7;
+}
 
-.dropdown-anos-lista, 
+.dropdown-anos-lista {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 4px;
+    background: white;
+    border: 1px solid var(--gray-300);
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+    min-width: 120px;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: var(--z-dropdown);
+}
+
+.dropdown-anos-lista button {
+    width: 100%;
+    padding: 10px 16px;
+    border: none;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    font-size: 14px;
+}
+
+.dropdown-anos-lista button:hover {
+    background: var(--gray-100);
+}
+
+.dropdown-anos-lista button.active {
+    background: var(--primary-color);
+    color: white;
+    font-weight: 600;
+}
+
+/* ✅ MENU DE GERENCIAMENTO DE ANO */
+.ano-menu-container {
+    position: relative;
+}
+
 .dropdown-ano-menu {
     position: absolute;
-    top: calc(100% + 8px);
+    top: 100%;
     right: 0;
-    background: #fff;
-    border: 1px solid #dadce0;
+    margin-top: 8px;
+    background: white;
+    border: 1px solid var(--gray-300);
     border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    box-shadow: var(--shadow-lg);
     min-width: 200px;
-    z-index: 1000;
+    z-index: var(--z-dropdown);
     overflow: hidden;
-    animation: fadeIn 0.2s ease;
 }
 
 .dropdown-item {
@@ -668,77 +688,60 @@ textarea:focus {
     background: none;
     text-align: left;
     cursor: pointer;
+    transition: background 0.2s ease;
+    font-size: 14px;
     display: flex;
     align-items: center;
-    gap: 12px;
-    color: #3c4043;
-    font-size: 0.9rem;
-    outline: none;
+    gap: 10px;
 }
 
-.dropdown-item:hover { background: #f8f9fa; }
-.dropdown-item-danger:hover { background: #fce8e6; color: #d93025; }
-
-/* ✅ NOTIFICAÇÕES & BADGE */
-.notification-icon-container { 
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent; /* Remove qualquer fundo quadrado */
+.dropdown-item:hover {
+    background: var(--gray-100);
 }
 
-.notification-badge {
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    background: #d93025;
-    color: #fff;
-    font-size: 10px;
-    font-weight: bold;
-    min-width: 18px;
-    height: 18px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid #fff;
-    line-height: 1;
-    z-index: 1;
+.dropdown-item-danger:hover {
+    background: #fee;
+    color: var(--danger);
 }
 
-/* ✅ BANNER DE ALERTA (MODERNO) */
+/* Banner de Alerta Ajustado */
 .banner-alerta {
     display: flex;
     align-items: center;
-    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-    color: #fff;
-    height: 38px;
-    padding: 0 16px;
-    border-radius: 20px;
-    box-shadow: 0 4px 12px rgba(118, 75, 162, 0.3);
-    font-size: 0.85rem;
+    justify-content: space-between;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    height: 38px;        /* Mesma altura do botão */
+    padding: 0 15px;
+    margin: 0;           /* Removido margens para alinhar com o botão */
+    border-radius: 4px;  /* Arredondamento uniforme */
+    box-shadow: 3px 3px 10px rgba(0,0,0,0.1);
+    font-size: 13px;
     font-weight: 500;
-    flex: 1;
-    animation: slideIn 0.5s ease-out;
+    flex: 1;             /* Ocupa o espaço central disponível */
+    box-sizing: border-box;
+    overflow: hidden;
+    animation: slideFromSidebar 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
 
 .banner-conteudo {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
+    flex: 1;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
-/* ✅ ANIMAÇÕES & AUXILIARES */
-@keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+.banner-conteudo i {
+    font-size: 16px;
+    opacity: 0.9;
+    flex-shrink: 0;
+}
 
-.hidden { display: none !important; }
 
-
+/* Estilos do periodo-selector e header-actions já definidos acima (linha 566-837) */
 
 /* ================================================================
    LETREIRO (MARQUEE)
