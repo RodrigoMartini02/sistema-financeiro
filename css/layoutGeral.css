@@ -550,6 +550,41 @@ textarea:focus {
 }
 
 /* ✅ CONTAINER PRINCIPAL */
+
+/* RESET AGRESSIVO PARA O HEADER (COLOQUE NO TOPO) */
+.header-actions *, 
+.header-actions *:focus, 
+.header-actions *:active, 
+.header-actions *:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+    border: none !important; /* Remove bordas de botões e containers */
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+/* REAPLICAR APENAS O NECESSÁRIO PARA O SINO */
+.notification-icon-container {
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* O BOTÃO DO SINO DEVE SER REDONDO */
+#notification-bell {
+    border-radius: 50% !important;
+    background-color: transparent !important;
+}
+
+/* AJUSTE DA BADGE PARA NÃO PARECER UMA BORDA */
+.notification-badge {
+    border: 2px solid var(--white) !important; /* Borda branca interna apenas na badge */
+    pointer-events: none;
+}
+
+
 .header-actions {
     display: flex;
     align-items: center;
