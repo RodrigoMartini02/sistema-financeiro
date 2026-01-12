@@ -513,10 +513,6 @@ textarea:focus {
 }
 
 /* ================================================================
-   HEADER PRINCIPAL
-   ================================================================ */
-
-/* ================================================================
    HEADER PRINCIPAL - REDESENHADO
    ================================================================ */
 .main-header {
@@ -575,7 +571,10 @@ textarea:focus {
     cursor: pointer;
     color: #5f6368;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    outline: none;
+    /* Remove a borda azul/preta padrão do navegador ao clicar */
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .header-icon-btn i { font-size: 1.2rem; }
@@ -584,6 +583,13 @@ textarea:focus {
 .periodo-selector button:hover {
     background-color: rgba(26, 115, 232, 0.08);
     color: #1a73e8;
+}
+
+/* Garante que não haja bordas em foco ativo */
+.header-icon-btn:focus,
+.periodo-selector button:focus,
+.ano-atual-display:focus {
+    outline: none !important;
 }
 
 /* ✅ SELETOR DE ANO & DROPDOWNS */
@@ -600,6 +606,7 @@ textarea:focus {
     cursor: pointer;
     border-radius: 8px;
     transition: background 0.2s;
+    outline: none;
 }
 
 .ano-atual-display:hover { background: rgba(0, 0, 0, 0.04); }
@@ -631,13 +638,20 @@ textarea:focus {
     gap: 12px;
     color: #3c4043;
     font-size: 0.9rem;
+    outline: none;
 }
 
 .dropdown-item:hover { background: #f8f9fa; }
 .dropdown-item-danger:hover { background: #fce8e6; color: #d93025; }
 
 /* ✅ NOTIFICAÇÕES & BADGE */
-.notification-icon-container { position: relative; }
+.notification-icon-container { 
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent; /* Remove qualquer fundo quadrado */
+}
 
 .notification-badge {
     position: absolute;
@@ -655,6 +669,7 @@ textarea:focus {
     justify-content: center;
     border: 2px solid #fff;
     line-height: 1;
+    z-index: 1;
 }
 
 /* ✅ BANNER DE ALERTA (MODERNO) */
