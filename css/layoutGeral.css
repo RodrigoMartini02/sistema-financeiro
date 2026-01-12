@@ -919,7 +919,7 @@ textarea:focus {
 
 
 /* ================================================================
-   SEÇÃO MESES 
+   SEÇÃO MESES - VERSÃO FINAL (ESTÁVEL)
    ================================================================ */
 
 .meses-container {
@@ -937,7 +937,7 @@ textarea:focus {
 .mes-card {
     background: var(--white);
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    overflow: hidden; /* Garante que o botão respeite o arredondamento do card */
+    overflow: hidden; 
     cursor: pointer;
     transition: var(--transition-base);
     border: 1px solid var(--gray-300);
@@ -945,8 +945,6 @@ textarea:focus {
     flex-direction: column;
     margin: 0;
     min-height: 230px;
-    position: relative; /* Adicionado para ancorar o botão na base */
-    padding-bottom: 40px; /* Adicionado para o conteúdo não ficar sob o botão */
 }
 
 .mes-card:hover {
@@ -1017,27 +1015,26 @@ textarea:focus {
 /* --- SEÇÃO DE AÇÕES / BOTÕES --- */
 
 .mes-acoes {
-    position: absolute; /* Fixa no fundo do card */
-    bottom: 0;
-    left: 0;
     width: 100%;
     padding: 0;
     display: flex;
-    flex-direction: row; /* Botões lado a lado se houver mais de um */
+    flex-direction: row;
     flex-shrink: 0;
+    margin-top: auto;
 }
 
 .btn-mes-acao {
     flex: 1;
     border: none;
-    padding: 10px;
+    padding: 12px;
     font-weight: bold;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 13px;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 5px;
+    gap: 8px;
+    border-radius: 0;
     transition: background 0.2s;
 }
 
@@ -1048,7 +1045,7 @@ textarea:focus {
     filter: brightness(0.9);
 }
 
-
+/* Scrollbar */
 .meses-container::-webkit-scrollbar {
     width: 8px;
 }
