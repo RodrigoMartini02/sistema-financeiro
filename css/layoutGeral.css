@@ -553,10 +553,6 @@ textarea:focus {
     white-space: nowrap;
 }
 
-
-
-
-
 /* ✅ AÇÕES DO HEADER */
 .header-actions {
     display: flex;
@@ -565,70 +561,24 @@ textarea:focus {
     margin-left: auto;
 }
 
-
-
 /* ✅ BOTÕES DE ÍCONE DO HEADER - SIMPLES */
-.header-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
 .header-icon-btn {
-    background: transparent;
-    border: none;
     width: 40px;
     height: 40px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+    font-size: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
-    cursor: pointer;
-    color: #5f6368;
-    transition: background-color 0.2s ease, color 0.2s ease;
     padding: 0;
-    outline: none;
-}
-
-.header-icon-btn i {
-    font-size: 1.2rem;
+    color: var(--text-primary);
 }
 
 .header-icon-btn:hover {
-    background-color: rgba(0, 0, 0, 0.05);
-    color: #1a73e8;
-}
-
-.noticias-container,
-.notification-icon-container,
-.logout-container {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.notification-badge {
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    background-color: #d93025;
-    color: white;
-    font-size: 10px;
-    font-weight: bold;
-    min-width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid #fff;
-    pointer-events: none;
-    line-height: 1;
-}
-
-.hidden {
-    display: none !important;
+    opacity: 0.7;
 }
 
 /* ✅ SELETOR DE ANO - SIMPLES */
@@ -712,10 +662,6 @@ textarea:focus {
     font-weight: 600;
 }
 
-
-
-
-
 /* ✅ MENU DE GERENCIAMENTO DE ANO */
 .ano-menu-container {
     position: relative;
@@ -795,7 +741,7 @@ textarea:focus {
 }
 
 
-
+/* Estilos do periodo-selector e header-actions já definidos acima (linha 566-837) */
 
 /* ================================================================
    LETREIRO (MARQUEE)
@@ -982,96 +928,117 @@ textarea:focus {
     gap: 15px;
     padding: 20px;
     width: 100%;
-    height: calc(100vh - 180px);
+    height: calc(100vh - 180px); 
     overflow-y: auto;
     box-sizing: border-box;
     align-content: start;
 }
 
 .mes-card {
-    background: #ffffff;
-    border: 1px solid #e0e0e0;
+    background: var(--white);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+    cursor: pointer;
+    transition: var(--transition-base);
+    border: 1px solid var(--gray-300);
     display: flex;
     flex-direction: column;
+    margin: 0;
     min-height: 230px;
-    transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .mes-card:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     transform: translateY(-2px);
 }
 
 .mes-header {
-    background: #3498db;
-    color: #ffffff;
-    padding: 10px;
+    background: var(--primary-color);
+    color: var(--white);
+    padding: 8px;
     text-align: center;
+    flex-shrink: 0;
 }
 
 .mes-nome {
-    font-size: 14px;
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: var(--font-weight-bold);
     text-transform: uppercase;
+    margin: 0;
+    letter-spacing: 1px;
 }
 
 .mes-body {
-    padding: 15px;
+    padding: 10px 12px;
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    justify-content: center;
+    gap: 6px;
 }
 
 .mes-saldos-container,
 .mes-resumo {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 8px;
 }
 
 .mes-saldo-anterior,
 .mes-saldo,
 .mes-valor {
-    padding: 8px;
+    padding: 5px;
     text-align: center;
-    border: 1px solid #f0f0f0;
-    background: #fafafa;
+    border: 1px solid var(--gray-200);
 }
 
 .mes-label {
-    font-size: 10px;
-    color: #7f8c8d;
+    font-size: 8px;
+    color: var(--gray-600);
+    margin-bottom: 2px;
     text-transform: uppercase;
     font-weight: 700;
     display: block;
-    margin-bottom: 2px;
 }
 
 .valor-anterior,
 .mes-saldo-valor,
 .mes-receita,
 .mes-despesa {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 800;
 }
 
-.mes-receita { color: #2ecc71; }
-.mes-despesa { color: #e74c3c; }
+.mes-receita { color: var(--receita-color); }
+.mes-despesa { color: var(--despesa-color); }
+
+/* --- SEÇÃO DE AÇÕES / BOTÕES --- */
 
 .mes-acoes {
-    width: 100%;
-    margin-top: auto;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
 }
 
+
 .meses-container::-webkit-scrollbar {
-    width: 6px;
+    width: 8px;
+}
+
+.meses-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
 }
 
 .meses-container::-webkit-scrollbar-thumb {
     background: #ccc;
-    border-radius: 10px;
+    border-radius: 4px;
 }
+
+.meses-container::-webkit-scrollbar-thumb:hover {
+    background: #aaa;
+}
+
 
 
 
