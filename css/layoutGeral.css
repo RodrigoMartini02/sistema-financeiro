@@ -937,7 +937,7 @@ textarea:focus {
 .mes-card {
     background: var(--white);
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    overflow: hidden;
+    overflow: hidden; /* Garante que o botão respeite o arredondamento do card */
     cursor: pointer;
     transition: var(--transition-base);
     border: 1px solid var(--gray-300);
@@ -945,6 +945,8 @@ textarea:focus {
     flex-direction: column;
     margin: 0;
     min-height: 230px;
+    position: relative; /* Adicionado para ancorar o botão na base */
+    padding-bottom: 40px; /* Adicionado para o conteúdo não ficar sob o botão */
 }
 
 .mes-card:hover {
@@ -1015,10 +1017,35 @@ textarea:focus {
 /* --- SEÇÃO DE AÇÕES / BOTÕES --- */
 
 .mes-acoes {
+    position: absolute; /* Fixa no fundo do card */
+    bottom: 0;
+    left: 0;
+    width: 100%;
     padding: 0;
     display: flex;
-    flex-direction: column;
+    flex-direction: row; /* Botões lado a lado se houver mais de um */
     flex-shrink: 0;
+}
+
+.btn-mes-acao {
+    flex: 1;
+    border: none;
+    padding: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: background 0.2s;
+}
+
+.btn-fechar { background-color: #27ae60; color: white; }
+.btn-reabrir { background-color: #e67e22; color: white; }
+
+.btn-mes-acao:hover {
+    filter: brightness(0.9);
 }
 
 
