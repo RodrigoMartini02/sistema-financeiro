@@ -1687,10 +1687,7 @@ async function configurarModalExclusao(despesa, index, mes, ano) {
     const titulo = document.getElementById('exclusao-titulo');
     const mensagem = document.getElementById('exclusao-mensagem');
     
-    // AJUSTE: Verificação mais robusta para identificar se é parcelado
-    const ehParcelado = despesa.idGrupoParcelamento || (despesa.parcela && despesa.parcela.includes('/'));
-    
-    if (ehParcelado) {
+    if (despesa.parcelado && despesa.parcela) {
         if (titulo) titulo.textContent = 'Excluir item parcelado';
         if (mensagem) mensagem.textContent = 'Este item está parcelado. Como deseja prosseguir?';
         
@@ -1712,7 +1709,6 @@ async function configurarBotoesExclusao(despesa, index, mes, ano) {
         'btn-excluir-atual',
         'btn-excluir-todos-meses',
         'btn-excluir-parcela-atual',
-        'btn-excluir-parcelas-futuras', // AJUSTE: Incluído ID que faltava
         'btn-excluir-todas-parcelas'
     ];
     
@@ -1727,10 +1723,7 @@ async function configurarBotoesExclusao(despesa, index, mes, ano) {
     
     await new Promise(resolve => setTimeout(resolve, 10));
     
-    // AJUSTE: Verificação consistente com a lógica do modal
-    const ehParcelado = despesa.idGrupoParcelamento || (despesa.parcela && despesa.parcela.includes('/'));
-
-    if (!ehParcelado) {
+    if (!despesa.parcelado) {
         configurarBotoesExclusaoSimples(despesa, index, mes, ano);
     } else {
         configurarBotoesExclusaoParcelada(despesa, index, mes, ano);
