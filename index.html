@@ -1254,52 +1254,52 @@
 
 <!-- Modal: Editar Cartão -->
 <div id="modal-editar-cartao" class="modal">
-    <div class="modal-content">
+    <div class="modal-content modal-md">
         <div class="modal-header">
             <h2><i class="fas fa-credit-card"></i> Editar Cartão</h2>
             <span class="close">&times;</span>
         </div>
         <div class="modal-body">
-            <form id="form-editar-cartao">
-                <input type="hidden" id="cartao-edit-id">
+           <form id="form-editar-cartao">
+    <input type="hidden" id="cartao-edit-id">
 
-                <div class="cartao-form-grid">
-                    <div class="linha-form">
-                        <div class="form-group campo-largo">
-                            <label for="cartao-edit-banco">
-                                <i class="fas fa-university"></i> Nome do Cartão <span class="required">*</span>
-                            </label>
-                            <input type="text" id="cartao-edit-banco" class="form-input" required maxlength="50" placeholder="Ex: Banco do Brasil">
-                        </div>
+    <div class="cartao-form-grid">
+        <div class="form-group-row">
+            <div class="form-group">
+                <label for="cartao-edit-banco">
+                    <i class="fas fa-university"></i> Nome do Banco <span class="required">*</span>
+                </label>
+                <input type="text" id="cartao-edit-banco" class="form-input" required maxlength="50" placeholder="Ex: Banco do Brasil, Nubank, etc.">
+            </div>
 
-                        <div class="form-group campo-status">
-                            <label><i class="fas fa-toggle-on"></i> Status</label>
-                            <div class="quadrado-checkbox">
-                                <label class="checkbox-label-inline">
-                                    <input type="checkbox" id="cartao-edit-ativo">
-                                    <span>Ativo</span>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="linha-form">
-                        <div class="form-group">
-                            <label for="cartao-edit-validade">
-                                <i class="fas fa-calendar-alt"></i> Validade <span class="required">*</span>
-                            </label>
-                            <input type="text" id="cartao-edit-validade" class="form-input" placeholder="MM/AAAA" required maxlength="7">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="cartao-edit-limite">
-                                <i class="fas fa-dollar-sign"></i> Limite (R$) <span class="required">*</span>
-                            </label>
-                            <input type="number" id="cartao-edit-limite" class="form-input" step="0.01" min="0" required placeholder="0,00">
-                        </div>
-                    </div>
+            <div class="form-group status-container">
+                <label>
+                    <i class="fas fa-toggle-on"></i> Status
+                </label>
+                <div class="checkbox-wrapper-input">
+                    <label class="checkbox-label-inline">
+                        <input type="checkbox" id="cartao-edit-ativo">
+                        <span>Ativo</span>
+                    </label>
                 </div>
-            </form>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="cartao-edit-validade">
+                <i class="fas fa-calendar-alt"></i> Validade <span class="required">*</span>
+            </label>
+            <input type="text" id="cartao-edit-validade" class="form-input" placeholder="MM/AAAA" required maxlength="7">
+        </div>
+
+        <div class="form-group">
+            <label for="cartao-edit-limite">
+                <i class="fas fa-dollar-sign"></i> Limite (R$) <span class="required">*</span>
+            </label>
+            <input type="number" id="cartao-edit-limite" class="form-input" step="0.01" min="0" required placeholder="0,00">
+        </div>
+    </div>
+</form>
         </div>
         <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-action="cancelar">
@@ -1311,6 +1311,7 @@
         </div>
     </div>
 </div>
+
 
 <!-- Modal: Adicionar Usuário -->
 <div id="modal-adicionar-usuario" class="modal">

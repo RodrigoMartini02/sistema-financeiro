@@ -318,57 +318,56 @@
 /* ================================================================
    MODAIS ESPECÍFICOS - CARTÃO EDITAR
    ================================================================ */
-#modal-editar-cartao .modal-content {
-    max-width: 550px;
-    height: auto;
-    min-height: auto;
-    margin: 8vh auto;
-    padding: 0;
-}
 
+/* Grid principal */
 .cartao-form-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
 }
 
+/* Primeira linha ocupa tudo */
 .form-group-row {
+    grid-column: 1 / -1;
     display: flex;
     gap: 15px;
-    width: 100%;
+    align-items: flex-end;
+    margin-bottom: 0;
 }
 
-/* Primeira Linha: Banco e Status */
-.form-group-row .form-group:first-child {
-    flex: 3;
-}
-
-.status-container {
-    flex: 0 0 120px;
-}
-
-/* Segunda Linha: Validade e Limite dividem o espaço */
-.cartao-form-grid > .form-group-row:last-child .form-group {
+/* Banco cresce */
+.form-group-row .form-group {
     flex: 1;
 }
 
-/* Moldura do Checkbox para alinhar com inputs */
+/* Status pequeno, fixo */
+.status-container {
+    flex: 0 0 110px !important;
+}
+
+/* Validade e Limite lado a lado */
+.cartao-form-grid > .form-group {
+    width: 100%;
+}
+
+/* Checkbox com aparência de input */
 .checkbox-wrapper-input {
     display: flex;
     align-items: center;
     justify-content: center;
     height: 40px;
-    border: 1px solid #d1d5db;
+    border: 1px solid #ccc;
     border-radius: 4px;
     background-color: #fff;
 }
 
+/* Conteúdo interno do checkbox */
 .checkbox-label-inline {
     display: flex;
     align-items: center;
     gap: 8px;
-    cursor: pointer;
     margin: 0;
+    cursor: pointer;
 }
 
 .checkbox-label-inline input[type="checkbox"] {
@@ -377,17 +376,6 @@
     margin: 0;
 }
 
-.form-group label {
-    display: block;
-    font-size: 14px;
-    font-weight: 600;
-    color: #444;
-    margin-bottom: 5px;
-}
-
-.required {
-    color: #e53e3e;
-}
 
 /* ================================================================
    NAVEGAÇÃO DE HEADER (para modais com navegação)
