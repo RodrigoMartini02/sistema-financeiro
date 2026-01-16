@@ -81,10 +81,15 @@ function configurarObservadores() {
             }
         });
     });
-    
+
     const dashboardSection = document.getElementById('dashboard-section');
     if (dashboardSection) {
         observer.observe(dashboardSection, { attributes: true });
+
+        // Carregar dashboard imediatamente se já estiver ativo
+        if (dashboardSection.classList.contains('active')) {
+            setTimeout(() => carregarDadosDashboard(window.anoAtual), 100);
+        }
     }
     
     document.getElementById('btn-ano-anterior')?.addEventListener('click', function() {
