@@ -157,7 +157,7 @@ function exportarVariaveisGlobais() {
     window.calcularTotalDespesas = function(despesas) {
         if (!Array.isArray(despesas)) return 0;
         return despesas.reduce((total, despesa) => {
-            return total + obterValorRealDespesa(despesa);
+            return total + (window.obterValorRealDespesa ? window.obterValorRealDespesa(despesa) : (despesa.valor || 0));
         }, 0);
     };
 
@@ -546,10 +546,9 @@ function setupControlesAno() {
     if (btnAnoAtualDisplay && dropdownAnos) {
         btnAnoAtualDisplay.addEventListener('click', (e) => {
             e.stopPropagation();
-            const isVisible = dropdownAnos.style.display === 'block';
-            dropdownAnos.style.display = isVisible ? 'none' : 'block';
+            dropdownAnos.classList.toggle('show');
 
-            if (!isVisible) {
+            if (dropdownAnos.classList.contains('show')) {
                 preencherDropdownAnos();
             }
         });
@@ -559,22 +558,21 @@ function setupControlesAno() {
     if (btnAnoMenu && dropdownAnoMenu) {
         btnAnoMenu.addEventListener('click', (e) => {
             e.stopPropagation();
-            const isVisible = dropdownAnoMenu.style.display === 'block';
-            dropdownAnoMenu.style.display = isVisible ? 'none' : 'block';
+            dropdownAnoMenu.classList.toggle('show');
         });
     }
 
     // Botões do menu dropdown
     if (btnNovoAnoMenu) {
         btnNovoAnoMenu.addEventListener('click', () => {
-            dropdownAnoMenu.style.display = 'none';
+            dropdownAnoMenu.classList.remove('show');
             abrirModalNovoAno();
         });
     }
 
     if (btnExcluirAnoMenu) {
         btnExcluirAnoMenu.addEventListener('click', () => {
-            dropdownAnoMenu.style.display = 'none';
+            dropdownAnoMenu.classList.remove('show');
             excluirAno(anoAtual);
         });
     }
@@ -590,8 +588,8 @@ function setupControlesAno() {
 
     // ✅ Fechar dropdowns ao clicar fora
     document.addEventListener('click', () => {
-        if (dropdownAnos) dropdownAnos.style.display = 'none';
-        if (dropdownAnoMenu) dropdownAnoMenu.style.display = 'none';
+        if (dropdownAnos) dropdownAnos.classList.remove('show');
+        if (dropdownAnoMenu) dropdownAnoMenu.classList.remove('show');
     });
 
     const formNovoAno = document.getElementById('form-novo-ano');
@@ -1329,8 +1327,7 @@ function preencherConteudoMes(mesCard, mes, ano, saldo, fechado, temTransacoes) 
     
     const btnReabrir = clone.querySelector('.btn-reabrir');
     const btnFechar = clone.querySelector('.btn-fechar');
-    const btnDetalhes = clone.querySelector('.btn-detalhes');
-    
+
     if (fechado) {
         btnReabrir.classList.remove('hidden');
         btnReabrir.onclick = (e) => {
@@ -1344,11 +1341,6 @@ function preencherConteudoMes(mesCard, mes, ano, saldo, fechado, temTransacoes) 
             fecharMes(mes, ano);
         };
     }
-    
-    btnDetalhes.onclick = (e) => {
-        e.stopPropagation();
-        abrirDetalhesDoMes(mes, ano);
-    };
     
     mesCard.appendChild(clone);
 }
@@ -2026,7 +2018,7 @@ function calcularSaldoMes(mes, ano) {
         
         const despesas = typeof window.calcularTotalDespesas === 'function' ?
                         window.calcularTotalDespesas(dadosMes.despesas || []) :
-                        (dadosMes.despesas || []).reduce((sum, d) => sum + obterValorRealDespesa(d), 0);
+                        (dadosMes.despesas || []).reduce((sum, d) => sum + (window.obterValorRealDespesa ? window.obterValorRealDespesa(d) : (d.valor || 0)), 0);
         
         const reservas = (dadosMes.reservas || []).reduce((sum, r) => {
             return sum + parseFloat(r.valor || 0);
@@ -2522,18 +2514,7 @@ function fecharModal(modalId) {
     }
 }
 
-function obterValorRealDespesa(despesa) {
-    if ((despesa.quitado || despesa.status === 'quitada') && 
-        despesa.valorPago !== null && 
-        despesa.valorPago !== undefined) {
-        return parseFloat(despesa.valorPago);
-    }
-    
-    return parseFloat(despesa.valor) || 0;
-}
-
-
-
+// Função removida - usar window.obterValorRealDespesa de despesas.js
 
 // ================================================================
 // ADICIONAR NO FINAL DO main.js - FUNÇÕES PARA CARTÕES
@@ -2564,7 +2545,7 @@ window.calcularUsoCartoes = function(mes, ano) {
                     
                     const chaveCartao = `cartao${despesa.numeroCartao}`;
                     if (usoCartoes[chaveCartao] !== undefined) {
-                        const valorDespesa = obterValorRealDespesa(despesa);
+                        const valorDespesa = window.obterValorRealDespesa ? window.obterValorRealDespesa(despesa) : (despesa.valor || 0);
                         usoCartoes[chaveCartao] += valorDespesa;
                     }
                 }

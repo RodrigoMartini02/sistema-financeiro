@@ -156,6 +156,24 @@
     line-height: 1.5;
 }
 
+/* Classes de controle de visibilidade para exclusão */
+.opcao-exclusao-basica {
+    display: block;
+}
+
+.opcao-exclusao-parcelada {
+    display: none;
+}
+
+/* Quando o modal está no modo parcelado */
+.modal-parcelado .opcao-exclusao-basica {
+    display: none;
+}
+
+.modal-parcelado .opcao-exclusao-parcelada {
+    display: block;
+}
+
 /* ================================================================
    MODAIS ESPECÍFICOS - DETALHES DO MÊS
    ================================================================ */

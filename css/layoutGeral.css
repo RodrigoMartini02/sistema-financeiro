@@ -561,24 +561,38 @@ textarea:focus {
     margin-left: auto;
 }
 
-/* ✅ BOTÕES DE ÍCONE DO HEADER - SIMPLES */
-.header-icon-btn {
-    width: 40px;
-    height: 40px;
+/* ✅ BOTÕES DO HEADER - LIMPO E PADRONIZADO */
+.header-btn {
     border: none;
-    background: transparent;
+    background: none;
+    outline: none;
     cursor: pointer;
-    transition: opacity 0.2s ease;
+    padding: 8px;
     font-size: 18px;
+    color: var(--text-primary);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0;
-    color: var(--text-primary);
+    transition: color 0.2s ease;
 }
 
-.header-icon-btn:hover {
-    opacity: 0.7;
+.header-btn:hover {
+    color: var(--primary-color);
+}
+
+.header-btn:focus {
+    outline: none;
+}
+
+.header-btn:active {
+    outline: none;
+}
+
+/* Botão do ano (texto ao invés de ícone) */
+.header-btn-year {
+    min-width: 80px;
+    font-weight: 600;
+    font-size: 18px;
 }
 
 /* ✅ SELETOR DE ANO - SIMPLES */
@@ -588,45 +602,12 @@ textarea:focus {
     gap: 8px;
 }
 
-.periodo-selector button {
-    width: 40px;
-    height: 40px;
-    border: none;
-    background: transparent;
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: opacity 0.2s ease;
-    font-size: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.periodo-selector button:hover {
-    opacity: 0.7;
-}
-
 .ano-dropdown {
     position: relative;
 }
 
-.ano-atual-display {
-    min-width: 80px;
-    height: 40px;
-    border: none;
-    background: transparent;
-    font-weight: 600;
-    font-size: 18px;
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: opacity 0.2s ease;
-}
-
-.ano-atual-display:hover {
-    opacity: 0.7;
-}
-
 .dropdown-anos-lista {
+    display: none;
     position: absolute;
     top: 100%;
     left: 0;
@@ -639,6 +620,10 @@ textarea:focus {
     max-height: 300px;
     overflow-y: auto;
     z-index: var(--z-dropdown);
+}
+
+.dropdown-anos-lista.show {
+    display: block;
 }
 
 .dropdown-anos-lista button {
@@ -668,6 +653,7 @@ textarea:focus {
 }
 
 .dropdown-ano-menu {
+    display: none;
     position: absolute;
     top: 100%;
     right: 0;
@@ -679,6 +665,10 @@ textarea:focus {
     min-width: 200px;
     z-index: var(--z-dropdown);
     overflow: hidden;
+}
+
+.dropdown-ano-menu.show {
+    display: block;
 }
 
 .dropdown-item {
@@ -1012,12 +1002,12 @@ textarea:focus {
 .mes-receita { color: var(--receita-color); }
 .mes-despesa { color: var(--despesa-color); }
 
-/* --- SEÇÃO DE AÇÕES / BOTÕES --- */
+/* --- SEÇÃO FOOTER / BOTÕES --- */
 
-.mes-acoes {
+.mes-footer {
     padding: 0;
     display: flex;
-    flex-direction: column;
+    width: 100%;
     flex-shrink: 0;
 }
 

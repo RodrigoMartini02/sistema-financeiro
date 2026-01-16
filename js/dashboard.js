@@ -155,7 +155,8 @@ function limparGraficos() {
 let graficoZoomInstance = null;
 
 document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('btn-expandir')) {
+    // Verifica se o botão clicado tem o atributo data-chart (botões de maximizar gráficos)
+    if (e.target.hasAttribute('data-chart')) {
         const nomeVariavelGrafico = e.target.getAttribute('data-chart');
         const graficoOriginal = window[nomeVariavelGrafico];
 
@@ -912,49 +913,37 @@ function criarGraficoJurosComFiltros(dadosFinanceiros, ano, filtros) {
 
 function calcularDadosJurosMensaisComFiltros(dadosFinanceiros, ano, filtros) {
     const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-    
+
     const dadosMensais = {
         meses: nomesMeses,
         jurosAPagar: Array(12).fill(0),
         jurosPagos: Array(12).fill(0)
     };
-    
+
     let resumoGeral = {
         totalJuros: 0,
         jurosPagos: 0
     };
-    
+
     if (!dadosFinanceiros[ano]) {
         return { ...dadosMensais, resumo: resumoGeral };
     }
-    
+
     for (let mes = 0; mes < 12; mes++) {
         const dadosMes = dadosFinanceiros[ano].meses[mes];
         if (!dadosMes || !dadosMes.despesas) continue;
-        
+
         const despesasFiltradas = aplicarFiltrosDespesas(dadosMes.despesas, filtros);
-        
+
         despesasFiltradas.forEach(despesa => {
             const isPago = despesa.quitado || despesa.status === 'quitada';
-            let jurosValor = 0;
-            
-            if (despesa.quitacaoAntecipada === true || despesa.quitadaAntecipadamente === true) {
-                jurosValor = 0;
-            }
-            else if (despesa.valorPago !== null && despesa.valorPago !== undefined && 
-                     despesa.valorPago > despesa.valor) {
-                jurosValor = despesa.valorPago - despesa.valor;
-            }
-            else if (despesa.metadados && despesa.metadados.jurosPorParcela) {
-                jurosValor = despesa.metadados.jurosPorParcela;
-            }
-            else if (despesa.valorOriginal && despesa.valor > despesa.valorOriginal) {
-                jurosValor = despesa.valor - despesa.valorOriginal;
-            }
-            
+
+            // Usar a função centralizada de cálculo de juros
+            const jurosValor = window.calcularJurosDespesa ? window.calcularJurosDespesa(despesa) : 0;
+
             if (jurosValor > 0) {
                 resumoGeral.totalJuros += jurosValor;
-                
+
                 if (isPago) {
                     dadosMensais.jurosPagos[mes] += jurosValor;
                     resumoGeral.jurosPagos += jurosValor;
@@ -964,7 +953,7 @@ function calcularDadosJurosMensaisComFiltros(dadosFinanceiros, ano, filtros) {
             }
         });
     }
-    
+
     return { ...dadosMensais, resumo: resumoGeral };
 }
 

@@ -565,7 +565,7 @@ function obterCategoriaLimpa(despesa) {
 }
 
 function criarBadgeStatus(despesa) {
-    if (despesa.quitadaAntecipadamente === true) {
+    if (despesa.quitacaoAntecipada === true) {
         return 'Quitada';
     } else if (despesa.quitado === true) {
         return 'Paga';
@@ -579,7 +579,7 @@ function criarBadgeStatus(despesa) {
 }
 
 function obterClasseStatus(despesa) {
-    if (despesa.quitadaAntecipadamente === true) {
+    if (despesa.quitacaoAntecipada === true) {
         return 'badge-quitada-antecipada';
     } else if (despesa.quitado === true) {
         return 'badge-quitada';
@@ -1686,21 +1686,21 @@ async function excluirDespesa(index, mes, ano) {
 async function configurarModalExclusao(despesa, index, mes, ano) {
     const titulo = document.getElementById('exclusao-titulo');
     const mensagem = document.getElementById('exclusao-mensagem');
-    
-    if (despesa.parcelado && despesa.parcela) {
+    const modal = document.getElementById('modal-confirmacao-exclusao-despesa');
+
+    // Verifica se é parcelado pela propriedade parcelado OU pela existência de parcela ou idGrupoParcelamento
+    const isParcelado = despesa.parcelado || despesa.parcela || despesa.idGrupoParcelamento;
+
+    if (isParcelado) {
         if (titulo) titulo.textContent = 'Excluir item parcelado';
         if (mensagem) mensagem.textContent = 'Este item está parcelado. Como deseja prosseguir?';
-        
-        document.querySelectorAll('.opcao-exclusao-basica').forEach(btn => btn.style.display = 'none');
-        document.querySelectorAll('.opcao-exclusao-parcelada').forEach(btn => btn.style.display = 'block');
+        if (modal) modal.classList.add('modal-parcelado');
     } else {
         if (titulo) titulo.textContent = 'Excluir despesa';
         if (mensagem) mensagem.textContent = 'Tem certeza que deseja excluir esta despesa?';
-        
-        document.querySelectorAll('.opcao-exclusao-basica').forEach(btn => btn.style.display = 'block');
-        document.querySelectorAll('.opcao-exclusao-parcelada').forEach(btn => btn.style.display = 'none');
+        if (modal) modal.classList.remove('modal-parcelado');
     }
-    
+
     await configurarBotoesExclusao(despesa, index, mes, ano);
 }
 
@@ -1709,9 +1709,10 @@ async function configurarBotoesExclusao(despesa, index, mes, ano) {
         'btn-excluir-atual',
         'btn-excluir-todos-meses',
         'btn-excluir-parcela-atual',
+        'btn-excluir-parcelas-futuras',
         'btn-excluir-todas-parcelas'
     ];
-    
+
     botoesParaLimpar.forEach(id => {
         const botao = document.getElementById(id);
         if (botao) {
@@ -1720,10 +1721,12 @@ async function configurarBotoesExclusao(despesa, index, mes, ano) {
             botao.parentNode.replaceChild(novoBotao, botao);
         }
     });
-    
+
     await new Promise(resolve => setTimeout(resolve, 10));
-    
-    if (!despesa.parcelado) {
+
+    const isParcelado = despesa.parcelado || despesa.parcela || despesa.idGrupoParcelamento;
+
+    if (!isParcelado) {
         configurarBotoesExclusaoSimples(despesa, index, mes, ano);
     } else {
         configurarBotoesExclusaoParcelada(despesa, index, mes, ano);
@@ -2720,7 +2723,7 @@ async function processarParcelasFuturas(despesa, anoAtual, mesAtual) {
                     d.quitado = true;
                     d.status = 'quitada';
                     d.dataPagamento = despesa.dataPagamento;
-                    d.quitadaAntecipadamente = true;
+                    d.quitacaoAntecipada = true;
                     d.parcelaOriginalQuitacao = despesa.parcela;
                     d.valorOriginalParcela = d.valor;
                 }
@@ -3377,11 +3380,126 @@ function adicionarOpcaoSelect(select, value, text) {
 // FUNÇÕES DE CÁLCULO E TOTALIZAÇÕES
 // ================================================================
 
+// ================================================================
+// FUNÇÕES AUXILIARES CENTRALIZADAS
+// ================================================================
+
+/**
+ * Verifica se uma despesa é parcelada
+ * @param {Object} despesa - Objeto da despesa
+ * @returns {boolean}
+ */
+function isParcelado(despesa) {
+    return despesa.parcelado || despesa.parcela || despesa.idGrupoParcelamento;
+}
+
+/**
+ * Calcula os juros de UMA despesa individual
+ * @param {Object} despesa - Objeto da despesa
+ * @returns {number} - Valor dos juros
+ */
+function calcularJurosDespesa(despesa) {
+    if (!despesa || typeof despesa !== 'object') return 0;
+
+    // Despesas quitadas antecipadamente não têm juros
+    if (despesa.quitacaoAntecipada === true) {
+        return 0;
+    }
+
+    // Garantir que valores sejam números
+    const valorPago = parseFloat(despesa.valorPago) || 0;
+    const valorOriginal = parseFloat(despesa.valorOriginal) || 0;
+    const valorTotalComJuros = parseFloat(despesa.valorTotalComJuros) || 0;
+
+    // PRIORIDADE 1: Juros já registrados em metadados (mais confiável)
+    if (despesa.metadados?.jurosPagamento && valorPago > 0) {
+        return parseFloat(despesa.metadados.jurosPagamento);
+    }
+
+    // PRIORIDADE 2: Diferença entre valor pago e valor original (quando já pago com juros)
+    if (valorPago > 0 && valorOriginal > 0 && valorPago > valorOriginal) {
+        return valorPago - valorOriginal;
+    }
+
+    // PRIORIDADE 3: Juros de parcelamento registrados em metadados
+    if (isParcelado(despesa) && despesa.metadados?.jurosPorParcela) {
+        return parseFloat(despesa.metadados.jurosPorParcela) || 0;
+    }
+
+    // PRIORIDADE 4: Total de juros dividido por parcelas (para parcelamentos)
+    if (despesa.metadados?.totalJuros) {
+        const totalJuros = parseFloat(despesa.metadados.totalJuros);
+        if (isParcelado(despesa) && despesa.totalParcelas > 1) {
+            return totalJuros / despesa.totalParcelas;
+        }
+        return totalJuros;
+    }
+
+    // PRIORIDADE 5: Diferença entre valorTotalComJuros e valorOriginal (cadastro com juros)
+    if (valorTotalComJuros > 0 && valorOriginal > 0 && valorTotalComJuros > valorOriginal) {
+        const diferencaJuros = valorTotalComJuros - valorOriginal;
+        if (isParcelado(despesa) && despesa.totalParcelas > 1) {
+            return diferencaJuros / despesa.totalParcelas;
+        }
+        return diferencaJuros;
+    }
+
+    return 0;
+}
+
+/**
+ * Calcula a economia de UMA despesa individual
+ * @param {Object} despesa - Objeto da despesa
+ * @returns {number} - Valor da economia
+ */
+function calcularEconomiaDespesa(despesa) {
+    if (!despesa || typeof despesa !== 'object') return 0;
+
+    // Despesas transferidas não contam economia
+    if (despesa.transferidaParaProximoMes === true) {
+        return 0;
+    }
+
+    // Garantir que valores sejam números
+    const valorPago = parseFloat(despesa.valorPago) || 0;
+    const valorOriginal = parseFloat(despesa.valorOriginal) || 0;
+    const valorTotalComJuros = parseFloat(despesa.valorTotalComJuros) || 0;
+
+    let economia = 0;
+
+    // PRIORIDADE 1: Economia registrada em metadados (quando paga com desconto)
+    if (despesa.metadados?.economiaPagamento) {
+        economia += parseFloat(despesa.metadados.economiaPagamento);
+    }
+
+    // PRIORIDADE 2: Economia quando valor pago < valor original (desconto no pagamento)
+    else if (valorPago > 0 && valorOriginal > 0 && valorPago < valorOriginal) {
+        economia += valorOriginal - valorPago;
+    }
+
+    // PRIORIDADE 3: Economia no cadastro (valorTotalComJuros < valorOriginal)
+    else if (valorTotalComJuros > 0 && valorOriginal > 0 && valorTotalComJuros < valorOriginal) {
+        // Para parcelamentos, calcular economia por parcela
+        const diferencaEconomia = valorOriginal - valorTotalComJuros;
+        if (isParcelado(despesa) && despesa.totalParcelas > 1) {
+            economia += diferencaEconomia / despesa.totalParcelas;
+        } else {
+            economia += diferencaEconomia;
+        }
+    }
+
+    return economia > 0 ? economia : 0;
+}
+
+// ================================================================
+// FUNÇÕES DE TOTALIZAÇÃO
+// ================================================================
+
 function calcularTotalDespesas(despesas) {
     if (!Array.isArray(despesas)) return 0;
     
     return despesas.reduce((total, despesa) => {
-        if (despesa.quitadaAntecipadamente === true) {
+        if (despesa.quitacaoAntecipada === true) {
             return total;
         }
         
@@ -3392,60 +3510,16 @@ function calcularTotalDespesas(despesas) {
     }, 0);
 }
 
+/**
+ * Calcula o total de juros de um array de despesas
+ * @param {Array} despesas - Array de despesas
+ * @returns {number} - Total de juros
+ */
 function calcularTotalJuros(despesas) {
     if (!Array.isArray(despesas)) return 0;
 
     return despesas.reduce((total, despesa) => {
-        let jurosCalculado = 0;
-
-        // Proteção contra dados inválidos
-        if (!despesa || typeof despesa !== 'object') return total;
-
-        if (despesa.quitacaoAntecipada === true || despesa.quitadaAntecipadamente === true) {
-            return total;
-        }
-
-        // Garantir que valores sejam números
-        const valorPago = parseFloat(despesa.valorPago) || 0;
-        const valorOriginal = parseFloat(despesa.valorOriginal) || 0;
-        const valorTotalComJuros = parseFloat(despesa.valorTotalComJuros) || 0;
-        const valor = parseFloat(despesa.valor) || 0;
-
-        // PRIORIDADE 1: Calcular pela diferença entre valorPago e valorOriginal (quando já pago)
-        if (valorPago > 0 && valorOriginal > 0 && valorPago > valorOriginal && despesa.quitado) {
-            jurosCalculado = valorPago - valorOriginal;
-        }
-        // PRIORIDADE 2: Juros de parcelamento (quando cadastrado com juros)
-        else if (despesa.parcelado && despesa.metadados?.jurosPorParcela && despesa.quitado) {
-            jurosCalculado = parseFloat(despesa.metadados.jurosPorParcela) || 0;
-        }
-        // PRIORIDADE 3: Juros registrados no cadastro (campo "Com Juros" diferente de "Valor Original")
-        else if (despesa.metadados?.totalJuros && despesa.quitado) {
-            jurosCalculado = despesa.parcelado ?
-                (parseFloat(despesa.metadados.totalJuros) / (despesa.totalParcelas || 1)) :
-                parseFloat(despesa.metadados.totalJuros);
-        }
-        // PRIORIDADE 4: Calcular pela diferença entre valorTotalComJuros e valorOriginal (cadastro)
-        // Quando Valor Original < Valor Final e despesa está paga (juros cobrados)
-        else if (valorTotalComJuros > 0 && valorOriginal > 0 && valorTotalComJuros > valorOriginal && despesa.quitado) {
-            jurosCalculado = despesa.parcelado ?
-                ((valorTotalComJuros - valorOriginal) / (despesa.totalParcelas || 1)) :
-                (valorTotalComJuros - valorOriginal);
-        }
-        // PRIORIDADE 5: Juros quando Valor Final > Valor Original e não tem valorPago
-        // Quando marca "Já está Paga" com Valor Final maior que Valor Original
-        else if (despesa.quitado === true && valorOriginal > 0 && valorTotalComJuros > 0 &&
-                 valorTotalComJuros > valorOriginal && valorPago === 0) {
-            jurosCalculado = despesa.parcelado ?
-                ((valorTotalComJuros - valorOriginal) / (despesa.totalParcelas || 1)) :
-                (valorTotalComJuros - valorOriginal);
-        }
-        // PRIORIDADE 6: Juros registrados no metadados.jurosPagamento
-        else if (despesa.metadados?.jurosPagamento && despesa.quitado) {
-            jurosCalculado = parseFloat(despesa.metadados.jurosPagamento);
-        }
-
-        return total + (jurosCalculado > 0 ? jurosCalculado : 0);
+        return total + calcularJurosDespesa(despesa);
     }, 0);
 }
 
@@ -3456,72 +3530,16 @@ function obterValorRealDespesa(despesa) {
     return parseFloat(despesa.valor) || 0;
 }
 
-// ================================================================
-// FUNÇÃO PARA CALCULAR ECONOMIAS TOTAIS
-// Cenário 1: Quando valor com juros < valor original (economia no cadastro)
-// Cenário 2: Quando valor pago < valor devido (economia no pagamento)
-// Cenário 3: Quando valor original > valor final E despesa está paga (desconto obtido)
-// ================================================================
-
+/**
+ * Calcula o total de economias de um array de despesas
+ * @param {Array} despesas - Array de despesas
+ * @returns {number} - Total de economias
+ */
 function calcularTotalEconomias(despesas) {
     if (!Array.isArray(despesas)) return 0;
 
     return despesas.reduce((total, despesa) => {
-        let economiaCalculada = 0;
-
-        // Proteção contra dados inválidos
-        if (!despesa || typeof despesa !== 'object') return total;
-
-        // Pular despesas transferidas para próximo mês
-        if (despesa.transferidaParaProximoMes === true) {
-            return total;
-        }
-
-        // Garantir que valores sejam números
-        const valorTotalComJuros = parseFloat(despesa.valorTotalComJuros) || 0;
-        const valorOriginal = parseFloat(despesa.valorOriginal) || 0;
-        const valorPago = parseFloat(despesa.valorPago) || 0;
-        const valor = parseFloat(despesa.valor) || 0;
-
-        // CENÁRIO 1: Economia no cadastro (Valor Final < Valor Original)
-        if (valorTotalComJuros > 0 && valorOriginal > 0 && valorTotalComJuros < valorOriginal && !despesa.quitado) {
-            economiaCalculada += valorOriginal - valorTotalComJuros;
-        }
-
-        // PRIORIDADE 1: Economia registrada no modal de pagamento
-        if (despesa.quitado === true && despesa.metadados?.economiaPagamento) {
-            economiaCalculada += parseFloat(despesa.metadados.economiaPagamento);
-        }
-        // CENÁRIO 2: Economia no pagamento (Valor Pago < Valor devido) - quando não tem economiaPagamento registrado
-        else if (despesa.quitado === true && valorPago > 0) {
-            // Determinar valor devido: sempre usar valorOriginal como base para comparar economia
-            // Caso especial: Se valorOriginal não existe, usar valor da despesa
-            let valorDevido = valorOriginal > 0 ? valorOriginal : valor;
-
-            // Para parcelamentos, usar valor da parcela original
-            if (despesa.parcelado && despesa.metadados?.valorPorParcela) {
-                const valorPorParcela = parseFloat(despesa.metadados.valorPorParcela) || 0;
-                if (valorPorParcela > 0) {
-                    valorDevido = valorPorParcela;
-                }
-            }
-
-            // Calcular economia comparando o valor pago com o valor original devido
-            if (valorPago < valorDevido) {
-                economiaCalculada += valorDevido - valorPago;
-            }
-        }
-        // CENÁRIO 3: Desconto quando Valor Original > Valor Final e despesa está paga
-        // Quando marca "Já está Paga" e teve desconto (Valor Original maior que Valor Final)
-        else if (despesa.quitado === true && valorOriginal > 0 && valorTotalComJuros > 0 && valorOriginal > valorTotalComJuros) {
-            // Evitar duplicação: só calcular se não foi contabilizado nos cenários anteriores
-            // Se não tem valorPago ou valorPago é zero, significa que usou valorTotalComJuros como valor final
-            if (valorPago === 0) {
-                economiaCalculada += valorOriginal - valorTotalComJuros;
-            }
-        }
-
-        return total + (economiaCalculada > 0 ? economiaCalculada : 0);
+        return total + calcularEconomiaDespesa(despesa);
     }, 0);
 }
 
@@ -3621,6 +3639,9 @@ window.atualizarStatusDespesas = atualizarStatusDespesas;
 window.calcularTotalDespesas = calcularTotalDespesas;
 window.calcularTotalEconomias = calcularTotalEconomias;
 window.calcularTotalJuros = calcularTotalJuros;
+window.calcularJurosDespesa = calcularJurosDespesa;
+window.calcularEconomiaDespesa = calcularEconomiaDespesa;
+window.isParcelado = isParcelado;
 window.calcularInfoParcelamento = calcularInfoParcelamento;
 window.atualizarBotaoLote = atualizarBotaoLote;
 window.validarCategoria = validarCategoria;

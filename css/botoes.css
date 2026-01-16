@@ -542,54 +542,57 @@
     width: 100%;
 }
 
-/* Estilização Base dos Botões */
-.btn-fechar-mes, 
-.btn-reabrir-mes {
+/* ================================================================
+   BOTÕES DE TOGGLE MÊS (Fechar/Reabrir)
+   ================================================================ */
+
+.btn-toggle-mes {
     width: 100%;
-    padding: 14px 0; /* Altura confortável para o clique */
+    padding: 14px 0;
     border: none;
     font-size: 14px;
-    font-weight: 800;
+    font-weight: 600;
     text-transform: uppercase;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    border-radius: 0 !important; /* Remove qualquer arredondamento */
+    gap: 8px;
+    border-radius: 0;
     margin: 0;
-    transition: background 0.2s ease, transform 0.1s ease;
+    transition: background-color 0.2s ease;
+    outline: none;
+}
+
+.btn-toggle-mes:focus {
+    outline: none;
+}
+
+.btn-toggle-mes:active {
+    outline: none;
 }
 
 /* Botão Fechar (Verde) */
-.btn-fechar-mes {
+.btn-toggle-mes.btn-fechar {
     background-color: #2ecc71;
     color: #ffffff;
 }
 
-.btn-fechar-mes:hover {
+.btn-toggle-mes.btn-fechar:hover {
     background-color: #27ae60;
 }
 
-/* Botão Reabrir (Laranja/Amarelo) */
-.btn-reabrir-mes {
+/* Botão Reabrir (Laranja) */
+.btn-toggle-mes.btn-reabrir {
     background-color: #f39c12;
     color: #ffffff;
 }
 
-.btn-reabrir-mes:hover {
+.btn-toggle-mes.btn-reabrir:hover {
     background-color: #e67e22;
 }
 
-/* Feedback visual ao clicar */
-.btn-fechar-mes:active, 
-.btn-reabrir-mes:active {
-    filter: brightness(0.9);
-}
-
-/* Estilo do ícone de cadeado conforme a imagem */
-.btn-fechar-mes i, 
-.btn-reabrir-mes i {
+.btn-toggle-mes i {
     font-size: 14px;
 }
 
