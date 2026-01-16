@@ -291,32 +291,28 @@
 
 #modal-alterar-senha .modal-content {
     max-width: 350px;
+    height: auto !important;
+    min-height: auto !important;
+    margin: 5vh auto;
     padding: 0;
-    /* Ajustado de 10vh para 5vh para subir o modal na tela */
-    margin: 5vh auto; 
-    /* Garante que a altura se ajuste apenas ao conteúdo */
-    height: auto;
-    min-height: unset; 
 }
 
 #modal-alterar-senha .modal-body {
-    /* Padding reduzido para compactar o visual */
     padding: 16px;
+    padding-bottom: 0;
+}
+
+#modal-alterar-senha .modal-footer {
+    padding: 12px 16px;
+    margin-top: 0;
 }
 
 #modal-alterar-senha .form-group {
-    /* Espaçamento entre campos ligeiramente menor */
     margin-bottom: 12px;
 }
 
 #modal-alterar-senha .form-group:last-child {
     margin-bottom: 0;
-}
-
-/* Caso o seu footer tenha muito espaço, adicione isso: */
-#modal-alterar-senha .modal-footer {
-    padding: 10px 16px;
-    margin-top: 0;
 }
 
 /* ================================================================
