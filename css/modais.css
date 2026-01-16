@@ -319,46 +319,49 @@
    MODAIS ESPECÍFICOS - CARTÃO EDITAR
    ================================================================ */
 
-/* Grid principal */
+/* Grid principal do formulário */
 .cartao-form-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 14px;
 }
 
-/* Primeira linha ocupa tudo */
+/* Linha superior: Banco + Status */
 .form-group-row {
-    grid-column: 1 / -1;
     display: flex;
     gap: 15px;
+    grid-column: 1 / -1;
     align-items: flex-end;
     margin-bottom: 0;
 }
 
-/* Banco cresce */
+/* Campos dentro da linha */
 .form-group-row .form-group {
     flex: 1;
 }
 
-/* Status pequeno, fixo */
+/* Status ocupa menos espaço */
 .status-container {
-    flex: 0 0 110px !important;
+    flex: 0 0 120px !important;
 }
 
-/* Validade e Limite lado a lado */
-.cartao-form-grid > .form-group {
-    width: 100%;
+/* Label do Status igual aos outros */
+.status-container label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
 }
 
-/* Checkbox com aparência de input */
+/* Caixa do checkbox com aparência de input */
 .checkbox-wrapper-input {
+    height: 40px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    background-color: #fff;
+
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 40px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background-color: #fff;
 }
 
 /* Conteúdo interno do checkbox */
@@ -368,13 +371,22 @@
     gap: 8px;
     margin: 0;
     cursor: pointer;
+    font-weight: 500;
+    color: #4a5568;
 }
 
+/* Checkbox */
 .checkbox-label-inline input[type="checkbox"] {
     width: 16px;
     height: 16px;
     margin: 0;
 }
+
+/* Inputs padrões (mantém alinhamento visual) */
+.form-input {
+    height: 40px;
+}
+
 
 
 /* ================================================================
