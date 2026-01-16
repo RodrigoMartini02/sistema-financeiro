@@ -13,9 +13,18 @@ if (!window.sistemaAnexos) {
             despesa: [],
             comprovante: []
         },
-        
+
+        // Flag para evitar múltiplas aberturas simultâneas
+        _seletorAberto: false,
+
         // Função principal para abrir seletor de arquivos
         abrirSeletorArquivos: function(tipo) {
+            // Evitar múltiplas aberturas simultâneas
+            if (this._seletorAberto) {
+                console.log('⏳ Seletor já está aberto, ignorando...');
+                return;
+            }
+
             const inputMap = {
                 'receita': 'input-file-anexos-receita',
                 'despesa': 'input-file-anexos-despesa',
@@ -24,40 +33,52 @@ if (!window.sistemaAnexos) {
 
             const inputId = inputMap[tipo];
             if (!inputId) {
+                console.error('❌ Tipo de anexo inválido:', tipo);
                 return;
             }
 
             const input = document.getElementById(inputId);
             if (!input) {
+                console.error('❌ Input não encontrado:', inputId);
                 return;
             }
 
-            // CORREÇÃO: Remover listener anterior antes de adicionar novo
-            // Isso evita o loop de reabrir a biblioteca
-            if (input._anexoListener) {
-                input.removeEventListener('change', input._anexoListener);
-            }
-
-            // Criar novo listener com referência ao tipo correto
+            // Marcar como aberto
+            this._seletorAberto = true;
             const self = this;
-            input._anexoListener = function(e) {
-                // Prevenir propagação
+
+            // Remover TODOS os listeners anteriores clonando o elemento
+            const novoInput = input.cloneNode(true);
+            input.parentNode.replaceChild(novoInput, input);
+
+            // Adicionar listener único
+            const handleChange = function(e) {
                 e.stopPropagation();
 
-                // Processar arquivos apenas uma vez
-                self.processarArquivosSelecionados(e, tipo);
+                // Processar arquivos
+                if (e.target.files && e.target.files.length > 0) {
+                    self.processarArquivosSelecionados(e, tipo);
+                }
 
-                // Remover listener após uso para evitar duplicação
-                input.removeEventListener('change', input._anexoListener);
-                input._anexoListener = null;
+                // Remover listener e liberar flag
+                novoInput.removeEventListener('change', handleChange);
+                self._seletorAberto = false;
             };
 
-            input.addEventListener('change', input._anexoListener);
+            novoInput.addEventListener('change', handleChange, { once: true });
 
-            // Limpar valor anterior para permitir selecionar mesmo arquivo
-            input.value = '';
+            // Limpar valor e abrir
+            novoInput.value = '';
 
-            input.click();
+            // Usar setTimeout para garantir que o DOM foi atualizado
+            setTimeout(() => {
+                novoInput.click();
+
+                // Timeout de segurança para resetar flag se usuário cancelar
+                setTimeout(() => {
+                    self._seletorAberto = false;
+                }, 60000); // 60 segundos de timeout
+            }, 10);
         },
         
         // Processar arquivos selecionados
