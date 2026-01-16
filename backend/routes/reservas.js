@@ -298,60 +298,56 @@ router.get('/historico', authMiddleware, async (req, res) => {
 
 async function verificarSaldoDisponivel(usuarioId, mes, ano, valorReserva) {
     try {
-        // Receitas do mês
+        // Receitas do mês atual
         const receitasResult = await query(
-            `SELECT COALESCE(SUM(valor), 0) as total 
-             FROM receitas 
+            `SELECT COALESCE(SUM(valor), 0) as total
+             FROM receitas
              WHERE usuario_id = $1 AND mes = $2 AND ano = $3`,
             [usuarioId, mes, ano]
         );
-        
-        // Saldo anterior
+
+        // Despesas do mês atual (apenas não pagas comprometem o saldo)
+        const despesasResult = await query(
+            `SELECT COALESCE(SUM(CASE WHEN pago = true THEN COALESCE(valor_pago, valor) ELSE valor END), 0) as total
+             FROM despesas
+             WHERE usuario_id = $1 AND mes = $2 AND ano = $3`,
+            [usuarioId, mes, ano]
+        );
+
+        // Reservas já feitas no mês atual
+        const reservasResult = await query(
+            `SELECT COALESCE(SUM(valor), 0) as total
+             FROM reservas
+             WHERE usuario_id = $1 AND mes = $2 AND ano = $3`,
+            [usuarioId, mes, ano]
+        );
+
+        // Buscar saldo anterior do mês fechado (se existir)
         let mesAnterior = mes - 1;
         let anoAnterior = ano;
-        
         if (mesAnterior < 0) {
             mesAnterior = 11;
             anoAnterior = ano - 1;
         }
-        
+
         const saldoAnteriorResult = await query(
-            `SELECT 
-                COALESCE(SUM(r.valor), 0) as receitas_anterior,
-                COALESCE((SELECT SUM(d.valor) FROM despesas d WHERE d.usuario_id = $1 AND d.mes = $2 AND d.ano = $3), 0) as despesas_anterior,
-                COALESCE((SELECT SUM(res.valor) FROM reservas res WHERE res.usuario_id = $1 AND res.mes = $2 AND res.ano = $3), 0) as reservas_anterior
-             FROM receitas r 
-             WHERE r.usuario_id = $1 AND r.mes = $2 AND r.ano = $3`,
+            `SELECT saldo_final
+             FROM meses
+             WHERE usuario_id = $1 AND mes = $2 AND ano = $3 AND fechado = true`,
             [usuarioId, mesAnterior, anoAnterior]
         );
-        
-        const saldoAnterior = parseFloat(saldoAnteriorResult.rows[0].receitas_anterior) - 
-                             parseFloat(saldoAnteriorResult.rows[0].despesas_anterior) - 
-                             parseFloat(saldoAnteriorResult.rows[0].reservas_anterior);
-        
-        // Despesas do mês atual
-        const despesasResult = await query(
-            `SELECT COALESCE(SUM(valor), 0) as total 
-             FROM despesas 
-             WHERE usuario_id = $1 AND mes = $2 AND ano = $3`,
-            [usuarioId, mes, ano]
-        );
-        
-        // Reservas já feitas no mês atual
-        const reservasResult = await query(
-            `SELECT COALESCE(SUM(valor), 0) as total 
-             FROM reservas 
-             WHERE usuario_id = $1 AND mes = $2 AND ano = $3`,
-            [usuarioId, mes, ano]
-        );
-        
-        const totalDisponivel = parseFloat(receitasResult.rows[0].total) + saldoAnterior;
+
+        const saldoAnterior = saldoAnteriorResult.rows.length > 0
+            ? parseFloat(saldoAnteriorResult.rows[0].saldo_final) || 0
+            : 0;
+
+        const totalReceitas = parseFloat(receitasResult.rows[0].total);
         const totalDespesas = parseFloat(despesasResult.rows[0].total);
         const totalReservas = parseFloat(reservasResult.rows[0].total);
-        
-        const saldoLivre = totalDisponivel - totalDespesas;
-        const saldoDisponivel = saldoLivre - totalReservas;
-        
+
+        // Saldo atual do mês = saldo anterior + receitas - despesas - reservas já feitas
+        const saldoDisponivel = saldoAnterior + totalReceitas - totalDespesas - totalReservas;
+
         if (saldoDisponivel < valorReserva) {
             return {
                 sucesso: false,
@@ -359,12 +355,12 @@ async function verificarSaldoDisponivel(usuarioId, mes, ano, valorReserva) {
                 saldoDisponivel: saldoDisponivel
             };
         }
-        
+
         return {
             sucesso: true,
             saldoDisponivel: saldoDisponivel
         };
-        
+
     } catch (error) {
         console.error('Erro ao verificar saldo disponível:', error);
         return {

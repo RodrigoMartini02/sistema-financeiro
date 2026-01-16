@@ -1938,62 +1938,61 @@ function calcularLimiteCartao(cartaoId, mes, ano) {
     const limiteTotal = parseFloat(cartao.limite) || 0;
     let limiteUtilizado = 0;
 
-    // Calcular uso apenas no mês atual (não considerar parcelamentos futuros)
-    const despesasMesAtual = dadosFinanceiros[ano]?.meses[mes]?.despesas || [];
-
-    despesasMesAtual.forEach(despesa => {
-        // Pular despesas transferidas para próximo mês
-        if (despesa.transferidaParaProximoMes === true) {
-            return;
-        }
-
+    // Função auxiliar para verificar se despesa pertence ao cartão
+    const pertenceAoCartao = (despesa) => {
         const formaPag = (despesa.formaPagamento || despesa.forma_pagamento || '').toLowerCase();
+        const eCreditoOuVariacao = formaPag === 'credito' || formaPag === 'crédito' ||
+                                    formaPag === 'cred-merpago' || formaPag === 'créd-merpago';
+        if (!eCreditoOuVariacao) return false;
+
         const numeroCartaoDespesa = despesa.numeroCartao;
-
-        // Verificar se é despesa de crédito
-        const eCreditoOuVariacao = formaPag === 'credito' ||
-                                    formaPag === 'crédito' ||
-                                    formaPag === 'cred-merpago' ||
-                                    formaPag === 'créd-merpago';
-
-        if (!eCreditoOuVariacao) {
-            return;
-        }
-
-        // Determinar se a despesa pertence a este cartão
-        let pertenceAoCartao = false;
-
-        // Se tem numeroCartao, comparar diretamente
         if (numeroCartaoDespesa) {
-            pertenceAoCartao = numeroCartaoDespesa === cartaoId;
+            return numeroCartaoDespesa === cartaoId;
         }
-        // Se não tem numeroCartao, verificar se cartão é MERPAGO
-        else {
-            const cartaoMerpago = (window.cartoesUsuario || []).find(c =>
-                c.banco && c.banco.toUpperCase().includes('MERPAGO')
-            );
-            pertenceAoCartao = cartaoMerpago && cartaoMerpago.id === cartaoId;
+        const cartaoMerpago = (window.cartoesUsuario || []).find(c =>
+            c.banco && c.banco.toUpperCase().includes('MERPAGO')
+        );
+        return cartaoMerpago && cartaoMerpago.id === cartaoId;
+    };
+
+    // Função auxiliar para calcular valor da despesa
+    const calcularValorDespesa = (despesa) => {
+        // Se já foi paga, não compromete mais o limite
+        if (despesa.quitado === true || despesa.pago === true) {
+            return 0;
         }
-
-        if (!pertenceAoCartao) {
-            return;
+        if (despesa.valorTotalComJuros !== null && despesa.valorTotalComJuros !== undefined) {
+            return parseFloat(despesa.valorTotalComJuros);
         }
+        return parseFloat(despesa.valor) || 0;
+    };
 
-        // Calcular valor a contabilizar usando a estrutura atual
-        let valorContabilizar = 0;
+    // Percorrer todos os anos/meses para encontrar parcelas futuras não pagas
+    Object.keys(dadosFinanceiros || {}).forEach(anoKey => {
+        const anoData = dadosFinanceiros[anoKey];
+        if (!anoData?.meses) return;
 
-        if (despesa.quitado === true && despesa.valorPago > 0) {
-            // Se já foi paga, usar valor pago
-            valorContabilizar = parseFloat(despesa.valorPago);
-        } else if (despesa.valorTotalComJuros !== null && despesa.valorTotalComJuros !== undefined) {
-            // Se tem valor total com juros, usar ele
-            valorContabilizar = parseFloat(despesa.valorTotalComJuros);
-        } else {
-            // Caso contrário, usar valor padrão
-            valorContabilizar = parseFloat(despesa.valor) || 0;
-        }
+        Object.keys(anoData.meses).forEach(mesKey => {
+            const despesasMes = anoData.meses[mesKey]?.despesas || [];
 
-        limiteUtilizado += valorContabilizar;
+            despesasMes.forEach(despesa => {
+                if (despesa.transferidaParaProximoMes === true) return;
+                if (!pertenceAoCartao(despesa)) return;
+
+                // Excluir despesas recorrentes do cálculo de parcelas futuras
+                // (recorrentes são lançadas mês a mês, não comprometem limite futuro)
+                if (despesa.recorrente === true) {
+                    // Para recorrentes, só conta se for do mês atual
+                    if (parseInt(mesKey) === mes && parseInt(anoKey) === ano) {
+                        limiteUtilizado += calcularValorDespesa(despesa);
+                    }
+                    return;
+                }
+
+                // Despesas não recorrentes (incluindo parceladas) comprometem o limite
+                limiteUtilizado += calcularValorDespesa(despesa);
+            });
+        });
     });
 
     const limiteDisponivel = Math.max(0, limiteTotal - limiteUtilizado);
