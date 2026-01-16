@@ -319,8 +319,36 @@
    MODAIS ESPECÍFICOS - CARTÃO EDITAR
    ================================================================ */
 
-.modal-cartao-editar {
+#modal-alterar-senha .modal-content {
     max-width: 500px;
+    height: auto !important;
+    min-height: auto !important;
+    margin: 5vh auto;
+    padding: 0;
+}
+
+#modal-alterar-senha .modal-body {
+    padding: 16px;
+    padding-bottom: 0;
+}
+
+/* Container Flex para alinhar Banco e Checkbox */
+.cartao-form-grid .form-group-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 15px;
+    grid-column: 1 / -1;
+    margin-bottom: 14px;
+}
+
+.form-group-row .form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.modal-cartao-editar .cartao-status-group {
+    padding-bottom: 10px;
+    white-space: nowrap;
 }
 
 .modal-cartao-editar .form-actions {
@@ -337,7 +365,7 @@
     font-weight: bold;
 }
 
-/* Checkbox inline ao lado da descrição */
+/* Checkbox inline */
 .modal-cartao-editar .checkbox-label-inline {
     display: inline-flex;
     align-items: center;
@@ -364,6 +392,14 @@
 .modal-cartao-editar .checkbox-label-inline i {
     color: var(--success);
     font-size: 14px;
+}
+
+.form-group {
+    margin-bottom: 14px;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
 }
 
 /* ================================================================
