@@ -318,36 +318,51 @@
 /* ================================================================
    MODAIS ESPECÍFICOS - CARTÃO EDITAR
    ================================================================ */
+#modal-editar-cartao .modal-content {
+    max-width: 550px;
+    height: auto;
+    min-height: auto;
+    margin: 8vh auto;
+    padding: 0;
+}
 
-/* Layout da linha superior */
+.cartao-form-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
 .form-group-row {
     display: flex;
     gap: 15px;
-    grid-column: 1 / -1;
-    margin-bottom: 14px;
+    width: 100%;
 }
 
-.form-group-row .form-group {
+/* Primeira Linha: Banco e Status */
+.form-group-row .form-group:first-child {
+    flex: 3;
+}
+
+.status-container {
+    flex: 0 0 120px;
+}
+
+/* Segunda Linha: Validade e Limite dividem o espaço */
+.cartao-form-grid > .form-group-row:last-child .form-group {
     flex: 1;
 }
 
-/* Container do Status para ocupar menos espaço */
-.status-container {
-    flex: 0 0 100px !important; /* Largura menor e fixa para o "cantinho" */
-}
-
-/* Moldura que simula a espessura/estilo do input de texto */
+/* Moldura do Checkbox para alinhar com inputs */
 .checkbox-wrapper-input {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 40px; /* Ajuste conforme a altura dos seus outros inputs */
-    border: 1px solid #ccc; /* Mesma borda dos seus inputs */
+    height: 40px;
+    border: 1px solid #d1d5db;
     border-radius: 4px;
     background-color: #fff;
 }
 
-/* Estilização do Checkbox e texto interno */
 .checkbox-label-inline {
     display: flex;
     align-items: center;
@@ -359,22 +374,19 @@
 .checkbox-label-inline input[type="checkbox"] {
     width: 16px;
     height: 16px;
-    cursor: pointer;
     margin: 0;
 }
 
-.checkbox-label-inline span {
+.form-group label {
+    display: block;
     font-size: 14px;
-    font-weight: 500;
-    color: #4a5568;
+    font-weight: 600;
+    color: #444;
+    margin-bottom: 5px;
 }
 
-/* Ajuste de altura do Modal */
-#modal-alterar-senha .modal-content {
-    max-width: 500px;
-    height: auto !important;
-    min-height: auto !important;
-    margin: 5vh auto;
+.required {
+    color: #e53e3e;
 }
 
 /* ================================================================
