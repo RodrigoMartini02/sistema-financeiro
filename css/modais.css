@@ -174,6 +174,13 @@
     display: block;
 }
 
+/* Botões menores para modal de exclusão */
+#modal-confirmacao-exclusao-despesa .modal-footer .btn {
+    font-size: 13px;
+    padding: 10px 16px;
+    min-height: 38px;
+}
+
 /* ================================================================
    MODAIS ESPECÍFICOS - DETALHES DO MÊS
    ================================================================ */
@@ -188,6 +195,13 @@
 #modal-detalhes-mes .modal-body {
     max-height: calc(95vh - 120px);
     overflow-y: auto;
+}
+
+#modal-detalhes-mes .modal-header .close {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+    padding: 0;
 }
 
 /* ================================================================
@@ -289,7 +303,7 @@
    ================================================================ */
 
 .modal-cartao-editar {
-    max-width: 600px;
+    max-width: 500px;
 }
 
 .modal-cartao-editar .form-actions {
@@ -304,6 +318,32 @@
 .modal-cartao-editar .required {
     color: #e53e3e;
     font-weight: bold;
+}
+
+/* Checkbox de cartão ativo inline com label */
+.modal-cartao-editar .checkbox-cartao-ativo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-300);
+    margin-top: 16px;
+}
+
+.modal-cartao-editar .checkbox-cartao-ativo input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: var(--success);
+}
+
+.modal-cartao-editar .checkbox-cartao-ativo label {
+    margin: 0;
+    cursor: pointer;
+    user-select: none;
+    font-weight: 500;
+    color: var(--gray-700);
 }
 
 /* ================================================================

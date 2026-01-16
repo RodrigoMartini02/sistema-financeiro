@@ -325,10 +325,11 @@
 }
 
 .notification-message {
-    color: #555;
-    font-size: 0.8rem;
+    color: var(--gray-700);
+    font-size: 0.85rem;
     line-height: 1.5;
     margin: 0;
+    font-weight: 500;
 }
 
 /* ================================================================
