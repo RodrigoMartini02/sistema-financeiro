@@ -874,9 +874,11 @@ function setupSistemaBloqueio() {
 
     const impedirFechamento = (event) => {
         if (localStorage.getItem(LOCK_STATE_KEY) === 'true') {
-            const isFormElement = event.target.closest('#form-lock-screen') || 
-                                  event.target.id === 'lock-screen-password';
-            
+            const isFormElement = event.target.closest('#form-lock-screen') ||
+                                  event.target.id === 'lock-screen-password' ||
+                                  event.target.closest('button[type="submit"][form="form-lock-screen"]') ||
+                                  event.target.closest('.modal-footer');
+
             if (!isFormElement) {
                 event.preventDefault();
                 event.stopPropagation();
