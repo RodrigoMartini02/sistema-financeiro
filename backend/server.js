@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const https = require('https');
+const http = require('http');
 require('dotenv').config();
 
 const { testarConexao } = require('./config/database');
@@ -7,6 +9,31 @@ const { rateLimiter } = require('./middleware/validation');
 
 const app = express();
 const PORT = process.env.PORT || 3010;
+
+// ================================================================
+// SELF-PING PARA MANTER RENDER ATIVO
+// ================================================================
+const RENDER_URL = process.env.RENDER_EXTERNAL_URL || process.env.API_URL;
+const PING_INTERVAL = 10 * 60 * 1000; // 10 minutos
+
+function selfPing() {
+    if (!RENDER_URL) return;
+
+    const url = RENDER_URL.startsWith('https') ? RENDER_URL : `https://${RENDER_URL}`;
+    const client = url.startsWith('https') ? https : http;
+
+    client.get(`${url}/health`, (res) => {
+        console.log(`[PING] ${new Date().toISOString()} - Status: ${res.statusCode}`);
+    }).on('error', (err) => {
+        console.log(`[PING] Erro: ${err.message}`);
+    });
+}
+
+// Iniciar ping após 1 minuto e repetir a cada 10 minutos
+setTimeout(() => {
+    selfPing();
+    setInterval(selfPing, PING_INTERVAL);
+}, 60000);
 
 app.use(cors({
     origin: '*',
