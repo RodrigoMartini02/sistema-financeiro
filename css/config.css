@@ -1286,14 +1286,7 @@
     font-size: 14px;
 }
 
-.cartao-status-group {
-    background: #f7fafc;
-    padding: 16px;
-    border: 2px dashed #cbd5e0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
+/* Removido: container desnecessário - checkbox já é inline */
 
 .checkbox-label-inline {
     display: flex;

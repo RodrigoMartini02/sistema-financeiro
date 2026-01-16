@@ -662,30 +662,9 @@ function preencherCelulaAnexos(clone, despesa, index, fechado) {
    }
 }
 
+// REMOVIDO: Event listeners duplicados - já configurados em js/anexos.js
 function configurarEventosFormularioAnexosDespesa() {
-    const btnAnexarDespesa = document.getElementById('btn-anexar-despesa');
-    if (btnAnexarDespesa && !btnAnexarDespesa._anexoListener) {
-        btnAnexarDespesa._anexoListener = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (window.sistemaAnexos) {
-                window.sistemaAnexos.abrirSeletorArquivos('despesa');
-            }
-        };
-        btnAnexarDespesa.addEventListener('click', btnAnexarDespesa._anexoListener);
-    }
-    
-    const btnAnexarComprovante = document.getElementById('btn-anexar-comprovante');
-    if (btnAnexarComprovante && !btnAnexarComprovante._anexoListener) {
-        btnAnexarComprovante._anexoListener = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (window.sistemaAnexos) {
-                window.sistemaAnexos.abrirSeletorArquivos('comprovante');
-            }
-        };
-        btnAnexarComprovante.addEventListener('click', btnAnexarComprovante._anexoListener);
-    }
+    // Listeners de anexo são configurados globalmente pelo sistemaAnexos
 }
 
 function inicializarSistemaAnexosDespesas() {
@@ -2398,23 +2377,7 @@ async function abrirModalPagamento(index, mes, ano) {
         if (modal) {
             modal.style.display = 'block';
             
-            // CORREÇÃO PRÁTICA: Configurar botão de comprovante após modal abrir
-            setTimeout(() => {
-                const btnComprovante = document.getElementById('btn-anexar-comprovante');
-                if (btnComprovante) {
-                    btnComprovante.onclick = function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (window.abrirSeletorArquivos) {
-                            window.abrirSeletorArquivos('comprovante');
-                        } else if (window.sistemaAnexos) {
-                            window.sistemaAnexos.abrirSeletorArquivos('comprovante');
-                        } else {
-                            alert('Sistema de anexos não disponível');
-                        }
-                    };
-                }
-            }, 100);
+            // Botão de comprovante já configurado pelo sistemaAnexos em js/anexos.js
             
         } else {
             throw new Error('Modal de pagamento não encontrado no DOM');
@@ -3543,16 +3506,9 @@ function calcularTotalEconomias(despesas) {
     }, 0);
 }
 
+// REMOVIDO: Configuração duplicada - já feita pelo sistemaAnexos
 function configurarBotaoComprovanteSimples() {
-    const btn = document.getElementById('btn-anexar-comprovante');
-    if (btn) {
-        btn.onclick = function(e) {
-            e.preventDefault();
-            if (window.abrirSeletorArquivos) {
-                window.abrirSeletorArquivos('comprovante');
-            }
-        };
-    }
+    // Botão já configurado globalmente pelo sistemaAnexos
 }
 
 function calcularLimiteDisponivelCartao(cartaoId, mes, ano) {

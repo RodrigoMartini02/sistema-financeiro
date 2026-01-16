@@ -3257,10 +3257,18 @@ document.addEventListener('DOMContentLoaded', function() {
     // Abrir modal ao clicar no botão do dropdown
     const btnAlterarSenhaMenu = document.getElementById('btn-alterar-senha-menu');
     const modalAlterarSenha = document.getElementById('modal-alterar-senha');
+    const formAlterarSenha = document.getElementById('form-alterar-senha');
 
     if (btnAlterarSenhaMenu && modalAlterarSenha) {
-        btnAlterarSenhaMenu.addEventListener('click', function() {
+        btnAlterarSenhaMenu.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
             modalAlterarSenha.style.display = 'flex';
+            modalAlterarSenha.classList.add('active');
+            // Limpar campos quando abrir
+            if (formAlterarSenha) {
+                formAlterarSenha.reset();
+            }
             // Fechar o dropdown
             const dropdownAnoMenu = document.getElementById('dropdown-ano-menu');
             if (dropdownAnoMenu) {
@@ -3270,7 +3278,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Formulário de alterar senha
-    const formAlterarSenha = document.getElementById('form-alterar-senha');
 
     if (formAlterarSenha) {
         formAlterarSenha.addEventListener('submit', async function(e) {

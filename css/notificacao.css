@@ -82,86 +82,88 @@
 /* ================================================================
    HEADER DO MODAL
    ================================================================ */
-.notificacoes-header {
+/* Especificidade maior para sobrescrever .modal-header */
+#modal-notificacoes .notificacoes-header {
     padding: 1.25rem 1.5rem;
     border-bottom: 2px solid var(--gray-300);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: var(--white);
+    background: var(--white) !important;
     flex-shrink: 0;
 }
 
-.notificacoes-titulo {
+#modal-notificacoes .notificacoes-titulo {
     margin: 0;
     font-size: 1.1rem;
     font-weight: 600;
-    color: var(--gray-800);
+    color: var(--gray-800) !important;
     display: flex;
     align-items: center;
     gap: 0.6rem;
 }
 
-.notificacoes-titulo i {
+#modal-notificacoes .notificacoes-titulo i {
     font-size: 1.2rem;
-    color: var(--gray-800);
+    color: var(--gray-800) !important;
 }
 
-.notificacoes-actions {
+#modal-notificacoes .notificacoes-actions {
     display: flex;
     gap: 0.5rem;
     align-items: center;
 }
 
-.btn-notif-action {
-    background: var(--gray-100);
-    border: 1px solid var(--gray-300);
+#modal-notificacoes .btn-notif-action {
+    background: var(--gray-100) !important;
+    border: 1px solid var(--gray-300) !important;
     padding: 0.5rem 0.9rem;
     font-size: 0.8rem;
     cursor: pointer;
     transition: all 0.2s ease;
-    color: var(--gray-800);
+    color: var(--gray-800) !important;
     font-weight: 500;
     display: flex;
     align-items: center;
     gap: 0.4rem;
 }
 
-.btn-notif-action:hover {
-    background: var(--gray-800);
-    color: white;
-    border-color: var(--gray-800);
+#modal-notificacoes .btn-notif-action:hover {
+    background: var(--gray-800) !important;
+    color: white !important;
+    border-color: var(--gray-800) !important;
 }
 
-.btn-notif-action i {
+#modal-notificacoes .btn-notif-action i {
     font-size: 0.75rem;
+    color: inherit !important;
 }
 
-.btn-notif-danger {
-    color: var(--danger);
-    border-color: var(--danger);
+#modal-notificacoes .btn-notif-danger {
+    color: var(--danger) !important;
+    border-color: var(--danger) !important;
 }
 
-.btn-notif-danger:hover {
-    background: var(--danger);
-    color: white;
+#modal-notificacoes .btn-notif-danger:hover {
+    background: var(--danger) !important;
+    color: white !important;
 }
 
-.btn-notif-close {
+#modal-notificacoes .btn-notif-close {
     background: none;
     border: none;
     font-size: 1.8rem;
     cursor: pointer;
     padding: 0.2rem 0.4rem;
-    color: var(--gray-500);
+    color: var(--gray-500) !important;
     transition: color 0.2s ease;
     margin-left: 0.5rem;
     line-height: 1;
     font-weight: 300;
 }
 
-.btn-notif-close:hover {
-    color: var(--gray-800);
+#modal-notificacoes .btn-notif-close:hover {
+    color: var(--gray-800) !important;
 }
 
 /* ================================================================
