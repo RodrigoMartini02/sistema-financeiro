@@ -319,48 +319,35 @@
    MODAIS ESPECÍFICOS - CARTÃO EDITAR
    ================================================================ */
 
-   /* Ajuste de Altura e Largura do Modal */
-#modal-editar-cartao .modal-content {
-    max-width: 550px;
-    height: auto !important;
-    min-height: auto !important;
-    margin: 8vh auto;
-    padding: 0;
-}
-
-/* Sistema de Linhas para evitar o "esmagamento" */
-.cartao-form-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    padding: 5px;
-}
-
-.form-row {
+/* Layout da linha superior */
+.form-group-row {
     display: flex;
     gap: 15px;
-    width: 100%;
-    align-items: flex-start;
+    grid-column: 1 / -1;
+    margin-bottom: 14px;
 }
 
-/* Banco ocupa a maior parte (4/5) e Status apenas o necessário */
-.flex-main { flex: 4; }
-.status-box-container { flex: 0 0 110px; }
+.form-group-row .form-group {
+    flex: 1;
+}
 
-/* Segunda linha dividida em 50/50 */
-.flex-1 { flex: 1; }
+/* Container do Status para ocupar menos espaço */
+.status-container {
+    flex: 0 0 100px !important; /* Largura menor e fixa para o "cantinho" */
+}
 
-/* O Quadradinho do Checkbox (Simulando a altura dos inputs) */
-.checkbox-input-card {
+/* Moldura que simula a espessura/estilo do input de texto */
+.checkbox-wrapper-input {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 42px; /* Altura padrão para alinhar com os campos de texto */
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    background: #fff;
+    height: 40px; /* Ajuste conforme a altura dos seus outros inputs */
+    border: 1px solid #ccc; /* Mesma borda dos seus inputs */
+    border-radius: 4px;
+    background-color: #fff;
 }
 
+/* Estilização do Checkbox e texto interno */
 .checkbox-label-inline {
     display: flex;
     align-items: center;
@@ -370,23 +357,24 @@
 }
 
 .checkbox-label-inline input[type="checkbox"] {
-    width: 17px;
-    height: 17px;
+    width: 16px;
+    height: 16px;
     cursor: pointer;
-    accent-color: #2f855a;
+    margin: 0;
 }
 
-/* Estilo das Labels e Required */
-.form-group label {
-    display: block;
+.checkbox-label-inline span {
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 500;
     color: #4a5568;
-    margin-bottom: 6px;
 }
 
-.required {
-    color: #e53e3e;
+/* Ajuste de altura do Modal */
+#modal-alterar-senha .modal-content {
+    max-width: 500px;
+    height: auto !important;
+    min-height: auto !important;
+    margin: 5vh auto;
 }
 
 /* ================================================================
