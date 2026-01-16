@@ -319,23 +319,9 @@
    MODAIS ESPECÍFICOS - CARTÃO EDITAR
    ================================================================ */
 
-#modal-alterar-senha .modal-content {
-    max-width: 500px;
-    height: auto !important;
-    min-height: auto !important;
-    margin: 5vh auto;
-    padding: 0;
-}
-
-#modal-alterar-senha .modal-body {
-    padding: 16px;
-    padding-bottom: 0;
-}
-
-/* Container Flex para alinhar Banco e Checkbox */
-.cartao-form-grid .form-group-row {
+/* Layout da linha superior */
+.form-group-row {
     display: flex;
-    align-items: flex-end;
     gap: 15px;
     grid-column: 1 / -1;
     margin-bottom: 14px;
@@ -343,63 +329,52 @@
 
 .form-group-row .form-group {
     flex: 1;
-    margin-bottom: 0;
 }
 
-.modal-cartao-editar .cartao-status-group {
-    padding-bottom: 10px;
-    white-space: nowrap;
+/* Container do Status para ocupar menos espaço */
+.status-container {
+    flex: 0 0 100px !important; /* Largura menor e fixa para o "cantinho" */
 }
 
-.modal-cartao-editar .form-actions {
+/* Moldura que simula a espessura/estilo do input de texto */
+.checkbox-wrapper-input {
     display: flex;
-    gap: 12px;
-    justify-content: flex-end;
-    padding-top: 20px;
-    border-top: 2px solid #e1e8ed;
-    margin-top: 24px;
+    align-items: center;
+    justify-content: center;
+    height: 40px; /* Ajuste conforme a altura dos seus outros inputs */
+    border: 1px solid #ccc; /* Mesma borda dos seus inputs */
+    border-radius: 4px;
+    background-color: #fff;
 }
 
-.modal-cartao-editar .required {
-    color: #e53e3e;
-    font-weight: bold;
-}
-
-/* Checkbox inline */
-.modal-cartao-editar .checkbox-label-inline {
-    display: inline-flex;
+/* Estilização do Checkbox e texto interno */
+.checkbox-label-inline {
+    display: flex;
     align-items: center;
     gap: 8px;
     cursor: pointer;
-    user-select: none;
     margin: 0;
 }
 
-.modal-cartao-editar .checkbox-label-inline input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
+.checkbox-label-inline input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
     cursor: pointer;
-    accent-color: var(--success);
     margin: 0;
 }
 
-.modal-cartao-editar .checkbox-label-inline span {
+.checkbox-label-inline span {
+    font-size: 14px;
     font-weight: 500;
-    color: var(--gray-700);
-    font-size: 14px;
+    color: #4a5568;
 }
 
-.modal-cartao-editar .checkbox-label-inline i {
-    color: var(--success);
-    font-size: 14px;
-}
-
-.form-group {
-    margin-bottom: 14px;
-}
-
-.form-group:last-child {
-    margin-bottom: 0;
+/* Ajuste de altura do Modal */
+#modal-alterar-senha .modal-content {
+    max-width: 500px;
+    height: auto !important;
+    min-height: auto !important;
+    margin: 5vh auto;
 }
 
 /* ================================================================
