@@ -1116,44 +1116,67 @@ window.atualizarTodosContadoresAnexosReceitas = atualizarTodosContadoresAnexosRe
 
 
 // ================================================================
-// SISTEMA DE RESERVAS INTEGRADO
+// SISTEMA DE RESERVAS INTEGRADO COM API
 // ================================================================
+
+const API_URL_RESERVAS = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
+// Cache local de reservas
+window.reservasCache = [];
+
+/**
+ * Carrega reservas do backend
+ */
+async function carregarReservasAPI() {
+    try {
+        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+        if (!token) return [];
+
+        const response = await fetch(`${API_URL_RESERVAS}/reservas`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            window.reservasCache = data.data || [];
+            return window.reservasCache;
+        }
+        return [];
+    } catch (error) {
+        console.error('Erro ao carregar reservas:', error);
+        return [];
+    }
+}
+
+/**
+ * Calcula total de reservas
+ */
+function calcularTotalReservas() {
+    return window.reservasCache.reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+}
 
 /**
  * Atualiza o card de reservas integrado na aba Receitas
  */
-function atualizarCardReservasIntegrado() {
+async function atualizarCardReservasIntegrado() {
     const mes = window.mesAberto;
     const ano = window.anoAberto;
 
     if (mes === null || ano === null) return;
 
-    window.garantirEstruturaDados(ano, mes);
-    const dadosMes = window.dadosFinanceiros[ano]?.meses[mes];
-    if (!dadosMes) return;
+    // Carregar reservas do backend
+    await carregarReservasAPI();
 
     // Calcular valores
-    const saldoInfo = window.calcularSaldoMes(mes, ano);
+    const saldoInfo = window.calcularSaldoMes ? window.calcularSaldoMes(mes, ano) : { saldoAnterior: 0, receitas: 0, despesas: 0 };
     const totalDisponivel = saldoInfo.saldoAnterior + saldoInfo.receitas;
     const totalDespesas = saldoInfo.despesas;
     const saldoLivre = totalDisponivel - totalDespesas;
 
-    // Calcular total acumulado de reservas (todos os meses/anos)
-    let totalAcumulado = 0;
-    for (const anoKey in window.dadosFinanceiros) {
-        if (anoKey === 'versao') continue;
-        const dadosAno = window.dadosFinanceiros[anoKey];
-        if (!dadosAno.meses) continue;
+    const totalReservado = calcularTotalReservas();
+    const disponivelParaReservar = Math.max(0, saldoLivre - totalReservado);
 
-        for (let m = 0; m < 12; m++) {
-            const reservas = dadosAno.meses[m]?.reservas || [];
-            totalAcumulado += reservas.reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-        }
-    }
-
-    const disponivelParaReservar = Math.max(0, saldoLivre - totalAcumulado);
-
-    // Atualizar elementos do DOM
+    // Atualizar elementos do DOM (card mini)
     const elemDisponivel = document.getElementById('reservas-disponivel-mini');
     const elemReservado = document.getElementById('reservas-reservado-mini');
 
@@ -1163,45 +1186,23 @@ function atualizarCardReservasIntegrado() {
     }
 
     if (elemReservado) {
-        elemReservado.textContent = window.formatarMoeda(totalAcumulado);
+        elemReservado.textContent = window.formatarMoeda(totalReservado);
     }
 
-    // Renderizar últimas 5 reservas
-    renderizarUltimasReservas(mes, ano);
+    // Renderizar últimas reservas no card mini
+    renderizarUltimasReservas();
 }
 
 /**
- * Renderiza as últimas 5 reservas de todos os meses
+ * Renderiza as últimas reservas no card mini
  */
-function renderizarUltimasReservas(mes, ano) {
+function renderizarUltimasReservas() {
     const lista = document.getElementById('ultimas-reservas-mini');
     if (!lista) return;
 
-    // Coletar todas as reservas de todos os meses
-    const todasReservas = [];
-
-    for (const anoKey in window.dadosFinanceiros) {
-        if (anoKey === 'versao') continue;
-        const dadosAno = window.dadosFinanceiros[anoKey];
-        if (!dadosAno.meses) continue;
-
-        for (let m = 0; m < 12; m++) {
-            const reservas = dadosAno.meses[m]?.reservas || [];
-            reservas.forEach(reserva => {
-                todasReservas.push({
-                    ...reserva,
-                    mes: m,
-                    ano: parseInt(anoKey)
-                });
-            });
-        }
-    }
-
-    // Ordenar por data (mais recentes primeiro)
-    todasReservas.sort((a, b) => new Date(b.data) - new Date(a.data));
-
-    // Pegar apenas as 5 mais recentes
-    const ultimas5 = todasReservas.slice(0, 5);
+    const ultimas5 = [...window.reservasCache]
+        .sort((a, b) => new Date(b.data) - new Date(a.data))
+        .slice(0, 5);
 
     lista.innerHTML = '';
 
@@ -1213,16 +1214,16 @@ function renderizarUltimasReservas(mes, ano) {
     const template = document.getElementById('template-reserva-mini');
     if (!template) return;
 
-    ultimas5.forEach((reserva, index) => {
+    ultimas5.forEach(reserva => {
         const clone = template.content.cloneNode(true);
-
-        const descricao = reserva.descricao || 'Reserva';
-        clone.querySelector('.reserva-descricao').textContent = descricao;
+        clone.querySelector('.reserva-descricao').textContent = reserva.observacoes || 'Reserva';
         clone.querySelector('.reserva-data-mini').textContent = window.formatarData(reserva.data);
         clone.querySelector('.reserva-valor-mini').textContent = window.formatarMoeda(reserva.valor);
 
         const btnRemover = clone.querySelector('.btn-remover-reserva-mini');
-        btnRemover.addEventListener('click', () => removerReservaIntegrada(reserva.mes, reserva.ano, reserva.id));
+        if (btnRemover) {
+            btnRemover.addEventListener('click', () => excluirReserva(reserva.id));
+        }
 
         lista.appendChild(clone);
     });
@@ -1231,7 +1232,7 @@ function renderizarUltimasReservas(mes, ano) {
 /**
  * Abre o modal para gerenciar reservas
  */
-function abrirModalReservarValor() {
+async function abrirModalReservarValor() {
     const mes = window.mesAberto;
     const ano = window.anoAberto;
 
@@ -1240,252 +1241,288 @@ function abrirModalReservarValor() {
         return;
     }
 
+    // Carregar reservas do backend
+    await carregarReservasAPI();
+
     // Calcular disponível
-    const saldoInfo = window.calcularSaldoMes(mes, ano);
+    const saldoInfo = window.calcularSaldoMes ? window.calcularSaldoMes(mes, ano) : { saldoAnterior: 0, receitas: 0, despesas: 0 };
     const totalDisponivel = saldoInfo.saldoAnterior + saldoInfo.receitas;
     const totalDespesas = saldoInfo.despesas;
     const saldoLivre = totalDisponivel - totalDespesas;
 
-    let totalAcumulado = 0;
-    for (const anoKey in window.dadosFinanceiros) {
-        if (anoKey === 'versao') continue;
-        const dadosAno = window.dadosFinanceiros[anoKey];
-        if (!dadosAno.meses) continue;
+    const totalReservado = calcularTotalReservas();
+    const disponivelParaReservar = Math.max(0, saldoLivre - totalReservado);
 
-        for (let m = 0; m < 12; m++) {
-            const reservas = dadosAno.meses[m]?.reservas || [];
-            totalAcumulado += reservas.reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-        }
+    // Atualizar totalizadores do modal
+    const elemTotal = document.getElementById('total-reservado');
+    if (elemTotal) {
+        elemTotal.textContent = window.formatarMoeda(totalReservado);
     }
 
-    const disponivelParaReservar = Math.max(0, saldoLivre - totalAcumulado);
-
-    // Atualizar informações do modal
-    const modalDisponivel = document.getElementById('modal-disponivel-reserva');
-    if (modalDisponivel) {
-        modalDisponivel.textContent = window.formatarMoeda(disponivelParaReservar);
+    const elemDisponivel = document.getElementById('disponivel-reservar');
+    if (elemDisponivel) {
+        elemDisponivel.textContent = window.formatarMoeda(disponivelParaReservar);
     }
 
-    const modalReservado = document.getElementById('modal-reservado-reserva');
-    if (modalReservado) {
-        modalReservado.textContent = window.formatarMoeda(totalAcumulado);
-    }
-
+    // Limpar campos do formulário
     const inputValor = document.getElementById('input-valor-reserva');
-    if (inputValor) {
-        inputValor.value = '';
-    }
-
     const inputDescricao = document.getElementById('input-descricao-reserva');
-    if (inputDescricao) {
-        inputDescricao.value = '';
-    }
+    if (inputValor) inputValor.value = '';
+    if (inputDescricao) inputDescricao.value = '';
+
+    // Renderizar lista de reservas no modal
+    renderizarListaReservasModal();
 
     // Abrir modal
     const modal = document.getElementById('modal-reservar-valor');
     if (modal) {
-        modal.style.display = 'block';
+        modal.style.display = 'flex';
     }
 }
 
 /**
- * Processa adicionar reserva
+ * Renderiza lista de reservas no modal
+ */
+function renderizarListaReservasModal() {
+    const lista = document.getElementById('lista-reservas');
+    if (!lista) return;
+
+    lista.innerHTML = '';
+
+    if (window.reservasCache.length === 0) {
+        lista.innerHTML = '<div class="reserva-vazia">Nenhuma reserva cadastrada</div>';
+        return;
+    }
+
+    // Ordenar por data (mais recentes primeiro)
+    const reservasOrdenadas = [...window.reservasCache].sort((a, b) => new Date(b.data) - new Date(a.data));
+
+    reservasOrdenadas.forEach(reserva => {
+        const item = document.createElement('div');
+        item.className = 'reserva-item';
+        item.innerHTML = `
+            <div class="reserva-info">
+                <span class="reserva-descricao">${reserva.observacoes || 'Reserva'}</span>
+                <span class="reserva-data">${window.formatarData(reserva.data)}</span>
+            </div>
+            <div class="reserva-acoes">
+                <span class="reserva-valor">${window.formatarMoeda(reserva.valor)}</span>
+                <button class="btn btn-sm btn-editar-reserva" data-id="${reserva.id}" title="Editar">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-excluir-reserva" data-id="${reserva.id}" title="Excluir">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+
+        // Event listener para editar
+        item.querySelector('.btn-editar-reserva').addEventListener('click', () => {
+            abrirEdicaoReserva(reserva);
+        });
+
+        // Event listener para excluir
+        item.querySelector('.btn-excluir-reserva').addEventListener('click', () => {
+            excluirReserva(reserva.id);
+        });
+
+        lista.appendChild(item);
+    });
+}
+
+/**
+ * Abre edição de uma reserva
+ */
+function abrirEdicaoReserva(reserva) {
+    const inputValor = document.getElementById('input-valor-reserva');
+    const inputDescricao = document.getElementById('input-descricao-reserva');
+    const btnAdicionar = document.getElementById('btn-adicionar-reserva');
+
+    if (inputValor) inputValor.value = reserva.valor;
+    if (inputDescricao) inputDescricao.value = reserva.observacoes || '';
+
+    // Mudar botão para modo edição
+    if (btnAdicionar) {
+        btnAdicionar.innerHTML = '<i class="fas fa-save"></i>';
+        btnAdicionar.dataset.editando = reserva.id;
+    }
+}
+
+/**
+ * Adiciona ou atualiza reserva via API
  */
 async function processarAdicionarReserva() {
     const mes = window.mesAberto;
     const ano = window.anoAberto;
     const valor = parseFloat(document.getElementById('input-valor-reserva').value);
-    const descricao = document.getElementById('input-descricao-reserva').value.trim() || 'Reserva';
+    const descricao = document.getElementById('input-descricao-reserva').value.trim();
+    const btnAdicionar = document.getElementById('btn-adicionar-reserva');
 
     if (isNaN(valor) || valor <= 0) {
-        if (window.mostrarMensagemErro) {
-            window.mostrarMensagemErro('Informe um valor válido');
-        } else {
-            alert('Informe um valor válido');
-        }
+        window.mostrarMensagemErro ? window.mostrarMensagemErro('Informe um valor válido') : alert('Informe um valor válido');
         return;
     }
 
-    window.garantirEstruturaDados(ano, mes);
-    const dadosMes = window.dadosFinanceiros[ano].meses[mes];
-
-    const novaReserva = {
-        id: window.gerarId(),
-        valor: valor,
-        descricao: descricao,
-        data: new Date().toISOString().split('T')[0],
-        tipo: 'adicionar'
-    };
-
-    if (!dadosMes.reservas) dadosMes.reservas = [];
-    dadosMes.reservas.push(novaReserva);
-
-    await window.salvarDados();
-
-    // Fechar modal e limpar campos
-    document.getElementById('modal-reservar-valor').style.display = 'none';
-    document.getElementById('input-valor-reserva').value = '';
-    document.getElementById('input-descricao-reserva').value = '';
-
-    // Atualizar interface
-    atualizarCardReservasIntegrado();
-
-    if (typeof window.renderizarDetalhesDoMes === 'function') {
-        window.renderizarDetalhesDoMes(mes, ano);
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+    if (!token) {
+        alert('Sessão expirada. Faça login novamente.');
+        return;
     }
 
-    if (typeof window.carregarDadosDashboard === 'function') {
-        await window.carregarDadosDashboard(ano);
-    }
+    const editandoId = btnAdicionar?.dataset.editando;
 
-    if (window.mostrarMensagemSucesso) {
-        window.mostrarMensagemSucesso('Reserva adicionada com sucesso!');
+    try {
+        let response;
+        const dadosReserva = {
+            valor: valor,
+            mes: mes,
+            ano: ano,
+            data: new Date().toISOString().split('T')[0],
+            observacoes: descricao || 'Reserva'
+        };
+
+        if (editandoId) {
+            // Atualizar reserva existente
+            response = await fetch(`${API_URL_RESERVAS}/reservas/${editandoId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(dadosReserva)
+            });
+        } else {
+            // Criar nova reserva
+            response = await fetch(`${API_URL_RESERVAS}/reservas`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(dadosReserva)
+            });
+        }
+
+        if (response.ok) {
+            // Limpar campos
+            document.getElementById('input-valor-reserva').value = '';
+            document.getElementById('input-descricao-reserva').value = '';
+            if (btnAdicionar) {
+                btnAdicionar.innerHTML = '<i class="fas fa-plus"></i>';
+                delete btnAdicionar.dataset.editando;
+            }
+
+            // Recarregar reservas e atualizar modal
+            await carregarReservasAPI();
+            await atualizarModalReservas();
+            atualizarCardReservasIntegrado();
+
+            if (typeof window.carregarDadosDashboard === 'function') {
+                await window.carregarDadosDashboard(ano);
+            }
+
+            window.mostrarMensagemSucesso ? window.mostrarMensagemSucesso(editandoId ? 'Reserva atualizada!' : 'Reserva adicionada!') : null;
+        } else {
+            const error = await response.json();
+            window.mostrarMensagemErro ? window.mostrarMensagemErro(error.message || 'Erro ao salvar reserva') : alert(error.message || 'Erro ao salvar reserva');
+        }
+    } catch (error) {
+        console.error('Erro ao salvar reserva:', error);
+        window.mostrarMensagemErro ? window.mostrarMensagemErro('Erro ao salvar reserva') : alert('Erro ao salvar reserva');
     }
 }
 
 /**
- * Processa retirar reserva
+ * Atualiza valores do modal de reservas
  */
-async function processarRetirarReserva() {
+async function atualizarModalReservas() {
     const mes = window.mesAberto;
     const ano = window.anoAberto;
-    const valor = parseFloat(document.getElementById('input-valor-reserva').value);
-    const descricao = document.getElementById('input-descricao-reserva').value.trim() || 'Retirada';
 
-    if (isNaN(valor) || valor <= 0) {
-        if (window.mostrarMensagemErro) {
-            window.mostrarMensagemErro('Informe um valor válido');
-        } else {
-            alert('Informe um valor válido');
-        }
-        return;
+    const saldoInfo = window.calcularSaldoMes ? window.calcularSaldoMes(mes, ano) : { saldoAnterior: 0, receitas: 0, despesas: 0 };
+    const saldoLivre = saldoInfo.saldoAnterior + saldoInfo.receitas - saldoInfo.despesas;
+
+    const totalReservado = calcularTotalReservas();
+    const disponivelParaReservar = Math.max(0, saldoLivre - totalReservado);
+
+    const elemTotal = document.getElementById('total-reservado');
+    if (elemTotal) {
+        elemTotal.textContent = window.formatarMoeda(totalReservado);
     }
 
-    // Calcular total reservado
-    let totalReservado = 0;
-    for (const anoKey in window.dadosFinanceiros) {
-        if (anoKey === 'versao') continue;
-        const dadosAno = window.dadosFinanceiros[anoKey];
-        if (!dadosAno.meses) continue;
-
-        for (let m = 0; m < 12; m++) {
-            const reservas = dadosAno.meses[m]?.reservas || [];
-            totalReservado += reservas.reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-        }
+    const elemDisponivel = document.getElementById('disponivel-reservar');
+    if (elemDisponivel) {
+        elemDisponivel.textContent = window.formatarMoeda(disponivelParaReservar);
     }
 
-    if (valor > totalReservado) {
-        if (window.mostrarMensagemErro) {
-            window.mostrarMensagemErro(`Valor superior ao reservado (${window.formatarMoeda(totalReservado)})`);
-        } else {
-            alert(`Valor superior ao reservado (${window.formatarMoeda(totalReservado)})`);
-        }
-        return;
-    }
-
-    window.garantirEstruturaDados(ano, mes);
-    const dadosMes = window.dadosFinanceiros[ano].meses[mes];
-
-    const novaRetirada = {
-        id: window.gerarId(),
-        valor: -valor, // Valor negativo para representar retirada
-        descricao: descricao,
-        data: new Date().toISOString().split('T')[0],
-        tipo: 'retirar'
-    };
-
-    if (!dadosMes.reservas) dadosMes.reservas = [];
-    dadosMes.reservas.push(novaRetirada);
-
-    await window.salvarDados();
-
-    // Fechar modal e limpar campos
-    document.getElementById('modal-reservar-valor').style.display = 'none';
-    document.getElementById('input-valor-reserva').value = '';
-    document.getElementById('input-descricao-reserva').value = '';
-
-    // Atualizar interface
-    atualizarCardReservasIntegrado();
-
-    if (typeof window.renderizarDetalhesDoMes === 'function') {
-        window.renderizarDetalhesDoMes(mes, ano);
-    }
-
-    if (typeof window.carregarDadosDashboard === 'function') {
-        await window.carregarDadosDashboard(ano);
-    }
-
-    if (window.mostrarMensagemSucesso) {
-        window.mostrarMensagemSucesso('Valor retirado com sucesso!');
-    }
+    renderizarListaReservasModal();
 }
 
 /**
- * Remove uma reserva
+ * Exclui reserva via API
  */
-async function removerReservaIntegrada(mes, ano, reservaId) {
-    const reservas = window.dadosFinanceiros[ano]?.meses[mes]?.reservas;
-    if (!reservas) return;
+async function excluirReserva(id) {
+    if (!confirm('Deseja realmente excluir esta reserva?')) return;
 
-    const index = reservas.findIndex(r => r.id === reservaId);
-    if (index === -1) return;
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+    if (!token) return;
 
-    const valor = reservas[index].valor;
-    if (!confirm(`Remover reserva de ${window.formatarMoeda(valor)}?`)) return;
+    try {
+        const response = await fetch(`${API_URL_RESERVAS}/reservas/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
 
-    reservas.splice(index, 1);
-    await window.salvarDados();
+        if (response.ok) {
+            await carregarReservasAPI();
+            await atualizarModalReservas();
+            atualizarCardReservasIntegrado();
 
-    // Atualizar interface
-    atualizarCardReservasIntegrado();
+            if (typeof window.carregarDadosDashboard === 'function') {
+                await window.carregarDadosDashboard(window.anoAberto);
+            }
 
-    if (typeof window.renderizarDetalhesDoMes === 'function') {
-        window.renderizarDetalhesDoMes(window.mesAberto, window.anoAberto);
-    }
-
-    if (typeof window.carregarDadosDashboard === 'function') {
-        await window.carregarDadosDashboard(window.anoAberto);
-    }
-
-    if (window.mostrarMensagemSucesso) {
-        window.mostrarMensagemSucesso('Reserva removida com sucesso!');
+            window.mostrarMensagemSucesso ? window.mostrarMensagemSucesso('Reserva excluída!') : null;
+        } else {
+            window.mostrarMensagemErro ? window.mostrarMensagemErro('Erro ao excluir reserva') : alert('Erro ao excluir reserva');
+        }
+    } catch (error) {
+        console.error('Erro ao excluir reserva:', error);
     }
 }
 
 /**
- * Inicializa eventos das reservas integradas
+ * Inicializa eventos das reservas
  */
 function inicializarEventosReservasIntegradas() {
-    // Botão "Reservas"
+    // Botão "Reservas" no card
     const btnReservar = document.getElementById('btn-reservar-valor');
     if (btnReservar) {
         btnReservar.addEventListener('click', abrirModalReservarValor);
     }
 
-    // Botão Adicionar
+    // Botão Adicionar no modal
     const btnAdicionar = document.getElementById('btn-adicionar-reserva');
     if (btnAdicionar) {
         btnAdicionar.addEventListener('click', processarAdicionarReserva);
     }
 
-    // Botão Retirar
-    const btnRetirar = document.getElementById('btn-retirar-reserva');
-    if (btnRetirar) {
-        btnRetirar.addEventListener('click', processarRetirarReserva);
-    }
+    // Carregar reservas ao iniciar
+    carregarReservasAPI();
 }
 
 // Aguardar DOM e inicializar
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
         inicializarEventosReservasIntegradas();
-    }, 300);
+    }, 500);
 });
 
 // Exportar funções
 window.atualizarCardReservasIntegrado = atualizarCardReservasIntegrado;
 window.abrirModalReservarValor = abrirModalReservarValor;
-window.removerReservaIntegrada = removerReservaIntegrada;
+window.carregarReservasAPI = carregarReservasAPI;
+window.calcularTotalReservas = calcularTotalReservas;
 
 // ================================================================
 // REDIMENSIONAMENTO DE COLUNAS - RECEITAS

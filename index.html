@@ -1276,12 +1276,11 @@
                 <label>
                     <i class="fas fa-toggle-on"></i> Status
                 </label>
-                <div class="checkbox-wrapper-input">
-                    <label class="checkbox-label-inline">
-                        <input type="checkbox" id="cartao-edit-ativo">
-                        <span>Ativo</span>
-                    </label>
-                </div>
+                <label class="checkbox-status-cartao">
+                    <input type="checkbox" id="cartao-edit-ativo">
+                    <span class="checkbox-box"></span>
+                    <span class="checkbox-text">Ativo</span>
+                </label>
             </div>
         </div>
 
@@ -2111,49 +2110,54 @@
 
 <!-- Modal Reservas -->
 <div id="modal-reservar-valor" class="modal">
-    <div class="modal-content modal-sm">
+    <div class="modal-content modal-reservas">
         <div class="modal-header">
             <h2><i class="fas fa-piggy-bank"></i> Gerenciar Reservas</h2>
             <span class="close">&times;</span>
         </div>
         <div class="modal-body">
-            <div class="form-group">
-                <label for="input-valor-reserva">Valor</label>
-                <input
-                    type="number"
-                    id="input-valor-reserva"
-                    class="form-control"
-                    placeholder="0,00"
-                    step="0.01"
-                    min="0.01"
-                    required
-                >
-                <small class="form-hint">
-                    <i class="fas fa-info-circle"></i>
-                    Disponível: <span id="modal-disponivel-reserva">R$ 0,00</span> |
-                    Reservado: <span id="modal-reservado-reserva">R$ 0,00</span>
-                </small>
+            <!-- Totalizador -->
+            <div class="reservas-totalizador">
+                <div class="totalizador-item">
+                    <span class="totalizador-label">Total Reservado</span>
+                    <span class="totalizador-valor" id="total-reservado">R$ 0,00</span>
+                </div>
+                <div class="totalizador-item disponivel">
+                    <span class="totalizador-label">Disponível p/ Reservar</span>
+                    <span class="totalizador-valor" id="disponivel-reservar">R$ 0,00</span>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="input-descricao-reserva">Descrição (opcional)</label>
-                <input
-                    type="text"
-                    id="input-descricao-reserva"
-                    class="form-control"
-                    placeholder="Ex: Viagem, Emergência..."
-                    maxlength="50"
-                >
+            <!-- Formulário Nova Reserva -->
+            <div class="nova-reserva-form">
+                <h4><i class="fas fa-plus"></i> Nova Reserva</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="input-descricao-reserva">Descrição</label>
+                        <input type="text" id="input-descricao-reserva" class="form-control" placeholder="Ex: Viagem, Emergência..." maxlength="50">
+                    </div>
+                    <div class="form-group form-group-valor">
+                        <label for="input-valor-reserva">Valor</label>
+                        <input type="number" id="input-valor-reserva" class="form-control" placeholder="0,00" step="0.01" min="0.01">
+                    </div>
+                    <button type="button" id="btn-adicionar-reserva" class="btn btn-success btn-add-reserva">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
             </div>
 
-            <div class="modal-footer">
-                <button type="button" id="btn-adicionar-reserva" class="btn btn-confirmar-modal">
-                    <i class="fas fa-plus-circle"></i> Adicionar
-                </button>
-                <button type="button" id="btn-retirar-reserva" class="btn btn-confirmar-modal btn-retirar">
-                    <i class="fas fa-minus-circle"></i> Retirar
-                </button>
+            <!-- Lista de Reservas -->
+            <div class="reservas-lista-container">
+                <h4><i class="fas fa-list"></i> Reservas Ativas</h4>
+                <div class="reservas-lista" id="lista-reservas">
+                    <div class="reserva-vazia">Nenhuma reserva cadastrada</div>
+                </div>
             </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary close">
+                <i class="fas fa-times"></i> Fechar
+            </button>
         </div>
     </div>
 </div>

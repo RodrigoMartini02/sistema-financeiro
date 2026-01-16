@@ -352,49 +352,281 @@
     color: #334155;
 }
 
-/* Caixa do checkbox = INPUT DE VERDADE */
-.checkbox-wrapper-input {
-    height: 44px; /* mesma sensação de input */
-    border: 1.5px solid #cbd5e1; /* MESMA ESPESSURA dos inputs */
-    border-radius: 6px;
-    background-color: #ffffff;
-
+/* Checkbox Status Cartão - Layout horizontal */
+.checkbox-status-cartao {
     display: flex;
     align-items: center;
-    justify-content: center;
-
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    gap: 10px;
+    height: 44px;
+    padding: 0 12px;
+    border: 1.5px solid #cbd5e1;
+    background-color: #ffffff;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
 }
 
-/* Hover/focus visual (opcional, mas deixa profissional) */
-.checkbox-wrapper-input:hover {
+.checkbox-status-cartao:hover {
     border-color: #94a3b8;
 }
 
-/* Conteúdo interno */
-.checkbox-label-inline {
+/* Esconder checkbox nativo */
+.checkbox-status-cartao input[type="checkbox"] {
+    display: none;
+}
+
+/* Caixa visual do checkbox */
+.checkbox-status-cartao .checkbox-box {
+    width: 24px;
+    height: 24px;
+    border: 2px solid #cbd5e1;
+    background: #fff;
     display: flex;
-    flex-direction: column; /* ícone + texto centralizados */
     align-items: center;
-    gap: 4px;
-    margin: 0;
-    cursor: pointer;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+/* Ícone check quando marcado */
+.checkbox-status-cartao input[type="checkbox"]:checked + .checkbox-box {
+    background: #22c55e;
+    border-color: #22c55e;
+}
+
+.checkbox-status-cartao input[type="checkbox"]:checked + .checkbox-box::after {
+    content: '✓';
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* Texto "Ativo" */
+.checkbox-status-cartao .checkbox-text {
+    font-size: 14px;
     font-weight: 500;
     color: #475569;
 }
 
-/* Checkbox */
-.checkbox-label-inline input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    margin: 0;
+
+/* ================================================================
+   MODAL DE RESERVAS
+   ================================================================ */
+
+.modal-reservas {
+    max-width: 500px;
+    width: 95%;
 }
 
-/* Texto "Ativo" */
-.checkbox-label-inline span {
+.modal-reservas .modal-body {
+    padding: 16px 20px;
+}
+
+/* Totalizador */
+.reservas-totalizador {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.reservas-totalizador .totalizador-item {
+    flex: 1;
+    background: var(--gray-100);
+    padding: 12px;
+    text-align: center;
+    border: 1px solid var(--gray-300);
+}
+
+.reservas-totalizador .totalizador-item.disponivel {
+    background: #e8f5e9;
+    border-color: #81c784;
+}
+
+.reservas-totalizador .totalizador-label {
+    display: block;
+    font-size: 11px;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+.reservas-totalizador .totalizador-valor {
+    display: block;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--gray-800);
+}
+
+.reservas-totalizador .totalizador-item.disponivel .totalizador-valor {
+    color: #2e7d32;
+}
+
+/* Formulário nova reserva */
+.nova-reserva-form {
+    background: var(--gray-50);
+    padding: 12px;
+    margin-bottom: 16px;
+    border: 1px solid var(--gray-200);
+}
+
+.nova-reserva-form h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin: 0 0 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.nova-reserva-form h4 i {
+    color: var(--success);
+}
+
+.nova-reserva-form .form-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+.nova-reserva-form .form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.nova-reserva-form .form-group-valor {
+    max-width: 120px;
+}
+
+.nova-reserva-form .form-group label {
+    font-size: 11px;
+    margin-bottom: 4px;
+    display: block;
+    color: var(--gray-600);
+}
+
+.nova-reserva-form .form-control {
+    height: 36px;
+    font-size: 13px;
+    padding: 0 10px;
+}
+
+.btn-add-reserva {
+    height: 36px;
+    width: 36px;
+    min-width: 36px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Lista de reservas */
+.reservas-lista-container h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin: 0 0 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.reservas-lista-container h4 i {
+    color: var(--primary-color);
+}
+
+.reservas-lista {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--gray-200);
+    background: var(--white);
+}
+
+.reserva-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--gray-100);
+}
+
+.reserva-item:last-child {
+    border-bottom: none;
+}
+
+.reserva-item:hover {
+    background: var(--gray-50);
+}
+
+.reserva-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.reserva-info .reserva-descricao {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gray-800);
+}
+
+.reserva-info .reserva-data {
+    font-size: 11px;
+    color: var(--gray-500);
+}
+
+.reserva-acoes {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.reserva-acoes .reserva-valor {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--success);
+    min-width: 90px;
+    text-align: right;
+}
+
+.reserva-acoes .btn-sm {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+
+.btn-editar-reserva {
+    background: var(--gray-200);
+    color: var(--gray-700);
+    border: none;
+}
+
+.btn-editar-reserva:hover {
+    background: var(--primary-color);
+    color: white;
+}
+
+.btn-excluir-reserva {
+    background: #fee2e2;
+    color: #dc2626;
+    border: none;
+}
+
+.btn-excluir-reserva:hover {
+    background: #dc2626;
+    color: white;
+}
+
+.reserva-vazia {
+    padding: 20px;
+    text-align: center;
+    color: var(--gray-500);
     font-size: 13px;
 }
-
 
 /* ================================================================
    NAVEGAÇÃO DE HEADER (para modais com navegação)
