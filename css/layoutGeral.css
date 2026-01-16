@@ -303,21 +303,20 @@ textarea {
 }
 
 /* ================================================================
-   ESTADOS DE FOCO PARA ACESSIBILIDADE
+   ESTADOS DE FOCO - REMOVIDO OUTLINE DE BOTÕES
    ================================================================ */
-
-*:focus {
-    outline: 2px solid var(--primary-color);
-    outline-offset: 2px;
-}
 
 button:focus,
 a:focus,
+.btn:focus {
+    outline: none;
+}
+
 input:focus,
 select:focus,
 textarea:focus {
-    outline: 2px solid var(--primary-color);
-    outline-offset: 2px;
+    outline: none;
+    border-color: var(--primary-color);
 }
 
 /* ================================================================
