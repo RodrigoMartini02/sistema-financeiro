@@ -394,7 +394,6 @@ textarea:focus {
     font-weight: 500;
     padding: 4px 12px;
     background: rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
     text-align: center;
 }
 
@@ -614,7 +613,6 @@ textarea:focus {
     margin-top: 4px;
     background: white;
     border: 1px solid var(--gray-300);
-    border-radius: 8px;
     box-shadow: var(--shadow-lg);
     min-width: 120px;
     max-height: 300px;
@@ -660,7 +658,6 @@ textarea:focus {
     margin-top: 8px;
     background: white;
     border: 1px solid var(--gray-300);
-    border-radius: 8px;
     box-shadow: var(--shadow-lg);
     min-width: 200px;
     z-index: var(--z-dropdown);
@@ -704,7 +701,6 @@ textarea:focus {
     height: 38px;        /* Mesma altura do botão */
     padding: 0 15px;
     margin: 0;           /* Removido margens para alinhar com o botão */
-    border-radius: 4px;  /* Arredondamento uniforme */
     box-shadow: 3px 3px 10px rgba(0,0,0,0.1);
     font-size: 13px;
     font-weight: 500;
@@ -812,7 +808,6 @@ textarea:focus {
     padding: 12px 24px;
     font-size: 14px;
     font-weight: 700;
-    border-radius: 8px;
     border: none;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -849,7 +844,6 @@ textarea:focus {
     align-items: center;
     gap: 8px;
     padding: 8px 12px;
-    border-radius: 6px;
     background-color: var(--gray-50);
     font-size: 12px;
     font-weight: 600;
@@ -1022,7 +1016,6 @@ textarea:focus {
 
 .meses-container::-webkit-scrollbar-thumb {
     background: #ccc;
-    border-radius: 4px;
 }
 
 .meses-container::-webkit-scrollbar-thumb:hover {
@@ -1815,7 +1808,6 @@ table tr:hover {
     flex-wrap: wrap;
     padding: 16px;
     background: #f8f9fa;
-    border-radius: 8px;
 }
 
 .search-container {
@@ -1830,7 +1822,6 @@ table tr:hover {
     padding: 10px 14px;
     border: 1px solid #d1d5db;
     border-right: none;
-    border-radius: 4px 0 0 4px;
     font-size: 14px;
     color: #374151;
     transition: all 0.2s ease;
@@ -1856,7 +1847,6 @@ table tr:hover {
 .form-control {
     padding: 6px 8px;
     border: 1px solid #d1d5db;
-    border-radius: 4px;
     background: #fff;
     font-size: 12px;
     min-width: 100px;
@@ -1880,7 +1870,6 @@ table tr:hover {
 .form-select {
     padding: 6px 8px;
     border: 1px solid #d1d5db;
-    border-radius: 4px;
     background: #fff;
     font-size: 12px;
     min-width: 100px;
@@ -2658,7 +2647,6 @@ table tr:hover {
 
 .resumo-cards .card {
     background: white;
-    border-radius: 8px;
     padding: 16px 20px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     display: flex;
@@ -2842,7 +2830,6 @@ table tr:hover {
 .receitas-grid,
 .categorias-grid {
     background: white;
-    border-radius: 8px;
     overflow: hidden;
     box-shadow: var(--shadow-sm);
 }
@@ -2966,7 +2953,6 @@ table tr:hover {
 
 .grid-content::-webkit-scrollbar-thumb {
     background: #888;
-    border-radius: 4px;
 }
 
 .grid-content::-webkit-scrollbar-thumb:hover {
@@ -3063,7 +3049,6 @@ table tr:hover {
 .badge-status,
 .badge-pagamento {
     padding: 4px 8px;
-    border-radius: 4px;
     font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;

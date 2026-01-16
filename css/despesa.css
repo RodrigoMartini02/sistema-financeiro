@@ -911,7 +911,6 @@
 .info-despesa-container-compact {
     background: #f8fafc;
     padding: 12px;
-    border-radius: 6px;
     margin-bottom: 16px;
     border-left: 3px solid #3b82f6;
 }
@@ -949,7 +948,6 @@
 
 .diferenca-info {
     padding: 10px 12px;
-    border-radius: 6px;
     margin-bottom: 12px;
     font-size: 13px;
     font-weight: 600;

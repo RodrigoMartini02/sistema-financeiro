@@ -24,7 +24,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
     pointer-events: none;
 }
 
@@ -78,7 +77,6 @@
     border-left: 1px solid var(--gray-300);
     overflow: hidden;
     box-sizing: border-box;
-    border-radius: 0;
 }
 
 /* ================================================================
@@ -127,7 +125,6 @@
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    border-radius: 0;
 }
 
 .btn-notif-action:hover {
@@ -227,7 +224,6 @@
     width: 7px;
     height: 7px;
     background: var(--info);
-    border-radius: 0;
 }
 
 /* ================================================================
@@ -242,7 +238,6 @@
     justify-content: center;
     background: var(--gray-100);
     border: 1px solid var(--gray-300);
-    border-radius: 0;
 }
 
 .notification-icon {
@@ -365,7 +360,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 0;
 }
 
 .btn-mark-read:hover {
@@ -427,7 +421,6 @@
     background: white;
     border-left: 3px solid var(--info);
     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
-    border-radius: 0;
     padding: 14px 18px;
     display: flex;
     align-items: flex-start;
@@ -545,7 +538,6 @@
     height: 3px;
     background: rgba(0, 0, 0, 0.05);
     width: 100%;
-    border-radius: 0;
     overflow: hidden;
 }
 

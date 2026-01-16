@@ -12,7 +12,6 @@
     gap: 8px;
     background: var(--gray-100);
     padding: 8px 8px 0 8px;
-    border-radius: 0;
 }
 
 .config-tab-btn {
@@ -28,7 +27,6 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    border-radius: 0;
 }
 
 .config-tab-btn:hover:not(.active) {
@@ -74,7 +72,6 @@
     box-shadow: var(--shadow-sm);
     padding: 24px;
     margin-bottom: 20px;
-    border-radius: 0;
     border: 1px solid var(--gray-300);
     transition: box-shadow 0.3s ease;
 }
@@ -157,7 +154,6 @@
 .input-group input[type="password"] {
     padding: 10px 12px;
     border: 1px solid var(--gray-300);
-    border-radius: 0;
     font-size: 14px;
     transition: all 0.3s ease;
 }
@@ -205,7 +201,6 @@
     flex: 1;
     padding: 10px 12px;
     border: 1px solid var(--gray-300);
-    border-radius: 0;
     font-size: 14px;
 }
 
@@ -224,7 +219,6 @@
 /* ================================================================ */
 .table-responsive {
     overflow-x: auto;
-    border-radius: 0;
     border: 1px solid var(--gray-300);
     margin-bottom: 16px;
 }
@@ -272,7 +266,6 @@
 .status-badge {
     display: inline-block;
     padding: 4px 12px;
-    border-radius: 0;
     font-size: 12px;
     font-weight: 600;
     text-transform: uppercase;
@@ -319,7 +312,6 @@
     margin-top: 16px;
     padding: 12px;
     background: var(--gray-100);
-    border-radius: 0;
 }
 
 #pagination-info {
@@ -341,7 +333,6 @@
     flex: 1;
     padding: 12px 16px;
     border: 2px solid var(--gray-300);
-    border-radius: 0;
     font-size: 14px;
     transition: all 0.3s ease;
 }
@@ -354,7 +345,6 @@
 
 .lista-categorias-container {
     border: 1px solid var(--gray-300);
-    border-radius: 0;
     overflow: hidden;
 }
 
@@ -438,7 +428,6 @@
 .form-add-cartao {
     background: #fff;
     padding: 20px;
-    border-radius: 0;
     border: 2px solid var(--gray-300);
     transition: all 0.3s ease;
 }
@@ -468,7 +457,6 @@
 .form-add-cartao input[type="number"] {
     padding: 10px 12px;
     border: 1px solid var(--gray-300);
-    border-radius: 0;
     font-size: 14px;
     transition: all 0.3s ease;
 }
@@ -503,7 +491,6 @@
     background: var(--success);
     color: #fff;
     border: none;
-    border-radius: 0;
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
@@ -600,7 +587,6 @@
 .status-feedback {
     margin-top: 16px;
     padding: 12px;
-    border-radius: 0;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -789,7 +775,6 @@
 .logs-filtros {
     background: var(--gray-100);
     padding: 20px;
-    border-radius: 0;
     margin-bottom: 20px;
     display: grid;
     grid-template-columns: repeat(5, 1fr);
@@ -811,7 +796,6 @@
 
 /* Removido select - agora usa .form-control padrão de layoutGeral.css */
 .filtro-grupo .form-input {
-    border-radius: 0;
     height: 38px;
 }
 
@@ -824,13 +808,11 @@
 }
 
 .filtro-acoes button {
-    border-radius: 0;
 }
 
 /* Tabela de Logs */
 .lista-logs-container {
     background: white;
-    border-radius: 0;
     overflow: hidden;
     box-shadow: var(--shadow-sm);
     max-height: 500px;
@@ -879,7 +861,6 @@
 .badge-acao {
     display: inline-block;
     padding: 4px 10px;
-    border-radius: 0;
     font-size: 12px;
     font-weight: 600;
     text-transform: uppercase;
@@ -994,7 +975,6 @@
 .loader-content {
     background: white;
     padding: 40px 60px;
-    border-radius: 0;
     text-align: center;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
     min-width: 300px;
@@ -1005,7 +985,6 @@
     height: 60px;
     border: 6px solid #f3f3f3;
     border-top: 6px solid var(--primary-color);
-    border-radius: 50%;
     animation: spin 1s linear infinite;
     margin: 0 auto 20px;
 }
@@ -1057,7 +1036,6 @@
     width: 100%;
     padding: 12px;
     border: 2px solid var(--gray-300);
-    border-radius: 8px;
     font-size: 14px;
     transition: all 0.3s ease;
 }
@@ -1092,7 +1070,6 @@
     width: 100%;
     padding: 10px 12px;
     border: 2px solid #e0e0e0;
-    border-radius: 6px;
     font-size: 14px;
     transition: all 0.2s ease;
 }
@@ -1114,7 +1091,6 @@
     background: #f8f9ff;
     border-left: 4px solid #667eea;
     padding: 16px;
-    border-radius: 6px;
     margin-top: 20px;
 }
 
@@ -1151,7 +1127,6 @@
     min-width: 150px;
     padding: 12px 16px;
     border: 2px solid var(--gray-300);
-    border-radius: 0;
     font-size: 14px;
     transition: all 0.3s ease;
 }
@@ -1164,7 +1139,6 @@
 
 .lista-cartoes-container {
     border: 1px solid var(--gray-300);
-    border-radius: 0;
     overflow: hidden;
     margin-top: 20px;
 }
@@ -1238,7 +1212,6 @@
 .tabela-cartoes .badge-status {
     display: inline-block;
     padding: 4px 10px;
-    border-radius: 12px;
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
@@ -1297,7 +1270,6 @@
     width: 100%;
     padding: 12px 14px;
     border: 2px solid #e1e8ed;
-    border-radius: 8px;
     font-size: 15px;
     transition: all 0.3s ease;
     background: #ffffff;
@@ -1317,7 +1289,6 @@
 .cartao-status-group {
     background: #f7fafc;
     padding: 16px;
-    border-radius: 8px;
     border: 2px dashed #cbd5e0;
     display: flex;
     align-items: center;
