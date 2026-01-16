@@ -319,45 +319,49 @@
    MODAIS ESPECÍFICOS - CARTÃO EDITAR
    ================================================================ */
 
-   /* Ajuste de altura e largura do Modal */
+   /* Ajuste de Altura e Largura do Modal */
 #modal-editar-cartao .modal-content {
     max-width: 550px;
     height: auto !important;
+    min-height: auto !important;
     margin: 8vh auto;
+    padding: 0;
 }
 
+/* Sistema de Linhas para evitar o "esmagamento" */
 .cartao-form-grid {
     display: flex;
     flex-direction: column;
     gap: 15px;
+    padding: 5px;
 }
 
-/* Linhas do formulário */
 .form-row {
     display: flex;
-    gap: 15px; /* Espaço entre os campos */
+    gap: 15px;
     width: 100%;
+    align-items: flex-start;
 }
 
-/* Proporções da primeira linha */
-.flex-main { flex: 4; }   /* Banco ganha a maior parte do espaço */
-.flex-status { flex: 1; min-width: 100px; } /* Status fica no cantinho */
+/* Banco ocupa a maior parte (4/5) e Status apenas o necessário */
+.flex-main { flex: 4; }
+.status-box-container { flex: 0 0 110px; }
 
-/* Proporções da segunda linha */
-.flex-1 { flex: 1; } /* Divide 50/50 */
+/* Segunda linha dividida em 50/50 */
+.flex-1 { flex: 1; }
 
-/* Estilo do quadradinho do Checkbox */
-.checkbox-card {
+/* O Quadradinho do Checkbox (Simulando a altura dos inputs) */
+.checkbox-input-card {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 42px; /* Altura exata dos seus inputs de texto */
+    height: 42px; /* Altura padrão para alinhar com os campos de texto */
     border: 1px solid #d1d5db;
     border-radius: 6px;
     background: #fff;
 }
 
-.checkbox-label {
+.checkbox-label-inline {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -365,21 +369,24 @@
     margin: 0;
 }
 
-/* Reset de espaçamentos padrão */
+.checkbox-label-inline input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+    cursor: pointer;
+    accent-color: #2f855a;
+}
+
+/* Estilo das Labels e Required */
 .form-group label {
     display: block;
     font-size: 14px;
     font-weight: 600;
-    margin-bottom: 5px;
     color: #4a5568;
+    margin-bottom: 6px;
 }
 
-.form-input {
-    width: 100%;
-    height: 42px;
-    padding: 8px 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
+.required {
+    color: #e53e3e;
 }
 
 /* ================================================================
