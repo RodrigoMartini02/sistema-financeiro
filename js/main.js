@@ -1503,7 +1503,7 @@ async function buscarReceitasAPI(mes, ano) {
             ano: r.ano,
             observacoes: r.observacoes,
             saldoAnterior: false,
-            anexos: []
+            anexos: r.anexos || []
         }));
 
     } catch (error) {
@@ -1585,8 +1585,10 @@ async function renderizarDetalhesDoMes(mes, ano) {
         const saldo = calcularSaldoMes(mes, ano);
         const totalJuros = typeof window.calcularTotalJuros === 'function' ?
                           window.calcularTotalJuros(despesas || []) : 0;
+        const totalEconomias = typeof window.calcularTotalEconomias === 'function' ?
+                          window.calcularTotalEconomias(despesas || []) : 0;
 
-        atualizarResumoDetalhes(saldo, totalJuros);
+        atualizarResumoDetalhes(saldo, totalJuros, totalEconomias);
         atualizarLimitesCartoes(mes, ano);
         atualizarTituloDetalhes(mes, ano, fechado);
         atualizarControlesFechamento(mes, ano, fechado);
@@ -1660,11 +1662,12 @@ function atualizarControlesFechamento(mes, ano, fechado) {
     }
 }
 
-function atualizarResumoDetalhes(saldo, totalJuros) {
+function atualizarResumoDetalhes(saldo, totalJuros, totalEconomias = 0) {
     atualizarElemento('resumo-receitas', formatarMoeda(saldo.receitas));
     atualizarElemento('resumo-despesas', formatarMoeda(saldo.despesas));
     atualizarElemento('resumo-juros', formatarMoeda(totalJuros));
-    
+    atualizarElemento('resumo-economias', formatarMoeda(totalEconomias));
+
     const saldoElement = document.getElementById('resumo-saldo');
     if (saldoElement) {
         saldoElement.textContent = formatarMoeda(saldo.saldoFinal);

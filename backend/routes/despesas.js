@@ -97,7 +97,7 @@ router.post('/', authMiddleware, [
             descricao, valor, data_vencimento, data_compra, data_pagamento,
             mes, ano, categoria_id, cartao_id, forma_pagamento,
             parcelado, total_parcelas, parcela_atual, observacoes, pago,
-            valor_original, valor_total_com_juros, valor_pago
+            valor_original, valor_total_com_juros, valor_pago, anexos
         } = req.body;
 
         console.log('📝 Criando despesa:', {
@@ -128,13 +128,16 @@ router.post('/', authMiddleware, [
         // ✅ OBTER PRÓXIMO NÚMERO
         const proximoNumero = await obterProximoNumero(req.usuario.id);
 
+        // Converter anexos para JSON se existirem
+        const anexosJson = anexos && Array.isArray(anexos) && anexos.length > 0 ? JSON.stringify(anexos) : null;
+
         const result = await query(
             `INSERT INTO despesas (
                 usuario_id, descricao, valor, data_vencimento, data_compra, data_pagamento,
                 mes, ano, categoria_id, cartao_id, forma_pagamento,
                 parcelado, numero_parcelas, parcela_atual, observacoes, pago,
-                valor_original, valor_total_com_juros, valor_pago, numero
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+                valor_original, valor_total_com_juros, valor_pago, numero, anexos
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
             RETURNING *`,
             [
                 req.usuario.id, descricao, parseFloat(valor), data_vencimento,
@@ -145,7 +148,8 @@ router.post('/', authMiddleware, [
                 valor_original ? parseFloat(valor_original) : null,
                 valor_total_com_juros ? parseFloat(valor_total_com_juros) : null,
                 valor_pago ? parseFloat(valor_pago) : null,
-                proximoNumero
+                proximoNumero,
+                anexosJson
             ]
         );
 
@@ -253,12 +257,15 @@ router.put('/:id', authMiddleware, async (req, res) => {
         const {
             descricao, valor, data_vencimento, data_compra, data_pagamento,
             categoria_id, cartao_id, forma_pagamento, observacoes, pago,
-            total_parcelas, parcela_atual, valor_original, valor_total_com_juros, valor_pago
+            total_parcelas, parcela_atual, valor_original, valor_total_com_juros, valor_pago, anexos
         } = req.body;
 
         // ✅ ACEITAR total_parcelas e parcela_atual do frontend
         const numeroParcelas = total_parcelas || null;
         const parcelaAtual = parcela_atual || null;
+
+        // Converter anexos para JSON se existirem
+        const anexosJson = anexos && Array.isArray(anexos) && anexos.length > 0 ? JSON.stringify(anexos) : null;
 
         const result = await query(
             `UPDATE despesas
@@ -266,8 +273,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
                  data_pagamento = $5, categoria_id = $6, cartao_id = $7,
                  forma_pagamento = $8, observacoes = $9, pago = $10,
                  numero_parcelas = $11, parcela_atual = $12,
-                 valor_original = $13, valor_total_com_juros = $14, valor_pago = $15
-             WHERE id = $16 AND usuario_id = $17
+                 valor_original = $13, valor_total_com_juros = $14, valor_pago = $15, anexos = $16
+             WHERE id = $17 AND usuario_id = $18
              RETURNING *`,
             [
                 descricao, parseFloat(valor), data_vencimento, data_compra,
@@ -276,6 +283,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
                 valor_original ? parseFloat(valor_original) : null,
                 valor_total_com_juros ? parseFloat(valor_total_com_juros) : null,
                 valor_pago ? parseFloat(valor_pago) : null,
+                anexosJson,
                 id, req.usuario.id
             ]
         );

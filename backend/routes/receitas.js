@@ -77,18 +77,21 @@ router.post('/', authMiddleware, [
             });
         }
 
-        const { descricao, valor, data_recebimento, mes, ano, observacoes } = req.body;
+        const { descricao, valor, data_recebimento, mes, ano, observacoes, anexos } = req.body;
 
         console.log('📝 Criando receita:', {
             descricao, valor, data_recebimento, mes, ano,
             usuario_id: req.usuario.id
         });
 
+        // Converter anexos para JSON se existirem
+        const anexosJson = anexos && Array.isArray(anexos) && anexos.length > 0 ? JSON.stringify(anexos) : null;
+
         const result = await query(
-            `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, observacoes)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, observacoes, anexos)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING *`,
-            [req.usuario.id, descricao, parseFloat(valor), data_recebimento, mes, ano, observacoes || null]
+            [req.usuario.id, descricao, parseFloat(valor), data_recebimento, mes, ano, observacoes || null, anexosJson]
         );
 
         console.log('✅ Receita criada com sucesso:', result.rows[0].id);
@@ -114,14 +117,17 @@ router.post('/', authMiddleware, [
 router.put('/:id', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
-        const { descricao, valor, data_recebimento, observacoes } = req.body;
-        
+        const { descricao, valor, data_recebimento, observacoes, anexos } = req.body;
+
+        // Converter anexos para JSON se existirem
+        const anexosJson = anexos && Array.isArray(anexos) && anexos.length > 0 ? JSON.stringify(anexos) : null;
+
         const result = await query(
-            `UPDATE receitas 
-             SET descricao = $1, valor = $2, data_recebimento = $3, observacoes = $4
-             WHERE id = $5 AND usuario_id = $6
+            `UPDATE receitas
+             SET descricao = $1, valor = $2, data_recebimento = $3, observacoes = $4, anexos = $5
+             WHERE id = $6 AND usuario_id = $7
              RETURNING *`,
-            [descricao, parseFloat(valor), data_recebimento, observacoes, id, req.usuario.id]
+            [descricao, parseFloat(valor), data_recebimento, observacoes, anexosJson, id, req.usuario.id]
         );
         
         if (result.rows.length === 0) {

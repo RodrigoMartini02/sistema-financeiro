@@ -21,25 +21,42 @@ if (!window.sistemaAnexos) {
                 'despesa': 'input-file-anexos-despesa',
                 'comprovante': 'input-file-comprovante'
             };
-            
+
             const inputId = inputMap[tipo];
             if (!inputId) {
-
                 return;
             }
-            
+
             const input = document.getElementById(inputId);
             if (!input) {
-
                 return;
             }
-            
-            // Configurar event listener se não existir
-            if (!input._anexoListener) {
-                input._anexoListener = (e) => this.processarArquivosSelecionados(e, tipo);
-                input.addEventListener('change', input._anexoListener);
+
+            // CORREÇÃO: Remover listener anterior antes de adicionar novo
+            // Isso evita o loop de reabrir a biblioteca
+            if (input._anexoListener) {
+                input.removeEventListener('change', input._anexoListener);
             }
-            
+
+            // Criar novo listener com referência ao tipo correto
+            const self = this;
+            input._anexoListener = function(e) {
+                // Prevenir propagação
+                e.stopPropagation();
+
+                // Processar arquivos apenas uma vez
+                self.processarArquivosSelecionados(e, tipo);
+
+                // Remover listener após uso para evitar duplicação
+                input.removeEventListener('change', input._anexoListener);
+                input._anexoListener = null;
+            };
+
+            input.addEventListener('change', input._anexoListener);
+
+            // Limpar valor anterior para permitir selecionar mesmo arquivo
+            input.value = '';
+
             input.click();
         },
         
@@ -398,31 +415,6 @@ function criarItemAnexoDespesaParaDownload(anexo, indice, tipo = 'cadastro') {
     
     return div;
 }
-// Função fallback para criar item sem template
-function criarItemAnexoDespesaSemTemplate(anexo, indice) {
-    const div = document.createElement('div');
-    div.className = 'anexo-download-item';
-    
-    const nomeArquivo = anexo.nome || `Anexo ${indice + 1}`;
-    const icone = window.sistemaAnexos.obterIconeArquivo(anexo.tipo || anexo.nome);
-    
-    div.innerHTML = `
-        <div class="anexo-info">
-            <i class="anexo-icone ${icone}"></i>
-            <span class="anexo-nome">${nomeArquivo}</span>
-        </div>
-        <button class="btn-download-anexo" type="button">
-            <i class="fas fa-download"></i>
-        </button>
-    `;
-    
-    const btnDownload = div.querySelector('.btn-download-anexo');
-    btnDownload.addEventListener('click', () => {
-        baixarAnexoDespesa(anexo, nomeArquivo);
-    });
-    
-    return div;
-}
 
 // Função para baixar anexo da despesa
 function baixarAnexoDespesa(anexo, nomeArquivo) {
@@ -734,18 +726,9 @@ window.abrirModalVisualizarAnexosReceita = abrirModalVisualizarAnexosReceita;
 // EXPORTAR FUNÇÕES GLOBAIS
 // ================================================================
 
-// Funções para receitas
-function configurarEventosAnexosReceitas(container) {
-    // Placeholder - configuração de eventos de anexos para receitas
-    if (!container) return;
-
-}
-
+// Funções para receitas (definidas aqui, usadas em receita.js também)
 window.abrirModalVisualizarAnexosReceita = abrirModalVisualizarAnexosReceita;
 window.baixarAnexoReceita = baixarAnexoReceita;
-window.configurarEventosAnexosReceitas = configurarEventosAnexosReceitas;
-window.atualizarContadorAnexosReceita = atualizarContadorAnexosReceita;
-window.atualizarTodosContadoresAnexosReceitas = atualizarTodosContadoresAnexosReceitas;
 
 // Funções para despesas
 window.abrirModalVisualizarAnexosDespesa = abrirModalVisualizarAnexosDespesa;

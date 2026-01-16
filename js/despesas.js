@@ -3427,6 +3427,7 @@ function calcularEconomiaDespesa(despesa) {
     const valorPago = parseFloat(despesa.valorPago) || 0;
     const valorOriginal = parseFloat(despesa.valorOriginal) || 0;
     const valorTotalComJuros = parseFloat(despesa.valorTotalComJuros) || 0;
+    const valorAtual = parseFloat(despesa.valor) || 0;
 
     let economia = 0;
 
@@ -3435,12 +3436,17 @@ function calcularEconomiaDespesa(despesa) {
         economia += parseFloat(despesa.metadados.economiaPagamento);
     }
 
-    // PRIORIDADE 2: Economia quando valor pago < valor original (desconto no pagamento)
+    // PRIORIDADE 2: Economia quando valor pago < valor original (via modal pagar despesa)
     else if (valorPago > 0 && valorOriginal > 0 && valorPago < valorOriginal) {
         economia += valorOriginal - valorPago;
     }
 
-    // PRIORIDADE 3: Economia no cadastro (valorTotalComJuros < valorOriginal)
+    // PRIORIDADE 3: Despesa marcada como paga (quitado=true) com valor final < valor original
+    else if (despesa.quitado === true && valorOriginal > 0 && valorAtual < valorOriginal) {
+        economia += valorOriginal - valorAtual;
+    }
+
+    // PRIORIDADE 4: Economia no cadastro (valorTotalComJuros < valorOriginal)
     else if (valorTotalComJuros > 0 && valorOriginal > 0 && valorTotalComJuros < valorOriginal) {
         // Para parcelamentos, calcular economia por parcela
         const diferencaEconomia = valorOriginal - valorTotalComJuros;
