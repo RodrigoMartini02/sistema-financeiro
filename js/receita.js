@@ -280,10 +280,29 @@ function configurarEventosReceitas(container, mes, ano) {
 
 function configurarEventosAnexosReceitas(container) {
     if (!container) return;
-    
-    if (typeof window.configurarEventosAnexosReceitas === 'function') {
-        window.configurarEventosAnexosReceitas(container);
+
+    // Remover listener anterior para evitar duplicação
+    if (container._anexosReceitaListener) {
+        container.removeEventListener('click', container._anexosReceitaListener);
     }
+
+    // Criar listener para botões de anexos
+    container._anexosReceitaListener = (e) => {
+        const btnAnexos = e.target.closest('.btn-anexos');
+        if (!btnAnexos) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const index = parseInt(btnAnexos.dataset.index);
+        if (isNaN(index)) return;
+
+        if (typeof window.abrirModalVisualizarAnexosReceita === 'function') {
+            window.abrirModalVisualizarAnexosReceita(index);
+        }
+    };
+
+    container.addEventListener('click', container._anexosReceitaListener);
 }
 
 // ================================================================
