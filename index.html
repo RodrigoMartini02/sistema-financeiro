@@ -1260,45 +1260,41 @@
             <span class="close">&times;</span>
         </div>
         <div class="modal-body">
-           <form id="form-editar-cartao">
-    <input type="hidden" id="cartao-edit-id">
+            <form id="form-editar-cartao">
+                <input type="hidden" id="cartao-edit-id">
 
-    <div class="cartao-form-grid">
-        <div class="form-group-row">
-            <div class="form-group">
-                <label for="cartao-edit-banco">
-                    <i class="fas fa-university"></i> Nome do Banco <span class="required">*</span>
-                </label>
-                <input type="text" id="cartao-edit-banco" class="form-input" required maxlength="50" placeholder="Ex: Banco do Brasil, Nubank, etc.">
-            </div>
+                <div class="form-row-cartao">
+                    <div class="form-group flex-grow">
+                        <label for="cartao-edit-banco">
+                            <i class="fas fa-university"></i> Nome do Banco <span class="required">*</span>
+                        </label>
+                        <input type="text" id="cartao-edit-banco" class="form-input" required maxlength="50" placeholder="Ex: Nubank, Itaú, etc.">
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-toggle-on"></i> Status</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="cartao-edit-ativo">
+                            <span class="toggle-slider-new"></span>
+                            <span class="toggle-label-text">Ativo</span>
+                        </label>
+                    </div>
+                </div>
 
-            <div class="form-group status-container">
-                <label>
-                    <i class="fas fa-toggle-on"></i> Status
-                </label>
-                <label class="checkbox-status-cartao">
-                    <input type="checkbox" id="cartao-edit-ativo">
-                    <span class="checkbox-box"></span>
-                    <span class="checkbox-text">Ativo</span>
-                </label>
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label for="cartao-edit-validade">
-                <i class="fas fa-calendar-alt"></i> Validade <span class="required">*</span>
-            </label>
-            <input type="text" id="cartao-edit-validade" class="form-input" placeholder="MM/AAAA" required maxlength="7">
-        </div>
-
-        <div class="form-group">
-            <label for="cartao-edit-limite">
-                <i class="fas fa-dollar-sign"></i> Limite (R$) <span class="required">*</span>
-            </label>
-            <input type="number" id="cartao-edit-limite" class="form-input" step="0.01" min="0" required placeholder="0,00">
-        </div>
-    </div>
-</form>
+                <div class="form-row-cartao">
+                    <div class="form-group">
+                        <label for="cartao-edit-validade">
+                            <i class="fas fa-calendar-alt"></i> Validade <span class="required">*</span>
+                        </label>
+                        <input type="text" id="cartao-edit-validade" class="form-input" placeholder="MM/AAAA" required maxlength="7">
+                    </div>
+                    <div class="form-group">
+                        <label for="cartao-edit-limite">
+                            <i class="fas fa-dollar-sign"></i> Limite (R$) <span class="required">*</span>
+                        </label>
+                        <input type="number" id="cartao-edit-limite" class="form-input" step="0.01" min="0" required placeholder="0,00">
+                    </div>
+                </div>
+            </form>
         </div>
         <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-action="cancelar">

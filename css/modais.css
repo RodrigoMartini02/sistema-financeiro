@@ -308,109 +308,91 @@
 }
 
 /* ================================================================
-   MODAIS ESPECÍFICOS - CARTÃO EDITAR
+   MODAIS ESPECÍFICOS - CARTÃO EDITAR / TOGGLE SWITCH
    ================================================================ */
 
-/* Grid principal */
-.cartao-form-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-}
-
-/* Linha Banco + Status */
-.form-group-row {
+.form-row-cartao {
     display: flex;
     gap: 16px;
-    grid-column: 1 / -1;
-    align-items: flex-end;
+    margin-bottom: 16px;
 }
 
-/* Campos da linha */
-.form-group-row .form-group {
+.form-row-cartao .form-group {
     flex: 1;
 }
 
-/* Status com largura proporcional (não apertada) */
-.status-container {
-    flex: 0 0 160px; /* mais espaço = aparência melhor */
+.form-row-cartao .flex-grow {
+    flex: 2;
 }
 
-/* Label do Status (igual aos outros campos) */
-.status-container > label {
-    display: block;
-    margin-bottom: 6px;
-    font-weight: 600;
-    color: #334155;
-}
-
-/* Checkbox Status Cartão - Estilo Toggle */
-.checkbox-status-cartao {
+/* Toggle Switch Container */
+.toggle-switch {
     display: flex;
     align-items: center;
     gap: 12px;
-    height: 44px;
-    padding: 0 16px;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    background: #f8fafc;
     cursor: pointer;
+    padding: 10px 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
     transition: all 0.2s ease;
+    height: 44px;
 }
 
-.checkbox-status-cartao:hover {
+.toggle-switch:hover {
     border-color: #cbd5e0;
     background: #f1f5f9;
 }
 
 /* Esconder checkbox nativo */
-.checkbox-status-cartao input[type="checkbox"] {
+.toggle-switch input[type="checkbox"] {
     position: absolute;
     opacity: 0;
     pointer-events: none;
 }
 
-/* Toggle switch */
-.checkbox-status-cartao .checkbox-box {
+/* Slider do Toggle */
+.toggle-slider-new {
     position: relative;
-    width: 44px;
-    height: 24px;
+    width: 48px;
+    height: 26px;
     background: #cbd5e1;
-    border-radius: 12px;
+    border-radius: 13px;
     transition: all 0.3s ease;
     flex-shrink: 0;
 }
 
-.checkbox-status-cartao .checkbox-box::after {
+.toggle-slider-new::after {
     content: '';
     position: absolute;
-    top: 2px;
-    left: 2px;
+    top: 3px;
+    left: 3px;
     width: 20px;
     height: 20px;
     background: #fff;
     border-radius: 50%;
     transition: all 0.3s ease;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
-/* Estado ativo */
-.checkbox-status-cartao input[type="checkbox"]:checked + .checkbox-box {
+/* Estado Ativo */
+.toggle-switch input[type="checkbox"]:checked + .toggle-slider-new {
     background: #22c55e;
 }
 
-.checkbox-status-cartao input[type="checkbox"]:checked + .checkbox-box::after {
-    transform: translateX(20px);
+.toggle-switch input[type="checkbox"]:checked + .toggle-slider-new::after {
+    transform: translateX(22px);
 }
 
-/* Texto do status */
-.checkbox-status-cartao .checkbox-text {
+/* Label do Toggle */
+.toggle-label-text {
     font-size: 14px;
     font-weight: 500;
     color: #64748b;
+    transition: all 0.2s ease;
 }
 
-.checkbox-status-cartao input[type="checkbox"]:checked ~ .checkbox-text {
+.toggle-switch input[type="checkbox"]:checked ~ .toggle-label-text {
     color: #22c55e;
     font-weight: 600;
 }
