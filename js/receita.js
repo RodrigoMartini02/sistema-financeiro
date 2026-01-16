@@ -1149,10 +1149,25 @@ async function carregarReservasAPI() {
 }
 
 /**
- * Calcula total de reservas
+ * Calcula total de reservas até o mês/ano especificado
+ * @param {number} mesLimite - Mês limite (0-11), se não informado usa o mês atual aberto
+ * @param {number} anoLimite - Ano limite, se não informado usa o ano atual aberto
  */
-function calcularTotalReservas() {
-    return window.reservasCache.reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+function calcularTotalReservas(mesLimite, anoLimite) {
+    const mes = mesLimite !== undefined ? mesLimite : window.mesAberto;
+    const ano = anoLimite !== undefined ? anoLimite : window.anoAberto;
+
+    return window.reservasCache
+        .filter(r => {
+            const reservaAno = parseInt(r.ano);
+            const reservaMes = parseInt(r.mes);
+            // Inclui reservas de anos anteriores
+            if (reservaAno < ano) return true;
+            // Inclui reservas do mesmo ano até o mês atual
+            if (reservaAno === ano && reservaMes <= mes) return true;
+            return false;
+        })
+        .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
 }
 
 /**

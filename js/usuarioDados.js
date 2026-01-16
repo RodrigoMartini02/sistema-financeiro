@@ -309,10 +309,12 @@ class UsuarioDataManager {
                     pago: despesa.pago,
                     quitado: despesa.pago,
                     // Campos para juros e economias
-                    valorPago: despesa.valor_pago || null,
-                    valorOriginal: despesa.valor_original || null,
-                    valorTotalComJuros: despesa.valor_total_com_juros || null,
-                    observacoes: despesa.observacoes || ''
+                    valorPago: despesa.valor_pago ? parseFloat(despesa.valor_pago) : null,
+                    valorOriginal: despesa.valor_original ? parseFloat(despesa.valor_original) : valor,
+                    valorTotalComJuros: despesa.valor_total_com_juros ? parseFloat(despesa.valor_total_com_juros) : null,
+                    observacoes: despesa.observacoes || '',
+                    anexos: despesa.anexos || [],
+                    metadados: despesa.metadados || null
                 });
             });
 
@@ -557,7 +559,8 @@ class UsuarioDataManager {
                 data_recebimento: receita.data || receita.dataRecebimento || receita.data_recebimento,
                 mes: parseInt(mes),
                 ano: parseInt(ano),
-                observacoes: receita.observacoes || ''
+                observacoes: receita.observacoes || '',
+                anexos: receita.anexos || []
             };
 
             let response;
@@ -693,13 +696,14 @@ class UsuarioDataManager {
                 cartao_id: cartaoId,
                 forma_pagamento: despesa.formaPagamento || despesa.forma_pagamento || 'dinheiro',
                 parcelado: despesa.parcelado || false,
-                total_parcelas: despesa.totalParcelas || despesa.total_parcelas || despesa.numero_parcelas || null, // ✅ CORRIGIDO: aceita numero_parcelas também
+                total_parcelas: despesa.totalParcelas || despesa.total_parcelas || despesa.numero_parcelas || null,
                 parcela_atual: despesa.parcelaAtual || despesa.parcela_atual || null,
                 pago: despesa.pago || despesa.quitado || false,
                 observacoes: despesa.observacoes || '',
                 valor_original: despesa.valorOriginal ? parseFloat(despesa.valorOriginal) : null,
                 valor_total_com_juros: despesa.valorTotalComJuros ? parseFloat(despesa.valorTotalComJuros) : null,
-                valor_pago: despesa.valorPago ? parseFloat(despesa.valorPago) : null
+                valor_pago: despesa.valorPago ? parseFloat(despesa.valorPago) : null,
+                anexos: despesa.anexos || []
             };
 
             let response;

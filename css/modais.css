@@ -286,12 +286,25 @@
 }
 
 /* ================================================================
-   MODAIS ESPECÍFICOS - ALTERAR SENHA
+   MODAIS COMPACTOS - Altura automática baseada no conteúdo
    ================================================================ */
 
-#modal-alterar-senha .modal-content {
-    max-width: 400px !important;
+#modal-alterar-senha .modal-content,
+#modal-editar-categoria .modal-content {
+    max-width: 450px;
     width: 90%;
+}
+
+#modal-adicionar-usuario .modal-content {
+    max-width: 500px;
+    width: 90%;
+}
+
+#modal-alterar-senha .modal-body,
+#modal-editar-categoria .modal-body,
+#modal-adicionar-usuario .modal-body {
+    max-height: none;
+    overflow-y: visible;
 }
 
 /* ================================================================
@@ -331,59 +344,75 @@
     color: #334155;
 }
 
-/* Checkbox Status Cartão - Layout horizontal */
+/* Checkbox Status Cartão - Estilo Toggle */
 .checkbox-status-cartao {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     height: 44px;
-    padding: 0 12px;
-    border: 1.5px solid #cbd5e1;
-    background-color: #ffffff;
+    padding: 0 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #f8fafc;
     cursor: pointer;
-    transition: border-color 0.2s ease;
+    transition: all 0.2s ease;
 }
 
 .checkbox-status-cartao:hover {
-    border-color: #94a3b8;
+    border-color: #cbd5e0;
+    background: #f1f5f9;
 }
 
 /* Esconder checkbox nativo */
 .checkbox-status-cartao input[type="checkbox"] {
-    display: none;
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
 }
 
-/* Caixa visual do checkbox */
+/* Toggle switch */
 .checkbox-status-cartao .checkbox-box {
-    width: 24px;
+    position: relative;
+    width: 44px;
     height: 24px;
-    border: 2px solid #cbd5e1;
-    background: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
+    background: #cbd5e1;
+    border-radius: 12px;
+    transition: all 0.3s ease;
     flex-shrink: 0;
 }
 
-/* Ícone check quando marcado */
+.checkbox-status-cartao .checkbox-box::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: #fff;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* Estado ativo */
 .checkbox-status-cartao input[type="checkbox"]:checked + .checkbox-box {
     background: #22c55e;
-    border-color: #22c55e;
 }
 
 .checkbox-status-cartao input[type="checkbox"]:checked + .checkbox-box::after {
-    content: '✓';
-    color: white;
-    font-size: 14px;
-    font-weight: bold;
+    transform: translateX(20px);
 }
 
-/* Texto "Ativo" */
+/* Texto do status */
 .checkbox-status-cartao .checkbox-text {
     font-size: 14px;
     font-weight: 500;
-    color: #475569;
+    color: #64748b;
+}
+
+.checkbox-status-cartao input[type="checkbox"]:checked ~ .checkbox-text {
+    color: #22c55e;
+    font-weight: 600;
 }
 
 

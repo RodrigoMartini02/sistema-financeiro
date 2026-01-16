@@ -1533,6 +1533,9 @@ async function buscarDespesasAPI(mes, ano) {
             formaPagamento: d.forma_pagamento,
             numeroCartao: d.cartao_id,
             valor: parseFloat(d.valor),
+            valorOriginal: parseFloat(d.valor_original || d.valor),
+            valorPago: d.valor_pago ? parseFloat(d.valor_pago) : null,
+            valorTotalComJuros: d.valor_total_com_juros ? parseFloat(d.valor_total_com_juros) : null,
             dataVencimento: d.data_vencimento,
             dataCompra: d.data_compra,
             dataPagamento: d.data_pagamento,
@@ -1545,7 +1548,8 @@ async function buscarDespesasAPI(mes, ano) {
             pago: d.pago,
             quitado: d.pago,
             observacoes: d.observacoes,
-            anexos: [],
+            anexos: d.anexos || [],
+            metadados: d.metadados || null,
             status: d.pago ? 'quitada' : (new Date(d.data_vencimento) < new Date() ? 'atrasada' : 'em_dia')
         }));
 

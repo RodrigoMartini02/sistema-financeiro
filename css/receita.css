@@ -516,30 +516,6 @@
     margin-bottom: 8px;
 }
 
-.barra-fundo {
-    width: 100%;
-    height: 6px;
-    background: var(--gray-200);
-    overflow: hidden;
-}
-
-.barra-preenchida {
-    height: 100%;
-    transition: width 0.3s ease;
-}
-
-.barra-preenchida.limite-normal {
-    background: var(--success);
-}
-
-.barra-preenchida.limite-alto {
-    background: var(--warning);
-}
-
-.barra-preenchida.limite-critico {
-    background: var(--danger);
-}
-
 .cartao-percentual {
     display: flex;
     gap: 16px;
