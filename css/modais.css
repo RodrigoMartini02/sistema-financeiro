@@ -318,80 +318,83 @@
 /* ================================================================
    MODAIS ESPECÍFICOS - CARTÃO EDITAR
    ================================================================ */
-/* Container do Modal para tirar o excesso de altura */
+
+   /* Ajuste do Modal e remoção de espaços vazios */
 #modal-editar-cartao .modal-content {
     max-width: 550px;
     height: auto !important;
+    min-height: auto !important;
     margin: 8vh auto;
+    padding: 0;
 }
 
-/* Grid e Alinhamento das Linhas */
+/* Estrutura de Grid em Linhas */
 .cartao-form-grid {
     display: flex;
     flex-direction: column;
     gap: 15px;
 }
 
-.form-group-row {
+.form-row {
     display: flex;
-    gap: 20px;
-    align-items: flex-start;
+    gap: 15px;
+    width: 100%;
 }
 
-.flex-grow { flex: 1; }
+/* Proporções dos campos */
+.flex-3 { flex: 3; }
+.flex-1 { flex: 1; }
 
-/* Ajuste específico para a caixa de Status */
-.status-box-group {
-    flex: 0 0 120px; /* Largura fixa para o cantinho */
+/* Status no canto direito */
+.status-box {
+    flex: 0 0 110px; /* Largura fixa pequena para o checkbox */
 }
 
-/* Simulação perfeita do Input de texto para o Checkbox */
-.checkbox-input-card {
+/* Quadrado do Checkbox (Simulando espessura do input) */
+.checkbox-card {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 42px; /* Verifique se é a mesma altura dos seus inputs */
-    background: #fff;
+    height: 42px; /* Altura idêntica aos seus outros campos de texto */
     border: 1px solid #d1d5db;
     border-radius: 6px;
-    transition: border-color 0.2s;
+    background-color: #fff;
 }
 
-.checkbox-input-card:hover {
-    border-color: #a0aec0;
-}
-
-/* Estilo do Checkbox interno */
-.checkbox-label-inline {
+.checkbox-label {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     cursor: pointer;
     margin: 0;
-    width: 100%;
-    justify-content: center;
 }
 
-.checkbox-label-inline input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    accent-color: #2f855a; /* Cor verde para o "Ativo" */
+.checkbox-label input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
     cursor: pointer;
+    accent-color: #2f855a;
 }
 
-.checkbox-label-inline span {
-    font-size: 14px;
-    font-weight: 500;
-    color: #4a5568;
-}
-
-/* Labels padrão */
+/* Labels e Textos */
 .form-group label {
     display: block;
     font-size: 14px;
     font-weight: 600;
     color: #4a5568;
     margin-bottom: 6px;
+}
+
+.required {
+    color: #e53e3e;
+}
+
+.modal-footer {
+    padding: 15px 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    border-top: 1px solid #eee;
 }
 
 /* ================================================================
