@@ -319,46 +319,42 @@
    MODAIS ESPECÍFICOS - CARTÃO EDITAR
    ================================================================ */
 
-   /* Ajuste do Modal e remoção de espaços vazios */
+   /* Ajuste de altura e largura do Modal */
 #modal-editar-cartao .modal-content {
     max-width: 550px;
     height: auto !important;
-    min-height: auto !important;
     margin: 8vh auto;
-    padding: 0;
 }
 
-/* Estrutura de Grid em Linhas */
 .cartao-form-grid {
     display: flex;
     flex-direction: column;
     gap: 15px;
 }
 
+/* Linhas do formulário */
 .form-row {
     display: flex;
-    gap: 15px;
+    gap: 15px; /* Espaço entre os campos */
     width: 100%;
 }
 
-/* Proporções dos campos */
-.flex-3 { flex: 3; }
-.flex-1 { flex: 1; }
+/* Proporções da primeira linha */
+.flex-main { flex: 4; }   /* Banco ganha a maior parte do espaço */
+.flex-status { flex: 1; min-width: 100px; } /* Status fica no cantinho */
 
-/* Status no canto direito */
-.status-box {
-    flex: 0 0 110px; /* Largura fixa pequena para o checkbox */
-}
+/* Proporções da segunda linha */
+.flex-1 { flex: 1; } /* Divide 50/50 */
 
-/* Quadrado do Checkbox (Simulando espessura do input) */
+/* Estilo do quadradinho do Checkbox */
 .checkbox-card {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 42px; /* Altura idêntica aos seus outros campos de texto */
+    height: 42px; /* Altura exata dos seus inputs de texto */
     border: 1px solid #d1d5db;
     border-radius: 6px;
-    background-color: #fff;
+    background: #fff;
 }
 
 .checkbox-label {
@@ -369,32 +365,21 @@
     margin: 0;
 }
 
-.checkbox-label input[type="checkbox"] {
-    width: 17px;
-    height: 17px;
-    cursor: pointer;
-    accent-color: #2f855a;
-}
-
-/* Labels e Textos */
+/* Reset de espaçamentos padrão */
 .form-group label {
     display: block;
     font-size: 14px;
     font-weight: 600;
+    margin-bottom: 5px;
     color: #4a5568;
-    margin-bottom: 6px;
 }
 
-.required {
-    color: #e53e3e;
-}
-
-.modal-footer {
-    padding: 15px 20px;
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    border-top: 1px solid #eee;
+.form-input {
+    width: 100%;
+    height: 42px;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
 }
 
 /* ================================================================
