@@ -190,9 +190,16 @@ async function criarParcelasFuturas(usuarioId, despesaBase, totalParcelas) {
             }
             
             // Data de vencimento da próxima parcela
-            const dataVencimentoBase = new Date(despesaBase.data_vencimento);
+            // Criar data local sem conversão UTC
+            const [ano, mes, dia] = despesaBase.data_vencimento.split('-').map(Number);
+            const dataVencimentoBase = new Date(ano, mes - 1, dia);
             dataVencimentoBase.setMonth(dataVencimentoBase.getMonth() + (i - 1));
-            const proximaDataVencimento = dataVencimentoBase.toISOString().split('T')[0];
+
+            // Formatar como YYYY-MM-DD local
+            const proximoAnoCalc = dataVencimentoBase.getFullYear();
+            const proximoMesCalc = String(dataVencimentoBase.getMonth() + 1).padStart(2, '0');
+            const proximoDiaCalc = String(dataVencimentoBase.getDate()).padStart(2, '0');
+            const proximaDataVencimento = `${proximoAnoCalc}-${proximoMesCalc}-${proximoDiaCalc}`;
             
             await query(
                 `INSERT INTO despesas (

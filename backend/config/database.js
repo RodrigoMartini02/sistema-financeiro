@@ -1,5 +1,13 @@
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
 require('dotenv').config();
+
+// Configurar pg para retornar DATEs como strings (evita problemas de timezone)
+// TYPE_ID 1082 = DATE
+// TYPE_ID 1114 = TIMESTAMP WITHOUT TIME ZONE
+// TYPE_ID 1184 = TIMESTAMP WITH TIME ZONE
+types.setTypeParser(1082, val => val);
+types.setTypeParser(1114, val => val);
+types.setTypeParser(1184, val => val);
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL || 
