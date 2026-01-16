@@ -292,56 +292,6 @@
 #modal-alterar-senha .modal-content {
     max-width: 400px !important;
     width: 90%;
-    height: auto !important;
-    min-height: auto !important;
-    margin: 10vh auto;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-}
-
-#modal-alterar-senha .modal-body {
-    padding: 20px 24px;
-    flex: 1;
-}
-
-#modal-alterar-senha .modal-footer {
-    padding: 16px 24px;
-    background: var(--gray-50);
-    border-top: 1px solid var(--gray-200);
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-}
-
-#modal-alterar-senha .form-group {
-    margin-bottom: 16px;
-}
-
-#modal-alterar-senha .form-group:last-child {
-    margin-bottom: 0;
-}
-
-#modal-alterar-senha .form-group label {
-    display: block;
-    margin-bottom: 6px;
-    font-weight: 600;
-    color: #333;
-    font-size: 13px;
-}
-
-#modal-alterar-senha .form-control {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1.5px solid #e0e0e0;
-    font-size: 14px;
-    transition: all 0.2s ease;
-}
-
-#modal-alterar-senha .form-control:focus {
-    outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 /* ================================================================
