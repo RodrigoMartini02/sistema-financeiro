@@ -948,16 +948,16 @@ router.get('/:id/cartoes', authMiddleware, async (req, res) => {
 
         // 1. Primeiro tentar buscar da TABELA cartoes
         const resultTabela = await query(
-            `SELECT id, nome as banco, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao
+            `SELECT id, nome as banco, limite, dia_fechamento, dia_vencimento, cor, ativo
              FROM cartoes
              WHERE usuario_id = $1
-             ORDER BY numero_cartao ASC NULLS LAST, id ASC`,
+             ORDER BY id ASC`,
             [id]
         );
 
         // Se encontrou cartões na tabela, retornar eles
         if (resultTabela.rows.length > 0) {
-            const cartoes = resultTabela.rows.map(cartao => ({
+            const cartoes = resultTabela.rows.map((cartao, index) => ({
                 id: cartao.id,
                 banco: cartao.banco,
                 nome: cartao.banco,
@@ -966,7 +966,7 @@ router.get('/:id/cartoes', authMiddleware, async (req, res) => {
                 dia_vencimento: cartao.dia_vencimento,
                 cor: cartao.cor || '#3498db',
                 ativo: cartao.ativo !== false,
-                numero_cartao: cartao.numero_cartao
+                numero_cartao: index + 1
             }));
 
             return res.json({
@@ -1028,9 +1028,9 @@ router.get('/:id/cartoes', authMiddleware, async (req, res) => {
             const cartao = cartoesParaMigrar[i];
             try {
                 const insertResult = await query(
-                    `INSERT INTO cartoes (usuario_id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                     RETURNING id, nome as banco, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao`,
+                    `INSERT INTO cartoes (usuario_id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7)
+                     RETURNING id, nome as banco, limite, dia_fechamento, dia_vencimento, cor, ativo`,
                     [
                         id,
                         (cartao.banco || cartao.nome || '').trim(),
@@ -1038,8 +1038,7 @@ router.get('/:id/cartoes', authMiddleware, async (req, res) => {
                         cartao.dia_fechamento || 1,
                         cartao.dia_vencimento || 10,
                         cartao.cor || '#3498db',
-                        cartao.ativo !== false,
-                        cartao.numero_cartao || (i + 1)
+                        cartao.ativo !== false
                     ]
                 );
 
@@ -1054,7 +1053,7 @@ router.get('/:id/cartoes', authMiddleware, async (req, res) => {
                         dia_vencimento: c.dia_vencimento,
                         cor: c.cor || '#3498db',
                         ativo: c.ativo !== false,
-                        numero_cartao: c.numero_cartao
+                        numero_cartao: i + 1
                     });
                 }
             } catch (insertError) {
@@ -1137,9 +1136,9 @@ router.put('/:id/cartoes', authMiddleware, async (req, res) => {
                     const updateResult = await query(
                         `UPDATE cartoes
                          SET nome = $1, limite = $2, dia_fechamento = $3, dia_vencimento = $4,
-                             cor = $5, ativo = $6, numero_cartao = $7, data_atualizacao = CURRENT_TIMESTAMP
-                         WHERE id = $8 AND usuario_id = $9
-                         RETURNING id, nome as banco, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao`,
+                             cor = $5, ativo = $6, data_atualizacao = CURRENT_TIMESTAMP
+                         WHERE id = $7 AND usuario_id = $8
+                         RETURNING id, nome as banco, limite, dia_fechamento, dia_vencimento, cor, ativo`,
                         [
                             nome,
                             parseFloat(cartao.limite) || 0,
@@ -1147,7 +1146,6 @@ router.put('/:id/cartoes', authMiddleware, async (req, res) => {
                             cartao.dia_vencimento || 10,
                             cartao.cor || '#3498db',
                             cartao.ativo !== false,
-                            cartao.numero_cartao || (i + 1),
                             cartao.id,
                             id
                         ]
@@ -1158,9 +1156,9 @@ router.put('/:id/cartoes', authMiddleware, async (req, res) => {
                 } else {
                     // Inserir novo cartão
                     const insertResult = await query(
-                        `INSERT INTO cartoes (usuario_id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao)
-                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                         RETURNING id, nome as banco, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao`,
+                        `INSERT INTO cartoes (usuario_id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo)
+                         VALUES ($1, $2, $3, $4, $5, $6, $7)
+                         RETURNING id, nome as banco, limite, dia_fechamento, dia_vencimento, cor, ativo`,
                         [
                             id,
                             nome,
@@ -1168,8 +1166,7 @@ router.put('/:id/cartoes', authMiddleware, async (req, res) => {
                             cartao.dia_fechamento || 1,
                             cartao.dia_vencimento || 10,
                             cartao.cor || '#3498db',
-                            cartao.ativo !== false,
-                            cartao.numero_cartao || (i + 1)
+                            cartao.ativo !== false
                         ]
                     );
                     if (insertResult.rows.length > 0) {
@@ -1193,8 +1190,7 @@ router.put('/:id/cartoes', authMiddleware, async (req, res) => {
                     dia_fechamento: c.dia_fechamento,
                     dia_vencimento: c.dia_vencimento,
                     cor: c.cor,
-                    ativo: c.ativo,
-                    numero_cartao: c.numero_cartao
+                    ativo: c.ativo
                 }))
             });
 
