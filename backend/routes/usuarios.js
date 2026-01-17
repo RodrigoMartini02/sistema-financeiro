@@ -946,26 +946,27 @@ router.get('/:id/cartoes', authMiddleware, async (req, res) => {
             });
         }
 
+        // ✅ CORRIGIDO: Buscar cartões da TABELA cartoes (não do campo JSON)
         const result = await query(
-            'SELECT cartoes FROM usuarios WHERE id = $1',
+            `SELECT id, nome as banco, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao
+             FROM cartoes
+             WHERE usuario_id = $1
+             ORDER BY numero_cartao ASC NULLS LAST, id ASC`,
             [id]
         );
 
-        if (result.rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Usuário não encontrado'
-            });
-        }
-
-        // Estrutura padrão de cartões
-        const cartoesPadrao = {
-            cartao1: { nome: '', validade: '', limite: 0, ativo: false },
-            cartao2: { nome: '', validade: '', limite: 0, ativo: false },
-            cartao3: { nome: '', validade: '', limite: 0, ativo: false }
-        };
-
-        const cartoes = result.rows[0].cartoes || cartoesPadrao;
+        // Retornar array de cartões com IDs reais do banco
+        const cartoes = result.rows.map(cartao => ({
+            id: cartao.id,
+            banco: cartao.banco,
+            nome: cartao.banco,
+            limite: parseFloat(cartao.limite) || 0,
+            dia_fechamento: cartao.dia_fechamento,
+            dia_vencimento: cartao.dia_vencimento,
+            cor: cartao.cor || '#3498db',
+            ativo: cartao.ativo !== false,
+            numero_cartao: cartao.numero_cartao
+        }));
 
         res.json({
             success: true,

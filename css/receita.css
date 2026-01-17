@@ -251,20 +251,14 @@
 
 
 .receitas-grid .contador-anexos {
-    background: #3b82f6;
-    color: white;
-    font-size: 10px;
-    font-weight: 600;
-    min-width: 16px;
-    height: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: 2px;
+    background: transparent;
+    color: inherit;
+    font-size: 12px;
+    font-weight: 400;
 }
 
 .receitas-grid .btn-anexos:not(.tem-anexos) .contador-anexos {
-    background: #9ca3af;
+    background: transparent;
 }
 
 /* Manter compatibilidade com tabela antiga */
@@ -305,16 +299,10 @@
 
 
 .contador-anexos {
-    background: var(--primary);
-    color: var(--white);
-    font-size: 10px;
-    font-weight: var(--font-weight-bold);
-    min-width: 16px;
-    height: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: 2px;
+    background: transparent;
+    color: inherit;
+    font-size: 12px;
+    font-weight: 400;
 }
 
 

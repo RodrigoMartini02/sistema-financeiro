@@ -369,21 +369,38 @@
     letter-spacing: 0.5px;
 }
 
-.tabela-categorias th:nth-child(1) {
-    width: 70px;
+/* ID - menor */
+.tabela-categorias th:nth-child(1),
+.tabela-categorias td:nth-child(1) {
+    width: 8%;
+    text-align: center;
 }
 
-.tabela-categorias th:nth-child(2) {
-    width: auto;
+/* Nome da Categoria - maior */
+.tabela-categorias th:nth-child(2),
+.tabela-categorias td:nth-child(2) {
+    width: 34%;
 }
 
+/* Data de Criação - igual */
 .tabela-categorias th:nth-child(3),
-.tabela-categorias th:nth-child(4) {
-    width: 130px;
+.tabela-categorias td:nth-child(3) {
+    width: 22%;
+    text-align: center;
 }
 
+/* Última Edição - igual */
+.tabela-categorias th:nth-child(4),
+.tabela-categorias td:nth-child(4) {
+    width: 22%;
+    text-align: center;
+}
+
+/* Ações - menor */
+.tabela-categorias th:nth-child(5),
+.tabela-categorias td:nth-child(5),
 .tabela-categorias th.th-acoes {
-    width: 100px;
+    width: 14%;
     text-align: center;
 }
 

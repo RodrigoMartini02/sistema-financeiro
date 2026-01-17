@@ -132,6 +132,19 @@ router.post('/', authMiddleware, [
         const numeroParcelas = total_parcelas || null;
         const parcelaAtual = parcela_atual || (parcelado ? 1 : null);
 
+        // ✅ VALIDAR CARTAO_ID: verificar se existe na tabela cartoes do usuário
+        let cartaoIdFinal = cartao_id || null;
+        if (cartaoIdFinal) {
+            const cartaoResult = await query(
+                'SELECT id FROM cartoes WHERE id = $1 AND usuario_id = $2',
+                [cartaoIdFinal, req.usuario.id]
+            );
+            if (cartaoResult.rows.length === 0) {
+                console.warn(`⚠️ Cartão ID ${cartaoIdFinal} não encontrado para usuário ${req.usuario.id}, ignorando cartao_id`);
+                cartaoIdFinal = null;
+            }
+        }
+
         // ✅ OBTER PRÓXIMO NÚMERO
         const proximoNumero = await obterProximoNumero(req.usuario.id);
 
@@ -149,7 +162,7 @@ router.post('/', authMiddleware, [
             [
                 req.usuario.id, descricao, parseFloat(valor), data_vencimento,
                 data_compra || null, data_pagamento || null, mes, ano,
-                categoriaFinal, cartao_id || null, forma_pagamento || 'dinheiro',
+                categoriaFinal, cartaoIdFinal, forma_pagamento || 'dinheiro',
                 parcelado || false, numeroParcelas, parcelaAtual,
                 observacoes || null, pago || false,
                 valor_original ? parseFloat(valor_original) : null,
@@ -271,6 +284,19 @@ router.put('/:id', authMiddleware, async (req, res) => {
         const numeroParcelas = total_parcelas || null;
         const parcelaAtual = parcela_atual || null;
 
+        // ✅ VALIDAR CARTAO_ID: verificar se existe na tabela cartoes do usuário
+        let cartaoIdFinal = cartao_id || null;
+        if (cartaoIdFinal) {
+            const cartaoResult = await query(
+                'SELECT id FROM cartoes WHERE id = $1 AND usuario_id = $2',
+                [cartaoIdFinal, req.usuario.id]
+            );
+            if (cartaoResult.rows.length === 0) {
+                console.warn(`⚠️ Cartão ID ${cartaoIdFinal} não encontrado para usuário ${req.usuario.id}, ignorando cartao_id`);
+                cartaoIdFinal = null;
+            }
+        }
+
         // Converter anexos para JSON se existirem
         const anexosJson = anexos && Array.isArray(anexos) && anexos.length > 0 ? JSON.stringify(anexos) : null;
 
@@ -285,7 +311,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
              RETURNING *`,
             [
                 descricao, parseFloat(valor), data_vencimento, data_compra,
-                data_pagamento, categoria_id || 1, cartao_id, forma_pagamento,
+                data_pagamento, categoria_id || null, cartaoIdFinal, forma_pagamento,
                 observacoes, pago, numeroParcelas, parcelaAtual,
                 valor_original ? parseFloat(valor_original) : null,
                 valor_total_com_juros ? parseFloat(valor_total_com_juros) : null,

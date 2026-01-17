@@ -227,22 +227,36 @@
     border-color: #0369a1;
 }
 
-.btn-anexar,
-.btn-anexos {
+.btn-anexar {
     background-color: #3b82f6;
     color: #ffffff;
     border-color: #3b82f6;
     min-width: 50px;
 }
 
-.btn-anexar:hover:not(:disabled),
-.btn-anexos:hover:not(:disabled) {
+.btn-anexar:hover:not(:disabled) {
     background-color: #2563eb;
     border-color: #1d4ed8;
 }
 
+.btn-anexos {
+    background-color: transparent;
+    color: inherit;
+    border: none;
+    min-width: auto;
+    padding: 0;
+}
+
+.btn-anexos:hover:not(:disabled) {
+    background-color: transparent;
+}
+
 .btn-anexos.tem-anexos {
-    background-color: #3b82f6;
+    background-color: transparent;
+}
+
+.btn-anexos i.fa-paperclip {
+    display: none;
 }
 
 /* ================================================================
