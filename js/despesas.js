@@ -505,7 +505,7 @@ function criarObjetoDespesa(dados) {
        descricao: dados.descricao || '',
        categoria: dados.categoria || '',
        formaPagamento: dados.formaPagamento || null,
-       numeroCartao: dados.numeroCartao || null,
+       cartao_id: dados.cartao_id || dados.numeroCartao || null,
        valor: parseFloat(dados.valor) || 0,
        valorOriginal: dados.valorOriginal !== undefined ? parseFloat(dados.valorOriginal) : null,
        valorTotalComJuros: dados.valorTotalComJuros !== undefined ? parseFloat(dados.valorTotalComJuros) : null,
@@ -833,9 +833,22 @@ function preencherFormularioEdicao(index) {
        document.getElementById('despesa-data-vencimento').value = despesa.dataVencimento;
    }
    
-   if (despesa.formaPagamento === 'credito' && despesa.numeroCartao) {
-       const radioCartao = document.querySelector(`input[name="forma-pagamento"][data-cartao="${despesa.numeroCartao}"]`);
-       if (radioCartao) radioCartao.checked = true;
+   if (despesa.formaPagamento === 'credito') {
+       let cartaoIdReal = despesa.cartao_id || despesa.cartaoId;
+
+       // Se não tem cartao_id, mas tem numeroCartao (posição antiga), converter para ID real
+       if (!cartaoIdReal && despesa.numeroCartao) {
+           const cartoesUsuario = window.cartoesUsuario || [];
+           const cartaoNaPosicao = cartoesUsuario[parseInt(despesa.numeroCartao) - 1];
+           if (cartaoNaPosicao) {
+               cartaoIdReal = cartaoNaPosicao.id;
+           }
+       }
+
+       if (cartaoIdReal) {
+           const radioCartao = document.querySelector(`input[name="forma-pagamento"][data-cartao-id="${cartaoIdReal}"]`);
+           if (radioCartao) radioCartao.checked = true;
+       }
    } else if (despesa.formaPagamento) {
        const radioFormaPagamento = document.querySelector(`input[name="forma-pagamento"][value="${despesa.formaPagamento}"]`);
        if (radioFormaPagamento) radioFormaPagamento.checked = true;
@@ -960,9 +973,9 @@ function coletarDadosFormularioDespesa() {
    const formaPagamentoSelecionada = document.querySelector('input[name="forma-pagamento"]:checked');
    const formaPagamento = formaPagamentoSelecionada ? formaPagamentoSelecionada.value : null;
    
-   let numeroCartao = null;
-   if (formaPagamento === 'credito' && formaPagamentoSelecionada && formaPagamentoSelecionada.dataset.cartao) {
-       numeroCartao = parseInt(formaPagamentoSelecionada.dataset.cartao);
+   let cartaoId = null;
+   if (formaPagamento === 'credito' && formaPagamentoSelecionada && formaPagamentoSelecionada.dataset.cartaoId) {
+       cartaoId = parseInt(formaPagamentoSelecionada.dataset.cartaoId);
    }
    
    const jaPago = document.getElementById('despesa-ja-pago') && document.getElementById('despesa-ja-pago').checked;
@@ -978,7 +991,7 @@ function coletarDadosFormularioDespesa() {
        descricao: document.getElementById('despesa-descricao').value.trim(),
        categoria: categoria,
        formaPagamento: formaPagamento,
-       numeroCartao: numeroCartao,
+       cartao_id: cartaoId,
        valor: parseFloat(document.getElementById('despesa-valor').value),
        valorPago: document.getElementById('despesa-valor-pago').value ?
                  parseFloat(document.getElementById('despesa-valor-pago').value) : null,
@@ -1016,7 +1029,7 @@ async function salvarDespesaLocal(formData) {
                 descricao: formData.descricao,
                 categoria: formData.categoria,
                 formaPagamento: formData.formaPagamento,
-                numeroCartao: formData.numeroCartao,
+                cartao_id: formData.cartao_id,
                 valor: valorOriginal,
                 valorOriginal: valorOriginal,
                 valorTotalComJuros: valorComJuros,
@@ -1156,7 +1169,7 @@ async function criarParcelasFuturas(formData, valorPorParcela, idGrupoParcelamen
                 descricao: formData.descricao,
                 categoria: formData.categoria,
                 formaPagamento: formData.formaPagamento,
-                numeroCartao: formData.numeroCartao,
+                cartao_id: formData.cartao_id,
                 valor: valorPorParcela,
                 valorOriginal: valorOriginal / formData.totalParcelas,
                 valorTotalComJuros: null,
@@ -1207,7 +1220,7 @@ async function atualizarDespesaSimples(formData, despesaExistente) {
             descricao: formData.descricao,
             categoria: formData.categoria,
             formaPagamento: formData.formaPagamento,
-            numeroCartao: formData.numeroCartao, // LINHA ADICIONADA
+            cartao_id: formData.cartao_id,
             valor: valorPorParcela,
             valorOriginal: formData.parcelado ? valorOriginal / formData.totalParcelas : valorOriginal,
             valorTotalComJuros: valorTotalComJuros,
@@ -1252,7 +1265,7 @@ async function atualizarDespesaParcelada(formData, despesaExistente) {
                         d.descricao = formData.descricao;
                         d.categoria = formData.categoria;
                         d.formaPagamento = formData.formaPagamento;
-                        d.numeroCartao = formData.numeroCartao;
+                        d.cartao_id = formData.cartao_id;
                         d.dataCompra = formData.dataCompra;
                         d.valorPago = null;
                         d.quitado = false;
@@ -3545,27 +3558,32 @@ function calcularLimiteDisponivelCartao(cartaoId, mes, ano) {
             const despesas = dadosFinanceiros[anoAtual].meses[mesAtual].despesas;
 
             despesas.forEach(despesa => {
-                const formaPag = despesa.formaPagamento || despesa.forma_pagamento;
-                const numeroCartaoDespesa = despesa.numeroCartao;
+                const formaPag = (despesa.formaPagamento || despesa.forma_pagamento || '').toLowerCase();
+                const eCreditoOuVariacao = formaPag === 'credito' || formaPag === 'crédito' ||
+                                            formaPag === 'cred-merpago' || formaPag === 'créd-merpago';
+
+                if (!eCreditoOuVariacao) return;
 
                 // Pular se recorrente ou já pago
                 if (despesa.recorrente || despesa.quitado || despesa.pago) {
                     return;
                 }
 
-                // Se for crédito e tem numeroCartao, comparar diretamente
-                if (formaPag === 'credito' && numeroCartaoDespesa === cartaoId) {
-                    limiteUtilizado += parseFloat(despesa.valor) || 0;
+                // Verificar cartao_id (ID real do banco de dados)
+                const cartaoIdDespesa = despesa.cartao_id || despesa.cartaoId;
+                if (cartaoIdDespesa) {
+                    if (parseInt(cartaoIdDespesa) === parseInt(cartaoId)) {
+                        limiteUtilizado += parseFloat(despesa.valor) || 0;
+                    }
                     return;
                 }
 
-                // Se for crédito mas não tem numeroCartao, usar CRÉD-MERPAGO como padrão
-                if (formaPag === 'credito' && !numeroCartaoDespesa) {
-                    const cartaoMerpago = (window.cartoesUsuario || []).find(c =>
-                        c.banco && c.banco.toUpperCase().includes('MERPAGO')
-                    );
-
-                    if (cartaoMerpago && cartaoMerpago.id === cartaoId) {
+                // Fallback para despesas antigas que usam numeroCartao (posição)
+                const numeroCartaoDespesa = despesa.numeroCartao || despesa.numero_cartao;
+                if (numeroCartaoDespesa) {
+                    const cartoesUsuario = window.cartoesUsuario || [];
+                    const cartaoNaPosicao = cartoesUsuario[parseInt(numeroCartaoDespesa) - 1];
+                    if (cartaoNaPosicao && cartaoNaPosicao.id === cartaoId) {
                         limiteUtilizado += parseFloat(despesa.valor) || 0;
                     }
                 }

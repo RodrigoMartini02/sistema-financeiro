@@ -360,26 +360,36 @@ async function carregarCartoesDoUsuario() {
             let cartoes = data.cartoes;
 
             if (Array.isArray(cartoes)) {
-                cartoes = cartoes.filter(c => c.banco && c.banco.trim() !== '');
+                // Garantir que todos os cartões tenham numero_cartao
+                cartoes = cartoes
+                    .filter(c => (c.banco || c.nome) && (c.banco || c.nome).trim() !== '')
+                    .map((c, index) => ({
+                        ...c,
+                        banco: c.banco || c.nome,
+                        numero_cartao: c.numero_cartao || (index + 1)
+                    }));
             } else {
                 // Converter formato antigo {cartao1, cartao2, cartao3} para array
                 const cartoesArray = [];
-                let id = 1;
+                let posicao = 1;
                 ['cartao1', 'cartao2', 'cartao3'].forEach(key => {
                     if (cartoes[key] && cartoes[key].nome && cartoes[key].nome.trim() !== '') {
                         cartoesArray.push({
-                            id: id++,
+                            id: posicao,
                             banco: cartoes[key].nome,
                             validade: cartoes[key].validade || '',
                             limite: parseFloat(cartoes[key].limite) || 0,
-                            ativo: cartoes[key].ativo || false
+                            ativo: cartoes[key].ativo || false,
+                            numero_cartao: posicao
                         });
+                        posicao++;
                     }
                 });
                 cartoes = cartoesArray;
             }
 
             window.cartoesUsuario = cartoes;
+            console.log('✅ Cartões carregados:', cartoes);
         } else {
             window.cartoesUsuario = [];
         }
@@ -1600,7 +1610,7 @@ async function buscarDespesasAPI(mes, ano) {
             descricao: d.descricao,
             categoria: d.categoria_nome || 'Outros',
             formaPagamento: d.forma_pagamento,
-            numeroCartao: d.cartao_id,
+            cartao_id: d.cartao_id,
             valor: parseFloat(d.valor),
             valorOriginal: parseFloat(d.valor_original || d.valor),
             valorPago: d.valor_pago ? parseFloat(d.valor_pago) : null,
@@ -2030,20 +2040,20 @@ function calcularLimiteCartao(cartaoId, mes, ano) {
                                     formaPag === 'cred-merpago' || formaPag === 'créd-merpago';
         if (!eCreditoOuVariacao) return false;
 
-        // Verificar pelo cartao_id (campo do banco de dados)
-        if (despesa.cartao_id) {
-            return parseInt(despesa.cartao_id) === parseInt(cartaoId);
+        // Verificar cartao_id (ID real do banco de dados)
+        const cartaoIdDespesa = despesa.cartao_id || despesa.cartaoId;
+        if (cartaoIdDespesa) {
+            return parseInt(cartaoIdDespesa) === parseInt(cartaoId);
         }
 
-        // Fallback: verificar pelo numeroCartao (posição do cartão no array)
-        const numeroCartaoDespesa = despesa.numeroCartao;
+        // Fallback para despesas antigas que usam numeroCartao (posição)
+        const numeroCartaoDespesa = despesa.numeroCartao || despesa.numero_cartao;
         if (numeroCartaoDespesa) {
-            // numeroCartao é a posição (1, 2, 3...), precisamos converter para ID real
+            // Mapear posição para ID do cartão
             const cartoesUsuario = window.cartoesUsuario || [];
-            const posicao = parseInt(numeroCartaoDespesa) - 1;
-            if (posicao >= 0 && posicao < cartoesUsuario.length) {
-                const cartaoNaPosicao = cartoesUsuario[posicao];
-                return cartaoNaPosicao && parseInt(cartaoNaPosicao.id) === parseInt(cartaoId);
+            const cartaoNaPosicao = cartoesUsuario[parseInt(numeroCartaoDespesa) - 1];
+            if (cartaoNaPosicao) {
+                return cartaoNaPosicao.id === cartaoId;
             }
         }
 
@@ -2109,39 +2119,35 @@ function calcularSaldoMes(mes, ano) {
     try {
         const dadosMes = obterDadosMes(ano, mes);
         const saldoAnterior = obterSaldoAnterior(mes, ano);
-        
+
         const receitas = (dadosMes.receitas || []).reduce((sum, r) => {
-            if (r.saldoAnterior === true || 
+            if (r.saldoAnterior === true ||
                 r.descricao?.includes('Saldo Anterior') ||
                 r.automatica === true) {
                 return sum;
             }
             return sum + (r.valor || 0);
         }, 0);
-        
+
         const despesas = typeof window.calcularTotalDespesas === 'function' ?
                         window.calcularTotalDespesas(dadosMes.despesas || []) :
                         (dadosMes.despesas || []).reduce((sum, d) => sum + (window.obterValorRealDespesa ? window.obterValorRealDespesa(d) : (d.valor || 0)), 0);
-        
-        const reservas = (dadosMes.reservas || []).reduce((sum, r) => {
-            return sum + parseFloat(r.valor || 0);
-        }, 0);
-        
+
+        // Saldo Final = Saldo Anterior + Receitas - Despesas (SEM descontar reservas)
+        // Reservas são separadas e só afetam o "Saldo Disponível" no resumo
         return {
             saldoAnterior: saldoAnterior,
             receitas: receitas,
             despesas: despesas,
-            reservas: reservas,
-            saldoFinal: saldoAnterior + receitas - despesas - reservas
+            saldoFinal: saldoAnterior + receitas - despesas
         };
-        
+
     } catch (error) {
-        return { 
-            saldoAnterior: 0, 
-            receitas: 0, 
-            despesas: 0, 
-            reservas: 0,
-            saldoFinal: 0 
+        return {
+            saldoAnterior: 0,
+            receitas: 0,
+            despesas: 0,
+            saldoFinal: 0
         };
     }
 }
