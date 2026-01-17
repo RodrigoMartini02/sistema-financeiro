@@ -469,4 +469,63 @@ router.get('/categorias', authMiddleware, async (req, res) => {
     }
 });
 
+// ================================================================
+// CORRIGIR CARTAO_ID - ATUALIZAR DESPESAS DE CRÉDITO SEM CARTÃO VÁLIDO
+// ================================================================
+router.post('/corrigir-cartao', authMiddleware, async (req, res) => {
+    try {
+        const { cartao_id } = req.body;
+        const usuarioId = req.usuario.id;
+
+        if (!cartao_id) {
+            return res.status(400).json({
+                success: false,
+                message: 'cartao_id é obrigatório'
+            });
+        }
+
+        // Verificar se o cartão pertence ao usuário
+        const cartaoResult = await query(
+            'SELECT id, nome FROM cartoes WHERE id = $1 AND usuario_id = $2',
+            [cartao_id, usuarioId]
+        );
+
+        if (cartaoResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Cartão não encontrado ou não pertence ao usuário'
+            });
+        }
+
+        // Atualizar todas as despesas de crédito que não têm cartao_id válido
+        const updateResult = await query(
+            `UPDATE despesas
+             SET cartao_id = $1
+             WHERE usuario_id = $2
+             AND forma_pagamento = 'credito'
+             AND (cartao_id IS NULL OR cartao_id NOT IN (SELECT id FROM cartoes WHERE usuario_id = $2))
+             RETURNING id`,
+            [cartao_id, usuarioId]
+        );
+
+        const quantidadeAtualizada = updateResult.rows.length;
+
+        console.log(`✅ Atualizadas ${quantidadeAtualizada} despesas para cartão ${cartao_id} (usuário ${usuarioId})`);
+
+        res.json({
+            success: true,
+            message: `${quantidadeAtualizada} despesa(s) atualizada(s) para o cartão ${cartaoResult.rows[0].nome}`,
+            quantidade: quantidadeAtualizada
+        });
+
+    } catch (error) {
+        console.error('Erro ao corrigir cartao_id:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao corrigir despesas',
+            error: error.message
+        });
+    }
+});
+
 module.exports = router;
