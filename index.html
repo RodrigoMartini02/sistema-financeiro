@@ -321,6 +321,25 @@
                     <canvas id="categorias-barras-chart"></canvas>
                 </div>
             </div>
+
+             <div class="dashboard-card">
+                <h3>
+                    <span>MÉDIA POR CATEGORIA (ANUAL)</span>
+                    <div class="filtros-header">
+                        <select class="form-control" id="media-cat-pagamento-filter" onchange="renderizarGraficoMediaCategorias()">
+                            <option value="todas">Todas as formas</option>
+                            <option value="pix">PIX</option>
+                            <option value="debito">Débito</option>
+                            <option value="credito">Crédito</option>
+                        </select>
+                        <button class="btn btn-icon btn-outline" data-chart="mediaCategoriasChart">[ ]</button>
+                    </div>
+                </h3>
+                <div class="chart-container" style="position: relative; height: 350px;">
+                    <canvas id="media-categorias-chart"></canvas>
+                </div>
+            </div>
+
             
             <div class="dashboard-card">
                 <h3>
@@ -365,26 +384,7 @@
             </div>
 
 
-            <div class="dashboard-card">
-                <h3>
-                    <span>MÉDIA POR CATEGORIA (ANUAL)</span>
-                    <div class="filtros-header">
-                        <select class="form-control" id="media-cat-pagamento-filter" onchange="renderizarGraficoMediaCategorias()">
-                            <option value="todas">Todas as formas</option>
-                            <option value="pix">PIX</option>
-                            <option value="debito">Débito</option>
-                            <option value="credito">Crédito</option>
-                        </select>
-                        <button class="btn btn-icon btn-outline" data-chart="mediaCategoriasChart">[ ]</button>
-                    </div>
-                </h3>
-                <div class="chart-container" style="position: relative; height: 350px;">
-                    <canvas id="media-categorias-chart"></canvas>
-                </div>
-            </div>
-
-
-
+           
             <div class="dashboard-card">
                 <h3>
                     <span>JUROS MENSAIS</span>
