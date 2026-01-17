@@ -1081,7 +1081,7 @@ router.get('/:id/cartoes', authMiddleware, async (req, res) => {
 
 // ================================================================
 // PUT /api/usuarios/:id/cartoes
-// Salvar/atualizar cartões de um usuário
+// Salvar/atualizar cartões de um usuário - SALVA NA TABELA CARTOES
 // ================================================================
 router.put('/:id/cartoes', authMiddleware, async (req, res) => {
     try {
@@ -1095,29 +1095,113 @@ router.put('/:id/cartoes', authMiddleware, async (req, res) => {
             });
         }
 
-        if (!cartoes || typeof cartoes !== 'object') {
+        if (!cartoes || !Array.isArray(cartoes)) {
             return res.status(400).json({
                 success: false,
-                message: 'Cartões inválidos'
+                message: 'Cartões inválidos - esperado array'
             });
         }
 
-        const result = await query(
-            'UPDATE usuarios SET cartoes = $1, data_atualizacao = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id',
-            [JSON.stringify(cartoes), id]
-        );
+        // Iniciar transação
+        await query('BEGIN');
 
-        if (result.rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Usuário não encontrado'
+        try {
+            // 1. Buscar cartões existentes na tabela
+            const existentes = await query(
+                'SELECT id FROM cartoes WHERE usuario_id = $1',
+                [id]
+            );
+            const idsExistentes = existentes.rows.map(r => r.id);
+
+            // 2. IDs dos cartões enviados (apenas os que já têm ID válido do banco)
+            const idsEnviados = cartoes
+                .filter(c => c.id && typeof c.id === 'number' && c.id > 100) // IDs reais são maiores
+                .map(c => c.id);
+
+            // 3. Deletar cartões que não estão mais na lista
+            const idsParaDeletar = idsExistentes.filter(id => !idsEnviados.includes(id));
+            for (const cartaoId of idsParaDeletar) {
+                await query('DELETE FROM cartoes WHERE id = $1 AND usuario_id = $2', [cartaoId, id]);
+            }
+
+            // 4. Inserir ou atualizar cada cartão
+            const cartoesSalvos = [];
+            for (let i = 0; i < cartoes.length; i++) {
+                const cartao = cartoes[i];
+                const nome = (cartao.banco || cartao.nome || '').trim();
+
+                if (!nome) continue;
+
+                // Se tem ID válido do banco, atualizar
+                if (cartao.id && typeof cartao.id === 'number' && idsExistentes.includes(cartao.id)) {
+                    const updateResult = await query(
+                        `UPDATE cartoes
+                         SET nome = $1, limite = $2, dia_fechamento = $3, dia_vencimento = $4,
+                             cor = $5, ativo = $6, numero_cartao = $7, data_atualizacao = CURRENT_TIMESTAMP
+                         WHERE id = $8 AND usuario_id = $9
+                         RETURNING id, nome as banco, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao`,
+                        [
+                            nome,
+                            parseFloat(cartao.limite) || 0,
+                            cartao.dia_fechamento || 1,
+                            cartao.dia_vencimento || 10,
+                            cartao.cor || '#3498db',
+                            cartao.ativo !== false,
+                            cartao.numero_cartao || (i + 1),
+                            cartao.id,
+                            id
+                        ]
+                    );
+                    if (updateResult.rows.length > 0) {
+                        cartoesSalvos.push(updateResult.rows[0]);
+                    }
+                } else {
+                    // Inserir novo cartão
+                    const insertResult = await query(
+                        `INSERT INTO cartoes (usuario_id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao)
+                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                         RETURNING id, nome as banco, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao`,
+                        [
+                            id,
+                            nome,
+                            parseFloat(cartao.limite) || 0,
+                            cartao.dia_fechamento || 1,
+                            cartao.dia_vencimento || 10,
+                            cartao.cor || '#3498db',
+                            cartao.ativo !== false,
+                            cartao.numero_cartao || (i + 1)
+                        ]
+                    );
+                    if (insertResult.rows.length > 0) {
+                        cartoesSalvos.push(insertResult.rows[0]);
+                    }
+                }
+            }
+
+            await query('COMMIT');
+
+            console.log(`✅ Salvos ${cartoesSalvos.length} cartões na tabela (usuário ${id})`);
+
+            res.json({
+                success: true,
+                message: 'Cartões salvos com sucesso',
+                cartoes: cartoesSalvos.map(c => ({
+                    id: c.id,
+                    banco: c.banco,
+                    nome: c.banco,
+                    limite: parseFloat(c.limite) || 0,
+                    dia_fechamento: c.dia_fechamento,
+                    dia_vencimento: c.dia_vencimento,
+                    cor: c.cor,
+                    ativo: c.ativo,
+                    numero_cartao: c.numero_cartao
+                }))
             });
-        }
 
-        res.json({
-            success: true,
-            message: 'Cartões salvos com sucesso'
-        });
+        } catch (err) {
+            await query('ROLLBACK');
+            throw err;
+        }
 
     } catch (error) {
         console.error('Erro ao salvar cartões:', error);
