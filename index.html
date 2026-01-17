@@ -2443,23 +2443,23 @@
 <div id="modal-confirmacao-exclusao-despesa" class="modal">
    <div class="modal-content modal-sm">
        <div class="modal-header">
-           <h2 id="exclusao-titulo">Excluir despesa</h2>
+           <h2 id="exclusao-titulo">Excluir item parcelado</h2>
            <span class="close" data-action="fechar-modal-exclusao">&times;</span>
        </div>
        <div class="modal-body">
-           <p id="exclusao-mensagem">Como deseja excluir esta despesa?</p>
+           <p id="exclusao-mensagem">Este item está parcelado. Como deseja prosseguir?</p>
        </div>
-       <div class="modal-footer">
-           <button id="btn-excluir-todos-meses" class="btn btn-danger btn-block opcao-exclusao-basica">
+       <div class="modal-footer modal-footer-exclusao-despesa">
+           <button id="btn-excluir-todos-meses" class="btn btn-danger opcao-exclusao-basica">
                <i class="fas fa-trash"></i> Excluir Despesa
            </button>
-           <button id="btn-excluir-parcela-atual" class="btn btn-secondary btn-block opcao-exclusao-parcelada">
+           <button id="btn-excluir-parcela-atual" class="btn btn-secondary opcao-exclusao-parcelada">
                <i class="fas fa-times"></i> Excluir apenas esta parcela
            </button>
-           <button id="btn-excluir-parcelas-futuras" class="btn btn-warning btn-block opcao-exclusao-parcelada">
+           <button id="btn-excluir-parcelas-futuras" class="btn btn-secondary opcao-exclusao-parcelada">
                <i class="fas fa-arrow-right"></i> Excluir esta e parcelas futuras
            </button>
-           <button id="btn-excluir-todas-parcelas" class="btn btn-danger btn-block opcao-exclusao-parcelada">
+           <button id="btn-excluir-todas-parcelas" class="btn btn-danger opcao-exclusao-parcelada">
                <i class="fas fa-trash"></i> Excluir todas as parcelas
            </button>
        </div>
@@ -2942,7 +2942,7 @@
                 <span class="valor-anterior"></span>
             </div>
             <div class="mes-saldo">
-                <span class="mes-label">Saldo Final</span>
+                <span class="mes-label">Saldo Disponível</span>
                 <span class="mes-saldo-valor"></span>
             </div>
         </div>

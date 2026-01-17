@@ -138,60 +138,93 @@
 }
 
 /* ================================================================
-   MODAIS ESPECÍFICOS - EXCLUSÃO
+   MODAIS ESPECÍFICOS - EXCLUSÃO (RECEITAS E DESPESAS)
    ================================================================ */
 
-#modal-exclusao-receita .modal-content {
-    max-width: 420px;
+#modal-exclusao-receita .modal-content,
+#modal-confirmacao-exclusao-despesa .modal-content {
+    max-width: 500px;
     width: 90%;
-    margin: 18vh auto;
+    margin: 15vh auto;
+    border-radius: 0 !important;
 }
 
-#modal-exclusao-receita .modal-body p {
-    color: var(--gray-700);
+#modal-exclusao-receita .modal-header,
+#modal-confirmacao-exclusao-despesa .modal-header {
+    background: #4361ee !important;
+    color: #ffffff;
+    padding: 16px 24px;
+    border-radius: 0 !important;
+}
+
+#modal-exclusao-receita .modal-header h2,
+#modal-confirmacao-exclusao-despesa .modal-header h2 {
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: 500;
+    margin: 0;
+}
+
+#modal-exclusao-receita .modal-header .close,
+#modal-confirmacao-exclusao-despesa .modal-header .close {
+    color: #ffffff;
+    font-size: 24px;
+}
+
+#modal-exclusao-receita .modal-body,
+#modal-confirmacao-exclusao-despesa .modal-body {
+    background: #ffffff;
+    padding: 24px;
+}
+
+#modal-exclusao-receita .modal-body p,
+#modal-confirmacao-exclusao-despesa .modal-body p {
+    color: #333;
     font-size: 15px;
-    margin-bottom: 10px;
+    margin: 0;
     text-align: center;
     line-height: 1.5;
 }
 
-#modal-exclusao-receita .modal-footer {
+#modal-exclusao-receita .modal-footer,
+#modal-confirmacao-exclusao-despesa .modal-footer {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: 16px 20px;
+    padding: 16px 24px;
+    background: #ffffff;
+    border-top: none;
+    border-radius: 0 !important;
 }
 
-#modal-exclusao-receita .modal-footer .btn {
+#modal-exclusao-receita .modal-footer .btn,
+#modal-confirmacao-exclusao-despesa .modal-footer .btn {
     width: 100%;
     padding: 12px 16px;
-    font-size: 13px;
+    font-size: 14px;
     justify-content: center;
+    border-radius: 0 !important;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 /* Classes de controle de visibilidade para exclusão */
 .opcao-exclusao-basica {
-    display: block;
+    display: flex !important;
 }
 
 .opcao-exclusao-parcelada {
-    display: none;
+    display: none !important;
 }
 
 /* Quando o modal está no modo parcelado */
 .modal-parcelado .opcao-exclusao-basica {
-    display: none;
+    display: none !important;
 }
 
 .modal-parcelado .opcao-exclusao-parcelada {
-    display: block;
-}
-
-/* Botões menores para modal de exclusão */
-#modal-confirmacao-exclusao-despesa .modal-footer .btn {
-    font-size: 13px;
-    padding: 10px 16px;
-    min-height: 38px;
+    display: flex !important;
 }
 
 /* ================================================================
@@ -299,21 +332,14 @@
 }
 
 /* ================================================================
-   MODAIS COMPACTOS - Altura automática baseada no conteúdo
-   ================================================================ */
-
-#modal-alterar-senha .modal-content,
-#modal-editar-categoria .modal-content {
-    max-width: 450px;
-    width: 90%;
-}
-
-/* ================================================================
-   MODAIS DE USUÁRIO - PADRONIZADOS
+   MODAIS PADRONIZADOS - Usuário, Categoria, Cartão, Senha
    ================================================================ */
 
 #modal-adicionar-usuario,
-#modal-editar-usuario {
+#modal-editar-usuario,
+#modal-editar-categoria,
+#modal-editar-cartao,
+#modal-alterar-senha {
     display: none;
     position: fixed;
     z-index: 9999;
@@ -327,28 +353,38 @@
 }
 
 #modal-adicionar-usuario .modal-content,
-#modal-editar-usuario .modal-content {
+#modal-editar-usuario .modal-content,
+#modal-editar-categoria .modal-content,
+#modal-editar-cartao .modal-content,
+#modal-alterar-senha .modal-content {
     max-width: 500px !important;
     width: 90% !important;
     background: #ffffff !important;
-    border-radius: 8px;
+    border-radius: 0 !important;
     overflow: hidden;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
     margin: auto;
 }
 
 #modal-adicionar-usuario .modal-header,
-#modal-editar-usuario .modal-header {
+#modal-editar-usuario .modal-header,
+#modal-editar-categoria .modal-header,
+#modal-editar-cartao .modal-header,
+#modal-alterar-senha .modal-header {
     background: #4361ee !important;
     color: #ffffff;
     padding: 16px 24px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border-radius: 0 !important;
 }
 
 #modal-adicionar-usuario .modal-header h2,
-#modal-editar-usuario .modal-header h2 {
+#modal-editar-usuario .modal-header h2,
+#modal-editar-categoria .modal-header h2,
+#modal-editar-cartao .modal-header h2,
+#modal-alterar-senha .modal-header h2 {
     margin: 0;
     font-size: 18px;
     font-weight: 500;
@@ -356,7 +392,10 @@
 }
 
 #modal-adicionar-usuario .modal-header .close,
-#modal-editar-usuario .modal-header .close {
+#modal-editar-usuario .modal-header .close,
+#modal-editar-categoria .modal-header .close,
+#modal-editar-cartao .modal-header .close,
+#modal-alterar-senha .modal-header .close {
     color: #ffffff;
     font-size: 24px;
     cursor: pointer;
@@ -366,7 +405,10 @@
 }
 
 #modal-adicionar-usuario .modal-body,
-#modal-editar-usuario .modal-body {
+#modal-editar-usuario .modal-body,
+#modal-editar-categoria .modal-body,
+#modal-editar-cartao .modal-body,
+#modal-alterar-senha .modal-body {
     background: #ffffff !important;
     padding: 24px;
     max-height: 60vh;
@@ -374,13 +416,19 @@
 }
 
 #modal-adicionar-usuario .modal-body .form-group,
-#modal-editar-usuario .modal-body .form-group {
+#modal-editar-usuario .modal-body .form-group,
+#modal-editar-categoria .modal-body .form-group,
+#modal-editar-cartao .modal-body .form-group,
+#modal-alterar-senha .modal-body .form-group {
     background: transparent;
     margin-bottom: 16px;
 }
 
 #modal-adicionar-usuario .modal-body label,
-#modal-editar-usuario .modal-body label {
+#modal-editar-usuario .modal-body label,
+#modal-editar-categoria .modal-body label,
+#modal-editar-cartao .modal-body label,
+#modal-alterar-senha .modal-body label {
     display: block;
     margin-bottom: 6px;
     font-weight: 500;
@@ -391,18 +439,27 @@
 #modal-adicionar-usuario .modal-body .form-input,
 #modal-adicionar-usuario .modal-body .form-control,
 #modal-editar-usuario .modal-body .form-input,
-#modal-editar-usuario .modal-body .form-control {
+#modal-editar-usuario .modal-body .form-control,
+#modal-editar-categoria .modal-body .form-input,
+#modal-editar-categoria .modal-body .form-control,
+#modal-editar-cartao .modal-body .form-input,
+#modal-editar-cartao .modal-body .form-control,
+#modal-alterar-senha .modal-body .form-input,
+#modal-alterar-senha .modal-body .form-control {
     background: #ffffff !important;
     border: 1px solid #ced4da;
     padding: 10px 12px;
-    border-radius: 6px;
+    border-radius: 0 !important;
     width: 100%;
     font-size: 14px;
     box-sizing: border-box;
 }
 
 #modal-adicionar-usuario .modal-body .field-help,
-#modal-editar-usuario .modal-body .field-help {
+#modal-editar-usuario .modal-body .field-help,
+#modal-editar-categoria .modal-body .field-help,
+#modal-editar-cartao .modal-body .field-help,
+#modal-alterar-senha .modal-body .field-help {
     font-size: 12px;
     color: #6c757d;
     margin-top: 4px;
@@ -410,27 +467,28 @@
 }
 
 #modal-adicionar-usuario .modal-footer,
-#modal-editar-usuario .modal-footer {
+#modal-editar-usuario .modal-footer,
+#modal-editar-categoria .modal-footer,
+#modal-editar-cartao .modal-footer,
+#modal-alterar-senha .modal-footer {
     background: #f8f9fa !important;
     border-top: 1px solid #e9ecef;
     padding: 16px 24px;
     display: flex;
     justify-content: flex-end;
     gap: 12px;
+    border-radius: 0 !important;
 }
 
 #modal-adicionar-usuario .modal-footer .btn,
-#modal-editar-usuario .modal-footer .btn {
+#modal-editar-usuario .modal-footer .btn,
+#modal-editar-categoria .modal-footer .btn,
+#modal-editar-cartao .modal-footer .btn,
+#modal-alterar-senha .modal-footer .btn {
     padding: 10px 20px;
-    border-radius: 6px;
+    border-radius: 0 !important;
     font-size: 14px;
     cursor: pointer;
-}
-
-#modal-alterar-senha .modal-body,
-#modal-editar-categoria .modal-body {
-    max-height: none;
-    overflow-y: visible;
 }
 
 /* ================================================================
@@ -473,7 +531,7 @@
     height: 44px;
     background: #f8f9fa;
     border: 1px solid #ddd;
-    border-radius: 8px;
+    border-radius: 0 !important;
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -512,7 +570,7 @@
     height: 44px;
     background: var(--gray-50, #f8f9fa);
     border: 1px solid var(--gray-300, #ddd);
-    border-radius: 8px;
+    border-radius: 0;
     cursor: pointer;
     transition: all 0.2s ease;
 }

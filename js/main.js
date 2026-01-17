@@ -1328,6 +1328,11 @@ async function renderizarMeses(ano) {
             }
         }
 
+        // ✅ Carregar reservas para calcular saldo disponível nos cards
+        if (typeof window.carregarReservasAPI === 'function') {
+            await window.carregarReservasAPI();
+        }
+
         const mesesContainer = document.querySelector('.meses-container');
         if (!mesesContainer) {
             return;
@@ -1350,12 +1355,55 @@ function criarCardMes(mes, ano) {
     mesCard.className = 'mes-card';
     mesCard.dataset.mes = mes;
     mesCard.dataset.ano = ano;
-    
+
     const saldo = calcularSaldoMes(mes, ano);
     const dadosMes = dadosFinanceiros[ano]?.meses[mes];
     const fechado = dadosMes?.fechado || false;
     const temTransacoes = (saldo.receitas > 0 || saldo.despesas > 0);
-    
+
+    // Calcular reservas acumuladas até este mês para descontar do saldo
+    let reservasAcumuladas = 0;
+    if (typeof window.calcularTotalReservasAcumuladas === 'function') {
+        reservasAcumuladas = window.calcularTotalReservasAcumuladas(mes, ano);
+    } else if (window.reservasCache && Array.isArray(window.reservasCache)) {
+        // Fallback: calcular manualmente das reservas em cache
+        reservasAcumuladas = window.reservasCache
+            .filter(r => {
+                const rAno = parseInt(r.ano);
+                const rMes = parseInt(r.mes);
+                return rAno < ano || (rAno === ano && rMes <= mes);
+            })
+            .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+    }
+
+    // Saldo disponível = saldo final - reservas acumuladas
+    const saldoDisponivel = saldo.saldoFinal - reservasAcumuladas;
+
+    // Saldo anterior disponível = saldo anterior - reservas anteriores
+    let reservasAnteriores = 0;
+    if (mes > 0 || ano > Math.min(...Object.keys(dadosFinanceiros).map(Number))) {
+        if (window.reservasCache && Array.isArray(window.reservasCache)) {
+            const mesAnterior = mes === 0 ? 11 : mes - 1;
+            const anoAnterior = mes === 0 ? ano - 1 : ano;
+            reservasAnteriores = window.reservasCache
+                .filter(r => {
+                    const rAno = parseInt(r.ano);
+                    const rMes = parseInt(r.mes);
+                    return rAno < anoAnterior || (rAno === anoAnterior && rMes <= mesAnterior);
+                })
+                .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+        }
+    }
+    const saldoAnteriorDisponivel = saldo.saldoAnterior - reservasAnteriores;
+
+    // Criar objeto de saldo ajustado para o card
+    const saldoAjustado = {
+        saldoAnterior: saldoAnteriorDisponivel,
+        receitas: saldo.receitas,
+        despesas: saldo.despesas,
+        saldoFinal: saldoDisponivel
+    };
+
     if (fechado) {
         mesCard.classList.add('mes-fechado');
     } else if (temTransacoes) {
@@ -1363,11 +1411,11 @@ function criarCardMes(mes, ano) {
     } else {
         mesCard.classList.add('mes-vazio');
     }
-    
-    preencherConteudoMes(mesCard, mes, ano, saldo, fechado, temTransacoes);
-    
+
+    preencherConteudoMes(mesCard, mes, ano, saldoAjustado, fechado, temTransacoes);
+
     mesCard.addEventListener('click', () => abrirDetalhesDoMes(mes, ano));
-    
+
     return mesCard;
 }
 
@@ -1860,6 +1908,11 @@ async function carregarDadosDashboard(ano) {
             }
         }
 
+        // ✅ Carregar reservas para calcular saldo disponível
+        if (typeof window.carregarReservasAPI === 'function') {
+            await window.carregarReservasAPI();
+        }
+
         carregarDadosDashboardLocal(ano);
     } catch (error) {
         carregarDadosDashboardLocal(ano);
@@ -1872,53 +1925,63 @@ function carregarDadosDashboardLocal(ano) {
         atualizarElementosDashboard({ totalReceitas: 0, totalDespesas: 0, totalJuros: 0, totalEconomias: 0, saldo: 0 });
         return;
     }
-    
+
     let totalReceitasReais = 0;
     let totalDespesas = 0;
     let totalJuros = 0;
     let totalEconomias = 0;
     let saldoFinalAno = 0;
-    
+
     for (let mes = 0; mes < 12; mes++) {
         const dadosMes = dadosFinanceiros[ano].meses[mes] || { receitas: [], despesas: [] };
-        
+
         const receitasReaisMes = (dadosMes.receitas || []).reduce((sum, r) => {
-            if (r.saldoAnterior === true || 
+            if (r.saldoAnterior === true ||
                 r.descricao?.includes('Saldo Anterior') ||
                 r.automatica === true) {
                 return sum;
             }
             return sum + (r.valor || 0);
         }, 0);
-        
+
         totalReceitasReais += receitasReaisMes;
-        
+
         const despesasMes = typeof window.calcularTotalDespesas === 'function' ?
                            window.calcularTotalDespesas(dadosMes.despesas) :
                            dadosMes.despesas.reduce((sum, d) => sum + (d.valor || 0), 0);
-        
+
         totalDespesas += despesasMes;
-        
+
         const jurosMes = typeof window.calcularTotalJuros === 'function' ?
                         window.calcularTotalJuros(dadosMes.despesas) : 0;
-        
+
         totalJuros += jurosMes;
-        
+
         const economiasMes = typeof window.calcularTotalEconomias === 'function' ?
                             window.calcularTotalEconomias(dadosMes.despesas) : 0;
-        
+
         totalEconomias += economiasMes;
-        
+
         const saldoMes = calcularSaldoMes(mes, ano);
         saldoFinalAno = saldoMes.saldoFinal;
     }
-    
+
+    // Descontar reservas acumuladas do saldo final do ano
+    let totalReservasAno = 0;
+    if (window.reservasCache && Array.isArray(window.reservasCache)) {
+        totalReservasAno = window.reservasCache
+            .filter(r => parseInt(r.ano) <= ano)
+            .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+    }
+
+    const saldoDisponivelAno = saldoFinalAno - totalReservasAno;
+
     atualizarElementosDashboard({
         totalReceitas: totalReceitasReais,
         totalDespesas: totalDespesas,
         totalJuros: totalJuros,
         totalEconomias: totalEconomias,
-        saldo: saldoFinalAno
+        saldo: saldoDisponivelAno
     });
 }
 
@@ -2630,38 +2693,54 @@ function fecharModal(modalId) {
 // ================================================================
 
 window.calcularUsoCartoes = function(mes, ano) {
-    const usoCartoes = { cartao1: 0, cartao2: 0, cartao3: 0 };
-    
+    // Usar cartao_id (ID real do banco) em vez de posição
+    const cartoesUsuario = window.cartoesUsuario || [];
+    const usoCartoes = {};
+
+    // Inicializar uso para cada cartão pelo ID
+    cartoesUsuario.forEach(cartao => {
+        usoCartoes[cartao.id] = 0;
+    });
+
     const anoInicio = Math.min(...Object.keys(dadosFinanceiros).map(Number));
     const anoFim = ano + 3;
-    
+
     for (let anoAtual = anoInicio; anoAtual <= anoFim; anoAtual++) {
         if (!dadosFinanceiros[anoAtual]) continue;
-        
+
         for (let mesAtual = 0; mesAtual < 12; mesAtual++) {
             const dadosMes = dadosFinanceiros[anoAtual]?.meses[mesAtual];
             if (!dadosMes || !dadosMes.despesas) continue;
-            
+
             dadosMes.despesas.forEach(despesa => {
                 // Pular despesas transferidas
                 if (despesa.transferidaParaProximoMes) return;
-                
-                // Contar APENAS crédito com número de cartão definido, NÃO quitadas e NÃO recorrentes
-                if (despesa.formaPagamento === 'credito' && 
-                    despesa.numeroCartao && 
-                    !despesa.quitado &&
-                    !despesa.recorrente) {
-                    
-                    const chaveCartao = `cartao${despesa.numeroCartao}`;
-                    if (usoCartoes[chaveCartao] !== undefined) {
-                        const valorDespesa = window.obterValorRealDespesa ? window.obterValorRealDespesa(despesa) : (despesa.valor || 0);
-                        usoCartoes[chaveCartao] += valorDespesa;
+
+                const formaPag = (despesa.formaPagamento || '').toLowerCase();
+                const eCreditoOuVariacao = formaPag === 'credito' || formaPag === 'crédito' ||
+                                            formaPag === 'cred-merpago' || formaPag === 'créd-merpago';
+
+                if (!eCreditoOuVariacao || despesa.quitado || despesa.recorrente) return;
+
+                // Verificar cartao_id (ID real do banco)
+                let cartaoIdDespesa = despesa.cartao_id || despesa.cartaoId;
+
+                // Fallback para despesas antigas que usam numeroCartao (posição)
+                if (!cartaoIdDespesa && despesa.numeroCartao) {
+                    const cartaoNaPosicao = cartoesUsuario[parseInt(despesa.numeroCartao) - 1];
+                    if (cartaoNaPosicao) {
+                        cartaoIdDespesa = cartaoNaPosicao.id;
                     }
+                }
+
+                if (cartaoIdDespesa && usoCartoes[cartaoIdDespesa] !== undefined) {
+                    const valorDespesa = window.obterValorRealDespesa ? window.obterValorRealDespesa(despesa) : (despesa.valor || 0);
+                    usoCartoes[cartaoIdDespesa] += valorDespesa;
                 }
             });
         }
     }
-    
+
     return usoCartoes;
 };
 
