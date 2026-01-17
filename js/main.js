@@ -2194,32 +2194,27 @@ function calcularLimiteCartao(cartaoId, mes, ano) {
             }
         }
 
-        // ✅ FALLBACK FINAL: Se é crédito mas não tem cartao_id nem numeroCartao,
-        // verificar se este é o único/primeiro cartão de crédito ativo
-        // (para despesas antigas que perderam a referência)
-        const cartoesUsuario = window.cartoesUsuario || [];
-        const cartaoAtual = cartoesUsuario.find(c => c.id === cartaoId);
-        if (cartaoAtual && cartaoAtual.ativo) {
-            // Se só tem um cartão ativo, associar a ele
-            const cartoesAtivos = cartoesUsuario.filter(c => c.ativo);
-            if (cartoesAtivos.length === 1) {
-                return true;
-            }
-            // Se tem múltiplos cartões, associar ao primeiro (mais antigo)
-            if (cartoesAtivos.length > 1 && cartoesAtivos[0].id === cartaoId) {
-                return true;
-            }
-        }
-
+        // Despesas sem cartao_id não pertencem a nenhum cartão
         return false;
     };
 
-    // Percorrer todos os anos/meses para encontrar parcelas não pagas
+    // Percorrer apenas do mês/ano atual em diante para encontrar parcelas não pagas
+    const mesAtual = mes;
+    const anoAtual = ano;
+
     Object.keys(dadosFinanceiros || {}).forEach(anoKey => {
+        const anoNum = parseInt(anoKey);
+        // Pular anos anteriores ao atual
+        if (anoNum < anoAtual) return;
+
         const anoData = dadosFinanceiros[anoKey];
         if (!anoData?.meses) return;
 
         Object.keys(anoData.meses).forEach(mesKey => {
+            const mesNum = parseInt(mesKey);
+            // Pular meses anteriores ao atual (no mesmo ano)
+            if (anoNum === anoAtual && mesNum < mesAtual) return;
+
             const despesasMes = anoData.meses[mesKey]?.despesas || [];
 
             despesasMes.forEach(despesa => {
