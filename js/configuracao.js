@@ -3272,7 +3272,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Fechar o dropdown
             const dropdownAnoMenu = document.getElementById('dropdown-ano-menu');
             if (dropdownAnoMenu) {
-                dropdownAnoMenu.style.display = 'none';
+                dropdownAnoMenu.classList.remove('show');
             }
         });
     }

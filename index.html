@@ -1308,58 +1308,46 @@
 
 <!-- Modal: Adicionar Usuário -->
 <div id="modal-adicionar-usuario" class="modal">
-    <div class="modal-content">
+    <div class="modal-content modal-md">
         <div class="modal-header">
-            <h2><i class="fas fa-user-plus"></i> Adicionar Novo Usuário</h2>
+            <h2>Novo Usuário</h2>
             <span class="close">&times;</span>
         </div>
         <div class="modal-body">
             <form id="form-adicionar-usuario">
                 <div class="form-group">
-                    <label for="novo-usuario-nome">
-                        <i class="fas fa-user"></i> Nome: <span class="required">*</span>
-                    </label>
+                    <label for="novo-usuario-nome">Nome <span class="required">*</span></label>
                     <input type="text" id="novo-usuario-nome" class="form-input" required maxlength="100">
                 </div>
-                
+
                 <div class="form-group">
-                    <label for="novo-usuario-email">
-                        <i class="fas fa-envelope"></i> E-mail: <span class="required">*</span>
-                    </label>
+                    <label for="novo-usuario-email">E-mail <span class="required">*</span></label>
                     <input type="email" id="novo-usuario-email" class="form-input" required maxlength="100">
                 </div>
-                
+
                 <div class="form-group">
-                    <label for="novo-usuario-documento">
-                        <i class="fas fa-id-card"></i> Documento (CPF/CNPJ): <span class="required">*</span>
-                    </label>
+                    <label for="novo-usuario-documento">Documento (CPF/CNPJ) <span class="required">*</span></label>
                     <input type="text" id="novo-usuario-documento" class="form-input" required maxlength="18">
                     <small class="field-help">Digite apenas números</small>
                 </div>
-                
+
                 <div class="form-group">
-                    <label for="novo-usuario-tipo">
-                        <i class="fas fa-user-tag"></i> Tipo de Usuário:
-                    </label>
+                    <label for="novo-usuario-tipo">Tipo de Usuário</label>
                     <select id="novo-usuario-tipo" class="form-control">
                         <option value="padrao">Usuário Padrão</option>
                         <option value="admin">Administrador</option>
                         <option value="master">Master</option>
                     </select>
                 </div>
-                
+
                 <div class="form-group">
-                    <label for="novo-usuario-senha">
-                        <i class="fas fa-key"></i> Senha: <span class="required">*</span>
-                    </label>
+                    <label for="novo-usuario-senha">Senha <span class="required">*</span></label>
                     <input type="password" id="novo-usuario-senha" class="form-input" required minlength="6">
                     <small class="field-help">Mínimo 6 caracteres</small>
                 </div>
-                
+
                 <div class="form-group">
-                    <label for="novo-usuario-confirmar-senha">
-                        <i class="fas fa-key"></i> Confirmar Senha: <span class="required">*</span>
-                    </label>
+                    <label for="novo-usuario-confirmar-senha">Confirmar Senha <span class="required">*</span></label>
                     <input type="password" id="novo-usuario-confirmar-senha" class="form-input" required minlength="6">
                 </div>
 
@@ -1373,12 +1361,8 @@
             </form>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-action="cancelar">
-                <i class="fas fa-times"></i> Cancelar
-            </button>
-            <button type="submit" form="form-adicionar-usuario" class="btn btn-primary">
-                <i class="fas fa-user-plus"></i> Adicionar Usuário
-            </button>
+            <button type="button" class="btn btn-secondary" data-action="cancelar">Cancelar</button>
+            <button type="submit" form="form-adicionar-usuario" class="btn btn-primary">Salvar</button>
         </div>
     </div>
 </div>
@@ -1387,9 +1371,7 @@
 <div id="modal-editar-usuario" class="modal">
     <div class="modal-content modal-md">
         <div class="modal-header">
-            <h2 id="editar-usuario-titulo">
-                <i class="fas fa-user-edit"></i> Editar Usuário
-            </h2>
+            <h2 id="editar-usuario-titulo">Editar Usuário</h2>
             <span class="close">&times;</span>
         </div>
         <div class="modal-body">
@@ -1397,31 +1379,23 @@
                 <input type="hidden" id="editar-usuario-id">
 
                 <div class="form-group">
-                    <label for="editar-usuario-nome">
-                        <i class="fas fa-user"></i> Nome: <span class="required">*</span>
-                    </label>
+                    <label for="editar-usuario-nome">Nome <span class="required">*</span></label>
                     <input type="text" id="editar-usuario-nome" class="form-input" required maxlength="100">
                 </div>
 
                 <div class="form-group">
-                    <label for="editar-usuario-email">
-                        <i class="fas fa-envelope"></i> E-mail: <span class="required">*</span>
-                    </label>
+                    <label for="editar-usuario-email">E-mail <span class="required">*</span></label>
                     <input type="email" id="editar-usuario-email" class="form-input" required maxlength="100">
                 </div>
 
                 <div class="form-group">
-                    <label for="editar-usuario-documento">
-                        <i class="fas fa-id-card"></i> Documento (CPF/CNPJ): <span class="required">*</span>
-                    </label>
+                    <label for="editar-usuario-documento">Documento (CPF/CNPJ) <span class="required">*</span></label>
                     <input type="text" id="editar-usuario-documento" class="form-input" required maxlength="18" disabled>
                     <small class="field-help">O documento não pode ser alterado após o cadastro</small>
                 </div>
 
                 <div id="form-group-tipo" class="form-group">
-                    <label for="editar-usuario-tipo">
-                        <i class="fas fa-user-tag"></i> Tipo de Usuário:
-                    </label>
+                    <label for="editar-usuario-tipo">Tipo de Usuário</label>
                     <select id="editar-usuario-tipo" class="form-control">
                         <option value="padrao">Usuário Padrão</option>
                         <option value="admin">Administrador</option>
@@ -1430,9 +1404,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="editar-usuario-status">
-                        <i class="fas fa-toggle-on"></i> Status:
-                    </label>
+                    <label for="editar-usuario-status">Status</label>
                     <select id="editar-usuario-status" class="form-control">
                         <option value="ativo">Ativo</option>
                         <option value="inativo">Inativo</option>
@@ -1441,17 +1413,13 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="editar-usuario-senha">
-                        <i class="fas fa-key"></i> Nova Senha:
-                    </label>
+                    <label for="editar-usuario-senha">Nova Senha</label>
                     <input type="password" id="editar-usuario-senha" class="form-input" placeholder="Deixe em branco para manter a atual" minlength="6">
                     <small class="field-help">Mínimo 6 caracteres</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="editar-usuario-confirmar-senha">
-                        <i class="fas fa-key"></i> Confirmar Nova Senha:
-                    </label>
+                    <label for="editar-usuario-confirmar-senha">Confirmar Nova Senha</label>
                     <input type="password" id="editar-usuario-confirmar-senha" class="form-input" placeholder="Confirme a nova senha">
                 </div>
 
@@ -1463,12 +1431,8 @@
             </form>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-action="cancelar">
-                <i class="fas fa-times"></i> Cancelar
-            </button>
-            <button type="submit" form="form-editar-usuario" class="btn btn-primary">
-                <i class="fas fa-save"></i> Salvar
-            </button>
+            <button type="button" class="btn btn-secondary" data-action="cancelar">Cancelar</button>
+            <button type="submit" form="form-editar-usuario" class="btn btn-primary">Salvar</button>
         </div>
     </div>
 </div>
@@ -1753,7 +1717,7 @@
                             <span>SALDO ATUAL</span>
                         </div>
                         <div class="card-value" id="resumo-saldo">R$ 0,00</div>
-                        <div class="card-footer">Balanço receitas - despesas</div>
+                        <div class="card-footer">Disponível (descontadas reservas)</div>
                     </div>
                     <div class="card card-juros">
                         <div class="card-header">
@@ -2144,11 +2108,6 @@
                     <div class="reserva-vazia">Nenhuma reserva cadastrada</div>
                 </div>
             </div>
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary close">
-                <i class="fas fa-times"></i> Fechar
-            </button>
         </div>
     </div>
 </div>

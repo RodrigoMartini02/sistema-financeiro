@@ -220,9 +220,14 @@ window.onclick = function(event) {
 // FUNÇÃO PRINCIPAL DE CARREGAMENTO
 // ================================================================
 
-function carregarDadosDashboard(ano) {
+async function carregarDadosDashboard(ano) {
     if (!window.dadosFinanceiros[ano]) {
         return;
+    }
+
+    // Carregar reservas antes de criar os gráficos
+    if (typeof window.carregarReservasAPI === 'function') {
+        await window.carregarReservasAPI();
     }
 
     const dadosProcessados = processarDadosReais(window.dadosFinanceiros, ano);
@@ -315,37 +320,30 @@ function atualizarResumoDashboard(resumo) {
 function criarGraficoBalanco(dados) {
     const ctx = document.getElementById('balanco-chart')?.getContext('2d');
     if (!ctx) return;
-    
+
     if (window.balancoChart) {
         window.balancoChart.destroy();
     }
-    
+
     const balancoMensal = [];
     const reservasAcumuladas = [];
-    
-    let totalReservasAcumulado = 0;
-    
-    for (const anoKey in window.dadosFinanceiros) {
-        if (anoKey === 'versao') continue;
-        const ano = parseInt(anoKey);
-        
-        if (ano < window.anoAtual) {
-            const dadosAno = window.dadosFinanceiros[anoKey];
-            if (!dadosAno || !dadosAno.meses) continue;
-            
-            for (let m = 0; m < 12; m++) {
-                const reservas = dadosAno.meses[m]?.reservas || [];
-                totalReservasAcumulado += reservas.reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-            }
-        }
-    }
-    
+
+    // Usar reservasCache do backend
+    const reservasCache = window.reservasCache || [];
+
+    // Calcular reservas acumuladas de anos anteriores
+    let totalReservasAcumulado = reservasCache
+        .filter(r => parseInt(r.ano) < window.anoAtual)
+        .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+
     for (let i = 0; i < dados.receitas.length; i++) {
-        const dadosMes = window.dadosFinanceiros[window.anoAtual]?.meses[i];
-        const reservasMes = (dadosMes?.reservas || []).reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-        
+        // Calcular reservas do mês atual usando reservasCache
+        const reservasMes = reservasCache
+            .filter(r => parseInt(r.ano) === window.anoAtual && parseInt(r.mes) === i)
+            .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+
         totalReservasAcumulado += reservasMes;
-        
+
         const variacao = dados.receitas[i] - dados.despesas[i] - reservasMes;
         balancoMensal.push(variacao);
         reservasAcumuladas.push(totalReservasAcumulado);

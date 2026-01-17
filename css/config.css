@@ -370,16 +370,20 @@
 }
 
 .tabela-categorias th:nth-child(1) {
-    width: 35%;
+    width: 70px;
 }
 
-.tabela-categorias th:nth-child(2),
-.tabela-categorias th:nth-child(3) {
-    width: 20%;
+.tabela-categorias th:nth-child(2) {
+    width: auto;
+}
+
+.tabela-categorias th:nth-child(3),
+.tabela-categorias th:nth-child(4) {
+    width: 130px;
 }
 
 .tabela-categorias th.th-acoes {
-    width: 25%;
+    width: 100px;
     text-align: center;
 }
 

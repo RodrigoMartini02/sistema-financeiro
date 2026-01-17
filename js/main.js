@@ -690,7 +690,7 @@ function preencherDropdownAnos() {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             mudarAno(ano);
-            dropdownAnos.style.display = 'none';
+            dropdownAnos.classList.remove('show');
         });
         dropdownAnos.appendChild(btn);
     });
@@ -1657,6 +1657,11 @@ async function renderizarDetalhesDoMes(mes, ano) {
         const totalEconomias = typeof window.calcularTotalEconomias === 'function' ?
                           window.calcularTotalEconomias(despesas || []) : 0;
 
+        // Carregar reservas antes de atualizar o resumo (para descontar do saldo)
+        if (typeof window.carregarReservasAPI === 'function') {
+            await window.carregarReservasAPI();
+        }
+
         atualizarResumoDetalhes(saldo, totalJuros, totalEconomias);
         atualizarLimitesCartoes(mes, ano);
         atualizarTituloDetalhes(mes, ano, fechado);
@@ -1739,7 +1744,16 @@ function atualizarResumoDetalhes(saldo, totalJuros, totalEconomias = 0) {
 
     const saldoElement = document.getElementById('resumo-saldo');
     if (saldoElement) {
-        saldoElement.textContent = formatarMoeda(saldo.saldoFinal);
+        // Calcular total de reservas para descontar do saldo
+        let totalReservas = 0;
+        if (typeof window.calcularTotalReservas === 'function') {
+            totalReservas = window.calcularTotalReservas(mesAberto, anoAberto);
+        }
+
+        // Saldo disponível = saldo final - reservas
+        const saldoDisponivel = saldo.saldoFinal - totalReservas;
+
+        saldoElement.textContent = formatarMoeda(saldoDisponivel);
         saldoElement.className = 'card-value';
     }
 }
