@@ -2096,6 +2096,24 @@ function calcularLimiteCartao(cartaoId, mes, ano) {
     const limiteTotal = parseFloat(cartao.limite) || 0;
     let limiteUtilizado = 0;
 
+    // Função auxiliar para verificar se despesa está paga
+    const despesaEstaPaga = (despesa) => {
+        // Verificar campo 'pago'
+        if (despesa.pago === true || despesa.pago === 'true' || despesa.pago === 1 || despesa.pago === '1') {
+            return true;
+        }
+        // Verificar campo 'quitado'
+        if (despesa.quitado === true || despesa.quitado === 'true' || despesa.quitado === 1 || despesa.quitado === '1') {
+            return true;
+        }
+        return false;
+    };
+
+    // Função auxiliar para verificar se despesa é recorrente
+    const despesaEhRecorrente = (despesa) => {
+        return despesa.recorrente === true || despesa.recorrente === 'true' || despesa.recorrente === 1 || despesa.recorrente === '1';
+    };
+
     // Função auxiliar para verificar se despesa pertence ao cartão
     const pertenceAoCartao = (despesa) => {
         const formaPag = (despesa.formaPagamento || despesa.forma_pagamento || '').toLowerCase();
@@ -2112,7 +2130,6 @@ function calcularLimiteCartao(cartaoId, mes, ano) {
         // Fallback para despesas antigas que usam numeroCartao (posição)
         const numeroCartaoDespesa = despesa.numeroCartao || despesa.numero_cartao;
         if (numeroCartaoDespesa) {
-            // Mapear posição para ID do cartão
             const cartoesUsuario = window.cartoesUsuario || [];
             const cartaoNaPosicao = cartoesUsuario[parseInt(numeroCartaoDespesa) - 1];
             if (cartaoNaPosicao) {
@@ -2123,22 +2140,7 @@ function calcularLimiteCartao(cartaoId, mes, ano) {
         return false;
     };
 
-    // Função auxiliar para calcular valor da despesa
-    const calcularValorDespesa = (despesa) => {
-        // Se já foi paga, não compromete mais o limite
-        // Verificar múltiplos formatos possíveis (boolean, string, etc)
-        const estaPago = despesa.quitado === true || despesa.quitado === 'true' ||
-                         despesa.pago === true || despesa.pago === 'true';
-        if (estaPago) {
-            return 0;
-        }
-        if (despesa.valorTotalComJuros !== null && despesa.valorTotalComJuros !== undefined) {
-            return parseFloat(despesa.valorTotalComJuros);
-        }
-        return parseFloat(despesa.valor) || 0;
-    };
-
-    // Percorrer todos os anos/meses para encontrar parcelas futuras não pagas
+    // Percorrer todos os anos/meses para encontrar parcelas não pagas
     Object.keys(dadosFinanceiros || {}).forEach(anoKey => {
         const anoData = dadosFinanceiros[anoKey];
         if (!anoData?.meses) return;
@@ -2147,21 +2149,21 @@ function calcularLimiteCartao(cartaoId, mes, ano) {
             const despesasMes = anoData.meses[mesKey]?.despesas || [];
 
             despesasMes.forEach(despesa => {
+                // Pular despesas transferidas
                 if (despesa.transferidaParaProximoMes === true) return;
+
+                // Pular se não pertence ao cartão
                 if (!pertenceAoCartao(despesa)) return;
 
-                // Excluir despesas recorrentes do cálculo de parcelas futuras
-                // (recorrentes são lançadas mês a mês, não comprometem limite futuro)
-                if (despesa.recorrente === true) {
-                    // Para recorrentes, só conta se for do mês atual
-                    if (parseInt(mesKey) === mes && parseInt(anoKey) === ano) {
-                        limiteUtilizado += calcularValorDespesa(despesa);
-                    }
-                    return;
-                }
+                // Pular se já está paga
+                if (despesaEstaPaga(despesa)) return;
 
-                // Despesas não recorrentes (incluindo parceladas) comprometem o limite
-                limiteUtilizado += calcularValorDespesa(despesa);
+                // Pular despesas recorrentes (não comprometem limite)
+                if (despesaEhRecorrente(despesa)) return;
+
+                // Somar valor da despesa não paga
+                const valor = parseFloat(despesa.valorTotalComJuros) || parseFloat(despesa.valor) || 0;
+                limiteUtilizado += valor;
             });
         });
     });
