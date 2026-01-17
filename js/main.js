@@ -2198,44 +2198,30 @@ function calcularLimiteCartao(cartaoId, mes, ano) {
         return false;
     };
 
-    // Percorrer apenas do mês/ano atual em diante para encontrar parcelas não pagas
-    const mesAtual = mes;
-    const anoAtual = ano;
+    // Calcular limite baseado APENAS nas despesas do mês selecionado (fatura atual)
+    // Isso corresponde ao que o app do cartão mostra - apenas a fatura do mês
+    const anoData = dadosFinanceiros?.[ano];
+    if (anoData?.meses?.[mes]) {
+        const despesasMes = anoData.meses[mes]?.despesas || [];
 
-    Object.keys(dadosFinanceiros || {}).forEach(anoKey => {
-        const anoNum = parseInt(anoKey);
-        // Pular anos anteriores ao atual
-        if (anoNum < anoAtual) return;
+        despesasMes.forEach(despesa => {
+            // Pular despesas transferidas
+            if (despesa.transferidaParaProximoMes === true) return;
 
-        const anoData = dadosFinanceiros[anoKey];
-        if (!anoData?.meses) return;
+            // Pular se não pertence ao cartão
+            if (!pertenceAoCartao(despesa)) return;
 
-        Object.keys(anoData.meses).forEach(mesKey => {
-            const mesNum = parseInt(mesKey);
-            // Pular meses anteriores ao atual (no mesmo ano)
-            if (anoNum === anoAtual && mesNum < mesAtual) return;
+            // Pular se já está paga
+            if (despesaEstaPaga(despesa)) return;
 
-            const despesasMes = anoData.meses[mesKey]?.despesas || [];
+            // Pular despesas recorrentes (não comprometem limite)
+            if (despesaEhRecorrente(despesa)) return;
 
-            despesasMes.forEach(despesa => {
-                // Pular despesas transferidas
-                if (despesa.transferidaParaProximoMes === true) return;
-
-                // Pular se não pertence ao cartão
-                if (!pertenceAoCartao(despesa)) return;
-
-                // Pular se já está paga
-                if (despesaEstaPaga(despesa)) return;
-
-                // Pular despesas recorrentes (não comprometem limite)
-                if (despesaEhRecorrente(despesa)) return;
-
-                // Somar valor da despesa não paga
-                const valor = parseFloat(despesa.valorTotalComJuros) || parseFloat(despesa.valor) || 0;
-                limiteUtilizado += valor;
-            });
+            // Somar valor da despesa não paga do mês atual
+            const valor = parseFloat(despesa.valorTotalComJuros) || parseFloat(despesa.valor) || 0;
+            limiteUtilizado += valor;
         });
-    });
+    }
 
     const limiteDisponivel = Math.max(0, limiteTotal - limiteUtilizado);
     const percentualUsado = limiteTotal > 0 ? (limiteUtilizado / limiteTotal) * 100 : 0;
