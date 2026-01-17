@@ -144,7 +144,8 @@ function exportarVariaveisGlobais() {
     window.atualizarResumoAnual = atualizarResumoAnual;
     window.atualizarLimitesCartoes = atualizarLimitesCartoes;
     window.calcularLimiteCartao = calcularLimiteCartao;
-    
+    window.carregarCartoesDoServidor = carregarCartoesDoUsuario;
+
     // Funções de fechamento de mês
     window.fecharMes = fecharMes;
     window.reabrirMes = reabrirMes;
@@ -314,10 +315,78 @@ async function carregarDadosLocais() {
 
         window.dadosFinanceiros = dadosFinanceiros;
 
+        // ✅ Carregar cartões do usuário antes do dashboard
+        await carregarCartoesDoUsuario();
+
     } catch (error) {
         console.error('Erro ao carregar dados:', error);
         dadosFinanceiros = criarEstruturaVazia();
         window.dadosFinanceiros = dadosFinanceiros;
+    }
+}
+
+/**
+ * Carrega os cartões do usuário da API
+ */
+async function carregarCartoesDoUsuario() {
+    try {
+        const usuario = window.usuarioDataManager?.getUsuarioAtual();
+        const token = sessionStorage.getItem('token');
+
+        if (!usuario || !usuario.id || !token) {
+            window.cartoesUsuario = [];
+            return;
+        }
+
+        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
+        const response = await fetch(`${API_URL}/usuarios/${usuario.id}/cartoes`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            window.cartoesUsuario = [];
+            return;
+        }
+
+        const data = await response.json();
+
+        if (data.success && data.cartoes) {
+            // Migrar formato antigo para novo (se necessário)
+            let cartoes = data.cartoes;
+
+            if (Array.isArray(cartoes)) {
+                cartoes = cartoes.filter(c => c.banco && c.banco.trim() !== '');
+            } else {
+                // Converter formato antigo {cartao1, cartao2, cartao3} para array
+                const cartoesArray = [];
+                let id = 1;
+                ['cartao1', 'cartao2', 'cartao3'].forEach(key => {
+                    if (cartoes[key] && cartoes[key].nome && cartoes[key].nome.trim() !== '') {
+                        cartoesArray.push({
+                            id: id++,
+                            banco: cartoes[key].nome,
+                            validade: cartoes[key].validade || '',
+                            limite: parseFloat(cartoes[key].limite) || 0,
+                            ativo: cartoes[key].ativo || false
+                        });
+                    }
+                });
+                cartoes = cartoesArray;
+            }
+
+            window.cartoesUsuario = cartoes;
+        } else {
+            window.cartoesUsuario = [];
+        }
+
+    } catch (error) {
+        console.error('Erro ao carregar cartões:', error);
+        window.cartoesUsuario = [];
     }
 }
 
@@ -1891,9 +1960,11 @@ function atualizarLimitesCartoes(mes, ano) {
         // Limitar largura da barra em 100% (mesmo que percentual seja maior)
         const larguraBarra = Math.min(percentualUsado, 100);
 
+        const nomeCartao = cartao.banco || cartao.nome || 'Cartão';
+
         cartaoDiv.innerHTML = `
             <div class="cartao-info-header">
-                <span class="cartao-nome">${cartao.banco.toUpperCase()}</span>
+                <span class="cartao-nome">${nomeCartao.toUpperCase()}</span>
                 <div class="cartao-valores">
                     <span class="valor-usado">${formatarMoeda(limiteInfo.limiteUtilizado)}</span>
                     <span class="separador">/</span>
