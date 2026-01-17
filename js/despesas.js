@@ -1020,8 +1020,15 @@ async function salvarDespesaLocal(formData) {
             console.log('💾 Salvando despesa via API:', formData);
 
             // Calcular valores originais e juros
-            const valorOriginal = parseFloat(formData.valor);
-            const valorComJuros = formData.valorPago ? parseFloat(formData.valorPago) : valorOriginal;
+            const valorDigitado = parseFloat(formData.valor);
+            const numParcelas = formData.parcelado ? (formData.totalParcelas || 1) : 1;
+
+            // ✅ CORREÇÃO: Se for parcelado, dividir o valor total pelo número de parcelas
+            // O usuário digita o valor TOTAL da compra, e cada parcela recebe o valor dividido
+            const valorParcela = formData.parcelado ? (valorDigitado / numParcelas) : valorDigitado;
+            const valorOriginal = valorParcela;
+
+            const valorComJuros = formData.valorPago ? (parseFloat(formData.valorPago) / numParcelas) : valorOriginal;
             const totalJuros = valorComJuros - valorOriginal;
 
             // Preparar objeto despesa para API
@@ -1030,8 +1037,8 @@ async function salvarDespesaLocal(formData) {
                 categoria: formData.categoria,
                 formaPagamento: formData.formaPagamento,
                 cartao_id: formData.cartao_id,
-                valor: valorOriginal,
-                valorOriginal: valorOriginal,
+                valor: valorParcela,
+                valorOriginal: valorParcela,
                 valorTotalComJuros: valorComJuros,
                 valorPago: formData.jaPago ? valorComJuros : null,
                 dataCompra: formData.dataCompra,
@@ -1045,10 +1052,10 @@ async function salvarDespesaLocal(formData) {
                 observacoes: formData.observacoes || '',
                 anexos: formData.anexos || [],
                 metadados: totalJuros !== 0 ? {
-                    valorOriginalTotal: valorOriginal,
-                    valorTotalComJuros: valorComJuros,
-                    totalJuros: totalJuros,
-                    jurosPorParcela: formData.parcelado ? totalJuros / formData.totalParcelas : totalJuros
+                    valorOriginalTotal: valorDigitado, // Valor total digitado pelo usuário
+                    valorTotalComJuros: formData.valorPago ? parseFloat(formData.valorPago) : valorDigitado,
+                    totalJuros: totalJuros * numParcelas, // Juros total de todas as parcelas
+                    jurosPorParcela: totalJuros
                 } : null
             };
 
@@ -1420,47 +1427,63 @@ async function excluirParcelaEFuturas(index, mes, ano) {
         }
 
         const despesa = dadosFinanceiros[ano].meses[mes].despesas[index];
-        const idGrupo = despesa.idGrupoParcelamento;
-        const numeroParcelaAtual = despesa.parcela ? despesa.parcela.split('/').map(Number)[0] : 1;
+        const idGrupo = despesa.idGrupoParcelamento || despesa.id;
+        const parcelaAtual = despesa.parcelaAtual || (despesa.parcela ? parseInt(despesa.parcela.split('/')[0]) : 1);
 
-        const mesesAfetados = new Set();
+        console.log('🗑️ Excluindo parcela atual e futuras:', { idGrupo, parcelaAtual, despesaId: despesa.id });
 
-        // Buscar todas as parcelas do grupo e excluir as futuras
-        for (let anoFuturo = ano; anoFuturo <= ano + 3; anoFuturo++) {
-            if (!dadosFinanceiros[anoFuturo]) continue;
+        // Excluir a parcela atual primeiro
+        await fetch(`${API_URL}/despesas/${despesa.id}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${getToken()}`
+            }
+        });
 
-            const mesInicial = anoFuturo === ano ? mes : 0;
+        // Buscar e excluir parcelas futuras via API (mais confiável que iterar dadosFinanceiros)
+        if (idGrupo) {
+            // Buscar despesas do ano atual
+            const response = await fetch(`${API_URL}/despesas?ano=${ano}`, {
+                headers: { 'Authorization': `Bearer ${getToken()}` }
+            });
 
-            for (let mesFuturo = mesInicial; mesFuturo < 12; mesFuturo++) {
-                if (!dadosFinanceiros[anoFuturo].meses[mesFuturo]?.despesas) continue;
+            if (response.ok) {
+                const data = await response.json();
+                for (const d of (data.data || [])) {
+                    if (d.grupo_parcelamento_id === idGrupo && d.parcela_atual > parcelaAtual) {
+                        console.log('🗑️ Excluindo parcela futura:', d.id, `${d.parcela_atual}/${d.numero_parcelas}`);
+                        await fetch(`${API_URL}/despesas/${d.id}`, {
+                            method: 'DELETE',
+                            headers: { 'Authorization': `Bearer ${getToken()}` }
+                        });
+                    }
+                }
+            }
 
-                const despesas = dadosFinanceiros[anoFuturo].meses[mesFuturo].despesas;
+            // Verificar ano seguinte
+            const responseProx = await fetch(`${API_URL}/despesas?ano=${ano + 1}`, {
+                headers: { 'Authorization': `Bearer ${getToken()}` }
+            });
 
-                for (const d of despesas) {
-                    if (d.idGrupoParcelamento === idGrupo && d.descricao === despesa.descricao) {
-                        const [numeroParcela] = d.parcela ? d.parcela.split('/').map(Number) : [1];
-
-                        if (numeroParcela >= numeroParcelaAtual && d.id) {
-                            await fetch(`${API_URL}/despesas/${d.id}`, {
-                                method: 'DELETE',
-                                headers: {
-                                    'Authorization': `Bearer ${getToken()}`
-                                }
-                            });
-                            mesesAfetados.add(mesFuturo);
-                        }
+            if (responseProx.ok) {
+                const dataProx = await responseProx.json();
+                for (const d of (dataProx.data || [])) {
+                    if (d.grupo_parcelamento_id === idGrupo) {
+                        console.log('🗑️ Excluindo parcela futura (ano seguinte):', d.id);
+                        await fetch(`${API_URL}/despesas/${d.id}`, {
+                            method: 'DELETE',
+                            headers: { 'Authorization': `Bearer ${getToken()}` }
+                        });
                     }
                 }
             }
         }
 
-        // Recarregar dados dos meses afetados
+        // Recarregar dados do mês atual
         if (typeof window.buscarDespesasAPI === 'function') {
-            for (const mesAfetado of mesesAfetados) {
-                const despesasAtualizadas = await window.buscarDespesasAPI(mesAfetado, ano);
-                if (dadosFinanceiros[ano]?.meses[mesAfetado]) {
-                    dadosFinanceiros[ano].meses[mesAfetado].despesas = despesasAtualizadas;
-                }
+            const despesasAtualizadas = await window.buscarDespesasAPI(mes, ano);
+            if (dadosFinanceiros[ano]?.meses[mes]) {
+                dadosFinanceiros[ano].meses[mes].despesas = despesasAtualizadas;
             }
         }
 
@@ -1956,58 +1979,31 @@ async function excluirTodasParcelas(ano, descricao, categoria, idGrupo) {
     if (!idGrupo) return { quantidade: 0, valorTotal: 0 };
 
     try {
-        let parcelasRemovidas = 0;
-        let valorTotal = 0;
-        const mesesAfetados = new Map();
+        console.log('🗑️ Excluindo TODAS as parcelas do grupo:', idGrupo);
 
-        for (let anoAtual = ano; anoAtual <= ano + 3; anoAtual++) {
-            if (!dadosFinanceiros[anoAtual]) continue;
-
-            for (let m = 0; m < 12; m++) {
-                if (!dadosFinanceiros[anoAtual].meses[m]?.despesas) continue;
-
-                const despesas = dadosFinanceiros[anoAtual].meses[m].despesas;
-
-                for (const d of despesas) {
-                    if (d.idGrupoParcelamento === idGrupo &&
-                        d.descricao === descricao &&
-                        d.categoria === categoria) {
-
-                        // Validar ID antes de excluir
-                        if (d.id && d.id <= 2147483647) {
-                            await fetch(`${API_URL}/despesas/${d.id}`, {
-                                method: 'DELETE',
-                                headers: {
-                                    'Authorization': `Bearer ${getToken()}`
-                                }
-                            });
-
-                            valorTotal += parseFloat(d.valor || 0);
-                            parcelasRemovidas++;
-
-                            if (!mesesAfetados.has(anoAtual)) {
-                                mesesAfetados.set(anoAtual, new Set());
-                            }
-                            mesesAfetados.get(anoAtual).add(m);
-                        }
-                    }
-                }
+        // Usar o endpoint do backend com excluir_grupo=true para excluir todas de uma vez
+        const response = await fetch(`${API_URL}/despesas/${idGrupo}?excluir_grupo=true`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${getToken()}`
             }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erro ao excluir grupo: ${response.status}`);
         }
 
-        // Recarregar dados dos meses afetados
+        console.log('✅ Grupo de parcelas excluído com sucesso');
+
+        // Recarregar dados do mês atual
         if (typeof window.buscarDespesasAPI === 'function') {
-            for (const [anoAfetado, meses] of mesesAfetados) {
-                for (const mesAfetado of meses) {
-                    const despesasAtualizadas = await window.buscarDespesasAPI(mesAfetado, anoAfetado);
-                    if (dadosFinanceiros[anoAfetado]?.meses[mesAfetado]) {
-                        dadosFinanceiros[anoAfetado].meses[mesAfetado].despesas = despesasAtualizadas;
-                    }
-                }
+            const despesasAtualizadas = await window.buscarDespesasAPI(mesAberto, anoAberto);
+            if (dadosFinanceiros[anoAberto]?.meses[mesAberto]) {
+                dadosFinanceiros[anoAberto].meses[mesAberto].despesas = despesasAtualizadas;
             }
         }
 
-        return { quantidade: parcelasRemovidas, valorTotal: valorTotal };
+        return { quantidade: 1, valorTotal: 0 };
     } catch (error) {
         console.error('Erro ao excluir todas as parcelas:', error);
         return { quantidade: 0, valorTotal: 0 };

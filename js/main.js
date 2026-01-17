@@ -1729,6 +1729,7 @@ async function buscarDespesasAPI(mes, ano) {
             totalParcelas: d.numero_parcelas,
             parcelaAtual: d.parcela_atual,
             parcela: d.parcelado ? `${d.parcela_atual}/${d.numero_parcelas}` : null,
+            idGrupoParcelamento: d.grupo_parcelamento_id,
             pago: d.pago,
             quitado: d.pago,
             observacoes: d.observacoes,
