@@ -2194,6 +2194,23 @@ function calcularLimiteCartao(cartaoId, mes, ano) {
             }
         }
 
+        // ✅ FALLBACK FINAL: Se é crédito mas não tem cartao_id nem numeroCartao,
+        // verificar se este é o único/primeiro cartão de crédito ativo
+        // (para despesas antigas que perderam a referência)
+        const cartoesUsuario = window.cartoesUsuario || [];
+        const cartaoAtual = cartoesUsuario.find(c => c.id === cartaoId);
+        if (cartaoAtual && cartaoAtual.ativo) {
+            // Se só tem um cartão ativo, associar a ele
+            const cartoesAtivos = cartoesUsuario.filter(c => c.ativo);
+            if (cartoesAtivos.length === 1) {
+                return true;
+            }
+            // Se tem múltiplos cartões, associar ao primeiro (mais antigo)
+            if (cartoesAtivos.length > 1 && cartoesAtivos[0].id === cartaoId) {
+                return true;
+            }
+        }
+
         return false;
     };
 
