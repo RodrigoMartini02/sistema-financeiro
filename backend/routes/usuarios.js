@@ -946,8 +946,8 @@ router.get('/:id/cartoes', authMiddleware, async (req, res) => {
             });
         }
 
-        // ✅ CORRIGIDO: Buscar cartões da TABELA cartoes (não do campo JSON)
-        const result = await query(
+        // 1. Primeiro tentar buscar da TABELA cartoes
+        const resultTabela = await query(
             `SELECT id, nome as banco, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao
              FROM cartoes
              WHERE usuario_id = $1
@@ -955,22 +955,118 @@ router.get('/:id/cartoes', authMiddleware, async (req, res) => {
             [id]
         );
 
-        // Retornar array de cartões com IDs reais do banco
-        const cartoes = result.rows.map(cartao => ({
-            id: cartao.id,
-            banco: cartao.banco,
-            nome: cartao.banco,
-            limite: parseFloat(cartao.limite) || 0,
-            dia_fechamento: cartao.dia_fechamento,
-            dia_vencimento: cartao.dia_vencimento,
-            cor: cartao.cor || '#3498db',
-            ativo: cartao.ativo !== false,
-            numero_cartao: cartao.numero_cartao
-        }));
+        // Se encontrou cartões na tabela, retornar eles
+        if (resultTabela.rows.length > 0) {
+            const cartoes = resultTabela.rows.map(cartao => ({
+                id: cartao.id,
+                banco: cartao.banco,
+                nome: cartao.banco,
+                limite: parseFloat(cartao.limite) || 0,
+                dia_fechamento: cartao.dia_fechamento,
+                dia_vencimento: cartao.dia_vencimento,
+                cor: cartao.cor || '#3498db',
+                ativo: cartao.ativo !== false,
+                numero_cartao: cartao.numero_cartao
+            }));
+
+            return res.json({
+                success: true,
+                cartoes
+            });
+        }
+
+        // 2. Fallback: buscar do campo JSON usuarios.cartoes (formato antigo)
+        const resultJson = await query(
+            'SELECT cartoes FROM usuarios WHERE id = $1',
+            [id]
+        );
+
+        if (resultJson.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Usuário não encontrado'
+            });
+        }
+
+        const cartoesJson = resultJson.rows[0].cartoes;
+
+        // Se não tem cartões no JSON, retornar array vazio
+        if (!cartoesJson) {
+            return res.json({
+                success: true,
+                cartoes: []
+            });
+        }
+
+        // 3. Migrar cartões do JSON para a tabela automaticamente
+        let cartoesParaMigrar = [];
+
+        if (Array.isArray(cartoesJson)) {
+            // Formato array
+            cartoesParaMigrar = cartoesJson.filter(c => c && (c.banco || c.nome) && (c.banco || c.nome).trim() !== '');
+        } else if (typeof cartoesJson === 'object') {
+            // Formato antigo {cartao1, cartao2, cartao3}
+            let posicao = 1;
+            ['cartao1', 'cartao2', 'cartao3'].forEach(key => {
+                if (cartoesJson[key] && cartoesJson[key].nome && cartoesJson[key].nome.trim() !== '') {
+                    cartoesParaMigrar.push({
+                        banco: cartoesJson[key].nome,
+                        nome: cartoesJson[key].nome,
+                        validade: cartoesJson[key].validade || '',
+                        limite: parseFloat(cartoesJson[key].limite) || 0,
+                        ativo: cartoesJson[key].ativo !== false,
+                        numero_cartao: posicao
+                    });
+                    posicao++;
+                }
+            });
+        }
+
+        // Se tem cartões para migrar, inserir na tabela
+        const cartoesMigrados = [];
+        for (let i = 0; i < cartoesParaMigrar.length; i++) {
+            const cartao = cartoesParaMigrar[i];
+            try {
+                const insertResult = await query(
+                    `INSERT INTO cartoes (usuario_id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                     RETURNING id, nome as banco, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao`,
+                    [
+                        id,
+                        (cartao.banco || cartao.nome || '').trim(),
+                        parseFloat(cartao.limite) || 0,
+                        cartao.dia_fechamento || 1,
+                        cartao.dia_vencimento || 10,
+                        cartao.cor || '#3498db',
+                        cartao.ativo !== false,
+                        cartao.numero_cartao || (i + 1)
+                    ]
+                );
+
+                if (insertResult.rows.length > 0) {
+                    const c = insertResult.rows[0];
+                    cartoesMigrados.push({
+                        id: c.id,
+                        banco: c.banco,
+                        nome: c.banco,
+                        limite: parseFloat(c.limite) || 0,
+                        dia_fechamento: c.dia_fechamento,
+                        dia_vencimento: c.dia_vencimento,
+                        cor: c.cor || '#3498db',
+                        ativo: c.ativo !== false,
+                        numero_cartao: c.numero_cartao
+                    });
+                }
+            } catch (insertError) {
+                console.error('Erro ao migrar cartão:', insertError);
+            }
+        }
+
+        console.log(`✅ Migrados ${cartoesMigrados.length} cartões do JSON para tabela (usuário ${id})`);
 
         res.json({
             success: true,
-            cartoes
+            cartoes: cartoesMigrados
         });
 
     } catch (error) {
