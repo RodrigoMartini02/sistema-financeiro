@@ -4,7 +4,7 @@ const https = require('https');
 const http = require('http');
 require('dotenv').config();
 
-const { testarConexao } = require('./config/database');
+const { testarConexao, executarMigracoes } = require('./config/database');
 const { rateLimiter } = require('./middleware/validation');
 
 const app = express();
@@ -40,8 +40,8 @@ app.use(cors({
     credentials: false
 }));
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 app.use(rateLimiter());
 
@@ -399,6 +399,9 @@ const iniciarServidor = async () => {
 
         // ✅ Criar/verificar estrutura do banco
         await criarEstruturaBanco();
+
+        // ✅ Executar migrações pendentes (adicionar colunas, etc)
+        await executarMigracoes();
 
         // ✅ Criar/atualizar usuário master
         await criarUsuarioMaster();

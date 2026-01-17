@@ -1945,14 +1945,24 @@ function calcularLimiteCartao(cartaoId, mes, ano) {
                                     formaPag === 'cred-merpago' || formaPag === 'créd-merpago';
         if (!eCreditoOuVariacao) return false;
 
+        // Verificar pelo cartao_id (campo do banco de dados)
+        if (despesa.cartao_id) {
+            return parseInt(despesa.cartao_id) === parseInt(cartaoId);
+        }
+
+        // Fallback: verificar pelo numeroCartao (posição do cartão no array)
         const numeroCartaoDespesa = despesa.numeroCartao;
         if (numeroCartaoDespesa) {
-            return numeroCartaoDespesa === cartaoId;
+            // numeroCartao é a posição (1, 2, 3...), precisamos converter para ID real
+            const cartoesUsuario = window.cartoesUsuario || [];
+            const posicao = parseInt(numeroCartaoDespesa) - 1;
+            if (posicao >= 0 && posicao < cartoesUsuario.length) {
+                const cartaoNaPosicao = cartoesUsuario[posicao];
+                return cartaoNaPosicao && parseInt(cartaoNaPosicao.id) === parseInt(cartaoId);
+            }
         }
-        const cartaoMerpago = (window.cartoesUsuario || []).find(c =>
-            c.banco && c.banco.toUpperCase().includes('MERPAGO')
-        );
-        return cartaoMerpago && cartaoMerpago.id === cartaoId;
+
+        return false;
     };
 
     // Função auxiliar para calcular valor da despesa

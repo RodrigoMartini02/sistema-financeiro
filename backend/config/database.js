@@ -41,6 +41,31 @@ const testarConexao = async () => {
     }
 };
 
+// Migração automática para adicionar colunas necessárias
+const executarMigracoes = async () => {
+    try {
+        console.log('🔄 Verificando migrações pendentes...');
+
+        // Adicionar coluna anexos na tabela despesas
+        await pool.query(`
+            ALTER TABLE despesas ADD COLUMN IF NOT EXISTS anexos JSONB DEFAULT NULL
+        `);
+        console.log('✅ Coluna anexos verificada em despesas');
+
+        // Adicionar coluna anexos na tabela receitas
+        await pool.query(`
+            ALTER TABLE receitas ADD COLUMN IF NOT EXISTS anexos JSONB DEFAULT NULL
+        `);
+        console.log('✅ Coluna anexos verificada em receitas');
+
+        console.log('✅ Migrações concluídas');
+        return true;
+    } catch (error) {
+        console.error('❌ Erro nas migrações:', error.message);
+        return false;
+    }
+};
+
 const query = async (text, params) => {
     const start = Date.now();
     try {
@@ -57,5 +82,6 @@ const query = async (text, params) => {
 module.exports = {
     pool,
     query,
-    testarConexao
+    testarConexao,
+    executarMigracoes
 };

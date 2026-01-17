@@ -84,6 +84,12 @@ router.post('/', authMiddleware, [
     body('ano').isInt({ min: 2000 }).withMessage('Ano inválido')
 ], async (req, res) => {
     try {
+        // Log detalhado dos dados recebidos
+        console.log('📥 Dados recebidos para criar despesa:', JSON.stringify({
+            ...req.body,
+            anexos: req.body.anexos ? `[${req.body.anexos.length} anexo(s)]` : null
+        }, null, 2));
+
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
             console.error('❌ Erros de validação na despesa:', errors.array());
@@ -102,7 +108,8 @@ router.post('/', authMiddleware, [
 
         console.log('📝 Criando despesa:', {
             descricao, valor, data_vencimento, mes, ano,
-            categoria_id, forma_pagamento, parcelado, usuario_id: req.usuario.id
+            categoria_id, forma_pagamento, parcelado, usuario_id: req.usuario.id,
+            temAnexos: anexos && anexos.length > 0
         });
 
         // ✅ Se categoria_id não foi fornecida, buscar a primeira categoria do usuário
