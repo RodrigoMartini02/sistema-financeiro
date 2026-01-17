@@ -390,6 +390,16 @@ async function carregarCartoesDoUsuario() {
 
             window.cartoesUsuario = cartoes;
             console.log('✅ Cartões carregados:', cartoes);
+
+            // ✅ CORREÇÃO AUTOMÁTICA: Atualizar despesas de crédito sem cartao_id
+            // Pegar o primeiro cartão de crédito ativo para corrigir despesas antigas
+            const cartaoCredito = cartoes.find(c => c.ativo && c.banco && c.banco.toLowerCase().includes('cred'));
+            if (cartaoCredito && cartaoCredito.id) {
+                await corrigirDespesasSemCartao(cartaoCredito.id, token);
+            } else if (cartoes.length > 0 && cartoes[0].id) {
+                // Usar o primeiro cartão disponível
+                await corrigirDespesasSemCartao(cartoes[0].id, token);
+            }
         } else {
             window.cartoesUsuario = [];
         }
@@ -397,6 +407,53 @@ async function carregarCartoesDoUsuario() {
     } catch (error) {
         console.error('Erro ao carregar cartões:', error);
         window.cartoesUsuario = [];
+    }
+}
+
+/**
+ * Corrige despesas de crédito que não têm cartao_id válido
+ */
+async function corrigirDespesasSemCartao(cartaoId, token) {
+    try {
+        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
+        const response = await fetch(`${API_URL}/despesas/corrigir-cartao`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ cartao_id: cartaoId })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.quantidade > 0) {
+                console.log(`✅ ${data.quantidade} despesa(s) corrigida(s) com cartao_id=${cartaoId}`);
+
+                // ✅ RECARREGAR DADOS FINANCEIROS APÓS CORREÇÃO
+                // Isso garante que os dados em memória tenham o cartao_id atualizado
+                if (window.usuarioDataManager) {
+                    // Limpar cache para forçar nova requisição
+                    if (typeof window.usuarioDataManager.limparCache === 'function') {
+                        window.usuarioDataManager.limparCache();
+                    }
+
+                    if (typeof window.usuarioDataManager.getDadosFinanceirosUsuario === 'function') {
+                        dadosFinanceiros = await window.usuarioDataManager.getDadosFinanceirosUsuario();
+                        window.dadosFinanceiros = dadosFinanceiros;
+                        console.log('✅ Dados financeiros recarregados após correção');
+
+                        // Atualizar dashboard se visível
+                        if (typeof atualizarDashboard === 'function') {
+                            atualizarDashboard();
+                        }
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Erro ao corrigir despesas sem cartão:', error);
     }
 }
 
