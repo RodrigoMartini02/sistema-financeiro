@@ -2126,7 +2126,10 @@ function calcularLimiteCartao(cartaoId, mes, ano) {
     // Função auxiliar para calcular valor da despesa
     const calcularValorDespesa = (despesa) => {
         // Se já foi paga, não compromete mais o limite
-        if (despesa.quitado === true || despesa.pago === true) {
+        // Verificar múltiplos formatos possíveis (boolean, string, etc)
+        const estaPago = despesa.quitado === true || despesa.quitado === 'true' ||
+                         despesa.pago === true || despesa.pago === 'true';
+        if (estaPago) {
             return 0;
         }
         if (despesa.valorTotalComJuros !== null && despesa.valorTotalComJuros !== undefined) {
