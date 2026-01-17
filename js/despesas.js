@@ -2376,9 +2376,19 @@ async function abrirModalPagamento(index, mes, ano) {
         const modal = document.getElementById('modal-pagamento-individual');
         if (modal) {
             modal.style.display = 'block';
-            
-            // Botão de comprovante já configurado pelo sistemaAnexos em js/anexos.js
-            
+
+            // Configurar botão de comprovante ao abrir o modal
+            const btnComprovante = document.getElementById('btn-anexar-comprovante');
+            if (btnComprovante && window.sistemaAnexos) {
+                // Remover listener anterior se existir
+                btnComprovante.onclick = null;
+                btnComprovante.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.sistemaAnexos.abrirSeletorArquivos('comprovante');
+                };
+            }
+
         } else {
             throw new Error('Modal de pagamento não encontrado no DOM');
         }
