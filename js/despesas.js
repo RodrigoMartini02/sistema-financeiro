@@ -333,18 +333,24 @@ function preencherCelulaFormaPagamento(clone, despesa) {
 
 function preencherCelulaValor(clone, despesa) {
     const celulaValor = clone.querySelector('.col-valor');
-    const temJuros = despesa.metadados && despesa.metadados.jurosPorParcela > 0;
-    
+
+    // Verificar se tem juros: via metadados OU via valorTotalComJuros diferente do valor
+    const valorOriginal = parseFloat(despesa.valorOriginal) || parseFloat(despesa.valor) || 0;
+    const valorComJuros = parseFloat(despesa.valorTotalComJuros) || valorOriginal;
+    const temJuros = valorComJuros > valorOriginal;
+
     if (temJuros) {
         const template = document.getElementById('template-valor-com-juros');
         if (template) {
             const valorClone = template.content.cloneNode(true);
-            const valorOriginal = despesa.valorOriginal || (despesa.metadados.valorOriginalTotal / despesa.totalParcelas);
-            
+
             valorClone.querySelector('.valor-original').textContent = window.formatarMoeda(valorOriginal);
-            valorClone.querySelector('.valor-juros').textContent = window.formatarMoeda(despesa.valor || 0);
-            
+            valorClone.querySelector('.valor-juros').textContent = window.formatarMoeda(valorComJuros);
+
             celulaValor.appendChild(valorClone);
+        } else {
+            // Fallback se não tiver template: mostrar formato texto
+            celulaValor.innerHTML = `${window.formatarMoeda(valorOriginal)} / <span style="color: #ef4444;">${window.formatarMoeda(valorComJuros)}</span>`;
         }
     } else {
         celulaValor.textContent = window.formatarMoeda(despesa.valor || 0);
@@ -2412,10 +2418,14 @@ async function abrirModalPagamento(index, mes, ano) {
 let valorOriginalDespesaPagamento = 0;
 
 function preencherInfoDespesaPagamento(despesa) {
+    // Usar valor com juros se disponível, senão usar valor original
+    const valorOriginal = parseFloat(despesa.valorOriginal) || parseFloat(despesa.valor) || 0;
+    const valorAPagar = parseFloat(despesa.valorTotalComJuros) || valorOriginal;
+
     const elementos = {
         'pagamento-descricao': despesa.descricao || 'Sem descrição',
         'pagamento-categoria': despesa.categoria || 'Sem categoria',
-        'pagamento-valor-original': window.formatarMoeda ? window.formatarMoeda(despesa.valor || 0) : `R$ ${(despesa.valor || 0).toFixed(2)}`
+        'pagamento-valor-original': window.formatarMoeda ? window.formatarMoeda(valorOriginal) : `R$ ${valorOriginal.toFixed(2)}`
     };
 
     Object.entries(elementos).forEach(([id, valor]) => {
@@ -2434,11 +2444,12 @@ function preencherInfoDespesaPagamento(despesa) {
     }
 
     // Armazenar valor original para cálculo de diferença
-    valorOriginalDespesaPagamento = despesa.valor || 0;
+    valorOriginalDespesaPagamento = valorOriginal;
 
     const valorPagoInput = document.getElementById('valor-pago-individual');
     if (valorPagoInput) {
-        valorPagoInput.value = despesa.valor || 0;
+        // Preencher com valor COM JUROS (valor a pagar de fato)
+        valorPagoInput.value = valorAPagar;
         // Calcular diferença inicial
         calcularDiferencaPagamento();
     }
