@@ -383,8 +383,21 @@
                 </div>
             </div>
 
+            <div class="dashboard-card">
+                <h3>
+                    <span>USO DE CARTOES</span>
+                    <div class="filtros-header">
+                        <select class="form-control" id="cartoes-categoria-filter" onchange="filtrarCartoesUsados()">
+                            <option value="">Todas as categorias</option>
+                        </select>
+                        <button class="btn btn-icon btn-outline" data-chart="cartoesUsadosChart">[ ]</button>
+                    </div>
+                </h3>
+                <div class="chart-container">
+                    <canvas id="cartoes-usados-chart"></canvas>
+                </div>
+            </div>
 
-           
             <div class="dashboard-card">
                 <h3>
                     <span>JUROS MENSAIS</span>
@@ -2320,6 +2333,10 @@
                 Método
                 <div class="column-resizer"></div>
             </div>
+            <div class="col-cartao">
+                Cartão
+                <div class="column-resizer"></div>
+            </div>
             <div class="col-valor">
                 Valor
                 <div class="column-resizer"></div>
@@ -2368,6 +2385,7 @@
         <div class="col-descricao"></div>
         <div class="col-categoria"></div>
         <div class="col-forma-pagamento"></div>
+        <div class="col-cartao"></div>
         <div class="col-valor"></div>
         <div class="col-parcela"></div>
         <div class="col-valor-pago"></div>
@@ -2860,6 +2878,7 @@
             <div class="col-descricao">Descrição</div>
             <div class="col-categoria">Categoria</div>
             <div class="col-forma-pagamento">Pagamento</div>
+            <div class="col-cartao">Cartão</div>
             <div class="col-valor">Valor</div>
             <div class="col-parcela">Parcela</div>
             <div class="col-valor-pago">Valor Pago</div>
@@ -2884,6 +2903,7 @@
         <div class="col-descricao"></div>
         <div class="col-categoria"></div>
         <div class="col-forma-pagamento"></div>
+        <div class="col-cartao"></div>
         <div class="col-valor"></div>
         <div class="col-parcela"></div>
         <div class="col-valor-pago"></div>

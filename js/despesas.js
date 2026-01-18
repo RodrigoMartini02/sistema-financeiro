@@ -254,6 +254,7 @@ function preencherCelulasGrid(clone, despesa, index, fechado, mes, ano) {
    preencherCelulaDescricao(clone, despesa);
    preencherCelulaCategoria(clone, despesa);
    preencherCelulaFormaPagamento(clone, despesa);
+   preencherCelulaCartao(clone, despesa);
    preencherCelulaValor(clone, despesa);
    preencherCelulaParcela(clone, despesa);
    preencherCelulaValorPago(clone, despesa);
@@ -329,6 +330,31 @@ function preencherCelulaFormaPagamento(clone, despesa) {
         badge.textContent = formaPag.toUpperCase();
         celulaFormaPagamento.appendChild(badgeClone);
     }
+}
+
+function preencherCelulaCartao(clone, despesa) {
+    const celulaCartao = clone.querySelector('.col-cartao');
+    if (!celulaCartao) return;
+
+    // Se não for crédito, deixar vazio
+    const formaPag = (despesa.formaPagamento || '').toLowerCase();
+    if (formaPag !== 'credito' && formaPag !== 'crédito' && !formaPag.includes('cred')) {
+        celulaCartao.textContent = '-';
+        return;
+    }
+
+    // Buscar nome do cartão pelo cartao_id
+    const cartaoId = despesa.cartao_id || despesa.cartaoId;
+    if (cartaoId && window.cartoesUsuario) {
+        const cartao = window.cartoesUsuario.find(c => c.id === cartaoId);
+        if (cartao) {
+            celulaCartao.textContent = cartao.nome;
+            celulaCartao.title = cartao.nome; // Tooltip para nomes longos
+            return;
+        }
+    }
+
+    celulaCartao.textContent = '-';
 }
 
 function preencherCelulaValor(clone, despesa) {
@@ -740,7 +766,9 @@ function abrirModalNovaDespesa(index) {
        }
 
        const dataAtual = new Date(window.anoAberto, window.mesAberto, new Date().getDate());
-       const dataFormatada = dataAtual.toISOString().split('T')[0];
+       // Usar formato local para evitar problema de timezone
+       const dataFormatada = window.dataParaISO ? window.dataParaISO(dataAtual) :
+           `${dataAtual.getFullYear()}-${String(dataAtual.getMonth() + 1).padStart(2, '0')}-${String(dataAtual.getDate()).padStart(2, '0')}`;
        document.getElementById('despesa-data-compra').value = dataFormatada;
        document.getElementById('despesa-data-vencimento').value = dataFormatada;
 
@@ -1175,10 +1203,12 @@ async function atualizarTodasParcelasGrupo(formData, despesaEmEdicao, valorParce
         for (const parcela of todasParcelas) {
             // Calcular nova data de vencimento baseada na parcela
             const parcelaNum = parcela.parcela_atual || 1;
-            const dataVencimentoBase = new Date(formData.dataVencimento);
+            // Usar dataDeISO para evitar problema de timezone
+            const dataVencimentoBase = window.dataDeISO ? window.dataDeISO(formData.dataVencimento) : new Date(formData.dataVencimento + 'T00:00:00');
             dataVencimentoBase.setMonth(dataVencimentoBase.getMonth() + (parcelaNum - 1));
 
-            const novaDataVencimento = dataVencimentoBase.toISOString().split('T')[0];
+            // Usar dataParaISO para evitar problema de timezone
+            const novaDataVencimento = window.dataParaISO ? window.dataParaISO(dataVencimentoBase) : `${dataVencimentoBase.getFullYear()}-${String(dataVencimentoBase.getMonth() + 1).padStart(2, '0')}-${String(dataVencimentoBase.getDate()).padStart(2, '0')}`;
 
             // Calcular mês/ano da parcela
             let mesParcela = formData.mes + (parcelaNum - 1);

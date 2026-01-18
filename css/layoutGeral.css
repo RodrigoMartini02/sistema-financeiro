@@ -2996,6 +2996,13 @@ table tr:hover {
     justify-content: center;
 }
 
+.col-cartao {
+    width: 120px;
+    min-width: 100px;
+    font-size: 0.85rem;
+    color: #6b7280;
+}
+
 .col-valor {
     width: 120px;
     min-width: 120px;

@@ -20,8 +20,10 @@ const pool = new Pool({
     } : false
 });
 
-pool.on('connect', () => {
-    console.log('✅ Conectado ao PostgreSQL');
+pool.on('connect', (client) => {
+    // Configurar timezone para evitar conversões indesejadas de data
+    client.query("SET timezone = 'America/Sao_Paulo'");
+    console.log('✅ Conectado ao PostgreSQL (timezone: America/Sao_Paulo)');
 });
 
 pool.on('error', (err) => {

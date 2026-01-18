@@ -245,6 +245,7 @@ async function carregarDadosDashboard(ano) {
     criarGraficoJurosComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
     criarGraficoParcelamentosComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
     criarGraficoFormaPagamentoComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
+    criarGraficoCartoesUsados(window.dadosFinanceiros, ano, filtrosPadrao);
     renderizarGraficoMediaCategorias();
 }
 
@@ -1349,6 +1350,130 @@ function renderizarGraficoMediaCategorias() {
 // Torna a função disponível para o main.js
 window.renderizarGraficoMediaCategorias = renderizarGraficoMediaCategorias;
 
+// ================================================================
+// GRAFICO DE USO DE CARTOES
+// ================================================================
+
+function criarGraficoCartoesUsados(dadosFinanceiros, ano, filtros = {}) {
+    const ctx = document.getElementById('cartoes-usados-chart');
+    if (!ctx) return;
+
+    // Contabilizar uso por cartão
+    const usoPorCartao = {};
+    const cartoes = window.cartoesUsuario || [];
+
+    // Inicializar contadores para todos os cartões
+    cartoes.forEach(cartao => {
+        usoPorCartao[cartao.id] = {
+            nome: cartao.nome,
+            valor: 0,
+            quantidade: 0,
+            cor: cartao.cor || '#6366f1'
+        };
+    });
+
+    // Somar despesas por cartão
+    if (dadosFinanceiros && dadosFinanceiros[ano]) {
+        for (let mes = 0; mes < 12; mes++) {
+            const dadosMes = dadosFinanceiros[ano].meses[mes];
+            if (!dadosMes || !dadosMes.despesas) continue;
+
+            const despesasFiltradas = aplicarFiltrosDespesas(dadosMes.despesas, filtros);
+
+            despesasFiltradas.forEach(despesa => {
+                const formaPag = (despesa.formaPagamento || '').toLowerCase();
+                // Apenas despesas de crédito
+                if (formaPag !== 'credito' && formaPag !== 'crédito' && !formaPag.includes('cred')) return;
+
+                const cartaoId = despesa.cartao_id || despesa.cartaoId;
+                if (cartaoId && usoPorCartao[cartaoId]) {
+                    const valor = window.obterValorRealDespesa ? window.obterValorRealDespesa(despesa) : (despesa.valor || 0);
+                    usoPorCartao[cartaoId].valor += valor;
+                    usoPorCartao[cartaoId].quantidade++;
+                }
+            });
+        }
+    }
+
+    // Filtrar apenas cartões com uso
+    const cartoesComUso = Object.values(usoPorCartao).filter(c => c.valor > 0);
+
+    // Ordenar por valor (maior para menor)
+    cartoesComUso.sort((a, b) => b.valor - a.valor);
+
+    if (window.cartoesUsadosChart) {
+        window.cartoesUsadosChart.destroy();
+    }
+
+    if (cartoesComUso.length > 0) {
+        const labels = cartoesComUso.map(c => c.nome);
+        const valores = cartoesComUso.map(c => c.valor);
+        const cores = cartoesComUso.map(c => c.cor);
+
+        // Gerar cores de fundo com transparência
+        const coresFundo = cores.map(cor => {
+            // Converter hex para rgba
+            const r = parseInt(cor.slice(1, 3), 16);
+            const g = parseInt(cor.slice(3, 5), 16);
+            const b = parseInt(cor.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, 0.7)`;
+        });
+
+        window.cartoesUsadosChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: valores,
+                    backgroundColor: coresFundo,
+                    borderColor: cores,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 12,
+                            padding: 10,
+                            font: { size: 11 }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const valor = context.raw;
+                                const total = valores.reduce((sum, val) => sum + val, 0);
+                                const porcentagem = total > 0 ? ((valor / total) * 100).toFixed(1) : 0;
+                                const cartaoInfo = cartoesComUso[context.dataIndex];
+                                return `${context.label}: ${window.formatarMoeda(valor)} (${porcentagem}%) - ${cartaoInfo.quantidade} compras`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        // Sem dados - mostrar mensagem
+        ctx.getContext('2d').clearRect(0, 0, ctx.width, ctx.height);
+    }
+}
+
+window.filtrarCartoesUsados = function() {
+    const filtros = {
+        categoria: document.getElementById('cartoes-categoria-filter')?.value || '',
+        formaPagamento: 'credito', // Fixo em crédito
+        status: 'todos',
+        tipo: 'despesas'
+    };
+    criarGraficoCartoesUsados(window.dadosFinanceiros, window.anoAtual, filtros);
+};
+
+window.criarGraficoCartoesUsados = criarGraficoCartoesUsados;
 
 // ================================================================
 // SISTEMA DE FILTROS

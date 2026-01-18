@@ -135,6 +135,38 @@ function dataBRparaISO(dataBR) {
 }
 
 /**
+ * Converte um objeto Date para string YYYY-MM-DD sem problema de timezone
+ * IMPORTANTE: Use esta função ao invés de toISOString().split('T')[0]
+ * @param {Date} data - Objeto Date
+ * @returns {string} Data no formato YYYY-MM-DD
+ */
+function dataParaISO(data) {
+    if (!data || !(data instanceof Date) || isNaN(data.getTime())) {
+        return '';
+    }
+    const ano = data.getFullYear();
+    const mes = String(data.getMonth() + 1).padStart(2, '0');
+    const dia = String(data.getDate()).padStart(2, '0');
+    return `${ano}-${mes}-${dia}`;
+}
+
+/**
+ * Cria um objeto Date a partir de uma string YYYY-MM-DD sem problema de timezone
+ * IMPORTANTE: Use esta função ao invés de new Date(string)
+ * @param {string} dataString - Data no formato YYYY-MM-DD
+ * @returns {Date} Objeto Date
+ */
+function dataDeISO(dataString) {
+    if (!dataString) return null;
+    // Adiciona T00:00:00 para evitar interpretação UTC
+    return new Date(dataString + 'T00:00:00');
+}
+
+// Expor globalmente
+window.dataParaISO = dataParaISO;
+window.dataDeISO = dataDeISO;
+
+/**
  * Formata data e hora
  * @param {string|Date} dataHora - Data/hora a ser formatada
  * @returns {string} Data/hora formatada (ex: "31/12/2023 14:30")

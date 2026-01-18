@@ -407,7 +407,10 @@ function abrirModalNovaReceita(index, mes, ano) {
             document.getElementById('receita-id').value = '';
             
             const dataAtual = new Date(anoReceita, mesReceita, new Date().getDate());
-            document.getElementById('receita-data').value = dataAtual.toISOString().split('T')[0];
+            // Usar formato local para evitar problema de timezone
+            const dataFormatada = window.dataParaISO ? window.dataParaISO(dataAtual) :
+                `${dataAtual.getFullYear()}-${String(dataAtual.getMonth() + 1).padStart(2, '0')}-${String(dataAtual.getDate()).padStart(2, '0')}`;
+            document.getElementById('receita-data').value = dataFormatada;
             
             const titulo = modal.querySelector('.modal-header h2');
             if (titulo) titulo.textContent = 'Nova Receita';
@@ -720,10 +723,14 @@ async function replicarParaMes(receita, mes, ano, dia) {
         }
 
         // ✅ CORRIGIDO: Criar receita replicada SEM ID (será gerado pelo backend)
+        // Usar formato local para evitar problema de timezone
+        const dataFormatada = window.dataParaISO ? window.dataParaISO(novaData) :
+            `${novaData.getFullYear()}-${String(novaData.getMonth() + 1).padStart(2, '0')}-${String(novaData.getDate()).padStart(2, '0')}`;
+
         const receitaReplicada = {
             descricao: receita.descricao,
             valor: receita.valor,
-            data: novaData.toISOString().split('T')[0],
+            data: dataFormatada,
             parcelado: false,
             parcela: null,
             saldoAnterior: false,
