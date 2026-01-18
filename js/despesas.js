@@ -816,10 +816,20 @@ function preencherFormularioEdicao(index) {
    if (!dadosFinanceiros[anoAberto]?.meses[mesAberto]?.despesas[index]) {
        throw new Error(ERROS.DESPESA_NAO_ENCONTRADA);
    }
-   
+
    const despesa = dadosFinanceiros[anoAberto].meses[mesAberto].despesas[index];
-   
-   document.getElementById('despesa-id').value = index;
+
+   // Guardar ID real da despesa (do banco) e grupo de parcelamento
+   document.getElementById('despesa-id').value = despesa.id || index;
+
+   // Guardar informações extras para edição de parceladas
+   window.despesaEmEdicao = {
+       id: despesa.id,
+       idGrupoParcelamento: despesa.idGrupoParcelamento,
+       parcelado: despesa.parcelado,
+       totalParcelas: despesa.totalParcelas,
+       parcelaAtual: despesa.parcelaAtual
+   };
    document.getElementById('despesa-descricao').value = despesa.descricao || '';
    document.getElementById('despesa-categoria').value = despesa.categoria || '';
    
@@ -1014,121 +1024,90 @@ function coletarDadosFormularioDespesa() {
 }
 
 // ================================================================
-// SALVAMENTO LOCAL
+// SALVAMENTO DE DESPESAS VIA API
 // ================================================================
 
 async function salvarDespesaLocal(formData) {
     try {
-        const ehEdicao = formData.id !== '' && formData.id !== null;
+        const ehEdicao = formData.id !== '' && formData.id !== null && formData.id !== undefined;
 
-        // ✅ PRODUÇÃO: Usar API de despesas via usuarioDataManager
-        if (window.usuarioDataManager && typeof window.usuarioDataManager.salvarDespesa === 'function') {
-            console.log('💾 Salvando despesa via API:', formData);
+        console.log('💾 Salvando despesa via API:', formData);
 
-            // Calcular valores originais e juros
-            const valorDigitado = parseFloat(formData.valor);
-            const numParcelas = formData.parcelado ? (formData.totalParcelas || 1) : 1;
+        // Calcular valores originais e juros
+        const valorDigitado = parseFloat(formData.valor);
+        const numParcelas = formData.parcelado ? (formData.totalParcelas || 1) : 1;
 
-            // ✅ CORREÇÃO: Se for parcelado, dividir o valor total pelo número de parcelas
-            // O usuário digita o valor TOTAL da compra, e cada parcela recebe o valor dividido
-            const valorParcela = formData.parcelado ? (valorDigitado / numParcelas) : valorDigitado;
-            const valorOriginal = valorParcela;
+        // Se for parcelado, dividir o valor total pelo número de parcelas
+        // O usuário digita o valor TOTAL da compra, e cada parcela recebe o valor dividido
+        const valorParcela = formData.parcelado ? (valorDigitado / numParcelas) : valorDigitado;
+        const valorOriginal = valorParcela;
 
-            const valorComJuros = formData.valorPago ? (parseFloat(formData.valorPago) / numParcelas) : valorOriginal;
-            const totalJuros = valorComJuros - valorOriginal;
+        const valorComJuros = formData.valorPago ? (parseFloat(formData.valorPago) / numParcelas) : valorOriginal;
+        const totalJuros = valorComJuros - valorOriginal;
 
-            // Preparar objeto despesa para API
-            const despesa = {
-                descricao: formData.descricao,
-                categoria: formData.categoria,
-                formaPagamento: formData.formaPagamento,
-                cartao_id: formData.cartao_id,
-                valor: valorParcela,
-                valorOriginal: valorParcela,
-                valorTotalComJuros: valorComJuros,
-                valorPago: formData.jaPago ? valorComJuros : null,
-                dataCompra: formData.dataCompra,
-                dataVencimento: formData.dataVencimento,
-                dataPagamento: formData.jaPago ? formData.dataCompra : null,
-                parcelado: formData.parcelado || false,
-                totalParcelas: formData.parcelado ? formData.totalParcelas : null,
-                quitado: formData.jaPago || false,
-                pago: formData.jaPago || false,
-                recorrente: formData.recorrente || false,
-                observacoes: formData.observacoes || '',
-                anexos: formData.anexos || [],
-                metadados: totalJuros !== 0 ? {
-                    valorOriginalTotal: valorDigitado, // Valor total digitado pelo usuário
-                    valorTotalComJuros: formData.valorPago ? parseFloat(formData.valorPago) : valorDigitado,
-                    totalJuros: totalJuros * numParcelas, // Juros total de todas as parcelas
-                    jurosPorParcela: totalJuros
-                } : null
-            };
+        // Verificar se é edição de despesa parcelada
+        const despesaEmEdicao = window.despesaEmEdicao || {};
+        const ehEdicaoParcelada = ehEdicao && despesaEmEdicao.parcelado && despesaEmEdicao.idGrupoParcelamento;
 
-            const sucesso = await window.usuarioDataManager.salvarDespesa(
-                formData.mes,
-                formData.ano,
-                despesa,
-                ehEdicao ? formData.id : null
-            );
+        if (ehEdicaoParcelada) {
+            // ✅ EDIÇÃO DE DESPESA PARCELADA: Atualizar todas as parcelas do grupo
+            console.log('📝 Editando despesa parcelada - atualizando todas as parcelas do grupo:', despesaEmEdicao.idGrupoParcelamento);
+
+            const sucesso = await atualizarTodasParcelasGrupo(formData, despesaEmEdicao, valorParcela, valorComJuros, totalJuros);
 
             if (sucesso) {
-                // ✅ CORRIGIDO: Recarregar dados do backend para obter IDs reais
-                console.log('🔄 Recarregando despesas do backend...');
-
-                if (typeof window.buscarDespesasAPI === 'function') {
-                    const despesasAtualizadas = await window.buscarDespesasAPI(formData.mes, formData.ano);
-                    if (despesasAtualizadas) {
-                        window.garantirEstruturaDados(formData.ano, formData.mes);
-                        window.dadosFinanceiros[formData.ano].meses[formData.mes].despesas = despesasAtualizadas;
-                        console.log('✅ Despesas atualizadas com IDs reais do backend');
-                    }
-                }
-
-                // Limpar anexos temporários
-                if (window.sistemaAnexos) {
-                    window.sistemaAnexos.limparAnexosTemporarios('despesa');
-                }
-
-                // Registrar log da ação
-                if (window.logManager) {
-                    window.logManager.registrar({
-                        modulo: 'Despesas',
-                        acao: ehEdicao ? 'Editado' : 'Criado',
-                        categoria: formData.categoria || '-',
-                        descricao: formData.descricao,
-                        valor: formData.valor,
-                        detalhes: `${ehEdicao ? 'Editou' : 'Criou'} despesa em ${formData.mes + 1}/${formData.ano}`
-                    });
-                }
+                await recarregarDespesasDoMes(formData.mes, formData.ano);
+                limparAposGravacao(formData, true);
             }
 
+            // Limpar dados de edição
+            window.despesaEmEdicao = null;
             return sucesso;
         }
 
-        // ❌ FALLBACK: Salvamento antigo (localStorage) se API não disponível
-        console.warn('⚠️ usuarioDataManager não disponível, usando fallback localStorage');
-        window.garantirEstruturaDados(formData.ano, formData.mes);
+        // Preparar objeto despesa para API (nova despesa ou edição simples)
+        const despesa = {
+            id: ehEdicao ? formData.id : null,
+            descricao: formData.descricao,
+            categoria: formData.categoria,
+            formaPagamento: formData.formaPagamento,
+            cartao_id: formData.cartao_id,
+            valor: valorParcela,
+            valorOriginal: valorParcela,
+            valorTotalComJuros: valorComJuros,
+            valorPago: formData.jaPago ? valorComJuros : null,
+            dataCompra: formData.dataCompra,
+            dataVencimento: formData.dataVencimento,
+            dataPagamento: formData.jaPago ? formData.dataCompra : null,
+            parcelado: formData.parcelado || false,
+            totalParcelas: formData.parcelado ? formData.totalParcelas : null,
+            quitado: formData.jaPago || false,
+            pago: formData.jaPago || false,
+            recorrente: formData.recorrente || false,
+            observacoes: formData.observacoes || '',
+            anexos: formData.anexos || [],
+            metadados: totalJuros !== 0 ? {
+                valorOriginalTotal: valorDigitado,
+                valorTotalComJuros: formData.valorPago ? parseFloat(formData.valorPago) : valorDigitado,
+                totalJuros: totalJuros * numParcelas,
+                jurosPorParcela: totalJuros
+            } : null
+        };
 
-        if (ehEdicao) {
-            await atualizarDespesaExistente(formData);
-        } else {
-            await adicionarNovaDespesa(formData);
+        const sucesso = await window.usuarioDataManager.salvarDespesa(
+            formData.mes,
+            formData.ano,
+            despesa,
+            ehEdicao ? formData.id : null
+        );
+
+        if (sucesso) {
+            await recarregarDespesasDoMes(formData.mes, formData.ano);
+            limparAposGravacao(formData, ehEdicao);
         }
 
-        const sucesso = await window.salvarDados();
-
-        if (sucesso && window.logManager) {
-            window.logManager.registrar({
-                modulo: 'Despesas',
-                acao: ehEdicao ? 'Editado' : 'Criado',
-                categoria: formData.categoria || '-',
-                descricao: formData.descricao,
-                valor: formData.valor,
-                detalhes: `${ehEdicao ? 'Editou' : 'Criou'} despesa em ${formData.mes + 1}/${formData.ano}`
-            });
-        }
-
+        // Limpar dados de edição
+        window.despesaEmEdicao = null;
         return sucesso;
 
     } catch (error) {
@@ -1137,161 +1116,117 @@ async function salvarDespesaLocal(formData) {
     }
 }
 
-async function adicionarNovaDespesa(formData) {
-  // ✅ CORRIGIDO: Não adiciona mais despesas na memória local
-  // O backend cria a despesa e todas as parcelas
-  // Depois recarregamos do backend para obter IDs reais
-
-  if (window.sistemaAnexos) {
-      window.sistemaAnexos.limparAnexosTemporarios('despesa');
-  }
-
-  // Nota: A despesa já foi salva via API em salvarDespesaLocal()
-  // Aqui apenas fazemos limpeza se necessário
-}
-
-async function criarParcelasFuturas(formData, valorPorParcela, idGrupoParcelamento, valorOriginal, valorTotalComJuros, totalJuros) {
-    const parcelasExistentes = validarGrupoParcelamento(idGrupoParcelamento, {
-        descricao: formData.descricao,
-        totalParcelas: formData.totalParcelas,
-        ano: formData.ano
-    });
-    
-    if (parcelasExistentes.valido && parcelasExistentes.encontradas > 1) {
-        console.warn('Parcelas já existem para este grupo:', idGrupoParcelamento);
-        return;
-    }
-    
-    for (let i = 1; i < formData.totalParcelas; i++) {
-        const mesParcela = (formData.mes + i) % 12;
-        const anoParcela = formData.ano + Math.floor((formData.mes + i) / 12);
-        
-        garantirEstruturaDados(anoParcela, mesParcela);
-        
-        const dataVencimentoBase = new Date(formData.dataVencimento);
-        dataVencimentoBase.setMonth(dataVencimentoBase.getMonth() + i);
-        const dataVencimento = dataVencimentoBase.toISOString().split('T')[0];
-        
-        const parcelaExiste = dadosFinanceiros[anoParcela].meses[mesParcela].despesas.some(d => 
-            d.idGrupoParcelamento === idGrupoParcelamento && 
-            d.parcela === `${i + 1}/${formData.totalParcelas}`
-        );
-        
-        if (!parcelaExiste) {
-            dadosFinanceiros[anoParcela].meses[mesParcela].despesas.push(criarObjetoDespesa({
-                descricao: formData.descricao,
-                categoria: formData.categoria,
-                formaPagamento: formData.formaPagamento,
-                cartao_id: formData.cartao_id,
-                valor: valorPorParcela,
-                valorOriginal: valorOriginal / formData.totalParcelas,
-                valorTotalComJuros: null,
-                valorPago: null,
-                dataCompra: formData.dataCompra,
-                dataVencimento: dataVencimento,
-                parcelado: true,
-                parcela: `${i + 1}/${formData.totalParcelas}`,
-                totalParcelas: formData.totalParcelas,
-                metadados: {
-                    valorOriginalTotal: valorOriginal,
-                    valorTotalComJuros: valorTotalComJuros,
-                    totalJuros: totalJuros,
-                    jurosPorParcela: totalJuros / formData.totalParcelas,
-                    valorPorParcela: valorPorParcela
-                },
-                quitado: false,
-                recorrente: formData.recorrente || false,
-                idGrupoParcelamento: idGrupoParcelamento
-            }));
+// Função auxiliar para recarregar despesas do mês
+async function recarregarDespesasDoMes(mes, ano) {
+    console.log('🔄 Recarregando despesas do backend...');
+    if (typeof window.buscarDespesasAPI === 'function') {
+        const despesasAtualizadas = await window.buscarDespesasAPI(mes, ano);
+        if (despesasAtualizadas) {
+            window.garantirEstruturaDados(ano, mes);
+            window.dadosFinanceiros[ano].meses[mes].despesas = despesasAtualizadas;
+            console.log('✅ Despesas atualizadas com IDs reais do backend');
         }
     }
 }
 
-async function atualizarDespesaExistente(formData) {
-    if (!dadosFinanceiros[formData.ano] || 
-        !dadosFinanceiros[formData.ano].meses[formData.mes] ||
-        !dadosFinanceiros[formData.ano].meses[formData.mes].despesas[formData.id]) {
-        throw new Error(ERROS.DESPESA_NAO_ENCONTRADA);
+// Função auxiliar para limpeza após gravação
+function limparAposGravacao(formData, ehEdicao) {
+    if (window.sistemaAnexos) {
+        window.sistemaAnexos.limparAnexosTemporarios('despesa');
     }
-    
-    const despesaExistente = dadosFinanceiros[formData.ano].meses[formData.mes].despesas[formData.id];
-    
-    if (despesaExistente.parcelado && despesaExistente.idGrupoParcelamento) {
-        await atualizarDespesaParcelada(formData, despesaExistente);
-    } else {
-        await atualizarDespesaSimples(formData, despesaExistente);
-    }
-}
 
-async function atualizarDespesaSimples(formData, despesaExistente) {
-    let valorOriginal = formData.valor;
-    let valorTotalComJuros = formData.valorPago !== null ? formData.valorPago : valorOriginal;
-    let totalJuros = valorTotalComJuros - valorOriginal;
-    let valorPorParcela = formData.parcelado ? arredondarParaDuasCasas(valorTotalComJuros / formData.totalParcelas) : valorTotalComJuros;
-    
-        const despesaAtualizada = criarObjetoDespesa({
+    if (window.logManager) {
+        window.logManager.registrar({
+            modulo: 'Despesas',
+            acao: ehEdicao ? 'Editado' : 'Criado',
+            categoria: formData.categoria || '-',
             descricao: formData.descricao,
-            categoria: formData.categoria,
-            formaPagamento: formData.formaPagamento,
-            cartao_id: formData.cartao_id,
-            valor: valorPorParcela,
-            valorOriginal: formData.parcelado ? valorOriginal / formData.totalParcelas : valorOriginal,
-            valorTotalComJuros: valorTotalComJuros,
-            valorPago: null,
-            dataCompra: formData.dataCompra,
-            dataVencimento: formData.dataVencimento,
-            parcelado: formData.parcelado,
-            parcela: formData.parcelado ? '1/' + formData.totalParcelas : null,
-            totalParcelas: formData.parcelado ? formData.totalParcelas : null,
-            metadados: formData.parcelado || totalJuros > 0 ? {
-                valorOriginalTotal: valorOriginal,
-                valorTotalComJuros: valorTotalComJuros,
-                totalJuros: totalJuros,
-                jurosPorParcela: formData.parcelado ? totalJuros / formData.totalParcelas : 0,
-                valorPorParcela: valorPorParcela
-            } : null,
-            quitado: false,
-            status: 'em_dia'
+            valor: formData.valor,
+            detalhes: `${ehEdicao ? 'Editou' : 'Criou'} despesa em ${formData.mes + 1}/${formData.ano}`
         });
-    
-    dadosFinanceiros[formData.ano].meses[formData.mes].despesas[formData.id] = despesaAtualizada;
+    }
 }
 
-async function atualizarDespesaParcelada(formData, despesaExistente) {
-    const idGrupoParcelamento = despesaExistente.idGrupoParcelamento;
-    
-    for (let anoAtual = formData.ano; anoAtual <= formData.ano + 3; anoAtual++) {
-        if (!dadosFinanceiros[anoAtual]) continue;
-        
-        for (let m = 0; m < 12; m++) {
-            if (!dadosFinanceiros[anoAtual].meses[m] || !dadosFinanceiros[anoAtual].meses[m].despesas) continue;
-            
-            const despesas = dadosFinanceiros[anoAtual].meses[m].despesas;
-            
-            for (let i = 0; i < despesas.length; i++) {
-                const d = despesas[i];
-                if (d.idGrupoParcelamento === idGrupoParcelamento && 
-                    d.descricao === despesaExistente.descricao && 
-                    d.categoria === despesaExistente.categoria) {
-                    
-                    if (!d.quitado) {
-                        d.descricao = formData.descricao;
-                        d.categoria = formData.categoria;
-                        d.formaPagamento = formData.formaPagamento;
-                        d.cartao_id = formData.cartao_id;
-                        d.dataCompra = formData.dataCompra;
-                        d.valorPago = null;
-                        d.quitado = false;
-                        d.status = 'em_dia';
-                        
-                        if (d.metadados) {
-                            d.metadados.valorOriginalTotal = formData.valor;
-                            d.metadados.valorTotalComJuros = formData.valorPago || formData.valor;
-                        }
-                    }
-                }
+// ✅ NOVA FUNÇÃO: Atualizar todas as parcelas de um grupo
+async function atualizarTodasParcelasGrupo(formData, despesaEmEdicao, valorParcela, valorComJuros, totalJuros) {
+    try {
+        const idGrupo = despesaEmEdicao.idGrupoParcelamento;
+        const token = sessionStorage.getItem('token');
+
+        // Buscar todas as parcelas do grupo via API
+        const todasParcelas = [];
+
+        // Buscar no ano atual e próximo
+        for (let ano = formData.ano; ano <= formData.ano + 1; ano++) {
+            const response = await fetch(`${API_URL}/despesas?ano=${ano}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const parcelas = (data.data || []).filter(d => d.grupo_parcelamento_id === idGrupo);
+                todasParcelas.push(...parcelas);
             }
         }
+
+        console.log(`📦 Encontradas ${todasParcelas.length} parcelas do grupo ${idGrupo}`);
+
+        // Atualizar cada parcela
+        for (const parcela of todasParcelas) {
+            // Calcular nova data de vencimento baseada na parcela
+            const parcelaNum = parcela.parcela_atual || 1;
+            const dataVencimentoBase = new Date(formData.dataVencimento);
+            dataVencimentoBase.setMonth(dataVencimentoBase.getMonth() + (parcelaNum - 1));
+
+            const novaDataVencimento = dataVencimentoBase.toISOString().split('T')[0];
+
+            // Calcular mês/ano da parcela
+            let mesParcela = formData.mes + (parcelaNum - 1);
+            let anoParcela = formData.ano;
+            while (mesParcela > 11) {
+                mesParcela -= 12;
+                anoParcela++;
+            }
+
+            // Montar descrição com número da parcela
+            const descricaoBase = formData.descricao.replace(/\s*\(\d+\/\d+\)\s*$/, '').trim();
+            const descricaoComParcela = `${descricaoBase} (${parcelaNum}/${despesaEmEdicao.totalParcelas})`;
+
+            const dadosAtualizacao = {
+                descricao: descricaoComParcela,
+                valor: valorParcela,
+                valor_original: valorParcela,
+                valor_total_com_juros: valorComJuros > valorParcela ? valorComJuros : null,
+                data_vencimento: novaDataVencimento,
+                data_compra: formData.dataCompra,
+                mes: mesParcela,
+                ano: anoParcela,
+                forma_pagamento: formData.formaPagamento,
+                cartao_id: formData.cartao_id
+            };
+
+            console.log(`📝 Atualizando parcela ${parcelaNum}/${despesaEmEdicao.totalParcelas} (ID: ${parcela.id})`);
+
+            const updateResponse = await fetch(`${API_URL}/despesas/${parcela.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(dadosAtualizacao)
+            });
+
+            if (!updateResponse.ok) {
+                console.error(`❌ Erro ao atualizar parcela ${parcela.id}:`, updateResponse.status);
+            }
+        }
+
+        console.log('✅ Todas as parcelas atualizadas com sucesso');
+        return true;
+
+    } catch (error) {
+        console.error('❌ Erro ao atualizar parcelas do grupo:', error);
+        return false;
     }
 }
 
