@@ -1766,14 +1766,26 @@ table tr:hover {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    border-right: 1px solid rgba(255,255,255,0.2);
+}
+
+.tabela-categorias th:last-child,
+.tabela-usuarios th:last-child {
+    border-right: none;
 }
 
 .tabela-categorias td,
 .tabela-usuarios td {
     padding: 4px 8px;
     border-bottom: 1px solid #e9ecef;
+    border-right: 1px solid #e9ecef;
     color: #495057;
     font-size: 10px;
+}
+
+.tabela-categorias td:last-child,
+.tabela-usuarios td:last-child {
+    border-right: none;
 }
 
 .tabela-categorias tr:hover,
@@ -2854,6 +2866,7 @@ table tr:hover {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    border-right: 1px solid rgba(255,255,255,0.2);
 }
 
 .grid-header > div:last-child {
@@ -2902,6 +2915,7 @@ table tr:hover {
     color: #495057;
     overflow: hidden;
     text-overflow: ellipsis;
+    border-right: 1px solid #e9ecef;
 }
 
 .grid-row > div:last-child,
@@ -2971,6 +2985,7 @@ table tr:hover {
     max-width: 60px;
     font-weight: 600;
     color: #6366f1;
+    font-size: 10px;
 }
 
 .col-descricao {
@@ -3042,48 +3057,43 @@ table tr:hover {
 }
 
 
-/* Badges de Status */
+/* Badges de Status e Pagamento - Texto simples sem fundo */
 .badge-status,
 .badge-pagamento {
-    padding: 4px 8px;
     font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
+    background: none;
+    padding: 0;
 }
 
-.badge-status.quitada {
-    background: #d4edda;
+.badge-status.quitada,
+.badge-status.paga {
     color: #155724;
 }
 
 .badge-status.pendente {
-    background: #fff3cd;
     color: #856404;
 }
 
 .badge-status.atrasada {
-    background: #f8d7da;
     color: #721c24;
 }
 
 .badge-pagamento.pix {
-    background: #d1ecf1;
     color: #0c5460;
 }
 
 .badge-pagamento.debito {
-    background: #cce5ff;
     color: #004085;
 }
 
 .badge-pagamento.credito {
-    background: #fff3cd;
     color: #856404;
 }
 
 .badge-pagamento.dinheiro {
-    background: #d4edda;
     color: #155724;
 }
 
