@@ -1,280 +1,59 @@
 /* ================================================================
    DESPESA.CSS - Estilizações específicas de Despesas
    Sistema Financeiro
+
+   NOTA: Estilos de grid (.grid-header, .grid-row, .col-*)
+   estão em layoutGeral.css para evitar duplicação
    ================================================================ */
 
+/* Container principal de despesas */
 .despesas-grid {
-    border: 1px solid #d1d5db;
+    border: 1px solid #e9ecef;
     background: white;
     max-height: 70vh;
-    overflow: auto; /* Scroll horizontal e vertical */
+    overflow: auto;
     position: relative;
     width: 100%;
-    display: flex;
-    flex-direction: column;
 }
 
-/* ✅ NOVO: Estilizar scrollbar para melhor UX */
-.grid-header {
-    display: grid;
-    grid-template-columns:
-        40px              /* checkbox */
-        80px              /* ID */
-        minmax(150px, 2fr) /* Descrição */
-        minmax(110px, 1fr) /* Categoria */
-        90px              /* Método */
-        100px             /* Valor */
-        70px              /* Parcela */
-        100px             /* Valor Pago */
-        95px              /* Status */
-        100px             /* Compra */
-        100px             /* Vencimento */
-        100px             /* Pagamento */
-        minmax(120px, 1fr) /* Ações */
-        85px;             /* Anexos */
-    gap: 0;
-    align-items: center;
-    padding: 0;
-    border-bottom: 2px solid #d1d5db;
-    min-height: 48px;
-    font-size: 11px;
-    background: #f8fafc;
-    font-weight: 600;
-    color: #374151;
-    text-transform: uppercase;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    min-width: fit-content;
-}
-
-/* Adiciona bordas verticais finas entre as colunas do cabeçalho */
-.grid-header > div {
-    padding: 12px 8px;
-    border-right: 1px solid #e5e7eb;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-}
-
-.grid-header > div:last-child {
-    border-right: none;
-}
-
-/* ✅ NOVO: Colunas com posição relativa para resizers */
-.grid-header > div {
-    position: relative;
-}
-
-/* ✅ NOVO: Divisores de coluna (resizers) */
-.column-resizer {
-    position: absolute;
-    right: -3px;
-    top: 0;
-    bottom: 0;
-    width: 6px;
-    cursor: col-resize;
-    user-select: none;
-    z-index: 20;
-    background: transparent;
-    transition: background 0.2s ease;
-}
-
-.column-resizer:hover {
-    background: rgba(99, 102, 241, 0.3);
-}
-
-.column-resizer.resizing {
-    background: rgba(99, 102, 241, 0.6);
-}
-
-.grid-row {
-    display: grid;
-    /* MESMAS larguras do header para alinhamento perfeito */
-    grid-template-columns:
-        40px              /* checkbox */
-        80px              /* ID */
-        minmax(150px, 2fr) /* Descrição */
-        minmax(110px, 1fr) /* Categoria */
-        90px              /* Método */
-        100px             /* Valor */
-        70px              /* Parcela */
-        100px             /* Valor Pago */
-        95px              /* Status */
-        100px             /* Compra */
-        100px             /* Vencimento */
-        100px             /* Pagamento */
-        minmax(120px, 1fr) /* Ações */
-        85px;             /* Anexos */
-    gap: 0;
-    align-items: center;
-    padding: 0;
-    border-bottom: 1px solid #e5e7eb;
-    min-height: 52px;
-    font-size: 12px;
-    min-width: fit-content;
-    transition: background-color 0.2s ease;
-}
-
-/* Adiciona bordas verticais finas entre as colunas das linhas */
-.grid-row > div,
-.grid-row > * {
-    padding: 10px 8px;
-    border-right: 1px solid #e5e7eb;
-    display: flex;
-    align-items: center;
-    min-height: 52px;
-}
-
-.grid-row > div:last-child,
-.grid-row > *:last-child {
-    border-right: none;
-}
-
-.grid-row:hover {
-    background-color: #f8fafc;
-}
-
-.grid-row .col-numero {
-    font-weight: 600;
-    color: #6366f1;
-    font-size: 0.9em;
-    text-align: center;
-}
-
-.grid-row.despesa-quitada {
-    opacity: 0.7;
-    background: #f0f9ff;
-}
-
-.grid-row.despesa-quitada .col-descricao {
-    text-decoration: line-through;
-    color: #9ca3af;
-}
-
-.grid-row.despesa-atrasada {
-    background: #fef2f2;
-}
-
-.grid-row.despesa-em-dia {
-    background: white;
-}
-
-.grid-row.transacao-fechada {
-    opacity: 0.8;
-    background: #f9fafb;
-}
-
-.col-descricao {
-    font-weight: 500;
-    color: #1f2937;
-    justify-content: flex-start !important;
-}
-
-.col-checkbox {
-    justify-content: center !important;
-}
-
-.col-numero,
-.col-id {
-    justify-content: center !important;
-    font-family: monospace;
-    font-size: 11px;
-    color: #6b7280;
-}
-
-.col-categoria {
-    color: #6b7280;
-    font-size: 11px;
-    justify-content: flex-start !important;
-}
-
-.col-metodo,
-.col-metodo-pagamento {
-    font-size: 11px;
-    font-weight: 500;
-    justify-content: center !important;
-}
-
-.col-valor {
-    font-weight: 600;
-    color: #dc2626;
-    justify-content: flex-end !important;
-    font-family: monospace;
-}
-
-.col-valor-pago {
-    color: #16a34a;
-    font-weight: 600;
-    justify-content: flex-end !important;
-    font-family: monospace;
-}
-
-.col-parcela {
-    color: #6b7280;
-    font-size: 11px;
-    justify-content: center !important;
-}
-
-.col-compra,
-.col-vencimento,
-.col-pagamento {
-    color: #6b7280;
-    font-size: 11px;
-    justify-content: center !important;
-    font-family: monospace;
-}
-
-.col-status {
-    justify-content: center !important;
-}
-
-.col-acoes {
-    justify-content: center !important;
-}
-
-.col-anexos {
-    justify-content: center !important;
-}
-
+/* Checkbox de seleção */
 .despesa-checkbox {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     accent-color: #6366f1;
 }
 
-
-
-
-
-
-
+/* ================================================================
+   BADGES DE STATUS
+   ================================================================ */
 
 .badge-status {
-    padding: 2px 8px;
-    font-size: 10px;
+    padding: 2px 6px;
+    font-size: 9px;
     font-weight: 600;
     text-transform: uppercase;
     white-space: nowrap;
     display: inline-block;
-    color: white;
 }
 
-.badge-em-dia { background: #10b981; }
-.badge-atrasada { background: #f59e0b; }
-.badge-quitada { background: #6b7280; }
-.badge-pendente { background: #8b5cf6; }
+.badge-em-dia { background: #d4edda; color: #155724; }
+.badge-atrasada { background: #f8d7da; color: #721c24; }
+.badge-quitada { background: #e9ecef; color: #6c757d; }
+.badge-pendente { background: #fff3cd; color: #856404; }
+
+/* ================================================================
+   VALOR COM JUROS
+   ================================================================ */
 
 .valor-com-juros {
     display: flex;
     flex-direction: column;
     gap: 1px;
-    text-align: left;
+    text-align: right;
 }
 
 .valor-original {
-    font-size: 11px;
+    font-size: 9px;
     color: #6b7280;
     text-decoration: line-through;
 }
@@ -282,18 +61,22 @@
 .valor-juros {
     font-weight: 600;
     color: #dc2626;
-    font-size: 13px;
+    font-size: 10px;
 }
+
+/* ================================================================
+   INDICADOR DE ANEXOS
+   ================================================================ */
 
 .anexos-indicator {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
     background: #ef4444;
     color: white;
-    padding: 4px 8px;
+    padding: 2px 6px;
     cursor: pointer;
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 500;
     transition: all 0.2s ease;
 }
@@ -305,106 +88,109 @@
 
 .anexos-count {
     font-weight: 600;
-    min-width: 12px;
+    min-width: 10px;
     text-align: center;
 }
+
+/* ================================================================
+   BARRA DE AÇÕES E FILTROS
+   ================================================================ */
 
 .tab-actions {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
-    padding: 12px;
+    margin-bottom: 12px;
+    padding: 8px;
     background: #f8fafc;
-    gap: 16px;
+    gap: 12px;
 }
 
 .left-side, .right-side {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
 }
 
 .filtros-despesas {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
 }
 
-/* Removido - agora usa .form-control padrão de layoutGeral.css */
-
-
 .filtro-contador {
-    font-size: 12px;
+    font-size: 10px;
     color: #6b7280;
-    margin-left: 8px;
+    margin-left: 6px;
     font-weight: 500;
 }
 
+/* ================================================================
+   FORMULÁRIO COMPACTO
+   ================================================================ */
 
 .form-group-compact {
-    margin-bottom: 12px;
+    margin-bottom: 10px;
 }
 
 .descricao-anexos-row {
     display: flex;
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: 6px;
+    margin-bottom: 6px;
 }
 
 .descricao-anexos-row input {
     flex: 1;
-    padding: 8px 12px;
+    padding: 6px 10px;
     border: 1px solid #e2e8f0;
-    font-size: 14px;
+    font-size: 10px;
 }
-
 
 .lista-anexos-inline {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 4px;
 }
 
 .form-row-compact {
     display: grid;
     grid-template-columns: 1fr 2fr;
-    gap: 12px;
-    margin-bottom: 12px;
+    gap: 10px;
+    margin-bottom: 10px;
 }
 
 .form-row-valores {
-    grid-template-columns: 1fr 1fr 120px;
+    grid-template-columns: 1fr 1fr 100px;
 }
 
 .form-col label {
     display: block;
-    font-size: 13px;
+    font-size: 10px;
     font-weight: 500;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
     color: #4a5568;
 }
 
-/* Removido select - agora usa .form-control padrão de layoutGeral.css */
 .form-col input {
     width: 100%;
-    padding: 8px 12px;
+    padding: 6px 10px;
     border: 1px solid #e2e8f0;
-    font-size: 14px;
+    font-size: 10px;
 }
 
 .form-col select {
     width: 100%;
+    font-size: 10px;
 }
 
 /* ================================================================
-     FORMA DE PAGAMENTO
+   FORMA DE PAGAMENTO
    ================================================================ */
 
 .payment-methods {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
 }
 
@@ -412,14 +198,15 @@
     display: inline-flex;
 }
 
-.payment-option.inativo {
-    display: none;
+.payment-option.inativo,
+.payment-option.hidden {
+    display: none !important;
 }
 
 .payment-option-group {
     display: flex;
-    gap: 8px;
-    flex-wrap: nowrap; /* Não quebra linha */
+    gap: 6px;
+    flex-wrap: nowrap;
 }
 
 .payment-methods input[type="radio"] {
@@ -427,16 +214,16 @@
 }
 
 .payment-methods label {
-    padding: 8px 16px;
+    padding: 6px 12px;
     background: #f7fafc;
     border: 1px solid #e2e8f0;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 10px;
     font-weight: 600;
     text-align: center;
     transition: all 0.2s;
-    min-width: 60px;
-    white-space: nowrap; /* Evita quebra de texto */
+    min-width: 50px;
+    white-space: nowrap;
 }
 
 .payment-methods input[type="radio"]:checked + label {
@@ -450,34 +237,35 @@
     transform: translateY(-1px);
 }
 
-.payment-option.hidden {
-    display: none !important;
-}
+/* ================================================================
+   PARCELAS
+   ================================================================ */
 
 .parcelas-col input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
     margin: 0;
     cursor: pointer;
     accent-color: #667eea;
 }
 
 .parcelas-col input[type="number"] {
-    padding: 8px;
+    padding: 6px;
     text-align: center;
+    font-size: 10px;
 }
 
 .info-compact {
     background: #f7fafc;
-    padding: 10px 12px;
-    margin-bottom: 12px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
 }
 
 .info-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    font-size: 12px;
+    gap: 6px;
+    font-size: 10px;
     color: #4a5568;
 }
 
@@ -486,24 +274,28 @@
     font-weight: 600;
 }
 
+/* ================================================================
+   FOOTER E CHECKBOXES
+   ================================================================ */
+
 .form-footer-compact {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-top: 12px;
+    padding-top: 10px;
     border-top: 1px solid #e2e8f0;
 }
 
 .checkboxes-inline {
     display: flex;
-    gap: 20px;
+    gap: 16px;
 }
 
 .checkbox-inline {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 14px;
+    gap: 6px;
+    font-size: 10px;
     cursor: pointer;
     margin: 0;
     color: #4a5568;
@@ -511,13 +303,16 @@
 }
 
 .checkbox-inline input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
     margin: 0;
     cursor: pointer;
     accent-color: #667eea;
 }
 
+/* ================================================================
+   ERROS DE FORMULÁRIO
+   ================================================================ */
 
 .form-group.error input,
 .form-group.error select {
@@ -527,13 +322,17 @@
 .form-error-categoria,
 .form-error-pagamento {
     color: #ef4444;
-    font-size: 12px;
-    margin-top: 4px;
+    font-size: 10px;
+    margin-top: 3px;
 }
+
+/* ================================================================
+   UPLOAD DE ARQUIVOS
+   ================================================================ */
 
 .input-with-upload {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
 }
 
@@ -541,19 +340,18 @@
     flex: 1;
 }
 
-
 .upload-section {
-    margin-bottom: 16px;
+    margin-bottom: 12px;
 }
 
 .upload-drop-area {
     border: 2px dashed #d1d5db;
-    padding: 24px;
+    padding: 16px;
     text-align: center;
     background: #f9fafb;
     cursor: pointer;
     transition: all 0.3s ease;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
 }
 
 .upload-drop-area:hover {
@@ -571,49 +369,54 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .upload-icon {
-    font-size: 24px;
+    font-size: 20px;
     color: #6b7280;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
 }
 
 .upload-drop-area p {
     margin: 0;
     font-weight: 500;
     color: #374151;
+    font-size: 10px;
 }
 
 .upload-drop-area small {
     color: #6b7280;
-    font-size: 12px;
+    font-size: 9px;
 }
+
+/* ================================================================
+   ARQUIVOS CARREGADOS
+   ================================================================ */
 
 .arquivos-carregados {
     background: #f8fafc;
     border: 1px solid #e5e7eb;
-    padding: 16px;
-    margin-bottom: 12px;
+    padding: 12px;
+    margin-bottom: 10px;
 }
 
 .arquivos-carregados h4 {
-    margin: 0 0 12px 0;
+    margin: 0 0 10px 0;
     color: #374151;
-    font-size: 14px;
+    font-size: 10px;
     font-weight: 600;
 }
 
 .arquivos-carregados h4 i {
     color: #10b981;
-    margin-right: 6px;
+    margin-right: 4px;
 }
 
 .lista-arquivos {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
 .arquivo-item {
@@ -622,19 +425,19 @@
     align-items: center;
     background: white;
     border: 1px solid #e5e7eb;
-    padding: 8px 12px;
+    padding: 6px 10px;
 }
 
 .arquivo-info {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     flex: 1;
 }
 
 .arquivo-icon {
-    font-size: 16px;
-    min-width: 20px;
+    font-size: 14px;
+    min-width: 16px;
 }
 
 .arquivo-detalhes {
@@ -647,7 +450,7 @@
 .arquivo-nome {
     font-weight: 500;
     color: #374151;
-    font-size: 13px;
+    font-size: 10px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -655,20 +458,22 @@
 
 .arquivo-tamanho {
     color: #6b7280;
-    font-size: 11px;
+    font-size: 9px;
 }
 
-
+/* ================================================================
+   ANEXOS VISUALIZAÇÃO
+   ================================================================ */
 
 .anexos-info {
     background: #f8fafc;
-    padding: 12px;
-    margin-bottom: 16px;
+    padding: 10px;
+    margin-bottom: 12px;
 }
 
 .anexos-info p {
-    margin: 0 0 4px 0;
-    font-size: 13px;
+    margin: 0 0 3px 0;
+    font-size: 10px;
 }
 
 .anexos-info strong {
@@ -678,7 +483,7 @@
 .lista-anexos-visualizacao {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
 }
 
 .anexo-visualizacao-item {
@@ -687,25 +492,25 @@
     align-items: center;
     background: #ffffff;
     border: 1px solid #e5e7eb;
-    padding: 12px;
+    padding: 10px;
 }
 
 .anexo-info {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     flex: 1;
 }
 
 .anexo-icon {
-    font-size: 20px;
-    min-width: 24px;
+    font-size: 16px;
+    min-width: 20px;
 }
 
 .anexo-detalhes {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
     min-width: 0;
     flex: 1;
 }
@@ -713,72 +518,68 @@
 .anexo-nome {
     font-weight: 500;
     color: #374151;
-    font-size: 14px;
+    font-size: 10px;
 }
 
 .anexo-tamanho,
 .anexo-data {
     color: #6b7280;
-    font-size: 12px;
+    font-size: 9px;
 }
 
 .anexo-acoes {
     display: flex;
-    gap: 8px;
+    gap: 6px;
 }
-
 
 .upload-loading .upload-icon {
     animation: spin 1s linear infinite;
 }
 
-.grid-content {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    min-width: 100%;
-}
-
-/* Scrollbar específico do grid de despesas */
+/* ================================================================
+   PAGAMENTO EM LOTE
+   ================================================================ */
 
 #lote-contagem-despesas {
-    font-size: 1.1rem;
+    font-size: 10px;
     font-weight: 500;
     color: #2d3748;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 
 .info-container {
     background: #f7fafc;
-    border-left: 4px solid #4299e1;
-    padding: 15px;
-    margin-bottom: 25px;
+    border-left: 3px solid #4299e1;
+    padding: 10px;
+    margin-bottom: 16px;
 }
 
 .info-container p {
     margin: 0;
     color: #4a5568;
-    line-height: 1.5;
+    line-height: 1.4;
+    font-size: 10px;
 }
 
 .info-texto {
-    font-size: 0.9rem;
+    font-size: 9px;
     color: #718096;
-    margin-top: 8px;
+    margin-top: 6px;
 }
 
 .form-group label {
     display: block;
     font-weight: 500;
     color: #2d3748;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
+    font-size: 10px;
 }
 
 #data-pagamento-lote {
     width: 100%;
-    padding: 12px 15px;
-    border: 2px solid #e2e8f0;
-    font-size: 1rem;
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    font-size: 10px;
     transition: all 0.2s ease;
     background: white;
 }
@@ -786,22 +587,22 @@
 #data-pagamento-lote:focus {
     outline: none;
     border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
 }
 
 .opcoes-pagamento-lote {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    margin-top: 20px;
+    gap: 10px;
+    margin-top: 16px;
 }
 
 .opcoes-pagamento-lote button {
-    padding: 15px 20px;
-    border: 2px solid #e2e8f0;
+    padding: 10px 16px;
+    border: 1px solid #e2e8f0;
     background: white;
     color: #2d3748;
-    font-size: 1rem;
+    font-size: 10px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -812,10 +613,6 @@
     border-color: #667eea;
     background: #f7fafc;
     transform: translateY(-1px);
-}
-
-.opcoes-pagamento-lote button:active {
-    transform: translateY(0);
 }
 
 #btn-pagar-valor-original {
@@ -839,87 +636,21 @@
 }
 
 /* ================================================================
-   MEDIA QUERIES PADRONIZADAS
-   ================================================================ */
-
-/* Tablets (768px - 1024px) */
-@media (min-width: 768px) and (max-width: 1024px) {
-    .despesas-grid .grid-header,
-    .despesas-grid .grid-row {
-        grid-template-columns: 35px 55px 1.5fr 0.8fr 0.8fr 0.8fr 70px 0.8fr 90px 90px 90px 50px 100px;
-        gap: 6px;
-        padding: 6px;
-        font-size: 11px;
-    }
-
-    .acoes-grupo .btn {
-        width: 20px;
-        height: 20px;
-        font-size: 10px;
-    }
-
-}
-
-/* Monitores grandes (1920px+) */
-@media (min-width: 1920px) {
-    .despesas-grid .grid-header,
-    .despesas-grid .grid-row {
-        grid-template-columns: 50px 70px 2fr 180px 140px 150px 110px 150px 130px 130px 130px 130px 180px 100px;
-        gap: 10px;
-        padding: 12px;
-        font-size: 13px;
-    }
-
-    .despesas-grid {
-        max-height: 80vh;
-    }
-
-    .acoes-grupo .btn {
-        width: 32px;
-        height: 32px;
-        font-size: 13px;
-    }
-
-}
-
-/* Monitores ultra-wide (2560px+) */
-@media (min-width: 2560px) {
-    .despesas-grid .grid-header,
-    .despesas-grid .grid-row {
-        grid-template-columns: 60px 80px 2.5fr 200px 160px 170px 130px 170px 150px 150px 150px 150px 200px 120px;
-        gap: 12px;
-        padding: 14px;
-        font-size: 14px;
-    }
-
-    .despesas-grid {
-        max-height: 85vh;
-    }
-
-    .acoes-grupo .btn {
-        width: 36px;
-        height: 36px;
-        font-size: 14px;
-    }
-
-}
-
-/* ================================================================
    MODAL PAGAR DESPESA - LAYOUT COMPACTO
    ================================================================ */
 
 .info-despesa-container-compact {
     background: #f8fafc;
-    padding: 12px;
-    margin-bottom: 16px;
+    padding: 10px;
+    margin-bottom: 12px;
     border-left: 3px solid #3b82f6;
 }
 
 .info-despesa-container-compact .info-row {
     display: flex;
     justify-content: space-between;
-    padding: 6px 0;
-    font-size: 13px;
+    padding: 4px 0;
+    font-size: 10px;
     border-bottom: 1px solid #e2e8f0;
 }
 
@@ -941,15 +672,14 @@
 .form-row-inline {
     display: flex;
     align-items: flex-end;
-    gap: 10px;
-    margin-bottom: 12px;
+    gap: 8px;
+    margin-bottom: 10px;
 }
 
-
 .diferenca-info {
-    padding: 10px 12px;
-    margin-bottom: 12px;
-    font-size: 13px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+    font-size: 10px;
     font-weight: 600;
     text-align: center;
 }
@@ -971,4 +701,3 @@
     color: #475569;
     border-left: 3px solid #94a3b8;
 }
-

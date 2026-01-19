@@ -245,7 +245,7 @@ async function carregarDadosDashboard(ano) {
     criarGraficoJurosComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
     criarGraficoParcelamentosComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
     criarGraficoFormaPagamentoComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
-    criarGraficoCartoesUsados(window.dadosFinanceiros, ano, filtrosPadrao);
+    renderDistribuicaoCartoes(window.dadosFinanceiros, ano, filtrosPadrao);
     renderizarGraficoMediaCategorias();
 }
 
@@ -1354,7 +1354,7 @@ window.renderizarGraficoMediaCategorias = renderizarGraficoMediaCategorias;
 // GRAFICO DE USO DE CARTOES
 // ================================================================
 
-function criarGraficoCartoesUsados(dadosFinanceiros, ano, filtros = {}) {
+function renderDistribuicaoCartoes(dadosFinanceiros, ano, filtros = {}) {
     const ctx = document.getElementById('cartoes-usados-chart');
     if (!ctx) return;
 
@@ -1401,8 +1401,8 @@ function criarGraficoCartoesUsados(dadosFinanceiros, ano, filtros = {}) {
     // Ordenar por valor (maior para menor)
     cartoesComUso.sort((a, b) => b.valor - a.valor);
 
-    if (window.cartoesUsadosChart) {
-        window.cartoesUsadosChart.destroy();
+    if (window.chartDistribuicaoCartoes) {
+        window.chartDistribuicaoCartoes.destroy();
     }
 
     if (cartoesComUso.length > 0) {
@@ -1419,7 +1419,7 @@ function criarGraficoCartoesUsados(dadosFinanceiros, ano, filtros = {}) {
             return `rgba(${r}, ${g}, ${b}, 0.7)`;
         });
 
-        window.cartoesUsadosChart = new Chart(ctx, {
+        window.chartDistribuicaoCartoes = new Chart(ctx, {
             type: 'doughnut',
             data: {
                 labels: labels,
@@ -1463,17 +1463,17 @@ function criarGraficoCartoesUsados(dadosFinanceiros, ano, filtros = {}) {
     }
 }
 
-window.filtrarCartoesUsados = function() {
+window.aplicarFiltroDistribuicaoCartoes = function() {
     const filtros = {
         categoria: document.getElementById('cartoes-categoria-filter')?.value || '',
         formaPagamento: 'credito', // Fixo em crédito
         status: 'todos',
         tipo: 'despesas'
     };
-    criarGraficoCartoesUsados(window.dadosFinanceiros, window.anoAtual, filtros);
+    renderDistribuicaoCartoes(window.dadosFinanceiros, window.anoAtual, filtros);
 };
 
-window.criarGraficoCartoesUsados = criarGraficoCartoesUsados;
+window.renderDistribuicaoCartoes = renderDistribuicaoCartoes;
 
 // ================================================================
 // SISTEMA DE FILTROS

@@ -254,7 +254,6 @@ function preencherCelulasGrid(clone, despesa, index, fechado, mes, ano) {
    preencherCelulaDescricao(clone, despesa);
    preencherCelulaCategoria(clone, despesa);
    preencherCelulaFormaPagamento(clone, despesa);
-   preencherCelulaCartao(clone, despesa);
    preencherCelulaValor(clone, despesa);
    preencherCelulaParcela(clone, despesa);
    preencherCelulaValorPago(clone, despesa);
@@ -321,13 +320,29 @@ function preencherCelulaCategoria(clone, despesa) {
 
 function preencherCelulaFormaPagamento(clone, despesa) {
     const celulaFormaPagamento = clone.querySelector('.col-forma-pagamento');
+    const formaPag = (despesa.formaPagamento || 'debito').toLowerCase();
+
+    // Se for crédito, mostrar nome do cartão junto
+    let textoMetodo = formaPag.toUpperCase();
+
+    if (formaPag === 'credito' || formaPag === 'crédito' || formaPag.includes('cred')) {
+        const cartaoId = despesa.cartao_id || despesa.cartaoId;
+        if (cartaoId && window.cartoesUsuario) {
+            const cartao = window.cartoesUsuario.find(c => c.id === cartaoId);
+            if (cartao) {
+                const nomeCartao = cartao.banco || cartao.nome || '';
+                textoMetodo = `CRÉDITO/${nomeCartao.toUpperCase()}`;
+            }
+        }
+    }
+
     const template = document.getElementById('template-badge-forma-pagamento-despesa');
     if (template) {
         const badgeClone = template.content.cloneNode(true);
         const badge = badgeClone.querySelector('.badge-pagamento');
-        const formaPag = despesa.formaPagamento || 'debito';
         badge.className = `badge-pagamento ${formaPag}`;
-        badge.textContent = formaPag.toUpperCase();
+        badge.textContent = textoMetodo;
+        badge.title = textoMetodo; // Tooltip para texto longo
         celulaFormaPagamento.appendChild(badgeClone);
     }
 }

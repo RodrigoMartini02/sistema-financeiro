@@ -387,10 +387,10 @@
                 <h3>
                     <span>USO DE CARTOES</span>
                     <div class="filtros-header">
-                        <select class="form-control" id="cartoes-categoria-filter" onchange="filtrarCartoesUsados()">
+                        <select class="form-control" id="cartoes-categoria-filter" onchange="aplicarFiltroDistribuicaoCartoes()">
                             <option value="">Todas as categorias</option>
                         </select>
-                        <button class="btn btn-icon btn-outline" data-chart="cartoesUsadosChart">[ ]</button>
+                        <button class="btn btn-icon btn-outline" data-chart="chartDistribuicaoCartoes">[ ]</button>
                     </div>
                 </h3>
                 <div class="chart-container">
@@ -1094,7 +1094,8 @@
 
         <div class="form-add-cartao">
             <input type="text" id="novo-cartao-banco" placeholder="Nome do Banco" maxlength="50">
-            <input type="text" id="novo-cartao-validade" placeholder="MM/AAAA" maxlength="7">
+            <input type="number" id="novo-cartao-fechamento" placeholder="Dia Fechamento" min="1" max="31">
+            <input type="number" id="novo-cartao-vencimento" placeholder="Dia Vencimento" min="1" max="31">
             <input type="number" id="novo-cartao-limite" placeholder="Limite (R$)" step="0.01" min="0">
             <button id="btn-adicionar-cartao" class="btn btn-primary">
                 <i class="fas fa-plus"></i> Adicionar Cartão
@@ -1107,7 +1108,7 @@
                     <tr>
                         <th>ID</th>
                         <th>Banco</th>
-                        <th>Validade</th>
+                        <th>Fech/Venc</th>
                         <th>Limite</th>
                         <th>Status</th>
                         <th>Ações</th>
@@ -1293,10 +1294,16 @@
 
                 <div class="form-row-cartao">
                     <div class="form-group">
-                        <label for="cartao-edit-validade">
-                            <i class="fas fa-calendar-alt"></i> Validade <span class="required">*</span>
+                        <label for="cartao-edit-fechamento">
+                            <i class="fas fa-calendar-alt"></i> Dia Fechamento <span class="required">*</span>
                         </label>
-                        <input type="text" id="cartao-edit-validade" class="form-input" placeholder="MM/AAAA" required maxlength="7">
+                        <input type="number" id="cartao-edit-fechamento" class="form-input" min="1" max="31" required placeholder="1-31">
+                    </div>
+                    <div class="form-group">
+                        <label for="cartao-edit-vencimento">
+                            <i class="fas fa-calendar-check"></i> Dia Vencimento <span class="required">*</span>
+                        </label>
+                        <input type="number" id="cartao-edit-vencimento" class="form-input" min="1" max="31" required placeholder="1-31">
                     </div>
                     <div class="form-group">
                         <label for="cartao-edit-limite">
@@ -2190,11 +2197,11 @@
                         <label>Pagamento *</label>
                         <div class="payment-methods">
                             <div class="payment-option">
-                                <input type="radio" id="pagamento-pix" name="forma-pagamento" value="pix" required onchange="validarFormaPagamento()">
+                                <input type="radio" id="pagamento-pix" name="forma-pagamento" value="pix" onchange="validarFormaPagamento()">
                                 <label for="pagamento-pix">PIX</label>
                             </div>
                             <div class="payment-option">
-                                <input type="radio" id="pagamento-debito" name="forma-pagamento" value="debito" required onchange="validarFormaPagamento()">
+                                <input type="radio" id="pagamento-debito" name="forma-pagamento" value="debito" onchange="validarFormaPagamento()">
                                 <label for="pagamento-debito">DEBITO</label>
                             </div>
                             <div class="payment-option-group" id="credito-options">
@@ -2333,10 +2340,6 @@
                 Método
                 <div class="column-resizer"></div>
             </div>
-            <div class="col-cartao">
-                Cartão
-                <div class="column-resizer"></div>
-            </div>
             <div class="col-valor">
                 Valor
                 <div class="column-resizer"></div>
@@ -2385,7 +2388,6 @@
         <div class="col-descricao"></div>
         <div class="col-categoria"></div>
         <div class="col-forma-pagamento"></div>
-        <div class="col-cartao"></div>
         <div class="col-valor"></div>
         <div class="col-parcela"></div>
         <div class="col-valor-pago"></div>
@@ -2877,8 +2879,7 @@
             <div class="col-numero">Nº</div>
             <div class="col-descricao">Descrição</div>
             <div class="col-categoria">Categoria</div>
-            <div class="col-forma-pagamento">Pagamento</div>
-            <div class="col-cartao">Cartão</div>
+            <div class="col-forma-pagamento">Método</div>
             <div class="col-valor">Valor</div>
             <div class="col-parcela">Parcela</div>
             <div class="col-valor-pago">Valor Pago</div>
@@ -2903,7 +2904,6 @@
         <div class="col-descricao"></div>
         <div class="col-categoria"></div>
         <div class="col-forma-pagamento"></div>
-        <div class="col-cartao"></div>
         <div class="col-valor"></div>
         <div class="col-parcela"></div>
         <div class="col-valor-pago"></div>

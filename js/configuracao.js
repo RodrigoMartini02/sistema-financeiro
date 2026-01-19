@@ -654,7 +654,6 @@ async function atualizarOpcoesCartoes() {
                     name="forma-pagamento"
                     value="credito"
                     data-cartao-id="${cartao.id}"
-                    required
                     onchange="validarFormaPagamento()"
                 >
                 <label for="pagamento-cartao${cartao.id}" id="label-cartao${cartao.id}">
@@ -693,10 +692,18 @@ function renderizarListaCartoes() {
 
     cartoesUsuario.forEach(cartao => {
         const tr = document.createElement('tr');
+        // Formatar validade: se tem dia_fechamento e dia_vencimento, mostrar; senão mostrar validade antiga
+        let validadeDisplay = '-';
+        if (cartao.dia_fechamento && cartao.dia_vencimento) {
+            validadeDisplay = `Fech: ${cartao.dia_fechamento} / Venc: ${cartao.dia_vencimento}`;
+        } else if (cartao.validade) {
+            validadeDisplay = cartao.validade;
+        }
+
         tr.innerHTML = `
             <td><span class="cartao-id">#${cartao.id}</span></td>
-            <td><span class="cartao-banco">${cartao.banco}</span></td>
-            <td><span class="cartao-validade">${cartao.validade || '-'}</span></td>
+            <td><span class="cartao-banco">${cartao.banco || cartao.nome || ''}</span></td>
+            <td><span class="cartao-validade">${validadeDisplay}</span></td>
             <td><span class="cartao-limite">R$ ${formatarValorCartao(cartao.limite)}</span></td>
             <td>
                 <span class="badge-status ${cartao.ativo ? 'ativo' : 'inativo'}">
@@ -733,13 +740,15 @@ function formatarValorCartao(valor) {
  */
 async function adicionarCartao() {
     const inputBanco = document.getElementById('novo-cartao-banco');
-    const inputValidade = document.getElementById('novo-cartao-validade');
+    const inputFechamento = document.getElementById('novo-cartao-fechamento');
+    const inputVencimento = document.getElementById('novo-cartao-vencimento');
     const inputLimite = document.getElementById('novo-cartao-limite');
 
-    if (!inputBanco || !inputValidade || !inputLimite) return;
+    if (!inputBanco || !inputFechamento || !inputVencimento || !inputLimite) return;
 
     const banco = inputBanco.value.trim();
-    const validade = inputValidade.value.trim();
+    const diaFechamento = parseInt(inputFechamento.value) || 0;
+    const diaVencimento = parseInt(inputVencimento.value) || 0;
     const limite = parseFloat(inputLimite.value) || 0;
 
     // Validações
@@ -749,15 +758,15 @@ async function adicionarCartao() {
         return;
     }
 
-    if (!validade) {
-        mostrarStatusCartoes('Por favor, informe a validade (MM/AAAA)', 'error');
-        inputValidade.focus();
+    if (diaFechamento < 1 || diaFechamento > 31) {
+        mostrarStatusCartoes('Dia de fechamento deve ser entre 1 e 31', 'error');
+        inputFechamento.focus();
         return;
     }
 
-    if (!validarValidade(validade)) {
-        mostrarStatusCartoes('Formato de validade inválido. Use MM/AAAA', 'error');
-        inputValidade.focus();
+    if (diaVencimento < 1 || diaVencimento > 31) {
+        mostrarStatusCartoes('Dia de vencimento deve ser entre 1 e 31', 'error');
+        inputVencimento.focus();
         return;
     }
 
@@ -767,11 +776,13 @@ async function adicionarCartao() {
         return;
     }
 
-    // Criar novo cartão
+    // Criar novo cartão com campos corretos para a API
     const novoCartao = {
         id: proximoIdCartao++,
         banco: banco,
-        validade: validade,
+        nome: banco,
+        dia_fechamento: diaFechamento,
+        dia_vencimento: diaVencimento,
         limite: limite,
         ativo: true
     };
@@ -784,7 +795,8 @@ async function adicionarCartao() {
     if (sucesso) {
         mostrarStatusCartoes('Cartão adicionado com sucesso!', 'success');
         inputBanco.value = '';
-        inputValidade.value = '';
+        inputFechamento.value = '';
+        inputVencimento.value = '';
         inputLimite.value = '';
         renderizarListaCartoes();
         atualizarOpcoesCartoes();
@@ -803,10 +815,11 @@ function abrirModalEditarCartao(id) {
     if (!cartao) return;
 
     document.getElementById('cartao-edit-id').value = cartao.id;
-    document.getElementById('cartao-edit-banco').value = cartao.banco;
-    document.getElementById('cartao-edit-validade').value = cartao.validade;
+    document.getElementById('cartao-edit-banco').value = cartao.banco || cartao.nome || '';
+    document.getElementById('cartao-edit-fechamento').value = cartao.dia_fechamento || 1;
+    document.getElementById('cartao-edit-vencimento').value = cartao.dia_vencimento || 10;
     document.getElementById('cartao-edit-limite').value = cartao.limite;
-    document.getElementById('cartao-edit-ativo').checked = cartao.ativo;
+    document.getElementById('cartao-edit-ativo').checked = cartao.ativo !== false;
 
     const modal = document.getElementById('modal-editar-cartao');
     if (modal) {
@@ -823,24 +836,38 @@ async function salvarEdicaoCartao(e) {
 
     const id = parseInt(document.getElementById('cartao-edit-id').value);
     const banco = document.getElementById('cartao-edit-banco').value.trim();
-    const validade = document.getElementById('cartao-edit-validade').value.trim();
+    const diaFechamento = parseInt(document.getElementById('cartao-edit-fechamento').value) || 0;
+    const diaVencimento = parseInt(document.getElementById('cartao-edit-vencimento').value) || 0;
     const limite = parseFloat(document.getElementById('cartao-edit-limite').value) || 0;
     const ativo = document.getElementById('cartao-edit-ativo').checked;
 
-    if (!banco || !validade || limite <= 0) {
+    if (!banco || limite <= 0) {
         mostrarStatusCartoes('Preencha todos os campos corretamente', 'error');
         return;
     }
 
-    if (!validarValidade(validade)) {
-        mostrarStatusCartoes('Formato de validade inválido. Use MM/AAAA', 'error');
+    if (diaFechamento < 1 || diaFechamento > 31) {
+        mostrarStatusCartoes('Dia de fechamento deve ser entre 1 e 31', 'error');
+        return;
+    }
+
+    if (diaVencimento < 1 || diaVencimento > 31) {
+        mostrarStatusCartoes('Dia de vencimento deve ser entre 1 e 31', 'error');
         return;
     }
 
     const index = cartoesUsuario.findIndex(c => c.id === id);
     if (index === -1) return;
 
-    cartoesUsuario[index] = { id, banco, validade, limite, ativo };
+    cartoesUsuario[index] = {
+        id,
+        banco,
+        nome: banco,
+        dia_fechamento: diaFechamento,
+        dia_vencimento: diaVencimento,
+        limite,
+        ativo
+    };
 
     const sucesso = await salvarCartoes();
 

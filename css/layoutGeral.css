@@ -1402,27 +1402,26 @@ table tr:hover {
 
 .tabela-transacoes {
     width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    overflow: hidden;
-    box-shadow: var(--shadow-md);
+    border-collapse: collapse;
+    background: #fff;
 }
 
 .tabela-transacoes th {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-    color: var(--white);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
     text-align: left;
-    padding: 12px var(--space-md);
-    font-weight: var(--font-weight-semibold);
-    font-size: var(--font-size-xs);
+    padding: 6px 8px;
+    font-weight: 600;
+    font-size: 10px;
+    text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
 .tabela-transacoes td {
-    padding: 12px var(--space-md);
-    border-bottom: 1px solid var(--gray-100);
-    font-size: var(--font-size-sm);
-    color: var(--gray-600);
+    padding: 4px 8px;
+    border-bottom: 1px solid #e9ecef;
+    font-size: 10px;
+    color: #495057;
 }
 
 .tabela-transacoes tr:last-child td {
@@ -1430,7 +1429,7 @@ table tr:hover {
 }
 
 .tabela-transacoes tr:hover {
-    background-color: var(--gray-50);
+    background-color: #f8f9fa;
 }
 
 .lista-container {
@@ -1755,27 +1754,26 @@ table tr:hover {
     width: 100%;
     border-collapse: collapse;
     background: #fff;
-    overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .tabela-categorias th,
 .tabela-usuarios th {
-    background: #f8f9fa;
-    padding: 12px 15px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    padding: 6px 8px;
     text-align: left;
     font-weight: 600;
-    color: #495057;
-    border-bottom: 1px solid #dee2e6;
-    font-size: 14px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .tabela-categorias td,
 .tabela-usuarios td {
-    padding: 12px 15px;
-    border-bottom: 1px solid #f1f3f4;
-    color: #212529;
-    font-size: 14px;
+    padding: 4px 8px;
+    border-bottom: 1px solid #e9ecef;
+    color: #495057;
+    font-size: 10px;
 }
 
 .tabela-categorias tr:hover,
@@ -2839,7 +2837,7 @@ table tr:hover {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     font-weight: 600;
-    font-size: 11px;
+    font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     border-bottom: 2px solid #5568d3;
@@ -2849,7 +2847,7 @@ table tr:hover {
 }
 
 .grid-header > div {
-    padding: 12px 8px;
+    padding: 6px 6px;
     display: flex;
     align-items: center;
     position: relative;
@@ -2887,7 +2885,7 @@ table tr:hover {
     display: flex;
     border-bottom: 1px solid #e9ecef;
     transition: background-color 0.2s;
-    min-height: 45px;
+    min-height: 28px;
     align-items: center;
 }
 
@@ -2897,10 +2895,10 @@ table tr:hover {
 
 .grid-row > div,
 .grid-row > * {
-    padding: 8px;
+    padding: 4px 6px;
     display: flex;
     align-items: center;
-    font-size: 13px;
+    font-size: 10px;
     color: #495057;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2991,16 +2989,9 @@ table tr:hover {
 }
 
 .col-forma-pagamento {
-    width: 100px;
-    min-width: 100px;
+    width: 140px;
+    min-width: 120px;
     justify-content: center;
-}
-
-.col-cartao {
-    width: 120px;
-    min-width: 100px;
-    font-size: 0.85rem;
-    color: #6b7280;
 }
 
 .col-valor {
