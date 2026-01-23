@@ -1581,23 +1581,25 @@ window.calcularTotalReservas = calcularTotalReservas;
         loadColumnWidths();
 
         const resizers = header.querySelectorAll('.column-resizer');
-        resizers.forEach((resizer, index) => {
-            resizer.addEventListener('mousedown', startResize.bind(null, resizer, index));
+        resizers.forEach((resizer) => {
+            resizer.addEventListener('mousedown', startResize.bind(null, resizer));
         });
 
         document.addEventListener('mousemove', resize);
         document.addEventListener('mouseup', stopResize);
     }
 
-    function startResize(resizer, columnIndex, e) {
+    function startResize(resizer, e) {
         e.preventDefault();
         isResizing = true;
         currentResizer = resizer;
-        currentColumnIndex = columnIndex;
         startX = e.clientX;
 
+        // Pega a coluna pai do resizer (como no Excel)
+        const column = resizer.parentElement;
         const header = document.getElementById('receitas-grid-header');
-        const column = header.children[columnIndex];
+        const columns = Array.from(header.children);
+        currentColumnIndex = columns.indexOf(column);
         startWidth = column.offsetWidth;
 
         resizer.classList.add('resizing');

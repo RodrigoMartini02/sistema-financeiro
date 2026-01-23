@@ -280,15 +280,7 @@ function preencherCelulaCheckbox(clone, despesa, index, fechado) {
 function preencherCelulaNumero(clone, despesa) {
     const celulaNumero = clone.querySelector('.col-numero');
     if (celulaNumero) {
-        // ✅ CORRIGIDO: Exibir o ID (não o número)
-        if (despesa.id) {
-            celulaNumero.textContent = despesa.id;
-            celulaNumero.style.fontWeight = 'bold';
-            celulaNumero.style.color = '#6366f1';
-            celulaNumero.style.fontSize = '0.9em';
-        } else {
-            celulaNumero.textContent = '-';
-        }
+        celulaNumero.textContent = despesa.id || '-';
     }
 }
 
@@ -3663,23 +3655,25 @@ document.addEventListener('DOMContentLoaded', configurarBotaoComprovanteSimples)
         loadColumnWidths();
 
         const resizers = header.querySelectorAll('.column-resizer');
-        resizers.forEach((resizer, index) => {
-            resizer.addEventListener('mousedown', startResize.bind(null, resizer, index));
+        resizers.forEach((resizer) => {
+            resizer.addEventListener('mousedown', startResize.bind(null, resizer));
         });
 
         document.addEventListener('mousemove', resize);
         document.addEventListener('mouseup', stopResize);
     }
 
-    function startResize(resizer, columnIndex, e) {
+    function startResize(resizer, e) {
         e.preventDefault();
         isResizing = true;
         currentResizer = resizer;
-        currentColumnIndex = columnIndex;
         startX = e.clientX;
 
+        // Pega a coluna pai do resizer (como no Excel)
+        const column = resizer.parentElement;
         const header = document.getElementById('despesas-grid-header');
-        const column = header.children[columnIndex];
+        const columns = Array.from(header.children);
+        currentColumnIndex = columns.indexOf(column);
         startWidth = column.offsetWidth;
 
         resizer.classList.add('resizing');

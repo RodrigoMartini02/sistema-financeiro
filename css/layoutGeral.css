@@ -2995,9 +2995,10 @@ table tr:hover {
 }
 
 .col-forma-pagamento {
-    width: 140px;
-    min-width: 120px;
+    width: 160px;
+    min-width: 160px;
     justify-content: center;
+    white-space: nowrap;
 }
 
 .col-valor {
