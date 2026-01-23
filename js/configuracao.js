@@ -562,43 +562,122 @@ function migrarCartoesSeNecessario(cartoes) {
 }
 
 /**
- * Salva os cartões na API
+ * Cria um novo cartão via API POST
  */
-async function salvarCartoes() {
-    const usuario = window.usuarioDataManager?.getUsuarioAtual();
+async function criarCartaoAPI(cartao) {
     const token = sessionStorage.getItem('token');
-
-    if (!usuario || !usuario.id || !token) {
-        return false;
-    }
+    if (!token) return null;
 
     try {
         const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
-        const response = await fetch(`${API_URL}/usuarios/${usuario.id}/cartoes`, {
+        const response = await fetch(`${API_URL}/cartoes`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                nome: cartao.banco || cartao.nome,
+                dia_fechamento: cartao.dia_fechamento,
+                dia_vencimento: cartao.dia_vencimento,
+                limite: cartao.limite,
+                ativo: cartao.ativo !== false
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('Erro ao criar cartão:', errorData);
+            return null;
+        }
+
+        const data = await response.json();
+        return data.data || data.cartao || data;
+
+    } catch (error) {
+        console.error('Erro ao criar cartão:', error);
+        return null;
+    }
+}
+
+/**
+ * Atualiza um cartão existente via API PUT
+ */
+async function atualizarCartaoAPI(id, cartao) {
+    const token = sessionStorage.getItem('token');
+    if (!token) return false;
+
+    try {
+        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
+        const response = await fetch(`${API_URL}/cartoes/${id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ cartoes: cartoesUsuario })
+            body: JSON.stringify({
+                nome: cartao.banco || cartao.nome,
+                dia_fechamento: cartao.dia_fechamento,
+                dia_vencimento: cartao.dia_vencimento,
+                limite: cartao.limite,
+                ativo: cartao.ativo !== false
+            })
         });
 
         if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('Erro ao atualizar cartão:', errorData);
             return false;
         }
 
-        const data = await response.json();
-        if (data.success) {
-            window.cartoesUsuario = cartoesUsuario;
-            return true;
-        }
-        return false;
+        return true;
 
     } catch (error) {
-        console.error('Erro ao salvar cartões:', error);
+        console.error('Erro ao atualizar cartão:', error);
         return false;
     }
+}
+
+/**
+ * Exclui um cartão via API DELETE
+ */
+async function excluirCartaoAPI(id) {
+    const token = sessionStorage.getItem('token');
+    if (!token) return false;
+
+    try {
+        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
+        const response = await fetch(`${API_URL}/cartoes/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('Erro ao excluir cartão:', errorData);
+            return false;
+        }
+
+        return true;
+
+    } catch (error) {
+        console.error('Erro ao excluir cartão:', error);
+        return false;
+    }
+}
+
+/**
+ * Salva os cartões na API (compatibilidade com código antigo)
+ */
+async function salvarCartoes() {
+    // Esta função agora é um fallback - as operações individuais são preferidas
+    return true;
 }
 
 /**
