@@ -2850,7 +2850,7 @@ table tr:hover {
 
 /* Cabeçalho do Grid */
 .grid-header {
-    display: grid;
+    display: flex;
     background: #667eea;
     color: white;
     font-weight: 600;
@@ -2861,6 +2861,7 @@ table tr:hover {
     position: sticky;
     top: 0;
     z-index: 10;
+    overflow: hidden;
 }
 
 .grid-header > div {
@@ -2872,6 +2873,7 @@ table tr:hover {
     overflow: hidden;
     text-overflow: ellipsis;
     border-right: 1px solid rgba(255,255,255,0.2);
+    flex-shrink: 0;
 }
 
 .grid-header > div:last-child {
@@ -2900,11 +2902,12 @@ table tr:hover {
 
 /* Linhas do Grid */
 .grid-row {
-    display: grid;
+    display: flex;
     border-bottom: 1px solid #e9ecef;
     transition: box-shadow 0.2s;
     min-height: 28px;
     align-items: center;
+    overflow: hidden;
 }
 
 .grid-row:hover {
@@ -2920,7 +2923,10 @@ table tr:hover {
     color: #495057;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
     border-right: 1px solid #e9ecef;
+    flex-shrink: 0;
+    min-width: 0;
 }
 
 .grid-row > div:last-child,
@@ -2981,7 +2987,15 @@ table tr:hover {
 
 .col-descricao {
     flex: 1;
-    min-width: 180px;
+    min-width: 80px;
+}
+
+.col-descricao span,
+.col-descricao .descricao-texto {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
 }
 
 .col-nome {

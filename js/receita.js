@@ -1562,176 +1562,135 @@ window.carregarReservasAPI = carregarReservasAPI;
 window.calcularTotalReservas = calcularTotalReservas;
 
 // ================================================================
-// REDIMENSIONAMENTO DE COLUNAS - RECEITAS
+// REDIMENSIONAMENTO DE COLUNAS - RECEITAS (VERSÃO SIMPLIFICADA)
 // ================================================================
 
 (function() {
     let isResizing = false;
-    let currentResizer = null;
+    let currentColumn = null;
     let startX = 0;
     let startWidth = 0;
-    let currentColumnIndex = 0;
-
-    const STORAGE_KEY = 'receitas-column-widths';
 
     function initColumnResizer() {
         const header = document.getElementById('receitas-grid-header');
-        if (!header) return;
+        if (!header || header.dataset.resizerInit === 'true') return;
+        header.dataset.resizerInit = 'true';
 
-        loadColumnWidths();
+        // Remove listeners antigos se existirem
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
 
-        const resizers = header.querySelectorAll('.column-resizer');
-        resizers.forEach((resizer) => {
-            resizer.addEventListener('mousedown', startResize.bind(null, resizer));
+        // Adiciona listeners globais
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+
+        // Adiciona listener em cada resizer
+        header.querySelectorAll('.column-resizer').forEach(resizer => {
+            resizer.onmousedown = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                isResizing = true;
+                currentColumn = resizer.parentElement;
+                startX = e.pageX;
+                startWidth = currentColumn.offsetWidth;
+
+                resizer.classList.add('resizing');
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+            };
         });
-
-        document.addEventListener('mousemove', resize);
-        document.addEventListener('mouseup', stopResize);
     }
 
-    function startResize(resizer, e) {
-        e.preventDefault();
-        isResizing = true;
-        currentResizer = resizer;
-        startX = e.clientX;
+    function handleMouseMove(e) {
+        if (!isResizing || !currentColumn) return;
 
-        // Pega a coluna pai do resizer (como no Excel)
-        const column = resizer.parentElement;
+        const diff = e.pageX - startX;
+        const newWidth = Math.max(30, startWidth + diff);
+
+        // Aplica largura diretamente na coluna do header
+        currentColumn.style.width = newWidth + 'px';
+        currentColumn.style.minWidth = newWidth + 'px';
+        currentColumn.style.maxWidth = newWidth + 'px';
+        currentColumn.style.flex = '0 0 ' + newWidth + 'px';
+        currentColumn.style.overflow = 'hidden';
+
+        // Sincroniza com as linhas
         const header = document.getElementById('receitas-grid-header');
-        const columns = Array.from(header.children);
-        currentColumnIndex = columns.indexOf(column);
-        startWidth = column.offsetWidth;
+        const columnIndex = Array.from(header.children).indexOf(currentColumn);
 
-        resizer.classList.add('resizing');
-        document.body.style.cursor = 'col-resize';
-        document.body.style.userSelect = 'none';
+        const rows = document.querySelectorAll('#receitas-grid-container .grid-row');
+        rows.forEach(row => {
+            const cell = row.children[columnIndex];
+            if (cell) {
+                cell.style.width = newWidth + 'px';
+                cell.style.minWidth = newWidth + 'px';
+                cell.style.maxWidth = newWidth + 'px';
+                cell.style.flex = '0 0 ' + newWidth + 'px';
+                cell.style.overflow = 'hidden';
+            }
+        });
     }
 
-    function resize(e) {
-        if (!isResizing) return;
-
-        const diff = e.clientX - startX;
-        const newWidth = Math.max(40, startWidth + diff);
-
-        updateGridTemplateColumns(currentColumnIndex, newWidth);
-    }
-
-    function stopResize() {
+    function handleMouseUp() {
         if (!isResizing) return;
 
         isResizing = false;
-        if (currentResizer) {
-            currentResizer.classList.remove('resizing');
+        if (currentColumn) {
+            const resizer = currentColumn.querySelector('.column-resizer');
+            if (resizer) resizer.classList.remove('resizing');
         }
-        currentResizer = null;
+        currentColumn = null;
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
-
-        saveColumnWidths();
     }
 
-    function updateGridTemplateColumns(columnIndex = null, newWidth = null) {
-        const header = document.getElementById('receitas-grid-header');
-        if (!header) return;
-
-        const columns = Array.from(header.children);
-
-        // Se está redimensionando, atualiza a largura específica
-        if (columnIndex !== null && newWidth !== null) {
-            if (!header.dataset.columnWidths) {
-                // Inicializa com larguras computadas atuais
-                const currentWidths = columns.map(col => getComputedStyle(col).width);
-                header.dataset.columnWidths = JSON.stringify(currentWidths);
-            }
-
-            const widths = JSON.parse(header.dataset.columnWidths);
-            widths[columnIndex] = newWidth + 'px';
-            header.dataset.columnWidths = JSON.stringify(widths);
-        }
-
-        // Obtém larguras armazenadas ou computadas
-        let widths;
-        if (header.dataset.columnWidths) {
-            widths = JSON.parse(header.dataset.columnWidths);
-        } else {
-            widths = columns.map(col => getComputedStyle(col).width);
-        }
-
-        const gridTemplate = widths.join(' ');
-
-        // Aplica ao header
-        header.style.gridTemplateColumns = gridTemplate;
-
-        // Aplica a todas as linhas
-        const gridContainer = header.parentElement;
-        const rows = gridContainer.querySelectorAll('.grid-row');
-        rows.forEach(row => {
-            row.style.gridTemplateColumns = gridTemplate;
-        });
-    }
-
-    function saveColumnWidths() {
-        const header = document.getElementById('receitas-grid-header');
-        if (!header) return;
-
-        if (!header.dataset.columnWidths) return;
-
-        try {
-            localStorage.setItem(STORAGE_KEY, header.dataset.columnWidths);
-        } catch (error) {
-            console.error('Erro ao salvar larguras:', error);
-        }
-    }
-
-    function loadColumnWidths() {
-        try {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (!saved) return;
-
-            const header = document.getElementById('receitas-grid-header');
-            if (!header) return;
-
-            header.dataset.columnWidths = saved;
-            updateGridTemplateColumns();
-        } catch (error) {
-            console.error('Erro ao carregar larguras:', error);
-        }
-    }
-
+    // Função para resetar larguras
     window.resetReceitasColumnWidths = function() {
-        localStorage.removeItem(STORAGE_KEY);
-        location.reload();
+        const header = document.getElementById('receitas-grid-header');
+        if (header) {
+            Array.from(header.children).forEach(col => {
+                col.style.width = '';
+                col.style.minWidth = '';
+                col.style.maxWidth = '';
+                col.style.flex = '';
+                col.style.overflow = '';
+            });
+        }
+        const rows = document.querySelectorAll('#receitas-grid-container .grid-row');
+        rows.forEach(row => {
+            Array.from(row.children).forEach(cell => {
+                cell.style.width = '';
+                cell.style.minWidth = '';
+                cell.style.maxWidth = '';
+                cell.style.flex = '';
+                cell.style.overflow = '';
+            });
+        });
     };
 
-    // ✅ NOVO: Função para reinicializar resizer (chamada ao abrir modal)
     window.reinitReceitasResizer = function() {
         const header = document.getElementById('receitas-grid-header');
         if (header) {
-            header.dataset.resizerInitialized = '';  // Reset flag
+            header.dataset.resizerInit = '';
             initColumnResizer();
         }
     };
 
+    // Inicializa
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initColumnResizer);
     } else {
-        initColumnResizer();
+        setTimeout(initColumnResizer, 100);
     }
 
-    const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-            if (mutation.addedNodes.length) {
-                const header = document.getElementById('receitas-grid-header');
-                if (header && !header.dataset.resizerInitialized) {
-                    header.dataset.resizerInitialized = 'true';
-                    initColumnResizer();
-                }
-            }
-        });
+    // Observer para reinicializar quando necessário
+    const observer = new MutationObserver(() => {
+        const header = document.getElementById('receitas-grid-header');
+        if (header && header.dataset.resizerInit !== 'true') {
+            initColumnResizer();
+        }
     });
 
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
+    observer.observe(document.body, { childList: true, subtree: true });
 })();

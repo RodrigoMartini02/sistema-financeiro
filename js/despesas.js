@@ -163,32 +163,38 @@ function renderizarDespesas(despesas, mes, ano, fechado) {
    if (!document.getElementById('despesas-grid-container')) {
        inicializarTabelaDespesasGrid();
    }
-   
+
    const listaDespesas = document.getElementById('lista-despesas');
    if (!listaDespesas) return;
-   
+
    listaDespesas.innerHTML = '';
-   
+
    if (Array.isArray(despesas) && despesas.length > 0) {
        atualizarStatusDespesas(despesas);
-       const despesasParaExibir = despesas.filter(d => !d.transferidaParaProximoMes);
-       
+       let despesasParaExibir = despesas.filter(d => !d.transferidaParaProximoMes);
+
+       // Ordenação padrão: última despesa cadastrada no topo (ID decrescente)
+       despesasParaExibir = despesasParaExibir.sort((a, b) => {
+           const idA = parseInt(a.id) || 0;
+           const idB = parseInt(b.id) || 0;
+           return idB - idA; // Decrescente - maior ID primeiro
+       });
+
        despesasParaExibir.forEach((despesa, index) => {
            const divRow = criarLinhaDespesaGrid(despesa, index, fechado, mes, ano);
            if (divRow) listaDespesas.appendChild(divRow);
        });
    }
-   
+
    if (!fechado) {
        configurarEventosDespesas(listaDespesas, mes, ano);
    }
-   
+
    atualizarFiltrosExistentes(mes, ano);
    atualizarBotaoLote();
-   
+
    setTimeout(() => {
-       sincronizarIndicesDespesas();
-       // NOVO: Atualizar contadores de anexos após renderização
+       // Atualizar contadores de anexos após renderização
        if (typeof atualizarTodosContadoresAnexosDespesas === 'function') {
            atualizarTodosContadoresAnexosDespesas();
        }
@@ -479,33 +485,38 @@ function configurarBotoesAcaoTemplate(clone, despesa, index, fechado) {
 // ================================================================
 function configurarEventosDespesas(container, mes, ano) {
   if (!container) return;
-  
+
   if (container._despesasListener) {
       container.removeEventListener('click', container._despesasListener);
   }
-  
+
   container._despesasListener = async (e) => {
       const btn = e.target.closest('.btn');
       if (!btn) return;
-      
+
       e.stopPropagation();
       e.preventDefault();
-      
-      const index = parseInt(btn.dataset.index);
-      if (isNaN(index)) return;
-      
+
+      // Usar data-despesa-id da linha para garantir referência correta
+      const linha = btn.closest('.grid-row');
+      const despesaId = linha?.getAttribute('data-despesa-id');
+
+      if (!despesaId) {
+          console.error('ID da despesa não encontrado');
+          return;
+      }
+
       try {
           if (btn.classList.contains('btn-editar')) {
-              await editarDespesa(index, mes, ano);
+              await editarDespesaPorId(despesaId, mes, ano);
           } else if (btn.classList.contains('btn-excluir')) {
-              await excluirDespesa(index, mes, ano);
+              await excluirDespesaPorId(despesaId, mes, ano);
           } else if (btn.classList.contains('btn-pagar')) {
-              await abrirModalPagamento(index, mes, ano);
+              await abrirModalPagamentoPorId(despesaId, mes, ano);
           } else if (btn.classList.contains('btn-mover')) {
-              await moverParaProximoMes(index, mes, ano);
+              await moverParaProximoMesPorId(despesaId, mes, ano);
           } else if (btn.classList.contains('btn-anexos')) {
-              // NOVO: Gerenciar visualização de anexos
-              await abrirModalVisualizarAnexosDespesa(index);
+              await abrirModalVisualizarAnexosDespesaPorId(despesaId);
           }
       } catch (error) {
           if (window.mostrarMensagemErro) {
@@ -515,7 +526,7 @@ function configurarEventosDespesas(container, mes, ano) {
           }
       }
   };
-  
+
   container.addEventListener('click', container._despesasListener);
 }
 
@@ -523,16 +534,36 @@ function configurarEventosDespesas(container, mes, ano) {
 // FUNÇÕES AUXILIARES E UTILITÁRIAS
 // ================================================================
 
+// Busca despesa por ID no array de despesas
+function encontrarDespesaPorId(despesaId, mes, ano) {
+    const despesas = dadosFinanceiros[ano]?.meses[mes]?.despesas;
+    if (!Array.isArray(despesas)) {
+        return { despesa: null, indice: -1 };
+    }
+
+    const indice = despesas.findIndex(d => d.id == despesaId);
+    if (indice === -1) {
+        return { despesa: null, indice: -1 };
+    }
+
+    const despesa = despesas[indice];
+    if (!despesa || despesa.transferidaParaProximoMes === true) {
+        return { despesa: null, indice: -1 };
+    }
+
+    return { despesa: despesa, indice: indice };
+}
+
 function encontrarDespesaPorIndice(index, despesas) {
     if (!Array.isArray(despesas) || index < 0 || index >= despesas.length) {
         return { despesa: null, indice: -1 };
     }
-    
+
     const despesa = despesas[index];
     if (!despesa || despesa.transferidaParaProximoMes === true) {
         return { despesa: null, indice: -1 };
     }
-    
+
     return { despesa: despesa, indice: index };
 }
 
@@ -1269,6 +1300,52 @@ async function atualizarTodasParcelasGrupo(formData, despesaEmEdicao, valorParce
 
 async function editarDespesa(index, mes, ano) {
     abrirModalNovaDespesa(index);
+}
+
+// ================================================================
+// FUNÇÕES BASEADAS EM ID (para ações corretas após filtros/ordenação)
+// ================================================================
+
+async function editarDespesaPorId(despesaId, mes, ano) {
+    const { despesa, indice } = encontrarDespesaPorId(despesaId, mes, ano);
+    if (!despesa) {
+        throw new Error('Despesa não encontrada');
+    }
+    abrirModalNovaDespesa(indice);
+}
+
+async function excluirDespesaPorId(despesaId, mes, ano) {
+    const { despesa, indice } = encontrarDespesaPorId(despesaId, mes, ano);
+    if (!despesa) {
+        throw new Error('Despesa não encontrada');
+    }
+    await excluirDespesa(indice, mes, ano);
+}
+
+async function abrirModalPagamentoPorId(despesaId, mes, ano) {
+    const { despesa, indice } = encontrarDespesaPorId(despesaId, mes, ano);
+    if (!despesa) {
+        throw new Error('Despesa não encontrada');
+    }
+    await abrirModalPagamento(indice, mes, ano);
+}
+
+async function moverParaProximoMesPorId(despesaId, mes, ano) {
+    const { despesa, indice } = encontrarDespesaPorId(despesaId, mes, ano);
+    if (!despesa) {
+        throw new Error('Despesa não encontrada');
+    }
+    await moverParaProximoMes(indice, mes, ano);
+}
+
+async function abrirModalVisualizarAnexosDespesaPorId(despesaId) {
+    const mes = window.mesAberto;
+    const ano = window.anoAberto;
+    const { despesa, indice } = encontrarDespesaPorId(despesaId, mes, ano);
+    if (!despesa) {
+        throw new Error('Despesa não encontrada');
+    }
+    await abrirModalVisualizarAnexosDespesa(indice);
 }
 
 function validarGrupoParcelamento(idGrupo, despesaOriginal) {
@@ -2709,36 +2786,33 @@ async function processarParcelasFuturas(despesa, anoAtual, mesAtual) {
 async function pagarDespesasEmLote() {
     try {
         const todasCheckboxes = document.querySelectorAll('.despesa-checkbox:checked');
-        
+
         if (todasCheckboxes.length === 0) {
             alert("Nenhuma despesa selecionada para pagamento.");
             return;
         }
 
         const checkboxesValidas = Array.from(todasCheckboxes).filter(checkbox => {
-            const index = parseInt(checkbox.dataset.index);
-            
-            if (!(dadosFinanceiros[anoAberto] && 
-                  dadosFinanceiros[anoAberto].meses[mesAberto] && 
-                  dadosFinanceiros[anoAberto].meses[mesAberto].despesas && 
-                  dadosFinanceiros[anoAberto].meses[mesAberto].despesas[index])) {
-                return false;
-            }
-            
-            const despesa = dadosFinanceiros[anoAberto].meses[mesAberto].despesas[index];
+            const linha = checkbox.closest('.grid-row');
+            const despesaId = linha?.getAttribute('data-despesa-id');
+            if (!despesaId) return false;
+
+            const { despesa } = encontrarDespesaPorId(despesaId, mesAberto, anoAberto);
+            if (!despesa) return false;
+
             return !despesa.quitado;
         });
-        
+
         if (checkboxesValidas.length === 0) {
             alert("Nenhuma despesa válida selecionada para pagamento.");
             return;
         }
-        
+
         await configurarModalPagamentoLote(checkboxesValidas);
-        
+
         const modal = document.getElementById('modal-pagamento-lote-despesas');
         if (modal) modal.style.display = 'block';
-        
+
     } catch (error) {
         alert("Ocorreu um erro ao preparar o pagamento em lote: " + error.message);
     }
@@ -2941,52 +3015,52 @@ async function processarPagamentoComData(index, mes, ano, valorPago = null, quit
 }
 
 async function pagarLoteComValoresOriginais(checkboxes) {
-   const indices = Array.from(checkboxes).map(checkbox => parseInt(checkbox.dataset.index));
-   
+   // Obter IDs das despesas a partir das linhas
+   const despesaIds = Array.from(checkboxes).map(checkbox => {
+       const linha = checkbox.closest('.grid-row');
+       return linha?.getAttribute('data-despesa-id');
+   }).filter(id => id);
+
    const inputDataLote = document.getElementById('data-pagamento-lote');
-   const dataPagamentoLote = inputDataLote ? inputDataLote.value : 
+   const dataPagamentoLote = inputDataLote ? inputDataLote.value :
                              new Date().toISOString().split('T')[0];
-   
+
    let comprovantes = [];
    if (window.sistemaAnexos) {
        comprovantes = window.sistemaAnexos.obterAnexosParaSalvar('comprovante');
    }
-   
+
    let despesasPagas = 0;
-   for (const index of indices) {
-       if (dadosFinanceiros[anoAberto] && 
-           dadosFinanceiros[anoAberto].meses[mesAberto] && 
-           dadosFinanceiros[anoAberto].meses[mesAberto].despesas && 
-           dadosFinanceiros[anoAberto].meses[mesAberto].despesas[index]) {
-           
-           if (comprovantes.length > 0) {
-               const despesa = dadosFinanceiros[anoAberto].meses[mesAberto].despesas[index];
-               if (!despesa.comprovantes) {
-                   despesa.comprovantes = [];
-               }
-               despesa.comprovantes.push(...comprovantes);
+   for (const despesaId of despesaIds) {
+       const { despesa, indice } = encontrarDespesaPorId(despesaId, mesAberto, anoAberto);
+       if (!despesa) continue;
+
+       if (comprovantes.length > 0) {
+           if (!despesa.comprovantes) {
+               despesa.comprovantes = [];
            }
-           
-           if (await processarPagamentoComData(index, mesAberto, anoAberto, null, false, dataPagamentoLote)) {
-               despesasPagas++;
-           }
+           despesa.comprovantes.push(...comprovantes);
+       }
+
+       if (await processarPagamentoComData(indice, mesAberto, anoAberto, null, false, dataPagamentoLote)) {
+           despesasPagas++;
        }
    }
-   
+
    if (window.sistemaAnexos) {
        window.sistemaAnexos.limparAnexosTemporarios('comprovante');
    }
-   
+
    renderizarDetalhesDoMes(mesAberto, anoAberto);
-   
+
    if (despesasPagas > 0) {
        alert(`${despesasPagas} despesa(s) paga(s) com sucesso!`);
-       
+
        const checkboxTodas = document.getElementById('select-all-despesas');
        if (checkboxTodas) {
            checkboxTodas.checked = false;
        }
-       
+
        atualizarBotaoLote();
    } else {
        alert("Nenhuma despesa foi processada com sucesso.");
@@ -3100,75 +3174,65 @@ function filtrarDespesasPorStatus(status) {
 }
 
 function verificarCategoriaDespesa(linha, categoria) {
-    const index = obterIndexDespesa(linha);
-    
-    if (index !== null && dadosFinanceiros[anoAberto]?.meses[mesAberto]?.despesas?.[index]) {
-        const despesa = dadosFinanceiros[anoAberto].meses[mesAberto].despesas[index];
-        const categoriaLimpa = obterCategoriaLimpa(despesa);
-        return categoriaLimpa === categoria;
-    }
-    
-    return false;
+    const despesaId = linha.getAttribute('data-despesa-id');
+    if (!despesaId) return false;
+
+    const { despesa } = encontrarDespesaPorId(despesaId, mesAberto, anoAberto);
+    if (!despesa) return false;
+
+    const categoriaLimpa = obterCategoriaLimpa(despesa);
+    return categoriaLimpa === categoria;
 }
 
 function verificarFormaPagamentoDespesa(linha, formaPagamento) {
-    const index = obterIndexDespesa(linha);
-    
-    if (index !== null && dadosFinanceiros[anoAberto]?.meses[mesAberto]?.despesas?.[index]) {
-        const despesa = dadosFinanceiros[anoAberto].meses[mesAberto].despesas[index];
-        
-        if (despesa.formaPagamento) {
-            return despesa.formaPagamento === formaPagamento;
+    const despesaId = linha.getAttribute('data-despesa-id');
+    if (!despesaId) return false;
+
+    const { despesa } = encontrarDespesaPorId(despesaId, mesAberto, anoAberto);
+    if (!despesa) return false;
+
+    if (despesa.formaPagamento) {
+        return despesa.formaPagamento === formaPagamento;
+    } else {
+        if (despesa.categoria === 'Cartão' || despesa.categoria === 'Cartão de Crédito') {
+            return formaPagamento === 'credito';
         } else {
-            if (despesa.categoria === 'Cartão' || despesa.categoria === 'Cartão de Crédito') {
-                return formaPagamento === 'credito';
-            } else {
-                return formaPagamento === 'debito';
-            }
+            return formaPagamento === 'debito';
         }
     }
-    
-    return false;
 }
 
 function verificarStatusDespesa(linha, status) {
-    const index = obterIndexDespesa(linha);
-    
-    if (index !== null && dadosFinanceiros[anoAberto]?.meses[mesAberto]?.despesas?.[index]) {
-        const despesa = dadosFinanceiros[anoAberto].meses[mesAberto].despesas[index];
-        
-        let statusDespesa = '';
-        if (despesa.quitado === true) {
-            statusDespesa = 'paga';
-        } else if (despesa.status === 'atrasada') {
-            statusDespesa = 'atrasada';
-        } else {
-            statusDespesa = 'em_dia';
-        }
-        
-        if (status === 'pendentes') {
-            return statusDespesa === 'em_dia' || statusDespesa === 'atrasada';
-        } else if (status === 'pagas') {
-            return despesa.quitado === true;
-        } else {
-            return statusDespesa === status;
-        }
+    const despesaId = linha.getAttribute('data-despesa-id');
+    if (!despesaId) return false;
+
+    const { despesa } = encontrarDespesaPorId(despesaId, mesAberto, anoAberto);
+    if (!despesa) return false;
+
+    let statusDespesa = '';
+    if (despesa.quitado === true) {
+        statusDespesa = 'paga';
+    } else if (despesa.status === 'atrasada') {
+        statusDespesa = 'atrasada';
+    } else {
+        statusDespesa = 'em_dia';
     }
-    
-    return false;
+
+    if (status === 'pendentes') {
+        return statusDespesa === 'em_dia' || statusDespesa === 'atrasada';
+    } else if (status === 'pagas') {
+        return despesa.quitado === true;
+    } else {
+        return statusDespesa === status;
+    }
 }
 
-function obterIndexDespesa(linha) {
-    const checkbox = linha.querySelector('.despesa-checkbox');
-    const btnEditar = linha.querySelector('.btn-editar');
-    
-    if (checkbox && checkbox.dataset.index) {
-        return parseInt(checkbox.dataset.index);
-    } else if (btnEditar && btnEditar.dataset.index) {
-        return parseInt(btnEditar.dataset.index);
-    }
-    
-    return null;
+function obterDespesaDaLinha(linha) {
+    const despesaId = linha.getAttribute('data-despesa-id');
+    if (!despesaId) return null;
+
+    const { despesa } = encontrarDespesaPorId(despesaId, mesAberto, anoAberto);
+    return despesa;
 }
 
 function limparFiltros() {
@@ -3220,29 +3284,29 @@ function aplicarOrdenacaoDespesas(tipoOrdenacao) {
     if (!listaDespesas) return;
     
     const linhas = Array.from(listaDespesas.querySelectorAll('.grid-row.despesa-row'));
-    
+
     if (tipoOrdenacao === 'original') {
+        // Ordenação original: ID decrescente (mais recente primeiro)
         linhas.sort((a, b) => {
-            const indexA = parseInt(a.getAttribute('data-index')) || 0;
-            const indexB = parseInt(b.getAttribute('data-index')) || 0;
-            return indexA - indexB;
+            const idA = parseInt(a.getAttribute('data-despesa-id')) || 0;
+            const idB = parseInt(b.getAttribute('data-despesa-id')) || 0;
+            return idB - idA;
         });
     } else {
         linhas.sort((a, b) => {
             if (tipoOrdenacao.includes('compra')) {
-                const dataA = a.querySelector('.col-compra').textContent;
-                const dataB = b.querySelector('.col-compra').textContent;
+                const dataA = a.querySelector('.col-compra')?.textContent || '';
+                const dataB = b.querySelector('.col-compra')?.textContent || '';
                 const resultado = compararDatas(dataA, dataB);
                 return tipoOrdenacao.includes('desc') ? -resultado : resultado;
             }
             if (tipoOrdenacao.includes('vencimento')) {
-                const dataA = a.querySelector('.col-vencimento').textContent;
-                const dataB = b.querySelector('.col-vencimento').textContent;
+                const dataA = a.querySelector('.col-vencimento')?.textContent || '';
+                const dataB = b.querySelector('.col-vencimento')?.textContent || '';
                 const resultado = compararDatas(dataA, dataB);
                 return tipoOrdenacao.includes('desc') ? -resultado : resultado;
             }
             if (tipoOrdenacao.includes('valor')) {
-                // CORREÇÃO: Obter valor diretamente da célula
                 const valorA = obterValorDaColuna(a);
                 const valorB = obterValorDaColuna(b);
                 const resultado = valorA - valorB;
@@ -3251,9 +3315,8 @@ function aplicarOrdenacaoDespesas(tipoOrdenacao) {
             return 0;
         });
     }
-    
+
     linhas.forEach(linha => listaDespesas.appendChild(linha));
-    sincronizarIndicesDespesas();
 }
 
 // Extrair valor numérico da coluna valor
@@ -3638,174 +3701,135 @@ document.addEventListener('DOMContentLoaded', configurarBotaoComprovanteSimples)
 // ================================================================
 // REDIMENSIONAMENTO DE COLUNAS
 // ================================================================
+// REDIMENSIONAMENTO DE COLUNAS - VERSÃO SIMPLIFICADA
+// ================================================================
 
 (function() {
     let isResizing = false;
-    let currentResizer = null;
+    let currentColumn = null;
     let startX = 0;
     let startWidth = 0;
-    let currentColumnIndex = 0;
-
-    const STORAGE_KEY = 'despesas-column-widths';
 
     function initColumnResizer() {
         const header = document.getElementById('despesas-grid-header');
-        if (!header) return;
+        if (!header || header.dataset.resizerInit === 'true') return;
+        header.dataset.resizerInit = 'true';
 
-        loadColumnWidths();
+        // Remove listeners antigos se existirem
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
 
-        const resizers = header.querySelectorAll('.column-resizer');
-        resizers.forEach((resizer) => {
-            resizer.addEventListener('mousedown', startResize.bind(null, resizer));
+        // Adiciona listeners globais
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+
+        // Adiciona listener em cada resizer
+        header.querySelectorAll('.column-resizer').forEach(resizer => {
+            resizer.onmousedown = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                isResizing = true;
+                currentColumn = resizer.parentElement;
+                startX = e.pageX;
+                startWidth = currentColumn.offsetWidth;
+
+                resizer.classList.add('resizing');
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+            };
         });
-
-        document.addEventListener('mousemove', resize);
-        document.addEventListener('mouseup', stopResize);
     }
 
-    function startResize(resizer, e) {
-        e.preventDefault();
-        isResizing = true;
-        currentResizer = resizer;
-        startX = e.clientX;
+    function handleMouseMove(e) {
+        if (!isResizing || !currentColumn) return;
 
-        // Pega a coluna pai do resizer (como no Excel)
-        const column = resizer.parentElement;
+        const diff = e.pageX - startX;
+        const newWidth = Math.max(30, startWidth + diff);
+
+        // Aplica largura diretamente na coluna do header
+        currentColumn.style.width = newWidth + 'px';
+        currentColumn.style.minWidth = newWidth + 'px';
+        currentColumn.style.maxWidth = newWidth + 'px';
+        currentColumn.style.flex = '0 0 ' + newWidth + 'px';
+        currentColumn.style.overflow = 'hidden';
+
+        // Sincroniza com as linhas
         const header = document.getElementById('despesas-grid-header');
-        const columns = Array.from(header.children);
-        currentColumnIndex = columns.indexOf(column);
-        startWidth = column.offsetWidth;
+        const columnIndex = Array.from(header.children).indexOf(currentColumn);
 
-        resizer.classList.add('resizing');
-        document.body.style.cursor = 'col-resize';
-        document.body.style.userSelect = 'none';
+        const rows = document.querySelectorAll('#despesas-grid-container .grid-row');
+        rows.forEach(row => {
+            const cell = row.children[columnIndex];
+            if (cell) {
+                cell.style.width = newWidth + 'px';
+                cell.style.minWidth = newWidth + 'px';
+                cell.style.maxWidth = newWidth + 'px';
+                cell.style.flex = '0 0 ' + newWidth + 'px';
+                cell.style.overflow = 'hidden';
+            }
+        });
     }
 
-    function resize(e) {
-        if (!isResizing) return;
-
-        const diff = e.clientX - startX;
-        const newWidth = Math.max(40, startWidth + diff);
-
-        updateGridTemplateColumns(currentColumnIndex, newWidth);
-    }
-
-    function stopResize() {
+    function handleMouseUp() {
         if (!isResizing) return;
 
         isResizing = false;
-        if (currentResizer) {
-            currentResizer.classList.remove('resizing');
+        if (currentColumn) {
+            const resizer = currentColumn.querySelector('.column-resizer');
+            if (resizer) resizer.classList.remove('resizing');
         }
-        currentResizer = null;
+        currentColumn = null;
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
-
-        saveColumnWidths();
     }
 
-    function updateGridTemplateColumns(columnIndex = null, newWidth = null) {
+    // Função para resetar larguras
+    window.resetDespesasColumnWidths = function() {
         const header = document.getElementById('despesas-grid-header');
-        if (!header) return;
-
-        const columns = Array.from(header.children);
-
-        // Se está redimensionando, atualiza a largura específica
-        if (columnIndex !== null && newWidth !== null) {
-            if (!header.dataset.columnWidths) {
-                // Inicializa com larguras computadas atuais
-                const currentWidths = columns.map(col => getComputedStyle(col).width);
-                header.dataset.columnWidths = JSON.stringify(currentWidths);
-            }
-
-            const widths = JSON.parse(header.dataset.columnWidths);
-            widths[columnIndex] = newWidth + 'px';
-            header.dataset.columnWidths = JSON.stringify(widths);
+        if (header) {
+            Array.from(header.children).forEach(col => {
+                col.style.width = '';
+                col.style.minWidth = '';
+                col.style.maxWidth = '';
+                col.style.flex = '';
+                col.style.overflow = '';
+            });
         }
-
-        // Obtém larguras armazenadas ou computadas
-        let widths;
-        if (header.dataset.columnWidths) {
-            widths = JSON.parse(header.dataset.columnWidths);
-        } else {
-            widths = columns.map(col => getComputedStyle(col).width);
-        }
-
-        const gridTemplate = widths.join(' ');
-
-        // Aplica ao header
-        header.style.gridTemplateColumns = gridTemplate;
-
-        // Aplica a todas as linhas
-        const gridContainer = header.parentElement;
-        const rows = gridContainer.querySelectorAll('.grid-row');
+        const rows = document.querySelectorAll('#despesas-grid-container .grid-row');
         rows.forEach(row => {
-            row.style.gridTemplateColumns = gridTemplate;
+            Array.from(row.children).forEach(cell => {
+                cell.style.width = '';
+                cell.style.minWidth = '';
+                cell.style.maxWidth = '';
+                cell.style.flex = '';
+                cell.style.overflow = '';
+            });
         });
-    }
-
-    function saveColumnWidths() {
-        const header = document.getElementById('despesas-grid-header');
-        if (!header) return;
-
-        if (!header.dataset.columnWidths) return;
-
-        try {
-            localStorage.setItem(STORAGE_KEY, header.dataset.columnWidths);
-        } catch (error) {
-            console.error('Erro ao salvar larguras:', error);
-        }
-    }
-
-    function loadColumnWidths() {
-        try {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (!saved) return;
-
-            const header = document.getElementById('despesas-grid-header');
-            if (!header) return;
-
-            header.dataset.columnWidths = saved;
-            updateGridTemplateColumns();
-        } catch (error) {
-            console.error('Erro ao carregar larguras:', error);
-        }
-    }
-
-    window.resetColumnWidths = function() {
-        localStorage.removeItem(STORAGE_KEY);
-        location.reload();
     };
 
-    // ✅ NOVO: Função para reinicializar resizer (chamada ao abrir modal)
     window.reinitDespesasResizer = function() {
         const header = document.getElementById('despesas-grid-header');
         if (header) {
-            header.dataset.resizerInitialized = '';  // Reset flag
+            header.dataset.resizerInit = '';
             initColumnResizer();
         }
     };
 
+    // Inicializa
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initColumnResizer);
     } else {
-        initColumnResizer();
+        setTimeout(initColumnResizer, 100);
     }
 
-    const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-            if (mutation.addedNodes.length) {
-                const header = document.getElementById('despesas-grid-header');
-                if (header && !header.dataset.resizerInitialized) {
-                    header.dataset.resizerInitialized = 'true';
-                    initColumnResizer();
-                }
-            }
-        });
+    // Observer para reinicializar quando necessário
+    const observer = new MutationObserver(() => {
+        const header = document.getElementById('despesas-grid-header');
+        if (header && header.dataset.resizerInit !== 'true') {
+            initColumnResizer();
+        }
     });
 
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
+    observer.observe(document.body, { childList: true, subtree: true });
 })();

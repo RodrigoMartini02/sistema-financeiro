@@ -274,41 +274,32 @@
 /* ================================================================ */
 .tipo-badge,
 .status-badge {
-    display: inline-block;
-    padding: 4px 12px;
-    font-size: 12px;
+    font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
 }
 
 .tipo-badge.tipo-master {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    color: #fff;
+    color: #f5576c;
 }
 
 .tipo-badge.tipo-admin {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: #fff;
+    color: #667eea;
 }
 
 .tipo-badge.tipo-padrao {
-    background: #e9ecef;
     color: var(--gray-500);
 }
 
 .status-badge.status-ativo {
-    background: #d4edda;
     color: #155724;
 }
 
 .status-badge.status-inativo {
-    background: #fff3cd;
     color: #856404;
 }
 
 .status-badge.status-bloqueado {
-    background: #f8d7da;
     color: #721c24;
 }
 
@@ -854,7 +845,6 @@
 /* Tabela de Logs */
 .lista-logs-container {
     background: white;
-    overflow: hidden;
     box-shadow: var(--shadow-sm);
     max-height: 500px;
     overflow-y: auto;
@@ -866,10 +856,14 @@
 }
 
 .tabela-logs thead {
-    background: #667eea;
+    background: #667eea !important;
     position: sticky;
     top: 0;
     z-index: 10;
+}
+
+.tabela-logs thead tr {
+    background: #667eea !important;
 }
 
 .tabela-logs thead th {
@@ -877,7 +871,8 @@
     text-align: left;
     font-size: 10px;
     font-weight: 600;
-    color: #fff;
+    color: #fff !important;
+    background: #667eea !important;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     border-right: 1px solid rgba(255,255,255,0.2);
@@ -907,34 +902,27 @@
     border-right: none;
 }
 
-/* Badges de Módulo e Ação */
+/* Badges de Módulo e Ação - Texto simples sem fundo */
 .badge-modulo,
 .badge-acao {
-    display: inline-block;
-    padding: 4px 10px;
-    font-size: 12px;
+    font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.3px;
 }
 
 .badge-modulo {
-    background: #e3f2fd;
     color: #1565c0;
 }
 
 .acao-criado {
-    background: #d4edda;
     color: #155724;
 }
 
 .acao-editado {
-    background: #fff3cd;
     color: #856404;
 }
 
 .acao-excluído {
-    background: #f8d7da;
     color: #721c24;
 }
 
