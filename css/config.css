@@ -230,18 +230,23 @@
 }
 
 .tabela-usuarios thead {
-    background: var(--gray-100);
+    background: #667eea;
 }
 
 .tabela-usuarios th {
-    padding: 12px 16px;
+    padding: 6px 8px;
     text-align: left;
     font-weight: 600;
-    font-size: 13px;
-    color: var(--config-dark);
-    border-bottom: 2px solid var(--gray-300);
+    font-size: 10px;
+    color: #fff;
+    border-bottom: none;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    border-right: 1px solid rgba(255,255,255,0.2);
+}
+
+.tabela-usuarios th:last-child {
+    border-right: none;
 }
 
 .tabela-usuarios tbody tr {
@@ -254,9 +259,14 @@
 }
 
 .tabela-usuarios td {
-    padding: 12px 16px;
-    font-size: 14px;
-    color: var(--config-dark);
+    padding: 4px 8px;
+    font-size: 10px;
+    color: #495057;
+    border-right: 1px solid #e9ecef;
+}
+
+.tabela-usuarios td:last-child {
+    border-right: none;
 }
 
 /* ================================================================ */
@@ -355,18 +365,23 @@
 }
 
 .tabela-categorias thead {
-    background: var(--gray-100);
+    background: #667eea;
 }
 
 .tabela-categorias th {
-    padding: 14px 16px;
+    padding: 6px 8px;
     text-align: left;
     font-weight: 600;
-    font-size: 13px;
-    color: var(--config-dark);
-    border-bottom: 2px solid var(--gray-300);
+    font-size: 10px;
+    color: #fff;
+    border-bottom: none;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    border-right: 1px solid rgba(255,255,255,0.2);
+}
+
+.tabela-categorias th:last-child {
+    border-right: none;
 }
 
 /* ID - menor */
@@ -418,10 +433,15 @@
 }
 
 .tabela-categorias td {
-    padding: 14px 16px;
-    font-size: 14px;
-    color: var(--config-dark);
+    padding: 4px 8px;
+    font-size: 10px;
+    color: #495057;
     vertical-align: middle;
+    border-right: 1px solid #e9ecef;
+}
+
+.tabela-categorias td:last-child {
+    border-right: none;
 }
 
 .categoria-nome {
@@ -1110,7 +1130,7 @@
 }
 
 .tabela-cartoes th {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #667eea;
     color: #fff;
     padding: 6px 8px;
     text-align: left;
@@ -1118,6 +1138,11 @@
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    border-right: 1px solid rgba(255,255,255,0.2);
+}
+
+.tabela-cartoes th:last-child {
+    border-right: none;
 }
 
 .tabela-cartoes th:nth-child(1) { width: 60px; }
@@ -1140,6 +1165,11 @@
     font-size: 10px;
     color: #495057;
     vertical-align: middle;
+    border-right: 1px solid #e9ecef;
+}
+
+.tabela-cartoes td:last-child {
+    border-right: none;
 }
 
 .tabela-cartoes .cartao-id {
