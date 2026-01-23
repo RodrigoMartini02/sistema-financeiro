@@ -2679,9 +2679,19 @@ function formatarMoeda(valor) {
 }
 
 function formatarData(dataString) {
+    if (!dataString) return '';
     try {
-        const data = new Date(dataString);
-        return data.toLocaleDateString('pt-BR');
+        // Adiciona T00:00:00 para evitar problema de timezone
+        const data = typeof dataString === 'string' && !dataString.includes('T')
+            ? new Date(dataString + 'T00:00:00')
+            : new Date(dataString);
+
+        if (isNaN(data.getTime())) return 'Data inválida';
+
+        const dia = String(data.getDate()).padStart(2, '0');
+        const mes = String(data.getMonth() + 1).padStart(2, '0');
+        const ano = data.getFullYear();
+        return `${dia}/${mes}/${ano}`;
     } catch (error) {
         return 'Data inválida';
     }
