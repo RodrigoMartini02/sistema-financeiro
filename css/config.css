@@ -866,35 +866,45 @@
 }
 
 .tabela-logs thead {
-    background: var(--primary-color);
-    color: white;
+    background: #667eea;
     position: sticky;
     top: 0;
     z-index: 10;
 }
 
 .tabela-logs thead th {
-    padding: 12px 15px;
+    padding: 6px 8px;
     text-align: left;
-    font-size: 13px;
+    font-size: 10px;
     font-weight: 600;
+    color: #fff;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    border-right: 1px solid rgba(255,255,255,0.2);
+}
+
+.tabela-logs thead th:last-child {
+    border-right: none;
 }
 
 .tabela-logs tbody tr {
-    border-bottom: 1px solid var(--gray-300);
+    border-bottom: 1px solid #e9ecef;
     transition: background 0.2s ease;
 }
 
 .tabela-logs tbody tr:hover {
-    background: var(--gray-100);
+    background: #f8f9fa;
 }
 
 .tabela-logs tbody td {
-    padding: 12px 15px;
-    font-size: 14px;
-    color: var(--config-dark);
+    padding: 4px 8px;
+    font-size: 10px;
+    color: #495057;
+    border-right: 1px solid #e9ecef;
+}
+
+.tabela-logs tbody td:last-child {
+    border-right: none;
 }
 
 /* Badges de Módulo e Ação */
@@ -1173,10 +1183,9 @@
 }
 
 .tabela-cartoes .cartao-id {
-    font-family: monospace;
     font-size: 10px;
-    color: #6366f1;
-    font-weight: 600;
+    color: #495057;
+    font-weight: 500;
 }
 
 .tabela-cartoes .cartao-banco {
@@ -1184,12 +1193,10 @@
 }
 
 .tabela-cartoes .cartao-validade {
-    font-family: monospace;
     font-size: 10px;
 }
 
 .tabela-cartoes .cartao-limite {
-    font-family: monospace;
     font-weight: 600;
     color: #28a745;
 }

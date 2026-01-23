@@ -24,22 +24,20 @@
 }
 
 /* ================================================================
-   BADGES DE STATUS
+   BADGES DE STATUS - Texto simples sem fundo
    ================================================================ */
 
 .badge-status {
-    padding: 2px 6px;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
     white-space: nowrap;
-    display: inline-block;
 }
 
-.badge-em-dia { background: #d4edda; color: #155724; }
-.badge-atrasada { background: #f8d7da; color: #721c24; }
-.badge-quitada { background: #e9ecef; color: #6c757d; }
-.badge-pendente { background: #fff3cd; color: #856404; }
+.badge-em-dia { color: #155724; }
+.badge-atrasada { color: #721c24; }
+.badge-quitada { color: #6c757d; }
+.badge-pendente { color: #856404; }
 
 /* ================================================================
    VALOR COM JUROS

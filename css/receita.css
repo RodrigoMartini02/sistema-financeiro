@@ -202,7 +202,6 @@
 .receita-valor {
     color: #16a34a;
     font-weight: 600;
-    font-family: monospace;
 }
 
 /* Saldo anterior */
@@ -349,7 +348,6 @@
     display: flex;
     align-items: center;
     gap: 3px;
-    font-family: monospace;
     font-size: 9px;
 }
 
@@ -382,7 +380,6 @@
 }
 
 .disponivel-texto {
-    font-family: monospace;
     color: #9ca3af;
 }
 
