@@ -63,7 +63,7 @@ router.get('/', authMiddleware, async (req, res) => {
     }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', authMiddleware, async (req, res) => {
     try {
         const cartaoId = parseInt(req.params.id);
         
@@ -80,7 +80,7 @@ router.get('/:id', async (req, res) => {
             WHERE id = $1 AND usuario_id = $2
         `;
         
-        const result = await query(queryText, [cartaoId, req.usuario_id]);
+        const result = await query(queryText, [cartaoId, req.usuario.id]);
         
         if (result.rows.length === 0) {
             return res.status(404).json({
@@ -105,7 +105,7 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-router.put('/', async (req, res) => {
+router.put('/', authMiddleware, async (req, res) => {
     try {
         const { cartoes } = req.body;
         
@@ -173,7 +173,7 @@ router.put('/', async (req, res) => {
         await query('BEGIN');
         
         try {
-            await query('DELETE FROM cartoes WHERE usuario_id = $1', [req.usuario_id]);
+            await query('DELETE FROM cartoes WHERE usuario_id = $1', [req.usuario.id]);
             
             const cartoesInseridos = [];
             
@@ -187,7 +187,7 @@ router.put('/', async (req, res) => {
                 `;
 
                 const values = [
-                    req.usuario_id,
+                    req.usuario.id,
                     cartao.nome.trim(),
                     parseFloat(cartao.limite),
                     parseInt(cartao.dia_fechamento),
@@ -224,7 +224,7 @@ router.put('/', async (req, res) => {
     }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
     try {
         const { nome, limite, dia_fechamento, dia_vencimento, cor } = req.body;
         
@@ -258,7 +258,7 @@ router.post('/', async (req, res) => {
         
         const contarCartoes = await query(
             'SELECT COUNT(*) as total FROM cartoes WHERE usuario_id = $1',
-            [req.usuario_id]
+            [req.usuario.id]
         );
         
         if (parseInt(contarCartoes.rows[0].total) >= 3) {
@@ -273,7 +273,7 @@ router.post('/', async (req, res) => {
             WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2)
         `;
         
-        const existente = await query(verificarExistente, [req.usuario_id, nome.trim()]);
+        const existente = await query(verificarExistente, [req.usuario.id, nome.trim()]);
         
         if (existente.rows.length > 0) {
             return res.status(400).json({
@@ -292,7 +292,7 @@ router.post('/', async (req, res) => {
         `;
 
         const values = [
-            req.usuario_id,
+            req.usuario.id,
             nome.trim(),
             parseFloat(limite),
             parseInt(dia_fechamento) || 1,
@@ -320,7 +320,7 @@ router.post('/', async (req, res) => {
     }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', authMiddleware, async (req, res) => {
     try {
         const cartaoId = parseInt(req.params.id);
         const { nome, limite, dia_fechamento, dia_vencimento, cor, ativo } = req.body;
@@ -358,7 +358,7 @@ router.put('/:id', async (req, res) => {
             WHERE id = $1 AND usuario_id = $2
         `;
         
-        const existeCartao = await query(verificarExistencia, [cartaoId, req.usuario_id]);
+        const existeCartao = await query(verificarExistencia, [cartaoId, req.usuario.id]);
         
         if (existeCartao.rows.length === 0) {
             return res.status(404).json({
@@ -372,7 +372,7 @@ router.put('/:id', async (req, res) => {
             WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2) AND id != $3
         `;
         
-        const nomeDuplicado = await query(verificarNomeDuplicado, [req.usuario_id, nome.trim(), cartaoId]);
+        const nomeDuplicado = await query(verificarNomeDuplicado, [req.usuario.id, nome.trim(), cartaoId]);
         
         if (nomeDuplicado.rows.length > 0) {
             return res.status(400).json({
@@ -396,7 +396,7 @@ router.put('/:id', async (req, res) => {
             cor || '#3498db',
             ativo !== undefined ? ativo : true,
             cartaoId,
-            req.usuario_id
+            req.usuario.id
         ];
         
         const result = await query(queryText, values);
@@ -417,7 +417,7 @@ router.put('/:id', async (req, res) => {
     }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authMiddleware, async (req, res) => {
     try {
         const cartaoId = parseInt(req.params.id);
         
@@ -433,7 +433,7 @@ router.delete('/:id', async (req, res) => {
             WHERE id = $1 AND usuario_id = $2
         `;
         
-        const existeCartao = await query(verificarExistencia, [cartaoId, req.usuario_id]);
+        const existeCartao = await query(verificarExistencia, [cartaoId, req.usuario.id]);
         
         if (existeCartao.rows.length === 0) {
             return res.status(404).json({
@@ -447,7 +447,7 @@ router.delete('/:id', async (req, res) => {
             WHERE cartao_id = $1 AND usuario_id = $2
         `;
         
-        const usoCartao = await query(verificarUso, [cartaoId, req.usuario_id]);
+        const usoCartao = await query(verificarUso, [cartaoId, req.usuario.id]);
         const totalUsos = parseInt(usoCartao.rows[0].total);
         
         if (totalUsos > 0) {
@@ -462,7 +462,7 @@ router.delete('/:id', async (req, res) => {
             WHERE id = $1 AND usuario_id = $2
         `;
         
-        await query(queryText, [cartaoId, req.usuario_id]);
+        await query(queryText, [cartaoId, req.usuario.id]);
         
         res.json({
             success: true,
@@ -479,7 +479,7 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
-router.get('/estatisticas/uso', async (req, res) => {
+router.get('/estatisticas/uso', authMiddleware, async (req, res) => {
     try {
         const queryText = `
             SELECT 
@@ -501,7 +501,7 @@ router.get('/estatisticas/uso', async (req, res) => {
             ORDER BY percentual_uso DESC, c.nome ASC
         `;
         
-        const result = await query(queryText, [req.usuario_id]);
+        const result = await query(queryText, [req.usuario.id]);
         
         res.json({
             success: true,
@@ -519,7 +519,7 @@ router.get('/estatisticas/uso', async (req, res) => {
     }
 });
 
-router.put('/:id/ativar', async (req, res) => {
+router.put('/:id/ativar', authMiddleware, async (req, res) => {
     try {
         const cartaoId = parseInt(req.params.id);
         
@@ -537,7 +537,7 @@ router.put('/:id/ativar', async (req, res) => {
             RETURNING id, nome, ativo
         `;
         
-        const result = await query(queryText, [cartaoId, req.usuario_id]);
+        const result = await query(queryText, [cartaoId, req.usuario.id]);
         
         if (result.rows.length === 0) {
             return res.status(404).json({
@@ -562,7 +562,7 @@ router.put('/:id/ativar', async (req, res) => {
     }
 });
 
-router.put('/:id/desativar', async (req, res) => {
+router.put('/:id/desativar', authMiddleware, async (req, res) => {
     try {
         const cartaoId = parseInt(req.params.id);
         
@@ -580,7 +580,7 @@ router.put('/:id/desativar', async (req, res) => {
             RETURNING id, nome, ativo
         `;
         
-        const result = await query(queryText, [cartaoId, req.usuario_id]);
+        const result = await query(queryText, [cartaoId, req.usuario.id]);
         
         if (result.rows.length === 0) {
             return res.status(404).json({
