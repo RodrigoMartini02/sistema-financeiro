@@ -3696,6 +3696,16 @@ window.configurarEventosFormularioAnexosDespesa = configurarEventosFormularioAne
 window.inicializarSistemaAnexosDespesas = inicializarSistemaAnexosDespesas;
 window.toggleCamposPagamentoImediato = toggleCamposPagamentoImediato;
 
+// Função para selecionar/deselecionar todas as despesas (chamada pelo HTML)
+function toggleTodasDespesas(checkbox) {
+    const todasCheckboxes = document.querySelectorAll('.despesa-checkbox');
+    todasCheckboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    atualizarBotaoLote();
+}
+window.toggleTodasDespesas = toggleTodasDespesas;
+
 document.addEventListener('DOMContentLoaded', configurarBotaoComprovanteSimples);
 
 // ================================================================

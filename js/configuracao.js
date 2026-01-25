@@ -855,9 +855,8 @@ async function adicionarCartao() {
         return;
     }
 
-    // Criar novo cartão com campos corretos para a API
+    // Dados do novo cartão para a API
     const novoCartao = {
-        id: proximoIdCartao++,
         banco: banco,
         nome: banco,
         dia_fechamento: diaFechamento,
@@ -866,12 +865,27 @@ async function adicionarCartao() {
         ativo: true
     };
 
-    cartoesUsuario.push(novoCartao);
+    mostrarStatusCartoes('Salvando cartão...', 'info');
 
-    // Salvar na API
-    const sucesso = await salvarCartoes();
+    // Criar cartão via API POST
+    const cartaoCriado = await criarCartaoAPI(novoCartao);
 
-    if (sucesso) {
+    if (cartaoCriado) {
+        // Adicionar o cartão com o ID real do banco de dados
+        const cartaoComId = {
+            id: cartaoCriado.id,
+            banco: banco,
+            nome: banco,
+            dia_fechamento: diaFechamento,
+            dia_vencimento: diaVencimento,
+            limite: limite,
+            ativo: true,
+            numero_cartao: cartaoCriado.numero_cartao || cartoesUsuario.length + 1
+        };
+
+        cartoesUsuario.push(cartaoComId);
+        window.cartoesUsuario = cartoesUsuario;
+
         mostrarStatusCartoes('Cartão adicionado com sucesso!', 'success');
         inputBanco.value = '';
         inputFechamento.value = '';
@@ -881,8 +895,6 @@ async function adicionarCartao() {
         atualizarOpcoesCartoes();
     } else {
         mostrarStatusCartoes('Erro ao salvar o cartão. Tente novamente.', 'error');
-        cartoesUsuario.pop();
-        proximoIdCartao--;
     }
 }
 
@@ -938,8 +950,7 @@ async function salvarEdicaoCartao(e) {
     const index = cartoesUsuario.findIndex(c => c.id === id);
     if (index === -1) return;
 
-    cartoesUsuario[index] = {
-        id,
+    const cartaoAtualizado = {
         banco,
         nome: banco,
         dia_fechamento: diaFechamento,
@@ -948,9 +959,20 @@ async function salvarEdicaoCartao(e) {
         ativo
     };
 
-    const sucesso = await salvarCartoes();
+    mostrarStatusCartoes('Atualizando cartão...', 'info');
+
+    // Atualizar cartão via API PUT
+    const sucesso = await atualizarCartaoAPI(id, cartaoAtualizado);
 
     if (sucesso) {
+        // Atualizar no array local
+        cartoesUsuario[index] = {
+            ...cartoesUsuario[index],
+            ...cartaoAtualizado,
+            id
+        };
+        window.cartoesUsuario = cartoesUsuario;
+
         mostrarStatusCartoes('Cartão atualizado com sucesso!', 'success');
         fecharModalCartao('modal-editar-cartao');
         renderizarListaCartoes();
@@ -969,19 +991,24 @@ async function excluirCartao(id) {
 
     if (!confirm(`Deseja realmente excluir o cartão "${cartao.banco}"?`)) return;
 
-    const index = cartoesUsuario.findIndex(c => c.id === id);
-    const removido = cartoesUsuario.splice(index, 1)[0];
+    mostrarStatusCartoes('Excluindo cartão...', 'info');
 
-    const sucesso = await salvarCartoes();
+    // Excluir cartão via API DELETE
+    const sucesso = await excluirCartaoAPI(id);
 
     if (sucesso) {
+        // Remover do array local
+        const index = cartoesUsuario.findIndex(c => c.id === id);
+        if (index !== -1) {
+            cartoesUsuario.splice(index, 1);
+            window.cartoesUsuario = cartoesUsuario;
+        }
+
         mostrarStatusCartoes('Cartão excluído com sucesso!', 'success');
         renderizarListaCartoes();
         atualizarOpcoesCartoes();
     } else {
         mostrarStatusCartoes('Erro ao excluir o cartão', 'error');
-        cartoesUsuario.splice(index, 0, removido);
-        renderizarListaCartoes();
     }
 }
 
