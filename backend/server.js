@@ -35,26 +35,9 @@ setTimeout(() => {
     setInterval(selfPing, PING_INTERVAL);
 }, 60000);
 
-// CORS configurado com origens permitidas
-const allowedOrigins = [
-    process.env.FRONTEND_URL,
-    'http://localhost:5500',
-    'http://127.0.0.1:5500',
-    'http://localhost:3000'
-].filter(Boolean);
-
+// CORS - permitir todas as origens por enquanto (ajustar em produção se necessário)
 app.use(cors({
-    origin: function(origin, callback) {
-        // Permitir requisições sem origin (mobile apps, Postman, etc) em dev
-        if (!origin && process.env.NODE_ENV === 'development') {
-            return callback(null, true);
-        }
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error('Bloqueado pelo CORS'));
-        }
-    },
+    origin: true,
     credentials: true
 }));
 
