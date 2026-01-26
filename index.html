@@ -240,6 +240,28 @@
         <div class="dashboard-card dashboard-card-full">
             <h3 class="header-com-zoom">
                 <span>BALANÇO</span>
+                <div class="filtros-header">
+                    <select class="form-control" id="balanco-periodo-filter" onchange="filtrarBalancoPeriodo()">
+                        <option value="ano">Ano</option>
+                        <option value="mes">Mês</option>
+                        <option value="semana">Semana</option>
+                        <option value="dia">Dia</option>
+                    </select>
+                    <select class="form-control" id="balanco-mes-filter" onchange="filtrarBalancoPeriodo()" style="display: none;">
+                        <option value="0">Janeiro</option>
+                        <option value="1">Fevereiro</option>
+                        <option value="2">Março</option>
+                        <option value="3">Abril</option>
+                        <option value="4">Maio</option>
+                        <option value="5">Junho</option>
+                        <option value="6">Julho</option>
+                        <option value="7">Agosto</option>
+                        <option value="8">Setembro</option>
+                        <option value="9">Outubro</option>
+                        <option value="10">Novembro</option>
+                        <option value="11">Dezembro</option>
+                    </select>
+                </div>
                 <button class="btn btn-icon btn-outline" data-chart="balancoChart">[ ]</button>
             </h3>
             <div class="chart-container">
@@ -2086,7 +2108,7 @@
 <div id="modal-reservar-valor" class="modal">
     <div class="modal-content modal-reservas">
         <div class="modal-header">
-            <h2><i class="fas fa-piggy-bank"></i> Gerenciar Reservas</h2>
+            <h2><i class="fas fa-piggy-bank"></i> Reservas</h2>
             <button type="button" class="close" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
@@ -2097,62 +2119,32 @@
                     <span class="totalizador-valor" id="total-reservado">R$ 0,00</span>
                 </div>
                 <div class="totalizador-item disponivel">
-                    <span class="totalizador-label">Saldo Atual</span>
+                    <span class="totalizador-label">Saldo Disponível</span>
                     <span class="totalizador-valor" id="disponivel-reservar">R$ 0,00</span>
                 </div>
             </div>
 
-            <!-- Formulário Nova Reserva -->
-            <div class="nova-reserva-form">
-                <h4><i class="fas fa-plus"></i> Nova Reserva</h4>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="input-descricao-reserva">Nome</label>
-                        <input type="text" id="input-descricao-reserva" class="form-control" placeholder="Ex: Viagem, Emergência..." maxlength="50">
-                    </div>
-                    <div class="form-group form-group-valor">
-                        <label for="input-valor-reserva">Valor Inicial</label>
-                        <input type="number" id="input-valor-reserva" class="form-control" placeholder="0,00" step="0.01" min="0.01">
-                    </div>
-                    <button type="button" id="btn-adicionar-reserva" class="btn btn-success btn-add-reserva">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                </div>
+            <!-- Lista de Reservas com campo inline -->
+            <div class="reservas-lista-simples" id="lista-reservas">
+                <!-- Reservas serão inseridas aqui -->
             </div>
 
-            <!-- Lista de Reservas -->
-            <div class="reservas-lista-container">
-                <h4><i class="fas fa-list"></i> Reservas Ativas</h4>
-                <div class="reservas-lista" id="lista-reservas">
-                    <div class="reserva-vazia">Nenhuma reserva cadastrada</div>
+            <!-- Nova Reserva -->
+            <div class="nova-reserva-inline">
+                <input type="text" id="input-descricao-reserva" class="form-control" placeholder="Nome da reserva" maxlength="50">
+                <input type="number" id="input-valor-reserva" class="form-control" placeholder="Valor" step="0.01" min="0.01">
+                <button type="button" id="btn-adicionar-reserva" class="btn btn-success" title="Criar reserva">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+
+            <!-- Histórico Geral -->
+            <div class="historico-geral-container">
+                <h4><i class="fas fa-history"></i> Histórico</h4>
+                <div class="historico-geral-lista" id="historico-geral-reservas">
+                    <div class="historico-vazio">Nenhuma movimentação</div>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal Movimentar Reserva -->
-<div id="modal-movimentar-reserva" class="modal">
-    <div class="modal-content modal-sm">
-        <div class="modal-header">
-            <h2 id="titulo-movimentar-reserva"><i class="fas fa-plus"></i> Adicionar Valor</h2>
-            <button type="button" class="close" title="Fechar">&times;</button>
-        </div>
-        <div class="modal-body">
-            <input type="hidden" id="movimentar-reserva-id">
-            <input type="hidden" id="movimentar-tipo">
-            <div class="form-group">
-                <label for="movimentar-valor">Valor</label>
-                <input type="number" id="movimentar-valor" class="form-control" placeholder="0,00" step="0.01" min="0.01">
-            </div>
-            <div class="form-group">
-                <label for="movimentar-obs">Observação (opcional)</label>
-                <input type="text" id="movimentar-obs" class="form-control" placeholder="Ex: Depósito mensal..." maxlength="100">
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary close">Cancelar</button>
-            <button type="button" id="btn-confirmar-movimentacao" class="btn btn-primary">Confirmar</button>
         </div>
     </div>
 </div>

@@ -1317,7 +1317,7 @@ async function abrirModalReservarValor() {
 }
 
 /**
- * Renderiza lista de reservas no modal com histórico
+ * Renderiza lista de reservas simplificada
  */
 async function renderizarListaReservasModal() {
     const lista = document.getElementById('lista-reservas');
@@ -1327,94 +1327,147 @@ async function renderizarListaReservasModal() {
 
     if (window.reservasCache.length === 0) {
         lista.innerHTML = '<div class="reserva-vazia">Nenhuma reserva cadastrada</div>';
+        await renderizarHistoricoGeral();
         return;
     }
 
-    // Ordenar por data (mais recentes primeiro)
-    const reservasOrdenadas = [...window.reservasCache].sort((a, b) => new Date(b.data) - new Date(a.data));
+    // Ordenar por nome
+    const reservasOrdenadas = [...window.reservasCache].sort((a, b) =>
+        (a.observacoes || '').localeCompare(b.observacoes || '')
+    );
 
-    for (const reserva of reservasOrdenadas) {
+    reservasOrdenadas.forEach(reserva => {
         const item = document.createElement('div');
-        item.className = 'reserva-item-card';
-        item.dataset.id = reserva.id;
-
-        // Carregar movimentações
-        const movimentacoes = await carregarMovimentacoesReserva(reserva.id);
-
+        item.className = 'reserva-linha';
         item.innerHTML = `
-            <div class="reserva-header">
-                <div class="reserva-info">
-                    <span class="reserva-nome">${reserva.observacoes || 'Reserva'}</span>
-                    <span class="reserva-saldo">${window.formatarMoeda(reserva.valor)}</span>
-                </div>
-                <div class="reserva-botoes">
-                    <button class="btn btn-sm btn-adicionar-valor" data-id="${reserva.id}" title="Adicionar valor">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                    <button class="btn btn-sm btn-retirar-valor" data-id="${reserva.id}" title="Retirar valor">
-                        <i class="fas fa-minus"></i>
-                    </button>
-                    <button class="btn btn-sm btn-excluir-reserva" data-id="${reserva.id}" title="Excluir reserva">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="reserva-historico">
-                <div class="historico-titulo">
-                    <i class="fas fa-history"></i> Histórico
-                </div>
-                <div class="historico-lista">
-                    ${renderizarMovimentacoes(movimentacoes)}
-                </div>
-            </div>
+            <span class="reserva-nome">${reserva.observacoes || 'Reserva'}</span>
+            <span class="reserva-saldo">${window.formatarMoeda(reserva.valor)}</span>
+            <input type="number" class="form-control reserva-input-valor" data-id="${reserva.id}" placeholder="+/- valor" step="0.01">
+            <button class="btn btn-sm btn-confirmar-mov" data-id="${reserva.id}" title="Confirmar">
+                <i class="fas fa-check"></i>
+            </button>
+            <button class="btn btn-sm btn-excluir-reserva" data-id="${reserva.id}" title="Excluir">
+                <i class="fas fa-trash"></i>
+            </button>
         `;
 
-        // Event listeners
-        item.querySelector('.btn-adicionar-valor').addEventListener('click', () => {
-            abrirModalMovimentar(reserva.id, 'entrada');
+        // Enter no input confirma
+        const input = item.querySelector('.reserva-input-valor');
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                movimentarReservaSimples(reserva.id, input.value);
+            }
         });
 
-        item.querySelector('.btn-retirar-valor').addEventListener('click', () => {
-            abrirModalMovimentar(reserva.id, 'saida');
+        // Botão confirmar
+        item.querySelector('.btn-confirmar-mov').addEventListener('click', () => {
+            movimentarReservaSimples(reserva.id, input.value);
         });
 
+        // Botão excluir
         item.querySelector('.btn-excluir-reserva').addEventListener('click', () => {
             excluirReserva(reserva.id);
         });
 
         lista.appendChild(item);
+    });
+
+    // Renderizar histórico geral
+    await renderizarHistoricoGeral();
+}
+
+/**
+ * Movimenta reserva com valor positivo ou negativo
+ */
+async function movimentarReservaSimples(reservaId, valorStr) {
+    const valor = parseFloat(valorStr);
+
+    if (isNaN(valor) || valor === 0) {
+        window.mostrarMensagemErro ? window.mostrarMensagemErro('Informe um valor válido') : alert('Informe um valor válido');
+        return;
+    }
+
+    const tipo = valor > 0 ? 'entrada' : 'saida';
+    const valorAbsoluto = Math.abs(valor);
+
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+    if (!token) {
+        alert('Sessão expirada.');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL_RESERVAS}/reservas/${reservaId}/movimentar`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ tipo, valor: valorAbsoluto })
+        });
+
+        if (response.ok) {
+            await carregarReservasAPI();
+            await atualizarModalReservas();
+            atualizarCardReservasIntegrado();
+
+            if (typeof window.carregarDadosDashboard === 'function') {
+                await window.carregarDadosDashboard(window.anoAberto);
+            }
+
+            const msg = tipo === 'entrada' ? 'Valor adicionado!' : 'Valor retirado!';
+            window.mostrarMensagemSucesso ? window.mostrarMensagemSucesso(msg) : null;
+        } else {
+            const error = await response.json();
+            window.mostrarMensagemErro ? window.mostrarMensagemErro(error.message || 'Erro') : alert(error.message);
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        window.mostrarMensagemErro ? window.mostrarMensagemErro('Erro ao processar') : alert('Erro');
     }
 }
 
 /**
- * Renderiza HTML das movimentações
+ * Renderiza histórico geral de todas as reservas
  */
-function renderizarMovimentacoes(movimentacoes) {
-    if (!movimentacoes || movimentacoes.length === 0) {
-        return '<div class="historico-vazio">Nenhuma movimentação</div>';
+async function renderizarHistoricoGeral() {
+    const container = document.getElementById('historico-geral-reservas');
+    if (!container) return;
+
+    // Buscar todas as movimentações de todas as reservas
+    const todasMovimentacoes = [];
+
+    for (const reserva of window.reservasCache) {
+        const movs = await carregarMovimentacoesReserva(reserva.id);
+        movs.forEach(mov => {
+            todasMovimentacoes.push({
+                ...mov,
+                nomeReserva: reserva.observacoes || 'Reserva'
+            });
+        });
     }
 
-    return movimentacoes.map(mov => {
+    // Ordenar por data (mais recentes primeiro)
+    todasMovimentacoes.sort((a, b) => new Date(b.data_hora) - new Date(a.data_hora));
+
+    if (todasMovimentacoes.length === 0) {
+        container.innerHTML = '<div class="historico-vazio">Nenhuma movimentação</div>';
+        return;
+    }
+
+    container.innerHTML = todasMovimentacoes.slice(0, 20).map(mov => {
         const dataHora = new Date(mov.data_hora);
         const dataFormatada = dataHora.toLocaleDateString('pt-BR');
         const horaFormatada = dataHora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
         const isEntrada = mov.tipo === 'entrada';
 
         return `
-            <div class="historico-item ${isEntrada ? 'entrada' : 'saida'}">
-                <div class="historico-info">
-                    <span class="historico-tipo">
-                        <i class="fas fa-${isEntrada ? 'arrow-up' : 'arrow-down'}"></i>
-                        ${isEntrada ? 'Entrada' : 'Saída'}
-                    </span>
-                    <span class="historico-obs">${mov.observacoes || '-'}</span>
-                </div>
-                <div class="historico-detalhes">
-                    <span class="historico-valor ${isEntrada ? 'positivo' : 'negativo'}">
-                        ${isEntrada ? '+' : '-'} ${window.formatarMoeda(mov.valor)}
-                    </span>
-                    <span class="historico-data">${dataFormatada} ${horaFormatada}</span>
-                </div>
+            <div class="historico-linha ${isEntrada ? 'entrada' : 'saida'}">
+                <span class="hist-nome">${mov.nomeReserva}</span>
+                <span class="hist-valor ${isEntrada ? 'positivo' : 'negativo'}">
+                    ${isEntrada ? '+' : '-'}${window.formatarMoeda(mov.valor)}
+                </span>
+                <span class="hist-data">${dataFormatada} ${horaFormatada}</span>
             </div>
         `;
     }).join('');
@@ -1440,90 +1493,6 @@ async function carregarMovimentacoesReserva(reservaId) {
     } catch (error) {
         console.error('Erro ao carregar movimentações:', error);
         return [];
-    }
-}
-
-/**
- * Abre modal para adicionar ou retirar valor
- */
-function abrirModalMovimentar(reservaId, tipo) {
-    const modal = document.getElementById('modal-movimentar-reserva');
-    const titulo = document.getElementById('titulo-movimentar-reserva');
-    const inputId = document.getElementById('movimentar-reserva-id');
-    const inputTipo = document.getElementById('movimentar-tipo');
-    const inputValor = document.getElementById('movimentar-valor');
-    const inputObs = document.getElementById('movimentar-obs');
-
-    if (!modal) return;
-
-    // Configurar modal
-    if (titulo) {
-        titulo.innerHTML = tipo === 'entrada'
-            ? '<i class="fas fa-plus"></i> Adicionar Valor'
-            : '<i class="fas fa-minus"></i> Retirar Valor';
-    }
-
-    if (inputId) inputId.value = reservaId;
-    if (inputTipo) inputTipo.value = tipo;
-    if (inputValor) inputValor.value = '';
-    if (inputObs) inputObs.value = '';
-
-    modal.style.display = 'flex';
-}
-
-/**
- * Processa movimentação de reserva
- */
-async function processarMovimentacao() {
-    const reservaId = document.getElementById('movimentar-reserva-id').value;
-    const tipo = document.getElementById('movimentar-tipo').value;
-    const valor = parseFloat(document.getElementById('movimentar-valor').value);
-    const observacoes = document.getElementById('movimentar-obs').value.trim();
-
-    if (isNaN(valor) || valor <= 0) {
-        window.mostrarMensagemErro ? window.mostrarMensagemErro('Informe um valor válido') : alert('Informe um valor válido');
-        return;
-    }
-
-    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-    if (!token) {
-        alert('Sessão expirada. Faça login novamente.');
-        return;
-    }
-
-    try {
-        const response = await fetch(`${API_URL_RESERVAS}/reservas/${reservaId}/movimentar`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ tipo, valor, observacoes })
-        });
-
-        if (response.ok) {
-            // Fechar modal
-            const modal = document.getElementById('modal-movimentar-reserva');
-            if (modal) modal.style.display = 'none';
-
-            // Recarregar dados
-            await carregarReservasAPI();
-            await atualizarModalReservas();
-            atualizarCardReservasIntegrado();
-
-            if (typeof window.carregarDadosDashboard === 'function') {
-                await window.carregarDadosDashboard(window.anoAberto);
-            }
-
-            const msg = tipo === 'entrada' ? 'Valor adicionado!' : 'Valor retirado!';
-            window.mostrarMensagemSucesso ? window.mostrarMensagemSucesso(msg) : null;
-        } else {
-            const error = await response.json();
-            window.mostrarMensagemErro ? window.mostrarMensagemErro(error.message || 'Erro na movimentação') : alert(error.message || 'Erro na movimentação');
-        }
-    } catch (error) {
-        console.error('Erro ao processar movimentação:', error);
-        window.mostrarMensagemErro ? window.mostrarMensagemErro('Erro ao processar movimentação') : alert('Erro ao processar movimentação');
     }
 }
 
@@ -1680,31 +1649,10 @@ function inicializarEventosReservasIntegradas() {
         btnReservar.addEventListener('click', abrirModalReservarValor);
     }
 
-    // Botão Adicionar no modal de nova reserva
+    // Botão Adicionar nova reserva
     const btnAdicionar = document.getElementById('btn-adicionar-reserva');
     if (btnAdicionar) {
         btnAdicionar.addEventListener('click', processarAdicionarReserva);
-    }
-
-    // Botão confirmar movimentação
-    const btnConfirmarMov = document.getElementById('btn-confirmar-movimentacao');
-    if (btnConfirmarMov) {
-        btnConfirmarMov.addEventListener('click', processarMovimentacao);
-    }
-
-    // Fechar modal de movimentação
-    const modalMov = document.getElementById('modal-movimentar-reserva');
-    if (modalMov) {
-        modalMov.querySelectorAll('.close').forEach(btn => {
-            btn.addEventListener('click', () => {
-                modalMov.style.display = 'none';
-            });
-        });
-        modalMov.addEventListener('click', (e) => {
-            if (e.target === modalMov) {
-                modalMov.style.display = 'none';
-            }
-        });
     }
 
     // Carregar reservas ao iniciar

@@ -315,10 +315,354 @@ function atualizarResumoDashboard(resumo) {
 }
 
 // ================================================================
-// GRÁFICO 1: BALANÇO MENSAL (SEM FILTROS)
+// GRÁFICO 1: BALANÇO COM FILTRO DE PERÍODO
 // ================================================================
 
+// Cache dos dados do gráfico de balanço
+window.dadosBalancoCache = null;
+
+function filtrarBalancoPeriodo() {
+    const periodo = document.getElementById('balanco-periodo-filter')?.value || 'ano';
+    const mesFilter = document.getElementById('balanco-mes-filter');
+
+    // Mostrar/esconder filtro de mês
+    if (mesFilter) {
+        mesFilter.style.display = (periodo === 'semana' || periodo === 'dia') ? 'inline-block' : 'none';
+        // Selecionar mês atual por padrão
+        if (mesFilter.style.display !== 'none' && !mesFilter.dataset.initialized) {
+            mesFilter.value = new Date().getMonth();
+            mesFilter.dataset.initialized = 'true';
+        }
+    }
+
+    if (!window.dadosBalancoCache) return;
+
+    const mes = parseInt(mesFilter?.value) || 0;
+
+    switch(periodo) {
+        case 'ano':
+            criarGraficoBalanco(window.dadosBalancoCache);
+            break;
+        case 'mes':
+            criarGraficoBalancoMensal(window.dadosBalancoCache);
+            break;
+        case 'semana':
+            criarGraficoBalancoSemanal(window.dadosBalancoCache, mes);
+            break;
+        case 'dia':
+            criarGraficoBalancoDiario(window.dadosBalancoCache, mes);
+            break;
+    }
+}
+
+function criarGraficoBalancoMensal(dados) {
+    const ctx = document.getElementById('balanco-chart')?.getContext('2d');
+    if (!ctx) return;
+
+    if (window.balancoChart) {
+        window.balancoChart.destroy();
+    }
+
+    const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const balancoMensal = [];
+    const saldoMensal = [];
+    const reservasMensal = [];
+    const reservasCache = window.reservasCache || [];
+
+    let saldoAcumulado = 0;
+    let reservasAcumuladas = reservasCache
+        .filter(r => parseInt(r.ano) < window.anoAtual)
+        .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+
+    for (let i = 0; i < 12; i++) {
+        const receita = dados.receitas[i] || 0;
+        const despesa = dados.despesas[i] || 0;
+        const reservasMes = reservasCache
+            .filter(r => parseInt(r.ano) === window.anoAtual && parseInt(r.mes) === i)
+            .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+
+        reservasAcumuladas += reservasMes;
+        saldoAcumulado += receita - despesa - reservasMes;
+
+        balancoMensal.push(receita - despesa);
+        saldoMensal.push(saldoAcumulado);
+        reservasMensal.push(reservasAcumuladas);
+    }
+
+    window.balancoChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: meses,
+            datasets: [
+                {
+                    label: 'Balanço Mensal',
+                    data: balancoMensal,
+                    backgroundColor: balancoMensal.map(v => v >= 0 ? 'rgba(40, 167, 69, 0.7)' : 'rgba(220, 53, 69, 0.7)'),
+                    borderColor: balancoMensal.map(v => v >= 0 ? 'rgb(40, 167, 69)' : 'rgb(220, 53, 69)'),
+                    borderWidth: 1,
+                    order: 2
+                },
+                {
+                    label: 'Saldo em Conta',
+                    data: saldoMensal,
+                    type: 'line',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    borderColor: 'rgb(0, 123, 255)',
+                    fill: false,
+                    tension: 0.4,
+                    order: 1
+                },
+                {
+                    label: 'Reservas Acumuladas',
+                    data: reservasMensal,
+                    type: 'line',
+                    backgroundColor: 'rgba(147, 51, 234, 0.1)',
+                    borderColor: 'rgb(147, 51, 234)',
+                    fill: false,
+                    tension: 0.4,
+                    order: 0
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    ticks: {
+                        callback: function(value) {
+                            return window.formatarMoeda(value);
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: { display: true, position: 'top' },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + window.formatarMoeda(context.raw);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function criarGraficoBalancoSemanal(dados, mes) {
+    const ctx = document.getElementById('balanco-chart')?.getContext('2d');
+    if (!ctx) return;
+
+    if (window.balancoChart) {
+        window.balancoChart.destroy();
+    }
+
+    const ano = window.anoAtual;
+    const totalDias = new Date(ano, mes + 1, 0).getDate();
+    const reservasCache = window.reservasCache || [];
+
+    // Total de reservas do mês
+    const reservasMes = reservasCache
+        .filter(r => parseInt(r.ano) === ano && parseInt(r.mes) === mes)
+        .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+
+    const balancoSemanal = [];
+    const saldoSemanal = [];
+    const reservasSemanal = [];
+    const labels = [];
+
+    const diasPorSemana = 7;
+    let diaAtual = 1;
+    let semanaNum = 1;
+    let saldoAcumulado = dados.saldos[mes - 1] || 0; // Saldo do mês anterior
+
+    while (diaAtual <= totalDias) {
+        const inicioSemana = diaAtual;
+        const fimSemana = Math.min(diaAtual + diasPorSemana - 1, totalDias);
+        const proporcao = (fimSemana - inicioSemana + 1) / totalDias;
+
+        labels.push(`Sem ${semanaNum} (${inicioSemana}-${fimSemana})`);
+
+        const receitaSemana = (dados.receitas[mes] || 0) * proporcao;
+        const despesaSemana = (dados.despesas[mes] || 0) * proporcao;
+        const reservaSemana = reservasMes * proporcao;
+
+        const balanco = receitaSemana - despesaSemana;
+        saldoAcumulado += balanco - reservaSemana;
+
+        balancoSemanal.push(balanco);
+        saldoSemanal.push(saldoAcumulado);
+        reservasSemanal.push(reservaSemana);
+
+        diaAtual = fimSemana + 1;
+        semanaNum++;
+    }
+
+    window.balancoChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Balanço Semanal',
+                    data: balancoSemanal,
+                    backgroundColor: balancoSemanal.map(v => v >= 0 ? 'rgba(40, 167, 69, 0.7)' : 'rgba(220, 53, 69, 0.7)'),
+                    borderColor: balancoSemanal.map(v => v >= 0 ? 'rgb(40, 167, 69)' : 'rgb(220, 53, 69)'),
+                    borderWidth: 1,
+                    order: 2
+                },
+                {
+                    label: 'Saldo em Conta',
+                    data: saldoSemanal,
+                    type: 'line',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    borderColor: 'rgb(0, 123, 255)',
+                    fill: false,
+                    tension: 0.4,
+                    order: 1
+                },
+                {
+                    label: 'Reservas',
+                    data: reservasSemanal,
+                    type: 'line',
+                    backgroundColor: 'rgba(147, 51, 234, 0.1)',
+                    borderColor: 'rgb(147, 51, 234)',
+                    fill: false,
+                    tension: 0.4,
+                    order: 0
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    ticks: {
+                        callback: function(value) {
+                            return window.formatarMoeda(value);
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: { display: true, position: 'top' },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + window.formatarMoeda(context.raw);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function criarGraficoBalancoDiario(dados, mes) {
+    const ctx = document.getElementById('balanco-chart')?.getContext('2d');
+    if (!ctx) return;
+
+    if (window.balancoChart) {
+        window.balancoChart.destroy();
+    }
+
+    const ano = window.anoAtual;
+    const totalDias = new Date(ano, mes + 1, 0).getDate();
+    const reservasCache = window.reservasCache || [];
+
+    // Total de reservas do mês
+    const reservasMes = reservasCache
+        .filter(r => parseInt(r.ano) === ano && parseInt(r.mes) === mes)
+        .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+
+    const labels = [];
+    const balancoDiario = [];
+    const saldoDiario = [];
+    const reservasDiario = [];
+
+    const receitaDia = (dados.receitas[mes] || 0) / totalDias;
+    const despesaDia = (dados.despesas[mes] || 0) / totalDias;
+    const reservaDia = reservasMes / totalDias;
+
+    let saldoAcumulado = dados.saldos[mes - 1] || 0;
+
+    for (let dia = 1; dia <= totalDias; dia++) {
+        labels.push(dia.toString());
+
+        const balanco = receitaDia - despesaDia;
+        saldoAcumulado += balanco - reservaDia;
+
+        balancoDiario.push(balanco);
+        saldoDiario.push(saldoAcumulado);
+        reservasDiario.push(reservaDia * dia); // Reservas acumuladas no mês
+    }
+
+    window.balancoChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Balanço Diário',
+                    data: balancoDiario,
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    borderColor: 'rgb(40, 167, 69)',
+                    fill: true,
+                    tension: 0.1,
+                    order: 2
+                },
+                {
+                    label: 'Saldo em Conta',
+                    data: saldoDiario,
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    borderColor: 'rgb(0, 123, 255)',
+                    fill: false,
+                    tension: 0.4,
+                    order: 1
+                },
+                {
+                    label: 'Reservas Acumuladas',
+                    data: reservasDiario,
+                    backgroundColor: 'rgba(147, 51, 234, 0.1)',
+                    borderColor: 'rgb(147, 51, 234)',
+                    fill: false,
+                    tension: 0.4,
+                    order: 0
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    ticks: {
+                        callback: function(value) {
+                            return window.formatarMoeda(value);
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: { display: true, position: 'top' },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + window.formatarMoeda(context.raw);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
 function criarGraficoBalanco(dados) {
+    // Salvar dados no cache para filtros
+    window.dadosBalancoCache = dados;
+
     const ctx = document.getElementById('balanco-chart')?.getContext('2d');
     if (!ctx) return;
 
@@ -1611,3 +1955,4 @@ window.filtrarFormaPagamento = function() {
 // ================================================================
 
 window.carregarDadosDashboard = carregarDadosDashboard;
+window.filtrarBalancoPeriodo = filtrarBalancoPeriodo;
