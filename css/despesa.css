@@ -25,18 +25,19 @@
 
 /* Cabeçalho da tabela */
 .tabela-despesas thead {
-    background: #667eea;
+    background: #667eea !important;
     position: sticky;
     top: 0;
     z-index: 10;
 }
 
 .tabela-despesas thead th {
-    padding: 8px 6px;
+    padding: 10px 8px !important;
     text-align: left;
-    font-weight: 600;
-    font-size: 10px;
-    color: #fff;
+    font-weight: 600 !important;
+    font-size: 10px !important;
+    color: #fff !important;
+    background: #667eea !important;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     border-right: 1px solid rgba(255,255,255,0.2);

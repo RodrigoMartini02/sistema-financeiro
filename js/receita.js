@@ -98,7 +98,7 @@ function criarLinhaSaldoAnterior(saldoAnterior, fechado) {
     if (!template) return document.createElement('div');
 
     const clone = template.content.cloneNode(true);
-    const row = clone.querySelector('.grid-row');
+    const row = clone.querySelector('tr');
 
     if (row && fechado) row.classList.add('transacao-fechada');
     
@@ -131,12 +131,11 @@ function criarLinhaReceita(receita, index, fechado) {
     }
 
     const clone = template.content.cloneNode(true);
-    const row = clone.querySelector('.grid-row'); // ✅ CORRIGIDO: buscar .grid-row ao invés de tr
+    const row = clone.querySelector('tr.receita-row');
 
-    // ✅ CORRIGIDO: Verificar se row existe antes de acessar classList
     if (!row) {
-        console.error('❌ Erro: template .grid-row não encontrado');
-        return document.createElement('div');
+        console.error('❌ Erro: template tr.receita-row não encontrado');
+        return document.createElement('tr');
     }
 
     const eSaldoAnterior = receita.saldoAnterior === true ||
@@ -1562,19 +1561,22 @@ window.carregarReservasAPI = carregarReservasAPI;
 window.calcularTotalReservas = calcularTotalReservas;
 
 // ================================================================
-// REDIMENSIONAMENTO DE COLUNAS - RECEITAS (VERSÃO SIMPLIFICADA)
+// REDIMENSIONAMENTO DE COLUNAS - RECEITAS (VERSÃO PARA TABLE)
 // ================================================================
 
 (function() {
     let isResizing = false;
-    let currentColumn = null;
+    let currentTh = null;
     let startX = 0;
     let startWidth = 0;
 
-    function initColumnResizer() {
-        const header = document.getElementById('receitas-grid-header');
-        if (!header || header.dataset.resizerInit === 'true') return;
-        header.dataset.resizerInit = 'true';
+    function initTableColumnResizer() {
+        const tabela = document.getElementById('tabela-receitas');
+        if (!tabela || tabela.dataset.resizerInit === 'true') return;
+        tabela.dataset.resizerInit = 'true';
+
+        const thead = tabela.querySelector('thead');
+        if (!thead) return;
 
         // Remove listeners antigos se existirem
         document.removeEventListener('mousemove', handleMouseMove);
@@ -1584,16 +1586,29 @@ window.calcularTotalReservas = calcularTotalReservas;
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
 
-        // Adiciona listener em cada resizer
-        header.querySelectorAll('.column-resizer').forEach(resizer => {
+        // Adiciona resizers nos th (se não existirem)
+        const thElements = thead.querySelectorAll('th');
+        thElements.forEach(th => {
+            // Pular colunas muito pequenas
+            if (th.classList.contains('col-anexos')) return;
+
+            // Verificar se já tem resizer
+            if (th.querySelector('.column-resizer')) return;
+
+            const resizer = document.createElement('div');
+            resizer.className = 'column-resizer';
+            resizer.style.cssText = 'position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize;z-index:10;';
+            th.style.position = 'relative';
+            th.appendChild(resizer);
+
             resizer.onmousedown = function(e) {
                 e.preventDefault();
                 e.stopPropagation();
 
                 isResizing = true;
-                currentColumn = resizer.parentElement;
+                currentTh = th;
                 startX = e.pageX;
-                startWidth = currentColumn.offsetWidth;
+                startWidth = th.offsetWidth;
 
                 resizer.classList.add('resizing');
                 document.body.style.cursor = 'col-resize';
@@ -1603,92 +1618,59 @@ window.calcularTotalReservas = calcularTotalReservas;
     }
 
     function handleMouseMove(e) {
-        if (!isResizing || !currentColumn) return;
+        if (!isResizing || !currentTh) return;
 
         const diff = e.pageX - startX;
         const newWidth = Math.max(30, startWidth + diff);
 
-        // Aplica largura diretamente na coluna do header
-        currentColumn.style.width = newWidth + 'px';
-        currentColumn.style.minWidth = newWidth + 'px';
-        currentColumn.style.maxWidth = newWidth + 'px';
-        currentColumn.style.flex = '0 0 ' + newWidth + 'px';
-        currentColumn.style.overflow = 'hidden';
-
-        // Sincroniza com as linhas
-        const header = document.getElementById('receitas-grid-header');
-        const columnIndex = Array.from(header.children).indexOf(currentColumn);
-
-        const rows = document.querySelectorAll('#receitas-grid-container .grid-row');
-        rows.forEach(row => {
-            const cell = row.children[columnIndex];
-            if (cell) {
-                cell.style.width = newWidth + 'px';
-                cell.style.minWidth = newWidth + 'px';
-                cell.style.maxWidth = newWidth + 'px';
-                cell.style.flex = '0 0 ' + newWidth + 'px';
-                cell.style.overflow = 'hidden';
-            }
-        });
+        // Com table-layout: fixed, basta ajustar o th que as td seguem automaticamente
+        currentTh.style.width = newWidth + 'px';
     }
 
     function handleMouseUp() {
         if (!isResizing) return;
 
         isResizing = false;
-        if (currentColumn) {
-            const resizer = currentColumn.querySelector('.column-resizer');
+        if (currentTh) {
+            const resizer = currentTh.querySelector('.column-resizer');
             if (resizer) resizer.classList.remove('resizing');
         }
-        currentColumn = null;
+        currentTh = null;
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
     }
 
     // Função para resetar larguras
     window.resetReceitasColumnWidths = function() {
-        const header = document.getElementById('receitas-grid-header');
-        if (header) {
-            Array.from(header.children).forEach(col => {
-                col.style.width = '';
-                col.style.minWidth = '';
-                col.style.maxWidth = '';
-                col.style.flex = '';
-                col.style.overflow = '';
-            });
-        }
-        const rows = document.querySelectorAll('#receitas-grid-container .grid-row');
-        rows.forEach(row => {
-            Array.from(row.children).forEach(cell => {
-                cell.style.width = '';
-                cell.style.minWidth = '';
-                cell.style.maxWidth = '';
-                cell.style.flex = '';
-                cell.style.overflow = '';
-            });
+        const tabela = document.getElementById('tabela-receitas');
+        if (!tabela) return;
+
+        const thElements = tabela.querySelectorAll('thead th');
+        thElements.forEach(th => {
+            th.style.width = '';
         });
     };
 
     window.reinitReceitasResizer = function() {
-        const header = document.getElementById('receitas-grid-header');
-        if (header) {
-            header.dataset.resizerInit = '';
-            initColumnResizer();
+        const tabela = document.getElementById('tabela-receitas');
+        if (tabela) {
+            tabela.dataset.resizerInit = '';
+            initTableColumnResizer();
         }
     };
 
     // Inicializa
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initColumnResizer);
+        document.addEventListener('DOMContentLoaded', initTableColumnResizer);
     } else {
-        setTimeout(initColumnResizer, 100);
+        setTimeout(initTableColumnResizer, 100);
     }
 
     // Observer para reinicializar quando necessário
     const observer = new MutationObserver(() => {
-        const header = document.getElementById('receitas-grid-header');
-        if (header && header.dataset.resizerInit !== 'true') {
-            initColumnResizer();
+        const tabela = document.getElementById('tabela-receitas');
+        if (tabela && tabela.dataset.resizerInit !== 'true') {
+            initTableColumnResizer();
         }
     });
 

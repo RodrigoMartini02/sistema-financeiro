@@ -1,10 +1,103 @@
 /* ================================================================
    RECEITA.CSS - Estilizações específicas de Receitas
    Sistema Financeiro
-
-   NOTA: Estilos de grid (.grid-header, .grid-row, .col-*)
-   estão em layoutGeral.css para evitar duplicação
    ================================================================ */
+
+/* ================================================================
+   TABELA DE RECEITAS - Estrutura HTML Table
+   ================================================================ */
+
+.tabela-receitas-container {
+    border: 1px solid #e9ecef;
+    background: white;
+    max-height: 70vh;
+    overflow: auto;
+}
+
+.tabela-receitas {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 10px;
+}
+
+.tabela-receitas thead {
+    background: #28a745 !important;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.tabela-receitas thead th {
+    padding: 10px 8px !important;
+    text-align: left;
+    font-weight: 600 !important;
+    font-size: 10px !important;
+    color: #fff !important;
+    background: #28a745 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-right: 1px solid rgba(255,255,255,0.2);
+    white-space: nowrap;
+}
+
+.tabela-receitas thead th:last-child {
+    border-right: none;
+}
+
+.tabela-receitas tbody tr {
+    border-bottom: 1px solid #e9ecef;
+    transition: background 0.15s ease;
+}
+
+.tabela-receitas tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.tabela-receitas tbody td {
+    padding: 8px 6px;
+    vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 10px;
+    border-right: 1px solid #f0f0f0;
+}
+
+.tabela-receitas tbody td:last-child {
+    border-right: none;
+}
+
+/* Larguras das colunas de receitas */
+.tabela-receitas .col-id { width: 60px; text-align: center; }
+.tabela-receitas .col-descricao { width: auto; min-width: 200px; }
+.tabela-receitas .col-valor { width: 120px; text-align: right; }
+.tabela-receitas .col-data { width: 100px; text-align: center; }
+.tabela-receitas .col-parcela { width: 80px; text-align: center; }
+.tabela-receitas .col-acoes { width: 100px; text-align: center; }
+.tabela-receitas .col-anexos { width: 70px; text-align: center; }
+
+/* Linha de saldo anterior */
+.tabela-receitas tbody tr.saldo-anterior-row {
+    background: #f0f9ff;
+    font-style: italic;
+}
+
+.tabela-receitas tbody tr.saldo-anterior-row td {
+    color: #0369a1;
+}
+
+/* Badge de saldo anterior */
+.badge-saldo-anterior {
+    font-size: 9px;
+    background: #0ea5e9;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 500;
+}
+
+/* ================================================================ */
 
 /* Botão Salvar - Modal Receita */
 #form-nova-receita button[type="submit"] {
