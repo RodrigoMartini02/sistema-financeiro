@@ -76,7 +76,7 @@
 }
 
 /* Larguras das colunas */
-.tabela-despesas .col-checkbox { width: 35px; text-align: center; }
+.tabela-despesas .col-checkbox { width: 40px; text-align: center; }
 .tabela-despesas .col-numero { width: 50px; text-align: center; }
 .tabela-despesas .col-descricao { width: auto; min-width: 150px; }
 .tabela-despesas .col-categoria { width: 100px; }
@@ -105,16 +105,7 @@
     background-color: #fff5f5;
 }
 
-/* Container legado removido - usar .tabela-despesas-container */
-
-/* Checkbox de seleção */
-.despesa-checkbox,
-#select-all-despesas {
-    width: 14px;
-    height: 14px;
-    accent-color: #6366f1;
-    cursor: pointer;
-}
+/* Checkboxes - estilos em layoutGeral.css (SISTEMA UNIFICADO) */
 
 /* ================================================================
    BADGES DE STATUS - Texto simples sem fundo

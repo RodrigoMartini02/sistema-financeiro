@@ -173,13 +173,7 @@
     cursor: pointer;
 }
 
-.input-group input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    cursor: pointer;
-}
-
-/* Removido - agora usa .form-control padrão de layoutGeral.css */
+/* Checkboxes - estilos em layoutGeral.css (SISTEMA UNIFICADO) */
 
 /* ================================================================ */
 /* CONTROLES DE GERENCIAMENTO */
@@ -511,11 +505,7 @@
     white-space: nowrap;
 }
 
-.form-add-cartao input[type="checkbox"] {
-    width: 20px;
-    height: 20px;
-    cursor: pointer;
-}
+/* Checkbox form-add-cartao - usa estilos de layoutGeral.css */
 
 #btn-salvar-cartoes {
     width: 100%;
@@ -1278,8 +1268,8 @@
 }
 
 .checkbox-label-inline input[type="checkbox"] {
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
     cursor: pointer;
     accent-color: #48bb78;
 }

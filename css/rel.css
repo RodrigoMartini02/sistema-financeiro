@@ -119,25 +119,7 @@
     border-left: 1px solid #dee2e6;
 }
 
-.checkbox-mini {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    cursor: pointer;
-    font-size: 0.8rem;
-    color: #495057;
-    margin: 0;
-}
-
-.checkbox-mini input[type="checkbox"] {
-    width: 14px;
-    height: 14px;
-    margin: 0;
-}
-
-.checkbox-mini span {
-    font-weight: 500;
-}
+/* .checkbox-mini - estilos em layoutGeral.css (SISTEMA UNIFICADO) */
 
 .filtros-resumo {
     background: #e3f2fd;
@@ -473,7 +455,7 @@
     background-color: #f8f9fa;
 }
 
-.col-checkbox { width: 40px; text-align: center; }
+/* .col-checkbox - estilos em layoutGeral.css (SISTEMA UNIFICADO) */
 .col-tipo { width: 80px; }
 .col-descricao { min-width: 200px; }
 .col-categoria { width: 120px; }
@@ -652,11 +634,7 @@
     color: white;
 }
 
-.transacao-checkbox,
-#select-all-transacoes {
-    transform: scale(1.1);
-    cursor: pointer;
-}
+/* .transacao-checkbox - estilos em layoutGeral.css (SISTEMA UNIFICADO) */
 
 .transacao-row.selecionada {
     background-color: #e3f2fd !important;

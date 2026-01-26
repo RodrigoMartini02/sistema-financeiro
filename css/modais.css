@@ -542,10 +542,10 @@
 }
 
 #modal-editar-cartao .checkbox-container input[type="checkbox"] {
-    width: 22px;
-    height: 22px;
+    width: 16px;
+    height: 16px;
     cursor: pointer;
-    accent-color: #4361ee;
+    accent-color: #667eea;
     margin: 0;
 }
 
@@ -581,10 +581,10 @@
 }
 
 .checkbox-container input[type="checkbox"] {
-    width: 22px;
-    height: 22px;
+    width: 16px;
+    height: 16px;
     cursor: pointer;
-    accent-color: var(--primary, #4361ee);
+    accent-color: #667eea;
     margin: 0;
 }
 
@@ -606,9 +606,10 @@
 }
 
 .checkbox-simples input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     cursor: pointer;
+    accent-color: #667eea;
 }
 
 
