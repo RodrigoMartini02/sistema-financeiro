@@ -1410,16 +1410,25 @@ function renderDistribuicaoCartoes(dadosFinanceiros, ano, filtros = {}) {
     if (cartoesComUso.length > 0) {
         const labels = cartoesComUso.map(c => c.nome);
         const valores = cartoesComUso.map(c => c.valor);
-        const cores = cartoesComUso.map(c => c.cor);
 
-        // Gerar cores de fundo com transparência
-        const coresFundo = cores.map(cor => {
-            // Converter hex para rgba
-            const r = parseInt(cor.slice(1, 3), 16);
-            const g = parseInt(cor.slice(3, 5), 16);
-            const b = parseInt(cor.slice(5, 7), 16);
-            return `rgba(${r}, ${g}, ${b}, 0.7)`;
-        });
+        // Paleta de cores vibrantes e distintas para cada cartão
+        const paletaCores = [
+            '#8B4513',  // Marrom
+            '#9370DB',  // Roxo claro
+            '#E91E63',  // Rosa
+            '#00BCD4',  // Ciano
+            '#4CAF50',  // Verde
+            '#FF9800',  // Laranja
+            '#3F51B5',  // Azul índigo
+            '#F44336',  // Vermelho
+            '#009688',  // Teal
+            '#FFEB3B',  // Amarelo
+            '#795548',  // Marrom escuro
+            '#607D8B'   // Cinza azulado
+        ];
+
+        // Atribuir cores da paleta para cada cartão
+        const cores = cartoesComUso.map((c, index) => paletaCores[index % paletaCores.length]);
 
         window.chartDistribuicaoCartoes = new Chart(ctx, {
             type: 'doughnut',
