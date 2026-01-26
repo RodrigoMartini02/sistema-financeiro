@@ -354,6 +354,7 @@
 
 .comparativo-card.pix { background: linear-gradient(135deg, #17a2b8, #138496); }
 .comparativo-card.debito { background: linear-gradient(135deg, #007bff, #0056b3); }
+.comparativo-card.dinheiro { background: linear-gradient(135deg, #28a745, #1e7e34); }
 .comparativo-card.credito { background: linear-gradient(135deg, #dc3545, #c82333); }
 
 .pagamento-resumo {
@@ -375,6 +376,7 @@
 
 .pagamento-item.pix { background: linear-gradient(135deg, #17a2b8, #138496); }
 .pagamento-item.debito { background: linear-gradient(135deg, #007bff, #0056b3); }
+.pagamento-item.dinheiro { background: linear-gradient(135deg, #28a745, #1e7e34); }
 .pagamento-item.credito { background: linear-gradient(135deg, #dc3545, #c82333); }
 
 .pagamento-header {

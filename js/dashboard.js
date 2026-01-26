@@ -1093,7 +1093,7 @@ function criarGraficoFormaPagamentoComFiltros(dadosFinanceiros, ano, filtros) {
     const ctx = document.getElementById('forma-pagamento-chart')?.getContext('2d');
     if (!ctx) return;
     
-    const formasPagamento = { pix: 0, debito: 0, credito: 0 };
+    const formasPagamento = { pix: 0, debito: 0, dinheiro: 0, credito: 0 };
     
     if (dadosFinanceiros[ano]) {
         for (let i = 0; i < 12; i++) {
@@ -1121,7 +1121,7 @@ function criarGraficoFormaPagamentoComFiltros(dadosFinanceiros, ano, filtros) {
         }
     }
     
-    const valores = [formasPagamento.pix, formasPagamento.debito, formasPagamento.credito];
+    const valores = [formasPagamento.pix, formasPagamento.debito, formasPagamento.dinheiro, formasPagamento.credito];
     
     if (window.formaPagamentoChart) {
         window.formaPagamentoChart.destroy();
@@ -1131,17 +1131,19 @@ function criarGraficoFormaPagamentoComFiltros(dadosFinanceiros, ano, filtros) {
         window.formaPagamentoChart = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: ['PIX', 'Débito', 'Crédito'],
+                labels: ['PIX', 'Débito', 'Dinheiro', 'Crédito'],
                 datasets: [{
                     data: valores,
                     backgroundColor: [
                         'rgba(0, 212, 170, 0.7)',
                         'rgba(59, 130, 246, 0.7)',
+                        'rgba(40, 167, 69, 0.7)',
                         'rgba(245, 158, 11, 0.7)'
                     ],
                     borderColor: [
                         'rgb(0, 212, 170)',
                         'rgb(59, 130, 246)',
+                        'rgb(40, 167, 69)',
                         'rgb(245, 158, 11)'
                     ]
                 }]

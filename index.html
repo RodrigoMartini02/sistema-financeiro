@@ -265,6 +265,7 @@
                             <option value="todas">Todas as formas</option>
                             <option value="pix">PIX</option>
                             <option value="debito">Débito</option>
+                            <option value="dinheiro">Dinheiro</option>
                             <option value="credito">Crédito</option>
                         </select>
                         <button class="btn btn-icon btn-outline" data-chart="tendenciaChart">[ ]</button>
@@ -291,6 +292,7 @@
                             <option value="todas">Todas as formas</option>
                             <option value="pix">PIX</option>
                             <option value="debito">Débito</option>
+                            <option value="dinheiro">Dinheiro</option>
                             <option value="credito">Crédito</option>
                         </select>
                         <button class="btn btn-icon btn-outline" data-chart="receitasDespesasChart">[ ]</button>
@@ -312,6 +314,7 @@
                             <option value="todas">Todas as formas</option>
                             <option value="pix">PIX</option>
                             <option value="debito">Débito</option>
+                            <option value="dinheiro">Dinheiro</option>
                             <option value="credito">Crédito</option>
                         </select>
                         <button class="btn btn-icon btn-outline" data-chart="categoriasBarrasChart">[ ]</button>
@@ -330,6 +333,7 @@
                             <option value="todas">Todas as formas</option>
                             <option value="pix">PIX</option>
                             <option value="debito">Débito</option>
+                            <option value="dinheiro">Dinheiro</option>
                             <option value="credito">Crédito</option>
                         </select>
                         <button class="btn btn-icon btn-outline" data-chart="mediaCategoriasChart">[ ]</button>
@@ -352,6 +356,7 @@
                             <option value="todas">Todas as formas</option>
                             <option value="pix">PIX</option>
                             <option value="debito">Débito</option>
+                            <option value="dinheiro">Dinheiro</option>
                             <option value="credito">Crédito</option>
                         </select>
                         <button class="btn btn-icon btn-outline" data-chart="categoriasEmpilhadasChart">[ ]</button>
@@ -373,6 +378,7 @@
                             <option value="todas">Todas as formas</option>
                             <option value="pix">PIX</option>
                             <option value="debito">Débito</option>
+                            <option value="dinheiro">Dinheiro</option>
                             <option value="credito">Crédito</option>
                         </select>
                         <button class="btn btn-icon btn-outline" data-chart="formaPagamentoChart">[ ]</button>
@@ -409,6 +415,7 @@
                             <option value="todas">Todas as formas</option>
                             <option value="pix">PIX</option>
                             <option value="debito">Débito</option>
+                            <option value="dinheiro">Dinheiro</option>
                             <option value="credito">Crédito</option>
                         </select>
                         <select class="form-control" id="juros-status-filter" onchange="filtrarJuros()">
@@ -445,6 +452,7 @@
                             <option value="todas">Todas as formas</option>
                             <option value="pix">PIX</option>
                             <option value="debito">Débito</option>
+                            <option value="dinheiro">Dinheiro</option>
                             <option value="credito">Crédito</option>
                         </select>
                         <select class="form-control" id="parcelamentos-status-filter" onchange="filtrarParcelamentos()">
@@ -590,6 +598,10 @@
                         <span>Débito</span>
                     </label>
                     <label class="checkbox-mini">
+                        <input type="checkbox" id="forma-dinheiro" value="dinheiro">
+                        <span>Dinheiro</span>
+                    </label>
+                    <label class="checkbox-mini">
                         <input type="checkbox" id="forma-credito" value="credito">
                         <span>Crédito</span>
                     </label>
@@ -705,7 +717,19 @@
                         <span id="comparativo-debito-percent">0%</span>
                     </div>
                 </div>
-                
+
+                <div class="comparativo-card dinheiro">
+                    <div class="card-header">
+                        <i class="fas fa-money-bill-wave"></i>
+                        <span>Dinheiro</span>
+                    </div>
+                    <div class="card-valor" id="comparativo-dinheiro-valor">R$ 0,00</div>
+                    <div class="card-info">
+                        <span id="comparativo-dinheiro-count">0 transações</span>
+                        <span id="comparativo-dinheiro-percent">0%</span>
+                    </div>
+                </div>
+
                 <div class="comparativo-card credito">
                     <div class="card-header">
                         <i class="fas fa-credit-card"></i>
@@ -807,7 +831,19 @@
                         <span id="pagamento-debito-percent">0%</span>
                     </div>
                 </div>
-                
+
+                <div class="pagamento-item dinheiro">
+                    <div class="pagamento-header">
+                        <i class="fas fa-money-bill-wave"></i>
+                        <span>Dinheiro</span>
+                    </div>
+                    <div class="pagamento-valor" id="pagamento-dinheiro-valor">R$ 0,00</div>
+                    <div class="pagamento-info">
+                        <span id="pagamento-dinheiro-count">0 transações</span>
+                        <span id="pagamento-dinheiro-percent">0%</span>
+                    </div>
+                </div>
+
                 <div class="pagamento-item credito">
                     <div class="pagamento-header">
                         <i class="fas fa-credit-card"></i>
@@ -2165,7 +2201,11 @@
                             </div>
                             <div class="payment-option">
                                 <input type="radio" id="pagamento-debito" name="forma-pagamento" value="debito" onchange="validarFormaPagamento()">
-                                <label for="pagamento-debito">DEBITO</label>
+                                <label for="pagamento-debito">DÉBITO</label>
+                            </div>
+                            <div class="payment-option">
+                                <input type="radio" id="pagamento-dinheiro" name="forma-pagamento" value="dinheiro" onchange="validarFormaPagamento()">
+                                <label for="pagamento-dinheiro">DINHEIRO</label>
                             </div>
                             <div class="payment-option-group" id="credito-options">
                                 <!-- Cartões serão inseridos dinamicamente aqui pela função atualizarOpcoesCartoes() -->
@@ -2255,6 +2295,7 @@
                     <option value="todas">Forma Pagamento</option>
                     <option value="pix">PIX</option>
                     <option value="debito">Débito</option>
+                    <option value="dinheiro">Dinheiro</option>
                     <option value="credito">Crédito</option>
                 </select>
                 <select id="filtro-status" class="form-control">
@@ -2780,6 +2821,7 @@
                     <option value="todas">Forma Pagamento</option>
                     <option value="pix">PIX</option>
                     <option value="debito">Débito</option>
+                    <option value="dinheiro">Dinheiro</option>
                     <option value="credito">Crédito</option>
                 </select>
                 <select id="filtro-status" class="form-control">

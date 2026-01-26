@@ -137,7 +137,7 @@ class SistemaRelatorios {
         const todasCheckbox = document.getElementById('forma-todas');
         if (todasCheckbox) {
             todasCheckbox.addEventListener('change', (e) => {
-                const checkboxes = ['forma-pix', 'forma-debito', 'forma-credito'];
+                const checkboxes = ['forma-pix', 'forma-debito', 'forma-dinheiro', 'forma-credito'];
                 checkboxes.forEach(id => {
                     const checkbox = document.getElementById(id);
                     if (checkbox) {
@@ -150,7 +150,7 @@ class SistemaRelatorios {
         }
         
         // Checkboxes individuais de forma de pagamento
-        ['forma-pix', 'forma-debito', 'forma-credito'].forEach(id => {
+        ['forma-pix', 'forma-debito', 'forma-dinheiro', 'forma-credito'].forEach(id => {
             const checkbox = document.getElementById(id);
             if (checkbox) {
                 checkbox.addEventListener('change', () => {
@@ -431,9 +431,10 @@ class SistemaRelatorios {
         const formasPagamento = [];
         if (document.getElementById('forma-pix')?.checked) formasPagamento.push('PIX');
         if (document.getElementById('forma-debito')?.checked) formasPagamento.push('Débito');
+        if (document.getElementById('forma-dinheiro')?.checked) formasPagamento.push('Dinheiro');
         if (document.getElementById('forma-credito')?.checked) formasPagamento.push('Crédito');
-        
-        if (formasPagamento.length > 0 && formasPagamento.length < 3) {
+
+        if (formasPagamento.length > 0 && formasPagamento.length < 4) {
             filtros.push(`<strong>Pagamento:</strong> ${formasPagamento.join(', ')}`);
         }
         
@@ -500,6 +501,7 @@ class SistemaRelatorios {
                 todas: document.getElementById('forma-todas')?.checked || false,
                 pix: document.getElementById('forma-pix')?.checked || false,
                 debito: document.getElementById('forma-debito')?.checked || false,
+                dinheiro: document.getElementById('forma-dinheiro')?.checked || false,
                 credito: document.getElementById('forma-credito')?.checked || false
             },
             
@@ -616,6 +618,7 @@ class SistemaRelatorios {
             const formaPermitida = (
                 (forma === 'pix' && this.filtrosAtuais.formasPagamento?.pix) ||
                 (forma === 'debito' && this.filtrosAtuais.formasPagamento?.debito) ||
+                (forma === 'dinheiro' && this.filtrosAtuais.formasPagamento?.dinheiro) ||
                 (forma === 'credito' && this.filtrosAtuais.formasPagamento?.credito)
             );
             if (!formaPermitida) return false;
@@ -841,8 +844,8 @@ class SistemaRelatorios {
         const secao = document.getElementById('comparativo-formas-pagamento');
         if (!secao) return;
         
-        const formas = { pix: 0, debito: 0, credito: 0 };
-        const contadores = { pix: 0, debito: 0, credito: 0 };
+        const formas = { pix: 0, debito: 0, dinheiro: 0, credito: 0 };
+        const contadores = { pix: 0, debito: 0, dinheiro: 0, credito: 0 };
         
         despesas.forEach(despesa => {
             const forma = this.obterFormaPagamentoDespesa(despesa);
@@ -961,8 +964,8 @@ class SistemaRelatorios {
         const secao = document.getElementById('detalhamento-pagamento');
         if (!secao) return;
         
-        const formas = { pix: 0, debito: 0, credito: 0 };
-        const contadores = { pix: 0, debito: 0, credito: 0 };
+        const formas = { pix: 0, debito: 0, dinheiro: 0, credito: 0 };
+        const contadores = { pix: 0, debito: 0, dinheiro: 0, credito: 0 };
         
         despesas.forEach(despesa => {
             const forma = this.obterFormaPagamentoDespesa(despesa);
@@ -1664,6 +1667,7 @@ class SistemaRelatorios {
             const formas = [];
             if (this.filtrosAtuais.formasPagamento?.pix) formas.push('PIX');
             if (this.filtrosAtuais.formasPagamento?.debito) formas.push('Débito');
+            if (this.filtrosAtuais.formasPagamento?.dinheiro) formas.push('Dinheiro');
             if (this.filtrosAtuais.formasPagamento?.credito) formas.push('Crédito');
             if (formas.length > 0) {
                 filtros.push(`Pag: ${formas.join(', ')}`);
@@ -2388,6 +2392,7 @@ class GeradorPDFMelhorado {
             const formas = [];
             if (this.sistema.filtrosAtuais.formasPagamento?.pix) formas.push('PIX');
             if (this.sistema.filtrosAtuais.formasPagamento?.debito) formas.push('Débito');
+            if (this.sistema.filtrosAtuais.formasPagamento?.dinheiro) formas.push('Dinheiro');
             if (this.sistema.filtrosAtuais.formasPagamento?.credito) formas.push('Crédito');
             if (formas.length > 0) {
                 filtros.push(`Formas: ${formas.join(', ')}`);
