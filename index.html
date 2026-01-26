@@ -486,7 +486,7 @@
 
 <div id="modal-zoom-grafico" class="modal-zoom-container">
     <div class="modal-zoom-content">
-        <span id="fechar-modal-zoom" class="modal-zoom-close">&times;</span>
+        <button type="button" id="fechar-modal-zoom" class="close" title="Fechar">&times;</button>
         <canvas id="canvas-zoom-render"></canvas>
     </div>
 </div>
@@ -1277,7 +1277,7 @@
     <div class="modal-content modal-sm">
         <div class="modal-header">
             <h2><i class="fas fa-edit"></i> Editar Categoria</h2>
-            <span class="close">&times;</span>
+            <button type="button" class="close" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
             <form id="form-editar-categoria">
@@ -1307,7 +1307,7 @@
     <div class="modal-content modal-md">
         <div class="modal-header">
             <h2><i class="fas fa-credit-card"></i> Editar Cartão</h2>
-            <span class="close">&times;</span>
+            <button type="button" class="close" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
             <form id="form-editar-cartao">
@@ -1367,7 +1367,7 @@
     <div class="modal-content modal-md">
         <div class="modal-header">
             <h2>Novo Usuário</h2>
-            <span class="close">&times;</span>
+            <button type="button" class="close" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
             <form id="form-adicionar-usuario">
@@ -1428,7 +1428,7 @@
     <div class="modal-content modal-md">
         <div class="modal-header">
             <h2 id="editar-usuario-titulo">Editar Usuário</h2>
-            <span class="close">&times;</span>
+            <button type="button" class="close" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
             <form id="form-editar-usuario">
@@ -1498,7 +1498,7 @@
     <div class="modal-content modal-small">
         <div class="modal-header">
             <h2><i class="fas fa-exclamation-triangle"></i> Confirmar Exclusão</h2>
-            <span class="close">&times;</span>
+            <button type="button" class="close" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
             <div class="confirmacao-exclusao">
@@ -1529,7 +1529,7 @@
     <div class="modal-content modal-small">
         <div class="modal-header">
             <h2 id="feedback-titulo">Mensagem do Sistema</h2>
-            <span class="close">&times;</span>
+            <button type="button" class="close" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
             <div id="feedback-conteudo" class="feedback-message">
@@ -1548,7 +1548,7 @@
     <div class="modal-content modal-sm">
         <div class="modal-header">
             <h2><i class="fas fa-key"></i> Alterar Senha</h2>
-            <span class="close">&times;</span>
+            <button type="button" class="close" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
             <form id="form-alterar-senha">
@@ -1687,7 +1687,7 @@
     <div class="modal-content modal-sm">
         <div class="modal-header">
             <h2>Criar Novo Ano Financeiro</h2>
-            <span class="close" data-modal="modal-novo-ano">&times;</span>
+            <button type="button" class="close" data-modal="modal-novo-ano" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
             <form id="form-novo-ano" onsubmit="handleCriarNovoAno(event)">
@@ -1724,7 +1724,7 @@
             <strong id="notificacao-titulo">Mês fechado automaticamente</strong>
             <small id="notificacao-saldo">Saldo transferido: R$ 0,00</small>
         </div>
-        <button class="notificacao-close">&times;</button>
+        <button type="button" class="notificacao-close" title="Fechar">&times;</button>
     </div>
 </div>
 
@@ -1739,7 +1739,7 @@
                 <button id="btn-mes-anterior" class="btn btn-navegacao-mes">Anterior</button>
                 <button id="btn-mes-proximo" class="btn btn-navegacao-mes">Próximo</button>
             </div>
-            <span class="close">&times;</span>
+            <button type="button" class="close" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
            <div class="tabs">
@@ -1946,7 +1946,7 @@
     <div class="modal-content modal-md">
         <div class="modal-header">
             <h2>Nova Receita</h2>
-            <span class="close">&times;</span>
+            <button type="button" class="close" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
             <form id="form-nova-receita">
@@ -2042,7 +2042,7 @@
     <div class="modal-content modal-sm">
         <div class="modal-header">
             <h2>Excluir receita</h2>
-            <span class="close">&times;</span>
+            <button type="button" class="close" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
             <p>Como deseja excluir esta receita?</p>
@@ -2067,7 +2067,7 @@
     <div class="modal-content modal-md">
         <div class="modal-header">
             <h2>Anexos da Receita</h2>
-            <span class="close">&times;</span>
+            <button type="button" class="close" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
             <div id="lista-anexos-visualizar" class="lista-anexos-visualizar">
@@ -2087,7 +2087,7 @@
     <div class="modal-content modal-reservas">
         <div class="modal-header">
             <h2><i class="fas fa-piggy-bank"></i> Gerenciar Reservas</h2>
-            <span class="close">&times;</span>
+            <button type="button" class="close" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
             <!-- Totalizador -->
@@ -2164,7 +2164,7 @@
    <div class="modal-content modal-md">
        <div class="modal-header">
            <h2>Nova Despesa</h2>
-           <span class="close" data-modal="modal-nova-despesa">&times;</span>
+           <button type="button" class="close" data-modal="modal-nova-despesa" title="Fechar">&times;</button>
        </div>
        <div class="modal-body">
            <form id="form-nova-despesa" onsubmit="handleSalvarDespesa(event)">
@@ -2432,7 +2432,7 @@
    <div class="modal-content modal-sm">
        <div class="modal-header">
            <h2 id="exclusao-titulo">Excluir item parcelado</h2>
-           <span class="close" data-action="fechar-modal-exclusao">&times;</span>
+           <button type="button" class="close" data-action="fechar-modal-exclusao" title="Fechar">&times;</button>
        </div>
        <div class="modal-body">
            <p id="exclusao-mensagem">Este item está parcelado. Como deseja prosseguir?</p>
@@ -2462,7 +2462,7 @@
   <div class="modal-content modal-md">
       <div class="modal-header">
           <h2>Pagar Despesa</h2>
-          <span class="close">&times;</span>
+          <button type="button" class="close" title="Fechar">&times;</button>
       </div>
       <div class="modal-body">
           <div id="info-despesa-pagamento" class="info-despesa-container-compact">
@@ -2539,7 +2539,7 @@
    <div class="modal-content modal-md">
        <div class="modal-header">
            <h2>Pagar Despesas em Lote</h2>
-           <span class="close">&times;</span>
+           <button type="button" class="close" title="Fechar">&times;</button>
        </div>
        <div class="modal-body">
            <div class="info-container">
@@ -2572,7 +2572,7 @@
    <div class="modal-content modal-lg">
        <div class="modal-header">
            <h2>Personalizar Valores de Pagamento</h2>
-           <span class="close">&times;</span>
+           <button type="button" class="close" title="Fechar">&times;</button>
        </div>
        
        <div class="modal-body">
@@ -2627,7 +2627,7 @@
     <div class="modal-content modal-medium">
         <div class="modal-header">
             <h2 id="selecionar-mes-titulo">Selecionar Mês</h2>
-            <span class="close" data-modal="modal-selecionar-mes">&times;</span>
+            <button type="button" class="close" data-modal="modal-selecionar-mes" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
             <p>Para qual mês você deseja adicionar a transação?</p>
@@ -2701,7 +2701,7 @@
     <div class="modal-content modal-md">
         <div class="modal-header">
             <h2>Anexos da Despesa</h2>
-            <span class="close">&times;</span>
+            <button type="button" class="close" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
             <div id="lista-anexos-despesa-visualizar" class="lista-anexos-visualizar">
@@ -2760,7 +2760,7 @@
                 <button id="btn-clear-notifications" class="btn-notif-action btn-notif-danger" title="Limpar todas">
                     <i class="fas fa-trash"></i>
                 </button>
-                <button class="close btn-notif-close">&times;</button>
+                <button type="button" class="close btn-notif-close" title="Fechar">&times;</button>
             </div>
         </div>
         <div class="notificacoes-body">
@@ -2967,7 +2967,7 @@
     <div class="modal-content modal-medium">
         <div class="modal-header">
             <h2><i class="fas fa-lock"></i> Fechar Mês</h2>
-            <span class="close" data-modal="modal-confirmar-fechamento">&times;</span>
+            <button type="button" class="close" data-modal="modal-confirmar-fechamento" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
             <div class="confirmacao-fechamento">
@@ -3035,7 +3035,7 @@
     <div class="modal-content modal-medium">
         <div class="modal-header">
             <h2><i class="fas fa-unlock"></i> Reabrir Mês</h2>
-            <span class="close" data-modal="modal-confirmar-reabertura">&times;</span>
+            <button type="button" class="close" data-modal="modal-confirmar-reabertura" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
             <div class="confirmacao-reabertura">
