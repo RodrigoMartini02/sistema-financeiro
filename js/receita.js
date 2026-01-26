@@ -1317,9 +1317,9 @@ async function abrirModalReservarValor() {
 }
 
 /**
- * Renderiza lista de reservas no modal
+ * Renderiza lista de reservas no modal com histórico
  */
-function renderizarListaReservasModal() {
+async function renderizarListaReservasModal() {
     const lista = document.getElementById('lista-reservas');
     if (!lista) return;
 
@@ -1333,54 +1333,197 @@ function renderizarListaReservasModal() {
     // Ordenar por data (mais recentes primeiro)
     const reservasOrdenadas = [...window.reservasCache].sort((a, b) => new Date(b.data) - new Date(a.data));
 
-    reservasOrdenadas.forEach(reserva => {
+    for (const reserva of reservasOrdenadas) {
         const item = document.createElement('div');
-        item.className = 'reserva-item';
+        item.className = 'reserva-item-card';
+        item.dataset.id = reserva.id;
+
+        // Carregar movimentações
+        const movimentacoes = await carregarMovimentacoesReserva(reserva.id);
+
         item.innerHTML = `
-            <div class="reserva-info">
-                <span class="reserva-descricao">${reserva.observacoes || 'Reserva'}</span>
-                <span class="reserva-data">${window.formatarData(reserva.data)}</span>
+            <div class="reserva-header">
+                <div class="reserva-info">
+                    <span class="reserva-nome">${reserva.observacoes || 'Reserva'}</span>
+                    <span class="reserva-saldo">${window.formatarMoeda(reserva.valor)}</span>
+                </div>
+                <div class="reserva-botoes">
+                    <button class="btn btn-sm btn-adicionar-valor" data-id="${reserva.id}" title="Adicionar valor">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <button class="btn btn-sm btn-retirar-valor" data-id="${reserva.id}" title="Retirar valor">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                    <button class="btn btn-sm btn-excluir-reserva" data-id="${reserva.id}" title="Excluir reserva">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
             </div>
-            <div class="reserva-acoes">
-                <span class="reserva-valor">${window.formatarMoeda(reserva.valor)}</span>
-                <button class="btn btn-sm btn-editar-reserva" data-id="${reserva.id}" title="Editar">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn btn-sm btn-excluir-reserva" data-id="${reserva.id}" title="Excluir">
-                    <i class="fas fa-trash"></i>
-                </button>
+            <div class="reserva-historico">
+                <div class="historico-titulo">
+                    <i class="fas fa-history"></i> Histórico
+                </div>
+                <div class="historico-lista">
+                    ${renderizarMovimentacoes(movimentacoes)}
+                </div>
             </div>
         `;
 
-        // Event listener para editar
-        item.querySelector('.btn-editar-reserva').addEventListener('click', () => {
-            abrirEdicaoReserva(reserva);
+        // Event listeners
+        item.querySelector('.btn-adicionar-valor').addEventListener('click', () => {
+            abrirModalMovimentar(reserva.id, 'entrada');
         });
 
-        // Event listener para excluir
+        item.querySelector('.btn-retirar-valor').addEventListener('click', () => {
+            abrirModalMovimentar(reserva.id, 'saida');
+        });
+
         item.querySelector('.btn-excluir-reserva').addEventListener('click', () => {
             excluirReserva(reserva.id);
         });
 
         lista.appendChild(item);
-    });
+    }
 }
 
 /**
- * Abre edição de uma reserva
+ * Renderiza HTML das movimentações
  */
-function abrirEdicaoReserva(reserva) {
-    const inputValor = document.getElementById('input-valor-reserva');
-    const inputDescricao = document.getElementById('input-descricao-reserva');
-    const btnAdicionar = document.getElementById('btn-adicionar-reserva');
+function renderizarMovimentacoes(movimentacoes) {
+    if (!movimentacoes || movimentacoes.length === 0) {
+        return '<div class="historico-vazio">Nenhuma movimentação</div>';
+    }
 
-    if (inputValor) inputValor.value = reserva.valor;
-    if (inputDescricao) inputDescricao.value = reserva.observacoes || '';
+    return movimentacoes.map(mov => {
+        const dataHora = new Date(mov.data_hora);
+        const dataFormatada = dataHora.toLocaleDateString('pt-BR');
+        const horaFormatada = dataHora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const isEntrada = mov.tipo === 'entrada';
 
-    // Mudar botão para modo edição
-    if (btnAdicionar) {
-        btnAdicionar.innerHTML = '<i class="fas fa-save"></i>';
-        btnAdicionar.dataset.editando = reserva.id;
+        return `
+            <div class="historico-item ${isEntrada ? 'entrada' : 'saida'}">
+                <div class="historico-info">
+                    <span class="historico-tipo">
+                        <i class="fas fa-${isEntrada ? 'arrow-up' : 'arrow-down'}"></i>
+                        ${isEntrada ? 'Entrada' : 'Saída'}
+                    </span>
+                    <span class="historico-obs">${mov.observacoes || '-'}</span>
+                </div>
+                <div class="historico-detalhes">
+                    <span class="historico-valor ${isEntrada ? 'positivo' : 'negativo'}">
+                        ${isEntrada ? '+' : '-'} ${window.formatarMoeda(mov.valor)}
+                    </span>
+                    <span class="historico-data">${dataFormatada} ${horaFormatada}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * Carrega movimentações de uma reserva
+ */
+async function carregarMovimentacoesReserva(reservaId) {
+    try {
+        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+        if (!token) return [];
+
+        const response = await fetch(`${API_URL_RESERVAS}/reservas/${reservaId}/movimentacoes`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            return data.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error('Erro ao carregar movimentações:', error);
+        return [];
+    }
+}
+
+/**
+ * Abre modal para adicionar ou retirar valor
+ */
+function abrirModalMovimentar(reservaId, tipo) {
+    const modal = document.getElementById('modal-movimentar-reserva');
+    const titulo = document.getElementById('titulo-movimentar-reserva');
+    const inputId = document.getElementById('movimentar-reserva-id');
+    const inputTipo = document.getElementById('movimentar-tipo');
+    const inputValor = document.getElementById('movimentar-valor');
+    const inputObs = document.getElementById('movimentar-obs');
+
+    if (!modal) return;
+
+    // Configurar modal
+    if (titulo) {
+        titulo.innerHTML = tipo === 'entrada'
+            ? '<i class="fas fa-plus"></i> Adicionar Valor'
+            : '<i class="fas fa-minus"></i> Retirar Valor';
+    }
+
+    if (inputId) inputId.value = reservaId;
+    if (inputTipo) inputTipo.value = tipo;
+    if (inputValor) inputValor.value = '';
+    if (inputObs) inputObs.value = '';
+
+    modal.style.display = 'flex';
+}
+
+/**
+ * Processa movimentação de reserva
+ */
+async function processarMovimentacao() {
+    const reservaId = document.getElementById('movimentar-reserva-id').value;
+    const tipo = document.getElementById('movimentar-tipo').value;
+    const valor = parseFloat(document.getElementById('movimentar-valor').value);
+    const observacoes = document.getElementById('movimentar-obs').value.trim();
+
+    if (isNaN(valor) || valor <= 0) {
+        window.mostrarMensagemErro ? window.mostrarMensagemErro('Informe um valor válido') : alert('Informe um valor válido');
+        return;
+    }
+
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+    if (!token) {
+        alert('Sessão expirada. Faça login novamente.');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL_RESERVAS}/reservas/${reservaId}/movimentar`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ tipo, valor, observacoes })
+        });
+
+        if (response.ok) {
+            // Fechar modal
+            const modal = document.getElementById('modal-movimentar-reserva');
+            if (modal) modal.style.display = 'none';
+
+            // Recarregar dados
+            await carregarReservasAPI();
+            await atualizarModalReservas();
+            atualizarCardReservasIntegrado();
+
+            if (typeof window.carregarDadosDashboard === 'function') {
+                await window.carregarDadosDashboard(window.anoAberto);
+            }
+
+            const msg = tipo === 'entrada' ? 'Valor adicionado!' : 'Valor retirado!';
+            window.mostrarMensagemSucesso ? window.mostrarMensagemSucesso(msg) : null;
+        } else {
+            const error = await response.json();
+            window.mostrarMensagemErro ? window.mostrarMensagemErro(error.message || 'Erro na movimentação') : alert(error.message || 'Erro na movimentação');
+        }
+    } catch (error) {
+        console.error('Erro ao processar movimentação:', error);
+        window.mostrarMensagemErro ? window.mostrarMensagemErro('Erro ao processar movimentação') : alert('Erro ao processar movimentação');
     }
 }
 
@@ -1537,10 +1680,31 @@ function inicializarEventosReservasIntegradas() {
         btnReservar.addEventListener('click', abrirModalReservarValor);
     }
 
-    // Botão Adicionar no modal
+    // Botão Adicionar no modal de nova reserva
     const btnAdicionar = document.getElementById('btn-adicionar-reserva');
     if (btnAdicionar) {
         btnAdicionar.addEventListener('click', processarAdicionarReserva);
+    }
+
+    // Botão confirmar movimentação
+    const btnConfirmarMov = document.getElementById('btn-confirmar-movimentacao');
+    if (btnConfirmarMov) {
+        btnConfirmarMov.addEventListener('click', processarMovimentacao);
+    }
+
+    // Fechar modal de movimentação
+    const modalMov = document.getElementById('modal-movimentar-reserva');
+    if (modalMov) {
+        modalMov.querySelectorAll('.close').forEach(btn => {
+            btn.addEventListener('click', () => {
+                modalMov.style.display = 'none';
+            });
+        });
+        modalMov.addEventListener('click', (e) => {
+            if (e.target === modalMov) {
+                modalMov.style.display = 'none';
+            }
+        });
     }
 
     // Carregar reservas ao iniciar

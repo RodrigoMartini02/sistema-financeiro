@@ -78,7 +78,14 @@ router.post('/', authMiddleware, [
              RETURNING *`,
             [req.usuario.id, parseFloat(valor), mes, ano, data, observacoes || null]
         );
-        
+
+        // Registrar primeira movimentação de entrada
+        await query(
+            `INSERT INTO movimentacoes_reservas (reserva_id, tipo, valor, observacoes)
+             VALUES ($1, 'entrada', $2, $3)`,
+            [result.rows[0].id, parseFloat(valor), 'Valor inicial']
+        );
+
         res.status(201).json({
             success: true,
             message: 'Reserva criada com sucesso',
@@ -288,6 +295,148 @@ router.get('/historico', authMiddleware, async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Erro ao buscar histórico de reservas'
+        });
+    }
+});
+
+// ================================================================
+// MOVIMENTAÇÕES DE RESERVAS
+// ================================================================
+
+// POST - Adicionar ou retirar valor de uma reserva
+router.post('/:id/movimentar', authMiddleware, [
+    body('tipo').isIn(['entrada', 'saida']).withMessage('Tipo deve ser entrada ou saida'),
+    body('valor').isFloat({ min: 0.01 }).withMessage('Valor deve ser maior que zero'),
+    body('observacoes').optional().isString()
+], async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                errors: errors.array()
+            });
+        }
+
+        const { id } = req.params;
+        const { tipo, valor, observacoes } = req.body;
+
+        // Verificar se a reserva existe e pertence ao usuário
+        const reservaResult = await query(
+            'SELECT * FROM reservas WHERE id = $1 AND usuario_id = $2',
+            [id, req.usuario.id]
+        );
+
+        if (reservaResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Reserva não encontrada'
+            });
+        }
+
+        const reserva = reservaResult.rows[0];
+
+        // Se for saída, verificar se há saldo suficiente na reserva
+        if (tipo === 'saida') {
+            const saldoAtual = parseFloat(reserva.valor);
+            if (saldoAtual < parseFloat(valor)) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Saldo insuficiente na reserva. Disponível: R$ ${saldoAtual.toFixed(2)}`
+                });
+            }
+        }
+
+        // Se for entrada, verificar se há saldo disponível no mês
+        if (tipo === 'entrada') {
+            const verificacaoSaldo = await verificarSaldoDisponivel(
+                req.usuario.id,
+                reserva.mes,
+                reserva.ano,
+                parseFloat(valor)
+            );
+
+            if (!verificacaoSaldo.sucesso) {
+                return res.status(400).json({
+                    success: false,
+                    message: verificacaoSaldo.mensagem,
+                    saldoDisponivel: verificacaoSaldo.saldoDisponivel
+                });
+            }
+        }
+
+        // Registrar a movimentação
+        const movResult = await query(
+            `INSERT INTO movimentacoes_reservas (reserva_id, tipo, valor, observacoes)
+             VALUES ($1, $2, $3, $4)
+             RETURNING *`,
+            [id, tipo, parseFloat(valor), observacoes || null]
+        );
+
+        // Atualizar o valor da reserva
+        const novoValor = tipo === 'entrada'
+            ? parseFloat(reserva.valor) + parseFloat(valor)
+            : parseFloat(reserva.valor) - parseFloat(valor);
+
+        await query(
+            'UPDATE reservas SET valor = $1 WHERE id = $2',
+            [novoValor, id]
+        );
+
+        res.status(201).json({
+            success: true,
+            message: tipo === 'entrada' ? 'Valor adicionado com sucesso' : 'Valor retirado com sucesso',
+            data: {
+                movimentacao: movResult.rows[0],
+                novoSaldo: novoValor
+            }
+        });
+
+    } catch (error) {
+        console.error('Erro ao movimentar reserva:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao processar movimentação'
+        });
+    }
+});
+
+// GET - Buscar movimentações de uma reserva
+router.get('/:id/movimentacoes', authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Verificar se a reserva pertence ao usuário
+        const reservaResult = await query(
+            'SELECT * FROM reservas WHERE id = $1 AND usuario_id = $2',
+            [id, req.usuario.id]
+        );
+
+        if (reservaResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Reserva não encontrada'
+            });
+        }
+
+        // Buscar movimentações
+        const movResult = await query(
+            `SELECT * FROM movimentacoes_reservas
+             WHERE reserva_id = $1
+             ORDER BY data_hora DESC`,
+            [id]
+        );
+
+        res.json({
+            success: true,
+            data: movResult.rows
+        });
+
+    } catch (error) {
+        console.error('Erro ao buscar movimentações:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao buscar movimentações'
         });
     }
 });

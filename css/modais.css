@@ -817,6 +817,208 @@
 }
 
 /* ================================================================
+   RESERVAS COM HISTÓRICO - NOVO LAYOUT
+   ================================================================ */
+
+.reservas-lista {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.reserva-item-card {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.reserva-item-card:last-child {
+    margin-bottom: 0;
+}
+
+.reserva-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 14px;
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.reserva-header .reserva-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.reserva-header .reserva-nome {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-800);
+}
+
+.reserva-header .reserva-saldo {
+    font-size: 16px;
+    font-weight: 700;
+    color: #2e7d32;
+}
+
+.reserva-botoes {
+    display: flex;
+    gap: 6px;
+}
+
+.reserva-botoes .btn-sm {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-adicionar-valor {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.btn-adicionar-valor:hover {
+    background: #2e7d32;
+    color: white;
+}
+
+.btn-retirar-valor {
+    background: #fff3e0;
+    color: #e65100;
+}
+
+.btn-retirar-valor:hover {
+    background: #e65100;
+    color: white;
+}
+
+.reserva-botoes .btn-excluir-reserva {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.reserva-botoes .btn-excluir-reserva:hover {
+    background: #dc2626;
+    color: white;
+}
+
+/* Histórico de movimentações */
+.reserva-historico {
+    padding: 10px 14px;
+    background: var(--white);
+}
+
+.historico-titulo {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.historico-titulo i {
+    font-size: 10px;
+}
+
+.historico-lista {
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.historico-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    margin-bottom: 4px;
+    font-size: 12px;
+}
+
+.historico-item.entrada {
+    background: #f0fdf4;
+    border-left: 3px solid #22c55e;
+}
+
+.historico-item.saida {
+    background: #fef2f2;
+    border-left: 3px solid #ef4444;
+}
+
+.historico-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.historico-tipo {
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.historico-item.entrada .historico-tipo {
+    color: #16a34a;
+}
+
+.historico-item.saida .historico-tipo {
+    color: #dc2626;
+}
+
+.historico-obs {
+    color: var(--gray-500);
+    font-size: 11px;
+}
+
+.historico-detalhes {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.historico-valor {
+    font-weight: 600;
+}
+
+.historico-valor.positivo {
+    color: #16a34a;
+}
+
+.historico-valor.negativo {
+    color: #dc2626;
+}
+
+.historico-data {
+    font-size: 10px;
+    color: var(--gray-500);
+}
+
+.historico-vazio {
+    text-align: center;
+    color: var(--gray-400);
+    font-size: 11px;
+    padding: 10px;
+}
+
+/* Modal de movimentação */
+.modal-sm .modal-content {
+    max-width: 380px;
+}
+
+/* ================================================================
    NAVEGAÇÃO DE HEADER (para modais com navegação)
    ================================================================ */
 
