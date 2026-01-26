@@ -874,7 +874,7 @@ textarea:focus {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 0;
+    padding: 20px 24px;
     height: calc(100vh - var(--header-height) - 60px);
 }
 
@@ -2746,7 +2746,6 @@ table tr:hover {
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 16px;
     margin-bottom: 30px;
-    margin-top: 20px;
 }
 
 .resumo-cards .card {

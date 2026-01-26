@@ -9,7 +9,7 @@
     background: white;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     padding: 10px 25px;
-    margin: 0 16px 20px 16px;
+    margin-bottom: 20px;
     transition: transform 0.3s ease;
 }
 
@@ -39,7 +39,6 @@
     grid-template-columns: repeat(2, 1fr);
     gap: 25px;
     margin-bottom: 25px;
-    padding: 0 16px;
 }
 
 .dashboard-card {
