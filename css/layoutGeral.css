@@ -2154,21 +2154,7 @@ table tr:hover {
     gap: 8px;
 }
 
-#modal-carrinho-compras .close {
-    color: var(--white);
-    font-size: 28px;
-    font-weight: 700;
-    cursor: pointer;
-    background: none;
-    border: none;
-    padding: 0;
-    line-height: 1;
-    transition: opacity 0.2s ease;
-}
-
-#modal-carrinho-compras .close:hover {
-    opacity: 0.8;
-}
+/* #modal-carrinho-compras .close - usa estilo padrão de modais.css */
 
 #modal-carrinho-compras .modal-body {
     padding: 24px;

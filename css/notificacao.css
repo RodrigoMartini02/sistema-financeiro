@@ -82,30 +82,30 @@
 /* ================================================================
    HEADER DO MODAL
    ================================================================ */
-/* Especificidade maior para sobrescrever .modal-header */
+/* Cabeçalho azul com texto branco */
 #modal-notificacoes .notificacoes-header {
-    padding: 1.25rem 1.5rem;
-    border-bottom: 2px solid var(--gray-300);
+    padding: 1rem 1.5rem;
+    border-bottom: none;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: var(--white) !important;
+    background: #667eea !important;
     flex-shrink: 0;
 }
 
 #modal-notificacoes .notificacoes-titulo {
     margin: 0;
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 600;
-    color: var(--gray-800) !important;
+    color: #fff !important;
     display: flex;
     align-items: center;
     gap: 0.6rem;
 }
 
 #modal-notificacoes .notificacoes-titulo i {
-    font-size: 1.2rem;
-    color: var(--gray-800) !important;
+    font-size: 1.1rem;
+    color: #fff !important;
 }
 
 #modal-notificacoes .notificacoes-actions {
@@ -115,23 +115,24 @@
 }
 
 #modal-notificacoes .btn-notif-action {
-    background: var(--gray-100) !important;
-    border: 1px solid var(--gray-300) !important;
-    padding: 0.5rem 0.9rem;
+    background: rgba(255,255,255,0.15) !important;
+    border: 1px solid rgba(255,255,255,0.3) !important;
+    padding: 0.5rem 0.75rem;
     font-size: 0.8rem;
     cursor: pointer;
     transition: all 0.2s ease;
-    color: var(--gray-800) !important;
+    color: #fff !important;
     font-weight: 500;
     display: flex;
     align-items: center;
     gap: 0.4rem;
+    border-radius: 4px;
 }
 
 #modal-notificacoes .btn-notif-action:hover {
-    background: var(--gray-800) !important;
-    color: white !important;
-    border-color: var(--gray-800) !important;
+    background: rgba(255,255,255,0.25) !important;
+    color: #fff !important;
+    border-color: rgba(255,255,255,0.5) !important;
 }
 
 #modal-notificacoes .btn-notif-action i {
@@ -140,30 +141,39 @@
 }
 
 #modal-notificacoes .btn-notif-danger {
-    color: var(--danger) !important;
-    border-color: var(--danger) !important;
+    background: rgba(220,53,69,0.8) !important;
+    border-color: rgba(220,53,69,0.9) !important;
+    color: #fff !important;
 }
 
 #modal-notificacoes .btn-notif-danger:hover {
-    background: var(--danger) !important;
-    color: white !important;
+    background: #dc3545 !important;
+    border-color: #dc3545 !important;
+    color: #fff !important;
 }
 
 #modal-notificacoes .btn-notif-close {
-    background: none;
-    border: none;
-    font-size: 1.8rem;
+    background: rgba(255,255,255,0.15) !important;
+    border: 1px solid rgba(255,255,255,0.3) !important;
+    border-radius: 4px;
+    width: 32px;
+    height: 32px;
+    font-size: 1.2rem;
     cursor: pointer;
-    padding: 0.2rem 0.4rem;
-    color: var(--gray-500) !important;
-    transition: color 0.2s ease;
+    padding: 0;
+    color: #fff !important;
+    transition: all 0.2s ease;
     margin-left: 0.5rem;
     line-height: 1;
-    font-weight: 300;
+    font-weight: 400;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 #modal-notificacoes .btn-notif-close:hover {
-    color: var(--gray-800) !important;
+    background: rgba(255,255,255,0.25) !important;
+    color: #fff !important;
 }
 
 /* ================================================================

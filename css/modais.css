@@ -104,20 +104,28 @@
     background-color: var(--gray-50);
 }
 
+/* Botão fechar padrão para todos os modais */
 .close {
     color: var(--white);
-    font-size: 28px;
-    font-weight: var(--font-weight-bold);
+    font-size: 1.2rem;
+    font-weight: 400;
     cursor: pointer;
-    transition: var(--transition-base);
-    background: none;
-    border: none;
+    transition: all 0.2s ease;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 4px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     padding: 0;
     line-height: 1;
 }
 
 .close:hover {
-    color: rgba(255, 255, 255, 0.8);
+    background: rgba(255,255,255,0.25);
+    color: var(--white);
 }
 
 /* ================================================================
@@ -165,11 +173,7 @@
     margin: 0;
 }
 
-#modal-exclusao-receita .modal-header .close,
-#modal-confirmacao-exclusao-despesa .modal-header .close {
-    color: #ffffff;
-    font-size: 24px;
-}
+/* Usa estilo padrão de .close */
 
 #modal-exclusao-receita .modal-body,
 #modal-confirmacao-exclusao-despesa .modal-body {
@@ -243,17 +247,7 @@
     overflow-y: auto;
 }
 
-#modal-detalhes-mes .modal-header .close {
-    font-size: 28px;
-    font-weight: 700;
-    line-height: 1;
-    padding: 0.5rem 1rem;
-    min-height: 36px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: 10px;
-}
+/* Usa estilo padrão de .close definido acima */
 
 /* ================================================================
    MODAIS ESPECÍFICOS - DESPESA COMPACT
@@ -391,18 +385,7 @@
     color: #ffffff;
 }
 
-#modal-adicionar-usuario .modal-header .close,
-#modal-editar-usuario .modal-header .close,
-#modal-editar-categoria .modal-header .close,
-#modal-editar-cartao .modal-header .close,
-#modal-alterar-senha .modal-header .close {
-    color: #ffffff;
-    font-size: 24px;
-    cursor: pointer;
-    background: none;
-    border: none;
-    line-height: 1;
-}
+/* Usa estilo padrão de .close definido no início */
 
 #modal-adicionar-usuario .modal-body,
 #modal-editar-usuario .modal-body,
