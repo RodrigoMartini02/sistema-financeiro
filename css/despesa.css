@@ -108,10 +108,12 @@
 /* Container legado removido - usar .tabela-despesas-container */
 
 /* Checkbox de seleção */
-.despesa-checkbox {
+.despesa-checkbox,
+#select-all-despesas {
     width: 14px;
     height: 14px;
     accent-color: #6366f1;
+    cursor: pointer;
 }
 
 /* ================================================================
