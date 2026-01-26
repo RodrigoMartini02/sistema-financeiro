@@ -2318,91 +2318,55 @@
         </div>
     </div>
     
-    <div id="despesas-grid-container" class="despesas-grid">
-        <div class="grid-header" id="despesas-grid-header">
-            <div class="col-checkbox">
-                <input type="checkbox" id="select-all-despesas" onchange="toggleTodasDespesas(this)">
-                <div class="column-resizer"></div>
-            </div>
-            <div class="col-numero">
-                ID
-                <div class="column-resizer"></div>
-            </div>
-            <div class="col-descricao">
-                Descrição
-                <div class="column-resizer"></div>
-            </div>
-            <div class="col-categoria">
-                Categoria
-                <div class="column-resizer"></div>
-            </div>
-            <div class="col-forma-pagamento">
-                Método
-                <div class="column-resizer"></div>
-            </div>
-            <div class="col-valor">
-                Valor
-                <div class="column-resizer"></div>
-            </div>
-            <div class="col-parcela">
-                Parcela
-                <div class="column-resizer"></div>
-            </div>
-            <div class="col-valor-pago">
-                Valor Pago
-                <div class="column-resizer"></div>
-            </div>
-            <div class="col-status">
-                Status
-                <div class="column-resizer"></div>
-            </div>
-            <div class="col-compra">
-                Compra
-                <div class="column-resizer"></div>
-            </div>
-            <div class="col-vencimento">
-                Vencimento
-                <div class="column-resizer"></div>
-            </div>
-            <div class="col-data-pagamento">
-                Pagamento
-                <div class="column-resizer"></div>
-            </div>
-            <div class="col-acoes">
-                Ações
-                <div class="column-resizer"></div>
-            </div>
-            <div class="col-anexos">Anexos</div>
-        </div>
-        
-        <div id="lista-despesas" class="grid-content">
-            <!-- Linhas serão inseridas aqui -->
-        </div>
+    <div id="despesas-grid-container" class="tabela-despesas-container">
+        <table class="tabela-despesas" id="tabela-despesas">
+            <thead>
+                <tr>
+                    <th class="col-checkbox"><input type="checkbox" id="select-all-despesas" onchange="toggleTodasDespesas(this)"></th>
+                    <th class="col-numero">ID</th>
+                    <th class="col-descricao">Descrição</th>
+                    <th class="col-categoria">Categoria</th>
+                    <th class="col-forma-pagamento">Método</th>
+                    <th class="col-valor">Valor</th>
+                    <th class="col-parcela">Parcela</th>
+                    <th class="col-valor-pago">Valor Pago</th>
+                    <th class="col-status">Status</th>
+                    <th class="col-compra">Compra</th>
+                    <th class="col-vencimento">Vencimento</th>
+                    <th class="col-data-pagamento">Pagamento</th>
+                    <th class="col-acoes">Ações</th>
+                    <th class="col-anexos">Anexos</th>
+                </tr>
+            </thead>
+            <tbody id="lista-despesas">
+                <!-- Linhas serão inseridas aqui -->
+            </tbody>
+        </table>
     </div>
 </template>
 
 <template id="template-linha-despesa-grid">
-    <div class="grid-row despesa-row">
-        <div class="col-checkbox"></div>
-        <div class="col-numero"></div>
-        <div class="col-descricao"></div>
-        <div class="col-categoria"></div>
-        <div class="col-forma-pagamento"></div>
-        <div class="col-valor"></div>
-        <div class="col-parcela"></div>
-        <div class="col-valor-pago"></div>
-        <div class="col-status"></div>
-        <div class="col-compra"></div>
-        <div class="col-vencimento"></div>
-        <div class="col-data-pagamento"></div>
-        <div class="col-acoes"></div>
-        <div class="col-anexos">
+    <tr class="despesa-row">
+        <td class="col-checkbox"></td>
+        <td class="col-numero"></td>
+        <td class="col-descricao"></td>
+        <td class="col-categoria"></td>
+        <td class="col-forma-pagamento"></td>
+        <td class="col-valor"></td>
+        <td class="col-parcela"></td>
+        <td class="col-valor-pago"></td>
+        <td class="col-status"></td>
+        <td class="col-compra"></td>
+        <td class="col-vencimento"></td>
+        <td class="col-data-pagamento"></td>
+        <td class="col-acoes"></td>
+        <td class="col-anexos">
             <button class="btn btn-anexos" data-index="" title="Ver anexos">
                 <i class="fas fa-paperclip"></i>
                 <span class="contador-anexos">0</span>
             </button>
-        </div>
-    </div>
+        </td>
+    </tr>
 </template>
 
 <template id="template-botoes-acao-despesa">
@@ -2896,24 +2860,7 @@
     </div>
 </template>
 
-<!-- Template para linha de despesa no CSS Grid -->
-<template id="template-linha-despesa-grid">
-    <div class="grid-row despesa-row">
-        <div class="col-checkbox"></div>
-        <div class="col-numero"></div>
-        <div class="col-descricao"></div>
-        <div class="col-categoria"></div>
-        <div class="col-forma-pagamento"></div>
-        <div class="col-valor"></div>
-        <div class="col-parcela"></div>
-        <div class="col-valor-pago"></div>
-        <div class="col-status"></div>
-        <div class="col-compra"></div>
-        <div class="col-vencimento"></div>
-        <div class="col-anexos"></div>
-        <div class="col-acoes"></div>
-    </div>
-</template>
+<!-- Template duplicado removido - usar apenas template-linha-despesa-grid definido acima -->
 
 <!-- Template para botões de ação -->
 <template id="template-botoes-acao">

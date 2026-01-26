@@ -84,7 +84,7 @@ function aplicarTodosFiltros() {
     const filtroFormaPagamento = document.getElementById('filtro-forma-pagamento-tabela')?.value || 'todas';
     const filtroStatus = document.getElementById('filtro-status')?.value || 'todas';
     
-    const linhas = document.querySelectorAll('.grid-row.despesa-row');
+    const linhas = document.querySelectorAll('tr.despesa-row');
     
     linhas.forEach(linha => {
         let mostrarLinha = true;
@@ -209,7 +209,7 @@ function criarLinhaDespesaGrid(despesa, index, fechado, mes, ano) {
   }
   
   const clone = template.content.cloneNode(true);
-  const div = clone.querySelector('.grid-row');
+  const div = clone.querySelector('.despesa-row');
   
   if (despesa.status === 'em_dia') div.classList.add('despesa-em-dia');
   else if (despesa.status === 'atrasada') div.classList.add('despesa-atrasada');
@@ -231,7 +231,7 @@ function criarLinhaDespesaGrid(despesa, index, fechado, mes, ano) {
 }
 
 function sincronizarIndicesDespesas() {
-  const linhasDespesas = document.querySelectorAll('.grid-row.despesa-row');
+  const linhasDespesas = document.querySelectorAll('tr.despesa-row');
   
   linhasDespesas.forEach((linha, novoIndex) => {
       linha.setAttribute('data-index', novoIndex);
@@ -498,7 +498,7 @@ function configurarEventosDespesas(container, mes, ano) {
       e.preventDefault();
 
       // Usar data-despesa-id da linha para garantir referência correta
-      const linha = btn.closest('.grid-row');
+      const linha = btn.closest('tr.despesa-row');
       const despesaId = linha?.getAttribute('data-despesa-id');
 
       if (!despesaId) {
@@ -2381,7 +2381,7 @@ async function abrirModalPagamento(index, mes, ano) {
             despesaEncontrada = despesas[index];
             indiceAtualizado = index;
         } else {
-            const linhaElemento = document.querySelector(`[data-index="${index}"]`)?.closest('.grid-row');
+            const linhaElemento = document.querySelector(`[data-index="${index}"]`)?.closest('tr.despesa-row');
             if (linhaElemento) {
                 const descricaoElemento = linhaElemento.querySelector('.col-descricao');
                 const categoriaElemento = linhaElemento.querySelector('.col-categoria');
@@ -2793,7 +2793,7 @@ async function pagarDespesasEmLote() {
         }
 
         const checkboxesValidas = Array.from(todasCheckboxes).filter(checkbox => {
-            const linha = checkbox.closest('.grid-row');
+            const linha = checkbox.closest('tr.despesa-row');
             const despesaId = linha?.getAttribute('data-despesa-id');
             if (!despesaId) return false;
 
@@ -3017,7 +3017,7 @@ async function processarPagamentoComData(index, mes, ano, valorPago = null, quit
 async function pagarLoteComValoresOriginais(checkboxes) {
    // Obter IDs das despesas a partir das linhas
    const despesaIds = Array.from(checkboxes).map(checkbox => {
-       const linha = checkbox.closest('.grid-row');
+       const linha = checkbox.closest('tr.despesa-row');
        return linha?.getAttribute('data-despesa-id');
    }).filter(id => id);
 
@@ -3283,7 +3283,7 @@ function aplicarOrdenacaoDespesas(tipoOrdenacao) {
     const listaDespesas = document.getElementById('lista-despesas');
     if (!listaDespesas) return;
     
-    const linhas = Array.from(listaDespesas.querySelectorAll('.grid-row.despesa-row'));
+    const linhas = Array.from(listaDespesas.querySelectorAll('tr.despesa-row'));
 
     if (tipoOrdenacao === 'original') {
         // Ordenação original: ID decrescente (mais recente primeiro)
@@ -3357,8 +3357,8 @@ function compararDatas(dataA, dataB) {
 }
 
 function atualizarContadoresFiltro() {
-   const linhasVisiveis = document.querySelectorAll('.grid-row.despesa-row:not([style*="display: none"])');
-   const totalLinhas = document.querySelectorAll('.grid-row.despesa-row').length;
+   const linhasVisiveis = document.querySelectorAll('tr.despesa-row:not([style*="display: none"])');
+   const totalLinhas = document.querySelectorAll('tr.despesa-row').length;
    
    let valorTotalVisivel = 0;
    
@@ -3381,13 +3381,12 @@ function atualizarContadoresFiltro() {
 }
 
 function calcularValorDespesaLinha(linha) {
-    const index = obterIndexDespesa(linha);
-    
-    if (index !== null && dadosFinanceiros[anoAberto]?.meses[mesAberto]?.despesas?.[index]) {
-        const despesa = dadosFinanceiros[anoAberto].meses[mesAberto].despesas[index];
+    const despesa = obterDespesaDaLinha(linha);
+
+    if (despesa) {
         return obterValorRealDespesa(despesa);
     }
-    
+
     return 0;
 }
 
@@ -3709,21 +3708,22 @@ window.toggleTodasDespesas = toggleTodasDespesas;
 document.addEventListener('DOMContentLoaded', configurarBotaoComprovanteSimples);
 
 // ================================================================
-// REDIMENSIONAMENTO DE COLUNAS
-// ================================================================
-// REDIMENSIONAMENTO DE COLUNAS - VERSÃO SIMPLIFICADA
+// REDIMENSIONAMENTO DE COLUNAS - VERSÃO PARA TABLE
 // ================================================================
 
 (function() {
     let isResizing = false;
-    let currentColumn = null;
+    let currentTh = null;
     let startX = 0;
     let startWidth = 0;
 
-    function initColumnResizer() {
-        const header = document.getElementById('despesas-grid-header');
-        if (!header || header.dataset.resizerInit === 'true') return;
-        header.dataset.resizerInit = 'true';
+    function initTableColumnResizer() {
+        const tabela = document.getElementById('tabela-despesas');
+        if (!tabela || tabela.dataset.resizerInit === 'true') return;
+        tabela.dataset.resizerInit = 'true';
+
+        const thead = tabela.querySelector('thead');
+        if (!thead) return;
 
         // Remove listeners antigos se existirem
         document.removeEventListener('mousemove', handleMouseMove);
@@ -3733,16 +3733,29 @@ document.addEventListener('DOMContentLoaded', configurarBotaoComprovanteSimples)
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
 
-        // Adiciona listener em cada resizer
-        header.querySelectorAll('.column-resizer').forEach(resizer => {
+        // Adiciona resizers nos th (se não existirem)
+        const thElements = thead.querySelectorAll('th');
+        thElements.forEach(th => {
+            // Pular colunas muito pequenas (checkbox, anexos)
+            if (th.classList.contains('col-checkbox') || th.classList.contains('col-anexos')) return;
+
+            // Verificar se já tem resizer
+            if (th.querySelector('.column-resizer')) return;
+
+            const resizer = document.createElement('div');
+            resizer.className = 'column-resizer';
+            resizer.style.cssText = 'position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize;z-index:10;';
+            th.style.position = 'relative';
+            th.appendChild(resizer);
+
             resizer.onmousedown = function(e) {
                 e.preventDefault();
                 e.stopPropagation();
 
                 isResizing = true;
-                currentColumn = resizer.parentElement;
+                currentTh = th;
                 startX = e.pageX;
-                startWidth = currentColumn.offsetWidth;
+                startWidth = th.offsetWidth;
 
                 resizer.classList.add('resizing');
                 document.body.style.cursor = 'col-resize';
@@ -3752,92 +3765,59 @@ document.addEventListener('DOMContentLoaded', configurarBotaoComprovanteSimples)
     }
 
     function handleMouseMove(e) {
-        if (!isResizing || !currentColumn) return;
+        if (!isResizing || !currentTh) return;
 
         const diff = e.pageX - startX;
         const newWidth = Math.max(30, startWidth + diff);
 
-        // Aplica largura diretamente na coluna do header
-        currentColumn.style.width = newWidth + 'px';
-        currentColumn.style.minWidth = newWidth + 'px';
-        currentColumn.style.maxWidth = newWidth + 'px';
-        currentColumn.style.flex = '0 0 ' + newWidth + 'px';
-        currentColumn.style.overflow = 'hidden';
-
-        // Sincroniza com as linhas
-        const header = document.getElementById('despesas-grid-header');
-        const columnIndex = Array.from(header.children).indexOf(currentColumn);
-
-        const rows = document.querySelectorAll('#despesas-grid-container .grid-row');
-        rows.forEach(row => {
-            const cell = row.children[columnIndex];
-            if (cell) {
-                cell.style.width = newWidth + 'px';
-                cell.style.minWidth = newWidth + 'px';
-                cell.style.maxWidth = newWidth + 'px';
-                cell.style.flex = '0 0 ' + newWidth + 'px';
-                cell.style.overflow = 'hidden';
-            }
-        });
+        // Com table-layout: fixed, basta ajustar o th que as td seguem automaticamente
+        currentTh.style.width = newWidth + 'px';
     }
 
     function handleMouseUp() {
         if (!isResizing) return;
 
         isResizing = false;
-        if (currentColumn) {
-            const resizer = currentColumn.querySelector('.column-resizer');
+        if (currentTh) {
+            const resizer = currentTh.querySelector('.column-resizer');
             if (resizer) resizer.classList.remove('resizing');
         }
-        currentColumn = null;
+        currentTh = null;
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
     }
 
     // Função para resetar larguras
     window.resetDespesasColumnWidths = function() {
-        const header = document.getElementById('despesas-grid-header');
-        if (header) {
-            Array.from(header.children).forEach(col => {
-                col.style.width = '';
-                col.style.minWidth = '';
-                col.style.maxWidth = '';
-                col.style.flex = '';
-                col.style.overflow = '';
-            });
-        }
-        const rows = document.querySelectorAll('#despesas-grid-container .grid-row');
-        rows.forEach(row => {
-            Array.from(row.children).forEach(cell => {
-                cell.style.width = '';
-                cell.style.minWidth = '';
-                cell.style.maxWidth = '';
-                cell.style.flex = '';
-                cell.style.overflow = '';
-            });
+        const tabela = document.getElementById('tabela-despesas');
+        if (!tabela) return;
+
+        const thElements = tabela.querySelectorAll('thead th');
+        thElements.forEach(th => {
+            th.style.width = '';
         });
     };
 
     window.reinitDespesasResizer = function() {
-        const header = document.getElementById('despesas-grid-header');
-        if (header) {
-            header.dataset.resizerInit = '';
-            initColumnResizer();
+        const tabela = document.getElementById('tabela-despesas');
+        if (tabela) {
+            tabela.dataset.resizerInit = '';
+            initTableColumnResizer();
         }
     };
 
     // Inicializa
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initColumnResizer);
+        document.addEventListener('DOMContentLoaded', initTableColumnResizer);
     } else {
-        setTimeout(initColumnResizer, 100);
+        setTimeout(initTableColumnResizer, 100);
     }
 
     // Observer para reinicializar quando necessário
     const observer = new MutationObserver(() => {
-        const header = document.getElementById('despesas-grid-header');
-        if (header && header.dataset.resizerInit !== 'true') {
-            initColumnResizer();
+        const tabela = document.getElementById('tabela-despesas');
+        if (tabela && tabela.dataset.resizerInit !== 'true') {
+            initTableColumnResizer();
         }
     });
 
