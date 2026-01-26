@@ -13,13 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
 const API_URL = 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
 let elementos = {};
-let emailJSDisponivel = false;
-
-const EMAIL_CONFIG = {
-    serviceId: 'service_financas',
-    templateId: 'template_recuperacao',
-    userId: 'oW3fgPbnchMKc42Yf'
-};
+let emailJSDisponivel = false; // Mantido para compatibilidade, mas não usado mais
 
 // ================================================================
 // INICIALIZAÇÃO RÁPIDA - SEM AGUARDOS
@@ -66,33 +60,15 @@ function configurarSistemaCompleto() {
 }
 
 function carregarDependenciasBackground() {
-    // EmailJS em background (não bloqueia login)
-    if (!window.emailjs) {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js';
-        script.onload = () => {
-            try {
-                emailjs.init(EMAIL_CONFIG.userId);
-                emailJSDisponivel = true;
-            } catch (e) {
-                // EmailJS erro silencioso
-            }
-        };
-        script.onerror = () => {
-            // EmailJS falhou silenciosamente
-        };
-        document.head.appendChild(script);
-    } else {
-        emailJSDisponivel = true;
-    }
-    
+    // EmailJS agora é gerenciado pelo backend - não precisa carregar no frontend
+
     // UsuarioDados se disponível
     if (window.usuarioDados && typeof window.usuarioDados.aguardarPronto === 'function') {
         window.usuarioDados.aguardarPronto().then(() => {
             // UsuarioDados integrado silenciosamente
         });
     }
-    
+
     // Limpeza automática
     verificarELimparDados();
 }
@@ -237,8 +213,8 @@ async function processarLogin(documento, password, isModal, tentativa = 1) {
             nome: usuario.nome || usuario.name,
             documento: docLimpo,
             email: usuario.email,
-            tipo: usuario.tipo,
-            password: password // Manter senha para desbloqueio interno
+            tipo: usuario.tipo
+            // Senha removida por segurança - usar token JWT para autenticação
         }));
 
         // Registrar tentativa em background
@@ -843,29 +819,29 @@ function verificarCodigoRecuperacao(email, codigoInformado) {
 
 async function enviarEmailRecuperacao(email, codigo, nomeUsuario = 'Usuário') {
     try {
-        if (!emailJSDisponivel || !window.emailjs) {
-            throw new Error('Serviço de e-mail indisponível');
+        // Enviar email via backend (credenciais seguras no servidor)
+        const response = await fetch(`${API_URL}/auth/send-recovery-email`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email: email,
+                codigo: codigo,
+                nome: nomeUsuario
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            return { success: true };
+        } else {
+            throw new Error(data.message || 'Erro ao enviar email');
         }
-        
-        // Estes nomes (to_email, to_name, etc) devem ser IGUAIS aos que estão no seu template do EmailJS
-        const templateParams = {
-            to_email: email,
-            to_name: nomeUsuario,
-            codigo_recuperacao: codigo,
-            validade: '15 minutos',
-            sistema_nome: 'Sistema de Controle Financeiro'
-        };
-
-        const response = await emailjs.send(
-            EMAIL_CONFIG.serviceId, 
-            EMAIL_CONFIG.templateId, 
-            templateParams
-        );
-
-        return { success: true };
 
     } catch (error) {
-        return { success: false, message: 'Erro ao enviar e-mail: ' + (error.text || error.message) };
+        return { success: false, message: 'Erro ao enviar e-mail: ' + error.message };
     }
 }
 

@@ -25,7 +25,14 @@
       "Bash(head:*)",
       "Bash(wc:*)",
       "Bash(git checkout:*)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(powershell -Command \"cd ''c:\\\\Users\\\\rodri\\\\Music\\\\sistema financas''; Remove-Item -Path ''\\\\?\\\\c:\\\\Users\\\\rodri\\\\Music\\\\sistema financas\\\\nul'' -Force -ErrorAction SilentlyContinue; Remove-Item -Path ''tmpclaude-*'' -Force -ErrorAction SilentlyContinue; Get-ChildItem -Name\")",
+      "Bash(powershell -Command \"Remove-Item -LiteralPath ''\\\\?\\\\c:\\\\Users\\\\rodri\\\\Music\\\\sistema financas\\\\nul'' -Force\")",
+      "Bash(cmd /c \"del /f /q \"\"\\\\?\\\\c:\\\\Users\\\\rodri\\\\Music\\\\sistema financas\\\\nul\"\"\")",
+      "Bash(powershell -Command \"Test-Path ''c:\\\\Users\\\\rodri\\\\Music\\\\sistema financas\\\\nul''\")",
+      "Bash(powershell -Command:*)",
+      "Bash(cmd /c \"dir /b /a-d \"\"c:\\\\Users\\\\rodri\\\\Music\\\\sistema financas\\\\backend\"\" 2>nul\")",
+      "Bash(cmd /c:*)"
     ]
   }
 }

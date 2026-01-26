@@ -1,2 +1,7 @@
 node_modules/
 .env
+
+# Arquivos temporários e reservados do Windows
+nul
+tmpclaude-*
+*.tmp
