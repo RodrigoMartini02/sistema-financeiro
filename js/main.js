@@ -1042,16 +1042,26 @@ function setupSistemaBloqueio() {
         }
 
         try {
-            const usuario = obterUsuarioAtualLocal();
+            const token = sessionStorage.getItem('token') || localStorage.getItem('token');
 
-            if (!usuario) {
-                alert('Erro: Usuário não encontrado. Recarregue a página e faça login novamente.');
+            if (!token) {
+                alert('Sessão expirada. Faça login novamente.');
+                window.location.href = 'login.html';
                 return;
             }
 
-            const senhaCorreta = usuario.password === enteredPassword || usuario.senha === enteredPassword;
+            const response = await fetch(`${API_URL}/auth/verify-password`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ senha: enteredPassword })
+            });
 
-            if (senhaCorreta) {
+            const resultado = await response.json();
+
+            if (resultado.success) {
                 unlockSystem();
             } else {
                 if (modalContent) {

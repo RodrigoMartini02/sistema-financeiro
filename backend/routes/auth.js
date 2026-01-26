@@ -205,6 +205,55 @@ router.post('/logout', authMiddleware, (req, res) => {
     });
 });
 
+// ================================================================
+// POST /api/auth/verify-password - Verificar senha (para desbloqueio de tela)
+// ================================================================
+router.post('/verify-password', [
+    authMiddleware,
+    body('senha').notEmpty().withMessage('Senha é obrigatória'),
+    validate
+], async (req, res) => {
+    try {
+        const { senha } = req.body;
+        const usuarioId = req.usuario.id;
+
+        // Buscar senha do usuário no banco
+        const result = await query(
+            'SELECT senha FROM usuarios WHERE id = $1',
+            [usuarioId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Usuário não encontrado'
+            });
+        }
+
+        // Verificar senha usando bcrypt
+        const senhaValida = await bcrypt.compare(senha, result.rows[0].senha);
+
+        if (!senhaValida) {
+            return res.status(401).json({
+                success: false,
+                message: 'Senha incorreta'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Senha verificada com sucesso'
+        });
+
+    } catch (error) {
+        console.error('Erro ao verificar senha:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao verificar senha'
+        });
+    }
+});
+
 
 
 router.post('/forgot-password', [
