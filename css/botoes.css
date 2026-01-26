@@ -521,15 +521,23 @@
    ================================================================ */
 
 .btn-navegacao-mes {
-    background-color: #4a90e2;
+    background: rgba(255,255,255,0.15);
     color: #ffffff;
-    border: none;
-    padding: 0.5rem 1rem;
+    border: 1px solid rgba(255,255,255,0.3);
+    padding: 0 1rem;
+    height: 32px;
+    font-size: 0.85rem;
     font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
 .btn-navegacao-mes:hover:not(:disabled) {
-    background-color: #357abd;
+    background: rgba(255,255,255,0.25);
+    border-color: rgba(255,255,255,0.5);
 }
 
 /* ================================================================

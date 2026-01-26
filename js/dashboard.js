@@ -1135,22 +1135,22 @@ function criarGraficoFormaPagamentoComFiltros(dadosFinanceiros, ano, filtros) {
                 datasets: [{
                     data: valores,
                     backgroundColor: [
-                        'rgba(0, 212, 170, 0.7)',
-                        'rgba(59, 130, 246, 0.7)',
-                        'rgba(40, 167, 69, 0.7)',
-                        'rgba(245, 158, 11, 0.7)'
+                        '#00D4AA',
+                        '#3B82F6',
+                        '#28A745',
+                        '#F59E0B'
                     ],
-                    borderColor: [
-                        'rgb(0, 212, 170)',
-                        'rgb(59, 130, 246)',
-                        'rgb(40, 167, 69)',
-                        'rgb(245, 158, 11)'
-                    ]
+                    borderColor: '#ffffff',
+                    borderWidth: 4,
+                    spacing: 4,
+                    borderRadius: 6,
+                    hoverOffset: 8
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                cutout: '65%',
                 plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -1427,24 +1427,20 @@ function renderDistribuicaoCartoes(dadosFinanceiros, ano, filtros = {}) {
                 labels: labels,
                 datasets: [{
                     data: valores,
-                    backgroundColor: coresFundo,
-                    borderColor: cores,
-                    borderWidth: 2
+                    backgroundColor: cores,
+                    borderColor: '#ffffff',
+                    borderWidth: 4,
+                    spacing: 4,
+                    borderRadius: 6,
+                    hoverOffset: 8
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                cutout: '65%',
                 plugins: {
-                    legend: {
-                        display: true,
-                        position: 'bottom',
-                        labels: {
-                            boxWidth: 12,
-                            padding: 10,
-                            font: { size: 11 }
-                        }
-                    },
+                    legend: { display: false },
                     tooltip: {
                         callbacks: {
                             label: function(context) {
