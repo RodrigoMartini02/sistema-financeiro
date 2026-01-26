@@ -8,13 +8,14 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { body } = require('express-validator');
 const { query } = require('../config/database');
-const { validate, validarDocumento } = require('../middleware/validation');
+const { validate, validarDocumento, authRateLimiter } = require('../middleware/validation');
 const { authMiddleware } = require('../middleware/auth');
 
 // ================================================================
 // POST /api/auth/login - Login do usuário
 // ================================================================
 router.post('/login', [
+    authRateLimiter(), // Rate limiting para prevenir brute force
     body('documento').notEmpty().withMessage('Documento é obrigatório'),
     body('senha').notEmpty().withMessage('Senha é obrigatória'),
     validate
@@ -228,14 +229,81 @@ router.post('/forgot-password', [
         res.json({
             success: true,
             message: 'E-mail validado com sucesso',
-            data: { 
+            data: {
                 nome: result.rows[0].nome,
-                email: result.rows[0].email 
+                email: result.rows[0].email
             }
         });
     } catch (error) {
         console.error('Erro na recuperação:', error);
         res.status(500).json({ success: false, message: 'Erro no servidor' });
+    }
+});
+
+// ================================================================
+// POST /api/auth/send-recovery-email - Enviar email de recuperação (seguro)
+// ================================================================
+router.post('/send-recovery-email', [
+    body('email').isEmail().withMessage('Email inválido'),
+    body('codigo').notEmpty().withMessage('Código é obrigatório'),
+    body('nome').notEmpty().withMessage('Nome é obrigatório'),
+    validate
+], async (req, res) => {
+    try {
+        const { email, codigo, nome } = req.body;
+
+        // Credenciais do EmailJS do ambiente (não expostas no frontend)
+        const serviceId = process.env.EMAILJS_SERVICE_ID;
+        const templateId = process.env.EMAILJS_TEMPLATE_ID;
+        const userId = process.env.EMAILJS_USER_ID;
+
+        if (!serviceId || !templateId || !userId) {
+            console.error('Credenciais EmailJS não configuradas');
+            return res.status(500).json({
+                success: false,
+                message: 'Serviço de email não configurado'
+            });
+        }
+
+        // Enviar email via EmailJS API
+        const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                service_id: serviceId,
+                template_id: templateId,
+                user_id: userId,
+                template_params: {
+                    to_email: email,
+                    to_name: nome,
+                    codigo_recuperacao: codigo,
+                    validade: '15 minutos',
+                    sistema_nome: 'Sistema de Controle Financeiro'
+                }
+            })
+        });
+
+        if (response.ok) {
+            res.json({
+                success: true,
+                message: 'Email enviado com sucesso'
+            });
+        } else {
+            const errorText = await response.text();
+            console.error('Erro EmailJS:', errorText);
+            res.status(500).json({
+                success: false,
+                message: 'Erro ao enviar email'
+            });
+        }
+    } catch (error) {
+        console.error('Erro ao enviar email:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao enviar email de recuperação'
+        });
     }
 });
 

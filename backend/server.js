@@ -35,10 +35,41 @@ setTimeout(() => {
     setInterval(selfPing, PING_INTERVAL);
 }, 60000);
 
+// CORS configurado com origens permitidas
+const allowedOrigins = [
+    process.env.FRONTEND_URL,
+    'http://localhost:5500',
+    'http://127.0.0.1:5500',
+    'http://localhost:3000'
+].filter(Boolean);
+
 app.use(cors({
-    origin: '*',
-    credentials: false
+    origin: function(origin, callback) {
+        // Permitir requisições sem origin (mobile apps, Postman, etc) em dev
+        if (!origin && process.env.NODE_ENV === 'development') {
+            return callback(null, true);
+        }
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Bloqueado pelo CORS'));
+        }
+    },
+    credentials: true
 }));
+
+// Headers de Segurança
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    if (process.env.NODE_ENV === 'production') {
+        res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+    next();
+});
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -344,12 +375,19 @@ async function criarUsuarioMaster() {
     try {
         console.log('👤 Verificando usuário master...');
 
-        const nome = 'RODRIGO MARTINI';
-        const documento = '08996441988';
-        const email = 'martin.rodrigo1992@gmail.com';
-        const senha = 'qwe123';
+        // Usar variáveis de ambiente em vez de hardcoded
+        const nome = process.env.MASTER_NOME;
+        const documento = process.env.MASTER_DOCUMENTO;
+        const email = process.env.MASTER_EMAIL;
+        const senha = process.env.MASTER_SENHA;
         const tipo = 'master';
         const status = 'ativo';
+
+        // Verificar se as variáveis estão configuradas
+        if (!nome || !documento || !email || !senha) {
+            console.log('⚠️ Variáveis de ambiente do usuário master não configuradas. Pulando criação.');
+            return false;
+        }
 
         // Verificar se usuário já existe
         const userExists = await query(

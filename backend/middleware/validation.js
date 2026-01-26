@@ -102,7 +102,7 @@ const validarDocumento = (documento) => {
     return false;
 };
 
-// Middleware de limite de requisições
+// Middleware de limite de requisições (geral)
 const rateLimiter = () => {
     const requests = new Map();
     const WINDOW_MS = 60 * 1000; // 1 minuto
@@ -111,26 +111,96 @@ const rateLimiter = () => {
     return (req, res, next) => {
         const ip = req.ip || req.connection.remoteAddress;
         const now = Date.now();
-        
+
         if (!requests.has(ip)) {
             requests.set(ip, []);
         }
-        
+
         const userRequests = requests.get(ip);
-        
+
         // Limpar requisições antigas
         const recentRequests = userRequests.filter(timestamp => now - timestamp < WINDOW_MS);
-        
+
         if (recentRequests.length >= MAX_REQUESTS) {
             return res.status(429).json({
                 success: false,
                 message: 'Muitas requisições. Tente novamente em alguns minutos.'
             });
         }
-        
+
         recentRequests.push(now);
         requests.set(ip, recentRequests);
-        
+
+        next();
+    };
+};
+
+// Rate limiter mais restritivo para autenticação (previne brute force)
+const authRateLimiter = () => {
+    const loginAttempts = new Map();
+    const WINDOW_MS = 15 * 60 * 1000; // 15 minutos
+    const MAX_ATTEMPTS = 5; // 5 tentativas por 15 minutos
+    const BLOCK_DURATION = 30 * 60 * 1000; // Bloquear por 30 minutos após exceder
+
+    // Limpar entradas antigas a cada 5 minutos
+    setInterval(() => {
+        const now = Date.now();
+        for (const [key, data] of loginAttempts.entries()) {
+            if (now - data.firstAttempt > WINDOW_MS + BLOCK_DURATION) {
+                loginAttempts.delete(key);
+            }
+        }
+    }, 5 * 60 * 1000);
+
+    return (req, res, next) => {
+        const ip = req.ip || req.connection.remoteAddress;
+        const documento = req.body?.documento?.replace(/[^\d]+/g, '') || '';
+        const key = `${ip}:${documento}`;
+        const now = Date.now();
+
+        if (!loginAttempts.has(key)) {
+            loginAttempts.set(key, {
+                attempts: 0,
+                firstAttempt: now,
+                blockedUntil: null
+            });
+        }
+
+        const data = loginAttempts.get(key);
+
+        // Verificar se está bloqueado
+        if (data.blockedUntil && now < data.blockedUntil) {
+            const minutesLeft = Math.ceil((data.blockedUntil - now) / 60000);
+            return res.status(429).json({
+                success: false,
+                message: `Muitas tentativas de login. Tente novamente em ${minutesLeft} minutos.`,
+                blockedUntil: data.blockedUntil
+            });
+        }
+
+        // Resetar se janela expirou
+        if (now - data.firstAttempt > WINDOW_MS) {
+            data.attempts = 0;
+            data.firstAttempt = now;
+            data.blockedUntil = null;
+        }
+
+        data.attempts++;
+
+        // Bloquear se excedeu tentativas
+        if (data.attempts > MAX_ATTEMPTS) {
+            data.blockedUntil = now + BLOCK_DURATION;
+            return res.status(429).json({
+                success: false,
+                message: 'Muitas tentativas de login. Conta temporariamente bloqueada por 30 minutos.',
+                blockedUntil: data.blockedUntil
+            });
+        }
+
+        // Adicionar info de tentativas restantes no header
+        res.setHeader('X-RateLimit-Remaining', MAX_ATTEMPTS - data.attempts);
+        res.setHeader('X-RateLimit-Reset', data.firstAttempt + WINDOW_MS);
+
         next();
     };
 };
@@ -140,5 +210,6 @@ module.exports = {
     validarCPF,
     validarCNPJ,
     validarDocumento,
-    rateLimiter
+    rateLimiter,
+    authRateLimiter
 };
