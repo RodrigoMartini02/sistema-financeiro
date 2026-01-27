@@ -2318,24 +2318,19 @@ function calcularLimiteCartao(cartaoId, mes, ano) {
         return false;
     };
 
-    // Calcular limite baseado nas despesas do mês atual E TODOS os meses futuros
-    // Despesas parceladas comprometem o limite do cartão em TODAS as parcelas futuras
+    // Calcular limite baseado em TODAS as despesas NÃO PAGAS do cartão
+    // O limite comprometido é FIXO - independe do mês sendo visualizado
     // Despesas recorrentes NÃO comprometem o limite (são contabilizadas apenas quando vencem)
 
     // Processar TODOS os anos disponíveis nos dados financeiros
     const anosDisponiveis = Object.keys(dadosFinanceiros || {}).map(Number).sort((a, b) => a - b);
 
     for (const anoProcessar of anosDisponiveis) {
-        // Pular anos anteriores ao atual
-        if (anoProcessar < ano) continue;
-
         const anoData = dadosFinanceiros?.[anoProcessar];
         if (!anoData?.meses) continue;
 
-        // Determinar mês inicial (se for o ano atual, começar do mês atual)
-        const mesInicial = anoProcessar === ano ? mes : 0;
-
-        for (let mesProcessar = mesInicial; mesProcessar < 12; mesProcessar++) {
+        // Percorrer TODOS os meses do ano
+        for (let mesProcessar = 0; mesProcessar < 12; mesProcessar++) {
             const despesasMes = anoData.meses[mesProcessar]?.despesas || [];
 
             despesasMes.forEach(despesa => {
@@ -2345,10 +2340,10 @@ function calcularLimiteCartao(cartaoId, mes, ano) {
                 // Pular se não pertence ao cartão
                 if (!pertenceAoCartao(despesa)) return;
 
-                // Pular se já está paga
+                // Pular se já está paga (limite já liberado)
                 if (despesaEstaPaga(despesa)) return;
 
-                // Pular despesas recorrentes (não comprometem limite futuro)
+                // Pular despesas recorrentes (não comprometem limite)
                 if (despesaEhRecorrente(despesa)) return;
 
                 // Somar valor da despesa não paga
@@ -2925,7 +2920,11 @@ window.calcularUsoCartoes = function(mes, ano) {
                 const eCreditoOuVariacao = formaPag === 'credito' || formaPag === 'crédito' ||
                                             formaPag === 'cred-merpago' || formaPag === 'créd-merpago';
 
-                if (!eCreditoOuVariacao || despesa.quitado || despesa.recorrente) return;
+                // Verificar se está paga (verificar ambos campos: pago e quitado)
+                const estaPaga = despesa.pago === true || despesa.pago === 'true' || despesa.pago === 1 ||
+                                 despesa.quitado === true || despesa.quitado === 'true' || despesa.quitado === 1;
+
+                if (!eCreditoOuVariacao || estaPaga || despesa.recorrente) return;
 
                 // Verificar cartao_id (ID real do banco)
                 let cartaoIdDespesa = despesa.cartao_id || despesa.cartaoId;
