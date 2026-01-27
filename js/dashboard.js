@@ -321,136 +321,181 @@ function atualizarResumoDashboard(resumo) {
 // Cache dos dados do gráfico de balanço
 window.dadosBalancoCache = null;
 
+// Configuração das 5 linhas do gráfico
+const BALANCO_DATASETS_CONFIG = {
+    receitas: {
+        label: 'Receitas',
+        borderColor: 'rgb(40, 167, 69)',
+        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+        order: 1
+    },
+    despesas: {
+        label: 'Despesas',
+        borderColor: 'rgb(220, 53, 69)',
+        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+        order: 2
+    },
+    balanco: {
+        label: 'Balanço',
+        borderColor: 'rgb(253, 126, 20)',
+        backgroundColor: 'rgba(253, 126, 20, 0.1)',
+        order: 3
+    },
+    saldo: {
+        label: 'Saldo em Conta',
+        borderColor: 'rgb(0, 123, 255)',
+        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+        order: 4
+    },
+    reservas: {
+        label: 'Reservas',
+        borderColor: 'rgb(147, 51, 234)',
+        backgroundColor: 'rgba(147, 51, 234, 0.1)',
+        order: 5
+    }
+};
+
+// Inicializar filtros de ano
+function inicializarFiltrosBalanco() {
+    const anoFilter = document.getElementById('balanco-ano-filter');
+    if (!anoFilter) return;
+
+    // Preencher anos disponíveis
+    const anosDisponiveis = Object.keys(window.dadosFinanceiros || {}).map(Number).sort();
+    const anoAtual = new Date().getFullYear();
+
+    anoFilter.innerHTML = '';
+    anosDisponiveis.forEach(ano => {
+        const option = document.createElement('option');
+        option.value = ano;
+        option.textContent = ano;
+        if (ano === anoAtual) option.selected = true;
+        anoFilter.appendChild(option);
+    });
+}
+
 function filtrarBalancoPeriodo() {
     const periodo = document.getElementById('balanco-periodo-filter')?.value || 'ano';
+    const anoFilter = document.getElementById('balanco-ano-filter');
     const mesFilter = document.getElementById('balanco-mes-filter');
 
-    // Mostrar/esconder filtro de mês
+    // Inicializar filtros se necessário
+    inicializarFiltrosBalanco();
+
+    // Mostrar/esconder filtros conforme período selecionado
+    if (anoFilter) {
+        // ANO: esconde tudo (mostra todos os anos)
+        // MÊS: mostra ano
+        // SEMANA/DIA: mostra ano + mês
+        anoFilter.style.display = (periodo === 'mes' || periodo === 'semana' || periodo === 'dia') ? 'inline-block' : 'none';
+    }
+
     if (mesFilter) {
         mesFilter.style.display = (periodo === 'semana' || periodo === 'dia') ? 'inline-block' : 'none';
-        // Selecionar mês atual por padrão
         if (mesFilter.style.display !== 'none' && !mesFilter.dataset.initialized) {
             mesFilter.value = new Date().getMonth();
             mesFilter.dataset.initialized = 'true';
         }
     }
 
-    if (!window.dadosBalancoCache) return;
-
+    const ano = parseInt(anoFilter?.value) || window.anoAtual;
     const mes = parseInt(mesFilter?.value) || 0;
 
     switch(periodo) {
         case 'ano':
-            criarGraficoBalanco(window.dadosBalancoCache);
+            criarGraficoBalancoPorAnos();
             break;
         case 'mes':
-            criarGraficoBalancoMensal(window.dadosBalancoCache);
+            criarGraficoBalancoPorMeses(ano);
             break;
         case 'semana':
-            criarGraficoBalancoSemanal(window.dadosBalancoCache, mes);
+            criarGraficoBalancoPorSemanas(ano, mes);
             break;
         case 'dia':
-            criarGraficoBalancoDiario(window.dadosBalancoCache, mes);
+            criarGraficoBalancoPorDias(ano, mes);
             break;
     }
 }
 
-function criarGraficoBalancoMensal(dados) {
-    const ctx = document.getElementById('balanco-chart')?.getContext('2d');
-    if (!ctx) return;
+// Criar dataset padrão para linha
+function criarDatasetLinha(config, data, pointRadius = 4) {
+    return {
+        label: config.label,
+        data: data,
+        borderColor: config.borderColor,
+        backgroundColor: config.backgroundColor,
+        fill: false,
+        tension: 0.3,
+        borderWidth: 2,
+        pointRadius: pointRadius,
+        pointHoverRadius: 6,
+        pointBackgroundColor: config.borderColor,
+        order: config.order
+    };
+}
 
-    if (window.balancoChart) {
-        window.balancoChart.destroy();
-    }
-
-    const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-    const balancoMensal = [];
-    const saldoMensal = [];
-    const reservasMensal = [];
-    const reservasCache = window.reservasCache || [];
-
-    let saldoAcumulado = 0;
-    let reservasAcumuladas = reservasCache
-        .filter(r => parseInt(r.ano) < window.anoAtual)
-        .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-
-    for (let i = 0; i < 12; i++) {
-        const receita = dados.receitas[i] || 0;
-        const despesa = dados.despesas[i] || 0;
-        const reservasMes = reservasCache
-            .filter(r => parseInt(r.ano) === window.anoAtual && parseInt(r.mes) === i)
-            .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-
-        reservasAcumuladas += reservasMes;
-        saldoAcumulado += receita - despesa - reservasMes;
-
-        balancoMensal.push(receita - despesa);
-        saldoMensal.push(saldoAcumulado);
-        reservasMensal.push(reservasAcumuladas);
-    }
-
-    window.balancoChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: meses,
-            datasets: [
-                {
-                    label: 'Balanço Mensal',
-                    data: balancoMensal,
-                    backgroundColor: balancoMensal.map(v => v >= 0 ? 'rgba(40, 167, 69, 0.7)' : 'rgba(220, 53, 69, 0.7)'),
-                    borderColor: balancoMensal.map(v => v >= 0 ? 'rgb(40, 167, 69)' : 'rgb(220, 53, 69)'),
-                    borderWidth: 1,
-                    order: 2
-                },
-                {
-                    label: 'Saldo em Conta',
-                    data: saldoMensal,
-                    type: 'line',
-                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                    borderColor: 'rgb(0, 123, 255)',
-                    fill: false,
-                    tension: 0.4,
-                    order: 1
-                },
-                {
-                    label: 'Reservas Acumuladas',
-                    data: reservasMensal,
-                    type: 'line',
-                    backgroundColor: 'rgba(147, 51, 234, 0.1)',
-                    borderColor: 'rgb(147, 51, 234)',
-                    fill: false,
-                    tension: 0.4,
-                    order: 0
-                }
-            ]
+// Opções padrão do gráfico
+function getOpcoesGrafico() {
+    return {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+            intersect: false,
+            mode: 'index'
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    ticks: {
-                        callback: function(value) {
-                            return window.formatarMoeda(value);
-                        }
+        scales: {
+            y: {
+                ticks: {
+                    callback: function(value) {
+                        return window.formatarMoeda(value);
                     }
+                },
+                grid: {
+                    color: 'rgba(0, 0, 0, 0.05)'
                 }
             },
-            plugins: {
-                legend: { display: true, position: 'top' },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': ' + window.formatarMoeda(context.raw);
-                        }
+            x: {
+                grid: {
+                    display: false
+                }
+            }
+        },
+        plugins: {
+            legend: {
+                display: true,
+                position: 'top',
+                labels: {
+                    usePointStyle: true,
+                    padding: 15
+                },
+                onClick: function(e, legendItem) {
+                    const index = legendItem.datasetIndex;
+                    const chart = this.chart;
+                    const isVisible = chart.isDatasetVisible(index);
+                    chart.setDatasetVisibility(index, !isVisible);
+                    chart.update();
+                }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                borderColor: 'rgba(255, 255, 255, 0.1)',
+                borderWidth: 1,
+                callbacks: {
+                    label: function(context) {
+                        return context.dataset.label + ': ' + window.formatarMoeda(context.raw);
                     }
                 }
             }
         }
-    });
+    };
 }
 
-function criarGraficoBalancoSemanal(dados, mes) {
+// ================================================================
+// FILTRO ANO: Mostra totais por ano (2024, 2025, 2026...)
+// ================================================================
+function criarGraficoBalancoPorAnos() {
     const ctx = document.getElementById('balanco-chart')?.getContext('2d');
     if (!ctx) return;
 
@@ -458,109 +503,230 @@ function criarGraficoBalancoSemanal(dados, mes) {
         window.balancoChart.destroy();
     }
 
-    const ano = window.anoAtual;
-    const totalDias = new Date(ano, mes + 1, 0).getDate();
+    const dadosFinanceiros = window.dadosFinanceiros || {};
     const reservasCache = window.reservasCache || [];
+    const anos = Object.keys(dadosFinanceiros).map(Number).sort();
 
-    // Total de reservas do mês
-    const reservasMes = reservasCache
+    if (anos.length === 0) return;
+
+    const labels = anos.map(a => a.toString());
+    const receitas = [];
+    const despesas = [];
+    const balancos = [];
+    const saldos = [];
+    const reservas = [];
+
+    let saldoAcumulado = 0;
+    let reservasAcumuladas = 0;
+
+    anos.forEach(ano => {
+        const anoData = dadosFinanceiros[ano];
+        let receitaAno = 0;
+        let despesaAno = 0;
+        let reservaAno = 0;
+
+        if (anoData?.meses) {
+            for (let m = 0; m < 12; m++) {
+                const mesDados = anoData.meses[m];
+                if (mesDados) {
+                    receitaAno += (mesDados.receitas || []).reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+                    despesaAno += (mesDados.despesas || []).reduce((sum, d) => sum + parseFloat(d.valor || 0), 0);
+                }
+            }
+        }
+
+        // Reservas do ano
+        reservaAno = reservasCache
+            .filter(r => parseInt(r.ano) === ano)
+            .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+
+        const balancoAno = receitaAno - despesaAno;
+        saldoAcumulado += balancoAno - reservaAno;
+        reservasAcumuladas += reservaAno;
+
+        receitas.push(receitaAno);
+        despesas.push(despesaAno);
+        balancos.push(balancoAno);
+        saldos.push(saldoAcumulado);
+        reservas.push(reservasAcumuladas);
+    });
+
+    window.balancoChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.receitas, receitas, 6),
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.despesas, despesas, 6),
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.balanco, balancos, 6),
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.saldo, saldos, 6),
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.reservas, reservas, 6)
+            ]
+        },
+        options: getOpcoesGrafico()
+    });
+}
+
+// ================================================================
+// FILTRO MÊS: Mostra os 12 meses do ano selecionado
+// ================================================================
+function criarGraficoBalancoPorMeses(ano) {
+    const ctx = document.getElementById('balanco-chart')?.getContext('2d');
+    if (!ctx) return;
+
+    if (window.balancoChart) {
+        window.balancoChart.destroy();
+    }
+
+    const dadosFinanceiros = window.dadosFinanceiros || {};
+    const reservasCache = window.reservasCache || [];
+    const anoData = dadosFinanceiros[ano];
+
+    const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const receitas = [];
+    const despesas = [];
+    const balancos = [];
+    const saldos = [];
+    const reservas = [];
+
+    // Calcular saldo inicial (anos anteriores)
+    let saldoAcumulado = 0;
+    let reservasAcumuladas = 0;
+
+    Object.keys(dadosFinanceiros).map(Number).filter(a => a < ano).forEach(anoAnt => {
+        const anoAntData = dadosFinanceiros[anoAnt];
+        if (anoAntData?.meses) {
+            for (let m = 0; m < 12; m++) {
+                const mesDados = anoAntData.meses[m];
+                if (mesDados) {
+                    const recMes = (mesDados.receitas || []).reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+                    const despMes = (mesDados.despesas || []).reduce((sum, d) => sum + parseFloat(d.valor || 0), 0);
+                    const resMes = reservasCache
+                        .filter(r => parseInt(r.ano) === anoAnt && parseInt(r.mes) === m)
+                        .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+                    saldoAcumulado += recMes - despMes - resMes;
+                    reservasAcumuladas += resMes;
+                }
+            }
+        }
+    });
+
+    for (let m = 0; m < 12; m++) {
+        const mesDados = anoData?.meses?.[m];
+        const receitaMes = mesDados ? (mesDados.receitas || []).reduce((sum, r) => sum + parseFloat(r.valor || 0), 0) : 0;
+        const despesaMes = mesDados ? (mesDados.despesas || []).reduce((sum, d) => sum + parseFloat(d.valor || 0), 0) : 0;
+        const reservaMes = reservasCache
+            .filter(r => parseInt(r.ano) === ano && parseInt(r.mes) === m)
+            .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+
+        const balancoMes = receitaMes - despesaMes;
+        saldoAcumulado += balancoMes - reservaMes;
+        reservasAcumuladas += reservaMes;
+
+        receitas.push(receitaMes);
+        despesas.push(despesaMes);
+        balancos.push(balancoMes);
+        saldos.push(saldoAcumulado);
+        reservas.push(reservasAcumuladas);
+    }
+
+    window.balancoChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: meses,
+            datasets: [
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.receitas, receitas),
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.despesas, despesas),
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.balanco, balancos),
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.saldo, saldos),
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.reservas, reservas)
+            ]
+        },
+        options: getOpcoesGrafico()
+    });
+}
+
+// ================================================================
+// FILTRO SEMANA: Mostra semanas do mês selecionado
+// ================================================================
+function criarGraficoBalancoPorSemanas(ano, mes) {
+    const ctx = document.getElementById('balanco-chart')?.getContext('2d');
+    if (!ctx) return;
+
+    if (window.balancoChart) {
+        window.balancoChart.destroy();
+    }
+
+    const dadosFinanceiros = window.dadosFinanceiros || {};
+    const reservasCache = window.reservasCache || [];
+    const totalDias = new Date(ano, mes + 1, 0).getDate();
+
+    const mesDados = dadosFinanceiros[ano]?.meses?.[mes];
+    const receitaMes = mesDados ? (mesDados.receitas || []).reduce((sum, r) => sum + parseFloat(r.valor || 0), 0) : 0;
+    const despesaMes = mesDados ? (mesDados.despesas || []).reduce((sum, d) => sum + parseFloat(d.valor || 0), 0) : 0;
+    const reservaMes = reservasCache
         .filter(r => parseInt(r.ano) === ano && parseInt(r.mes) === mes)
         .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
 
-    const balancoSemanal = [];
-    const saldoSemanal = [];
-    const reservasSemanal = [];
     const labels = [];
+    const receitas = [];
+    const despesas = [];
+    const balancos = [];
+    const saldos = [];
+    const reservas = [];
 
-    const diasPorSemana = 7;
+    // Calcular saldo inicial do mês
+    let saldoAcumulado = calcularSaldoAteData(ano, mes, dadosFinanceiros, reservasCache);
+    let reservasAcumuladas = calcularReservasAteData(ano, mes, reservasCache);
+
     let diaAtual = 1;
     let semanaNum = 1;
-    let saldoAcumulado = dados.saldos[mes - 1] || 0; // Saldo do mês anterior
 
     while (diaAtual <= totalDias) {
         const inicioSemana = diaAtual;
-        const fimSemana = Math.min(diaAtual + diasPorSemana - 1, totalDias);
+        const fimSemana = Math.min(diaAtual + 6, totalDias);
         const proporcao = (fimSemana - inicioSemana + 1) / totalDias;
 
-        labels.push(`Sem ${semanaNum} (${inicioSemana}-${fimSemana})`);
+        labels.push(`Sem ${semanaNum}`);
 
-        const receitaSemana = (dados.receitas[mes] || 0) * proporcao;
-        const despesaSemana = (dados.despesas[mes] || 0) * proporcao;
-        const reservaSemana = reservasMes * proporcao;
+        const receitaSemana = receitaMes * proporcao;
+        const despesaSemana = despesaMes * proporcao;
+        const reservaSemana = reservaMes * proporcao;
+        const balancoSemana = receitaSemana - despesaSemana;
 
-        const balanco = receitaSemana - despesaSemana;
-        saldoAcumulado += balanco - reservaSemana;
+        saldoAcumulado += balancoSemana - reservaSemana;
+        reservasAcumuladas += reservaSemana;
 
-        balancoSemanal.push(balanco);
-        saldoSemanal.push(saldoAcumulado);
-        reservasSemanal.push(reservaSemana);
+        receitas.push(receitaSemana);
+        despesas.push(despesaSemana);
+        balancos.push(balancoSemana);
+        saldos.push(saldoAcumulado);
+        reservas.push(reservasAcumuladas);
 
         diaAtual = fimSemana + 1;
         semanaNum++;
     }
 
     window.balancoChart = new Chart(ctx, {
-        type: 'bar',
+        type: 'line',
         data: {
             labels: labels,
             datasets: [
-                {
-                    label: 'Balanço Semanal',
-                    data: balancoSemanal,
-                    backgroundColor: balancoSemanal.map(v => v >= 0 ? 'rgba(40, 167, 69, 0.7)' : 'rgba(220, 53, 69, 0.7)'),
-                    borderColor: balancoSemanal.map(v => v >= 0 ? 'rgb(40, 167, 69)' : 'rgb(220, 53, 69)'),
-                    borderWidth: 1,
-                    order: 2
-                },
-                {
-                    label: 'Saldo em Conta',
-                    data: saldoSemanal,
-                    type: 'line',
-                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                    borderColor: 'rgb(0, 123, 255)',
-                    fill: false,
-                    tension: 0.4,
-                    order: 1
-                },
-                {
-                    label: 'Reservas',
-                    data: reservasSemanal,
-                    type: 'line',
-                    backgroundColor: 'rgba(147, 51, 234, 0.1)',
-                    borderColor: 'rgb(147, 51, 234)',
-                    fill: false,
-                    tension: 0.4,
-                    order: 0
-                }
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.receitas, receitas),
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.despesas, despesas),
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.balanco, balancos),
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.saldo, saldos),
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.reservas, reservas)
             ]
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    ticks: {
-                        callback: function(value) {
-                            return window.formatarMoeda(value);
-                        }
-                    }
-                }
-            },
-            plugins: {
-                legend: { display: true, position: 'top' },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': ' + window.formatarMoeda(context.raw);
-                        }
-                    }
-                }
-            }
-        }
+        options: getOpcoesGrafico()
     });
 }
 
-function criarGraficoBalancoDiario(dados, mes) {
+// ================================================================
+// FILTRO DIA: Mostra dias do mês selecionado
+// ================================================================
+function criarGraficoBalancoPorDias(ano, mes) {
     const ctx = document.getElementById('balanco-chart')?.getContext('2d');
     if (!ctx) return;
 
@@ -568,35 +734,44 @@ function criarGraficoBalancoDiario(dados, mes) {
         window.balancoChart.destroy();
     }
 
-    const ano = window.anoAtual;
-    const totalDias = new Date(ano, mes + 1, 0).getDate();
+    const dadosFinanceiros = window.dadosFinanceiros || {};
     const reservasCache = window.reservasCache || [];
+    const totalDias = new Date(ano, mes + 1, 0).getDate();
 
-    // Total de reservas do mês
-    const reservasMes = reservasCache
+    const mesDados = dadosFinanceiros[ano]?.meses?.[mes];
+    const receitaMes = mesDados ? (mesDados.receitas || []).reduce((sum, r) => sum + parseFloat(r.valor || 0), 0) : 0;
+    const despesaMes = mesDados ? (mesDados.despesas || []).reduce((sum, d) => sum + parseFloat(d.valor || 0), 0) : 0;
+    const reservaMes = reservasCache
         .filter(r => parseInt(r.ano) === ano && parseInt(r.mes) === mes)
         .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
 
+    const receitaDia = receitaMes / totalDias;
+    const despesaDia = despesaMes / totalDias;
+    const reservaDia = reservaMes / totalDias;
+
     const labels = [];
-    const balancoDiario = [];
-    const saldoDiario = [];
-    const reservasDiario = [];
+    const receitas = [];
+    const despesas = [];
+    const balancos = [];
+    const saldos = [];
+    const reservas = [];
 
-    const receitaDia = (dados.receitas[mes] || 0) / totalDias;
-    const despesaDia = (dados.despesas[mes] || 0) / totalDias;
-    const reservaDia = reservasMes / totalDias;
-
-    let saldoAcumulado = dados.saldos[mes - 1] || 0;
+    // Calcular saldo inicial do mês
+    let saldoAcumulado = calcularSaldoAteData(ano, mes, dadosFinanceiros, reservasCache);
+    let reservasAcumuladas = calcularReservasAteData(ano, mes, reservasCache);
 
     for (let dia = 1; dia <= totalDias; dia++) {
         labels.push(dia.toString());
 
-        const balanco = receitaDia - despesaDia;
-        saldoAcumulado += balanco - reservaDia;
+        const balancoDia = receitaDia - despesaDia;
+        saldoAcumulado += balancoDia - reservaDia;
+        reservasAcumuladas += reservaDia;
 
-        balancoDiario.push(balanco);
-        saldoDiario.push(saldoAcumulado);
-        reservasDiario.push(reservaDia * dia); // Reservas acumuladas no mês
+        receitas.push(receitaDia);
+        despesas.push(despesaDia);
+        balancos.push(balancoDia);
+        saldos.push(saldoAcumulado);
+        reservas.push(reservasAcumuladas);
     }
 
     window.balancoChart = new Chart(ctx, {
@@ -604,170 +779,57 @@ function criarGraficoBalancoDiario(dados, mes) {
         data: {
             labels: labels,
             datasets: [
-                {
-                    label: 'Balanço Diário',
-                    data: balancoDiario,
-                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
-                    borderColor: 'rgb(40, 167, 69)',
-                    fill: true,
-                    tension: 0.1,
-                    order: 2
-                },
-                {
-                    label: 'Saldo em Conta',
-                    data: saldoDiario,
-                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                    borderColor: 'rgb(0, 123, 255)',
-                    fill: false,
-                    tension: 0.4,
-                    order: 1
-                },
-                {
-                    label: 'Reservas Acumuladas',
-                    data: reservasDiario,
-                    backgroundColor: 'rgba(147, 51, 234, 0.1)',
-                    borderColor: 'rgb(147, 51, 234)',
-                    fill: false,
-                    tension: 0.4,
-                    order: 0
-                }
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.receitas, receitas, 2),
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.despesas, despesas, 2),
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.balanco, balancos, 2),
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.saldo, saldos, 2),
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.reservas, reservas, 2)
             ]
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    ticks: {
-                        callback: function(value) {
-                            return window.formatarMoeda(value);
-                        }
-                    }
-                }
-            },
-            plugins: {
-                legend: { display: true, position: 'top' },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': ' + window.formatarMoeda(context.raw);
-                        }
-                    }
-                }
-            }
-        }
+        options: getOpcoesGrafico()
     });
 }
 
-function criarGraficoBalanco(dados) {
-    // Salvar dados no cache para filtros
-    window.dadosBalancoCache = dados;
+// Funções auxiliares para calcular saldo e reservas acumuladas
+function calcularSaldoAteData(ano, mes, dadosFinanceiros, reservasCache) {
+    let saldo = 0;
 
-    const ctx = document.getElementById('balanco-chart')?.getContext('2d');
-    if (!ctx) return;
+    Object.keys(dadosFinanceiros).map(Number).sort().forEach(anoProc => {
+        if (anoProc > ano) return;
+        const anoData = dadosFinanceiros[anoProc];
+        if (!anoData?.meses) return;
 
-    if (window.balancoChart) {
-        window.balancoChart.destroy();
-    }
-
-    const balancoMensal = [];
-    const reservasAcumuladas = [];
-
-    // Usar reservasCache do backend
-    const reservasCache = window.reservasCache || [];
-
-    // Calcular reservas acumuladas de anos anteriores
-    let totalReservasAcumulado = reservasCache
-        .filter(r => parseInt(r.ano) < window.anoAtual)
-        .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-
-    for (let i = 0; i < dados.receitas.length; i++) {
-        // Calcular reservas do mês atual usando reservasCache
-        const reservasMes = reservasCache
-            .filter(r => parseInt(r.ano) === window.anoAtual && parseInt(r.mes) === i)
-            .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-
-        totalReservasAcumulado += reservasMes;
-
-        const variacao = dados.receitas[i] - dados.despesas[i] - reservasMes;
-        balancoMensal.push(variacao);
-        reservasAcumuladas.push(totalReservasAcumulado);
-    }
-    
-    const datasets = [
-        {
-            label: 'Saldo em Conta',
-            data: dados.saldos,
-            backgroundColor: 'rgba(0, 123, 255, 0.1)',
-            borderColor: 'rgb(0, 123, 255)',
-            fill: true,
-            tension: 0.4,
-            order: 2
-        },
-        {
-            label: 'Balanço Mensal',
-            data: balancoMensal,
-            backgroundColor: 'rgba(40, 167, 69, 0.1)',
-            borderColor: 'rgb(40, 167, 69)',
-            fill: true,
-            tension: 0.4,
-            order: 1
-        }
-    ];
-    
-    if (window.mostrarReservas !== false) {
-        datasets.push({
-            label: 'Reservas Acumuladas',
-            data: reservasAcumuladas,
-            backgroundColor: 'rgba(147, 51, 234, 0.1)',
-            borderColor: 'rgb(147, 51, 234)',
-            fill: true,
-            tension: 0.4,
-            order: 3,
-            hidden: true
-        });
-    }
-    
-    window.balancoChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: dados.labels,
-            datasets: datasets
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    ticks: {
-                        callback: function(value) {
-                            return window.formatarMoeda(value);
-                        }
-                    }
-                }
-            },
-            plugins: {
-                legend: { 
-                    display: true,
-                    position: 'top',
-                    onClick: function(e, legendItem) {
-                        const index = legendItem.datasetIndex;
-                        const chart = this.chart;
-                        const isVisible = chart.isDatasetVisible(index);
-                        chart.setDatasetVisibility(index, !isVisible);
-                        chart.update();
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': ' + window.formatarMoeda(context.raw);
-                        }
-                    }
-                }
+        const mesLimite = anoProc === ano ? mes : 12;
+        for (let m = 0; m < mesLimite; m++) {
+            const mesDados = anoData.meses[m];
+            if (mesDados) {
+                const recMes = (mesDados.receitas || []).reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+                const despMes = (mesDados.despesas || []).reduce((sum, d) => sum + parseFloat(d.valor || 0), 0);
+                const resMes = reservasCache
+                    .filter(r => parseInt(r.ano) === anoProc && parseInt(r.mes) === m)
+                    .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+                saldo += recMes - despMes - resMes;
             }
         }
     });
+
+    return saldo;
+}
+
+function calcularReservasAteData(ano, mes, reservasCache) {
+    return reservasCache
+        .filter(r => {
+            const rAno = parseInt(r.ano);
+            const rMes = parseInt(r.mes);
+            return rAno < ano || (rAno === ano && rMes < mes);
+        })
+        .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+}
+
+// Função legada para compatibilidade
+function criarGraficoBalanco(dados) {
+    window.dadosBalancoCache = dados;
+    filtrarBalancoPeriodo();
 }
 
 // ================================================================
