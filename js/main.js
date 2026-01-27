@@ -952,14 +952,20 @@ function setupToolbarButtons() {
 }
 
 // Função de atualização do contador da toolbar (usada pelo despesas.js)
-function atualizarContadorToolbar(visiveis, total) {
+function atualizarContadorToolbar(visiveis, total, valorTotal) {
     const contador = document.getElementById('contador-despesas-toolbar');
     if (contador) {
         if (visiveis === total) {
             contador.textContent = `${total} itens`;
         } else {
-            contador.textContent = `${visiveis}/${total} itens`;
+            contador.textContent = `${visiveis}/${total}`;
         }
+    }
+
+    // Atualizar valor total
+    const totalElement = document.getElementById('total-despesas-toolbar');
+    if (totalElement && valorTotal !== undefined) {
+        totalElement.textContent = formatarMoeda(valorTotal);
     }
 }
 

@@ -308,6 +308,7 @@ class UsuarioDataManager {
                     parcelaAtual: despesa.parcela_atual,
                     pago: despesa.pago,
                     quitado: despesa.pago,
+                    recorrente: despesa.recorrente || false,
                     // Campos para juros e economias
                     valorPago: despesa.valor_pago ? parseFloat(despesa.valor_pago) : null,
                     valorOriginal: despesa.valor_original ? parseFloat(despesa.valor_original) : valor,

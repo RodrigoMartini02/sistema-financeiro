@@ -3572,6 +3572,12 @@ function atualizarContadoresFiltro() {
        }
    }
 
+   // Atualizar valor total na toolbar
+   const totalToolbar = document.getElementById('total-despesas-toolbar');
+   if (totalToolbar) {
+       totalToolbar.textContent = formatarMoeda(valorTotalVisivel);
+   }
+
    // Atualizar contadores de anexos para linhas visíveis
    setTimeout(() => {
        if (typeof atualizarTodosContadoresAnexosDespesas === 'function') {

@@ -1663,14 +1663,32 @@ table tr:hover {
 .toolbar-filtros-despesas {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .toolbar-filtros-despesas .form-control-sm {
     padding: 4px 8px;
-    font-size: 12px;
-    height: 30px;
-    min-width: 100px;
+    font-size: 11px;
+    height: 28px;
+    min-width: 90px;
+}
+
+/* Padronização de botões na toolbar */
+.tabs-toolbar .btn-sm,
+.tab-toolbar-content .btn-sm {
+    height: 28px;
+    padding: 0 10px;
+    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.tabs-toolbar .btn-icon.btn-sm {
+    width: 28px;
+    min-width: 28px;
+    padding: 0;
 }
 
 /* Contador na toolbar */
@@ -1678,9 +1696,18 @@ table tr:hover {
     font-size: 12px;
     color: var(--gray-500);
     white-space: nowrap;
-    padding: 4px 8px;
+    padding: 4px 10px;
     background: var(--gray-100);
     border-radius: var(--radius-sm);
+    height: 28px;
+    display: flex;
+    align-items: center;
+}
+
+/* Total valor na toolbar */
+.toolbar-total {
+    font-weight: 600;
+    color: var(--danger-color, #dc3545);
 }
 
 /* Saldos na toolbar de receitas */
@@ -1716,20 +1743,7 @@ table tr:hover {
     font-weight: 300;
 }
 
-/* Botões na toolbar */
-.tabs-toolbar .btn-sm {
-    padding: 6px 12px;
-    font-size: 12px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.tabs-toolbar .btn-icon {
-    padding: 6px 8px;
-    min-width: auto;
-}
+/* Botões na toolbar - removido, definido em .toolbar-filtros-despesas */
 
 .tab-content {
     display: none;
