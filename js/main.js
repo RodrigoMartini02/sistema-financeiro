@@ -3089,7 +3089,11 @@ async function toggleNoticias() {
 
 document.addEventListener("DOMContentLoaded", () => {
     const btn = document.getElementById('btn-toggle-noticias');
-    if (btn) btn.onclick = toggleNoticias;
+    if (btn) {
+        btn.onclick = toggleNoticias;
+        // Iniciar notícias automaticamente
+        toggleNoticias();
+    }
 });
 
 

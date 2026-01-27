@@ -401,7 +401,38 @@ router.post('/:id/movimentar', authMiddleware, [
     }
 });
 
-// GET - Buscar movimentações de uma reserva
+// GET - Buscar todas as movimentações de todas as reservas do usuário
+// IMPORTANTE: Esta rota deve vir ANTES de /:id/movimentacoes
+router.get('/movimentacoes/todas', authMiddleware, async (req, res) => {
+    try {
+        const { limite = 50 } = req.query;
+
+        // Buscar todas as movimentações com nome da reserva
+        const result = await query(
+            `SELECT mr.*, r.observacoes as nome_reserva
+             FROM movimentacoes_reservas mr
+             INNER JOIN reservas r ON mr.reserva_id = r.id
+             WHERE r.usuario_id = $1
+             ORDER BY mr.data_hora DESC
+             LIMIT $2`,
+            [req.usuario.id, parseInt(limite)]
+        );
+
+        res.json({
+            success: true,
+            data: result.rows
+        });
+
+    } catch (error) {
+        console.error('Erro ao buscar movimentações:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao buscar movimentações'
+        });
+    }
+});
+
+// GET - Buscar movimentações de uma reserva específica
 router.get('/:id/movimentacoes', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;

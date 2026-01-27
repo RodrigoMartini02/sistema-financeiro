@@ -1428,49 +1428,59 @@ async function movimentarReservaSimples(reservaId, valorStr) {
 }
 
 /**
- * Renderiza histórico geral de todas as reservas
+ * Renderiza histórico geral de todas as reservas (otimizado - uma única chamada API)
  */
 async function renderizarHistoricoGeral() {
     const container = document.getElementById('historico-geral-reservas');
     if (!container) return;
 
-    // Buscar todas as movimentações de todas as reservas
-    const todasMovimentacoes = [];
+    try {
+        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+        if (!token) {
+            container.innerHTML = '<div class="historico-vazio">Sessão expirada</div>';
+            return;
+        }
 
-    for (const reserva of window.reservasCache) {
-        const movs = await carregarMovimentacoesReserva(reserva.id);
-        movs.forEach(mov => {
-            todasMovimentacoes.push({
-                ...mov,
-                nomeReserva: reserva.observacoes || 'Reserva'
-            });
+        // Buscar todas as movimentações em uma única chamada
+        const response = await fetch(`${API_URL_RESERVAS}/reservas/movimentacoes/todas?limite=30`, {
+            headers: { 'Authorization': `Bearer ${token}` }
         });
+
+        if (!response.ok) {
+            container.innerHTML = '<div class="historico-vazio">Erro ao carregar histórico</div>';
+            return;
+        }
+
+        const data = await response.json();
+        const todasMovimentacoes = data.data || [];
+
+        if (todasMovimentacoes.length === 0) {
+            container.innerHTML = '<div class="historico-vazio">Nenhuma movimentação</div>';
+            return;
+        }
+
+        container.innerHTML = todasMovimentacoes.map(mov => {
+            const dataHora = new Date(mov.data_hora);
+            const dataFormatada = dataHora.toLocaleDateString('pt-BR');
+            const horaFormatada = dataHora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const isEntrada = mov.tipo === 'entrada';
+            const nomeReserva = mov.nome_reserva || 'Reserva';
+
+            return `
+                <div class="historico-linha ${isEntrada ? 'entrada' : 'saida'}">
+                    <span class="hist-nome">${nomeReserva}</span>
+                    <span class="hist-valor ${isEntrada ? 'positivo' : 'negativo'}">
+                        ${isEntrada ? '+' : '-'}${window.formatarMoeda(mov.valor)}
+                    </span>
+                    <span class="hist-data">${dataFormatada} ${horaFormatada}</span>
+                </div>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error('Erro ao carregar histórico:', error);
+        container.innerHTML = '<div class="historico-vazio">Erro ao carregar histórico</div>';
     }
-
-    // Ordenar por data (mais recentes primeiro)
-    todasMovimentacoes.sort((a, b) => new Date(b.data_hora) - new Date(a.data_hora));
-
-    if (todasMovimentacoes.length === 0) {
-        container.innerHTML = '<div class="historico-vazio">Nenhuma movimentação</div>';
-        return;
-    }
-
-    container.innerHTML = todasMovimentacoes.slice(0, 20).map(mov => {
-        const dataHora = new Date(mov.data_hora);
-        const dataFormatada = dataHora.toLocaleDateString('pt-BR');
-        const horaFormatada = dataHora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        const isEntrada = mov.tipo === 'entrada';
-
-        return `
-            <div class="historico-linha ${isEntrada ? 'entrada' : 'saida'}">
-                <span class="hist-nome">${mov.nomeReserva}</span>
-                <span class="hist-valor ${isEntrada ? 'positivo' : 'negativo'}">
-                    ${isEntrada ? '+' : '-'}${window.formatarMoeda(mov.valor)}
-                </span>
-                <span class="hist-data">${dataFormatada} ${horaFormatada}</span>
-            </div>
-        `;
-    }).join('');
 }
 
 /**
@@ -1603,7 +1613,7 @@ async function atualizarModalReservas() {
         elemDisponivel.textContent = window.formatarMoeda(saldoAtual);
     }
 
-    renderizarListaReservasModal();
+    await renderizarListaReservasModal();
 }
 
 /**
