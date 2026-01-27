@@ -939,19 +939,19 @@ function preencherFormularioEdicao(index) {
    if (despesa.parcelado) {
        const parceladoCheckbox = document.getElementById('despesa-parcelado');
        const parcelasInput = document.getElementById('despesa-parcelas');
-       
+
        if (parceladoCheckbox) {
            parceladoCheckbox.checked = true;
-           parceladoCheckbox.disabled = true;
+           // Manter checkbox habilitado para permitir alteração
        }
        if (parcelasInput) {
-           parcelasInput.value = despesa.totalParcelas;
-           parcelasInput.disabled = true;
+           parcelasInput.value = despesa.totalParcelas || 1;
+           // Manter input habilitado para permitir edição
        }
-       
+
        const info = document.getElementById('info-parcelamento');
        if (info) info.classList.remove('hidden');
-       
+
        if (despesa.metadados) calcularInfoParcelamento();
    }
    
@@ -1256,9 +1256,12 @@ async function atualizarTodasParcelasGrupo(formData, despesaEmEdicao, valorParce
                 anoParcela++;
             }
 
+            // Usar o total de parcelas do formulário (pode ter sido editado)
+            const totalParcelasAtual = formData.totalParcelas || despesaEmEdicao.totalParcelas;
+
             // Montar descrição com número da parcela
             const descricaoBase = formData.descricao.replace(/\s*\(\d+\/\d+\)\s*$/, '').trim();
-            const descricaoComParcela = `${descricaoBase} (${parcelaNum}/${despesaEmEdicao.totalParcelas})`;
+            const descricaoComParcela = `${descricaoBase} (${parcelaNum}/${totalParcelasAtual})`;
 
             const dadosAtualizacao = {
                 descricao: descricaoComParcela,
@@ -1270,10 +1273,13 @@ async function atualizarTodasParcelasGrupo(formData, despesaEmEdicao, valorParce
                 mes: mesParcela,
                 ano: anoParcela,
                 forma_pagamento: formData.formaPagamento,
-                cartao_id: formData.cartao_id
+                cartao_id: formData.cartao_id,
+                categoria_id: formData.categoria,
+                total_parcelas: totalParcelasAtual,
+                parcela_atual: parcelaNum
             };
 
-            console.log(`📝 Atualizando parcela ${parcelaNum}/${despesaEmEdicao.totalParcelas} (ID: ${parcela.id})`);
+            console.log(`📝 Atualizando parcela ${parcelaNum}/${totalParcelasAtual} (ID: ${parcela.id})`);
 
             const updateResponse = await fetch(`${API_URL}/despesas/${parcela.id}`, {
                 method: 'PUT',
