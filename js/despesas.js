@@ -896,13 +896,46 @@ function preencherFormularioEdicao(index) {
        totalParcelas: despesa.totalParcelas,
        parcelaAtual: despesa.parcelaAtual
    };
-   document.getElementById('despesa-descricao').value = despesa.descricao || '';
+
+   // Se for despesa parcelada e não for a primeira parcela, ajustar mês/ano para a primeira parcela
+   if (despesa.parcelado && despesa.parcelaAtual > 1) {
+       let mesPrimeiraParcela = despesa.mes - (despesa.parcelaAtual - 1);
+       let anoPrimeiraParcela = despesa.ano;
+       while (mesPrimeiraParcela < 0) {
+           mesPrimeiraParcela += 12;
+           anoPrimeiraParcela--;
+       }
+       document.getElementById('despesa-mes').value = mesPrimeiraParcela;
+       document.getElementById('despesa-ano').value = anoPrimeiraParcela;
+   }
+   // Limpar sufixo de parcela da descrição se for parcelada (ex: "Compra (1/12)" → "Compra")
+   let descricaoLimpa = despesa.descricao || '';
+   if (despesa.parcelado) {
+       descricaoLimpa = descricaoLimpa.replace(/\s*\(\d+\/\d+\)\s*$/, '').trim();
+   }
+   document.getElementById('despesa-descricao').value = descricaoLimpa;
    document.getElementById('despesa-categoria').value = despesa.categoria || '';
    
    if (despesa.parcelado && despesa.metadados?.valorOriginalTotal) {
+       // Usar metadados se disponível
        document.getElementById('despesa-valor').value = despesa.metadados.valorOriginalTotal;
        document.getElementById('despesa-valor-pago').value = despesa.metadados.valorTotalComJuros || '';
+   } else if (despesa.parcelado && despesa.totalParcelas > 1) {
+       // Parcelado sem metadados: calcular valor total (valor da parcela × número de parcelas)
+       const valorParcela = parseFloat(despesa.valorOriginal || despesa.valor) || 0;
+       const numParcelas = parseInt(despesa.totalParcelas) || 1;
+       const valorTotal = valorParcela * numParcelas;
+       document.getElementById('despesa-valor').value = valorTotal.toFixed(2);
+
+       // Se tem valor com juros, também calcular o total
+       const valorJurosParcela = parseFloat(despesa.valorTotalComJuros || despesa.valorPago) || 0;
+       if (valorJurosParcela > 0) {
+           document.getElementById('despesa-valor-pago').value = (valorJurosParcela * numParcelas).toFixed(2);
+       } else {
+           document.getElementById('despesa-valor-pago').value = '';
+       }
    } else {
+       // Despesa simples (não parcelada)
        document.getElementById('despesa-valor').value = despesa.valorOriginal || despesa.valor;
        document.getElementById('despesa-valor-pago').value = despesa.valorTotalComJuros || despesa.valorPago || '';
    }
@@ -910,9 +943,19 @@ function preencherFormularioEdicao(index) {
    if (despesa.dataCompra) {
        document.getElementById('despesa-data-compra').value = despesa.dataCompra;
    }
-   
+
    if (despesa.dataVencimento) {
-       document.getElementById('despesa-data-vencimento').value = despesa.dataVencimento;
+       // Se for despesa parcelada e não for a primeira parcela, calcular a data da primeira parcela
+       if (despesa.parcelado && despesa.parcelaAtual > 1) {
+           const dataVencimentoAtual = window.dataDeISO ? window.dataDeISO(despesa.dataVencimento) : new Date(despesa.dataVencimento + 'T00:00:00');
+           // Subtrair os meses para voltar à primeira parcela
+           dataVencimentoAtual.setMonth(dataVencimentoAtual.getMonth() - (despesa.parcelaAtual - 1));
+           const dataPrimeiraParcela = window.dataParaISO ? window.dataParaISO(dataVencimentoAtual) :
+               `${dataVencimentoAtual.getFullYear()}-${String(dataVencimentoAtual.getMonth() + 1).padStart(2, '0')}-${String(dataVencimentoAtual.getDate()).padStart(2, '0')}`;
+           document.getElementById('despesa-data-vencimento').value = dataPrimeiraParcela;
+       } else {
+           document.getElementById('despesa-data-vencimento').value = despesa.dataVencimento;
+       }
    }
    
    if (despesa.formaPagamento === 'credito') {
@@ -1276,7 +1319,8 @@ async function atualizarTodasParcelasGrupo(formData, despesaEmEdicao, valorParce
                 cartao_id: formData.cartao_id,
                 categoria_id: formData.categoria,
                 total_parcelas: totalParcelasAtual,
-                parcela_atual: parcelaNum
+                parcela_atual: parcelaNum,
+                parcelado: true
             };
 
             console.log(`📝 Atualizando parcela ${parcelaNum}/${totalParcelasAtual} (ID: ${parcela.id})`);

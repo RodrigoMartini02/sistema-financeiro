@@ -277,7 +277,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
         const {
             descricao, valor, data_vencimento, data_compra, data_pagamento,
             categoria_id, cartao_id, forma_pagamento, observacoes, pago,
-            total_parcelas, parcela_atual, valor_original, valor_total_com_juros, valor_pago, anexos
+            total_parcelas, parcela_atual, valor_original, valor_total_com_juros, valor_pago, anexos,
+            mes, ano, parcelado
         } = req.body;
 
         // ✅ ACEITAR total_parcelas e parcela_atual do frontend
@@ -306,8 +307,9 @@ router.put('/:id', authMiddleware, async (req, res) => {
                  data_pagamento = $5, categoria_id = $6, cartao_id = $7,
                  forma_pagamento = $8, observacoes = $9, pago = $10,
                  numero_parcelas = $11, parcela_atual = $12,
-                 valor_original = $13, valor_total_com_juros = $14, valor_pago = $15, anexos = $16
-             WHERE id = $17 AND usuario_id = $18
+                 valor_original = $13, valor_total_com_juros = $14, valor_pago = $15, anexos = $16,
+                 mes = COALESCE($17, mes), ano = COALESCE($18, ano), parcelado = COALESCE($19, parcelado)
+             WHERE id = $20 AND usuario_id = $21
              RETURNING *`,
             [
                 descricao, parseFloat(valor), data_vencimento, data_compra,
@@ -317,6 +319,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
                 valor_total_com_juros ? parseFloat(valor_total_com_juros) : null,
                 valor_pago ? parseFloat(valor_pago) : null,
                 anexosJson,
+                mes !== undefined ? mes : null, ano !== undefined ? ano : null, parcelado !== undefined ? parcelado : null,
                 id, req.usuario.id
             ]
         );
