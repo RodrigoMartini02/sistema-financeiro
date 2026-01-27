@@ -118,12 +118,13 @@ function aplicarTodosFiltros() {
 }
 
 function configurarEventosFiltros() {
+    // Filtros antigos (se existirem)
     const filtros = [
         { id: 'filtro-categoria', handler: filtrarDespesasPorCategoria },
         { id: 'filtro-forma-pagamento-tabela', handler: filtrarDespesasPorFormaPagamento },
         { id: 'filtro-status', handler: filtrarDespesasPorStatus }
     ];
-    
+
     filtros.forEach(filtro => {
         const elemento = document.getElementById(filtro.id);
         if (elemento) {
@@ -132,25 +133,127 @@ function configurarEventosFiltros() {
             });
         }
     });
+
+    // Filtros da toolbar unificada
+    const filtrosToolbar = [
+        { id: 'filtro-categoria-toolbar', tipo: 'categoria' },
+        { id: 'filtro-forma-pagamento-toolbar', tipo: 'formaPagamento' },
+        { id: 'filtro-status-toolbar', tipo: 'status' }
+    ];
+
+    filtrosToolbar.forEach(filtro => {
+        const elemento = document.getElementById(filtro.id);
+        if (elemento) {
+            elemento.addEventListener('change', function() {
+                aplicarFiltrosToolbarDespesas();
+            });
+        }
+    });
+
+    // Botão limpar filtros da toolbar
+    const btnLimparToolbar = document.getElementById('btn-limpar-filtros-toolbar');
+    if (btnLimparToolbar) {
+        btnLimparToolbar.addEventListener('click', function(e) {
+            e.preventDefault();
+            limparFiltrosToolbarDespesas();
+        });
+    }
+}
+
+function aplicarFiltrosToolbarDespesas() {
+    const filtroCategoria = document.getElementById('filtro-categoria-toolbar')?.value || 'todas';
+    const filtroFormaPagamento = document.getElementById('filtro-forma-pagamento-toolbar')?.value || 'todas';
+    const filtroStatus = document.getElementById('filtro-status-toolbar')?.value || 'todas';
+
+    const linhas = document.querySelectorAll('tr.despesa-row');
+
+    linhas.forEach(linha => {
+        let mostrarLinha = true;
+
+        // Filtro de categoria
+        if (filtroCategoria !== 'todas') {
+            const categoriaDespesa = linha.querySelector('.col-categoria')?.textContent?.trim() || '';
+            if (categoriaDespesa.toLowerCase() !== filtroCategoria.toLowerCase()) {
+                mostrarLinha = false;
+            }
+        }
+
+        // Filtro de forma de pagamento
+        if (filtroFormaPagamento !== 'todas' && mostrarLinha) {
+            const formaPagamento = linha.dataset.formaPagamento || '';
+            if (formaPagamento.toLowerCase() !== filtroFormaPagamento.toLowerCase()) {
+                mostrarLinha = false;
+            }
+        }
+
+        // Filtro de status
+        if (filtroStatus !== 'todas' && mostrarLinha) {
+            const statusDespesa = linha.dataset.status || '';
+            if (filtroStatus === 'pagas' && statusDespesa !== 'quitada') mostrarLinha = false;
+            else if (filtroStatus === 'pendentes' && statusDespesa === 'quitada') mostrarLinha = false;
+            else if (filtroStatus === 'em_dia' && statusDespesa !== 'em_dia') mostrarLinha = false;
+            else if (filtroStatus === 'atrasada' && statusDespesa !== 'atrasada') mostrarLinha = false;
+        }
+
+        linha.style.display = mostrarLinha ? '' : 'none';
+    });
+
+    atualizarContadoresFiltro();
+}
+
+function limparFiltrosToolbarDespesas() {
+    const filtros = ['filtro-categoria-toolbar', 'filtro-forma-pagamento-toolbar', 'filtro-status-toolbar'];
+    filtros.forEach(filtroId => {
+        const filtro = document.getElementById(filtroId);
+        if (filtro) filtro.value = 'todas';
+    });
+
+    // Mostrar todas as linhas
+    document.querySelectorAll('tr.despesa-row').forEach(linha => {
+        linha.style.display = '';
+    });
+
+    atualizarContadoresFiltro();
 }
 
 function atualizarFiltrosExistentes(mes, ano) {
+    const categorias = obterCategoriasDoMes(mes, ano);
+
+    // Atualizar filtro antigo (se existir)
     const filtroCategoria = document.getElementById('filtro-categoria');
     if (filtroCategoria) {
-        const categorias = obterCategoriasDoMes(mes, ano);
         const valorAtual = filtroCategoria.value;
-        
+
         filtroCategoria.innerHTML = '<option value="todas">Categorias</option>';
-        
+
         categorias.forEach(categoria => {
             const option = document.createElement('option');
             option.value = categoria;
             option.textContent = categoria;
             filtroCategoria.appendChild(option);
         });
-        
+
         if (valorAtual && categorias.includes(valorAtual)) {
             filtroCategoria.value = valorAtual;
+        }
+    }
+
+    // Atualizar filtro da toolbar unificada
+    const filtroCategoriaToolbar = document.getElementById('filtro-categoria-toolbar');
+    if (filtroCategoriaToolbar) {
+        const valorAtual = filtroCategoriaToolbar.value;
+
+        filtroCategoriaToolbar.innerHTML = '<option value="todas">Categorias</option>';
+
+        categorias.forEach(categoria => {
+            const option = document.createElement('option');
+            option.value = categoria;
+            option.textContent = categoria;
+            filtroCategoriaToolbar.appendChild(option);
+        });
+
+        if (valorAtual && categorias.includes(valorAtual)) {
+            filtroCategoriaToolbar.value = valorAtual;
         }
     }
 }
@@ -682,9 +785,23 @@ function arredondarParaDuasCasas(valor) {
 
 function atualizarBotaoLote() {
     const checkboxes = document.querySelectorAll('.despesa-checkbox:checked');
+    const habilitado = checkboxes.length >= 2;
+
+    // Atualizar botão antigo (se existir)
     const btnPagarEmLote = document.getElementById('btn-pagar-em-lote');
     if (btnPagarEmLote) {
-        btnPagarEmLote.disabled = checkboxes.length < 2;
+        btnPagarEmLote.disabled = !habilitado;
+    }
+
+    // Atualizar botão da toolbar unificada
+    const btnPagarLoteToolbar = document.getElementById('btn-pagar-lote-toolbar');
+    if (btnPagarLoteToolbar) {
+        btnPagarLoteToolbar.disabled = !habilitado;
+        if (habilitado) {
+            btnPagarLoteToolbar.innerHTML = `<i class="fas fa-check-circle"></i> Lote (${checkboxes.length})`;
+        } else {
+            btnPagarLoteToolbar.innerHTML = `<i class="fas fa-check-circle"></i> Lote`;
+        }
     }
 }
 
@@ -1262,11 +1379,25 @@ async function atualizarTodasParcelasGrupo(formData, despesaEmEdicao, valorParce
         const idGrupo = despesaEmEdicao.idGrupoParcelamento;
         const token = sessionStorage.getItem('token');
 
+        // Converter nome da categoria para ID
+        let categoriaId = null;
+        if (formData.categoria) {
+            // Buscar categoria pelo nome para obter o ID
+            const categoriasUsuario = window.categoriasUsuario?.despesas || [];
+            const categoriaEncontrada = categoriasUsuario.find(c => {
+                const nome = typeof c === 'string' ? c : c.nome;
+                return nome === formData.categoria;
+            });
+            if (categoriaEncontrada && typeof categoriaEncontrada === 'object') {
+                categoriaId = categoriaEncontrada.id;
+            }
+        }
+
         // Buscar todas as parcelas do grupo via API
         const todasParcelas = [];
 
-        // Buscar no ano atual e próximo
-        for (let ano = formData.ano; ano <= formData.ano + 1; ano++) {
+        // Buscar no ano atual e próximos 2 anos (para cobrir parcelamentos longos)
+        for (let ano = formData.ano; ano <= formData.ano + 2; ano++) {
             const response = await fetch(`${API_URL}/despesas?ano=${ano}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -1317,10 +1448,11 @@ async function atualizarTodasParcelasGrupo(formData, despesaEmEdicao, valorParce
                 ano: anoParcela,
                 forma_pagamento: formData.formaPagamento,
                 cartao_id: formData.cartao_id,
-                categoria_id: formData.categoria,
+                categoria_id: categoriaId,  // Usar o ID numérico da categoria
                 total_parcelas: totalParcelasAtual,
                 parcela_atual: parcelaNum,
-                parcelado: true
+                parcelado: true,
+                recorrente: formData.recorrente || false  // Incluir campo recorrente
             };
 
             console.log(`📝 Atualizando parcela ${parcelaNum}/${totalParcelasAtual} (ID: ${parcela.id})`);
@@ -3409,19 +3541,30 @@ function compararDatas(dataA, dataB) {
 function atualizarContadoresFiltro() {
    const linhasVisiveis = document.querySelectorAll('tr.despesa-row:not([style*="display: none"])');
    const totalLinhas = document.querySelectorAll('tr.despesa-row').length;
-   
+
    let valorTotalVisivel = 0;
-   
+
    linhasVisiveis.forEach(linha => {
        const valorDespesa = calcularValorDespesaLinha(linha);
        valorTotalVisivel += valorDespesa;
    });
-   
+
+   // Atualizar contador antigo (se existir)
    const contadorFiltro = document.getElementById('contador-filtro');
    if (contadorFiltro) {
        contadorFiltro.textContent = `${linhasVisiveis.length} de ${totalLinhas} despesas (${formatarMoeda(valorTotalVisivel)})`;
    }
-   
+
+   // Atualizar contador da toolbar unificada
+   const contadorToolbar = document.getElementById('contador-despesas-toolbar');
+   if (contadorToolbar) {
+       if (linhasVisiveis.length === totalLinhas) {
+           contadorToolbar.textContent = `${totalLinhas} itens`;
+       } else {
+           contadorToolbar.textContent = `${linhasVisiveis.length}/${totalLinhas}`;
+       }
+   }
+
    // Atualizar contadores de anexos para linhas visíveis
    setTimeout(() => {
        if (typeof atualizarTodosContadoresAnexosDespesas === 'function') {

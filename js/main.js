@@ -882,16 +882,124 @@ function setupAbas() {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            
+
+            // Também controlar o conteúdo contextual da toolbar
+            document.querySelectorAll('.tab-toolbar-content').forEach(content => content.classList.remove('active'));
+
             btn.classList.add('active');
             const tabId = btn.getAttribute('data-tab');
             const tabContent = document.getElementById(tabId);
             if (tabContent) {
                 tabContent.classList.add('active');
             }
+
+            // Ativar conteúdo contextual correspondente na toolbar
+            const toolbarContent = document.querySelector(`.tab-toolbar-content[data-for-tab="${tabId}"]`);
+            if (toolbarContent) {
+                toolbarContent.classList.add('active');
+            }
         });
     });
+
+    // Configurar eventos dos botões da toolbar
+    setupToolbarButtons();
 }
+
+function setupToolbarButtons() {
+    // Botão Nova Despesa na toolbar
+    const btnNovaDespesaToolbar = document.getElementById('btn-nova-despesa-toolbar');
+    if (btnNovaDespesaToolbar) {
+        btnNovaDespesaToolbar.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (typeof window.abrirModalNovaDespesa === 'function') {
+                window.abrirModalNovaDespesa();
+            }
+        });
+    }
+
+    // Botão Pagar em Lote na toolbar
+    const btnPagarLoteToolbar = document.getElementById('btn-pagar-lote-toolbar');
+    if (btnPagarLoteToolbar) {
+        btnPagarLoteToolbar.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (typeof window.abrirModalPagamentoLote === 'function') {
+                window.abrirModalPagamentoLote();
+            }
+        });
+    }
+
+    // Botão Nova Receita na toolbar
+    const btnNovaReceitaToolbar = document.getElementById('btn-nova-receita-toolbar');
+    if (btnNovaReceitaToolbar) {
+        btnNovaReceitaToolbar.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (typeof window.abrirModalNovaReceita === 'function') {
+                window.abrirModalNovaReceita();
+            }
+        });
+    }
+
+    // Botão Reservas na toolbar
+    const btnReservasToolbar = document.getElementById('btn-reservas-toolbar');
+    if (btnReservasToolbar) {
+        btnReservasToolbar.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (typeof window.abrirModalReservarValor === 'function') {
+                window.abrirModalReservarValor();
+            }
+        });
+    }
+}
+
+// Função de atualização do contador da toolbar (usada pelo despesas.js)
+function atualizarContadorToolbar(visiveis, total) {
+    const contador = document.getElementById('contador-despesas-toolbar');
+    if (contador) {
+        if (visiveis === total) {
+            contador.textContent = `${total} itens`;
+        } else {
+            contador.textContent = `${visiveis}/${total} itens`;
+        }
+    }
+}
+
+// Atualizar saldos na toolbar de receitas
+function atualizarSaldosToolbar(saldoAtual, reservado) {
+    const saldoElement = document.getElementById('toolbar-saldo-atual');
+    const reservadoElement = document.getElementById('toolbar-reservado');
+
+    if (saldoElement) {
+        saldoElement.textContent = formatarMoeda(saldoAtual || 0);
+    }
+    if (reservadoElement) {
+        reservadoElement.textContent = formatarMoeda(reservado || 0);
+    }
+}
+
+// Atualizar categorias no filtro da toolbar
+function atualizarCategoriasToolbar(categorias) {
+    const filtro = document.getElementById('filtro-categoria-toolbar');
+    if (filtro) {
+        const valorAtual = filtro.value;
+        filtro.innerHTML = '<option value="todas">Categorias</option>';
+
+        categorias.forEach(categoria => {
+            const option = document.createElement('option');
+            option.value = categoria;
+            option.textContent = categoria;
+            filtro.appendChild(option);
+        });
+
+        if (valorAtual && categorias.includes(valorAtual)) {
+            filtro.value = valorAtual;
+        }
+    }
+}
+
+// Exportar funções globalmente
+window.atualizarSaldosToolbar = atualizarSaldosToolbar;
+window.atualizarCategoriasToolbar = atualizarCategoriasToolbar;
+window.atualizarContadorToolbar = atualizarContadorToolbar;
 
 function setupOutrosControles() {
     const refreshBtn = document.getElementById('btn-refresh');
@@ -1742,6 +1850,7 @@ async function buscarDespesasAPI(mes, ano) {
             idGrupoParcelamento: d.grupo_parcelamento_id,
             pago: d.pago,
             quitado: d.pago,
+            recorrente: d.recorrente || false,
             observacoes: d.observacoes,
             anexos: d.anexos || [],
             metadados: d.metadados || null,
@@ -2209,29 +2318,44 @@ function calcularLimiteCartao(cartaoId, mes, ano) {
         return false;
     };
 
-    // Calcular limite baseado APENAS nas despesas do mês selecionado (fatura atual)
-    // Isso corresponde ao que o app do cartão mostra - apenas a fatura do mês
-    const anoData = dadosFinanceiros?.[ano];
-    if (anoData?.meses?.[mes]) {
-        const despesasMes = anoData.meses[mes]?.despesas || [];
+    // Calcular limite baseado nas despesas do mês atual E TODOS os meses futuros
+    // Despesas parceladas comprometem o limite do cartão em TODAS as parcelas futuras
+    // Despesas recorrentes NÃO comprometem o limite (são contabilizadas apenas quando vencem)
 
-        despesasMes.forEach(despesa => {
-            // Pular despesas transferidas
-            if (despesa.transferidaParaProximoMes === true) return;
+    // Processar TODOS os anos disponíveis nos dados financeiros
+    const anosDisponiveis = Object.keys(dadosFinanceiros || {}).map(Number).sort((a, b) => a - b);
 
-            // Pular se não pertence ao cartão
-            if (!pertenceAoCartao(despesa)) return;
+    for (const anoProcessar of anosDisponiveis) {
+        // Pular anos anteriores ao atual
+        if (anoProcessar < ano) continue;
 
-            // Pular se já está paga
-            if (despesaEstaPaga(despesa)) return;
+        const anoData = dadosFinanceiros?.[anoProcessar];
+        if (!anoData?.meses) continue;
 
-            // Pular despesas recorrentes (não comprometem limite)
-            if (despesaEhRecorrente(despesa)) return;
+        // Determinar mês inicial (se for o ano atual, começar do mês atual)
+        const mesInicial = anoProcessar === ano ? mes : 0;
 
-            // Somar valor da despesa não paga do mês atual
-            const valor = parseFloat(despesa.valorTotalComJuros) || parseFloat(despesa.valor) || 0;
-            limiteUtilizado += valor;
-        });
+        for (let mesProcessar = mesInicial; mesProcessar < 12; mesProcessar++) {
+            const despesasMes = anoData.meses[mesProcessar]?.despesas || [];
+
+            despesasMes.forEach(despesa => {
+                // Pular despesas transferidas
+                if (despesa.transferidaParaProximoMes === true) return;
+
+                // Pular se não pertence ao cartão
+                if (!pertenceAoCartao(despesa)) return;
+
+                // Pular se já está paga
+                if (despesaEstaPaga(despesa)) return;
+
+                // Pular despesas recorrentes (não comprometem limite futuro)
+                if (despesaEhRecorrente(despesa)) return;
+
+                // Somar valor da despesa não paga
+                const valor = parseFloat(despesa.valorTotalComJuros) || parseFloat(despesa.valor) || 0;
+                limiteUtilizado += valor;
+            });
+        }
     }
 
     const limiteDisponivel = Math.max(0, limiteTotal - limiteUtilizado);

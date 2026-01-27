@@ -1214,7 +1214,7 @@ async function atualizarCardReservasIntegrado() {
     // Saldo Atual = saldo anterior + receitas - despesas - reservas (o que realmente tem para gastar)
     const saldoAtual = saldoInfo.saldoAnterior + saldoInfo.receitas - saldoInfo.despesas - totalReservado;
 
-    // Atualizar elementos do DOM (card mini)
+    // Atualizar elementos do DOM (card mini antigo - se existir)
     const elemDisponivel = document.getElementById('reservas-disponivel-mini');
     const elemReservado = document.getElementById('reservas-reservado-mini');
 
@@ -1225,6 +1225,19 @@ async function atualizarCardReservasIntegrado() {
 
     if (elemReservado) {
         elemReservado.textContent = window.formatarMoeda(totalReservado);
+    }
+
+    // Atualizar toolbar unificada
+    const toolbarSaldo = document.getElementById('toolbar-saldo-atual');
+    const toolbarReservado = document.getElementById('toolbar-reservado');
+
+    if (toolbarSaldo) {
+        toolbarSaldo.textContent = window.formatarMoeda(saldoAtual);
+        toolbarSaldo.style.color = saldoAtual >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
+    }
+
+    if (toolbarReservado) {
+        toolbarReservado.textContent = window.formatarMoeda(totalReservado);
     }
 
     // Renderizar últimas reservas no card mini

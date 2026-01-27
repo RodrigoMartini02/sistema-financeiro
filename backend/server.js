@@ -294,6 +294,8 @@ async function criarEstruturaBanco() {
         // Adicionar colunas para cálculo de juros e economias (se não existirem)
         await query(`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS valor_original DECIMAL(10, 2);`);
         await query(`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS valor_total_com_juros DECIMAL(10, 2);`);
+        await query(`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS recorrente BOOLEAN DEFAULT false;`);
+        await query(`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS anexos JSONB;`);
 
         console.log('✅ Tabela despesas verificada/criada!');
 

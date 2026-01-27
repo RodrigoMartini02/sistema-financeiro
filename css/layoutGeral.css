@@ -1595,6 +1595,26 @@ table tr:hover {
    SISTEMA DE TABS
    ================================================================ */
 
+/* Toolbar unificada com abas e conteúdo contextual */
+.tabs-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    margin-bottom: var(--space-md);
+    margin-top: var(--space-lg);
+    border-bottom: 1px solid var(--gray-200);
+    padding-bottom: var(--space-md);
+    padding-top: var(--space-sm);
+    flex-wrap: wrap;
+}
+
+.tabs-nav {
+    display: flex;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
 .tabs {
     display: flex;
     gap: 10px;
@@ -1609,6 +1629,7 @@ table tr:hover {
     padding: var(--space-sm) var(--space-md);
     background-color: var(--gray-100);
     border: none;
+    border-radius: var(--radius-sm);
     font-weight: var(--font-weight-medium);
     transition: var(--transition-base);
     color: var(--gray-500);
@@ -1626,12 +1647,118 @@ table tr:hover {
     color: var(--white);
 }
 
+/* Conteúdo contextual da toolbar */
+.tab-toolbar-content {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.tab-toolbar-content.active {
+    display: flex;
+}
+
+/* Filtros na toolbar de despesas */
+.toolbar-filtros-despesas {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.toolbar-filtros-despesas .form-control-sm {
+    padding: 4px 8px;
+    font-size: 12px;
+    height: 30px;
+    min-width: 100px;
+}
+
+/* Contador na toolbar */
+.toolbar-contador {
+    font-size: 12px;
+    color: var(--gray-500);
+    white-space: nowrap;
+    padding: 4px 8px;
+    background: var(--gray-100);
+    border-radius: var(--radius-sm);
+}
+
+/* Saldos na toolbar de receitas */
+.toolbar-saldos {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.toolbar-saldo-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--gray-600);
+}
+
+.toolbar-saldo-item i {
+    font-size: 14px;
+}
+
+.toolbar-saldo-item.reservado i {
+    color: var(--primary-color);
+}
+
+.toolbar-saldo-item span {
+    font-weight: 600;
+    color: var(--gray-800);
+}
+
+.toolbar-separator {
+    color: var(--gray-300);
+    font-weight: 300;
+}
+
+/* Botões na toolbar */
+.tabs-toolbar .btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.tabs-toolbar .btn-icon {
+    padding: 6px 8px;
+    min-width: auto;
+}
+
 .tab-content {
     display: none;
 }
 
 .tab-content.active {
     display: block;
+}
+
+/* Responsivo para toolbar */
+@media (max-width: 768px) {
+    .tabs-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .tab-toolbar-content {
+        width: 100%;
+        justify-content: flex-start;
+        margin-top: 10px;
+    }
+
+    .toolbar-filtros-despesas {
+        flex-wrap: wrap;
+    }
+
+    .toolbar-filtros-despesas .form-control-sm {
+        min-width: 80px;
+    }
 }
 
 
