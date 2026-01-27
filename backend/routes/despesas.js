@@ -103,7 +103,7 @@ router.post('/', authMiddleware, [
             descricao, valor, data_vencimento, data_compra, data_pagamento,
             mes, ano, categoria_id, cartao_id, forma_pagamento,
             parcelado, total_parcelas, parcela_atual, observacoes, pago,
-            valor_original, valor_total_com_juros, valor_pago, anexos
+            valor_original, valor_total_com_juros, valor_pago, anexos, recorrente
         } = req.body;
 
         console.log('📝 Criando despesa:', {
@@ -156,8 +156,8 @@ router.post('/', authMiddleware, [
                 usuario_id, descricao, valor, data_vencimento, data_compra, data_pagamento,
                 mes, ano, categoria_id, cartao_id, forma_pagamento,
                 parcelado, numero_parcelas, parcela_atual, observacoes, pago,
-                valor_original, valor_total_com_juros, valor_pago, numero, anexos
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+                valor_original, valor_total_com_juros, valor_pago, numero, anexos, recorrente
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
             RETURNING *`,
             [
                 req.usuario.id, descricao, parseFloat(valor), data_vencimento,
@@ -169,7 +169,8 @@ router.post('/', authMiddleware, [
                 valor_total_com_juros ? parseFloat(valor_total_com_juros) : null,
                 valor_pago ? parseFloat(valor_pago) : null,
                 proximoNumero,
-                anexosJson
+                anexosJson,
+                recorrente || false
             ]
         );
 
@@ -230,10 +231,10 @@ async function criarParcelasFuturas(usuarioId, despesaBase, totalParcelas) {
                     usuario_id, descricao, valor, data_vencimento, data_compra,
                     mes, ano, categoria_id, cartao_id, forma_pagamento,
                     parcelado, numero_parcelas, parcela_atual, observacoes, pago,
-                    grupo_parcelamento_id
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+                    grupo_parcelamento_id, recorrente
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
                 [
-                    usuarioId, 
+                    usuarioId,
                     despesaBase.descricao + ` (${i}/${totalParcelas})`,
                     despesaBase.valor,
                     proximaDataVencimento,
@@ -248,7 +249,8 @@ async function criarParcelasFuturas(usuarioId, despesaBase, totalParcelas) {
                     i,
                     despesaBase.observacoes,
                     false,
-                    despesaBase.id // Usar ID da primeira parcela como grupo
+                    despesaBase.id, // Usar ID da primeira parcela como grupo
+                    despesaBase.recorrente || false
                 ]
             );
         }

@@ -1376,7 +1376,8 @@ function limparAposGravacao(formData, ehEdicao) {
 // ✅ NOVA FUNÇÃO: Atualizar todas as parcelas de um grupo
 async function atualizarTodasParcelasGrupo(formData, despesaEmEdicao, valorParcela, valorComJuros, totalJuros) {
     try {
-        const idGrupo = despesaEmEdicao.idGrupoParcelamento;
+        // Se idGrupoParcelamento for null, a despesa EM EDIÇÃO é a primeira parcela (usa próprio ID)
+        const idGrupo = despesaEmEdicao.idGrupoParcelamento || despesaEmEdicao.id;
         const token = sessionStorage.getItem('token');
 
         // Converter nome da categoria para ID
@@ -1396,15 +1397,21 @@ async function atualizarTodasParcelasGrupo(formData, despesaEmEdicao, valorParce
         // Buscar todas as parcelas do grupo via API
         const todasParcelas = [];
 
-        // Buscar no ano atual e próximos 2 anos (para cobrir parcelamentos longos)
-        for (let ano = formData.ano; ano <= formData.ano + 2; ano++) {
+        // Buscar no ano anterior, atual e próximos 3 anos (para cobrir parcelamentos longos)
+        // Ano anterior é necessário caso a primeira parcela esteja em ano diferente da parcela editada
+        for (let ano = formData.ano - 1; ano <= formData.ano + 3; ano++) {
             const response = await fetch(`${API_URL}/despesas?ano=${ano}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
             if (response.ok) {
                 const data = await response.json();
-                const parcelas = (data.data || []).filter(d => d.grupo_parcelamento_id === idGrupo);
+                // Incluir parcelas do grupo E a primeira parcela (cujo ID é o idGrupo)
+                // Usar parseInt para garantir comparação correta (string vs number)
+                const idGrupoNum = parseInt(idGrupo);
+                const parcelas = (data.data || []).filter(d =>
+                    parseInt(d.grupo_parcelamento_id) === idGrupoNum || parseInt(d.id) === idGrupoNum
+                );
                 todasParcelas.push(...parcelas);
             }
         }
@@ -3857,6 +3864,7 @@ window.moverParaProximoMes = moverParaProximoMes;
 window.abrirModalPagamento = abrirModalPagamento;
 window.processarPagamento = processarPagamento;
 window.pagarDespesasEmLote = pagarDespesasEmLote;
+window.abrirModalPagamentoLote = pagarDespesasEmLote;
 window.salvarDespesa = salvarDespesa;
 window.renderizarDespesas = renderizarDespesas;
 window.atualizarStatusDespesas = atualizarStatusDespesas;

@@ -1600,12 +1600,12 @@ table tr:hover {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 15px;
-    margin-bottom: var(--space-md);
-    margin-top: var(--space-lg);
+    gap: 10px;
+    margin-bottom: var(--space-sm);
+    margin-top: var(--space-sm);
     border-bottom: 1px solid var(--gray-200);
-    padding-bottom: var(--space-md);
-    padding-top: var(--space-sm);
+    padding-bottom: var(--space-sm);
+    padding-top: var(--space-xs);
     flex-wrap: wrap;
 }
 
@@ -1618,11 +1618,11 @@ table tr:hover {
 .tabs {
     display: flex;
     gap: 10px;
-    margin-bottom: var(--space-md);
-    margin-top: var(--space-lg);
+    margin-bottom: var(--space-sm);
+    margin-top: var(--space-sm);
     border-bottom: 1px solid var(--gray-200);
-    padding-bottom: var(--space-md);
-    padding-top: var(--space-sm);
+    padding-bottom: var(--space-sm);
+    padding-top: var(--space-xs);
 }
 
 .tab-btn {

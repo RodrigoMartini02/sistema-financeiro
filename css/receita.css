@@ -29,7 +29,7 @@
 }
 
 .tabela-receitas thead th {
-    padding: 10px 8px !important;
+    padding: 6px !important;
     text-align: left;
     font-weight: 600 !important;
     font-size: 10px !important;
@@ -55,7 +55,7 @@
 }
 
 .tabela-receitas tbody td {
-    padding: 8px 6px;
+    padding: 4px 6px;
     vertical-align: middle;
     white-space: nowrap;
     overflow: hidden;

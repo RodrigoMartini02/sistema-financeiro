@@ -1796,7 +1796,7 @@
                             <option value="pagas">Pagas</option>
                             <option value="pendentes">Pendentes</option>
                         </select>
-                        <button id="btn-limpar-filtros-toolbar" class="btn btn-icon btn-sm" title="Limpar Filtros">
+                        <button id="btn-limpar-filtros-toolbar" class="btn btn-secondary btn-icon btn-sm" title="Limpar Filtros">
                             <i class="fas fa-eraser"></i>
                         </button>
                     </div>
@@ -2807,90 +2807,6 @@
 </template>
 <template id="template-badge-pagamento">
     <span class="badge-pagamento"></span>
-</template>
-
-<template id="template-estrutura-despesas">
-    <div class="tab-actions">
-        <div class="left-side">
-            <button id="btn-nova-despesa" class="btn btn-primary">
-                <i class="fas fa-plus-circle"></i> Nova Despesa
-            </button>
-            <button id="btn-pagar-em-lote" class="btn btn-primary" disabled>
-                <i class="fas fa-check-circle"></i> Pagar em Lote
-            </button>
-        </div>
-        
-        <div class="right-side">
-            <div class="filtros-despesas">
-                <select id="filtro-categoria" class="form-control">
-                    <option value="todas">Categorias</option>
-                </select>
-                <select id="filtro-forma-pagamento-tabela" class="form-control">
-                    <option value="todas">Forma Pagamento</option>
-                    <option value="pix">PIX</option>
-                    <option value="debito">Débito</option>
-                    <option value="dinheiro">Dinheiro</option>
-                    <option value="credito">Crédito</option>
-                </select>
-                <select id="filtro-status" class="form-control">
-                    <option value="todas">Status</option>
-                    <option value="em_dia">Em Dia</option>
-                    <option value="atrasada">Atrasadas</option>
-                    <option value="pagas">Pagas</option>
-                    <option value="pendentes">Pendentes</option>
-                </select>
-                <button id="btn-limpar-filtros" class="btn btn-secondary">
-                    <i class="fas fa-eraser"></i> Limpar
-                </button>
-                
-                <span id="contador-filtro" class="filtro-contador"></span>
-            </div>
-        </div>
-    </div>
-    
-    <div id="despesas-grid-container" class="despesas-grid">
-        <div class="grid-header">
-            <div class="col-checkbox">
-                <input type="checkbox" id="select-all-despesas" onchange="toggleTodasDespesas(this)">
-            </div>
-            <div class="col-numero">Nº</div>
-            <div class="col-descricao">Descrição</div>
-            <div class="col-categoria">Categoria</div>
-            <div class="col-forma-pagamento">Método</div>
-            <div class="col-valor">Valor</div>
-            <div class="col-parcela">Parcela</div>
-            <div class="col-valor-pago">Valor Pago</div>
-            <div class="col-status">Status</div>
-            <div class="col-compra">Compra</div>
-            <div class="col-vencimento">Vencimento</div>
-            <div class="col-anexos">Anexos</div>
-            <div class="col-acoes">Ações</div>
-        </div>
-        
-        <div id="lista-despesas" class="grid-content">
-            <!-- Linhas serão inseridas aqui -->
-        </div>
-    </div>
-</template>
-
-<!-- Template duplicado removido - usar apenas template-linha-despesa-grid definido acima -->
-
-<!-- Template para botões de ação -->
-<template id="template-botoes-acao">
-    <div class="acoes-grupo">
-        <button class="btn btn-sm btn-editar" title="Editar">
-            <i class="fas fa-edit"></i>
-        </button>
-        <button class="btn btn-sm btn-excluir" title="Excluir">
-            <i class="fas fa-trash"></i>
-        </button>
-        <button class="btn btn-sm btn-pagar" title="Pagar">
-            <i class="fas fa-check"></i>
-        </button>
-        <button class="btn btn-sm btn-mover" title="Mover para próximo mês">
-            <i class="fas fa-arrow-right"></i>
-        </button>
-    </div>
 </template>
 
 <!-- Template para valor com juros -->

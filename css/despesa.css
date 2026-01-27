@@ -32,7 +32,7 @@
 }
 
 .tabela-despesas thead th {
-    padding: 10px 8px !important;
+    padding: 6px !important;
     text-align: left;
     font-weight: 600 !important;
     font-size: 10px !important;
@@ -61,7 +61,7 @@
 }
 
 .tabela-despesas tbody td {
-    padding: 6px;
+    padding: 4px 6px;
     font-size: 10px;
     color: #495057;
     border-right: 1px solid #e9ecef;
