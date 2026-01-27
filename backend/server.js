@@ -312,6 +312,19 @@ async function criarEstruturaBanco() {
         `);
         console.log('✅ Tabela reservas verificada/criada!');
 
+        // ✅ TABELA MOVIMENTAÇÕES DE RESERVAS
+        await query(`
+            CREATE TABLE IF NOT EXISTS movimentacoes_reservas (
+                id SERIAL PRIMARY KEY,
+                reserva_id INTEGER NOT NULL REFERENCES reservas(id) ON DELETE CASCADE,
+                tipo VARCHAR(10) NOT NULL CHECK (tipo IN ('entrada', 'saida')),
+                valor DECIMAL(10, 2) NOT NULL,
+                data_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                observacoes TEXT
+            );
+        `);
+        console.log('✅ Tabela movimentacoes_reservas verificada/criada!');
+
         // ✅ TABELA MESES
         await query(`
             CREATE TABLE IF NOT EXISTS meses (
