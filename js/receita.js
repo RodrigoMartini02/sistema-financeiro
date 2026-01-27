@@ -1484,37 +1484,18 @@ async function renderizarHistoricoGeral() {
 }
 
 /**
- * Carrega movimentações de uma reserva
- */
-async function carregarMovimentacoesReserva(reservaId) {
-    try {
-        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-        if (!token) return [];
-
-        const response = await fetch(`${API_URL_RESERVAS}/reservas/${reservaId}/movimentacoes`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            return data.data || [];
-        }
-        return [];
-    } catch (error) {
-        console.error('Erro ao carregar movimentações:', error);
-        return [];
-    }
-}
-
-/**
- * Adiciona ou atualiza reserva via API
+ * Cria nova reserva via API
  */
 async function processarAdicionarReserva() {
     const mes = window.mesAberto;
     const ano = window.anoAberto;
     const valor = parseFloat(document.getElementById('input-valor-reserva').value);
     const descricao = document.getElementById('input-descricao-reserva').value.trim();
-    const btnAdicionar = document.getElementById('btn-adicionar-reserva');
+
+    if (!descricao) {
+        window.mostrarMensagemErro ? window.mostrarMensagemErro('Informe o nome da reserva') : alert('Informe o nome da reserva');
+        return;
+    }
 
     if (isNaN(valor) || valor <= 0) {
         window.mostrarMensagemErro ? window.mostrarMensagemErro('Informe um valor válido') : alert('Informe um valor válido');
@@ -1527,48 +1508,26 @@ async function processarAdicionarReserva() {
         return;
     }
 
-    const editandoId = btnAdicionar?.dataset.editando;
-
     try {
-        let response;
-        const dadosReserva = {
-            valor: valor,
-            mes: mes,
-            ano: ano,
-            data: new Date().toISOString().split('T')[0],
-            observacoes: descricao || 'Reserva'
-        };
-
-        if (editandoId) {
-            // Atualizar reserva existente
-            response = await fetch(`${API_URL_RESERVAS}/reservas/${editandoId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(dadosReserva)
-            });
-        } else {
-            // Criar nova reserva
-            response = await fetch(`${API_URL_RESERVAS}/reservas`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(dadosReserva)
-            });
-        }
+        const response = await fetch(`${API_URL_RESERVAS}/reservas`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                valor: valor,
+                mes: mes,
+                ano: ano,
+                data: new Date().toISOString().split('T')[0],
+                observacoes: descricao
+            })
+        });
 
         if (response.ok) {
             // Limpar campos
             document.getElementById('input-valor-reserva').value = '';
             document.getElementById('input-descricao-reserva').value = '';
-            if (btnAdicionar) {
-                btnAdicionar.innerHTML = '<i class="fas fa-plus"></i>';
-                delete btnAdicionar.dataset.editando;
-            }
 
             // Recarregar reservas e atualizar modal
             await carregarReservasAPI();
@@ -1579,14 +1538,14 @@ async function processarAdicionarReserva() {
                 await window.carregarDadosDashboard(ano);
             }
 
-            window.mostrarMensagemSucesso ? window.mostrarMensagemSucesso(editandoId ? 'Reserva atualizada!' : 'Reserva adicionada!') : null;
+            window.mostrarMensagemSucesso ? window.mostrarMensagemSucesso('Reserva criada!') : null;
         } else {
             const error = await response.json();
-            window.mostrarMensagemErro ? window.mostrarMensagemErro(error.message || 'Erro ao salvar reserva') : alert(error.message || 'Erro ao salvar reserva');
+            window.mostrarMensagemErro ? window.mostrarMensagemErro(error.message || 'Erro ao criar reserva') : alert(error.message || 'Erro ao criar reserva');
         }
     } catch (error) {
-        console.error('Erro ao salvar reserva:', error);
-        window.mostrarMensagemErro ? window.mostrarMensagemErro('Erro ao salvar reserva') : alert('Erro ao salvar reserva');
+        console.error('Erro ao criar reserva:', error);
+        window.mostrarMensagemErro ? window.mostrarMensagemErro('Erro ao criar reserva') : alert('Erro ao criar reserva');
     }
 }
 

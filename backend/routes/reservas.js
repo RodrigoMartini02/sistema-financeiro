@@ -101,10 +101,9 @@ router.post('/', authMiddleware, [
     }
 });
 
-// PUT - Atualizar reserva existente
+// PUT - Atualizar nome da reserva (valor só pode ser alterado via movimentação)
 router.put('/:id', authMiddleware, [
-    body('valor').isFloat({ min: 0.01 }).withMessage('Valor deve ser maior que zero'),
-    body('data').optional().isISO8601().withMessage('Data inválida')
+    body('observacoes').notEmpty().withMessage('Nome da reserva é obrigatório')
 ], async (req, res) => {
     try {
         const errors = validationResult(req);
@@ -114,58 +113,31 @@ router.put('/:id', authMiddleware, [
                 errors: errors.array()
             });
         }
-        
+
         const { id } = req.params;
-        const { valor, data, observacoes } = req.body;
-        
-        // Buscar reserva atual para validação
-        const reservaAtual = await query(
-            'SELECT * FROM reservas WHERE id = $1 AND usuario_id = $2',
-            [id, req.usuario.id]
+        const { observacoes } = req.body;
+
+        const result = await query(
+            `UPDATE reservas
+             SET observacoes = $1
+             WHERE id = $2 AND usuario_id = $3
+             RETURNING *`,
+            [observacoes, id, req.usuario.id]
         );
-        
-        if (reservaAtual.rows.length === 0) {
+
+        if (result.rows.length === 0) {
             return res.status(404).json({
                 success: false,
                 message: 'Reserva não encontrada'
             });
         }
-        
-        const reserva = reservaAtual.rows[0];
-        const diferencaValor = parseFloat(valor) - parseFloat(reserva.valor);
-        
-        // Se aumentou o valor, verificar se há saldo disponível
-        if (diferencaValor > 0) {
-            const verificacaoSaldo = await verificarSaldoDisponivel(
-                req.usuario.id, 
-                reserva.mes, 
-                reserva.ano, 
-                diferencaValor
-            );
-            
-            if (!verificacaoSaldo.sucesso) {
-                return res.status(400).json({
-                    success: false,
-                    message: verificacaoSaldo.mensagem,
-                    saldoDisponivel: verificacaoSaldo.saldoDisponivel
-                });
-            }
-        }
-        
-        const result = await query(
-            `UPDATE reservas 
-             SET valor = $1, data = COALESCE($2, data), observacoes = $3
-             WHERE id = $4 AND usuario_id = $5
-             RETURNING *`,
-            [parseFloat(valor), data, observacoes, id, req.usuario.id]
-        );
-        
+
         res.json({
             success: true,
             message: 'Reserva atualizada com sucesso',
             data: result.rows[0]
         });
-        
+
     } catch (error) {
         console.error('Erro ao atualizar reserva:', error);
         res.status(500).json({
