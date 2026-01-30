@@ -304,19 +304,8 @@ function processarDadosReais(dadosFinanceiros, ano) {
         dadosMensais.saldos.push(saldoMes);
     }
 
-    // Saldo inicial do ano
-    const saldoInicialAno = window.obterSaldoAnterior ? window.obterSaldoAnterior(0, ano) : 0;
-
-    // Total de reservas do ano
-    let totalReservado = 0;
-    if (window.reservasCache && Array.isArray(window.reservasCache)) {
-        totalReservado = window.reservasCache
-            .filter(r => parseInt(r.ano) === ano)
-            .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-    }
-
-    // Receitas Totais = saldo inicial + receitas do ano - reservas
-    const receitasTotais = saldoInicialAno + receitasAno - totalReservado;
+    // Receitas Totais do Dashboard = apenas receitas cadastradas no ano (sem saldo anterior, sem reservas)
+    const receitasTotais = receitasAno;
 
     const resumoAnual = {
         receitas: receitasTotais,

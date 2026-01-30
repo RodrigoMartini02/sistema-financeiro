@@ -1989,26 +1989,23 @@ function atualizarControlesFechamento(mes, ano, fechado) {
 }
 
 function atualizarResumoDetalhes(saldo, totalJuros, totalEconomias = 0) {
-    // Total de reservas do mês
-    let totalReservado = 0;
-    if (typeof window.calcularTotalReservas === 'function') {
-        totalReservado = window.calcularTotalReservas(mesAberto, anoAberto);
-    }
+    // Receitas do Mês = apenas receitas cadastradas no mês (sem saldo anterior, sem reservas)
+    const receitasMes = saldo.receitas;
 
-    // Receitas Totais = saldo anterior + receitas do mês - reservas
-    const receitasTotais = saldo.saldoAnterior + saldo.receitas - totalReservado;
+    // Despesas do Mês = despesas cadastradas no mês
+    const despesasMes = saldo.despesas;
 
-    // Saldo Atual = Receitas Totais - Despesas
-    const saldoAtual = receitasTotais - saldo.despesas;
+    // Saldo Atual Mês = Receitas do mês - Despesas do mês + Acumulado do mês anterior
+    const saldoAtualMes = receitasMes - despesasMes + saldo.saldoAnterior;
 
-    atualizarElemento('resumo-receitas', formatarMoeda(receitasTotais));
-    atualizarElemento('resumo-despesas', formatarMoeda(saldo.despesas));
+    atualizarElemento('resumo-receitas', formatarMoeda(receitasMes));
+    atualizarElemento('resumo-despesas', formatarMoeda(despesasMes));
     atualizarElemento('resumo-juros', formatarMoeda(totalJuros));
     atualizarElemento('resumo-economias', formatarMoeda(totalEconomias));
 
     const saldoElement = document.getElementById('resumo-saldo');
     if (saldoElement) {
-        saldoElement.textContent = formatarMoeda(saldoAtual);
+        saldoElement.textContent = formatarMoeda(saldoAtualMes);
         saldoElement.className = 'card-value';
     }
 }
