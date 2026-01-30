@@ -1987,23 +1987,26 @@ function atualizarControlesFechamento(mes, ano, fechado) {
 }
 
 function atualizarResumoDetalhes(saldo, totalJuros, totalEconomias = 0) {
-    atualizarElemento('resumo-receitas', formatarMoeda(saldo.receitas));
+    // Total de reservas do mês
+    let totalReservado = 0;
+    if (typeof window.calcularTotalReservas === 'function') {
+        totalReservado = window.calcularTotalReservas(mesAberto, anoAberto);
+    }
+
+    // Receitas Totais = saldo anterior + receitas do mês - reservas
+    const receitasTotais = saldo.saldoAnterior + saldo.receitas - totalReservado;
+
+    // Saldo Atual = Receitas Totais - Despesas
+    const saldoAtual = receitasTotais - saldo.despesas;
+
+    atualizarElemento('resumo-receitas', formatarMoeda(receitasTotais));
     atualizarElemento('resumo-despesas', formatarMoeda(saldo.despesas));
     atualizarElemento('resumo-juros', formatarMoeda(totalJuros));
     atualizarElemento('resumo-economias', formatarMoeda(totalEconomias));
 
     const saldoElement = document.getElementById('resumo-saldo');
     if (saldoElement) {
-        // Calcular total de reservas para descontar do saldo
-        let totalReservas = 0;
-        if (typeof window.calcularTotalReservas === 'function') {
-            totalReservas = window.calcularTotalReservas(mesAberto, anoAberto);
-        }
-
-        // Saldo disponível = saldo final - reservas
-        const saldoDisponivel = saldo.saldoFinal - totalReservas;
-
-        saldoElement.textContent = formatarMoeda(saldoDisponivel);
+        saldoElement.textContent = formatarMoeda(saldoAtual);
         saldoElement.className = 'card-value';
     }
 }
@@ -2122,16 +2125,19 @@ function carregarDadosDashboardLocal(ano) {
         return;
     }
 
-    let totalReceitasReais = 0;
+    // Saldo inicial do ano (saldo final do ano anterior)
+    const saldoInicialAno = obterSaldoAnterior(0, ano);
+
+    let receitasAno = 0;
     let totalDespesas = 0;
     let totalJuros = 0;
     let totalEconomias = 0;
-    let saldoFinalAno = 0;
 
     for (let mes = 0; mes < 12; mes++) {
         const dadosMes = dadosFinanceiros[ano].meses[mes] || { receitas: [], despesas: [] };
 
-        const receitasReaisMes = (dadosMes.receitas || []).reduce((sum, r) => {
+        // Receitas do mês (excluindo saldo anterior automático)
+        const receitasMes = (dadosMes.receitas || []).reduce((sum, r) => {
             if (r.saldoAnterior === true ||
                 r.descricao?.includes('Saldo Anterior') ||
                 r.automatica === true) {
@@ -2140,44 +2146,37 @@ function carregarDadosDashboardLocal(ano) {
             return sum + (r.valor || 0);
         }, 0);
 
-        totalReceitasReais += receitasReaisMes;
+        receitasAno += receitasMes;
 
         const despesasMes = typeof window.calcularTotalDespesas === 'function' ?
                            window.calcularTotalDespesas(dadosMes.despesas) :
                            dadosMes.despesas.reduce((sum, d) => sum + (d.valor || 0), 0);
 
         totalDespesas += despesasMes;
-
-        const jurosMes = typeof window.calcularTotalJuros === 'function' ?
-                        window.calcularTotalJuros(dadosMes.despesas) : 0;
-
-        totalJuros += jurosMes;
-
-        const economiasMes = typeof window.calcularTotalEconomias === 'function' ?
-                            window.calcularTotalEconomias(dadosMes.despesas) : 0;
-
-        totalEconomias += economiasMes;
-
-        const saldoMes = calcularSaldoMes(mes, ano);
-        saldoFinalAno = saldoMes.saldoFinal;
+        totalJuros += typeof window.calcularTotalJuros === 'function' ? window.calcularTotalJuros(dadosMes.despesas) : 0;
+        totalEconomias += typeof window.calcularTotalEconomias === 'function' ? window.calcularTotalEconomias(dadosMes.despesas) : 0;
     }
 
-    // Descontar reservas acumuladas do saldo final do ano
-    let totalReservasAno = 0;
+    // Total de reservas do ano
+    let totalReservado = 0;
     if (window.reservasCache && Array.isArray(window.reservasCache)) {
-        totalReservasAno = window.reservasCache
-            .filter(r => parseInt(r.ano) <= ano)
+        totalReservado = window.reservasCache
+            .filter(r => parseInt(r.ano) === ano)
             .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
     }
 
-    const saldoDisponivelAno = saldoFinalAno - totalReservasAno;
+    // Receitas Totais = saldo inicial + receitas do ano - reservas
+    const receitasTotais = saldoInicialAno + receitasAno - totalReservado;
+
+    // Saldo Atual = Receitas Totais - Despesas
+    const saldoAtual = receitasTotais - totalDespesas;
 
     atualizarElementosDashboard({
-        totalReceitas: totalReceitasReais,
+        totalReceitas: receitasTotais,
         totalDespesas: totalDespesas,
         totalJuros: totalJuros,
         totalEconomias: totalEconomias,
-        saldo: saldoDisponivelAno
+        saldo: saldoAtual
     });
 }
 

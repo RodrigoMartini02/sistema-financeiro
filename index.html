@@ -1786,6 +1786,7 @@
                         <button id="btn-pagar-lote-toolbar" class="btn btn-secondary btn-sm" disabled title="Pagar em Lote">
                             <i class="fas fa-check-circle"></i> Lote
                         </button>
+                        <span class="toolbar-divider"></span>
                     </div>
                     <!-- Ações contextuais: Receitas -->
                     <div class="toolbar-acoes" data-for-tab="tab-receitas">
@@ -1795,6 +1796,7 @@
                         <button id="btn-reservas-toolbar" class="btn btn-secondary btn-sm" title="Reservas">
                             <i class="fas fa-piggy-bank"></i>
                         </button>
+                        <span class="toolbar-divider"></span>
                     </div>
                 </div>
 
@@ -1806,33 +1808,28 @@
 
                     <!-- Conteúdo contextual: Despesas -->
                     <div class="tab-toolbar-content" data-for-tab="tab-despesas">
-                        <div class="toolbar-filtros-despesas">
-                            <select id="filtro-categoria-toolbar" class="form-control form-control-sm">
-                                <option value="todas">Categorias</option>
-                            </select>
-                            <select id="filtro-forma-pagamento-toolbar" class="form-control form-control-sm">
-                                <option value="todas">Pagamento</option>
-                                <option value="pix">PIX</option>
-                                <option value="debito">Débito</option>
-                                <option value="dinheiro">Dinheiro</option>
-                                <option value="credito">Crédito</option>
-                            </select>
-                            <select id="filtro-status-toolbar" class="form-control form-control-sm">
-                                <option value="todas">Status</option>
-                                <option value="em_dia">Em Dia</option>
-                                <option value="atrasada">Atrasadas</option>
-                                <option value="pagas">Pagas</option>
-                                <option value="pendentes">Pendentes</option>
-                            </select>
-                            <button id="btn-limpar-filtros-toolbar" class="btn btn-secondary btn-sm" title="Limpar Filtros">
-                                <i class="fas fa-eraser"></i>
-                            </button>
-                        </div>
-                        <span class="toolbar-divider"></span>
-                        <div class="toolbar-contadores">
-                            <span id="contador-despesas-toolbar" class="toolbar-contador">0 itens</span>
-                            <span id="total-despesas-toolbar" class="toolbar-contador toolbar-total">R$ 0,00</span>
-                        </div>
+                        <select id="filtro-categoria-toolbar" class="form-control form-control-sm">
+                            <option value="todas">Categorias</option>
+                        </select>
+                        <select id="filtro-forma-pagamento-toolbar" class="form-control form-control-sm">
+                            <option value="todas">Pagamento</option>
+                            <option value="pix">PIX</option>
+                            <option value="debito">Débito</option>
+                            <option value="dinheiro">Dinheiro</option>
+                            <option value="credito">Crédito</option>
+                        </select>
+                        <select id="filtro-status-toolbar" class="form-control form-control-sm">
+                            <option value="todas">Status</option>
+                            <option value="em_dia">Em Dia</option>
+                            <option value="atrasada">Atrasadas</option>
+                            <option value="pagas">Pagas</option>
+                            <option value="pendentes">Pendentes</option>
+                        </select>
+                        <button id="btn-limpar-filtros-toolbar" class="btn btn-secondary btn-sm" title="Limpar Filtros">
+                            <i class="fas fa-eraser"></i>
+                        </button>
+                        <span id="contador-despesas-toolbar" class="toolbar-contador">0 itens</span>
+                        <span id="total-despesas-toolbar" class="toolbar-contador toolbar-total">R$ 0,00</span>
                     </div>
 
                     <!-- Conteúdo contextual: Receitas -->
@@ -1861,7 +1858,7 @@
                             <span>RECEITAS TOTAIS</span>
                         </div>
                         <div class="card-value" id="resumo-receitas">R$ 0,00</div>
-                        <div class="card-footer">Total de receitas do mês</div>
+                        <div class="card-footer">Inclui saldo anterior, menos reservas</div>
                     </div>
                     <div class="card card-despesas">
                         <div class="card-header">
@@ -1877,7 +1874,7 @@
                             <span>SALDO ATUAL</span>
                         </div>
                         <div class="card-value" id="resumo-saldo">R$ 0,00</div>
-                        <div class="card-footer">Disponível (descontadas reservas)</div>
+                        <div class="card-footer">Receitas Totais - Despesas</div>
                     </div>
                     <div class="card card-juros">
                         <div class="card-header">
@@ -2163,7 +2160,7 @@
 
 <!-- Modal Reservas -->
 <div id="modal-reservar-valor" class="modal">
-    <div class="modal-content modal-reservas">
+    <div class="modal-content modal-md">
         <div class="modal-header">
             <h2><i class="fas fa-piggy-bank"></i> Reservas</h2>
             <button type="button" class="close" title="Fechar">&times;</button>
@@ -2176,12 +2173,12 @@
                     <span class="totalizador-valor" id="total-reservado">R$ 0,00</span>
                 </div>
                 <div class="totalizador-item disponivel">
-                    <span class="totalizador-label">Saldo Disponível</span>
+                    <span class="totalizador-label">Saldo Atual</span>
                     <span class="totalizador-valor" id="disponivel-reservar">R$ 0,00</span>
                 </div>
             </div>
 
-            <!-- Lista de Reservas com campo inline -->
+            <!-- Lista de Reservas com campo inline para +/- valor -->
             <div class="reservas-lista-simples" id="lista-reservas">
                 <!-- Reservas serão inseridas aqui -->
             </div>
@@ -2194,6 +2191,19 @@
                     <i class="fas fa-plus"></i>
                 </button>
             </div>
+
+            <!-- Histórico Geral -->
+            <div class="historico-geral-container">
+                <h4><i class="fas fa-history"></i> Histórico</h4>
+                <div class="historico-geral-lista" id="historico-geral-reservas">
+                    <div class="historico-vazio">Nenhuma movimentação</div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-action="fechar">
+                Fechar
+            </button>
         </div>
     </div>
 </div>
@@ -2851,7 +2861,7 @@
                 <span class="valor-anterior"></span>
             </div>
             <div class="mes-saldo">
-                <span class="mes-label">Saldo Disponível</span>
+                <span class="mes-label">Saldo Atual</span>
                 <span class="mes-saldo-valor"></span>
             </div>
         </div>

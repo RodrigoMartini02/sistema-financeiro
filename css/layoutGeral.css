@@ -1689,13 +1689,20 @@ table tr:hover {
 .tab-toolbar-content {
     display: none;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
-    flex: 1;
 }
 
 .tab-toolbar-content.active {
     display: flex;
+}
+
+/* Selects na toolbar */
+.tab-toolbar-content .form-control-sm {
+    padding: 4px 8px;
+    font-size: 11px;
+    height: 28px;
+    min-width: 90px;
 }
 
 /* Grupo de ações na toolbar */
@@ -1718,20 +1725,6 @@ table tr:hover {
     height: 20px;
     background-color: var(--gray-300);
     margin: 0 4px;
-}
-
-/* Filtros na toolbar de despesas */
-.toolbar-filtros-despesas {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.toolbar-filtros-despesas .form-control-sm {
-    padding: 4px 8px;
-    font-size: 11px;
-    height: 28px;
-    min-width: 90px;
 }
 
 /* Padronização de botões na toolbar */
@@ -1837,13 +1830,11 @@ table tr:hover {
         justify-content: flex-start;
     }
 
-    .toolbar-acoes,
-    .toolbar-filtros-despesas,
-    .toolbar-contadores {
+    .toolbar-acoes {
         flex-wrap: wrap;
     }
 
-    .toolbar-filtros-despesas .form-control-sm {
+    .tab-toolbar-content .form-control-sm {
         min-width: 80px;
     }
 
