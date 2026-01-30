@@ -1430,6 +1430,11 @@ async function movimentarReservaSimples(reservaId, valorStr) {
             await atualizarModalReservas();
             atualizarCardReservasIntegrado();
 
+            // Atualizar resumo do mês (saldo atual)
+            if (typeof window.atualizarResumoMesAtual === 'function') {
+                window.atualizarResumoMesAtual();
+            }
+
             if (typeof window.carregarDadosDashboard === 'function') {
                 await window.carregarDadosDashboard(window.anoAberto);
             }
@@ -1553,6 +1558,11 @@ async function processarAdicionarReserva() {
             await atualizarModalReservas();
             atualizarCardReservasIntegrado();
 
+            // Atualizar resumo do mês (saldo atual)
+            if (typeof window.atualizarResumoMesAtual === 'function') {
+                window.atualizarResumoMesAtual();
+            }
+
             if (typeof window.carregarDadosDashboard === 'function') {
                 await window.carregarDadosDashboard(ano);
             }
@@ -1595,6 +1605,7 @@ async function atualizarModalReservas() {
     }
 
     await renderizarListaReservasModal();
+    await renderizarHistoricoGeral();
 }
 
 /**
@@ -1616,6 +1627,11 @@ async function excluirReserva(id) {
             await carregarReservasAPI();
             await atualizarModalReservas();
             atualizarCardReservasIntegrado();
+
+            // Atualizar resumo do mês (saldo atual)
+            if (typeof window.atualizarResumoMesAtual === 'function') {
+                window.atualizarResumoMesAtual();
+            }
 
             if (typeof window.carregarDadosDashboard === 'function') {
                 await window.carregarDadosDashboard(window.anoAberto);

@@ -600,13 +600,17 @@
    MODAL DE RESERVAS
    ================================================================ */
 
+#modal-reservar-valor .modal-content,
 .modal-reservas {
     max-width: 500px;
     width: 95%;
 }
 
+#modal-reservar-valor .modal-body,
 .modal-reservas .modal-body {
     padding: 16px 20px;
+    max-height: 80vh;
+    overflow-y: auto;
 }
 
 /* Totalizador */
@@ -845,10 +849,17 @@
 }
 
 .historico-geral-lista {
-    max-height: 200px;
+    max-height: 150px;
     overflow-y: auto;
     border: 1px solid var(--gray-200);
     background: var(--white);
+}
+
+.historico-geral-lista .historico-vazio {
+    padding: 12px;
+    text-align: center;
+    color: var(--gray-500);
+    font-size: 12px;
 }
 
 .historico-linha {

@@ -136,12 +136,14 @@ function exportarVariaveisGlobais() {
     window.criarAnoSimples = criarAnoSimples;
     window.excluirAno = excluirAno;
     window.calcularSaldoMes = calcularSaldoMes;
-    
+    window.obterSaldoAnterior = obterSaldoAnterior;
+
     window.abrirDetalhesDoMes = abrirDetalhesDoMes;
     window.renderizarMeses = renderizarMeses;
     window.renderizarDetalhesDoMes = renderizarDetalhesDoMes;
     window.carregarDadosDashboard = carregarDadosDashboard;
     window.atualizarResumoAnual = atualizarResumoAnual;
+    window.atualizarResumoMesAtual = atualizarResumoMesAtual;
     window.atualizarLimitesCartoes = atualizarLimitesCartoes;
     window.calcularLimiteCartao = calcularLimiteCartao;
     window.carregarCartoesDoServidor = carregarCartoesDoUsuario;
@@ -2009,6 +2011,20 @@ function atualizarResumoDetalhes(saldo, totalJuros, totalEconomias = 0) {
         saldoElement.textContent = formatarMoeda(saldoAtual);
         saldoElement.className = 'card-value';
     }
+}
+
+// Atualiza apenas o resumo do mês aberto (para quando reservas mudam)
+function atualizarResumoMesAtual() {
+    if (mesAberto === null || anoAberto === null) return;
+
+    const despesas = dadosFinanceiros[anoAberto]?.meses[mesAberto]?.despesas || [];
+    const saldo = calcularSaldoMes(mesAberto, anoAberto);
+    const totalJuros = typeof window.calcularTotalJuros === 'function' ?
+                      window.calcularTotalJuros(despesas) : 0;
+    const totalEconomias = typeof window.calcularTotalEconomias === 'function' ?
+                      window.calcularTotalEconomias(despesas) : 0;
+
+    atualizarResumoDetalhes(saldo, totalJuros, totalEconomias);
 }
 
 function ativarPrimeiraAba() {
