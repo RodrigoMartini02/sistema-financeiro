@@ -62,22 +62,23 @@ router.post('/', authMiddleware, [
         const { valor, mes, ano, data, observacoes } = req.body;
         const valorNumerico = parseFloat(valor);
 
-        // Verificar saldo disponível (receitas - despesas até o momento)
+        // Verificar saldo atual (receitasBrutas - despesas - reservas)
         const saldoResult = await query(
             `SELECT
                 (SELECT COALESCE(SUM(valor), 0) FROM receitas WHERE usuario_id = $1 AND (ano < $2 OR (ano = $2 AND mes <= $3))) -
-                (SELECT COALESCE(SUM(CASE WHEN pago = true THEN COALESCE(valor_pago, valor) ELSE valor END), 0) FROM despesas WHERE usuario_id = $1 AND (ano < $2 OR (ano = $2 AND mes <= $3)))
-             AS saldo_disponivel`,
+                (SELECT COALESCE(SUM(CASE WHEN pago = true THEN COALESCE(valor_pago, valor) ELSE valor END), 0) FROM despesas WHERE usuario_id = $1 AND (ano < $2 OR (ano = $2 AND mes <= $3))) -
+                (SELECT COALESCE(SUM(valor), 0) FROM reservas WHERE usuario_id = $1 AND (ano < $2 OR (ano = $2 AND mes <= $3)))
+             AS saldo_atual`,
             [req.usuario.id, ano, mes]
         );
 
-        const saldoDisponivel = parseFloat(saldoResult.rows[0].saldo_disponivel) || 0;
+        const saldoAtual = parseFloat(saldoResult.rows[0].saldo_atual) || 0;
 
-        if (saldoDisponivel < valorNumerico) {
+        if (saldoAtual < valorNumerico) {
             return res.status(400).json({
                 success: false,
-                message: `Saldo insuficiente para reserva. Disponível: R$ ${saldoDisponivel.toFixed(2)}`,
-                saldoDisponivel: saldoDisponivel
+                message: `Saldo insuficiente para reserva. Disponível: R$ ${saldoAtual.toFixed(2)}`,
+                saldoAtual: saldoAtual
             });
         }
 
@@ -87,14 +88,6 @@ router.post('/', authMiddleware, [
              VALUES ($1, $2, $3, $4, $5, $6)
              RETURNING *`,
             [req.usuario.id, valorNumerico, mes, ano, data, observacoes || null]
-        );
-
-        // Criar RECEITA com valor NEGATIVO (saiu do saldo para reserva)
-        const nomeReserva = observacoes || 'Reserva';
-        await query(
-            `INSERT INTO receitas (usuario_id, descricao, valor, mes, ano, data_recebimento, observacoes)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [req.usuario.id, `Adicionado em reserva: ${nomeReserva}`, -valorNumerico, mes, ano, data, `Reserva ID: ${result.rows[0].id}`]
         );
 
         res.status(201).json({
@@ -182,15 +175,6 @@ router.delete('/:id', authMiddleware, async (req, res) => {
         await query(
             'DELETE FROM reservas WHERE id = $1 AND usuario_id = $2',
             [id, req.usuario.id]
-        );
-
-        // Criar RECEITA com valor POSITIVO (voltou do saldo da reserva)
-        const nomeReserva = reserva.observacoes || 'Reserva';
-        const dataHoje = new Date().toISOString().split('T')[0];
-        await query(
-            `INSERT INTO receitas (usuario_id, descricao, valor, mes, ano, data_recebimento, observacoes)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [req.usuario.id, `Retirado da reserva: ${nomeReserva}`, parseFloat(reserva.valor), reserva.mes, reserva.ano, dataHoje, `Reserva ID: ${reserva.id} removida`]
         );
 
         res.json({
@@ -361,7 +345,7 @@ router.post('/:id/movimentar', authMiddleware, [
                 return res.status(400).json({
                     success: false,
                     message: verificacaoSaldo.mensagem,
-                    saldoDisponivel: verificacaoSaldo.saldoDisponivel
+                    saldoAtual: verificacaoSaldo.saldoAtual
                 });
             }
         }
@@ -542,40 +526,41 @@ async function verificarSaldoDisponivel(usuarioId, mes, ano, valorReserva) {
             [usuarioId, mes, ano]
         );
 
-        const totalReceitas = parseFloat(receitasResult.rows[0].total);
+        const receitasBrutas = parseFloat(receitasResult.rows[0].total);
         const totalDespesas = parseFloat(despesasResult.rows[0].total);
-        const totalReservas = parseFloat(reservasResult.rows[0].total);
+        const totalReservado = parseFloat(reservasResult.rows[0].total);
 
-        // Saldo disponível = saldo anterior + receitas mês - despesas mês - reservas mês
-        const saldoDisponivel = saldoAnterior + totalReceitas - totalDespesas - totalReservas;
+        // Saldo Atual = saldoAnterior + (receitasBrutas - totalReservado) - despesas
+        // Simplificado: saldoAnterior + receitasBrutas - despesas - totalReservado
+        const saldoAtual = saldoAnterior + receitasBrutas - totalDespesas - totalReservado;
 
         console.log(`📊 Verificação de saldo para reserva:
             Mês/Ano: ${mes}/${ano}
-            Saldo Anterior (acumulado): ${saldoAnterior.toFixed(2)}
-            Receitas Mês: ${totalReceitas.toFixed(2)}
-            Despesas Mês: ${totalDespesas.toFixed(2)}
-            Reservas Mês: ${totalReservas.toFixed(2)}
-            Saldo Disponível: ${saldoDisponivel.toFixed(2)}
+            Saldo Anterior: ${saldoAnterior.toFixed(2)}
+            Receitas Brutas: ${receitasBrutas.toFixed(2)}
+            Despesas: ${totalDespesas.toFixed(2)}
+            Total Reservado: ${totalReservado.toFixed(2)}
+            Saldo Atual: ${saldoAtual.toFixed(2)}
             Valor Reserva: ${valorReserva}`);
 
-        if (saldoDisponivel < valorReserva) {
+        if (saldoAtual < valorReserva) {
             return {
                 sucesso: false,
-                mensagem: `Saldo insuficiente para reserva. Disponível: ${saldoDisponivel.toFixed(2)}`,
-                saldoDisponivel: saldoDisponivel
+                mensagem: `Saldo insuficiente para reserva. Disponível: ${saldoAtual.toFixed(2)}`,
+                saldoAtual: saldoAtual
             };
         }
 
         return {
             sucesso: true,
-            saldoDisponivel: saldoDisponivel
+            saldoAtual: saldoAtual
         };
 
     } catch (error) {
-        console.error('Erro ao verificar saldo disponível:', error);
+        console.error('Erro ao verificar saldo:', error);
         return {
             sucesso: false,
-            mensagem: 'Erro ao verificar saldo disponível'
+            mensagem: 'Erro ao verificar saldo'
         };
     }
 }
