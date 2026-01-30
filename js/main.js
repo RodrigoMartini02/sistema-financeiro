@@ -883,8 +883,11 @@ function setupAbas() {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
-            // Também controlar o conteúdo contextual da toolbar
+            // Também controlar o conteúdo contextual da toolbar (lado direito)
             document.querySelectorAll('.tab-toolbar-content').forEach(content => content.classList.remove('active'));
+
+            // Controlar ações contextuais (lado esquerdo)
+            document.querySelectorAll('.toolbar-esquerda .toolbar-acoes').forEach(acoes => acoes.classList.remove('active'));
 
             btn.classList.add('active');
             const tabId = btn.getAttribute('data-tab');
@@ -893,10 +896,16 @@ function setupAbas() {
                 tabContent.classList.add('active');
             }
 
-            // Ativar conteúdo contextual correspondente na toolbar
+            // Ativar conteúdo contextual correspondente na toolbar (lado direito)
             const toolbarContent = document.querySelector(`.tab-toolbar-content[data-for-tab="${tabId}"]`);
             if (toolbarContent) {
                 toolbarContent.classList.add('active');
+            }
+
+            // Ativar ações contextuais correspondentes (lado esquerdo)
+            const toolbarAcoes = document.querySelector(`.toolbar-esquerda .toolbar-acoes[data-for-tab="${tabId}"]`);
+            if (toolbarAcoes) {
+                toolbarAcoes.classList.add('active');
             }
         });
     });
@@ -2002,12 +2011,16 @@ function atualizarResumoDetalhes(saldo, totalJuros, totalEconomias = 0) {
 function ativarPrimeiraAba() {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-    
+    document.querySelectorAll('.tab-toolbar-content').forEach(content => content.classList.remove('active'));
+    document.querySelectorAll('.toolbar-esquerda .toolbar-acoes').forEach(acoes => acoes.classList.remove('active'));
+
     const primeiraAba = document.querySelector('.tab-btn[data-tab="tab-resumo"]');
     const primeiroConteudo = document.getElementById('tab-resumo');
-    
+    const primeiroToolbarContent = document.querySelector('.tab-toolbar-content[data-for-tab="tab-resumo"]');
+
     if (primeiraAba) primeiraAba.classList.add('active');
     if (primeiroConteudo) primeiroConteudo.classList.add('active');
+    if (primeiroToolbarContent) primeiroToolbarContent.classList.add('active');
 }
 
 function configurarBotoesModal() {

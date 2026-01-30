@@ -1164,26 +1164,30 @@ async function salvarDespesa(e) {
         const sucesso = await salvarDespesaLocal(formData);
 
         if (sucesso) {
-
-            const modal = document.getElementById('modal-nova-despesa');
-            if (modal) {
-                modal.classList.remove('active');
-                modal.style.display = 'none';
-            }
-
             // ✅ EXIBIR MENSAGEM DE SUCESSO
             if (window.mostrarMensagemSucesso) {
                 window.mostrarMensagemSucesso(ehEdicao ? 'Despesa atualizada com sucesso!' : 'Despesa cadastrada com sucesso!');
             }
 
-            // Atualizar interface IMEDIATAMENTE
-            if (typeof window.renderizarDetalhesDoMes === 'function') {
+            // Limpar formulário para permitir cadastrar outra despesa (NÃO fecha o modal)
+            const form = document.getElementById('form-nova-despesa');
+            if (form && !ehEdicao) {
+                form.reset();
+                resetarEstadoFormularioDespesa();
+                document.getElementById('despesa-mes').value = formData.mes;
+                document.getElementById('despesa-ano').value = formData.ano;
+                document.getElementById('despesa-id').value = '';
+                // Focar no campo descrição para facilitar novo cadastro
+                const descricaoInput = document.getElementById('despesa-descricao');
+                if (descricaoInput) descricaoInput.focus();
+            }
 
+            // Atualizar interface
+            if (typeof window.renderizarDetalhesDoMes === 'function') {
                 window.renderizarDetalhesDoMes(formData.mes, formData.ano);
             }
 
             if (typeof window.carregarDadosDashboard === 'function') {
-
                 await window.carregarDadosDashboard(formData.ano);
             }
         } else {

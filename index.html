@@ -1769,21 +1769,17 @@
         <div class="modal-body">
            <!-- TOOLBAR UNIFICADA -->
            <div class="tabs-toolbar">
-                <!-- Abas de navegação -->
-                <div class="tabs-nav">
-                    <button class="tab-btn active" data-tab="tab-resumo">Resumo</button>
-                    <button class="tab-btn" data-tab="tab-despesas">Despesas</button>
-                    <button class="tab-btn" data-tab="tab-receitas">Receitas</button>
-                </div>
-
-                <!-- Conteúdo contextual: Resumo (vazio) -->
-                <div class="tab-toolbar-content active" data-for-tab="tab-resumo">
-                </div>
-
-                <!-- Conteúdo contextual: Despesas -->
-                <div class="tab-toolbar-content" data-for-tab="tab-despesas">
-                    <!-- Ações principais -->
-                    <div class="toolbar-acoes">
+                <!-- Lado esquerdo: Abas + Ações -->
+                <div class="toolbar-esquerda">
+                    <!-- Abas de navegação -->
+                    <div class="tabs-nav">
+                        <button class="tab-btn active" data-tab="tab-resumo">Resumo</button>
+                        <button class="tab-btn" data-tab="tab-despesas">Despesas</button>
+                        <button class="tab-btn" data-tab="tab-receitas">Receitas</button>
+                    </div>
+                    <span class="toolbar-divider"></span>
+                    <!-- Ações contextuais: Despesas -->
+                    <div class="toolbar-acoes" data-for-tab="tab-despesas">
                         <button id="btn-nova-despesa-toolbar" class="btn btn-danger btn-sm" title="Nova Despesa">
                             <i class="fas fa-plus"></i>
                         </button>
@@ -1791,61 +1787,67 @@
                             <i class="fas fa-check-circle"></i> Lote
                         </button>
                     </div>
-                    <span class="toolbar-divider"></span>
-                    <!-- Filtros -->
-                    <div class="toolbar-filtros-despesas">
-                        <select id="filtro-categoria-toolbar" class="form-control form-control-sm">
-                            <option value="todas">Categorias</option>
-                        </select>
-                        <select id="filtro-forma-pagamento-toolbar" class="form-control form-control-sm">
-                            <option value="todas">Pagamento</option>
-                            <option value="pix">PIX</option>
-                            <option value="debito">Débito</option>
-                            <option value="dinheiro">Dinheiro</option>
-                            <option value="credito">Crédito</option>
-                        </select>
-                        <select id="filtro-status-toolbar" class="form-control form-control-sm">
-                            <option value="todas">Status</option>
-                            <option value="em_dia">Em Dia</option>
-                            <option value="atrasada">Atrasadas</option>
-                            <option value="pagas">Pagas</option>
-                            <option value="pendentes">Pendentes</option>
-                        </select>
-                        <button id="btn-limpar-filtros-toolbar" class="btn btn-secondary btn-sm" title="Limpar Filtros">
-                            <i class="fas fa-eraser"></i>
-                        </button>
-                    </div>
-                    <span class="toolbar-divider"></span>
-                    <!-- Contadores -->
-                    <div class="toolbar-contadores">
-                        <span id="contador-despesas-toolbar" class="toolbar-contador">0 itens</span>
-                        <span id="total-despesas-toolbar" class="toolbar-contador toolbar-total">R$ 0,00</span>
-                    </div>
-                </div>
-
-                <!-- Conteúdo contextual: Receitas -->
-                <div class="tab-toolbar-content" data-for-tab="tab-receitas">
-                    <!-- Ações principais -->
-                    <div class="toolbar-acoes">
+                    <!-- Ações contextuais: Receitas -->
+                    <div class="toolbar-acoes" data-for-tab="tab-receitas">
                         <button id="btn-nova-receita-toolbar" class="btn btn-success btn-sm" title="Nova Receita">
                             <i class="fas fa-plus"></i>
                         </button>
                         <button id="btn-reservas-toolbar" class="btn btn-secondary btn-sm" title="Reservas">
-                            <i class="fas fa-piggy-bank"></i> Reservas
+                            <i class="fas fa-piggy-bank"></i>
                         </button>
                     </div>
-                    <span class="toolbar-divider"></span>
-                    <!-- Saldos -->
-                    <div class="toolbar-saldos">
-                        <span class="toolbar-saldo-item">
-                            <i class="fas fa-wallet"></i>
-                            <span id="toolbar-saldo-atual">R$ 0,00</span>
-                        </span>
-                        <span class="toolbar-separator">|</span>
-                        <span class="toolbar-saldo-item reservado">
-                            <i class="fas fa-piggy-bank"></i>
-                            <span id="toolbar-reservado">R$ 0,00</span>
-                        </span>
+                </div>
+
+                <!-- Lado direito: Filtros e Informações -->
+                <div class="toolbar-direita">
+                    <!-- Conteúdo contextual: Resumo (vazio) -->
+                    <div class="tab-toolbar-content active" data-for-tab="tab-resumo">
+                    </div>
+
+                    <!-- Conteúdo contextual: Despesas -->
+                    <div class="tab-toolbar-content" data-for-tab="tab-despesas">
+                        <div class="toolbar-filtros-despesas">
+                            <select id="filtro-categoria-toolbar" class="form-control form-control-sm">
+                                <option value="todas">Categorias</option>
+                            </select>
+                            <select id="filtro-forma-pagamento-toolbar" class="form-control form-control-sm">
+                                <option value="todas">Pagamento</option>
+                                <option value="pix">PIX</option>
+                                <option value="debito">Débito</option>
+                                <option value="dinheiro">Dinheiro</option>
+                                <option value="credito">Crédito</option>
+                            </select>
+                            <select id="filtro-status-toolbar" class="form-control form-control-sm">
+                                <option value="todas">Status</option>
+                                <option value="em_dia">Em Dia</option>
+                                <option value="atrasada">Atrasadas</option>
+                                <option value="pagas">Pagas</option>
+                                <option value="pendentes">Pendentes</option>
+                            </select>
+                            <button id="btn-limpar-filtros-toolbar" class="btn btn-secondary btn-sm" title="Limpar Filtros">
+                                <i class="fas fa-eraser"></i>
+                            </button>
+                        </div>
+                        <span class="toolbar-divider"></span>
+                        <div class="toolbar-contadores">
+                            <span id="contador-despesas-toolbar" class="toolbar-contador">0 itens</span>
+                            <span id="total-despesas-toolbar" class="toolbar-contador toolbar-total">R$ 0,00</span>
+                        </div>
+                    </div>
+
+                    <!-- Conteúdo contextual: Receitas -->
+                    <div class="tab-toolbar-content" data-for-tab="tab-receitas">
+                        <div class="toolbar-saldos">
+                            <span class="toolbar-saldo-item">
+                                <i class="fas fa-wallet"></i>
+                                <span id="toolbar-saldo-atual">R$ 0,00</span>
+                            </span>
+                            <span class="toolbar-separator">|</span>
+                            <span class="toolbar-saldo-item reservado">
+                                <i class="fas fa-piggy-bank"></i>
+                                <span id="toolbar-reservado">R$ 0,00</span>
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
