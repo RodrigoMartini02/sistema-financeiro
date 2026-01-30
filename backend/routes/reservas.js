@@ -450,6 +450,45 @@ router.get('/:id/movimentacoes', authMiddleware, async (req, res) => {
 
 async function verificarSaldoDisponivel(usuarioId, mes, ano, valorReserva) {
     try {
+        // ================================================================
+        // CALCULAR SALDO ACUMULADO DE TODOS OS MESES ANTERIORES
+        // ================================================================
+
+        // Receitas de todos os meses anteriores ao atual
+        const receitasAnterioresResult = await query(
+            `SELECT COALESCE(SUM(valor), 0) as total
+             FROM receitas
+             WHERE usuario_id = $1 AND (ano < $2 OR (ano = $2 AND mes < $3))`,
+            [usuarioId, ano, mes]
+        );
+
+        // Despesas de todos os meses anteriores ao atual
+        const despesasAnterioresResult = await query(
+            `SELECT COALESCE(SUM(CASE WHEN pago = true THEN COALESCE(valor_pago, valor) ELSE valor END), 0) as total
+             FROM despesas
+             WHERE usuario_id = $1 AND (ano < $2 OR (ano = $2 AND mes < $3))`,
+            [usuarioId, ano, mes]
+        );
+
+        // Reservas de todos os meses anteriores ao atual
+        const reservasAnterioresResult = await query(
+            `SELECT COALESCE(SUM(valor), 0) as total
+             FROM reservas
+             WHERE usuario_id = $1 AND (ano < $2 OR (ano = $2 AND mes < $3))`,
+            [usuarioId, ano, mes]
+        );
+
+        const receitasAnteriores = parseFloat(receitasAnterioresResult.rows[0].total);
+        const despesasAnteriores = parseFloat(despesasAnterioresResult.rows[0].total);
+        const reservasAnteriores = parseFloat(reservasAnterioresResult.rows[0].total);
+
+        // Saldo acumulado até o mês anterior
+        const saldoAnterior = receitasAnteriores - despesasAnteriores - reservasAnteriores;
+
+        // ================================================================
+        // DADOS DO MÊS ATUAL
+        // ================================================================
+
         // Receitas do mês atual
         const receitasResult = await query(
             `SELECT COALESCE(SUM(valor), 0) as total
@@ -458,7 +497,7 @@ async function verificarSaldoDisponivel(usuarioId, mes, ano, valorReserva) {
             [usuarioId, mes, ano]
         );
 
-        // Despesas do mês atual (apenas não pagas comprometem o saldo)
+        // Despesas do mês atual
         const despesasResult = await query(
             `SELECT COALESCE(SUM(CASE WHEN pago = true THEN COALESCE(valor_pago, valor) ELSE valor END), 0) as total
              FROM despesas
@@ -474,31 +513,21 @@ async function verificarSaldoDisponivel(usuarioId, mes, ano, valorReserva) {
             [usuarioId, mes, ano]
         );
 
-        // Buscar saldo anterior do mês fechado (se existir)
-        let mesAnterior = mes - 1;
-        let anoAnterior = ano;
-        if (mesAnterior < 0) {
-            mesAnterior = 11;
-            anoAnterior = ano - 1;
-        }
-
-        const saldoAnteriorResult = await query(
-            `SELECT saldo_final
-             FROM meses
-             WHERE usuario_id = $1 AND mes = $2 AND ano = $3 AND fechado = true`,
-            [usuarioId, mesAnterior, anoAnterior]
-        );
-
-        const saldoAnterior = saldoAnteriorResult.rows.length > 0
-            ? parseFloat(saldoAnteriorResult.rows[0].saldo_final) || 0
-            : 0;
-
         const totalReceitas = parseFloat(receitasResult.rows[0].total);
         const totalDespesas = parseFloat(despesasResult.rows[0].total);
         const totalReservas = parseFloat(reservasResult.rows[0].total);
 
-        // Saldo atual do mês = saldo anterior + receitas - despesas - reservas já feitas
+        // Saldo disponível = saldo anterior + receitas mês - despesas mês - reservas mês
         const saldoDisponivel = saldoAnterior + totalReceitas - totalDespesas - totalReservas;
+
+        console.log(`📊 Verificação de saldo para reserva:
+            Mês/Ano: ${mes}/${ano}
+            Saldo Anterior (acumulado): ${saldoAnterior.toFixed(2)}
+            Receitas Mês: ${totalReceitas.toFixed(2)}
+            Despesas Mês: ${totalDespesas.toFixed(2)}
+            Reservas Mês: ${totalReservas.toFixed(2)}
+            Saldo Disponível: ${saldoDisponivel.toFixed(2)}
+            Valor Reserva: ${valorReserva}`);
 
         if (saldoDisponivel < valorReserva) {
             return {
