@@ -58,32 +58,43 @@ router.post('/', authMiddleware, [
                 errors: errors.array()
             });
         }
-        
+
         const { valor, mes, ano, data, observacoes } = req.body;
-        
-        // Verificar se há saldo disponível para reservar
-        const verificacaoSaldo = await verificarSaldoDisponivel(req.usuario.id, mes, ano, valor);
-        
-        if (!verificacaoSaldo.sucesso) {
+        const valorNumerico = parseFloat(valor);
+
+        // Verificar saldo disponível (receitas - despesas até o momento)
+        const saldoResult = await query(
+            `SELECT
+                (SELECT COALESCE(SUM(valor), 0) FROM receitas WHERE usuario_id = $1 AND (ano < $2 OR (ano = $2 AND mes <= $3))) -
+                (SELECT COALESCE(SUM(CASE WHEN pago = true THEN COALESCE(valor_pago, valor) ELSE valor END), 0) FROM despesas WHERE usuario_id = $1 AND (ano < $2 OR (ano = $2 AND mes <= $3)))
+             AS saldo_disponivel`,
+            [req.usuario.id, ano, mes]
+        );
+
+        const saldoDisponivel = parseFloat(saldoResult.rows[0].saldo_disponivel) || 0;
+
+        if (saldoDisponivel < valorNumerico) {
             return res.status(400).json({
                 success: false,
-                message: verificacaoSaldo.mensagem,
-                saldoDisponivel: verificacaoSaldo.saldoDisponivel
+                message: `Saldo insuficiente para reserva. Disponível: R$ ${saldoDisponivel.toFixed(2)}`,
+                saldoDisponivel: saldoDisponivel
             });
         }
-        
+
+        // Criar a reserva
         const result = await query(
             `INSERT INTO reservas (usuario_id, valor, mes, ano, data, observacoes)
              VALUES ($1, $2, $3, $4, $5, $6)
              RETURNING *`,
-            [req.usuario.id, parseFloat(valor), mes, ano, data, observacoes || null]
+            [req.usuario.id, valorNumerico, mes, ano, data, observacoes || null]
         );
 
-        // Registrar primeira movimentação de entrada
+        // Criar RECEITA com valor NEGATIVO (saiu do saldo para reserva)
+        const nomeReserva = observacoes || 'Reserva';
         await query(
-            `INSERT INTO movimentacoes_reservas (reserva_id, tipo, valor, observacoes)
-             VALUES ($1, 'entrada', $2, $3)`,
-            [result.rows[0].id, parseFloat(valor), 'Valor inicial']
+            `INSERT INTO receitas (usuario_id, descricao, valor, mes, ano, data_recebimento, observacoes)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [req.usuario.id, `Adicionado em reserva: ${nomeReserva}`, -valorNumerico, mes, ano, data, `Reserva ID: ${result.rows[0].id}`]
         );
 
         res.status(201).json({
@@ -91,7 +102,7 @@ router.post('/', authMiddleware, [
             message: 'Reserva criada com sucesso',
             data: result.rows[0]
         });
-        
+
     } catch (error) {
         console.error('Erro ao criar reserva:', error);
         res.status(500).json({
@@ -151,25 +162,43 @@ router.put('/:id', authMiddleware, [
 router.delete('/:id', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
-        
-        const result = await query(
-            'DELETE FROM reservas WHERE id = $1 AND usuario_id = $2 RETURNING *',
+
+        // Buscar dados da reserva antes de excluir
+        const reservaResult = await query(
+            'SELECT * FROM reservas WHERE id = $1 AND usuario_id = $2',
             [id, req.usuario.id]
         );
-        
-        if (result.rows.length === 0) {
+
+        if (reservaResult.rows.length === 0) {
             return res.status(404).json({
                 success: false,
                 message: 'Reserva não encontrada'
             });
         }
-        
+
+        const reserva = reservaResult.rows[0];
+
+        // Excluir a reserva
+        await query(
+            'DELETE FROM reservas WHERE id = $1 AND usuario_id = $2',
+            [id, req.usuario.id]
+        );
+
+        // Criar RECEITA com valor POSITIVO (voltou do saldo da reserva)
+        const nomeReserva = reserva.observacoes || 'Reserva';
+        const dataHoje = new Date().toISOString().split('T')[0];
+        await query(
+            `INSERT INTO receitas (usuario_id, descricao, valor, mes, ano, data_recebimento, observacoes)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [req.usuario.id, `Retirado da reserva: ${nomeReserva}`, parseFloat(reserva.valor), reserva.mes, reserva.ano, dataHoje, `Reserva ID: ${reserva.id} removida`]
+        );
+
         res.json({
             success: true,
             message: 'Reserva excluída com sucesso',
-            data: result.rows[0]
+            data: reserva
         });
-        
+
     } catch (error) {
         console.error('Erro ao excluir reserva:', error);
         res.status(500).json({

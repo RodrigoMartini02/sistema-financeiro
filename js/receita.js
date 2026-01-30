@@ -1197,6 +1197,8 @@ function calcularTotalReservas(mesLimite, anoLimite) {
 
 /**
  * Atualiza o card de reservas integrado na aba Receitas
+ * NOTA: As reservas agora criam receitas negativas no backend, então o saldo
+ * já inclui automaticamente a subtração das reservas através das receitas.
  */
 async function atualizarCardReservasIntegrado() {
     const mes = window.mesAberto;
@@ -1211,8 +1213,9 @@ async function atualizarCardReservasIntegrado() {
     const saldoInfo = window.calcularSaldoMes ? window.calcularSaldoMes(mes, ano) : { saldoAnterior: 0, receitas: 0, despesas: 0, reservas: 0 };
     const totalReservado = calcularTotalReservas();
 
-    // Saldo Atual = saldo anterior + receitas - despesas - reservas (o que realmente tem para gastar)
-    const saldoAtual = saldoInfo.saldoAnterior + saldoInfo.receitas - saldoInfo.despesas - totalReservado;
+    // Saldo Atual = saldo anterior + receitas - despesas
+    // NOTA: As reservas já estão incluídas nas receitas como valores negativos
+    const saldoAtual = saldoInfo.saldoAnterior + saldoInfo.receitas - saldoInfo.despesas;
 
     // Atualizar elementos do DOM (card mini antigo - se existir)
     const elemDisponivel = document.getElementById('reservas-disponivel-mini');
@@ -1295,12 +1298,13 @@ async function abrirModalReservarValor() {
     // Carregar reservas do backend
     await carregarReservasAPI();
 
-    // Calcular saldo atual (já descontando reservas)
+    // Calcular saldo atual (reservas já estão nas receitas como valores negativos)
     const saldoInfo = window.calcularSaldoMes ? window.calcularSaldoMes(mes, ano) : { saldoAnterior: 0, receitas: 0, despesas: 0, reservas: 0 };
     const totalReservado = calcularTotalReservas();
 
-    // Saldo Atual = saldo anterior + receitas - despesas - reservas
-    const saldoAtual = saldoInfo.saldoAnterior + saldoInfo.receitas - saldoInfo.despesas - totalReservado;
+    // Saldo Atual = saldo anterior + receitas - despesas
+    // NOTA: As reservas já estão incluídas nas receitas como valores negativos
+    const saldoAtual = saldoInfo.saldoAnterior + saldoInfo.receitas - saldoInfo.despesas;
 
     // Atualizar totalizadores do modal
     const elemTotal = document.getElementById('total-reservado');
@@ -1330,7 +1334,7 @@ async function abrirModalReservarValor() {
 }
 
 /**
- * Renderiza lista de reservas simplificada
+ * Renderiza lista de reservas simplificada (sem histórico - movimentações vão para receitas)
  */
 async function renderizarListaReservasModal() {
     const lista = document.getElementById('lista-reservas');
@@ -1340,7 +1344,6 @@ async function renderizarListaReservasModal() {
 
     if (window.reservasCache.length === 0) {
         lista.innerHTML = '<div class="reserva-vazia">Nenhuma reserva cadastrada</div>';
-        await renderizarHistoricoGeral();
         return;
     }
 
@@ -1355,27 +1358,11 @@ async function renderizarListaReservasModal() {
         item.innerHTML = `
             <span class="reserva-nome">${reserva.observacoes || 'Reserva'}</span>
             <span class="reserva-saldo">${window.formatarMoeda(reserva.valor)}</span>
-            <input type="number" class="form-control reserva-input-valor" data-id="${reserva.id}" placeholder="+/- valor" step="0.01">
-            <button class="btn btn-sm btn-confirmar-mov" data-id="${reserva.id}" title="Confirmar">
-                <i class="fas fa-check"></i>
-            </button>
-            <button class="btn btn-sm btn-excluir-reserva" data-id="${reserva.id}" title="Excluir">
+            <span class="reserva-data">${window.formatarData ? window.formatarData(reserva.data) : new Date(reserva.data).toLocaleDateString('pt-BR')}</span>
+            <button class="btn btn-sm btn-excluir-reserva" data-id="${reserva.id}" title="Excluir reserva (valor volta para o saldo)">
                 <i class="fas fa-trash"></i>
             </button>
         `;
-
-        // Enter no input confirma
-        const input = item.querySelector('.reserva-input-valor');
-        input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                movimentarReservaSimples(reserva.id, input.value);
-            }
-        });
-
-        // Botão confirmar
-        item.querySelector('.btn-confirmar-mov').addEventListener('click', () => {
-            movimentarReservaSimples(reserva.id, input.value);
-        });
 
         // Botão excluir
         item.querySelector('.btn-excluir-reserva').addEventListener('click', () => {
@@ -1384,120 +1371,11 @@ async function renderizarListaReservasModal() {
 
         lista.appendChild(item);
     });
-
-    // Renderizar histórico geral
-    await renderizarHistoricoGeral();
-}
-
-/**
- * Movimenta reserva com valor positivo ou negativo
- */
-async function movimentarReservaSimples(reservaId, valorStr) {
-    const valor = parseFloat(valorStr);
-
-    if (isNaN(valor) || valor === 0) {
-        window.mostrarMensagemErro ? window.mostrarMensagemErro('Informe um valor válido') : alert('Informe um valor válido');
-        return;
-    }
-
-    const tipo = valor > 0 ? 'entrada' : 'saida';
-    const valorAbsoluto = Math.abs(valor);
-
-    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-    if (!token) {
-        alert('Sessão expirada.');
-        return;
-    }
-
-    try {
-        const response = await fetch(`${API_URL_RESERVAS}/reservas/${reservaId}/movimentar`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ tipo, valor: valorAbsoluto })
-        });
-
-        if (response.ok) {
-            await carregarReservasAPI();
-            await atualizarModalReservas();
-            atualizarCardReservasIntegrado();
-
-            if (typeof window.carregarDadosDashboard === 'function') {
-                await window.carregarDadosDashboard(window.anoAberto);
-            }
-
-            const msg = tipo === 'entrada' ? 'Valor adicionado!' : 'Valor retirado!';
-            window.mostrarMensagemSucesso ? window.mostrarMensagemSucesso(msg) : null;
-        } else {
-            const error = await response.json();
-            window.mostrarMensagemErro ? window.mostrarMensagemErro(error.message || 'Erro') : alert(error.message);
-        }
-    } catch (error) {
-        console.error('Erro:', error);
-        window.mostrarMensagemErro ? window.mostrarMensagemErro('Erro ao processar') : alert('Erro');
-    }
-}
-
-/**
- * Renderiza histórico geral de todas as reservas (otimizado - uma única chamada API)
- */
-async function renderizarHistoricoGeral() {
-    const container = document.getElementById('historico-geral-reservas');
-    if (!container) return;
-
-    try {
-        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-        if (!token) {
-            container.innerHTML = '<div class="historico-vazio">Sessão expirada</div>';
-            return;
-        }
-
-        // Buscar todas as movimentações em uma única chamada
-        const response = await fetch(`${API_URL_RESERVAS}/reservas/movimentacoes/todas?limite=30`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (!response.ok) {
-            container.innerHTML = '<div class="historico-vazio">Erro ao carregar histórico</div>';
-            return;
-        }
-
-        const data = await response.json();
-        const todasMovimentacoes = data.data || [];
-
-        if (todasMovimentacoes.length === 0) {
-            container.innerHTML = '<div class="historico-vazio">Nenhuma movimentação</div>';
-            return;
-        }
-
-        container.innerHTML = todasMovimentacoes.map(mov => {
-            const dataHora = new Date(mov.data_hora);
-            const dataFormatada = dataHora.toLocaleDateString('pt-BR');
-            const horaFormatada = dataHora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-            const isEntrada = mov.tipo === 'entrada';
-            const nomeReserva = mov.nome_reserva || 'Reserva';
-
-            return `
-                <div class="historico-linha ${isEntrada ? 'entrada' : 'saida'}">
-                    <span class="hist-nome">${nomeReserva}</span>
-                    <span class="hist-valor ${isEntrada ? 'positivo' : 'negativo'}">
-                        ${isEntrada ? '+' : '-'}${window.formatarMoeda(mov.valor)}
-                    </span>
-                    <span class="hist-data">${dataFormatada} ${horaFormatada}</span>
-                </div>
-            `;
-        }).join('');
-
-    } catch (error) {
-        console.error('Erro ao carregar histórico:', error);
-        container.innerHTML = '<div class="historico-vazio">Erro ao carregar histórico</div>';
-    }
 }
 
 /**
  * Cria nova reserva via API
+ * Nota: Ao criar reserva, o backend também cria uma receita negativa automaticamente
  */
 async function processarAdicionarReserva() {
     const mes = window.mesAberto;
@@ -1547,6 +1425,14 @@ async function processarAdicionarReserva() {
             await atualizarModalReservas();
             atualizarCardReservasIntegrado();
 
+            // Recarregar receitas (backend cria receita negativa ao reservar)
+            if (typeof window.carregarReceitasDoBackend === 'function') {
+                await window.carregarReceitasDoBackend();
+                if (typeof window.renderizarReceitas === 'function') {
+                    window.renderizarReceitas();
+                }
+            }
+
             if (typeof window.carregarDadosDashboard === 'function') {
                 await window.carregarDadosDashboard(ano);
             }
@@ -1572,8 +1458,9 @@ async function atualizarModalReservas() {
     const saldoInfo = window.calcularSaldoMes ? window.calcularSaldoMes(mes, ano) : { saldoAnterior: 0, receitas: 0, despesas: 0, reservas: 0 };
     const totalReservado = calcularTotalReservas();
 
-    // Saldo Atual = saldo anterior + receitas - despesas - reservas
-    const saldoAtual = saldoInfo.saldoAnterior + saldoInfo.receitas - saldoInfo.despesas - totalReservado;
+    // Saldo Atual = saldo anterior + receitas - despesas
+    // NOTA: As reservas já estão incluídas nas receitas como valores negativos
+    const saldoAtual = saldoInfo.saldoAnterior + saldoInfo.receitas - saldoInfo.despesas;
 
     const elemTotal = document.getElementById('total-reservado');
     if (elemTotal) {
@@ -1608,11 +1495,19 @@ async function excluirReserva(id) {
             await atualizarModalReservas();
             atualizarCardReservasIntegrado();
 
+            // Recarregar receitas (backend cria receita positiva ao excluir reserva)
+            if (typeof window.carregarReceitasDoBackend === 'function') {
+                await window.carregarReceitasDoBackend();
+                if (typeof window.renderizarReceitas === 'function') {
+                    window.renderizarReceitas();
+                }
+            }
+
             if (typeof window.carregarDadosDashboard === 'function') {
                 await window.carregarDadosDashboard(window.anoAberto);
             }
 
-            window.mostrarMensagemSucesso ? window.mostrarMensagemSucesso('Reserva excluída!') : null;
+            window.mostrarMensagemSucesso ? window.mostrarMensagemSucesso('Reserva excluída! Valor retornou ao saldo.') : null;
         } else {
             window.mostrarMensagemErro ? window.mostrarMensagemErro('Erro ao excluir reserva') : alert('Erro ao excluir reserva');
         }

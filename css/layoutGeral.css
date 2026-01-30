@@ -891,6 +891,13 @@ textarea:focus {
     animation: fadeIn var(--transition-base);
 }
 
+/* Scroll para seção de relatórios */
+.relatorios-section {
+    height: calc(100vh - 120px);
+    overflow-y: auto;
+    padding: var(--space-md);
+}
+
 .dashboard-section.active,
 .meses-section.active,
 .relatorios-section.active,
@@ -1625,16 +1632,21 @@ table tr:hover {
     padding-top: var(--space-xs);
 }
 
+/* Abas padronizadas - mesma altura dos botões */
 .tab-btn {
-    padding: var(--space-sm) var(--space-md);
+    height: 28px;
+    padding: 0 12px;
     background-color: var(--gray-100);
     border: none;
     border-radius: var(--radius-sm);
     font-weight: var(--font-weight-medium);
     transition: var(--transition-base);
     color: var(--gray-500);
-    font-size: var(--font-size-sm);
+    font-size: 12px;
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .tab-btn:hover {
@@ -1651,12 +1663,35 @@ table tr:hover {
 .tab-toolbar-content {
     display: none;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     flex-wrap: wrap;
+    flex: 1;
 }
 
 .tab-toolbar-content.active {
     display: flex;
+}
+
+/* Grupo de ações na toolbar */
+.toolbar-acoes {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Grupo de contadores na toolbar */
+.toolbar-contadores {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Separador vertical na toolbar */
+.toolbar-divider {
+    width: 1px;
+    height: 20px;
+    background-color: var(--gray-300);
+    margin: 0 4px;
 }
 
 /* Filtros na toolbar de despesas */
@@ -1766,12 +1801,18 @@ table tr:hover {
         margin-top: 10px;
     }
 
-    .toolbar-filtros-despesas {
+    .toolbar-acoes,
+    .toolbar-filtros-despesas,
+    .toolbar-contadores {
         flex-wrap: wrap;
     }
 
     .toolbar-filtros-despesas .form-control-sm {
         min-width: 80px;
+    }
+
+    .toolbar-divider {
+        display: none;
     }
 }
 

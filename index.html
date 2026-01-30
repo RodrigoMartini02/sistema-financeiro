@@ -1769,6 +1769,7 @@
         <div class="modal-body">
            <!-- TOOLBAR UNIFICADA -->
            <div class="tabs-toolbar">
+                <!-- Abas de navegação -->
                 <div class="tabs-nav">
                     <button class="tab-btn active" data-tab="tab-resumo">Resumo</button>
                     <button class="tab-btn" data-tab="tab-despesas">Despesas</button>
@@ -1781,6 +1782,17 @@
 
                 <!-- Conteúdo contextual: Despesas -->
                 <div class="tab-toolbar-content" data-for-tab="tab-despesas">
+                    <!-- Ações principais -->
+                    <div class="toolbar-acoes">
+                        <button id="btn-nova-despesa-toolbar" class="btn btn-danger btn-sm" title="Nova Despesa">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <button id="btn-pagar-lote-toolbar" class="btn btn-secondary btn-sm" disabled title="Pagar em Lote">
+                            <i class="fas fa-check-circle"></i> Lote
+                        </button>
+                    </div>
+                    <span class="toolbar-divider"></span>
+                    <!-- Filtros -->
                     <div class="toolbar-filtros-despesas">
                         <select id="filtro-categoria-toolbar" class="form-control form-control-sm">
                             <option value="todas">Categorias</option>
@@ -1799,22 +1811,31 @@
                             <option value="pagas">Pagas</option>
                             <option value="pendentes">Pendentes</option>
                         </select>
-                        <button id="btn-limpar-filtros-toolbar" class="btn btn-secondary btn-icon btn-sm" title="Limpar Filtros">
+                        <button id="btn-limpar-filtros-toolbar" class="btn btn-secondary btn-sm" title="Limpar Filtros">
                             <i class="fas fa-eraser"></i>
                         </button>
                     </div>
-                    <span id="contador-despesas-toolbar" class="toolbar-contador">0 itens</span>
-                    <span id="total-despesas-toolbar" class="toolbar-contador toolbar-total">R$ 0,00</span>
-                    <button id="btn-pagar-lote-toolbar" class="btn btn-secondary btn-sm" disabled title="Pagar em Lote">
-                        <i class="fas fa-check-circle"></i> Lote
-                    </button>
-                    <button id="btn-nova-despesa-toolbar" class="btn btn-danger btn-sm" title="Nova Despesa">
-                        <i class="fas fa-plus"></i>
-                    </button>
+                    <span class="toolbar-divider"></span>
+                    <!-- Contadores -->
+                    <div class="toolbar-contadores">
+                        <span id="contador-despesas-toolbar" class="toolbar-contador">0 itens</span>
+                        <span id="total-despesas-toolbar" class="toolbar-contador toolbar-total">R$ 0,00</span>
+                    </div>
                 </div>
 
                 <!-- Conteúdo contextual: Receitas -->
                 <div class="tab-toolbar-content" data-for-tab="tab-receitas">
+                    <!-- Ações principais -->
+                    <div class="toolbar-acoes">
+                        <button id="btn-nova-receita-toolbar" class="btn btn-success btn-sm" title="Nova Receita">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <button id="btn-reservas-toolbar" class="btn btn-secondary btn-sm" title="Reservas">
+                            <i class="fas fa-piggy-bank"></i> Reservas
+                        </button>
+                    </div>
+                    <span class="toolbar-divider"></span>
+                    <!-- Saldos -->
                     <div class="toolbar-saldos">
                         <span class="toolbar-saldo-item">
                             <i class="fas fa-wallet"></i>
@@ -1826,12 +1847,6 @@
                             <span id="toolbar-reservado">R$ 0,00</span>
                         </span>
                     </div>
-                    <button id="btn-reservas-toolbar" class="btn btn-secondary btn-sm" title="Reservas">
-                        <i class="fas fa-piggy-bank"></i> Reservas
-                    </button>
-                    <button id="btn-nova-receita-toolbar" class="btn btn-success btn-sm" title="Nova Receita">
-                        <i class="fas fa-plus"></i>
-                    </button>
                 </div>
             </div>
 
@@ -2176,14 +2191,6 @@
                 <button type="button" id="btn-adicionar-reserva" class="btn btn-success" title="Criar reserva">
                     <i class="fas fa-plus"></i>
                 </button>
-            </div>
-
-            <!-- Histórico Geral -->
-            <div class="historico-geral-container">
-                <h4><i class="fas fa-history"></i> Histórico</h4>
-                <div class="historico-geral-lista" id="historico-geral-reservas">
-                    <div class="historico-vazio">Nenhuma movimentação</div>
-                </div>
             </div>
         </div>
     </div>
