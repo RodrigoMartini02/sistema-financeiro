@@ -961,75 +961,52 @@
    CATEGORIA INLINE NO MODAL DE DESPESA
    ================================================================ */
 
-.form-col-categoria-full {
-    flex: 1;
-    width: 100%;
-}
-
 .categoria-select-wrapper {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 0;
+    flex-wrap: wrap;
 }
 
-.categoria-select-wrapper select {
+.categoria-select-wrapper > select {
     flex: 1;
+    min-width: 100px;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right: none;
 }
 
 .btn-add-categoria {
-    width: 36px;
-    height: 36px;
-    min-width: 36px;
+    height: 38px;
+    width: 38px;
+    min-width: 38px;
     padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     background: var(--primary-color, #3b82f6);
     color: white;
-    border: none;
-    border-radius: 6px;
+    border: 1px solid var(--primary-color, #3b82f6);
+    border-radius: 0;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease;
     font-size: 14px;
 }
 
 .btn-add-categoria:hover {
     background: var(--primary-hover, #2563eb);
-    transform: scale(1.05);
-}
-
-.btn-add-categoria:active {
-    transform: scale(0.95);
 }
 
 .btn-add-categoria.active {
     background: var(--danger-color, #ef4444);
-}
-
-.btn-add-categoria.active i::before {
-    content: "\f00d";
+    border-color: var(--danger-color, #ef4444);
 }
 
 .nova-categoria-inline {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-top: 8px;
-    padding: 10px;
-    background: var(--bg-tertiary, #f3f4f6);
-    border-radius: 6px;
-    animation: slideDown 0.2s ease;
-}
-
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    gap: 0;
+    margin-left: 6px;
 }
 
 .nova-categoria-inline.hidden {
@@ -1037,33 +1014,28 @@
 }
 
 .nova-categoria-inline input {
-    flex: 1;
-    padding: 8px 12px;
+    height: 38px;
+    padding: 0 8px;
     border: 1px solid var(--border-color, #d1d5db);
-    border-radius: 6px;
-    font-size: 14px;
+    border-radius: 0;
+    font-size: 13px;
+    width: 130px;
 }
 
 .nova-categoria-inline input:focus {
     outline: none;
     border-color: var(--primary-color, #3b82f6);
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 
 .nova-categoria-inline .btn-sm {
-    padding: 8px 12px;
+    height: 38px;
+    width: 38px;
+    min-width: 38px;
+    padding: 0;
     font-size: 12px;
-}
-
-/* Ajuste para forma de pagamento na mesma linha dos valores */
-.form-col-pagamento {
-    flex: 2;
-    min-width: 200px;
-}
-
-.form-col-pagamento .payment-methods {
+    border-radius: 0;
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    align-items: center;
+    justify-content: center;
 }
 

@@ -338,35 +338,23 @@ window.dadosBalancoCache = null;
 
 // Configuração das 5 linhas do gráfico
 const BALANCO_DATASETS_CONFIG = {
-    receitas: {
-        label: 'Receitas',
-        borderColor: 'rgb(40, 167, 69)',
-        backgroundColor: 'rgba(40, 167, 69, 0.1)',
-        order: 1
-    },
-    despesas: {
-        label: 'Despesas',
-        borderColor: 'rgb(220, 53, 69)',
-        backgroundColor: 'rgba(220, 53, 69, 0.1)',
-        order: 2
-    },
     balanco: {
         label: 'Balanço',
         borderColor: 'rgb(253, 126, 20)',
         backgroundColor: 'rgba(253, 126, 20, 0.1)',
-        order: 3
+        order: 1
     },
     saldo: {
         label: 'Saldo em Conta',
         borderColor: 'rgb(0, 123, 255)',
         backgroundColor: 'rgba(0, 123, 255, 0.1)',
-        order: 4
+        order: 2
     },
     reservas: {
         label: 'Reservas',
         borderColor: 'rgb(147, 51, 234)',
         backgroundColor: 'rgba(147, 51, 234, 0.1)',
-        order: 5
+        order: 3
     }
 };
 
@@ -571,8 +559,6 @@ function criarGraficoBalancoPorAnos() {
         data: {
             labels: labels,
             datasets: [
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.receitas, receitas, 6),
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.despesas, despesas, 6),
                 criarDatasetLinha(BALANCO_DATASETS_CONFIG.balanco, balancos, 6),
                 criarDatasetLinha(BALANCO_DATASETS_CONFIG.saldo, saldos, 6),
                 criarDatasetLinha(BALANCO_DATASETS_CONFIG.reservas, reservas, 6)
@@ -650,8 +636,6 @@ function criarGraficoBalancoPorMeses(ano) {
         data: {
             labels: meses,
             datasets: [
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.receitas, receitas),
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.despesas, despesas),
                 criarDatasetLinha(BALANCO_DATASETS_CONFIG.balanco, balancos),
                 criarDatasetLinha(BALANCO_DATASETS_CONFIG.saldo, saldos),
                 criarDatasetLinha(BALANCO_DATASETS_CONFIG.reservas, reservas)
@@ -727,8 +711,6 @@ function criarGraficoBalancoPorSemanas(ano, mes) {
         data: {
             labels: labels,
             datasets: [
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.receitas, receitas),
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.despesas, despesas),
                 criarDatasetLinha(BALANCO_DATASETS_CONFIG.balanco, balancos),
                 criarDatasetLinha(BALANCO_DATASETS_CONFIG.saldo, saldos),
                 criarDatasetLinha(BALANCO_DATASETS_CONFIG.reservas, reservas)
@@ -794,8 +776,6 @@ function criarGraficoBalancoPorDias(ano, mes) {
         data: {
             labels: labels,
             datasets: [
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.receitas, receitas, 2),
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.despesas, despesas, 2),
                 criarDatasetLinha(BALANCO_DATASETS_CONFIG.balanco, balancos, 2),
                 criarDatasetLinha(BALANCO_DATASETS_CONFIG.saldo, saldos, 2),
                 criarDatasetLinha(BALANCO_DATASETS_CONFIG.reservas, reservas, 2)

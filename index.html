@@ -2285,7 +2285,7 @@
                
                <!-- Categoria -->
                <div class="form-row-compact">
-                   <div class="form-col form-col-categoria-full">
+                   <div class="form-col">
                        <label>Categoria *</label>
                        <div class="categoria-select-wrapper">
                            <select id="despesa-categoria" class="form-control" required onchange="validarCategoria()">
@@ -2295,23 +2295,20 @@
                            <button type="button" id="btn-toggle-nova-categoria" class="btn-add-categoria" title="Adicionar nova categoria">
                                <i class="fas fa-plus"></i>
                            </button>
-                       </div>
-                       <!-- Input inline para nova categoria (oculto por padrão) -->
-                       <div id="nova-categoria-inline" class="nova-categoria-inline hidden">
-                           <input type="text" id="input-nova-categoria-despesa" placeholder="Nome da categoria" maxlength="50">
-                           <button type="button" id="btn-salvar-categoria-inline" class="btn btn-primary btn-sm">
-                               <i class="fas fa-check"></i>
-                           </button>
-                           <button type="button" id="btn-cancelar-categoria-inline" class="btn btn-secondary btn-sm">
-                               <i class="fas fa-times"></i>
-                           </button>
+                           <!-- Input inline para nova categoria (oculto por padrão) -->
+                           <div id="nova-categoria-inline" class="nova-categoria-inline hidden">
+                               <input type="text" id="input-nova-categoria-despesa" placeholder="Nome da categoria" maxlength="50">
+                               <button type="button" id="btn-salvar-categoria-inline" class="btn btn-primary btn-sm">
+                                   <i class="fas fa-check"></i>
+                               </button>
+                               <button type="button" id="btn-cancelar-categoria-inline" class="btn btn-secondary btn-sm">
+                                   <i class="fas fa-times"></i>
+                               </button>
+                           </div>
                        </div>
                    </div>
-               </div>
 
-               <!-- Forma de Pagamento, Valores e Parcelas -->
-               <div class="form-row-compact form-row-valores">
-                   <div class="form-col form-col-pagamento">
+                   <div class="form-col">
                         <label>Pagamento *</label>
                         <div class="payment-methods">
                             <div class="payment-option">
@@ -2331,6 +2328,10 @@
                             </div>
                         </div>
                     </div>
+               </div>
+
+               <!-- Valores e Parcelas -->
+               <div class="form-row-compact form-row-valores">
                    <div class="form-col">
                        <label>Valor original *</label>
                        <input type="number" id="despesa-valor" min="0.01" step="0.01" placeholder="0,00" required onchange="calcularInfoParcelamento()">
