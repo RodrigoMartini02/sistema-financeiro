@@ -4034,3 +4034,182 @@ document.addEventListener('DOMContentLoaded', configurarBotaoComprovanteSimples)
 
     observer.observe(document.body, { childList: true, subtree: true });
 })();
+
+// ================================================================
+// MODAL DE CATEGORIA RÁPIDA (ATALHO NO MODAL DE DESPESA)
+// ================================================================
+
+/**
+ * Abre o modal para adicionar categoria rapidamente
+ */
+function abrirModalCategoriaRapida() {
+    const modal = document.getElementById('modal-nova-categoria-rapida');
+    if (!modal) return;
+
+    // Limpar input
+    const input = document.getElementById('input-nova-categoria-rapida');
+    if (input) {
+        input.value = '';
+    }
+
+    modal.style.display = 'flex';
+
+    // Focar no input após abrir
+    setTimeout(() => {
+        if (input) input.focus();
+    }, 100);
+}
+
+/**
+ * Fecha o modal de categoria rápida
+ */
+function fecharModalCategoriaRapida() {
+    const modal = document.getElementById('modal-nova-categoria-rapida');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+/**
+ * Salva a nova categoria e atualiza o dropdown
+ */
+async function salvarCategoriaRapida() {
+    const input = document.getElementById('input-nova-categoria-rapida');
+    if (!input) return;
+
+    const nomeCategoria = input.value.trim();
+
+    if (!nomeCategoria) {
+        if (window.mostrarMensagemErro) {
+            window.mostrarMensagemErro('Por favor, digite o nome da categoria');
+        } else {
+            alert('Por favor, digite o nome da categoria');
+        }
+        return;
+    }
+
+    const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
+    try {
+        const response = await fetch(`${API_URL}/categorias`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionStorage.getItem('token') || localStorage.getItem('token') || ''}`
+            },
+            body: JSON.stringify({ nome: nomeCategoria })
+        });
+
+        if (response.ok) {
+            // Fechar modal
+            fecharModalCategoriaRapida();
+
+            // Atualizar dropdown de categorias
+            if (typeof window.atualizarDropdowns === 'function') {
+                await window.atualizarDropdowns();
+            }
+
+            // Selecionar a nova categoria no dropdown
+            const selectCategoria = document.getElementById('despesa-categoria');
+            if (selectCategoria) {
+                // Aguardar um pouco para o dropdown ser atualizado
+                setTimeout(() => {
+                    // Procurar a opção com o nome da categoria
+                    for (let option of selectCategoria.options) {
+                        if (option.text === nomeCategoria || option.value === nomeCategoria) {
+                            selectCategoria.value = option.value;
+                            break;
+                        }
+                    }
+                }, 200);
+            }
+
+            // Mostrar mensagem de sucesso
+            if (window.mostrarMensagemSucesso) {
+                window.mostrarMensagemSucesso('Categoria criada com sucesso!');
+            }
+
+            // Log
+            if (window.logManager) {
+                window.logManager.registrar({
+                    modulo: 'Despesas',
+                    acao: 'Criado',
+                    categoria: 'Categoria',
+                    descricao: nomeCategoria,
+                    valor: null,
+                    detalhes: 'Criou nova categoria (atalho rápido)'
+                });
+            }
+        } else {
+            const data = await response.json();
+            const msg = data.message || 'Erro ao criar categoria';
+            if (window.mostrarMensagemErro) {
+                window.mostrarMensagemErro(msg);
+            } else {
+                alert(msg);
+            }
+        }
+    } catch (error) {
+        console.error('Erro ao criar categoria:', error);
+        if (window.mostrarMensagemErro) {
+            window.mostrarMensagemErro('Erro ao salvar categoria. Tente novamente.');
+        } else {
+            alert('Erro ao salvar categoria. Tente novamente.');
+        }
+    }
+}
+
+/**
+ * Inicializa eventos do modal de categoria rápida
+ */
+function inicializarEventosCategoriaRapida() {
+    // Botão de abrir modal (no select de categoria)
+    const btnAbrir = document.getElementById('btn-nova-categoria-atalho');
+    if (btnAbrir) {
+        btnAbrir.addEventListener('click', abrirModalCategoriaRapida);
+    }
+
+    // Botão de cancelar
+    const btnCancelar = document.getElementById('btn-cancelar-categoria-rapida');
+    if (btnCancelar) {
+        btnCancelar.addEventListener('click', fecharModalCategoriaRapida);
+    }
+
+    // Botão de salvar
+    const btnSalvar = document.getElementById('btn-salvar-categoria-rapida');
+    if (btnSalvar) {
+        btnSalvar.addEventListener('click', salvarCategoriaRapida);
+    }
+
+    // Enter no input salva
+    const input = document.getElementById('input-nova-categoria-rapida');
+    if (input) {
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                salvarCategoriaRapida();
+            }
+        });
+    }
+
+    // Fechar ao clicar no X
+    const modal = document.getElementById('modal-nova-categoria-rapida');
+    if (modal) {
+        const closeBtn = modal.querySelector('.close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', fecharModalCategoriaRapida);
+        }
+
+        // Fechar ao clicar fora
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                fecharModalCategoriaRapida();
+            }
+        });
+    }
+}
+
+// Inicializar quando o DOM estiver pronto
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(inicializarEventosCategoriaRapida, 300);
+});

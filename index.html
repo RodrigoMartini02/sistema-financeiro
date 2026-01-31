@@ -957,15 +957,15 @@
 <section class="config-section" id="config-section">
        
     <div class="config-tabs">
-        <button class="config-tab-btn active" data-tab="categorias">
-            <i class="fas fa-tags"></i> Gerenciar Categorias
+       <button class="config-tab-btn" data-tab="usuarios">
+            <i class="fas fa-users"></i> Usuários
         </button>
          <button class="config-tab-btn" data-tab="cartoes">
             <i class="fas fa-credit-card"></i> Cartões de Crédito
         </button>
-        <button class="config-tab-btn" data-tab="usuarios">
-            <i class="fas fa-users"></i> Usuários
-        </button>
+         <button class="config-tab-btn active" data-tab="categorias">
+            <i class="fas fa-tags"></i> Gerenciar Categorias
+        </button>        
         <button class="config-tab-btn" data-tab="logs">
             <i class="fas fa-history"></i> Logs do Sistema
         </button>
@@ -985,7 +985,7 @@
                 <div class="form-add-categoria">
                     <input type="text" id="nova-categoria-nome" placeholder="Nome da categoria" maxlength="50">
                     <button id="btn-adicionar-categoria" class="btn btn-primary">
-                        <i class="fas fa-plus"></i> Adicionar
+                        <i class="fas fa-plus"></i>Criar
                     </button>
                 </div>
                 
@@ -1322,6 +1322,32 @@
             </button>
             <button type="submit" form="form-editar-categoria" class="btn btn-primary">
                 Salvar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Adicionar Categoria Rápida (atalho do modal de despesa) -->
+<div id="modal-nova-categoria-rapida" class="modal">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h2><i class="fas fa-plus-circle"></i> Nova Categoria</h2>
+            <button type="button" class="close" title="Fechar">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="input-nova-categoria-rapida">
+                    <i class="fas fa-tag"></i> Nome da Categoria:
+                </label>
+                <input type="text" id="input-nova-categoria-rapida" class="form-control" placeholder="Digite o nome da categoria" maxlength="50">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="btn-cancelar-categoria-rapida">
+                Cancelar
+            </button>
+            <button type="button" class="btn btn-primary" id="btn-salvar-categoria-rapida">
+                <i class="fas fa-check"></i> Adicionar
             </button>
         </div>
     </div>
@@ -2258,12 +2284,17 @@
                <div class="form-row-compact">
                    <div class="form-col">
                        <label>Categoria *</label>
-                       <select id="despesa-categoria" class="form-control" required onchange="validarCategoria()">
-                           <option value="">Selecione...</option>
-                           <!-- Categorias serão inseridas dinamicamente aqui pela função atualizarDropdowns() -->
+                       <div class="select-com-botao">
+                           <select id="despesa-categoria" class="form-control" required onchange="validarCategoria()">
+                               <option value="">Selecione...</option>
+                               <!-- Categorias serão inseridas dinamicamente aqui pela função atualizarDropdowns() -->
                            </select>
+                           <button type="button" id="btn-nova-categoria-atalho" class="btn-add-inline" title="Adicionar nova categoria">
+                               <i class="fas fa-plus"></i>
+                           </button>
+                       </div>
                    </div>
-                   
+
                    <div class="form-col">
                         <label>Pagamento *</label>
                         <div class="payment-methods">

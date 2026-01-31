@@ -956,3 +956,62 @@
         flex-direction: column-reverse;
     }
 }
+
+/* ================================================================
+   BOTÃO INLINE PARA ADICIONAR CATEGORIA NO MODAL DE DESPESA
+   ================================================================ */
+
+.select-com-botao {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.select-com-botao select {
+    flex: 1;
+}
+
+.btn-add-inline {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-color, #3b82f6);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+}
+
+.btn-add-inline:hover {
+    background: var(--primary-hover, #2563eb);
+    transform: scale(1.05);
+}
+
+.btn-add-inline:active {
+    transform: scale(0.95);
+}
+
+/* Modal de categoria rápida */
+#modal-nova-categoria-rapida .modal-body {
+    padding: 20px;
+}
+
+#modal-nova-categoria-rapida .form-group label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+#modal-nova-categoria-rapida .form-control {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+}
