@@ -56,6 +56,10 @@ function redirecionarParaLogin() {
 function logout() {
     removeToken();
     sessionStorage.clear();
+    // Limpar dados de "lembrar de mim"
+    localStorage.removeItem('lembrarToken');
+    localStorage.removeItem('lembrarUsuario');
+    localStorage.removeItem('lembrarDadosUsuario');
     redirecionarParaLogin();
 }
 

@@ -8,7 +8,36 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Controle Financeiro</title>
-    
+
+    <!-- VERIFICAÇÃO DE AUTENTICAÇÃO (ANTES DE TUDO) -->
+    <script>
+        (function() {
+            // Verificar se há dados salvos com "lembrar de mim"
+            var lembrarToken = localStorage.getItem('lembrarToken');
+            var lembrarUsuario = localStorage.getItem('lembrarUsuario');
+            var lembrarDados = localStorage.getItem('lembrarDadosUsuario');
+
+            // Se tem dados salvos no localStorage, restaurar para sessionStorage
+            if (lembrarToken && lembrarUsuario) {
+                if (!sessionStorage.getItem('token')) {
+                    sessionStorage.setItem('token', lembrarToken);
+                }
+                if (!sessionStorage.getItem('usuarioAtual')) {
+                    sessionStorage.setItem('usuarioAtual', lembrarUsuario);
+                }
+                if (lembrarDados && !sessionStorage.getItem('dadosUsuarioLogado')) {
+                    sessionStorage.setItem('dadosUsuarioLogado', lembrarDados);
+                }
+            }
+
+            // Verificar autenticação
+            var usuarioAtual = sessionStorage.getItem('usuarioAtual');
+            if (!usuarioAtual) {
+                window.location.replace('login.html');
+            }
+        })();
+    </script>
+
     <!-- CSS EXTERNOS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- CSS DO SISTEMA -->
@@ -985,7 +1014,7 @@
                 <div class="form-add-categoria">
                     <input type="text" id="nova-categoria-nome" placeholder="Nome da categoria" maxlength="50">
                     <button id="btn-adicionar-categoria" class="btn btn-primary">
-                        <i class="fas fa-plus"></i>Criar
+                        <i class="fas fa-plus"></i>
                     </button>
                 </div>
                 
@@ -1322,32 +1351,6 @@
             </button>
             <button type="submit" form="form-editar-categoria" class="btn btn-primary">
                 Salvar
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal: Adicionar Categoria Rápida (atalho do modal de despesa) -->
-<div id="modal-nova-categoria-rapida" class="modal">
-    <div class="modal-content modal-sm">
-        <div class="modal-header">
-            <h2><i class="fas fa-plus-circle"></i> Nova Categoria</h2>
-            <button type="button" class="close" title="Fechar">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div class="form-group">
-                <label for="input-nova-categoria-rapida">
-                    <i class="fas fa-tag"></i> Nome da Categoria:
-                </label>
-                <input type="text" id="input-nova-categoria-rapida" class="form-control" placeholder="Digite o nome da categoria" maxlength="50">
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" id="btn-cancelar-categoria-rapida">
-                Cancelar
-            </button>
-            <button type="button" class="btn btn-primary" id="btn-salvar-categoria-rapida">
-                <i class="fas fa-check"></i> Adicionar
             </button>
         </div>
     </div>
@@ -2280,22 +2283,35 @@
                     <div id="lista-anexos-despesa" class="lista-anexos-inline"></div>
                 </div>
                
-               <!-- Categoria e Forma de Pagamento -->
+               <!-- Categoria -->
                <div class="form-row-compact">
-                   <div class="form-col">
+                   <div class="form-col form-col-categoria-full">
                        <label>Categoria *</label>
-                       <div class="select-com-botao">
+                       <div class="categoria-select-wrapper">
                            <select id="despesa-categoria" class="form-control" required onchange="validarCategoria()">
                                <option value="">Selecione...</option>
                                <!-- Categorias serão inseridas dinamicamente aqui pela função atualizarDropdowns() -->
                            </select>
-                           <button type="button" id="btn-nova-categoria-atalho" class="btn-add-inline" title="Adicionar nova categoria">
+                           <button type="button" id="btn-toggle-nova-categoria" class="btn-add-categoria" title="Adicionar nova categoria">
                                <i class="fas fa-plus"></i>
                            </button>
                        </div>
+                       <!-- Input inline para nova categoria (oculto por padrão) -->
+                       <div id="nova-categoria-inline" class="nova-categoria-inline hidden">
+                           <input type="text" id="input-nova-categoria-despesa" placeholder="Nome da categoria" maxlength="50">
+                           <button type="button" id="btn-salvar-categoria-inline" class="btn btn-primary btn-sm">
+                               <i class="fas fa-check"></i>
+                           </button>
+                           <button type="button" id="btn-cancelar-categoria-inline" class="btn btn-secondary btn-sm">
+                               <i class="fas fa-times"></i>
+                           </button>
+                       </div>
                    </div>
+               </div>
 
-                   <div class="form-col">
+               <!-- Forma de Pagamento, Valores e Parcelas -->
+               <div class="form-row-compact form-row-valores">
+                   <div class="form-col form-col-pagamento">
                         <label>Pagamento *</label>
                         <div class="payment-methods">
                             <div class="payment-option">
@@ -2315,10 +2331,6 @@
                             </div>
                         </div>
                     </div>
-               </div>
-               
-               <!-- Valores e Parcelas -->
-               <div class="form-row-compact form-row-valores">
                    <div class="form-col">
                        <label>Valor original *</label>
                        <input type="number" id="despesa-valor" min="0.01" step="0.01" placeholder="0,00" required onchange="calcularInfoParcelamento()">

@@ -958,20 +958,25 @@
 }
 
 /* ================================================================
-   BOTÃO INLINE PARA ADICIONAR CATEGORIA NO MODAL DE DESPESA
+   CATEGORIA INLINE NO MODAL DE DESPESA
    ================================================================ */
 
-.select-com-botao {
+.form-col-categoria-full {
+    flex: 1;
+    width: 100%;
+}
+
+.categoria-select-wrapper {
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
-.select-com-botao select {
+.categoria-select-wrapper select {
     flex: 1;
 }
 
-.btn-add-inline {
+.btn-add-categoria {
     width: 36px;
     height: 36px;
     min-width: 36px;
@@ -988,30 +993,77 @@
     font-size: 14px;
 }
 
-.btn-add-inline:hover {
+.btn-add-categoria:hover {
     background: var(--primary-hover, #2563eb);
     transform: scale(1.05);
 }
 
-.btn-add-inline:active {
+.btn-add-categoria:active {
     transform: scale(0.95);
 }
 
-/* Modal de categoria rápida */
-#modal-nova-categoria-rapida .modal-body {
-    padding: 20px;
+.btn-add-categoria.active {
+    background: var(--danger-color, #ef4444);
 }
 
-#modal-nova-categoria-rapida .form-group label {
+.btn-add-categoria.active i::before {
+    content: "\f00d";
+}
+
+.nova-categoria-inline {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 8px;
-    font-weight: 500;
+    margin-top: 8px;
+    padding: 10px;
+    background: var(--bg-tertiary, #f3f4f6);
+    border-radius: 6px;
+    animation: slideDown 0.2s ease;
 }
 
-#modal-nova-categoria-rapida .form-control {
-    width: 100%;
-    padding: 10px 12px;
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.nova-categoria-inline.hidden {
+    display: none;
+}
+
+.nova-categoria-inline input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color, #d1d5db);
+    border-radius: 6px;
     font-size: 14px;
 }
+
+.nova-categoria-inline input:focus {
+    outline: none;
+    border-color: var(--primary-color, #3b82f6);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.nova-categoria-inline .btn-sm {
+    padding: 8px 12px;
+    font-size: 12px;
+}
+
+/* Ajuste para forma de pagamento na mesma linha dos valores */
+.form-col-pagamento {
+    flex: 2;
+    min-width: 200px;
+}
+
+.form-col-pagamento .payment-methods {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+

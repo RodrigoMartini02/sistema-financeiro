@@ -208,14 +208,28 @@ async function processarLogin(documento, password, isModal, tentativa = 1) {
         sessionStorage.setItem('token', token);
         sessionStorage.setItem('usuarioAtual', docLimpo);
 
-        sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify({
+        const dadosUsuario = JSON.stringify({
             id: usuario.id,
             nome: usuario.nome || usuario.name,
             documento: docLimpo,
             email: usuario.email,
             tipo: usuario.tipo
             // Senha removida por segurança - usar token JWT para autenticação
-        }));
+        });
+        sessionStorage.setItem('dadosUsuarioLogado', dadosUsuario);
+
+        // Verificar "Lembrar de mim" e salvar no localStorage
+        const rememberMe = document.getElementById('remember-me');
+        if (rememberMe && rememberMe.checked) {
+            localStorage.setItem('lembrarToken', token);
+            localStorage.setItem('lembrarUsuario', docLimpo);
+            localStorage.setItem('lembrarDadosUsuario', dadosUsuario);
+        } else {
+            // Se não marcou "lembrar de mim", limpar dados salvos anteriormente
+            localStorage.removeItem('lembrarToken');
+            localStorage.removeItem('lembrarUsuario');
+            localStorage.removeItem('lembrarDadosUsuario');
+        }
 
         // Registrar tentativa em background
         registrarTentativaBackground(documento, true);

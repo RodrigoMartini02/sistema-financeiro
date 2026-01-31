@@ -4036,55 +4036,49 @@ document.addEventListener('DOMContentLoaded', configurarBotaoComprovanteSimples)
 })();
 
 // ================================================================
-// MODAL DE CATEGORIA RÁPIDA (ATALHO NO MODAL DE DESPESA)
+// CRIAR CATEGORIA INLINE NO MODAL DE DESPESA
 // ================================================================
 
 /**
- * Abre o modal para adicionar categoria rapidamente
+ * Alterna visibilidade do input de nova categoria
  */
-function abrirModalCategoriaRapida() {
-    const modal = document.getElementById('modal-nova-categoria-rapida');
-    if (!modal) return;
+function toggleNovaCategoriaInline() {
+    const container = document.getElementById('nova-categoria-inline');
+    const btnToggle = document.getElementById('btn-toggle-nova-categoria');
+    const input = document.getElementById('input-nova-categoria-despesa');
 
-    // Limpar input
-    const input = document.getElementById('input-nova-categoria-rapida');
-    if (input) {
-        input.value = '';
-    }
+    if (!container || !btnToggle) return;
 
-    modal.style.display = 'flex';
+    const isHidden = container.classList.contains('hidden');
 
-    // Focar no input após abrir
-    setTimeout(() => {
-        if (input) input.focus();
-    }, 100);
-}
-
-/**
- * Fecha o modal de categoria rápida
- */
-function fecharModalCategoriaRapida() {
-    const modal = document.getElementById('modal-nova-categoria-rapida');
-    if (modal) {
-        modal.style.display = 'none';
+    if (isHidden) {
+        container.classList.remove('hidden');
+        btnToggle.classList.add('active');
+        if (input) {
+            input.value = '';
+            input.focus();
+        }
+    } else {
+        container.classList.add('hidden');
+        btnToggle.classList.remove('active');
+        if (input) input.value = '';
     }
 }
 
 /**
- * Salva a nova categoria e atualiza o dropdown
+ * Salva nova categoria inline e atualiza o dropdown
  */
-async function salvarCategoriaRapida() {
-    const input = document.getElementById('input-nova-categoria-rapida');
+async function salvarCategoriaInline() {
+    const input = document.getElementById('input-nova-categoria-despesa');
     if (!input) return;
 
     const nomeCategoria = input.value.trim();
 
     if (!nomeCategoria) {
         if (window.mostrarMensagemErro) {
-            window.mostrarMensagemErro('Por favor, digite o nome da categoria');
-        } else {
-            alert('Por favor, digite o nome da categoria');
+            window.mostrarMensagemErro('Digite o nome da categoria');
         }
+        input.focus();
         return;
     }
 
@@ -4101,27 +4095,25 @@ async function salvarCategoriaRapida() {
         });
 
         if (response.ok) {
-            // Fechar modal
-            fecharModalCategoriaRapida();
+            // Ocultar input
+            toggleNovaCategoriaInline();
 
             // Atualizar dropdown de categorias
             if (typeof window.atualizarDropdowns === 'function') {
                 await window.atualizarDropdowns();
             }
 
-            // Atualizar lista de categorias na tela de configurações (se existir)
+            // Atualizar lista na aba de configurações
             if (typeof window.atualizarListaCategorias === 'function') {
                 await window.atualizarListaCategorias();
             }
 
-            // Selecionar a nova categoria no dropdown
+            // Selecionar a nova categoria
             const selectCategoria = document.getElementById('despesa-categoria');
             if (selectCategoria) {
-                // Aguardar um pouco para o dropdown ser atualizado
                 setTimeout(() => {
-                    // Procurar a opção com o nome da categoria
                     for (let option of selectCategoria.options) {
-                        if (option.text === nomeCategoria || option.value === nomeCategoria) {
+                        if (option.text === nomeCategoria) {
                             selectCategoria.value = option.value;
                             break;
                         }
@@ -4129,9 +4121,8 @@ async function salvarCategoriaRapida() {
                 }, 200);
             }
 
-            // Mostrar mensagem de sucesso
             if (window.mostrarMensagemSucesso) {
-                window.mostrarMensagemSucesso('Categoria criada com sucesso!');
+                window.mostrarMensagemSucesso('Categoria criada!');
             }
 
             // Log
@@ -4142,79 +4133,59 @@ async function salvarCategoriaRapida() {
                     categoria: 'Categoria',
                     descricao: nomeCategoria,
                     valor: null,
-                    detalhes: 'Criou nova categoria (atalho rápido)'
+                    detalhes: 'Nova categoria (inline)'
                 });
             }
         } else {
             const data = await response.json();
-            const msg = data.message || 'Erro ao criar categoria';
             if (window.mostrarMensagemErro) {
-                window.mostrarMensagemErro(msg);
-            } else {
-                alert(msg);
+                window.mostrarMensagemErro(data.message || 'Erro ao criar categoria');
             }
         }
     } catch (error) {
         console.error('Erro ao criar categoria:', error);
         if (window.mostrarMensagemErro) {
-            window.mostrarMensagemErro('Erro ao salvar categoria. Tente novamente.');
-        } else {
-            alert('Erro ao salvar categoria. Tente novamente.');
+            window.mostrarMensagemErro('Erro ao salvar categoria');
         }
     }
 }
 
 /**
- * Inicializa eventos do modal de categoria rápida
+ * Inicializa eventos da categoria inline
  */
-function inicializarEventosCategoriaRapida() {
-    // Botão de abrir modal (no select de categoria)
-    const btnAbrir = document.getElementById('btn-nova-categoria-atalho');
-    if (btnAbrir) {
-        btnAbrir.addEventListener('click', abrirModalCategoriaRapida);
+function inicializarCategoriaInline() {
+    const btnToggle = document.getElementById('btn-toggle-nova-categoria');
+    if (btnToggle) {
+        btnToggle.addEventListener('click', toggleNovaCategoriaInline);
     }
 
-    // Botão de cancelar
-    const btnCancelar = document.getElementById('btn-cancelar-categoria-rapida');
-    if (btnCancelar) {
-        btnCancelar.addEventListener('click', fecharModalCategoriaRapida);
-    }
-
-    // Botão de salvar
-    const btnSalvar = document.getElementById('btn-salvar-categoria-rapida');
+    const btnSalvar = document.getElementById('btn-salvar-categoria-inline');
     if (btnSalvar) {
-        btnSalvar.addEventListener('click', salvarCategoriaRapida);
+        btnSalvar.addEventListener('click', salvarCategoriaInline);
     }
 
-    // Enter no input salva
-    const input = document.getElementById('input-nova-categoria-rapida');
+    const btnCancelar = document.getElementById('btn-cancelar-categoria-inline');
+    if (btnCancelar) {
+        btnCancelar.addEventListener('click', toggleNovaCategoriaInline);
+    }
+
+    const input = document.getElementById('input-nova-categoria-despesa');
     if (input) {
         input.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                salvarCategoriaRapida();
+                salvarCategoriaInline();
             }
         });
-    }
-
-    // Fechar ao clicar no X
-    const modal = document.getElementById('modal-nova-categoria-rapida');
-    if (modal) {
-        const closeBtn = modal.querySelector('.close');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', fecharModalCategoriaRapida);
-        }
-
-        // Fechar ao clicar fora
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                fecharModalCategoriaRapida();
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                toggleNovaCategoriaInline();
             }
         });
     }
 }
 
-// Inicializar quando o DOM estiver pronto
+// Inicializar quando DOM estiver pronto
 document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(inicializarEventosCategoriaRapida, 300);
+    setTimeout(inicializarCategoriaInline, 300);
 });
