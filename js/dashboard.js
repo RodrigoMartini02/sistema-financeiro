@@ -110,18 +110,30 @@ function resetarFiltros() {
     document.querySelectorAll('select[id*="tipo-filter"]').forEach(select => {
         select.value = 'ambos';
     });
-    
+
     document.querySelectorAll('select[id*="categoria-filter"]').forEach(select => {
         select.value = '';
     });
-    
+
     document.querySelectorAll('select[id*="pagamento-filter"]').forEach(select => {
         select.value = 'todas';
     });
-    
+
     document.querySelectorAll('select[id*="status-filter"]').forEach(select => {
         select.value = 'todos';
     });
+
+    // Resetar filtros do balanço
+    const periodoFilter = document.getElementById('balanco-periodo-filter');
+    const anoFilter = document.getElementById('balanco-ano-filter');
+    const mesFilter = document.getElementById('balanco-mes-filter');
+
+    if (periodoFilter) periodoFilter.value = 'ano';
+    if (anoFilter) anoFilter.style.display = 'none';
+    if (mesFilter) {
+        mesFilter.style.display = 'none';
+        mesFilter.dataset.initialized = '';
+    }
 }
 
 function limparGraficos() {
@@ -359,22 +371,51 @@ const BALANCO_DATASETS_CONFIG = {
 };
 
 // Inicializar filtros de ano
-function inicializarFiltrosBalanco() {
+function inicializarFiltrosBalanco(forceReset = false) {
     const anoFilter = document.getElementById('balanco-ano-filter');
     if (!anoFilter) return;
 
-    // Preencher anos disponíveis
-    const anosDisponiveis = Object.keys(window.dadosFinanceiros || {}).map(Number).sort();
-    const anoAtual = new Date().getFullYear();
+    // Só preencher se estiver vazio ou forçado
+    if (anoFilter.options.length === 0 || forceReset) {
+        const valorAtual = anoFilter.value;
+        const anosDisponiveis = Object.keys(window.dadosFinanceiros || {}).map(Number).sort();
+        const anoAtual = window.anoAtual || new Date().getFullYear();
 
-    anoFilter.innerHTML = '';
-    anosDisponiveis.forEach(ano => {
-        const option = document.createElement('option');
-        option.value = ano;
-        option.textContent = ano;
-        if (ano === anoAtual) option.selected = true;
-        anoFilter.appendChild(option);
-    });
+        anoFilter.innerHTML = '';
+        anosDisponiveis.forEach(ano => {
+            const option = document.createElement('option');
+            option.value = ano;
+            option.textContent = ano;
+            if (forceReset) {
+                if (ano === anoAtual) option.selected = true;
+            } else {
+                if (valorAtual && ano === parseInt(valorAtual)) option.selected = true;
+                else if (!valorAtual && ano === anoAtual) option.selected = true;
+            }
+            anoFilter.appendChild(option);
+        });
+    }
+}
+
+// Resetar filtros do balanço para o padrão
+function resetarFiltrosBalanco() {
+    const periodoFilter = document.getElementById('balanco-periodo-filter');
+    const anoFilter = document.getElementById('balanco-ano-filter');
+    const mesFilter = document.getElementById('balanco-mes-filter');
+
+    if (periodoFilter) periodoFilter.value = 'ano';
+    if (anoFilter) {
+        anoFilter.style.display = 'none';
+        anoFilter.dataset.initialized = '';
+    }
+    if (mesFilter) {
+        mesFilter.style.display = 'none';
+        mesFilter.value = new Date().getMonth();
+        mesFilter.dataset.initialized = '';
+    }
+
+    inicializarFiltrosBalanco(true);
+    criarGraficoBalancoPorAnos();
 }
 
 function filtrarBalancoPeriodo() {
@@ -382,8 +423,8 @@ function filtrarBalancoPeriodo() {
     const anoFilter = document.getElementById('balanco-ano-filter');
     const mesFilter = document.getElementById('balanco-mes-filter');
 
-    // Inicializar filtros se necessário
-    inicializarFiltrosBalanco();
+    // Inicializar filtros se necessário (sem forçar reset)
+    inicializarFiltrosBalanco(false);
 
     // Mostrar/esconder filtros conforme período selecionado
     if (anoFilter) {
@@ -2027,3 +2068,4 @@ window.filtrarFormaPagamento = function() {
 
 window.carregarDadosDashboard = carregarDadosDashboard;
 window.filtrarBalancoPeriodo = filtrarBalancoPeriodo;
+window.resetarFiltrosBalanco = resetarFiltrosBalanco;
