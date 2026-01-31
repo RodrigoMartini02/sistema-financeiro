@@ -265,6 +265,20 @@
     font-size: 10px;
 }
 
+/* Campo inválido */
+.campo-invalido,
+input.campo-invalido,
+select.campo-invalido {
+    border-color: #ef4444 !important;
+    background-color: #fef2f2 !important;
+}
+
+.payment-methods.campo-invalido {
+    outline: 2px solid #ef4444;
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
 /* ================================================================
    FORMA DE PAGAMENTO
    ================================================================ */

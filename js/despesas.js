@@ -12,6 +12,34 @@ const ERROS = {
 };
 
 // ================================================================
+// VALIDAÇÃO DE CAMPOS
+// ================================================================
+
+function marcarCampoInvalido(campo) {
+    if (campo) {
+        campo.classList.add('campo-invalido');
+        campo.addEventListener('input', function removerErro() {
+            campo.classList.remove('campo-invalido');
+            campo.removeEventListener('input', removerErro);
+        }, { once: true });
+    }
+}
+
+function limparErrosValidacao() {
+    document.querySelectorAll('.campo-invalido').forEach(el => {
+        el.classList.remove('campo-invalido');
+    });
+}
+
+// Limpar erro de pagamento ao selecionar
+document.addEventListener('change', function(e) {
+    if (e.target.name === 'forma-pagamento') {
+        const paymentMethods = document.querySelector('.payment-methods');
+        if (paymentMethods) paymentMethods.classList.remove('campo-invalido');
+    }
+});
+
+// ================================================================
 // INICIALIZAÇÃO E ESTRUTURA
 // ================================================================
 
@@ -1134,29 +1162,72 @@ async function salvarDespesa(e) {
         e.preventDefault();
         e.stopPropagation();
     }
-    
+
     if (processandoDespesa) return false;
     processandoDespesa = true;
-    
+
     try {
+        // Limpar erros anteriores
+        limparErrosValidacao();
+
         let formularioValido = true;
-        
-        if (!validarCategoria()) formularioValido = false;
-        if (!validarFormaPagamento()) formularioValido = false;
-        
+        const camposInvalidos = [];
+
+        // Validar descrição
         const descricao = document.getElementById('despesa-descricao');
         if (!descricao.value.trim()) {
-            descricao.focus();
+            marcarCampoInvalido(descricao);
+            camposInvalidos.push('Descrição');
             formularioValido = false;
         }
-        
+
+        // Validar categoria
+        const categoria = document.getElementById('despesa-categoria');
+        if (!categoria.value) {
+            marcarCampoInvalido(categoria);
+            camposInvalidos.push('Categoria');
+            formularioValido = false;
+        }
+
+        // Validar forma de pagamento
+        const formaPagamentoSelecionada = document.querySelector('input[name="forma-pagamento"]:checked');
+        if (!formaPagamentoSelecionada) {
+            const paymentMethods = document.querySelector('.payment-methods');
+            if (paymentMethods) paymentMethods.classList.add('campo-invalido');
+            camposInvalidos.push('Pagamento');
+            formularioValido = false;
+        }
+
+        // Validar valor
         const valor = document.getElementById('despesa-valor');
         if (!valor.value || parseFloat(valor.value) <= 0) {
-            valor.focus();
+            marcarCampoInvalido(valor);
+            camposInvalidos.push('Valor');
             formularioValido = false;
         }
-        
-        if (!formularioValido) return false;
+
+        // Validar datas
+        const dataCompra = document.getElementById('despesa-data-compra');
+        if (!dataCompra.value) {
+            marcarCampoInvalido(dataCompra);
+            camposInvalidos.push('Data Compra');
+            formularioValido = false;
+        }
+
+        const dataVencimento = document.getElementById('despesa-data-vencimento');
+        if (!dataVencimento.value) {
+            marcarCampoInvalido(dataVencimento);
+            camposInvalidos.push('Data Vencimento');
+            formularioValido = false;
+        }
+
+        if (!formularioValido) {
+            if (window.mostrarMensagemErro) {
+                window.mostrarMensagemErro('Preencha: ' + camposInvalidos.join(', '));
+            }
+            processandoDespesa = false;
+            return false;
+        }
         
         const formData = coletarDadosFormularioDespesa();
         const ehEdicao = formData.id !== '' && formData.id !== null;
