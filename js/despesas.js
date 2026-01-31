@@ -4109,6 +4109,11 @@ async function salvarCategoriaRapida() {
                 await window.atualizarDropdowns();
             }
 
+            // Atualizar lista de categorias na tela de configurações (se existir)
+            if (typeof window.atualizarListaCategorias === 'function') {
+                await window.atualizarListaCategorias();
+            }
+
             // Selecionar a nova categoria no dropdown
             const selectCategoria = document.getElementById('despesa-categoria');
             if (selectCategoria) {
