@@ -8,10 +8,13 @@
 .config-tabs {
     display: flex;
     border-bottom: 2px solid var(--gray-300);
-    margin-bottom: 24px;
+    margin-bottom: 0;
     gap: 8px;
     background: var(--gray-100);
     padding: 8px 8px 0 8px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 .config-tab-btn {
