@@ -1196,47 +1196,67 @@ function calcularTotalReservas(mesLimite, anoLimite) {
 }
 
 /**
- * Atualiza o card de reservas integrado na aba Receitas
+ * Calcula o saldo disponível para novas reservas no mês atual
+ * Saldo Atual Mês = saldoAnterior + receitas - despesas (igual ao saldoFinal)
+ * Disponível para Reservar = Saldo Atual Mês - Total já Reservado
+ * @returns {object} { saldoAtualMes, totalReservado, disponivelParaReservar }
  */
-async function atualizarCardReservasIntegrado() {
+function calcularSaldoDisponivelParaReservar() {
     const mes = window.mesAberto;
     const ano = window.anoAberto;
 
-    if (mes === null || ano === null) return;
+    const saldoInfo = window.calcularSaldoMes ? window.calcularSaldoMes(mes, ano) : { saldoFinal: 0 };
+    const totalReservado = calcularTotalReservas();
+
+    // Saldo Atual Mês = saldoFinal (saldoAnterior + receitas - despesas)
+    const saldoAtualMes = saldoInfo.saldoFinal || 0;
+
+    // Disponível para reservar = Saldo Atual Mês - Total já Reservado
+    const disponivelParaReservar = saldoAtualMes - totalReservado;
+
+    return {
+        saldoAtualMes,
+        totalReservado,
+        disponivelParaReservar
+    };
+}
+
+// Exportar função
+window.calcularSaldoDisponivelParaReservar = calcularSaldoDisponivelParaReservar;
+
+/**
+ * Atualiza o card de reservas integrado na aba Receitas
+ * O "Saldo Atual" na toolbar é o mesmo "Saldo Atual Mês" do resumo
+ */
+async function atualizarCardReservasIntegrado() {
+    if (window.mesAberto === null || window.anoAberto === null) return;
 
     // Carregar reservas do backend
     await carregarReservasAPI();
 
-    // Calcular valores
-    const saldoInfo = window.calcularSaldoMes ? window.calcularSaldoMes(mes, ano) : { saldoAnterior: 0, receitas: 0, despesas: 0 };
-    const totalReservado = calcularTotalReservas();
-
-    // Saldo Atual Mês = receitas do mês - despesas do mês + acumulado do mês anterior
-    const saldoAtualMes = saldoInfo.receitas - saldoInfo.despesas + saldoInfo.saldoAnterior;
-
-    // Disponível para reservar = Saldo Atual Mês - Reservas já feitas
-    const saldoAtual = saldoAtualMes - totalReservado;
+    // Calcular saldo atual do mês (igual ao resumo do mês)
+    const { saldoAtualMes, totalReservado } = calcularSaldoDisponivelParaReservar();
 
     // Atualizar elementos do DOM (card mini antigo - se existir)
     const elemDisponivel = document.getElementById('reservas-disponivel-mini');
     const elemReservado = document.getElementById('reservas-reservado-mini');
 
     if (elemDisponivel) {
-        elemDisponivel.textContent = window.formatarMoeda(saldoAtual);
-        elemDisponivel.className = saldoAtual >= 0 ? 'valor saldo-positivo' : 'valor saldo-negativo';
+        elemDisponivel.textContent = window.formatarMoeda(saldoAtualMes);
+        elemDisponivel.className = saldoAtualMes >= 0 ? 'valor saldo-positivo' : 'valor saldo-negativo';
     }
 
     if (elemReservado) {
         elemReservado.textContent = window.formatarMoeda(totalReservado);
     }
 
-    // Atualizar toolbar unificada
+    // Atualizar toolbar unificada - mostrar Saldo Atual Mês (igual ao resumo)
     const toolbarSaldo = document.getElementById('toolbar-saldo-atual');
     const toolbarReservado = document.getElementById('toolbar-reservado');
 
     if (toolbarSaldo) {
-        toolbarSaldo.textContent = window.formatarMoeda(saldoAtual);
-        toolbarSaldo.style.color = saldoAtual >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
+        toolbarSaldo.textContent = window.formatarMoeda(saldoAtualMes);
+        toolbarSaldo.style.color = saldoAtualMes >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
     }
 
     if (toolbarReservado) {
@@ -1287,10 +1307,7 @@ function renderizarUltimasReservas() {
  * Abre o modal para gerenciar reservas
  */
 async function abrirModalReservarValor() {
-    const mes = window.mesAberto;
-    const ano = window.anoAberto;
-
-    if (mes === null || ano === null) {
+    if (window.mesAberto === null || window.anoAberto === null) {
         alert('Selecione um mês primeiro');
         return;
     }
@@ -1298,15 +1315,8 @@ async function abrirModalReservarValor() {
     // Carregar reservas do backend
     await carregarReservasAPI();
 
-    // Calcular saldo atual do mês
-    const saldoInfo = window.calcularSaldoMes ? window.calcularSaldoMes(mes, ano) : { saldoAnterior: 0, receitas: 0, despesas: 0 };
-    const totalReservado = calcularTotalReservas();
-
-    // Saldo Atual Mês = receitas do mês - despesas do mês + acumulado do mês anterior
-    const saldoAtualMes = saldoInfo.receitas - saldoInfo.despesas + saldoInfo.saldoAnterior;
-
-    // Disponível para reservar = Saldo Atual Mês - Reservas já feitas
-    const disponivelParaReservar = saldoAtualMes - totalReservado;
+    // Calcular saldo atual do mês (igual ao resumo do mês)
+    const { saldoAtualMes, totalReservado } = calcularSaldoDisponivelParaReservar();
 
     // Atualizar totalizadores do modal
     const elemTotal = document.getElementById('total-reservado');
@@ -1314,9 +1324,11 @@ async function abrirModalReservarValor() {
         elemTotal.textContent = window.formatarMoeda(totalReservado);
     }
 
-    const elemDisponivel = document.getElementById('disponivel-reservar');
-    if (elemDisponivel) {
-        elemDisponivel.textContent = window.formatarMoeda(disponivelParaReservar);
+    // Mostrar Saldo Atual Mês (igual ao resumo)
+    const elemSaldoAtual = document.getElementById('saldo-atual-mes-reservas');
+    if (elemSaldoAtual) {
+        elemSaldoAtual.textContent = window.formatarMoeda(saldoAtualMes);
+        elemSaldoAtual.style.color = saldoAtualMes >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
     }
 
     // Limpar campos do formulário
@@ -1397,9 +1409,14 @@ async function renderizarListaReservasModal() {
 
 /**
  * Movimenta reserva com valor positivo ou negativo
+ * - Valor positivo = entrada (adiciona à reserva, sai do saldo atual do mês)
+ * - Valor negativo = saída (retira da reserva, volta para o saldo atual do mês)
+ * A movimentação sempre usa o mês/ano ATUAL aberto
  */
 async function movimentarReservaSimples(reservaId, valorStr) {
     const valor = parseFloat(valorStr);
+    const mes = window.mesAberto;
+    const ano = window.anoAberto;
 
     if (isNaN(valor) || valor === 0) {
         window.mostrarMensagemErro ? window.mostrarMensagemErro('Informe um valor válido') : alert('Informe um valor válido');
@@ -1409,14 +1426,9 @@ async function movimentarReservaSimples(reservaId, valorStr) {
     const tipo = valor > 0 ? 'entrada' : 'saida';
     const valorAbsoluto = Math.abs(valor);
 
-    // Se for entrada (valor positivo), validar se tem saldo disponível
+    // Se for entrada (valor positivo), validar se tem saldo disponível no mês atual
     if (tipo === 'entrada') {
-        const mes = window.mesAberto;
-        const ano = window.anoAberto;
-        const saldoInfo = window.calcularSaldoMes ? window.calcularSaldoMes(mes, ano) : { saldoAnterior: 0, receitas: 0, despesas: 0 };
-        const totalReservado = calcularTotalReservas();
-        const saldoAtualMes = saldoInfo.receitas - saldoInfo.despesas + saldoInfo.saldoAnterior;
-        const disponivelParaReservar = saldoAtualMes - totalReservado;
+        const { disponivelParaReservar } = calcularSaldoDisponivelParaReservar();
 
         if (valorAbsoluto > disponivelParaReservar) {
             const msg = `Valor indisponível para reserva. Disponível: ${window.formatarMoeda(disponivelParaReservar)}`;
@@ -1432,13 +1444,19 @@ async function movimentarReservaSimples(reservaId, valorStr) {
     }
 
     try {
+        // Enviar mês/ano atual para o backend usar na validação
         const response = await fetch(`${API_URL_RESERVAS}/reservas/${reservaId}/movimentar`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ tipo, valor: valorAbsoluto })
+            body: JSON.stringify({
+                tipo,
+                valor: valorAbsoluto,
+                mes: mes,  // Mês atual aberto
+                ano: ano   // Ano atual aberto
+            })
         });
 
         if (response.ok) {
@@ -1452,10 +1470,10 @@ async function movimentarReservaSimples(reservaId, valorStr) {
             }
 
             if (typeof window.carregarDadosDashboard === 'function') {
-                await window.carregarDadosDashboard(window.anoAberto);
+                await window.carregarDadosDashboard(ano);
             }
 
-            const msg = tipo === 'entrada' ? 'Valor adicionado!' : 'Valor retirado!';
+            const msg = tipo === 'entrada' ? 'Valor adicionado à reserva!' : 'Valor retirado da reserva!';
             window.mostrarMensagemSucesso ? window.mostrarMensagemSucesso(msg) : null;
         } else {
             const error = await response.json();
@@ -1525,6 +1543,8 @@ async function renderizarHistoricoGeral() {
 
 /**
  * Cria nova reserva via API
+ * A reserva é criada no mês/ano ATUAL aberto
+ * O valor sai do saldo atual do mês
  */
 async function processarAdicionarReserva() {
     const mes = window.mesAberto;
@@ -1542,11 +1562,8 @@ async function processarAdicionarReserva() {
         return;
     }
 
-    // Validar se tem saldo disponível para reservar
-    const saldoInfo = window.calcularSaldoMes ? window.calcularSaldoMes(mes, ano) : { saldoAnterior: 0, receitas: 0, despesas: 0 };
-    const totalReservado = calcularTotalReservas();
-    const saldoAtualMes = saldoInfo.receitas - saldoInfo.despesas + saldoInfo.saldoAnterior;
-    const disponivelParaReservar = saldoAtualMes - totalReservado;
+    // Validar se tem saldo disponível para reservar no mês atual
+    const { disponivelParaReservar } = calcularSaldoDisponivelParaReservar();
 
     if (valor > disponivelParaReservar) {
         const msg = `Valor indisponível para reserva. Disponível: ${window.formatarMoeda(disponivelParaReservar)}`;
@@ -1561,6 +1578,7 @@ async function processarAdicionarReserva() {
     }
 
     try {
+        // Criar reserva no mês/ano atual aberto
         const response = await fetch(`${API_URL_RESERVAS}/reservas`, {
             method: 'POST',
             headers: {
@@ -1569,8 +1587,8 @@ async function processarAdicionarReserva() {
             },
             body: JSON.stringify({
                 valor: valor,
-                mes: mes,
-                ano: ano,
+                mes: mes,    // Mês atual aberto
+                ano: ano,    // Ano atual aberto
                 data: new Date().toISOString().split('T')[0],
                 observacoes: descricao
             })
@@ -1595,7 +1613,7 @@ async function processarAdicionarReserva() {
                 await window.carregarDadosDashboard(ano);
             }
 
-            window.mostrarMensagemSucesso ? window.mostrarMensagemSucesso('Reserva criada!') : null;
+            window.mostrarMensagemSucesso ? window.mostrarMensagemSucesso('Reserva criada com sucesso!') : null;
         } else {
             const error = await response.json();
             window.mostrarMensagemErro ? window.mostrarMensagemErro(error.message || 'Erro ao criar reserva') : alert(error.message || 'Erro ao criar reserva');
@@ -1610,26 +1628,19 @@ async function processarAdicionarReserva() {
  * Atualiza valores do modal de reservas
  */
 async function atualizarModalReservas() {
-    const mes = window.mesAberto;
-    const ano = window.anoAberto;
-
-    const saldoInfo = window.calcularSaldoMes ? window.calcularSaldoMes(mes, ano) : { saldoAnterior: 0, receitas: 0, despesas: 0 };
-    const totalReservado = calcularTotalReservas();
-
-    // Saldo Atual Mês = receitas do mês - despesas do mês + acumulado do mês anterior
-    const saldoAtualMes = saldoInfo.receitas - saldoInfo.despesas + saldoInfo.saldoAnterior;
-
-    // Disponível para reservar = Saldo Atual Mês - Reservas já feitas
-    const disponivelParaReservar = saldoAtualMes - totalReservado;
+    // Calcular saldo atual do mês (igual ao resumo do mês)
+    const { saldoAtualMes, totalReservado } = calcularSaldoDisponivelParaReservar();
 
     const elemTotal = document.getElementById('total-reservado');
     if (elemTotal) {
         elemTotal.textContent = window.formatarMoeda(totalReservado);
     }
 
-    const elemDisponivel = document.getElementById('disponivel-reservar');
-    if (elemDisponivel) {
-        elemDisponivel.textContent = window.formatarMoeda(disponivelParaReservar);
+    // Mostrar Saldo Atual Mês (igual ao resumo)
+    const elemSaldoAtual = document.getElementById('saldo-atual-mes-reservas');
+    if (elemSaldoAtual) {
+        elemSaldoAtual.textContent = window.formatarMoeda(saldoAtualMes);
+        elemSaldoAtual.style.color = saldoAtualMes >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
     }
 
     await renderizarListaReservasModal();
@@ -1706,6 +1717,7 @@ window.atualizarCardReservasIntegrado = atualizarCardReservasIntegrado;
 window.abrirModalReservarValor = abrirModalReservarValor;
 window.carregarReservasAPI = carregarReservasAPI;
 window.calcularTotalReservas = calcularTotalReservas;
+window.calcularTotalReservasAcumuladas = calcularTotalReservas; // Alias para compatibilidade
 
 // ================================================================
 // REDIMENSIONAMENTO DE COLUNAS - RECEITAS (VERSÃO PARA TABLE)

@@ -289,9 +289,12 @@ router.get('/historico', authMiddleware, async (req, res) => {
 // ================================================================
 
 // POST - Adicionar ou retirar valor de uma reserva
+// A movimentação usa o mês/ano ATUAL enviado pelo frontend para validação de saldo
 router.post('/:id/movimentar', authMiddleware, [
     body('tipo').isIn(['entrada', 'saida']).withMessage('Tipo deve ser entrada ou saida'),
     body('valor').isFloat({ min: 0.01 }).withMessage('Valor deve ser maior que zero'),
+    body('mes').optional().isInt({ min: 0, max: 11 }).withMessage('Mês inválido'),
+    body('ano').optional().isInt({ min: 2000 }).withMessage('Ano inválido'),
     body('observacoes').optional().isString()
 ], async (req, res) => {
     try {
@@ -305,6 +308,10 @@ router.post('/:id/movimentar', authMiddleware, [
 
         const { id } = req.params;
         const { tipo, valor, observacoes } = req.body;
+
+        // Usar mês/ano enviado pelo frontend (mês atual aberto) ou fallback para data atual
+        const mesAtual = req.body.mes !== undefined ? parseInt(req.body.mes) : new Date().getMonth();
+        const anoAtual = req.body.ano !== undefined ? parseInt(req.body.ano) : new Date().getFullYear();
 
         // Verificar se a reserva existe e pertence ao usuário
         const reservaResult = await query(
@@ -323,21 +330,21 @@ router.post('/:id/movimentar', authMiddleware, [
 
         // Se for saída, verificar se há saldo suficiente na reserva
         if (tipo === 'saida') {
-            const saldoAtual = parseFloat(reserva.valor);
-            if (saldoAtual < parseFloat(valor)) {
+            const saldoReserva = parseFloat(reserva.valor);
+            if (saldoReserva < parseFloat(valor)) {
                 return res.status(400).json({
                     success: false,
-                    message: `Saldo insuficiente na reserva. Disponível: R$ ${saldoAtual.toFixed(2)}`
+                    message: `Saldo insuficiente na reserva. Disponível: R$ ${saldoReserva.toFixed(2)}`
                 });
             }
         }
 
-        // Se for entrada, verificar se há saldo disponível no mês
+        // Se for entrada, verificar se há saldo disponível no mês ATUAL (não no mês original da reserva)
         if (tipo === 'entrada') {
             const verificacaoSaldo = await verificarSaldoDisponivel(
                 req.usuario.id,
-                reserva.mes,
-                reserva.ano,
+                mesAtual,    // Usa mês atual aberto
+                anoAtual,    // Usa ano atual aberto
                 parseFloat(valor)
             );
 
