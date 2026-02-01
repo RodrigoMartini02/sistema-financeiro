@@ -604,13 +604,19 @@
 .modal-reservas {
     max-width: 500px;
     width: 95%;
+    height: auto;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
 }
 
 #modal-reservar-valor .modal-body,
 .modal-reservas .modal-body {
     padding: 16px 20px;
-    max-height: 80vh;
-    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 /* Totalizador */
@@ -618,6 +624,7 @@
     display: flex;
     gap: 12px;
     margin-bottom: 16px;
+    flex-shrink: 0;
 }
 
 .reservas-totalizador .totalizador-item {
@@ -715,6 +722,7 @@
 /* Lista de reservas simplificada */
 .reservas-lista-simples {
     margin-bottom: 16px;
+    flex-shrink: 0;
 }
 
 .reserva-linha {
@@ -804,6 +812,7 @@
     background: var(--gray-50);
     border: 1px solid var(--gray-200);
     margin-bottom: 16px;
+    flex-shrink: 0;
 }
 
 .nova-reserva-inline input[type="text"] {
@@ -832,6 +841,11 @@
 .historico-geral-container {
     border-top: 1px solid var(--gray-200);
     padding-top: 16px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 200px;
+    overflow: hidden;
 }
 
 .historico-geral-container h4 {
@@ -842,6 +856,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
+    flex-shrink: 0;
 }
 
 .historico-geral-container h4 i {
@@ -849,10 +864,11 @@
 }
 
 .historico-geral-lista {
-    max-height: 150px;
+    flex: 1;
     overflow-y: auto;
     border: 1px solid var(--gray-200);
     background: var(--white);
+    min-height: 150px;
 }
 
 .historico-geral-lista .historico-vazio {
