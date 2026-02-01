@@ -1989,14 +1989,19 @@ function atualizarControlesFechamento(mes, ano, fechado) {
 }
 
 function atualizarResumoDetalhes(saldo, totalJuros, totalEconomias = 0) {
-    // Receitas do Mês = apenas receitas cadastradas no mês (sem saldo anterior, sem reservas)
+    // Receitas do Mês = apenas receitas cadastradas no mês
     const receitasMes = saldo.receitas;
 
     // Despesas do Mês = despesas cadastradas no mês
     const despesasMes = saldo.despesas;
 
-    // Saldo Atual Mês = Receitas do mês - Despesas do mês + Acumulado do mês anterior
-    const saldoAtualMes = receitasMes - despesasMes + saldo.saldoAnterior;
+    // Total de reservas acumuladas até o mês atual
+    const totalReservado = typeof window.calcularTotalReservas === 'function'
+        ? window.calcularTotalReservas()
+        : 0;
+
+    // Saldo Atual Mês = Receitas + Acumulado anterior - Despesas - Reservas
+    const saldoAtualMes = receitasMes - despesasMes + saldo.saldoAnterior - totalReservado;
 
     atualizarElemento('resumo-receitas', formatarMoeda(receitasMes));
     atualizarElemento('resumo-despesas', formatarMoeda(despesasMes));

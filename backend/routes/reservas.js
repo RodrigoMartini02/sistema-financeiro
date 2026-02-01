@@ -5,6 +5,28 @@ const { authMiddleware } = require('../middleware/auth');
 const { body, validationResult } = require('express-validator');
 
 // ================================================================
+// FUNÇÃO AUXILIAR - VERIFICAR MÊS FECHADO
+// ================================================================
+
+async function verificarMesFechado(usuarioId, mes, ano) {
+    try {
+        const result = await query(
+            'SELECT fechado FROM meses WHERE usuario_id = $1 AND mes = $2 AND ano = $3',
+            [usuarioId, mes, ano]
+        );
+
+        if (result.rows.length === 0) {
+            return false; // Mês não existe na tabela = não está fechado
+        }
+
+        return result.rows[0].fechado === true;
+    } catch (error) {
+        console.error('Erro ao verificar mês fechado:', error);
+        return false;
+    }
+}
+
+// ================================================================
 // RESERVAS - CRUD COMPLETO
 // ================================================================
 
@@ -61,6 +83,15 @@ router.post('/', authMiddleware, [
 
         const { valor, mes, ano, data, observacoes } = req.body;
         const valorNumerico = parseFloat(valor);
+
+        // Verificar se o mês está fechado
+        const mesFechado = await verificarMesFechado(req.usuario.id, mes, ano);
+        if (mesFechado) {
+            return res.status(400).json({
+                success: false,
+                message: 'Não é possível criar reservas em um mês fechado'
+            });
+        }
 
         // Verificar saldo atual (receitasBrutas - despesas - reservas)
         const saldoResult = await query(
@@ -170,6 +201,15 @@ router.delete('/:id', authMiddleware, async (req, res) => {
         }
 
         const reserva = reservaResult.rows[0];
+
+        // Verificar se o mês da reserva está fechado
+        const mesFechado = await verificarMesFechado(req.usuario.id, reserva.mes, reserva.ano);
+        if (mesFechado) {
+            return res.status(400).json({
+                success: false,
+                message: 'Não é possível excluir reservas de um mês fechado'
+            });
+        }
 
         // Excluir a reserva
         await query(
@@ -312,6 +352,15 @@ router.post('/:id/movimentar', authMiddleware, [
         // Usar mês/ano enviado pelo frontend (mês atual aberto) ou fallback para data atual
         const mesAtual = req.body.mes !== undefined ? parseInt(req.body.mes) : new Date().getMonth();
         const anoAtual = req.body.ano !== undefined ? parseInt(req.body.ano) : new Date().getFullYear();
+
+        // Verificar se o mês está fechado
+        const mesFechado = await verificarMesFechado(req.usuario.id, mesAtual, anoAtual);
+        if (mesFechado) {
+            return res.status(400).json({
+                success: false,
+                message: 'Não é possível movimentar reservas em um mês fechado'
+            });
+        }
 
         // Verificar se a reserva existe e pertence ao usuário
         const reservaResult = await query(

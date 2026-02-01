@@ -1196,33 +1196,45 @@ function calcularTotalReservas(mesLimite, anoLimite) {
 }
 
 /**
- * Calcula o saldo disponível para novas reservas no mês atual
- * Saldo Atual Mês = saldoAnterior + receitas - despesas (igual ao saldoFinal)
- * Disponível para Reservar = Saldo Atual Mês - Total já Reservado
- * @returns {object} { saldoAtualMes, totalReservado, disponivelParaReservar }
+ * Calcula o saldo atual do mês (já descontando reservas)
+ * Saldo Atual Mês = saldoAnterior + receitas - despesas - reservas
+ * @returns {object} { saldoAtualMes, totalReservado }
  */
-function calcularSaldoDisponivelParaReservar() {
+function calcularSaldoAtualMes() {
     const mes = window.mesAberto;
     const ano = window.anoAberto;
 
     const saldoInfo = window.calcularSaldoMes ? window.calcularSaldoMes(mes, ano) : { saldoFinal: 0 };
     const totalReservado = calcularTotalReservas();
 
-    // Saldo Atual Mês = saldoFinal (saldoAnterior + receitas - despesas)
-    const saldoAtualMes = saldoInfo.saldoFinal || 0;
-
-    // Disponível para reservar = Saldo Atual Mês - Total já Reservado
-    const disponivelParaReservar = saldoAtualMes - totalReservado;
+    // Saldo Atual Mês = saldoFinal - reservas (reservas SAEM do saldo)
+    const saldoAtualMes = (saldoInfo.saldoFinal || 0) - totalReservado;
 
     return {
         saldoAtualMes,
-        totalReservado,
-        disponivelParaReservar
+        totalReservado
     };
 }
 
 // Exportar função
-window.calcularSaldoDisponivelParaReservar = calcularSaldoDisponivelParaReservar;
+window.calcularSaldoAtualMes = calcularSaldoAtualMes;
+
+/**
+ * Verifica se o mês atual aberto está fechado
+ * @returns {boolean} true se o mês estiver fechado
+ */
+function mesFechadoAtual() {
+    const mes = window.mesAberto;
+    const ano = window.anoAberto;
+
+    if (mes === null || ano === null) return false;
+
+    const dadosMes = window.dadosFinanceiros?.[ano]?.meses?.[mes];
+    return dadosMes?.fechado === true;
+}
+
+// Exportar função
+window.mesFechadoAtual = mesFechadoAtual;
 
 /**
  * Atualiza o card de reservas integrado na aba Receitas
@@ -1235,7 +1247,7 @@ async function atualizarCardReservasIntegrado() {
     await carregarReservasAPI();
 
     // Calcular saldo atual do mês (igual ao resumo do mês)
-    const { saldoAtualMes, totalReservado } = calcularSaldoDisponivelParaReservar();
+    const { saldoAtualMes, totalReservado } = calcularSaldoAtualMes();
 
     // Atualizar elementos do DOM (card mini antigo - se existir)
     const elemDisponivel = document.getElementById('reservas-disponivel-mini');
@@ -1312,11 +1324,20 @@ async function abrirModalReservarValor() {
         return;
     }
 
+    // Verificar se o mês está fechado
+    if (mesFechadoAtual()) {
+        const nomesMeses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                           'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+        const msg = `O mês de ${nomesMeses[window.mesAberto]}/${window.anoAberto} está fechado. Não é possível gerenciar reservas.`;
+        window.mostrarMensagemErro ? window.mostrarMensagemErro(msg) : alert(msg);
+        return;
+    }
+
     // Carregar reservas do backend
     await carregarReservasAPI();
 
     // Calcular saldo atual do mês (igual ao resumo do mês)
-    const { saldoAtualMes, totalReservado } = calcularSaldoDisponivelParaReservar();
+    const { saldoAtualMes, totalReservado } = calcularSaldoAtualMes();
 
     // Atualizar totalizadores do modal
     const elemTotal = document.getElementById('total-reservado');
@@ -1418,6 +1439,12 @@ async function movimentarReservaSimples(reservaId, valorStr) {
     const mes = window.mesAberto;
     const ano = window.anoAberto;
 
+    // Verificar se o mês está fechado
+    if (mesFechadoAtual()) {
+        window.mostrarMensagemErro ? window.mostrarMensagemErro('Mês fechado. Não é possível movimentar reservas.') : alert('Mês fechado.');
+        return;
+    }
+
     if (isNaN(valor) || valor === 0) {
         window.mostrarMensagemErro ? window.mostrarMensagemErro('Informe um valor válido') : alert('Informe um valor válido');
         return;
@@ -1428,10 +1455,10 @@ async function movimentarReservaSimples(reservaId, valorStr) {
 
     // Se for entrada (valor positivo), validar se tem saldo disponível no mês atual
     if (tipo === 'entrada') {
-        const { disponivelParaReservar } = calcularSaldoDisponivelParaReservar();
+        const { saldoAtualMes } = calcularSaldoAtualMes();
 
-        if (valorAbsoluto > disponivelParaReservar) {
-            const msg = `Valor indisponível para reserva. Disponível: ${window.formatarMoeda(disponivelParaReservar)}`;
+        if (valorAbsoluto > saldoAtualMes) {
+            const msg = `Valor indisponível para reserva. Disponível: ${window.formatarMoeda(saldoAtualMes)}`;
             window.mostrarMensagemErro ? window.mostrarMensagemErro(msg) : alert(msg);
             return;
         }
@@ -1549,6 +1576,13 @@ async function renderizarHistoricoGeral() {
 async function processarAdicionarReserva() {
     const mes = window.mesAberto;
     const ano = window.anoAberto;
+
+    // Verificar se o mês está fechado
+    if (mesFechadoAtual()) {
+        window.mostrarMensagemErro ? window.mostrarMensagemErro('Mês fechado. Não é possível criar reservas.') : alert('Mês fechado.');
+        return;
+    }
+
     const valor = parseFloat(document.getElementById('input-valor-reserva').value);
     const descricao = document.getElementById('input-descricao-reserva').value.trim();
 
@@ -1563,10 +1597,10 @@ async function processarAdicionarReserva() {
     }
 
     // Validar se tem saldo disponível para reservar no mês atual
-    const { disponivelParaReservar } = calcularSaldoDisponivelParaReservar();
+    const { saldoAtualMes } = calcularSaldoAtualMes();
 
-    if (valor > disponivelParaReservar) {
-        const msg = `Valor indisponível para reserva. Disponível: ${window.formatarMoeda(disponivelParaReservar)}`;
+    if (valor > saldoAtualMes) {
+        const msg = `Valor indisponível para reserva. Disponível: ${window.formatarMoeda(saldoAtualMes)}`;
         window.mostrarMensagemErro ? window.mostrarMensagemErro(msg) : alert(msg);
         return;
     }
@@ -1629,7 +1663,7 @@ async function processarAdicionarReserva() {
  */
 async function atualizarModalReservas() {
     // Calcular saldo atual do mês (igual ao resumo do mês)
-    const { saldoAtualMes, totalReservado } = calcularSaldoDisponivelParaReservar();
+    const { saldoAtualMes, totalReservado } = calcularSaldoAtualMes();
 
     const elemTotal = document.getElementById('total-reservado');
     if (elemTotal) {
@@ -1651,6 +1685,12 @@ async function atualizarModalReservas() {
  * Exclui reserva via API
  */
 async function excluirReserva(id) {
+    // Verificar se o mês está fechado
+    if (mesFechadoAtual()) {
+        window.mostrarMensagemErro ? window.mostrarMensagemErro('Mês fechado. Não é possível excluir reservas.') : alert('Mês fechado.');
+        return;
+    }
+
     if (!confirm('Deseja realmente excluir esta reserva?')) return;
 
     const token = sessionStorage.getItem('token') || localStorage.getItem('token');
