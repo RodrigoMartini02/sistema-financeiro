@@ -266,43 +266,7 @@
             </div>
         </div>
 
-        <div class="dashboard-card dashboard-card-full">
-            <h3 class="header-com-zoom">
-                <span>BALANÇO</span>
-                <div class="filtros-header">
-                    <select class="form-control" id="balanco-periodo-filter" onchange="filtrarBalancoPeriodo()">
-                        <option value="ano">Ano</option>
-                        <option value="mes">Mês</option>
-                        <option value="semana">Semana</option>
-                        <option value="dia">Dia</option>
-                    </select>
-                    <select class="form-control" id="balanco-ano-filter" onchange="filtrarBalancoPeriodo()" style="display: none;">
-                        <!-- Preenchido dinamicamente -->
-                    </select>
-                    <select class="form-control" id="balanco-mes-filter" onchange="filtrarBalancoPeriodo()" style="display: none;">
-                        <option value="0">Janeiro</option>
-                        <option value="1">Fevereiro</option>
-                        <option value="2">Março</option>
-                        <option value="3">Abril</option>
-                        <option value="4">Maio</option>
-                        <option value="5">Junho</option>
-                        <option value="6">Julho</option>
-                        <option value="7">Agosto</option>
-                        <option value="8">Setembro</option>
-                        <option value="9">Outubro</option>
-                        <option value="10">Novembro</option>
-                        <option value="11">Dezembro</option>
-                    </select>
-                    <button class="btn btn-icon btn-outline btn-refresh" onclick="resetarFiltrosBalanco()" title="Resetar filtros">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
-                </div>
-                <button class="btn btn-icon btn-outline" data-chart="balancoChart">[ ]</button>
-            </h3>
-            <div class="chart-container">
-                <canvas id="balanco-chart"></canvas>
-            </div>
-        </div>
+       
 
         <div class="dashboard-grid">
 
@@ -535,7 +499,43 @@
                 </div>
             </div>
 
-        
+         <div class="dashboard-card dashboard-card-full">
+            <h3 class="header-com-zoom">
+                <span>BALANÇO</span>
+                <div class="filtros-header">
+                    <select class="form-control" id="balanco-periodo-filter" onchange="filtrarBalancoPeriodo()">
+                        <option value="ano">Ano</option>
+                        <option value="mes">Mês</option>
+                        <option value="semana">Semana</option>
+                        <option value="dia">Dia</option>
+                    </select>
+                    <select class="form-control" id="balanco-ano-filter" onchange="filtrarBalancoPeriodo()" style="display: none;">
+                        <!-- Preenchido dinamicamente -->
+                    </select>
+                    <select class="form-control" id="balanco-mes-filter" onchange="filtrarBalancoPeriodo()" style="display: none;">
+                        <option value="0">Janeiro</option>
+                        <option value="1">Fevereiro</option>
+                        <option value="2">Março</option>
+                        <option value="3">Abril</option>
+                        <option value="4">Maio</option>
+                        <option value="5">Junho</option>
+                        <option value="6">Julho</option>
+                        <option value="7">Agosto</option>
+                        <option value="8">Setembro</option>
+                        <option value="9">Outubro</option>
+                        <option value="10">Novembro</option>
+                        <option value="11">Dezembro</option>
+                    </select>
+                    <button class="btn btn-icon btn-outline btn-refresh" onclick="resetarFiltrosBalanco()" title="Resetar filtros">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                <button class="btn btn-icon btn-outline" data-chart="balancoChart">[ ]</button>
+            </h3>
+            <div class="chart-container">
+                <canvas id="balanco-chart"></canvas>
+            </div>
+        </div>
 
         </div>
     </section>
