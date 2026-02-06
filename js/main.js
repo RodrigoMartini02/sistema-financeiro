@@ -1509,10 +1509,11 @@ function abrirModalNovoAno() {
 // RENDERIZAÇÃO DE MESES
 // ================================================================
 
-async function renderizarMeses(ano) {
+async function renderizarMeses(ano, recarregarDaAPI = true) {
     try {
-        // ✅ Recarregar dados da API para garantir sincronização
-        if (window.usuarioDataManager && typeof window.usuarioDataManager.getDadosFinanceirosUsuario === 'function') {
+        // Recarregar dados da API apenas se solicitado
+        // Não recarregar durante operações de fechamento/reabertura para evitar perder alterações locais
+        if (recarregarDaAPI && window.usuarioDataManager && typeof window.usuarioDataManager.getDadosFinanceirosUsuario === 'function') {
             const dadosAtualizados = await window.usuarioDataManager.getDadosFinanceirosUsuario();
             if (dadosAtualizados && Object.keys(dadosAtualizados).length > 0) {
                 window.dadosFinanceiros = dadosAtualizados;
@@ -1520,7 +1521,7 @@ async function renderizarMeses(ano) {
             }
         }
 
-        // ✅ Carregar reservas para calcular saldo disponível nos cards
+        // Carregar reservas para calcular saldo disponível nos cards
         if (typeof window.carregarReservasAPI === 'function') {
             await window.carregarReservasAPI();
         }
@@ -2584,12 +2585,13 @@ async function fecharMes(mes, ano) {
             await criarReceitaSaldoAnterior(proximoMes, proximoAno, saldo.saldoFinal, mes, ano);
         }
 
+        // Renderizar sem recarregar da API para manter as alterações locais
         if (typeof window.renderizarMeses === 'function') {
-            await window.renderizarMeses(ano);
+            await window.renderizarMeses(ano, false);
         }
 
         if (proximoAno !== ano && typeof window.renderizarMeses === 'function') {
-            setTimeout(async () => await window.renderizarMeses(proximoAno), 100);
+            setTimeout(async () => await window.renderizarMeses(proximoAno, false), 100);
         }
 
         return true;
@@ -2639,11 +2641,12 @@ async function reabrirMes(mes, ano) {
 
         await removerReceitaSaldoAnterior(proximoMes, proximoAno, mes, ano);
 
+        // Renderizar sem recarregar da API para manter as alterações locais
         if (typeof window.renderizarMeses === 'function') {
-            await window.renderizarMeses(ano);
+            await window.renderizarMeses(ano, false);
 
             if (proximoAno !== ano) {
-                setTimeout(async () => await window.renderizarMeses(proximoAno), 100);
+                setTimeout(async () => await window.renderizarMeses(proximoAno, false), 100);
             }
         }
 
@@ -2771,12 +2774,13 @@ async function fecharMesAutomatico(mes, ano) {
         
         await salvarDados();
 
+        // Renderizar sem recarregar da API para manter as alterações locais
         if (typeof window.renderizarMeses === 'function') {
-            await window.renderizarMeses(ano);
+            await window.renderizarMeses(ano, false);
         }
 
         return true;
-        
+
     } catch (error) {
         return false;
     }

@@ -1819,7 +1819,9 @@ async function processarAdicionarReserva() {
                 valor: valor,
                 mes: mes,    // Mês atual aberto
                 ano: ano,    // Ano atual aberto
-                data: new Date().toISOString().split('T')[0],
+                // Usar data do mês/ano aberto, não a data atual do sistema
+                // Isso garante que a movimentação seja contabilizada no mês correto
+                data: `${ano}-${String(mes + 1).padStart(2, '0')}-15`,
                 observacoes: descricao
             })
         });
