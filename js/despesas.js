@@ -122,6 +122,10 @@ async function processarReplicacaoDespesa(despesaOriginal, mesInicio, anoInicio)
     const dataVencOriginal = new Date(despesaOriginal.dataVencimento + 'T00:00:00');
     const diaVenc = dataVencOriginal.getDate();
 
+    // Guardar anos que precisam ser atualizados
+    const anosParaAtualizar = new Set();
+    anosParaAtualizar.add(anoInicio);
+
     // Replicar até o mês/ano final
     while (anoAtual < anoFinal || (anoAtual === anoFinal && mesAtual <= mesFinal)) {
         // Calcular nova data de vencimento
@@ -146,6 +150,7 @@ async function processarReplicacaoDespesa(despesaOriginal, mesInicio, anoInicio)
         // Salvar despesa replicada
         try {
             await window.usuarioDataManager.salvarDespesa(mesAtual, anoAtual, despesaReplicada, null);
+            anosParaAtualizar.add(anoAtual);
         } catch (error) {
             console.error(`Erro ao replicar despesa para ${mesAtual + 1}/${anoAtual}:`, error);
         }
@@ -156,6 +161,18 @@ async function processarReplicacaoDespesa(despesaOriginal, mesInicio, anoInicio)
             mesAtual = 0;
             anoAtual++;
         }
+    }
+
+    // Atualizar interface para todos os anos afetados
+    for (const ano of anosParaAtualizar) {
+        if (typeof window.carregarDadosDashboard === 'function') {
+            await window.carregarDadosDashboard(ano);
+        }
+    }
+
+    // Atualizar cards dos meses do ano atual
+    if (typeof window.renderizarMeses === 'function') {
+        await window.renderizarMeses(window.anoAberto || new Date().getFullYear());
     }
 }
 

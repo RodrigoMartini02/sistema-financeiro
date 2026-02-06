@@ -122,11 +122,11 @@ router.post('/', authMiddleware, [
         );
 
         // Registrar movimentação inicial de entrada
-        // Isso garante que o valor inicial seja contabilizado no mês correto
+        // Usa a data da reserva para garantir que seja contabilizada no mês correto
         await query(
-            `INSERT INTO movimentacoes_reservas (reserva_id, tipo, valor, observacoes)
-             VALUES ($1, 'entrada', $2, 'Criação da reserva')`,
-            [result.rows[0].id, valorNumerico]
+            `INSERT INTO movimentacoes_reservas (reserva_id, tipo, valor, observacoes, data_hora)
+             VALUES ($1, 'entrada', $2, 'Criação da reserva', $3)`,
+            [result.rows[0].id, valorNumerico, data]
         );
 
         res.status(201).json({
@@ -414,12 +414,16 @@ router.post('/:id/movimentar', authMiddleware, [
             }
         }
 
+        // Criar data baseada no mês/ano atual para a movimentação
+        // Isso garante que a movimentação seja contabilizada no mês correto
+        const dataMovimentacao = new Date(anoAtual, mesAtual, 15); // Dia 15 do mês
+
         // Registrar a movimentação
         const movResult = await query(
-            `INSERT INTO movimentacoes_reservas (reserva_id, tipo, valor, observacoes)
-             VALUES ($1, $2, $3, $4)
+            `INSERT INTO movimentacoes_reservas (reserva_id, tipo, valor, observacoes, data_hora)
+             VALUES ($1, $2, $3, $4, $5)
              RETURNING *`,
-            [id, tipo, parseFloat(valor), observacoes || null]
+            [id, tipo, parseFloat(valor), observacoes || null, dataMovimentacao]
         );
 
         // Atualizar o valor da reserva

@@ -1553,26 +1553,26 @@ function criarCardMes(mes, ano) {
     const fechado = dadosMes?.fechado || false;
     const temTransacoes = (saldo.receitas > 0 || saldo.despesas > 0);
 
-    // Calcular reservas acumuladas até este mês para descontar do saldo
-    // Usa movimentações de reservas para cálculo correto por período
-    let reservasAcumuladas = 0;
+    // Calcular movimentações de reservas ACUMULADAS até este mês
+    // Usa as movimentações (com data/hora) para saber quanto foi reservado em cada período
+    let movimentacoesAcumuladas = 0;
     if (typeof window.calcularTotalReservasAcumuladas === 'function') {
-        reservasAcumuladas = window.calcularTotalReservasAcumuladas(mes, ano);
+        movimentacoesAcumuladas = window.calcularTotalReservasAcumuladas(mes, ano);
     }
 
-    // Saldo disponível = saldo final - reservas acumuladas
-    const saldoDisponivel = saldo.saldoFinal - reservasAcumuladas;
+    // Saldo disponível = saldo final - movimentações acumuladas até este mês
+    const saldoDisponivel = saldo.saldoFinal - movimentacoesAcumuladas;
 
-    // Saldo anterior disponível = saldo anterior - reservas anteriores
-    let reservasAnteriores = 0;
+    // Saldo anterior disponível = saldo anterior - movimentações acumuladas até o mês anterior
+    let movimentacoesAnteriores = 0;
     if (mes > 0 || ano > Math.min(...Object.keys(dadosFinanceiros).map(Number))) {
         const mesAnterior = mes === 0 ? 11 : mes - 1;
         const anoAnterior = mes === 0 ? ano - 1 : ano;
         if (typeof window.calcularTotalReservasAcumuladas === 'function') {
-            reservasAnteriores = window.calcularTotalReservasAcumuladas(mesAnterior, anoAnterior);
+            movimentacoesAnteriores = window.calcularTotalReservasAcumuladas(mesAnterior, anoAnterior);
         }
     }
-    const saldoAnteriorDisponivel = saldo.saldoAnterior - reservasAnteriores;
+    const saldoAnteriorDisponivel = saldo.saldoAnterior - movimentacoesAnteriores;
 
     // Criar objeto de saldo ajustado para o card
     const saldoAjustado = {

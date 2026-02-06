@@ -683,6 +683,10 @@ async function processarReplicacao(receita, mes, ano) {
         let mesAtual = mes;
         let anoAtual = ano;
 
+        // Guardar anos que precisam ser atualizados
+        const anosParaAtualizar = new Set();
+        anosParaAtualizar.add(ano);
+
         // Replicar até o mês/ano final
         while (anoAtual < anoFinal || (anoAtual === anoFinal && mesAtual < mesFinal)) {
             mesAtual++;
@@ -693,7 +697,20 @@ async function processarReplicacao(receita, mes, ano) {
 
             if (anoAtual <= anoFinal) {
                 await replicarParaMes(receita, mesAtual, anoAtual, diaReceita);
+                anosParaAtualizar.add(anoAtual);
             }
+        }
+
+        // Atualizar interface para todos os anos afetados
+        for (const anoAtualizar of anosParaAtualizar) {
+            if (typeof window.carregarDadosDashboard === 'function') {
+                await window.carregarDadosDashboard(anoAtualizar);
+            }
+        }
+
+        // Atualizar cards dos meses do ano atual
+        if (typeof window.renderizarMeses === 'function') {
+            await window.renderizarMeses(window.anoAberto || new Date().getFullYear());
         }
 
     } catch (error) {
@@ -1244,22 +1261,25 @@ function calcularMovimentacoesReservasAcumuladas(mesLimite, anoLimite) {
             }, 0);
     }
 
-    // 2. Para reservas sem movimentações (legadas), considerar valor inicial
+    // 2. Para reservas sem movimentação de criação (legadas), calcular valor inicial
     // Isso é necessário para reservas criadas antes da implementação de movimentações
     if (window.reservasCache && Array.isArray(window.reservasCache)) {
-        // Identificar reservas que têm movimentações
-        const reservasComMovimentacoes = new Set();
+        // Identificar reservas que têm movimentação de criação
+        const reservasComCriacao = new Set();
         if (window.movimentacoesReservasCache && Array.isArray(window.movimentacoesReservasCache)) {
             window.movimentacoesReservasCache.forEach(mov => {
-                reservasComMovimentacoes.add(mov.reserva_id);
+                if (mov.observacoes === 'Criação da reserva') {
+                    reservasComCriacao.add(mov.reserva_id);
+                }
             });
         }
 
-        // Adicionar valor de reservas sem movimentações
+        // Para reservas sem movimentação de criação, calcular valor inicial
+        // Valor inicial = valor atual - soma das movimentações (entradas - saídas)
         window.reservasCache
             .filter(r => {
-                // Reserva não tem movimentações
-                if (reservasComMovimentacoes.has(r.id)) return false;
+                // Reserva não tem movimentação de criação
+                if (reservasComCriacao.has(r.id)) return false;
 
                 const reservaAno = parseInt(r.ano);
                 const reservaMes = parseInt(r.mes);
@@ -1271,7 +1291,22 @@ function calcularMovimentacoesReservasAcumuladas(mesLimite, anoLimite) {
                 return false;
             })
             .forEach(r => {
-                totalMovimentacoes += parseFloat(r.valor || 0);
+                // Calcular soma das movimentações desta reserva
+                let somaMovimentacoes = 0;
+                if (window.movimentacoesReservasCache && Array.isArray(window.movimentacoesReservasCache)) {
+                    somaMovimentacoes = window.movimentacoesReservasCache
+                        .filter(mov => mov.reserva_id === r.id)
+                        .reduce((sum, mov) => {
+                            const valor = parseFloat(mov.valor || 0);
+                            return sum + (mov.tipo === 'entrada' ? valor : -valor);
+                        }, 0);
+                }
+
+                // Valor inicial = valor atual - soma das movimentações
+                const valorInicial = parseFloat(r.valor || 0) - somaMovimentacoes;
+                if (valorInicial > 0) {
+                    totalMovimentacoes += valorInicial;
+                }
             });
     }
 
@@ -1302,22 +1337,40 @@ function calcularMovimentacoesReservasMes(mes, ano) {
             }, 0);
     }
 
-    // 2. Para reservas legadas (sem movimentações), considerar valor inicial no mês de criação
+    // 2. Para reservas legadas (sem movimentação de criação), calcular valor inicial no mês de criação
     if (window.reservasCache && Array.isArray(window.reservasCache)) {
-        const reservasComMovimentacoes = new Set();
+        // Identificar reservas que têm movimentação de criação
+        const reservasComCriacao = new Set();
         if (window.movimentacoesReservasCache && Array.isArray(window.movimentacoesReservasCache)) {
             window.movimentacoesReservasCache.forEach(mov => {
-                reservasComMovimentacoes.add(mov.reserva_id);
+                if (mov.observacoes === 'Criação da reserva') {
+                    reservasComCriacao.add(mov.reserva_id);
+                }
             });
         }
 
         window.reservasCache
             .filter(r => {
-                if (reservasComMovimentacoes.has(r.id)) return false;
+                if (reservasComCriacao.has(r.id)) return false;
                 return parseInt(r.ano) === ano && parseInt(r.mes) === mes;
             })
             .forEach(r => {
-                totalMovimentacoes += parseFloat(r.valor || 0);
+                // Calcular soma das movimentações desta reserva
+                let somaMovimentacoes = 0;
+                if (window.movimentacoesReservasCache && Array.isArray(window.movimentacoesReservasCache)) {
+                    somaMovimentacoes = window.movimentacoesReservasCache
+                        .filter(mov => mov.reserva_id === r.id)
+                        .reduce((sum, mov) => {
+                            const valor = parseFloat(mov.valor || 0);
+                            return sum + (mov.tipo === 'entrada' ? valor : -valor);
+                        }, 0);
+                }
+
+                // Valor inicial = valor atual - soma das movimentações
+                const valorInicial = parseFloat(r.valor || 0) - somaMovimentacoes;
+                if (valorInicial > 0) {
+                    totalMovimentacoes += valorInicial;
+                }
             });
     }
 
@@ -1900,7 +1953,8 @@ window.atualizarCardReservasIntegrado = atualizarCardReservasIntegrado;
 window.abrirModalReservarValor = abrirModalReservarValor;
 window.carregarReservasAPI = carregarReservasAPI;
 window.calcularTotalReservas = calcularTotalReservas;
-window.calcularTotalReservasAcumuladas = calcularTotalReservas; // Alias para compatibilidade
+window.calcularTotalReservasAcumuladas = calcularMovimentacoesReservasAcumuladas;
+window.calcularMovimentacoesReservasMes = calcularMovimentacoesReservasMes;
 
 // ================================================================
 // REDIMENSIONAMENTO DE COLUNAS - RECEITAS (VERSÃO PARA TABLE)
