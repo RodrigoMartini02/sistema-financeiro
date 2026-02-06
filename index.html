@@ -2094,44 +2094,27 @@
                     </div>
                 </div>
                 
-                <div class="checkbox-container">
-                    <div class="checkbox-row">
-                        <input type="checkbox" id="receita-replicar">
-                        <label for="receita-replicar">Replicar para meses futuros</label>
-                    </div>
-                </div>
-                
-                <div id="opcoes-replicacao-detalhes" class="hidden">
-                    <div class="opcoes-replicacao-grupo">
-                        <div class="opcao-replicacao">
-                            <input type="radio" name="tipo-replicacao" id="replicar-todos" value="todos" checked />
-                            <label for="replicar-todos">Replicar para todos os meses futuros</label>
-                        </div>
-                        
-                        <div class="opcao-replicacao">
-                            <input type="radio" name="tipo-replicacao" id="replicar-ate" value="ate" />
-                            <label for="replicar-ate">Replicar até</label>
-                            
-                            <div id="selector-ate-container" class="hidden">
-                                <div class="select-grupo">
-                                    <select id="replicar-ate-mes" class="form-control">
-                                        <option value="0">Janeiro</option>
-                                        <option value="1">Fevereiro</option>
-                                        <option value="2">Março</option>
-                                        <option value="3">Abril</option>
-                                        <option value="4">Maio</option>
-                                        <option value="5">Junho</option>
-                                        <option value="6">Julho</option>
-                                        <option value="7">Agosto</option>
-                                        <option value="8">Setembro</option>
-                                        <option value="9">Outubro</option>
-                                        <option value="10">Novembro</option>
-                                        <option value="11">Dezembro</option>
-                                    </select>
-                                    <select id="replicar-ate-ano" class="form-control"></select>
-                                </div>
-                            </div>
-                        </div>
+                <div class="checkboxes-inline">
+                    <label class="checkbox-inline">
+                        <input type="checkbox" id="receita-replicar" onchange="toggleReplicarReceita()">
+                        Replicar até
+                    </label>
+                    <div id="opcoes-replicacao-detalhes" class="replicar-options hidden">
+                        <select id="replicar-ate-mes" class="form-control form-control-sm">
+                            <option value="0">Janeiro</option>
+                            <option value="1">Fevereiro</option>
+                            <option value="2">Março</option>
+                            <option value="3">Abril</option>
+                            <option value="4">Maio</option>
+                            <option value="5">Junho</option>
+                            <option value="6">Julho</option>
+                            <option value="7">Agosto</option>
+                            <option value="8">Setembro</option>
+                            <option value="9">Outubro</option>
+                            <option value="10">Novembro</option>
+                            <option value="11">Dezembro</option>
+                        </select>
+                        <select id="replicar-ate-ano" class="form-control form-control-sm"></select>
                     </div>
                 </div>
 
@@ -2382,6 +2365,29 @@
                             <input type="checkbox" id="despesa-recorrente">
                             Recorrente
                         </label>
+                        <label class="checkbox-inline">
+                            <input type="checkbox" id="despesa-replicar" onchange="toggleReplicarDespesa()">
+                            Replicar até
+                        </label>
+                        <div id="despesa-replicar-options" class="replicar-options hidden">
+                            <select id="despesa-replicar-mes" class="form-control form-control-sm">
+                                <option value="0">Janeiro</option>
+                                <option value="1">Fevereiro</option>
+                                <option value="2">Março</option>
+                                <option value="3">Abril</option>
+                                <option value="4">Maio</option>
+                                <option value="5">Junho</option>
+                                <option value="6">Julho</option>
+                                <option value="7">Agosto</option>
+                                <option value="8">Setembro</option>
+                                <option value="9">Outubro</option>
+                                <option value="10">Novembro</option>
+                                <option value="11">Dezembro</option>
+                            </select>
+                            <select id="despesa-replicar-ano" class="form-control form-control-sm">
+                                <!-- Anos serão preenchidos dinamicamente -->
+                            </select>
+                        </div>
                     </div>
                     <button type="submit" class="btn btn-salvar-compact">
                         Salvar Despesa

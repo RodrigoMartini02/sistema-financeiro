@@ -1554,18 +1554,10 @@ function criarCardMes(mes, ano) {
     const temTransacoes = (saldo.receitas > 0 || saldo.despesas > 0);
 
     // Calcular reservas acumuladas até este mês para descontar do saldo
+    // Usa movimentações de reservas para cálculo correto por período
     let reservasAcumuladas = 0;
     if (typeof window.calcularTotalReservasAcumuladas === 'function') {
         reservasAcumuladas = window.calcularTotalReservasAcumuladas(mes, ano);
-    } else if (window.reservasCache && Array.isArray(window.reservasCache)) {
-        // Fallback: calcular manualmente das reservas em cache
-        reservasAcumuladas = window.reservasCache
-            .filter(r => {
-                const rAno = parseInt(r.ano);
-                const rMes = parseInt(r.mes);
-                return rAno < ano || (rAno === ano && rMes <= mes);
-            })
-            .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
     }
 
     // Saldo disponível = saldo final - reservas acumuladas
@@ -1574,16 +1566,10 @@ function criarCardMes(mes, ano) {
     // Saldo anterior disponível = saldo anterior - reservas anteriores
     let reservasAnteriores = 0;
     if (mes > 0 || ano > Math.min(...Object.keys(dadosFinanceiros).map(Number))) {
-        if (window.reservasCache && Array.isArray(window.reservasCache)) {
-            const mesAnterior = mes === 0 ? 11 : mes - 1;
-            const anoAnterior = mes === 0 ? ano - 1 : ano;
-            reservasAnteriores = window.reservasCache
-                .filter(r => {
-                    const rAno = parseInt(r.ano);
-                    const rMes = parseInt(r.mes);
-                    return rAno < anoAnterior || (rAno === anoAnterior && rMes <= mesAnterior);
-                })
-                .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+        const mesAnterior = mes === 0 ? 11 : mes - 1;
+        const anoAnterior = mes === 0 ? ano - 1 : ano;
+        if (typeof window.calcularTotalReservasAcumuladas === 'function') {
+            reservasAnteriores = window.calcularTotalReservasAcumuladas(mesAnterior, anoAnterior);
         }
     }
     const saldoAnteriorDisponivel = saldo.saldoAnterior - reservasAnteriores;

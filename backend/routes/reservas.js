@@ -121,6 +121,14 @@ router.post('/', authMiddleware, [
             [req.usuario.id, valorNumerico, mes, ano, data, observacoes || null]
         );
 
+        // Registrar movimentação inicial de entrada
+        // Isso garante que o valor inicial seja contabilizado no mês correto
+        await query(
+            `INSERT INTO movimentacoes_reservas (reserva_id, tipo, valor, observacoes)
+             VALUES ($1, 'entrada', $2, 'Criação da reserva')`,
+            [result.rows[0].id, valorNumerico]
+        );
+
         res.status(201).json({
             success: true,
             message: 'Reserva criada com sucesso',

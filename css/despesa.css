@@ -407,6 +407,34 @@ select.campo-invalido {
 }
 
 /* ================================================================
+   CAMPO REPLICAR ATÉ
+   ================================================================ */
+
+.replicar-options {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 4px;
+}
+
+.replicar-options.hidden {
+    display: none;
+}
+
+.replicar-options .form-control-sm {
+    padding: 4px 8px;
+    font-size: 11px;
+    height: auto;
+    min-height: 26px;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+}
+
+.replicar-options select {
+    min-width: 90px;
+}
+
+/* ================================================================
    ERROS DE FORMULÁRIO
    ================================================================ */
 

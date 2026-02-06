@@ -40,6 +40,139 @@ document.addEventListener('change', function(e) {
 });
 
 // ================================================================
+// FUNÇÕES DE REPLICAÇÃO DE DESPESAS
+// ================================================================
+
+/**
+ * Toggle para mostrar/ocultar opções de replicação
+ */
+function toggleReplicarDespesa() {
+    const checkbox = document.getElementById('despesa-replicar');
+    const options = document.getElementById('despesa-replicar-options');
+
+    if (checkbox && options) {
+        if (checkbox.checked) {
+            options.classList.remove('hidden');
+            inicializarSelectAnosReplicarDespesa();
+        } else {
+            options.classList.add('hidden');
+        }
+    }
+}
+
+// Exportar para uso global
+window.toggleReplicarDespesa = toggleReplicarDespesa;
+
+/**
+ * Inicializa o select de anos para replicação de despesas
+ */
+function inicializarSelectAnosReplicarDespesa() {
+    const selectAno = document.getElementById('despesa-replicar-ano');
+    const selectMes = document.getElementById('despesa-replicar-mes');
+
+    if (!selectAno) return;
+
+    const anoAtual = window.anoAberto || new Date().getFullYear();
+    const mesAtual = window.mesAberto !== null ? window.mesAberto : new Date().getMonth();
+
+    // Limpar opções existentes
+    selectAno.innerHTML = '';
+
+    // Adicionar anos (atual até +5 anos)
+    for (let ano = anoAtual; ano <= anoAtual + 5; ano++) {
+        const option = document.createElement('option');
+        option.value = ano;
+        option.textContent = ano;
+        selectAno.appendChild(option);
+    }
+
+    // Selecionar dezembro do ano atual por padrão
+    selectMes.value = '11';
+    selectAno.value = anoAtual;
+}
+
+/**
+ * Processa a replicação de uma despesa para meses futuros
+ * @param {Object} despesaOriginal - Dados da despesa original
+ * @param {number} mesInicio - Mês de início (0-11)
+ * @param {number} anoInicio - Ano de início
+ */
+async function processarReplicacaoDespesa(despesaOriginal, mesInicio, anoInicio) {
+    const replicarCheckbox = document.getElementById('despesa-replicar');
+
+    if (!replicarCheckbox || !replicarCheckbox.checked) {
+        return;
+    }
+
+    const mesFinal = parseInt(document.getElementById('despesa-replicar-mes').value);
+    const anoFinal = parseInt(document.getElementById('despesa-replicar-ano').value);
+
+    // Calcular próximo mês a partir do mês de criação
+    let mesAtual = mesInicio;
+    let anoAtual = anoInicio;
+
+    // Avançar para o próximo mês
+    mesAtual++;
+    if (mesAtual > 11) {
+        mesAtual = 0;
+        anoAtual++;
+    }
+
+    // Obter dia do vencimento original
+    const dataVencOriginal = new Date(despesaOriginal.dataVencimento + 'T00:00:00');
+    const diaVenc = dataVencOriginal.getDate();
+
+    // Replicar até o mês/ano final
+    while (anoAtual < anoFinal || (anoAtual === anoFinal && mesAtual <= mesFinal)) {
+        // Calcular nova data de vencimento
+        const novaDataVenc = calcularDataReplicada(diaVenc, mesAtual, anoAtual);
+
+        // Criar cópia da despesa para o novo mês
+        const despesaReplicada = {
+            descricao: despesaOriginal.descricao,
+            valor: despesaOriginal.valor,
+            valorPago: despesaOriginal.valorPago,
+            dataCompra: novaDataVenc, // Usar mesma data para compra
+            dataVencimento: novaDataVenc,
+            categoria: despesaOriginal.categoria,
+            categoriaId: despesaOriginal.categoriaId,
+            formaPagamento: despesaOriginal.formaPagamento,
+            cartaoId: despesaOriginal.cartaoId,
+            pago: false,
+            recorrente: true, // Marcar como recorrente
+            anexos: [] // Não replicar anexos
+        };
+
+        // Salvar despesa replicada
+        try {
+            await window.usuarioDataManager.salvarDespesa(mesAtual, anoAtual, despesaReplicada, null);
+        } catch (error) {
+            console.error(`Erro ao replicar despesa para ${mesAtual + 1}/${anoAtual}:`, error);
+        }
+
+        // Avançar para próximo mês
+        mesAtual++;
+        if (mesAtual > 11) {
+            mesAtual = 0;
+            anoAtual++;
+        }
+    }
+}
+
+/**
+ * Calcula a data replicada mantendo o mesmo dia do mês
+ * Se o dia não existir no mês (ex: 31 em fevereiro), usa o último dia do mês
+ */
+function calcularDataReplicada(dia, mes, ano) {
+    // Descobrir quantos dias tem o mês
+    const ultimoDiaMes = new Date(ano, mes + 1, 0).getDate();
+    const diaFinal = Math.min(dia, ultimoDiaMes);
+
+    const data = new Date(ano, mes, diaFinal);
+    return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}-${String(data.getDate()).padStart(2, '0')}`;
+}
+
+// ================================================================
 // INICIALIZAÇÃO E ESTRUTURA
 // ================================================================
 
@@ -1001,7 +1134,17 @@ function resetarEstadoFormularioDespesa() {
     if (recorrenteCheckbox) {
         recorrenteCheckbox.checked = false;
     }
-    
+
+    // Resetar replicação
+    const replicarCheckbox = document.getElementById('despesa-replicar');
+    if (replicarCheckbox) {
+        replicarCheckbox.checked = false;
+    }
+    const replicarOptions = document.getElementById('despesa-replicar-options');
+    if (replicarOptions) {
+        replicarOptions.classList.add('hidden');
+    }
+
     const grupoDataPagamento = document.getElementById('grupo-data-pagamento');
     if (grupoDataPagamento) {
         grupoDataPagamento.style.display = 'none';
@@ -1235,6 +1378,11 @@ async function salvarDespesa(e) {
         const sucesso = await salvarDespesaLocal(formData);
 
         if (sucesso) {
+            // Processar replicação se habilitada (apenas para novas despesas)
+            if (!ehEdicao) {
+                await processarReplicacaoDespesa(formData, formData.mes, formData.ano);
+            }
+
             // ✅ EXIBIR MENSAGEM DE SUCESSO
             if (window.mostrarMensagemSucesso) {
                 window.mostrarMensagemSucesso(ehEdicao ? 'Despesa atualizada com sucesso!' : 'Despesa cadastrada com sucesso!');

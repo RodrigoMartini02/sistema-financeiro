@@ -429,14 +429,10 @@ function abrirModalNovaReceita(index, mes, ano) {
 
 function resetarOpcoesReplicacao() {
     const opcoesDetalhes = document.getElementById('opcoes-replicacao-detalhes');
-    const selectorContainer = document.getElementById('selector-ate-container');
     const checkboxReplicar = document.getElementById('receita-replicar');
-    const radioTodos = document.getElementById('replicar-todos');
-    
+
     if (opcoesDetalhes) opcoesDetalhes.classList.add('hidden');
-    if (selectorContainer) selectorContainer.classList.add('hidden');
     if (checkboxReplicar) checkboxReplicar.checked = false;
-    if (radioTodos) radioTodos.checked = true;
 }
 
 // ================================================================
@@ -677,35 +673,28 @@ async function salvarReceitaLocal(mes, ano, receita, id) {
 
 async function processarReplicacao(receita, mes, ano) {
     try {
-        const tipoReplicacao = document.querySelector('input[name="tipo-replicacao"]:checked')?.value || 'todos';
-        const dataReceita = new Date(receita.data);
+        const dataReceita = new Date(receita.data + 'T00:00:00');
         const diaReceita = dataReceita.getDate();
-        
-        if (tipoReplicacao === 'todos') {
-            for (let mesProcesando = mes + 1; mesProcesando < 12; mesProcesando++) {
-                await replicarParaMes(receita, mesProcesando, ano, diaReceita);
+
+        // Obter mês/ano final dos selects
+        const mesFinal = parseInt(document.getElementById('replicar-ate-mes').value);
+        const anoFinal = parseInt(document.getElementById('replicar-ate-ano').value);
+
+        let mesAtual = mes;
+        let anoAtual = ano;
+
+        // Replicar até o mês/ano final
+        while (anoAtual < anoFinal || (anoAtual === anoFinal && mesAtual < mesFinal)) {
+            mesAtual++;
+            if (mesAtual > 11) {
+                mesAtual = 0;
+                anoAtual++;
             }
-        } else if (tipoReplicacao === 'ate') {
-            const mesFinal = parseInt(document.getElementById('replicar-ate-mes').value);
-            const anoFinal = parseInt(document.getElementById('replicar-ate-ano').value);
-            
-            let mesAtual = mes;
-            let anoAtual = ano;
-            
-            while (anoAtual < anoFinal || (anoAtual === anoFinal && mesAtual < mesFinal)) {
-                mesAtual++;
-                if (mesAtual > 11) {
-                    mesAtual = 0;
-                    anoAtual++;
-                }
-                
-                if (anoAtual <= anoFinal) {
-                    await replicarParaMes(receita, mesAtual, anoAtual, diaReceita);
-                }
+
+            if (anoAtual <= anoFinal) {
+                await replicarParaMes(receita, mesAtual, anoAtual, diaReceita);
             }
         }
-
-        // ✅ CORRIGIDO: Não precisa mais salvar dados locais, cada replicação já salva via API
 
     } catch (error) {
         console.error('❌ Erro no processamento de replicação:', error);
@@ -1071,29 +1060,55 @@ function configurarEventListenersAnexos() {
     }
 }
 
-function configurarEventListenersReplicacao() {
-    const checkboxReplicar = document.getElementById('receita-replicar');
-    if (checkboxReplicar) {
-        checkboxReplicar.addEventListener('change', function() {
-            const opcoes = document.getElementById('opcoes-replicacao-detalhes');
-            if (this.checked) {
-                opcoes.classList.remove('hidden');
-            } else {
-                opcoes.classList.add('hidden');
-            }
-        });
+/**
+ * Toggle para mostrar/ocultar opções de replicação de receitas
+ */
+function toggleReplicarReceita() {
+    const checkbox = document.getElementById('receita-replicar');
+    const opcoes = document.getElementById('opcoes-replicacao-detalhes');
+
+    if (checkbox && opcoes) {
+        if (checkbox.checked) {
+            opcoes.classList.remove('hidden');
+            inicializarSelectAnosReplicarReceita();
+        } else {
+            opcoes.classList.add('hidden');
+        }
+    }
+}
+
+// Exportar para uso global
+window.toggleReplicarReceita = toggleReplicarReceita;
+
+/**
+ * Inicializa o select de anos para replicação de receitas
+ */
+function inicializarSelectAnosReplicarReceita() {
+    const selectAno = document.getElementById('replicar-ate-ano');
+    const selectMes = document.getElementById('replicar-ate-mes');
+
+    if (!selectAno) return;
+
+    const anoAtual = window.anoAberto || new Date().getFullYear();
+
+    // Limpar opções existentes
+    selectAno.innerHTML = '';
+
+    // Adicionar anos (atual até +5 anos)
+    for (let ano = anoAtual; ano <= anoAtual + 5; ano++) {
+        const option = document.createElement('option');
+        option.value = ano;
+        option.textContent = ano;
+        selectAno.appendChild(option);
     }
 
-    document.querySelectorAll('input[name="tipo-replicacao"]').forEach(radio => {
-        radio.addEventListener('change', function() {
-            const selectorContainer = document.getElementById('selector-ate-container');
-            if (this.value === 'ate') {
-                selectorContainer.classList.remove('hidden');
-            } else {
-                selectorContainer.classList.add('hidden');
-            }
-        });
-    });
+    // Selecionar dezembro do ano atual por padrão
+    if (selectMes) selectMes.value = '11';
+    selectAno.value = anoAtual;
+}
+
+function configurarEventListenersReplicacao() {
+    // Mantido para compatibilidade, mas agora usa onchange no HTML
 }
 
 function configurarEventListenersModais() {
@@ -1146,27 +1161,39 @@ window.atualizarTodosContadoresAnexosReceitas = atualizarTodosContadoresAnexosRe
 
 const API_URL_RESERVAS = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
-// Cache local de reservas
+// Cache local de reservas e movimentações
 window.reservasCache = [];
+window.movimentacoesReservasCache = [];
 
 /**
- * Carrega reservas do backend
+ * Carrega reservas e movimentações do backend
  */
 async function carregarReservasAPI() {
     try {
         const token = sessionStorage.getItem('token') || localStorage.getItem('token');
         if (!token) return [];
 
-        const response = await fetch(`${API_URL_RESERVAS}/reservas`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        // Carregar reservas e movimentações em paralelo
+        const [reservasResponse, movimentacoesResponse] = await Promise.all([
+            fetch(`${API_URL_RESERVAS}/reservas`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            }),
+            fetch(`${API_URL_RESERVAS}/reservas/movimentacoes/todas?limite=1000`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+        ]);
 
-        if (response.ok) {
-            const data = await response.json();
+        if (reservasResponse.ok) {
+            const data = await reservasResponse.json();
             window.reservasCache = data.data || [];
-            return window.reservasCache;
         }
-        return [];
+
+        if (movimentacoesResponse.ok) {
+            const movData = await movimentacoesResponse.json();
+            window.movimentacoesReservasCache = movData.data || [];
+        }
+
+        return window.reservasCache;
     } catch (error) {
         console.error('Erro ao carregar reservas:', error);
         return [];
@@ -1174,30 +1201,137 @@ async function carregarReservasAPI() {
 }
 
 /**
- * Calcula total de reservas até o mês/ano especificado
- * @param {number} mesLimite - Mês limite (0-11), se não informado usa o mês atual aberto
- * @param {number} anoLimite - Ano limite, se não informado usa o ano atual aberto
+ * Calcula total de reservas (valor atual acumulado de todas as reservas)
+ * Usado para exibir o "Total Reservado" no modal
  */
-function calcularTotalReservas(mesLimite, anoLimite) {
-    const mes = mesLimite !== undefined ? mesLimite : window.mesAberto;
-    const ano = anoLimite !== undefined ? anoLimite : window.anoAberto;
+function calcularTotalReservas() {
+    return window.reservasCache.reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+}
 
-    return window.reservasCache
-        .filter(r => {
-            const reservaAno = parseInt(r.ano);
-            const reservaMes = parseInt(r.mes);
-            // Inclui reservas de anos anteriores
-            if (reservaAno < ano) return true;
-            // Inclui reservas do mesmo ano até o mês atual
-            if (reservaAno === ano && reservaMes <= mes) return true;
-            return false;
-        })
-        .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+/**
+ * Calcula o total de movimentações de reservas até um determinado mês/ano (inclusive)
+ * Usa a data_hora da movimentação para determinar em qual mês ela ocorreu
+ *
+ * IMPORTANTE: Para reservas antigas sem movimentações, considera o valor da reserva
+ * como uma movimentação de entrada no mês de criação da reserva.
+ *
+ * @param {number} mesLimite - Mês limite (0-11)
+ * @param {number} anoLimite - Ano limite
+ * @returns {number} Total líquido de movimentações (entradas - saídas)
+ */
+function calcularMovimentacoesReservasAcumuladas(mesLimite, anoLimite) {
+    let totalMovimentacoes = 0;
+
+    // 1. Calcular movimentações registradas
+    if (window.movimentacoesReservasCache && Array.isArray(window.movimentacoesReservasCache)) {
+        totalMovimentacoes = window.movimentacoesReservasCache
+            .filter(mov => {
+                const dataHora = new Date(mov.data_hora);
+                const movAno = dataHora.getFullYear();
+                const movMes = dataHora.getMonth(); // 0-11
+
+                // Inclui movimentações de anos anteriores
+                if (movAno < anoLimite) return true;
+                // Inclui movimentações do mesmo ano até o mês limite (inclusive)
+                if (movAno === anoLimite && movMes <= mesLimite) return true;
+                return false;
+            })
+            .reduce((sum, mov) => {
+                const valor = parseFloat(mov.valor || 0);
+                // Entrada = adiciona à reserva (sai do saldo)
+                // Saída = retira da reserva (volta pro saldo)
+                return sum + (mov.tipo === 'entrada' ? valor : -valor);
+            }, 0);
+    }
+
+    // 2. Para reservas sem movimentações (legadas), considerar valor inicial
+    // Isso é necessário para reservas criadas antes da implementação de movimentações
+    if (window.reservasCache && Array.isArray(window.reservasCache)) {
+        // Identificar reservas que têm movimentações
+        const reservasComMovimentacoes = new Set();
+        if (window.movimentacoesReservasCache && Array.isArray(window.movimentacoesReservasCache)) {
+            window.movimentacoesReservasCache.forEach(mov => {
+                reservasComMovimentacoes.add(mov.reserva_id);
+            });
+        }
+
+        // Adicionar valor de reservas sem movimentações
+        window.reservasCache
+            .filter(r => {
+                // Reserva não tem movimentações
+                if (reservasComMovimentacoes.has(r.id)) return false;
+
+                const reservaAno = parseInt(r.ano);
+                const reservaMes = parseInt(r.mes);
+
+                // Inclui reservas de anos anteriores
+                if (reservaAno < anoLimite) return true;
+                // Inclui reservas do mesmo ano até o mês limite
+                if (reservaAno === anoLimite && reservaMes <= mesLimite) return true;
+                return false;
+            })
+            .forEach(r => {
+                totalMovimentacoes += parseFloat(r.valor || 0);
+            });
+    }
+
+    return totalMovimentacoes;
+}
+
+/**
+ * Calcula movimentações de reservas apenas do mês especificado
+ * @param {number} mes - Mês (0-11)
+ * @param {number} ano - Ano
+ * @returns {number} Total líquido de movimentações do mês (entradas - saídas)
+ */
+function calcularMovimentacoesReservasMes(mes, ano) {
+    let totalMovimentacoes = 0;
+
+    // 1. Calcular movimentações registradas do mês
+    if (window.movimentacoesReservasCache && Array.isArray(window.movimentacoesReservasCache)) {
+        totalMovimentacoes = window.movimentacoesReservasCache
+            .filter(mov => {
+                const dataHora = new Date(mov.data_hora);
+                const movAno = dataHora.getFullYear();
+                const movMes = dataHora.getMonth(); // 0-11
+                return movAno === ano && movMes === mes;
+            })
+            .reduce((sum, mov) => {
+                const valor = parseFloat(mov.valor || 0);
+                return sum + (mov.tipo === 'entrada' ? valor : -valor);
+            }, 0);
+    }
+
+    // 2. Para reservas legadas (sem movimentações), considerar valor inicial no mês de criação
+    if (window.reservasCache && Array.isArray(window.reservasCache)) {
+        const reservasComMovimentacoes = new Set();
+        if (window.movimentacoesReservasCache && Array.isArray(window.movimentacoesReservasCache)) {
+            window.movimentacoesReservasCache.forEach(mov => {
+                reservasComMovimentacoes.add(mov.reserva_id);
+            });
+        }
+
+        window.reservasCache
+            .filter(r => {
+                if (reservasComMovimentacoes.has(r.id)) return false;
+                return parseInt(r.ano) === ano && parseInt(r.mes) === mes;
+            })
+            .forEach(r => {
+                totalMovimentacoes += parseFloat(r.valor || 0);
+            });
+    }
+
+    return totalMovimentacoes;
 }
 
 /**
  * Calcula o saldo atual do mês (já descontando reservas)
- * Saldo Atual Mês = saldoAnterior + receitas - despesas - reservas
+ *
+ * CORREÇÃO: Usa movimentações de reservas em vez do valor total das reservas.
+ * Isso garante que cada movimentação afete apenas o mês em que foi realizada.
+ *
+ * Fórmula: Saldo Atual = saldoFinal - movimentaçõesReservasAcumuladas
+ *
  * @returns {object} { saldoAtualMes, totalReservado }
  */
 function calcularSaldoAtualMes() {
@@ -1205,10 +1339,17 @@ function calcularSaldoAtualMes() {
     const ano = window.anoAberto;
 
     const saldoInfo = window.calcularSaldoMes ? window.calcularSaldoMes(mes, ano) : { saldoFinal: 0 };
+
+    // Total reservado = valor atual de todas as reservas (para exibição)
     const totalReservado = calcularTotalReservas();
 
-    // Saldo Atual Mês = saldoFinal - reservas (reservas SAEM do saldo)
-    const saldoAtualMes = (saldoInfo.saldoFinal || 0) - totalReservado;
+    // Movimentações acumuladas até o mês atual (para cálculo do saldo)
+    // Usa as movimentações que têm data/hora específica
+    const movimentacoesAcumuladas = calcularMovimentacoesReservasAcumuladas(mes, ano);
+
+    // Saldo Atual Mês = saldoFinal - movimentações acumuladas
+    // Isso garante que cada movimentação só afeta o mês em que foi feita
+    const saldoAtualMes = (saldoInfo.saldoFinal || 0) - movimentacoesAcumuladas;
 
     return {
         saldoAtualMes,
@@ -1216,8 +1357,10 @@ function calcularSaldoAtualMes() {
     };
 }
 
-// Exportar função
+// Exportar funções
 window.calcularSaldoAtualMes = calcularSaldoAtualMes;
+window.calcularTotalReservasAcumuladas = calcularMovimentacoesReservasAcumuladas;
+window.calcularMovimentacoesReservasMes = calcularMovimentacoesReservasMes;
 
 /**
  * Verifica se o mês atual aberto está fechado
