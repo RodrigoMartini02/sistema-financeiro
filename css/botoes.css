@@ -71,8 +71,8 @@
 }
 
 .btn-success:hover:not(:disabled) {
-    background-color: #218838;
-    border-color: #1e7e34;
+    background-color: #021a6e;
+    border-color: #021a6e;
 }
 
 .btn-danger {
