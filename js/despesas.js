@@ -58,6 +58,7 @@ function toggleReplicarDespesa() {
             options.classList.add('hidden');
         }
     }
+
 }
 
 // Exportar para uso global
@@ -1388,7 +1389,7 @@ async function salvarDespesa(e) {
             processandoDespesa = false;
             return false;
         }
-        
+
         const formData = coletarDadosFormularioDespesa();
         const ehEdicao = formData.id !== '' && formData.id !== null;
 
@@ -2006,20 +2007,20 @@ function validarCategoria() {
 function validarFormaPagamento() {
     const radiosFormaPagamento = document.querySelectorAll('input[name="forma-pagamento"]');
     if (radiosFormaPagamento.length === 0) return true;
-    
+
     const formGroup = radiosFormaPagamento[0].closest('.form-group');
     if (!formGroup) {
         return Array.from(radiosFormaPagamento).some(radio => radio.checked);
     }
-    
+
     const errorExistente = formGroup.querySelector('.form-error-pagamento');
     if (errorExistente) {
         errorExistente.remove();
     }
     formGroup.classList.remove('error');
-    
+
     const algumSelecionado = Array.from(radiosFormaPagamento).some(radio => radio.checked);
-    
+
     if (!algumSelecionado) {
         formGroup.classList.add('error');
         const errorDiv = document.createElement('div');
@@ -2028,7 +2029,7 @@ function validarFormaPagamento() {
         formGroup.appendChild(errorDiv);
         return false;
     }
-    
+
     return true;
 }
 
@@ -2189,15 +2190,25 @@ async function configurarModalExclusao(despesa, index, mes, ano) {
 
     // Verifica se é parcelado pela propriedade parcelado OU pela existência de parcela ou idGrupoParcelamento
     const isParcelado = despesa.parcelado || despesa.parcela || despesa.idGrupoParcelamento;
+    const isRecorrente = !isParcelado && despesa.recorrente;
+
+    // Limpar classes anteriores
+    if (modal) {
+        modal.classList.remove('modal-parcelado');
+        modal.classList.remove('modal-recorrente');
+    }
 
     if (isParcelado) {
         if (titulo) titulo.textContent = 'Excluir item parcelado';
         if (mensagem) mensagem.textContent = 'Este item está parcelado. Como deseja prosseguir?';
         if (modal) modal.classList.add('modal-parcelado');
+    } else if (isRecorrente) {
+        if (titulo) titulo.textContent = 'Excluir despesa recorrente';
+        if (mensagem) mensagem.textContent = 'Esta despesa é recorrente. Como deseja prosseguir?';
+        if (modal) modal.classList.add('modal-recorrente');
     } else {
         if (titulo) titulo.textContent = 'Excluir despesa';
         if (mensagem) mensagem.textContent = 'Tem certeza que deseja excluir esta despesa?';
-        if (modal) modal.classList.remove('modal-parcelado');
     }
 
     await configurarBotoesExclusao(despesa, index, mes, ano);
@@ -2209,7 +2220,10 @@ async function configurarBotoesExclusao(despesa, index, mes, ano) {
         'btn-excluir-todos-meses',
         'btn-excluir-parcela-atual',
         'btn-excluir-parcelas-futuras',
-        'btn-excluir-todas-parcelas'
+        'btn-excluir-todas-parcelas',
+        'btn-excluir-recorrente-atual',
+        'btn-excluir-recorrente-futuras',
+        'btn-excluir-recorrente-todas'
     ];
 
     botoesParaLimpar.forEach(id => {
@@ -2224,11 +2238,14 @@ async function configurarBotoesExclusao(despesa, index, mes, ano) {
     await new Promise(resolve => setTimeout(resolve, 10));
 
     const isParcelado = despesa.parcelado || despesa.parcela || despesa.idGrupoParcelamento;
+    const isRecorrente = !isParcelado && despesa.recorrente;
 
-    if (!isParcelado) {
-        configurarBotoesExclusaoSimples(despesa, index, mes, ano);
-    } else {
+    if (isParcelado) {
         configurarBotoesExclusaoParcelada(despesa, index, mes, ano);
+    } else if (isRecorrente) {
+        configurarBotoesExclusaoRecorrente(despesa, index, mes, ano);
+    } else {
+        configurarBotoesExclusaoSimples(despesa, index, mes, ano);
     }
 }
 
@@ -2332,6 +2349,60 @@ function configurarBotoesExclusaoParcelada(despesa, index, mes, ano) {
     }
 }
 
+function configurarBotoesExclusaoRecorrente(despesa, index, mes, ano) {
+    const btnAtual = document.getElementById('btn-excluir-recorrente-atual');
+    const btnFuturas = document.getElementById('btn-excluir-recorrente-futuras');
+    const btnTodas = document.getElementById('btn-excluir-recorrente-todas');
+
+    if (btnAtual) {
+        btnAtual.onclick = async function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+                await processarExclusao('atual', index, mes, ano, despesa.descricao, despesa.categoria, null);
+            } catch (error) {
+                if (window.mostrarMensagemErro) {
+                    window.mostrarMensagemErro('Erro ao excluir: ' + error.message);
+                } else {
+                    alert('Erro ao excluir: ' + error.message);
+                }
+            }
+        };
+    }
+
+    if (btnFuturas) {
+        btnFuturas.onclick = async function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+                await processarExclusao('recorrente-futuras', index, mes, ano, despesa.descricao, despesa.categoria, null);
+            } catch (error) {
+                if (window.mostrarMensagemErro) {
+                    window.mostrarMensagemErro('Erro ao excluir futuras: ' + error.message);
+                } else {
+                    alert('Erro ao excluir futuras: ' + error.message);
+                }
+            }
+        };
+    }
+
+    if (btnTodas) {
+        btnTodas.onclick = async function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+                await processarExclusao('todas', index, mes, ano, despesa.descricao, despesa.categoria, null);
+            } catch (error) {
+                if (window.mostrarMensagemErro) {
+                    window.mostrarMensagemErro('Erro ao excluir todas: ' + error.message);
+                } else {
+                    alert('Erro ao excluir todas: ' + error.message);
+                }
+            }
+        };
+    }
+}
+
 async function processarExclusao(opcao, index, mes, ano, descricaoDespesa, categoriaDespesa, idGrupoParcelamento) {
     try {
         let sucesso = false;
@@ -2352,7 +2423,11 @@ async function processarExclusao(opcao, index, mes, ano, descricaoDespesa, categ
             case 'futuras':
                 sucesso = await excluirParcelaEFuturas(index, mes, ano);
                 break;
-                
+
+            case 'recorrente-futuras':
+                sucesso = await excluirRecorrenteEFuturas(index, mes, ano);
+                break;
+
             default:
                 throw new Error('Tipo de exclusão não reconhecido');
         }
@@ -2618,6 +2693,107 @@ async function excluirDespesaEmTodosMeses(ano, descricao, categoria) {
     }
 
     return { quantidade: despesasRemovidas, valorTotal: valorTotal };
+}
+
+/**
+ * Exclui a despesa recorrente atual e todas as futuras com mesma descrição/categoria
+ */
+async function excluirRecorrenteEFuturas(index, mes, ano) {
+    try {
+        const despesa = dadosFinanceiros[ano]?.meses[mes]?.despesas[index];
+        if (!despesa) {
+            throw new Error('Despesa não encontrada');
+        }
+
+        const descricao = despesa.descricao;
+        const categoria = despesa.categoria;
+        let despesasRemovidas = 0;
+        const mesesAfetados = new Set();
+        const anosAfetados = new Set();
+
+        // 1. Excluir a despesa atual
+        if (despesa.id) {
+            await fetch(`${API_URL}/despesas/${despesa.id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${getToken()}` }
+            });
+            despesasRemovidas++;
+            mesesAfetados.add(`${ano}-${mes}`);
+            anosAfetados.add(ano);
+        }
+
+        // 2. Excluir futuras do mesmo ano (meses posteriores)
+        for (let m = mes + 1; m < 12; m++) {
+            if (!dadosFinanceiros[ano]?.meses[m]?.despesas) continue;
+            for (const d of dadosFinanceiros[ano].meses[m].despesas) {
+                if (d.descricao === descricao && d.categoria === categoria && !d.parcelado && d.id) {
+                    await fetch(`${API_URL}/despesas/${d.id}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${getToken()}` }
+                    });
+                    despesasRemovidas++;
+                    mesesAfetados.add(`${ano}-${m}`);
+                }
+            }
+        }
+
+        // 3. Buscar e excluir em anos futuros via API (até 3 anos à frente)
+        for (let anoFuturo = ano + 1; anoFuturo <= ano + 3; anoFuturo++) {
+            try {
+                const response = await fetch(`${API_URL}/despesas?ano=${anoFuturo}`, {
+                    headers: { 'Authorization': `Bearer ${getToken()}` }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    for (const d of (data.data || [])) {
+                        if (d.descricao === descricao && d.categoria === categoria && !d.parcelado) {
+                            await fetch(`${API_URL}/despesas/${d.id}`, {
+                                method: 'DELETE',
+                                headers: { 'Authorization': `Bearer ${getToken()}` }
+                            });
+                            despesasRemovidas++;
+                            anosAfetados.add(anoFuturo);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error(`Erro ao buscar despesas de ${anoFuturo}:`, err);
+            }
+        }
+
+        // 4. Recarregar dados dos meses afetados
+        if (typeof window.buscarDespesasAPI === 'function') {
+            for (const chave of mesesAfetados) {
+                const [a, m] = chave.split('-').map(Number);
+                const despesasAtualizadas = await window.buscarDespesasAPI(m, a);
+                if (dadosFinanceiros[a]?.meses[m]) {
+                    dadosFinanceiros[a].meses[m].despesas = despesasAtualizadas;
+                }
+            }
+        }
+
+        // 5. Recarregar dashboard para anos afetados
+        for (const a of anosAfetados) {
+            if (typeof window.carregarDadosDashboard === 'function') {
+                await window.carregarDadosDashboard(a);
+            }
+        }
+
+        if (window.logManager && despesasRemovidas > 0) {
+            window.logManager.registrar({
+                modulo: 'Despesas',
+                acao: 'Excluído',
+                categoria: categoria || '-',
+                descricao: descricao,
+                detalhes: `Excluiu ${despesasRemovidas} despesa(s) recorrente(s) (atual e futuras)`
+            });
+        }
+
+        return true;
+    } catch (error) {
+        console.error('Erro ao excluir recorrente e futuras:', error);
+        return false;
+    }
 }
 
 window.excluirDespesaAtual = async function() {

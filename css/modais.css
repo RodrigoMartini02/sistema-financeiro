@@ -222,12 +222,33 @@
     display: none !important;
 }
 
+.opcao-exclusao-recorrente {
+    display: none !important;
+}
+
 /* Quando o modal está no modo parcelado */
 .modal-parcelado .opcao-exclusao-basica {
     display: none !important;
 }
 
 .modal-parcelado .opcao-exclusao-parcelada {
+    display: flex !important;
+}
+
+.modal-parcelado .opcao-exclusao-recorrente {
+    display: none !important;
+}
+
+/* Quando o modal está no modo recorrente */
+.modal-recorrente .opcao-exclusao-basica {
+    display: none !important;
+}
+
+.modal-recorrente .opcao-exclusao-parcelada {
+    display: none !important;
+}
+
+.modal-recorrente .opcao-exclusao-recorrente {
     display: flex !important;
 }
 

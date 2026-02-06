@@ -1982,13 +1982,13 @@ function atualizarResumoDetalhes(saldo, totalJuros, totalEconomias = 0) {
     // Despesas do Mês = despesas cadastradas no mês
     const despesasMes = saldo.despesas;
 
-    // Total de reservas acumuladas até o mês atual
-    const totalReservado = typeof window.calcularTotalReservas === 'function'
-        ? window.calcularTotalReservas()
+    // Movimentações de reservas acumuladas até o mês atual (baseado em datas das movimentações)
+    const movimentacoesReservas = typeof window.calcularTotalReservasAcumuladas === 'function'
+        ? window.calcularTotalReservasAcumuladas(mesAberto, anoAberto)
         : 0;
 
-    // Saldo Atual Mês = Receitas + Acumulado anterior - Despesas - Reservas
-    const saldoAtualMes = receitasMes - despesasMes + saldo.saldoAnterior - totalReservado;
+    // Saldo Atual Mês = saldoFinal (saldoAnterior + receitas - despesas) - movimentações de reservas acumuladas
+    const saldoAtualMes = saldo.saldoFinal - movimentacoesReservas;
 
     atualizarElemento('resumo-receitas', formatarMoeda(receitasMes));
     atualizarElemento('resumo-despesas', formatarMoeda(despesasMes));
