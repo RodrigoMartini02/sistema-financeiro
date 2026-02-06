@@ -65,9 +65,9 @@
 }
 
 .btn-success {
-    background-color: #28a745;
+    background-color: #032290;
     color: #ffffff;
-    border-color: #28a745;
+    border-color: #032290;
 }
 
 .btn-success:hover:not(:disabled) {
