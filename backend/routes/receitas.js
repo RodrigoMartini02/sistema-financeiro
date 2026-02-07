@@ -36,11 +36,8 @@ router.get('/', authMiddleware, async (req, res) => {
         }
 
         const result = await query(
-            `SELECT
-                r.*,
-                u.nome as usuario_nome
+            `SELECT r.*
              FROM receitas r
-             LEFT JOIN usuarios u ON r.usuario_id = u.id
              ${whereClause}
              ORDER BY r.data_recebimento DESC`,
             params
@@ -212,33 +209,21 @@ router.get('/saldo-anterior', authMiddleware, async (req, res) => {
             anoAnterior = anoAnterior - 1;
         }
         
-        // Buscar receitas do mês anterior
-        const receitasResult = await query(
-            `SELECT COALESCE(SUM(valor), 0) as total_receitas 
-             FROM receitas 
-             WHERE usuario_id = $1 AND mes = $2 AND ano = $3`,
+        // Uma única query para receitas, despesas e reservas do mês anterior
+        const result = await query(
+            `SELECT
+                (SELECT COALESCE(SUM(valor), 0) FROM receitas
+                 WHERE usuario_id = $1 AND mes = $2 AND ano = $3) as total_receitas,
+                (SELECT COALESCE(SUM(valor), 0) FROM despesas
+                 WHERE usuario_id = $1 AND mes = $2 AND ano = $3) as total_despesas,
+                (SELECT COALESCE(SUM(valor), 0) FROM reservas
+                 WHERE usuario_id = $1 AND mes = $2 AND ano = $3) as total_reservas`,
             [req.usuario.id, mesAnterior, anoAnterior]
         );
-        
-        // Buscar despesas do mês anterior
-        const despesasResult = await query(
-            `SELECT COALESCE(SUM(valor), 0) as total_despesas 
-             FROM despesas 
-             WHERE usuario_id = $1 AND mes = $2 AND ano = $3`,
-            [req.usuario.id, mesAnterior, anoAnterior]
-        );
-        
-        // Buscar reservas do mês anterior
-        const reservasResult = await query(
-            `SELECT COALESCE(SUM(valor), 0) as total_reservas 
-             FROM reservas 
-             WHERE usuario_id = $1 AND mes = $2 AND ano = $3`,
-            [req.usuario.id, mesAnterior, anoAnterior]
-        );
-        
-        const totalReceitas = parseFloat(receitasResult.rows[0].total_receitas);
-        const totalDespesas = parseFloat(despesasResult.rows[0].total_despesas);
-        const totalReservas = parseFloat(reservasResult.rows[0].total_reservas);
+
+        const totalReceitas = parseFloat(result.rows[0].total_receitas);
+        const totalDespesas = parseFloat(result.rows[0].total_despesas);
+        const totalReservas = parseFloat(result.rows[0].total_reservas);
         
         const saldoAnterior = totalReceitas - totalDespesas - totalReservas;
         
@@ -278,65 +263,44 @@ router.get('/resumo', authMiddleware, async (req, res) => {
         const mesInt = parseInt(mes);
         const anoInt = parseInt(ano);
         
-        // Total de receitas do mês atual
-        const receitasAtualResult = await query(
-            `SELECT COALESCE(SUM(valor), 0) as total 
-             FROM receitas 
-             WHERE usuario_id = $1 AND mes = $2 AND ano = $3`,
-            [req.usuario.id, mesInt, anoInt]
-        );
-        
         // Saldo anterior
         let mesAnterior = mesInt - 1;
         let anoAnterior = anoInt;
-        
+
         if (mesAnterior < 0) {
             mesAnterior = 11;
             anoAnterior = anoAnterior - 1;
         }
-        
-        const saldoAnteriorResult = await query(
-            `SELECT 
-                COALESCE(SUM(r.valor), 0) as receitas_anterior,
-                COALESCE((SELECT SUM(d.valor) FROM despesas d WHERE d.usuario_id = $1 AND d.mes = $2 AND d.ano = $3), 0) as despesas_anterior,
-                COALESCE((SELECT SUM(res.valor) FROM reservas res WHERE res.usuario_id = $1 AND res.mes = $2 AND res.ano = $3), 0) as reservas_anterior
-             FROM receitas r 
-             WHERE r.usuario_id = $1 AND r.mes = $2 AND r.ano = $3`,
-            [req.usuario.id, mesAnterior, anoAnterior]
+
+        // Uma única query para todos os totais
+        const resumoResult = await query(
+            `SELECT
+                (SELECT COALESCE(SUM(valor), 0) FROM receitas
+                 WHERE usuario_id = $1 AND mes = $2 AND ano = $3) as receitas_mes,
+                (SELECT COALESCE(SUM(valor), 0) FROM despesas
+                 WHERE usuario_id = $1 AND mes = $2 AND ano = $3) as despesas_mes,
+                (SELECT COALESCE(SUM(valor), 0) FROM reservas
+                 WHERE usuario_id = $1 AND mes = $2 AND ano = $3) as reservas_mes,
+                (SELECT COALESCE(SUM(valor), 0) FROM receitas
+                 WHERE usuario_id = $1 AND mes = $4 AND ano = $5) as receitas_anterior,
+                (SELECT COALESCE(SUM(valor), 0) FROM despesas
+                 WHERE usuario_id = $1 AND mes = $4 AND ano = $5) as despesas_anterior,
+                (SELECT COALESCE(SUM(valor), 0) FROM reservas
+                 WHERE usuario_id = $1 AND mes = $4 AND ano = $5) as reservas_anterior,
+                (SELECT COALESCE(SUM(valor), 0) FROM reservas
+                 WHERE usuario_id = $1) as reservas_total`,
+            [req.usuario.id, mesInt, anoInt, mesAnterior, anoAnterior]
         );
-        
-        const saldoAnterior = parseFloat(saldoAnteriorResult.rows[0].receitas_anterior) - 
-                             parseFloat(saldoAnteriorResult.rows[0].despesas_anterior) - 
-                             parseFloat(saldoAnteriorResult.rows[0].reservas_anterior);
-        
-        // Despesas do mês atual
-        const despesasAtualResult = await query(
-            `SELECT COALESCE(SUM(valor), 0) as total 
-             FROM despesas 
-             WHERE usuario_id = $1 AND mes = $2 AND ano = $3`,
-            [req.usuario.id, mesInt, anoInt]
-        );
-        
-        // Reservas do mês atual
-        const reservasAtualResult = await query(
-            `SELECT COALESCE(SUM(valor), 0) as total 
-             FROM reservas 
-             WHERE usuario_id = $1 AND mes = $2 AND ano = $3`,
-            [req.usuario.id, mesInt, anoInt]
-        );
-        
-        // Total de reservas acumuladas
-        const reservasTotalResult = await query(
-            `SELECT COALESCE(SUM(valor), 0) as total 
-             FROM reservas 
-             WHERE usuario_id = $1`,
-            [req.usuario.id]
-        );
-        
-        const totalReceitas = parseFloat(receitasAtualResult.rows[0].total) + saldoAnterior;
-        const totalDespesas = parseFloat(despesasAtualResult.rows[0].total);
-        const totalReservas = parseFloat(reservasAtualResult.rows[0].total);
-        const totalAcumulado = parseFloat(reservasTotalResult.rows[0].total);
+
+        const row = resumoResult.rows[0];
+        const saldoAnterior = parseFloat(row.receitas_anterior) -
+                             parseFloat(row.despesas_anterior) -
+                             parseFloat(row.reservas_anterior);
+
+        const totalReceitas = parseFloat(row.receitas_mes) + saldoAnterior;
+        const totalDespesas = parseFloat(row.despesas_mes);
+        const totalReservas = parseFloat(row.reservas_mes);
+        const totalAcumulado = parseFloat(row.reservas_total);
         
         const disponivelParaReservar = Math.max(0, totalReceitas - totalDespesas - totalReservas);
         
@@ -350,7 +314,7 @@ router.get('/resumo', authMiddleware, async (req, res) => {
             detalhes: {
                 mes: mesInt,
                 ano: anoInt,
-                receitasMes: parseFloat(receitasAtualResult.rows[0].total),
+                receitasMes: parseFloat(row.receitas_mes),
                 despesasMes: totalDespesas,
                 reservasMes: totalReservas
             }

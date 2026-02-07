@@ -59,15 +59,14 @@ async function iniciarSistema() {
         abrirModalNovoAno();
     } else {
         await carregarDadosDashboard(anoAtual);
-        await renderizarMeses(anoAtual);
+        // Dados já carregados pelo dashboard, não recarregar da API
+        await renderizarMeses(anoAtual, false);
 
-        // Garantir que dashboard inicia visível (sem recarregar)
-        setTimeout(() => {
-            const dashboardLink = document.querySelector('[data-section="dashboard"]');
-            if (dashboardLink && !dashboardLink.classList.contains('active')) {
-                dashboardLink.click();
-            }
-        }, 200);
+        // Garantir que dashboard inicia visível
+        const dashboardLink = document.querySelector('[data-section="dashboard"]');
+        if (dashboardLink && !dashboardLink.classList.contains('active')) {
+            dashboardLink.click();
+        }
     }
 
     notificarSistemaReady();
@@ -142,6 +141,7 @@ function exportarVariaveisGlobais() {
     window.renderizarMeses = renderizarMeses;
     window.renderizarDetalhesDoMes = renderizarDetalhesDoMes;
     window.carregarDadosDashboard = carregarDadosDashboard;
+    window.carregarDadosDashboardLocal = carregarDadosDashboardLocal;
     window.atualizarResumoAnual = atualizarResumoAnual;
     window.atualizarResumoMesAtual = atualizarResumoMesAtual;
     window.atualizarLimitesCartoes = atualizarLimitesCartoes;
@@ -1034,22 +1034,14 @@ function setupOutrosControles() {
             // Recarregar dados principais
             await carregarDadosLocais();
             await carregarDadosDashboard(anoAtual);
-            await renderizarMeses(anoAtual);
 
-            // Recarregar categorias
-            if (typeof window.carregarCategoriasDoServidor === 'function') {
-                await window.carregarCategoriasDoServidor();
-            }
-
-            // Recarregar cartões
-            if (typeof window.carregarCartoesDoServidor === 'function') {
-                await window.carregarCartoesDoServidor();
-            }
-
-            // Recarregar notificações
-            if (typeof window.carregarNotificacoes === 'function') {
-                await window.carregarNotificacoes();
-            }
+            // Carregar em paralelo: meses (sem re-fetch), categorias, cartões, notificações
+            await Promise.all([
+                renderizarMeses(anoAtual, false),
+                typeof window.carregarCategoriasDoServidor === 'function' ? window.carregarCategoriasDoServidor() : Promise.resolve(),
+                typeof window.carregarCartoesDoServidor === 'function' ? window.carregarCartoesDoServidor() : Promise.resolve(),
+                typeof window.carregarNotificacoes === 'function' ? window.carregarNotificacoes() : Promise.resolve()
+            ]);
 
             // Recarregar seção ativa
             const secaoAtiva = document.querySelector('.nav-link.active')?.dataset.section;
@@ -1057,7 +1049,7 @@ function setupOutrosControles() {
                 onSecaoAtivada(secaoAtiva);
             }
 
-            setTimeout(() => icon.classList.remove('fa-spin'), 500);
+            icon.classList.remove('fa-spin');
         });
     }
 
@@ -1362,7 +1354,8 @@ async function mudarAno(ano) {
         
         await carregarDadosDashboard(anoAtual);
         atualizarResumoAnual(anoAtual);
-        await renderizarMeses(anoAtual);
+        // Dados já carregados pelo dashboard, não recarregar da API
+        await renderizarMeses(anoAtual, false);
 
     } catch (error) {
         alert('Erro ao mudar ano: ' + error.message);
@@ -1417,7 +1410,8 @@ async function criarAnoSimples(ano) {
 
         await carregarDadosDashboard(anoAtual);
         atualizarResumoAnual(anoAtual);
-        await renderizarMeses(anoAtual);
+        // Dados já carregados pelo dashboard
+        await renderizarMeses(anoAtual, false);
 
         if (window.mostrarToast) {
             window.mostrarToast(`Ano ${ano} criado com sucesso!`, 'success');
@@ -1482,12 +1476,12 @@ async function excluirAno(ano) {
             } else {
                 await carregarDadosDashboard(anoAtual);
                 atualizarResumoAnual(anoAtual);
-                await renderizarMeses(anoAtual);
+                await renderizarMeses(anoAtual, false);
             }
         } else {
             await carregarDadosDashboard(anoAtual);
             atualizarResumoAnual(anoAtual);
-            await renderizarMeses(anoAtual);
+            await renderizarMeses(anoAtual, false);
         }
         
         alert(`O ano ${ano} foi excluído com sucesso!`);
@@ -2539,13 +2533,13 @@ function abrirModalConfirmacaoReabertura(mes, ano) {
 async function confirmarFechamento() {
     try {
         const sucesso = await fecharMes(mesAberto, anoAberto);
-        
+
         if (sucesso) {
             fecharModal('modal-confirmar-fechamento');
             await renderizarDetalhesDoMes(mesAberto, anoAberto);
-
+            // Dados já carregados, apenas re-renderizar cards dos meses
             if (typeof window.renderizarMeses === 'function') {
-                await window.renderizarMeses(anoAberto);
+                await window.renderizarMeses(anoAberto, false);
             }
         }
     } catch (error) {
@@ -2556,13 +2550,13 @@ async function confirmarFechamento() {
 async function confirmarReabertura() {
     try {
         const sucesso = await reabrirMes(mesAberto, anoAberto);
-        
+
         if (sucesso) {
             fecharModal('modal-confirmar-reabertura');
             await renderizarDetalhesDoMes(mesAberto, anoAberto);
-
+            // Dados já carregados, apenas re-renderizar cards dos meses
             if (typeof window.renderizarMeses === 'function') {
-                await window.renderizarMeses(anoAberto);
+                await window.renderizarMeses(anoAberto, false);
             }
         }
     } catch (error) {

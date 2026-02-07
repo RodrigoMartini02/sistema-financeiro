@@ -70,29 +70,14 @@ router.post('/:ano/:mes/fechar', authMiddleware, async (req, res) => {
         const { ano, mes } = req.params;
         const { saldo_final } = req.body;
         
-        const existe = await query(
-            'SELECT id FROM meses WHERE usuario_id = $1 AND ano = $2 AND mes = $3',
-            [req.usuario.id, parseInt(ano), parseInt(mes)]
+        const result = await query(
+            `INSERT INTO meses (usuario_id, ano, mes, fechado, saldo_final, saldo_anterior)
+             VALUES ($1, $2, $3, true, $4, 0)
+             ON CONFLICT (usuario_id, ano, mes)
+             DO UPDATE SET fechado = true, saldo_final = $4
+             RETURNING *`,
+            [req.usuario.id, parseInt(ano), parseInt(mes), parseFloat(saldo_final)]
         );
-        
-        let result;
-        
-        if (existe.rows.length > 0) {
-            result = await query(
-                `UPDATE meses 
-                 SET fechado = true, saldo_final = $1
-                 WHERE usuario_id = $2 AND ano = $3 AND mes = $4
-                 RETURNING *`,
-                [parseFloat(saldo_final), req.usuario.id, parseInt(ano), parseInt(mes)]
-            );
-        } else {
-            result = await query(
-                `INSERT INTO meses (usuario_id, ano, mes, fechado, saldo_final, saldo_anterior)
-                 VALUES ($1, $2, $3, true, $4, 0)
-                 RETURNING *`,
-                [req.usuario.id, parseInt(ano), parseInt(mes), parseFloat(saldo_final)]
-            );
-        }
         
         res.json({
             success: true,

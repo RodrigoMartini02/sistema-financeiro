@@ -3235,7 +3235,7 @@ function configurarFormPagamento(index, mes, ano, despesa) {
     }
 }
 
-async function processarPagamento(index, mes, ano, valorPago = null, quitarParcelasFuturas = false) {
+async function processarPagamento(index, mes, ano, valorPago = null, quitarParcelasFuturas = false, skipRerender = false) {
     try {
         if (!dadosFinanceiros[ano] || !dadosFinanceiros[ano].meses[mes]) {
             throw new Error('Estrutura de dados do mês é inválida');
@@ -3353,16 +3353,20 @@ async function processarPagamento(index, mes, ano, valorPago = null, quitarParce
             }
         }
         
-        if (typeof window.carregarDadosDashboard === 'function') {
-            await window.carregarDadosDashboard(window.anoAtual || ano);
+        // Em modo lote (skipRerender=true), pular re-renders individuais
+        // O chamador fará um único render no final
+        if (!skipRerender) {
+            if (typeof window.carregarDadosDashboard === 'function') {
+                await window.carregarDadosDashboard(window.anoAtual || ano);
+            }
+
+            if (typeof window.renderizarDetalhesDoMes === 'function') {
+                window.renderizarDetalhesDoMes(mes, ano);
+            }
         }
-        
-        if (typeof window.renderizarDetalhesDoMes === 'function') {
-            window.renderizarDetalhesDoMes(mes, ano);
-        }
-        
+
         return true;
-        
+
     } catch (error) {
 
         alert("Erro ao processar pagamento: " + error.message);
@@ -3594,18 +3598,19 @@ async function processarValoresPersonalizados() {
                despesa.comprovantes.push(...comprovantes);
            }
            
-           if (await processarPagamentoComData(index, mesAberto, anoAberto, valorPago, false, dataPagamento)) {
+           if (await processarPagamentoComData(index, mesAberto, anoAberto, valorPago, false, dataPagamento, true)) {
                despesasPagas++;
            }
        }
    }
-   
+
    if (window.sistemaAnexos) {
        window.sistemaAnexos.limparAnexosTemporarios('comprovante');
    }
-   
+
    document.getElementById('modal-valores-personalizados-despesas').style.display = 'none';
-   renderizarDetalhesDoMes(mesAberto, anoAberto);
+   // Um único render no final em vez de um por despesa
+   await renderizarDetalhesDoMes(mesAberto, anoAberto);
    
    if (despesasPagas > 0) {
        alert(`${despesasPagas} despesa(s) paga(s) com sucesso!`);
@@ -3621,23 +3626,23 @@ async function processarValoresPersonalizados() {
    }
 }
 
-async function processarPagamentoComData(index, mes, ano, valorPago = null, quitarParcelasFuturas = false, dataPagamento = null) {
+async function processarPagamentoComData(index, mes, ano, valorPago = null, quitarParcelasFuturas = false, dataPagamento = null, skipRerender = false) {
     // Salvar temporariamente a data no DOM para a função processarPagamento usar
     const inputDataTemp = document.getElementById('data-pagamento-individual');
     let valorOriginal = null;
-    
+
     if (inputDataTemp && dataPagamento) {
         valorOriginal = inputDataTemp.value;
         inputDataTemp.value = dataPagamento;
     }
-    
-    const resultado = await processarPagamento(index, mes, ano, valorPago, quitarParcelasFuturas);
-    
+
+    const resultado = await processarPagamento(index, mes, ano, valorPago, quitarParcelasFuturas, skipRerender);
+
     // Restaurar valor original
     if (inputDataTemp && valorOriginal !== null) {
         inputDataTemp.value = valorOriginal;
     }
-    
+
     return resultado;
 }
 
@@ -3669,7 +3674,7 @@ async function pagarLoteComValoresOriginais(checkboxes) {
            despesa.comprovantes.push(...comprovantes);
        }
 
-       if (await processarPagamentoComData(indice, mesAberto, anoAberto, null, false, dataPagamentoLote)) {
+       if (await processarPagamentoComData(indice, mesAberto, anoAberto, null, false, dataPagamentoLote, true)) {
            despesasPagas++;
        }
    }
@@ -3678,7 +3683,8 @@ async function pagarLoteComValoresOriginais(checkboxes) {
        window.sistemaAnexos.limparAnexosTemporarios('comprovante');
    }
 
-   renderizarDetalhesDoMes(mesAberto, anoAberto);
+   // Um único render no final em vez de um por despesa
+   await renderizarDetalhesDoMes(mesAberto, anoAberto);
 
    if (despesasPagas > 0) {
        alert(`${despesasPagas} despesa(s) paga(s) com sucesso!`);

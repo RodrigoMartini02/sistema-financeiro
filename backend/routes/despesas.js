@@ -45,15 +45,13 @@ router.get('/', authMiddleware, async (req, res) => {
             paramCount += 2;
         }
 
-        // ✅ BUSCAR COM JOIN para pegar nome da categoria
+        // BUSCAR COM JOIN para pegar nome da categoria
         const result = await query(
             `SELECT
                 d.*,
-                c.nome as categoria_nome,
-                u.nome as usuario_nome
+                c.nome as categoria_nome
              FROM despesas d
              LEFT JOIN categorias c ON d.categoria_id = c.id
-             LEFT JOIN usuarios u ON d.usuario_id = u.id
              ${whereClause}
              ORDER BY d.data_vencimento ASC`,
             params
@@ -204,67 +202,79 @@ router.post('/', authMiddleware, [
 // ================================================================
 async function criarParcelasFuturas(usuarioId, despesaBase, totalParcelas) {
     try {
+        // Construir batch INSERT para todas as parcelas de uma vez
+        const values = [];
+        const params = [];
+        let paramIndex = 1;
+
         for (let i = 2; i <= totalParcelas; i++) {
-            // Calcular mês/ano da próxima parcela
             let proximoMes = despesaBase.mes + (i - 1);
             let proximoAno = despesaBase.ano;
-            
+
             while (proximoMes > 11) {
                 proximoMes -= 12;
                 proximoAno += 1;
             }
-            
-            // Data de vencimento da próxima parcela
-            // Criar data local sem conversão UTC
+
             const [ano, mes, dia] = despesaBase.data_vencimento.split('-').map(Number);
             const dataVencimentoBase = new Date(ano, mes - 1, dia);
             dataVencimentoBase.setMonth(dataVencimentoBase.getMonth() + (i - 1));
 
-            // Formatar como YYYY-MM-DD local
             const proximoAnoCalc = dataVencimentoBase.getFullYear();
             const proximoMesCalc = String(dataVencimentoBase.getMonth() + 1).padStart(2, '0');
             const proximoDiaCalc = String(dataVencimentoBase.getDate()).padStart(2, '0');
             const proximaDataVencimento = `${proximoAnoCalc}-${proximoMesCalc}-${proximoDiaCalc}`;
-            
+
+            const placeholders = [];
+            for (let p = 0; p < 17; p++) {
+                placeholders.push(`$${paramIndex++}`);
+            }
+            values.push(`(${placeholders.join(', ')})`);
+
+            params.push(
+                usuarioId,
+                despesaBase.descricao + ` (${i}/${totalParcelas})`,
+                despesaBase.valor,
+                proximaDataVencimento,
+                despesaBase.data_compra,
+                proximoMes,
+                proximoAno,
+                despesaBase.categoria_id,
+                despesaBase.cartao_id,
+                despesaBase.forma_pagamento,
+                true,
+                totalParcelas,
+                i,
+                despesaBase.observacoes,
+                false,
+                despesaBase.id,
+                despesaBase.recorrente || false
+            );
+        }
+
+        // Uma única query para todas as parcelas
+        if (values.length > 0) {
             await query(
                 `INSERT INTO despesas (
                     usuario_id, descricao, valor, data_vencimento, data_compra,
                     mes, ano, categoria_id, cartao_id, forma_pagamento,
                     parcelado, numero_parcelas, parcela_atual, observacoes, pago,
                     grupo_parcelamento_id, recorrente
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
-                [
-                    usuarioId,
-                    despesaBase.descricao + ` (${i}/${totalParcelas})`,
-                    despesaBase.valor,
-                    proximaDataVencimento,
-                    despesaBase.data_compra,
-                    proximoMes,
-                    proximoAno,
-                    despesaBase.categoria_id,
-                    despesaBase.cartao_id,
-                    despesaBase.forma_pagamento,
-                    true,
-                    totalParcelas,
-                    i,
-                    despesaBase.observacoes,
-                    false,
-                    despesaBase.id, // Usar ID da primeira parcela como grupo
-                    despesaBase.recorrente || false
-                ]
+                ) VALUES ${values.join(', ')}`,
+                params
             );
         }
-        
+
         // Atualizar primeira parcela com info de grupo
         await query(
-            `UPDATE despesas 
-             SET grupo_parcelamento_id = $1, 
+            `UPDATE despesas
+             SET grupo_parcelamento_id = $1,
                  descricao = $2,
                  parcela_atual = 1
              WHERE id = $1`,
             [despesaBase.id, despesaBase.descricao + ` (1/${totalParcelas})`]
         );
-        
+
     } catch (error) {
         console.error('Erro ao criar parcelas futuras:', error);
     }

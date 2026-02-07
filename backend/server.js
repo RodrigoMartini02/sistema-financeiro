@@ -356,6 +356,16 @@ async function criarEstruturaBanco() {
         await query(`CREATE INDEX IF NOT EXISTS idx_anos_usuario_ano ON anos(usuario_id, ano);`);
         console.log('✅ Tabela anos verificada/criada!');
 
+        // Indexes de performance para queries frequentes
+        await query(`CREATE INDEX IF NOT EXISTS idx_despesas_usuario_mes_ano ON despesas(usuario_id, mes, ano);`);
+        await query(`CREATE INDEX IF NOT EXISTS idx_receitas_usuario_mes_ano ON receitas(usuario_id, mes, ano);`);
+        await query(`CREATE INDEX IF NOT EXISTS idx_reservas_usuario_mes_ano ON reservas(usuario_id, mes, ano);`);
+        await query(`CREATE INDEX IF NOT EXISTS idx_categorias_usuario ON categorias(usuario_id);`);
+        await query(`CREATE INDEX IF NOT EXISTS idx_cartoes_usuario ON cartoes(usuario_id);`);
+        await query(`CREATE INDEX IF NOT EXISTS idx_meses_usuario_ano_mes ON meses(usuario_id, ano, mes);`);
+        await query(`CREATE INDEX IF NOT EXISTS idx_despesas_grupo_parcelamento ON despesas(grupo_parcelamento_id);`);
+        console.log('✅ Indexes de performance criados!');
+
         console.log('🎉 Estrutura do banco de dados está pronta!');
         return true;
         

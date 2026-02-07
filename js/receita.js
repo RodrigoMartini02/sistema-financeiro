@@ -487,13 +487,13 @@ async function salvarReceita(e) {
                 window.mostrarMensagemSucesso(ehEdicao ? 'Receita atualizada com sucesso!' : 'Receita cadastrada com sucesso!');
             }
 
-            // Atualizar interface
+            // Atualizar interface (renderizarDetalhesDoMes já recarrega dados da API)
             if (typeof window.renderizarDetalhesDoMes === 'function') {
-                window.renderizarDetalhesDoMes(formData.mes, formData.ano);
+                await window.renderizarDetalhesDoMes(formData.mes, formData.ano);
             }
-
-            if (typeof window.carregarDadosDashboard === 'function') {
-                await window.carregarDadosDashboard(formData.ano);
+            // Atualizar dashboard local sem re-fetch da API
+            if (typeof window.carregarDadosDashboardLocal === 'function') {
+                window.carregarDadosDashboardLocal(formData.ano);
             }
 
         } else {
