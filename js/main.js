@@ -1990,6 +1990,14 @@ function atualizarResumoDetalhes(saldo, totalJuros, totalEconomias = 0) {
     // Saldo Atual Mês = saldoFinal (saldoAnterior + receitas - despesas) - movimentações de reservas acumuladas
     const saldoAtualMes = saldo.saldoFinal - movimentacoesReservas;
 
+    console.log(`📊 Breakdown Saldo Mês ${mesAberto}/${anoAberto}:`,
+        `\n  Saldo Anterior: ${saldo.saldoAnterior?.toFixed(2)}`,
+        `\n  Receitas: ${receitasMes?.toFixed(2)}`,
+        `\n  Despesas: ${despesasMes?.toFixed(2)}`,
+        `\n  Saldo Final (sem reservas): ${saldo.saldoFinal?.toFixed(2)}`,
+        `\n  Reservas Acumuladas: ${movimentacoesReservas?.toFixed(2)}`,
+        `\n  Saldo Atual (com reservas): ${saldoAtualMes?.toFixed(2)}`);
+
     atualizarElemento('resumo-receitas', formatarMoeda(receitasMes));
     atualizarElemento('resumo-despesas', formatarMoeda(despesasMes));
     atualizarElemento('resumo-juros', formatarMoeda(totalJuros));
@@ -2431,22 +2439,44 @@ function calcularSaldoMes(mes, ano) {
 function obterSaldoAnterior(mes, ano) {
     let mesAnterior = mes - 1;
     let anoAnterior = ano;
-    
+
     if (mes === 0) {
         mesAnterior = 11;
         anoAnterior = ano - 1;
     }
-    
+
     if (!dadosFinanceiros[anoAnterior] || !dadosFinanceiros[anoAnterior].meses) {
         return 0;
     }
-    
+
     const dadosMesAnterior = dadosFinanceiros[anoAnterior].meses[mesAnterior];
-    
+
+    // Se o mês anterior está fechado, usar o saldoFinal salvo
     if (dadosMesAnterior && dadosMesAnterior.fechado === true) {
         return dadosMesAnterior.saldoFinal || 0;
     }
-    
+
+    // Se o mês anterior NÃO está fechado, calcular dinamicamente
+    // Isso evita retornar 0 e perder todo o histórico de receitas/despesas
+    if (dadosMesAnterior) {
+        const saldoAnteriorAnterior = obterSaldoAnterior(mesAnterior, anoAnterior);
+
+        const receitas = (dadosMesAnterior.receitas || []).reduce((sum, r) => {
+            if (r.saldoAnterior === true ||
+                r.descricao?.includes('Saldo Anterior') ||
+                r.automatica === true) {
+                return sum;
+            }
+            return sum + (r.valor || 0);
+        }, 0);
+
+        const despesas = typeof window.calcularTotalDespesas === 'function' ?
+            window.calcularTotalDespesas(dadosMesAnterior.despesas || []) :
+            (dadosMesAnterior.despesas || []).reduce((sum, d) => sum + (window.obterValorRealDespesa ? window.obterValorRealDespesa(d) : (d.valor || 0)), 0);
+
+        return saldoAnteriorAnterior + receitas - despesas;
+    }
+
     return 0;
 }
 
