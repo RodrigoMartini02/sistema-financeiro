@@ -1393,6 +1393,12 @@ async function salvarDespesa(e) {
         const formData = coletarDadosFormularioDespesa();
         const ehEdicao = formData.id !== '' && formData.id !== null;
 
+        // Se replicar está marcado, a despesa original também é recorrente
+        const replicarCheckbox = document.getElementById('despesa-replicar');
+        if (replicarCheckbox && replicarCheckbox.checked) {
+            formData.recorrente = true;
+        }
+
         const sucesso = await salvarDespesaLocal(formData);
 
         if (sucesso) {
@@ -2652,31 +2658,38 @@ function verificarOrfaosParcelamento() {
 }
 
 async function excluirDespesaEmTodosMeses(ano, descricao, categoria) {
-    if (!dadosFinanceiros[ano]) return { quantidade: 0, valorTotal: 0 };
-
     let despesasRemovidas = 0;
     let valorTotal = 0;
-    const mesesAfetados = new Set();
+    const anosAfetados = new Set();
+    const mesesAfetadosPorAno = {};
 
-    for (let m = 0; m < 12; m++) {
-        if (!dadosFinanceiros[ano].meses[m] || !dadosFinanceiros[ano].meses[m].despesas) continue;
+    // Buscar em TODOS os anos do dadosFinanceiros (não apenas o ano atual)
+    const todosAnos = Object.keys(dadosFinanceiros).map(Number).sort();
 
-        const despesas = dadosFinanceiros[ano].meses[m].despesas;
+    for (const anoAtual of todosAnos) {
+        if (!dadosFinanceiros[anoAtual]?.meses) continue;
 
-        for (const d of despesas) {
-            if (d.descricao === descricao && d.categoria === categoria && !d.parcelado) {
-                // Validar ID antes de excluir
-                if (d.id && d.id <= 2147483647) {
-                    await fetch(`${API_URL}/despesas/${d.id}`, {
-                        method: 'DELETE',
-                        headers: {
-                            'Authorization': `Bearer ${getToken()}`
-                        }
-                    });
+        for (let m = 0; m < 12; m++) {
+            if (!dadosFinanceiros[anoAtual].meses[m]?.despesas) continue;
 
-                    valorTotal += parseFloat(d.valor || 0);
-                    despesasRemovidas++;
-                    mesesAfetados.add(m);
+            const despesas = dadosFinanceiros[anoAtual].meses[m].despesas;
+
+            for (const d of despesas) {
+                if (d.descricao === descricao && d.categoria === categoria && !d.parcelado) {
+                    if (d.id && d.id <= 2147483647) {
+                        await fetch(`${API_URL}/despesas/${d.id}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Authorization': `Bearer ${getToken()}`
+                            }
+                        });
+
+                        valorTotal += parseFloat(d.valor || 0);
+                        despesasRemovidas++;
+                        anosAfetados.add(anoAtual);
+                        if (!mesesAfetadosPorAno[anoAtual]) mesesAfetadosPorAno[anoAtual] = new Set();
+                        mesesAfetadosPorAno[anoAtual].add(m);
+                    }
                 }
             }
         }
@@ -2684,11 +2697,20 @@ async function excluirDespesaEmTodosMeses(ano, descricao, categoria) {
 
     // Recarregar dados dos meses afetados
     if (typeof window.buscarDespesasAPI === 'function') {
-        for (const mesAfetado of mesesAfetados) {
-            const despesasAtualizadas = await window.buscarDespesasAPI(mesAfetado, ano);
-            if (dadosFinanceiros[ano]?.meses[mesAfetado]) {
-                dadosFinanceiros[ano].meses[mesAfetado].despesas = despesasAtualizadas;
+        for (const anoAfetado of anosAfetados) {
+            for (const mesAfetado of (mesesAfetadosPorAno[anoAfetado] || [])) {
+                const despesasAtualizadas = await window.buscarDespesasAPI(mesAfetado, anoAfetado);
+                if (dadosFinanceiros[anoAfetado]?.meses[mesAfetado]) {
+                    dadosFinanceiros[anoAfetado].meses[mesAfetado].despesas = despesasAtualizadas;
+                }
             }
+        }
+    }
+
+    // Atualizar dashboard para todos os anos afetados
+    for (const anoAfetado of anosAfetados) {
+        if (typeof window.carregarDadosDashboard === 'function') {
+            await window.carregarDadosDashboard(anoAfetado);
         }
     }
 

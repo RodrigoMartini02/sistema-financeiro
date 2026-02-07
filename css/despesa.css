@@ -740,23 +740,27 @@ select.campo-invalido {
 }
 
 #btn-pagar-valor-original {
-    border-color: #38a169;
-    color: #38a169;
+    background-color: #28a745;
+    border-color: #28a745;
+    color: #ffffff;
 }
 
 #btn-pagar-valor-original:hover {
-    background: #f0fff4;
-    border-color: #2f855a;
+    background-color: #218838;
+    border-color: #1e7e34;
+    color: #ffffff;
 }
 
 #btn-pagar-com-valor-personalizado {
-    border-color: #3182ce;
-    color: #3182ce;
+    background-color: #e6a817;
+    border-color: #e6a817;
+    color: #ffffff;
 }
 
 #btn-pagar-com-valor-personalizado:hover {
-    background: #ebf8ff;
-    border-color: #2c5282;
+    background-color: #d49b10;
+    border-color: #c28f0e;
+    color: #ffffff;
 }
 
 /* ================================================================

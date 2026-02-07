@@ -704,7 +704,8 @@ class UsuarioDataManager {
                 valor_original: despesa.valorOriginal ? parseFloat(despesa.valorOriginal) : null,
                 valor_total_com_juros: despesa.valorTotalComJuros ? parseFloat(despesa.valorTotalComJuros) : null,
                 valor_pago: despesa.valorPago ? parseFloat(despesa.valorPago) : null,
-                anexos: despesa.anexos || []
+                anexos: despesa.anexos || [],
+                recorrente: despesa.recorrente || false
             };
 
             let response;
