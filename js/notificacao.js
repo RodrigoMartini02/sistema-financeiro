@@ -127,7 +127,6 @@ class SistemaNotificacoes {
                 mensagem: dados.mensagem || '',
                 dados: dados,
                 prioridade: tipoConfig.prioridade,
-                lida: false,
                 dataHora: new Date().toISOString(),
                 expiresAt: dados.expiresAt || null
             };
@@ -370,13 +369,10 @@ class SistemaNotificacoes {
 
     marcarComoLida(id) {
         try {
-            const notificacao = this.notificacoes.find(n => n.id === id);
-            if (notificacao) {
-                notificacao.lida = true;
-                this.salvarNotificacoes();
-                this.atualizarBadge();
-                this.renderizarNotificacoes();
-            }
+            this.notificacoes = this.notificacoes.filter(n => n.id !== id);
+            this.salvarNotificacoes();
+            this.atualizarBadge();
+            this.renderizarNotificacoes();
         } catch (error) {
             // Falha silenciosa
         }
@@ -384,7 +380,7 @@ class SistemaNotificacoes {
 
     marcarTodasComoLidas() {
         try {
-            this.notificacoes.forEach(n => n.lida = true);
+            this.notificacoes = [];
             this.salvarNotificacoes();
             this.atualizarBadge();
             this.renderizarNotificacoes();
@@ -548,10 +544,6 @@ class SistemaNotificacoes {
             item.dataset.id = notificacao.id;
             item.dataset.tipo = notificacao.tipo;
 
-            if (!notificacao.lida) {
-                item.classList.add('unread');
-            }
-
             // Usar ícone FontAwesome
             const iconElement = clone.querySelector('.notification-icon');
             iconElement.className = `fas ${notificacao.icone} notification-icon`;
@@ -564,15 +556,10 @@ class SistemaNotificacoes {
             const btnDelete = clone.querySelector('.btn-delete-notification');
 
             if (btnMarkRead) {
-                if (notificacao.lida) {
-                    btnMarkRead.style.opacity = '0.3';
-                    btnMarkRead.disabled = true;
-                } else {
-                    btnMarkRead.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        this.marcarComoLida(notificacao.id);
-                    });
-                }
+                btnMarkRead.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.marcarComoLida(notificacao.id);
+                });
             }
 
             if (btnDelete) {
@@ -584,9 +571,6 @@ class SistemaNotificacoes {
 
             item.addEventListener('click', () => {
                 this.executarAcaoNotificacao(notificacao);
-                if (!notificacao.lida) {
-                    this.marcarComoLida(notificacao.id);
-                }
             });
 
             return clone;
@@ -597,7 +581,7 @@ class SistemaNotificacoes {
 
     criarItemNotificacaoFallback(notificacao) {
         const div = document.createElement('div');
-        div.className = 'notification-item' + (notificacao.lida ? '' : ' unread');
+        div.className = 'notification-item';
         div.innerHTML = `
             <div class="notification-icon-container">
                 <i class="fas ${notificacao.icone} notification-icon"></i>
@@ -609,13 +593,28 @@ class SistemaNotificacoes {
                 </div>
                 <p class="notification-message">${notificacao.mensagem}</p>
             </div>
+            <div class="notification-actions">
+                <button class="btn-mark-read" title="Marcar como lida">
+                    <i class="fas fa-check"></i>
+                </button>
+                <button class="btn-delete-notification" title="Excluir">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
         `;
+
+        div.querySelector('.btn-mark-read').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.marcarComoLida(notificacao.id);
+        });
+
+        div.querySelector('.btn-delete-notification').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.excluirNotificacao(notificacao.id);
+        });
 
         div.addEventListener('click', () => {
             this.executarAcaoNotificacao(notificacao);
-            if (!notificacao.lida) {
-                this.marcarComoLida(notificacao.id);
-            }
         });
 
         return div;
@@ -662,11 +661,11 @@ class SistemaNotificacoes {
     atualizarBadge() {
         try {
             const badge = document.getElementById('notification-count');
-            const naoLidas = this.notificacoes.filter(n => !n.lida).length;
-            
+            const total = this.notificacoes.length;
+
             if (badge) {
-                if (naoLidas > 0) {
-                    badge.textContent = naoLidas > 99 ? '99+' : naoLidas;
+                if (total > 0) {
+                    badge.textContent = total > 99 ? '99+' : total;
                     badge.classList.remove('hidden');
                 } else {
                     badge.classList.add('hidden');
