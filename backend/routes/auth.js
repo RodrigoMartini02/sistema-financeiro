@@ -321,7 +321,8 @@ router.post('/send-recovery-email', [
         const response = await fetchFn('https://api.emailjs.com/api/v1.0/email/send', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Origin': 'https://sistema-financeiro-kxed.onrender.com'
             },
             body: JSON.stringify({
                 service_id: serviceId,
