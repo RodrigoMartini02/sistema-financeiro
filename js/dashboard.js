@@ -296,9 +296,6 @@ function processarDadosReais(dadosFinanceiros, ano) {
                 .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
         }
 
-        // Receitas Totais do mês = saldo anterior + receitas - reservas
-        const receitasTotaisMes = saldoInfo.saldoAnterior + saldoInfo.receitas - reservasMes;
-
         const despesasMes = window.calcularTotalDespesas ? window.calcularTotalDespesas(dadosMes.despesas || []) : 0;
         const jurosMes = window.calcularTotalJuros ? window.calcularTotalJuros(dadosMes.despesas || []) : 0;
         const economiasMes = window.calcularTotalEconomias ? window.calcularTotalEconomias(dadosMes.despesas || []) : 0;
@@ -308,11 +305,12 @@ function processarDadosReais(dadosFinanceiros, ano) {
         totalJuros += jurosMes;
         totalEconomias += economiasMes;
 
-        dadosMensais.receitas.push(receitasTotaisMes);
+        // Gráfico "Entradas e Saídas" - apenas receitas reais, sem saldo anterior
+        dadosMensais.receitas.push(saldoInfo.receitas);
         dadosMensais.despesas.push(despesasMes);
 
-        // Saldo do mês = Receitas Totais - Despesas
-        const saldoMes = receitasTotaisMes - despesasMes;
+        // Saldo do mês considera saldo anterior para cálculo correto
+        const saldoMes = saldoInfo.saldoAnterior + saldoInfo.receitas - despesasMes - reservasMes;
         dadosMensais.saldos.push(saldoMes);
     }
 
@@ -1611,6 +1609,7 @@ function criarGraficoFormaPagamentoComFiltros(dadosFinanceiros, ano, filtros) {
                     legend: { display: false },
                     tooltip: {
                         callbacks: {
+                            title: () => '',
                             label: function(context) {
                                 const valor = context.raw;
                                 const total = valores.reduce((sum, val) => sum + val, 0);
@@ -1908,6 +1907,7 @@ function renderDistribuicaoCartoes(dadosFinanceiros, ano, filtros = {}) {
                     legend: { display: false },
                     tooltip: {
                         callbacks: {
+                            title: () => '',
                             label: function(context) {
                                 const valor = context.raw;
                                 const total = valores.reduce((sum, val) => sum + val, 0);

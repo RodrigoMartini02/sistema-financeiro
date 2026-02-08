@@ -384,15 +384,79 @@ textarea:focus {
     text-align: center;
 }
 
+.user-profile-sidebar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.avatar-container {
+    position: relative;
+    width: 52px;
+    height: 52px;
+    cursor: pointer;
+}
+
+.avatar-img {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    transition: border-color 0.2s;
+}
+
+.avatar-container:hover .avatar-img {
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.avatar-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.avatar-placeholder {
+    font-size: 22px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.avatar-edit-icon {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 20px;
+    height: 20px;
+    background: var(--primary-color, #3b82f6);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--sidebar-bg, #1e293b);
+    transition: transform 0.2s;
+}
+
+.avatar-edit-icon i {
+    font-size: 9px;
+    color: #fff;
+}
+
+.avatar-container:hover .avatar-edit-icon {
+    transform: scale(1.15);
+}
+
 .user-info-sidebar {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: rgba(255, 255, 255, 0.85);
-    font-size: 12px;
-    font-weight: 500;
-    padding: 4px 12px;
-    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 11px;
+    font-weight: 400;
     text-align: center;
 }
 

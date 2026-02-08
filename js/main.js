@@ -52,7 +52,8 @@ async function iniciarSistema() {
     window.sistemaInicializado = true;
 
     configurarInterface();
-    exibirNomeUsuario(); // Mostrar nome do usuário logado
+    exibirNomeUsuario();
+    inicializarFotoPerfil();
     await carregarVersaoSistema(); // Carregar versão do backend
 
     if (!dadosFinanceiros[anoAtual]) {
@@ -2904,28 +2905,161 @@ function abrirModal(modalId) {
 function exibirNomeUsuario() {
     try {
         const dadosUsuario = sessionStorage.getItem('dadosUsuarioLogado');
-        const token = sessionStorage.getItem('token');
 
         if (dadosUsuario) {
             const usuario = JSON.parse(dadosUsuario);
             const primeiroNome = usuario.nome?.split(' ')[0] || 'Usuário';
             const tipoUsuario = usuario.tipo || 'padrao';
 
-            // Traduzir tipo de usuário
             const tipoTexto = {
                 'master': 'Master',
                 'admin': 'Admin',
                 'padrao': 'Padrão'
             }[tipoUsuario] || 'Padrão';
 
-            // Preencher sidebar
             const nomeSidebar = document.getElementById('nome-usuario-sidebar');
             if (nomeSidebar) {
-                nomeSidebar.textContent = `${primeiroNome} (${tipoTexto})`;
+                nomeSidebar.textContent = `${primeiroNome} - ${tipoTexto}`;
             }
+
+            // Carregar foto de perfil
+            carregarFotoPerfil();
         }
     } catch (error) {
-        // Erro ao exibir nome do usuário - silencioso
+        // silencioso
+    }
+}
+
+// ================================================================
+// FOTO DE PERFIL
+// ================================================================
+async function carregarFotoPerfil() {
+    try {
+        const token = sessionStorage.getItem('token');
+        if (!token) return;
+
+        const response = await fetch(`${API_URL}/usuarios/current`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+        if (result.success && result.data.foto) {
+            exibirFotoAvatar(result.data.foto);
+        }
+    } catch (error) {
+        // silencioso
+    }
+}
+
+function exibirFotoAvatar(fotoBase64) {
+    const avatarImg = document.getElementById('avatar-img');
+    if (!avatarImg) return;
+    if (fotoBase64) {
+        avatarImg.innerHTML = `<img src="${fotoBase64}" alt="Foto de perfil">`;
+    } else {
+        avatarImg.innerHTML = '<i class="fas fa-user avatar-placeholder"></i>';
+    }
+}
+
+function inicializarFotoPerfil() {
+    const avatarContainer = document.getElementById('avatar-container');
+    const inputFoto = document.getElementById('input-foto-perfil');
+    if (!avatarContainer || !inputFoto) return;
+
+    avatarContainer.addEventListener('click', () => {
+        const avatarImg = document.getElementById('avatar-img');
+        const temFoto = avatarImg && avatarImg.querySelector('img');
+
+        if (temFoto) {
+            // Já tem foto: mostrar menu com opções
+            mostrarMenuFoto(avatarContainer);
+        } else {
+            inputFoto.click();
+        }
+    });
+
+    inputFoto.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (file.size > 2 * 1024 * 1024) {
+            alert('A imagem deve ter no máximo 2MB.');
+            inputFoto.value = '';
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+            const base64 = ev.target.result;
+            await salvarFotoPerfil(base64);
+            exibirFotoAvatar(base64);
+        };
+        reader.readAsDataURL(file);
+        inputFoto.value = '';
+    });
+}
+
+function mostrarMenuFoto(anchor) {
+    // Remover menu anterior se existir
+    const menuExistente = document.querySelector('.foto-menu-popup');
+    if (menuExistente) { menuExistente.remove(); return; }
+
+    const menu = document.createElement('div');
+    menu.className = 'foto-menu-popup';
+    menu.innerHTML = `
+        <div class="foto-menu-item" id="foto-alterar"><i class="fas fa-exchange-alt"></i> Alterar foto</div>
+        <div class="foto-menu-item foto-menu-remover" id="foto-remover"><i class="fas fa-trash"></i> Remover foto</div>
+    `;
+    menu.style.cssText = 'position:absolute;top:58px;left:50%;transform:translateX(-50%);background:#1e293b;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:4px 0;z-index:9999;min-width:140px;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+
+    const items = menu.querySelectorAll('.foto-menu-item');
+    items.forEach(item => {
+        item.style.cssText = 'padding:8px 14px;color:rgba(255,255,255,0.85);font-size:12px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background 0.15s;';
+        item.addEventListener('mouseenter', () => item.style.background = 'rgba(255,255,255,0.1)');
+        item.addEventListener('mouseleave', () => item.style.background = 'transparent');
+    });
+
+    anchor.style.position = 'relative';
+    anchor.appendChild(menu);
+
+    menu.querySelector('#foto-alterar').addEventListener('click', (e) => {
+        e.stopPropagation();
+        menu.remove();
+        document.getElementById('input-foto-perfil').click();
+    });
+
+    menu.querySelector('#foto-remover').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        menu.remove();
+        await salvarFotoPerfil(null);
+        exibirFotoAvatar(null);
+    });
+
+    // Fechar ao clicar fora
+    setTimeout(() => {
+        document.addEventListener('click', function fecharMenu(ev) {
+            if (!menu.contains(ev.target)) {
+                menu.remove();
+                document.removeEventListener('click', fecharMenu);
+            }
+        });
+    }, 10);
+}
+
+async function salvarFotoPerfil(fotoBase64) {
+    try {
+        const token = sessionStorage.getItem('token');
+        if (!token) return;
+
+        await fetch(`${API_URL}/usuarios/current/foto`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ foto: fotoBase64 })
+        });
+    } catch (error) {
+        console.error('Erro ao salvar foto:', error);
     }
 }
 
@@ -3127,80 +3261,6 @@ function configurarEventListeners() {
 
 
 
-const calendarioFinanceiro = {
-    "2026-01-01": "Você sabia que hoje começa o ano fiscal em muitos países? É o momento perfeito para o planejamento orçamentário, essencial para governos, empresas e famílias.",
-    "2026-01-05": "Já parou para pensar em como o governo decide onde gastar? O orçamento público, definido hoje, dita como os recursos serão arrecadados e aplicados no ano.",
-    "2026-01-15": "Você sabe qual é o papel dos Bancos Centrais? Eles são as instituições fundamentais para controlar a inflação e calibrar os juros de uma economia.",
-    
-    "2026-02-01": "Atenção ao seu bolso: a inflação ocorre quando os preços sobem de forma contínua, fazendo com que o poder de compra da população diminua.",
-    "2026-02-05": "Fique de olho no IPCA! Esse índice mede a inflação oficial do Brasil e impacta diretamente salários, benefícios e contratos.",
-    "2026-02-15": "Entenda o dilema dos juros: taxas altas combatem a inflação, mas podem frear a economia. Já juros baixos são usados para estimular o consumo.",
-    
-    "2026-03-01": "Você sabia que o PIB é o 'termômetro' de um país? Ele mede a soma de todas as riquezas produzidas em um determinado período.",
-    "2026-03-05": "Como a Taxa Selic te afeta? Ela influencia desde o custo de empréstimos e financiamentos até o rendimento das suas aplicações financeiras.",
-    "2026-03-15": "Vai viajar ou comprar algo de fora? O câmbio e a oscilação da moeda afetam diretamente as importações, exportações e o turismo internacional.",
-    
-    "2026-04-01": "Você sabia que vivemos em um mundo conectado? A globalização econômica une países pelo comércio, mas também transmite crises financeiras com rapidez.",
-    "2026-04-05": "Para onde vai o seu imposto? É através dele que o Estado financia serviços públicos essenciais, como saúde, educação e infraestrutura.",
-    
-    "2026-05-01": "No Dia do Trabalho, lembre-se: o emprego formal é um motor econômico que aumenta a renda, o consumo e a arrecadação de impostos.",
-    "2026-05-05": "O poder de empreender: você sabia que o empreendedorismo impulsiona a inovação e é um dos maiores geradores de empregos no país?",
-    
-    "2026-06-01": "Lição do dia: crises econômicas, embora difíceis, ensinam a importância vital de manter reservas financeiras e políticas fiscais responsáveis.",
-    "2026-06-05": "Você sabe como o dinheiro circula? O sistema bancário funciona como a ponte que conecta quem quer poupar com quem precisa de crédito.",
-    
-    "2026-07-01": "O que é a dívida pública? Governos se endividam para investir no país, mas precisam manter o equilíbrio para que a conta seja sustentável.",
-    "2026-07-05": "Déficit ou Superávit? Esses termos indicam, de forma simples, se o governo está gastando mais ou menos do que consegue arrecadar.",
-    
-    "2026-08-01": "Como o mercado financeiro ajuda o país? Ele canaliza recursos de investidores para projetos produtivos que geram crescimento econômico.",
-    "2026-08-05": "A força das exportações: vender para o exterior fortalece a economia nacional ao gerar divisas (moeda estrangeira) e novos empregos.",
-    
-    "2026-09-01": "Você entende a política monetária? Ela é a ferramenta que influencia o crédito, o consumo e os investimentos no curto e médio prazo.",
-    "2026-09-05": "O valor da indústria: você sabia que ela é vital por transformar matérias-primas em produtos de maior valor, acelerando o desenvolvimento.",
-    
-    "2026-10-01": "Dica de ouro: a educação financeira ajuda as famílias a evitar o endividamento excessivo e a planejar um futuro mais tranquilo.",
-    "2026-10-05": "O impacto social na economia: programas de auxílio movimentam o comércio local e ajudam a reduzir as desigualdades do país.",
-    
-    "2026-11-01": "Conexão global: o comércio internacional permite ganhos de escala para as empresas, mas sua eficiência depende da estabilidade do câmbio.",
-    "2026-11-05": "Consuma com consciência! Pequenas mudanças de hábito ajudam a manter o equilíbrio financeiro e a saúde do orçamento familiar.",
-    
-    "2026-12-01": "O futuro é sustentável: o verdadeiro crescimento econômico deve equilibrar desenvolvimento, inclusão social e preservação do meio ambiente.",
-    "2026-12-05": "Hora de planejar 2027! Um bom planejamento financeiro anual prepara famílias e empresas para o sucesso no próximo ciclo econômico."
-};
-
-function verificarMensagens() {
-    // Pega a data local respeitando o fuso horário do usuário
-    const data = new Date();
-    const ano = data.getFullYear();
-    const mes = String(data.getMonth() + 1).padStart(2, '0');
-    const dia = String(data.getDate()).padStart(2, '0');
-    const hoje = `${ano}-${mes}-${dia}`;
-
-    const banner = document.getElementById('banner-financeiro');
-    const displayMensagem = document.getElementById('mensagem-dia');
-
-    if (calendarioFinanceiro[hoje]) {
-        displayMensagem.innerText = calendarioFinanceiro[hoje];
-        banner.style.display = 'flex';
-    } else {
-        banner.style.display = 'none';
-    }
-}
-// Event listener para fechar o banner
-function fecharBanner() {
-    const banner = document.getElementById('banner-financeiro');
-    banner.style.display = 'none';
-}
-
-// Inicia a verificação assim que a página carregar
-document.addEventListener("DOMContentLoaded", () => {
-    verificarMensagens();
-
-    const btnFechar = document.getElementById('btn-fechar-banner');
-    if (btnFechar) {
-        btnFechar.addEventListener('click', fecharBanner);
-    }
-});
 
 
 // --- CONFIGURAÇÃO NEWSDATA.IO ---

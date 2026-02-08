@@ -36,7 +36,7 @@ const isAdminOrMaster = (req, res, next) => {
 router.get('/current', authMiddleware, async (req, res) => {
     try {
         const result = await query(
-            'SELECT id, nome, email, documento, tipo, status, data_cadastro FROM usuarios WHERE id = $1',
+            'SELECT id, nome, email, documento, tipo, status, foto, data_cadastro FROM usuarios WHERE id = $1',
             [req.usuario.id]
         );
         
@@ -87,6 +87,32 @@ router.put('/current', authMiddleware, async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Erro ao atualizar dados'
+        });
+    }
+});
+
+// ================================================================
+// PUT /api/usuarios/current/foto - Upload/remover foto de perfil
+// ================================================================
+router.put('/current/foto', authMiddleware, async (req, res) => {
+    try {
+        const { foto } = req.body;
+
+        await query(
+            'UPDATE usuarios SET foto = $1, data_atualizacao = CURRENT_TIMESTAMP WHERE id = $2',
+            [foto || null, req.usuario.id]
+        );
+
+        res.json({
+            success: true,
+            message: foto ? 'Foto atualizada com sucesso' : 'Foto removida com sucesso'
+        });
+
+    } catch (error) {
+        console.error('Erro ao atualizar foto:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao atualizar foto'
         });
     }
 });

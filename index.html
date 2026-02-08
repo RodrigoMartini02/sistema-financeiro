@@ -65,8 +65,19 @@
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <h3>Sistema Financeiro</h3>
-            <div class="user-info-sidebar">
-                <span id="nome-usuario-sidebar"></span>
+            <div class="user-profile-sidebar">
+                <div class="avatar-container" id="avatar-container" title="Clique para alterar a foto">
+                    <div class="avatar-img" id="avatar-img">
+                        <i class="fas fa-user avatar-placeholder"></i>
+                    </div>
+                    <div class="avatar-edit-icon">
+                        <i class="fas fa-camera"></i>
+                    </div>
+                </div>
+                <input type="file" id="input-foto-perfil" accept="image/*" style="display:none">
+                <div class="user-info-sidebar">
+                    <span id="nome-usuario-sidebar"></span>
+                </div>
             </div>
         </div>
         <ul class="sidebar-nav">
@@ -450,16 +461,6 @@
                 <div class="chart-container">
                     <canvas id="juros-chart"></canvas>
                 </div>
-                <div class="estatisticas-container">
-                    <div class="estatistica-item">
-                        <span class="estatistica-label">Juros Pendentes:</span>
-                        <span class="estatistica-valor" id="juros-pendentes-valor">R$ 0,00</span>
-                    </div>
-                    <div class="estatistica-item">
-                        <span class="estatistica-label">% Juros Pagos:</span>
-                        <span class="estatistica-valor" id="juros-pagos-percentual">0%</span>
-                    </div>
-                </div>
             </div>
 
             <div class="dashboard-card">
@@ -486,16 +487,6 @@
                 </h3>
                 <div class="chart-container">
                     <canvas id="parcelamentos-chart"></canvas>
-                </div>
-                <div class="estatisticas-container">
-                    <div class="estatistica-item">
-                        <span class="estatistica-label">Parcelas Pendentes:</span>
-                        <span class="estatistica-valor" id="parcelas-pendentes-valor">R$ 0,00</span>
-                    </div>
-                    <div class="estatistica-item">
-                        <span class="estatistica-label">% Parcelas Pagas:</span>
-                        <span class="estatistica-valor" id="parcelas-pagas-percentual">0%</span>
-                    </div>
                 </div>
             </div>
 
@@ -526,9 +517,6 @@
                         <option value="10">Novembro</option>
                         <option value="11">Dezembro</option>
                     </select>
-                    <button class="btn btn-icon btn-outline btn-refresh" onclick="resetarFiltrosBalanco()" title="Resetar filtros">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
                 </div>
                 <button class="btn btn-icon btn-outline" data-chart="balancoChart">[ ]</button>
             </h3>
