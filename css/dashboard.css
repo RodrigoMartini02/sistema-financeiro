@@ -106,7 +106,8 @@
 
 #balanco-chart, #tendencia-chart, #receitas-despesas-chart,
 #categorias-barras-chart, #categorias-mensais-chart,
-#juros-chart, #parcelamentos-chart, #forma-pagamento-chart {
+#juros-chart, #parcelamentos-chart, #forma-pagamento-chart,
+#media-categorias-chart, #cartoes-usados-chart {
     width: 100%;
     height: 100%;
 }

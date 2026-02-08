@@ -489,7 +489,7 @@ function getOpcoesGrafico() {
             y: {
                 ticks: {
                     callback: function(value) {
-                        return window.formatarMoeda(value);
+                        return window.formatarMoedaCompacta(value);
                     }
                 },
                 grid: {
@@ -960,7 +960,7 @@ function criarGraficoTendenciaAnualComFiltros(dadosFinanceiros, anoAtual, filtro
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            return window.formatarMoeda(value);
+                            return window.formatarMoedaCompacta(value);
                         }
                     }
                 },
@@ -1037,7 +1037,7 @@ function criarGraficoReceitasDespesasComFiltros(dados, filtros) {
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            return window.formatarMoeda(value);
+                            return window.formatarMoedaCompacta(value);
                         }
                     }
                 }
@@ -1348,7 +1348,7 @@ function criarGraficoJurosComFiltros(dadosFinanceiros, ano, filtros) {
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            return window.formatarMoeda(value);
+                            return window.formatarMoedaCompacta(value);
                         }
                     }
                 }
@@ -1416,12 +1416,14 @@ function calcularDadosJurosMensaisComFiltros(dadosFinanceiros, ano, filtros) {
 }
 
 function atualizarEstatisticasJuros(dados) {
-    const porcentagemPagos = dados.totalJuros > 0 ? 
+    const porcentagemPagos = dados.totalJuros > 0 ?
         ((dados.jurosPagos / dados.totalJuros) * 100).toFixed(1) : 0;
     const jurosPendentes = dados.totalJuros - dados.jurosPagos;
-    
-    document.getElementById('juros-pendentes-valor').textContent = window.formatarMoeda(jurosPendentes);
-    document.getElementById('juros-pagos-percentual').textContent = porcentagemPagos + '%';
+
+    const elPendentes = document.getElementById('juros-pendentes-valor');
+    const elPercentual = document.getElementById('juros-pagos-percentual');
+    if (elPendentes) elPendentes.textContent = window.formatarMoeda(jurosPendentes);
+    if (elPercentual) elPercentual.textContent = porcentagemPagos + '%';
 }
 
 // ================================================================
@@ -1465,7 +1467,7 @@ function criarGraficoParcelamentosComFiltros(dadosFinanceiros, ano, filtros) {
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            return window.formatarMoeda(value);
+                            return window.formatarMoedaCompacta(value);
                         }
                     }
                 }
@@ -1531,12 +1533,14 @@ function calcularDadosParcelamentosMensaisComFiltros(dadosFinanceiros, ano, filt
 }
 
 function atualizarEstatisticasParcelamentos(dados) {
-    const porcentagemPagas = dados.totalParcelado > 0 ? 
+    const porcentagemPagas = dados.totalParcelado > 0 ?
         ((dados.parcelasPagas / dados.totalParcelado) * 100).toFixed(1) : 0;
     const parcelasPendentes = dados.totalParcelado - dados.parcelasPagas;
-    
-    document.getElementById('parcelas-pendentes-valor').textContent = window.formatarMoeda(parcelasPendentes);
-    document.getElementById('parcelas-pagas-percentual').textContent = porcentagemPagas + '%';
+
+    const elPendentes = document.getElementById('parcelas-pendentes-valor');
+    const elPercentual = document.getElementById('parcelas-pagas-percentual');
+    if (elPendentes) elPendentes.textContent = window.formatarMoeda(parcelasPendentes);
+    if (elPercentual) elPercentual.textContent = porcentagemPagas + '%';
 }
 
 // ================================================================
@@ -1702,7 +1706,7 @@ function criarGraficoMediaItens(dadosFinanceiros, ano, filtros) {
             },
             scales: {
                 x: {
-                    ticks: { callback: (value) => window.formatarMoeda(value) }
+                    ticks: { callback: (value) => window.formatarMoedaCompacta(value) }
                 }
             }
         }

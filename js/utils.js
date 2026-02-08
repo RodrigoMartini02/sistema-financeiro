@@ -83,6 +83,23 @@ function formatarMoeda(valor) {
     }).format(valor);
 }
 
+function formatarMoedaCompacta(valor) {
+    if (valor === null || valor === undefined || isNaN(valor) || valor === 0) {
+        return 'R$ 0';
+    }
+    const negativo = valor < 0;
+    const abs = Math.abs(valor);
+    let resultado;
+    if (abs >= 1000000) {
+        resultado = (abs / 1000000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + 'M';
+    } else if (abs >= 1000) {
+        resultado = (abs / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + 'k';
+    } else {
+        resultado = abs.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+    }
+    return (negativo ? '-R$ ' : 'R$ ') + resultado;
+}
+
 /**
  * Converte string de moeda para número
  * @param {string} valorString - String no formato "R$ 1.234,56"
@@ -530,6 +547,7 @@ window.redirecionarParaLogin = redirecionarParaLogin;
 window.logout = logout;
 
 window.formatarMoeda = formatarMoeda;
+window.formatarMoedaCompacta = formatarMoedaCompacta;
 window.moedaParaNumero = moedaParaNumero;
 window.formatarData = formatarData;
 window.dataBRparaISO = dataBRparaISO;
