@@ -34,9 +34,6 @@ function inicializarSistemaLoginRapido() {
         // Carregar dependências opcionais em background
         carregarDependenciasBackground();
 
-        // Verificar "Lembrar de mim" - auto-login se token válido
-        tentarAutoLogin();
-
         window.loginSistemaInicializado = true;
 
     } catch (error) {
@@ -44,55 +41,6 @@ function inicializarSistemaLoginRapido() {
     }
 }
 
-async function tentarAutoLogin() {
-    const token = localStorage.getItem('lembrarToken');
-    const usuario = localStorage.getItem('lembrarUsuario');
-    const dadosUsuario = localStorage.getItem('lembrarDadosUsuario');
-
-    if (!token || !usuario || !dadosUsuario) return;
-
-    try {
-        // Validar token com o backend
-        const response = await fetch(`${API_URL}/auth/verify`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        if (response.ok) {
-            // Token válido - auto-login
-            sessionStorage.setItem('token', token);
-            sessionStorage.setItem('usuarioAtual', usuario);
-            sessionStorage.setItem('dadosUsuarioLogado', dadosUsuario);
-
-            if (typeof window.showLoadingScreen === 'function') {
-                window.showLoadingScreen();
-            }
-            window.location.href = 'index.html';
-            return;
-        }
-    } catch (e) {
-        // Token inválido ou sem conexão - continua para tela de login
-    }
-
-    // Token expirado: preencher CPF e marcar checkbox para facilitar
-    const docInput = document.getElementById('modal-documento');
-    const rememberCheckbox = document.getElementById('remember-me');
-    if (docInput) docInput.value = formatarDocumentoStr(usuario);
-    if (rememberCheckbox) rememberCheckbox.checked = true;
-}
-
-function formatarDocumentoStr(doc) {
-    if (!doc) return '';
-    doc = doc.replace(/\D/g, '');
-    if (doc.length === 11) {
-        return doc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-    } else if (doc.length === 14) {
-        return doc.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
-    }
-    return doc;
-}
 
 function configurarSistemaCompleto() {
     // Inicializar estrutura de dados se necessário
@@ -356,19 +304,6 @@ async function processarLogin(documento, password, isModal, tentativa = 1) {
             // Senha removida por segurança - usar token JWT para autenticação
         });
         sessionStorage.setItem('dadosUsuarioLogado', dadosUsuario);
-
-        // Verificar "Lembrar de mim" e salvar no localStorage
-        const rememberMe = document.getElementById('remember-me');
-        if (rememberMe && rememberMe.checked) {
-            localStorage.setItem('lembrarToken', token);
-            localStorage.setItem('lembrarUsuario', docLimpo);
-            localStorage.setItem('lembrarDadosUsuario', dadosUsuario);
-        } else {
-            // Se não marcou "lembrar de mim", limpar dados salvos anteriormente
-            localStorage.removeItem('lembrarToken');
-            localStorage.removeItem('lembrarUsuario');
-            localStorage.removeItem('lembrarDadosUsuario');
-        }
 
         // Registrar tentativa em background
         registrarTentativaBackground(documento, true);

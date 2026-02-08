@@ -262,6 +262,9 @@ function processarDadosReais(dadosFinanceiros, ano) {
         saldos: []
     };
 
+    // Saldo inicial do ano (saldo final do ano anterior)
+    const saldoInicialAno = window.obterSaldoAnterior ? window.obterSaldoAnterior(0, ano) : 0;
+
     let receitasAno = 0;
     let totalDespesas = 0;
     let totalJuros = 0;
@@ -289,7 +292,7 @@ function processarDadosReais(dadosFinanceiros, ano) {
         totalJuros += jurosMes;
         totalEconomias += economiasMes;
 
-        // Gráfico "Entradas e Saídas" - apenas receitas reais, sem saldo anterior
+        // Gráfico "Entradas e Saídas" - receitas do mês
         dadosMensais.receitas.push(saldoInfo.receitas);
         dadosMensais.despesas.push(despesasMes);
 
@@ -298,8 +301,16 @@ function processarDadosReais(dadosFinanceiros, ano) {
         dadosMensais.saldos.push(saldoMes);
     }
 
-    // Receitas Totais do Dashboard = apenas receitas cadastradas no ano (sem saldo anterior, sem reservas)
-    const receitasTotais = receitasAno;
+    // Total de reservas do ano
+    let totalReservado = 0;
+    if (window.reservasCache && Array.isArray(window.reservasCache)) {
+        totalReservado = window.reservasCache
+            .filter(r => parseInt(r.ano) === ano)
+            .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
+    }
+
+    // Receitas Totais = saldo inicial + receitas do ano - reservas (mesma fórmula do main.js e tendência anual)
+    const receitasTotais = saldoInicialAno + receitasAno - totalReservado;
 
     const resumoAnual = {
         receitas: receitasTotais,

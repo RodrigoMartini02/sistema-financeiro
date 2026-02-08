@@ -12,24 +12,6 @@
     <!-- VERIFICAÇÃO DE AUTENTICAÇÃO (ANTES DE TUDO) -->
     <script>
         (function() {
-            // Verificar se há dados salvos com "lembrar de mim"
-            var lembrarToken = localStorage.getItem('lembrarToken');
-            var lembrarUsuario = localStorage.getItem('lembrarUsuario');
-            var lembrarDados = localStorage.getItem('lembrarDadosUsuario');
-
-            // Se tem dados salvos no localStorage, restaurar para sessionStorage
-            if (lembrarToken && lembrarUsuario) {
-                if (!sessionStorage.getItem('token')) {
-                    sessionStorage.setItem('token', lembrarToken);
-                }
-                if (!sessionStorage.getItem('usuarioAtual')) {
-                    sessionStorage.setItem('usuarioAtual', lembrarUsuario);
-                }
-                if (lembrarDados && !sessionStorage.getItem('dadosUsuarioLogado')) {
-                    sessionStorage.setItem('dadosUsuarioLogado', lembrarDados);
-                }
-            }
-
             // Verificar autenticação
             var usuarioAtual = sessionStorage.getItem('usuarioAtual');
             if (!usuarioAtual) {
