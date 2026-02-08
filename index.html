@@ -124,20 +124,23 @@
 
    <main class="main-content">
         <header class="main-header">
-            <!-- ✅ BANNER DE MENSAGENS ESPECIAIS -->
-            <div id="banner-financeiro" class="banner-alerta" style="display: none;">
-                <div class="banner-conteudo">
-                    <i class="fas fa-info-circle"></i>
-                    <span id="mensagem-dia"></span>
-                </div>
-                <button type="button" class="btn btn-icon btn-danger" id="btn-fechar-banner" title="Fechar banner">
-                    <i class="fas fa-times"></i>
+            <!-- Esquerda: Ações principais -->
+            <div class="header-left">
+                <button id="btn-adicionar-receita-rapida" class="header-action-btn header-action-receita">
+                    <i class="fas fa-plus"></i> RECEITA
+                </button>
+                <button id="btn-adicionar-despesa-rapida" class="header-action-btn header-action-despesa">
+                    <i class="fas fa-plus"></i> DESPESA
                 </button>
             </div>
 
-            <!-- ✅ AÇÕES DO HEADER -->
-            <div class="header-actions">
-                <!-- Seletor de Ano com Dropdown -->
+            <!-- Centro: Cotações + Ano -->
+            <div class="header-center">
+                <div class="cambio-container-compact" title="Cotações em tempo real">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span id="cotacoes-compact">Carregando...</span>
+                </div>
+                <div class="header-separator"></div>
                 <div class="periodo-selector">
                     <button class="header-btn" id="btn-ano-anterior" title="Ano Anterior">
                         <i class="fas fa-chevron-left"></i>
@@ -152,8 +155,10 @@
                         <i class="fas fa-chevron-right"></i>
                     </button>
                 </div>
+            </div>
 
-                <!-- Menu de Gerenciamento de Ano -->
+            <!-- Direita: Ícones utilitários -->
+            <div class="header-right">
                 <div class="ano-menu-container">
                     <button class="header-btn" id="btn-ano-menu" title="Gerenciar Ano">
                         <i class="fas fa-cog"></i>
@@ -171,61 +176,30 @@
                         </button>
                     </div>
                 </div>
-
-                <!-- Notícias -->
                 <button class="header-btn" id="btn-toggle-noticias" type="button" title="Ver Notícias">
                     <i class="fas fa-newspaper"></i>
                 </button>
-
-                <!-- Notificações -->
+                <button class="header-btn" id="btn-refresh" title="Atualizar Dados">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+                <button class="header-btn" id="btn-lock-system" title="Bloquear Sistema">
+                    <i class="fas fa-lock"></i>
+                </button>
                 <div class="notification-wrapper">
                     <button class="header-btn" id="notification-bell" type="button" aria-label="Notificações">
                         <i class="fas fa-bell"></i>
                     </button>
                     <span class="notification-badge" id="notification-count">0</span>
                 </div>
-
-                <!-- Logout -->
                 <button class="header-btn" id="logout-btn" title="Sair">
                     <i class="fas fa-sign-out-alt"></i>
                 </button>
             </div>
         </header>
 
+        <!-- Marquee colapsável -->
         <div id="marquee-noticias" class="marquee-container" style="display: none;">
-            <div class="marquee-content" id="conteudo-noticias">
-        </div>
-    </div>
-
-        <!-- ======================================================== -->
-        <!-- BARRA DE AÇÕES RÁPIDAS -->
-        <!-- ======================================================== -->
-        <div class="secondary-action-bar">
-            <!-- ✅ AÇÕES PRINCIPAIS -->
-            <div class="action-group action-primary">
-                <button id="btn-adicionar-receita-rapida" class="btn btn-success btn-lg">
-                    <i class="fas fa-plus"></i> RECEITA
-                </button>
-                <button id="btn-adicionar-despesa-rapida" class="btn btn-danger btn-lg">
-                    <i class="fas fa-plus"></i> DESPESA
-                </button>
-            </div>
-
-            <!-- ✅ COTAÇÕES COMPACTAS -->
-            <div class="cambio-container-compact" title="Cotações em tempo real">
-                <i class="fas fa-exchange-alt"></i>
-                <span id="cotacoes-compact">Carregando...</span>
-            </div>
-
-            <!-- ✅ AÇÕES SECUNDÁRIAS -->
-            <div class="action-group action-group-right">
-                <button id="btn-refresh" class="btn btn-icon btn-secondary" title="Atualizar Dados">
-                    <i class="fas fa-sync-alt"></i>
-                </button>
-                <button id="btn-lock-system" class="btn btn-icon btn-secondary" title="Bloquear Sistema">
-                    <i class="fas fa-lock"></i>
-                </button>
-            </div>
+            <div class="marquee-content" id="conteudo-noticias"></div>
         </div>
 
         <!-- ======================================================== -->

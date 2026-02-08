@@ -581,87 +581,125 @@ textarea:focus {
 /* ================================================================
    HEADER PRINCIPAL - REDESENHADO
    ================================================================ */
+/* ================================================================
+   HEADER UNIFICADA
+   ================================================================ */
 .main-header {
-    height: var(--header-height);
+    height: 56px;
     background-color: var(--white);
-    box-shadow: var(--shadow-md);
-    padding: 0 24px;
+    border-bottom: 1px solid var(--gray-200);
+    padding: 0 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     z-index: var(--z-sticky);
     flex-shrink: 0;
-    gap: 16px;
+    gap: 12px;
 }
 
-/* ✅ LOGO E TÍTULO */
-.header-brand {
+/* Esquerda: Botões Receita/Despesa */
+.header-left {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     flex-shrink: 0;
 }
 
-.header-brand i {
-    font-size: 24px;
-    color: var(--primary-color);
-}
-
-.header-brand h1 {
-    font-size: 18px;
+.header-action-btn {
+    padding: 7px 16px;
+    font-size: 12px;
     font-weight: 700;
-    color: var(--text-color);
-    margin: 0;
-    white-space: nowrap;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #fff;
+    transition: all 0.2s ease;
+    letter-spacing: 0.3px;
 }
 
-/* ✅ AÇÕES DO HEADER */
-.header-actions {
+.header-action-receita {
+    background: var(--success-color);
+}
+
+.header-action-receita:hover {
+    background: #23903d;
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+}
+
+.header-action-despesa {
+    background: var(--despesa-color);
+}
+
+.header-action-despesa:hover {
+    background: #e85555;
+    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+}
+
+/* Centro: Cotações + Ano */
+.header-center {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-left: auto;
+    flex: 1;
+    justify-content: center;
 }
 
-/* ✅ BOTÕES DO HEADER - LIMPO E PADRONIZADO */
+.header-separator {
+    width: 1px;
+    height: 24px;
+    background: var(--gray-300);
+    flex-shrink: 0;
+}
+
+/* Direita: Ícones utilitários */
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+/* Botões ícone do header */
 .header-btn {
     border: none;
     background: none;
     outline: none;
     cursor: pointer;
     padding: 8px;
-    font-size: 18px;
-    color: var(--text-primary);
+    font-size: 17px;
+    color: var(--gray-600);
     display: flex;
     align-items: center;
     justify-content: center;
     transition: color 0.2s ease;
+    border-radius: 6px;
 }
 
 .header-btn:hover {
     color: var(--primary-color);
+    background: var(--gray-100);
 }
 
-.header-btn:focus {
-    outline: none;
-}
-
+.header-btn:focus,
 .header-btn:active {
     outline: none;
 }
 
-/* Botão do ano (texto ao invés de ícone) */
+/* Botão do ano (texto) */
 .header-btn-year {
-    min-width: 80px;
+    min-width: 64px;
     font-weight: 600;
-    font-size: 18px;
+    font-size: 16px;
+    color: var(--text-primary);
 }
 
-/* ✅ SELETOR DE ANO - SIMPLES */
+/* Seletor de Ano */
 .periodo-selector {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
 }
 
 .ano-dropdown {
@@ -754,43 +792,7 @@ textarea:focus {
     color: var(--danger);
 }
 
-/* Banner de Alerta Ajustado */
-.banner-alerta {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    height: 38px;        /* Mesma altura do botão */
-    padding: 0 15px;
-    margin: 0;           /* Removido margens para alinhar com o botão */
-    box-shadow: 3px 3px 10px rgba(0,0,0,0.1);
-    font-size: 13px;
-    font-weight: 500;
-    flex: 1;             /* Ocupa o espaço central disponível */
-    box-sizing: border-box;
-    overflow: hidden;
-    animation: slideFromSidebar 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
-}
-
-.banner-conteudo {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.banner-conteudo i {
-    font-size: 16px;
-    opacity: 0.9;
-    flex-shrink: 0;
-}
-
-
-/* Estilos do periodo-selector e header-actions já definidos acima (linha 566-837) */
+/* (banner-alerta removido - unificado no header) */
 
 /* ================================================================
    LETREIRO (MARQUEE)
@@ -844,89 +846,25 @@ textarea:focus {
     }
 }
 
-/* ================================================================
-   BARRA DE AÇÕES SECUNDÁRIA
-   ================================================================ */
+/* (secondary-action-bar removida - unificada no main-header) */
 
-/* ================================================================
-   BARRA DE AÇÕES SECUNDÁRIA - REDESENHADA
-   ================================================================ */
-.secondary-action-bar {
-    display: flex;
-    align-items: center;
-    padding: 12px 24px;
-    background-color: var(--white);
-    border-bottom: 1px solid var(--gray-200);
-    gap: 20px;
-    flex-wrap: wrap;
-}
-
-/* ✅ AÇÕES PRINCIPAIS (Receita/Despesa) */
-.action-primary {
-    display: flex;
-    gap: 12px;
-}
-
-.action-primary .btn-lg {
-    padding: 12px 24px;
-    font-size: 14px;
-    font-weight: 700;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.action-primary .btn-success {
-    background: var(--success-color);
-    color: white;
-}
-
-.action-primary .btn-success:hover {
-    background: #23903d;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
-}
-
-.action-primary .btn-danger {
-    background: var(--despesa-color);
-    color: white;
-}
-
-.action-primary .btn-danger:hover {
-    background: #e85555;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
-}
-
-/* ✅ COTAÇÕES COMPACTAS */
+/* Cotações compactas (header) */
 .cambio-container-compact {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 12px;
+    padding: 5px 10px;
     background-color: var(--gray-50);
-    font-size: 12px;
+    border-radius: 6px;
+    font-size: 11px;
     font-weight: 600;
-    color: var(--gray-700);
+    color: var(--gray-600);
+    white-space: nowrap;
 }
 
 .cambio-container-compact i {
     color: var(--primary-color);
-    font-size: 14px;
-}
-
-/* ✅ GRUPOS DE AÇÕES */
-.action-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.action-group-right {
-    margin-left: auto;
+    font-size: 12px;
 }
 
 
@@ -939,7 +877,7 @@ textarea:focus {
     overflow-y: auto;
     overflow-x: hidden;
     padding: 20px 16px;
-    height: calc(100vh - var(--header-height) - 60px);
+    height: calc(100vh - 56px);
 }
 
 /* ================================================================
