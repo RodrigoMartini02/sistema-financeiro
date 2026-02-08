@@ -585,10 +585,10 @@ textarea:focus {
    HEADER UNIFICADA
    ================================================================ */
 .main-header {
-    height: 56px;
+    height: 46px;
     background-color: var(--white);
     border-bottom: 1px solid var(--gray-200);
-    padding: 0 20px;
+    padding: 0 16px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -597,7 +597,7 @@ textarea:focus {
     gap: 12px;
 }
 
-/* Esquerda: Botões Receita/Despesa */
+/* Esquerda: Botões Receita/Despesa + Cotações */
 .header-left {
     display: flex;
     align-items: center;
@@ -605,11 +605,14 @@ textarea:focus {
     flex-shrink: 0;
 }
 
+/* Botões de ação (Receita/Despesa) */
 .header-action-btn {
-    padding: 7px 16px;
-    font-size: 12px;
+    height: 32px;
+    padding: 0 14px;
+    font-size: 11px;
     font-weight: 700;
     border: none;
+    border-radius: 6px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -617,6 +620,7 @@ textarea:focus {
     color: #fff;
     transition: all 0.2s ease;
     letter-spacing: 0.3px;
+    white-space: nowrap;
 }
 
 .header-action-receita {
@@ -637,23 +641,16 @@ textarea:focus {
     box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
 }
 
-/* Centro: Cotações + Ano */
-.header-center {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex: 1;
-    justify-content: center;
-}
-
+/* Separador vertical entre grupos */
 .header-separator {
     width: 1px;
     height: 24px;
     background: var(--gray-300);
     flex-shrink: 0;
+    margin: 0 4px;
 }
 
-/* Direita: Ícones utilitários */
+/* Direita: Ano + Ícones utilitários */
 .header-right {
     display: flex;
     align-items: center;
@@ -661,37 +658,42 @@ textarea:focus {
     flex-shrink: 0;
 }
 
-/* Botões ícone do header */
-.header-btn {
+/* Botão ícone padrão do header (uniforme) */
+.header-icon-btn {
+    height: 32px;
+    width: 32px;
     border: none;
     background: none;
     outline: none;
     cursor: pointer;
-    padding: 8px;
-    font-size: 17px;
+    padding: 0;
+    font-size: 14px;
     color: var(--gray-600);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: color 0.2s ease;
+    transition: all 0.2s ease;
     border-radius: 6px;
+    flex-shrink: 0;
 }
 
-.header-btn:hover {
+.header-icon-btn:hover {
     color: var(--primary-color);
     background: var(--gray-100);
 }
 
-.header-btn:focus,
-.header-btn:active {
+.header-icon-btn:focus,
+.header-icon-btn:active {
     outline: none;
 }
 
-/* Botão do ano (texto) */
-.header-btn-year {
-    min-width: 64px;
-    font-weight: 600;
-    font-size: 16px;
+/* Label do ano dentro do seletor */
+.header-ano-label {
+    width: auto;
+    min-width: 48px;
+    padding: 0 6px;
+    font-weight: 700;
+    font-size: 13px;
     color: var(--text-primary);
 }
 
@@ -699,7 +701,7 @@ textarea:focus {
 .periodo-selector {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
 }
 
 .ano-dropdown {
@@ -727,13 +729,13 @@ textarea:focus {
 
 .dropdown-anos-lista button {
     width: 100%;
-    padding: 10px 16px;
+    padding: 8px 14px;
     border: none;
     background: none;
     text-align: left;
     cursor: pointer;
     transition: background 0.2s ease;
-    font-size: 14px;
+    font-size: 13px;
 }
 
 .dropdown-anos-lista button:hover {
@@ -850,10 +852,11 @@ textarea:focus {
 
 /* Cotações compactas (header) */
 .cambio-container-compact {
+    height: 32px;
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 5px 10px;
+    padding: 0 12px;
     background-color: var(--gray-50);
     border-radius: 6px;
     font-size: 11px;
@@ -877,7 +880,7 @@ textarea:focus {
     overflow-y: auto;
     overflow-x: hidden;
     padding: 20px 16px;
-    height: calc(100vh - 56px);
+    height: calc(100vh - 46px);
 }
 
 /* ================================================================

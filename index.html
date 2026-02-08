@@ -124,7 +124,7 @@
 
    <main class="main-content">
         <header class="main-header">
-            <!-- Esquerda: Ações principais -->
+            <!-- Esquerda: Ações + Cotações -->
             <div class="header-left">
                 <button id="btn-adicionar-receita-rapida" class="header-action-btn header-action-receita">
                     <i class="fas fa-plus"></i> RECEITA
@@ -132,35 +132,32 @@
                 <button id="btn-adicionar-despesa-rapida" class="header-action-btn header-action-despesa">
                     <i class="fas fa-plus"></i> DESPESA
                 </button>
-            </div>
-
-            <!-- Centro: Cotações + Ano -->
-            <div class="header-center">
-                <div class="cambio-container-compact" title="Cotações em tempo real">
+                <div class="header-separator"></div>
+                <div class="header-item cambio-container-compact" title="Cotações em tempo real">
                     <i class="fas fa-exchange-alt"></i>
                     <span id="cotacoes-compact">Carregando...</span>
                 </div>
-                <div class="header-separator"></div>
+            </div>
+
+            <!-- Direita: Ano + Ícones utilitários -->
+            <div class="header-right">
                 <div class="periodo-selector">
-                    <button class="header-btn" id="btn-ano-anterior" title="Ano Anterior">
+                    <button class="header-icon-btn" id="btn-ano-anterior" title="Ano Anterior">
                         <i class="fas fa-chevron-left"></i>
                     </button>
                     <div class="ano-dropdown">
-                        <button class="header-btn header-btn-year" id="ano-atual-btn">2026</button>
+                        <button class="header-icon-btn header-ano-label" id="ano-atual-btn">2026</button>
                         <div id="dropdown-anos" class="dropdown-anos-lista">
                             <!-- Será preenchido dinamicamente -->
                         </div>
                     </div>
-                    <button class="header-btn" id="btn-proximo-ano" title="Próximo Ano">
+                    <button class="header-icon-btn" id="btn-proximo-ano" title="Próximo Ano">
                         <i class="fas fa-chevron-right"></i>
                     </button>
                 </div>
-            </div>
-
-            <!-- Direita: Ícones utilitários -->
-            <div class="header-right">
+                <div class="header-separator"></div>
                 <div class="ano-menu-container">
-                    <button class="header-btn" id="btn-ano-menu" title="Gerenciar Ano">
+                    <button class="header-icon-btn" id="btn-ano-menu" title="Gerenciar Ano">
                         <i class="fas fa-cog"></i>
                     </button>
                     <div id="dropdown-ano-menu" class="dropdown-ano-menu">
@@ -176,22 +173,22 @@
                         </button>
                     </div>
                 </div>
-                <button class="header-btn" id="btn-toggle-noticias" type="button" title="Ver Notícias">
+                <button class="header-icon-btn" id="btn-toggle-noticias" type="button" title="Ver Notícias">
                     <i class="fas fa-newspaper"></i>
                 </button>
-                <button class="header-btn" id="btn-refresh" title="Atualizar Dados">
+                <button class="header-icon-btn" id="btn-refresh" title="Atualizar Dados">
                     <i class="fas fa-sync-alt"></i>
                 </button>
-                <button class="header-btn" id="btn-lock-system" title="Bloquear Sistema">
+                <button class="header-icon-btn" id="btn-lock-system" title="Bloquear Sistema">
                     <i class="fas fa-lock"></i>
                 </button>
                 <div class="notification-wrapper">
-                    <button class="header-btn" id="notification-bell" type="button" aria-label="Notificações">
+                    <button class="header-icon-btn" id="notification-bell" type="button" aria-label="Notificações">
                         <i class="fas fa-bell"></i>
                     </button>
                     <span class="notification-badge" id="notification-count">0</span>
                 </div>
-                <button class="header-btn" id="logout-btn" title="Sair">
+                <button class="header-icon-btn" id="logout-btn" title="Sair">
                     <i class="fas fa-sign-out-alt"></i>
                 </button>
             </div>
