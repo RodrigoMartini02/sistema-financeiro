@@ -301,21 +301,24 @@ router.post('/send-recovery-email', [
     try {
         const { email, codigo, nome } = req.body;
 
-        // Credenciais do EmailJS do ambiente (não expostas no frontend)
         const serviceId = process.env.EMAILJS_SERVICE_ID;
         const templateId = process.env.EMAILJS_TEMPLATE_ID;
         const userId = process.env.EMAILJS_USER_ID;
 
+        console.log('[EmailJS] Vars configuradas:', { serviceId: !!serviceId, templateId: !!templateId, userId: !!userId });
+
         if (!serviceId || !templateId || !userId) {
-            console.error('Credenciais EmailJS não configuradas');
+            console.error('[EmailJS] Credenciais não configuradas no ambiente');
             return res.status(500).json({
                 success: false,
                 message: 'Serviço de email não configurado'
             });
         }
 
-        // Enviar email via EmailJS API
-        const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+        // Usar fetch nativo (Node 18+) ou node-fetch como fallback
+        const fetchFn = typeof fetch !== 'undefined' ? fetch : require('node-fetch');
+
+        const response = await fetchFn('https://api.emailjs.com/api/v1.0/email/send', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -335,23 +338,24 @@ router.post('/send-recovery-email', [
         });
 
         if (response.ok) {
+            console.log('[EmailJS] Email enviado com sucesso para:', email);
             res.json({
                 success: true,
                 message: 'Email enviado com sucesso'
             });
         } else {
             const errorText = await response.text();
-            console.error('Erro EmailJS:', errorText);
+            console.error('[EmailJS] Erro na resposta:', response.status, errorText);
             res.status(500).json({
                 success: false,
-                message: 'Erro ao enviar email'
+                message: 'Erro ao enviar email: ' + errorText
             });
         }
     } catch (error) {
-        console.error('Erro ao enviar email:', error);
+        console.error('[EmailJS] Erro catch:', error.message);
         res.status(500).json({
             success: false,
-            message: 'Erro ao enviar email de recuperação'
+            message: 'Erro ao enviar email: ' + error.message
         });
     }
 });

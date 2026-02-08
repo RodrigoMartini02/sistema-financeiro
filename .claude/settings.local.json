@@ -32,7 +32,8 @@
       "Bash(powershell -Command \"Test-Path ''c:\\\\Users\\\\rodri\\\\Music\\\\sistema financas\\\\nul''\")",
       "Bash(powershell -Command:*)",
       "Bash(cmd /c \"dir /b /a-d \"\"c:\\\\Users\\\\rodri\\\\Music\\\\sistema financas\\\\backend\"\" 2>nul\")",
-      "Bash(cmd /c:*)"
+      "Bash(cmd /c:*)",
+      "Bash(npm install:*)"
     ]
   }
 }
