@@ -122,6 +122,7 @@ function exportarVariaveisGlobais() {
     window.anoAberto = anoAberto;
     
     window.formatarMoeda = formatarMoeda;
+    window.formatarMoedaCompacta = formatarMoedaCompacta;
     window.formatarData = formatarData;
     window.gerarId = gerarId;
     window.salvarDados = salvarDados;
@@ -2856,6 +2857,21 @@ function formatarMoeda(valor) {
     } catch (error) {
         return `R$ ${(valor || 0).toFixed(2)}`;
     }
+}
+
+function formatarMoedaCompacta(valor) {
+    if (valor === null || valor === undefined || isNaN(valor) || valor === 0) return 'R$ 0';
+    const negativo = valor < 0;
+    const abs = Math.abs(valor);
+    let resultado;
+    if (abs >= 1000000) {
+        resultado = (abs / 1000000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + 'M';
+    } else if (abs >= 1000) {
+        resultado = (abs / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + 'k';
+    } else {
+        resultado = abs.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+    }
+    return (negativo ? '-R$ ' : 'R$ ') + resultado;
 }
 
 function formatarData(dataString) {
