@@ -879,7 +879,7 @@ textarea:focus {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 20px 16px;
+    padding: 0;
     height: calc(100vh - 46px);
 }
 
@@ -896,9 +896,13 @@ textarea:focus {
     animation: fadeIn var(--transition-base);
 }
 
+.dashboard-section {
+    padding: 16px;
+}
+
 /* Scroll para seção de relatórios */
 .relatorios-section {
-    height: calc(100vh - 120px);
+    height: calc(100vh - 46px);
     overflow-y: auto;
     padding: var(--space-md);
 }
@@ -921,9 +925,9 @@ textarea:focus {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 15px;
-    padding: 20px;
+    padding: 16px;
     width: 100%;
-    height: calc(100vh - 180px); 
+    height: calc(100vh - 46px);
     overflow-y: auto;
     box-sizing: border-box;
     align-content: start;
@@ -1937,7 +1941,7 @@ table tr:hover {
    ================================================================ */
 
 .config-section {
-    padding: 20px;
+    padding: 16px;
     display: none;
 }
 

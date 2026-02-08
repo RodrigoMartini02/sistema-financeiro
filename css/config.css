@@ -52,7 +52,7 @@
 .config-tab-content {
     background: #fff;
     min-height: 400px;
-    max-height: calc(100vh - 250px);
+    max-height: calc(100vh - 160px);
     overflow-y: auto;
     overflow-x: hidden;
     padding: 20px;
