@@ -877,10 +877,11 @@ textarea:focus {
 
 .content-area {
     flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: hidden;
     padding: 0;
-    height: calc(100vh - 46px);
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 /* ================================================================
@@ -902,8 +903,6 @@ textarea:focus {
 
 /* Scroll para seção de relatórios */
 .relatorios-section {
-    height: calc(100vh - 46px);
-    overflow-y: auto;
     padding: var(--space-md);
 }
 
@@ -913,6 +912,10 @@ textarea:focus {
 .fin-sights-section.active,
 .config-section.active {
     display: block;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
 }
 
 
@@ -927,9 +930,6 @@ textarea:focus {
     gap: 15px;
     padding: 16px;
     width: 100%;
-    height: calc(100vh - 46px);
-    overflow-y: auto;
-    box-sizing: border-box;
     align-content: start;
 }
 
@@ -1021,19 +1021,19 @@ textarea:focus {
 }
 
 
-.meses-container::-webkit-scrollbar {
+.meses-section::-webkit-scrollbar {
     width: 8px;
 }
 
-.meses-container::-webkit-scrollbar-track {
+.meses-section::-webkit-scrollbar-track {
     background: #f1f1f1;
 }
 
-.meses-container::-webkit-scrollbar-thumb {
+.meses-section::-webkit-scrollbar-thumb {
     background: #ccc;
 }
 
-.meses-container::-webkit-scrollbar-thumb:hover {
+.meses-section::-webkit-scrollbar-thumb:hover {
     background: #aaa;
 }
 
