@@ -182,6 +182,7 @@ async function criarEstruturaBanco() {
         await query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS categorias JSONB DEFAULT NULL;`);
         await query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cartoes JSONB DEFAULT NULL;`);
         await query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS foto TEXT DEFAULT NULL;`);
+        await query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS google_id VARCHAR(255) DEFAULT NULL;`);
 
         // Índices para performance (só cria se não existir)
         await query(`CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email);`);

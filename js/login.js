@@ -26,19 +26,72 @@ function inicializarSistemaLoginRapido() {
             alert("Seu navegador tem o armazenamento local desativado. Por favor, ative-o nas configurações.");
             return;
         }
-        
+
         // Obter elementos e configurar sistema imediatamente
         elementos = obterElementosDOM();
         configurarSistemaCompleto();
-        
+
         // Carregar dependências opcionais em background
         carregarDependenciasBackground();
+
+        // Verificar "Lembrar de mim" - auto-login se token válido
+        tentarAutoLogin();
 
         window.loginSistemaInicializado = true;
 
     } catch (error) {
         configurarLoginMinimo();
     }
+}
+
+async function tentarAutoLogin() {
+    const token = localStorage.getItem('lembrarToken');
+    const usuario = localStorage.getItem('lembrarUsuario');
+    const dadosUsuario = localStorage.getItem('lembrarDadosUsuario');
+
+    if (!token || !usuario || !dadosUsuario) return;
+
+    try {
+        // Validar token com o backend
+        const response = await fetch(`${API_URL}/auth/verify`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (response.ok) {
+            // Token válido - auto-login
+            sessionStorage.setItem('token', token);
+            sessionStorage.setItem('usuarioAtual', usuario);
+            sessionStorage.setItem('dadosUsuarioLogado', dadosUsuario);
+
+            if (typeof window.showLoadingScreen === 'function') {
+                window.showLoadingScreen();
+            }
+            window.location.href = 'index.html';
+            return;
+        }
+    } catch (e) {
+        // Token inválido ou sem conexão - continua para tela de login
+    }
+
+    // Token expirado: preencher CPF e marcar checkbox para facilitar
+    const docInput = document.getElementById('modal-documento');
+    const rememberCheckbox = document.getElementById('remember-me');
+    if (docInput) docInput.value = formatarDocumentoStr(usuario);
+    if (rememberCheckbox) rememberCheckbox.checked = true;
+}
+
+function formatarDocumentoStr(doc) {
+    if (!doc) return '';
+    doc = doc.replace(/\D/g, '');
+    if (doc.length === 11) {
+        return doc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    } else if (doc.length === 14) {
+        return doc.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+    }
+    return doc;
 }
 
 function configurarSistemaCompleto() {
@@ -56,7 +109,93 @@ function configurarSistemaCompleto() {
     configurarLimpezaMensagens();
     configurarFormatacaoDocumentos();
     configurarToggleSenha();
+    configurarGoogleLogin();
     inicializarModais();
+}
+
+// ================================================================
+// LOGIN COM GOOGLE
+// ================================================================
+
+const GOOGLE_CLIENT_ID = '277550403516-rkoa3kntkihbdr3ljvbb0vj42kkbkqle.apps.googleusercontent.com';
+
+function configurarGoogleLogin() {
+    const btnGoogle = document.getElementById('btn-google-login');
+    if (!btnGoogle) return;
+
+    btnGoogle.addEventListener('click', function() {
+        // Aguardar a biblioteca do Google carregar
+        if (typeof google === 'undefined' || !google.accounts) {
+            alert('Aguarde o carregamento do Google. Tente novamente em instantes.');
+            return;
+        }
+
+        const client = google.accounts.oauth2.initCodeClient({
+            client_id: GOOGLE_CLIENT_ID,
+            scope: 'email profile',
+            ux_mode: 'redirect',
+            redirect_uri: window.location.origin + '/login.html',
+            state: 'google_login'
+        });
+        client.requestCode();
+    });
+
+    // Verificar se voltou do redirect do Google com o código
+    verificarRetornoGoogle();
+}
+
+async function verificarRetornoGoogle() {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const state = params.get('state');
+
+    if (!code || state !== 'google_login') return;
+
+    // Limpar URL
+    window.history.replaceState({}, document.title, window.location.pathname);
+
+    // Mostrar loading
+    if (typeof window.showLoadingScreen === 'function') {
+        window.showLoadingScreen();
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/auth/google`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, redirect_uri: window.location.origin + '/login.html' })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Erro ao autenticar com Google');
+        }
+
+        const token = data.data?.token || data.token;
+        const usuario = data.data?.usuario || data.usuario;
+
+        sessionStorage.setItem('token', token);
+        sessionStorage.setItem('usuarioAtual', usuario.documento || usuario.email);
+        sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify({
+            id: usuario.id,
+            nome: usuario.nome,
+            documento: usuario.documento || '',
+            email: usuario.email,
+            tipo: usuario.tipo
+        }));
+
+        window.location.href = 'index.html';
+    } catch (error) {
+        if (typeof window.hideLoadingScreen === 'function') {
+            window.hideLoadingScreen();
+        }
+        const errorEl = document.getElementById('modal-error-message');
+        if (errorEl) {
+            errorEl.querySelector('span').textContent = error.message;
+            errorEl.style.display = 'flex';
+        }
+    }
 }
 
 function carregarDependenciasBackground() {
@@ -353,10 +492,9 @@ async function processarFormularioCadastro() {
         
         if (elementos.formCadastro) elementos.formCadastro.reset();
         
-        // Redirecionamento rápido
+        // Fechar modal de cadastro após sucesso
         setTimeout(() => {
             if (elementos.cadastroModal) elementos.cadastroModal.style.display = 'none';
-            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
         }, 2000);
         
     } catch (error) {
@@ -521,9 +659,9 @@ async function processarNovaSenha() {
             elementos.novaSenhaSuccessMessage.style.display = 'block';
         }
         
+        // Fechar modal de nova senha após sucesso
         setTimeout(() => {
             if (elementos.novaSenhaModal) elementos.novaSenhaModal.style.display = 'none';
-            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
         }, 2000);
 
     } catch (error) {
@@ -538,52 +676,35 @@ async function processarNovaSenha() {
 // ================================================================
 
 function configurarNavegacaoModais() {
-    // Abrir login
-    if (elementos.openLoginModalBtn) {
-        elementos.openLoginModalBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
-        });
-    }
-    
-    if (elementos.mobileLoginBtn) {
-        elementos.mobileLoginBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
-        });
-    }
-    
-    // Navegação login <-> cadastro
+    // Navegação login -> cadastro
     if (elementos.modalAbrirCadastroBtn) {
         elementos.modalAbrirCadastroBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            if (elementos.loginModal) elementos.loginModal.style.display = 'none';
             if (elementos.cadastroModal) elementos.cadastroModal.style.display = 'flex';
         });
     }
-    
+
+    // Cadastro -> login (fechar modal de cadastro)
     if (elementos.cadastroAbrirLoginBtn) {
         elementos.cadastroAbrirLoginBtn.addEventListener('click', (e) => {
             e.preventDefault();
             if (elementos.cadastroModal) elementos.cadastroModal.style.display = 'none';
-            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
         });
     }
-    
-    // Recuperação de senha
+
+    // Login -> Recuperação de senha
     if (elementos.esqueceuSenhaBtn) {
         elementos.esqueceuSenhaBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            if (elementos.loginModal) elementos.loginModal.style.display = 'none';
             if (elementos.recuperacaoModal) elementos.recuperacaoModal.style.display = 'flex';
         });
     }
-    
+
+    // Recuperação -> login (fechar modal de recuperação)
     if (elementos.recuperacaoAbrirLoginBtn) {
         elementos.recuperacaoAbrirLoginBtn.addEventListener('click', (e) => {
             e.preventDefault();
             if (elementos.recuperacaoModal) elementos.recuperacaoModal.style.display = 'none';
-            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
         });
     }
 }
@@ -594,36 +715,33 @@ function configurarFechamentoModais() {
             modal.style.display = 'none';
             const form = modal.querySelector('form');
             if (form) form.reset();
-            
-            // Ocultar mensagens
+
             const error = modal.querySelector('.error-message');
             const success = modal.querySelector('.success-message');
             if (error) error.style.display = 'none';
             if (success) success.style.display = 'none';
-            
-            // Ocultar campo de código
+
             const campoCode = modal.querySelector('#campo-codigo-container');
             if (campoCode) campoCode.style.display = 'none';
         }
     }
-    
-    // Botões de fechar
+
+    // Botões de fechar (apenas modais secundários)
     const closeButtons = [
-        { btn: elementos.loginCloseBtn, modal: elementos.loginModal },
         { btn: elementos.cadastroCloseBtn, modal: elementos.cadastroModal },
         { btn: elementos.recuperacaoCloseBtn, modal: elementos.recuperacaoModal },
         { btn: elementos.novaSenhaCloseBtn, modal: elementos.novaSenhaModal }
     ];
-    
+
     closeButtons.forEach(({ btn, modal }) => {
         if (btn) {
             btn.addEventListener('click', () => fecharModal(modal));
         }
     });
-    
+
     // Fechar clicando fora
     window.addEventListener('click', function(event) {
-        const modais = [elementos.loginModal, elementos.cadastroModal, elementos.recuperacaoModal, elementos.novaSenhaModal];
+        const modais = [elementos.cadastroModal, elementos.recuperacaoModal, elementos.novaSenhaModal];
         modais.forEach(modal => {
             if (event.target === modal) {
                 fecharModal(modal);
@@ -667,22 +785,23 @@ function configurarFormatacaoDocumentos() {
 }
 
 function inicializarModais() {
-    const modais = [elementos.loginModal, elementos.cadastroModal, elementos.recuperacaoModal, elementos.novaSenhaModal];
+    // Esconder apenas modais secundários (login é visível direto na página)
+    const modais = [elementos.cadastroModal, elementos.recuperacaoModal, elementos.novaSenhaModal];
     modais.forEach(modal => {
         if (modal) modal.style.display = 'none';
     });
-    
+
     const mensagens = [
         elementos.errorMessage, elementos.modalErrorMessage,
         elementos.cadastroErrorMessage, elementos.cadastroSuccessMessage,
         elementos.recuperacaoErrorMessage, elementos.recuperacaoSuccessMessage,
         elementos.novaSenhaErrorMessage, elementos.novaSenhaSuccessMessage
     ];
-    
+
     mensagens.forEach(msg => {
         if (msg) msg.style.display = 'none';
     });
-    
+
     const campoCode = document.getElementById('campo-codigo-container');
     if (campoCode) campoCode.style.display = 'none';
 }
@@ -693,19 +812,18 @@ function inicializarModais() {
 
 function obterElementosDOM() {
     return {
-        // Modais
-        loginModal: document.getElementById('loginModal'),
+        // Modais (apenas secundários - login é direto na página)
         cadastroModal: document.getElementById('cadastroModal'),
         recuperacaoModal: document.getElementById('recuperacaoSenhaModal'),
         novaSenhaModal: document.getElementById('novaSenhaModal'),
-        
+
         // Formulários
         loginForm: document.getElementById('login-form'),
         modalLoginForm: document.getElementById('modal-login-form'),
         formCadastro: document.getElementById('form-cadastro'),
         formRecuperacao: document.getElementById('form-recuperacao-senha'),
         formNovaSenha: document.getElementById('form-nova-senha'),
-        
+
         // Mensagens
         errorMessage: document.getElementById('error-message'),
         modalErrorMessage: document.getElementById('modal-error-message'),
@@ -715,17 +833,14 @@ function obterElementosDOM() {
         recuperacaoSuccessMessage: document.getElementById('recuperacao-success-message'),
         novaSenhaErrorMessage: document.getElementById('nova-senha-error-message'),
         novaSenhaSuccessMessage: document.getElementById('nova-senha-success-message'),
-        
-        // Botões
-        openLoginModalBtn: document.getElementById('openLoginModalBtn'),
-        mobileLoginBtn: document.getElementById('mobile-login-btn'),
+
+        // Botões de navegação
         modalAbrirCadastroBtn: document.getElementById('modal-abrir-cadastro'),
         cadastroAbrirLoginBtn: document.getElementById('cadastro-abrir-login'),
         esqueceuSenhaBtn: document.getElementById('modal-esqueceu-senha'),
         recuperacaoAbrirLoginBtn: document.getElementById('recuperacao-abrir-login'),
-        
+
         // Botões de fechar
-        loginCloseBtn: document.querySelector('.login-close'),
         cadastroCloseBtn: document.querySelector('.cadastro-close'),
         recuperacaoCloseBtn: document.querySelector('.recuperacao-close'),
         novaSenhaCloseBtn: document.querySelector('.nova-senha-close')

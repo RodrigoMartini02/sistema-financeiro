@@ -384,6 +384,105 @@ router.post('/reset-password', [
 
 
 
+// ================================================================
+// POST /api/auth/google - Login com Google OAuth
+// ================================================================
+router.post('/google', async (req, res) => {
+    try {
+        const { code, redirect_uri } = req.body;
+
+        if (!code) {
+            return res.status(400).json({ success: false, message: 'Código de autorização não fornecido' });
+        }
+
+        // 1. Trocar o código por tokens no Google
+        const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                code,
+                client_id: process.env.GOOGLE_CLIENT_ID,
+                client_secret: process.env.GOOGLE_CLIENT_SECRET,
+                redirect_uri: redirect_uri,
+                grant_type: 'authorization_code'
+            })
+        });
+
+        const tokenData = await tokenResponse.json();
+
+        if (tokenData.error) {
+            console.error('Erro Google token:', tokenData.error_description);
+            return res.status(400).json({ success: false, message: 'Erro ao autenticar com Google: ' + (tokenData.error_description || tokenData.error) });
+        }
+
+        // 2. Buscar informações do usuário com o access_token
+        const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+            headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
+        });
+
+        const googleUser = await userInfoResponse.json();
+
+        if (!googleUser.email) {
+            return res.status(400).json({ success: false, message: 'Não foi possível obter email do Google' });
+        }
+
+        // 3. Verificar se já existe usuário com este email
+        let result = await query('SELECT * FROM usuarios WHERE email = $1', [googleUser.email]);
+        let usuario;
+
+        if (result.rows.length > 0) {
+            // Usuário existe - login direto
+            usuario = result.rows[0];
+
+            if (usuario.status !== 'ativo') {
+                return res.status(403).json({ success: false, message: 'Conta desativada. Entre em contato com o suporte.' });
+            }
+
+            // Salvar google_id se ainda não tem
+            if (!usuario.google_id) {
+                await query('UPDATE usuarios SET google_id = $1 WHERE id = $2', [googleUser.id, usuario.id]);
+            }
+        } else {
+            // Usuário não existe - criar conta automaticamente
+            const senhaHash = await bcrypt.hash(googleUser.id + Date.now(), 10);
+            const docPlaceholder = 'G' + googleUser.id.substring(0, 19);
+
+            const insertResult = await query(
+                `INSERT INTO usuarios (nome, email, documento, senha, tipo, status, google_id)
+                 VALUES ($1, $2, $3, $4, 'admin', 'ativo', $5) RETURNING *`,
+                [googleUser.name || googleUser.email.split('@')[0], googleUser.email, docPlaceholder, senhaHash, googleUser.id]
+            );
+
+            usuario = insertResult.rows[0];
+        }
+
+        // 4. Gerar JWT do sistema
+        const token = jwt.sign(
+            { id: usuario.id, email: usuario.email, tipo: usuario.tipo },
+            process.env.JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+
+        res.json({
+            success: true,
+            data: {
+                token,
+                usuario: {
+                    id: usuario.id,
+                    nome: usuario.nome,
+                    email: usuario.email,
+                    documento: usuario.documento,
+                    tipo: usuario.tipo
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('Erro no login Google:', error);
+        res.status(500).json({ success: false, message: 'Erro interno ao processar login com Google' });
+    }
+});
+
 module.exports = router;
 
 

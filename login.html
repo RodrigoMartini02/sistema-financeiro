@@ -13,80 +13,32 @@
 <body>
     <!-- Loading Screen - Aparece após Login -->
     <div id="loading-screen" class="loading-screen">
-        <!-- Carrossel circular de imagens -->
-        <div class="loading-carousel">
-            <div class="carousel-image" data-index="0">
-                <img src="imagens/pexels-goumbik-590041.jpg" alt="Loading 1">
-            </div>
-            <div class="carousel-image" data-index="1">
-                <img src="imagens/pexels-karola-g-4475523.jpg" alt="Loading 2">
-            </div>
-            <div class="carousel-image" data-index="2">
-                <img src="imagens/pexels-pixabay-164686.jpg" alt="Loading 3">
-            </div>
-            <div class="carousel-image" data-index="3">
-                <img src="imagens/pexels-pixabay-265087.jpg" alt="Loading 4">
-            </div>
-        </div>
-
-        <div class="loading-dots">
-            <span class="dot"></span>
-            <span class="dot"></span>
-            <span class="dot"></span>
-        </div>
-
+        <div class="loading-spinner"></div>
         <div class="loading-tips">
             <p class="tip-text"></p>
         </div>
     </div>
 
-    <!-- Hero Section -->
-    <div class="hero">
-        <div class="hero-background">
+    <!-- Página de Login -->
+    <div class="login-page">
+        <div class="login-page-bg">
             <div class="floating-elements">
                 <div class="element element-1"></div>
                 <div class="element element-2"></div>
                 <div class="element element-3"></div>
             </div>
         </div>
-        
-        <div class="hero-content">
-            <!-- Main Content -->
-            <div class="main-content">
-                <h1>Controle Financeiro</h1>
-               
-                <!-- Desktop Login Button -->
-                <button class="btn btn-primary btn-login" id="openLoginModalBtn">
-                    <i class="fas fa-sign-in-alt"></i>
-                    <span>Fazer Login</span>
-                </button>
-            </div>
-        
-        <!-- Footer -->
-        <footer class="hero-footer">
-            <p>&copy; 2025 Sistema de Controle Financeiro | Todos os direitos reservados</p>
-        </footer>
-    </div>
 
     
-    <!-- WhatsApp Button -->
-    <div id="whatsapp-button">
-        <a href="https://wa.me/5549999554856" target="_blank" rel="noopener noreferrer">
-            <i class="fab fa-whatsapp"></i>
-        </a>
-    </div>
-    
-    <!-- Modal de Login -->
-    <div id="loginModal" class="modal">
-        <div class="modal-content">
-            <span class="login-close">&times;</span>
-          
-            
+        <!-- Card de Login (visível direto) -->
+        <div class="login-card">
+            <h1 class="login-title">Controle Financeiro</h1>
+
             <div id="modal-error-message" class="error-message">
                 <i class="fas fa-exclamation-triangle"></i>
                 <span>CPF/CNPJ ou senha incorretos. Tente novamente.</span>
             </div>
-            
+
             <form id="modal-login-form">
                 <div class="form-group">
                     <label for="modal-documento">
@@ -95,7 +47,7 @@
                     </label>
                     <input type="text" id="modal-documento" name="documento" required placeholder="Digite seu CPF ou CNPJ" autocomplete="username">
                 </div>
-                
+
                 <div class="form-group">
                     <label for="modal-password">
                         <i class="fas fa-lock"></i>
@@ -108,7 +60,7 @@
                         </button>
                     </div>
                 </div>
-                
+
                 <div class="form-options">
                     <label class="checkbox-label">
                         <input type="checkbox" id="remember-me" name="remember">
@@ -116,17 +68,37 @@
                         Lembrar de mim
                     </label>
                 </div>
-                
+
                 <button type="submit" class="btn btn-primary">
                     <span>Entrar</span>
                 </button>
-                
+
+                <div class="separator-or">
+                    <span>ou</span>
+                </div>
+
+                <button type="button" class="btn btn-google" id="btn-google-login">
+                    <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                    <span>Entrar com Google</span>
+                </button>
+
                 <div class="login-footer">
                     <p>Não tem uma conta? <a href="#" id="modal-abrir-cadastro">Cadastre-se</a></p>
                     <p><a href="#" id="modal-esqueceu-senha">Esqueceu sua senha?</a></p>
                 </div>
             </form>
         </div>
+
+        <footer class="login-page-footer">
+            <p>&copy; 2025 Sistema de Controle Financeiro | Todos os direitos reservados</p>
+        </footer>
+    </div>
+
+    <!-- WhatsApp Button -->
+    <div id="whatsapp-button">
+        <a href="https://wa.me/5549999554856" target="_blank" rel="noopener noreferrer">
+            <i class="fab fa-whatsapp"></i>
+        </a>
     </div>
 
   
@@ -321,21 +293,19 @@
         </div>
     </div>
 
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
     <!-- Scripts - ORDEM CORRETA -->
     <!-- 1. UsuarioDados PRIMEIRO -->
     <script src="js/usuarioDados.js"></script>
 
     <!-- 2. Loading Screen Script -->
     <script>
-        // ================================================================
-        // LOADING SCREEN - Carrossel 3D tipo pião
-        // ================================================================
-
         window.showLoadingScreen = function() {
             const loadingScreen = document.getElementById('loading-screen');
             const tipText = document.querySelector('.tip-text');
 
-            // Dicas financeiras que aparecem durante carregamento
             const tips = [
                 'Organizando suas finanças...',
                 'Carregando dashboard personalizado...',
@@ -347,23 +317,21 @@
             let currentTip = 0;
             let tipInterval;
 
-            // Rotação de dicas a cada 3 segundos
             function rotateTips() {
-                tipText.textContent = tips[currentTip];
-                currentTip = (currentTip + 1) % tips.length;
+                tipText.style.opacity = '0';
+                setTimeout(() => {
+                    tipText.textContent = tips[currentTip];
+                    tipText.style.opacity = '1';
+                    currentTip = (currentTip + 1) % tips.length;
+                }, 300);
             }
 
-            // Mostrar loading screen
             loadingScreen.classList.add('active');
+            rotateTips();
+            tipInterval = setInterval(rotateTips, 3000);
 
-            // Iniciar rotação de dicas
-            rotateTips(); // Mostrar primeira dica
-            tipInterval = setInterval(rotateTips, 3000); // Troca dica a cada 3s
-
-            // Função global para esconder loading (chamada pelo login.js após sucesso)
             window.hideLoadingScreen = function() {
                 clearInterval(tipInterval);
-
                 loadingScreen.classList.add('fade-out');
                 setTimeout(() => {
                     loadingScreen.classList.remove('active', 'fade-out');

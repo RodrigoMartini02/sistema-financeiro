@@ -42,41 +42,30 @@ function obterCoresParaCategorias(categorias) {
 // INICIALIZAÇÃO
 // ================================================================
 
-document.addEventListener('DOMContentLoaded', function() {
-    aguardarSistemaCompleto().then(sistemaReady => {
-        if (sistemaReady) {
-            configurarObservadores();
-        }
-    });
+let dashboardObserverConfigurado = false;
+let dashboardCarregado = false;
+
+// Inicialização: escuta o evento que main.js dispara APÓS tudo estar pronto
+window.addEventListener('sistemaFinanceiroReady', function() {
+    if (!dashboardObserverConfigurado) {
+        configurarObservadores();
+        dashboardObserverConfigurado = true;
+    }
+    // Carregar gráficos imediatamente se dashboard já estiver visível
+    const dashboardSection = document.getElementById('dashboard-section');
+    if (dashboardSection && dashboardSection.classList.contains('active')) {
+        carregarDadosDashboard(window.anoAtual);
+    }
 });
 
-async function aguardarSistemaCompleto() {
-    let tentativas = 0;
-    const maxTentativas = 50;
-    
-    while (tentativas < maxTentativas) {
-        if (window.sistemaInicializado && 
-            window.dadosFinanceiros && 
-            typeof window.calcularTotalDespesas === 'function' &&
-            typeof window.obterValorRealDespesa === 'function' &&
-            typeof window.obterCategoriaLimpa === 'function') {
-            return true;
-        }
-        
-        await new Promise(resolve => setTimeout(resolve, 200));
-        tentativas++;
-    }
-    
-    return false;
-}
-
 function configurarObservadores() {
+    // Observer para quando o usuário navega para a aba Dashboard
     const observer = new MutationObserver(function(mutations) {
         mutations.forEach(function(mutation) {
             if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
                 const dashboardSection = document.getElementById('dashboard-section');
                 if (dashboardSection && dashboardSection.classList.contains('active')) {
-                    setTimeout(() => carregarDadosDashboard(window.anoAtual), 100);
+                    carregarDadosDashboard(window.anoAtual);
                 }
             }
         });
@@ -85,19 +74,14 @@ function configurarObservadores() {
     const dashboardSection = document.getElementById('dashboard-section');
     if (dashboardSection) {
         observer.observe(dashboardSection, { attributes: true });
-
-        // Carregar dashboard imediatamente se já estiver ativo
-        if (dashboardSection.classList.contains('active')) {
-            setTimeout(() => carregarDadosDashboard(window.anoAtual), 100);
-        }
     }
-    
+
     document.getElementById('btn-ano-anterior')?.addEventListener('click', function() {
         limparGraficos();
         resetarFiltros();
         setTimeout(() => carregarDadosDashboard(window.anoAtual), 100);
     });
-    
+
     document.getElementById('btn-proximo-ano')?.addEventListener('click', function() {
         limparGraficos();
         resetarFiltros();
@@ -1158,7 +1142,7 @@ function criarGraficoBarrasCategoriasComFiltros(dadosFinanceiros, ano, filtros) 
                         beginAtZero: true,
                         ticks: {
                             callback: function(value) {
-                                return window.formatarMoeda(value);
+                                return window.formatarMoedaCompacta(value);
                             }
                         }
                     },
@@ -1279,7 +1263,7 @@ function criarGraficoCategoriasMensaisComFiltros(dadosFinanceiros, ano, filtros)
                         beginAtZero: true,
                         ticks: {
                             callback: function(value) {
-                                return window.formatarMoeda(value);
+                                return window.formatarMoedaCompacta(value);
                             }
                         }
                     },
@@ -1793,7 +1777,7 @@ function renderizarGraficoMediaCategorias() {
                         beginAtZero: true,
                         ticks: {
                             callback: function(value) {
-                                return window.formatarMoeda(value);
+                                return window.formatarMoedaCompacta(value);
                             }
                         }
                     },
