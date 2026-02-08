@@ -51,10 +51,7 @@
 
 .config-tab-content {
     background: #fff;
-    min-height: 400px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 20px;
+    padding: 16px;
 }
 
 .config-tab-pane {
@@ -70,16 +67,9 @@
 /* CARDS DE CONFIGURAÇÃO */
 /* ================================================================ */
 .config-card {
-    background: #fff;
-    box-shadow: var(--shadow-sm);
-    padding: 24px;
-    margin-bottom: 20px;
-    border: 1px solid var(--gray-300);
-    transition: box-shadow 0.3s ease;
-}
-
-.config-card:hover {
-    box-shadow: var(--shadow-md);
+    background: transparent;
+    padding: 0;
+    margin-bottom: 16px;
 }
 
 .config-card h3 {
@@ -122,6 +112,7 @@
 .config-card.info-card {
     background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
     border-left: 4px solid var(--info);
+    padding: 16px;
 }
 
 .config-card ul {

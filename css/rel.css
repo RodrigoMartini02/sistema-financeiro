@@ -2,25 +2,8 @@
    REL.CSS - Relatórios Sistema Financeiro
    ================================================================ */
 
-.relatorios-filtros-container {
-    margin-bottom: 25px;
-}
-
-.filtros-card {
-    background: white;
-    padding: 20px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    border: 1px solid #e9ecef;
-}
-
-.filtros-card h3 {
-    color: #2c3e50;
-    margin-bottom: 20px;
-    font-size: 1.2rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+.relatorios-filtros-area {
+    margin-bottom: 12px;
 }
 
 .filtros-linha {
@@ -31,8 +14,43 @@
 }
 
 .filtros-linha-super-compacta {
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(6, 1fr) auto;
 }
+
+/* Botões de ação inline (só ícones) */
+.filtros-acoes-inline {
+    display: flex;
+    gap: 6px;
+    align-items: end;
+    padding-bottom: 1px;
+}
+
+.btn-icon-action {
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: #fff;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.btn-icon-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-icon-primary { background: #007bff; }
+.btn-icon-primary:hover:not(:disabled) { background: #0056b3; }
+.btn-icon-secondary { background: #6c757d; }
+.btn-icon-secondary:hover:not(:disabled) { background: #545b62; }
+.btn-icon-success { background: #28a745; }
+.btn-icon-success:hover:not(:disabled) { background: #1e7e34; }
 
 .filtro-grupo {
     display: flex;
@@ -160,69 +178,8 @@
     margin-left: 4px;
 }
 
-.filtros-acoes {
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-    flex-wrap: wrap;
-    padding-top: 15px;
-    border-top: 1px solid #dee2e6;
-}
+/* Estilos antigos .filtros-acoes removidos - agora usa .filtros-acoes-inline */
 
-.filtros-acoes .btn {
-    padding: 10px 20px;
-    font-weight: 500;
-    font-size: 0.9rem;
-    min-width: 120px;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    justify-content: center;
-}
-
-.filtros-acoes .btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.filtros-acoes .btn-primary {
-    background-color: #007bff;
-    color: white;
-}
-
-.filtros-acoes .btn-primary:hover:not(:disabled) {
-    background-color: #0056b3;
-}
-
-.filtros-acoes .btn-secondary {
-    background-color: #6c757d;
-    color: white;
-}
-
-.filtros-acoes .btn-secondary:hover:not(:disabled) {
-    background-color: #545b62;
-}
-
-.filtros-acoes .btn-success {
-    background-color: #28a745;
-    color: white;
-}
-
-.filtros-acoes .btn-success:hover:not(:disabled) {
-    background-color: #1e7e34;
-}
-
-.filtros-acoes .btn-info {
-    background-color: #17a2b8;
-    color: white;
-}
-
-.filtros-acoes .btn-info:hover:not(:disabled) {
-    background-color: #138496;
-}
 
 .relatorios-resultados {
     min-height: 300px;

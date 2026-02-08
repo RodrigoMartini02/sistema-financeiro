@@ -1995,10 +1995,7 @@ table tr:hover {
     font-size: 14px;
 }
 
-.config-tab-content {
-    background: #fff;
-    padding: 5px;
-}
+/* .config-tab-content movido para config.css */
 
 .config-tab-pane {
     display: none;
