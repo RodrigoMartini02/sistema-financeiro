@@ -111,7 +111,7 @@
 }
 
 .filtros-linha-checkboxes-inline {
-    margin-bottom: 15px;
+    margin-bottom: 8px;
 }
 
 .grupo-checkboxes-completo {
@@ -142,8 +142,8 @@
 .filtros-resumo {
     background: #e3f2fd;
     border: 1px solid #90caf9;
-    padding: 12px;
-    margin-bottom: 15px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
 }
 
 .filtros-resumo h4 {
@@ -742,8 +742,12 @@
 /* Tablets (768px - 1024px) */
 @media (min-width: 768px) and (max-width: 1024px) {
     .filtros-linha-super-compacta {
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(3, 1fr) auto;
         gap: 10px;
+    }
+
+    .filtros-acoes-inline {
+        flex-direction: column;
     }
 
     .comparativo-cards,
@@ -768,7 +772,7 @@
 /* Monitores grandes (1920px+) */
 @media (min-width: 1920px) {
     .filtros-linha-super-compacta {
-        grid-template-columns: repeat(8, 1fr);
+        grid-template-columns: repeat(8, 1fr) auto;
     }
 
     .comparativo-cards,
@@ -798,7 +802,7 @@
 /* Monitores ultra-wide (2560px+) */
 @media (min-width: 2560px) {
     .filtros-linha-super-compacta {
-        grid-template-columns: repeat(10, 1fr);
+        grid-template-columns: repeat(10, 1fr) auto;
     }
 
     .comparativo-cards,
