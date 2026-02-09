@@ -115,7 +115,7 @@ function redirecionarParaLogin() {
 }
 
 function exportarVariaveisGlobais() {
-    window.dadosFinanceiros = dadosFinanceiros;
+    // window.dadosFinanceiros será definido APÓS carregarDadosLocais() para evitar cache vazio
     window.anoAtual = anoAtual;
     window.mesAtual = mesAtual;
     window.mesAberto = mesAberto;
@@ -2200,7 +2200,7 @@ function atualizarElementosDashboard(dados) {
     const saldoElement = document.getElementById('dashboard-saldo-anual');
     if (saldoElement) {
         saldoElement.textContent = formatarMoeda(dados.saldo);
-        saldoElement.className = dados.saldo >= 0 ? 'saldo-positivo' : 'saldo-negativo';
+        saldoElement.className = 'card-value ' + (dados.saldo >= 0 ? 'saldo-positivo' : 'saldo-negativo');
     }
 }
 

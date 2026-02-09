@@ -10,18 +10,18 @@ let processandoReceita = false;
 
 async function aguardarSistemaReady() {
     return new Promise((resolve) => {
-        if (window.sistemaInicializado && window.dadosFinanceiros && typeof window.salvarDados === 'function') {
+        if (window.sistemaInicializado && window.dadosFinanceiros && Object.keys(window.dadosFinanceiros).length > 0 && typeof window.salvarDados === 'function') {
             resolve(true);
             return;
         }
-        
+
         let tentativas = 0;
         const maxTentativas = 50;
-        
+
         const verificar = () => {
             tentativas++;
-            
-            if (window.sistemaInicializado && window.dadosFinanceiros && typeof window.salvarDados === 'function') {
+
+            if (window.sistemaInicializado && window.dadosFinanceiros && Object.keys(window.dadosFinanceiros).length > 0 && typeof window.salvarDados === 'function') {
                 resolve(true);
             } else if (tentativas >= maxTentativas) {
                 resolve(false);

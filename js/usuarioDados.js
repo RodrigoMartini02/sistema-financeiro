@@ -27,7 +27,7 @@ class UsuarioDataManager {
         const verificarMain = () => {
             tentativas++;
             
-            if (window.sistemaInicializado === true || window.dadosFinanceiros || window.salvarDados) {
+            if (window.sistemaInicializado === true || (window.dadosFinanceiros && Object.keys(window.dadosFinanceiros).length > 0) || window.salvarDados) {
                 this.initializeSystem();
             } else if (tentativas >= maxTentativas) {
                 this.initializeSystem();
@@ -163,11 +163,11 @@ class UsuarioDataManager {
             await this.aguardarInicializacao();
         }
 
-        if (this.dadosCache && this.isCacheValido()) {
+        if (this.dadosCache && this.isCacheValido() && Object.keys(this.dadosCache).length > 0) {
             return this.dadosCache;
         }
 
-        if (window.dadosFinanceiros && typeof window.dadosFinanceiros === 'object') {
+        if (window.dadosFinanceiros && typeof window.dadosFinanceiros === 'object' && Object.keys(window.dadosFinanceiros).length > 0) {
             this.dadosCache = window.dadosFinanceiros;
             this.timestampCache = Date.now();
             return window.dadosFinanceiros;
@@ -495,7 +495,7 @@ class UsuarioDataManager {
 
             const dadosAPI = await this.getDadosFinanceirosAPI();
 
-            if (window.dadosFinanceiros) {
+            if (window.dadosFinanceiros && typeof window.dadosFinanceiros === 'object' && Object.keys(window.dadosFinanceiros).length > 0) {
                 const dadosJson = JSON.stringify(dadosAPI);
                 const sistemaPrincipalJson = JSON.stringify(window.dadosFinanceiros);
 

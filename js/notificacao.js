@@ -24,7 +24,7 @@ class SistemaNotificacoes {
             tentativas++;
             
             const sistemaPronto = window.sistemaInicializado === true;
-            const dadosDisponiveis = typeof window.dadosFinanceiros !== 'undefined';
+            const dadosDisponiveis = typeof window.dadosFinanceiros !== 'undefined' && window.dadosFinanceiros && Object.keys(window.dadosFinanceiros).length > 0;
             const funcionesBasicas = typeof window.formatarMoeda === 'function';
             
             if (sistemaPronto && dadosDisponiveis && funcionesBasicas) {
@@ -218,7 +218,7 @@ class SistemaNotificacoes {
     // ================================================================
     verificarNotificacoesPendentes() {
         try {
-            if (typeof window.dadosFinanceiros === 'undefined' || !window.dadosFinanceiros) {
+            if (typeof window.dadosFinanceiros === 'undefined' || !window.dadosFinanceiros || Object.keys(window.dadosFinanceiros).length === 0) {
                 return;
             }
 

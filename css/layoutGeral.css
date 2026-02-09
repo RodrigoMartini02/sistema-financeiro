@@ -3045,6 +3045,14 @@ table tr:hover {
     color: #007bff;
 }
 
+.resumo-cards .card-saldo .card-value.saldo-positivo {
+    color: #007bff;
+}
+
+.resumo-cards .card-saldo .card-value.saldo-negativo {
+    color: #dc3545;
+}
+
 /* Card Juros - Laranja */
 .resumo-cards .card-juros {
     border-left-color: #fd7e14;
