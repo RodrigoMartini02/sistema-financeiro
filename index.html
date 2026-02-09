@@ -1177,9 +1177,9 @@
         <!-- ============================================== -->
         <div id="logs-tab" class="config-tab-pane">
             <div class="config-card">
-              
+
                 <!-- Filtros -->
-                <div class="logs-filtros">
+                <div class="filtros-linha filtros-linha-logs">
                     <div class="filtro-grupo">
                         <label for="filtro-modulo">Módulo:</label>
                         <select id="filtro-modulo" class="form-control">
@@ -1188,16 +1188,6 @@
                             <option value="Despesas">Despesas</option>
                             <option value="Configurações">Configurações</option>
                         </select>
-                    </div>
-
-                    <div class="filtro-grupo">
-                        <label for="filtro-data-inicio">Data Início:</label>
-                        <input type="date" id="filtro-data-inicio" class="form-input">
-                    </div>
-
-                    <div class="filtro-grupo">
-                        <label for="filtro-data-fim">Data Fim:</label>
-                        <input type="date" id="filtro-data-fim" class="form-input">
                     </div>
 
                     <div class="filtro-grupo">
@@ -1211,22 +1201,32 @@
                     </div>
 
                     <div class="filtro-grupo">
-                        <label for="filtro-busca">Buscar:</label>
-                        <input type="text" id="filtro-busca" class="form-input" placeholder="Descrição, categoria...">
+                        <label for="filtro-data-inicio">De:</label>
+                        <input type="date" id="filtro-data-inicio" class="form-control">
                     </div>
 
-                    <div class="filtro-acoes">
-                        <button id="btn-filtrar-logs" class="btn btn-primary">
-                            <i class="fas fa-filter"></i> Filtrar
+                    <div class="filtro-grupo">
+                        <label for="filtro-data-fim">Até:</label>
+                        <input type="date" id="filtro-data-fim" class="form-control">
+                    </div>
+
+                    <div class="filtro-grupo">
+                        <label for="filtro-busca">Buscar:</label>
+                        <input type="text" id="filtro-busca" class="form-control" placeholder="Descrição, categoria...">
+                    </div>
+
+                    <div class="filtros-acoes-inline">
+                        <button id="btn-filtrar-logs" class="btn-icon-action btn-icon-primary" title="Filtrar">
+                            <i class="fas fa-search"></i>
                         </button>
-                        <button id="btn-limpar-filtros-logs" class="btn btn-secondary">
-                            <i class="fas fa-eraser"></i> Limpar
+                        <button id="btn-limpar-filtros-logs" class="btn-icon-action btn-icon-secondary" title="Limpar Filtros">
+                            <i class="fas fa-eraser"></i>
                         </button>
-                        <button id="btn-exportar-logs" class="btn btn-info">
-                            <i class="fas fa-download"></i> Exportar CSV
+                        <button id="btn-exportar-logs" class="btn-icon-action btn-icon-success" title="Exportar CSV">
+                            <i class="fas fa-download"></i>
                         </button>
-                        <button id="btn-limpar-todos-logs" class="btn btn-danger">
-                            <i class="fas fa-trash"></i> Limpar Logs
+                        <button id="btn-limpar-todos-logs" class="btn-icon-action btn-icon-danger" title="Limpar Logs">
+                            <i class="fas fa-trash"></i>
                         </button>
                     </div>
                 </div>

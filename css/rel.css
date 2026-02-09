@@ -51,6 +51,8 @@
 .btn-icon-secondary:hover:not(:disabled) { background: #545b62; }
 .btn-icon-success { background: #28a745; }
 .btn-icon-success:hover:not(:disabled) { background: #1e7e34; }
+.btn-icon-danger { background: #dc3545; }
+.btn-icon-danger:hover:not(:disabled) { background: #c82333; }
 
 .filtro-grupo {
     display: flex;

@@ -786,43 +786,10 @@
 /* LOGS DO SISTEMA - ESTILOS */
 /* ================================================================ */
 
-/* Filtros de Logs */
-.logs-filtros {
-    background: var(--gray-100);
-    padding: 20px;
-    margin-bottom: 20px;
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 15px;
-    align-items: end;
-}
-
-.filtro-grupo {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-
-.filtro-grupo label {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--config-dark);
-}
-
-/* Removido select - agora usa .form-control padrão de layoutGeral.css */
-.filtro-grupo .form-input {
-    height: 38px;
-}
-
-.filtro-acoes {
-    grid-column: 1 / -1;
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-top: 10px;
-}
-
-.filtro-acoes button {
+/* Filtros de Logs - usa grid padrão de rel.css */
+.filtros-linha-logs {
+    grid-template-columns: repeat(5, 1fr) auto;
+    margin-bottom: 12px;
 }
 
 /* Tabela de Logs */
@@ -949,19 +916,7 @@
 
 /* Responsividade */
 @media (max-width: 768px) {
-    .logs-filtros {
-        grid-template-columns: 1fr;
-    }
-
-    .filtro-acoes {
-        flex-direction: column;
-    }
-
-    .filtro-acoes button {
-        width: 100%;
-    }
-
-    .logs-stats {
+    .filtros-linha-logs {
         grid-template-columns: 1fr;
     }
 
