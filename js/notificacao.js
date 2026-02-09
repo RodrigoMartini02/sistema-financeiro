@@ -222,10 +222,47 @@ class SistemaNotificacoes {
                 return;
             }
 
+            this.limparNotificacoesDespesasPagas();
             this.verificarDespesasVencendo();
             this.verificarDespesasVencidas();
             this.verificarSaldosNegativos();
             this.limparNotificacoesExpiradas();
+        } catch (error) {
+            // Falha silenciosa
+        }
+    }
+
+    limparNotificacoesDespesasPagas() {
+        try {
+            const antes = this.notificacoes.length;
+
+            this.notificacoes = this.notificacoes.filter(n => {
+                if (n.tipo !== 'despesa_vencida' && n.tipo !== 'despesa_vencendo') return true;
+
+                const dados = n.dados;
+                if (!dados || dados.mes === undefined || !dados.ano) return true;
+
+                const anoData = window.dadosFinanceiros[dados.ano];
+                if (!anoData || !anoData.meses) return true;
+
+                const dadosMes = anoData.meses[dados.mes];
+                if (!dadosMes?.despesas) return true;
+
+                const despesa = dadosMes.despesas.find(d =>
+                    d.descricao === dados.despesa?.descricao
+                );
+
+                // Remover se a despesa foi paga
+                if (despesa && despesa.quitado) return false;
+
+                return true;
+            });
+
+            if (this.notificacoes.length !== antes) {
+                this.salvarNotificacoes();
+                this.atualizarBadge();
+                this.renderizarNotificacoes();
+            }
         } catch (error) {
             // Falha silenciosa
         }
