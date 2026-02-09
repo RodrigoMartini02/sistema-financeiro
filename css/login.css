@@ -420,6 +420,7 @@ form .btn-primary:hover {
 .strength-bar {
     height: 5px;
     background-color: var(--border-color);
+    border-radius: 3px;
     overflow: hidden;
     margin-bottom: 0.5rem;
 }
@@ -427,8 +428,8 @@ form .btn-primary:hover {
 .strength-fill {
     height: 100%;
     width: 0%;
-    background: linear-gradient(90deg, var(--error-color), var(--success-color));
-    transition: var(--transition);
+    border-radius: inherit;
+    transition: width 0.3s ease, background 0.3s ease;
 }
 
 .strength-text {

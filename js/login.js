@@ -57,6 +57,7 @@ function configurarSistemaCompleto() {
     configurarLimpezaMensagens();
     configurarFormatacaoDocumentos();
     configurarToggleSenha();
+    configurarForcaSenha();
     configurarGoogleLogin();
     inicializarModais();
 }
@@ -1201,6 +1202,59 @@ function processarLoginMinimo(documento, password) {
 // ================================================================
 // CONFIGURAR TOGGLE DE SENHA - EVENT LISTENERS NATIVOS
 // ================================================================
+function calcularForcaSenha(senha) {
+    let pontos = 0;
+    if (senha.length >= 6) pontos++;
+    if (senha.length >= 8) pontos++;
+    if (/[A-Z]/.test(senha)) pontos++;
+    if (/[0-9]/.test(senha)) pontos++;
+    if (/[^A-Za-z0-9]/.test(senha)) pontos++;
+    return Math.min(pontos, 5);
+}
+
+function atualizarBarraForca(input) {
+    const container = input.closest('.form-group')?.querySelector('.password-strength');
+    if (!container) return;
+
+    const fill = container.querySelector('.strength-fill');
+    const text = container.querySelector('.strength-text');
+    if (!fill || !text) return;
+
+    const senha = input.value;
+    if (!senha) {
+        fill.style.width = '0%';
+        fill.style.background = '';
+        text.textContent = 'Minimo de 6 caracteres';
+        text.style.color = '';
+        return;
+    }
+
+    const forca = calcularForcaSenha(senha);
+    const niveis = [
+        { pct: '20%', cor: '#ef4444', label: 'Muito fraca' },
+        { pct: '40%', cor: '#f59e0b', label: 'Fraca' },
+        { pct: '60%', cor: '#eab308', label: 'Razoavel' },
+        { pct: '80%', cor: '#22c55e', label: 'Boa' },
+        { pct: '100%', cor: '#16a34a', label: 'Forte' }
+    ];
+
+    const nivel = niveis[Math.max(forca - 1, 0)];
+    fill.style.width = nivel.pct;
+    fill.style.background = nivel.cor;
+    text.textContent = nivel.label;
+    text.style.color = nivel.cor;
+}
+
+function configurarForcaSenha() {
+    const campos = ['cadastro-password', 'nova-senha'];
+    campos.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.addEventListener('input', () => atualizarBarraForca(input));
+        }
+    });
+}
+
 function configurarToggleSenha() {
     // Selecionar todos os botões de toggle de senha
     document.querySelectorAll('.password-toggle[data-target]').forEach(button => {
