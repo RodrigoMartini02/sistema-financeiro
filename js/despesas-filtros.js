@@ -72,12 +72,7 @@ function criarFiltrosFormaPagamento(mes, ano) {
     if (selectFormaPagamento) {
         limparSelect(selectFormaPagamento);
 
-        const opcoes = [
-            { value: 'todas', text: 'Forma Pagamento' },
-            { value: 'pix', text: 'PIX' },
-            { value: 'debito', text: 'Débito' },
-            { value: 'credito', text: 'Crédito' }
-        ];
+        const opcoes = obterOpcoesFormaPagamento();
 
         opcoes.forEach(opcao => {
             adicionarOpcaoSelect(selectFormaPagamento, opcao.value, opcao.text);
@@ -89,6 +84,11 @@ function criarFiltrosFormaPagamento(mes, ano) {
             filtrarDespesasPorFormaPagamento(this.value);
         };
         selectFormaPagamento.addEventListener('change', selectFormaPagamento._filterHandler);
+    }
+
+    // Atualizar também o filtro da toolbar
+    if (typeof popularFiltroFormaPagamentoToolbar === 'function') {
+        popularFiltroFormaPagamentoToolbar();
     }
 }
 

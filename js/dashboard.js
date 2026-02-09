@@ -216,33 +216,46 @@ window.onclick = function(event) {
 // FUNÇÃO PRINCIPAL DE CARREGAMENTO
 // ================================================================
 
+let _dashboardCarregando = false;
+
 async function carregarDadosDashboard(ano) {
-    if (!window.dadosFinanceiros[ano]) {
+    if (!window.dadosFinanceiros || !window.dadosFinanceiros[ano]) {
         return;
     }
 
-    // Carregar reservas antes de criar os gráficos
-    if (typeof window.carregarReservasAPI === 'function') {
-        await window.carregarReservasAPI();
+    // Guard contra chamadas concorrentes (MutationObserver + sistemaFinanceiroReady)
+    if (_dashboardCarregando) return;
+    _dashboardCarregando = true;
+
+    try {
+        // Carregar reservas antes de criar os gráficos
+        if (typeof window.carregarReservasAPI === 'function') {
+            await window.carregarReservasAPI();
+        }
+
+        const dadosProcessados = processarDadosReais(window.dadosFinanceiros, ano);
+
+        // Cards são atualizados pelo main.js (carregarDadosDashboardLocal) - fonte única de verdade
+        if (typeof window.carregarDadosDashboardLocal === 'function') {
+            window.carregarDadosDashboardLocal(ano);
+        }
+        preencherSelectCategorias();
+
+        const filtrosPadrao = { categoria: '', formaPagamento: 'todas', status: 'todos', tipo: 'ambos' };
+
+        criarGraficoBalanco(dadosProcessados.dadosMensais);
+        criarGraficoTendenciaAnualComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
+        criarGraficoReceitasDespesasComFiltros(dadosProcessados.dadosMensais, filtrosPadrao);
+        criarGraficoBarrasCategoriasComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
+        criarGraficoCategoriasMensaisComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
+        criarGraficoJurosComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
+        criarGraficoParcelamentosComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
+        criarGraficoFormaPagamentoComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
+        renderDistribuicaoCartoes(window.dadosFinanceiros, ano, filtrosPadrao);
+        renderizarGraficoMediaCategorias();
+    } finally {
+        _dashboardCarregando = false;
     }
-
-    const dadosProcessados = processarDadosReais(window.dadosFinanceiros, ano);
-
-    atualizarResumoDashboard(dadosProcessados.resumoAnual);
-    preencherSelectCategorias();
-
-    const filtrosPadrao = { categoria: '', formaPagamento: 'todas', status: 'todos', tipo: 'ambos' };
-
-    criarGraficoBalanco(dadosProcessados.dadosMensais);
-    criarGraficoTendenciaAnualComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
-    criarGraficoReceitasDespesasComFiltros(dadosProcessados.dadosMensais, filtrosPadrao);
-    criarGraficoBarrasCategoriasComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
-    criarGraficoCategoriasMensaisComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
-    criarGraficoJurosComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
-    criarGraficoParcelamentosComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
-    criarGraficoFormaPagamentoComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
-    renderDistribuicaoCartoes(window.dadosFinanceiros, ano, filtrosPadrao);
-    renderizarGraficoMediaCategorias();
 }
 
 // ================================================================
@@ -272,8 +285,19 @@ function processarDadosReais(dadosFinanceiros, ano) {
 
     for (let i = 0; i < 12; i++) {
         const dadosMes = dadosFinanceiros[ano]?.meses[i] || { receitas: [], despesas: [] };
-        const saldoInfo = window.calcularSaldoMes ? window.calcularSaldoMes(i, ano) :
-                         { saldoAnterior: 0, receitas: 0, despesas: 0 };
+
+        // Calcular receitas direto dos dados (sem depender de window.calcularSaldoMes)
+        const receitasMes = (dadosMes.receitas || []).reduce((sum, r) => {
+            if (r.saldoAnterior === true ||
+                r.descricao?.includes('Saldo Anterior') ||
+                r.automatica === true) {
+                return sum;
+            }
+            return sum + (parseFloat(r.valor) || 0);
+        }, 0);
+
+        // Saldo anterior do mês
+        const saldoAnteriorMes = window.obterSaldoAnterior ? window.obterSaldoAnterior(i, ano) : 0;
 
         // Reservas do mês
         let reservasMes = 0;
@@ -287,17 +311,17 @@ function processarDadosReais(dadosFinanceiros, ano) {
         const jurosMes = window.calcularTotalJuros ? window.calcularTotalJuros(dadosMes.despesas || []) : 0;
         const economiasMes = window.calcularTotalEconomias ? window.calcularTotalEconomias(dadosMes.despesas || []) : 0;
 
-        receitasAno += saldoInfo.receitas;
+        receitasAno += receitasMes;
         totalDespesas += despesasMes;
         totalJuros += jurosMes;
         totalEconomias += economiasMes;
 
         // Gráfico "Entradas e Saídas" - receitas do mês
-        dadosMensais.receitas.push(saldoInfo.receitas);
+        dadosMensais.receitas.push(receitasMes);
         dadosMensais.despesas.push(despesasMes);
 
-        // Saldo do mês considera saldo anterior para cálculo correto
-        const saldoMes = saldoInfo.saldoAnterior + saldoInfo.receitas - despesasMes - reservasMes;
+        // Saldo do mês
+        const saldoMes = saldoAnteriorMes + receitasMes - despesasMes - reservasMes;
         dadosMensais.saldos.push(saldoMes);
     }
 

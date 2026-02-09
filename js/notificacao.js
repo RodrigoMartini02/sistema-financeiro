@@ -82,16 +82,17 @@ class SistemaNotificacoes {
         if (this.inicializado) {
             return;
         }
-        
+
         this.carregarNotificacoes();
         this.configurarEventos();
         this.atualizarBadge();
-        
+        this.solicitarPermissaoNotificacaoWeb();
+
         setTimeout(() => {
             this.verificarNotificacoesPendentes();
             this.iniciarVerificacaoAutomatica();
         }, 2000);
-        
+
         this.inicializado = true;
     }
 
@@ -354,14 +355,15 @@ class SistemaNotificacoes {
     adicionarNotificacao(notificacao) {
         try {
             this.notificacoes.unshift(notificacao);
-            
+
             if (this.notificacoes.length > this.maxNotificacoes) {
                 this.notificacoes = this.notificacoes.slice(0, this.maxNotificacoes);
             }
-            
+
             this.salvarNotificacoes();
             this.atualizarBadge();
             this.renderizarNotificacoes();
+            this.enviarNotificacaoWeb(notificacao);
         } catch (error) {
             // Falha silenciosa
         }
@@ -672,6 +674,39 @@ class SistemaNotificacoes {
                 }
             }
         } catch (error) {
+            // Falha silenciosa
+        }
+    }
+
+    // ================================================================
+    // NOTIFICAÇÕES WEB (DESKTOP)
+    // ================================================================
+    solicitarPermissaoNotificacaoWeb() {
+        if (!('Notification' in window)) return;
+        if (Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+    }
+
+    enviarNotificacaoWeb(notificacao) {
+        if (!('Notification' in window)) return;
+        if (Notification.permission !== 'granted') return;
+
+        try {
+            const n = new Notification(notificacao.titulo, {
+                body: notificacao.mensagem,
+                tag: notificacao.id,
+                silent: false
+            });
+
+            n.onclick = () => {
+                window.focus();
+                this.executarAcaoNotificacao(notificacao);
+                n.close();
+            };
+
+            setTimeout(() => n.close(), 8000);
+        } catch (e) {
             // Falha silenciosa
         }
     }

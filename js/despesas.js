@@ -359,9 +359,18 @@ function aplicarFiltrosToolbarDespesas() {
 
         // Filtro de forma de pagamento
         if (filtroFormaPagamento !== 'todas' && mostrarLinha) {
-            const formaPagamento = linha.dataset.formaPagamento || '';
-            if (formaPagamento.toLowerCase() !== filtroFormaPagamento.toLowerCase()) {
-                mostrarLinha = false;
+            if (filtroFormaPagamento.startsWith('credito_')) {
+                const cartaoIdFiltro = filtroFormaPagamento.replace('credito_', '');
+                const formaPag = (linha.dataset.formaPagamento || '').toLowerCase();
+                const cartaoIdLinha = linha.dataset.cartaoId || '';
+                if (!formaPag.includes('cred') || String(cartaoIdLinha) !== String(cartaoIdFiltro)) {
+                    mostrarLinha = false;
+                }
+            } else {
+                const formaPagamento = linha.dataset.formaPagamento || '';
+                if (formaPagamento.toLowerCase() !== filtroFormaPagamento.toLowerCase()) {
+                    mostrarLinha = false;
+                }
             }
         }
 
@@ -502,6 +511,7 @@ function criarLinhaDespesaGrid(despesa, index, fechado, mes, ano) {
   div.setAttribute('data-status', despesa.status || 'pendente');
   div.setAttribute('data-categoria', despesa.categoria || '');
   div.setAttribute('data-forma-pagamento', despesa.formaPagamento || '');
+  div.setAttribute('data-cartao-id', despesa.cartao_id || despesa.cartaoId || '');
   div.setAttribute('data-index', index);
   div.setAttribute('data-despesa-id', despesa.id || '');
   // NOVO: Preservar informação de anexos no elemento
@@ -3725,29 +3735,66 @@ function criarFiltrosCategorias(mes, ano) {
     }
 }
 
+function obterOpcoesFormaPagamento() {
+    const opcoes = [
+        { value: 'todas', text: 'Pagamento' },
+        { value: 'pix', text: 'PIX' },
+        { value: 'debito', text: 'Débito' },
+        { value: 'dinheiro', text: 'Dinheiro' }
+    ];
+
+    const cartoes = window.cartoesUsuario || [];
+    if (cartoes.length > 0) {
+        cartoes.forEach(cartao => {
+            const nome = cartao.banco || cartao.nome || 'Cartão';
+            opcoes.push({ value: `credito_${cartao.id}`, text: `Crédito/${nome}` });
+        });
+    } else {
+        opcoes.push({ value: 'credito', text: 'Crédito' });
+    }
+
+    return opcoes;
+}
+
 function criarFiltrosFormaPagamento(mes, ano) {
     const selectFormaPagamento = document.getElementById('filtro-forma-pagamento-tabela');
-    
+
     if (selectFormaPagamento) {
         limparSelect(selectFormaPagamento);
-        
-        const opcoes = [
-            { value: 'todas', text: 'Forma Pagamento' },
-            { value: 'pix', text: 'PIX' },
-            { value: 'debito', text: 'Débito' },
-            { value: 'credito', text: 'Crédito' }
-        ];
-        
-        opcoes.forEach(opcao => {
+
+        obterOpcoesFormaPagamento().forEach(opcao => {
             adicionarOpcaoSelect(selectFormaPagamento, opcao.value, opcao.text);
         });
-        
+
         selectFormaPagamento.removeEventListener('change', selectFormaPagamento._filterHandler);
-        
+
         selectFormaPagamento._filterHandler = function() {
             filtrarDespesasPorFormaPagamento(this.value);
         };
         selectFormaPagamento.addEventListener('change', selectFormaPagamento._filterHandler);
+    }
+
+    // Atualizar também o filtro da toolbar
+    popularFiltroFormaPagamentoToolbar();
+}
+
+function popularFiltroFormaPagamentoToolbar() {
+    const select = document.getElementById('filtro-forma-pagamento-toolbar');
+    if (!select) return;
+
+    const valorAtual = select.value;
+    select.innerHTML = '';
+
+    obterOpcoesFormaPagamento().forEach(opcao => {
+        const opt = document.createElement('option');
+        opt.value = opcao.value;
+        opt.textContent = opcao.text;
+        select.appendChild(opt);
+    });
+
+    // Restaurar seleção se ainda existir
+    if (valorAtual && select.querySelector(`option[value="${valorAtual}"]`)) {
+        select.value = valorAtual;
     }
 }
 
@@ -3823,6 +3870,14 @@ function verificarFormaPagamentoDespesa(linha, formaPagamento) {
 
     const { despesa } = encontrarDespesaPorId(despesaId, mesAberto, anoAberto);
     if (!despesa) return false;
+
+    // Filtro por cartão específico: credito_ID
+    if (formaPagamento.startsWith('credito_')) {
+        const cartaoIdFiltro = formaPagamento.replace('credito_', '');
+        const formaPag = (despesa.formaPagamento || '').toLowerCase();
+        const cartaoId = String(despesa.cartao_id || despesa.cartaoId || '');
+        return (formaPag === 'credito' || formaPag === 'crédito' || formaPag.includes('cred')) && cartaoId === cartaoIdFiltro;
+    }
 
     if (despesa.formaPagamento) {
         return despesa.formaPagamento === formaPagamento;
@@ -4335,6 +4390,8 @@ window.obterDatasExibicao = obterDatasExibicao;
 window.obterValorRealDespesa = obterValorRealDespesa;
 window.criarFiltrosCategorias = criarFiltrosCategorias;
 window.criarFiltrosFormaPagamento = criarFiltrosFormaPagamento;
+window.obterOpcoesFormaPagamento = obterOpcoesFormaPagamento;
+window.popularFiltroFormaPagamentoToolbar = popularFiltroFormaPagamentoToolbar;
 window.criarFiltrosStatus = criarFiltrosStatus;
 window.limparFiltros = limparFiltros;
 window.atualizarContadoresFiltro = atualizarContadoresFiltro;
