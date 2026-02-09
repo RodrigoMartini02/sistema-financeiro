@@ -113,33 +113,33 @@ router.post('/register', [
     validate
 ], async (req, res) => {
     try {
-        const { nome, email, documento, senha, tipo } = req.body;
-        
+        const { nome, email, documento, senha, tipo, google_id } = req.body;
+
         // Limpar documento
         const docLimpo = documento.replace(/[^\d]+/g, '');
-        
+
         // Verificar se já existe
         const existe = await query(
             'SELECT id FROM usuarios WHERE email = $1 OR documento = $2',
             [email.toLowerCase(), docLimpo]
         );
-        
+
         if (existe.rows.length > 0) {
             return res.status(400).json({
                 success: false,
                 message: 'Email ou documento já cadastrado'
             });
         }
-        
+
         // Hash da senha
         const senhaHash = await bcrypt.hash(senha, 10);
-        
-        // Inserir usuário
+
+        // Inserir usuário (com google_id se veio do fluxo Google)
         const result = await query(
-            `INSERT INTO usuarios (nome, email, documento, senha, tipo, status) 
-             VALUES ($1, $2, $3, $4, $5, $6) 
+            `INSERT INTO usuarios (nome, email, documento, senha, tipo, status, google_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
              RETURNING id, nome, email, documento, tipo, status`,
-            [nome, email.toLowerCase(), docLimpo, senhaHash, tipo || 'padrao', 'ativo']
+            [nome, email.toLowerCase(), docLimpo, senhaHash, tipo || 'padrao', 'ativo', google_id || null]
         );
         
         const novoUsuario = result.rows[0];
@@ -448,17 +448,17 @@ router.post('/google', async (req, res) => {
                 await query('UPDATE usuarios SET google_id = $1 WHERE id = $2', [googleUser.id, usuario.id]);
             }
         } else {
-            // Usuário não existe - criar conta automaticamente
-            const senhaHash = await bcrypt.hash(googleUser.id + Date.now(), 10);
-            const docPlaceholder = 'G' + googleUser.id.substring(0, 19);
-
-            const insertResult = await query(
-                `INSERT INTO usuarios (nome, email, documento, senha, tipo, status, google_id)
-                 VALUES ($1, $2, $3, $4, 'admin', 'ativo', $5) RETURNING *`,
-                [googleUser.name || googleUser.email.split('@')[0], googleUser.email, docPlaceholder, senhaHash, googleUser.id]
-            );
-
-            usuario = insertResult.rows[0];
+            // Usuário não existe - exigir cadastro com CPF/CNPJ
+            return res.status(404).json({
+                success: false,
+                needsRegistration: true,
+                googleData: {
+                    nome: googleUser.name || googleUser.email.split('@')[0],
+                    email: googleUser.email,
+                    googleId: googleUser.id
+                },
+                message: 'Nenhuma conta encontrada com este e-mail. Cadastre-se informando seu CPF/CNPJ.'
+            });
         }
 
         // 4. Gerar JWT do sistema

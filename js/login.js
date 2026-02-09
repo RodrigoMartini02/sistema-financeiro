@@ -117,6 +117,27 @@ async function verificarRetornoGoogle() {
         const data = await response.json();
 
         if (!response.ok) {
+            // Usuário Google não cadastrado - abrir cadastro com dados pré-preenchidos
+            if (data.needsRegistration && data.googleData) {
+                if (typeof window.hideLoadingScreen === 'function') {
+                    window.hideLoadingScreen();
+                }
+
+                const gd = data.googleData;
+                const campoNome = document.getElementById('cadastro-nome');
+                const campoEmail = document.getElementById('cadastro-email');
+                if (campoNome) { campoNome.value = gd.nome; campoNome.readOnly = true; }
+                if (campoEmail) { campoEmail.value = gd.email; campoEmail.readOnly = true; }
+
+                // Guardar googleId para vincular no cadastro
+                sessionStorage.setItem('googlePendingId', gd.googleId);
+
+                if (elementos.cadastroModal) elementos.cadastroModal.style.display = 'flex';
+
+                mostrarErroCadastro('Conta Google sem cadastro. Informe seu CPF/CNPJ e crie uma senha para continuar.');
+                return;
+            }
+
             throw new Error(data.message || 'Erro ao autenticar com Google');
         }
 
@@ -424,9 +445,16 @@ async function processarFormularioCadastro() {
             elementos.cadastroSuccessMessage.textContent = 'Cadastro realizado com sucesso!';
             elementos.cadastroSuccessMessage.style.display = 'block';
         }
-        
+
+        // Limpar estado Google pendente e desbloquear campos
+        sessionStorage.removeItem('googlePendingId');
+        const campoNome = document.getElementById('cadastro-nome');
+        const campoEmail = document.getElementById('cadastro-email');
+        if (campoNome) campoNome.readOnly = false;
+        if (campoEmail) campoEmail.readOnly = false;
+
         if (elementos.formCadastro) elementos.formCadastro.reset();
-        
+
         // Fechar modal de cadastro após sucesso
         setTimeout(() => {
             if (elementos.cadastroModal) elementos.cadastroModal.style.display = 'none';
@@ -441,19 +469,18 @@ async function processarFormularioCadastro() {
 
 async function processarCadastro(nome, email, documento, password) {
     const docLimpo = documento.replace(/[^\d]+/g, '');
+    const googleId = sessionStorage.getItem('googlePendingId') || null;
 
     try {
+        const body = { nome, email, documento: docLimpo, senha: password };
+        if (googleId) body.google_id = googleId;
+
         const response = await fetch(`${API_URL}/auth/register`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                nome: nome,
-                email: email,
-                documento: docLimpo,
-                senha: password
-            })
+            body: JSON.stringify(body)
         });
 
         const data = await response.json();
