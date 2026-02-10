@@ -1972,38 +1972,10 @@ function atualizarControlesFechamento(mes, ano, fechado) {
 }
 
 function atualizarResumoDetalhes(saldo, totalJuros, totalEconomias = 0) {
-    // Receitas do Mês = apenas receitas cadastradas no mês
-    const receitasMes = saldo.receitas;
-
-    // Despesas do Mês = despesas cadastradas no mês
-    const despesasMes = saldo.despesas;
-
-    // Movimentações de reservas acumuladas até o mês atual (baseado em datas das movimentações)
-    const movimentacoesReservas = typeof window.calcularTotalReservasAcumuladas === 'function'
-        ? window.calcularTotalReservasAcumuladas(mesAberto, anoAberto)
-        : 0;
-
-    // Saldo Atual Mês = saldoFinal (saldoAnterior + receitas - despesas) - movimentações de reservas acumuladas
-    const saldoAtualMes = saldo.saldoFinal - movimentacoesReservas;
-
-    console.log(`📊 Breakdown Saldo Mês ${mesAberto}/${anoAberto}:`,
-        `\n  Saldo Anterior: ${saldo.saldoAnterior?.toFixed(2)}`,
-        `\n  Receitas: ${receitasMes?.toFixed(2)}`,
-        `\n  Despesas: ${despesasMes?.toFixed(2)}`,
-        `\n  Saldo Final (sem reservas): ${saldo.saldoFinal?.toFixed(2)}`,
-        `\n  Reservas Acumuladas: ${movimentacoesReservas?.toFixed(2)}`,
-        `\n  Saldo Atual (com reservas): ${saldoAtualMes?.toFixed(2)}`);
-
-    atualizarElemento('resumo-receitas', formatarMoeda(receitasMes));
-    atualizarElemento('resumo-despesas', formatarMoeda(despesasMes));
+    atualizarElemento('resumo-receitas', formatarMoeda(saldo.receitas));
+    atualizarElemento('resumo-despesas', formatarMoeda(saldo.despesas));
     atualizarElemento('resumo-juros', formatarMoeda(totalJuros));
     atualizarElemento('resumo-economias', formatarMoeda(totalEconomias));
-
-    const saldoElement = document.getElementById('resumo-saldo');
-    if (saldoElement) {
-        saldoElement.textContent = formatarMoeda(saldoAtualMes);
-        saldoElement.className = 'card-value';
-    }
 }
 
 // Atualiza apenas o resumo do mês aberto (para quando reservas mudam)

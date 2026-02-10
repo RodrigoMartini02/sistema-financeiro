@@ -34,7 +34,9 @@
       "Bash(cmd /c \"dir /b /a-d \"\"c:\\\\Users\\\\rodri\\\\Music\\\\sistema financas\\\\backend\"\" 2>nul\")",
       "Bash(cmd /c:*)",
       "Bash(npm install:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(for f in \"c:/Users/rodri/Music/sistema financas/js/\"*.js)",
+      "Bash(done)"
     ]
   }
 }

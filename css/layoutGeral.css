@@ -3032,26 +3032,6 @@ table tr:hover {
     color: #dc3545;
 }
 
-/* Card Saldo - Azul */
-.resumo-cards .card-saldo {
-    border-left-color: #007bff;
-}
-
-.resumo-cards .card-saldo .card-header i {
-    color: #007bff;
-}
-
-.resumo-cards .card-saldo .card-value {
-    color: #007bff;
-}
-
-.resumo-cards .card-saldo .card-value.saldo-positivo {
-    color: #007bff;
-}
-
-.resumo-cards .card-saldo .card-value.saldo-negativo {
-    color: #dc3545;
-}
 
 /* Card Juros - Laranja */
 .resumo-cards .card-juros {
