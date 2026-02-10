@@ -1774,59 +1774,15 @@ table tr:hover {
 }
 
 
-/* Barra receitas vs despesas na toolbar */
-.barra-receitas-despesas {
+/* Layout vertical para indicadores */
+.lista-barras-vertical {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    min-width: 220px;
-    max-width: 320px;
-    flex: 1;
+    gap: 12px;
 }
 
-.barra-rd-info {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    font-size: 12px;
-}
-
-.barra-rd-valores {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-weight: 600;
-}
-
-.barra-rd-valores .valor-usado {
-    color: #dc3545;
-    font-size: 12px;
-}
-
-.barra-rd-valores .valor-limite {
-    color: var(--gray-500);
-    font-size: 12px;
-}
-
-.barra-receitas-despesas .barra-fundo {
-    height: 6px;
-    border-radius: 3px;
-}
-
-.barra-rd-detalhes {
-    display: flex;
-    justify-content: space-between;
-    font-size: 11px;
-    color: var(--gray-500);
-}
-
-.barra-rd-detalhes .disponivel-texto {
-    font-size: 11px;
-}
-
-.barra-rd-detalhes .disponivel-texto strong {
-    font-weight: 700;
-    color: var(--gray-700);
+.lista-barras-vertical .cartao-limite-item {
+    width: 100%;
 }
 
 /* Botões na toolbar - removido, definido em .toolbar-filtros-despesas */

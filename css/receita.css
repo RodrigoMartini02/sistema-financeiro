@@ -405,9 +405,9 @@
 }
 
 .lista-barras-cartoes {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
 .cartao-limite-item {

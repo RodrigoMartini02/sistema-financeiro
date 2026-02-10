@@ -1747,8 +1747,9 @@
                 <div class="toolbar-esquerda">
                     <!-- Abas de navegação -->
                     <div class="tabs-nav">
-                        <button class="tab-btn" data-tab="tab-despesas">Despesas</button>
                         <button class="tab-btn active" data-tab="tab-receitas">Receitas</button>
+                        <button class="tab-btn" data-tab="tab-despesas">Despesas</button>
+                        
                     </div>
                     <span class="toolbar-divider"></span>
                     <!-- Ações contextuais: Despesas -->
@@ -1799,32 +1800,39 @@
 
                     <!-- Conteúdo contextual: Receitas -->
                     <div class="tab-toolbar-content active" data-for-tab="tab-receitas">
-                        <div class="barra-receitas-despesas" id="barra-receitas-despesas">
-                            <div class="barra-rd-info">
-                                <span class="barra-rd-valores">
-                                    <span class="valor-usado" id="barra-rd-despesas">R$ 0,00</span>
-                                    /
-                                    <span class="valor-limite" id="barra-rd-receitas">R$ 0,00</span>
-                                </span>
-                            </div>
-                            <div class="barra-fundo">
-                                <div class="barra-preenchida status-ok" id="barra-rd-progresso" style="width: 0%"></div>
-                            </div>
-                            <div class="barra-rd-detalhes">
-                                <span class="percentual-texto" id="barra-rd-percentual">0% usado</span>
-                                <span class="disponivel-texto">Disponível: <strong id="barra-rd-disponivel">R$ 0,00</strong></span>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- ABA RECEITAS -->
             <div id="tab-receitas" class="tab-content active">
-                <!-- Barras de Limite dos Cartões -->
+                <!-- Painel de Indicadores -->
                 <div id="limites-cartoes-container" class="limites-cartoes-container">
-                    <h3><i class="fas fa-credit-card"></i> Limites dos Cartões</h3>
-                    <div id="lista-barras-cartoes" class="lista-barras-cartoes">
+                    <h3><i class="fas fa-chart-bar"></i> Indicadores</h3>
+                    <div class="lista-barras-vertical">
+                        <!-- Barra Receitas vs Despesas -->
+                        <div class="cartao-limite-item" id="barra-receitas-despesas">
+                            <div class="cartao-info-header">
+                                <span class="cartao-nome">RECEITAS x DESPESAS</span>
+                                <div class="cartao-valores">
+                                    <span class="valor-usado" id="barra-rd-despesas">R$ 0,00</span>
+                                    <span class="separador">/</span>
+                                    <span class="valor-limite" id="barra-rd-receitas">R$ 0,00</span>
+                                </div>
+                            </div>
+                            <div class="cartao-barra-progresso">
+                                <div class="barra-fundo">
+                                    <div class="barra-preenchida status-ok" id="barra-rd-progresso" style="width: 0%"></div>
+                                </div>
+                                <div class="cartao-percentual">
+                                    <span class="percentual-texto" id="barra-rd-percentual">0% usado</span>
+                                    <span class="disponivel-texto">Disponível: <span id="barra-rd-disponivel">R$ 0,00</span></span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Barras de Cartões -->
+                        <div id="lista-barras-cartoes" class="lista-barras-cartoes">
+                        </div>
                     </div>
                 </div>
                 <div class="tabela-receitas-container">
