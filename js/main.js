@@ -3087,9 +3087,7 @@ function configurarEventListeners() {
 // --- CONFIGURAÇÃO NEWSDATA.IO ---
 const NEWSDATA_API_KEY = 'pub_5cfccab63ba54e729b804382b4f3d0cb';
 let listaNoticias = [];
-let noticiaAtualIndex = 0;
-let intervaloNoticias = null;
-let noticiasAtivas = false;
+let painelNoticiasAberto = false;
 
 async function buscarNoticiasAPI() {
     const url = `https://newsdata.io/api/1/news?apikey=${NEWSDATA_API_KEY}&country=br&language=pt&category=top`;
@@ -3097,57 +3095,78 @@ async function buscarNoticiasAPI() {
         const response = await fetch(url);
         const dados = await response.json();
         if (dados.status === "success" && dados.results) {
-            return dados.results.map(n => n.title); // Retorna uma lista de títulos
+            return dados.results.map(n => ({
+                titulo: n.title,
+                fonte: n.source_name || '',
+                link: n.link || '#'
+            }));
         }
-        return ["Buscando novas atualizações no Brasil..."];
+        return [];
     } catch (erro) {
-        return ["Conectando ao servidor de notícias..."];
+        return [];
     }
 }
 
-function mostrarProximaNoticia() {
-    const conteudo = document.getElementById('conteudo-noticias');
-    if (!conteudo || listaNoticias.length === 0) return;
+function renderizarNoticias() {
+    const lista = document.getElementById('lista-noticias');
+    if (!lista) return;
 
-    // Aplica o texto da notícia atual
-    conteudo.innerHTML = `<div class="marquee-content">${listaNoticias[noticiaAtualIndex]}</div>`;
+    if (listaNoticias.length === 0) {
+        lista.innerHTML = '<div class="noticia-vazia">Nenhuma noticia disponivel</div>';
+        return;
+    }
 
-    // Incrementa o índice para a próxima notícia
-    noticiaAtualIndex = (noticiaAtualIndex + 1) % listaNoticias.length;
+    lista.innerHTML = listaNoticias.map(n => `
+        <a href="${n.link}" target="_blank" rel="noopener" class="noticia-card">
+            <div class="noticia-titulo">${n.titulo}</div>
+            <div class="noticia-fonte">${n.fonte}</div>
+        </a>
+    `).join('');
 }
 
-async function toggleNoticias() {
-    const marquee = document.getElementById('marquee-noticias');
-    const conteudo = document.getElementById('conteudo-noticias');
-    
-    noticiasAtivas = !noticiasAtivas;
+function atualizarBadgeNoticias() {
+    const badge = document.getElementById('noticias-count');
+    if (!badge) return;
 
-    if (noticiasAtivas) {
-        marquee.style.display = 'flex';
-        conteudo.innerHTML = '<div class="marquee-content">Carregando notícias reais...</div>';
-        
-        // Busca as notícias e inicia o ciclo
-        listaNoticias = await buscarNoticiasAPI();
-        noticiaAtualIndex = 0;
-        
-        mostrarProximaNoticia();
-        
-        // Define o intervalo de 30 segundos para trocar a notícia
-        intervaloNoticias = setInterval(mostrarProximaNoticia, 10000);
+    if (listaNoticias.length > 0 && !painelNoticiasAberto) {
+        badge.textContent = listaNoticias.length;
+        badge.classList.remove('hidden');
     } else {
-        marquee.style.display = 'none';
-        clearInterval(intervaloNoticias); // Para o cronômetro
-        conteudo.innerHTML = "";
+        badge.classList.add('hidden');
     }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-    const btn = document.getElementById('btn-toggle-noticias');
-    if (btn) {
-        btn.onclick = toggleNoticias;
-        // Iniciar notícias automaticamente
-        toggleNoticias();
+function togglePainelNoticias() {
+    const painel = document.getElementById('painel-noticias');
+    if (!painel) return;
+
+    painelNoticiasAberto = !painelNoticiasAberto;
+
+    if (painelNoticiasAberto) {
+        painel.classList.remove('hidden');
+        atualizarBadgeNoticias();
+    } else {
+        painel.classList.add('hidden');
     }
+}
+
+function fecharPainelNoticias() {
+    const painel = document.getElementById('painel-noticias');
+    if (painel) painel.classList.add('hidden');
+    painelNoticiasAberto = false;
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+    const btn = document.getElementById('btn-toggle-noticias');
+    const btnFechar = document.getElementById('btn-fechar-noticias');
+
+    if (btn) btn.onclick = togglePainelNoticias;
+    if (btnFechar) btnFechar.onclick = fecharPainelNoticias;
+
+    // Buscar noticias em background
+    listaNoticias = await buscarNoticiasAPI();
+    atualizarBadgeNoticias();
+    renderizarNoticias();
 });
 
 

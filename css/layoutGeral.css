@@ -800,52 +800,106 @@ textarea:focus {
    LETREIRO (MARQUEE)
    ================================================================ */
 
-/* Container da notícia individual - Mais fino */
-.marquee-container {
-    width: 100%;
-    height: 35px; /* Barra mais estreita */
-    background: #000;
-    color: #fff;
-    display: none; /* Inicia escondido */
+/* Painel de Noticias (dropdown) */
+.painel-noticias {
+    position: fixed;
+    top: 55px;
+    right: 80px;
+    width: 380px;
+    max-height: 500px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.painel-noticias.hidden {
+    display: none;
+}
+
+.painel-noticias-header {
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    border-bottom: 2px solid var(--primary-color);
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--gray-200);
+    background: var(--gray-50);
 }
 
-/* Texto com fonte menor e animação de zoom */
-.marquee-content {
-    font-weight: bold;
-    font-family: sans-serif;
-    font-size: 0.9rem; /* Fonte menor para não poluir */
+.painel-noticias-header h4 {
+    margin: 0;
+    font-size: 14px;
+    color: var(--gray-700);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.painel-noticias-header h4 i {
+    color: var(--primary-color);
+}
+
+.btn-fechar-noticias {
+    border: none;
+    background: none;
+    font-size: 20px;
+    color: var(--gray-400);
+    cursor: pointer;
+    line-height: 1;
+}
+
+.btn-fechar-noticias:hover {
+    color: var(--gray-700);
+}
+
+.painel-noticias-body {
+    overflow-y: auto;
+    max-height: 440px;
+    padding: 8px;
+}
+
+.noticia-card {
+    display: block;
+    padding: 10px 12px;
+    border-radius: 8px;
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.15s ease;
+    border-bottom: 1px solid var(--gray-100);
+}
+
+.noticia-card:hover {
+    background: var(--gray-50);
+}
+
+.noticia-titulo {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gray-800);
+    line-height: 1.4;
+    margin-bottom: 4px;
+}
+
+.noticia-fonte {
+    font-size: 11px;
+    color: var(--gray-400);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.noticia-vazia {
     text-align: center;
-    padding: 0 20px;
-    opacity: 0;
-    transform: scale(0.8);
-    animation: news-fade-in-out 30s infinite;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    width: 90%;
+    padding: 30px;
+    color: var(--gray-400);
+    font-size: 13px;
 }
 
-@keyframes news-fade-in-out {
-    0% {
-        opacity: 0;
-        transform: scale(0.5); /* Vem bem "do fundo" */
-    }
-    5% {
-        opacity: 1;
-        transform: scale(1); /* Chega no tamanho normal */
-    }
-    95% {
-        opacity: 1;
-        transform: scale(1);
-    }
-    100% {
-        opacity: 0;
-        transform: scale(1.2); /* Some aumentando levemente */
-    }
+.noticias-badge {
+    background: var(--primary-color) !important;
 }
 
 /* (secondary-action-bar removida - unificada no main-header) */
