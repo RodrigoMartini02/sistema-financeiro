@@ -1773,38 +1773,6 @@ table tr:hover {
     color: var(--danger-color, #dc3545);
 }
 
-/* Saldos na toolbar de receitas */
-.toolbar-saldos {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-}
-
-.toolbar-saldo-item {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    color: var(--gray-600);
-}
-
-.toolbar-saldo-item i {
-    font-size: 14px;
-}
-
-.toolbar-saldo-item.reservado i {
-    color: var(--primary-color);
-}
-
-.toolbar-saldo-item span {
-    font-weight: 600;
-    color: var(--gray-800);
-}
-
-.toolbar-separator {
-    color: var(--gray-300);
-    font-weight: 300;
-}
 
 /* Botões na toolbar - removido, definido em .toolbar-filtros-despesas */
 
@@ -3032,6 +3000,23 @@ table tr:hover {
     color: #dc3545;
 }
 
+
+/* Card Saldo - Azul */
+.resumo-cards .card-saldo {
+    border-left-color: #007bff;
+}
+
+.resumo-cards .card-saldo .card-header i {
+    color: #007bff;
+}
+
+.resumo-cards .card-saldo .card-value {
+    color: #007bff;
+}
+
+.resumo-cards .card-saldo .card-value.saldo-negativo {
+    color: #dc3545;
+}
 
 /* Card Juros - Laranja */
 .resumo-cards .card-juros {

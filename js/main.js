@@ -982,18 +982,6 @@ function atualizarContadorToolbar(visiveis, total, valorTotal) {
     }
 }
 
-// Atualizar saldos na toolbar de receitas
-function atualizarSaldosToolbar(saldoAtual, reservado) {
-    const saldoElement = document.getElementById('toolbar-saldo-atual');
-    const reservadoElement = document.getElementById('toolbar-reservado');
-
-    if (saldoElement) {
-        saldoElement.textContent = formatarMoeda(saldoAtual || 0);
-    }
-    if (reservadoElement) {
-        reservadoElement.textContent = formatarMoeda(reservado || 0);
-    }
-}
 
 // Atualizar categorias no filtro da toolbar
 function atualizarCategoriasToolbar(categorias) {
@@ -1016,7 +1004,6 @@ function atualizarCategoriasToolbar(categorias) {
 }
 
 // Exportar funções globalmente
-window.atualizarSaldosToolbar = atualizarSaldosToolbar;
 window.atualizarCategoriasToolbar = atualizarCategoriasToolbar;
 window.atualizarContadorToolbar = atualizarContadorToolbar;
 
@@ -1976,6 +1963,13 @@ function atualizarResumoDetalhes(saldo, totalJuros, totalEconomias = 0) {
     atualizarElemento('resumo-despesas', formatarMoeda(saldo.despesas));
     atualizarElemento('resumo-juros', formatarMoeda(totalJuros));
     atualizarElemento('resumo-economias', formatarMoeda(totalEconomias));
+
+    const balanco = saldo.receitas - saldo.despesas;
+    const balancoElement = document.getElementById('resumo-balanco');
+    if (balancoElement) {
+        balancoElement.textContent = formatarMoeda(balanco);
+        balancoElement.className = 'card-value' + (balanco < 0 ? ' saldo-negativo' : '');
+    }
 }
 
 // Atualiza apenas o resumo do mês aberto (para quando reservas mudam)

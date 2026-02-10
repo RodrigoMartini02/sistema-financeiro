@@ -1458,19 +1458,6 @@ async function atualizarCardReservasIntegrado() {
         elemReservado.textContent = window.formatarMoeda(totalReservado);
     }
 
-    // Atualizar toolbar unificada - mostrar Saldo Atual Mês (igual ao resumo)
-    const toolbarSaldo = document.getElementById('toolbar-saldo-atual');
-    const toolbarReservado = document.getElementById('toolbar-reservado');
-
-    if (toolbarSaldo) {
-        toolbarSaldo.textContent = window.formatarMoeda(saldoAtualMes);
-        toolbarSaldo.style.color = saldoAtualMes >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
-    }
-
-    if (toolbarReservado) {
-        toolbarReservado.textContent = window.formatarMoeda(totalReservado);
-    }
-
     // Renderizar últimas reservas no card mini
     renderizarUltimasReservas();
 }
