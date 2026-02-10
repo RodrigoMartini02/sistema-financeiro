@@ -1747,9 +1747,8 @@
                 <div class="toolbar-esquerda">
                     <!-- Abas de navegação -->
                     <div class="tabs-nav">
-                        <button class="tab-btn active" data-tab="tab-resumo">Resumo</button>
                         <button class="tab-btn" data-tab="tab-despesas">Despesas</button>
-                        <button class="tab-btn" data-tab="tab-receitas">Receitas</button>
+                        <button class="tab-btn active" data-tab="tab-receitas">Receitas</button>
                     </div>
                     <span class="toolbar-divider"></span>
                     <!-- Ações contextuais: Despesas -->
@@ -1776,10 +1775,6 @@
 
                 <!-- Lado direito: Filtros e Informações -->
                 <div class="toolbar-direita">
-                    <!-- Conteúdo contextual: Resumo (vazio) -->
-                    <div class="tab-toolbar-content active" data-for-tab="tab-resumo">
-                    </div>
-
                     <!-- Conteúdo contextual: Despesas -->
                     <div class="tab-toolbar-content" data-for-tab="tab-despesas">
                         <select id="filtro-categoria-toolbar" class="form-control form-control-sm">
@@ -1803,68 +1798,35 @@
                     </div>
 
                     <!-- Conteúdo contextual: Receitas -->
-                    <div class="tab-toolbar-content" data-for-tab="tab-receitas">
-                    </div>
-                </div>
-            </div>
-
-            <!-- ABA RESUMO -->
-            <div id="tab-resumo" class="tab-content active">
-                <div class="resumo-cards">
-                    <div class="card card-receitas">
-                        <div class="card-header">
-                            <i class="fas fa-arrow-up"></i>
-                            <span>RECEITAS MÊS ATUAL</span>
+                    <div class="tab-toolbar-content active" data-for-tab="tab-receitas">
+                        <div class="barra-receitas-despesas" id="barra-receitas-despesas">
+                            <div class="barra-rd-info">
+                                <span class="barra-rd-valores">
+                                    <span class="valor-usado" id="barra-rd-despesas">R$ 0,00</span>
+                                    /
+                                    <span class="valor-limite" id="barra-rd-receitas">R$ 0,00</span>
+                                </span>
+                            </div>
+                            <div class="barra-fundo">
+                                <div class="barra-preenchida status-ok" id="barra-rd-progresso" style="width: 0%"></div>
+                            </div>
+                            <div class="barra-rd-detalhes">
+                                <span class="percentual-texto" id="barra-rd-percentual">0% usado</span>
+                                <span class="disponivel-texto">Disponível: <strong id="barra-rd-disponivel">R$ 0,00</strong></span>
+                            </div>
                         </div>
-                        <div class="card-value" id="resumo-receitas">R$ 0,00</div>
-                        <div class="card-footer">Total de receitas cadastradas no mês</div>
-                    </div>
-                    <div class="card card-despesas">
-                        <div class="card-header">
-                            <i class="fas fa-arrow-down"></i>
-                            <span>DESPESAS MÊS ATUAL</span>
-                        </div>
-                        <div class="card-value" id="resumo-despesas">R$ 0,00</div>
-                        <div class="card-footer">Total de despesas do mês</div>
-                    </div>
-                    <div class="card card-saldo">
-                        <div class="card-header">
-                            <i class="fas fa-balance-scale"></i>
-                            <span>BALANÇO DO MÊS</span>
-                        </div>
-                        <div class="card-value" id="resumo-balanco">R$ 0,00</div>
-                        <div class="card-footer">Receitas - Despesas do mês</div>
-                    </div>
-                    <div class="card card-juros">
-                        <div class="card-header">
-                            <i class="fas fa-percentage"></i>
-                            <span>JUROS PAGOS</span>
-                        </div>
-                        <div class="card-value" id="resumo-juros">R$ 0,00</div>
-                        <div class="card-footer">Total de juros pagos no mês</div>
-                    </div>
-                    <div class="card card-economias">
-                        <div class="card-header">
-                            <i class="fas fa-piggy-bank"></i>
-                            <span>ECONOMIAS</span>
-                        </div>
-                        <div class="card-value" id="resumo-economias">R$ 0,00</div>
-                        <div class="card-footer">Valor economizado no mês</div>
-                    </div>
-                </div>
-                
-                <!-- Barras de Limite dos Cartões -->
-                <div id="limites-cartoes-container" class="limites-cartoes-container">
-                    <h3><i class="fas fa-credit-card"></i> Limites dos Cartões</h3>
-
-                    <div id="lista-barras-cartoes" class="lista-barras-cartoes">
-                        <!-- Cartões serão inseridos dinamicamente aqui -->
                     </div>
                 </div>
             </div>
 
             <!-- ABA RECEITAS -->
-            <div id="tab-receitas" class="tab-content">
+            <div id="tab-receitas" class="tab-content active">
+                <!-- Barras de Limite dos Cartões -->
+                <div id="limites-cartoes-container" class="limites-cartoes-container">
+                    <h3><i class="fas fa-credit-card"></i> Limites dos Cartões</h3>
+                    <div id="lista-barras-cartoes" class="lista-barras-cartoes">
+                    </div>
+                </div>
                 <div class="tabela-receitas-container">
                     <table class="tabela-receitas" id="tabela-receitas">
                         <thead>

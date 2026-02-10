@@ -145,7 +145,6 @@ function exportarVariaveisGlobais() {
     window.carregarDadosDashboard = carregarDadosDashboard;
     window.carregarDadosDashboardLocal = carregarDadosDashboardLocal;
     window.atualizarResumoAnual = atualizarResumoAnual;
-    window.atualizarResumoMesAtual = atualizarResumoMesAtual;
     window.atualizarLimitesCartoes = atualizarLimitesCartoes;
     window.calcularLimiteCartao = calcularLimiteCartao;
     window.carregarCartoesDoServidor = carregarCartoesDoUsuario;
@@ -1873,18 +1872,11 @@ async function renderizarDetalhesDoMes(mes, ano) {
         const receitas = dadosFinanceiros[ano]?.meses[mes]?.receitas || [];
         const despesas = dadosFinanceiros[ano]?.meses[mes]?.despesas || [];
 
-        const saldo = calcularSaldoMes(mes, ano);
-        const totalJuros = typeof window.calcularTotalJuros === 'function' ?
-                          window.calcularTotalJuros(despesas || []) : 0;
-        const totalEconomias = typeof window.calcularTotalEconomias === 'function' ?
-                          window.calcularTotalEconomias(despesas || []) : 0;
-
-        // Carregar reservas antes de atualizar o resumo (para descontar do saldo)
+        // Carregar reservas
         if (typeof window.carregarReservasAPI === 'function') {
             await window.carregarReservasAPI();
         }
 
-        atualizarResumoDetalhes(saldo, totalJuros, totalEconomias);
         atualizarLimitesCartoes(mes, ano);
         atualizarTituloDetalhes(mes, ano, fechado);
         atualizarControlesFechamento(mes, ano, fechado);
@@ -1958,47 +1950,21 @@ function atualizarControlesFechamento(mes, ano, fechado) {
     }
 }
 
-function atualizarResumoDetalhes(saldo, totalJuros, totalEconomias = 0) {
-    atualizarElemento('resumo-receitas', formatarMoeda(saldo.receitas));
-    atualizarElemento('resumo-despesas', formatarMoeda(saldo.despesas));
-    atualizarElemento('resumo-juros', formatarMoeda(totalJuros));
-    atualizarElemento('resumo-economias', formatarMoeda(totalEconomias));
-
-    const balanco = saldo.receitas - saldo.despesas;
-    const balancoElement = document.getElementById('resumo-balanco');
-    if (balancoElement) {
-        balancoElement.textContent = formatarMoeda(balanco);
-        balancoElement.className = 'card-value' + (balanco < 0 ? ' saldo-negativo' : '');
-    }
-}
-
-// Atualiza apenas o resumo do mês aberto (para quando reservas mudam)
-function atualizarResumoMesAtual() {
-    if (mesAberto === null || anoAberto === null) return;
-
-    const despesas = dadosFinanceiros[anoAberto]?.meses[mesAberto]?.despesas || [];
-    const saldo = calcularSaldoMes(mesAberto, anoAberto);
-    const totalJuros = typeof window.calcularTotalJuros === 'function' ?
-                      window.calcularTotalJuros(despesas) : 0;
-    const totalEconomias = typeof window.calcularTotalEconomias === 'function' ?
-                      window.calcularTotalEconomias(despesas) : 0;
-
-    atualizarResumoDetalhes(saldo, totalJuros, totalEconomias);
-}
-
 function ativarPrimeiraAba() {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     document.querySelectorAll('.tab-toolbar-content').forEach(content => content.classList.remove('active'));
     document.querySelectorAll('.toolbar-esquerda .toolbar-acoes').forEach(acoes => acoes.classList.remove('active'));
 
-    const primeiraAba = document.querySelector('.tab-btn[data-tab="tab-resumo"]');
-    const primeiroConteudo = document.getElementById('tab-resumo');
-    const primeiroToolbarContent = document.querySelector('.tab-toolbar-content[data-for-tab="tab-resumo"]');
+    const primeiraAba = document.querySelector('.tab-btn[data-tab="tab-receitas"]');
+    const primeiroConteudo = document.getElementById('tab-receitas');
+    const primeiroToolbarContent = document.querySelector('.tab-toolbar-content[data-for-tab="tab-receitas"]');
+    const primeiroAcoes = document.querySelector('.toolbar-acoes[data-for-tab="tab-receitas"]');
 
     if (primeiraAba) primeiraAba.classList.add('active');
     if (primeiroConteudo) primeiroConteudo.classList.add('active');
     if (primeiroToolbarContent) primeiroToolbarContent.classList.add('active');
+    if (primeiroAcoes) primeiroAcoes.classList.add('active');
 }
 
 function configurarBotoesModal() {
@@ -3054,133 +3020,6 @@ function fecharModal(modalId) {
 
 // Função removida - usar window.obterValorRealDespesa de despesas.js
 
-// ================================================================
-// ADICIONAR NO FINAL DO main.js - FUNÇÕES PARA CARTÕES
-// ================================================================
-
-window.calcularUsoCartoes = function(mes, ano) {
-    // Usar cartao_id (ID real do banco) em vez de posição
-    const cartoesUsuario = window.cartoesUsuario || [];
-    const usoCartoes = {};
-
-    // Inicializar uso para cada cartão pelo ID
-    cartoesUsuario.forEach(cartao => {
-        usoCartoes[cartao.id] = 0;
-    });
-
-    const anoInicio = Math.min(...Object.keys(dadosFinanceiros).map(Number));
-    const anoFim = ano + 3;
-
-    for (let anoAtual = anoInicio; anoAtual <= anoFim; anoAtual++) {
-        if (!dadosFinanceiros[anoAtual]) continue;
-
-        for (let mesAtual = 0; mesAtual < 12; mesAtual++) {
-            const dadosMes = dadosFinanceiros[anoAtual]?.meses[mesAtual];
-            if (!dadosMes || !dadosMes.despesas) continue;
-
-            dadosMes.despesas.forEach(despesa => {
-                // Pular despesas transferidas
-                if (despesa.transferidaParaProximoMes) return;
-
-                const formaPag = (despesa.formaPagamento || '').toLowerCase();
-                const eCreditoOuVariacao = formaPag === 'credito' || formaPag === 'crédito' ||
-                                            formaPag === 'cred-merpago' || formaPag === 'créd-merpago';
-
-                // Verificar se está paga (verificar ambos campos: pago e quitado)
-                const estaPaga = despesa.pago === true || despesa.pago === 'true' || despesa.pago === 1 ||
-                                 despesa.quitado === true || despesa.quitado === 'true' || despesa.quitado === 1;
-
-                if (!eCreditoOuVariacao || estaPaga || despesa.recorrente) return;
-
-                // Verificar cartao_id (ID real do banco)
-                let cartaoIdDespesa = despesa.cartao_id || despesa.cartaoId;
-
-                // Fallback para despesas antigas que usam numeroCartao (posição)
-                if (!cartaoIdDespesa && despesa.numeroCartao) {
-                    const cartaoNaPosicao = cartoesUsuario[parseInt(despesa.numeroCartao) - 1];
-                    if (cartaoNaPosicao) {
-                        cartaoIdDespesa = cartaoNaPosicao.id;
-                    }
-                }
-
-                if (cartaoIdDespesa && usoCartoes[cartaoIdDespesa] !== undefined) {
-                    const valorDespesa = window.obterValorRealDespesa ? window.obterValorRealDespesa(despesa) : (despesa.valor || 0);
-                    usoCartoes[cartaoIdDespesa] += valorDespesa;
-                }
-            });
-        }
-    }
-
-    return usoCartoes;
-};
-
-
-
-// Função para atualizar as barras de progresso dos cartões
-function atualizarBarrasCartoes(mes, ano) {
-    const usoCartoes = calcularUsoCartoes(mes, ano);
-    const cartoes = window.cartoesUsuario || {};
-    
-    let temCartaoAtivo = false;
-    
-    ['1', '2', '3'].forEach(num => {
-        const cartao = cartoes[`cartao${num}`];
-        const uso = usoCartoes[`cartao${num}`] || 0;
-        
-        const barraContainer = document.getElementById(`cartao${num}-barra`);
-        const nomeDisplay = document.getElementById(`cartao${num}-nome-display`);
-        const valorUsado = document.getElementById(`cartao${num}-valor-usado`);
-        const valorLimite = document.getElementById(`cartao${num}-valor-limite`);
-        const barraPreenchida = document.getElementById(`cartao${num}-barra-preenchida`);
-        const percentual = document.getElementById(`cartao${num}-percentual`);
-        const disponivel = document.getElementById(`cartao${num}-disponivel`);
-        const status = document.getElementById(`cartao${num}-status`);
-        
-        if (cartao && cartao.ativo && cartao.nome && cartao.nome.trim() !== '') {
-            temCartaoAtivo = true;
-
-            if (barraContainer) barraContainer.style.display = 'block';
-            const numeroFormatado = cartao.numero ? `#${cartao.numero.toString().padStart(3, '0')} - ` : '';
-            if (nomeDisplay) nomeDisplay.textContent = `${numeroFormatado}${cartao.nome}` || `Cartão ${num}`;
-            if (valorUsado) valorUsado.textContent = formatarMoeda(uso);
-            if (valorLimite) valorLimite.textContent = formatarMoeda(cartao.limite);
-            if (status) status.textContent = 'Ativo';
-            
-            const percentualUso = cartao.limite > 0 ? (uso / cartao.limite) * 100 : 0;
-            const disponibilidade = Math.max(0, cartao.limite - uso);
-            
-            if (barraPreenchida) {
-                barraPreenchida.style.width = `${Math.min(percentualUso, 100)}%`;
-                barraPreenchida.className = 'barra-preenchida';
-                
-                if (percentualUso > 90) {
-                    barraPreenchida.classList.add('limite-critico');
-                } else if (percentualUso > 70) {
-                    barraPreenchida.classList.add('limite-alto');
-                } else {
-                    barraPreenchida.classList.add('limite-normal');
-                }
-            }
-            
-            if (percentual) percentual.textContent = `${percentualUso.toFixed(1)}% usado`;
-            if (disponivel) disponivel.textContent = `Disponível: ${formatarMoeda(disponibilidade)}`;
-        } else {
-            if (barraContainer) barraContainer.style.display = 'none';
-        }
-    });
-    
-    const containerPrincipal = document.getElementById('limites-cartoes-container');
-    if (containerPrincipal) {
-        if (temCartaoAtivo) {
-            containerPrincipal.style.display = 'block';
-        } else {
-            containerPrincipal.style.display = 'none';
-        }
-    }
-}
-
-// Exportar as funções globalmente
-window.atualizarBarrasCartoes = atualizarBarrasCartoes;
 window.navegarMesModal = navegarMesModal;
 window.atualizarBotoesNavegacaoMes = atualizarBotoesNavegacaoMes;
 

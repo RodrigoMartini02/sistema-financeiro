@@ -44,34 +44,16 @@ function renderizarReceitas(receitas, fechado) {
 
     listaReceitas.innerHTML = '';
 
-    // Atualizar saldo anterior na barra de ações
-    const saldoAnteriorInfo = document.getElementById('saldo-anterior-info');
-    const saldoAnteriorValor = document.getElementById('saldo-anterior-valor');
-    const saldoAnteriorSeparator = document.getElementById('saldo-anterior-separator');
-
-    const temSaldoAnteriorReal = Array.isArray(receitas) &&
-        receitas.some(receita => receita.saldoAnterior === true);
-
-    if (!temSaldoAnteriorReal) {
-        const saldoAnterior = obterSaldoAnteriorValido(window.mesAberto, window.anoAberto);
-        if (saldoAnterior !== 0 && saldoAnteriorInfo && saldoAnteriorValor) {
-            saldoAnteriorValor.textContent = window.formatarMoeda(saldoAnterior);
-            saldoAnteriorValor.className = 'reservas-valor ' + (saldoAnterior >= 0 ? 'positivo' : 'negativo');
-            saldoAnteriorInfo.style.display = 'inline';
-            if (saldoAnteriorSeparator) saldoAnteriorSeparator.style.display = 'inline';
-        } else {
-            if (saldoAnteriorInfo) saldoAnteriorInfo.style.display = 'none';
-            if (saldoAnteriorSeparator) saldoAnteriorSeparator.style.display = 'none';
-        }
-    } else {
-        if (saldoAnteriorInfo) saldoAnteriorInfo.style.display = 'none';
-        if (saldoAnteriorSeparator) saldoAnteriorSeparator.style.display = 'none';
+    // Inserir saldo anterior como primeira linha da tabela
+    const saldoAnterior = obterSaldoAnteriorValido(window.mesAberto, window.anoAberto);
+    if (saldoAnterior !== 0) {
+        const linhaSaldo = criarLinhaSaldoAnterior(saldoAnterior, fechado);
+        if (linhaSaldo) listaReceitas.appendChild(linhaSaldo);
     }
 
-    // Renderizar receitas (sem saldo anterior na tabela)
+    // Renderizar receitas (sem saldo anterior duplicado)
     if (Array.isArray(receitas)) {
         receitas.forEach((receita, index) => {
-            // Ignorar saldoAnterior dentro da tabela
             if (receita.saldoAnterior === true || receita.descricao.includes('Saldo Anterior')) {
                 return;
             }
@@ -79,6 +61,9 @@ function renderizarReceitas(receitas, fechado) {
             listaReceitas.appendChild(tr);
         });
     }
+
+    // Atualizar barra receitas vs despesas
+    atualizarBarraReceitasDespesas();
 
     if (!fechado) {
         configurarEventosReceitas(listaReceitas, window.mesAberto, window.anoAberto);
@@ -89,6 +74,50 @@ function renderizarReceitas(receitas, fechado) {
         atualizarTodosContadoresAnexosReceitas();
     }, 100);
 }
+
+function atualizarBarraReceitasDespesas() {
+    const mes = window.mesAberto;
+    const ano = window.anoAberto;
+    if (mes === null || ano === null) return;
+
+    const receitas = window.dadosFinanceiros[ano]?.meses[mes]?.receitas || [];
+    const despesas = window.dadosFinanceiros[ano]?.meses[mes]?.despesas || [];
+
+    const totalReceitas = calcularTotalReceitas(receitas);
+    const totalDespesas = typeof window.calcularTotalDespesas === 'function'
+        ? window.calcularTotalDespesas(despesas) : 0;
+
+    const percentual = totalReceitas > 0 ? (totalDespesas / totalReceitas) * 100 : 0;
+    const disponivel = totalReceitas - totalDespesas;
+
+    // Atualizar elementos da barra
+    const elDespesas = document.getElementById('barra-rd-despesas');
+    const elReceitas = document.getElementById('barra-rd-receitas');
+    const elProgresso = document.getElementById('barra-rd-progresso');
+    const elPercentual = document.getElementById('barra-rd-percentual');
+    const elDisponivel = document.getElementById('barra-rd-disponivel');
+
+    if (elDespesas) elDespesas.textContent = window.formatarMoeda(totalDespesas);
+    if (elReceitas) elReceitas.textContent = window.formatarMoeda(totalReceitas);
+    if (elPercentual) elPercentual.textContent = `${percentual.toFixed(1)}% usado`;
+    if (elDisponivel) {
+        elDisponivel.textContent = window.formatarMoeda(disponivel);
+        elDisponivel.style.color = disponivel >= 0 ? '' : '#dc3545';
+    }
+
+    if (elProgresso) {
+        elProgresso.style.width = `${Math.min(percentual, 100)}%`;
+        elProgresso.className = 'barra-preenchida';
+        if (percentual > 90) {
+            elProgresso.classList.add('status-critico');
+        } else if (percentual > 70) {
+            elProgresso.classList.add('status-alerta');
+        } else {
+            elProgresso.classList.add('status-ok');
+        }
+    }
+}
+window.atualizarBarraReceitasDespesas = atualizarBarraReceitasDespesas;
 
 
 function criarLinhaSaldoAnterior(saldoAnterior, fechado) {
@@ -1674,9 +1703,9 @@ async function movimentarReservaSimples(reservaId, valorStr) {
             await atualizarModalReservas();
             atualizarCardReservasIntegrado();
 
-            // Atualizar resumo do mês (saldo atual)
-            if (typeof window.atualizarResumoMesAtual === 'function') {
-                window.atualizarResumoMesAtual();
+            // Atualizar barra receitas vs despesas
+            if (typeof window.atualizarBarraReceitasDespesas === 'function') {
+                window.atualizarBarraReceitasDespesas();
             }
 
             if (typeof window.carregarDadosDashboard === 'function') {
@@ -1823,9 +1852,9 @@ async function processarAdicionarReserva() {
             await atualizarModalReservas();
             atualizarCardReservasIntegrado();
 
-            // Atualizar resumo do mês (saldo atual)
-            if (typeof window.atualizarResumoMesAtual === 'function') {
-                window.atualizarResumoMesAtual();
+            // Atualizar barra receitas vs despesas
+            if (typeof window.atualizarBarraReceitasDespesas === 'function') {
+                window.atualizarBarraReceitasDespesas();
             }
 
             if (typeof window.carregarDadosDashboard === 'function') {
@@ -1892,9 +1921,9 @@ async function excluirReserva(id) {
             await atualizarModalReservas();
             atualizarCardReservasIntegrado();
 
-            // Atualizar resumo do mês (saldo atual)
-            if (typeof window.atualizarResumoMesAtual === 'function') {
-                window.atualizarResumoMesAtual();
+            // Atualizar barra receitas vs despesas
+            if (typeof window.atualizarBarraReceitasDespesas === 'function') {
+                window.atualizarBarraReceitasDespesas();
             }
 
             if (typeof window.carregarDadosDashboard === 'function') {
