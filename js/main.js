@@ -1007,6 +1007,16 @@ window.atualizarCategoriasToolbar = atualizarCategoriasToolbar;
 window.atualizarContadorToolbar = atualizarContadorToolbar;
 
 function setupOutrosControles() {
+    // Toggle indicadores (accordion)
+    const indicadoresToggle = document.getElementById('indicadores-toggle');
+    const indicadoresConteudo = document.getElementById('indicadores-conteudo');
+    if (indicadoresToggle && indicadoresConteudo) {
+        indicadoresToggle.addEventListener('click', () => {
+            indicadoresToggle.classList.toggle('collapsed');
+            indicadoresConteudo.classList.toggle('collapsed');
+        });
+    }
+
     const refreshBtn = document.getElementById('btn-refresh');
     if (refreshBtn) {
         refreshBtn.addEventListener('click', async function(e) {

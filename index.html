@@ -138,6 +138,24 @@
                     </button>
                 </div>
                 <div class="header-separator"></div>
+                <button class="header-icon-btn" id="notification-bell" type="button" aria-label="Notificações">
+                        <i class="fas fa-bell"></i>
+                    </button>
+                    <span class="notification-badge" id="notification-count">0</span>
+                </div>
+                <div class="notification-wrapper">
+                    <button class="header-icon-btn" id="btn-toggle-noticias" type="button" title="Ver Notícias">
+                        <i class="fas fa-newspaper"></i>
+                    </button>
+                    <span class="notification-badge noticias-badge hidden" id="noticias-count">0</span>
+                </div>
+                <button class="header-icon-btn" id="btn-refresh" title="Atualizar Dados">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+                <button class="header-icon-btn" id="btn-lock-system" title="Bloquear Sistema">
+                    <i class="fas fa-lock"></i>
+                </button>
+                <div class="notification-wrapper">                    
                 <div class="ano-menu-container">
                     <button class="header-icon-btn" id="btn-ano-menu" title="Gerenciar Ano">
                         <i class="fas fa-cog"></i>
@@ -154,24 +172,6 @@
                             <i class="fas fa-key"></i> Alterar Senha
                         </button>
                     </div>
-                </div>
-                <div class="notification-wrapper">
-                    <button class="header-icon-btn" id="btn-toggle-noticias" type="button" title="Ver Notícias">
-                        <i class="fas fa-newspaper"></i>
-                    </button>
-                    <span class="notification-badge noticias-badge hidden" id="noticias-count">0</span>
-                </div>
-                <button class="header-icon-btn" id="btn-refresh" title="Atualizar Dados">
-                    <i class="fas fa-sync-alt"></i>
-                </button>
-                <button class="header-icon-btn" id="btn-lock-system" title="Bloquear Sistema">
-                    <i class="fas fa-lock"></i>
-                </button>
-                <div class="notification-wrapper">
-                    <button class="header-icon-btn" id="notification-bell" type="button" aria-label="Notificações">
-                        <i class="fas fa-bell"></i>
-                    </button>
-                    <span class="notification-badge" id="notification-count">0</span>
                 </div>
                 <button class="header-icon-btn" id="logout-btn" title="Sair">
                     <i class="fas fa-sign-out-alt"></i>
@@ -1816,8 +1816,11 @@
             <div id="tab-receitas" class="tab-content active">
                 <!-- Painel de Indicadores -->
                 <div id="limites-cartoes-container" class="limites-cartoes-container">
-                    <h3><i class="fas fa-chart-bar"></i> Indicadores</h3>
-                    <div class="lista-barras-vertical">
+                    <h3 class="indicadores-toggle" id="indicadores-toggle">
+                        <i class="fas fa-chart-bar"></i> Indicadores
+                        <i class="fas fa-chevron-down indicadores-seta"></i>
+                    </h3>
+                    <div class="lista-barras-vertical" id="indicadores-conteudo">
                         <!-- Barra Receitas vs Despesas -->
                         <div class="cartao-limite-item" id="barra-receitas-despesas">
                             <div class="cartao-info-header">
