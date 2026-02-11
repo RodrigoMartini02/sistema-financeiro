@@ -154,7 +154,7 @@
     max-width: 500px;
     width: 90%;
     margin: 15vh auto;
-    border-radius: 0 !important;
+    border-radius: 8px !important;
 }
 
 #modal-exclusao-receita .modal-header,
@@ -162,7 +162,7 @@
     background: #4361ee !important;
     color: #ffffff;
     padding: 16px 24px;
-    border-radius: 0 !important;
+    border-radius: 8px 8px 0 0 !important;
 }
 
 #modal-exclusao-receita .modal-header h2,
@@ -198,7 +198,7 @@
     padding: 16px 24px;
     background: #ffffff;
     border-top: none;
-    border-radius: 0 !important;
+    border-radius: 0 0 8px 8px !important;
 }
 
 #modal-exclusao-receita .modal-footer .btn,
@@ -207,7 +207,7 @@
     padding: 12px 16px;
     font-size: 14px;
     justify-content: center;
-    border-radius: 0 !important;
+    border-radius: 8px !important;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -375,7 +375,7 @@
     max-width: 500px !important;
     width: 90% !important;
     background: #ffffff !important;
-    border-radius: 0 !important;
+    border-radius: 8px !important;
     overflow: hidden;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
     margin: auto;
@@ -392,7 +392,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-radius: 0 !important;
+    border-radius: 8px !important;
 }
 
 #modal-adicionar-usuario .modal-header h2,
@@ -453,7 +453,7 @@
     background: #ffffff !important;
     border: 1px solid #ced4da;
     padding: 10px 12px;
-    border-radius: 0 !important;
+    border-radius: 8px !important;
     width: 100%;
     font-size: 14px;
     box-sizing: border-box;
@@ -481,7 +481,7 @@
     display: flex;
     justify-content: flex-end;
     gap: 12px;
-    border-radius: 0 !important;
+    border-radius: 8px !important;
 }
 
 #modal-adicionar-usuario .modal-footer .btn,
@@ -490,7 +490,7 @@
 #modal-editar-cartao .modal-footer .btn,
 #modal-alterar-senha .modal-footer .btn {
     padding: 10px 20px;
-    border-radius: 0 !important;
+    border-radius: 8px !important;
     font-size: 14px;
     cursor: pointer;
 }
@@ -535,7 +535,7 @@
     height: 44px;
     background: #f8f9fa;
     border: 1px solid #ddd;
-    border-radius: 0 !important;
+    border-radius: 8px !important;
     cursor: pointer;
     transition: all 0.2s ease;
 }
