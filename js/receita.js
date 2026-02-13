@@ -83,12 +83,19 @@ function atualizarBarraReceitasDespesas() {
     const receitas = window.dadosFinanceiros[ano]?.meses[mes]?.receitas || [];
     const despesas = window.dadosFinanceiros[ano]?.meses[mes]?.despesas || [];
 
+    // Saldo anterior faz parte do mês atual
+    const saldo = typeof window.calcularSaldoMes === 'function'
+        ? window.calcularSaldoMes(mes, ano) : { saldoAnterior: 0 };
+    const saldoAnterior = saldo.saldoAnterior || 0;
+
     const totalReceitas = calcularTotalReceitas(receitas);
     const totalDespesas = typeof window.calcularTotalDespesas === 'function'
         ? window.calcularTotalDespesas(despesas) : 0;
 
-    const percentual = totalReceitas > 0 ? (totalDespesas / totalReceitas) * 100 : 0;
-    const disponivel = totalReceitas - totalDespesas;
+    // Base = saldo anterior + receitas do mês
+    const base = saldoAnterior + totalReceitas;
+    const percentual = base > 0 ? (totalDespesas / base) * 100 : 0;
+    const disponivel = base - totalDespesas;
 
     // Atualizar elementos da barra
     const elDespesas = document.getElementById('barra-rd-despesas');
@@ -98,7 +105,7 @@ function atualizarBarraReceitasDespesas() {
     const elDisponivel = document.getElementById('barra-rd-disponivel');
 
     if (elDespesas) elDespesas.textContent = window.formatarMoeda(totalDespesas);
-    if (elReceitas) elReceitas.textContent = window.formatarMoeda(totalReceitas);
+    if (elReceitas) elReceitas.textContent = window.formatarMoeda(base);
     if (elPercentual) elPercentual.textContent = `${percentual.toFixed(1)}% usado`;
     if (elDisponivel) {
         elDisponivel.textContent = window.formatarMoeda(disponivel);
