@@ -76,6 +76,7 @@
     width: 100%;
     padding: 8px 12px;
     border: 1px solid #ced4da;
+    border-radius: 6px;
     font-size: 0.9rem;
     background-color: white;
     transition: all 0.2s ease;
@@ -95,6 +96,7 @@
     background-color: #f8f9fa;
     padding: 10px 12px;
     border: 1px solid #dee2e6;
+    border-radius: 8px;
     margin-bottom: 15px;
 }
 
@@ -109,6 +111,7 @@
 .periodo-personalizado-ultra-compacto .form-input {
     padding: 6px 8px;
     border: 1px solid #ced4da;
+    border-radius: 6px;
     font-size: 0.85rem;
 }
 
@@ -124,6 +127,7 @@
     padding: 8px 12px;
     background-color: #f8f9fa;
     border: 1px solid #dee2e6;
+    border-radius: 8px;
 }
 
 .grupo-label {
@@ -144,6 +148,7 @@
 .filtros-resumo {
     background: #e3f2fd;
     border: 1px solid #90caf9;
+    border-radius: 8px;
     padding: 8px 12px;
     margin-bottom: 8px;
 }
@@ -160,6 +165,7 @@
 .contador-filtros {
     background-color: #f8f9fa;
     border: 1px solid #dee2e6;
+    border-radius: 8px;
     padding: 8px 12px;
     margin-bottom: 15px;
     text-align: center;
@@ -176,6 +182,7 @@
     color: #007bff;
     font-weight: 700;
     background-color: #e3f2fd;
+    border-radius: 4px;
     padding: 2px 8px;
     margin-left: 4px;
 }
@@ -191,6 +198,7 @@
     background: white;
     padding: 20px;
     margin-bottom: 20px;
+    border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     animation: fadeInUp 0.3s ease;
 }
@@ -225,6 +233,7 @@
     background: white;
     padding: 15px;
     border: 1px solid #dee2e6;
+    border-radius: 8px;
     position: relative;
     transition: transform 0.2s ease;
 }
@@ -284,6 +293,7 @@
 
 .comparativo-card {
     padding: 20px;
+    border-radius: 8px;
     text-align: center;
     color: white;
     transition: transform 0.2s ease;
@@ -306,6 +316,7 @@
 
 .pagamento-item {
     padding: 20px;
+    border-radius: 8px;
     text-align: center;
     color: white;
     transition: transform 0.2s ease;
@@ -353,6 +364,7 @@
     background: white;
     padding: 15px;
     border: 1px solid #dee2e6;
+    border-radius: 8px;
     position: relative;
     transition: transform 0.2s ease;
 }
@@ -379,6 +391,7 @@
     overflow-x: auto;
     margin-top: 15px;
     border: 1px solid #dee2e6;
+    border-radius: 8px;
     max-height: 600px;
 }
 
@@ -430,6 +443,7 @@
 .badge-tipo {
     display: inline-block;
     padding: 3px 8px;
+    border-radius: 4px;
     font-size: 0.7rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -451,6 +465,7 @@
 .badge-status {
     display: inline-block;
     padding: 3px 8px;
+    border-radius: 4px;
     font-size: 0.7rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -490,6 +505,7 @@
     margin-bottom: 15px;
     padding: 10px 15px;
     background-color: #f8f9fa;
+    border-radius: 8px;
     border-left: 3px solid #007bff;
 }
 
@@ -548,6 +564,7 @@
 .btn-paginacao {
     background-color: white;
     border: 1px solid #dee2e6;
+    border-radius: 6px;
     color: #6c757d;
     padding: 8px 12px;
     cursor: pointer;
@@ -574,6 +591,7 @@
 .numero-pagina {
     background-color: white;
     border: 1px solid #dee2e6;
+    border-radius: 6px;
     color: #6c757d;
     padding: 8px 12px;
     cursor: pointer;
@@ -605,6 +623,7 @@
     color: #6c757d;
     background-color: #f8f9fa;
     border: 2px dashed #dee2e6;
+    border-radius: 8px;
 }
 
 .sem-dados.hidden { 
@@ -654,6 +673,7 @@
     height: 40px;
     border: 4px solid #e9ecef;
     border-top: 4px solid #007bff;
+    border-radius: 50%;
     animation: spin 1s linear infinite;
 }
 
@@ -672,6 +692,7 @@
     width: 36px;
     height: 36px;
     border: 1px solid #007bff;
+    border-radius: 6px;
     background-color: #007bff;
     color: white;
     display: flex;
@@ -705,6 +726,7 @@
     gap: 6px;
     background-color: #e3f2fd;
     border: 1px solid #bbdefb;
+    border-radius: 6px;
     padding: 4px 8px 4px 12px;
     font-size: 0.8rem;
     color: #1976d2;
@@ -719,6 +741,7 @@
 .btn-remover-item {
     background: none;
     border: none;
+    border-radius: 50%;
     color: #1976d2;
     cursor: pointer;
     padding: 2px;

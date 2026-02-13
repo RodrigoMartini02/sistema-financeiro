@@ -1792,17 +1792,23 @@ async function buscarReceitasAPI(mes, ano) {
         }
 
         // Converter formato da API para formato do frontend
-        return data.data.map(r => ({
-            id: r.id,
-            descricao: r.descricao,
-            valor: parseFloat(r.valor),
-            data: r.data_recebimento,
-            mes: r.mes,
-            ano: r.ano,
-            observacoes: r.observacoes,
-            saldoAnterior: false,
-            anexos: r.anexos || []
-        }));
+        return data.data.map(r => {
+            let anexos = r.anexos || [];
+            if (typeof anexos === 'string') {
+                try { anexos = JSON.parse(anexos); } catch(e) { anexos = []; }
+            }
+            return {
+                id: r.id,
+                descricao: r.descricao,
+                valor: parseFloat(r.valor),
+                data: r.data_recebimento,
+                mes: r.mes,
+                ano: r.ano,
+                observacoes: r.observacoes,
+                saldoAnterior: false,
+                anexos: Array.isArray(anexos) ? anexos : []
+            };
+        });
 
     } catch (error) {
         return [];
@@ -1824,34 +1830,40 @@ async function buscarDespesasAPI(mes, ano) {
         }
 
         // Converter formato da API para formato do frontend
-        return data.data.map(d => ({
-            id: d.id,
-            descricao: d.descricao,
-            categoria: d.categoria_nome || 'Outros',
-            formaPagamento: d.forma_pagamento,
-            cartao_id: d.cartao_id,
-            valor: parseFloat(d.valor),
-            valorOriginal: parseFloat(d.valor_original || d.valor),
-            valorPago: d.valor_pago ? parseFloat(d.valor_pago) : null,
-            valorTotalComJuros: d.valor_total_com_juros ? parseFloat(d.valor_total_com_juros) : null,
-            dataVencimento: d.data_vencimento,
-            dataCompra: d.data_compra,
-            dataPagamento: d.data_pagamento,
-            mes: d.mes,
-            ano: d.ano,
-            parcelado: d.parcelado,
-            totalParcelas: d.numero_parcelas,
-            parcelaAtual: d.parcela_atual,
-            parcela: d.parcelado ? `${d.parcela_atual}/${d.numero_parcelas}` : null,
-            idGrupoParcelamento: d.grupo_parcelamento_id,
-            pago: d.pago,
-            quitado: d.pago,
-            recorrente: d.recorrente || false,
-            observacoes: d.observacoes,
-            anexos: d.anexos || [],
-            metadados: d.metadados || null,
-            status: d.pago ? 'quitada' : (new Date(d.data_vencimento) < new Date() ? 'atrasada' : 'em_dia')
-        }));
+        return data.data.map(d => {
+            let anexos = d.anexos || [];
+            if (typeof anexos === 'string') {
+                try { anexos = JSON.parse(anexos); } catch(e) { anexos = []; }
+            }
+            return {
+                id: d.id,
+                descricao: d.descricao,
+                categoria: d.categoria_nome || 'Outros',
+                formaPagamento: d.forma_pagamento,
+                cartao_id: d.cartao_id,
+                valor: parseFloat(d.valor),
+                valorOriginal: parseFloat(d.valor_original || d.valor),
+                valorPago: d.valor_pago ? parseFloat(d.valor_pago) : null,
+                valorTotalComJuros: d.valor_total_com_juros ? parseFloat(d.valor_total_com_juros) : null,
+                dataVencimento: d.data_vencimento,
+                dataCompra: d.data_compra,
+                dataPagamento: d.data_pagamento,
+                mes: d.mes,
+                ano: d.ano,
+                parcelado: d.parcelado,
+                totalParcelas: d.numero_parcelas,
+                parcelaAtual: d.parcela_atual,
+                parcela: d.parcelado ? `${d.parcela_atual}/${d.numero_parcelas}` : null,
+                idGrupoParcelamento: d.grupo_parcelamento_id,
+                pago: d.pago,
+                quitado: d.pago,
+                recorrente: d.recorrente || false,
+                observacoes: d.observacoes,
+                anexos: Array.isArray(anexos) ? anexos : [],
+                metadados: d.metadados || null,
+                status: d.pago ? 'quitada' : (new Date(d.data_vencimento) < new Date() ? 'atrasada' : 'em_dia')
+            };
+        });
 
     } catch (error) {
         return [];
@@ -2351,12 +2363,12 @@ function calcularSaldoMes(mes, ano) {
             return sum + (r.valor || 0);
         }, 0);
 
+        // Apenas despesas PAGAS afetam o saldo (dinheiro que já saiu da conta)
         const despesas = typeof window.calcularTotalDespesas === 'function' ?
-                        window.calcularTotalDespesas(dadosMes.despesas || []) :
-                        (dadosMes.despesas || []).reduce((sum, d) => sum + (window.obterValorRealDespesa ? window.obterValorRealDespesa(d) : (d.valor || 0)), 0);
+                        window.calcularTotalDespesas(dadosMes.despesas || [], true) :
+                        (dadosMes.despesas || []).reduce((sum, d) => d.pago ? sum + (window.obterValorRealDespesa ? window.obterValorRealDespesa(d) : (d.valor || 0)) : sum, 0);
 
-        // Saldo Final = Saldo Anterior + Receitas - Despesas (SEM descontar reservas)
-        // Reservas são separadas e só afetam o "Saldo Disponível" no resumo
+        // Saldo Final = Saldo Anterior + Receitas - Despesas PAGAS (SEM descontar reservas)
         return {
             saldoAnterior: saldoAnterior,
             receitas: receitas,

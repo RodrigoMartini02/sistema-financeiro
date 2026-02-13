@@ -240,22 +240,52 @@
 }
 
 .btn-anexos {
-    background-color: transparent;
-    color: inherit;
-    border: none;
+    background-color: #94a3b8;
+    color: #ffffff;
+    border-color: #94a3b8;
+    position: relative;
     min-width: auto;
-    padding: 0;
 }
 
 .btn-anexos:hover:not(:disabled) {
-    background-color: transparent;
+    background-color: #64748b;
+    border-color: #475569;
 }
 
 .btn-anexos.tem-anexos {
-    background-color: transparent;
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+}
+
+.btn-anexos.tem-anexos:hover:not(:disabled) {
+    background-color: #2563eb;
+    border-color: #1d4ed8;
 }
 
 .btn-anexos i.fa-paperclip {
+    font-size: 12px;
+}
+
+.btn-anexos .contador-anexos {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: #ef4444;
+    color: white;
+    font-size: 8px;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    line-height: 1;
+    border: 1px solid white;
+}
+
+.btn-anexos .contador-anexos:empty,
+.btn-anexos .contador-anexos[data-count="0"] {
     display: none;
 }
 

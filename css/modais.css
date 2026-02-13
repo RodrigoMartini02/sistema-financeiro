@@ -113,7 +113,7 @@
     transition: all 0.2s ease;
     background: rgba(255,255,255,0.15);
     border: 1px solid rgba(255,255,255,0.3);
-    border-radius: 0;
+    border-radius: 6px;
     width: 32px;
     height: 32px;
     display: flex;
@@ -392,7 +392,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-radius: 8px !important;
+    border-radius: 8px 8px 0 0 !important;
 }
 
 #modal-adicionar-usuario .modal-header h2,
@@ -481,7 +481,7 @@
     display: flex;
     justify-content: flex-end;
     gap: 12px;
-    border-radius: 8px !important;
+    border-radius: 0 0 8px 8px !important;
 }
 
 #modal-adicionar-usuario .modal-footer .btn,
@@ -574,7 +574,7 @@
     height: 44px;
     background: var(--gray-50, #f8f9fa);
     border: 1px solid var(--gray-300, #ddd);
-    border-radius: 0;
+    border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -1023,7 +1023,7 @@
     background: var(--primary-color, #3b82f6);
     color: white;
     border: 1px solid var(--primary-color, #3b82f6);
-    border-radius: 0;
+    border-radius: 6px;
     cursor: pointer;
     transition: background 0.2s ease;
     font-size: 10px;
@@ -1054,7 +1054,7 @@
     flex: 1;
     padding: 0 6px;
     border: 1px solid #e2e8f0;
-    border-radius: 0;
+    border-radius: 6px 0 0 6px;
     font-size: 10px;
 }
 
@@ -1069,7 +1069,7 @@
     min-width: 28px;
     padding: 0;
     font-size: 10px;
-    border-radius: 0;
+    border-radius: 0 6px 6px 0;
     display: flex;
     align-items: center;
     justify-content: center;

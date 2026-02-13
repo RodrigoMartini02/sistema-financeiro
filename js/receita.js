@@ -251,16 +251,28 @@ function preencherLinhaReceitaNormal(clone, receita, index, fechado) {
 function configurarBotaoAnexos(clone, receita, index, fechado) {
     const btnAnexos = clone.querySelector('.btn-anexos');
     if (!btnAnexos) return;
-    
+
     btnAnexos.dataset.index = index;
-    
-    const quantidadeAnexos = receita.anexos ? receita.anexos.length : 0;
-    const contador = clone.querySelector('.contador-anexos');
-    
-    if (contador) {
-        contador.textContent = quantidadeAnexos;
+
+    // Garantir que anexos é um array
+    let anexos = receita.anexos;
+    if (typeof anexos === 'string') {
+        try { anexos = JSON.parse(anexos); } catch(e) { anexos = []; }
     }
-    
+    const quantidadeAnexos = Array.isArray(anexos) ? anexos.length : 0;
+
+    const contador = clone.querySelector('.contador-anexos');
+
+    if (contador) {
+        if (quantidadeAnexos > 0) {
+            contador.textContent = quantidadeAnexos;
+            contador.style.display = 'flex';
+        } else {
+            contador.textContent = '0';
+            contador.style.display = 'none';
+        }
+    }
+
     if (quantidadeAnexos > 0) {
         btnAnexos.classList.add('tem-anexos');
         btnAnexos.title = `${quantidadeAnexos} anexo(s) - Clique para visualizar`;
@@ -268,7 +280,7 @@ function configurarBotaoAnexos(clone, receita, index, fechado) {
         btnAnexos.classList.remove('tem-anexos');
         btnAnexos.title = 'Sem anexos';
     }
-    
+
     btnAnexos.disabled = false;
 }
 
@@ -1009,16 +1021,18 @@ function configurarOpcoesReplicacao() {
 
 function atualizarContadorAnexosReceita(index, quantidade) {
     const btnAnexos = document.querySelector(`.btn-anexos[data-index="${index}"]`);
-    
+
     if (btnAnexos) {
         const contador = btnAnexos.querySelector('.contador-anexos');
         if (contador) {
-            contador.textContent = quantidade;
-            
             if (quantidade > 0) {
+                contador.textContent = quantidade;
+                contador.style.display = 'flex';
                 btnAnexos.classList.add('tem-anexos');
                 btnAnexos.title = `${quantidade} anexo(s) - Clique para visualizar`;
             } else {
+                contador.textContent = '0';
+                contador.style.display = 'none';
                 btnAnexos.classList.remove('tem-anexos');
                 btnAnexos.title = 'Sem anexos';
             }

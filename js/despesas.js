@@ -998,42 +998,57 @@ function atualizarBotaoLote() {
 function preencherCelulaAnexos(clone, despesa, index, fechado) {
    const celulaAnexos = clone.querySelector('.col-anexos');
    if (!celulaAnexos) return;
-   
-   const quantidadeAnexos = despesa.anexos ? despesa.anexos.length : 0;
-   
+
+   // Garantir que anexos é um array
+   let anexos = despesa.anexos;
+   if (typeof anexos === 'string') {
+       try { anexos = JSON.parse(anexos); } catch(e) { anexos = []; }
+   }
+   const quantidadeAnexos = Array.isArray(anexos) ? anexos.length : 0;
+
+   const wrapper = document.createElement('div');
+   wrapper.className = 'acoes-grupo';
+
    if (quantidadeAnexos > 0) {
-       // Usar template para anexos existentes
        const template = document.getElementById('template-botao-anexos-com-anexos');
        if (template) {
            const templateClone = template.content.cloneNode(true);
            const botaoAnexos = templateClone.querySelector('.btn-anexos');
-           
+
            if (botaoAnexos) {
                botaoAnexos.setAttribute('data-index', index);
                botaoAnexos.setAttribute('title', `Ver ${quantidadeAnexos} anexo(s)`);
-               
+               botaoAnexos.classList.add('tem-anexos');
+
                const contador = botaoAnexos.querySelector('.contador-anexos');
                if (contador) {
                    contador.textContent = quantidadeAnexos;
+                   contador.style.display = 'flex';
                }
            }
-           
+
+           wrapper.appendChild(templateClone);
            celulaAnexos.innerHTML = '';
-           celulaAnexos.appendChild(templateClone);
+           celulaAnexos.appendChild(wrapper);
        }
    } else {
-       // Usar template para sem anexos
        const template = document.getElementById('template-botao-anexos-sem-anexos');
        if (template) {
            const templateClone = template.content.cloneNode(true);
            const botaoAnexos = templateClone.querySelector('.btn-anexos');
-           
+
            if (botaoAnexos) {
                botaoAnexos.setAttribute('data-index', index);
            }
-           
+
+           const contador = templateClone.querySelector('.contador-anexos');
+           if (contador) {
+               contador.style.display = 'none';
+           }
+
+           wrapper.appendChild(templateClone);
            celulaAnexos.innerHTML = '';
-           celulaAnexos.appendChild(templateClone);
+           celulaAnexos.appendChild(wrapper);
        }
    }
 }
@@ -4233,14 +4248,13 @@ function calcularEconomiaDespesa(despesa) {
 // FUNÇÕES DE TOTALIZAÇÃO
 // ================================================================
 
-function calcularTotalDespesas(despesas) {
+function calcularTotalDespesas(despesas, apenasPagas = false) {
     if (!Array.isArray(despesas)) return 0;
-    
+
     return despesas.reduce((total, despesa) => {
-        if (despesa.quitacaoAntecipada === true) {
-            return total;
-        }
-        
+        if (despesa.quitacaoAntecipada === true) return total;
+        if (apenasPagas && !despesa.pago) return total;
+
         if (despesa.valorPago !== null && despesa.valorPago !== undefined && despesa.valorPago > 0) {
             return total + parseFloat(despesa.valorPago);
         }

@@ -9,6 +9,7 @@
 
 .tabela-receitas-container {
     border: 1px solid #e9ecef;
+    border-radius: 8px;
     background: white;
     max-height: 70vh;
     overflow: auto;
@@ -129,6 +130,7 @@
     padding: 10px;
     background: #f8f9fa;
     border: 1px solid #e9ecef;
+    border-radius: 8px;
     display: none;
 }
 
@@ -147,6 +149,7 @@
     padding: 6px 10px;
     background: #fff;
     border: 1px solid #e9ecef;
+    border-radius: 6px;
     margin-bottom: 6px;
 }
 
@@ -186,6 +189,7 @@
 
 .receitas-grid {
     border: 1px solid #e9ecef;
+    border-radius: 8px;
     background: white;
     max-height: 70vh;
     overflow: auto;
@@ -221,12 +225,7 @@
     text-transform: uppercase;
 }
 
-.receitas-grid .contador-anexos {
-    background: transparent;
-    color: inherit;
-    font-size: 10px;
-    font-weight: 400;
-}
+/* Contador de anexos - estilos movidos para botoes.css */
 
 /* Tabela receitas legada (compatibilidade) */
 .tabela-receitas {
@@ -256,13 +255,7 @@
     background: #f8f9fa;
 }
 
-/* Contador de anexos */
-.contador-anexos {
-    background: transparent;
-    color: inherit;
-    font-size: 10px;
-    font-weight: 400;
-}
+/* Contador de anexos - estilos em botoes.css */
 
 /* Lista de visualização de anexos */
 .lista-anexos-visualizar {
@@ -278,6 +271,7 @@
     padding: 10px 12px;
     background: #fff;
     border: 1px solid #e9ecef;
+    border-radius: 6px;
     margin-bottom: 10px;
     transition: all 0.2s ease;
 }
@@ -337,6 +331,7 @@
     padding: 12px;
     background: #f8f9fa;
     border: 1px solid #e9ecef;
+    border-radius: 8px;
 }
 
 .opcoes-replicacao-grupo {
@@ -389,6 +384,7 @@
     padding: 12px;
     margin: 12px 0;
     border: 1px solid #e9ecef;
+    border-radius: 8px;
 }
 
 .limites-cartoes-container h3 {
@@ -444,6 +440,7 @@
 .cartao-limite-item {
     background: #f8f9fa;
     border: 1px solid #e9ecef;
+    border-radius: 8px;
     padding: 10px;
     padding-right: 70px;
     transition: all 0.2s;
