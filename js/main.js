@@ -158,12 +158,16 @@ function exportarVariaveisGlobais() {
 
     
     
-    window.calcularTotalDespesas = function(despesas) {
-        if (!Array.isArray(despesas)) return 0;
-        return despesas.reduce((total, despesa) => {
-            return total + (window.obterValorRealDespesa ? window.obterValorRealDespesa(despesa) : (despesa.valor || 0));
-        }, 0);
-    };
+    // Fallback apenas se despesas.js ainda não carregou (despesas.js exporta a versão completa)
+    if (typeof window.calcularTotalDespesas !== 'function') {
+        window.calcularTotalDespesas = function(despesas, apenasPagas = false) {
+            if (!Array.isArray(despesas)) return 0;
+            return despesas.reduce((total, despesa) => {
+                if (apenasPagas && !despesa.pago) return total;
+                return total + (window.obterValorRealDespesa ? window.obterValorRealDespesa(despesa) : (despesa.valor || 0));
+            }, 0);
+        };
+    }
 
     window.notificarSistema = function(tipo, dados) {
         try {
@@ -2433,9 +2437,10 @@ function obterSaldoAnterior(mes, ano) {
             return sum + (r.valor || 0);
         }, 0);
 
+        // Apenas despesas PAGAS afetam o saldo anterior (mesma regra do mês atual)
         const despesas = typeof window.calcularTotalDespesas === 'function' ?
-            window.calcularTotalDespesas(dadosMesAnterior.despesas || []) :
-            (dadosMesAnterior.despesas || []).reduce((sum, d) => sum + (window.obterValorRealDespesa ? window.obterValorRealDespesa(d) : (d.valor || 0)), 0);
+            window.calcularTotalDespesas(dadosMesAnterior.despesas || [], true) :
+            (dadosMesAnterior.despesas || []).reduce((sum, d) => d.pago ? sum + (window.obterValorRealDespesa ? window.obterValorRealDespesa(d) : (d.valor || 0)) : sum, 0);
 
         return saldoAnteriorAnterior + receitas - despesas;
     }
