@@ -77,18 +77,112 @@ function configurarObservadores() {
     }
 
     document.getElementById('btn-ano-anterior')?.addEventListener('click', function() {
+        window.anoDashboard = null;
         limparGraficos();
         resetarFiltros();
         setTimeout(() => carregarDadosDashboard(window.anoAtual), 100);
     });
 
     document.getElementById('btn-proximo-ano')?.addEventListener('click', function() {
+        window.anoDashboard = null;
         limparGraficos();
         resetarFiltros();
         setTimeout(() => carregarDadosDashboard(window.anoAtual), 100);
     });
 }
 
+
+// ================================================================
+// FILTRO DE PERÍODO GLOBAL
+// ================================================================
+
+window.anoDashboard = null; // null = usa window.anoAtual
+
+function inicializarPeriodFilter() {
+    const container = document.getElementById('periodo-chips');
+    if (!container) return;
+
+    const anos = Object.keys(window.dadosFinanceiros || {}).map(Number).filter(Boolean).sort();
+    if (anos.length === 0) return;
+
+    const selecionado = window.anoDashboard ?? window.anoAtual;
+    container.innerHTML = '';
+
+    // Chip "Todos os anos"
+    const chipTodos = _criarChipPeriodo('todos', 'Todos', selecionado === 'todos');
+    container.appendChild(chipTodos);
+
+    // Chips por ano
+    anos.forEach(ano => {
+        const ativo = selecionado !== 'todos' && ano === parseInt(selecionado);
+        container.appendChild(_criarChipPeriodo(ano, String(ano), ativo));
+    });
+}
+
+function _criarChipPeriodo(valor, label, ativo) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'periodo-chip' + (ativo ? ' active' : '');
+    btn.textContent = label;
+    btn.addEventListener('click', () => aplicarFiltroPeriodo(valor));
+    return btn;
+}
+
+function aplicarFiltroPeriodo(valor) {
+    window.anoDashboard = valor;
+
+    // Atualizar estado visual dos chips
+    document.querySelectorAll('.periodo-chip').forEach(chip => {
+        const isAtivo = (valor === 'todos' && chip.textContent === 'Todos') ||
+                        (valor !== 'todos' && chip.textContent === String(valor));
+        chip.classList.toggle('active', isAtivo);
+    });
+
+    // Atualizar cards de resumo
+    if (typeof window.carregarDadosDashboardLocal === 'function') {
+        window.carregarDadosDashboardLocal(valor);
+    }
+
+    // Atualizar rótulo dos cards
+    _atualizarRodapeCards(valor);
+
+    // Atualizar gráficos (para 'todos' usa o ano mais recente disponível)
+    const anoGraficos = valor === 'todos'
+        ? (Object.keys(window.dadosFinanceiros || {}).map(Number).filter(Boolean).sort().pop() || window.anoAtual)
+        : parseInt(valor);
+
+    limparGraficos();
+    const filtrosPadrao = { categoria: '', formaPagamento: 'todas', status: 'todos', tipo: 'ambos' };
+    const dadosProcessados = processarDadosReais(window.dadosFinanceiros, anoGraficos);
+    criarGraficoBalanco(dadosProcessados.dadosMensais);
+    criarGraficoTendenciaAnualComFiltros(window.dadosFinanceiros, anoGraficos, filtrosPadrao);
+    criarGraficoReceitasDespesasComFiltros(dadosProcessados.dadosMensais, filtrosPadrao);
+    criarGraficoBarrasCategoriasComFiltros(window.dadosFinanceiros, anoGraficos, filtrosPadrao);
+    criarGraficoCategoriasMensaisComFiltros(window.dadosFinanceiros, anoGraficos, filtrosPadrao);
+    criarGraficoJurosComFiltros(window.dadosFinanceiros, anoGraficos, filtrosPadrao);
+    criarGraficoParcelamentosComFiltros(window.dadosFinanceiros, anoGraficos, filtrosPadrao);
+    criarGraficoFormaPagamentoComFiltros(window.dadosFinanceiros, anoGraficos, filtrosPadrao);
+    renderDistribuicaoCartoes(window.dadosFinanceiros, anoGraficos, filtrosPadrao);
+    renderizarGraficoMediaCategorias();
+}
+
+function _atualizarRodapeCards(valor) {
+    const label = valor === 'todos' ? 'Todos os anos' : `Ano ${valor}`;
+    const mapeamento = {
+        'dashboard-total-receitas': 'Receitas — ' + label,
+        'dashboard-total-despesas': 'Despesas — ' + label,
+        'dashboard-saldo-anual': 'Saldo — ' + label,
+        'dashboard-total-juros': 'Juros — ' + label,
+        'dashboard-total-economias': 'Economias — ' + label,
+    };
+    document.querySelectorAll('.resumo-cards .card').forEach(card => {
+        const valueEl = card.querySelector('.card-value');
+        const footerEl = card.querySelector('.card-footer');
+        if (!valueEl || !footerEl) return;
+        const id = valueEl.id;
+        if (mapeamento[id]) footerEl.textContent = mapeamento[id];
+    });
+}
 
 function resetarFiltros() {
     document.querySelectorAll('select[id*="tipo-filter"]').forEach(select => {
@@ -237,9 +331,10 @@ async function carregarDadosDashboard(ano) {
 
         // Cards são atualizados pelo main.js (carregarDadosDashboardLocal) - fonte única de verdade
         if (typeof window.carregarDadosDashboardLocal === 'function') {
-            window.carregarDadosDashboardLocal(ano);
+            window.carregarDadosDashboardLocal(window.anoDashboard ?? ano);
         }
         preencherSelectCategorias();
+        inicializarPeriodFilter();
 
         const filtrosPadrao = { categoria: '', formaPagamento: 'todas', status: 'todos', tipo: 'ambos' };
 

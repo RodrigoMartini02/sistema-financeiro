@@ -206,6 +206,70 @@
     animation: fadeInUp 0.3s ease-out;
 }
 
+/* ---------------------------------------------------------------- */
+/* BARRA DE FILTRO DE PERÍODO GLOBAL                                 */
+/* ---------------------------------------------------------------- */
+.dashboard-periodo-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 8px 14px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.periodo-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.periodo-chips {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.periodo-chip {
+    padding: 4px 14px;
+    border-radius: 20px;
+    border: 1px solid #e2e8f0;
+    background: white;
+    font-size: 12px;
+    font-weight: 500;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    line-height: 1.4;
+}
+
+.periodo-chip:hover {
+    border-color: #94a3b8;
+    color: #1e293b;
+}
+
+.periodo-chip.active {
+    background: #1e293b;
+    border-color: #1e293b;
+    color: white;
+}
+
+@media (max-width: 600px) {
+    .dashboard-periodo-bar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+}
+
 /* --- RESPONSIVIDADE --- */
 @media (max-width: 1024px) {
     .dashboard-grid {
