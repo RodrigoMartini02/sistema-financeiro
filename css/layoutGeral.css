@@ -2209,6 +2209,7 @@ table tr:hover {
 .form-control {
     padding: 6px 8px;
     border: 1px solid #d1d5db;
+    border-radius: 6px;
     background: #fff;
     font-size: 12px;
     min-width: 100px;
@@ -2232,6 +2233,7 @@ table tr:hover {
 .form-select {
     padding: 6px 8px;
     border: 1px solid #d1d5db;
+    border-radius: 6px;
     background: #fff;
     font-size: 12px;
     min-width: 100px;

@@ -303,6 +303,7 @@
     margin-top: 16px;
     padding: 12px;
     background: var(--gray-100);
+    border-radius: 6px;
 }
 
 #pagination-info {
@@ -806,6 +807,7 @@
 /* Tabela de Logs */
 .lista-logs-container {
     background: white;
+    border-radius: 8px;
     box-shadow: var(--shadow-sm);
     max-height: 500px;
     overflow-y: auto;
@@ -962,6 +964,7 @@
 
 .loader-content {
     background: white;
+    border-radius: 12px;
     padding: 40px 60px;
     text-align: center;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
@@ -973,6 +976,7 @@
     height: 60px;
     border: 6px solid #f3f3f3;
     border-top: 6px solid var(--primary-color);
+    border-radius: 50%;
     animation: spin 1s linear infinite;
     margin: 0 auto 20px;
 }

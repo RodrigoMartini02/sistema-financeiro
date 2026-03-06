@@ -9,6 +9,7 @@
 
 .tabela-despesas-container {
     border: 1px solid #e9ecef;
+    border-radius: 8px;
     background: white;
     max-height: 70vh;
     overflow: auto;
@@ -157,6 +158,7 @@
     background: #ef4444;
     color: white;
     padding: 2px 6px;
+    border-radius: 4px;
     cursor: pointer;
     font-size: 9px;
     font-weight: 500;
@@ -185,6 +187,7 @@
     margin-bottom: 12px;
     padding: 8px;
     background: #f8fafc;
+    border-radius: 6px;
     gap: 12px;
 }
 
@@ -225,6 +228,7 @@
     flex: 1;
     padding: 6px 10px;
     border: 1px solid #e2e8f0;
+    border-radius: 6px;
     font-size: 10px;
 }
 
@@ -257,6 +261,7 @@
     width: 100%;
     padding: 6px 10px;
     border: 1px solid #e2e8f0;
+    border-radius: 6px;
     font-size: 10px;
 }
 
@@ -313,6 +318,7 @@ select.campo-invalido {
     padding: 6px 12px;
     background: #f7fafc;
     border: 1px solid #e2e8f0;
+    border-radius: 4px;
     cursor: pointer;
     font-size: 10px;
     font-weight: 600;
@@ -353,6 +359,7 @@ select.campo-invalido {
 
 .info-compact {
     background: #f7fafc;
+    border-radius: 6px;
     padding: 8px 10px;
     margin-bottom: 10px;
 }
@@ -470,6 +477,7 @@ select.campo-invalido {
 
 .upload-drop-area {
     border: 2px dashed #d1d5db;
+    border-radius: 8px;
     padding: 16px;
     text-align: center;
     background: #f9fafb;
@@ -521,6 +529,7 @@ select.campo-invalido {
 .arquivos-carregados {
     background: #f8fafc;
     border: 1px solid #e5e7eb;
+    border-radius: 6px;
     padding: 12px;
     margin-bottom: 10px;
 }
@@ -549,6 +558,7 @@ select.campo-invalido {
     align-items: center;
     background: white;
     border: 1px solid #e5e7eb;
+    border-radius: 6px;
     padding: 6px 10px;
 }
 
@@ -591,6 +601,7 @@ select.campo-invalido {
 
 .anexos-info {
     background: #f8fafc;
+    border-radius: 6px;
     padding: 10px;
     margin-bottom: 12px;
 }
@@ -616,6 +627,7 @@ select.campo-invalido {
     align-items: center;
     background: #ffffff;
     border: 1px solid #e5e7eb;
+    border-radius: 6px;
     padding: 10px;
 }
 
@@ -674,6 +686,7 @@ select.campo-invalido {
 .info-container {
     background: #f7fafc;
     border-left: 3px solid #4299e1;
+    border-radius: 6px;
     padding: 10px;
     margin-bottom: 16px;
 }
@@ -703,6 +716,7 @@ select.campo-invalido {
     width: 100%;
     padding: 8px 12px;
     border: 1px solid #e2e8f0;
+    border-radius: 6px;
     font-size: 10px;
     transition: all 0.2s ease;
     background: white;
@@ -724,6 +738,7 @@ select.campo-invalido {
 .opcoes-pagamento-lote button {
     padding: 10px 16px;
     border: 1px solid #e2e8f0;
+    border-radius: 6px;
     background: white;
     color: #2d3748;
     font-size: 10px;
@@ -772,6 +787,7 @@ select.campo-invalido {
     padding: 10px;
     margin-bottom: 12px;
     border-left: 3px solid #3b82f6;
+    border-radius: 6px;
 }
 
 .info-despesa-container-compact .info-row {
@@ -810,6 +826,7 @@ select.campo-invalido {
     font-size: 10px;
     font-weight: 600;
     text-align: center;
+    border-radius: 6px;
 }
 
 .diferenca-info.economia {
