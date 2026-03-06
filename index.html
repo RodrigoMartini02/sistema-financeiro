@@ -180,13 +180,32 @@
             </div>
         </header>
 
-        <!-- Painel de Notícias -->
-        <div id="painel-noticias" class="painel-noticias hidden">
-            <div class="painel-noticias-header">
-                <h4><i class="fas fa-newspaper"></i> Notícias</h4>
-                <button type="button" class="btn-fechar-noticias" id="btn-fechar-noticias">&times;</button>
+        <!-- Painel Central: Notificações + Notícias -->
+        <div id="painel-central" class="painel-central hidden">
+            <div class="painel-central-header">
+                <div class="painel-tabs">
+                    <button class="painel-tab ativo" data-tab="notificacoes">
+                        <i class="fas fa-bell"></i> Notificações
+                        <span class="painel-tab-badge hidden" id="notif-tab-badge">0</span>
+                    </button>
+                    <button class="painel-tab" data-tab="noticias">
+                        <i class="fas fa-newspaper"></i> Notícias
+                        <span class="painel-tab-badge hidden" id="noticias-tab-badge">0</span>
+                    </button>
+                </div>
+                <div class="painel-central-acoes hidden" id="painel-notif-acoes">
+                    <button id="btn-mark-all-read" title="Marcar como lidas"><i class="fas fa-check-double"></i></button>
+                    <button id="btn-clear-notifications" title="Limpar tudo"><i class="fas fa-trash"></i></button>
+                </div>
+                <button class="btn-fechar-painel" id="btn-fechar-painel">&times;</button>
             </div>
-            <div class="painel-noticias-body" id="lista-noticias">
+            <div class="painel-central-body">
+                <div class="painel-tab-content ativo" id="tab-notificacoes">
+                    <div id="notifications-list"></div>
+                </div>
+                <div class="painel-tab-content" id="tab-noticias">
+                    <div id="lista-noticias"></div>
+                </div>
             </div>
         </div>
 
@@ -198,10 +217,32 @@
     <section class="dashboard-section active" id="dashboard-section">
 
         <!-- Barra de filtro de período -->
-        <div class="dashboard-periodo-bar">
-            <span class="periodo-label"><i class="fas fa-calendar-alt"></i> Período:</span>
-            <div class="periodo-chips" id="periodo-chips">
-                <!-- Gerado dinamicamente pelo JS -->
+        <div class="dashboard-filtros-bar">
+            <div class="filtro-periodo-toggle">
+                <button class="filtro-toggle-btn active" id="btn-periodo-atual">
+                    <i class="fas fa-calendar"></i> Ano Atual
+                </button>
+                <button class="filtro-toggle-btn" id="btn-periodo-todos">
+                    <i class="fas fa-layer-group"></i> Todos os Anos
+                </button>
+            </div>
+            <div class="filtro-bar-sep"></div>
+            <div class="filtro-selects">
+                <select class="filtro-select" id="global-tipo-filter">
+                    <option value="ambos">Todos os Tipos</option>
+                    <option value="receitas">Receitas</option>
+                    <option value="despesas">Despesas</option>
+                </select>
+                <select class="filtro-select" id="global-categoria-filter">
+                    <option value="">Todas as Categorias</option>
+                </select>
+                <select class="filtro-select" id="global-pagamento-filter">
+                    <option value="todas">Todas as Formas de Pag.</option>
+                    <option value="debito">Débito</option>
+                    <option value="credito">Crédito</option>
+                    <option value="pix">Pix</option>
+                    <option value="dinheiro">Dinheiro</option>
+                </select>
             </div>
         </div>
 
@@ -252,113 +293,110 @@
 
         <div class="dashboard-grid">
 
-            <div class="dashboard-card">
+            <div class="dashboard-card chart-accent-violet">
                 <h3>
-                    <span>TENDÊNCIA ANUAL</span>
-                    <button class="btn btn-icon btn-outline" data-chart="tendenciaChart">[ ]</button>
+                    <span class="chart-label"><i class="fas fa-chart-line chart-icon"></i> TENDÊNCIA ANUAL</span>
+                    <button class="btn-zoom" data-chart="tendenciaChart"><i class="fas fa-expand-alt"></i></button>
                 </h3>
                 <div class="chart-container">
                     <canvas id="tendencia-chart"></canvas>
                 </div>
             </div>
 
-            <div class="dashboard-card">
+            <div class="dashboard-card chart-accent-emerald">
                 <h3>
-                    <span>ENTRADAS E SAÍDAS</span>
-                    <button class="btn btn-icon btn-outline" data-chart="receitasDespesasChart">[ ]</button>
+                    <span class="chart-label"><i class="fas fa-exchange-alt chart-icon"></i> ENTRADAS E SAÍDAS</span>
+                    <button class="btn-zoom" data-chart="receitasDespesasChart"><i class="fas fa-expand-alt"></i></button>
                 </h3>
                 <div class="chart-container">
                     <canvas id="receitas-despesas-chart"></canvas>
                 </div>
             </div>
 
-            <div class="dashboard-card">
+            <div class="dashboard-card chart-accent-amber">
                 <h3>
-                    <span>CATEGORIAS ANUAIS</span>
-                    <button class="btn btn-icon btn-outline" data-chart="categoriasBarrasChart">[ ]</button>
+                    <span class="chart-label"><i class="fas fa-tags chart-icon"></i> CATEGORIAS ANUAIS</span>
+                    <button class="btn-zoom" data-chart="categoriasBarrasChart"><i class="fas fa-expand-alt"></i></button>
                 </h3>
                 <div class="chart-container">
                     <canvas id="categorias-barras-chart"></canvas>
                 </div>
             </div>
 
-
-             <div class="dashboard-card">
+            <div class="dashboard-card chart-accent-cyan">
                 <h3>
-                    <span>CATEGORIAS MENSAIS</span>
-                    <button class="btn btn-icon btn-outline" data-chart="categoriasEmpilhadasChart">[ ]</button>
+                    <span class="chart-label"><i class="fas fa-calendar-alt chart-icon"></i> CATEGORIAS MENSAIS</span>
+                    <button class="btn-zoom" data-chart="categoriasEmpilhadasChart"><i class="fas fa-expand-alt"></i></button>
                 </h3>
                 <div class="chart-container">
                     <canvas id="categorias-mensais-chart"></canvas>
                 </div>
-            </div>        
-           
+            </div>
 
-     <div class="dashboard-card">
+            <div class="dashboard-card chart-accent-indigo">
                 <h3>
-                    <span>FORMAS DE PAGAMENTO</span>
-                    <button class="btn btn-icon btn-outline" data-chart="formaPagamentoChart">[ ]</button>
+                    <span class="chart-label"><i class="fas fa-credit-card chart-icon"></i> FORMAS DE PAGAMENTO</span>
+                    <button class="btn-zoom" data-chart="formaPagamentoChart"><i class="fas fa-expand-alt"></i></button>
                 </h3>
                 <div class="chart-container">
                     <canvas id="forma-pagamento-chart"></canvas>
                 </div>
             </div>
 
-            <div class="dashboard-card">
+            <div class="dashboard-card chart-accent-pink">
                 <h3>
-                    <span>USO DE CARTOES</span>
-                    <button class="btn btn-icon btn-outline" data-chart="chartDistribuicaoCartoes">[ ]</button>
+                    <span class="chart-label"><i class="fas fa-wallet chart-icon"></i> USO DE CARTÕES</span>
+                    <button class="btn-zoom" data-chart="chartDistribuicaoCartoes"><i class="fas fa-expand-alt"></i></button>
                 </h3>
                 <div class="chart-container">
                     <canvas id="cartoes-usados-chart"></canvas>
                 </div>
             </div>
-           
 
-            <div class="dashboard-card">
+            <div class="dashboard-card chart-accent-red">
                 <h3>
-                    <span>JUROS</span>
-                    <button class="btn btn-icon btn-outline" data-chart="jurosChart">[ ]</button>
+                    <span class="chart-label"><i class="fas fa-percentage chart-icon"></i> JUROS</span>
+                    <button class="btn-zoom" data-chart="jurosChart"><i class="fas fa-expand-alt"></i></button>
                 </h3>
                 <div class="chart-container">
                     <canvas id="juros-chart"></canvas>
                 </div>
             </div>
 
-            <div class="dashboard-card">
+            <div class="dashboard-card chart-accent-orange">
                 <h3>
-                    <span>PARCELAMENTOS</span>
-                    <button class="btn btn-icon btn-outline" data-chart="parcelamentosChart">[ ]</button>
+                    <span class="chart-label"><i class="fas fa-layer-group chart-icon"></i> PARCELAMENTOS</span>
+                    <button class="btn-zoom" data-chart="parcelamentosChart"><i class="fas fa-expand-alt"></i></button>
                 </h3>
                 <div class="chart-container">
                     <canvas id="parcelamentos-chart"></canvas>
                 </div>
             </div>
 
-                <div class="dashboard-card">
+            <div class="dashboard-card chart-accent-teal">
                 <h3>
-                    <span>MÉDIA ANUAL</span>
-                    <button class="btn btn-icon btn-outline" data-chart="mediaCategoriasChart">[ ]</button>
+                    <span class="chart-label"><i class="fas fa-chart-bar chart-icon"></i> MÉDIA ANUAL</span>
+                    <button class="btn-zoom" data-chart="mediaCategoriasChart"><i class="fas fa-expand-alt"></i></button>
                 </h3>
-                <div class="chart-container" style="position: relative; height: 350px;">
+                <div class="chart-container">
                     <canvas id="media-categorias-chart"></canvas>
                 </div>
             </div>
 
-         <div class="dashboard-card dashboard-card-full">
-            <h3 class="header-com-zoom">
-                <span>BALANÇO</span>
+            <div class="dashboard-card dashboard-card-full chart-accent-blue">
+            <h3>
+                <span class="chart-label"><i class="fas fa-chart-area chart-icon"></i> BALANÇO</span>
                 <div class="filtros-header">
-                    <select class="form-control" id="balanco-periodo-filter" onchange="filtrarBalancoPeriodo()">
+                    <select class="filtro-select" id="balanco-periodo-filter" onchange="filtrarBalancoPeriodo()">
                         <option value="ano">Ano</option>
                         <option value="mes">Mês</option>
                         <option value="semana">Semana</option>
                         <option value="dia">Dia</option>
                     </select>
-                    <select class="form-control" id="balanco-ano-filter" onchange="filtrarBalancoPeriodo()" style="display: none;">
+                    <select class="filtro-select" id="balanco-ano-filter" onchange="filtrarBalancoPeriodo()" style="display: none;">
                         <!-- Preenchido dinamicamente -->
                     </select>
-                    <select class="form-control" id="balanco-mes-filter" onchange="filtrarBalancoPeriodo()" style="display: none;">
+                    <select class="filtro-select" id="balanco-mes-filter" onchange="filtrarBalancoPeriodo()" style="display: none;">
                         <option value="0">Janeiro</option>
                         <option value="1">Fevereiro</option>
                         <option value="2">Março</option>
@@ -373,7 +411,7 @@
                         <option value="11">Dezembro</option>
                     </select>
                 </div>
-                <button class="btn btn-icon btn-outline" data-chart="balancoChart">[ ]</button>
+                <button class="btn-zoom" data-chart="balancoChart"><i class="fas fa-expand-alt"></i></button>
             </h3>
             <div class="chart-container">
                 <canvas id="balanco-chart"></canvas>
@@ -2621,59 +2659,6 @@
 <!-- ======================================================== -->
 <!-- MODAL: CENTRO DE NOTIFICAÇÕES SIMPLES -->
 <!-- ======================================================== -->
-<!-- MODAL DE NOTIFICAÇÕES - DESIGN FORMAL E CLEAN -->
-<!-- ======================================================== -->
-<div id="modal-notificacoes" class="modal hidden">
-    <div class="modal-content modal-notificacoes-content">
-        <div class="notificacoes-header">
-            <h2 class="notificacoes-titulo">
-                <i class="fas fa-bell"></i>
-                Central de Notificações
-            </h2>
-            <div class="notificacoes-actions">
-                <button id="btn-mark-all-read" class="btn-notif-action" title="Marcar todas como lidas">
-                    <i class="fas fa-check"></i>
-                </button>
-                <button id="btn-clear-notifications" class="btn-notif-action btn-notif-danger" title="Limpar todas">
-                    <i class="fas fa-trash"></i>
-                </button>
-                <button type="button" class="close btn-notif-close" title="Fechar">&times;</button>
-            </div>
-        </div>
-        <div class="notificacoes-body">
-            <div id="notifications-list" class="notificacoes-lista">
-                <div class="notification-empty">
-                    <i class="fas fa-bell-slash empty-icon-notif"></i>
-                    <p class="empty-text-notif">Nenhuma notificação no momento</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Template: Item de Notificação -->
-<template id="template-notification-item">
-    <div class="notification-item" data-id="" data-tipo="">
-        <div class="notification-icon-container">
-            <i class="fas notification-icon"></i>
-        </div>
-        <div class="notification-content">
-            <div class="notification-header-inline">
-                <h4 class="notification-title"></h4>
-                <span class="notification-time"></span>
-            </div>
-            <p class="notification-message"></p>
-        </div>
-        <div class="notification-actions">
-            <button class="btn-mark-read" title="Marcar como lida">
-                <i class="fas fa-check"></i>
-            </button>
-            <button class="btn-delete-notification" title="Excluir">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    </div>
-</template>
 <template id="template-badge-pagamento">
     <span class="badge-pagamento"></span>
 </template>

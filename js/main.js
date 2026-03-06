@@ -3122,7 +3122,6 @@ function configurarEventListeners() {
 // --- CONFIGURAÇÃO NEWSDATA.IO ---
 const NEWSDATA_API_KEY = 'pub_5cfccab63ba54e729b804382b4f3d0cb';
 let listaNoticias = [];
-let painelNoticiasAberto = false;
 
 async function buscarNoticiasAPI() {
     const url = `https://newsdata.io/api/1/news?apikey=${NEWSDATA_API_KEY}&country=br&language=pt&category=top`;
@@ -3147,7 +3146,7 @@ function renderizarNoticias() {
     if (!lista) return;
 
     if (listaNoticias.length === 0) {
-        lista.innerHTML = '<div class="noticia-vazia">Nenhuma noticia disponivel</div>';
+        lista.innerHTML = '<div class="noticia-vazia">Nenhuma notícia disponível</div>';
         return;
     }
 
@@ -3161,48 +3160,88 @@ function renderizarNoticias() {
 
 function atualizarBadgeNoticias() {
     const badge = document.getElementById('noticias-count');
-    if (!badge) return;
+    const tabBadge = document.getElementById('noticias-tab-badge');
+    const total = listaNoticias.length;
 
-    if (listaNoticias.length > 0 && !painelNoticiasAberto) {
-        badge.textContent = listaNoticias.length;
-        badge.classList.remove('hidden');
-    } else {
-        badge.classList.add('hidden');
+    if (badge) {
+        badge.textContent = total;
+        badge.classList.toggle('hidden', total === 0);
     }
-}
-
-function togglePainelNoticias() {
-    const painel = document.getElementById('painel-noticias');
-    if (!painel) return;
-
-    painelNoticiasAberto = !painelNoticiasAberto;
-
-    if (painelNoticiasAberto) {
-        painel.classList.remove('hidden');
-        atualizarBadgeNoticias();
-    } else {
-        painel.classList.add('hidden');
+    if (tabBadge) {
+        tabBadge.textContent = total;
+        tabBadge.classList.toggle('hidden', total === 0);
     }
-}
-
-function fecharPainelNoticias() {
-    const painel = document.getElementById('painel-noticias');
-    if (painel) painel.classList.add('hidden');
-    painelNoticiasAberto = false;
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-    const btn = document.getElementById('btn-toggle-noticias');
-    const btnFechar = document.getElementById('btn-fechar-noticias');
+    document.getElementById('btn-toggle-noticias')?.addEventListener('click', () => abrirPainelCentral('noticias'));
 
-    if (btn) btn.onclick = togglePainelNoticias;
-    if (btnFechar) btnFechar.onclick = fecharPainelNoticias;
-
-    // Buscar noticias em background
+    // Buscar notícias em background
     listaNoticias = await buscarNoticiasAPI();
     atualizarBadgeNoticias();
     renderizarNoticias();
 });
+
+// ================================================================
+// PAINEL CENTRAL — lógica compartilhada (notificações + notícias)
+// ================================================================
+
+function abrirPainelCentral(aba) {
+    const painel = document.getElementById('painel-central');
+    if (!painel) return;
+
+    painel.classList.remove('hidden');
+    _trocarAbaPainelCentral(aba || 'notificacoes');
+
+    // Fechar ao clicar fora
+    setTimeout(() => {
+        document.addEventListener('click', _fecharPainelCentralExterno, { once: true, capture: true });
+    }, 0);
+}
+
+function fecharPainelCentral() {
+    document.getElementById('painel-central')?.classList.add('hidden');
+    document.removeEventListener('click', _fecharPainelCentralExterno, true);
+}
+
+function _fecharPainelCentralExterno(e) {
+    const painel = document.getElementById('painel-central');
+    if (painel && !painel.contains(e.target)) {
+        fecharPainelCentral();
+    } else if (painel) {
+        // Clicou dentro — re-registrar para próxima vez
+        document.addEventListener('click', _fecharPainelCentralExterno, { once: true, capture: true });
+    }
+}
+
+function _trocarAbaPainelCentral(aba) {
+    // Trocar tabs
+    document.querySelectorAll('.painel-tab').forEach(btn => {
+        btn.classList.toggle('ativo', btn.dataset.tab === aba);
+    });
+
+    // Trocar conteúdo
+    document.querySelectorAll('.painel-tab-content').forEach(el => {
+        el.classList.toggle('ativo', el.id === `tab-${aba}`);
+    });
+
+    // Mostrar ações só na aba de notificações
+    const acoes = document.getElementById('painel-notif-acoes');
+    if (acoes) acoes.classList.toggle('hidden', aba !== 'notificacoes');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Fechar painel
+    document.getElementById('btn-fechar-painel')?.addEventListener('click', fecharPainelCentral);
+
+    // Trocar abas
+    document.querySelectorAll('.painel-tab').forEach(btn => {
+        btn.addEventListener('click', () => _trocarAbaPainelCentral(btn.dataset.tab));
+    });
+});
+
+window.abrirPainelCentral  = abrirPainelCentral;
+window.fecharPainelCentral = fecharPainelCentral;
 
 
 

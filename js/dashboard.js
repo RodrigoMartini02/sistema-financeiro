@@ -98,76 +98,74 @@ function configurarObservadores() {
 
 window.anoDashboard = null; // null = usa window.anoAtual
 
+let _filtrosGlobaisInicializados = false;
+
 function inicializarPeriodFilter() {
-    const container = document.getElementById('periodo-chips');
-    if (!container) return;
+    if (_filtrosGlobaisInicializados) return;
+    _filtrosGlobaisInicializados = true;
 
-    const anos = Object.keys(window.dadosFinanceiros || {}).map(Number).filter(Boolean).sort();
-    if (anos.length === 0) return;
+    document.getElementById('btn-periodo-atual')?.addEventListener('click', () => aplicarFiltroPeriodo('atual'));
+    document.getElementById('btn-periodo-todos')?.addEventListener('click', () => aplicarFiltroPeriodo('todos'));
 
-    const selecionado = window.anoDashboard ?? window.anoAtual;
-    container.innerHTML = '';
-
-    // Chip "Todos os anos"
-    const chipTodos = _criarChipPeriodo('todos', 'Todos', selecionado === 'todos');
-    container.appendChild(chipTodos);
-
-    // Chips por ano
-    anos.forEach(ano => {
-        const ativo = selecionado !== 'todos' && ano === parseInt(selecionado);
-        container.appendChild(_criarChipPeriodo(ano, String(ano), ativo));
-    });
+    document.getElementById('global-tipo-filter')?.addEventListener('change', _reaplicarFiltrosGlobais);
+    document.getElementById('global-categoria-filter')?.addEventListener('change', _reaplicarFiltrosGlobais);
+    document.getElementById('global-pagamento-filter')?.addEventListener('change', _reaplicarFiltrosGlobais);
 }
 
-function _criarChipPeriodo(valor, label, ativo) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'periodo-chip' + (ativo ? ' active' : '');
-    btn.textContent = label;
-    btn.addEventListener('click', () => aplicarFiltroPeriodo(valor));
-    return btn;
+function obterFiltrosGlobais() {
+    return {
+        tipo:           document.getElementById('global-tipo-filter')?.value       || 'ambos',
+        categoria:      document.getElementById('global-categoria-filter')?.value  || '',
+        formaPagamento: document.getElementById('global-pagamento-filter')?.value  || 'todas',
+        status: 'todos'
+    };
+}
+
+function _anoGraficosAtual() {
+    if (window.anoDashboard === 'todos') {
+        return Object.keys(window.dadosFinanceiros || {}).map(Number).filter(Boolean).sort().pop() || window.anoAtual;
+    }
+    return window.anoAtual;
+}
+
+function _reaplicarFiltrosGlobais() {
+    const anoGraficos = _anoGraficosAtual();
+    const filtros = obterFiltrosGlobais();
+    limparGraficos();
+    const dadosProcessados = processarDadosReais(window.dadosFinanceiros, anoGraficos);
+    criarGraficoBalanco(dadosProcessados.dadosMensais);
+    criarGraficoTendenciaAnualComFiltros(window.dadosFinanceiros, anoGraficos, filtros);
+    criarGraficoReceitasDespesasComFiltros(dadosProcessados.dadosMensais, filtros);
+    criarGraficoBarrasCategoriasComFiltros(window.dadosFinanceiros, anoGraficos, filtros);
+    criarGraficoCategoriasMensaisComFiltros(window.dadosFinanceiros, anoGraficos, filtros);
+    criarGraficoJurosComFiltros(window.dadosFinanceiros, anoGraficos, filtros);
+    criarGraficoParcelamentosComFiltros(window.dadosFinanceiros, anoGraficos, filtros);
+    criarGraficoFormaPagamentoComFiltros(window.dadosFinanceiros, anoGraficos, filtros);
+    renderDistribuicaoCartoes(window.dadosFinanceiros, anoGraficos, filtros);
+    renderizarGraficoMediaCategorias();
 }
 
 function aplicarFiltroPeriodo(valor) {
-    window.anoDashboard = valor;
+    window.anoDashboard = valor === 'todos' ? 'todos' : null;
 
-    // Atualizar estado visual dos chips
-    document.querySelectorAll('.periodo-chip').forEach(chip => {
-        const isAtivo = (valor === 'todos' && chip.textContent === 'Todos') ||
-                        (valor !== 'todos' && chip.textContent === String(valor));
-        chip.classList.toggle('active', isAtivo);
-    });
+    // Atualizar estado visual dos botões
+    document.getElementById('btn-periodo-atual')?.classList.toggle('active', valor !== 'todos');
+    document.getElementById('btn-periodo-todos')?.classList.toggle('active', valor === 'todos');
 
     // Atualizar cards de resumo
     if (typeof window.carregarDadosDashboardLocal === 'function') {
-        window.carregarDadosDashboardLocal(valor);
+        window.carregarDadosDashboardLocal(window.anoDashboard ?? window.anoAtual);
     }
 
     // Atualizar rótulo dos cards
     _atualizarRodapeCards(valor);
 
-    // Atualizar gráficos (para 'todos' usa o ano mais recente disponível)
-    const anoGraficos = valor === 'todos'
-        ? (Object.keys(window.dadosFinanceiros || {}).map(Number).filter(Boolean).sort().pop() || window.anoAtual)
-        : parseInt(valor);
-
-    limparGraficos();
-    const filtrosPadrao = { categoria: '', formaPagamento: 'todas', status: 'todos', tipo: 'ambos' };
-    const dadosProcessados = processarDadosReais(window.dadosFinanceiros, anoGraficos);
-    criarGraficoBalanco(dadosProcessados.dadosMensais);
-    criarGraficoTendenciaAnualComFiltros(window.dadosFinanceiros, anoGraficos, filtrosPadrao);
-    criarGraficoReceitasDespesasComFiltros(dadosProcessados.dadosMensais, filtrosPadrao);
-    criarGraficoBarrasCategoriasComFiltros(window.dadosFinanceiros, anoGraficos, filtrosPadrao);
-    criarGraficoCategoriasMensaisComFiltros(window.dadosFinanceiros, anoGraficos, filtrosPadrao);
-    criarGraficoJurosComFiltros(window.dadosFinanceiros, anoGraficos, filtrosPadrao);
-    criarGraficoParcelamentosComFiltros(window.dadosFinanceiros, anoGraficos, filtrosPadrao);
-    criarGraficoFormaPagamentoComFiltros(window.dadosFinanceiros, anoGraficos, filtrosPadrao);
-    renderDistribuicaoCartoes(window.dadosFinanceiros, anoGraficos, filtrosPadrao);
-    renderizarGraficoMediaCategorias();
+    // Recarregar gráficos com filtros atuais
+    _reaplicarFiltrosGlobais();
 }
 
 function _atualizarRodapeCards(valor) {
-    const label = valor === 'todos' ? 'Todos os anos' : `Ano ${valor}`;
+    const label = valor === 'todos' ? 'Todos os anos' : `Ano ${window.anoAtual}`;
     const mapeamento = {
         'dashboard-total-receitas': 'Receitas — ' + label,
         'dashboard-total-despesas': 'Despesas — ' + label,
@@ -185,27 +183,23 @@ function _atualizarRodapeCards(valor) {
 }
 
 function resetarFiltros() {
-    document.querySelectorAll('select[id*="tipo-filter"]').forEach(select => {
-        select.value = 'ambos';
-    });
+    // Resetar filtros globais
+    const tipoFilter = document.getElementById('global-tipo-filter');
+    const catFilter  = document.getElementById('global-categoria-filter');
+    const pagFilter  = document.getElementById('global-pagamento-filter');
+    if (tipoFilter) tipoFilter.value = 'ambos';
+    if (catFilter)  catFilter.value  = '';
+    if (pagFilter)  pagFilter.value  = 'todas';
 
-    document.querySelectorAll('select[id*="categoria-filter"]').forEach(select => {
-        select.value = '';
-    });
-
-    document.querySelectorAll('select[id*="pagamento-filter"]').forEach(select => {
-        select.value = 'todas';
-    });
-
-    document.querySelectorAll('select[id*="status-filter"]').forEach(select => {
-        select.value = 'todos';
-    });
+    // Resetar período para ano atual
+    window.anoDashboard = null;
+    document.getElementById('btn-periodo-atual')?.classList.add('active');
+    document.getElementById('btn-periodo-todos')?.classList.remove('active');
 
     // Resetar filtros do balanço
     const periodoFilter = document.getElementById('balanco-periodo-filter');
-    const anoFilter = document.getElementById('balanco-ano-filter');
-    const mesFilter = document.getElementById('balanco-mes-filter');
-
+    const anoFilter     = document.getElementById('balanco-ano-filter');
+    const mesFilter     = document.getElementById('balanco-mes-filter');
     if (periodoFilter) periodoFilter.value = 'ano';
     if (anoFilter) anoFilter.style.display = 'none';
     if (mesFilter) {
@@ -336,17 +330,17 @@ async function carregarDadosDashboard(ano) {
         preencherSelectCategorias();
         inicializarPeriodFilter();
 
-        const filtrosPadrao = { categoria: '', formaPagamento: 'todas', status: 'todos', tipo: 'ambos' };
+        const filtros = obterFiltrosGlobais();
 
         criarGraficoBalanco(dadosProcessados.dadosMensais);
-        criarGraficoTendenciaAnualComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
-        criarGraficoReceitasDespesasComFiltros(dadosProcessados.dadosMensais, filtrosPadrao);
-        criarGraficoBarrasCategoriasComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
-        criarGraficoCategoriasMensaisComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
-        criarGraficoJurosComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
-        criarGraficoParcelamentosComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
-        criarGraficoFormaPagamentoComFiltros(window.dadosFinanceiros, ano, filtrosPadrao);
-        renderDistribuicaoCartoes(window.dadosFinanceiros, ano, filtrosPadrao);
+        criarGraficoTendenciaAnualComFiltros(window.dadosFinanceiros, ano, filtros);
+        criarGraficoReceitasDespesasComFiltros(dadosProcessados.dadosMensais, filtros);
+        criarGraficoBarrasCategoriasComFiltros(window.dadosFinanceiros, ano, filtros);
+        criarGraficoCategoriasMensaisComFiltros(window.dadosFinanceiros, ano, filtros);
+        criarGraficoJurosComFiltros(window.dadosFinanceiros, ano, filtros);
+        criarGraficoParcelamentosComFiltros(window.dadosFinanceiros, ano, filtros);
+        criarGraficoFormaPagamentoComFiltros(window.dadosFinanceiros, ano, filtros);
+        renderDistribuicaoCartoes(window.dadosFinanceiros, ano, filtros);
         renderizarGraficoMediaCategorias();
     } finally {
         _dashboardCarregando = false;

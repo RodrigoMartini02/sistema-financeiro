@@ -19,12 +19,17 @@
 }
 
 .dashboard-card-full h3 {
-    font-size: 15px;
+    font-size: 13px;
     margin-bottom: 10px;
-    color: #1e293b;
+    color: #475569;
     font-weight: 600;
     padding-bottom: 8px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
 }
 
 .dashboard-card-full .chart-container {
@@ -58,17 +63,35 @@
 }
 
 .dashboard-card h3 {
-    font-size: 15px;
+    font-size: 13px;
     margin-bottom: 12px;
-    color: #1e293b;
+    color: #475569;
     font-weight: 600;
     padding-bottom: 10px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid #f1f5f9;
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px;
-    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.chart-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+}
+
+.chart-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+/* Balanço full-width inside grid */
+.dashboard-card.dashboard-card-full {
+    grid-column: 1 / -1;
+    height: auto;
 }
 
 /* Filtros e Selects */
@@ -207,67 +230,146 @@
 }
 
 /* ---------------------------------------------------------------- */
-/* BARRA DE FILTRO DE PERÍODO GLOBAL                                 */
+/* BARRA DE FILTROS GLOBAL DO DASHBOARD                              */
 /* ---------------------------------------------------------------- */
-.dashboard-periodo-bar {
+.dashboard-filtros-bar {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 16px;
-    padding: 8px 14px;
+    gap: 10px;
+    margin-bottom: 18px;
+    padding: 8px 12px;
     background: #f8fafc;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid #e2e8f0;
-}
-
-.periodo-label {
-    font-size: 11px;
-    font-weight: 600;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    white-space: nowrap;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.periodo-chips {
-    display: flex;
-    gap: 5px;
     flex-wrap: wrap;
 }
 
-.periodo-chip {
-    padding: 4px 14px;
-    border-radius: 20px;
-    border: 1px solid #e2e8f0;
-    background: white;
+.filtro-periodo-toggle {
+    display: flex;
+    background: #e2e8f0;
+    border-radius: 8px;
+    padding: 3px;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.filtro-toggle-btn {
+    padding: 5px 13px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
     font-size: 12px;
     font-weight: 500;
     color: #64748b;
     cursor: pointer;
     transition: all 0.15s ease;
-    line-height: 1.4;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
 }
 
-.periodo-chip:hover {
-    border-color: #94a3b8;
+.filtro-toggle-btn:hover { color: #1e293b; }
+
+.filtro-toggle-btn.active {
+    background: white;
     color: #1e293b;
+    font-weight: 600;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.10);
 }
 
-.periodo-chip.active {
-    background: #1e293b;
-    border-color: #1e293b;
-    color: white;
+.filtro-bar-sep {
+    width: 1px;
+    height: 22px;
+    background: #cbd5e1;
+    flex-shrink: 0;
 }
+
+.filtro-selects {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    flex: 1;
+}
+
+.filtro-select {
+    padding: 5px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 7px;
+    background: white;
+    font-size: 12px;
+    color: #475569;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s;
+    min-width: 145px;
+}
+
+.filtro-select:hover,
+.filtro-select:focus { border-color: #94a3b8; color: #1e293b; }
 
 @media (max-width: 600px) {
-    .dashboard-periodo-bar {
+    .dashboard-filtros-bar {
         flex-direction: column;
         align-items: flex-start;
         gap: 8px;
     }
+    .filtro-selects { width: 100%; }
+    .filtro-select  { flex: 1; min-width: 0; }
+}
+
+/* ---------------------------------------------------------------- */
+/* CHART CARD — ACCENT COLORS (left border + icon color)             */
+/* ---------------------------------------------------------------- */
+.dashboard-card,
+.dashboard-card-full {
+    border-left: 4px solid transparent;
+}
+
+.chart-accent-violet  { border-left-color: #7c3aed; }
+.chart-accent-emerald { border-left-color: #059669; }
+.chart-accent-amber   { border-left-color: #d97706; }
+.chart-accent-cyan    { border-left-color: #0891b2; }
+.chart-accent-indigo  { border-left-color: #4f46e5; }
+.chart-accent-pink    { border-left-color: #db2777; }
+.chart-accent-red     { border-left-color: #dc2626; }
+.chart-accent-orange  { border-left-color: #ea580c; }
+.chart-accent-teal    { border-left-color: #0d9488; }
+.chart-accent-blue    { border-left-color: #2563eb; }
+
+.chart-accent-violet  .chart-icon { color: #7c3aed; }
+.chart-accent-emerald .chart-icon { color: #059669; }
+.chart-accent-amber   .chart-icon { color: #d97706; }
+.chart-accent-cyan    .chart-icon { color: #0891b2; }
+.chart-accent-indigo  .chart-icon { color: #4f46e5; }
+.chart-accent-pink    .chart-icon { color: #db2777; }
+.chart-accent-red     .chart-icon { color: #dc2626; }
+.chart-accent-orange  .chart-icon { color: #ea580c; }
+.chart-accent-teal    .chart-icon { color: #0d9488; }
+.chart-accent-blue    .chart-icon { color: #2563eb; }
+
+/* ---- Zoom button in chart headers ---- */
+.btn-zoom {
+    background: none;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    color: #94a3b8;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    padding: 0;
+}
+
+.btn-zoom:hover {
+    border-color: #3b82f6;
+    color: #3b82f6;
+    background: #eff6ff;
 }
 
 /* --- RESPONSIVIDADE --- */

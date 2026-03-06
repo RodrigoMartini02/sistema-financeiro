@@ -473,45 +473,15 @@ class SistemaNotificacoes {
     // ================================================================
     configurarEventos() {
         try {
-            const notificationBell = document.getElementById('notification-bell');
-            if (notificationBell) {
-                notificationBell.addEventListener('click', () => {
-                    this.abrirModal();
-                });
-            }
+            document.getElementById('notification-bell')?.addEventListener('click', () => this.abrirModal());
 
-            const btnMarkAllRead = document.getElementById('btn-mark-all-read');
-            const btnClearNotifications = document.getElementById('btn-clear-notifications');
-            const modalNotificacoes = document.getElementById('modal-notificacoes');
-            const closeBtn = modalNotificacoes?.querySelector('.close');
+            document.getElementById('btn-mark-all-read')?.addEventListener('click', () => this.marcarTodasComoLidas());
 
-            if (btnMarkAllRead) {
-                btnMarkAllRead.addEventListener('click', () => {
-                    this.marcarTodasComoLidas();
-                });
-            }
-
-            if (btnClearNotifications) {
-                btnClearNotifications.addEventListener('click', () => {
-                    if (confirm('Deseja limpar todas as notificações?')) {
-                        this.limparTodasNotificacoes();
-                    }
-                });
-            }
-
-            if (closeBtn) {
-                closeBtn.addEventListener('click', () => {
-                    this.fecharModal();
-                });
-            }
-
-            if (modalNotificacoes) {
-                modalNotificacoes.addEventListener('click', (e) => {
-                    if (e.target === modalNotificacoes) {
-                        this.fecharModal();
-                    }
-                });
-            }
+            document.getElementById('btn-clear-notifications')?.addEventListener('click', () => {
+                if (confirm('Deseja limpar todas as notificações?')) {
+                    this.limparTodasNotificacoes();
+                }
+            });
         } catch (error) {
             // Falha silenciosa
         }
@@ -519,12 +489,8 @@ class SistemaNotificacoes {
 
     abrirModal() {
         try {
-            const modal = document.getElementById('modal-notificacoes');
-            if (modal) {
-                modal.classList.remove('hidden');
-                modal.style.display = 'block';
-                this.renderizarNotificacoes();
-            }
+            abrirPainelCentral('notificacoes');
+            this.renderizarNotificacoes();
         } catch (error) {
             // Falha silenciosa
         }
@@ -532,11 +498,7 @@ class SistemaNotificacoes {
 
     fecharModal() {
         try {
-            const modal = document.getElementById('modal-notificacoes');
-            if (modal) {
-                modal.classList.add('hidden');
-                modal.style.display = 'none';
-            }
+            fecharPainelCentral();
         } catch (error) {
             // Falha silenciosa
         }
@@ -547,116 +509,31 @@ class SistemaNotificacoes {
             const container = document.getElementById('notifications-list');
             if (!container) return;
 
-            container.innerHTML = '';
-
             if (this.notificacoes.length === 0) {
-                container.innerHTML = `
-                    <div class="notification-empty">
-                        <i class="fas fa-bell-slash empty-icon-notif"></i>
-                        <p class="empty-text-notif">Nenhuma notificação no momento</p>
-                    </div>
-                `;
+                container.innerHTML = '<div class="notif-vazio"><i class="fas fa-bell-slash"></i><br>Nenhuma notificação</div>';
                 return;
             }
 
-            this.notificacoes.forEach(notificacao => {
-                const item = this.criarItemNotificacao(notificacao);
-                if (item) {
-                    container.appendChild(item);
-                }
+            container.innerHTML = this.notificacoes.map(n => `
+                <div class="notif-card" data-id="${n.id}" data-tipo="${n.tipo}">
+                    <div class="notif-card-titulo">
+                        <i class="fas ${n.icone}"></i>
+                        ${n.titulo}
+                        <span class="notif-card-tempo">${this.formatarTempo(n.dataHora)}</span>
+                    </div>
+                    <div class="notif-card-msg">${n.mensagem}</div>
+                </div>
+            `).join('');
+
+            container.querySelectorAll('.notif-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const notif = this.notificacoes.find(n => n.id === card.dataset.id);
+                    if (notif) this.executarAcaoNotificacao(notif);
+                });
             });
         } catch (error) {
             // Falha silenciosa
         }
-    }
-
-    criarItemNotificacao(notificacao) {
-        try {
-            const template = document.getElementById('template-notification-item');
-            if (!template) {
-                return this.criarItemNotificacaoFallback(notificacao);
-            }
-
-            const clone = template.content.cloneNode(true);
-            const item = clone.querySelector('.notification-item');
-
-            item.dataset.id = notificacao.id;
-            item.dataset.tipo = notificacao.tipo;
-
-            // Usar ícone FontAwesome
-            const iconElement = clone.querySelector('.notification-icon');
-            iconElement.className = `fas ${notificacao.icone} notification-icon`;
-
-            clone.querySelector('.notification-title').textContent = notificacao.titulo;
-            clone.querySelector('.notification-message').textContent = notificacao.mensagem;
-            clone.querySelector('.notification-time').textContent = this.formatarTempo(notificacao.dataHora);
-
-            const btnMarkRead = clone.querySelector('.btn-mark-read');
-            const btnDelete = clone.querySelector('.btn-delete-notification');
-
-            if (btnMarkRead) {
-                btnMarkRead.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.marcarComoLida(notificacao.id);
-                });
-            }
-
-            if (btnDelete) {
-                btnDelete.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.excluirNotificacao(notificacao.id);
-                });
-            }
-
-            item.addEventListener('click', () => {
-                this.executarAcaoNotificacao(notificacao);
-            });
-
-            return clone;
-        } catch (error) {
-            return this.criarItemNotificacaoFallback(notificacao);
-        }
-    }
-
-    criarItemNotificacaoFallback(notificacao) {
-        const div = document.createElement('div');
-        div.className = 'notification-item';
-        div.innerHTML = `
-            <div class="notification-icon-container">
-                <i class="fas ${notificacao.icone} notification-icon"></i>
-            </div>
-            <div class="notification-content">
-                <div class="notification-header-inline">
-                    <h4 class="notification-title">${notificacao.titulo}</h4>
-                    <span class="notification-time">${this.formatarTempo(notificacao.dataHora)}</span>
-                </div>
-                <p class="notification-message">${notificacao.mensagem}</p>
-            </div>
-            <div class="notification-actions">
-                <button class="btn-mark-read" title="Marcar como lida">
-                    <i class="fas fa-check"></i>
-                </button>
-                <button class="btn-delete-notification" title="Excluir">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        `;
-
-        div.querySelector('.btn-mark-read').addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.marcarComoLida(notificacao.id);
-        });
-
-        div.querySelector('.btn-delete-notification').addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.excluirNotificacao(notificacao.id);
-        });
-
-        div.addEventListener('click', () => {
-            this.executarAcaoNotificacao(notificacao);
-        });
-
-        return div;
     }
 
     executarAcaoNotificacao(notificacao) {
@@ -668,24 +545,18 @@ class SistemaNotificacoes {
                 case 'abrir_mes':
                     if (typeof window.abrirDetalhesDoMes === 'function') {
                         window.abrirDetalhesDoMes(dados.mes, dados.ano);
-                        this.fecharModal();
+                        fecharPainelCentral();
                     }
                     break;
-                    
+
                 case 'abrir_dashboard':
-                    const dashboardLink = document.querySelector('.nav-link[data-section="dashboard"]');
-                    if (dashboardLink) {
-                        dashboardLink.click();
-                        this.fecharModal();
-                    }
+                    document.querySelector('.nav-link[data-section="dashboard"]')?.click();
+                    fecharPainelCentral();
                     break;
-                    
+
                 case 'abrir_configuracoes':
-                    const configLink = document.querySelector('.nav-link[data-section="config"]');
-                    if (configLink) {
-                        configLink.click();
-                        this.fecharModal();
-                    }
+                    document.querySelector('.nav-link[data-section="config"]')?.click();
+                    fecharPainelCentral();
                     break;
                     
                 case 'info':
