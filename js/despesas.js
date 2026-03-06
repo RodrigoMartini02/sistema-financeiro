@@ -691,8 +691,12 @@ function preencherCelulaValor(clone, despesa) {
 function preencherCelulaParcela(clone, despesa) {
     const celulaParcela = clone.querySelector('.col-parcela');
 
+    // Recorrente tem prioridade sobre parcelamento
+    if (despesa.recorrente) {
+        celulaParcela.textContent = 'recorrente';
+    }
     // ✅ CORRIGIDO: Usar campo parcela pré-construído do main.js
-    if (despesa.parcela) {
+    else if (despesa.parcela) {
         celulaParcela.textContent = despesa.parcela;
     }
     // Fallback para camelCase (transformação do main.js)
@@ -4104,6 +4108,13 @@ function calcularValorDespesaLinha(linha) {
     const despesa = obterDespesaDaLinha(linha);
 
     if (despesa) {
+        // Recorrente em crédito não contabiliza no total da toolbar
+        if (despesa.recorrente) {
+            const formaPag = (despesa.formaPagamento || despesa.forma_pagamento || '').toLowerCase();
+            const eCredito = formaPag === 'credito' || formaPag === 'crédito' ||
+                             formaPag === 'cred-merpago' || formaPag === 'créd-merpago';
+            if (eCredito) return 0;
+        }
         return obterValorRealDespesa(despesa);
     }
 
