@@ -18,7 +18,7 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'https://sistema-financeiro-kxe
 router.get('/status', authMiddleware, async (req, res) => {
     try {
         const result = await query(
-            `SELECT data_cadastro, plano_status, plano_tipo, plano_expiracao
+            `SELECT tipo, data_cadastro, plano_status, plano_tipo, plano_expiracao
              FROM usuarios WHERE id = $1`,
             [req.usuario.id]
         );
@@ -34,6 +34,20 @@ router.get('/status', authMiddleware, async (req, res) => {
         const diasRestantesTrial = Math.max(0, TRIAL_DIAS - diasDecorridos);
 
         let status = usuario.plano_status || 'trial';
+
+        // Master nunca expira
+        if (usuario.tipo === 'master') {
+            return res.json({
+                success: true,
+                data: {
+                    status: 'ativo',
+                    plano_tipo: 'master',
+                    plano_expiracao: null,
+                    dias_restantes_trial: null,
+                    data_cadastro: usuario.data_cadastro
+                }
+            });
+        }
 
         if (status === 'trial' && diasDecorridos >= TRIAL_DIAS) {
             status = 'expirado';
