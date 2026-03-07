@@ -91,27 +91,28 @@
             </li>
         </ul>
 
-        <div class="sidebar-footer">
-            <div id="plano-sidebar-container">
-                <div id="trial-banner" class="trial-banner" style="display:none">
-                    <div class="trial-banner-top">
-                        <i class="fas fa-clock"></i>
-                        <span>Período gratuito</span>
-                    </div>
-                    <div class="trial-progress-bar">
-                        <div class="trial-progress-fill" id="trial-progress-fill"></div>
-                    </div>
-                    <span id="trial-dias-restantes" class="trial-dias">-- dias restantes</span>
+        <div id="plano-sidebar-container">
+            <div id="trial-banner" style="display:none">
+                <div class="trial-banner-top">
+                    <i class="fas fa-clock"></i>
+                    <span>Período gratuito</span>
                 </div>
-                <div id="expirado-banner" class="expirado-banner" style="display:none">
-                    <i class="fas fa-lock"></i>
-                    <span>Acesso expirado — assine para continuar</span>
+                <div class="trial-progress-bar">
+                    <div class="trial-progress-fill" id="trial-progress-fill"></div>
                 </div>
-                <button id="btn-upgrade" class="btn-upgrade" style="display:none" onclick="abrirModalPlanos()">
-                    <i class="fas fa-bolt"></i>
-                    <span id="btn-upgrade-label">Assinar agora</span>
-                </button>
+                <span id="trial-dias-restantes" class="trial-dias">-- dias restantes</span>
             </div>
+            <div id="expirado-banner" style="display:none">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>Acesso expirado</span>
+                <button onclick="abrirModalPlanos()">Renovar</button>
+            </div>
+            <button id="btn-upgrade" style="display:none" onclick="abrirModalPlanos()">
+                <span id="btn-upgrade-label">Assinar agora</span>
+            </button>
+        </div>
+
+        <div class="sidebar-footer">
             <div class="system-info">
                 <div class="info-row">
                     <i class="fas fa-code-branch"></i>

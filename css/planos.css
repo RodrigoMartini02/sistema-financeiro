@@ -635,28 +635,70 @@
 }
 
 /* ----------------------------------------------------------------
-   Sidebar — trial / expirado / ativo
+   Sidebar — container do plano (fora do sidebar-footer)
    ---------------------------------------------------------------- */
 
-#trial-banner {
-    background: rgba(245, 158, 11, 0.10);
-    border: 1px solid rgba(245, 158, 11, 0.22);
-    border-radius: 10px;
-    padding: 10px 12px;
-    margin-bottom: 8px;
-    font-size: 12px;
-    color: #fbbf24;
-    display: none;
+#plano-sidebar-container {
+    padding: 0 10px 10px;
 }
 
-#trial-banner .trial-dias {
-    font-weight: 700;
+/* Botão principal (assinar / plano ativo) */
+#btn-upgrade {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 7px 10px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    letter-spacing: 0.2px;
+}
+
+#btn-upgrade:hover {
+    opacity: 0.88;
+}
+
+#btn-upgrade i {
+    font-size: 10px;
+}
+
+/* Trial banner */
+#trial-banner {
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.20);
+    border-radius: 8px;
+    padding: 8px 10px;
     margin-bottom: 6px;
-    font-size: 13px;
+    font-size: 11px;
+    color: #fbbf24;
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.trial-banner-top {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 600;
+    font-size: 11px;
+}
+
+.trial-dias {
+    font-size: 10px;
+    color: #f59e0b;
+    opacity: 0.85;
 }
 
 .trial-progress-bar {
-    height: 4px;
+    height: 3px;
     background: rgba(245, 158, 11, 0.20);
     border-radius: 2px;
     overflow: hidden;
@@ -669,15 +711,44 @@
     transition: width 0.4s ease;
 }
 
+/* Expirado banner */
 #expirado-banner {
-    background: rgba(239, 68, 68, 0.10);
-    border: 1px solid rgba(239, 68, 68, 0.22);
-    border-radius: 10px;
-    padding: 10px 12px;
-    margin-bottom: 8px;
-    font-size: 12px;
-    color: #f87171;
     display: none;
     align-items: center;
-    gap: 8px;
+    gap: 7px;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.22);
+    border-radius: 8px;
+    padding: 7px 10px;
+    margin-bottom: 6px;
+    font-size: 11px;
+    color: #f87171;
+}
+
+#expirado-banner i {
+    font-size: 11px;
+    flex-shrink: 0;
+}
+
+#expirado-banner span {
+    flex: 1;
+    font-weight: 600;
+}
+
+#expirado-banner button {
+    background: rgba(239, 68, 68, 0.20);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    border-radius: 5px;
+    color: #f87171;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 7px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+#expirado-banner button:hover {
+    background: rgba(239, 68, 68, 0.32);
 }

@@ -119,27 +119,28 @@ function atualizarSidebarPlano(plano) {
             diasRestantes === 1 ? '1 dia restante' : `${diasRestantes} dias restantes`;
         if (fillEl) fillEl.style.width = `${progresso}%`;
 
-        trialBanner.style.display = 'block';
+        trialBanner.style.display = 'flex';
         if (btnLabel) btnLabel.textContent = 'Assinar agora';
-        btnUpgrade.style.display = 'flex';
         btnUpgrade.style.cssText = '';
-        btnUpgrade.onclick = abrirModalPlanos;
+        btnUpgrade.style.display = 'flex';
 
     } else if (plano.status === 'expirado') {
         expiradoBanner.style.display = 'flex';
-        if (btnLabel) btnLabel.textContent = 'Renovar acesso';
-        btnUpgrade.style.display = 'flex';
-        btnUpgrade.onclick = abrirModalPlanos;
+        btnUpgrade.style.display = 'none'; // banner expirado já tem botão "Renovar" inline
 
     } else if (plano.status === 'ativo') {
+        const tipo = plano.plano_tipo;
         if (btnLabel) {
-            btnLabel.textContent = plano.plano_tipo === 'anual' ? 'Plano Anual ativo' : 'Plano Mensal ativo';
+            btnLabel.textContent = tipo === 'anual' ? 'Plano Anual ativo' : tipo === 'master' ? 'Plano Master' : 'Plano Mensal ativo';
         }
+        btnUpgrade.style.cssText = '';
         btnUpgrade.style.display = 'flex';
-        btnUpgrade.style.background = 'rgba(74, 222, 128, 0.15)';
-        btnUpgrade.style.border = '1px solid rgba(74, 222, 128, 0.3)';
-        btnUpgrade.style.color = '#4ade80';
-        btnUpgrade.onclick = abrirModalPlanos;
+        if (tipo !== 'master') {
+            // Verde para plano pago ativo
+            btnUpgrade.style.background = 'rgba(74, 222, 128, 0.18)';
+            btnUpgrade.style.border = '1px solid rgba(74, 222, 128, 0.28)';
+            btnUpgrade.style.color = '#4ade80';
+        }
     }
 }
 
