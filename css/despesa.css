@@ -210,67 +210,7 @@
     font-weight: 500;
 }
 
-/* ================================================================
-   FORMULÁRIO COMPACTO
-   ================================================================ */
-
-.form-group-compact {
-    margin-bottom: 10px;
-}
-
-.descricao-anexos-row {
-    display: flex;
-    gap: 6px;
-    margin-bottom: 6px;
-}
-
-.descricao-anexos-row input {
-    flex: 1;
-    padding: 6px 10px;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    font-size: 10px;
-}
-
-.lista-anexos-inline {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-}
-
-.form-row-compact {
-    display: grid;
-    grid-template-columns: 1fr 2fr;
-    gap: 10px;
-    margin-bottom: 10px;
-}
-
-.form-row-valores {
-    grid-template-columns: 1fr 1fr 100px;
-}
-
-.form-col label {
-    display: block;
-    font-size: 10px;
-    font-weight: 500;
-    margin-bottom: 3px;
-    color: #4a5568;
-}
-
-.form-col input {
-    width: 100%;
-    padding: 6px 10px;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    font-size: 10px;
-}
-
-.form-col select {
-    width: 100%;
-    font-size: 10px;
-}
-
-/* Campo inválido */
+/* Campo inválido (genérico) */
 .campo-invalido,
 input.campo-invalido,
 select.campo-invalido {
@@ -278,320 +218,388 @@ select.campo-invalido {
     background-color: #fef2f2 !important;
 }
 
-.payment-methods.campo-invalido {
-    outline: 2px solid #ef4444;
-    outline-offset: 2px;
-    border-radius: 4px;
-}
-
 /* ================================================================
-   FORMA DE PAGAMENTO
+   MODAL LANÇAMENTO DE DESPESAS (card system)
    ================================================================ */
 
-.payment-methods {
+.modal-lancamento {
+    max-width: 780px;
+    width: 95vw;
+}
+
+.modal-lancamento .modal-body {
+    padding: 12px 16px;
+    max-height: 72vh;
+    overflow-y: auto;
+}
+
+.modal-lancamento-footer {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
     align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
+    flex-wrap: wrap;
 }
 
-.payment-option {
+.btn-adicionar-card {
     display: inline-flex;
-}
-
-.payment-option.inativo,
-.payment-option.hidden {
-    display: none !important;
-}
-
-.payment-option-group {
-    display: flex;
+    align-items: center;
     gap: 6px;
-    flex-wrap: nowrap;
-}
-
-.payment-methods input[type="radio"] {
-    display: none;
-}
-
-.payment-methods label {
-    padding: 6px 12px;
-    background: #f7fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 4px;
+    padding: 7px 14px;
+    background: #f1f5f9;
+    border: 1px dashed #94a3b8;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #475569;
     cursor: pointer;
-    font-size: 10px;
-    font-weight: 600;
-    text-align: center;
-    transition: all 0.2s;
-    min-width: 50px;
-    white-space: nowrap;
+    transition: all 0.15s;
 }
 
-.payment-methods input[type="radio"]:checked + label {
-    background: #667eea;
-    color: white;
+.btn-adicionar-card:hover {
+    background: #e2e8f0;
     border-color: #667eea;
+    color: #4338ca;
 }
 
-.payment-methods label:hover {
-    border-color: #cbd5e0;
-    transform: translateY(-1px);
+.btn-salvar-lancamento {
+    margin-left: auto;
+    padding: 8px 20px;
+    background: #667eea;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.btn-salvar-lancamento:hover {
+    background: #4f46e5;
 }
 
 /* ================================================================
-   LAYOUT 2 COLUNAS DO MODAL DE DESPESA
+   CARD DE DESPESA
    ================================================================ */
 
-.modal-body-cols {
-    display: flex;
-    gap: 12px;
-    align-items: flex-start;
-}
-
-.modal-form-col {
-    flex: 1;
-    min-width: 0;
+.despesa-cards-container {
     display: flex;
     flex-direction: column;
     gap: 10px;
 }
 
-.modal-payment-col {
-    width: 160px;
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.payment-panel-label {
-    font-size: 11px;
-    font-weight: 600;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin-bottom: 2px;
-}
-
-/* ================================================================
-   PAINEL DE PAGAMENTO VERTICAL
-   ================================================================ */
-
-.payment-panel {
-    display: flex;
-    flex-direction: column;
+.despesa-card {
     border: 1px solid #e2e8f0;
     border-radius: 10px;
-    overflow: hidden;
+    background: #fff;
+    padding: 10px 12px;
+    position: relative;
+    transition: box-shadow 0.15s;
+}
+
+.despesa-card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+}
+
+.despesa-card.card-error {
+    border-color: #f87171;
+    background: #fff8f8;
+}
+
+.despesa-card.card-success {
+    border-color: #34d399;
+}
+
+/* Linha do topo: descrição + categoria + botão remover */
+.card-header-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 8px;
+    align-items: end;
+    margin-bottom: 8px;
+}
+
+/* Linha de valores: valor original, valor final, parcelas, data compra, data vencimento */
+.card-values-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 80px 110px 110px;
+    gap: 8px;
+    align-items: end;
+    margin-bottom: 8px;
+}
+
+/* Linha de pagamento + flags */
+.card-payment-flags-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
+/* Labels dos campos */
+.card-field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.card-field label {
+    font-size: 10px;
+    font-weight: 500;
+    color: #64748b;
+    white-space: nowrap;
+}
+
+.card-field input,
+.card-field select {
+    padding: 5px 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 11px;
+    width: 100%;
     background: #fff;
 }
 
-.payment-panel.campo-invalido {
-    border-color: #ef4444;
+.card-field input:focus,
+.card-field select:focus {
+    outline: none;
+    border-color: #667eea;
 }
 
-.payment-row {
-    display: flex;
-    align-items: center;
-    gap: 0;
-    border-bottom: 1px solid #f1f5f9;
-    transition: background 0.15s;
+.card-field input.campo-invalido,
+.card-field select.campo-invalido {
+    border-color: #ef4444 !important;
+    background: #fef2f2 !important;
 }
 
-.payment-row:last-child {
-    border-bottom: none;
-}
-
-.payment-row input[type="radio"] {
-    display: none;
-}
-
-.payment-row-label {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 10px;
+/* Botão remover card */
+.card-delete-btn {
+    background: none;
+    border: none;
+    color: #cbd5e1;
+    font-size: 14px;
     cursor: pointer;
-    font-size: 12px;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: color 0.15s, background 0.15s;
+    align-self: center;
+}
+
+.card-delete-btn:hover {
+    color: #ef4444;
+    background: #fef2f2;
+}
+
+/* ================================================================
+   BOTÕES DE PAGAMENTO (card)
+   ================================================================ */
+
+.card-pgto-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.pgto-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #f8fafc;
+    font-size: 11px;
     font-weight: 500;
     color: #475569;
-    user-select: none;
-    transition: background 0.15s, color 0.15s;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
 }
 
-.payment-row-label:hover {
-    background: #f8fafc;
+.pgto-btn:hover {
+    border-color: #94a3b8;
+    background: #f1f5f9;
 }
 
-.payment-row input[type="radio"]:checked ~ .payment-row-label,
-.payment-row.row-selecionado .payment-row-label {
-    background: #eef2ff;
-    color: #4f46e5;
+.pgto-btn.pgto-ativo {
     font-weight: 600;
 }
 
-/* Indicador de favorito na linha */
-.payment-row.row-favorito .payment-row-label {
-    border-left: 3px solid #f59e0b;
-}
+.pgto-btn.pgto-pix.pgto-ativo     { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
+.pgto-btn.pgto-dinheiro.pgto-ativo { background: #dcfce7; border-color: #86efac; color: #15803d; }
+.pgto-btn.pgto-debito.pgto-ativo   { background: #e0f2fe; border-color: #7dd3fc; color: #0369a1; }
+.pgto-btn.pgto-credito.pgto-ativo  { background: #ede9fe; border-color: #c4b5fd; color: #6d28d9; }
 
-/* Ícones por tipo */
-.payment-row-icon {
-    width: 24px;
-    height: 24px;
-    border-radius: 6px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    flex-shrink: 0;
-}
-
-.icon-pix    { background: #dbeafe; color: #2563eb; }
-.icon-dinheiro { background: #dcfce7; color: #16a34a; }
-.icon-debito { background: #e0f2fe; color: #0284c7; }
-.icon-credito { background: #ede9fe; color: #7c3aed; }
-
-/* Botão estrela de favorito */
-.payment-row-star {
+/* Estrela de favorito no card */
+.card-fav-btn {
     background: none;
     border: none;
-    border-left: 1px solid #f1f5f9;
-    padding: 8px 9px;
-    cursor: pointer;
-    font-size: 12px;
     color: #cbd5e1;
-    transition: color 0.15s, background 0.15s;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px 5px;
+    border-radius: 4px;
+    transition: color 0.15s;
 }
 
-.payment-row-star:hover {
-    color: #f59e0b;
-    background: #fefce8;
-}
+.card-fav-btn:hover { color: #f59e0b; }
 
-.payment-row-star.chip-star-ativo {
+.card-fav-btn.fav-ativo {
     color: #f59e0b;
 }
 
-.payment-row-star.chip-star-ativo i {
+.card-fav-btn.fav-ativo i {
     filter: drop-shadow(0 0 2px #fbbf24);
 }
 
-/* Cartões de crédito dinâmicos */
-#credito-options {
-    display: contents;
+/* Dropdown cartão (visível só quando crédito ativo) */
+.card-cartao-group {
+    display: none;
+    align-items: center;
+    gap: 4px;
 }
 
-
-/* ================================================================
-   PARCELAS
-   ================================================================ */
-
-.parcelas-col input[type="checkbox"] {
-    width: 14px;
-    height: 14px;
-    margin: 0;
-    cursor: pointer;
-    accent-color: #667eea;
+.card-cartao-group.visivel {
+    display: inline-flex;
 }
 
-.parcelas-col input[type="number"] {
-    padding: 6px;
-    text-align: center;
-    font-size: 10px;
-}
-
-.info-compact {
-    background: #f7fafc;
+.card-cartao-select {
+    padding: 4px 8px;
+    border: 1px solid #c4b5fd;
     border-radius: 6px;
-    padding: 8px 10px;
-    margin-bottom: 10px;
-}
-
-.info-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-    font-size: 10px;
-    color: #4a5568;
-}
-
-.info-grid strong {
-    color: #667eea;
-    font-weight: 600;
+    font-size: 11px;
+    background: #ede9fe;
+    color: #6d28d9;
+    cursor: pointer;
 }
 
 /* ================================================================
-   FOOTER E CHECKBOXES
+   FLAGS DO CARD (checkboxes)
    ================================================================ */
 
-.form-footer-compact {
+.card-flags-row {
     display: flex;
-    justify-content: space-between;
+    gap: 14px;
     align-items: center;
-    padding-top: 10px;
-    border-top: 1px solid #e2e8f0;
+    flex-wrap: wrap;
 }
 
-.checkboxes-inline {
-    display: flex;
-    gap: 16px;
-}
-
-.checkbox-inline {
+.card-flag {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 10px;
+    gap: 5px;
+    font-size: 11px;
+    color: #475569;
     cursor: pointer;
-    margin: 0;
-    color: #4a5568;
-    font-weight: 500;
+    white-space: nowrap;
 }
 
-.checkbox-inline input[type="checkbox"] {
-    width: 14px;
-    height: 14px;
+.card-flag input[type="checkbox"] {
+    width: 13px;
+    height: 13px;
     margin: 0;
-    cursor: pointer;
     accent-color: #667eea;
+    cursor: pointer;
 }
 
-/* ================================================================
-   CAMPO REPLICAR ATÉ
-   ================================================================ */
-
-.replicar-options {
+/* Opções de replicar */
+.card-replicar-options {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-left: 4px;
+    gap: 6px;
+    padding: 4px 0;
 }
 
-.replicar-options.hidden {
+.card-replicar-options.hidden {
     display: none;
 }
 
-.replicar-options .form-control-sm {
-    padding: 4px 8px;
+.card-replicar-options select {
+    padding: 3px 8px;
     font-size: 11px;
-    height: auto;
-    min-height: 26px;
-    border-radius: 4px;
     border: 1px solid #e2e8f0;
-}
-
-.replicar-options select {
-    min-width: 90px;
+    border-radius: 4px;
+    min-width: 80px;
 }
 
 /* ================================================================
-   ERROS DE FORMULÁRIO
+   ANEXOS DO CARD
+   ================================================================ */
+
+.card-anexos-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 11px;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.card-anexos-btn:hover {
+    background: #eff6ff;
+    border-color: #93c5fd;
+    color: #1d4ed8;
+}
+
+.card-anexos-lista {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.card-anexo-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    font-size: 10px;
+    color: #475569;
+    max-width: 160px;
+}
+
+.card-anexo-item span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.card-anexo-item button {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 11px;
+    padding: 0 2px;
+    flex-shrink: 0;
+}
+
+.card-anexo-item button:hover {
+    color: #ef4444;
+}
+
+/* Info parcelas no card */
+.card-info-parcela {
+    font-size: 10px;
+    color: #667eea;
+    margin-top: 2px;
+}
+
+/* ================================================================
+   ERROS DE FORMULÁRIO (genérico)
    ================================================================ */
 
 .form-group.error input,
@@ -604,6 +612,35 @@ select.campo-invalido {
     color: #ef4444;
     font-size: 10px;
     margin-top: 3px;
+}
+
+/* ================================================================
+   RESPONSIVO MOBILE - Cards de despesa
+   ================================================================ */
+
+@media (max-width: 600px) {
+    .modal-lancamento {
+        width: 100vw;
+        max-width: 100vw;
+        margin: 0;
+        border-radius: 0;
+    }
+
+    .card-header-row {
+        grid-template-columns: 1fr auto;
+    }
+
+    .card-header-row .card-field:nth-child(2) {
+        grid-column: 1 / -1;
+    }
+
+    .card-values-row {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .card-values-row .card-field:nth-child(3) {
+        grid-column: 1 / -1;
+    }
 }
 
 /* ================================================================

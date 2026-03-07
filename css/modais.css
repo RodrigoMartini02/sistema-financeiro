@@ -217,16 +217,6 @@
     gap: 8px;
 }
 
-/* ================================================================
-   MODAL CARTÃO RÁPIDO — sobrepõe o modal de despesa
-   ================================================================ */
-#modal-rapido-cartao .modal-content {
-    width: 90%;
-    max-width: 420px;
-    height: auto;
-    min-height: unset;
-    margin: 0;
-}
 
 /* Classes de controle de visibilidade para exclusão */
 .opcao-exclusao-basica {

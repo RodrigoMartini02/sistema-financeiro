@@ -1304,7 +1304,7 @@ function obterUsuarioAtualLocal() {
 
 
 function configurarObservadorModal() {
-    const modal = document.getElementById('modal-nova-despesa');
+    const modal = document.getElementById('modal-lancamento-despesas');
     if (!modal) return;
     
     const observer = new MutationObserver((mutations) => {

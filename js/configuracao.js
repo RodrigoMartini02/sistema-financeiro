@@ -212,44 +212,15 @@ async function buscarCategoriasAPI() {
 }
 
 async function atualizarDropdowns() {
-    const dropdownCategoria = document.getElementById('despesa-categoria');
-    if (!dropdownCategoria) return;
-
     try {
-        const valorSelecionado = dropdownCategoria.value;
-
-        // Limpar opções existentes (manter apenas o "Selecione...")
-        while (dropdownCategoria.options.length > 1) {
-            dropdownCategoria.remove(1);
-        }
-
-        // Buscar categorias da API
+        // Buscar categorias da API e atualizar cache
         const categorias = await buscarCategoriasAPI();
-
         if (categorias && categorias.length > 0) {
-            // Atualizar categoriasUsuario para manter compatibilidade
             categoriasUsuario.despesas = categorias;
-
-            // Adicionar cada categoria ao dropdown
-            categorias.forEach(cat => {
-                const nomeCategoria = typeof cat === 'string' ? cat : cat.nome;
-                const option = document.createElement('option');
-                option.value = nomeCategoria;
-                option.textContent = nomeCategoria;
-                dropdownCategoria.appendChild(option);
-            });
-
-            // Restaurar valor selecionado se ainda existir
-            if (valorSelecionado) {
-                const existe = categorias.some(cat => {
-                    const nome = typeof cat === 'string' ? cat : cat.nome;
-                    return nome === valorSelecionado;
-                });
-
-                if (existe) {
-                    dropdownCategoria.value = valorSelecionado;
-                }
-            }
+        }
+        // Atualizar todos os cards abertos no modal de lançamento
+        if (typeof window.popularTodosOsCards === 'function') {
+            window.popularTodosOsCards();
         }
     } catch (error) {
         console.error('Erro ao atualizar dropdowns:', error);
@@ -724,68 +695,13 @@ async function recarregarEAtualizarCartoes() {
 // Renderiza as linhas de cartões de crédito no painel de pagamento
 async function atualizarOpcoesCartoes() {
     try {
-        const creditoOptions = document.getElementById('credito-options');
-        if (!creditoOptions) return;
-
-        creditoOptions.innerHTML = '';
-
-        const cartoesAtivos = cartoesUsuario.filter(c => c.ativo);
-        cartoesAtivos.forEach((cartao) => {
-            const nome = (cartao.banco || cartao.nome || '').toUpperCase();
-            const row = document.createElement('div');
-            row.className = 'payment-row cartao-payment-row';
-            row.id = `cartao${cartao.id}-option`;
-            row.innerHTML = `
-                <input type="radio" id="pagamento-cartao${cartao.id}" name="forma-pagamento" value="credito" data-cartao-id="${cartao.id}" onchange="validarFormaPagamento(); atualizarPagamentoSelecionado()">
-                <label for="pagamento-cartao${cartao.id}" class="payment-row-label">
-                    <span class="payment-row-icon icon-credito"><i class="fas fa-credit-card"></i></span>
-                    <span class="payment-row-name">${nome}</span>
-                </label>
-                <button type="button" class="payment-row-star chip-star" data-cartao-id="${cartao.id}" title="Favoritar para esta categoria" onclick="salvarFavoritoCartao(${cartao.id}, event)">
-                    <i class="far fa-star"></i>
-                </button>
-            `;
-            creditoOptions.appendChild(row);
-        });
-
-        atualizarPagamentoSelecionado();
+        // Atualizar todos os cards abertos no modal de lançamento
+        if (typeof window.popularTodosOsCards === 'function') {
+            window.popularTodosOsCards();
+        }
     } catch (error) {
         console.error('Erro ao atualizar opções de cartões:', error);
     }
-}
-
-// Atualiza o destaque visual da linha de pagamento selecionada
-function atualizarPagamentoSelecionado() {
-    document.querySelectorAll('.payment-row').forEach(row => {
-        const radio = row.querySelector('input[type="radio"]');
-        row.classList.toggle('row-selecionado', radio?.checked || false);
-    });
-}
-
-// Salva favorito de forma simples (pix, debito, dinheiro)
-async function salvarFavoritoForma(forma, event) {
-    event.preventDefault();
-    event.stopPropagation();
-    const categoriaSelect = document.getElementById('despesa-categoria');
-    if (!categoriaSelect || !categoriaSelect.value) {
-        alert('Selecione uma categoria primeiro para definir o favorito');
-        return;
-    }
-    await _persistirFavorito(categoriaSelect.value, forma, null);
-    await atualizarEstrelasFavorito();
-}
-
-// Salva favorito de cartão de crédito
-async function salvarFavoritoCartao(cartaoId, event) {
-    event.preventDefault();
-    event.stopPropagation();
-    const categoriaSelect = document.getElementById('despesa-categoria');
-    if (!categoriaSelect || !categoriaSelect.value) {
-        alert('Selecione uma categoria primeiro para definir o favorito');
-        return;
-    }
-    await _persistirFavorito(categoriaSelect.value, 'credito', cartaoId);
-    await atualizarEstrelasFavorito();
 }
 
 // Persiste o favorito via API
@@ -803,53 +719,6 @@ async function _persistirFavorito(categoriaId, forma, cartaoId) {
     }
 }
 
-// Atualiza as estrelas do painel com base na categoria selecionada
-async function atualizarEstrelasFavorito() {
-    const categoriaSelect = document.getElementById('despesa-categoria');
-
-    function resetarEstrelas() {
-        document.querySelectorAll('.payment-row-star').forEach(s => {
-            s.classList.remove('chip-star-ativo');
-            const ico = s.querySelector('i');
-            if (ico) ico.className = 'far fa-star';
-        });
-        document.querySelectorAll('.payment-row').forEach(r => r.classList.remove('row-favorito'));
-    }
-
-    function ativarEstrela(star) {
-        star.classList.add('chip-star-ativo');
-        const ico = star.querySelector('i');
-        if (ico) ico.className = 'fas fa-star';
-        star.closest('.payment-row')?.classList.add('row-favorito');
-    }
-
-    if (!categoriaSelect || !categoriaSelect.value) {
-        resetarEstrelas();
-        return;
-    }
-
-    const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
-    const token = sessionStorage.getItem('token');
-    try {
-        const res = await fetch(`${API_URL}/categorias/${categoriaSelect.value}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
-        const cat = data.data || {};
-        resetarEstrelas();
-        if (!cat.forma_favorita) return;
-
-        let star;
-        if (cat.forma_favorita === 'credito' && cat.cartao_favorito_id) {
-            star = document.querySelector(`.payment-row-star[data-cartao-id="${cat.cartao_favorito_id}"]`);
-        } else {
-            star = document.querySelector(`.chip-star-forma[data-forma="${cat.forma_favorita}"]`);
-        }
-        if (star) ativarEstrela(star);
-    } catch (e) {
-        console.error('Erro ao buscar favorito:', e);
-    }
-}
 
 /**
  * Renderiza a lista de cartões na tabela de configurações
@@ -3486,10 +3355,6 @@ window.atualizarListaCategorias = atualizarListaCategorias;
 window.carregarCartoesLocal = carregarCartoesLocal;
 window.salvarCartoes = salvarCartoes;
 window.atualizarOpcoesCartoes = atualizarOpcoesCartoes;
-window.atualizarPagamentoSelecionado = atualizarPagamentoSelecionado;
-window.salvarFavoritoForma = salvarFavoritoForma;
-window.salvarFavoritoCartao = salvarFavoritoCartao;
-window.atualizarEstrelasFavorito = atualizarEstrelasFavorito;
 window.recarregarEAtualizarCartoes = recarregarEAtualizarCartoes;
 window.renderizarListaCartoes = renderizarListaCartoes;
 window.adicionarCartao = adicionarCartao;

@@ -40,176 +40,8 @@ document.addEventListener('change', function(e) {
 });
 
 // ================================================================
-// CHIPS DE PAGAMENTO — FAVORITO POR CATEGORIA
-// ================================================================
-
-// Busca o favorito de uma categoria e auto-seleciona a linha de pagamento correspondente
-async function aplicarFavoritoCategoria(categoriaId) {
-    if (!categoriaId) return;
-    const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
-    const token = sessionStorage.getItem('token');
-    try {
-        const res = await fetch(`${API_URL}/categorias/${categoriaId}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
-        const cat = data.data || {};
-        const forma = cat.forma_favorita;
-        const cartaoId = cat.cartao_favorito_id;
-        if (!forma) return;
-
-        let radio;
-        if (forma === 'credito' && cartaoId) {
-            radio = document.querySelector(`input[name="forma-pagamento"][data-cartao-id="${cartaoId}"]`);
-        } else {
-            radio = document.querySelector(`input[name="forma-pagamento"][value="${forma}"]`);
-        }
-        if (radio) {
-            radio.checked = true;
-            if (typeof atualizarPagamentoSelecionado === 'function') atualizarPagamentoSelecionado();
-        }
-    } catch (e) {
-        console.error('Erro ao aplicar favorito:', e);
-    }
-}
-
-// ================================================================
 // FUNÇÕES DE REPLICAÇÃO DE DESPESAS
 // ================================================================
-
-/**
- * Toggle para mostrar/ocultar opções de replicação
- */
-function toggleReplicarDespesa() {
-    const checkbox = document.getElementById('despesa-replicar');
-    const options = document.getElementById('despesa-replicar-options');
-
-    if (checkbox && options) {
-        if (checkbox.checked) {
-            options.classList.remove('hidden');
-            inicializarSelectAnosReplicarDespesa();
-        } else {
-            options.classList.add('hidden');
-        }
-    }
-
-}
-
-// Exportar para uso global
-window.toggleReplicarDespesa = toggleReplicarDespesa;
-
-/**
- * Inicializa o select de anos para replicação de despesas
- */
-function inicializarSelectAnosReplicarDespesa() {
-    const selectAno = document.getElementById('despesa-replicar-ano');
-    const selectMes = document.getElementById('despesa-replicar-mes');
-
-    if (!selectAno) return;
-
-    const anoAtual = window.anoAberto || new Date().getFullYear();
-    const mesAtual = window.mesAberto !== null ? window.mesAberto : new Date().getMonth();
-
-    // Limpar opções existentes
-    selectAno.innerHTML = '';
-
-    // Adicionar anos (atual até +5 anos)
-    for (let ano = anoAtual; ano <= anoAtual + 5; ano++) {
-        const option = document.createElement('option');
-        option.value = ano;
-        option.textContent = ano;
-        selectAno.appendChild(option);
-    }
-
-    // Selecionar dezembro do ano atual por padrão
-    selectMes.value = '11';
-    selectAno.value = anoAtual;
-}
-
-/**
- * Processa a replicação de uma despesa para meses futuros
- * @param {Object} despesaOriginal - Dados da despesa original
- * @param {number} mesInicio - Mês de início (0-11)
- * @param {number} anoInicio - Ano de início
- */
-async function processarReplicacaoDespesa(despesaOriginal, mesInicio, anoInicio) {
-    const replicarCheckbox = document.getElementById('despesa-replicar');
-
-    if (!replicarCheckbox || !replicarCheckbox.checked) {
-        return;
-    }
-
-    const mesFinal = parseInt(document.getElementById('despesa-replicar-mes').value);
-    const anoFinal = parseInt(document.getElementById('despesa-replicar-ano').value);
-
-    // Calcular próximo mês a partir do mês de criação
-    let mesAtual = mesInicio;
-    let anoAtual = anoInicio;
-
-    // Avançar para o próximo mês
-    mesAtual++;
-    if (mesAtual > 11) {
-        mesAtual = 0;
-        anoAtual++;
-    }
-
-    // Obter dia do vencimento original
-    const dataVencOriginal = new Date(despesaOriginal.dataVencimento + 'T00:00:00');
-    const diaVenc = dataVencOriginal.getDate();
-
-    // Guardar anos que precisam ser atualizados
-    const anosParaAtualizar = new Set();
-    anosParaAtualizar.add(anoInicio);
-
-    // Replicar até o mês/ano final
-    while (anoAtual < anoFinal || (anoAtual === anoFinal && mesAtual <= mesFinal)) {
-        // Calcular nova data de vencimento
-        const novaDataVenc = calcularDataReplicada(diaVenc, mesAtual, anoAtual);
-
-        // Criar cópia da despesa para o novo mês
-        const despesaReplicada = {
-            descricao: despesaOriginal.descricao,
-            valor: despesaOriginal.valor,
-            valorPago: despesaOriginal.valorPago,
-            dataCompra: novaDataVenc, // Usar mesma data para compra
-            dataVencimento: novaDataVenc,
-            categoria: despesaOriginal.categoria,
-            categoriaId: despesaOriginal.categoriaId,
-            formaPagamento: despesaOriginal.formaPagamento,
-            cartaoId: despesaOriginal.cartaoId,
-            pago: false,
-            recorrente: true, // Marcar como recorrente
-            anexos: [] // Não replicar anexos
-        };
-
-        // Salvar despesa replicada
-        try {
-            await window.usuarioDataManager.salvarDespesa(mesAtual, anoAtual, despesaReplicada, null);
-            anosParaAtualizar.add(anoAtual);
-        } catch (error) {
-            console.error(`Erro ao replicar despesa para ${mesAtual + 1}/${anoAtual}:`, error);
-        }
-
-        // Avançar para próximo mês
-        mesAtual++;
-        if (mesAtual > 11) {
-            mesAtual = 0;
-            anoAtual++;
-        }
-    }
-
-    // Atualizar interface para todos os anos afetados
-    for (const ano of anosParaAtualizar) {
-        if (typeof window.carregarDadosDashboard === 'function') {
-            await window.carregarDadosDashboard(ano);
-        }
-    }
-
-    // Atualizar cards dos meses do ano atual
-    if (typeof window.renderizarMeses === 'function') {
-        await window.renderizarMeses(window.anoAberto || new Date().getFullYear());
-    }
-}
 
 /**
  * Calcula a data replicada mantendo o mesmo dia do mês
@@ -1121,443 +953,650 @@ function inicializarSistemaAnexosDespesas() {
 }
 
 // ================================================================
-// MODAL NOVA DESPESA
+// SISTEMA DE LANÇAMENTO DE DESPESAS EM CARDS
 // ================================================================
 
-function abrirModalNovaDespesa(index) {
-   if (typeof recarregarEAtualizarCartoes === 'function') {
-       recarregarEAtualizarCartoes();
-   }
+// Store de anexos por card: Map<cardId, Array<anexo>>
+const cardAnexosStore = new Map();
+let cardCounter = 0;
 
-   try {
-       if (window.mesAberto === null || window.anoAberto === null) {
-           window.mesAberto = new Date().getMonth();
-           window.anoAberto = new Date().getFullYear();
-       }
+// Gera o HTML interno de um card de despesa
+function gerarHTMLCard(cardId) {
+    const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const anoAtual = window.anoAberto || new Date().getFullYear();
+    const optsMeses = meses.map((m, i) => `<option value="${i}">${m}</option>`).join('');
+    const optsAnos = Array.from({length: 6}, (_, i) => anoAtual + i).map(a => `<option value="${a}">${a}</option>`).join('');
 
-       const modal = document.getElementById('modal-nova-despesa');
-       const form = document.getElementById('form-nova-despesa');
-
-       if (!modal || !form) {
-           throw new Error(ERROS.MODAL_NAO_ENCONTRADO);
-       }
-
-       form.reset();
-       resetarEstadoFormularioDespesa();
-       processandoDespesa = false;
-
-       if (window.sistemaAnexos) {
-           window.sistemaAnexos.limparAnexosTemporarios('despesa');
-           window.sistemaAnexos.limparAnexosTemporarios('comprovante');
-       }
-
-       document.getElementById('despesa-mes').value = window.mesAberto;
-       document.getElementById('despesa-ano').value = window.anoAberto;
-
-       if (typeof atualizarOpcoesCartoes === 'function') {
-           atualizarOpcoesCartoes();
-       }
-
-       if (typeof atualizarDropdowns === 'function') {
-           atualizarDropdowns();
-       }
-
-       const dataAtual = new Date(window.anoAberto, window.mesAberto, new Date().getDate());
-       // Usar formato local para evitar problema de timezone
-       const dataFormatada = window.dataParaISO ? window.dataParaISO(dataAtual) :
-           `${dataAtual.getFullYear()}-${String(dataAtual.getMonth() + 1).padStart(2, '0')}-${String(dataAtual.getDate()).padStart(2, '0')}`;
-       document.getElementById('despesa-data-compra').value = dataFormatada;
-       document.getElementById('despesa-data-vencimento').value = dataFormatada;
-
-       if (index !== undefined && window.dadosFinanceiros[window.anoAberto]?.meses[window.mesAberto]?.despesas?.[index]) {
-           preencherFormularioEdicao(index);
-       } else {
-           document.getElementById('despesa-id').value = '';
-       }
-
-       modal.classList.add('active');
-       modal.style.display = 'block';
-
-       const descricaoInput = document.getElementById('despesa-descricao');
-       if (descricaoInput) descricaoInput.focus();
-
-   } catch (error) {
-       if (window.mostrarMensagemErro) {
-           window.mostrarMensagemErro("Não foi possível abrir o formulário: " + error.message);
-       } else {
-           alert("Não foi possível abrir o formulário: " + error.message);
-       }
-   }
+    return `
+        <div class="card-header-row">
+            <div class="card-pgto-group">
+                <button type="button" class="pgto-btn pgto-pix" data-forma="pix" title="PIX"><i class="fas fa-bolt"></i></button>
+                <button type="button" class="pgto-btn pgto-dinheiro" data-forma="dinheiro" title="Dinheiro"><i class="fas fa-money-bill-wave"></i></button>
+                <button type="button" class="pgto-btn pgto-debito" data-forma="debito" title="Débito"><i class="fas fa-credit-card"></i></button>
+                <button type="button" class="pgto-btn pgto-credito" data-forma="credito" title="Crédito"><i class="fas fa-credit-card"></i></button>
+                <div class="card-cartao-group hidden">
+                    <select class="card-cartao-select"><option value="">Cartão...</option></select>
+                </div>
+                <button type="button" class="card-fav-btn" title="Favoritar para esta categoria"><i class="far fa-star"></i></button>
+            </div>
+            <input type="text" class="card-descricao" placeholder="Descrição da despesa" required>
+            <select class="card-categoria"><option value="">Categoria...</option></select>
+            <button type="button" class="card-delete-btn" title="Remover"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="card-values-row">
+            <div class="card-field"><label>Valor orig. *</label><input type="number" class="card-valor-original" min="0.01" step="0.01" placeholder="0,00" required></div>
+            <div class="card-field"><label>Valor final</label><input type="number" class="card-valor-final" min="0" step="0.01" placeholder="0,00"></div>
+            <div class="card-field card-field-sm"><label>Parcelas</label><input type="number" class="card-parcelas" min="1" max="999" value="1"></div>
+            <div class="card-field"><label>Compra *</label><input type="date" class="card-compra" required></div>
+            <div class="card-field"><label>Vencimento *</label><input type="date" class="card-vencimento" required></div>
+        </div>
+        <div class="card-info-parcela hidden">
+            <span>Juros: <strong class="card-juros-total">R$ 0,00</strong></span>
+            <span>Por parcela: <strong class="card-juros-parcela">R$ 0,00</strong></span>
+            <span>Valor parcela: <strong class="card-valor-parcela">R$ 0,00</strong></span>
+            <span>Total: <strong class="card-valor-total">R$ 0,00</strong></span>
+        </div>
+        <div class="card-flags-row">
+            <label class="card-flag"><input type="checkbox" class="card-ja-paga"> Já está Paga</label>
+            <label class="card-flag"><input type="checkbox" class="card-recorrente"> Recorrente</label>
+            <label class="card-flag"><input type="checkbox" class="card-replicar"> Replicar até</label>
+            <div class="card-replicar-options hidden">
+                <select class="card-replicar-mes">${optsMeses}</select>
+                <select class="card-replicar-ano">${optsAnos}</select>
+            </div>
+            <button type="button" class="card-anexos-btn"><i class="fas fa-paperclip"></i> Anexos (<span class="card-anexos-count">0</span>)</button>
+        </div>
+        <div class="card-anexos-lista"></div>
+        <div class="card-error hidden"></div>
+        <div class="card-success hidden"><i class="fas fa-check-circle"></i> Salvo!</div>
+    `;
 }
 
-function resetarEstadoFormularioDespesa() {
-    const info = document.getElementById('info-parcelamento');
-    if (info) info.classList.add('hidden');
-    
-    const parceladoCheckbox = document.getElementById('despesa-parcelado');
-    if (parceladoCheckbox) {
-        parceladoCheckbox.checked = false;
-        parceladoCheckbox.disabled = false;
-    }
-    
-    const parcelasInput = document.getElementById('despesa-parcelas');
-    if (parcelasInput) parcelasInput.disabled = false;
-    
-    const formasPagamento = document.querySelectorAll('input[name="forma-pagamento"]');
-    formasPagamento.forEach(radio => radio.checked = false);
-    
-    const jaPagoCheckbox = document.getElementById('despesa-ja-pago');
-    if (jaPagoCheckbox) {
-        jaPagoCheckbox.checked = false;
-    }
-    
-    const recorrenteCheckbox = document.getElementById('despesa-recorrente');
-    if (recorrenteCheckbox) {
-        recorrenteCheckbox.checked = false;
-    }
+// Cria um card DOM e configura seus eventos
+function criarCard(dadosIniciais = {}) {
+    cardCounter++;
+    const cardId = String(cardCounter);
+    const div = document.createElement('div');
+    div.className = 'despesa-card';
+    div.dataset.cardId = cardId;
+    div.dataset.formaPagamento = '';
+    div.dataset.cartaoId = '';
+    div.dataset.despesaId = '';
+    div.innerHTML = gerarHTMLCard(cardId);
+    cardAnexosStore.set(cardId, []);
+    configurarEventosCard(div);
+    return div;
+}
 
-    // Resetar replicação
-    const replicarCheckbox = document.getElementById('despesa-replicar');
-    if (replicarCheckbox) {
-        replicarCheckbox.checked = false;
-    }
-    const replicarOptions = document.getElementById('despesa-replicar-options');
-    if (replicarOptions) {
-        replicarOptions.classList.add('hidden');
-    }
+// Adiciona um card ao container e popula selects
+function adicionarCard(dadosIniciais = {}) {
+    const container = document.getElementById('despesa-cards-container');
+    if (!container) return null;
+    const card = criarCard(dadosIniciais);
+    container.appendChild(card);
+    popularCategoriasCard(card);
+    popularCartoesCard(card);
+    return card;
+}
 
-    const grupoDataPagamento = document.getElementById('grupo-data-pagamento');
-    if (grupoDataPagamento) {
-        grupoDataPagamento.style.display = 'none';
+// Remove um card do DOM
+function removerCard(cardId) {
+    const todos = document.querySelectorAll('.despesa-card');
+    if (todos.length <= 1) return;
+    const card = document.querySelector(`.despesa-card[data-card-id="${cardId}"]`);
+    if (card) {
+        cardAnexosStore.delete(cardId);
+        card.remove();
     }
-    
-    const inputDataPagamento = document.getElementById('despesa-data-pagamento-imediato');
-    if (inputDataPagamento) {
-        inputDataPagamento.value = '';
-    }
-    
-    document.querySelectorAll('.form-group.error').forEach(group => {
-        group.classList.remove('error');
+}
+
+// Configura todos os eventos de um card
+function configurarEventosCard(cardEl) {
+    // Pagamento
+    cardEl.querySelectorAll('.pgto-btn').forEach(btn => {
+        btn.addEventListener('click', () => selecionarPagamentoCard(cardEl, btn.dataset.forma));
     });
-    
-    const errorElements = document.querySelectorAll('.form-error-categoria, .form-error-pagamento');
-    errorElements.forEach(el => el.remove());
-    
-    const warningElements = document.querySelectorAll('.form-warning');
-    warningElements.forEach(el => el.remove());
+    cardEl.querySelector('.card-cartao-select').addEventListener('change', function() {
+        cardEl.dataset.cartaoId = this.value;
+        atualizarEstrelasCard(cardEl);
+    });
+
+    // Categoria → aplicar favorito
+    cardEl.querySelector('.card-categoria').addEventListener('change', function() {
+        aplicarFavoritoCard(cardEl, this.value);
+        atualizarEstrelasCard(cardEl);
+    });
+
+    // Valores → info parcelamento
+    cardEl.querySelector('.card-valor-original').addEventListener('input', () => calcularInfoCard(cardEl));
+    cardEl.querySelector('.card-valor-final').addEventListener('input', () => calcularInfoCard(cardEl));
+    cardEl.querySelector('.card-parcelas').addEventListener('input', () => calcularInfoCard(cardEl));
+
+    // Compra → preencher vencimento se vazio
+    cardEl.querySelector('.card-compra').addEventListener('change', function() {
+        const venc = cardEl.querySelector('.card-vencimento');
+        if (!venc.value) venc.value = this.value;
+    });
+
+    // Replicar
+    cardEl.querySelector('.card-replicar').addEventListener('change', function() {
+        cardEl.querySelector('.card-replicar-options').classList.toggle('hidden', !this.checked);
+    });
+
+    // Favoritar
+    cardEl.querySelector('.card-fav-btn').addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        salvarFavoritoCard(cardEl);
+    });
+
+    // Remover
+    cardEl.querySelector('.card-delete-btn').addEventListener('click', () => removerCard(cardEl.dataset.cardId));
+
+    // Anexos
+    cardEl.querySelector('.card-anexos-btn').addEventListener('click', () => abrirAnexosCard(cardEl));
 }
 
-function preencherFormularioEdicao(index) {
-   if (!dadosFinanceiros[anoAberto]?.meses[mesAberto]?.despesas[index]) {
-       throw new Error(ERROS.DESPESA_NAO_ENCONTRADA);
-   }
+// Seleciona uma forma de pagamento no card
+function selecionarPagamentoCard(cardEl, forma) {
+    cardEl.querySelectorAll('.pgto-btn').forEach(b => b.classList.remove('pgto-ativo'));
+    const btn = cardEl.querySelector(`.pgto-btn[data-forma="${forma}"]`);
+    if (btn) btn.classList.add('pgto-ativo');
+    cardEl.dataset.formaPagamento = forma;
+    cardEl.querySelector('.card-cartao-group').classList.toggle('hidden', forma !== 'credito');
+    // Limpa erros de pagamento
+    cardEl.querySelector('.card-pgto-group').classList.remove('campo-invalido');
+    atualizarEstrelasCard(cardEl);
+}
 
-   const despesa = dadosFinanceiros[anoAberto].meses[mesAberto].despesas[index];
+// Popula o select de categorias de um card
+function popularCategoriasCard(cardEl) {
+    const select = cardEl.querySelector('.card-categoria');
+    const categorias = window.categoriasUsuario?.despesas || [];
+    const valorAtual = select.value;
+    while (select.options.length > 1) select.remove(1);
+    categorias.forEach(cat => {
+        const nome = typeof cat === 'string' ? cat : cat.nome;
+        const id = typeof cat === 'object' && cat.id ? String(cat.id) : nome;
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = nome;
+        select.appendChild(opt);
+    });
+    if (valorAtual) select.value = valorAtual;
+}
 
-   // Guardar ID real da despesa (do banco) e grupo de parcelamento
-   document.getElementById('despesa-id').value = despesa.id || index;
+// Popula o select de cartões de um card
+function popularCartoesCard(cardEl) {
+    const select = cardEl.querySelector('.card-cartao-select');
+    const cartoes = (window.cartoesUsuario || []).filter(c => c.ativo);
+    const valorAtual = select.value;
+    while (select.options.length > 1) select.remove(1);
+    cartoes.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = (c.banco || c.nome || '').toUpperCase();
+        select.appendChild(opt);
+    });
+    if (valorAtual) select.value = valorAtual;
+}
 
-   // Guardar informações extras para edição de parceladas
-   window.despesaEmEdicao = {
-       id: despesa.id,
-       idGrupoParcelamento: despesa.idGrupoParcelamento,
-       parcelado: despesa.parcelado,
-       totalParcelas: despesa.totalParcelas,
-       parcelaAtual: despesa.parcelaAtual
-   };
+// Popula categorias e cartões em todos os cards existentes
+function popularTodosOsCards() {
+    document.querySelectorAll('.despesa-card').forEach(card => {
+        popularCategoriasCard(card);
+        popularCartoesCard(card);
+    });
+}
 
-   // Se for despesa parcelada e não for a primeira parcela, ajustar mês/ano para a primeira parcela
-   if (despesa.parcelado && despesa.parcelaAtual > 1) {
-       let mesPrimeiraParcela = despesa.mes - (despesa.parcelaAtual - 1);
-       let anoPrimeiraParcela = despesa.ano;
-       while (mesPrimeiraParcela < 0) {
-           mesPrimeiraParcela += 12;
-           anoPrimeiraParcela--;
-       }
-       document.getElementById('despesa-mes').value = mesPrimeiraParcela;
-       document.getElementById('despesa-ano').value = anoPrimeiraParcela;
-   }
-   // Limpar sufixo de parcela da descrição se for parcelada (ex: "Compra (1/12)" → "Compra")
-   let descricaoLimpa = despesa.descricao || '';
-   if (despesa.parcelado) {
-       descricaoLimpa = descricaoLimpa.replace(/\s*\(\d+\/\d+\)\s*$/, '').trim();
-   }
-   document.getElementById('despesa-descricao').value = descricaoLimpa;
-   document.getElementById('despesa-categoria').value = despesa.categoria || '';
-   
-   if (despesa.parcelado && despesa.metadados?.valorOriginalTotal) {
-       // Usar metadados se disponível
-       document.getElementById('despesa-valor').value = despesa.metadados.valorOriginalTotal;
-       document.getElementById('despesa-valor-pago').value = despesa.metadados.valorTotalComJuros || '';
-   } else if (despesa.parcelado && despesa.totalParcelas > 1) {
-       // Parcelado sem metadados: calcular valor total (valor da parcela × número de parcelas)
-       const valorParcela = parseFloat(despesa.valorOriginal || despesa.valor) || 0;
-       const numParcelas = parseInt(despesa.totalParcelas) || 1;
-       const valorTotal = valorParcela * numParcelas;
-       document.getElementById('despesa-valor').value = valorTotal.toFixed(2);
+// Calcula e exibe info de parcelamento no card
+function calcularInfoCard(cardEl) {
+    const valorOrig = parseFloat(cardEl.querySelector('.card-valor-original').value) || 0;
+    const valorFinal = parseFloat(cardEl.querySelector('.card-valor-final').value) || valorOrig;
+    const parcelas = parseInt(cardEl.querySelector('.card-parcelas').value) || 1;
+    const infoEl = cardEl.querySelector('.card-info-parcela');
 
-       // Se tem valor com juros, também calcular o total
-       const valorJurosParcela = parseFloat(despesa.valorTotalComJuros || despesa.valorPago) || 0;
-       if (valorJurosParcela > 0) {
-           document.getElementById('despesa-valor-pago').value = (valorJurosParcela * numParcelas).toFixed(2);
-       } else {
-           document.getElementById('despesa-valor-pago').value = '';
-       }
-   } else {
-       // Despesa simples (não parcelada)
-       document.getElementById('despesa-valor').value = despesa.valorOriginal || despesa.valor;
-       document.getElementById('despesa-valor-pago').value = despesa.valorTotalComJuros || despesa.valorPago || '';
-   }
-   
-   if (despesa.dataCompra) {
-       document.getElementById('despesa-data-compra').value = despesa.dataCompra;
-   }
+    if (valorOrig <= 0 || parcelas < 2) { infoEl.classList.add('hidden'); return; }
 
-   if (despesa.dataVencimento) {
-       // Se for despesa parcelada e não for a primeira parcela, calcular a data da primeira parcela
-       if (despesa.parcelado && despesa.parcelaAtual > 1) {
-           const dataVencimentoAtual = window.dataDeISO ? window.dataDeISO(despesa.dataVencimento) : new Date(despesa.dataVencimento + 'T00:00:00');
-           // Subtrair os meses para voltar à primeira parcela
-           dataVencimentoAtual.setMonth(dataVencimentoAtual.getMonth() - (despesa.parcelaAtual - 1));
-           const dataPrimeiraParcela = window.dataParaISO ? window.dataParaISO(dataVencimentoAtual) :
-               `${dataVencimentoAtual.getFullYear()}-${String(dataVencimentoAtual.getMonth() + 1).padStart(2, '0')}-${String(dataVencimentoAtual.getDate()).padStart(2, '0')}`;
-           document.getElementById('despesa-data-vencimento').value = dataPrimeiraParcela;
-       } else {
-           document.getElementById('despesa-data-vencimento').value = despesa.dataVencimento;
-       }
-   }
-   
-   if (despesa.formaPagamento === 'credito') {
-       let cartaoIdReal = despesa.cartao_id || despesa.cartaoId;
+    const totalJuros = valorFinal - valorOrig;
+    const valorParcela = arredondarParaDuasCasas(valorFinal / parcelas);
+    const cor = totalJuros > 0 ? '#ef4444' : '#16a34a';
 
-       // Se não tem cartao_id, mas tem numeroCartao (posição antiga), converter para ID real
-       if (!cartaoIdReal && despesa.numeroCartao) {
-           const cartoesUsuario = window.cartoesUsuario || [];
-           const cartaoNaPosicao = cartoesUsuario[parseInt(despesa.numeroCartao) - 1];
-           if (cartaoNaPosicao) {
-               cartaoIdReal = cartaoNaPosicao.id;
-           }
-       }
+    infoEl.classList.remove('hidden');
+    infoEl.querySelector('.card-juros-total').textContent = formatarMoeda(totalJuros);
+    infoEl.querySelector('.card-juros-total').style.color = cor;
+    infoEl.querySelector('.card-juros-parcela').textContent = formatarMoeda(totalJuros / parcelas);
+    infoEl.querySelector('.card-juros-parcela').style.color = cor;
+    infoEl.querySelector('.card-valor-parcela').textContent = formatarMoeda(valorParcela);
+    infoEl.querySelector('.card-valor-total').textContent = formatarMoeda(valorFinal);
+}
 
-       if (cartaoIdReal) {
-           const radioCartao = document.querySelector(`input[name="forma-pagamento"][data-cartao-id="${cartaoIdReal}"]`);
-           if (radioCartao) radioCartao.checked = true;
-       }
-   } else if (despesa.formaPagamento) {
-       const radioFormaPagamento = document.querySelector(`input[name="forma-pagamento"][value="${despesa.formaPagamento}"]`);
-       if (radioFormaPagamento) radioFormaPagamento.checked = true;
-   }
-   
-   if (despesa.parcelado) {
-       const parceladoCheckbox = document.getElementById('despesa-parcelado');
-       const parcelasInput = document.getElementById('despesa-parcelas');
+// Aplica o favorito de pagamento de uma categoria ao card
+async function aplicarFavoritoCard(cardEl, categoriaId) {
+    if (!categoriaId) return;
+    const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+    const token = sessionStorage.getItem('token');
+    try {
+        const res = await fetch(`${API_URL}/categorias/${categoriaId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const data = await res.json();
+        const cat = data.data || {};
+        if (!cat.forma_favorita) return;
+        if (cat.forma_favorita === 'credito' && cat.cartao_favorito_id) {
+            selecionarPagamentoCard(cardEl, 'credito');
+            const sel = cardEl.querySelector('.card-cartao-select');
+            sel.value = cat.cartao_favorito_id;
+            cardEl.dataset.cartaoId = cat.cartao_favorito_id;
+        } else {
+            selecionarPagamentoCard(cardEl, cat.forma_favorita);
+        }
+        atualizarEstrelasCard(cardEl);
+    } catch(e) { console.error('Erro ao aplicar favorito:', e); }
+}
 
-       if (parceladoCheckbox) {
-           parceladoCheckbox.checked = true;
-           // Manter checkbox habilitado para permitir alteração
-       }
-       if (parcelasInput) {
-           parcelasInput.value = despesa.totalParcelas || 1;
-           // Manter input habilitado para permitir edição
-       }
+// Atualiza o visual da estrela de favorito no card
+async function atualizarEstrelasCard(cardEl) {
+    const categoriaId = cardEl.querySelector('.card-categoria').value;
+    const starBtn = cardEl.querySelector('.card-fav-btn');
+    starBtn.classList.remove('fav-ativo');
+    starBtn.querySelector('i').className = 'far fa-star';
+    if (!categoriaId || !cardEl.dataset.formaPagamento) return;
 
-       const info = document.getElementById('info-parcelamento');
-       if (info) info.classList.remove('hidden');
+    const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+    const token = sessionStorage.getItem('token');
+    try {
+        const res = await fetch(`${API_URL}/categorias/${categoriaId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const data = await res.json();
+        const cat = data.data || {};
+        const forma = cardEl.dataset.formaPagamento;
+        const cartaoId = cardEl.dataset.cartaoId;
+        const ehFav = cat.forma_favorita === forma &&
+            (forma !== 'credito' || String(cat.cartao_favorito_id) === String(cartaoId));
+        if (ehFav) { starBtn.classList.add('fav-ativo'); starBtn.querySelector('i').className = 'fas fa-star'; }
+    } catch(e) { console.error('Erro ao verificar favorito:', e); }
+}
 
-       if (despesa.metadados) calcularInfoParcelamento();
-   }
-   
-   if (window.sistemaAnexos && despesa.anexos) {
-       window.sistemaAnexos.carregarAnexosExistentes(despesa, 'despesa');
-   }
-   
-   const recorrenteCheckbox = document.getElementById('despesa-recorrente');
-   if (recorrenteCheckbox) {
-       recorrenteCheckbox.checked = !!despesa.recorrente;
-   }
+// Salva o favorito de pagamento do card para a categoria selecionada
+async function salvarFavoritoCard(cardEl) {
+    const categoriaId = cardEl.querySelector('.card-categoria').value;
+    if (!categoriaId) { if (window.mostrarMensagemErro) window.mostrarMensagemErro('Selecione uma categoria primeiro'); return; }
+    const forma = cardEl.dataset.formaPagamento;
+    if (!forma) { if (window.mostrarMensagemErro) window.mostrarMensagemErro('Selecione uma forma de pagamento primeiro'); return; }
+    const cartaoId = forma === 'credito' ? (parseInt(cardEl.dataset.cartaoId) || null) : null;
+    await _persistirFavorito(categoriaId, forma, cartaoId);
+    await atualizarEstrelasCard(cardEl);
+}
+
+// Anexos por card
+function abrirAnexosCard(cardEl) {
+    const cardId = cardEl.dataset.cardId;
+    let input = document.getElementById('input-file-card-despesa');
+    if (!input) {
+        input = document.createElement('input');
+        input.type = 'file'; input.id = 'input-file-card-despesa';
+        input.multiple = true;
+        input.accept = '.pdf,.jpg,.jpeg,.png,.gif,.xls,.xlsx,.doc,.docx,.txt';
+        input.style.display = 'none';
+        document.body.appendChild(input);
+    }
+    input.value = '';
+    const handler = function(e) {
+        input.removeEventListener('change', handler);
+        Array.from(e.target.files || []).forEach(file => {
+            if (!window.sistemaAnexos || !window.sistemaAnexos.validarArquivo(file)) return;
+            const reader = new FileReader();
+            reader.onload = ev => {
+                const anexos = cardAnexosStore.get(cardId) || [];
+                anexos.push({ id: 'a_' + Date.now() + '_' + Math.random().toString(36).substr(2,6), nome: file.name, tipo: file.type, tamanho: file.size, dados: ev.target.result.split(',')[1], dataUpload: new Date().toISOString() });
+                cardAnexosStore.set(cardId, anexos);
+                atualizarAnexosVisuaisCard(cardEl);
+            };
+            reader.readAsDataURL(file);
+        });
+    };
+    input.addEventListener('change', handler);
+    input.click();
+}
+
+function atualizarAnexosVisuaisCard(cardEl) {
+    const cardId = cardEl.dataset.cardId;
+    const anexos = cardAnexosStore.get(cardId) || [];
+    cardEl.querySelector('.card-anexos-count').textContent = anexos.length;
+    const lista = cardEl.querySelector('.card-anexos-lista');
+    lista.innerHTML = '';
+    anexos.forEach((an, i) => {
+        const item = document.createElement('div');
+        item.className = 'card-anexo-item';
+        item.innerHTML = `<i class="fas fa-file"></i><span title="${an.nome}">${an.nome}</span><button type="button" onclick="removerAnexoCard('${cardId}',${i})"><i class="fas fa-times"></i></button>`;
+        lista.appendChild(item);
+    });
+}
+
+function removerAnexoCard(cardId, index) {
+    const anexos = cardAnexosStore.get(cardId) || [];
+    anexos.splice(index, 1);
+    cardAnexosStore.set(cardId, anexos);
+    const card = document.querySelector(`.despesa-card[data-card-id="${cardId}"]`);
+    if (card) atualizarAnexosVisuaisCard(card);
+}
+
+// Coleta todos os dados de um card
+function coletarDadosCard(cardEl) {
+    const formaPagamento = cardEl.dataset.formaPagamento;
+    const cartaoId = formaPagamento === 'credito' ? (parseInt(cardEl.querySelector('.card-cartao-select')?.value) || null) : null;
+    const parcelas = parseInt(cardEl.querySelector('.card-parcelas').value) || 1;
+    return {
+        id: cardEl.dataset.despesaId || '',
+        mes: parseInt(document.getElementById('lancamento-mes').value),
+        ano: parseInt(document.getElementById('lancamento-ano').value),
+        descricao: cardEl.querySelector('.card-descricao').value.trim(),
+        categoria_id: parseInt(cardEl.querySelector('.card-categoria').value) || null,
+        formaPagamento,
+        cartao_id: cartaoId,
+        valor: parseFloat(cardEl.querySelector('.card-valor-original').value) || 0,
+        valorPago: cardEl.querySelector('.card-valor-final').value ? parseFloat(cardEl.querySelector('.card-valor-final').value) : null,
+        dataCompra: cardEl.querySelector('.card-compra').value,
+        dataVencimento: cardEl.querySelector('.card-vencimento').value,
+        parcelado: parcelas > 1,
+        totalParcelas: parcelas,
+        jaPago: cardEl.querySelector('.card-ja-paga').checked,
+        recorrente: cardEl.querySelector('.card-recorrente').checked,
+        anexos: cardAnexosStore.get(cardEl.dataset.cardId) || [],
+        _replicarChecked: cardEl.querySelector('.card-replicar').checked,
+        _replicarMes: parseInt(cardEl.querySelector('.card-replicar-mes')?.value || 0),
+        _replicarAno: parseInt(cardEl.querySelector('.card-replicar-ano')?.value || (window.anoAberto || new Date().getFullYear()))
+    };
+}
+
+// Valida um card e exibe erros
+function validarCard(cardEl) {
+    cardEl.querySelectorAll('.campo-invalido').forEach(el => el.classList.remove('campo-invalido'));
+    const errorEl = cardEl.querySelector('.card-error');
+    errorEl.classList.add('hidden');
+
+    let valido = true;
+    const erros = [];
+
+    const descricao = cardEl.querySelector('.card-descricao');
+    if (!descricao.value.trim()) { descricao.classList.add('campo-invalido'); erros.push('Descrição'); valido = false; }
+
+    const categoria = cardEl.querySelector('.card-categoria');
+    if (!categoria.value) { categoria.classList.add('campo-invalido'); erros.push('Categoria'); valido = false; }
+
+    if (!cardEl.dataset.formaPagamento) { cardEl.querySelector('.card-pgto-group').classList.add('campo-invalido'); erros.push('Pagamento'); valido = false; }
+
+    if (cardEl.dataset.formaPagamento === 'credito' && !cardEl.querySelector('.card-cartao-select').value) {
+        cardEl.querySelector('.card-cartao-select').classList.add('campo-invalido'); erros.push('Cartão'); valido = false;
+    }
+
+    const valor = cardEl.querySelector('.card-valor-original');
+    if (!valor.value || parseFloat(valor.value) <= 0) { valor.classList.add('campo-invalido'); erros.push('Valor'); valido = false; }
+
+    const compra = cardEl.querySelector('.card-compra');
+    if (!compra.value) { compra.classList.add('campo-invalido'); erros.push('Data Compra'); valido = false; }
+
+    const vencimento = cardEl.querySelector('.card-vencimento');
+    if (!vencimento.value) { vencimento.classList.add('campo-invalido'); erros.push('Vencimento'); valido = false; }
+
+    if (!valido) { errorEl.textContent = 'Preencha: ' + erros.join(', '); errorEl.classList.remove('hidden'); }
+    return valido;
+}
+
+// Salva todas as despesas dos cards
+async function salvarTodasDespesas() {
+    const cards = document.querySelectorAll('.despesa-card');
+    if (cards.length === 0) return;
+
+    let todoValido = true;
+    cards.forEach(card => { if (!validarCard(card)) todoValido = false; });
+    if (!todoValido) { if (window.mostrarMensagemErro) window.mostrarMensagemErro('Corrija os erros antes de salvar'); return; }
+
+    const btnSalvar = document.getElementById('btn-salvar-todas');
+    if (btnSalvar) { btnSalvar.disabled = true; btnSalvar.textContent = 'Salvando...'; }
+
+    let salvoCount = 0;
+    let erroCount = 0;
+
+    for (const card of cards) {
+        const formData = coletarDadosCard(card);
+        const ehEdicao = formData.id !== '' && formData.id !== null;
+        if (formData._replicarChecked) formData.recorrente = true;
+
+        card.querySelector('.card-success').classList.add('hidden');
+        card.querySelector('.card-error').classList.add('hidden');
+
+        const sucesso = await salvarDespesaLocal(formData);
+
+        if (sucesso) {
+            if (!ehEdicao) await processarReplicacaoDespesaCard(formData);
+            salvoCount++;
+            card.querySelector('.card-success').classList.remove('hidden');
+            cardAnexosStore.delete(card.dataset.cardId);
+            if (window.logManager) {
+                window.logManager.registrar({ modulo: 'Despesas', acao: ehEdicao ? 'Editado' : 'Criado', categoria: formData.categoria_id || '-', descricao: formData.descricao, valor: formData.valor, detalhes: `${ehEdicao ? 'Editou' : 'Criou'} despesa em ${formData.mes + 1}/${formData.ano}` });
+            }
+        } else {
+            erroCount++;
+            const errorEl = card.querySelector('.card-error');
+            errorEl.textContent = 'Erro ao salvar. Tente novamente.';
+            errorEl.classList.remove('hidden');
+        }
+    }
+
+    if (typeof window.renderizarDetalhesDoMes === 'function') {
+        window.renderizarDetalhesDoMes(window.mesAberto, window.anoAberto);
+    }
+    if (typeof window.carregarDadosDashboard === 'function') {
+        await window.carregarDadosDashboard(window.anoAberto);
+    }
+
+    if (btnSalvar) { btnSalvar.disabled = false; btnSalvar.textContent = 'Salvar'; }
+
+    if (erroCount === 0) {
+        if (window.mostrarMensagemSucesso) window.mostrarMensagemSucesso(`${salvoCount} despesa(s) salva(s) com sucesso!`);
+        const ehEdicao = cards.length === 1 && cards[0].dataset.despesaId;
+        if (ehEdicao) {
+            fecharModalLancamentoDespesas();
+        } else {
+            setTimeout(() => resetarModalLancamento(), 800);
+        }
+    } else {
+        if (window.mostrarMensagemErro) window.mostrarMensagemErro(`${erroCount} despesa(s) com erro.`);
+    }
+}
+
+// Replicação de despesa a partir dos dados de um card
+async function processarReplicacaoDespesaCard(formData) {
+    if (!formData._replicarChecked) return;
+    const mesFinal = formData._replicarMes;
+    const anoFinal = formData._replicarAno;
+    let mesAtual = formData.mes + 1;
+    let anoAtual = formData.ano;
+    if (mesAtual > 11) { mesAtual = 0; anoAtual++; }
+
+    const dataVencOriginal = new Date(formData.dataVencimento + 'T00:00:00');
+    const diaVenc = dataVencOriginal.getDate();
+
+    while (anoAtual < anoFinal || (anoAtual === anoFinal && mesAtual <= mesFinal)) {
+        const novaDataVenc = calcularDataReplicada(diaVenc, mesAtual, anoAtual);
+        try {
+            await window.usuarioDataManager.salvarDespesa(mesAtual, anoAtual, {
+                descricao: formData.descricao, valor: formData.valor, valorPago: formData.valorPago,
+                dataCompra: novaDataVenc, dataVencimento: novaDataVenc,
+                categoria_id: formData.categoria_id, formaPagamento: formData.formaPagamento,
+                cartao_id: formData.cartao_id, pago: false, recorrente: true, anexos: []
+            }, null);
+        } catch(e) { console.error(`Erro ao replicar:`, e); }
+        mesAtual++;
+        if (mesAtual > 11) { mesAtual = 0; anoAtual++; }
+    }
+}
+
+// Preenche um card com dados de uma despesa existente (modo edição)
+function preencherCardEdicao(cardEl, index) {
+    const despesa = dadosFinanceiros[anoAberto].meses[mesAberto].despesas[index];
+    if (!despesa) return;
+
+    cardEl.dataset.despesaId = despesa.id || index;
+    window.despesaEmEdicao = { id: despesa.id, idGrupoParcelamento: despesa.idGrupoParcelamento, parcelado: despesa.parcelado, totalParcelas: despesa.totalParcelas, parcelaAtual: despesa.parcelaAtual };
+
+    let descricaoLimpa = despesa.descricao || '';
+    if (despesa.parcelado) descricaoLimpa = descricaoLimpa.replace(/\s*\(\d+\/\d+\)\s*$/, '').trim();
+    cardEl.querySelector('.card-descricao').value = descricaoLimpa;
+    // Setar categoria pelo ID numérico (select usa ID como value)
+    const catIdPreencher = despesa.categoria_id || despesa.categoriaId || '';
+    cardEl.querySelector('.card-categoria').value = catIdPreencher;
+
+    if (despesa.parcelado && despesa.metadados?.valorOriginalTotal) {
+        cardEl.querySelector('.card-valor-original').value = despesa.metadados.valorOriginalTotal;
+        cardEl.querySelector('.card-valor-final').value = despesa.metadados.valorTotalComJuros || '';
+    } else if (despesa.parcelado && despesa.totalParcelas > 1) {
+        const vp = parseFloat(despesa.valorOriginal || despesa.valor) || 0;
+        const np = parseInt(despesa.totalParcelas) || 1;
+        cardEl.querySelector('.card-valor-original').value = (vp * np).toFixed(2);
+        const vjp = parseFloat(despesa.valorTotalComJuros || despesa.valorPago) || 0;
+        if (vjp > 0) cardEl.querySelector('.card-valor-final').value = (vjp * np).toFixed(2);
+    } else {
+        cardEl.querySelector('.card-valor-original').value = despesa.valorOriginal || despesa.valor || '';
+        cardEl.querySelector('.card-valor-final').value = despesa.valorTotalComJuros || despesa.valorPago || '';
+    }
+
+    if (despesa.parcelado && despesa.parcelaAtual > 1) {
+        let mesPrimeira = despesa.mes - (despesa.parcelaAtual - 1);
+        let anoPrimeira = despesa.ano;
+        while (mesPrimeira < 0) { mesPrimeira += 12; anoPrimeira--; }
+        document.getElementById('lancamento-mes').value = mesPrimeira;
+        document.getElementById('lancamento-ano').value = anoPrimeira;
+        const dv = window.dataDeISO ? window.dataDeISO(despesa.dataVencimento) : new Date(despesa.dataVencimento + 'T00:00:00');
+        dv.setMonth(dv.getMonth() - (despesa.parcelaAtual - 1));
+        const dpStr = window.dataParaISO ? window.dataParaISO(dv) : `${dv.getFullYear()}-${String(dv.getMonth()+1).padStart(2,'0')}-${String(dv.getDate()).padStart(2,'0')}`;
+        cardEl.querySelector('.card-vencimento').value = dpStr;
+    } else if (despesa.dataVencimento) {
+        cardEl.querySelector('.card-vencimento').value = despesa.dataVencimento;
+    }
+    if (despesa.dataCompra) cardEl.querySelector('.card-compra').value = despesa.dataCompra;
+
+    if (despesa.parcelado) {
+        cardEl.querySelector('.card-parcelas').value = despesa.totalParcelas || 1;
+        calcularInfoCard(cardEl);
+    }
+
+    if (despesa.formaPagamento === 'credito') {
+        let cartaoIdReal = despesa.cartao_id || despesa.cartaoId;
+        if (!cartaoIdReal && despesa.numeroCartao) {
+            const cp = (window.cartoesUsuario || [])[(parseInt(despesa.numeroCartao) - 1)];
+            if (cp) cartaoIdReal = cp.id;
+        }
+        selecionarPagamentoCard(cardEl, 'credito');
+        if (cartaoIdReal) { cardEl.querySelector('.card-cartao-select').value = cartaoIdReal; cardEl.dataset.cartaoId = cartaoIdReal; }
+    } else if (despesa.formaPagamento) {
+        selecionarPagamentoCard(cardEl, despesa.formaPagamento);
+    }
+
+    if (despesa.quitado || despesa.pago) cardEl.querySelector('.card-ja-paga').checked = true;
+    if (despesa.recorrente) cardEl.querySelector('.card-recorrente').checked = true;
+
+    if (despesa.anexos && despesa.anexos.length > 0) {
+        cardAnexosStore.set(cardEl.dataset.cardId, [...despesa.anexos]);
+        atualizarAnexosVisuaisCard(cardEl);
+    }
+    atualizarEstrelasCard(cardEl);
+}
+
+// Abre o modal de lançamento de despesas
+function abrirModalNovaDespesa(index) {
+    if (typeof recarregarEAtualizarCartoes === 'function') recarregarEAtualizarCartoes();
+    if (window.mesAberto === null || window.anoAberto === null) {
+        window.mesAberto = new Date().getMonth();
+        window.anoAberto = new Date().getFullYear();
+    }
+    const modal = document.getElementById('modal-lancamento-despesas');
+    if (!modal) {
+        if (window.mostrarMensagemErro) window.mostrarMensagemErro(ERROS.MODAL_NAO_ENCONTRADO);
+        return;
+    }
+    resetarModalLancamento();
+    document.getElementById('lancamento-mes').value = window.mesAberto;
+    document.getElementById('lancamento-ano').value = window.anoAberto;
+    const primeiroCard = adicionarCard();
+    if (primeiroCard) {
+        const dataAtual = new Date(window.anoAberto, window.mesAberto, new Date().getDate());
+        const dataFormatada = window.dataParaISO ? window.dataParaISO(dataAtual) :
+            `${dataAtual.getFullYear()}-${String(dataAtual.getMonth()+1).padStart(2,'0')}-${String(dataAtual.getDate()).padStart(2,'0')}`;
+        primeiroCard.querySelector('.card-compra').value = dataFormatada;
+        primeiroCard.querySelector('.card-vencimento').value = dataFormatada;
+        if (index !== undefined && window.dadosFinanceiros[window.anoAberto]?.meses[window.mesAberto]?.despesas?.[index]) {
+            preencherCardEdicao(primeiroCard, index);
+        }
+        primeiroCard.querySelector('.card-descricao').focus();
+    }
+    modal.classList.add('active');
+    modal.style.display = 'block';
+}
+
+function fecharModalLancamentoDespesas() {
+    const modal = document.getElementById('modal-lancamento-despesas');
+    if (modal) {
+        modal.classList.remove('active');
+        modal.style.display = 'none';
+    }
+    resetarModalLancamento();
+}
+
+function resetarModalLancamento() {
+    const container = document.getElementById('despesa-cards-container');
+    if (container) container.innerHTML = '';
+    cardAnexosStore.clear();
+    cardCounter = 0;
+}
+
+function configurarEventosModalLancamento() {
+    const btnAdicionar = document.getElementById('btn-adicionar-despesa-card');
+    if (btnAdicionar) {
+        btnAdicionar.addEventListener('click', () => adicionarCard());
+    }
+
+    const btnSalvar = document.getElementById('btn-salvar-todas');
+    if (btnSalvar) {
+        btnSalvar.addEventListener('click', salvarTodasDespesas);
+    }
+
+    const btnNovaCategoria = document.getElementById('btn-nova-categoria-lancamento');
+    if (btnNovaCategoria) {
+        btnNovaCategoria.addEventListener('click', () => {
+            if (typeof window.abrirModalNovaCategoria === 'function') window.abrirModalNovaCategoria();
+        });
+    }
+
+    const modal = document.getElementById('modal-lancamento-despesas');
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) fecharModalLancamentoDespesas();
+        });
+        const btnFechar = modal.querySelector('.btn-fechar-modal, .modal-close, [data-fechar-modal]');
+        if (btnFechar) btnFechar.addEventListener('click', fecharModalLancamentoDespesas);
+    }
+
+    const inputFile = document.getElementById('input-file-card-despesa');
+    if (inputFile) {
+        inputFile.addEventListener('change', (e) => {
+            if (!inputFile._cardEl) return;
+            const cardEl = inputFile._cardEl;
+            const cardId = cardEl.dataset.cardId;
+            if (!cardAnexosStore.has(cardId)) cardAnexosStore.set(cardId, []);
+            const existentes = cardAnexosStore.get(cardId);
+            Array.from(e.target.files).forEach(file => {
+                existentes.push({ nome: file.name, arquivo: file, tipo: file.type, tamanho: file.size });
+            });
+            atualizarAnexosVisuaisCard(cardEl);
+            inputFile.value = '';
+            inputFile._cardEl = null;
+        });
+    }
 }
 
 // ================================================================
 // SALVAMENTO DE DESPESAS
 // ================================================================
-
-async function salvarDespesa(e) {
-    if (e && e.preventDefault) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-
-    if (processandoDespesa) return false;
-    processandoDespesa = true;
-
-    try {
-        // Limpar erros anteriores
-        limparErrosValidacao();
-
-        let formularioValido = true;
-        const camposInvalidos = [];
-
-        // Validar descrição
-        const descricao = document.getElementById('despesa-descricao');
-        if (!descricao.value.trim()) {
-            marcarCampoInvalido(descricao);
-            camposInvalidos.push('Descrição');
-            formularioValido = false;
-        }
-
-        // Validar categoria
-        const categoria = document.getElementById('despesa-categoria');
-        if (!categoria.value) {
-            marcarCampoInvalido(categoria);
-            camposInvalidos.push('Categoria');
-            formularioValido = false;
-        }
-
-        // Validar forma de pagamento
-        const formaPagamentoSelecionada = document.querySelector('input[name="forma-pagamento"]:checked');
-        if (!formaPagamentoSelecionada) {
-            const paymentMethods = document.querySelector('.payment-methods');
-            if (paymentMethods) paymentMethods.classList.add('campo-invalido');
-            camposInvalidos.push('Pagamento');
-            formularioValido = false;
-        }
-
-        // Validar valor
-        const valor = document.getElementById('despesa-valor');
-        if (!valor.value || parseFloat(valor.value) <= 0) {
-            marcarCampoInvalido(valor);
-            camposInvalidos.push('Valor');
-            formularioValido = false;
-        }
-
-        // Validar datas
-        const dataCompra = document.getElementById('despesa-data-compra');
-        if (!dataCompra.value) {
-            marcarCampoInvalido(dataCompra);
-            camposInvalidos.push('Data Compra');
-            formularioValido = false;
-        }
-
-        const dataVencimento = document.getElementById('despesa-data-vencimento');
-        if (!dataVencimento.value) {
-            marcarCampoInvalido(dataVencimento);
-            camposInvalidos.push('Data Vencimento');
-            formularioValido = false;
-        }
-
-        if (!formularioValido) {
-            if (window.mostrarMensagemErro) {
-                window.mostrarMensagemErro('Preencha: ' + camposInvalidos.join(', '));
-            }
-            processandoDespesa = false;
-            return false;
-        }
-
-        const formData = coletarDadosFormularioDespesa();
-        const ehEdicao = formData.id !== '' && formData.id !== null;
-
-        // Se replicar está marcado, a despesa original também é recorrente
-        const replicarCheckbox = document.getElementById('despesa-replicar');
-        if (replicarCheckbox && replicarCheckbox.checked) {
-            formData.recorrente = true;
-        }
-
-        const sucesso = await salvarDespesaLocal(formData);
-
-        if (sucesso) {
-            // Processar replicação se habilitada (apenas para novas despesas)
-            if (!ehEdicao) {
-                await processarReplicacaoDespesa(formData, formData.mes, formData.ano);
-            }
-
-            // ✅ EXIBIR MENSAGEM DE SUCESSO
-            if (window.mostrarMensagemSucesso) {
-                window.mostrarMensagemSucesso(ehEdicao ? 'Despesa atualizada com sucesso!' : 'Despesa cadastrada com sucesso!');
-            }
-
-            // Limpar formulário para permitir cadastrar outra despesa (NÃO fecha o modal)
-            const form = document.getElementById('form-nova-despesa');
-            if (form && !ehEdicao) {
-                form.reset();
-                resetarEstadoFormularioDespesa();
-                document.getElementById('despesa-mes').value = formData.mes;
-                document.getElementById('despesa-ano').value = formData.ano;
-                document.getElementById('despesa-id').value = '';
-                // Focar no campo descrição para facilitar novo cadastro
-                const descricaoInput = document.getElementById('despesa-descricao');
-                if (descricaoInput) descricaoInput.focus();
-            }
-
-            // Atualizar interface
-            if (typeof window.renderizarDetalhesDoMes === 'function') {
-                window.renderizarDetalhesDoMes(formData.mes, formData.ano);
-            }
-
-            if (typeof window.carregarDadosDashboard === 'function') {
-                await window.carregarDadosDashboard(formData.ano);
-            }
-        } else {
-
-            if (window.mostrarMensagemErro) {
-                window.mostrarMensagemErro('Não foi possível salvar a despesa. Tente novamente.');
-            } else {
-                alert('Não foi possível salvar a despesa. Tente novamente.');
-            }
-        }
-
-        return false;
-
-    } catch (error) {
-
-        if (window.mostrarMensagemErro) {
-            window.mostrarMensagemErro('Erro ao salvar despesa: ' + error.message);
-        } else {
-            alert('Erro ao salvar despesa: ' + error.message);
-        }
-        return false;
-    } finally {
-        processandoDespesa = false;
-    }
-}
-
-function coletarDadosFormularioDespesa() {
-   const categoria = document.getElementById('despesa-categoria').value;
-   const formaPagamentoSelecionada = document.querySelector('input[name="forma-pagamento"]:checked');
-   const formaPagamento = formaPagamentoSelecionada ? formaPagamentoSelecionada.value : null;
-   
-   let cartaoId = null;
-   if (formaPagamento === 'credito' && formaPagamentoSelecionada && formaPagamentoSelecionada.dataset.cartaoId) {
-       cartaoId = parseInt(formaPagamentoSelecionada.dataset.cartaoId);
-   }
-   
-   const jaPago = document.getElementById('despesa-ja-pago') && document.getElementById('despesa-ja-pago').checked;
-   const recorrente = document.getElementById('despesa-recorrente') && document.getElementById('despesa-recorrente').checked;
-   
-   const numParcelas = parseInt(document.getElementById('despesa-parcelas').value) || 1;
-   const parcelado = numParcelas > 1;
-
-   const formData = {
-       id: document.getElementById('despesa-id').value,
-       mes: parseInt(document.getElementById('despesa-mes').value),
-       ano: parseInt(document.getElementById('despesa-ano').value),
-       descricao: document.getElementById('despesa-descricao').value.trim(),
-       categoria: categoria,
-       formaPagamento: formaPagamento,
-       cartao_id: cartaoId,
-       valor: parseFloat(document.getElementById('despesa-valor').value),
-       valorPago: document.getElementById('despesa-valor-pago').value ?
-                 parseFloat(document.getElementById('despesa-valor-pago').value) : null,
-       dataCompra: document.getElementById('despesa-data-compra').value,
-       dataVencimento: document.getElementById('despesa-data-vencimento').value,
-       parcelado: parcelado,
-       totalParcelas: numParcelas,
-       anexos: window.sistemaAnexos ? window.sistemaAnexos.obterAnexosParaSalvar('despesa') : [],
-       jaPago: jaPago,
-       recorrente: recorrente
-   };
-   
-   return formData;
-}
 
 // ================================================================
 // SALVAMENTO DE DESPESAS VIA API
@@ -1606,6 +1645,7 @@ async function salvarDespesaLocal(formData) {
             id: ehEdicao ? formData.id : null,
             descricao: formData.descricao,
             categoria: formData.categoria,
+            categoria_id: formData.categoria_id || null,
             formaPagamento: formData.formaPagamento,
             cartao_id: formData.cartao_id,
             valor: valorParcela,
@@ -1667,10 +1707,6 @@ async function recarregarDespesasDoMes(mes, ano) {
 
 // Função auxiliar para limpeza após gravação
 function limparAposGravacao(formData, ehEdicao) {
-    if (window.sistemaAnexos) {
-        window.sistemaAnexos.limparAnexosTemporarios('despesa');
-    }
-
     if (window.logManager) {
         window.logManager.registrar({
             modulo: 'Despesas',
@@ -1690,19 +1726,8 @@ async function atualizarTodasParcelasGrupo(formData, despesaEmEdicao, valorParce
         const idGrupo = despesaEmEdicao.idGrupoParcelamento || despesaEmEdicao.id;
         const token = sessionStorage.getItem('token');
 
-        // Converter nome da categoria para ID
-        let categoriaId = null;
-        if (formData.categoria) {
-            // Buscar categoria pelo nome para obter o ID
-            const categoriasUsuario = window.categoriasUsuario?.despesas || [];
-            const categoriaEncontrada = categoriasUsuario.find(c => {
-                const nome = typeof c === 'string' ? c : c.nome;
-                return nome === formData.categoria;
-            });
-            if (categoriaEncontrada && typeof categoriaEncontrada === 'object') {
-                categoriaId = categoriaEncontrada.id;
-            }
-        }
+        // Usar categoria_id diretamente (já vem como ID numérico do card)
+        let categoriaId = formData.categoria_id || null;
 
         // Buscar todas as parcelas do grupo via API
         const todasParcelas = [];
@@ -2048,161 +2073,6 @@ async function excluirParcelaEFuturas(index, mes, ano) {
     }
 }
 
-function validarCategoria() {
-    const selectCategoria = document.getElementById('despesa-categoria');
-    if (!selectCategoria) return true;
-    
-    const formGroup = selectCategoria.closest('.form-group');
-    if (!formGroup) return selectCategoria.value !== '';
-    
-    const errorExistente = formGroup.querySelector('.form-error-categoria');
-    if (errorExistente) {
-        errorExistente.remove();
-    }
-    formGroup.classList.remove('error');
-    
-    if (!selectCategoria.value) {
-        formGroup.classList.add('error');
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'form-error-categoria';
-        errorDiv.textContent = 'Por favor, selecione uma categoria';
-        formGroup.appendChild(errorDiv);
-        return false;
-    }
-    
-    return true;
-}
-
-function validarFormaPagamento() {
-    const radiosFormaPagamento = document.querySelectorAll('input[name="forma-pagamento"]');
-    if (radiosFormaPagamento.length === 0) return true;
-
-    const formGroup = radiosFormaPagamento[0].closest('.form-group');
-    if (!formGroup) {
-        return Array.from(radiosFormaPagamento).some(radio => radio.checked);
-    }
-
-    const errorExistente = formGroup.querySelector('.form-error-pagamento');
-    if (errorExistente) {
-        errorExistente.remove();
-    }
-    formGroup.classList.remove('error');
-
-    const algumSelecionado = Array.from(radiosFormaPagamento).some(radio => radio.checked);
-
-    if (!algumSelecionado) {
-        formGroup.classList.add('error');
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'form-error-pagamento';
-        errorDiv.textContent = 'Por favor, selecione uma forma de pagamento';
-        formGroup.appendChild(errorDiv);
-        return false;
-    }
-
-    return true;
-}
-
-// ================================================================
-// CÁLCULOS E INFO DE PARCELAMENTO
-// ================================================================
-
-function calcularInfoParcelamento() {
-    const inputValorOriginal = document.getElementById('despesa-valor');
-    const inputValorPago = document.getElementById('despesa-valor-pago');
-    const inputNumParcelas = document.getElementById('despesa-parcelas');
-
-    const valorOriginal = parseFloat(inputValorOriginal.value) || 0;
-    const valorPagoTotal = parseFloat(inputValorPago.value) || valorOriginal;
-    const numParcelas = parseInt(inputNumParcelas.value) || 1;
-
-    if (valorOriginal <= 0 || valorPagoTotal <= 0 || numParcelas < 1) {
-        const info = document.getElementById('info-parcelamento');
-        if (info) info.classList.add('hidden');
-        return;
-    }
-
-    const totalJuros = valorPagoTotal - valorOriginal;
-    const valorParcela = arredondarParaDuasCasas(valorPagoTotal / numParcelas);
-
-    const infoContainer = document.getElementById('info-parcelamento');
-    if (infoContainer && numParcelas > 1) {
-        infoContainer.classList.remove('hidden');
-
-        const elementoJurosTotal = document.getElementById('info-juros-total');
-        const elementoJurosParcela = document.getElementById('info-juros-parcela');
-        const elementoValorParcela = document.getElementById('info-valor-parcela');
-        const elementoValorTotal = document.getElementById('info-valor-total');
-
-        if (elementoJurosTotal) elementoJurosTotal.textContent = formatarMoeda(totalJuros);
-        if (elementoJurosParcela) elementoJurosParcela.textContent = formatarMoeda(totalJuros / numParcelas);
-        if (elementoValorParcela) elementoValorParcela.textContent = formatarMoeda(valorParcela);
-        if (elementoValorTotal) elementoValorTotal.textContent = formatarMoeda(valorPagoTotal);
-        
-        const corJuros = totalJuros > 0 ? '#ef4444' : '#16a34a';
-        if (elementoJurosTotal) elementoJurosTotal.style.color = corJuros;
-        if (elementoJurosParcela) elementoJurosParcela.style.color = corJuros;
-    } else if (infoContainer) {
-        infoContainer.classList.add('hidden');
-    }
-}
-
-// ================================================================
-// CONFIGURAÇÃO DE EVENTOS DO FORMULÁRIO
-// ================================================================
-
-function configurarEventosFormularioDespesa() {
-    const formasPagamento = document.querySelectorAll('input[name="forma-pagamento"]');
-    formasPagamento.forEach(radio => {
-        radio.addEventListener('change', function() {
-            if (typeof validarFormaPagamento === 'function') {
-                validarFormaPagamento();
-            }
-        });
-    });
-
-    const selectCategoria = document.getElementById('despesa-categoria');
-    if (selectCategoria) {
-        selectCategoria.addEventListener('change', function() {
-            if (typeof validarCategoria === 'function') {
-                validarCategoria();
-            }
-            // Auto-selecionar favorito e atualizar estrelas
-            if (typeof aplicarFavoritoCategoria === 'function') {
-                aplicarFavoritoCategoria(this.value);
-            }
-            if (typeof atualizarEstrelasFavorito === 'function') {
-                atualizarEstrelasFavorito();
-            }
-        });
-    }
-
-    const inputValor = document.getElementById('despesa-valor');
-    const inputValorPago = document.getElementById('despesa-valor-pago');
-    const inputParcelas = document.getElementById('despesa-parcelas');
-    
-    if (inputValor) {
-        inputValor.addEventListener('input', function() {
-            calcularInfoParcelamento();
-        });
-    }
-    
-    [inputValorPago, inputParcelas].forEach(input => {
-        if (input) {
-            input.addEventListener('input', calcularInfoParcelamento);
-        }
-    });
-    
-    const dataCompra = document.getElementById('despesa-data-compra');
-    const dataVencimento = document.getElementById('despesa-data-vencimento');
-    
-    if (dataCompra && dataVencimento) {
-        dataCompra.addEventListener('change', function() {
-            if (!dataVencimento.value) {
-                dataVencimento.value = this.value;
-            }
-        });
-    }
-}
 
 // ================================================================
 // FUNÇÕES GLOBAIS PARA O HTML
@@ -2210,8 +2080,8 @@ function configurarEventosFormularioDespesa() {
 
 
 window.handleSalvarDespesa = function(event) {
-    event.preventDefault();
-    salvarDespesa(event);
+    if (event && event.preventDefault) event.preventDefault();
+    salvarTodasDespesas();
     return false;
 };
 
@@ -2219,7 +2089,10 @@ window.handleSalvarDespesa = function(event) {
 // INICIALIZAÇÃO AUTOMÁTICA
 // ================================================================
 
-document.addEventListener('DOMContentLoaded', inicializarSistemaAnexosDespesas);
+document.addEventListener('DOMContentLoaded', () => {
+    inicializarSistemaAnexosDespesas();
+    configurarEventosModalLancamento();
+});
 
 // ================================================================
 // SISTEMA DE DESPESAS - PARTE 2/4
@@ -4415,20 +4288,17 @@ function calcularLimiteDisponivelCartao(cartaoId, mes, ano) {
     };
 }
 
-function toggleCamposPagamentoImediato() {
-    const checkbox = document.getElementById('despesa-ja-pago');
-    
-    if (checkbox && checkbox.checked) {
-
-    }
-}
-
 // ================================================================
 // EXPORTAÇÕES GLOBAIS
 // ================================================================
 
 window.calcularLimiteDisponivelCartao = calcularLimiteDisponivelCartao;
 window.abrirModalNovaDespesa = abrirModalNovaDespesa;
+window.fecharModalLancamentoDespesas = fecharModalLancamentoDespesas;
+window.salvarTodasDespesas = salvarTodasDespesas;
+window.adicionarCard = adicionarCard;
+window.removerCard = removerCard;
+window.popularTodosOsCards = popularTodosOsCards;
 window.editarDespesa = editarDespesa;
 window.excluirDespesa = excluirDespesa;
 window.moverParaProximoMes = moverParaProximoMes;
@@ -4436,7 +4306,6 @@ window.abrirModalPagamento = abrirModalPagamento;
 window.processarPagamento = processarPagamento;
 window.pagarDespesasEmLote = pagarDespesasEmLote;
 window.abrirModalPagamentoLote = pagarDespesasEmLote;
-window.salvarDespesa = salvarDespesa;
 window.renderizarDespesas = renderizarDespesas;
 window.atualizarStatusDespesas = atualizarStatusDespesas;
 window.calcularTotalDespesas = calcularTotalDespesas;
@@ -4445,10 +4314,7 @@ window.calcularTotalJuros = calcularTotalJuros;
 window.calcularJurosDespesa = calcularJurosDespesa;
 window.calcularEconomiaDespesa = calcularEconomiaDespesa;
 window.isParcelado = isParcelado;
-window.calcularInfoParcelamento = calcularInfoParcelamento;
 window.atualizarBotaoLote = atualizarBotaoLote;
-window.validarCategoria = validarCategoria;
-window.validarFormaPagamento = validarFormaPagamento;
 window.configurarEventosDespesas = configurarEventosDespesas;
 window.obterCategoriaLimpa = obterCategoriaLimpa;
 window.criarBadgeStatus = criarBadgeStatus;
@@ -4467,7 +4333,6 @@ window.encontrarDespesaPorIndice = encontrarDespesaPorIndice;
 window.preencherCelulaAnexos = preencherCelulaAnexos;
 window.configurarEventosFormularioAnexosDespesa = configurarEventosFormularioAnexosDespesa;
 window.inicializarSistemaAnexosDespesas = inicializarSistemaAnexosDespesas;
-window.toggleCamposPagamentoImediato = toggleCamposPagamentoImediato;
 
 // Função para selecionar/deselecionar todas as despesas (chamada pelo HTML)
 function toggleTodasDespesas(checkbox) {
@@ -4671,14 +4536,19 @@ async function salvarCategoriaInline() {
                 await window.atualizarListaCategorias();
             }
 
-            // Selecionar a nova categoria
-            const selectCategoria = document.getElementById('despesa-categoria');
-            if (selectCategoria) {
+            // Selecionar a nova categoria em todos os cards abertos
+            if (typeof popularTodosOsCards === 'function') {
                 setTimeout(() => {
-                    for (let option of selectCategoria.options) {
-                        if (option.text === nomeCategoria) {
-                            selectCategoria.value = option.value;
-                            break;
+                    popularTodosOsCards();
+                    // Auto-selecionar a nova categoria no último card focado
+                    const cards = document.querySelectorAll('.despesa-card');
+                    if (cards.length > 0) {
+                        const lastCard = cards[cards.length - 1];
+                        const sel = lastCard.querySelector('.card-categoria');
+                        if (sel) {
+                            for (let option of sel.options) {
+                                if (option.text === nomeCategoria) { sel.value = option.value; break; }
+                            }
                         }
                     }
                 }, 200);
