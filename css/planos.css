@@ -1,5 +1,5 @@
 /* ================================================================
-   PLANOS.CSS — Sidebar upgrade + Modal de planos
+   PLANOS.CSS — Sidebar upgrade + Modal de planos (2 steps)
    ================================================================ */
 
 /* ---- Sidebar: container do plano ---- */
@@ -85,8 +85,62 @@
     transform: translateY(-1px);
 }
 
-.btn-upgrade i {
-    font-size: 11px;
+/* ================================================================
+   OVERLAY DE BLOQUEIO
+   ================================================================ */
+
+.overlay-bloqueio {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.92);
+    backdrop-filter: blur(8px);
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: fadeIn 0.3s ease;
+}
+
+.bloqueio-content {
+    text-align: center;
+    max-width: 400px;
+    color: #f1f5f9;
+}
+
+.bloqueio-icon {
+    width: 72px;
+    height: 72px;
+    background: rgba(220, 38, 38, 0.15);
+    border: 1px solid rgba(220, 38, 38, 0.35);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    color: #f87171;
+    margin: 0 auto 20px;
+}
+
+.bloqueio-content h2 {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0 0 10px;
+    color: #f8fafc;
+}
+
+.bloqueio-content p {
+    font-size: 14px;
+    color: #94a3b8;
+    margin: 0 0 28px;
+    line-height: 1.6;
+}
+
+.bloqueio-btn {
+    width: auto;
+    padding: 12px 32px;
+    font-size: 14px;
+    border-radius: 10px;
 }
 
 /* ================================================================
@@ -98,7 +152,7 @@
     inset: 0;
     background: rgba(0, 0, 0, 0.75);
     backdrop-filter: blur(6px);
-    z-index: 10000;
+    z-index: 100000;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -121,6 +175,11 @@
 @keyframes slideUp {
     from { opacity: 0; transform: translateY(20px); }
     to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
 }
 
 .modal-planos-close {
@@ -149,7 +208,7 @@
 /* Header */
 .modal-planos-header {
     text-align: center;
-    margin-bottom: 32px;
+    margin-bottom: 28px;
 }
 
 .modal-planos-icon {
@@ -178,38 +237,53 @@
     margin: 0;
 }
 
-/* Grid de planos */
+/* ================================================================
+   STEP 1: Grid de planos
+   ================================================================ */
+
 .planos-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 16px;
 }
 
-/* Card base */
 .plano-card {
     background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
+    border: 2px solid rgba(255,255,255,0.08);
     border-radius: 12px;
     padding: 24px 20px 20px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 14px;
     position: relative;
-    transition: border-color 0.2s;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s, transform 0.15s;
 }
 
 .plano-card:hover {
-    border-color: rgba(255,255,255,0.16);
+    border-color: rgba(59, 130, 246, 0.4);
+    background: rgba(59, 130, 246, 0.05);
+    transform: translateY(-2px);
 }
 
-/* Card destaque (anual) */
+.plano-card.plano-selecionado {
+    border-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.1);
+}
+
 .plano-destaque {
-    background: rgba(99, 102, 241, 0.1);
-    border-color: rgba(99, 102, 241, 0.4);
+    background: rgba(99, 102, 241, 0.08);
+    border-color: rgba(99, 102, 241, 0.35);
 }
 
 .plano-destaque:hover {
-    border-color: rgba(99, 102, 241, 0.65);
+    border-color: rgba(99, 102, 241, 0.6);
+    background: rgba(99, 102, 241, 0.12);
+}
+
+.plano-destaque.plano-selecionado {
+    border-color: #6366f1;
+    background: rgba(99, 102, 241, 0.18);
 }
 
 .plano-badge {
@@ -262,10 +336,9 @@
     border-radius: 4px;
     padding: 3px 8px;
     display: inline-block;
-    margin-top: -8px;
+    margin-top: -6px;
 }
 
-/* Features */
 .plano-features {
     list-style: none;
     padding: 0;
@@ -290,62 +363,11 @@
     flex-shrink: 0;
 }
 
-/* Pagamentos */
-.plano-pagamentos {
-    border-top: 1px solid rgba(255,255,255,0.06);
-    padding-top: 14px;
-}
-
-.pagamento-label {
-    font-size: 10px;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    display: block;
-    margin-bottom: 8px;
-}
-
-.pagamento-opcoes {
-    display: flex;
-    gap: 8px;
-}
-
-.btn-pagamento {
-    flex: 1;
-    padding: 9px 8px;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 8px;
-    color: #e2e8f0;
+.plano-selecionar-hint {
     font-size: 11px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    transition: background 0.15s, border-color 0.15s;
-}
-
-.btn-pagamento:hover {
-    background: rgba(59, 130, 246, 0.2);
-    border-color: rgba(59, 130, 246, 0.4);
-    color: #93c5fd;
-}
-
-.btn-pagamento-full {
-    flex: 1;
-}
-
-.plano-destaque .btn-pagamento {
-    background: rgba(99, 102, 241, 0.15);
-    border-color: rgba(99, 102, 241, 0.3);
-}
-
-.plano-destaque .btn-pagamento:hover {
-    background: rgba(99, 102, 241, 0.3);
-    border-color: rgba(99, 102, 241, 0.6);
-    color: #a5b4fc;
+    color: #475569;
+    text-align: center;
+    margin-top: 4px;
 }
 
 /* Rodapé */
@@ -356,6 +378,275 @@
     margin: 20px 0 0;
 }
 
+/* ================================================================
+   STEP 2: Forma de pagamento
+   ================================================================ */
+
+.step-plano-resumo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 20px;
+    font-size: 13px;
+}
+
+.resumo-label {
+    color: #64748b;
+}
+
+.resumo-valor {
+    color: #93c5fd;
+    font-weight: 600;
+}
+
+/* Lista de opções (radio customizado) */
+.pagamento-opcoes-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.pagamento-opcao {
+    cursor: pointer;
+    display: block;
+}
+
+.pagamento-opcao input[type="radio"] {
+    display: none;
+}
+
+.pagamento-opcao-inner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border: 2px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.pagamento-opcao:hover .pagamento-opcao-inner {
+    border-color: rgba(255,255,255,0.16);
+    background: rgba(255,255,255,0.06);
+}
+
+.pagamento-opcao input:checked + .pagamento-opcao-inner {
+    border-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.08);
+}
+
+.pagamento-opcao-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.cartao-icon {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+}
+
+.pix-icon {
+    background: rgba(52, 211, 153, 0.15);
+    color: #34d399;
+}
+
+.debito-icon {
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+}
+
+.pagamento-opcao-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.pagamento-opcao-nome {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f1f5f9;
+}
+
+.pagamento-opcao-desc {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.pagamento-opcao-check {
+    font-size: 18px;
+    color: rgba(255,255,255,0.12);
+    transition: color 0.2s;
+}
+
+.pagamento-opcao input:checked + .pagamento-opcao-inner .pagamento-opcao-check {
+    color: #3b82f6;
+}
+
+/* Botões de ação */
+.step-pagamento-acoes {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.btn-voltar-step {
+    padding: 11px 20px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.btn-voltar-step:hover {
+    background: rgba(255,255,255,0.09);
+    color: #f1f5f9;
+}
+
+.btn-continuar-step {
+    flex: 1;
+    padding: 11px 20px;
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: opacity 0.2s;
+}
+
+.btn-continuar-step:hover {
+    opacity: 0.9;
+}
+
+.btn-continuar-step:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ================================================================
+   PIX: QR Code display
+   ================================================================ */
+
+.pix-qr-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 16px;
+}
+
+.pix-qr-container img {
+    width: 180px;
+    height: 180px;
+    border-radius: 12px;
+    background: #fff;
+    padding: 8px;
+}
+
+.pix-codigo-wrap {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.pix-codigo-wrap input {
+    flex: 1;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    color: #cbd5e1;
+    font-size: 11px;
+    font-family: monospace;
+    outline: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.btn-copiar-pix {
+    padding: 10px 16px;
+    background: rgba(52, 211, 153, 0.15);
+    border: 1px solid rgba(52, 211, 153, 0.3);
+    border-radius: 8px;
+    color: #34d399;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+}
+
+.btn-copiar-pix:hover {
+    background: rgba(52, 211, 153, 0.25);
+}
+
+.pix-instrucao {
+    font-size: 12px;
+    color: #64748b;
+    text-align: center;
+    margin: 0 0 6px;
+}
+
+.pix-instrucao strong {
+    color: #94a3b8;
+}
+
+.pix-validade {
+    font-size: 11px;
+    color: #475569;
+    text-align: center;
+    margin: 0 0 14px;
+}
+
+.btn-ja-paguei {
+    width: 100%;
+    padding: 10px;
+    background: rgba(74, 222, 128, 0.1);
+    border: 1px solid rgba(74, 222, 128, 0.25);
+    border-radius: 8px;
+    color: #4ade80;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background 0.15s;
+}
+
+.btn-ja-paguei:hover {
+    background: rgba(74, 222, 128, 0.18);
+}
+
+/* ================================================================
+   Responsivo
+   ================================================================ */
+
 @media (max-width: 600px) {
     .planos-grid {
         grid-template-columns: 1fr;
@@ -363,5 +654,10 @@
 
     .modal-planos-content {
         padding: 32px 20px 24px;
+    }
+
+    .pix-qr-container img {
+        width: 150px;
+        height: 150px;
     }
 }

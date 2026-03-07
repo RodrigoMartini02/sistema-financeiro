@@ -2977,10 +2977,23 @@
     </div>
 </div>
 
+<!-- Overlay de Bloqueio -->
+<div id="overlay-bloqueio" class="overlay-bloqueio" style="display:none">
+    <div class="bloqueio-content">
+        <div class="bloqueio-icon"><i class="fas fa-lock"></i></div>
+        <h2>Acesso bloqueado</h2>
+        <p id="bloqueio-mensagem">Seu período de acesso expirou. Assine um plano para continuar.</p>
+        <button class="btn-upgrade bloqueio-btn" onclick="abrirModalPlanos()">
+            <i class="fas fa-bolt"></i>
+            <span>Ver planos e assinar</span>
+        </button>
+    </div>
+</div>
+
 <!-- Modal de Planos -->
 <div id="modal-planos" class="modal-planos-overlay" style="display:none" onclick="fecharModalPlanosOverlay(event)">
     <div class="modal-planos-content">
-        <button class="modal-planos-close" onclick="fecharModalPlanos()"><i class="fas fa-times"></i></button>
+        <button class="modal-planos-close" id="modal-planos-close-btn" onclick="fecharModalPlanos()"><i class="fas fa-times"></i></button>
 
         <div class="modal-planos-header">
             <div class="modal-planos-icon"><i class="fas fa-bolt"></i></div>
@@ -2988,62 +3001,115 @@
             <p>Controle financeiro completo, sem limites</p>
         </div>
 
-        <div class="planos-grid">
-            <!-- Plano Mensal -->
-            <div class="plano-card" id="plano-mensal-card">
-                <div class="plano-nome">Mensal</div>
-                <div class="plano-preco">
-                    <span class="plano-preco-valor">R$ 79,90</span>
-                    <span class="plano-preco-periodo">/mês</span>
-                </div>
-                <ul class="plano-features">
-                    <li><i class="fas fa-check"></i> Meses e receitas ilimitados</li>
-                    <li><i class="fas fa-check"></i> Dashboard completo</li>
-                    <li><i class="fas fa-check"></i> Relatórios e gráficos</li>
-                    <li><i class="fas fa-check"></i> Reservas financeiras</li>
-                    <li><i class="fas fa-check"></i> Suporte por e-mail</li>
-                </ul>
-                <div class="plano-pagamentos">
-                    <span class="pagamento-label">Pagar com:</span>
-                    <div class="pagamento-opcoes">
-                        <button class="btn-pagamento" onclick="assinar('mensal','pix')">
-                            <i class="fas fa-qrcode"></i> PIX
-                        </button>
-                        <button class="btn-pagamento" onclick="assinar('mensal','cartao')">
-                            <i class="fas fa-credit-card"></i> Cartão
-                        </button>
+        <!-- Step 1: Escolha do Plano -->
+        <div id="step-plano">
+            <div class="planos-grid">
+                <div class="plano-card" id="card-mensal" onclick="selecionarPlano('mensal')">
+                    <div class="plano-nome">Mensal</div>
+                    <div class="plano-preco">
+                        <span class="plano-preco-valor">R$ 79,90</span>
+                        <span class="plano-preco-periodo">/mês</span>
                     </div>
+                    <ul class="plano-features">
+                        <li><i class="fas fa-check"></i> Meses e receitas ilimitados</li>
+                        <li><i class="fas fa-check"></i> Dashboard completo</li>
+                        <li><i class="fas fa-check"></i> Relatórios e gráficos</li>
+                        <li><i class="fas fa-check"></i> Reservas financeiras</li>
+                        <li><i class="fas fa-check"></i> Suporte por e-mail</li>
+                    </ul>
+                    <div class="plano-selecionar-hint">Clique para selecionar</div>
                 </div>
-            </div>
 
-            <!-- Plano Anual -->
-            <div class="plano-card plano-destaque" id="plano-anual-card">
-                <div class="plano-badge">Mais popular</div>
-                <div class="plano-nome">Anual</div>
-                <div class="plano-preco">
-                    <span class="plano-preco-valor">R$ 639,90</span>
-                    <span class="plano-preco-periodo">/ano</span>
-                </div>
-                <div class="plano-economia">R$ 53,33/mês · economize 33%</div>
-                <ul class="plano-features">
-                    <li><i class="fas fa-check"></i> Tudo do plano mensal</li>
-                    <li><i class="fas fa-check"></i> 2 meses grátis</li>
-                    <li><i class="fas fa-check"></i> Prioridade no suporte</li>
-                    <li><i class="fas fa-check"></i> Novidades antecipadas</li>
-                    <li><i class="fas fa-check"></i> Backup automático</li>
-                </ul>
-                <div class="plano-pagamentos">
-                    <span class="pagamento-label">Pagar com:</span>
-                    <div class="pagamento-opcoes">
-                        <button class="btn-pagamento btn-pagamento-full" onclick="assinar('anual','cartao')">
-                            <i class="fas fa-credit-card"></i> Cartão de crédito
-                        </button>
+                <div class="plano-card plano-destaque" id="card-anual" onclick="selecionarPlano('anual')">
+                    <div class="plano-badge">Mais popular</div>
+                    <div class="plano-nome">Anual</div>
+                    <div class="plano-preco">
+                        <span class="plano-preco-valor">R$ 639,90</span>
+                        <span class="plano-preco-periodo">/ano</span>
                     </div>
+                    <div class="plano-economia">R$ 53,33/mês · economize 33%</div>
+                    <ul class="plano-features">
+                        <li><i class="fas fa-check"></i> Tudo do plano mensal</li>
+                        <li><i class="fas fa-check"></i> 2 meses grátis</li>
+                        <li><i class="fas fa-check"></i> Prioridade no suporte</li>
+                        <li><i class="fas fa-check"></i> Novidades antecipadas</li>
+                        <li><i class="fas fa-check"></i> Backup automático</li>
+                    </ul>
+                    <div class="plano-selecionar-hint">Clique para selecionar</div>
                 </div>
             </div>
+            <p class="modal-planos-rodape">Cancele quando quiser · Sem taxa de cancelamento</p>
         </div>
 
-        <p class="modal-planos-rodape">Cancele quando quiser · Sem taxa de cancelamento</p>
+        <!-- Step 2: Forma de Pagamento -->
+        <div id="step-pagamento" style="display:none">
+            <div class="step-plano-resumo" id="step-plano-resumo"></div>
+
+            <div class="pagamento-opcoes-lista">
+                <label class="pagamento-opcao">
+                    <input type="radio" name="forma-pgto" value="cartao" checked>
+                    <div class="pagamento-opcao-inner">
+                        <div class="pagamento-opcao-icon cartao-icon"><i class="fas fa-credit-card"></i></div>
+                        <div class="pagamento-opcao-info">
+                            <span class="pagamento-opcao-nome">Cartão de Crédito</span>
+                            <span class="pagamento-opcao-desc">Parcele em até 12x</span>
+                        </div>
+                        <div class="pagamento-opcao-check"><i class="fas fa-check-circle"></i></div>
+                    </div>
+                </label>
+
+                <label class="pagamento-opcao">
+                    <input type="radio" name="forma-pgto" value="pix">
+                    <div class="pagamento-opcao-inner">
+                        <div class="pagamento-opcao-icon pix-icon"><i class="fas fa-qrcode"></i></div>
+                        <div class="pagamento-opcao-info">
+                            <span class="pagamento-opcao-nome">PIX</span>
+                            <span class="pagamento-opcao-desc">QR Code gerado na hora · Aprovação imediata</span>
+                        </div>
+                        <div class="pagamento-opcao-check"><i class="fas fa-check-circle"></i></div>
+                    </div>
+                </label>
+
+                <label class="pagamento-opcao">
+                    <input type="radio" name="forma-pgto" value="debito">
+                    <div class="pagamento-opcao-inner">
+                        <div class="pagamento-opcao-icon debito-icon"><i class="fas fa-university"></i></div>
+                        <div class="pagamento-opcao-info">
+                            <span class="pagamento-opcao-nome">Débito</span>
+                            <span class="pagamento-opcao-desc">Desconto direto na conta</span>
+                        </div>
+                        <div class="pagamento-opcao-check"><i class="fas fa-check-circle"></i></div>
+                    </div>
+                </label>
+            </div>
+
+            <!-- PIX: QR Code (aparece após confirmar) -->
+            <div id="pix-display" style="display:none">
+                <div class="pix-qr-container">
+                    <img id="pix-qrcode-img" src="" alt="QR Code PIX">
+                </div>
+                <div class="pix-codigo-wrap">
+                    <input id="pix-codigo-input" type="text" readonly placeholder="Carregando código PIX...">
+                    <button onclick="copiarPix()" class="btn-copiar-pix">
+                        <i class="fas fa-copy"></i> Copiar
+                    </button>
+                </div>
+                <p class="pix-instrucao">Abra o app do seu banco, escolha <strong>PIX</strong> e escaneie ou cole o código acima.</p>
+                <p class="pix-validade" id="pix-validade">PIX válido por 30 minutos</p>
+                <button class="btn-ja-paguei" onclick="verificarPagamentoPix()">
+                    <i class="fas fa-check"></i> Já paguei
+                </button>
+            </div>
+
+            <div class="step-pagamento-acoes" id="step-pagamento-acoes">
+                <button class="btn-voltar-step" onclick="voltarStepPlano()">
+                    <i class="fas fa-arrow-left"></i> Voltar
+                </button>
+                <button class="btn-continuar-step" id="btn-confirmar-pgto" onclick="confirmarPagamento()">
+                    Continuar <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
