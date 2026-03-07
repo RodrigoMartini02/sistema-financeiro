@@ -1,229 +1,182 @@
-import express from "express";
-import cors from "cors";
-import mercadopago from "mercadopago";
-import dotenv from "dotenv";
+const express = require('express');
+const router = express.Router();
+const { query } = require('../config/database');
+const { authMiddleware } = require('../middleware/auth');
+const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
 
-dotenv.config();
-
-const app = express();
-
-app.use(cors());
-app.use(express.json());
-
-/* =========================================================
-CONFIG MERCADO PAGO
-========================================================= */
-
-mercadopago.configure({
-    access_token: process.env.MP_ACCESS_TOKEN
+// Configuração do Mercado Pago com suas credenciais do Render
+const client = new MercadoPagoConfig({ 
+    accessToken: process.env.MP_ACCESS_TOKEN 
 });
 
-/* =========================================================
-PLANOS
-========================================================= */
+const TRIAL_DIAS = 15;
 
-const PLANOS = {
-    mensal: {
-        titulo: "Plano Mensal",
-        valor: 79.90
-    },
-    anual: {
-        titulo: "Plano Anual",
-        valor: 639.90
-    }
-};
-
-/* =========================================================
-CRIAR PAGAMENTO
-POST /api/planos/assinar
-========================================================= */
-
-app.post("/api/planos/assinar", async (req, res) => {
-
+// ================================================================
+// GET /api/planos/status — retorna status do plano do usuário
+// ================================================================
+router.get('/status', authMiddleware, async (req, res) => {
     try {
+        const result = await query(
+            `SELECT data_cadastro, plano_status, plano_tipo, plano_expiracao
+             FROM usuarios WHERE id = $1`,
+            [req.usuario.id]
+        );
 
-        const { tipo, forma_pagamento } = req.body;
-
-        const plano = PLANOS[tipo];
-
-        if (!plano) {
-            return res.json({
-                success: false,
-                message: "Plano inválido"
-            });
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
         }
 
-        /* ========================================
-        PAGAMENTO PIX
-        ======================================== */
+        const usuario = result.rows[0];
+        const agora = new Date();
+        const dataCadastro = new Date(usuario.data_cadastro);
+        const diasDecorridos = Math.floor((agora - dataCadastro) / (1000 * 60 * 60 * 24));
+        const diasRestantesTrial = Math.max(0, TRIAL_DIAS - diasDecorridos);
 
-        if (forma_pagamento === "pix") {
+        let status = usuario.plano_status || 'trial';
 
-            const payment = await mercadopago.payment.create({
-                transaction_amount: plano.valor,
-                description: plano.titulo,
-                payment_method_id: "pix",
-                payer: {
-                    email: "cliente@email.com"
-                }
-            });
-
-            return res.json({
-                success: true,
-                data: {
-                    qr_code: payment.body.point_of_interaction.transaction_data.qr_code,
-                    qr_code_base64: payment.body.point_of_interaction.transaction_data.qr_code_base64
-                }
-            });
+        // Lógica de expiração automática (Trial)
+        if (status === 'trial' && diasDecorridos >= TRIAL_DIAS) {
+            status = 'expirado';
+            await query(`UPDATE usuarios SET plano_status = 'expirado' WHERE id = $1`, [req.usuario.id]);
         }
 
-        /* ========================================
-        CHECKOUT CARTÃO
-        ======================================== */
-
-        if (forma_pagamento === "cartao") {
-
-            const preference = await mercadopago.preferences.create({
-
-                items: [
-                    {
-                        title: plano.titulo,
-                        unit_price: plano.valor,
-                        quantity: 1
-                    }
-                ],
-
-                back_urls: {
-                    success: "https://seusite.com/pagamento/sucesso",
-                    failure: "https://seusite.com/pagamento/erro",
-                    pending: "https://seusite.com/pagamento/pendente"
-                },
-
-                auto_return: "approved",
-
-                notification_url: process.env.WEBHOOK_URL
-            });
-
-            return res.json({
-                success: true,
-                data: {
-                    payment_url: preference.body.init_point
-                }
-            });
+        // Lógica de expiração automática (Plano Ativo)
+        if (status === 'ativo' && usuario.plano_expiracao) {
+            if (new Date(usuario.plano_expiracao) < agora) {
+                status = 'expirado';
+                await query(`UPDATE usuarios SET plano_status = 'expirado' WHERE id = $1`, [req.usuario.id]);
+            }
         }
-
-        return res.json({
-            success: false,
-            message: "Forma de pagamento inválida"
-        });
-
-    } catch (error) {
-
-        console.error(error);
-
-        res.json({
-            success: false,
-            message: "Erro ao criar pagamento"
-        });
-    }
-});
-
-
-/* =========================================================
-ASSINATURA AUTOMÁTICA (SaaS)
-========================================================= */
-
-app.post("/api/planos/assinatura", async (req, res) => {
-
-    try {
-
-        const { email } = req.body;
-
-        const assinatura = await mercadopago.preapproval.create({
-
-            reason: "Sistema Financeiro - Plano Mensal",
-
-            auto_recurring: {
-                frequency: 1,
-                frequency_type: "months",
-                transaction_amount: 79.90,
-                currency_id: "BRL"
-            },
-
-            payer_email: email,
-
-            back_url: "https://seusite.com/painel",
-
-            status: "pending"
-        });
 
         res.json({
             success: true,
             data: {
-                payment_url: assinatura.body.init_point
+                status,
+                plano_tipo: usuario.plano_tipo || null,
+                plano_expiracao: usuario.plano_expiracao || null,
+                dias_restantes_trial: status === 'trial' ? diasRestantesTrial : null,
+                data_cadastro: usuario.data_cadastro
             }
         });
-
     } catch (error) {
-
-        console.error(error);
-
-        res.json({
-            success: false
-        });
+        console.error('Erro ao buscar status do plano:', error);
+        res.status(500).json({ success: false, message: 'Erro ao buscar status do plano' });
     }
-
 });
 
+// ================================================================
+// POST /api/planos/assinar — inicia assinatura via Mercado Pago
+// ================================================================
+router.post('/assinar', authMiddleware, async (req, res) => {
+    const { tipo, forma_pagamento } = req.body;
 
-/* =========================================================
-WEBHOOK MERCADO PAGO
-========================================================= */
+    if (!['mensal', 'anual'].includes(tipo)) {
+        return res.status(400).json({ success: false, message: 'Tipo de plano inválido' });
+    }
 
-app.post("/api/webhook", async (req, res) => {
+    const valor = tipo === 'mensal' ? 79.90 : 639.90;
 
     try {
+        const preference = new Preference(client);
+        
+        const body = {
+            items: [{
+                id: tipo,
+                title: `Sistema Financeiro - Plano ${tipo.toUpperCase()}`,
+                unit_price: valor,
+                quantity: 1,
+                currency_id: 'BRL'
+            }],
+            payment_methods: {
+                excluded_payment_types: forma_pagamento === 'pix' 
+                    ? [{ id: 'credit_card' }, { id: 'debit_card' }, { id: 'ticket' }] 
+                    : [{ id: 'ticket' }],
+                installments: tipo === 'anual' ? 12 : 1
+            },
+            // External Reference vincula o pagamento ao ID do usuário no banco
+            external_reference: req.usuario.id.toString(),
+            notification_url: "https://sistema-financeiro-backend-o199.onrender.com/api/planos/webhook",
+            back_urls: {
+                success: "https://seu-frontend.onrender.com/dashboard.html",
+                failure: "https://seu-frontend.onrender.com/dashboard.html"
+            },
+            auto_return: "approved",
+        };
 
-        const data = req.body;
+        const result = await preference.create({ body });
 
-        console.log("Webhook recebido:", data);
-
-        if (data.type === "payment") {
-
-            const payment = await mercadopago.payment.findById(data.data.id);
-
-            const status = payment.body.status;
-
-            console.log("Status pagamento:", status);
-
-            if (status === "approved") {
-
-                /*
-                AQUI VOCÊ ATIVA O PLANO NO BANCO
-                */
-
-                console.log("Pagamento aprovado ✔");
+        res.json({
+            success: true,
+            data: { 
+                payment_url: result.init_point 
             }
-        }
-
-        res.sendStatus(200);
+        });
 
     } catch (error) {
+        console.error('Erro Mercado Pago:', error);
+        res.status(500).json({ success: false, message: 'Erro ao gerar link de pagamento' });
+    }
+});
 
-        console.error("Erro webhook", error);
+// ================================================================
+// POST /api/planos/webhook — callback do Mercado Pago após pagamento
+// ================================================================
+router.post('/webhook', async (req, res) => {
+    const { action, data } = req.body;
 
-        res.sendStatus(500);
+    // Processa apenas notificações de pagamento concluído
+    if (action === "payment.created" || action === "payment.updated" || req.query.type === 'payment') {
+        const paymentId = data?.id || req.query['data.id'];
+
+        try {
+            const payment = new Payment(client);
+            const pdt = await payment.get({ id: paymentId });
+
+            if (pdt.status === 'approved') {
+                const usuarioId = pdt.external_reference;
+                const tipoPlano = pdt.additional_info.items[0].id; // 'mensal' ou 'anual'
+                
+                const diasAdicionais = tipoPlano === 'anual' ? 365 : 30;
+                const expiracao = new Date();
+                expiracao.setDate(expiracao.getDate() + diasAdicionais);
+
+                await query(
+                    `UPDATE usuarios 
+                     SET plano_status = 'ativo', plano_tipo = $1, plano_expiracao = $2 
+                     WHERE id = $3`,
+                    [tipoPlano, expiracao, usuarioId]
+                );
+                
+                console.log(`Plano ${tipoPlano} ativado para usuário ${usuarioId}`);
+            }
+        } catch (err) {
+            console.error('Erro ao processar webhook:', err);
+        }
     }
 
+    // Mercado Pago exige retorno 200 rápido
+    res.sendStatus(200);
 });
 
+// ================================================================
+// POST /api/planos/ativar — ativação manual (admin/teste)
+// ================================================================
+router.post('/ativar', authMiddleware, async (req, res) => {
+    const { tipo, dias } = req.body;
 
-/* =========================================================
-SERVER
-========================================================= */
+    if (!['mensal', 'anual'].includes(tipo)) {
+        return res.status(400).json({ success: false, message: 'Tipo inválido' });
+    }
 
-const PORT = process.env.PORT || 3000;
+    const expiracao = new Date();
+    expiracao.setDate(expiracao.getDate() + (dias || (tipo === 'anual' ? 365 : 30)));
 
-app.listen(PORT, () => {
-    console.log("Servidor rodando na porta", PORT);
+    await query(
+        `UPDATE usuarios SET plano_status = 'ativo', plano_tipo = $1, plano_expiracao = $2 WHERE id = $3`,
+        [tipo, expiracao, req.usuario.id]
+    );
+
+    res.json({ success: true, message: 'Plano ativado manualmente', expiracao });
 });
+
+module.exports = router;
