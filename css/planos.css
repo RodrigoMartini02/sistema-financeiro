@@ -164,9 +164,9 @@
     background: #0f172a;
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 16px;
-    padding: 40px 36px 32px;
+    padding: 28px 24px 24px;
     width: 100%;
-    max-width: 680px;
+    max-width: 460px;
     position: relative;
     animation: slideUp 0.25s ease;
     color: #f1f5f9;
@@ -208,7 +208,7 @@
 /* Header */
 .modal-planos-header {
     text-align: center;
-    margin-bottom: 28px;
+    margin-bottom: 20px;
 }
 
 .modal-planos-icon {
@@ -243,18 +243,19 @@
 
 .planos-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    grid-template-columns: 1fr;
+    gap: 12px;
 }
 
 .plano-card {
     background: rgba(255,255,255,0.04);
     border: 2px solid rgba(255,255,255,0.08);
-    border-radius: 12px;
-    padding: 24px 20px 20px;
+    border-radius: 10px;
+    padding: 16px 18px;
     display: flex;
-    flex-direction: column;
-    gap: 14px;
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
     position: relative;
     cursor: pointer;
     transition: border-color 0.2s, background 0.2s, transform 0.15s;
@@ -343,10 +344,7 @@
     list-style: none;
     padding: 0;
     margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-    flex: 1;
+    display: none;
 }
 
 .plano-features li {
@@ -366,8 +364,12 @@
 .plano-selecionar-hint {
     font-size: 11px;
     color: #475569;
-    text-align: center;
-    margin-top: 4px;
+    margin-left: auto;
+    white-space: nowrap;
+}
+
+.plano-card .plano-preco {
+    margin-left: auto;
 }
 
 /* Rodapé */
@@ -641,6 +643,26 @@
 
 .btn-ja-paguei:hover {
     background: rgba(74, 222, 128, 0.18);
+}
+
+.btn-trocar-pgto {
+    width: 100%;
+    padding: 8px;
+    background: none;
+    border: none;
+    color: #475569;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 6px;
+    transition: color 0.15s;
+}
+
+.btn-trocar-pgto:hover {
+    color: #94a3b8;
 }
 
 /* ================================================================

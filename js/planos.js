@@ -263,6 +263,8 @@ function mostrarPixDisplay(dados) {
     document.getElementById('pix-codigo-input').value = dados.qr_code;
     document.getElementById('pix-display').style.display = 'block';
     document.getElementById('step-pagamento-acoes').style.display = 'none';
+    document.querySelector('.pagamento-opcoes-lista').style.display = 'none';
+    document.getElementById('step-plano-resumo').style.display = 'none';
 
     // Contagem regressiva de 30 minutos
     iniciarContagemPix(30 * 60);
@@ -285,6 +287,23 @@ function iniciarContagemPix(segundos) {
         }
     }, 1000);
 }
+
+window.trocarFormaPagamento = function() {
+    pixPaymentId = null;
+
+    document.getElementById('pix-display').style.display = 'none';
+    document.querySelector('.pagamento-opcoes-lista').style.display = 'flex';
+    document.getElementById('step-pagamento-acoes').style.display = 'flex';
+    document.getElementById('step-plano-resumo').style.display = 'flex';
+
+    // Reset radio para cartão
+    document.querySelector('input[name="forma-pgto"][value="cartao"]').checked = true;
+
+    // Reset botão confirmar
+    const btn = document.getElementById('btn-confirmar-pgto');
+    btn.disabled = false;
+    btn.innerHTML = 'Continuar <i class="fas fa-arrow-right"></i>';
+};
 
 window.copiarPix = function() {
     const codigo = document.getElementById('pix-codigo-input').value;
