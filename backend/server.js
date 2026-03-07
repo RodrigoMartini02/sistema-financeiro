@@ -191,6 +191,8 @@ async function criarEstruturaBanco() {
                 UNIQUE(usuario_id, nome)
             );
         `);
+        await query(`ALTER TABLE categorias ADD COLUMN IF NOT EXISTS forma_favorita VARCHAR(20) DEFAULT NULL;`);
+        await query(`ALTER TABLE categorias ADD COLUMN IF NOT EXISTS cartao_favorito_id INTEGER DEFAULT NULL REFERENCES cartoes(id) ON DELETE SET NULL;`);
         console.log('✅ Tabela categorias verificada/criada!');
 
         // ✅ FUNÇÃO criar_categorias_padrao
@@ -233,6 +235,7 @@ async function criarEstruturaBanco() {
         await query(`ALTER TABLE cartoes ADD COLUMN IF NOT EXISTS numero_cartao INTEGER DEFAULT NULL;`);
         await query(`ALTER TABLE cartoes ADD COLUMN IF NOT EXISTS bandeira VARCHAR(20) DEFAULT NULL;`);
         await query(`ALTER TABLE cartoes ADD COLUMN IF NOT EXISTS ultimos_digitos VARCHAR(4) DEFAULT NULL;`);
+        await query(`ALTER TABLE cartoes ADD COLUMN IF NOT EXISTS validade VARCHAR(7) DEFAULT NULL;`);
         console.log('✅ Tabela cartoes verificada/criada!');
 
         // ✅ TABELA RECEITAS

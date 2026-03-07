@@ -32,11 +32,15 @@ router.get('/', authMiddleware, async (req, res) => {
                 c.nome,
                 c.cor,
                 c.icone,
+                c.forma_favorita,
+                c.cartao_favorito_id,
+                ct.nome as cartao_favorito_nome,
                 c.data_criacao,
                 c.data_atualizacao,
                 u.nome as usuario_nome
             FROM categorias c
             LEFT JOIN usuarios u ON c.usuario_id = u.id
+            LEFT JOIN cartoes ct ON c.cartao_favorito_id = ct.id
             WHERE c.usuario_id = $1
             ORDER BY c.nome ASC
         `;
@@ -398,6 +402,43 @@ router.post('/padrao', authMiddleware, async (req, res) => {
             message: 'Erro ao criar categorias padrão',
             error: error.message
         });
+    }
+});
+
+// ================================================================
+// FAVORITO DE FORMA DE PAGAMENTO POR CATEGORIA
+// ================================================================
+router.put('/:id/favorito', authMiddleware, async (req, res) => {
+    try {
+        const categoriaId = parseInt(req.params.id);
+        const { forma_favorita, cartao_favorito_id } = req.body;
+
+        if (isNaN(categoriaId)) {
+            return res.status(400).json({ success: false, message: 'ID inválido' });
+        }
+
+        const existeCategoria = await query(
+            'SELECT id FROM categorias WHERE id = $1 AND usuario_id = $2',
+            [categoriaId, req.usuario.id]
+        );
+
+        if (existeCategoria.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Categoria não encontrada' });
+        }
+
+        const result = await query(
+            `UPDATE categorias
+             SET forma_favorita = $1, cartao_favorito_id = $2, data_atualizacao = CURRENT_TIMESTAMP
+             WHERE id = $3 AND usuario_id = $4
+             RETURNING id, nome, forma_favorita, cartao_favorito_id`,
+            [forma_favorita || null, cartao_favorito_id || null, categoriaId, req.usuario.id]
+        );
+
+        res.json({ success: true, message: 'Favorito salvo', data: result.rows[0] });
+
+    } catch (error) {
+        console.error('Erro ao salvar favorito:', error);
+        res.status(500).json({ success: false, message: 'Erro interno do servidor', error: error.message });
     }
 });
 

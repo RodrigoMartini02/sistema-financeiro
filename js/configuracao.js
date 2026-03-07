@@ -44,12 +44,20 @@ function formatarDocumento(input) {
 
 function formatarValidade(input) {
     let validade = input.value.replace(/\D/g, '');
-    
+
     if (validade.length >= 2) {
         validade = validade.replace(/(\d{2})(\d{0,4})/, '$1/$2');
     }
-    
+
     input.value = validade;
+}
+
+function formatarValidadeCartao(input) {
+    let v = input.value.replace(/\D/g, '');
+    if (v.length >= 2) {
+        v = v.substring(0, 2) + '/' + v.substring(2, 6);
+    }
+    input.value = v;
 }
 
 function validarCPF(cpf) {
@@ -326,6 +334,7 @@ async function atualizarListaCategorias() {
         const tdNome = linha.querySelector('.categoria-nome');
         const tdDataCriacao = linha.querySelector('.categoria-data-criacao');
         const tdDataEdicao = linha.querySelector('.categoria-data-edicao');
+        const tdFavorito = linha.querySelector('.categoria-favorito');
         const btnEditar = linha.querySelector('.btn-editar-categoria');
         const btnRemover = linha.querySelector('.btn-remover-categoria');
 
@@ -342,6 +351,17 @@ async function atualizarListaCategorias() {
         if (tdDataEdicao) {
             const dataEdicao = categoria.data_atualizacao ? new Date(categoria.data_atualizacao) : new Date();
             tdDataEdicao.textContent = dataEdicao.toLocaleDateString('pt-BR');
+        }
+
+        // Favorito
+        if (tdFavorito) {
+            let favLabel = '-';
+            if (categoria.forma_favorita === 'pix') favLabel = '<span class="badge-favorito-pix">PIX</span>';
+            else if (categoria.forma_favorita === 'debito') favLabel = '<span class="badge-favorito-debito">DÉBITO</span>';
+            else if (categoria.forma_favorita === 'dinheiro') favLabel = '<span class="badge-favorito-dinheiro">DINHEIRO</span>';
+            else if (categoria.forma_favorita === 'credito' && categoria.cartao_favorito_nome) favLabel = `<span class="badge-favorito-credito"><i class="fas fa-credit-card"></i> ${categoria.cartao_favorito_nome}</span>`;
+            else if (categoria.forma_favorita === 'credito') favLabel = '<span class="badge-favorito-credito"><i class="fas fa-credit-card"></i> Crédito</span>';
+            tdFavorito.innerHTML = favLabel;
         }
 
         // Configurar botões
@@ -583,8 +603,7 @@ async function criarCartaoAPI(cartao) {
                 dia_vencimento: cartao.dia_vencimento,
                 limite: cartao.limite,
                 ativo: cartao.ativo !== false,
-                bandeira: cartao.bandeira || null,
-                ultimos_digitos: cartao.ultimos_digitos || null
+                validade: cartao.validade || null
             })
         });
 
@@ -625,8 +644,7 @@ async function atualizarCartaoAPI(id, cartao) {
                 dia_vencimento: cartao.dia_vencimento,
                 limite: cartao.limite,
                 ativo: cartao.ativo !== false,
-                bandeira: cartao.bandeira || null,
-                ultimos_digitos: cartao.ultimos_digitos || null
+                validade: cartao.validade || null
             })
         });
 
@@ -705,8 +723,7 @@ async function atualizarOpcoesCartoes() {
         if (!creditoOptions) return;
 
         // Limpar opções existentes
-        const container = creditoOptions.querySelector('.payment-options-grid') || creditoOptions;
-        const existingOptions = container.querySelectorAll('.cartao-option');
+        const existingOptions = creditoOptions.querySelectorAll('.cartao-chip-wrap');
         existingOptions.forEach(opt => opt.remove());
 
         // Filtrar apenas cartões ativos
@@ -714,41 +731,199 @@ async function atualizarOpcoesCartoes() {
 
         if (cartoesAtivos.length === 0) {
             creditoOptions.classList.add('hidden');
-            // Selecionar PIX por padrão se não há cartões
-            const radioPix = document.getElementById('pagamento-pix');
-            if (radioPix && !document.querySelector('input[name="forma-pagamento"]:checked')) {
-                radioPix.checked = true;
-            }
             return;
         }
 
         creditoOptions.classList.remove('hidden');
 
-        // Criar opções dinâmicas para cada cartão
-        cartoesAtivos.forEach((cartao, index) => {
-            const optionDiv = document.createElement('div');
-            optionDiv.className = 'payment-option cartao-option';
-            optionDiv.id = `cartao${cartao.id}-option`;
+        // Criar chips para cada cartão
+        cartoesAtivos.forEach((cartao) => {
+            const wrap = document.createElement('div');
+            wrap.className = 'payment-chip-wrap cartao-chip-wrap';
+            wrap.id = `cartao${cartao.id}-option`;
 
-            optionDiv.innerHTML = `
+            wrap.innerHTML = `
                 <input
                     type="radio"
                     id="pagamento-cartao${cartao.id}"
                     name="forma-pagamento"
                     value="credito"
                     data-cartao-id="${cartao.id}"
-                    onchange="validarFormaPagamento()"
+                    onchange="validarFormaPagamento(); atualizarChipSelecionado()"
                 >
-                <label for="pagamento-cartao${cartao.id}" id="label-cartao${cartao.id}">
-                    ${cartao.banco.toUpperCase()}
+                <label for="pagamento-cartao${cartao.id}" class="payment-chip" id="label-cartao${cartao.id}">
+                    <button type="button" class="chip-star" data-cartao-id="${cartao.id}" title="Favoritar para esta categoria" onclick="salvarFavoritoChip('credito', ${cartao.id}, event)">☆</button>
+                    ${(cartao.banco || cartao.nome || '').toUpperCase()}
                 </label>
             `;
 
-            container.appendChild(optionDiv);
+            creditoOptions.appendChild(wrap);
         });
+
+        atualizarChipSelecionado();
 
     } catch (error) {
         console.error('Erro ao atualizar opções de cartões:', error);
+    }
+}
+
+// Atualiza a aparência visual dos chips conforme o radio selecionado
+function atualizarChipSelecionado() {
+    document.querySelectorAll('.payment-chip-wrap input[name="forma-pagamento"]').forEach(radio => {
+        const label = radio.nextElementSibling;
+        if (label) {
+            label.classList.toggle('chip-selecionado', radio.checked);
+        }
+    });
+}
+
+// Abre o mini-modal de criação rápida de cartão
+function abrirModalCartaoRapido() {
+    const modal = document.getElementById('modal-rapido-cartao');
+    if (modal) {
+        modal.style.display = 'flex';
+        setTimeout(() => modal.classList.add('show'), 10);
+    }
+}
+
+// Fecha o mini-modal de criação rápida de cartão
+function fecharModalCartaoRapido() {
+    const modal = document.getElementById('modal-rapido-cartao');
+    if (modal) {
+        modal.classList.remove('show');
+        setTimeout(() => { modal.style.display = 'none'; }, 200);
+    }
+}
+
+// Salva cartão rápido a partir do modal de despesa
+async function salvarCartaoRapido() {
+    const banco = document.getElementById('rapido-cartao-banco')?.value.trim();
+    const validade = document.getElementById('rapido-cartao-validade')?.value.trim();
+    const limite = parseFloat(document.getElementById('rapido-cartao-limite')?.value) || 0;
+    const fechamento = parseInt(document.getElementById('rapido-cartao-fechamento')?.value) || 0;
+    const vencimento = parseInt(document.getElementById('rapido-cartao-vencimento')?.value) || 0;
+
+    if (!banco) { alert('Informe o nome do banco'); return; }
+    if (limite <= 0) { alert('Informe um limite válido'); return; }
+    if (fechamento < 1 || fechamento > 31) { alert('Dia de fechamento inválido'); return; }
+    if (vencimento < 1 || vencimento > 31) { alert('Dia de vencimento inválido'); return; }
+
+    const cartaoCriado = await criarCartaoAPI({ banco, nome: banco, validade, limite, dia_fechamento: fechamento, dia_vencimento: vencimento, ativo: true });
+
+    if (cartaoCriado) {
+        const novoCartao = {
+            id: cartaoCriado.id,
+            banco, nome: banco,
+            dia_fechamento: fechamento,
+            dia_vencimento: vencimento,
+            limite, ativo: true,
+            validade: validade || null,
+            numero_cartao: cartaoCriado.numero_cartao || (cartoesUsuario.length + 1)
+        };
+        cartoesUsuario.push(novoCartao);
+        window.cartoesUsuario = cartoesUsuario;
+        await atualizarOpcoesCartoes();
+        fecharModalCartaoRapido();
+
+        // Selecionar o novo cartão automaticamente
+        const radio = document.getElementById(`pagamento-cartao${cartaoCriado.id}`);
+        if (radio) { radio.checked = true; atualizarChipSelecionado(); }
+
+        // Limpar campos
+        document.getElementById('rapido-cartao-banco').value = '';
+        document.getElementById('rapido-cartao-validade').value = '';
+        document.getElementById('rapido-cartao-limite').value = '';
+        document.getElementById('rapido-cartao-fechamento').value = '';
+        document.getElementById('rapido-cartao-vencimento').value = '';
+    } else {
+        alert('Erro ao criar cartão. Tente novamente.');
+    }
+}
+
+// Salva o favorito de uma forma de pagamento para a categoria selecionada (via estrela no chip)
+async function salvarFavoritoChip(forma, cartaoId, event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const categoriaSelect = document.getElementById('despesa-categoria');
+    if (!categoriaSelect || !categoriaSelect.value) {
+        alert('Selecione uma categoria primeiro para definir o favorito');
+        return;
+    }
+
+    const categoriaId = categoriaSelect.value;
+    await salvarFavoritoCategoria(categoriaId, forma, cartaoId);
+    await atualizarEstrelasFavorito();
+}
+
+// Salva favorito para forma simples (pix, debito, dinheiro)
+async function salvarFavoritoForma(forma, event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const categoriaSelect = document.getElementById('despesa-categoria');
+    if (!categoriaSelect || !categoriaSelect.value) {
+        alert('Selecione uma categoria primeiro para definir o favorito');
+        return;
+    }
+
+    const categoriaId = categoriaSelect.value;
+    await salvarFavoritoCategoria(categoriaId, forma, null);
+    await atualizarEstrelasFavorito();
+}
+
+// Salva o favorito de forma/cartão para uma categoria via API
+async function salvarFavoritoCategoria(categoriaId, forma, cartaoId) {
+    const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+    const token = sessionStorage.getItem('token');
+    try {
+        await fetch(`${API_URL}/categorias/${categoriaId}/favorito`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ forma_favorita: forma, cartao_favorito_id: cartaoId || null })
+        });
+    } catch (e) {
+        console.error('Erro ao salvar favorito:', e);
+    }
+}
+
+// Atualiza as estrelas dos chips com base na categoria selecionada
+async function atualizarEstrelasFavorito() {
+    const categoriaSelect = document.getElementById('despesa-categoria');
+    if (!categoriaSelect || !categoriaSelect.value) {
+        document.querySelectorAll('.chip-star').forEach(s => { s.textContent = '☆'; s.classList.remove('chip-star-ativo'); });
+        document.querySelectorAll('.payment-chip').forEach(c => c.classList.remove('chip-favorito'));
+        return;
+    }
+
+    const categoriaId = categoriaSelect.value;
+    const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+    const token = sessionStorage.getItem('token');
+
+    try {
+        const res = await fetch(`${API_URL}/categorias/${categoriaId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        const cat = data.data || {};
+        const formaFav = cat.forma_favorita;
+        const cartaoFavId = cat.cartao_favorito_id;
+
+        // Resetar todas as estrelas
+        document.querySelectorAll('.chip-star').forEach(s => { s.textContent = '☆'; s.classList.remove('chip-star-ativo'); });
+        document.querySelectorAll('.payment-chip').forEach(c => c.classList.remove('chip-favorito'));
+
+        if (!formaFav) return;
+
+        if (formaFav === 'credito' && cartaoFavId) {
+            const star = document.querySelector(`.chip-star[data-cartao-id="${cartaoFavId}"]`);
+            if (star) { star.textContent = '★'; star.classList.add('chip-star-ativo'); star.closest('.payment-chip')?.classList.add('chip-favorito'); }
+        } else {
+            const star = document.querySelector(`.chip-star-forma[data-forma="${formaFav}"]`);
+            if (star) { star.textContent = '★'; star.classList.add('chip-star-ativo'); star.closest('.payment-chip')?.classList.add('chip-favorito'); }
+        }
+    } catch (e) {
+        console.error('Erro ao buscar favorito:', e);
     }
 }
 
@@ -764,7 +939,7 @@ function renderizarListaCartoes() {
     if (cartoesUsuario.length === 0) {
         listaCartoes.innerHTML = `
             <tr>
-                <td colspan="6" style="text-align: center; padding: 40px; color: #6c757d;">
+                <td colspan="8" style="text-align: center; padding: 40px; color: #6c757d;">
                     <i class="fas fa-credit-card" style="font-size: 48px; margin-bottom: 16px; opacity: 0.3;"></i>
                     <p style="margin: 0;">Nenhum cartão cadastrado. Adicione seu primeiro cartão acima.</p>
                 </td>
@@ -773,37 +948,19 @@ function renderizarListaCartoes() {
         return;
     }
 
-    const BANDEIRA_ICONS = {
-        visa: '<i class="fab fa-cc-visa" style="color:#1a1f71"></i>',
-        mastercard: '<i class="fab fa-cc-mastercard" style="color:#eb001b"></i>',
-        amex: '<i class="fab fa-cc-amex" style="color:#007bc1"></i>',
-        elo: '<span style="font-weight:700;font-size:11px;color:#ffcb05;background:#000;padding:1px 4px;border-radius:3px">ELO</span>',
-        hipercard: '<span style="font-weight:700;font-size:11px;color:#fff;background:#c0113c;padding:1px 4px;border-radius:3px">HC</span>',
-        outro: '<i class="fas fa-credit-card" style="color:#94a3b8"></i>'
-    };
-
     cartoesUsuario.forEach(cartao => {
         const tr = document.createElement('tr');
 
-        let validadeDisplay = '-';
-        if (cartao.dia_fechamento && cartao.dia_vencimento) {
-            validadeDisplay = `Fech: ${cartao.dia_fechamento} / Venc: ${cartao.dia_vencimento}`;
-        } else if (cartao.validade) {
-            validadeDisplay = cartao.validade;
-        }
-
-        const bandeiraIcon = cartao.bandeira ? (BANDEIRA_ICONS[cartao.bandeira] || BANDEIRA_ICONS.outro) : '';
-        const digitosDisplay = cartao.ultimos_digitos ? `<span class="cartao-digitos">****${cartao.ultimos_digitos}</span>` : '';
-        const bancoDisplay = `
-            <span class="cartao-banco">${cartao.banco || cartao.nome || ''}</span>
-            ${bandeiraIcon ? `<span class="cartao-bandeira-icon">${bandeiraIcon}</span>` : ''}
-            ${digitosDisplay}
-        `;
+        const validadeDisplay = cartao.validade || '-';
+        const fechamentoDisplay = cartao.dia_fechamento ? `Dia ${cartao.dia_fechamento}` : '-';
+        const vencimentoDisplay = cartao.dia_vencimento ? `Dia ${cartao.dia_vencimento}` : '-';
 
         tr.innerHTML = `
             <td><span class="cartao-id">#${cartao.id}</span></td>
-            <td>${bancoDisplay}</td>
+            <td><span class="cartao-banco">${cartao.banco || cartao.nome || ''}</span></td>
             <td><span class="cartao-validade">${validadeDisplay}</span></td>
+            <td><span class="cartao-fechamento">${fechamentoDisplay}</span></td>
+            <td><span class="cartao-vencimento">${vencimentoDisplay}</span></td>
             <td><span class="cartao-limite">R$ ${formatarValorCartao(cartao.limite)}</span></td>
             <td>
                 <span class="badge-status ${cartao.ativo ? 'ativo' : 'inativo'}">
@@ -867,8 +1024,7 @@ async function adicionarCartao() {
     const inputFechamento = document.getElementById('novo-cartao-fechamento');
     const inputVencimento = document.getElementById('novo-cartao-vencimento');
     const inputLimite = document.getElementById('novo-cartao-limite');
-    const inputBandeira = document.getElementById('novo-cartao-bandeira');
-    const inputDigitos = document.getElementById('novo-cartao-digitos');
+    const inputValidade = document.getElementById('novo-cartao-validade');
 
     if (!inputBanco || !inputFechamento || !inputVencimento || !inputLimite) return;
 
@@ -876,8 +1032,7 @@ async function adicionarCartao() {
     const diaFechamento = parseInt(inputFechamento.value) || 0;
     const diaVencimento = parseInt(inputVencimento.value) || 0;
     const limite = parseFloat(inputLimite.value) || 0;
-    const bandeira = inputBandeira ? inputBandeira.value : '';
-    const ultimos_digitos = inputDigitos ? inputDigitos.value.replace(/\D/g, '').slice(0, 4) : '';
+    const validade = inputValidade ? inputValidade.value.trim() : '';
 
     // Validações
     if (!banco) {
@@ -912,8 +1067,7 @@ async function adicionarCartao() {
         dia_vencimento: diaVencimento,
         limite: limite,
         ativo: true,
-        bandeira: bandeira || null,
-        ultimos_digitos: ultimos_digitos || null
+        validade: validade || null
     };
 
     mostrarStatusCartoes('Salvando cartão...', 'info');
@@ -931,8 +1085,7 @@ async function adicionarCartao() {
             dia_vencimento: diaVencimento,
             limite: limite,
             ativo: true,
-            bandeira: bandeira || null,
-            ultimos_digitos: ultimos_digitos || null,
+            validade: validade || null,
             numero_cartao: cartaoCriado.numero_cartao || cartoesUsuario.length + 1
         };
 
@@ -941,8 +1094,7 @@ async function adicionarCartao() {
 
         mostrarStatusCartoes('Cartão adicionado com sucesso!', 'success');
         inputBanco.value = '';
-        if (inputBandeira) inputBandeira.value = '';
-        if (inputDigitos) inputDigitos.value = '';
+        if (inputValidade) inputValidade.value = '';
         inputFechamento.value = '';
         inputVencimento.value = '';
         inputLimite.value = '';
@@ -966,8 +1118,7 @@ function abrirModalEditarCartao(id) {
     document.getElementById('cartao-edit-vencimento').value = cartao.dia_vencimento || 10;
     document.getElementById('cartao-edit-limite').value = cartao.limite;
     document.getElementById('cartao-edit-ativo').checked = cartao.ativo !== false;
-    document.getElementById('cartao-edit-bandeira').value = cartao.bandeira || '';
-    document.getElementById('cartao-edit-digitos').value = cartao.ultimos_digitos || '';
+    document.getElementById('cartao-edit-validade').value = cartao.validade || '';
 
     const modal = document.getElementById('modal-editar-cartao');
     if (modal) {
@@ -988,8 +1139,7 @@ async function salvarEdicaoCartao(e) {
     const diaVencimento = parseInt(document.getElementById('cartao-edit-vencimento').value) || 0;
     const limite = parseFloat(document.getElementById('cartao-edit-limite').value) || 0;
     const ativo = document.getElementById('cartao-edit-ativo').checked;
-    const bandeira = document.getElementById('cartao-edit-bandeira').value || null;
-    const ultimos_digitos = (document.getElementById('cartao-edit-digitos').value || '').replace(/\D/g, '').slice(0, 4) || null;
+    const validade = document.getElementById('cartao-edit-validade').value.trim() || null;
 
     if (!banco || limite <= 0) {
         mostrarStatusCartoes('Preencha todos os campos corretamente', 'error');
@@ -1016,8 +1166,7 @@ async function salvarEdicaoCartao(e) {
         dia_vencimento: diaVencimento,
         limite,
         ativo,
-        bandeira,
-        ultimos_digitos
+        validade
     };
 
     mostrarStatusCartoes('Atualizando cartão...', 'info');

@@ -40,6 +40,37 @@ document.addEventListener('change', function(e) {
 });
 
 // ================================================================
+// CHIPS DE PAGAMENTO — FAVORITO POR CATEGORIA
+// ================================================================
+
+// Busca o favorito de uma categoria e auto-seleciona o chip correspondente
+async function aplicarFavoritoCategoria(categoriaId) {
+    if (!categoriaId) return;
+    const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+    const token = sessionStorage.getItem('token');
+    try {
+        const res = await fetch(`${API_URL}/categorias/${categoriaId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        const cat = data.data || {};
+        const forma = cat.forma_favorita;
+        const cartaoId = cat.cartao_favorito_id;
+        if (!forma) return;
+
+        if (forma === 'credito' && cartaoId) {
+            const radio = document.querySelector(`input[name="forma-pagamento"][data-cartao-id="${cartaoId}"]`);
+            if (radio) { radio.checked = true; if (typeof atualizarChipSelecionado === 'function') atualizarChipSelecionado(); }
+        } else {
+            const radio = document.querySelector(`input[name="forma-pagamento"][value="${forma}"]`);
+            if (radio) { radio.checked = true; if (typeof atualizarChipSelecionado === 'function') atualizarChipSelecionado(); }
+        }
+    } catch (e) {
+        console.error('Erro ao aplicar favorito:', e);
+    }
+}
+
+// ================================================================
 // FUNÇÕES DE REPLICAÇÃO DE DESPESAS
 // ================================================================
 
@@ -2131,6 +2162,13 @@ function configurarEventosFormularioDespesa() {
         selectCategoria.addEventListener('change', function() {
             if (typeof validarCategoria === 'function') {
                 validarCategoria();
+            }
+            // Auto-selecionar favorito e atualizar estrelas
+            if (typeof aplicarFavoritoCategoria === 'function') {
+                aplicarFavoritoCategoria(this.value);
+            }
+            if (typeof atualizarEstrelasFavorito === 'function') {
+                atualizarEstrelasFavorito();
             }
         });
     }

@@ -942,6 +942,7 @@
                             <tr>
                                 <th>ID</th>
                                 <th>Nome da Categoria</th>
+                                <th>Favorito</th>
                                 <th>Data de Criação</th>
                                 <th>Última Edição</th>
                                 <th>Ações</th>
@@ -1093,7 +1094,9 @@
        <div id="cartoes-tab" class="config-tab-pane">
         <div class="form-add-cartao">
             <input type="text" id="novo-cartao-banco" placeholder="Nome do Banco" maxlength="50">
-            <select id="novo-cartao-bandeira" title="Bandeira">
+            <input type="text" id="novo-cartao-validade" placeholder="Validade (MM/AAAA)" maxlength="7" inputmode="numeric" oninput="formatarValidadeCartao(this)">
+            <!-- REMOVIDO: bandeira e ultimos_digitos -->
+            <select id="novo-cartao-bandeira" title="Bandeira" style="display:none">
                 <option value="">Bandeira</option>
                 <option value="visa">Visa</option>
                 <option value="mastercard">Mastercard</option>
@@ -1102,7 +1105,7 @@
                 <option value="amex">Amex</option>
                 <option value="outro">Outro</option>
             </select>
-            <input type="text" id="novo-cartao-digitos" placeholder="Últimos 4 dígitos" maxlength="4" pattern="\d{4}" inputmode="numeric">
+            <input type="text" id="novo-cartao-digitos" placeholder="Últimos 4 dígitos" maxlength="4" pattern="\d{4}" inputmode="numeric" style="display:none">
             <input type="number" id="novo-cartao-fechamento" placeholder="Dia Fechamento" min="1" max="31">
             <input type="number" id="novo-cartao-vencimento" placeholder="Dia Vencimento" min="1" max="31">
             <input type="number" id="novo-cartao-limite" placeholder="Limite (R$)" step="0.01" min="0">
@@ -1116,8 +1119,10 @@
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>Banco / Bandeira</th>
-                        <th>Fech/Venc</th>
+                        <th>Banco</th>
+                        <th>Validade</th>
+                        <th>Fechamento</th>
+                        <th>Vencimento</th>
                         <th>Limite</th>
                         <th>Status</th>
                         <th>Ações</th>
@@ -1242,6 +1247,50 @@
 <!-- TODOS OS MODAIS DE CONFIGURAÇÕES -->
 <!-- ================================================== -->
 
+<!-- Modal: Adicionar Cartão Rápido (no modal de despesa) -->
+<div id="modal-rapido-cartao" class="modal">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h2><i class="fas fa-credit-card"></i> Novo Cartão</h2>
+            <button type="button" class="close" onclick="fecharModalCartaoRapido()" title="Fechar">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="form-rapido-cartao">
+                <div class="form-group">
+                    <label for="rapido-cartao-banco">Nome do Banco <span class="required">*</span></label>
+                    <input type="text" id="rapido-cartao-banco" class="form-input" required maxlength="50" placeholder="Ex: Nubank, Itaú...">
+                </div>
+                <div class="form-row-cartao">
+                    <div class="form-group">
+                        <label for="rapido-cartao-validade">Validade (MM/AAAA)</label>
+                        <input type="text" id="rapido-cartao-validade" class="form-input" maxlength="7" inputmode="numeric" placeholder="MM/AAAA" oninput="formatarValidadeCartao(this)">
+                    </div>
+                    <div class="form-group">
+                        <label for="rapido-cartao-limite">Limite (R$) <span class="required">*</span></label>
+                        <input type="number" id="rapido-cartao-limite" class="form-input" step="0.01" min="0" required placeholder="0,00">
+                    </div>
+                </div>
+                <div class="form-row-cartao">
+                    <div class="form-group">
+                        <label for="rapido-cartao-fechamento">Dia Fechamento <span class="required">*</span></label>
+                        <input type="number" id="rapido-cartao-fechamento" class="form-input" min="1" max="31" required placeholder="1-31">
+                    </div>
+                    <div class="form-group">
+                        <label for="rapido-cartao-vencimento">Dia Vencimento <span class="required">*</span></label>
+                        <input type="number" id="rapido-cartao-vencimento" class="form-input" min="1" max="31" required placeholder="1-31">
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="fecharModalCartaoRapido()">Cancelar</button>
+            <button type="button" class="btn btn-primary" onclick="salvarCartaoRapido()">
+                <i class="fas fa-plus"></i> Adicionar
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Modal: Editar Categoria -->
 <div id="modal-editar-categoria" class="modal">
     <div class="modal-content modal-sm">
@@ -1300,24 +1349,10 @@
 
                 <div class="form-row-cartao">
                     <div class="form-group flex-grow">
-                        <label for="cartao-edit-bandeira">
-                            <i class="fas fa-credit-card"></i> Bandeira
+                        <label for="cartao-edit-validade">
+                            <i class="fas fa-calendar-alt"></i> Validade (MM/AAAA)
                         </label>
-                        <select id="cartao-edit-bandeira" class="form-input">
-                            <option value="">Selecionar</option>
-                            <option value="visa">Visa</option>
-                            <option value="mastercard">Mastercard</option>
-                            <option value="elo">Elo</option>
-                            <option value="hipercard">Hipercard</option>
-                            <option value="amex">Amex</option>
-                            <option value="outro">Outro</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="cartao-edit-digitos">
-                            <i class="fas fa-hashtag"></i> Últimos 4 dígitos
-                        </label>
-                        <input type="text" id="cartao-edit-digitos" class="form-input" maxlength="4" pattern="\d{4}" inputmode="numeric" placeholder="1234">
+                        <input type="text" id="cartao-edit-validade" class="form-input" maxlength="7" inputmode="numeric" placeholder="MM/AAAA" oninput="formatarValidadeCartao(this)">
                     </div>
                 </div>
 
@@ -1579,6 +1614,7 @@
     <tr class="categoria-row">
         <td class="categoria-id"></td>
         <td class="categoria-nome"></td>
+        <td class="categoria-favorito"></td>
         <td class="categoria-data-criacao"></td>
         <td class="categoria-data-edicao"></td>
         <td class="categoria-acoes">
@@ -2192,22 +2228,34 @@
 
                    <div class="form-col">
                         <label>Pagamento *</label>
-                        <div class="payment-methods">
-                            <div class="payment-option">
-                                <input type="radio" id="pagamento-pix" name="forma-pagamento" value="pix" onchange="validarFormaPagamento()">
-                                <label for="pagamento-pix">PIX</label>
+                        <div class="payment-methods payment-chips">
+                            <div class="payment-chip-wrap">
+                                <input type="radio" id="pagamento-pix" name="forma-pagamento" value="pix" onchange="validarFormaPagamento(); atualizarChipSelecionado()">
+                                <label for="pagamento-pix" class="payment-chip">
+                                    <button type="button" class="chip-star chip-star-forma" data-forma="pix" title="Favoritar PIX para esta categoria" onclick="salvarFavoritoForma('pix', event)">☆</button>
+                                    PIX
+                                </label>
                             </div>
-                            <div class="payment-option">
-                                <input type="radio" id="pagamento-debito" name="forma-pagamento" value="debito" onchange="validarFormaPagamento()">
-                                <label for="pagamento-debito">DÉBITO</label>
+                            <div class="payment-chip-wrap">
+                                <input type="radio" id="pagamento-debito" name="forma-pagamento" value="debito" onchange="validarFormaPagamento(); atualizarChipSelecionado()">
+                                <label for="pagamento-debito" class="payment-chip">
+                                    <button type="button" class="chip-star chip-star-forma" data-forma="debito" title="Favoritar Débito para esta categoria" onclick="salvarFavoritoForma('debito', event)">☆</button>
+                                    DÉBITO
+                                </label>
                             </div>
-                            <div class="payment-option">
-                                <input type="radio" id="pagamento-dinheiro" name="forma-pagamento" value="dinheiro" onchange="validarFormaPagamento()">
-                                <label for="pagamento-dinheiro">DINHEIRO</label>
+                            <div class="payment-chip-wrap">
+                                <input type="radio" id="pagamento-dinheiro" name="forma-pagamento" value="dinheiro" onchange="validarFormaPagamento(); atualizarChipSelecionado()">
+                                <label for="pagamento-dinheiro" class="payment-chip">
+                                    <button type="button" class="chip-star chip-star-forma" data-forma="dinheiro" title="Favoritar Dinheiro para esta categoria" onclick="salvarFavoritoForma('dinheiro', event)">☆</button>
+                                    DINHEIRO
+                                </label>
                             </div>
-                            <div class="payment-option-group" id="credito-options">
+                            <div id="credito-options" class="credito-chips-group">
                                 <!-- Cartões serão inseridos dinamicamente aqui pela função atualizarOpcoesCartoes() -->
                             </div>
+                            <button type="button" class="payment-chip payment-chip-add" id="btn-adicionar-cartao-rapido" onclick="abrirModalCartaoRapido()" title="Adicionar novo cartão">
+                                <i class="fas fa-plus"></i>
+                            </button>
                         </div>
                     </div>
                </div>

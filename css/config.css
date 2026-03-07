@@ -1297,3 +1297,50 @@
         gap: 16px;
     }
 }
+
+/* ================================================================
+   CATEGORIA FAVORITO — BADGES NA TABELA DE CATEGORIAS
+   ================================================================ */
+
+.categoria-favorito {
+    white-space: nowrap;
+}
+
+.badge-favorito-pix,
+.badge-favorito-debito,
+.badge-favorito-dinheiro,
+.badge-favorito-credito {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.badge-favorito-pix {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.badge-favorito-debito {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.badge-favorito-dinheiro {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.badge-favorito-credito {
+    background: #ede9fe;
+    color: #5b21b6;
+}
+
+/* Campo de validade no form de cartão */
+#novo-cartao-validade {
+    flex: 1;
+    min-width: 130px;
+}
