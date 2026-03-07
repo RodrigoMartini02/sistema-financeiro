@@ -77,6 +77,7 @@ const cartoesRoutes = require('./routes/cartoes');
 const mesesRoutes = require('./routes/meses');
 const reservasRoutes = require('./routes/reservas');
 const anosRoutes = require('./routes/anos');
+const planosRoutes = require('./routes/planos');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', usuariosRoutes);
@@ -87,6 +88,7 @@ app.use('/api/cartoes', cartoesRoutes);
 app.use('/api/meses', mesesRoutes);
 app.use('/api/reservas', reservasRoutes);
 app.use('/api/anos', anosRoutes);
+app.use('/api/planos', planosRoutes);
 
 app.use((req, res) => {
     res.status(404).json({
@@ -156,6 +158,9 @@ async function criarEstruturaBanco() {
         await query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cartoes JSONB DEFAULT NULL;`);
         await query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS foto TEXT DEFAULT NULL;`);
         await query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS google_id VARCHAR(255) DEFAULT NULL;`);
+        await query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS plano_status VARCHAR(20) DEFAULT 'trial' CHECK (plano_status IN ('trial', 'ativo', 'expirado'));`);
+        await query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS plano_tipo VARCHAR(10) DEFAULT NULL;`);
+        await query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS plano_expiracao TIMESTAMP DEFAULT NULL;`);
 
         // Índices para performance (só cria se não existir)
         await query(`CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email);`);

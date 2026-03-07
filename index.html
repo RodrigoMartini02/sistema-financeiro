@@ -32,6 +32,7 @@
     <link rel="stylesheet" href="css/notificacao.css">
     <link rel="stylesheet" href="css/rel.css">
     <link rel="stylesheet" href="css/config.css">
+    <link rel="stylesheet" href="css/planos.css">
 </head>
 <body>
 
@@ -91,6 +92,26 @@
         </ul>
 
         <div class="sidebar-footer">
+            <div id="plano-sidebar-container">
+                <div id="trial-banner" class="trial-banner" style="display:none">
+                    <div class="trial-banner-top">
+                        <i class="fas fa-clock"></i>
+                        <span>Período gratuito</span>
+                    </div>
+                    <div class="trial-progress-bar">
+                        <div class="trial-progress-fill" id="trial-progress-fill"></div>
+                    </div>
+                    <span id="trial-dias-restantes" class="trial-dias">-- dias restantes</span>
+                </div>
+                <div id="expirado-banner" class="expirado-banner" style="display:none">
+                    <i class="fas fa-lock"></i>
+                    <span>Acesso expirado — assine para continuar</span>
+                </div>
+                <button id="btn-upgrade" class="btn-upgrade" style="display:none" onclick="abrirModalPlanos()">
+                    <i class="fas fa-bolt"></i>
+                    <span id="btn-upgrade-label">Assinar agora</span>
+                </button>
+            </div>
             <div class="system-info">
                 <div class="info-row">
                     <i class="fas fa-code-branch"></i>
@@ -2956,10 +2977,81 @@
     </div>
 </div>
 
+<!-- Modal de Planos -->
+<div id="modal-planos" class="modal-planos-overlay" style="display:none" onclick="fecharModalPlanosOverlay(event)">
+    <div class="modal-planos-content">
+        <button class="modal-planos-close" onclick="fecharModalPlanos()"><i class="fas fa-times"></i></button>
+
+        <div class="modal-planos-header">
+            <div class="modal-planos-icon"><i class="fas fa-bolt"></i></div>
+            <h2>Escolha seu plano</h2>
+            <p>Controle financeiro completo, sem limites</p>
+        </div>
+
+        <div class="planos-grid">
+            <!-- Plano Mensal -->
+            <div class="plano-card" id="plano-mensal-card">
+                <div class="plano-nome">Mensal</div>
+                <div class="plano-preco">
+                    <span class="plano-preco-valor">R$ 79,90</span>
+                    <span class="plano-preco-periodo">/mês</span>
+                </div>
+                <ul class="plano-features">
+                    <li><i class="fas fa-check"></i> Meses e receitas ilimitados</li>
+                    <li><i class="fas fa-check"></i> Dashboard completo</li>
+                    <li><i class="fas fa-check"></i> Relatórios e gráficos</li>
+                    <li><i class="fas fa-check"></i> Reservas financeiras</li>
+                    <li><i class="fas fa-check"></i> Suporte por e-mail</li>
+                </ul>
+                <div class="plano-pagamentos">
+                    <span class="pagamento-label">Pagar com:</span>
+                    <div class="pagamento-opcoes">
+                        <button class="btn-pagamento" onclick="assinar('mensal','pix')">
+                            <i class="fas fa-qrcode"></i> PIX
+                        </button>
+                        <button class="btn-pagamento" onclick="assinar('mensal','cartao')">
+                            <i class="fas fa-credit-card"></i> Cartão
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Plano Anual -->
+            <div class="plano-card plano-destaque" id="plano-anual-card">
+                <div class="plano-badge">Mais popular</div>
+                <div class="plano-nome">Anual</div>
+                <div class="plano-preco">
+                    <span class="plano-preco-valor">R$ 639,90</span>
+                    <span class="plano-preco-periodo">/ano</span>
+                </div>
+                <div class="plano-economia">R$ 53,33/mês · economize 33%</div>
+                <ul class="plano-features">
+                    <li><i class="fas fa-check"></i> Tudo do plano mensal</li>
+                    <li><i class="fas fa-check"></i> 2 meses grátis</li>
+                    <li><i class="fas fa-check"></i> Prioridade no suporte</li>
+                    <li><i class="fas fa-check"></i> Novidades antecipadas</li>
+                    <li><i class="fas fa-check"></i> Backup automático</li>
+                </ul>
+                <div class="plano-pagamentos">
+                    <span class="pagamento-label">Pagar com:</span>
+                    <div class="pagamento-opcoes">
+                        <button class="btn-pagamento btn-pagamento-full" onclick="assinar('anual','cartao')">
+                            <i class="fas fa-credit-card"></i> Cartão de crédito
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <p class="modal-planos-rodape">Cancele quando quiser · Sem taxa de cancelamento</p>
+    </div>
+</div>
+
 <!-- Módulos secundários -->
 <script src="js/dashboard.js"></script>
 <script src="js/notificacao.js"></script>
 <script src="js/rel.js"></script>
+<script src="js/planos.js"></script>
 
 </body>
 </html>
