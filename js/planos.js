@@ -315,8 +315,11 @@ async function pagarCartao() {
             return;
         }
 
+        const recorrente = document.getElementById('pgmt-recorrente')?.checked ?? true;
+        const endpoint = recorrente ? 'assinar-recorrente' : 'pagar-cartao';
+
         const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-        const response = await fetch(`${API_URL_PLANOS}/planos/assinar-recorrente`, {
+        const response = await fetch(`${API_URL_PLANOS}/planos/${endpoint}`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -333,9 +336,12 @@ async function pagarCartao() {
         if (data.success) {
             fecharModalPlanos();
             await carregarStatusPlano();
-            alert('Assinatura ativada! Sua primeira cobrança foi processada e o plano está ativo.');
+            const msg = recorrente
+                ? 'Assinatura ativada! Seu cartão será cobrado automaticamente a cada período.'
+                : 'Pagamento aprovado! Seu plano está ativo.';
+            alert(msg);
         } else {
-            mostrarErro(data.message || 'Não foi possível criar a assinatura. Verifique os dados do cartão.');
+            mostrarErro(data.message || 'Não foi possível processar o pagamento. Verifique os dados do cartão.');
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-lock"></i> Assinar agora';
         }
