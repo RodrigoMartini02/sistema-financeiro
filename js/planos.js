@@ -9,6 +9,7 @@ let metodoSelecionado = 'cartao'; // 'cartao' | 'pix'
 let sistemaEstaBloqueado = false;
 let mpInstance = null; // Mercado Pago SDK instance
 let pixIntervalId = null;
+let contextoCartaoPlano = null; // { nome, bandeira, ultimos_digitos } vindo de configurações
 
 // ================================================================
 // INICIALIZAÇÃO
@@ -158,6 +159,11 @@ window.abrirModalPlanos = function () {
     if (modal) modal.style.display = 'flex';
 };
 
+// Define o cartão de configurações a ser usado como referência visual no pagamento
+window.definirContextoCartaoPlano = function (ctx) {
+    contextoCartaoPlano = ctx;
+};
+
 window.fecharModalPlanos = function () {
     if (sistemaEstaBloqueado) return;
     const modal = document.getElementById('modal-planos');
@@ -202,6 +208,28 @@ function mostrarTelaPlanos() {
     document.getElementById('pgmt-tela-gerenciar').style.display = 'none';
 }
 
+function atualizarBannerCartaoContexto() {
+    const banner = document.getElementById('pgmt-banner-cartao-ctx');
+    if (!banner) return;
+
+    if (!contextoCartaoPlano) {
+        banner.style.display = 'none';
+        return;
+    }
+
+    const { nome, bandeira, ultimos_digitos } = contextoCartaoPlano;
+    const BANDEIRA_LABELS = {
+        visa: 'Visa', mastercard: 'Mastercard', elo: 'Elo',
+        hipercard: 'Hipercard', amex: 'Amex', outro: ''
+    };
+    const bandeiraLabel = BANDEIRA_LABELS[bandeira] || '';
+    const digitosLabel = ultimos_digitos ? ` ****${ultimos_digitos}` : '';
+    const label = [nome, bandeiraLabel].filter(Boolean).join(' ') + digitosLabel;
+
+    banner.querySelector('#pgmt-banner-cartao-nome').textContent = label;
+    banner.style.display = 'flex';
+}
+
 window.irParaPagamento = function (tipo) {
     planoSelecionado = tipo;
 
@@ -215,6 +243,9 @@ window.irParaPagamento = function (tipo) {
     document.getElementById('pgmt-tela-pagamento').style.display = 'block';
     document.getElementById('pgmt-tela-gerenciar').style.display = 'none';
 
+    // Exibe banner do cartão vindo de configurações (se houver)
+    atualizarBannerCartaoContexto();
+
     // Reset do estado de pagamento
     selecionarMetodo('cartao');
     resetarBotaoAssinar();
@@ -223,6 +254,7 @@ window.irParaPagamento = function (tipo) {
 
 window.voltarParaPlanos = function () {
     pararContagemPix();
+    contextoCartaoPlano = null; // limpa contexto ao voltar
     mostrarTelaPlanos();
 };
 

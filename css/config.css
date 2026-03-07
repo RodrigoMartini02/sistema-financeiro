@@ -1135,6 +1135,20 @@
     font-weight: 500;
 }
 
+.tabela-cartoes .cartao-bandeira-icon {
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+.tabela-cartoes .cartao-digitos {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 11px;
+    color: #6c757d;
+    font-family: monospace;
+    letter-spacing: 1px;
+}
+
 .tabela-cartoes .cartao-validade {
     font-size: 10px;
 }
@@ -1163,7 +1177,33 @@
     color: #6c757d;
 }
 
+.btn-pagar-plano-cartao {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+    color: #fff !important;
+    border: none !important;
+    font-size: 12px !important;
+}
 
+.btn-pagar-plano-cartao:hover {
+    opacity: 0.85;
+}
+
+.form-add-cartao select {
+    flex: 1;
+    min-width: 130px;
+    padding: 12px 16px;
+    border: 2px solid var(--gray-300);
+    font-size: 14px;
+    border-radius: 0;
+    background: #fff;
+    transition: all 0.3s ease;
+}
+
+.form-add-cartao select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
 
 /* ================================================================ */
 /* MODAL EDITAR CARTÃO - ESTILIZAÇÃO MELHORADA */

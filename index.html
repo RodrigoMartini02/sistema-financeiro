@@ -1075,6 +1075,16 @@
        <div id="cartoes-tab" class="config-tab-pane">
         <div class="form-add-cartao">
             <input type="text" id="novo-cartao-banco" placeholder="Nome do Banco" maxlength="50">
+            <select id="novo-cartao-bandeira" title="Bandeira">
+                <option value="">Bandeira</option>
+                <option value="visa">Visa</option>
+                <option value="mastercard">Mastercard</option>
+                <option value="elo">Elo</option>
+                <option value="hipercard">Hipercard</option>
+                <option value="amex">Amex</option>
+                <option value="outro">Outro</option>
+            </select>
+            <input type="text" id="novo-cartao-digitos" placeholder="Últimos 4 dígitos" maxlength="4" pattern="\d{4}" inputmode="numeric">
             <input type="number" id="novo-cartao-fechamento" placeholder="Dia Fechamento" min="1" max="31">
             <input type="number" id="novo-cartao-vencimento" placeholder="Dia Vencimento" min="1" max="31">
             <input type="number" id="novo-cartao-limite" placeholder="Limite (R$)" step="0.01" min="0">
@@ -1088,7 +1098,7 @@
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>Banco</th>
+                        <th>Banco / Bandeira</th>
                         <th>Fech/Venc</th>
                         <th>Limite</th>
                         <th>Status</th>
@@ -1267,6 +1277,29 @@
                         <div class="checkbox-container">
                             <input type="checkbox" id="cartao-edit-ativo">
                         </div>
+                    </div>
+                </div>
+
+                <div class="form-row-cartao">
+                    <div class="form-group flex-grow">
+                        <label for="cartao-edit-bandeira">
+                            <i class="fas fa-credit-card"></i> Bandeira
+                        </label>
+                        <select id="cartao-edit-bandeira" class="form-input">
+                            <option value="">Selecionar</option>
+                            <option value="visa">Visa</option>
+                            <option value="mastercard">Mastercard</option>
+                            <option value="elo">Elo</option>
+                            <option value="hipercard">Hipercard</option>
+                            <option value="amex">Amex</option>
+                            <option value="outro">Outro</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="cartao-edit-digitos">
+                            <i class="fas fa-hashtag"></i> Últimos 4 dígitos
+                        </label>
+                        <input type="text" id="cartao-edit-digitos" class="form-input" maxlength="4" pattern="\d{4}" inputmode="numeric" placeholder="1234">
                     </div>
                 </div>
 
@@ -3032,6 +3065,15 @@
                     <i class="fas fa-chevron-left"></i> Voltar
                 </button>
                 <span class="pgmt-pag-resumo" id="pgmt-pag-resumo"></span>
+            </div>
+
+            <!-- Banner: cartão vindo de configurações -->
+            <div id="pgmt-banner-cartao-ctx" class="pgmt-banner-cartao-ctx" style="display:none">
+                <i class="fas fa-credit-card"></i>
+                <span>Pagando com: <strong id="pgmt-banner-cartao-nome"></strong></span>
+                <button onclick="contextoCartaoPlano=null;document.getElementById('pgmt-banner-cartao-ctx').style.display='none'" title="Remover referência">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
 
             <!-- Tabs: Cartão / PIX -->

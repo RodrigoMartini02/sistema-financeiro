@@ -582,7 +582,9 @@ async function criarCartaoAPI(cartao) {
                 dia_fechamento: cartao.dia_fechamento,
                 dia_vencimento: cartao.dia_vencimento,
                 limite: cartao.limite,
-                ativo: cartao.ativo !== false
+                ativo: cartao.ativo !== false,
+                bandeira: cartao.bandeira || null,
+                ultimos_digitos: cartao.ultimos_digitos || null
             })
         });
 
@@ -622,7 +624,9 @@ async function atualizarCartaoAPI(id, cartao) {
                 dia_fechamento: cartao.dia_fechamento,
                 dia_vencimento: cartao.dia_vencimento,
                 limite: cartao.limite,
-                ativo: cartao.ativo !== false
+                ativo: cartao.ativo !== false,
+                bandeira: cartao.bandeira || null,
+                ultimos_digitos: cartao.ultimos_digitos || null
             })
         });
 
@@ -769,9 +773,18 @@ function renderizarListaCartoes() {
         return;
     }
 
+    const BANDEIRA_ICONS = {
+        visa: '<i class="fab fa-cc-visa" style="color:#1a1f71"></i>',
+        mastercard: '<i class="fab fa-cc-mastercard" style="color:#eb001b"></i>',
+        amex: '<i class="fab fa-cc-amex" style="color:#007bc1"></i>',
+        elo: '<span style="font-weight:700;font-size:11px;color:#ffcb05;background:#000;padding:1px 4px;border-radius:3px">ELO</span>',
+        hipercard: '<span style="font-weight:700;font-size:11px;color:#fff;background:#c0113c;padding:1px 4px;border-radius:3px">HC</span>',
+        outro: '<i class="fas fa-credit-card" style="color:#94a3b8"></i>'
+    };
+
     cartoesUsuario.forEach(cartao => {
         const tr = document.createElement('tr');
-        // Formatar validade: se tem dia_fechamento e dia_vencimento, mostrar; senão mostrar validade antiga
+
         let validadeDisplay = '-';
         if (cartao.dia_fechamento && cartao.dia_vencimento) {
             validadeDisplay = `Fech: ${cartao.dia_fechamento} / Venc: ${cartao.dia_vencimento}`;
@@ -779,9 +792,17 @@ function renderizarListaCartoes() {
             validadeDisplay = cartao.validade;
         }
 
+        const bandeiraIcon = cartao.bandeira ? (BANDEIRA_ICONS[cartao.bandeira] || BANDEIRA_ICONS.outro) : '';
+        const digitosDisplay = cartao.ultimos_digitos ? `<span class="cartao-digitos">****${cartao.ultimos_digitos}</span>` : '';
+        const bancoDisplay = `
+            <span class="cartao-banco">${cartao.banco || cartao.nome || ''}</span>
+            ${bandeiraIcon ? `<span class="cartao-bandeira-icon">${bandeiraIcon}</span>` : ''}
+            ${digitosDisplay}
+        `;
+
         tr.innerHTML = `
             <td><span class="cartao-id">#${cartao.id}</span></td>
-            <td><span class="cartao-banco">${cartao.banco || cartao.nome || ''}</span></td>
+            <td>${bancoDisplay}</td>
             <td><span class="cartao-validade">${validadeDisplay}</span></td>
             <td><span class="cartao-limite">R$ ${formatarValorCartao(cartao.limite)}</span></td>
             <td>
@@ -791,6 +812,9 @@ function renderizarListaCartoes() {
             </td>
             <td class="cartao-acoes">
                 <div class="acoes-grupo">
+                    <button class="btn btn-sm btn-pagar-plano-cartao" onclick="usarCartaoParaPlano(${cartao.id})" title="Pagar plano com este cartão">
+                        <i class="fas fa-crown"></i>
+                    </button>
                     <button class="btn btn-sm btn-editar-cartao" onclick="abrirModalEditarCartao(${cartao.id})" title="Editar cartão">
                         <i class="fas fa-edit"></i>
                     </button>
@@ -802,6 +826,27 @@ function renderizarListaCartoes() {
         `;
         listaCartoes.appendChild(tr);
     });
+}
+
+/**
+ * Abre o modal de planos para pagar usando este cartão cadastrado
+ */
+function usarCartaoParaPlano(id) {
+    const cartao = cartoesUsuario.find(c => c.id === id);
+    if (!cartao) return;
+
+    // Passa contexto do cartão para o modal de planos
+    if (typeof window.definirContextoCartaoPlano === 'function') {
+        window.definirContextoCartaoPlano({
+            nome: cartao.banco || cartao.nome || '',
+            bandeira: cartao.bandeira || '',
+            ultimos_digitos: cartao.ultimos_digitos || ''
+        });
+    }
+
+    if (typeof window.abrirModalPlanos === 'function') {
+        window.abrirModalPlanos();
+    }
 }
 
 /**
@@ -822,6 +867,8 @@ async function adicionarCartao() {
     const inputFechamento = document.getElementById('novo-cartao-fechamento');
     const inputVencimento = document.getElementById('novo-cartao-vencimento');
     const inputLimite = document.getElementById('novo-cartao-limite');
+    const inputBandeira = document.getElementById('novo-cartao-bandeira');
+    const inputDigitos = document.getElementById('novo-cartao-digitos');
 
     if (!inputBanco || !inputFechamento || !inputVencimento || !inputLimite) return;
 
@@ -829,6 +876,8 @@ async function adicionarCartao() {
     const diaFechamento = parseInt(inputFechamento.value) || 0;
     const diaVencimento = parseInt(inputVencimento.value) || 0;
     const limite = parseFloat(inputLimite.value) || 0;
+    const bandeira = inputBandeira ? inputBandeira.value : '';
+    const ultimos_digitos = inputDigitos ? inputDigitos.value.replace(/\D/g, '').slice(0, 4) : '';
 
     // Validações
     if (!banco) {
@@ -862,7 +911,9 @@ async function adicionarCartao() {
         dia_fechamento: diaFechamento,
         dia_vencimento: diaVencimento,
         limite: limite,
-        ativo: true
+        ativo: true,
+        bandeira: bandeira || null,
+        ultimos_digitos: ultimos_digitos || null
     };
 
     mostrarStatusCartoes('Salvando cartão...', 'info');
@@ -880,6 +931,8 @@ async function adicionarCartao() {
             dia_vencimento: diaVencimento,
             limite: limite,
             ativo: true,
+            bandeira: bandeira || null,
+            ultimos_digitos: ultimos_digitos || null,
             numero_cartao: cartaoCriado.numero_cartao || cartoesUsuario.length + 1
         };
 
@@ -888,6 +941,8 @@ async function adicionarCartao() {
 
         mostrarStatusCartoes('Cartão adicionado com sucesso!', 'success');
         inputBanco.value = '';
+        if (inputBandeira) inputBandeira.value = '';
+        if (inputDigitos) inputDigitos.value = '';
         inputFechamento.value = '';
         inputVencimento.value = '';
         inputLimite.value = '';
@@ -911,6 +966,8 @@ function abrirModalEditarCartao(id) {
     document.getElementById('cartao-edit-vencimento').value = cartao.dia_vencimento || 10;
     document.getElementById('cartao-edit-limite').value = cartao.limite;
     document.getElementById('cartao-edit-ativo').checked = cartao.ativo !== false;
+    document.getElementById('cartao-edit-bandeira').value = cartao.bandeira || '';
+    document.getElementById('cartao-edit-digitos').value = cartao.ultimos_digitos || '';
 
     const modal = document.getElementById('modal-editar-cartao');
     if (modal) {
@@ -931,6 +988,8 @@ async function salvarEdicaoCartao(e) {
     const diaVencimento = parseInt(document.getElementById('cartao-edit-vencimento').value) || 0;
     const limite = parseFloat(document.getElementById('cartao-edit-limite').value) || 0;
     const ativo = document.getElementById('cartao-edit-ativo').checked;
+    const bandeira = document.getElementById('cartao-edit-bandeira').value || null;
+    const ultimos_digitos = (document.getElementById('cartao-edit-digitos').value || '').replace(/\D/g, '').slice(0, 4) || null;
 
     if (!banco || limite <= 0) {
         mostrarStatusCartoes('Preencha todos os campos corretamente', 'error');
@@ -956,7 +1015,9 @@ async function salvarEdicaoCartao(e) {
         dia_fechamento: diaFechamento,
         dia_vencimento: diaVencimento,
         limite,
-        ativo
+        ativo,
+        bandeira,
+        ultimos_digitos
     };
 
     mostrarStatusCartoes('Atualizando cartão...', 'info');

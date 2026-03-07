@@ -36,6 +36,8 @@ router.get('/', authMiddleware, async (req, res) => {
                 c.cor,
                 c.ativo,
                 c.numero_cartao,
+                c.bandeira,
+                c.ultimos_digitos,
                 c.data_criacao,
                 c.data_atualizacao,
                 u.nome as usuario_nome
@@ -75,8 +77,8 @@ router.get('/:id', authMiddleware, async (req, res) => {
         }
         
         const queryText = `
-            SELECT id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, data_criacao, data_atualizacao
-            FROM cartoes 
+            SELECT id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, bandeira, ultimos_digitos, data_criacao, data_atualizacao
+            FROM cartoes
             WHERE id = $1 AND usuario_id = $2
         `;
         
@@ -226,7 +228,7 @@ router.put('/', authMiddleware, async (req, res) => {
 
 router.post('/', authMiddleware, async (req, res) => {
     try {
-        const { nome, limite, dia_fechamento, dia_vencimento, cor } = req.body;
+        const { nome, limite, dia_fechamento, dia_vencimento, cor, bandeira, ultimos_digitos } = req.body;
         
         if (!nome || nome.trim() === '') {
             return res.status(400).json({
@@ -286,10 +288,12 @@ router.post('/', authMiddleware, async (req, res) => {
         const proximoNumero = await obterProximoNumero(req.usuario.id);
 
         const queryText = `
-            INSERT INTO cartoes (usuario_id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            RETURNING id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero, data_criacao, data_atualizacao
+            INSERT INTO cartoes (usuario_id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao, bandeira, ultimos_digitos)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            RETURNING id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao, bandeira, ultimos_digitos, data_criacao, data_atualizacao
         `;
+
+        const digitos = ultimos_digitos ? ultimos_digitos.replace(/\D/g, '').slice(0, 4) : null;
 
         const values = [
             req.usuario.id,
@@ -299,7 +303,9 @@ router.post('/', authMiddleware, async (req, res) => {
             parseInt(dia_vencimento) || 1,
             cor || '#3498db',
             true,
-            proximoNumero
+            proximoNumero,
+            bandeira || null,
+            digitos || null
         ];
         
         const result = await query(queryText, values);
@@ -323,7 +329,7 @@ router.post('/', authMiddleware, async (req, res) => {
 router.put('/:id', authMiddleware, async (req, res) => {
     try {
         const cartaoId = parseInt(req.params.id);
-        const { nome, limite, dia_fechamento, dia_vencimento, cor, ativo } = req.body;
+        const { nome, limite, dia_fechamento, dia_vencimento, cor, ativo, bandeira, ultimos_digitos } = req.body;
         
         if (isNaN(cartaoId)) {
             return res.status(400).json({
@@ -382,12 +388,15 @@ router.put('/:id', authMiddleware, async (req, res) => {
         }
         
         const queryText = `
-            UPDATE cartoes 
-            SET nome = $1, limite = $2, dia_fechamento = $3, dia_vencimento = $4, cor = $5, ativo = $6, data_atualizacao = CURRENT_TIMESTAMP
-            WHERE id = $7 AND usuario_id = $8
-            RETURNING id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, data_criacao, data_atualizacao
+            UPDATE cartoes
+            SET nome = $1, limite = $2, dia_fechamento = $3, dia_vencimento = $4, cor = $5, ativo = $6,
+                bandeira = $7, ultimos_digitos = $8, data_atualizacao = CURRENT_TIMESTAMP
+            WHERE id = $9 AND usuario_id = $10
+            RETURNING id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, bandeira, ultimos_digitos, data_criacao, data_atualizacao
         `;
-        
+
+        const digitos = ultimos_digitos ? ultimos_digitos.replace(/\D/g, '').slice(0, 4) : null;
+
         const values = [
             nome.trim(),
             parseFloat(limite),
@@ -395,6 +404,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
             parseInt(dia_vencimento) || 1,
             cor || '#3498db',
             ativo !== undefined ? ativo : true,
+            bandeira || null,
+            digitos || null,
             cartaoId,
             req.usuario.id
         ];

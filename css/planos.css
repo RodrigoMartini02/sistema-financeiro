@@ -738,6 +738,46 @@
 }
 
 /* ----------------------------------------------------------------
+   Banner: cartão vindo de configurações
+   ---------------------------------------------------------------- */
+
+.pgmt-banner-cartao-ctx {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #0369a1;
+    margin-bottom: 14px;
+}
+
+.pgmt-banner-cartao-ctx i.fa-credit-card {
+    font-size: 15px;
+    flex-shrink: 0;
+}
+
+.pgmt-banner-cartao-ctx span {
+    flex: 1;
+}
+
+.pgmt-banner-cartao-ctx button {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 2px 4px;
+    line-height: 1;
+    font-size: 12px;
+}
+
+.pgmt-banner-cartao-ctx button:hover {
+    color: #64748b;
+}
+
+/* ----------------------------------------------------------------
    Sidebar — container do plano (fora do sidebar-footer)
    ---------------------------------------------------------------- */
 

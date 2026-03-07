@@ -230,6 +230,9 @@ async function criarEstruturaBanco() {
                 data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
+        await query(`ALTER TABLE cartoes ADD COLUMN IF NOT EXISTS numero_cartao INTEGER DEFAULT NULL;`);
+        await query(`ALTER TABLE cartoes ADD COLUMN IF NOT EXISTS bandeira VARCHAR(20) DEFAULT NULL;`);
+        await query(`ALTER TABLE cartoes ADD COLUMN IF NOT EXISTS ultimos_digitos VARCHAR(4) DEFAULT NULL;`);
         console.log('✅ Tabela cartoes verificada/criada!');
 
         // ✅ TABELA RECEITAS
