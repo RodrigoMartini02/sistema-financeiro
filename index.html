@@ -2978,139 +2978,137 @@
 </div>
 
 <!-- Overlay de Bloqueio -->
-<div id="overlay-bloqueio" class="overlay-bloqueio" style="display:none">
-    <div class="bloqueio-content">
-        <div class="bloqueio-icon"><i class="fas fa-lock"></i></div>
+<div id="overlay-bloqueio" class="pgmt-bloqueio-overlay" style="display:none">
+    <div class="pgmt-bloqueio-box">
+        <div class="pgmt-bloqueio-icon"><i class="fas fa-lock"></i></div>
         <h2>Acesso bloqueado</h2>
         <p id="bloqueio-mensagem">Seu período de acesso expirou. Assine um plano para continuar.</p>
-        <button class="btn-upgrade bloqueio-btn" onclick="abrirModalPlanos()">
-            <i class="fas fa-bolt"></i>
-            <span>Ver planos e assinar</span>
+        <button class="btn-upgrade pgmt-bloqueio-btn" onclick="abrirModalPlanos()">
+            <i class="fas fa-bolt"></i> Ver planos e assinar
         </button>
     </div>
 </div>
 
-<!-- Modal de Planos -->
-<div id="modal-planos" class="modal-planos-overlay" style="display:none" onclick="fecharModalPlanosOverlay(event)">
-    <div class="modal-planos-content">
-        <button class="modal-planos-close" id="modal-planos-close-btn" onclick="fecharModalPlanos()"><i class="fas fa-times"></i></button>
+<!-- Modal de Planos / Pagamento -->
+<div id="modal-planos" class="pgmt-overlay" style="display:none" onclick="fecharModalPlanosOverlay(event)">
+    <div class="pgmt-modal" id="pgmt-modal-box">
+        <button class="pgmt-close" id="modal-planos-close-btn" onclick="fecharModalPlanos()">
+            <i class="fas fa-times"></i>
+        </button>
 
-        <div class="modal-planos-header">
-            <div class="modal-planos-icon"><i class="fas fa-bolt"></i></div>
-            <h2>Escolha seu plano</h2>
-            <p>Controle financeiro completo, sem limites</p>
-        </div>
-
-        <!-- Step 1: Escolha do Plano -->
-        <div id="step-plano">
-            <div class="planos-grid">
-                <div class="plano-card" id="card-mensal" onclick="selecionarPlano('mensal')">
-                    <div class="plano-nome">Mensal</div>
-                    <div class="plano-preco">
-                        <span class="plano-preco-valor">R$ 79,90</span>
-                        <span class="plano-preco-periodo">/mês</span>
+        <!-- TELA 1: Escolha do plano -->
+        <div id="pgmt-tela-planos">
+            <div class="pgmt-header">
+                <h2>Escolha seu plano</h2>
+                <p>Controle financeiro completo, sem limites</p>
+            </div>
+            <div class="pgmt-planos-lista">
+                <div class="pgmt-plano-row" onclick="irParaPagamento('mensal')">
+                    <div class="pgmt-plano-info">
+                        <span class="pgmt-plano-nome">Mensal</span>
+                        <span class="pgmt-plano-desc">Acesso completo · Cancele quando quiser</span>
                     </div>
-                    <ul class="plano-features">
-                        <li><i class="fas fa-check"></i> Meses e receitas ilimitados</li>
-                        <li><i class="fas fa-check"></i> Dashboard completo</li>
-                        <li><i class="fas fa-check"></i> Relatórios e gráficos</li>
-                        <li><i class="fas fa-check"></i> Reservas financeiras</li>
-                        <li><i class="fas fa-check"></i> Suporte por e-mail</li>
-                    </ul>
-                    <div class="plano-selecionar-hint">Clique para selecionar</div>
+                    <div class="pgmt-plano-preco">R$ 79,90<small>/mês</small></div>
+                    <i class="fas fa-chevron-right pgmt-arrow"></i>
                 </div>
-
-                <div class="plano-card plano-destaque" id="card-anual" onclick="selecionarPlano('anual')">
-                    <div class="plano-badge">Mais popular</div>
-                    <div class="plano-nome">Anual</div>
-                    <div class="plano-preco">
-                        <span class="plano-preco-valor">R$ 639,90</span>
-                        <span class="plano-preco-periodo">/ano</span>
+                <div class="pgmt-plano-row pgmt-plano-popular" onclick="irParaPagamento('anual')">
+                    <span class="pgmt-popular-badge">Economize 33%</span>
+                    <div class="pgmt-plano-info">
+                        <span class="pgmt-plano-nome">Anual</span>
+                        <span class="pgmt-plano-desc">R$ 53,33/mês · 2 meses grátis</span>
                     </div>
-                    <div class="plano-economia">R$ 53,33/mês · economize 33%</div>
-                    <ul class="plano-features">
-                        <li><i class="fas fa-check"></i> Tudo do plano mensal</li>
-                        <li><i class="fas fa-check"></i> 2 meses grátis</li>
-                        <li><i class="fas fa-check"></i> Prioridade no suporte</li>
-                        <li><i class="fas fa-check"></i> Novidades antecipadas</li>
-                        <li><i class="fas fa-check"></i> Backup automático</li>
-                    </ul>
-                    <div class="plano-selecionar-hint">Clique para selecionar</div>
+                    <div class="pgmt-plano-preco">R$ 639,90<small>/ano</small></div>
+                    <i class="fas fa-chevron-right pgmt-arrow"></i>
                 </div>
             </div>
-            <p class="modal-planos-rodape">Cancele quando quiser · Sem taxa de cancelamento</p>
+            <p class="pgmt-rodape">Ambiente seguro · Sem taxa de cancelamento</p>
         </div>
 
-        <!-- Step 2: Forma de Pagamento -->
-        <div id="step-pagamento" style="display:none">
-            <div class="step-plano-resumo" id="step-plano-resumo"></div>
-
-            <div class="pagamento-opcoes-lista">
-                <label class="pagamento-opcao">
-                    <input type="radio" name="forma-pgto" value="cartao" checked>
-                    <div class="pagamento-opcao-inner">
-                        <div class="pagamento-opcao-icon cartao-icon"><i class="fas fa-credit-card"></i></div>
-                        <div class="pagamento-opcao-info">
-                            <span class="pagamento-opcao-nome">Cartão de Crédito</span>
-                            <span class="pagamento-opcao-desc">Parcele em até 12x</span>
-                        </div>
-                        <div class="pagamento-opcao-check"><i class="fas fa-check-circle"></i></div>
-                    </div>
-                </label>
-
-                <label class="pagamento-opcao">
-                    <input type="radio" name="forma-pgto" value="pix">
-                    <div class="pagamento-opcao-inner">
-                        <div class="pagamento-opcao-icon pix-icon"><i class="fas fa-qrcode"></i></div>
-                        <div class="pagamento-opcao-info">
-                            <span class="pagamento-opcao-nome">PIX</span>
-                            <span class="pagamento-opcao-desc">QR Code gerado na hora · Aprovação imediata</span>
-                        </div>
-                        <div class="pagamento-opcao-check"><i class="fas fa-check-circle"></i></div>
-                    </div>
-                </label>
-
-                <label class="pagamento-opcao">
-                    <input type="radio" name="forma-pgto" value="debito">
-                    <div class="pagamento-opcao-inner">
-                        <div class="pagamento-opcao-icon debito-icon"><i class="fas fa-university"></i></div>
-                        <div class="pagamento-opcao-info">
-                            <span class="pagamento-opcao-nome">Débito</span>
-                            <span class="pagamento-opcao-desc">Desconto direto na conta</span>
-                        </div>
-                        <div class="pagamento-opcao-check"><i class="fas fa-check-circle"></i></div>
-                    </div>
-                </label>
+        <!-- TELA 2: Pagamento -->
+        <div id="pgmt-tela-pagamento" style="display:none">
+            <div class="pgmt-pag-header">
+                <button class="pgmt-voltar" onclick="voltarParaPlanos()">
+                    <i class="fas fa-chevron-left"></i> Voltar
+                </button>
+                <span class="pgmt-pag-resumo" id="pgmt-pag-resumo"></span>
             </div>
 
-            <!-- PIX: QR Code (aparece após confirmar) -->
-            <div id="pix-display" style="display:none">
-                <div class="pix-qr-container">
-                    <img id="pix-qrcode-img" src="" alt="QR Code PIX">
+            <!-- Tabs: Cartão / PIX -->
+            <div class="pgmt-tabs">
+                <button class="pgmt-tab pgmt-tab-ativo" id="pgmt-tab-cartao" onclick="selecionarMetodo('cartao')">
+                    <i class="fas fa-credit-card"></i> Cartão
+                </button>
+                <button class="pgmt-tab" id="pgmt-tab-pix" onclick="selecionarMetodo('pix')">
+                    <i class="fas fa-qrcode"></i> PIX
+                </button>
+            </div>
+
+            <!-- Form: Cartão -->
+            <div id="pgmt-form-cartao">
+                <div class="pgmt-field">
+                    <input type="text" id="pgmt-card-number" class="pgmt-input"
+                        placeholder="Número do cartão" maxlength="19" inputmode="numeric"
+                        oninput="fmtNumeroCartao(this)">
+                    <span class="pgmt-brand" id="pgmt-brand"></span>
                 </div>
-                <div class="pix-codigo-wrap">
-                    <input id="pix-codigo-input" type="text" readonly placeholder="Carregando código PIX...">
-                    <button onclick="copiarPix()" class="btn-copiar-pix">
-                        <i class="fas fa-copy"></i> Copiar
+                <div class="pgmt-field-row">
+                    <div class="pgmt-field">
+                        <input type="text" id="pgmt-card-expiry" class="pgmt-input"
+                            placeholder="Validade MM/AA" maxlength="5" inputmode="numeric"
+                            oninput="fmtValidade(this)">
+                    </div>
+                    <div class="pgmt-field">
+                        <input type="text" id="pgmt-card-cvv" class="pgmt-input"
+                            placeholder="CVV" maxlength="4" inputmode="numeric">
+                    </div>
+                </div>
+                <div class="pgmt-field">
+                    <input type="text" id="pgmt-card-name" class="pgmt-input"
+                        placeholder="Nome impresso no cartão"
+                        oninput="this.value=this.value.toUpperCase()">
+                </div>
+                <div class="pgmt-field">
+                    <input type="text" id="pgmt-card-cpf" class="pgmt-input"
+                        placeholder="CPF do titular" maxlength="14" inputmode="numeric"
+                        oninput="fmtCPF(this)">
+                </div>
+                <div class="pgmt-field" id="pgmt-field-parcelas" style="display:none">
+                    <select id="pgmt-parcelas" class="pgmt-input pgmt-select">
+                        <option value="1">1x de R$ 639,90 sem juros</option>
+                        <option value="6">6x de R$ 106,65 sem juros</option>
+                        <option value="12">12x de R$ 53,33 sem juros</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Form: PIX -->
+            <div id="pgmt-form-pix" style="display:none">
+                <div id="pgmt-pix-instrucao" class="pgmt-pix-aviso">
+                    <i class="fas fa-bolt"></i>
+                    <p>Clique em <strong>Assinar</strong> para gerar o QR Code.</p>
+                </div>
+                <div id="pgmt-pix-display" style="display:none">
+                    <div class="pgmt-pix-qr-wrap">
+                        <img id="pgmt-pix-img" src="" alt="QR Code PIX">
+                    </div>
+                    <div class="pgmt-pix-codigo-row">
+                        <input id="pgmt-pix-codigo" type="text" readonly class="pgmt-input">
+                        <button class="pgmt-btn-copiar" onclick="copiarPix()">
+                            <i class="fas fa-copy"></i> Copiar
+                        </button>
+                    </div>
+                    <p class="pgmt-pix-validade" id="pgmt-pix-validade">PIX válido por 30:00</p>
+                    <button class="pgmt-btn-ja-paguei" onclick="verificarPagamentoPix()">
+                        <i class="fas fa-check-circle"></i> Já paguei
                     </button>
                 </div>
-                <p class="pix-instrucao">Abra o app do seu banco, escolha <strong>PIX</strong> e escaneie ou cole o código acima.</p>
-                <p class="pix-validade" id="pix-validade">PIX válido por 30 minutos</p>
-                <button class="btn-ja-paguei" onclick="verificarPagamentoPix()">
-                    <i class="fas fa-check"></i> Já paguei
-                </button>
-                <button class="btn-trocar-pgto" onclick="trocarFormaPagamento()">
-                    <i class="fas fa-arrow-left"></i> Trocar forma de pagamento
-                </button>
             </div>
 
-            <div class="step-pagamento-acoes" id="step-pagamento-acoes">
-                <button class="btn-voltar-step" onclick="voltarStepPlano()">
-                    <i class="fas fa-arrow-left"></i> Voltar
+            <div id="pgmt-acoes">
+                <button class="pgmt-btn-assinar" id="pgmt-btn-assinar" onclick="processarPagamento()">
+                    Assinar
                 </button>
-                <button class="btn-continuar-step" id="btn-confirmar-pgto" onclick="confirmarPagamento()">
-                    Continuar <i class="fas fa-arrow-right"></i>
-                </button>
+                <p class="pgmt-seguro"><i class="fas fa-lock"></i> Pagamento seguro e criptografado</p>
             </div>
         </div>
     </div>
@@ -3120,6 +3118,7 @@
 <script src="js/dashboard.js"></script>
 <script src="js/notificacao.js"></script>
 <script src="js/rel.js"></script>
+<script src="https://sdk.mercadopago.com/js/v2"></script>
 <script src="js/planos.js"></script>
 
 </body>

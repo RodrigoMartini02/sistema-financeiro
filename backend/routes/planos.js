@@ -229,6 +229,91 @@ router.post('/webhook', async (req, res) => {
 });
 
 // ================================================================
+// GET /api/planos/config — retorna chave pública do Mercado Pago
+// ================================================================
+router.get('/config', authMiddleware, (_req, res) => {
+    res.json({
+        success: true,
+        public_key: process.env.MP_PUBLIC_KEY || null
+    });
+});
+
+// ================================================================
+// POST /api/planos/pagar-cartao — Checkout Transparente (cartão)
+// ================================================================
+router.post('/pagar-cartao', authMiddleware, async (req, res) => {
+    const { tipo, card_token, installments } = req.body;
+
+    if (!['mensal', 'anual'].includes(tipo)) {
+        return res.status(400).json({ success: false, message: 'Tipo de plano invalido' });
+    }
+
+    if (!card_token) {
+        return res.status(400).json({ success: false, message: 'Token do cartao ausente. Verifique os dados e tente novamente.' });
+    }
+
+    const valor = tipo === 'mensal' ? 79.90 : 639.90;
+    const parcelas = parseInt(installments) || 1;
+
+    try {
+        const usuarioResult = await query(
+            'SELECT email, nome FROM usuarios WHERE id = $1',
+            [req.usuario.id]
+        );
+        const usuario = usuarioResult.rows[0];
+
+        const payment = new Payment(client);
+        const pdt = await payment.create({
+            body: {
+                transaction_amount: valor,
+                token: card_token,
+                installments: parcelas,
+                payment_method_id: null, // MP detecta pela bandeira do token
+                payer: {
+                    email: usuario.email,
+                    identification: req.body.cpf
+                        ? { type: 'CPF', number: req.body.cpf.replace(/\D/g, '') }
+                        : undefined
+                },
+                description: `Sistema Financeiro - Plano ${tipo.charAt(0).toUpperCase() + tipo.slice(1)}`,
+                external_reference: req.usuario.id.toString(),
+                notification_url: `${BACKEND_URL}/api/planos/webhook`
+            }
+        });
+
+        if (pdt.status === 'approved') {
+            const diasAdicionais = tipo === 'anual' ? 365 : 30;
+            const expiracao = new Date();
+            expiracao.setDate(expiracao.getDate() + diasAdicionais);
+
+            await query(
+                `UPDATE usuarios SET plano_status = 'ativo', plano_tipo = $1, plano_expiracao = $2 WHERE id = $3`,
+                [tipo, expiracao, req.usuario.id]
+            );
+
+            console.log(`Plano ${tipo} ativado via cartao para usuario ${req.usuario.id}`);
+            return res.json({ success: true, message: 'Pagamento aprovado!' });
+
+        } else if (pdt.status === 'in_process' || pdt.status === 'pending') {
+            return res.json({
+                success: false,
+                message: 'Pagamento em análise. Você será notificado quando aprovado.'
+            });
+
+        } else {
+            const detail = pdt.status_detail || pdt.status;
+            return res.json({
+                success: false,
+                message: `Pagamento recusado (${detail}). Verifique os dados do cartão.`
+            });
+        }
+    } catch (error) {
+        console.error('Erro pagar-cartao:', error);
+        res.status(500).json({ success: false, message: 'Erro ao processar pagamento. Tente novamente.' });
+    }
+});
+
+// ================================================================
 // POST /api/planos/ativar — ativacao manual (admin/teste)
 // ================================================================
 router.post('/ativar', authMiddleware, async (req, res) => {

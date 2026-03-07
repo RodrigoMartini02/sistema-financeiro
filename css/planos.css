@@ -1,685 +1,603 @@
 /* ================================================================
-   PLANOS.CSS — Sidebar upgrade + Modal de planos (2 steps)
+   PLANOS.CSS — Modal de planos e pagamento (prefixo pgmt-)
    ================================================================ */
 
-/* ---- Sidebar: container do plano ---- */
-#plano-sidebar-container {
-    padding: 0 12px 12px;
-}
+/* ----------------------------------------------------------------
+   Overlay de bloqueio
+   ---------------------------------------------------------------- */
 
-/* ---- Trial banner ---- */
-.trial-banner {
-    background: rgba(59, 130, 246, 0.12);
-    border: 1px solid rgba(59, 130, 246, 0.25);
-    border-radius: 8px;
-    padding: 10px 12px 8px;
-    margin-bottom: 8px;
-}
-
-.trial-banner-top {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    font-weight: 600;
-    color: #93c5fd;
-    margin-bottom: 6px;
-}
-
-.trial-progress-bar {
-    height: 4px;
-    background: rgba(255,255,255,0.12);
-    border-radius: 2px;
-    overflow: hidden;
-    margin-bottom: 5px;
-}
-
-.trial-progress-fill {
-    height: 100%;
-    background: #3b82f6;
-    border-radius: 2px;
-    transition: width 0.4s ease;
-}
-
-.trial-dias {
-    font-size: 10px;
-    color: #94a3b8;
-}
-
-/* ---- Expirado banner ---- */
-.expirado-banner {
-    background: rgba(220, 38, 38, 0.12);
-    border: 1px solid rgba(220, 38, 38, 0.3);
-    border-radius: 8px;
-    padding: 8px 12px;
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 11px;
-    color: #fca5a5;
-    font-weight: 500;
-}
-
-/* ---- Botão upgrade ---- */
-.btn-upgrade {
-    width: 100%;
-    padding: 9px 12px;
-    background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
-    border: none;
-    border-radius: 8px;
-    color: #fff;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    transition: opacity 0.2s, transform 0.15s;
-    letter-spacing: 0.2px;
-}
-
-.btn-upgrade:hover {
-    opacity: 0.92;
-    transform: translateY(-1px);
-}
-
-/* ================================================================
-   OVERLAY DE BLOQUEIO
-   ================================================================ */
-
-.overlay-bloqueio {
+.pgmt-bloqueio-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.92);
-    backdrop-filter: blur(8px);
     z-index: 99999;
+    background: rgba(10, 10, 20, 0.97);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
-    animation: fadeIn 0.3s ease;
-}
-
-.bloqueio-content {
-    text-align: center;
-    max-width: 400px;
-    color: #f1f5f9;
-}
-
-.bloqueio-icon {
-    width: 72px;
-    height: 72px;
-    background: rgba(220, 38, 38, 0.15);
-    border: 1px solid rgba(220, 38, 38, 0.35);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-    color: #f87171;
-    margin: 0 auto 20px;
-}
-
-.bloqueio-content h2 {
-    font-size: 24px;
-    font-weight: 700;
-    margin: 0 0 10px;
-    color: #f8fafc;
-}
-
-.bloqueio-content p {
-    font-size: 14px;
-    color: #94a3b8;
-    margin: 0 0 28px;
-    line-height: 1.6;
-}
-
-.bloqueio-btn {
-    width: auto;
-    padding: 12px 32px;
-    font-size: 14px;
-    border-radius: 10px;
-}
-
-/* ================================================================
-   MODAL DE PLANOS
-   ================================================================ */
-
-.modal-planos-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.75);
-    backdrop-filter: blur(6px);
-    z-index: 100000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    animation: fadeIn 0.2s ease;
-}
-
-.modal-planos-content {
-    background: #0f172a;
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 16px;
-    padding: 28px 24px 24px;
-    width: 100%;
-    max-width: 460px;
-    position: relative;
-    animation: slideUp 0.25s ease;
-    color: #f1f5f9;
-}
-
-@keyframes slideUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-}
-
-.modal-planos-close {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-    background: rgba(255,255,255,0.06);
-    border: none;
-    color: #94a3b8;
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.15s, color 0.15s;
-}
-
-.modal-planos-close:hover {
-    background: rgba(255,255,255,0.12);
-    color: #f1f5f9;
-}
-
-/* Header */
-.modal-planos-header {
-    text-align: center;
-    margin-bottom: 20px;
-}
-
-.modal-planos-icon {
-    width: 48px;
-    height: 48px;
-    background: linear-gradient(135deg, #3b82f6, #6366f1);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    margin: 0 auto 16px;
-    color: #fff;
-}
-
-.modal-planos-header h2 {
-    font-size: 22px;
-    font-weight: 700;
-    color: #f8fafc;
-    margin: 0 0 6px;
-}
-
-.modal-planos-header p {
-    font-size: 13px;
-    color: #94a3b8;
-    margin: 0;
-}
-
-/* ================================================================
-   STEP 1: Grid de planos
-   ================================================================ */
-
-.planos-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 12px;
-}
-
-.plano-card {
-    background: rgba(255,255,255,0.04);
-    border: 2px solid rgba(255,255,255,0.08);
-    border-radius: 10px;
-    padding: 16px 18px;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
+    flex-direction: column;
     gap: 16px;
-    position: relative;
-    cursor: pointer;
-    transition: border-color 0.2s, background 0.2s, transform 0.15s;
-}
-
-.plano-card:hover {
-    border-color: rgba(59, 130, 246, 0.4);
-    background: rgba(59, 130, 246, 0.05);
-    transform: translateY(-2px);
-}
-
-.plano-card.plano-selecionado {
-    border-color: #3b82f6;
-    background: rgba(59, 130, 246, 0.1);
-}
-
-.plano-destaque {
-    background: rgba(99, 102, 241, 0.08);
-    border-color: rgba(99, 102, 241, 0.35);
-}
-
-.plano-destaque:hover {
-    border-color: rgba(99, 102, 241, 0.6);
-    background: rgba(99, 102, 241, 0.12);
-}
-
-.plano-destaque.plano-selecionado {
-    border-color: #6366f1;
-    background: rgba(99, 102, 241, 0.18);
-}
-
-.plano-badge {
-    position: absolute;
-    top: -11px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: linear-gradient(135deg, #3b82f6, #6366f1);
-    color: #fff;
-    font-size: 10px;
-    font-weight: 700;
-    padding: 3px 12px;
-    border-radius: 20px;
-    white-space: nowrap;
-    letter-spacing: 0.4px;
-    text-transform: uppercase;
-}
-
-.plano-nome {
-    font-size: 13px;
-    font-weight: 600;
-    color: #94a3b8;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-}
-
-.plano-preco {
-    display: flex;
-    align-items: baseline;
-    gap: 4px;
-}
-
-.plano-preco-valor {
-    font-size: 28px;
-    font-weight: 700;
-    color: #f8fafc;
-    line-height: 1;
-}
-
-.plano-preco-periodo {
-    font-size: 13px;
-    color: #64748b;
-}
-
-.plano-economia {
-    font-size: 11px;
-    color: #4ade80;
-    font-weight: 600;
-    background: rgba(74, 222, 128, 0.1);
-    border-radius: 4px;
-    padding: 3px 8px;
-    display: inline-block;
-    margin-top: -6px;
-}
-
-.plano-features {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: none;
-}
-
-.plano-features li {
-    font-size: 12px;
-    color: #cbd5e1;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.plano-features li i {
-    color: #4ade80;
-    font-size: 10px;
-    flex-shrink: 0;
-}
-
-.plano-selecionar-hint {
-    font-size: 11px;
-    color: #475569;
-    margin-left: auto;
-    white-space: nowrap;
-}
-
-.plano-card .plano-preco {
-    margin-left: auto;
-}
-
-/* Rodapé */
-.modal-planos-rodape {
     text-align: center;
-    font-size: 11px;
-    color: #475569;
-    margin: 20px 0 0;
+    padding: 24px;
 }
 
-/* ================================================================
-   STEP 2: Forma de pagamento
-   ================================================================ */
-
-.step-plano-resumo {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: rgba(59, 130, 246, 0.08);
-    border: 1px solid rgba(59, 130, 246, 0.2);
-    border-radius: 8px;
-    padding: 10px 14px;
-    margin-bottom: 20px;
-    font-size: 13px;
-}
-
-.resumo-label {
-    color: #64748b;
-}
-
-.resumo-valor {
-    color: #93c5fd;
-    font-weight: 600;
-}
-
-/* Lista de opções (radio customizado) */
-.pagamento-opcoes-lista {
+.pgmt-bloqueio-box {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-bottom: 20px;
-}
-
-.pagamento-opcao {
-    cursor: pointer;
-    display: block;
-}
-
-.pagamento-opcao input[type="radio"] {
-    display: none;
-}
-
-.pagamento-opcao-inner {
-    display: flex;
     align-items: center;
     gap: 14px;
-    padding: 14px 16px;
-    border: 2px solid rgba(255,255,255,0.08);
-    border-radius: 10px;
-    background: rgba(255,255,255,0.03);
-    transition: border-color 0.2s, background 0.2s;
+    max-width: 340px;
 }
 
-.pagamento-opcao:hover .pagamento-opcao-inner {
-    border-color: rgba(255,255,255,0.16);
-    background: rgba(255,255,255,0.06);
+.pgmt-bloqueio-icon {
+    font-size: 48px;
+    color: #f59e0b;
 }
 
-.pagamento-opcao input:checked + .pagamento-opcao-inner {
-    border-color: #3b82f6;
-    background: rgba(59, 130, 246, 0.08);
-}
-
-.pagamento-opcao-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    flex-shrink: 0;
-}
-
-.cartao-icon {
-    background: rgba(59, 130, 246, 0.15);
-    color: #60a5fa;
-}
-
-.pix-icon {
-    background: rgba(52, 211, 153, 0.15);
-    color: #34d399;
-}
-
-.debito-icon {
-    background: rgba(251, 191, 36, 0.15);
-    color: #fbbf24;
-}
-
-.pagamento-opcao-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.pagamento-opcao-nome {
-    font-size: 14px;
-    font-weight: 600;
+.pgmt-bloqueio-box h2 {
     color: #f1f5f9;
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0;
 }
 
-.pagamento-opcao-desc {
-    font-size: 12px;
-    color: #64748b;
-}
-
-.pagamento-opcao-check {
-    font-size: 18px;
-    color: rgba(255,255,255,0.12);
-    transition: color 0.2s;
-}
-
-.pagamento-opcao input:checked + .pagamento-opcao-inner .pagamento-opcao-check {
-    color: #3b82f6;
-}
-
-/* Botões de ação */
-.step-pagamento-acoes {
-    display: flex;
-    gap: 10px;
-    margin-top: 4px;
-}
-
-.btn-voltar-step {
-    padding: 11px 20px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 8px;
+.pgmt-bloqueio-box p {
     color: #94a3b8;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    transition: background 0.15s, color 0.15s;
+    font-size: 14px;
+    margin: 0;
 }
 
-.btn-voltar-step:hover {
-    background: rgba(255,255,255,0.09);
-    color: #f1f5f9;
-}
-
-.btn-continuar-step {
-    flex: 1;
-    padding: 11px 20px;
-    background: linear-gradient(135deg, #3b82f6, #6366f1);
-    border: none;
-    border-radius: 8px;
+.pgmt-bloqueio-btn {
+    margin-top: 4px;
+    padding: 12px 28px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
     color: #fff;
-    font-size: 13px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
     font-weight: 600;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
     transition: opacity 0.2s;
 }
 
-.btn-continuar-step:hover {
-    opacity: 0.9;
+.pgmt-bloqueio-btn:hover {
+    opacity: 0.88;
 }
 
-.btn-continuar-step:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
+/* ----------------------------------------------------------------
+   Overlay do modal
+   ---------------------------------------------------------------- */
 
-/* ================================================================
-   PIX: QR Code display
-   ================================================================ */
-
-.pix-qr-container {
+.pgmt-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(10, 10, 20, 0.80);
     display: flex;
+    align-items: center;
     justify-content: center;
-    margin-bottom: 16px;
+    padding: 16px;
 }
 
-.pix-qr-container img {
+/* ----------------------------------------------------------------
+   Caixa do modal
+   ---------------------------------------------------------------- */
+
+.pgmt-modal {
+    background: #0f1117;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 440px;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    padding: 32px 28px 28px;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.60);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+
+.pgmt-modal::-webkit-scrollbar { width: 4px; }
+.pgmt-modal::-webkit-scrollbar-track { background: transparent; }
+.pgmt-modal::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.12);
+    border-radius: 2px;
+}
+
+/* ----------------------------------------------------------------
+   Botão fechar
+   ---------------------------------------------------------------- */
+
+.pgmt-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: rgba(255, 255, 255, 0.07);
+    border: none;
+    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    color: #94a3b8;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, color 0.2s;
+    z-index: 10;
+}
+
+.pgmt-close:hover {
+    background: rgba(255, 255, 255, 0.13);
+    color: #f1f5f9;
+}
+
+/* ----------------------------------------------------------------
+   TELA 1 — Seleção de plano
+   ---------------------------------------------------------------- */
+
+.pgmt-header {
+    margin-bottom: 24px;
+    padding-right: 32px;
+}
+
+.pgmt-header h2 {
+    color: #f1f5f9;
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0 0 6px;
+    line-height: 1.3;
+}
+
+.pgmt-header p {
+    color: #94a3b8;
+    font-size: 13px;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.pgmt-planos-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.pgmt-plano-row {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: background 0.18s, border-color 0.18s;
+    gap: 12px;
+    position: relative;
+}
+
+.pgmt-plano-row:hover {
+    background: rgba(99, 102, 241, 0.12);
+    border-color: rgba(99, 102, 241, 0.35);
+}
+
+.pgmt-plano-popular {
+    border-color: rgba(99, 102, 241, 0.30);
+    flex-wrap: wrap;
+}
+
+.pgmt-popular-badge {
+    position: absolute;
+    top: -10px;
+    left: 14px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.pgmt-plano-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+}
+
+.pgmt-plano-nome {
+    color: #f1f5f9;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.pgmt-plano-desc {
+    color: #64748b;
+    font-size: 12px;
+}
+
+.pgmt-plano-preco {
+    color: #f1f5f9;
+    font-size: 16px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.pgmt-plano-preco small {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 400;
+}
+
+.pgmt-arrow {
+    color: #475569;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.pgmt-rodape {
+    text-align: center;
+    color: #334155;
+    font-size: 11px;
+    margin: 16px 0 0;
+}
+
+/* ----------------------------------------------------------------
+   TELA 2 — Pagamento
+   ---------------------------------------------------------------- */
+
+.pgmt-pag-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.pgmt-voltar {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    color: #64748b;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.2s;
+    flex-shrink: 0;
+}
+
+.pgmt-voltar:hover {
+    color: #94a3b8;
+}
+
+.pgmt-pag-resumo {
+    color: #a5b4fc;
+    font-size: 13px;
+    font-weight: 600;
+    background: rgba(99, 102, 241, 0.12);
+    border: 1px solid rgba(99, 102, 241, 0.22);
+    border-radius: 8px;
+    padding: 5px 10px;
+}
+
+/* ----------------------------------------------------------------
+   Abas Cartão / PIX
+   ---------------------------------------------------------------- */
+
+.pgmt-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 20px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 10px;
+    padding: 4px;
+}
+
+.pgmt-tab {
+    flex: 1;
+    padding: 9px 12px;
+    background: none;
+    border: none;
+    border-radius: 7px;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.18s, color 0.18s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.pgmt-tab.pgmt-tab-ativo {
+    background: rgba(255, 255, 255, 0.10);
+    color: #f1f5f9;
+}
+
+.pgmt-tab:hover:not(.pgmt-tab-ativo) {
+    color: #94a3b8;
+}
+
+/* ----------------------------------------------------------------
+   Campos do formulário
+   ---------------------------------------------------------------- */
+
+.pgmt-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 10px;
+    position: relative;
+}
+
+.pgmt-field label {
+    color: #94a3b8;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.pgmt-input {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 8px;
+    color: #f1f5f9;
+    font-size: 14px;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.pgmt-input::placeholder {
+    color: #334155;
+}
+
+.pgmt-input:focus {
+    border-color: rgba(99, 102, 241, 0.50);
+}
+
+.pgmt-select {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+}
+
+.pgmt-select option {
+    background: #1e293b;
+    color: #f1f5f9;
+}
+
+.pgmt-field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.pgmt-brand {
+    position: absolute;
+    right: 12px;
+    bottom: 10px;
+    color: #475569;
+    font-size: 18px;
+    pointer-events: none;
+}
+
+/* ----------------------------------------------------------------
+   Seção PIX
+   ---------------------------------------------------------------- */
+
+.pgmt-pix-aviso {
+    color: #94a3b8;
+    font-size: 13px;
+    text-align: center;
+    line-height: 1.6;
+    padding: 12px 0 4px;
+}
+
+.pgmt-pix-aviso i {
+    color: #4ade80;
+    margin-right: 6px;
+}
+
+#pgmt-pix-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding-top: 4px;
+}
+
+.pgmt-pix-qr-wrap {
+    background: #fff;
+    border-radius: 12px;
+    padding: 10px;
+    display: inline-flex;
+}
+
+.pgmt-pix-qr-wrap img {
     width: 180px;
     height: 180px;
-    border-radius: 12px;
-    background: #fff;
-    padding: 8px;
+    display: block;
 }
 
-.pix-codigo-wrap {
+.pgmt-pix-validade {
+    color: #64748b;
+    font-size: 12px;
+    margin: 0;
+}
+
+.pgmt-pix-codigo-row {
     display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
+    gap: 6px;
+    width: 100%;
 }
 
-.pix-codigo-wrap input {
+.pgmt-pix-codigo-row input {
     flex: 1;
-    padding: 10px 12px;
     background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.10);
     border-radius: 8px;
-    color: #cbd5e1;
+    color: #64748b;
     font-size: 11px;
-    font-family: monospace;
+    padding: 8px 10px;
     outline: none;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    cursor: default;
+    box-sizing: border-box;
 }
 
-.btn-copiar-pix {
-    padding: 10px 16px;
-    background: rgba(52, 211, 153, 0.15);
-    border: 1px solid rgba(52, 211, 153, 0.3);
+.pgmt-btn-copiar {
+    padding: 8px 12px;
+    background: rgba(99, 102, 241, 0.15);
+    border: 1px solid rgba(99, 102, 241, 0.30);
     border-radius: 8px;
-    color: #34d399;
+    color: #a5b4fc;
     font-size: 12px;
-    font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
-    transition: background 0.15s;
+    transition: background 0.2s;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 
-.btn-copiar-pix:hover {
-    background: rgba(52, 211, 153, 0.25);
+.pgmt-btn-copiar:hover {
+    background: rgba(99, 102, 241, 0.25);
 }
 
-.pix-instrucao {
-    font-size: 12px;
-    color: #64748b;
-    text-align: center;
-    margin: 0 0 6px;
-}
-
-.pix-instrucao strong {
-    color: #94a3b8;
-}
-
-.pix-validade {
-    font-size: 11px;
-    color: #475569;
-    text-align: center;
-    margin: 0 0 14px;
-}
-
-.btn-ja-paguei {
+.pgmt-btn-ja-paguei {
     width: 100%;
-    padding: 10px;
-    background: rgba(74, 222, 128, 0.1);
-    border: 1px solid rgba(74, 222, 128, 0.25);
-    border-radius: 8px;
+    padding: 11px;
+    background: rgba(74, 222, 128, 0.12);
+    border: 1px solid rgba(74, 222, 128, 0.28);
+    border-radius: 10px;
     color: #4ade80;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
+    transition: background 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    transition: background 0.15s;
 }
 
-.btn-ja-paguei:hover {
-    background: rgba(74, 222, 128, 0.18);
+.pgmt-btn-ja-paguei:hover:not(:disabled) {
+    background: rgba(74, 222, 128, 0.20);
 }
 
-.btn-trocar-pgto {
+.pgmt-btn-ja-paguei:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ----------------------------------------------------------------
+   Botão assinar
+   ---------------------------------------------------------------- */
+
+#pgmt-acoes {
+    margin-top: 6px;
+}
+
+.pgmt-btn-assinar {
     width: 100%;
-    padding: 8px;
-    background: none;
+    padding: 14px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
     border: none;
-    color: #475569;
-    font-size: 12px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 700;
     cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    margin-top: 6px;
-    transition: color 0.15s;
+    gap: 8px;
+    letter-spacing: 0.2px;
 }
 
-.btn-trocar-pgto:hover {
-    color: #94a3b8;
+.pgmt-btn-assinar:hover:not(:disabled) {
+    opacity: 0.90;
+    transform: translateY(-1px);
 }
 
-/* ================================================================
-   Responsivo
-   ================================================================ */
+.pgmt-btn-assinar:active:not(:disabled) {
+    transform: translateY(0);
+}
 
-@media (max-width: 600px) {
-    .planos-grid {
-        grid-template-columns: 1fr;
-    }
+.pgmt-btn-assinar:disabled {
+    opacity: 0.50;
+    cursor: not-allowed;
+    transform: none;
+}
 
-    .modal-planos-content {
-        padding: 32px 20px 24px;
-    }
+.pgmt-seguro {
+    text-align: center;
+    color: #334155;
+    font-size: 11px;
+    margin: 10px 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
 
-    .pix-qr-container img {
-        width: 150px;
-        height: 150px;
-    }
+/* ----------------------------------------------------------------
+   Sidebar — trial / expirado / ativo
+   ---------------------------------------------------------------- */
+
+#trial-banner {
+    background: rgba(245, 158, 11, 0.10);
+    border: 1px solid rgba(245, 158, 11, 0.22);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: #fbbf24;
+    display: none;
+}
+
+#trial-banner .trial-dias {
+    font-weight: 700;
+    margin-bottom: 6px;
+    font-size: 13px;
+}
+
+.trial-progress-bar {
+    height: 4px;
+    background: rgba(245, 158, 11, 0.20);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.trial-progress-fill {
+    height: 100%;
+    background: #f59e0b;
+    border-radius: 2px;
+    transition: width 0.4s ease;
+}
+
+#expirado-banner {
+    background: rgba(239, 68, 68, 0.10);
+    border: 1px solid rgba(239, 68, 68, 0.22);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: #f87171;
+    display: none;
+    align-items: center;
+    gap: 8px;
 }
