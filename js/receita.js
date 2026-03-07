@@ -1444,11 +1444,7 @@ function _calcularSaldoCaixa(mes, ano) {
                     if (r.saldoAnterior || r.descricao?.includes('Saldo Anterior') || r.automatica) return s;
                     return s + (r.valor || 0);
                 }, 0);
-                const desp = (d.despesas || []).reduce((s, d2) => {
-                    if (!d2.pago || d2.quitacaoAntecipada) return s;
-                    return s + (d2.valorPago > 0 ? parseFloat(d2.valorPago) : parseFloat(d2.valor || 0));
-                }, 0);
-                base += rec - desp;
+                base += rec;
             }
             return base;
         }
@@ -1468,11 +1464,7 @@ function _calcularSaldoCaixa(mes, ano) {
             if (r.saldoAnterior || r.descricao?.includes('Saldo Anterior') || r.automatica) return s;
             return s + (r.valor || 0);
         }, 0);
-        const desp = (d.despesas || []).reduce((s, d2) => {
-            if (!d2.pago || d2.quitacaoAntecipada) return s;
-            return s + (d2.valorPago > 0 ? parseFloat(d2.valorPago) : parseFloat(d2.valor || 0));
-        }, 0);
-        base += rec - desp;
+        base += rec;
     }
     return base;
 }
