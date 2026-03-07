@@ -3,7 +3,7 @@
 // Sistema de Controle Financeiro
 // ================================================================
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_STATIC  = `sf-static-${CACHE_VERSION}`;
 
 // Assets estáticos que serão cacheados no install
@@ -12,14 +12,14 @@ const STATIC_ASSETS = [
     '/index.html',
     '/login.html',
     '/manifest.json',
-    '/icons/icon-192.png',
-    '/icons/icon-512.png',
+    '/icons/financeiro.png',
     // CSS
     '/css/login.css',
     '/css/layoutGeral.css',
     '/css/config.css',
     '/css/botoes.css',
     '/css/planos.css',
+    '/css/despesa.css',
     // JS principais
     '/js/login.js',
     '/js/main.js',
@@ -33,11 +33,15 @@ const STATIC_ASSETS = [
     '/js/usuarioDados.js'
 ];
 
-// ── Install: cacheia assets estáticos ──────────────────────────
+// ── Install: resiliente — não aborta se um asset falhar ────────
 self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open(CACHE_STATIC).then((cache) => {
-            return cache.addAll(STATIC_ASSETS);
+        caches.open(CACHE_STATIC).then(async (cache) => {
+            await Promise.allSettled(
+                STATIC_ASSETS.map(url =>
+                    cache.add(url).catch(err => console.warn('[SW] Falha ao cachear:', url, err))
+                )
+            );
         }).then(() => self.skipWaiting())
     );
 });
