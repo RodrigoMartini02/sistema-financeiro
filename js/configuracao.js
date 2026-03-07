@@ -757,7 +757,7 @@ async function atualizarOpcoesCartoes() {
                 <label for="pagamento-cartao${cartao.id}" class="payment-chip" id="label-cartao${cartao.id}">
                     ${(cartao.banco || cartao.nome || '').toUpperCase()}
                 </label>
-                <button type="button" class="chip-star" data-cartao-id="${cartao.id}" title="Favoritar para esta categoria" onclick="salvarFavoritoChip('credito', ${cartao.id}, event)">☆</button>
+                <button type="button" class="chip-star" data-cartao-id="${cartao.id}" title="Favoritar para esta categoria" onclick="salvarFavoritoChip('credito', ${cartao.id}, event)"><i class="far fa-star"></i></button>
             `;
 
             creditoOptions.appendChild(wrap);
@@ -784,11 +784,18 @@ function atualizarChipSelecionado() {
 function abrirModalCartaoRapido() {
     const modal = document.getElementById('modal-rapido-cartao');
     if (!modal) return;
-    modal.style.display = 'flex';
-    modal.style.zIndex = '9999';
-    modal.style.alignItems = 'flex-start';
-    modal.style.justifyContent = 'center';
-    modal.style.paddingTop = '80px';
+    modal.style.cssText = `
+        display: flex !important;
+        position: fixed !important;
+        z-index: 9999 !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        background-color: rgba(0,0,0,0.6) !important;
+        align-items: center !important;
+        justify-content: center !important;
+    `;
 }
 
 // Fecha o mini-modal de criação rápida de cartão
@@ -892,9 +899,27 @@ async function salvarFavoritoCategoria(categoriaId, forma, cartaoId) {
 // Atualiza as estrelas dos chips com base na categoria selecionada
 async function atualizarEstrelasFavorito() {
     const categoriaSelect = document.getElementById('despesa-categoria');
-    if (!categoriaSelect || !categoriaSelect.value) {
-        document.querySelectorAll('.chip-star').forEach(s => { s.textContent = '☆'; s.classList.remove('chip-star-ativo'); });
+
+    // Helper: desativa todas as estrelas
+    function resetarEstrelas() {
+        document.querySelectorAll('.chip-star').forEach(s => {
+            s.classList.remove('chip-star-ativo');
+            const ico = s.querySelector('i');
+            if (ico) { ico.className = 'far fa-star'; }
+        });
         document.querySelectorAll('.payment-chip').forEach(c => c.classList.remove('chip-favorito'));
+    }
+
+    // Helper: ativa uma estrela específica
+    function ativarEstrela(star) {
+        star.classList.add('chip-star-ativo');
+        const ico = star.querySelector('i');
+        if (ico) { ico.className = 'fas fa-star'; }
+        star.previousElementSibling?.classList.add('chip-favorito');
+    }
+
+    if (!categoriaSelect || !categoriaSelect.value) {
+        resetarEstrelas();
         return;
     }
 
@@ -911,26 +936,16 @@ async function atualizarEstrelasFavorito() {
         const formaFav = cat.forma_favorita;
         const cartaoFavId = cat.cartao_favorito_id;
 
-        // Resetar todas as estrelas
-        document.querySelectorAll('.chip-star').forEach(s => { s.textContent = '☆'; s.classList.remove('chip-star-ativo'); });
-        document.querySelectorAll('.payment-chip').forEach(c => c.classList.remove('chip-favorito'));
+        resetarEstrelas();
 
         if (!formaFav) return;
 
         if (formaFav === 'credito' && cartaoFavId) {
             const star = document.querySelector(`.chip-star[data-cartao-id="${cartaoFavId}"]`);
-            if (star) {
-                star.textContent = '★';
-                star.classList.add('chip-star-ativo');
-                star.previousElementSibling?.classList.add('chip-favorito');
-            }
+            if (star) ativarEstrela(star);
         } else {
             const star = document.querySelector(`.chip-star-forma[data-forma="${formaFav}"]`);
-            if (star) {
-                star.textContent = '★';
-                star.classList.add('chip-star-ativo');
-                star.previousElementSibling?.classList.add('chip-favorito');
-            }
+            if (star) ativarEstrela(star);
         }
     } catch (e) {
         console.error('Erro ao buscar favorito:', e);

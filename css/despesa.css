@@ -353,7 +353,7 @@ select.campo-invalido {
 .payment-chip-wrap {
     display: inline-flex;
     align-items: center;
-    gap: 2px;
+    gap: 0;
 }
 
 .payment-chip-wrap input[type="radio"] {
@@ -367,7 +367,7 @@ select.campo-invalido {
     padding: 6px 12px;
     background: #f7fafc;
     border: 1px solid #e2e8f0;
-    border-radius: 20px;
+    border-radius: 20px 0 0 20px;
     cursor: pointer;
     font-size: 10px;
     font-weight: 600;
@@ -401,42 +401,33 @@ select.campo-invalido {
 /* Estrela de favorito no chip */
 .chip-star {
     background: none;
-    border: none;
-    padding: 2px 3px;
+    border: 1px solid #e2e8f0;
+    border-left: none;
+    border-radius: 0 20px 20px 0;
+    padding: 6px 8px 6px 4px;
     cursor: pointer;
-    font-size: 22px;
+    font-size: 13px;
     line-height: 1;
-    color: #cbd5e1;
-    transition: color 0.15s, transform 0.15s;
+    color: #94a3b8;
+    transition: color 0.15s, background 0.15s;
+    display: inline-flex;
+    align-items: center;
 }
 
 .chip-star:hover {
     color: #f59e0b;
-    transform: scale(1.2);
+    background: #fefce8;
 }
 
 .chip-star.chip-star-ativo {
     color: #f59e0b;
-    text-shadow: 0 0 6px #fbbf24;
+    background: #fef9c3;
 }
 
-/* Botão "+" para adicionar cartão rápido */
-.payment-chip-add {
-    background: none;
-    border: 1px dashed #94a3b8;
-    border-radius: 20px;
-    color: #94a3b8;
-    padding: 6px 10px;
-    cursor: pointer;
-    font-size: 12px;
-    transition: all 0.2s;
+.chip-star.chip-star-ativo i {
+    filter: drop-shadow(0 0 3px #fbbf24);
 }
 
-.payment-chip-add:hover {
-    border-color: #667eea;
-    color: #667eea;
-    background: #f0f0ff;
-}
 
 /* ================================================================
    PARCELAS

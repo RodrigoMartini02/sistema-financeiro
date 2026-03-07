@@ -142,8 +142,8 @@ router.get('/:id', authMiddleware, async (req, res) => {
         }
         
         const queryText = `
-            SELECT id, nome, cor, icone, data_criacao, data_atualizacao
-            FROM categorias 
+            SELECT id, nome, cor, icone, forma_favorita, cartao_favorito_id, data_criacao, data_atualizacao
+            FROM categorias
             WHERE id = $1 AND usuario_id = $2
         `;
         

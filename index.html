@@ -1284,9 +1284,7 @@
         </div>
         <div class="modal-footer">
             <button type="button" class="btn btn-secondary" onclick="fecharModalCartaoRapido()">Cancelar</button>
-            <button type="button" class="btn btn-primary" onclick="salvarCartaoRapido()">
-                <i class="fas fa-plus"></i> Adicionar
-            </button>
+            <button type="button" class="btn btn-primary" onclick="salvarCartaoRapido()">Adicionar</button>
         </div>
     </div>
 </div>
@@ -2232,22 +2230,22 @@
                             <div class="payment-chip-wrap">
                                 <input type="radio" id="pagamento-pix" name="forma-pagamento" value="pix" onchange="validarFormaPagamento(); atualizarChipSelecionado()">
                                 <label for="pagamento-pix" class="payment-chip">PIX</label>
-                                <button type="button" class="chip-star chip-star-forma" data-forma="pix" title="Favoritar PIX para esta categoria" onclick="salvarFavoritoForma('pix', event)">☆</button>
+                                <button type="button" class="chip-star chip-star-forma" data-forma="pix" title="Favoritar PIX para esta categoria" onclick="salvarFavoritoForma('pix', event)"><i class="far fa-star"></i></button>
                             </div>
                             <div class="payment-chip-wrap">
                                 <input type="radio" id="pagamento-debito" name="forma-pagamento" value="debito" onchange="validarFormaPagamento(); atualizarChipSelecionado()">
                                 <label for="pagamento-debito" class="payment-chip">DÉBITO</label>
-                                <button type="button" class="chip-star chip-star-forma" data-forma="debito" title="Favoritar Débito para esta categoria" onclick="salvarFavoritoForma('debito', event)">☆</button>
+                                <button type="button" class="chip-star chip-star-forma" data-forma="debito" title="Favoritar Débito para esta categoria" onclick="salvarFavoritoForma('debito', event)"><i class="far fa-star"></i></button>
                             </div>
                             <div class="payment-chip-wrap">
                                 <input type="radio" id="pagamento-dinheiro" name="forma-pagamento" value="dinheiro" onchange="validarFormaPagamento(); atualizarChipSelecionado()">
                                 <label for="pagamento-dinheiro" class="payment-chip">DINHEIRO</label>
-                                <button type="button" class="chip-star chip-star-forma" data-forma="dinheiro" title="Favoritar Dinheiro para esta categoria" onclick="salvarFavoritoForma('dinheiro', event)">☆</button>
+                                <button type="button" class="chip-star chip-star-forma" data-forma="dinheiro" title="Favoritar Dinheiro para esta categoria" onclick="salvarFavoritoForma('dinheiro', event)"><i class="far fa-star"></i></button>
                             </div>
                             <div id="credito-options" class="credito-chips-group">
                                 <!-- Cartões serão inseridos dinamicamente aqui pela função atualizarOpcoesCartoes() -->
                             </div>
-                            <button type="button" class="payment-chip payment-chip-add" id="btn-adicionar-cartao-rapido" onclick="abrirModalCartaoRapido()" title="Adicionar novo cartão">
+                            <button type="button" class="btn-add-categoria" id="btn-adicionar-cartao-rapido" onclick="abrirModalCartaoRapido()" title="Adicionar novo cartão de crédito">
                                 <i class="fas fa-plus"></i>
                             </button>
                         </div>
