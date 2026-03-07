@@ -3016,7 +3016,7 @@
                     <span class="pgmt-popular-badge">Economize 33%</span>
                     <div class="pgmt-plano-info">
                         <span class="pgmt-plano-nome">Anual</span>
-                        <span class="pgmt-plano-desc">R$ 53,33/mês · 2 meses grátis</span>
+                        <span class="pgmt-plano-desc">R$ 53,33/mês</span>
                     </div>
                     <div class="pgmt-plano-preco">R$ 639,90<small>/ano</small></div>
                     <i class="fas fa-chevron-right pgmt-arrow"></i>
@@ -3117,6 +3117,51 @@
                 <p class="pgmt-seguro"><i class="fas fa-lock"></i> Pagamento seguro e criptografado</p>
             </div>
         </div>
+
+        <!-- TELA 3: Gerenciar / Cancelar plano -->
+        <div id="pgmt-tela-gerenciar" style="display:none">
+            <div class="pgmt-pag-header">
+                <button class="pgmt-voltar" onclick="fecharModalPlanos()">
+                    <i class="fas fa-times"></i>
+                </button>
+                <h3>Gerenciar assinatura</h3>
+            </div>
+
+            <div class="pgmt-gerenciar-info">
+                <div class="pgmt-gerenciar-row">
+                    <span class="pgmt-gerenciar-label">Plano atual</span>
+                    <span class="pgmt-gerenciar-valor" id="pgmt-ger-plano">—</span>
+                </div>
+                <div class="pgmt-gerenciar-row">
+                    <span class="pgmt-gerenciar-label">Ativo desde</span>
+                    <span class="pgmt-gerenciar-valor" id="pgmt-ger-inicio">—</span>
+                </div>
+                <div class="pgmt-gerenciar-row">
+                    <span class="pgmt-gerenciar-label">Renovação</span>
+                    <span class="pgmt-gerenciar-valor" id="pgmt-ger-renovacao">—</span>
+                </div>
+            </div>
+
+            <div class="pgmt-reembolso-box" id="pgmt-reembolso-box" style="display:none">
+                <p class="pgmt-reembolso-titulo">Reembolso proporcional</p>
+                <p class="pgmt-reembolso-desc">
+                    Meses restantes: <strong id="pgmt-ger-meses-rest">0</strong> de 12<br>
+                    Valor a reembolsar: <strong id="pgmt-ger-valor-reembolso">R$ 0,00</strong>
+                </p>
+                <p class="pgmt-reembolso-aviso">
+                    O reembolso é processado diretamente pelo Mercado Pago e pode levar alguns dias úteis.
+                    Uma dedução de 15% sobre o valor restante é aplicada para cobrir despesas operacionais.
+                </p>
+            </div>
+
+            <div class="pgmt-gerenciar-acoes">
+                <button class="pgmt-btn-cancelar-plano" id="pgmt-btn-cancelar-confirm" onclick="confirmarCancelamento()">
+                    <i class="fas fa-times-circle"></i> Cancelar assinatura
+                </button>
+                <p class="pgmt-cancelar-aviso">O acesso será bloqueado imediatamente após o cancelamento.</p>
+            </div>
+        </div>
+
     </div>
 </div>
 

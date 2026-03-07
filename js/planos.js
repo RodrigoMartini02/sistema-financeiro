@@ -136,10 +136,11 @@ function atualizarSidebarPlano(plano) {
         btnUpgrade.style.cssText = '';
         btnUpgrade.style.display = 'flex';
         if (tipo !== 'master') {
-            // Verde para plano pago ativo
+            // Verde para plano pago ativo — clique abre tela gerenciar
             btnUpgrade.style.background = 'rgba(74, 222, 128, 0.18)';
             btnUpgrade.style.border = '1px solid rgba(74, 222, 128, 0.28)';
             btnUpgrade.style.color = '#4ade80';
+            btnUpgrade.onclick = () => abrirGerenciarPlano(plano);
         }
     }
 }
@@ -198,6 +199,7 @@ function mostrarTelaPlanos() {
     planoSelecionado = null;
     document.getElementById('pgmt-tela-planos').style.display = 'block';
     document.getElementById('pgmt-tela-pagamento').style.display = 'none';
+    document.getElementById('pgmt-tela-gerenciar').style.display = 'none';
 }
 
 window.irParaPagamento = function (tipo) {
@@ -211,6 +213,7 @@ window.irParaPagamento = function (tipo) {
 
     document.getElementById('pgmt-tela-planos').style.display = 'none';
     document.getElementById('pgmt-tela-pagamento').style.display = 'block';
+    document.getElementById('pgmt-tela-gerenciar').style.display = 'none';
 
     // Reset do estado de pagamento
     selecionarMetodo('cartao');
@@ -570,6 +573,110 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// ================================================================
+// TELA 3 — Gerenciar / Cancelar plano
+// ================================================================
+
+async function abrirGerenciarPlano(plano) {
+    // Mostra modal e navega para tela gerenciar
+    const modal = document.getElementById('modal-planos');
+    if (modal) modal.style.display = 'flex';
+
+    document.getElementById('pgmt-tela-planos').style.display = 'none';
+    document.getElementById('pgmt-tela-pagamento').style.display = 'none';
+    document.getElementById('pgmt-tela-gerenciar').style.display = 'block';
+
+    // Preenche info do plano
+    const nomePlano = plano.plano_tipo === 'anual' ? 'Plano Anual' : 'Plano Mensal';
+    const renovacao = plano.plano_tipo === 'anual'
+        ? 'Cancelamento com reembolso proporcional'
+        : 'Cancelamento sem reembolso';
+
+    document.getElementById('pgmt-ger-plano').textContent = nomePlano;
+    document.getElementById('pgmt-ger-renovacao').textContent = renovacao;
+
+    // Data de início
+    const inicioEl = document.getElementById('pgmt-ger-inicio');
+    if (plano.plano_inicio || plano.data_cadastro) {
+        const d = new Date(plano.plano_inicio || plano.data_cadastro);
+        inicioEl.textContent = d.toLocaleDateString('pt-BR');
+    } else {
+        inicioEl.textContent = '—';
+    }
+
+    // Busca preview do reembolso
+    const reembolsoBox = document.getElementById('pgmt-reembolso-box');
+    reembolsoBox.style.display = 'none';
+
+    if (plano.plano_tipo === 'anual') {
+        try {
+            const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+            const res = await fetch(`${API_URL_PLANOS}/planos/cancelar/preview`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (data.success && data.data.elegivel) {
+                document.getElementById('pgmt-ger-meses-rest').textContent = data.data.meses_restantes;
+                document.getElementById('pgmt-ger-valor-reembolso').textContent =
+                    `R$ ${data.data.reembolso.toFixed(2).replace('.', ',')}`;
+                reembolsoBox.style.display = 'block';
+            }
+        } catch (e) {
+            console.warn('Nao foi possivel carregar preview de reembolso:', e.message);
+        }
+    }
+}
+
+window.abrirGerenciarPlano = abrirGerenciarPlano;
+
+window.confirmarCancelamento = async function () {
+    const confirmado = confirm(
+        'Tem certeza que deseja cancelar sua assinatura?\n\n' +
+        'O acesso será bloqueado IMEDIATAMENTE após a confirmação.'
+    );
+    if (!confirmado) return;
+
+    const btn = document.getElementById('pgmt-btn-cancelar-confirm');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cancelando...';
+    }
+
+    try {
+        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+        const res = await fetch(`${API_URL_PLANOS}/planos/cancelar`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            alert(data.message + (data.aviso ? `\n\n⚠️ ${data.aviso}` : ''));
+            // Bloqueia o sistema localmente e fecha modal
+            sistemaEstaBloqueado = true;
+            const modal = document.getElementById('modal-planos');
+            if (modal) modal.style.display = 'none';
+            bloquearSistema();
+        } else {
+            alert(data.message || 'Erro ao cancelar assinatura.');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-times-circle"></i> Cancelar assinatura';
+            }
+        }
+    } catch (e) {
+        alert('Erro ao conectar com o servidor. Tente novamente.');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-times-circle"></i> Cancelar assinatura';
+        }
+    }
+};
 
 // ================================================================
 // UTILITÁRIO

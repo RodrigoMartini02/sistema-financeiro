@@ -215,9 +215,10 @@ router.post('/webhook', async (req, res) => {
                 expiracao.setDate(expiracao.getDate() + diasAdicionais);
 
                 await query(
-                    `UPDATE usuarios SET plano_status = 'ativo', plano_tipo = $1, plano_expiracao = $2
-                     WHERE id = $3`,
-                    [tipoPlano, expiracao, usuarioId]
+                    `UPDATE usuarios SET plano_status = 'ativo', plano_tipo = $1, plano_expiracao = $2,
+                     plano_inicio = NOW(), payment_id_anual = $3
+                     WHERE id = $4`,
+                    [tipoPlano, expiracao, tipoPlano === 'anual' ? pdt.id.toString() : null, usuarioId]
                 );
                 console.log(`[Webhook] Plano ${tipoPlano} ativado (pagamento avulso) para usuario ${usuarioId}`);
             }
@@ -333,8 +334,9 @@ router.post('/pagar-cartao', authMiddleware, async (req, res) => {
             expiracao.setDate(expiracao.getDate() + diasAdicionais);
 
             await query(
-                `UPDATE usuarios SET plano_status = 'ativo', plano_tipo = $1, plano_expiracao = $2 WHERE id = $3`,
-                [tipo, expiracao, req.usuario.id]
+                `UPDATE usuarios SET plano_status = 'ativo', plano_tipo = $1, plano_expiracao = $2,
+                 plano_inicio = NOW(), payment_id_anual = $3 WHERE id = $4`,
+                [tipo, expiracao, tipo === 'anual' ? pdt.id.toString() : null, req.usuario.id]
             );
 
             console.log(`Plano ${tipo} ativado via cartao para usuario ${req.usuario.id}`);
@@ -423,7 +425,8 @@ router.post('/assinar-recorrente', authMiddleware, async (req, res) => {
             // Ativa o plano imediatamente (primeira cobrança processada pelo MP)
             await query(
                 `UPDATE usuarios
-                 SET plano_status = 'ativo', plano_tipo = $1, plano_expiracao = NULL, preapproval_id = $2
+                 SET plano_status = 'ativo', plano_tipo = $1, plano_expiracao = NULL, preapproval_id = $2,
+                 plano_inicio = NOW(), payment_id_anual = NULL
                  WHERE id = $3`,
                 [tipo, result.id, req.usuario.id]
             );
@@ -443,30 +446,121 @@ router.post('/assinar-recorrente', authMiddleware, async (req, res) => {
 });
 
 // ================================================================
-// POST /api/planos/cancelar — cancela assinatura recorrente
+// GET /api/planos/cancelar/preview — preview do reembolso antes de cancelar
+// ================================================================
+router.get('/cancelar/preview', authMiddleware, async (req, res) => {
+    try {
+        const result = await query(
+            'SELECT plano_tipo, plano_inicio, preapproval_id, payment_id_anual FROM usuarios WHERE id = $1',
+            [req.usuario.id]
+        );
+        const usuario = result.rows[0];
+
+        if (!usuario || usuario.plano_tipo !== 'anual') {
+            return res.json({ success: true, data: { reembolso: 0, meses_restantes: 0, elegivel: false } });
+        }
+
+        const inicio = usuario.plano_inicio ? new Date(usuario.plano_inicio) : null;
+        if (!inicio) {
+            return res.json({ success: true, data: { reembolso: 0, meses_restantes: 0, elegivel: false } });
+        }
+
+        const agora = new Date();
+        const mesesUsados = Math.floor((agora - inicio) / (1000 * 60 * 60 * 24 * 30.44));
+        const mesesRestantes = Math.max(0, 12 - mesesUsados);
+        const VALOR_ANUAL = 639.90;
+        const TAXA_DESPESAS = 0.15;
+
+        const valorBruto = (mesesRestantes / 12) * VALOR_ANUAL;
+        const reembolso = parseFloat((valorBruto * (1 - TAXA_DESPESAS)).toFixed(2));
+
+        res.json({
+            success: true,
+            data: {
+                elegivel: mesesRestantes > 0 && (!!usuario.payment_id_anual || !!usuario.preapproval_id),
+                meses_usados: mesesUsados,
+                meses_restantes: mesesRestantes,
+                reembolso,
+                tem_payment_id: !!usuario.payment_id_anual
+            }
+        });
+    } catch (error) {
+        console.error('Erro preview cancelamento:', error);
+        res.status(500).json({ success: false, message: 'Erro ao calcular reembolso.' });
+    }
+});
+
+// ================================================================
+// POST /api/planos/cancelar — cancela assinatura e reembolsa se anual
 // ================================================================
 router.post('/cancelar', authMiddleware, async (req, res) => {
     try {
         const result = await query(
-            'SELECT preapproval_id FROM usuarios WHERE id = $1',
+            'SELECT plano_tipo, plano_inicio, preapproval_id, payment_id_anual FROM usuarios WHERE id = $1',
             [req.usuario.id]
         );
-        const preapprovalId = result.rows[0]?.preapproval_id;
-
-        if (preapprovalId) {
-            const preApproval = new PreApproval(client);
-            await preApproval.update({
-                id: preapprovalId,
-                body: { status: 'cancelled' }
-            });
+        const usuario = result.rows[0];
+        if (!usuario) {
+            return res.status(404).json({ success: false, message: 'Usuario nao encontrado.' });
         }
 
+        const { plano_tipo, plano_inicio, preapproval_id, payment_id_anual } = usuario;
+
+        // Cancela assinatura recorrente no MP (qualquer tipo)
+        if (preapproval_id) {
+            try {
+                const preApproval = new PreApproval(client);
+                await preApproval.update({ id: preapproval_id, body: { status: 'cancelled' } });
+            } catch (e) {
+                console.warn('Nao foi possivel cancelar preapproval no MP:', e.message);
+            }
+        }
+
+        // Reembolso proporcional — somente plano anual com payment_id_anual
+        let reembolsoRealizado = 0;
+        let reembolsoErro = null;
+
+        if (plano_tipo === 'anual' && payment_id_anual && plano_inicio) {
+            const agora = new Date();
+            const inicio = new Date(plano_inicio);
+            const mesesUsados = Math.floor((agora - inicio) / (1000 * 60 * 60 * 24 * 30.44));
+            const mesesRestantes = Math.max(0, 12 - mesesUsados);
+
+            if (mesesRestantes > 0) {
+                const VALOR_ANUAL = 639.90;
+                const TAXA_DESPESAS = 0.15;
+                const valorBruto = (mesesRestantes / 12) * VALOR_ANUAL;
+                const reembolso = parseFloat((valorBruto * (1 - TAXA_DESPESAS)).toFixed(2));
+
+                try {
+                    const payment = new Payment(client);
+                    const refundResult = await payment.refund({
+                        id: payment_id_anual,
+                        body: { amount: reembolso }
+                    });
+                    reembolsoRealizado = reembolso;
+                    console.log(`[Cancelar] Reembolso de R$${reembolso} realizado para usuario ${req.usuario.id}. Refund ID: ${refundResult.id}`);
+                } catch (e) {
+                    console.error('[Cancelar] Falha ao processar reembolso no MP:', e.message);
+                    reembolsoErro = 'Reembolso nao processado automaticamente. Entre em contato com o suporte.';
+                }
+            }
+        }
+
+        // Bloqueia acesso imediatamente
         await query(
-            `UPDATE usuarios SET plano_status = 'expirado', preapproval_id = NULL WHERE id = $1`,
+            `UPDATE usuarios SET plano_status = 'expirado', preapproval_id = NULL, payment_id_anual = NULL WHERE id = $1`,
             [req.usuario.id]
         );
 
-        res.json({ success: true, message: 'Assinatura cancelada.' });
+        res.json({
+            success: true,
+            message: reembolsoRealizado > 0
+                ? `Assinatura cancelada. Reembolso de R$${reembolsoRealizado.toFixed(2)} processado.`
+                : 'Assinatura cancelada.',
+            reembolso: reembolsoRealizado,
+            aviso: reembolsoErro || null
+        });
     } catch (error) {
         console.error('Erro cancelar assinatura:', error);
         res.status(500).json({ success: false, message: 'Erro ao cancelar assinatura.' });

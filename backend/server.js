@@ -162,6 +162,8 @@ async function criarEstruturaBanco() {
         await query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS plano_tipo VARCHAR(10) DEFAULT NULL;`);
         await query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS plano_expiracao TIMESTAMP DEFAULT NULL;`);
         await query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS preapproval_id VARCHAR(100) DEFAULT NULL;`);
+        await query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS plano_inicio TIMESTAMP DEFAULT NULL;`);
+        await query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS payment_id_anual VARCHAR(100) DEFAULT NULL;`);
 
         // Índices para performance (só cria se não existir)
         await query(`CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email);`);
