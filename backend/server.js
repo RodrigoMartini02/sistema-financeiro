@@ -432,6 +432,14 @@ const iniciarServidor = async () => {
         // ✅ Criar/atualizar usuário master
         await criarUsuarioMaster();
 
+        // ✅ Iniciar cron de cobranças (e-mails de vencimento)
+        try {
+            const { iniciarCronCobrancas } = require('./cron/cobrancas');
+            iniciarCronCobrancas();
+        } catch (cronError) {
+            console.warn('⚠️ Cron de cobranças não iniciado (node-cron não instalado?):', cronError.message);
+        }
+
         app.listen(PORT, () => {
             console.log('================================================');
             console.log('🚀 SERVIDOR INICIADO COM SUCESSO!');
