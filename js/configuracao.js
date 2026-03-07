@@ -783,13 +783,18 @@ function atualizarChipSelecionado() {
 // Abre o mini-modal de criação rápida de cartão
 function abrirModalCartaoRapido() {
     const modal = document.getElementById('modal-rapido-cartao');
-    if (modal) modal.classList.add('show');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    modal.style.zIndex = '9999';
+    modal.style.alignItems = 'flex-start';
+    modal.style.justifyContent = 'center';
+    modal.style.paddingTop = '80px';
 }
 
 // Fecha o mini-modal de criação rápida de cartão
 function fecharModalCartaoRapido() {
     const modal = document.getElementById('modal-rapido-cartao');
-    if (modal) modal.classList.remove('show');
+    if (modal) modal.style.display = 'none';
 }
 
 // Salva cartão rápido a partir do modal de despesa
