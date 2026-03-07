@@ -233,6 +233,7 @@ window.selecionarMetodo = function (metodo) {
         esconderPixDisplay();
     }
 
+    atualizarTextoBotao();
     resetarBotaoAssinar();
 };
 
@@ -244,11 +245,21 @@ function esconderPixDisplay() {
     if (pixInstrucao) pixInstrucao.style.display = 'block';
 }
 
+function atualizarTextoBotao() {
+    const btn = document.getElementById('pgmt-btn-assinar');
+    if (!btn) return;
+    if (metodoSelecionado === 'pix') {
+        btn.innerHTML = '<i class="fas fa-qrcode"></i> Gerar QR Code';
+    } else {
+        btn.innerHTML = '<i class="fas fa-lock"></i> Confirmar pagamento';
+    }
+}
+
 function resetarBotaoAssinar() {
     const btn = document.getElementById('pgmt-btn-assinar');
     if (!btn) return;
     btn.disabled = false;
-    btn.innerHTML = '<i class="fas fa-lock"></i> Assinar agora';
+    atualizarTextoBotao();
 }
 
 // ================================================================
@@ -311,7 +322,7 @@ async function pagarCartao() {
         if (!cardToken?.id) {
             mostrarErro('Não foi possível validar o cartão. Verifique os dados e tente novamente.');
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-lock"></i> Assinar agora';
+            atualizarTextoBotao();
             return;
         }
 
@@ -343,13 +354,13 @@ async function pagarCartao() {
         } else {
             mostrarErro(data.message || 'Não foi possível processar o pagamento. Verifique os dados do cartão.');
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-lock"></i> Assinar agora';
+            atualizarTextoBotao();
         }
     } catch (error) {
         console.error('Erro assinatura cartão:', error);
         mostrarErro('Erro ao processar. Verifique sua conexão e tente novamente.');
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-lock"></i> Assinar agora';
+        atualizarTextoBotao();
     }
 }
 
