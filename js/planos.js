@@ -266,16 +266,15 @@ window.processarPagamento = async function () {
 };
 
 // ================================================================
-// CARTÃO — tokenização MP + pagamento
+// CARTÃO — tokenização MP + assinatura recorrente
 // ================================================================
 
 async function pagarCartao() {
-    const numero  = document.getElementById('pgmt-card-number')?.value.replace(/\s/g, '');
-    const expiry  = document.getElementById('pgmt-card-expiry')?.value;
-    const cvv     = document.getElementById('pgmt-card-cvv')?.value;
-    const nome    = document.getElementById('pgmt-card-name')?.value.trim();
-    const cpf     = document.getElementById('pgmt-card-cpf')?.value.replace(/\D/g, '');
-    const parcelas = document.getElementById('pgmt-parcelas')?.value || '1';
+    const numero = document.getElementById('pgmt-card-number')?.value.replace(/\s/g, '');
+    const expiry = document.getElementById('pgmt-card-expiry')?.value;
+    const cvv    = document.getElementById('pgmt-card-cvv')?.value;
+    const nome   = document.getElementById('pgmt-card-name')?.value.trim();
+    const cpf    = document.getElementById('pgmt-card-cpf')?.value.replace(/\D/g, '');
 
     if (!numero || !expiry || !cvv || !nome || !cpf) {
         mostrarErro('Preencha todos os campos do cartão.');
@@ -288,30 +287,36 @@ async function pagarCartao() {
         return;
     }
 
+    if (!mpInstance) {
+        mostrarErro('Módulo de pagamento não carregado. Recarregue a página e tente novamente.');
+        return;
+    }
+
     const btn = document.getElementById('pgmt-btn-assinar');
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
 
     try {
-        // Tokeniza o cartão via Mercado Pago SDK
-        let cardToken;
-        if (mpInstance) {
-            cardToken = await mpInstance.createCardToken({
-                cardNumber: numero,
-                cardholderName: nome,
-                cardExpirationMonth: mesStr,
-                cardExpirationYear: `20${anoStr}`,
-                securityCode: cvv,
-                identificationType: 'CPF',
-                identificationNumber: cpf
-            });
-        } else {
-            // Sem SDK, envia dados (backend usa MP diretamente)
-            cardToken = { id: null, sem_sdk: true };
+        // Tokeniza o cartão via Mercado Pago SDK v2
+        const cardToken = await mpInstance.createCardToken({
+            cardNumber: numero,
+            cardholderName: nome,
+            cardExpirationMonth: mesStr,
+            cardExpirationYear: `20${anoStr}`,
+            securityCode: cvv,
+            identificationType: 'CPF',
+            identificationNumber: cpf
+        });
+
+        if (!cardToken?.id) {
+            mostrarErro('Não foi possível validar o cartão. Verifique os dados e tente novamente.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-lock"></i> Assinar agora';
+            return;
         }
 
         const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-        const response = await fetch(`${API_URL_PLANOS}/planos/pagar-cartao`, {
+        const response = await fetch(`${API_URL_PLANOS}/planos/assinar-recorrente`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -319,14 +324,7 @@ async function pagarCartao() {
             },
             body: JSON.stringify({
                 tipo: planoSelecionado,
-                card_token: cardToken?.id || null,
-                installments: parseInt(parcelas),
-                // Fallback caso SDK não esteja disponível
-                card_number: cardToken?.sem_sdk ? numero : undefined,
-                card_expiry: cardToken?.sem_sdk ? expiry : undefined,
-                card_cvv: cardToken?.sem_sdk ? cvv : undefined,
-                card_name: cardToken?.sem_sdk ? nome : undefined,
-                cpf: cardToken?.sem_sdk ? cpf : undefined
+                card_token: cardToken.id
             })
         });
 
@@ -335,19 +333,15 @@ async function pagarCartao() {
         if (data.success) {
             fecharModalPlanos();
             await carregarStatusPlano();
-            alert('Pagamento aprovado! Seu plano está ativo. Obrigado!');
-        } else if (data.redirect_url) {
-            window.open(data.redirect_url, '_blank');
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-lock"></i> Assinar agora';
+            alert('Assinatura ativada! Sua primeira cobrança foi processada e o plano está ativo.');
         } else {
-            mostrarErro(data.message || 'Pagamento recusado. Verifique os dados e tente novamente.');
+            mostrarErro(data.message || 'Não foi possível criar a assinatura. Verifique os dados do cartão.');
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-lock"></i> Assinar agora';
         }
     } catch (error) {
-        console.error('Erro pagamento cartão:', error);
-        mostrarErro('Erro ao processar pagamento. Verifique sua conexão e tente novamente.');
+        console.error('Erro assinatura cartão:', error);
+        mostrarErro('Erro ao processar. Verifique sua conexão e tente novamente.');
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-lock"></i> Assinar agora';
     }
@@ -496,7 +490,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const expInput = document.getElementById('pgmt-card-expiry');
     const cvvInput = document.getElementById('pgmt-card-cvv');
     const cpfInput = document.getElementById('pgmt-card-cpf');
-    const parcelasField = document.getElementById('pgmt-field-parcelas');
 
     if (numInput) {
         numInput.addEventListener('input', (e) => {
@@ -514,11 +507,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 else                       brand.innerHTML = '<i class="fas fa-credit-card" style="opacity:.3"></i>';
             }
 
-            // Mostrar parcelas para plano anual
-            if (parcelasField) {
-                parcelasField.style.display =
-                    (planoSelecionado === 'anual') ? 'flex' : 'none';
-            }
         });
     }
 

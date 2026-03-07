@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../config/database');
 const { authMiddleware } = require('../middleware/auth');
-const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
+const { MercadoPagoConfig, Preference, Payment, PreApproval } = require('mercadopago');
 
 const client = new MercadoPagoConfig({
     accessToken: process.env.MP_ACCESS_TOKEN
@@ -191,41 +191,87 @@ router.post('/pix', authMiddleware, async (req, res) => {
 // POST /api/planos/webhook — callback do Mercado Pago
 // ================================================================
 router.post('/webhook', async (req, res) => {
-    const { action, data } = req.body;
+    res.sendStatus(200); // responde rápido ao MP
 
-    if (action === 'payment.created' || action === 'payment.updated' || req.query.type === 'payment') {
-        const paymentId = data?.id || req.query['data.id'];
+    const { action, data, type } = req.body;
+    const eventType = type || req.query.type;
+    const resourceId = data?.id || req.query['data.id'];
 
-        try {
+    if (!resourceId) return;
+
+    try {
+        // ── Pagamento avulso (PIX, cartão one-time) ──────────────
+        if (eventType === 'payment' || action === 'payment.created' || action === 'payment.updated') {
             const payment = new Payment(client);
-            const pdt = await payment.get({ id: paymentId });
+            const pdt = await payment.get({ id: resourceId });
 
             if (pdt.status === 'approved') {
                 const usuarioId = pdt.external_reference;
-                // Tenta pegar o tipo pelo item ou pelo valor pago
                 let tipoPlano = 'mensal';
-                const valorPago = parseFloat(pdt.transaction_amount);
-                if (valorPago >= 600) tipoPlano = 'anual';
+                if (parseFloat(pdt.transaction_amount) >= 600) tipoPlano = 'anual';
 
                 const diasAdicionais = tipoPlano === 'anual' ? 365 : 30;
                 const expiracao = new Date();
                 expiracao.setDate(expiracao.getDate() + diasAdicionais);
 
                 await query(
-                    `UPDATE usuarios
-                     SET plano_status = 'ativo', plano_tipo = $1, plano_expiracao = $2
+                    `UPDATE usuarios SET plano_status = 'ativo', plano_tipo = $1, plano_expiracao = $2
                      WHERE id = $3`,
                     [tipoPlano, expiracao, usuarioId]
                 );
-
-                console.log(`Plano ${tipoPlano} ativado para usuario ${usuarioId}`);
+                console.log(`[Webhook] Plano ${tipoPlano} ativado (pagamento avulso) para usuario ${usuarioId}`);
             }
-        } catch (err) {
-            console.error('Erro ao processar webhook:', err);
         }
-    }
 
-    res.sendStatus(200);
+        // ── Assinatura recorrente ─────────────────────────────────
+        if (eventType === 'subscription_preapproval' || action === 'subscription_preapproval.updated') {
+            const preApproval = new PreApproval(client);
+            const sub = await preApproval.get({ id: resourceId });
+
+            const usuarioId = sub.external_reference;
+
+            if (sub.status === 'authorized') {
+                // Assinatura ativa ou renovada — mantém plano ativo sem data de expiração
+                let tipoPlano = 'mensal';
+                if (parseFloat(sub.auto_recurring?.transaction_amount) >= 600) tipoPlano = 'anual';
+
+                await query(
+                    `UPDATE usuarios SET plano_status = 'ativo', plano_tipo = $1, plano_expiracao = NULL, preapproval_id = $2
+                     WHERE id = $3`,
+                    [tipoPlano, sub.id, usuarioId]
+                );
+                console.log(`[Webhook] Assinatura ${sub.id} autorizada para usuario ${usuarioId}`);
+
+            } else if (sub.status === 'cancelled' || sub.status === 'paused') {
+                await query(
+                    `UPDATE usuarios SET plano_status = 'expirado', preapproval_id = NULL WHERE id = $1`,
+                    [usuarioId]
+                );
+                console.log(`[Webhook] Assinatura ${sub.id} ${sub.status} — usuario ${usuarioId} bloqueado`);
+            }
+        }
+
+        // ── Cobrança recorrente executada ────────────────────────
+        if (eventType === 'subscription_authorized_payment') {
+            // MP executou uma cobrança automática — garante que o plano continua ativo
+            const payment = new Payment(client);
+            const pdt = await payment.get({ id: resourceId });
+
+            if (pdt.status === 'approved' && pdt.external_reference) {
+                await query(
+                    `UPDATE usuarios SET plano_status = 'ativo', plano_expiracao = NULL
+                     WHERE id = $1`,
+                    [pdt.external_reference]
+                );
+                console.log(`[Webhook] Cobrança recorrente aprovada para usuario ${pdt.external_reference}`);
+            } else if (pdt.status === 'rejected' && pdt.external_reference) {
+                // Cobrança falhou — pode notificar ou aguardar retentativas do MP
+                console.warn(`[Webhook] Cobrança recorrente rejeitada para usuario ${pdt.external_reference}: ${pdt.status_detail}`);
+            }
+        }
+    } catch (err) {
+        console.error('[Webhook] Erro ao processar evento:', err.message);
+    }
 });
 
 // ================================================================
@@ -310,6 +356,120 @@ router.post('/pagar-cartao', authMiddleware, async (req, res) => {
     } catch (error) {
         console.error('Erro pagar-cartao:', error);
         res.status(500).json({ success: false, message: 'Erro ao processar pagamento. Tente novamente.' });
+    }
+});
+
+// ================================================================
+// POST /api/planos/assinar-recorrente — débito recorrente em cartão
+// ================================================================
+router.post('/assinar-recorrente', authMiddleware, async (req, res) => {
+    const { tipo, card_token } = req.body;
+
+    if (!['mensal', 'anual'].includes(tipo)) {
+        return res.status(400).json({ success: false, message: 'Tipo de plano invalido' });
+    }
+
+    if (!card_token) {
+        return res.status(400).json({ success: false, message: 'Token do cartao ausente.' });
+    }
+
+    const valor     = tipo === 'mensal' ? 79.90 : 639.90;
+    const frequencia = tipo === 'mensal' ? 1 : 12; // mensal=1 mês, anual=12 meses
+
+    try {
+        const usuarioResult = await query(
+            'SELECT email, nome, preapproval_id FROM usuarios WHERE id = $1',
+            [req.usuario.id]
+        );
+        const usuario = usuarioResult.rows[0];
+
+        // Cancela assinatura anterior se existir
+        if (usuario.preapproval_id) {
+            try {
+                const preApproval = new PreApproval(client);
+                await preApproval.update({
+                    id: usuario.preapproval_id,
+                    body: { status: 'cancelled' }
+                });
+            } catch (e) {
+                console.warn('Nao foi possivel cancelar assinatura anterior:', e.message);
+            }
+        }
+
+        const preApproval = new PreApproval(client);
+        const startDate = new Date();
+        startDate.setSeconds(startDate.getSeconds() + 30); // começa em 30s para garantir processamento
+
+        const result = await preApproval.create({
+            body: {
+                reason: `Sistema Financeiro - Plano ${tipo === 'mensal' ? 'Mensal' : 'Anual'}`,
+                external_reference: req.usuario.id.toString(),
+                payer_email: usuario.email,
+                card_token_id: card_token,
+                auto_recurring: {
+                    frequency: frequencia,
+                    frequency_type: 'months',
+                    start_date: startDate.toISOString(),
+                    transaction_amount: valor,
+                    currency_id: 'BRL'
+                },
+                back_url: FRONTEND_URL,
+                notification_url: `${BACKEND_URL}/api/planos/webhook`,
+                status: 'authorized'
+            }
+        });
+
+        if (result.status === 'authorized') {
+            // Ativa o plano imediatamente (primeira cobrança processada pelo MP)
+            await query(
+                `UPDATE usuarios
+                 SET plano_status = 'ativo', plano_tipo = $1, plano_expiracao = NULL, preapproval_id = $2
+                 WHERE id = $3`,
+                [tipo, result.id, req.usuario.id]
+            );
+
+            console.log(`Assinatura recorrente ${tipo} criada para usuario ${req.usuario.id}: ${result.id}`);
+            return res.json({ success: true, message: 'Assinatura criada! Seu plano esta ativo.' });
+        } else {
+            return res.json({
+                success: false,
+                message: `Assinatura nao autorizada (${result.status}). Verifique os dados do cartao.`
+            });
+        }
+    } catch (error) {
+        console.error('Erro assinar-recorrente:', error);
+        res.status(500).json({ success: false, message: 'Erro ao criar assinatura. Tente novamente.' });
+    }
+});
+
+// ================================================================
+// POST /api/planos/cancelar — cancela assinatura recorrente
+// ================================================================
+router.post('/cancelar', authMiddleware, async (req, res) => {
+    try {
+        const result = await query(
+            'SELECT preapproval_id FROM usuarios WHERE id = $1',
+            [req.usuario.id]
+        );
+        const preapprovalId = result.rows[0]?.preapproval_id;
+
+        if (preapprovalId) {
+            const preApproval = new PreApproval(client);
+            await preApproval.update({
+                id: preapprovalId,
+                body: { status: 'cancelled' }
+            });
+        }
+
+        await query(
+            `UPDATE usuarios SET plano_status = 'expirado', preapproval_id = NULL WHERE id = $1`,
+            [req.usuario.id]
+        );
+
+        res.json({ success: true, message: 'Assinatura cancelada.' });
+    } catch (error) {
+        console.error('Erro cancelar assinatura:', error);
+        res.status(500).json({ success: false, message: 'Erro ao cancelar assinatura.' });
     }
 });
 
