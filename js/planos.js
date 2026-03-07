@@ -150,6 +150,9 @@ function atualizarSidebarPlano(plano) {
 
 window.abrirModalPlanos = function () {
     mostrarTelaPlanos();
+    // Esconde o overlay de bloqueio para o modal aparecer por cima
+    const overlay = document.getElementById('overlay-bloqueio');
+    if (overlay) overlay.style.display = 'none';
     const modal = document.getElementById('modal-planos');
     if (modal) modal.style.display = 'flex';
 };
@@ -161,12 +164,27 @@ window.fecharModalPlanos = function () {
     pararContagemPix();
 };
 
+function fecharModalAposPageamento() {
+    // Chamado após pagamento confirmado — não reexibe overlay pois plano foi ativado
+    const modal = document.getElementById('modal-planos');
+    if (modal) modal.style.display = 'none';
+    pararContagemPix();
+}
+
 window.fecharModalPlanosOverlay = function (event) {
-    if (sistemaEstaBloqueado) return;
-    if (event.target === document.getElementById('modal-planos')) {
-        fecharModalPlanos();
+    // Clique fora do modal enquanto bloqueado → reexibe o overlay de bloqueio
+    if (event.target !== document.getElementById('modal-planos')) return;
+    if (sistemaEstaBloqueado) {
+        const modal = document.getElementById('modal-planos');
+        if (modal) modal.style.display = 'none';
+        pararContagemPix();
+        const overlay = document.getElementById('overlay-bloqueio');
+        if (overlay) overlay.style.display = 'flex';
+        return;
     }
+    fecharModalPlanos();
 };
+
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !sistemaEstaBloqueado) fecharModalPlanos();
@@ -346,7 +364,7 @@ async function pagarCartao() {
         const data = await response.json();
 
         if (data.success) {
-            fecharModalPlanos();
+            fecharModalAposPageamento();
             await carregarStatusPlano();
             const msg = recorrente
                 ? 'Assinatura ativada! Seu cartão será cobrado automaticamente a cada período.'
@@ -488,7 +506,7 @@ window.verificarPagamentoPix = async function () {
 
     if (!sistemaEstaBloqueado) {
         pararContagemPix();
-        fecharModalPlanos();
+        fecharModalAposPageamento();
         alert('Pagamento confirmado! Seu plano está ativo. Obrigado!');
     } else {
         if (btn) {
