@@ -1617,6 +1617,9 @@ async function abrirModalReservarValor() {
     // Renderizar lista de reservas no modal
     renderizarListaReservasModal();
 
+    // Colapsar histórico ao abrir
+    document.getElementById('historico-geral-container')?.classList.add('collapsed');
+
     // Abrir modal
     const modal = document.getElementById('modal-reservar-valor');
     if (modal) {
@@ -1987,19 +1990,23 @@ async function excluirReserva(id) {
  * Inicializa eventos das reservas
  */
 function inicializarEventosReservasIntegradas() {
-    // Botão "Reservas" no card
     const btnReservar = document.getElementById('btn-reservar-valor');
     if (btnReservar) {
         btnReservar.addEventListener('click', abrirModalReservarValor);
     }
 
-    // Botão Adicionar nova reserva
     const btnAdicionar = document.getElementById('btn-adicionar-reserva');
     if (btnAdicionar) {
         btnAdicionar.addEventListener('click', processarAdicionarReserva);
     }
 
-    // Carregar reservas ao iniciar
+    const historicoToggle = document.getElementById('historico-geral-toggle');
+    if (historicoToggle) {
+        historicoToggle.addEventListener('click', () => {
+            document.getElementById('historico-geral-container')?.classList.toggle('collapsed');
+        });
+    }
+
     carregarReservasAPI();
 }
 

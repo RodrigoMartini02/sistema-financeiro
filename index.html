@@ -293,6 +293,39 @@
 
         <div class="dashboard-grid">
 
+            <div class="dashboard-card dashboard-card-full chart-accent-blue">
+                <h3>
+                    <span class="chart-label"><i class="fas fa-chart-area chart-icon"></i> BALANÇO</span>
+                    <div class="filtros-header">
+                        <select class="filtro-select" id="balanco-periodo-filter" onchange="filtrarBalancoPeriodo()">
+                            <option value="ano">Ano</option>
+                            <option value="mes">Mês</option>
+                            <option value="semana">Semana</option>
+                            <option value="dia">Dia</option>
+                        </select>
+                        <select class="filtro-select" id="balanco-ano-filter" onchange="filtrarBalancoPeriodo()" style="display: none;"></select>
+                        <select class="filtro-select" id="balanco-mes-filter" onchange="filtrarBalancoPeriodo()" style="display: none;">
+                            <option value="0">Janeiro</option>
+                            <option value="1">Fevereiro</option>
+                            <option value="2">Março</option>
+                            <option value="3">Abril</option>
+                            <option value="4">Maio</option>
+                            <option value="5">Junho</option>
+                            <option value="6">Julho</option>
+                            <option value="7">Agosto</option>
+                            <option value="8">Setembro</option>
+                            <option value="9">Outubro</option>
+                            <option value="10">Novembro</option>
+                            <option value="11">Dezembro</option>
+                        </select>
+                    </div>
+                    <button class="btn-zoom" data-chart="balancoChart"><i class="fas fa-expand-alt"></i></button>
+                </h3>
+                <div class="chart-container">
+                    <canvas id="balanco-chart"></canvas>
+                </div>
+            </div>
+
             <div class="dashboard-card chart-accent-violet">
                 <h3>
                     <span class="chart-label"><i class="fas fa-chart-line chart-icon"></i> TENDÊNCIA ANUAL</span>
@@ -382,41 +415,6 @@
                     <canvas id="media-categorias-chart"></canvas>
                 </div>
             </div>
-
-            <div class="dashboard-card chart-accent-blue">
-            <h3>
-                <span class="chart-label"><i class="fas fa-chart-area chart-icon"></i> BALANÇO</span>
-                <div class="filtros-header">
-                    <select class="filtro-select" id="balanco-periodo-filter" onchange="filtrarBalancoPeriodo()">
-                        <option value="ano">Ano</option>
-                        <option value="mes">Mês</option>
-                        <option value="semana">Semana</option>
-                        <option value="dia">Dia</option>
-                    </select>
-                    <select class="filtro-select" id="balanco-ano-filter" onchange="filtrarBalancoPeriodo()" style="display: none;">
-                        <!-- Preenchido dinamicamente -->
-                    </select>
-                    <select class="filtro-select" id="balanco-mes-filter" onchange="filtrarBalancoPeriodo()" style="display: none;">
-                        <option value="0">Janeiro</option>
-                        <option value="1">Fevereiro</option>
-                        <option value="2">Março</option>
-                        <option value="3">Abril</option>
-                        <option value="4">Maio</option>
-                        <option value="5">Junho</option>
-                        <option value="6">Julho</option>
-                        <option value="7">Agosto</option>
-                        <option value="8">Setembro</option>
-                        <option value="9">Outubro</option>
-                        <option value="10">Novembro</option>
-                        <option value="11">Dezembro</option>
-                    </select>
-                </div>
-                <button class="btn-zoom" data-chart="balancoChart"><i class="fas fa-expand-alt"></i></button>
-            </h3>
-            <div class="chart-container">
-                <canvas id="balanco-chart"></canvas>
-            </div>
-        </div>
 
         </div>
     </section>
@@ -2033,8 +2031,8 @@
             </div>
 
             <!-- Histórico Geral -->
-            <div class="historico-geral-container">
-                <h4><i class="fas fa-history"></i> Histórico</h4>
+            <div class="historico-geral-container collapsed" id="historico-geral-container">
+                <h4 id="historico-geral-toggle"><i class="fas fa-history"></i> Histórico<i class="fas fa-chevron-right seta-historico"></i></h4>
                 <div class="historico-geral-lista" id="historico-geral-reservas">
                     <div class="historico-vazio">Nenhuma movimentação</div>
                 </div>

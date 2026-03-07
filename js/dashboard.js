@@ -129,20 +129,47 @@ function _anoGraficosAtual() {
 }
 
 function _reaplicarFiltrosGlobais() {
-    const anoGraficos = _anoGraficosAtual();
+    const todos = window.anoDashboard === 'todos';
+    const ano = todos ? 'todos' : _anoGraficosAtual();
     const filtros = obterFiltrosGlobais();
     limparGraficos();
-    const dadosProcessados = processarDadosReais(window.dadosFinanceiros, anoGraficos);
-    criarGraficoBalanco(dadosProcessados.dadosMensais);
-    criarGraficoTendenciaAnualComFiltros(window.dadosFinanceiros, anoGraficos, filtros);
-    criarGraficoReceitasDespesasComFiltros(dadosProcessados.dadosMensais, filtros);
-    criarGraficoBarrasCategoriasComFiltros(window.dadosFinanceiros, anoGraficos, filtros);
-    criarGraficoCategoriasMensaisComFiltros(window.dadosFinanceiros, anoGraficos, filtros);
-    criarGraficoJurosComFiltros(window.dadosFinanceiros, anoGraficos, filtros);
-    criarGraficoParcelamentosComFiltros(window.dadosFinanceiros, anoGraficos, filtros);
-    criarGraficoFormaPagamentoComFiltros(window.dadosFinanceiros, anoGraficos, filtros);
-    renderDistribuicaoCartoes(window.dadosFinanceiros, anoGraficos, filtros);
-    renderizarGraficoMediaCategorias();
+    criarGraficoBalanco(null);
+    criarGraficoTendenciaAnualComFiltros(window.dadosFinanceiros, ano, filtros);
+    if (todos) {
+        criarGraficoReceitasDespesasComFiltros(_processarEntradasSaidasAgregadas(filtros), filtros);
+    } else {
+        const dadosProcessados = processarDadosReais(window.dadosFinanceiros, ano);
+        criarGraficoReceitasDespesasComFiltros(dadosProcessados.dadosMensais, filtros);
+    }
+    criarGraficoBarrasCategoriasComFiltros(window.dadosFinanceiros, ano, filtros);
+    criarGraficoCategoriasMensaisComFiltros(window.dadosFinanceiros, ano, filtros);
+    criarGraficoJurosComFiltros(window.dadosFinanceiros, ano, filtros);
+    criarGraficoParcelamentosComFiltros(window.dadosFinanceiros, ano, filtros);
+    criarGraficoFormaPagamentoComFiltros(window.dadosFinanceiros, ano, filtros);
+    renderDistribuicaoCartoes(window.dadosFinanceiros, ano, filtros);
+    renderizarGraficoMediaCategorias(ano);
+}
+
+function _processarEntradasSaidasAgregadas(filtros) {
+    const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const receitas = Array(12).fill(0);
+    const despesas = Array(12).fill(0);
+    const dados = window.dadosFinanceiros || {};
+    Object.keys(dados).map(Number).forEach(anoN => {
+        const anoData = dados[anoN];
+        if (!anoData?.meses) return;
+        for (let m = 0; m < 12; m++) {
+            const mes = anoData.meses[m];
+            if (!mes) continue;
+            receitas[m] += (mes.receitas || []).reduce((s, r) => {
+                if (r.saldoAnterior || r.descricao?.includes('Saldo Anterior') || r.automatica) return s;
+                return s + (r.valor || 0);
+            }, 0);
+            const despFilt = aplicarFiltrosDespesas(mes.despesas || [], filtros);
+            despesas[m] += window.calcularTotalDespesas ? window.calcularTotalDespesas(despFilt) : 0;
+        }
+    });
+    return { labels: nomesMeses, receitas, despesas };
 }
 
 function aplicarFiltroPeriodo(valor) {
@@ -209,7 +236,7 @@ function resetarFiltros() {
 }
 
 function limparGraficos() {
-    const graficos = [
+    [
         'balancoChart',
         'tendenciaChart',
         'receitasDespesasChart',
@@ -217,21 +244,15 @@ function limparGraficos() {
         'categoriasEmpilhadasChart',
         'jurosChart',
         'parcelamentosChart',
-        'formaPagamentoChart'
-    ];
-
-    graficos.forEach(grafico => {
-        if (window[grafico]) {
-            window[grafico].destroy();
-            window[grafico] = null;
+        'formaPagamentoChart',
+        'chartDistribuicaoCartoes',
+        'mediaCategoriasChart'
+    ].forEach(nome => {
+        if (window[nome]) {
+            window[nome].destroy();
+            window[nome] = null;
         }
     });
-
-    // Limpar gráfico de média de categorias
-    if (window.mediaCategoriasChart) {
-        window.mediaCategoriasChart.destroy();
-        window.mediaCategoriasChart = null;
-    }
 }
 
 
@@ -341,7 +362,7 @@ async function carregarDadosDashboard(ano) {
         criarGraficoParcelamentosComFiltros(window.dadosFinanceiros, ano, filtros);
         criarGraficoFormaPagamentoComFiltros(window.dadosFinanceiros, ano, filtros);
         renderDistribuicaoCartoes(window.dadosFinanceiros, ano, filtros);
-        renderizarGraficoMediaCategorias();
+        renderizarGraficoMediaCategorias(ano);
     } finally {
         _dashboardCarregando = false;
     }
@@ -568,17 +589,17 @@ function filtrarBalancoPeriodo() {
 }
 
 // Criar dataset padrão para linha
-function criarDatasetLinha(config, data, pointRadius = 4) {
+function criarDatasetLinha(config, data) {
     return {
         label: config.label,
         data: data,
         borderColor: config.borderColor,
         backgroundColor: config.backgroundColor,
         fill: false,
-        tension: 0.3,
-        borderWidth: 2,
-        pointRadius: pointRadius,
-        pointHoverRadius: 6,
+        tension: 0,
+        borderWidth: 1.5,
+        pointRadius: 0,
+        pointHoverRadius: 4,
         pointBackgroundColor: config.borderColor,
         order: config.order
     };
@@ -706,9 +727,9 @@ function criarGraficoBalancoPorAnos() {
         data: {
             labels: labels,
             datasets: [
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.balanco, balancos, 6),
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.saldo, saldos, 6),
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.reservas, reservas, 6)
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.balanco, balancos),
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.saldo, saldos),
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.reservas, reservas)
             ]
         },
         options: getOpcoesGrafico()
@@ -923,9 +944,9 @@ function criarGraficoBalancoPorDias(ano, mes) {
         data: {
             labels: labels,
             datasets: [
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.balanco, balancos, 2),
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.saldo, saldos, 2),
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.reservas, reservas, 2)
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.balanco, balancos),
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.saldo, saldos),
+                criarDatasetLinha(BALANCO_DATASETS_CONFIG.reservas, reservas)
             ]
         },
         options: getOpcoesGrafico()
@@ -982,7 +1003,10 @@ function criarGraficoTendenciaAnualComFiltros(dadosFinanceiros, anoAtual, filtro
     const ctx = document.getElementById('tendencia-chart')?.getContext('2d');
     if (!ctx) return;
 
-    const anos = [anoAtual-2, anoAtual-1, anoAtual];
+    const anosDisponiveis = Object.keys(dadosFinanceiros).map(Number).filter(Boolean).sort();
+    const anos = anoAtual === 'todos'
+        ? anosDisponiveis
+        : [anoAtual - 2, anoAtual - 1, anoAtual];
     const dadosReceitas = [];
     const dadosDespesas = [];
 
@@ -1210,26 +1234,26 @@ window.filtrarReceitasDespesas = function() {
 function criarGraficoBarrasCategoriasComFiltros(dadosFinanceiros, ano, filtros) {
     const ctx = document.getElementById('categorias-barras-chart')?.getContext('2d');
     if (!ctx) return;
-    
+
     const categorias = {};
-    
-    if (dadosFinanceiros[ano]) {
+    const anosParaIterar = ano === 'todos'
+        ? Object.keys(dadosFinanceiros).map(Number).filter(Boolean)
+        : (dadosFinanceiros[ano] ? [ano] : []);
+
+    anosParaIterar.forEach(anoN => {
         for (let i = 0; i < 12; i++) {
-            const dadosMes = dadosFinanceiros[ano].meses[i];
+            const dadosMes = dadosFinanceiros[anoN]?.meses?.[i];
             if (!dadosMes || !dadosMes.despesas) continue;
-            
             const despesasFiltradas = aplicarFiltrosDespesas(dadosMes.despesas, filtros);
-            
             despesasFiltradas.forEach(despesa => {
                 const categoria = window.obterCategoriaLimpa ? window.obterCategoriaLimpa(despesa) : (despesa.categoria || 'Sem categoria');
                 const valor = window.obterValorRealDespesa ? window.obterValorRealDespesa(despesa) : (despesa.valor || 0);
-                
                 if (!isNaN(valor) && valor > 0) {
                     categorias[categoria] = (categorias[categoria] || 0) + valor;
                 }
             });
         }
-    }
+    });
     
     const categoriasArray = Object.keys(categorias).map(categoria => ({
         categoria,
@@ -1301,37 +1325,41 @@ function criarGraficoBarrasCategoriasComFiltros(dadosFinanceiros, ano, filtros) 
 function criarGraficoCategoriasMensaisComFiltros(dadosFinanceiros, ano, filtros) {
     const ctx = document.getElementById('categorias-mensais-chart')?.getContext('2d');
     if (!ctx) return;
-    
+
     const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-    
-    if (!dadosFinanceiros[ano]) return;
-    
+    const anosParaIterar = ano === 'todos'
+        ? Object.keys(dadosFinanceiros).map(Number).filter(Boolean)
+        : (dadosFinanceiros[ano] ? [ano] : []);
+
+    if (anosParaIterar.length === 0) return;
+
     if (window.categoriasEmpilhadasChart) {
         window.categoriasEmpilhadasChart.destroy();
     }
-    
+
     const dadosMensaisPorCategoria = {};
     let todasCategorias = new Set();
-    
+
     for (let i = 0; i < 12; i++) {
-        const dadosMes = dadosFinanceiros[ano].meses[i];
         dadosMensaisPorCategoria[i] = { mes: nomesMeses[i], total: 0 };
-        
-        if (!dadosMes || !dadosMes.despesas) continue;
-        
-        const despesasFiltradas = aplicarFiltrosDespesas(dadosMes.despesas, filtros);
-        
-        despesasFiltradas.forEach(despesa => {
-            const categoria = window.obterCategoriaLimpa ? window.obterCategoriaLimpa(despesa) : (despesa.categoria || 'Sem categoria');
-            const valor = window.obterValorRealDespesa ? window.obterValorRealDespesa(despesa) : (despesa.valor || 0);
-            
-            if (!isNaN(valor) && valor > 0) {
-                todasCategorias.add(categoria);
-                dadosMensaisPorCategoria[i][categoria] = (dadosMensaisPorCategoria[i][categoria] || 0) + valor;
-                dadosMensaisPorCategoria[i].total += valor;
-            }
-        });
     }
+
+    anosParaIterar.forEach(anoN => {
+        for (let i = 0; i < 12; i++) {
+            const dadosMes = dadosFinanceiros[anoN]?.meses?.[i];
+            if (!dadosMes || !dadosMes.despesas) continue;
+            const despesasFiltradas = aplicarFiltrosDespesas(dadosMes.despesas, filtros);
+            despesasFiltradas.forEach(despesa => {
+                const categoria = window.obterCategoriaLimpa ? window.obterCategoriaLimpa(despesa) : (despesa.categoria || 'Sem categoria');
+                const valor = window.obterValorRealDespesa ? window.obterValorRealDespesa(despesa) : (despesa.valor || 0);
+                if (!isNaN(valor) && valor > 0) {
+                    todasCategorias.add(categoria);
+                    dadosMensaisPorCategoria[i][categoria] = (dadosMensaisPorCategoria[i][categoria] || 0) + valor;
+                    dadosMensaisPorCategoria[i].total += valor;
+                }
+            });
+        }
+    });
     
     const categorias = Array.from(todasCategorias);
     let categoriasParaExibir = categorias;
@@ -1491,34 +1519,34 @@ function calcularDadosJurosMensaisComFiltros(dadosFinanceiros, ano, filtros) {
         jurosPagos: 0
     };
 
-    if (!dadosFinanceiros[ano]) {
+    const anosParaIterar = ano === 'todos'
+        ? Object.keys(dadosFinanceiros).map(Number).filter(Boolean)
+        : (dadosFinanceiros[ano] ? [ano] : []);
+
+    if (anosParaIterar.length === 0) {
         return { ...dadosMensais, resumo: resumoGeral };
     }
 
-    for (let mes = 0; mes < 12; mes++) {
-        const dadosMes = dadosFinanceiros[ano].meses[mes];
-        if (!dadosMes || !dadosMes.despesas) continue;
-
-        const despesasFiltradas = aplicarFiltrosDespesas(dadosMes.despesas, filtros);
-
-        despesasFiltradas.forEach(despesa => {
-            const isPago = despesa.quitado || despesa.status === 'quitada';
-
-            // Usar a função centralizada de cálculo de juros
-            const jurosValor = window.calcularJurosDespesa ? window.calcularJurosDespesa(despesa) : 0;
-
-            if (jurosValor > 0) {
-                resumoGeral.totalJuros += jurosValor;
-
-                if (isPago) {
-                    dadosMensais.jurosPagos[mes] += jurosValor;
-                    resumoGeral.jurosPagos += jurosValor;
-                } else {
-                    dadosMensais.jurosAPagar[mes] += jurosValor;
+    anosParaIterar.forEach(anoN => {
+        for (let mes = 0; mes < 12; mes++) {
+            const dadosMes = dadosFinanceiros[anoN]?.meses?.[mes];
+            if (!dadosMes || !dadosMes.despesas) continue;
+            const despesasFiltradas = aplicarFiltrosDespesas(dadosMes.despesas, filtros);
+            despesasFiltradas.forEach(despesa => {
+                const isPago = despesa.quitado || despesa.status === 'quitada';
+                const jurosValor = window.calcularJurosDespesa ? window.calcularJurosDespesa(despesa) : 0;
+                if (jurosValor > 0) {
+                    resumoGeral.totalJuros += jurosValor;
+                    if (isPago) {
+                        dadosMensais.jurosPagos[mes] += jurosValor;
+                        resumoGeral.jurosPagos += jurosValor;
+                    } else {
+                        dadosMensais.jurosAPagar[mes] += jurosValor;
+                    }
                 }
-            }
-        });
-    }
+            });
+        }
+    });
 
     return { ...dadosMensais, resumo: resumoGeral };
 }
@@ -1610,33 +1638,34 @@ function calcularDadosParcelamentosMensaisComFiltros(dadosFinanceiros, ano, filt
         parcelasPagas: 0
     };
     
-    if (!dadosFinanceiros[ano]) {
+    const anosParaIterar = ano === 'todos'
+        ? Object.keys(dadosFinanceiros).map(Number).filter(Boolean)
+        : (dadosFinanceiros[ano] ? [ano] : []);
+
+    if (anosParaIterar.length === 0) {
         return { ...dadosMensais, resumo: resumoGeral };
     }
-    
-    for (let mes = 0; mes < 12; mes++) {
-        const dadosMes = dadosFinanceiros[ano].meses[mes];
-        if (!dadosMes || !dadosMes.despesas) continue;
-        
-        const despesasFiltradas = aplicarFiltrosDespesas(dadosMes.despesas, filtros);
-        
-        despesasFiltradas.forEach(despesa => {
-            if (!despesa.parcelado) return;
-            
-            const valor = window.obterValorRealDespesa ? window.obterValorRealDespesa(despesa) : (despesa.valor || 0);
-            const isPago = despesa.quitado || despesa.status === 'quitada';
-            
-            resumoGeral.totalParcelado += valor;
-            
-            if (isPago) {
-                dadosMensais.parcelasPagas[mes] += valor;
-                resumoGeral.parcelasPagas += valor;
-            } else {
-                dadosMensais.parcelasAPagar[mes] += valor;
-            }
-        });
-    }
-    
+
+    anosParaIterar.forEach(anoN => {
+        for (let mes = 0; mes < 12; mes++) {
+            const dadosMes = dadosFinanceiros[anoN]?.meses?.[mes];
+            if (!dadosMes || !dadosMes.despesas) continue;
+            const despesasFiltradas = aplicarFiltrosDespesas(dadosMes.despesas, filtros);
+            despesasFiltradas.forEach(despesa => {
+                if (!despesa.parcelado) return;
+                const valor = window.obterValorRealDespesa ? window.obterValorRealDespesa(despesa) : (despesa.valor || 0);
+                const isPago = despesa.quitado || despesa.status === 'quitada';
+                resumoGeral.totalParcelado += valor;
+                if (isPago) {
+                    dadosMensais.parcelasPagas[mes] += valor;
+                    resumoGeral.parcelasPagas += valor;
+                } else {
+                    dadosMensais.parcelasAPagar[mes] += valor;
+                }
+            });
+        }
+    });
+
     return { ...dadosMensais, resumo: resumoGeral };
 }
 
@@ -1660,32 +1689,28 @@ function criarGraficoFormaPagamentoComFiltros(dadosFinanceiros, ano, filtros) {
     if (!ctx) return;
     
     const formasPagamento = { pix: 0, debito: 0, dinheiro: 0, credito: 0 };
-    
-    if (dadosFinanceiros[ano]) {
+    const anosParaIterar = ano === 'todos'
+        ? Object.keys(dadosFinanceiros).map(Number).filter(Boolean)
+        : (dadosFinanceiros[ano] ? [ano] : []);
+
+    anosParaIterar.forEach(anoN => {
         for (let i = 0; i < 12; i++) {
-            const dadosMes = dadosFinanceiros[ano].meses[i];
+            const dadosMes = dadosFinanceiros[anoN]?.meses?.[i];
             if (!dadosMes || !dadosMes.despesas) continue;
-            
             const despesasFiltradas = aplicarFiltrosDespesas(dadosMes.despesas, filtros);
-            
             despesasFiltradas.forEach(despesa => {
                 const valor = window.obterValorRealDespesa ? window.obterValorRealDespesa(despesa) : (despesa.valor || 0);
                 let formaPagamento = despesa.formaPagamento;
-                
                 if (!formaPagamento) {
-                    if (despesa.categoria === 'Cartão' || despesa.categoria === 'Cartão de Crédito') {
-                        formaPagamento = 'credito';
-                    } else {
-                        formaPagamento = 'debito';
-                    }
+                    formaPagamento = (despesa.categoria === 'Cartão' || despesa.categoria === 'Cartão de Crédito')
+                        ? 'credito' : 'debito';
                 }
-                
                 if (formasPagamento.hasOwnProperty(formaPagamento) && !isNaN(valor)) {
                     formasPagamento[formaPagamento] += valor;
                 }
             });
         }
-    }
+    });
     
     const valores = [formasPagamento.pix, formasPagamento.debito, formasPagamento.dinheiro, formasPagamento.credito];
     
@@ -1821,47 +1846,41 @@ function criarGraficoMediaItens(dadosFinanceiros, ano, filtros) {
     });
 }
 
-function renderizarGraficoMediaCategorias() {
+function renderizarGraficoMediaCategorias(ano) {
     const ctx = document.getElementById('media-categorias-chart')?.getContext('2d');
     if (!ctx) return;
 
-    // Busca o ano ativo do sistema global
-    const ano = window.anoAtual || new Date().getFullYear();
-    const dadosAno = window.dadosFinanceiros[ano];
-
-    if (!dadosAno || !dadosAno.meses) {
-        console.warn("Dados não encontrados para o gráfico de médias.");
-        return;
-    }
-
+    ano = ano || window.anoAtual || new Date().getFullYear();
     const filtroPagamento = document.getElementById('media-cat-pagamento-filter')?.value || 'todas';
     const totaisPorCategoria = {};
+    const dadosFinanceiros = window.dadosFinanceiros || {};
 
-    // 1. Processamento dos dados: Soma anual agrupada por categoria
-    for (let i = 0; i < 12; i++) {
-        const mes = dadosAno.meses[i];
-        if (mes && mes.despesas) {
+    const anosParaIterar = ano === 'todos'
+        ? Object.keys(dadosFinanceiros).map(Number).filter(Boolean)
+        : (dadosFinanceiros[ano] ? [ano] : []);
+
+    let mesesComDados = 0;
+
+    anosParaIterar.forEach(anoN => {
+        for (let i = 0; i < 12; i++) {
+            const mes = dadosFinanceiros[anoN]?.meses?.[i];
+            if (!mes || !mes.despesas) continue;
+            mesesComDados++;
             mes.despesas.forEach(despesa => {
-                // Usa a função obterValorRealDespesa para calcular o valor correto (com juros, quitação antecipada, etc)
                 const valor = window.obterValorRealDespesa ? window.obterValorRealDespesa(despesa) : (despesa.valor || 0);
                 const forma = (despesa.formaPagamento || '').toLowerCase();
-
-                // Usa obterCategoriaLimpa para padronizar categoria
                 const categoria = window.obterCategoriaLimpa ? window.obterCategoriaLimpa(despesa) : (despesa.categoria || 'Sem Categoria');
-
-                // Aplica filtro de forma de pagamento se selecionado
                 if (filtroPagamento !== 'todas' && forma !== filtroPagamento) return;
-
                 if (!isNaN(valor) && valor > 0) {
                     totaisPorCategoria[categoria] = (totaisPorCategoria[categoria] || 0) + valor;
                 }
             });
         }
-    }
+    });
 
-    // 2. Cálculo da média mensal (Total Anual / 12 meses)
+    const divisor = mesesComDados > 0 ? mesesComDados : 12;
     const labels = Object.keys(totaisPorCategoria).sort();
-    const valoresMedios = labels.map(cat => totaisPorCategoria[cat] / 12);
+    const valoresMedios = labels.map(cat => totaisPorCategoria[cat] / divisor);
     const cores = obterCoresParaCategorias(labels);
 
     // 3. Renderização visual com Chart.js
@@ -1941,19 +1960,18 @@ function renderDistribuicaoCartoes(dadosFinanceiros, ano, filtros = {}) {
         };
     });
 
-    // Somar despesas por cartão
-    if (dadosFinanceiros && dadosFinanceiros[ano]) {
+    const anosParaIterar = ano === 'todos'
+        ? Object.keys(dadosFinanceiros || {}).map(Number).filter(Boolean)
+        : (dadosFinanceiros?.[ano] ? [ano] : []);
+
+    anosParaIterar.forEach(anoN => {
         for (let mes = 0; mes < 12; mes++) {
-            const dadosMes = dadosFinanceiros[ano].meses[mes];
+            const dadosMes = dadosFinanceiros[anoN]?.meses?.[mes];
             if (!dadosMes || !dadosMes.despesas) continue;
-
             const despesasFiltradas = aplicarFiltrosDespesas(dadosMes.despesas, filtros);
-
             despesasFiltradas.forEach(despesa => {
                 const formaPag = (despesa.formaPagamento || '').toLowerCase();
-                // Apenas despesas de crédito
                 if (formaPag !== 'credito' && formaPag !== 'crédito' && !formaPag.includes('cred')) return;
-
                 const cartaoId = despesa.cartao_id || despesa.cartaoId;
                 if (cartaoId && usoPorCartao[cartaoId]) {
                     const valor = window.obterValorRealDespesa ? window.obterValorRealDespesa(despesa) : (despesa.valor || 0);
@@ -1962,7 +1980,7 @@ function renderDistribuicaoCartoes(dadosFinanceiros, ano, filtros = {}) {
                 }
             });
         }
-    }
+    });
 
     // Filtrar apenas cartões com uso
     const cartoesComUso = Object.values(usoPorCartao).filter(c => c.valor > 0);
@@ -2075,7 +2093,31 @@ function obterCategorias(ano) {
 }
 
 function preencherSelectCategorias() {
-    const categorias = obterCategorias(window.anoAtual);
+    const categorias = window.anoDashboard === 'todos'
+        ? obterCategoriasTodasAnos()
+        : obterCategorias(window.anoAtual);
+    _preencherSelectsComCategorias(categorias);
+}
+
+function obterCategoriasTodasAnos() {
+    const categorias = new Set();
+    const dados = window.dadosFinanceiros || {};
+    Object.keys(dados).map(Number).forEach(anoN => {
+        const anoData = dados[anoN];
+        if (!anoData?.meses) return;
+        for (let mes = 0; mes < 12; mes++) {
+            const dadosMes = anoData.meses[mes];
+            if (!dadosMes?.despesas) continue;
+            dadosMes.despesas.forEach(d => {
+                const cat = window.obterCategoriaLimpa ? window.obterCategoriaLimpa(d) : (d.categoria || 'Sem categoria');
+                categorias.add(cat);
+            });
+        }
+    });
+    return Array.from(categorias).sort();
+}
+
+function _preencherSelectsComCategorias(categorias) {
     const selects = document.querySelectorAll('select[id*="categoria-filter"]');
     
     selects.forEach(select => {
@@ -2145,33 +2187,33 @@ function obterFiltrosDoGrafico(prefixo) {
 // ================================================================
 
 window.filtrarTendencia = function() {
-    const filtros = obterFiltrosDoGrafico('tendencia');
-    criarGraficoTendenciaAnualComFiltros(window.dadosFinanceiros, window.anoAtual, filtros);
+    const ano = window.anoDashboard === 'todos' ? 'todos' : _anoGraficosAtual();
+    criarGraficoTendenciaAnualComFiltros(window.dadosFinanceiros, ano, obterFiltrosDoGrafico('tendencia'));
 };
 
 window.filtrarCategoriasAnual = function() {
-    const filtros = obterFiltrosDoGrafico('categorias-anual');
-    criarGraficoBarrasCategoriasComFiltros(window.dadosFinanceiros, window.anoAtual, filtros);
+    const ano = window.anoDashboard === 'todos' ? 'todos' : _anoGraficosAtual();
+    criarGraficoBarrasCategoriasComFiltros(window.dadosFinanceiros, ano, obterFiltrosDoGrafico('categorias-anual'));
 };
 
 window.filtrarCategoriasMensal = function() {
-    const filtros = obterFiltrosDoGrafico('categorias-mensal');
-    criarGraficoCategoriasMensaisComFiltros(window.dadosFinanceiros, window.anoAtual, filtros);
+    const ano = window.anoDashboard === 'todos' ? 'todos' : _anoGraficosAtual();
+    criarGraficoCategoriasMensaisComFiltros(window.dadosFinanceiros, ano, obterFiltrosDoGrafico('categorias-mensal'));
 };
 
 window.filtrarJuros = function() {
-    const filtros = obterFiltrosDoGrafico('juros');
-    criarGraficoJurosComFiltros(window.dadosFinanceiros, window.anoAtual, filtros);
+    const ano = window.anoDashboard === 'todos' ? 'todos' : _anoGraficosAtual();
+    criarGraficoJurosComFiltros(window.dadosFinanceiros, ano, obterFiltrosDoGrafico('juros'));
 };
 
 window.filtrarParcelamentos = function() {
-    const filtros = obterFiltrosDoGrafico('parcelamentos');
-    criarGraficoParcelamentosComFiltros(window.dadosFinanceiros, window.anoAtual, filtros);
+    const ano = window.anoDashboard === 'todos' ? 'todos' : _anoGraficosAtual();
+    criarGraficoParcelamentosComFiltros(window.dadosFinanceiros, ano, obterFiltrosDoGrafico('parcelamentos'));
 };
 
 window.filtrarFormaPagamento = function() {
-    const filtros = obterFiltrosDoGrafico('forma-pagamento');
-    criarGraficoFormaPagamentoComFiltros(window.dadosFinanceiros, window.anoAtual, filtros);
+    const ano = window.anoDashboard === 'todos' ? 'todos' : _anoGraficosAtual();
+    criarGraficoFormaPagamentoComFiltros(window.dadosFinanceiros, ano, obterFiltrosDoGrafico('forma-pagamento'));
 };
 
 // ================================================================

@@ -870,11 +870,14 @@
 .historico-geral-container {
     border-top: 1px solid var(--gray-200);
     padding-top: 16px;
-    flex: 1;
     display: flex;
     flex-direction: column;
-    min-height: 200px;
     overflow: hidden;
+}
+
+.historico-geral-container:not(.collapsed) {
+    flex: 1;
+    min-height: 200px;
 }
 
 .historico-geral-container h4 {
@@ -886,10 +889,27 @@
     align-items: center;
     gap: 6px;
     flex-shrink: 0;
+    cursor: pointer;
+    user-select: none;
 }
 
 .historico-geral-container h4 i {
     color: var(--primary-color);
+}
+
+.historico-geral-container h4 .seta-historico {
+    margin-left: auto;
+    color: var(--gray-400);
+    font-size: 11px;
+    transition: transform 0.2s ease;
+}
+
+.historico-geral-container:not(.collapsed) h4 .seta-historico {
+    transform: rotate(90deg);
+}
+
+.historico-geral-container.collapsed .historico-geral-lista {
+    display: none;
 }
 
 .historico-geral-lista {
