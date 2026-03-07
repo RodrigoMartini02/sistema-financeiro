@@ -717,172 +717,79 @@ async function recarregarEAtualizarCartoes() {
     }
 }
 
-/**
- * Atualiza as opções de cartões no formulário de despesas
- */
+// ================================================================
+// PAINEL DE PAGAMENTO — CARTÕES DINÂMICOS E FAVORITO
+// ================================================================
+
+// Renderiza as linhas de cartões de crédito no painel de pagamento
 async function atualizarOpcoesCartoes() {
     try {
         const creditoOptions = document.getElementById('credito-options');
         if (!creditoOptions) return;
 
-        // Limpar opções existentes
-        const existingOptions = creditoOptions.querySelectorAll('.cartao-chip-wrap');
-        existingOptions.forEach(opt => opt.remove());
+        creditoOptions.innerHTML = '';
 
-        // Filtrar apenas cartões ativos
         const cartoesAtivos = cartoesUsuario.filter(c => c.ativo);
-
-        if (cartoesAtivos.length === 0) {
-            creditoOptions.classList.add('hidden');
-            return;
-        }
-
-        creditoOptions.classList.remove('hidden');
-
-        // Criar chips para cada cartão
         cartoesAtivos.forEach((cartao) => {
-            const wrap = document.createElement('div');
-            wrap.className = 'payment-chip-wrap cartao-chip-wrap';
-            wrap.id = `cartao${cartao.id}-option`;
-
-            wrap.innerHTML = `
-                <input
-                    type="radio"
-                    id="pagamento-cartao${cartao.id}"
-                    name="forma-pagamento"
-                    value="credito"
-                    data-cartao-id="${cartao.id}"
-                    onchange="validarFormaPagamento(); atualizarChipSelecionado()"
-                >
-                <label for="pagamento-cartao${cartao.id}" class="payment-chip" id="label-cartao${cartao.id}">
-                    ${(cartao.banco || cartao.nome || '').toUpperCase()}
+            const nome = (cartao.banco || cartao.nome || '').toUpperCase();
+            const row = document.createElement('div');
+            row.className = 'payment-row cartao-payment-row';
+            row.id = `cartao${cartao.id}-option`;
+            row.innerHTML = `
+                <input type="radio" id="pagamento-cartao${cartao.id}" name="forma-pagamento" value="credito" data-cartao-id="${cartao.id}" onchange="validarFormaPagamento(); atualizarPagamentoSelecionado()">
+                <label for="pagamento-cartao${cartao.id}" class="payment-row-label">
+                    <span class="payment-row-icon icon-credito"><i class="fas fa-credit-card"></i></span>
+                    <span class="payment-row-name">${nome}</span>
                 </label>
-                <button type="button" class="chip-star" data-cartao-id="${cartao.id}" title="Favoritar para esta categoria" onclick="salvarFavoritoChip('credito', ${cartao.id}, event)"><i class="far fa-star"></i></button>
+                <button type="button" class="payment-row-star chip-star" data-cartao-id="${cartao.id}" title="Favoritar para esta categoria" onclick="salvarFavoritoCartao(${cartao.id}, event)">
+                    <i class="far fa-star"></i>
+                </button>
             `;
-
-            creditoOptions.appendChild(wrap);
+            creditoOptions.appendChild(row);
         });
 
-        atualizarChipSelecionado();
-
+        atualizarPagamentoSelecionado();
     } catch (error) {
         console.error('Erro ao atualizar opções de cartões:', error);
     }
 }
 
-// Atualiza a aparência visual dos chips conforme o radio selecionado
-function atualizarChipSelecionado() {
-    document.querySelectorAll('.payment-chip-wrap input[name="forma-pagamento"]').forEach(radio => {
-        const label = radio.nextElementSibling;
-        if (label) {
-            label.classList.toggle('chip-selecionado', radio.checked);
-        }
+// Atualiza o destaque visual da linha de pagamento selecionada
+function atualizarPagamentoSelecionado() {
+    document.querySelectorAll('.payment-row').forEach(row => {
+        const radio = row.querySelector('input[type="radio"]');
+        row.classList.toggle('row-selecionado', radio?.checked || false);
     });
 }
 
-// Abre o mini-modal de criação rápida de cartão
-function abrirModalCartaoRapido() {
-    const modal = document.getElementById('modal-rapido-cartao');
-    if (!modal) return;
-    modal.style.cssText = `
-        display: flex !important;
-        position: fixed !important;
-        z-index: 9999 !important;
-        left: 0 !important;
-        top: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        background-color: rgba(0,0,0,0.6) !important;
-        align-items: center !important;
-        justify-content: center !important;
-    `;
-}
-
-// Fecha o mini-modal de criação rápida de cartão
-function fecharModalCartaoRapido() {
-    const modal = document.getElementById('modal-rapido-cartao');
-    if (modal) modal.style.display = 'none';
-}
-
-// Salva cartão rápido a partir do modal de despesa
-async function salvarCartaoRapido() {
-    const banco = document.getElementById('rapido-cartao-banco')?.value.trim();
-    const validade = document.getElementById('rapido-cartao-validade')?.value.trim();
-    const limite = parseFloat(document.getElementById('rapido-cartao-limite')?.value) || 0;
-    const fechamento = parseInt(document.getElementById('rapido-cartao-fechamento')?.value) || 0;
-    const vencimento = parseInt(document.getElementById('rapido-cartao-vencimento')?.value) || 0;
-
-    if (!banco) { alert('Informe o nome do banco'); return; }
-    if (limite <= 0) { alert('Informe um limite válido'); return; }
-    if (fechamento < 1 || fechamento > 31) { alert('Dia de fechamento inválido'); return; }
-    if (vencimento < 1 || vencimento > 31) { alert('Dia de vencimento inválido'); return; }
-
-    const cartaoCriado = await criarCartaoAPI({ banco, nome: banco, validade, limite, dia_fechamento: fechamento, dia_vencimento: vencimento, ativo: true });
-
-    if (cartaoCriado) {
-        const novoCartao = {
-            id: cartaoCriado.id,
-            banco, nome: banco,
-            dia_fechamento: fechamento,
-            dia_vencimento: vencimento,
-            limite, ativo: true,
-            validade: validade || null,
-            numero_cartao: cartaoCriado.numero_cartao || (cartoesUsuario.length + 1)
-        };
-        cartoesUsuario.push(novoCartao);
-        window.cartoesUsuario = cartoesUsuario;
-        await atualizarOpcoesCartoes();
-        fecharModalCartaoRapido();
-
-        // Selecionar o novo cartão automaticamente
-        const radio = document.getElementById(`pagamento-cartao${cartaoCriado.id}`);
-        if (radio) { radio.checked = true; atualizarChipSelecionado(); }
-
-        // Limpar campos
-        document.getElementById('rapido-cartao-banco').value = '';
-        document.getElementById('rapido-cartao-validade').value = '';
-        document.getElementById('rapido-cartao-limite').value = '';
-        document.getElementById('rapido-cartao-fechamento').value = '';
-        document.getElementById('rapido-cartao-vencimento').value = '';
-    } else {
-        alert('Erro ao criar cartão. Tente novamente.');
-    }
-}
-
-// Salva o favorito de uma forma de pagamento para a categoria selecionada (via estrela no chip)
-async function salvarFavoritoChip(forma, cartaoId, event) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const categoriaSelect = document.getElementById('despesa-categoria');
-    if (!categoriaSelect || !categoriaSelect.value) {
-        alert('Selecione uma categoria primeiro para definir o favorito');
-        return;
-    }
-
-    const categoriaId = categoriaSelect.value;
-    await salvarFavoritoCategoria(categoriaId, forma, cartaoId);
-    await atualizarEstrelasFavorito();
-}
-
-// Salva favorito para forma simples (pix, debito, dinheiro)
+// Salva favorito de forma simples (pix, debito, dinheiro)
 async function salvarFavoritoForma(forma, event) {
     event.preventDefault();
     event.stopPropagation();
-
     const categoriaSelect = document.getElementById('despesa-categoria');
     if (!categoriaSelect || !categoriaSelect.value) {
         alert('Selecione uma categoria primeiro para definir o favorito');
         return;
     }
-
-    const categoriaId = categoriaSelect.value;
-    await salvarFavoritoCategoria(categoriaId, forma, null);
+    await _persistirFavorito(categoriaSelect.value, forma, null);
     await atualizarEstrelasFavorito();
 }
 
-// Salva o favorito de forma/cartão para uma categoria via API
-async function salvarFavoritoCategoria(categoriaId, forma, cartaoId) {
+// Salva favorito de cartão de crédito
+async function salvarFavoritoCartao(cartaoId, event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const categoriaSelect = document.getElementById('despesa-categoria');
+    if (!categoriaSelect || !categoriaSelect.value) {
+        alert('Selecione uma categoria primeiro para definir o favorito');
+        return;
+    }
+    await _persistirFavorito(categoriaSelect.value, 'credito', cartaoId);
+    await atualizarEstrelasFavorito();
+}
+
+// Persiste o favorito via API
+async function _persistirFavorito(categoriaId, forma, cartaoId) {
     const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
     const token = sessionStorage.getItem('token');
     try {
@@ -896,26 +803,24 @@ async function salvarFavoritoCategoria(categoriaId, forma, cartaoId) {
     }
 }
 
-// Atualiza as estrelas dos chips com base na categoria selecionada
+// Atualiza as estrelas do painel com base na categoria selecionada
 async function atualizarEstrelasFavorito() {
     const categoriaSelect = document.getElementById('despesa-categoria');
 
-    // Helper: desativa todas as estrelas
     function resetarEstrelas() {
-        document.querySelectorAll('.chip-star').forEach(s => {
+        document.querySelectorAll('.payment-row-star').forEach(s => {
             s.classList.remove('chip-star-ativo');
             const ico = s.querySelector('i');
-            if (ico) { ico.className = 'far fa-star'; }
+            if (ico) ico.className = 'far fa-star';
         });
-        document.querySelectorAll('.payment-chip').forEach(c => c.classList.remove('chip-favorito'));
+        document.querySelectorAll('.payment-row').forEach(r => r.classList.remove('row-favorito'));
     }
 
-    // Helper: ativa uma estrela específica
     function ativarEstrela(star) {
         star.classList.add('chip-star-ativo');
         const ico = star.querySelector('i');
-        if (ico) { ico.className = 'fas fa-star'; }
-        star.previousElementSibling?.classList.add('chip-favorito');
+        if (ico) ico.className = 'fas fa-star';
+        star.closest('.payment-row')?.classList.add('row-favorito');
     }
 
     if (!categoriaSelect || !categoriaSelect.value) {
@@ -923,30 +828,24 @@ async function atualizarEstrelasFavorito() {
         return;
     }
 
-    const categoriaId = categoriaSelect.value;
     const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
     const token = sessionStorage.getItem('token');
-
     try {
-        const res = await fetch(`${API_URL}/categorias/${categoriaId}`, {
+        const res = await fetch(`${API_URL}/categorias/${categoriaSelect.value}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
         const cat = data.data || {};
-        const formaFav = cat.forma_favorita;
-        const cartaoFavId = cat.cartao_favorito_id;
-
         resetarEstrelas();
+        if (!cat.forma_favorita) return;
 
-        if (!formaFav) return;
-
-        if (formaFav === 'credito' && cartaoFavId) {
-            const star = document.querySelector(`.chip-star[data-cartao-id="${cartaoFavId}"]`);
-            if (star) ativarEstrela(star);
+        let star;
+        if (cat.forma_favorita === 'credito' && cat.cartao_favorito_id) {
+            star = document.querySelector(`.payment-row-star[data-cartao-id="${cat.cartao_favorito_id}"]`);
         } else {
-            const star = document.querySelector(`.chip-star-forma[data-forma="${formaFav}"]`);
-            if (star) ativarEstrela(star);
+            star = document.querySelector(`.chip-star-forma[data-forma="${cat.forma_favorita}"]`);
         }
+        if (star) ativarEstrela(star);
     } catch (e) {
         console.error('Erro ao buscar favorito:', e);
     }
@@ -3587,6 +3486,10 @@ window.atualizarListaCategorias = atualizarListaCategorias;
 window.carregarCartoesLocal = carregarCartoesLocal;
 window.salvarCartoes = salvarCartoes;
 window.atualizarOpcoesCartoes = atualizarOpcoesCartoes;
+window.atualizarPagamentoSelecionado = atualizarPagamentoSelecionado;
+window.salvarFavoritoForma = salvarFavoritoForma;
+window.salvarFavoritoCartao = salvarFavoritoCartao;
+window.atualizarEstrelasFavorito = atualizarEstrelasFavorito;
 window.recarregarEAtualizarCartoes = recarregarEAtualizarCartoes;
 window.renderizarListaCartoes = renderizarListaCartoes;
 window.adicionarCartao = adicionarCartao;

@@ -1247,47 +1247,6 @@
 <!-- TODOS OS MODAIS DE CONFIGURAÇÕES -->
 <!-- ================================================== -->
 
-<!-- Modal: Adicionar Cartão Rápido (no modal de despesa) -->
-<div id="modal-rapido-cartao" class="modal">
-    <div class="modal-content modal-sm">
-        <div class="modal-header">
-            <h2><i class="fas fa-credit-card"></i> Novo Cartão</h2>
-            <button type="button" class="close" onclick="fecharModalCartaoRapido()" title="Fechar">&times;</button>
-        </div>
-        <div class="modal-body">
-            <form id="form-rapido-cartao">
-                <div class="form-group">
-                    <label for="rapido-cartao-banco">Nome do Banco <span class="required">*</span></label>
-                    <input type="text" id="rapido-cartao-banco" class="form-input" required maxlength="50" placeholder="Ex: Nubank, Itaú...">
-                </div>
-                <div class="form-row-cartao">
-                    <div class="form-group">
-                        <label for="rapido-cartao-validade">Validade (MM/AAAA)</label>
-                        <input type="text" id="rapido-cartao-validade" class="form-input" maxlength="7" inputmode="numeric" placeholder="MM/AAAA" oninput="formatarValidadeCartao(this)">
-                    </div>
-                    <div class="form-group">
-                        <label for="rapido-cartao-limite">Limite (R$) <span class="required">*</span></label>
-                        <input type="number" id="rapido-cartao-limite" class="form-input" step="0.01" min="0" required placeholder="0,00">
-                    </div>
-                </div>
-                <div class="form-row-cartao">
-                    <div class="form-group">
-                        <label for="rapido-cartao-fechamento">Dia Fechamento <span class="required">*</span></label>
-                        <input type="number" id="rapido-cartao-fechamento" class="form-input" min="1" max="31" required placeholder="1-31">
-                    </div>
-                    <div class="form-group">
-                        <label for="rapido-cartao-vencimento">Dia Vencimento <span class="required">*</span></label>
-                        <input type="number" id="rapido-cartao-vencimento" class="form-input" min="1" max="31" required placeholder="1-31">
-                    </div>
-                </div>
-            </form>
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" onclick="fecharModalCartaoRapido()">Cancelar</button>
-            <button type="button" class="btn btn-primary" onclick="salvarCartaoRapido()">Adicionar</button>
-        </div>
-    </div>
-</div>
 
 <!-- Modal: Editar Categoria -->
 <div id="modal-editar-categoria" class="modal">
@@ -2189,146 +2148,173 @@
                <input type="hidden" id="despesa-mes">
                <input type="hidden" id="despesa-ano">
                
-              <!-- Descrição e Anexos -->
-                <div class="form-group-compact">
-                    <div class="descricao-anexos-row">
-                        <input type="text" id="despesa-descricao" placeholder="Descrição da despesa" required>
-                        <button type="button" id="btn-anexar-despesa" class="btn btn-anexar">
-                            <i class="fas fa-paperclip"></i>Anexos</button>
-                    </div>
-                    <div id="lista-anexos-despesa" class="lista-anexos-inline"></div>
-                </div>
-               
-               <!-- Categoria -->
-               <div class="form-row-compact">
-                   <div class="form-col">
-                       <label>Categoria *</label>
-                       <div class="categoria-select-wrapper">
-                           <select id="despesa-categoria" class="form-control" required onchange="validarCategoria()">
-                               <option value="">Selecione...</option>
-                               <!-- Categorias serão inseridas dinamicamente aqui pela função atualizarDropdowns() -->
-                           </select>
-                           <button type="button" id="btn-toggle-nova-categoria" class="btn-add-categoria" title="Adicionar nova categoria">
-                               <i class="fas fa-plus"></i>
-                           </button>
+               <!-- Descrição e Anexos -->
+               <div class="form-group-compact">
+                   <div class="descricao-anexos-row">
+                       <input type="text" id="despesa-descricao" placeholder="Descrição da despesa" required>
+                       <button type="button" id="btn-anexar-despesa" class="btn btn-anexar">
+                           <i class="fas fa-paperclip"></i>Anexos
+                       </button>
+                   </div>
+                   <div id="lista-anexos-despesa" class="lista-anexos-inline"></div>
+               </div>
+
+               <!-- Corpo principal: form (esquerda) + painel pagamento (direita) -->
+               <div class="modal-body-cols">
+
+                   <!-- Coluna esquerda: campos do formulário -->
+                   <div class="modal-form-col">
+
+                       <!-- Categoria -->
+                       <div class="form-group-compact">
+                           <label>Categoria *</label>
+                           <div class="categoria-select-wrapper">
+                               <select id="despesa-categoria" class="form-control" required onchange="validarCategoria()">
+                                   <option value="">Selecione...</option>
+                               </select>
+                               <button type="button" id="btn-toggle-nova-categoria" class="btn-add-categoria" title="Adicionar nova categoria">
+                                   <i class="fas fa-plus"></i>
+                               </button>
+                           </div>
+                           <div id="nova-categoria-inline" class="nova-categoria-inline hidden">
+                               <input type="text" id="input-nova-categoria-despesa" placeholder="Nome da categoria" maxlength="50">
+                               <button type="button" id="btn-salvar-categoria-inline" class="btn btn-primary btn-sm">
+                                   <i class="fas fa-check"></i>
+                               </button>
+                               <button type="button" id="btn-cancelar-categoria-inline" class="btn btn-secondary btn-sm">
+                                   <i class="fas fa-times"></i>
+                               </button>
+                           </div>
                        </div>
-                       <!-- Input para nova categoria (abaixo do select) -->
-                       <div id="nova-categoria-inline" class="nova-categoria-inline hidden">
-                           <input type="text" id="input-nova-categoria-despesa" placeholder="Nome da categoria" maxlength="50">
-                           <button type="button" id="btn-salvar-categoria-inline" class="btn btn-primary btn-sm">
-                               <i class="fas fa-check"></i>
-                           </button>
-                           <button type="button" id="btn-cancelar-categoria-inline" class="btn btn-secondary btn-sm">
-                               <i class="fas fa-times"></i>
-                           </button>
+
+                       <!-- Valores e Parcelas -->
+                       <div class="form-row-compact form-row-valores">
+                           <div class="form-col">
+                               <label>Valor original *</label>
+                               <input type="number" id="despesa-valor" min="0.01" step="0.01" placeholder="0,00" required onchange="calcularInfoParcelamento()">
+                           </div>
+                           <div class="form-col">
+                               <label>Valor Final</label>
+                               <input type="number" id="despesa-valor-pago" min="0" step="0.01" placeholder="0,00" onchange="calcularInfoParcelamento()">
+                           </div>
+                           <div class="form-col parcelas-col">
+                               <label>Parcelas</label>
+                               <input type="number" id="despesa-parcelas" min="1" max="999" value="1" onchange="calcularInfoParcelamento()">
+                           </div>
                        </div>
-                   </div>
 
-                   <div class="form-col">
-                        <label>Pagamento *</label>
-                        <div class="payment-methods payment-chips">
-                            <div class="payment-chip-wrap">
-                                <input type="radio" id="pagamento-pix" name="forma-pagamento" value="pix" onchange="validarFormaPagamento(); atualizarChipSelecionado()">
-                                <label for="pagamento-pix" class="payment-chip">PIX</label>
-                                <button type="button" class="chip-star chip-star-forma" data-forma="pix" title="Favoritar PIX para esta categoria" onclick="salvarFavoritoForma('pix', event)"><i class="far fa-star"></i></button>
-                            </div>
-                            <div class="payment-chip-wrap">
-                                <input type="radio" id="pagamento-debito" name="forma-pagamento" value="debito" onchange="validarFormaPagamento(); atualizarChipSelecionado()">
-                                <label for="pagamento-debito" class="payment-chip">DÉBITO</label>
-                                <button type="button" class="chip-star chip-star-forma" data-forma="debito" title="Favoritar Débito para esta categoria" onclick="salvarFavoritoForma('debito', event)"><i class="far fa-star"></i></button>
-                            </div>
-                            <div class="payment-chip-wrap">
-                                <input type="radio" id="pagamento-dinheiro" name="forma-pagamento" value="dinheiro" onchange="validarFormaPagamento(); atualizarChipSelecionado()">
-                                <label for="pagamento-dinheiro" class="payment-chip">DINHEIRO</label>
-                                <button type="button" class="chip-star chip-star-forma" data-forma="dinheiro" title="Favoritar Dinheiro para esta categoria" onclick="salvarFavoritoForma('dinheiro', event)"><i class="far fa-star"></i></button>
-                            </div>
-                            <div id="credito-options" class="credito-chips-group">
-                                <!-- Cartões serão inseridos dinamicamente aqui pela função atualizarOpcoesCartoes() -->
-                            </div>
-                            <button type="button" class="btn-add-categoria" id="btn-adicionar-cartao-rapido" onclick="abrirModalCartaoRapido()" title="Adicionar novo cartão de crédito">
-                                <i class="fas fa-plus"></i>
-                            </button>
-                        </div>
-                    </div>
-               </div>
+                       <!-- Datas -->
+                       <div class="form-row-compact">
+                           <div class="form-col">
+                               <label>Compra *</label>
+                               <input type="date" id="despesa-data-compra" required>
+                           </div>
+                           <div class="form-col">
+                               <label>Vencimento *</label>
+                               <input type="date" id="despesa-data-vencimento" required>
+                           </div>
+                       </div>
 
-               <!-- Valores e Parcelas -->
-               <div class="form-row-compact form-row-valores">
-                   <div class="form-col">
-                       <label>Valor original *</label>
-                       <input type="number" id="despesa-valor" min="0.01" step="0.01" placeholder="0,00" required onchange="calcularInfoParcelamento()">
-                   </div>
-                   <div class="form-col">
-                       <label>Valor Final</label>
-                       <input type="number" id="despesa-valor-pago" min="0" step="0.01" placeholder="0,00" onchange="calcularInfoParcelamento()">
-                   </div>
-                   <div class="form-col parcelas-col">
-                       <label>Parcelas</label>
-                       <input type="number" id="despesa-parcelas" min="1" max="999" value="1" onchange="calcularInfoParcelamento()">
-                   </div>
-               </div>
+                       <!-- Info de Parcelamento -->
+                       <div id="info-parcelamento" class="info-compact hidden">
+                           <div class="info-grid">
+                               <span>Juros total: <strong id="info-juros-total">R$ 0,00</strong></span>
+                               <span>Por parcela: <strong id="info-juros-parcela">R$ 0,00</strong></span>
+                               <span>Valor parcela: <strong id="info-valor-parcela">R$ 0,00</strong></span>
+                               <span>Total: <strong id="info-valor-total">R$ 0,00</strong></span>
+                           </div>
+                       </div>
 
-               <!-- Datas -->
-               <div class="form-row-compact">
-                   <div class="form-col">
-                       <label>Compra *</label>
-                       <input type="date" id="despesa-data-compra" required>
-                   </div>
-                   <div class="form-col">
-                       <label>Vencimento *</label>
-                       <input type="date" id="despesa-data-vencimento" required>
-                   </div>
-               </div>
-               
-               <!-- Info de Parcelamento -->
-               <div id="info-parcelamento" class="info-compact hidden">
-                   <div class="info-grid">
-                       <span>Juros total: <strong id="info-juros-total">R$ 0,00</strong></span>
-                       <span>Por parcela: <strong id="info-juros-parcela">R$ 0,00</strong></span>
-                       <span>Valor parcela: <strong id="info-valor-parcela">R$ 0,00</strong></span>
-                       <span>Total: <strong id="info-valor-total">R$ 0,00</strong></span>
-                   </div>
-               </div>
-               
-               <!-- Checkboxes e Botão -->
+                   </div><!-- /modal-form-col -->
+
+                   <!-- Coluna direita: painel de formas de pagamento -->
+                   <div class="modal-payment-col">
+                       <label class="payment-panel-label">Pagamento *</label>
+                       <div class="payment-panel payment-methods" id="payment-panel">
+
+                           <!-- PIX -->
+                           <div class="payment-row">
+                               <input type="radio" id="pagamento-pix" name="forma-pagamento" value="pix" onchange="validarFormaPagamento(); atualizarPagamentoSelecionado()">
+                               <label for="pagamento-pix" class="payment-row-label">
+                                   <span class="payment-row-icon icon-pix"><i class="fas fa-bolt"></i></span>
+                                   <span class="payment-row-name">PIX</span>
+                               </label>
+                               <button type="button" class="payment-row-star chip-star chip-star-forma" data-forma="pix" title="Favoritar PIX para esta categoria" onclick="salvarFavoritoForma('pix', event)">
+                                   <i class="far fa-star"></i>
+                               </button>
+                           </div>
+
+                           <!-- Dinheiro -->
+                           <div class="payment-row">
+                               <input type="radio" id="pagamento-dinheiro" name="forma-pagamento" value="dinheiro" onchange="validarFormaPagamento(); atualizarPagamentoSelecionado()">
+                               <label for="pagamento-dinheiro" class="payment-row-label">
+                                   <span class="payment-row-icon icon-dinheiro"><i class="fas fa-money-bill-wave"></i></span>
+                                   <span class="payment-row-name">Dinheiro</span>
+                               </label>
+                               <button type="button" class="payment-row-star chip-star chip-star-forma" data-forma="dinheiro" title="Favoritar Dinheiro para esta categoria" onclick="salvarFavoritoForma('dinheiro', event)">
+                                   <i class="far fa-star"></i>
+                               </button>
+                           </div>
+
+                           <!-- Débito -->
+                           <div class="payment-row">
+                               <input type="radio" id="pagamento-debito" name="forma-pagamento" value="debito" onchange="validarFormaPagamento(); atualizarPagamentoSelecionado()">
+                               <label for="pagamento-debito" class="payment-row-label">
+                                   <span class="payment-row-icon icon-debito"><i class="fas fa-credit-card"></i></span>
+                                   <span class="payment-row-name">Débito</span>
+                               </label>
+                               <button type="button" class="payment-row-star chip-star chip-star-forma" data-forma="debito" title="Favoritar Débito para esta categoria" onclick="salvarFavoritoForma('debito', event)">
+                                   <i class="far fa-star"></i>
+                               </button>
+                           </div>
+
+                           <!-- Cartões de crédito (inseridos dinamicamente) -->
+                           <div id="credito-options"></div>
+
+                       </div>
+                   </div><!-- /modal-payment-col -->
+
+               </div><!-- /modal-body-cols -->
+
+               <!-- Rodapé: Checkboxes e Botão -->
                <div class="form-footer-compact">
-                    <div class="checkboxes-inline">
-                        <label class="checkbox-inline">
-                            <input type="checkbox" id="despesa-ja-pago">
-                            Já está Paga
-                        </label>
-                        <label class="checkbox-inline">
-                            <input type="checkbox" id="despesa-recorrente">
-                            Recorrente
-                        </label>
-                        <label class="checkbox-inline">
-                            <input type="checkbox" id="despesa-replicar" onchange="toggleReplicarDespesa()">
-                            Replicar até
-                        </label>
-                        <div id="despesa-replicar-options" class="replicar-options hidden">
-                            <select id="despesa-replicar-mes" class="form-control form-control-sm">
-                                <option value="0">Janeiro</option>
-                                <option value="1">Fevereiro</option>
-                                <option value="2">Março</option>
-                                <option value="3">Abril</option>
-                                <option value="4">Maio</option>
-                                <option value="5">Junho</option>
-                                <option value="6">Julho</option>
-                                <option value="7">Agosto</option>
-                                <option value="8">Setembro</option>
-                                <option value="9">Outubro</option>
-                                <option value="10">Novembro</option>
-                                <option value="11">Dezembro</option>
-                            </select>
-                            <select id="despesa-replicar-ano" class="form-control form-control-sm">
-                                <!-- Anos serão preenchidos dinamicamente -->
-                            </select>
-                        </div>
-                    </div>
-                    <button type="submit" class="btn btn-salvar-compact">
-                        Salvar Despesa
-                    </button>
-                </div>
+                   <div class="checkboxes-inline">
+                       <label class="checkbox-inline">
+                           <input type="checkbox" id="despesa-ja-pago">
+                           Já está Paga
+                       </label>
+                       <label class="checkbox-inline">
+                           <input type="checkbox" id="despesa-recorrente">
+                           Recorrente
+                       </label>
+                       <label class="checkbox-inline">
+                           <input type="checkbox" id="despesa-replicar" onchange="toggleReplicarDespesa()">
+                           Replicar até
+                       </label>
+                       <div id="despesa-replicar-options" class="replicar-options hidden">
+                           <select id="despesa-replicar-mes" class="form-control form-control-sm">
+                               <option value="0">Janeiro</option>
+                               <option value="1">Fevereiro</option>
+                               <option value="2">Março</option>
+                               <option value="3">Abril</option>
+                               <option value="4">Maio</option>
+                               <option value="5">Junho</option>
+                               <option value="6">Julho</option>
+                               <option value="7">Agosto</option>
+                               <option value="8">Setembro</option>
+                               <option value="9">Outubro</option>
+                               <option value="10">Novembro</option>
+                               <option value="11">Dezembro</option>
+                           </select>
+                           <select id="despesa-replicar-ano" class="form-control form-control-sm">
+                               <!-- Anos serão preenchidos dinamicamente -->
+                           </select>
+                       </div>
+                   </div>
+                   <button type="submit" class="btn btn-salvar-compact">
+                       Salvar Despesa
+                   </button>
+               </div>
            </form>
        </div>
    </div>

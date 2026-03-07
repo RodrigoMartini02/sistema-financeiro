@@ -340,92 +340,151 @@ select.campo-invalido {
 }
 
 /* ================================================================
-   CHIPS DE PAGAMENTO (novo layout)
+   LAYOUT 2 COLUNAS DO MODAL DE DESPESA
    ================================================================ */
 
-.payment-chips {
+.modal-body-cols {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    align-items: center;
+    gap: 12px;
+    align-items: flex-start;
 }
 
-.payment-chip-wrap {
-    display: inline-flex;
+.modal-form-col {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.modal-payment-col {
+    width: 160px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.payment-panel-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 2px;
+}
+
+/* ================================================================
+   PAINEL DE PAGAMENTO VERTICAL
+   ================================================================ */
+
+.payment-panel {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.payment-panel.campo-invalido {
+    border-color: #ef4444;
+}
+
+.payment-row {
+    display: flex;
     align-items: center;
     gap: 0;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background 0.15s;
 }
 
-.payment-chip-wrap input[type="radio"] {
+.payment-row:last-child {
+    border-bottom: none;
+}
+
+.payment-row input[type="radio"] {
     display: none;
 }
 
-.payment-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 6px 12px;
-    background: #f7fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 20px 0 0 20px;
-    cursor: pointer;
-    font-size: 10px;
-    font-weight: 600;
-    white-space: nowrap;
-    transition: all 0.2s;
-    user-select: none;
-}
-
-.payment-chip-wrap input[type="radio"]:checked + .payment-chip,
-.payment-chip.chip-selecionado {
-    background: #667eea;
-    color: #fff;
-    border-color: #667eea;
-}
-
-.payment-chip:hover {
-    border-color: #667eea;
-    transform: translateY(-1px);
-}
-
-.payment-chip.chip-favorito {
-    border-color: #f59e0b;
-}
-
-.credito-chips-group {
+.payment-row-label {
+    flex: 1;
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    color: #475569;
+    user-select: none;
+    transition: background 0.15s, color 0.15s;
 }
 
-/* Estrela de favorito no chip */
-.chip-star {
-    background: none;
-    border: 1px solid #e2e8f0;
-    border-left: none;
-    border-radius: 0 20px 20px 0;
-    padding: 6px 8px 6px 4px;
-    cursor: pointer;
-    font-size: 13px;
-    line-height: 1;
-    color: #94a3b8;
-    transition: color 0.15s, background 0.15s;
+.payment-row-label:hover {
+    background: #f8fafc;
+}
+
+.payment-row input[type="radio"]:checked ~ .payment-row-label,
+.payment-row.row-selecionado .payment-row-label {
+    background: #eef2ff;
+    color: #4f46e5;
+    font-weight: 600;
+}
+
+/* Indicador de favorito na linha */
+.payment-row.row-favorito .payment-row-label {
+    border-left: 3px solid #f59e0b;
+}
+
+/* Ícones por tipo */
+.payment-row-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
     display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    flex-shrink: 0;
+}
+
+.icon-pix    { background: #dbeafe; color: #2563eb; }
+.icon-dinheiro { background: #dcfce7; color: #16a34a; }
+.icon-debito { background: #e0f2fe; color: #0284c7; }
+.icon-credito { background: #ede9fe; color: #7c3aed; }
+
+/* Botão estrela de favorito */
+.payment-row-star {
+    background: none;
+    border: none;
+    border-left: 1px solid #f1f5f9;
+    padding: 8px 9px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #cbd5e1;
+    transition: color 0.15s, background 0.15s;
+    flex-shrink: 0;
+    display: flex;
     align-items: center;
 }
 
-.chip-star:hover {
+.payment-row-star:hover {
     color: #f59e0b;
     background: #fefce8;
 }
 
-.chip-star.chip-star-ativo {
+.payment-row-star.chip-star-ativo {
     color: #f59e0b;
-    background: #fef9c3;
 }
 
-.chip-star.chip-star-ativo i {
-    filter: drop-shadow(0 0 3px #fbbf24);
+.payment-row-star.chip-star-ativo i {
+    filter: drop-shadow(0 0 2px #fbbf24);
+}
+
+/* Cartões de crédito dinâmicos */
+#credito-options {
+    display: contents;
 }
 
 

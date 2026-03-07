@@ -43,7 +43,7 @@ document.addEventListener('change', function(e) {
 // CHIPS DE PAGAMENTO — FAVORITO POR CATEGORIA
 // ================================================================
 
-// Busca o favorito de uma categoria e auto-seleciona o chip correspondente
+// Busca o favorito de uma categoria e auto-seleciona a linha de pagamento correspondente
 async function aplicarFavoritoCategoria(categoriaId) {
     if (!categoriaId) return;
     const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
@@ -58,12 +58,15 @@ async function aplicarFavoritoCategoria(categoriaId) {
         const cartaoId = cat.cartao_favorito_id;
         if (!forma) return;
 
+        let radio;
         if (forma === 'credito' && cartaoId) {
-            const radio = document.querySelector(`input[name="forma-pagamento"][data-cartao-id="${cartaoId}"]`);
-            if (radio) { radio.checked = true; if (typeof atualizarChipSelecionado === 'function') atualizarChipSelecionado(); }
+            radio = document.querySelector(`input[name="forma-pagamento"][data-cartao-id="${cartaoId}"]`);
         } else {
-            const radio = document.querySelector(`input[name="forma-pagamento"][value="${forma}"]`);
-            if (radio) { radio.checked = true; if (typeof atualizarChipSelecionado === 'function') atualizarChipSelecionado(); }
+            radio = document.querySelector(`input[name="forma-pagamento"][value="${forma}"]`);
+        }
+        if (radio) {
+            radio.checked = true;
+            if (typeof atualizarPagamentoSelecionado === 'function') atualizarPagamentoSelecionado();
         }
     } catch (e) {
         console.error('Erro ao aplicar favorito:', e);
