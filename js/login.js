@@ -145,15 +145,19 @@ async function verificarRetornoGoogle() {
         const token = data.data?.token || data.token;
         const usuario = data.data?.usuario || data.usuario;
 
-        sessionStorage.setItem('token', token);
-        sessionStorage.setItem('usuarioAtual', usuario.documento || usuario.email);
-        sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify({
+        const dadosUsuarioGoogle = JSON.stringify({
             id: usuario.id,
             nome: usuario.nome,
             documento: usuario.documento || '',
             email: usuario.email,
             tipo: usuario.tipo
-        }));
+        });
+        sessionStorage.setItem('token', token);
+        sessionStorage.setItem('usuarioAtual', usuario.documento || usuario.email);
+        sessionStorage.setItem('dadosUsuarioLogado', dadosUsuarioGoogle);
+        localStorage.setItem('token', token);
+        localStorage.setItem('usuarioAtual', usuario.documento || usuario.email);
+        localStorage.setItem('dadosUsuarioLogado', dadosUsuarioGoogle);
 
         window.location.href = 'index.html';
     } catch (error) {
@@ -314,9 +318,6 @@ async function processarLogin(documento, password, isModal, tentativa = 1) {
         const token = data.data?.token || data.token;
         const usuario = data.data?.usuario || data.user || data.usuario || data;
 
-        sessionStorage.setItem('token', token);
-        sessionStorage.setItem('usuarioAtual', docLimpo);
-
         const dadosUsuario = JSON.stringify({
             id: usuario.id,
             nome: usuario.nome || usuario.name,
@@ -325,7 +326,12 @@ async function processarLogin(documento, password, isModal, tentativa = 1) {
             tipo: usuario.tipo
             // Senha removida por segurança - usar token JWT para autenticação
         });
+        sessionStorage.setItem('token', token);
+        sessionStorage.setItem('usuarioAtual', docLimpo);
         sessionStorage.setItem('dadosUsuarioLogado', dadosUsuario);
+        localStorage.setItem('token', token);
+        localStorage.setItem('usuarioAtual', docLimpo);
+        localStorage.setItem('dadosUsuarioLogado', dadosUsuario);
 
         // Registrar tentativa em background
         registrarTentativaBackground(documento, true);
@@ -1184,8 +1190,11 @@ function processarLoginMinimo(documento, password) {
         );
         
         if (usuario) {
+            const dadosOffline = JSON.stringify(usuario);
             sessionStorage.setItem('usuarioAtual', docLimpo);
-            sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify(usuario));
+            sessionStorage.setItem('dadosUsuarioLogado', dadosOffline);
+            localStorage.setItem('usuarioAtual', docLimpo);
+            localStorage.setItem('dadosUsuarioLogado', dadosOffline);
             window.location.href = 'index.html';
         } else {
             alert('Login inválido');
@@ -1299,6 +1308,10 @@ function diagnosticoLogin() {
 function limparSessao() {
     sessionStorage.removeItem('usuarioAtual');
     sessionStorage.removeItem('dadosUsuarioLogado');
+    sessionStorage.removeItem('token');
+    localStorage.removeItem('usuarioAtual');
+    localStorage.removeItem('dadosUsuarioLogado');
+    localStorage.removeItem('token');
 }
 
 

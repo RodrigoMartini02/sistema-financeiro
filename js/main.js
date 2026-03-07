@@ -1055,6 +1055,9 @@ function setupOutrosControles() {
 
             sessionStorage.removeItem('usuarioAtual');
             sessionStorage.removeItem('dadosUsuarioLogado');
+            sessionStorage.removeItem('token');
+            localStorage.removeItem('usuarioAtual');
+            localStorage.removeItem('dadosUsuarioLogado');
             localStorage.removeItem('token');
 
             window.location.href = 'login.html';

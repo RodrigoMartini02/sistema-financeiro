@@ -9,9 +9,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Controle Financeiro</title>
 
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Finanças">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+
     <!-- VERIFICAÇÃO DE AUTENTICAÇÃO (ANTES DE TUDO) -->
     <script>
         (function() {
+            // PWA: restaura sessão do localStorage se sessionStorage estiver vazio (app foi fechado e reaberto)
+            var keys = ['token', 'usuarioAtual', 'dadosUsuarioLogado'];
+            keys.forEach(function(k) {
+                if (!sessionStorage.getItem(k)) {
+                    var val = localStorage.getItem(k);
+                    if (val) sessionStorage.setItem(k, val);
+                }
+            });
+
             // Verificar autenticação
             var usuarioAtual = sessionStorage.getItem('usuarioAtual');
             if (!usuarioAtual) {
@@ -3213,6 +3231,17 @@
 <script src="js/rel.js"></script>
 <script src="https://sdk.mercadopago.com/js/v2"></script>
 <script src="js/planos.js"></script>
+
+<!-- Registro do Service Worker (PWA) -->
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/sw.js')
+                .then(function(reg) { console.log('[PWA] Service Worker registrado:', reg.scope); })
+                .catch(function(err) { console.warn('[PWA] Service Worker falhou:', err); });
+        });
+    }
+</script>
 
 </body>
 </html>
