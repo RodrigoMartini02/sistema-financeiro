@@ -1427,35 +1427,66 @@ function calcularMovimentacoesReservasMes(mes, ano) {
     return totalMovimentacoes;
 }
 
-/**
- * Calcula o saldo atual do mês (já descontando reservas)
- *
- * CORREÇÃO: Usa movimentações de reservas em vez do valor total das reservas.
- * Isso garante que cada movimentação afete apenas o mês em que foi realizada.
- *
- * Fórmula: Saldo Atual = saldoFinal - movimentaçõesReservasAcumuladas
- *
- * @returns {object} { saldoAtualMes, totalReservado }
- */
+function _calcularSaldoCaixa(mes, ano) {
+    const sequencia = [];
+    let m = mes, a = ano;
+
+    for (let i = 0; i < 60; i++) {
+        const dm = window.dadosFinanceiros?.[a]?.meses?.[m];
+
+        if (dm?.fechado === true) {
+            let base = dm.saldoFinal || 0;
+            for (let j = sequencia.length - 1; j >= 0; j--) {
+                const { m: sm, a: sa } = sequencia[j];
+                const d = window.dadosFinanceiros?.[sa]?.meses?.[sm];
+                if (!d) continue;
+                const rec = (d.receitas || []).reduce((s, r) => {
+                    if (r.saldoAnterior || r.descricao?.includes('Saldo Anterior') || r.automatica) return s;
+                    return s + (r.valor || 0);
+                }, 0);
+                const desp = (d.despesas || []).reduce((s, d2) => {
+                    if (!d2.pago || d2.quitacaoAntecipada) return s;
+                    return s + (d2.valorPago > 0 ? parseFloat(d2.valorPago) : parseFloat(d2.valor || 0));
+                }, 0);
+                base += rec - desp;
+            }
+            return base;
+        }
+
+        if (dm) sequencia.push({ m, a });
+        m -= 1;
+        if (m < 0) { m = 11; a -= 1; }
+        if (a < 2000 || !window.dadosFinanceiros) break;
+    }
+
+    let base = 0;
+    for (let j = sequencia.length - 1; j >= 0; j--) {
+        const { m: sm, a: sa } = sequencia[j];
+        const d = window.dadosFinanceiros?.[sa]?.meses?.[sm];
+        if (!d) continue;
+        const rec = (d.receitas || []).reduce((s, r) => {
+            if (r.saldoAnterior || r.descricao?.includes('Saldo Anterior') || r.automatica) return s;
+            return s + (r.valor || 0);
+        }, 0);
+        const desp = (d.despesas || []).reduce((s, d2) => {
+            if (!d2.pago || d2.quitacaoAntecipada) return s;
+            return s + (d2.valorPago > 0 ? parseFloat(d2.valorPago) : parseFloat(d2.valor || 0));
+        }, 0);
+        base += rec - desp;
+    }
+    return base;
+}
+
 function calcularSaldoAtualMes() {
     const mes = window.mesAberto;
     const ano = window.anoAberto;
 
-    const saldoInfo = window.calcularSaldoMes ? window.calcularSaldoMes(mes, ano) : { saldoFinal: 0 };
-
-    // Total reservado = valor atual de todas as reservas (para exibição)
+    const saldoCaixa     = _calcularSaldoCaixa(mes, ano);
+    const movimentacoes  = calcularMovimentacoesReservasAcumuladas(mes, ano);
     const totalReservado = calcularTotalReservas();
 
-    // Movimentações acumuladas até o mês atual (para cálculo do saldo)
-    // Usa as movimentações que têm data/hora específica
-    const movimentacoesAcumuladas = calcularMovimentacoesReservasAcumuladas(mes, ano);
-
-    // Saldo Atual Mês = saldoFinal - movimentações acumuladas
-    // Isso garante que cada movimentação só afeta o mês em que foi feita
-    const saldoAtualMes = (saldoInfo.saldoFinal || 0) - movimentacoesAcumuladas;
-
     return {
-        saldoAtualMes,
+        saldoAtualMes: saldoCaixa - movimentacoes,
         totalReservado
     };
 }

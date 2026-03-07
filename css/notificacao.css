@@ -27,6 +27,10 @@
     pointer-events: none;
 }
 
+.noticias-badge {
+    background: #2563eb;
+}
+
 #notification-count.hidden,
 #noticias-count.hidden {
     display: none;

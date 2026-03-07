@@ -736,10 +736,12 @@ textarea:focus {
     cursor: pointer;
     transition: background 0.2s ease;
     font-size: 13px;
+    color: #64748b;
 }
 
 .dropdown-anos-lista button:hover {
     background: var(--gray-100);
+    color: #1e293b;
 }
 
 .dropdown-anos-lista button.active {
@@ -890,6 +892,7 @@ textarea:focus {
 
 .mes-card {
     background: var(--white);
+    border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     overflow: hidden;
     cursor: pointer;

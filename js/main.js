@@ -158,7 +158,6 @@ function exportarVariaveisGlobais() {
 
     
     
-    // Fallback apenas se despesas.js ainda não carregou (despesas.js exporta a versão completa)
     if (typeof window.calcularTotalDespesas !== 'function') {
         window.calcularTotalDespesas = function(despesas, apenasPagas = false) {
             if (!Array.isArray(despesas)) return 0;
@@ -398,8 +397,6 @@ async function carregarCartoesDoUsuario() {
             window.cartoesUsuario = cartoes;
             console.log('✅ Cartões carregados:', cartoes);
 
-            // ✅ CORREÇÃO AUTOMÁTICA: Atualizar despesas de crédito sem cartao_id
-            // Pegar o primeiro cartão de crédito ativo para corrigir despesas antigas
             const cartaoCredito = cartoes.find(c => c.ativo && c.banco && c.banco.toLowerCase().includes('cred'));
             if (cartaoCredito && cartaoCredito.id) {
                 await corrigirDespesasSemCartao(cartaoCredito.id, token);
@@ -438,8 +435,6 @@ async function corrigirDespesasSemCartao(cartaoId, token) {
             if (data.success && data.quantidade > 0) {
                 console.log(`✅ ${data.quantidade} despesa(s) corrigida(s) com cartao_id=${cartaoId}`);
 
-                // ✅ RECARREGAR DADOS FINANCEIROS APÓS CORREÇÃO
-                // Isso garante que os dados em memória tenham o cartao_id atualizado
                 if (window.usuarioDataManager) {
                     // Limpar cache para forçar nova requisição
                     if (typeof window.usuarioDataManager.limparCache === 'function') {
@@ -449,8 +444,6 @@ async function corrigirDespesasSemCartao(cartaoId, token) {
                     if (typeof window.usuarioDataManager.getDadosFinanceirosUsuario === 'function') {
                         dadosFinanceiros = await window.usuarioDataManager.getDadosFinanceirosUsuario();
                         window.dadosFinanceiros = dadosFinanceiros;
-                        console.log('✅ Dados financeiros recarregados após correção');
-
                         // Atualizar dashboard se visível
                         if (typeof atualizarDashboard === 'function') {
                             atualizarDashboard();
@@ -2437,10 +2430,9 @@ function obterSaldoAnterior(mes, ano) {
             return sum + (r.valor || 0);
         }, 0);
 
-        // Apenas despesas PAGAS afetam o saldo anterior (mesma regra do mês atual)
         const despesas = typeof window.calcularTotalDespesas === 'function' ?
-            window.calcularTotalDespesas(dadosMesAnterior.despesas || [], true) :
-            (dadosMesAnterior.despesas || []).reduce((sum, d) => d.pago ? sum + (window.obterValorRealDespesa ? window.obterValorRealDespesa(d) : (d.valor || 0)) : sum, 0);
+            window.calcularTotalDespesas(dadosMesAnterior.despesas || []) :
+            (dadosMesAnterior.despesas || []).reduce((sum, d) => sum + (window.obterValorRealDespesa ? window.obterValorRealDespesa(d) : (d.valor || 0)), 0);
 
         return saldoAnteriorAnterior + receitas - despesas;
     }

@@ -88,12 +88,6 @@
     flex-shrink: 0;
 }
 
-/* Balanço full-width inside grid */
-.dashboard-card.dashboard-card-full {
-    grid-column: 1 / -1;
-    height: auto;
-}
-
 /* Filtros e Selects */
 .filtros-header {
     display: flex;
