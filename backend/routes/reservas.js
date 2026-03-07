@@ -93,17 +93,43 @@ router.post('/', authMiddleware, [
             });
         }
 
-        // Verificar saldo atual (receitasBrutas - despesas - reservas)
+        // Verificar saldo disponível: saldoFinal do último mês fechado + receitas dos meses abertos - reservas acumuladas
         const saldoResult = await query(
-            `SELECT
-                (SELECT COALESCE(SUM(valor), 0) FROM receitas WHERE usuario_id = $1 AND (ano < $2 OR (ano = $2 AND mes <= $3))) -
-                (SELECT COALESCE(SUM(CASE WHEN pago = true THEN COALESCE(valor_pago, valor) ELSE valor END), 0) FROM despesas WHERE usuario_id = $1 AND (ano < $2 OR (ano = $2 AND mes <= $3))) -
-                (SELECT COALESCE(SUM(valor), 0) FROM reservas WHERE usuario_id = $1 AND (ano < $2 OR (ano = $2 AND mes <= $3)))
-             AS saldo_atual`,
+            `WITH uf AS (
+                SELECT ano, mes, saldo_final
+                FROM meses
+                WHERE usuario_id = $1 AND fechado = true
+                  AND (ano < $2 OR (ano = $2 AND mes <= $3))
+                ORDER BY ano DESC, mes DESC
+                LIMIT 1
+            )
+            SELECT
+                COALESCE((SELECT saldo_final FROM uf), 0)
+                + COALESCE((
+                    SELECT SUM(r.valor)
+                    FROM receitas r
+                    WHERE r.usuario_id = $1
+                      AND r.descricao NOT ILIKE 'Saldo Anterior%'
+                      AND (r.ano < $2 OR (r.ano = $2 AND r.mes <= $3))
+                      AND NOT EXISTS (
+                          SELECT 1 FROM meses m
+                          WHERE m.usuario_id = $1 AND m.ano = r.ano AND m.mes = r.mes AND m.fechado = true
+                      )
+                      AND (
+                          NOT EXISTS (SELECT 1 FROM uf)
+                          OR r.ano > (SELECT ano FROM uf)
+                          OR (r.ano = (SELECT ano FROM uf) AND r.mes > (SELECT mes FROM uf))
+                      )
+                ), 0)
+                - COALESCE((
+                    SELECT SUM(valor) FROM reservas
+                    WHERE usuario_id = $1 AND (ano < $2 OR (ano = $2 AND mes <= $3))
+                ), 0)
+                AS saldo_disponivel`,
             [req.usuario.id, ano, mes]
         );
 
-        const saldoAtual = parseFloat(saldoResult.rows[0].saldo_atual) || 0;
+        const saldoAtual = parseFloat(saldoResult.rows[0].saldo_disponivel) || 0;
 
         if (saldoAtual < valorNumerico) {
             return res.status(400).json({
@@ -531,43 +557,42 @@ router.get('/:id/movimentacoes', authMiddleware, async (req, res) => {
 
 async function verificarSaldoDisponivel(usuarioId, mes, ano, valorReserva) {
     try {
-        // Uma única query com subselects em vez de 6 queries sequenciais
         const result = await query(
-            `SELECT
-                (SELECT COALESCE(SUM(valor), 0) FROM receitas
-                 WHERE usuario_id = $1 AND (ano < $2 OR (ano = $2 AND mes < $3))) as receitas_anteriores,
-                (SELECT COALESCE(SUM(CASE WHEN pago = true THEN COALESCE(valor_pago, valor) ELSE valor END), 0) FROM despesas
-                 WHERE usuario_id = $1 AND (ano < $2 OR (ano = $2 AND mes < $3))) as despesas_anteriores,
-                (SELECT COALESCE(SUM(valor), 0) FROM reservas
-                 WHERE usuario_id = $1 AND (ano < $2 OR (ano = $2 AND mes < $3))) as reservas_anteriores,
-                (SELECT COALESCE(SUM(valor), 0) FROM receitas
-                 WHERE usuario_id = $1 AND mes = $3 AND ano = $2) as receitas_mes,
-                (SELECT COALESCE(SUM(CASE WHEN pago = true THEN COALESCE(valor_pago, valor) ELSE valor END), 0) FROM despesas
-                 WHERE usuario_id = $1 AND mes = $3 AND ano = $2) as despesas_mes,
-                (SELECT COALESCE(SUM(valor), 0) FROM reservas
-                 WHERE usuario_id = $1 AND mes = $3 AND ano = $2) as reservas_mes`,
+            `WITH uf AS (
+                SELECT ano, mes, saldo_final
+                FROM meses
+                WHERE usuario_id = $1 AND fechado = true
+                  AND (ano < $2 OR (ano = $2 AND mes <= $3))
+                ORDER BY ano DESC, mes DESC
+                LIMIT 1
+            )
+            SELECT
+                COALESCE((SELECT saldo_final FROM uf), 0)
+                + COALESCE((
+                    SELECT SUM(r.valor)
+                    FROM receitas r
+                    WHERE r.usuario_id = $1
+                      AND r.descricao NOT ILIKE 'Saldo Anterior%'
+                      AND (r.ano < $2 OR (r.ano = $2 AND r.mes <= $3))
+                      AND NOT EXISTS (
+                          SELECT 1 FROM meses m
+                          WHERE m.usuario_id = $1 AND m.ano = r.ano AND m.mes = r.mes AND m.fechado = true
+                      )
+                      AND (
+                          NOT EXISTS (SELECT 1 FROM uf)
+                          OR r.ano > (SELECT ano FROM uf)
+                          OR (r.ano = (SELECT ano FROM uf) AND r.mes > (SELECT mes FROM uf))
+                      )
+                ), 0)
+                - COALESCE((
+                    SELECT SUM(valor) FROM reservas
+                    WHERE usuario_id = $1 AND (ano < $2 OR (ano = $2 AND mes <= $3))
+                ), 0)
+                AS saldo_disponivel`,
             [usuarioId, ano, mes]
         );
 
-        const row = result.rows[0];
-        const receitasAnteriores = parseFloat(row.receitas_anteriores);
-        const despesasAnteriores = parseFloat(row.despesas_anteriores);
-        const reservasAnteriores = parseFloat(row.reservas_anteriores);
-        const receitasBrutas = parseFloat(row.receitas_mes);
-        const totalDespesas = parseFloat(row.despesas_mes);
-        const totalReservado = parseFloat(row.reservas_mes);
-
-        const saldoAnterior = receitasAnteriores - despesasAnteriores - reservasAnteriores;
-        const saldoAtual = saldoAnterior + receitasBrutas - totalDespesas - totalReservado;
-
-        console.log(`📊 Verificação de saldo para reserva:
-            Mês/Ano: ${mes}/${ano}
-            Saldo Anterior: ${saldoAnterior.toFixed(2)}
-            Receitas Brutas: ${receitasBrutas.toFixed(2)}
-            Despesas: ${totalDespesas.toFixed(2)}
-            Total Reservado: ${totalReservado.toFixed(2)}
-            Saldo Atual: ${saldoAtual.toFixed(2)}
-            Valor Reserva: ${valorReserva}`);
+        const saldoAtual = parseFloat(result.rows[0].saldo_disponivel) || 0;
 
         if (saldoAtual < valorReserva) {
             return {
