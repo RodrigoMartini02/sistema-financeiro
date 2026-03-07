@@ -1302,7 +1302,18 @@
    CATEGORIA FAVORITO — BADGES NA TABELA DE CATEGORIAS
    ================================================================ */
 
+.th-favorito {
+    width: 36px;
+    min-width: 36px;
+    text-align: center;
+    font-size: 14px;
+    color: #f59e0b;
+}
+
 .categoria-favorito {
+    width: 36px;
+    min-width: 36px;
+    text-align: center;
     white-space: nowrap;
 }
 
@@ -1312,11 +1323,9 @@
 .badge-favorito-credito {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 3px 8px;
-    border-radius: 12px;
-    font-size: 11px;
-    font-weight: 600;
+    justify-content: center;
+    font-size: 16px;
+    line-height: 1;
 }
 
 .badge-favorito-pix {

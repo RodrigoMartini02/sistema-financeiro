@@ -353,15 +353,18 @@ async function atualizarListaCategorias() {
             tdDataEdicao.textContent = dataEdicao.toLocaleDateString('pt-BR');
         }
 
-        // Favorito
+        // Favorito — ícone compacto com tooltip
         if (tdFavorito) {
-            let favLabel = '-';
-            if (categoria.forma_favorita === 'pix') favLabel = '<span class="badge-favorito-pix">PIX</span>';
-            else if (categoria.forma_favorita === 'debito') favLabel = '<span class="badge-favorito-debito">DÉBITO</span>';
-            else if (categoria.forma_favorita === 'dinheiro') favLabel = '<span class="badge-favorito-dinheiro">DINHEIRO</span>';
-            else if (categoria.forma_favorita === 'credito' && categoria.cartao_favorito_nome) favLabel = `<span class="badge-favorito-credito"><i class="fas fa-credit-card"></i> ${categoria.cartao_favorito_nome}</span>`;
-            else if (categoria.forma_favorita === 'credito') favLabel = '<span class="badge-favorito-credito"><i class="fas fa-credit-card"></i> Crédito</span>';
-            tdFavorito.innerHTML = favLabel;
+            const icones = {
+                pix:      { icon: 'fas fa-qrcode',          color: '#10b981', title: 'PIX' },
+                debito:   { icon: 'fas fa-university',       color: '#3b82f6', title: 'Débito' },
+                dinheiro: { icon: 'fas fa-money-bill-wave',  color: '#f59e0b', title: 'Dinheiro' },
+                credito:  { icon: 'fas fa-credit-card',      color: '#8b5cf6', title: categoria.cartao_favorito_nome || 'Crédito' }
+            };
+            const info = icones[categoria.forma_favorita];
+            tdFavorito.innerHTML = info
+                ? `<i class="${info.icon}" style="color:${info.color};font-size:15px" title="${info.title}"></i>`
+                : '';
         }
 
         // Configurar botões
@@ -752,9 +755,9 @@ async function atualizarOpcoesCartoes() {
                     onchange="validarFormaPagamento(); atualizarChipSelecionado()"
                 >
                 <label for="pagamento-cartao${cartao.id}" class="payment-chip" id="label-cartao${cartao.id}">
-                    <button type="button" class="chip-star" data-cartao-id="${cartao.id}" title="Favoritar para esta categoria" onclick="salvarFavoritoChip('credito', ${cartao.id}, event)">☆</button>
                     ${(cartao.banco || cartao.nome || '').toUpperCase()}
                 </label>
+                <button type="button" class="chip-star" data-cartao-id="${cartao.id}" title="Favoritar para esta categoria" onclick="salvarFavoritoChip('credito', ${cartao.id}, event)">☆</button>
             `;
 
             creditoOptions.appendChild(wrap);
@@ -780,19 +783,13 @@ function atualizarChipSelecionado() {
 // Abre o mini-modal de criação rápida de cartão
 function abrirModalCartaoRapido() {
     const modal = document.getElementById('modal-rapido-cartao');
-    if (modal) {
-        modal.style.display = 'flex';
-        setTimeout(() => modal.classList.add('show'), 10);
-    }
+    if (modal) modal.classList.add('show');
 }
 
 // Fecha o mini-modal de criação rápida de cartão
 function fecharModalCartaoRapido() {
     const modal = document.getElementById('modal-rapido-cartao');
-    if (modal) {
-        modal.classList.remove('show');
-        setTimeout(() => { modal.style.display = 'none'; }, 200);
-    }
+    if (modal) modal.classList.remove('show');
 }
 
 // Salva cartão rápido a partir do modal de despesa
@@ -917,10 +914,18 @@ async function atualizarEstrelasFavorito() {
 
         if (formaFav === 'credito' && cartaoFavId) {
             const star = document.querySelector(`.chip-star[data-cartao-id="${cartaoFavId}"]`);
-            if (star) { star.textContent = '★'; star.classList.add('chip-star-ativo'); star.closest('.payment-chip')?.classList.add('chip-favorito'); }
+            if (star) {
+                star.textContent = '★';
+                star.classList.add('chip-star-ativo');
+                star.previousElementSibling?.classList.add('chip-favorito');
+            }
         } else {
             const star = document.querySelector(`.chip-star-forma[data-forma="${formaFav}"]`);
-            if (star) { star.textContent = '★'; star.classList.add('chip-star-ativo'); star.closest('.payment-chip')?.classList.add('chip-favorito'); }
+            if (star) {
+                star.textContent = '★';
+                star.classList.add('chip-star-ativo');
+                star.previousElementSibling?.classList.add('chip-favorito');
+            }
         }
     } catch (e) {
         console.error('Erro ao buscar favorito:', e);

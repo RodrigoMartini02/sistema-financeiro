@@ -352,6 +352,8 @@ select.campo-invalido {
 
 .payment-chip-wrap {
     display: inline-flex;
+    align-items: center;
+    gap: 2px;
 }
 
 .payment-chip-wrap input[type="radio"] {
@@ -400,11 +402,11 @@ select.campo-invalido {
 .chip-star {
     background: none;
     border: none;
-    padding: 0;
+    padding: 2px 3px;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 22px;
     line-height: 1;
-    color: #94a3b8;
+    color: #cbd5e1;
     transition: color 0.15s, transform 0.15s;
 }
 
@@ -415,6 +417,7 @@ select.campo-invalido {
 
 .chip-star.chip-star-ativo {
     color: #f59e0b;
+    text-shadow: 0 0 6px #fbbf24;
 }
 
 /* Botão "+" para adicionar cartão rápido */

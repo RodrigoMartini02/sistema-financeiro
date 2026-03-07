@@ -942,9 +942,9 @@
                             <tr>
                                 <th>ID</th>
                                 <th>Nome da Categoria</th>
-                                <th>Favorito</th>
                                 <th>Data de Criação</th>
                                 <th>Última Edição</th>
+                                <th class="th-favorito" title="Favorito de pagamento">★</th>
                                 <th>Ações</th>
                             </tr>
                         </thead>
@@ -1614,9 +1614,9 @@
     <tr class="categoria-row">
         <td class="categoria-id"></td>
         <td class="categoria-nome"></td>
-        <td class="categoria-favorito"></td>
         <td class="categoria-data-criacao"></td>
         <td class="categoria-data-edicao"></td>
+        <td class="categoria-favorito"></td>
         <td class="categoria-acoes">
             <div class="acoes-grupo">
                 <button class="btn btn-sm btn-editar-categoria" data-categoria-id="" title="Editar">
@@ -2231,24 +2231,18 @@
                         <div class="payment-methods payment-chips">
                             <div class="payment-chip-wrap">
                                 <input type="radio" id="pagamento-pix" name="forma-pagamento" value="pix" onchange="validarFormaPagamento(); atualizarChipSelecionado()">
-                                <label for="pagamento-pix" class="payment-chip">
-                                    <button type="button" class="chip-star chip-star-forma" data-forma="pix" title="Favoritar PIX para esta categoria" onclick="salvarFavoritoForma('pix', event)">☆</button>
-                                    PIX
-                                </label>
+                                <label for="pagamento-pix" class="payment-chip">PIX</label>
+                                <button type="button" class="chip-star chip-star-forma" data-forma="pix" title="Favoritar PIX para esta categoria" onclick="salvarFavoritoForma('pix', event)">☆</button>
                             </div>
                             <div class="payment-chip-wrap">
                                 <input type="radio" id="pagamento-debito" name="forma-pagamento" value="debito" onchange="validarFormaPagamento(); atualizarChipSelecionado()">
-                                <label for="pagamento-debito" class="payment-chip">
-                                    <button type="button" class="chip-star chip-star-forma" data-forma="debito" title="Favoritar Débito para esta categoria" onclick="salvarFavoritoForma('debito', event)">☆</button>
-                                    DÉBITO
-                                </label>
+                                <label for="pagamento-debito" class="payment-chip">DÉBITO</label>
+                                <button type="button" class="chip-star chip-star-forma" data-forma="debito" title="Favoritar Débito para esta categoria" onclick="salvarFavoritoForma('debito', event)">☆</button>
                             </div>
                             <div class="payment-chip-wrap">
                                 <input type="radio" id="pagamento-dinheiro" name="forma-pagamento" value="dinheiro" onchange="validarFormaPagamento(); atualizarChipSelecionado()">
-                                <label for="pagamento-dinheiro" class="payment-chip">
-                                    <button type="button" class="chip-star chip-star-forma" data-forma="dinheiro" title="Favoritar Dinheiro para esta categoria" onclick="salvarFavoritoForma('dinheiro', event)">☆</button>
-                                    DINHEIRO
-                                </label>
+                                <label for="pagamento-dinheiro" class="payment-chip">DINHEIRO</label>
+                                <button type="button" class="chip-star chip-star-forma" data-forma="dinheiro" title="Favoritar Dinheiro para esta categoria" onclick="salvarFavoritoForma('dinheiro', event)">☆</button>
                             </div>
                             <div id="credito-options" class="credito-chips-group">
                                 <!-- Cartões serão inseridos dinamicamente aqui pela função atualizarOpcoesCartoes() -->
