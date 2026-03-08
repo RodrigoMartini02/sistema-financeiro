@@ -627,18 +627,32 @@
     background-color: #27ae60;
 }
 
-/* Botão Reabrir (Laranja) */
+/* Botão Reabrir (Cinza) */
 .btn-toggle-mes.btn-reabrir {
-    background-color: #f39c12;
+    background-color: #64748b;
     color: #ffffff;
 }
 
 .btn-toggle-mes.btn-reabrir:hover {
-    background-color: #e67e22;
+    background-color: #475569;
 }
 
 .btn-toggle-mes i {
     font-size: 14px;
+}
+
+/* Botão Reabrir Mês (detalhe e template) */
+.btn-reabrir-mes,
+#btn-reabrir-mes {
+    background-color: #64748b;
+    color: #ffffff;
+    border-color: #64748b;
+}
+
+.btn-reabrir-mes:hover:not(:disabled),
+#btn-reabrir-mes:hover:not(:disabled) {
+    background-color: #475569;
+    border-color: #475569;
 }
 
 /* Classe utilitária para esconder botões (usada no seu HTML) */
