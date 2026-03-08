@@ -106,6 +106,16 @@
     background-color: #fff5f5;
 }
 
+/* Linha de receita na tabela unificada */
+.tabela-despesas tbody tr.tipo-receita {
+    background-color: #f0fdf4;
+}
+
+.tabela-despesas tbody tr.tipo-receita .col-valor {
+    color: #166534;
+    font-weight: 600;
+}
+
 /* Checkboxes - estilos em layoutGeral.css (SISTEMA UNIFICADO) */
 
 /* ================================================================

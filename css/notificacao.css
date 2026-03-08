@@ -2,38 +2,9 @@
    NOTIFICACAO.CSS - Painel Central Unificado
    ================================================================ */
 
-/* ----------------------------------------------------------------
-   ÍCONES DE BADGE NO HEADER
-   ---------------------------------------------------------------- */
 .notification-wrapper {
     position: relative;
     display: inline-flex;
-}
-
-.notification-badge {
-    position: absolute;
-    top: 0;
-    right: 0;
-    background: var(--danger);
-    color: white;
-    min-width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    font-size: 11px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-}
-
-.noticias-badge {
-    background: #2563eb;
-}
-
-#notification-count.hidden,
-#noticias-count.hidden {
-    display: none;
 }
 
 /* ----------------------------------------------------------------

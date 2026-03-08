@@ -1731,6 +1731,23 @@ table tr:hover {
     color: var(--danger-color, #dc3545);
 }
 
+/* Saldo anterior na toolbar */
+.toolbar-saldo-anterior {
+    font-weight: 600;
+}
+
+.toolbar-saldo-positivo {
+    color: #166534;
+}
+
+.toolbar-saldo-negativo {
+    color: #991b1b;
+}
+
+.toolbar-saldo-anterior.hidden {
+    display: none;
+}
+
 
 /* Layout vertical para indicadores */
 .lista-barras-vertical {

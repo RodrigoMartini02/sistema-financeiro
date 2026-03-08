@@ -181,13 +181,14 @@ function configurarEventosFiltros() {
 
     // Filtros da toolbar unificada
     const filtrosToolbar = [
-        { id: 'filtro-categoria-toolbar', tipo: 'categoria' },
-        { id: 'filtro-forma-pagamento-toolbar', tipo: 'formaPagamento' },
-        { id: 'filtro-status-toolbar', tipo: 'status' }
+        'filtro-categoria-toolbar',
+        'filtro-forma-pagamento-toolbar',
+        'filtro-status-toolbar',
+        'filtro-tipo-toolbar'
     ];
 
-    filtrosToolbar.forEach(filtro => {
-        const elemento = document.getElementById(filtro.id);
+    filtrosToolbar.forEach(id => {
+        const elemento = document.getElementById(id);
         if (elemento) {
             elemento.addEventListener('change', function() {
                 aplicarFiltrosToolbarDespesas();
@@ -206,6 +207,7 @@ function configurarEventosFiltros() {
 }
 
 function aplicarFiltrosToolbarDespesas() {
+    const filtroTipo = document.getElementById('filtro-tipo-toolbar')?.value || 'todos';
     const filtroCategoria = document.getElementById('filtro-categoria-toolbar')?.value || 'todas';
     const filtroFormaPagamento = document.getElementById('filtro-forma-pagamento-toolbar')?.value || 'todas';
     const filtroStatus = document.getElementById('filtro-status-toolbar')?.value || 'todas';
@@ -214,39 +216,49 @@ function aplicarFiltrosToolbarDespesas() {
 
     linhas.forEach(linha => {
         let mostrarLinha = true;
+        const tipoLinha = linha.dataset.tipo || 'despesa';
 
-        // Filtro de categoria
-        if (filtroCategoria !== 'todas') {
-            const categoriaDespesa = linha.querySelector('.col-categoria')?.textContent?.trim() || '';
-            if (categoriaDespesa.toLowerCase() !== filtroCategoria.toLowerCase()) {
-                mostrarLinha = false;
-            }
+        // Filtro de tipo (receita/despesa)
+        if (filtroTipo !== 'todos') {
+            if (filtroTipo === 'receita' && tipoLinha !== 'receita') mostrarLinha = false;
+            else if (filtroTipo === 'despesa' && tipoLinha !== 'despesa') mostrarLinha = false;
         }
 
-        // Filtro de forma de pagamento
-        if (filtroFormaPagamento !== 'todas' && mostrarLinha) {
-            if (filtroFormaPagamento.startsWith('credito_')) {
-                const cartaoIdFiltro = filtroFormaPagamento.replace('credito_', '');
-                const formaPag = (linha.dataset.formaPagamento || '').toLowerCase();
-                const cartaoIdLinha = linha.dataset.cartaoId || '';
-                if (!formaPag.includes('cred') || String(cartaoIdLinha) !== String(cartaoIdFiltro)) {
-                    mostrarLinha = false;
-                }
-            } else {
-                const formaPagamento = linha.dataset.formaPagamento || '';
-                if (formaPagamento.toLowerCase() !== filtroFormaPagamento.toLowerCase()) {
+        // Filtros abaixo só se aplicam a despesas
+        if (mostrarLinha && tipoLinha === 'despesa') {
+            // Filtro de categoria
+            if (filtroCategoria !== 'todas') {
+                const categoriaDespesa = linha.querySelector('.col-categoria')?.textContent?.trim() || '';
+                if (categoriaDespesa.toLowerCase() !== filtroCategoria.toLowerCase()) {
                     mostrarLinha = false;
                 }
             }
-        }
 
-        // Filtro de status
-        if (filtroStatus !== 'todas' && mostrarLinha) {
-            const statusDespesa = linha.dataset.status || '';
-            if (filtroStatus === 'pagas' && statusDespesa !== 'quitada') mostrarLinha = false;
-            else if (filtroStatus === 'pendentes' && statusDespesa === 'quitada') mostrarLinha = false;
-            else if (filtroStatus === 'em_dia' && statusDespesa !== 'em_dia') mostrarLinha = false;
-            else if (filtroStatus === 'atrasada' && statusDespesa !== 'atrasada') mostrarLinha = false;
+            // Filtro de forma de pagamento
+            if (filtroFormaPagamento !== 'todas' && mostrarLinha) {
+                if (filtroFormaPagamento.startsWith('credito_')) {
+                    const cartaoIdFiltro = filtroFormaPagamento.replace('credito_', '');
+                    const formaPag = (linha.dataset.formaPagamento || '').toLowerCase();
+                    const cartaoIdLinha = linha.dataset.cartaoId || '';
+                    if (!formaPag.includes('cred') || String(cartaoIdLinha) !== String(cartaoIdFiltro)) {
+                        mostrarLinha = false;
+                    }
+                } else {
+                    const formaPagamento = linha.dataset.formaPagamento || '';
+                    if (formaPagamento.toLowerCase() !== filtroFormaPagamento.toLowerCase()) {
+                        mostrarLinha = false;
+                    }
+                }
+            }
+
+            // Filtro de status
+            if (filtroStatus !== 'todas' && mostrarLinha) {
+                const statusDespesa = linha.dataset.status || '';
+                if (filtroStatus === 'pagas' && statusDespesa !== 'quitada') mostrarLinha = false;
+                else if (filtroStatus === 'pendentes' && statusDespesa === 'quitada') mostrarLinha = false;
+                else if (filtroStatus === 'em_dia' && statusDespesa !== 'em_dia') mostrarLinha = false;
+                else if (filtroStatus === 'atrasada' && statusDespesa !== 'atrasada') mostrarLinha = false;
+            }
         }
 
         linha.style.display = mostrarLinha ? '' : 'none';
@@ -256,9 +268,10 @@ function aplicarFiltrosToolbarDespesas() {
 }
 
 function limparFiltrosToolbarDespesas() {
-    const filtros = ['filtro-categoria-toolbar', 'filtro-forma-pagamento-toolbar', 'filtro-status-toolbar'];
-    filtros.forEach(filtroId => {
-        const filtro = document.getElementById(filtroId);
+    const filtroTipo = document.getElementById('filtro-tipo-toolbar');
+    if (filtroTipo) filtroTipo.value = 'todos';
+    ['filtro-categoria-toolbar', 'filtro-forma-pagamento-toolbar', 'filtro-status-toolbar'].forEach(id => {
+        const filtro = document.getElementById(id);
         if (filtro) filtro.value = 'todas';
     });
 
@@ -316,7 +329,7 @@ function atualizarFiltrosExistentes(mes, ano) {
 // RENDERIZAÇÃO DE DESPESAS
 // ================================================================
 
-function renderizarDespesas(despesas, mes, ano, fechado) {
+function renderizarDespesas(itens, mes, ano, fechado) {
    if (!document.getElementById('despesas-grid-container')) {
        inicializarTabelaDespesasGrid();
    }
@@ -326,19 +339,25 @@ function renderizarDespesas(despesas, mes, ano, fechado) {
 
    listaDespesas.innerHTML = '';
 
-   if (Array.isArray(despesas) && despesas.length > 0) {
-       atualizarStatusDespesas(despesas);
-       let despesasParaExibir = despesas.filter(d => !d.transferidaParaProximoMes);
+   if (Array.isArray(itens) && itens.length > 0) {
+       // Status só se aplica a despesas
+       const soDespesas = itens.filter(i => i.tipo !== 'receita');
+       atualizarStatusDespesas(soDespesas);
 
-       // Ordenação padrão: última despesa cadastrada no topo (ID decrescente)
-       despesasParaExibir = despesasParaExibir.sort((a, b) => {
+       // Receitas sempre exibidas; despesas filtram transferidas
+       let itensParaExibir = itens.filter(i =>
+           i.tipo === 'receita' || !i.transferidaParaProximoMes
+       );
+
+       // Ordenação: maior ID primeiro
+       itensParaExibir = itensParaExibir.sort((a, b) => {
            const idA = parseInt(a.id) || 0;
            const idB = parseInt(b.id) || 0;
-           return idB - idA; // Decrescente - maior ID primeiro
+           return idB - idA;
        });
 
-       despesasParaExibir.forEach((despesa, index) => {
-           const divRow = criarLinhaDespesaGrid(despesa, index, fechado, mes, ano);
+       itensParaExibir.forEach((item, index) => {
+           const divRow = criarLinhaDespesaGrid(item, index, fechado, mes, ano);
            if (divRow) listaDespesas.appendChild(divRow);
        });
    }
@@ -358,34 +377,85 @@ function renderizarDespesas(despesas, mes, ano, fechado) {
    }, 100);
 }
 
-function criarLinhaDespesaGrid(despesa, index, fechado, mes, ano) {
+function criarLinhaDespesaGrid(item, index, fechado, mes, ano) {
   const template = document.getElementById('template-linha-despesa-grid');
-  if (!template) {
+  if (!template) return null;
 
-      return null;
-  }
-  
   const clone = template.content.cloneNode(true);
   const div = clone.querySelector('.despesa-row');
-  
-  if (despesa.status === 'em_dia') div.classList.add('despesa-em-dia');
-  else if (despesa.status === 'atrasada') div.classList.add('despesa-atrasada');
-  else if (despesa.status === 'quitada' || despesa.quitado) div.classList.add('despesa-quitada');
-  
-  if (fechado) div.classList.add('transacao-fechada');
-  
-  div.setAttribute('data-status', despesa.status || 'pendente');
-  div.setAttribute('data-categoria', despesa.categoria || '');
-  div.setAttribute('data-forma-pagamento', despesa.formaPagamento || '');
-  div.setAttribute('data-cartao-id', despesa.cartao_id || despesa.cartaoId || '');
-  div.setAttribute('data-index', index);
-  div.setAttribute('data-despesa-id', despesa.id || '');
-  // NOVO: Preservar informação de anexos no elemento
-  div.setAttribute('data-anexos-count', despesa.anexos ? despesa.anexos.length : 0);
-  
-  preencherCelulasGrid(clone, despesa, index, fechado, mes, ano);
-  
+
+  if (item.tipo === 'receita') {
+      div.classList.add('tipo-receita');
+      div.setAttribute('data-tipo', 'receita');
+      div.setAttribute('data-receita-index', item._receitaIndex ?? index);
+      div.setAttribute('data-receita-id', item.id || '');
+      div.setAttribute('data-index', index);
+      preencherCelulasGridReceita(clone, item, fechado);
+  } else {
+      div.classList.add('tipo-despesa');
+      if (item.status === 'em_dia') div.classList.add('despesa-em-dia');
+      else if (item.status === 'atrasada') div.classList.add('despesa-atrasada');
+      else if (item.status === 'quitada' || item.quitado) div.classList.add('despesa-quitada');
+
+      if (fechado) div.classList.add('transacao-fechada');
+
+      div.setAttribute('data-tipo', 'despesa');
+      div.setAttribute('data-status', item.status || 'pendente');
+      div.setAttribute('data-categoria', item.categoria || '');
+      div.setAttribute('data-forma-pagamento', item.formaPagamento || '');
+      div.setAttribute('data-cartao-id', item.cartao_id || item.cartaoId || '');
+      div.setAttribute('data-index', index);
+      div.setAttribute('data-despesa-id', item.id || '');
+      div.setAttribute('data-anexos-count', item.anexos ? item.anexos.length : 0);
+
+      preencherCelulasGrid(clone, item, index, fechado, mes, ano);
+  }
+
   return clone;
+}
+
+function preencherCelulasGridReceita(clone, receita, fechado) {
+    preencherCelulaNumero(clone, receita);
+    preencherCelulaDescricao(clone, receita);
+
+    const celulaCategoria = clone.querySelector('.col-categoria');
+    if (celulaCategoria) celulaCategoria.textContent = '-';
+
+    const celulaFormaPag = clone.querySelector('.col-forma-pagamento');
+    if (celulaFormaPag) celulaFormaPag.textContent = '-';
+
+    preencherCelulaValor(clone, receita);
+
+    const celulaParcela = clone.querySelector('.col-parcela');
+    if (celulaParcela) celulaParcela.textContent = '-';
+
+    const celulaValorPago = clone.querySelector('.col-valor-pago');
+    if (celulaValorPago) celulaValorPago.textContent = '-';
+
+    const celulaStatus = clone.querySelector('.col-status');
+    if (celulaStatus) celulaStatus.textContent = '-';
+
+    const celulaCompra = clone.querySelector('.col-compra');
+    if (celulaCompra) celulaCompra.textContent = '-';
+
+    const celulaVencimento = clone.querySelector('.col-vencimento');
+    if (celulaVencimento) celulaVencimento.textContent = receita.data ? formatarData(receita.data) : '-';
+
+    const celulaDataPagamento = clone.querySelector('.col-data-pagamento');
+    if (celulaDataPagamento) celulaDataPagamento.textContent = '-';
+
+    const celulaAnexos = clone.querySelector('.col-anexos');
+    if (celulaAnexos) celulaAnexos.style.display = 'none';
+
+    if (!fechado) {
+        const celulaAcoes = clone.querySelector('.col-acoes');
+        if (celulaAcoes) {
+            celulaAcoes.innerHTML = `<div class="acoes-grupo">
+                <button class="btn btn-sm btn-editar-receita" title="Editar receita"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-sm btn-excluir-receita" title="Excluir receita"><i class="fas fa-trash"></i></button>
+            </div>`;
+        }
+    }
 }
 
 function sincronizarIndicesDespesas() {
@@ -659,8 +729,25 @@ function configurarEventosDespesas(container, mes, ano) {
       e.stopPropagation();
       e.preventDefault();
 
-      // Usar data-despesa-id da linha para garantir referência correta
       const linha = btn.closest('tr.despesa-row');
+      const tipo = linha?.getAttribute('data-tipo');
+
+      // Ações de receita
+      if (tipo === 'receita') {
+          const receitaIndex = parseInt(linha?.getAttribute('data-receita-index'));
+          try {
+              if (btn.classList.contains('btn-editar-receita')) {
+                  if (typeof window.editarReceita === 'function') window.editarReceita(receitaIndex, mes, ano);
+              } else if (btn.classList.contains('btn-excluir-receita')) {
+                  if (typeof window.excluirReceita === 'function') window.excluirReceita(receitaIndex, mes, ano);
+              }
+          } catch (error) {
+              alert('Erro ao processar receita: ' + error.message);
+          }
+          return;
+      }
+
+      // Ações de despesa
       const despesaId = linha?.getAttribute('data-despesa-id');
 
       if (!despesaId) {

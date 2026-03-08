@@ -545,12 +545,12 @@ function configurarInterface() {
     setupControlesAno();
     setupModais();
     setupTransacoesRapidas();
-    setupAbas();
+    setupToolbarButtons();
     setupOutrosControles();
     setupSistemaBloqueio();
     setupEventosFechamento();
-    configurarObservadorModal(); // ADICIONAR ESTA LINHA
-    
+    configurarObservadorModal();
+
     atualizarDisplayAno(anoAtual);
 }
 
@@ -857,43 +857,6 @@ function setupTransacoesRapidas() {
             }
         });
     }
-}
-
-function setupAbas() {
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-
-            // Também controlar o conteúdo contextual da toolbar (lado direito)
-            document.querySelectorAll('.tab-toolbar-content').forEach(content => content.classList.remove('active'));
-
-            // Controlar ações contextuais (lado esquerdo)
-            document.querySelectorAll('.toolbar-esquerda .toolbar-acoes').forEach(acoes => acoes.classList.remove('active'));
-
-            btn.classList.add('active');
-            const tabId = btn.getAttribute('data-tab');
-            const tabContent = document.getElementById(tabId);
-            if (tabContent) {
-                tabContent.classList.add('active');
-            }
-
-            // Ativar conteúdo contextual correspondente na toolbar (lado direito)
-            const toolbarContent = document.querySelector(`.tab-toolbar-content[data-for-tab="${tabId}"]`);
-            if (toolbarContent) {
-                toolbarContent.classList.add('active');
-            }
-
-            // Ativar ações contextuais correspondentes (lado esquerdo)
-            const toolbarAcoes = document.querySelector(`.toolbar-esquerda .toolbar-acoes[data-for-tab="${tabId}"]`);
-            if (toolbarAcoes) {
-                toolbarAcoes.classList.add('active');
-            }
-        });
-    });
-
-    // Configurar eventos dos botões da toolbar
-    setupToolbarButtons();
 }
 
 function setupToolbarButtons() {
@@ -1664,7 +1627,6 @@ function abrirDetalhesDoMes(mes, ano) {
         atualizarElemento('detalhes-mes-titulo', `${nomesMeses[mes]} de ${ano}`);
         
         renderizarDetalhesDoMes(mes, ano);
-        ativarPrimeiraAba();
         configurarBotoesModal();
         
         setTimeout(() => {
@@ -1876,16 +1838,32 @@ async function renderizarDetalhesDoMes(mes, ano) {
         atualizarTituloDetalhes(mes, ano, fechado);
         atualizarControlesFechamento(mes, ano, fechado);
 
-        if (typeof window.renderizarReceitas === 'function') {
-            window.renderizarReceitas(receitas, fechado);
+        // Atualizar saldo anterior na toolbar
+        if (typeof window.atualizarSaldoAnteriorToolbar === 'function') {
+            window.atualizarSaldoAnteriorToolbar();
+        }
+
+        // Atualizar barra receitas vs despesas
+        if (typeof window.atualizarBarraReceitasDespesas === 'function') {
+            window.atualizarBarraReceitasDespesas();
         }
 
         if (typeof window.atualizarCardReservasIntegrado === 'function') {
             window.atualizarCardReservasIntegrado();
         }
 
+        // Mesclar receitas e despesas para tabela unificada
+        const receitasMarcadas = [];
+        receitas.forEach((r, i) => {
+            if (!r.saldoAnterior && !r.descricao?.includes('Saldo Anterior')) {
+                receitasMarcadas.push({ ...r, tipo: 'receita', _receitaIndex: i });
+            }
+        });
+        const despesasMarcadas = despesas.map(d => ({ ...d, tipo: 'despesa' }));
+        const itensUnificados = [...receitasMarcadas, ...despesasMarcadas];
+
         if (typeof window.renderizarDespesas === 'function') {
-            window.renderizarDespesas(despesas, mes, ano, fechado);
+            window.renderizarDespesas(itensUnificados, mes, ano, fechado);
         }
 
         if (typeof window.atualizarContadoresFiltro === 'function') {
@@ -1942,22 +1920,6 @@ function atualizarControlesFechamento(mes, ano, fechado) {
     }
 }
 
-function ativarPrimeiraAba() {
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-    document.querySelectorAll('.tab-toolbar-content').forEach(content => content.classList.remove('active'));
-    document.querySelectorAll('.toolbar-esquerda .toolbar-acoes').forEach(acoes => acoes.classList.remove('active'));
-
-    const primeiraAba = document.querySelector('.tab-btn[data-tab="tab-receitas"]');
-    const primeiroConteudo = document.getElementById('tab-receitas');
-    const primeiroToolbarContent = document.querySelector('.tab-toolbar-content[data-for-tab="tab-receitas"]');
-    const primeiroAcoes = document.querySelector('.toolbar-acoes[data-for-tab="tab-receitas"]');
-
-    if (primeiraAba) primeiraAba.classList.add('active');
-    if (primeiroConteudo) primeiroConteudo.classList.add('active');
-    if (primeiroToolbarContent) primeiroToolbarContent.classList.add('active');
-    if (primeiroAcoes) primeiroAcoes.classList.add('active');
-}
 
 function configurarBotoesModal() {
     configurarBotao('btn-nova-receita', () => {

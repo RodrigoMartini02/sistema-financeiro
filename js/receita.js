@@ -1208,6 +1208,32 @@ function configurarEventListenersModais() {
 
 
 // ================================================================
+// SALDO ANTERIOR NA TOOLBAR
+// ================================================================
+
+function atualizarSaldoAnteriorToolbar() {
+    const span = document.getElementById('saldo-anterior-toolbar');
+    if (!span) return;
+
+    const mes = window.mesAberto;
+    const ano = window.anoAberto;
+    if (mes === undefined || ano === undefined) {
+        span.classList.add('hidden');
+        return;
+    }
+
+    const valor = obterSaldoAnteriorValido(mes, ano);
+    if (valor === 0) {
+        span.classList.add('hidden');
+        return;
+    }
+
+    span.textContent = `Saldo ant.: ${window.formatarMoeda(valor)}`;
+    span.classList.remove('hidden', 'toolbar-saldo-positivo', 'toolbar-saldo-negativo');
+    span.classList.add(valor >= 0 ? 'toolbar-saldo-positivo' : 'toolbar-saldo-negativo');
+}
+
+// ================================================================
 // EXPORTAR FUNÇÕES GLOBAIS
 // ================================================================
 
@@ -1220,6 +1246,7 @@ window.renderizarReceitas = renderizarReceitas;
 window.calcularTotalReceitas = calcularTotalReceitas;
 window.atualizarContadorAnexosReceita = atualizarContadorAnexosReceita;
 window.atualizarTodosContadoresAnexosReceitas = atualizarTodosContadoresAnexosReceitas;
+window.atualizarSaldoAnteriorToolbar = atualizarSaldoAnteriorToolbar;
 
 
 // ================================================================

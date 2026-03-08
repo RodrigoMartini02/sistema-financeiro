@@ -182,13 +182,11 @@
                     <button class="header-icon-btn" id="notification-bell" type="button" aria-label="Notificações">
                         <i class="fas fa-bell"></i>
                     </button>
-                    <span class="notification-badge" id="notification-count">0</span>
                 </div>
                  <div class="notification-wrapper">
                     <button class="header-icon-btn" id="btn-toggle-noticias" type="button" title="Ver Notícias">
                         <i class="fas fa-newspaper"></i>
                     </button>
-                    <span class="notification-badge noticias-badge hidden" id="noticias-count">0</span>
                 </div>
                 <button class="header-icon-btn" id="btn-refresh" title="Atualizar Dados">
                     <i class="fas fa-sync-alt"></i>
@@ -1730,29 +1728,17 @@
         <div class="modal-body">
            <!-- TOOLBAR UNIFICADA -->
            <div class="tabs-toolbar">
-                <!-- Lado esquerdo: Abas + Ações -->
+                <!-- Lado esquerdo: Ações -->
                 <div class="toolbar-esquerda">
-                    <!-- Abas de navegação -->
-                    <div class="tabs-nav">
-                        <button class="tab-btn active" data-tab="tab-receitas">Receitas</button>
-                        <button class="tab-btn" data-tab="tab-despesas">Despesas</button>
-                        
-                    </div>
-                    <span class="toolbar-divider"></span>
-                    <!-- Ações contextuais: Despesas -->
-                    <div class="toolbar-acoes" data-for-tab="tab-despesas">
+                    <div class="toolbar-acoes">
                         <button id="btn-nova-despesa-toolbar" class="btn btn-danger btn-sm" title="Nova Despesa">
-                            <i class="fas fa-plus"></i>
+                            <i class="fas fa-plus"></i> Despesa
+                        </button>
+                        <button id="btn-nova-receita-toolbar" class="btn btn-success btn-sm" title="Nova Receita">
+                            <i class="fas fa-plus"></i> Receita
                         </button>
                         <button id="btn-pagar-lote-toolbar" class="btn btn-secondary btn-sm" disabled title="Pagar em Lote">
                             <i class="fas fa-check-circle"></i> Lote
-                        </button>
-                        <span class="toolbar-divider"></span>
-                    </div>
-                    <!-- Ações contextuais: Receitas -->
-                    <div class="toolbar-acoes" data-for-tab="tab-receitas">
-                        <button id="btn-nova-receita-toolbar" class="btn btn-success btn-sm" title="Nova Receita">
-                            <i class="fas fa-plus"></i>
                         </button>
                         <button id="btn-reservas-toolbar" class="btn btn-secondary btn-sm" title="Reservas">
                             <i class="fas fa-piggy-bank"></i>
@@ -1763,90 +1749,68 @@
 
                 <!-- Lado direito: Filtros e Informações -->
                 <div class="toolbar-direita">
-                    <!-- Conteúdo contextual: Despesas -->
-                    <div class="tab-toolbar-content" data-for-tab="tab-despesas">
-                        <select id="filtro-categoria-toolbar" class="form-control form-control-sm">
-                            <option value="todas">Categorias</option>
-                        </select>
-                        <select id="filtro-forma-pagamento-toolbar" class="form-control form-control-sm">
-                            <option value="todas">Pagamento</option>
-                        </select>
-                        <select id="filtro-status-toolbar" class="form-control form-control-sm">
-                            <option value="todas">Status</option>
-                            <option value="em_dia">Em Dia</option>
-                            <option value="atrasada">Atrasadas</option>
-                            <option value="pagas">Pagas</option>
-                            <option value="pendentes">Pendentes</option>
-                        </select>
-                        <button id="btn-limpar-filtros-toolbar" class="btn btn-secondary btn-sm" title="Limpar Filtros">
-                            <i class="fas fa-eraser"></i>
-                        </button>
-                        <span id="contador-despesas-toolbar" class="toolbar-contador">0 itens</span>
-                        <span id="total-despesas-toolbar" class="toolbar-contador toolbar-total">R$ 0,00</span>
-                    </div>
+                    <select id="filtro-tipo-toolbar" class="form-control form-control-sm">
+                        <option value="todos">Todos</option>
+                        <option value="despesa">Despesas</option>
+                        <option value="receita">Receitas</option>
+                    </select>
+                    <select id="filtro-categoria-toolbar" class="form-control form-control-sm">
+                        <option value="todas">Categorias</option>
+                    </select>
+                    <select id="filtro-forma-pagamento-toolbar" class="form-control form-control-sm">
+                        <option value="todas">Pagamento</option>
+                    </select>
+                    <select id="filtro-status-toolbar" class="form-control form-control-sm">
+                        <option value="todas">Status</option>
+                        <option value="em_dia">Em Dia</option>
+                        <option value="atrasada">Atrasadas</option>
+                        <option value="pagas">Pagas</option>
+                        <option value="pendentes">Pendentes</option>
+                    </select>
+                    <button id="btn-limpar-filtros-toolbar" class="btn btn-secondary btn-sm" title="Limpar Filtros">
+                        <i class="fas fa-eraser"></i>
+                    </button>
+                    <span id="saldo-anterior-toolbar" class="toolbar-contador toolbar-saldo-anterior hidden" title="Saldo do mês anterior"></span>
+                    <span id="contador-despesas-toolbar" class="toolbar-contador">0 itens</span>
+                    <span id="total-despesas-toolbar" class="toolbar-contador toolbar-total">R$ 0,00</span>
+                </div>
+            </div>
 
-                    <!-- Conteúdo contextual: Receitas -->
-                    <div class="tab-toolbar-content active" data-for-tab="tab-receitas">
+            <!-- Painel de Indicadores -->
+            <div id="limites-cartoes-container" class="limites-cartoes-container">
+                <h3 class="indicadores-toggle" id="indicadores-toggle">
+                    <i class="fas fa-chart-bar"></i> Indicadores
+                    <i class="fas fa-chevron-down indicadores-seta"></i>
+                </h3>
+                <div class="lista-barras-vertical" id="indicadores-conteudo">
+                    <!-- Barra Receitas vs Despesas -->
+                    <div class="cartao-limite-item" id="barra-receitas-despesas">
+                        <div class="cartao-info-header">
+                            <span class="cartao-nome">RECEITAS x DESPESAS</span>
+                            <div class="cartao-valores">
+                                <span class="valor-usado" id="barra-rd-despesas">R$ 0,00</span>
+                                <span class="separador">/</span>
+                                <span class="valor-limite" id="barra-rd-receitas">R$ 0,00</span>
+                            </div>
+                        </div>
+                        <div class="cartao-barra-progresso">
+                            <div class="barra-fundo">
+                                <div class="barra-preenchida status-ok" id="barra-rd-progresso" style="width: 0%"></div>
+                            </div>
+                            <div class="cartao-percentual">
+                                <span class="percentual-texto" id="barra-rd-percentual">0% usado</span>
+                                <span class="disponivel-texto">Disponível: <span id="barra-rd-disponivel">R$ 0,00</span></span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Barras de Cartões -->
+                    <div id="lista-barras-cartoes" class="lista-barras-cartoes">
                     </div>
                 </div>
             </div>
 
-            <!-- ABA RECEITAS -->
-            <div id="tab-receitas" class="tab-content active">
-                <!-- Painel de Indicadores -->
-                <div id="limites-cartoes-container" class="limites-cartoes-container">
-                    <h3 class="indicadores-toggle" id="indicadores-toggle">
-                        <i class="fas fa-chart-bar"></i> Indicadores
-                        <i class="fas fa-chevron-down indicadores-seta"></i>
-                    </h3>
-                    <div class="lista-barras-vertical" id="indicadores-conteudo">
-                        <!-- Barra Receitas vs Despesas -->
-                        <div class="cartao-limite-item" id="barra-receitas-despesas">
-                            <div class="cartao-info-header">
-                                <span class="cartao-nome">RECEITAS x DESPESAS</span>
-                                <div class="cartao-valores">
-                                    <span class="valor-usado" id="barra-rd-despesas">R$ 0,00</span>
-                                    <span class="separador">/</span>
-                                    <span class="valor-limite" id="barra-rd-receitas">R$ 0,00</span>
-                                </div>
-                            </div>
-                            <div class="cartao-barra-progresso">
-                                <div class="barra-fundo">
-                                    <div class="barra-preenchida status-ok" id="barra-rd-progresso" style="width: 0%"></div>
-                                </div>
-                                <div class="cartao-percentual">
-                                    <span class="percentual-texto" id="barra-rd-percentual">0% usado</span>
-                                    <span class="disponivel-texto">Disponível: <span id="barra-rd-disponivel">R$ 0,00</span></span>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Barras de Cartões -->
-                        <div id="lista-barras-cartoes" class="lista-barras-cartoes">
-                        </div>
-                    </div>
-                </div>
-                <div class="tabela-receitas-container">
-                    <table class="tabela-receitas" id="tabela-receitas">
-                        <thead>
-                            <tr>
-                                <th class="col-id">ID</th>
-                                <th class="col-descricao">Descrição</th>
-                                <th class="col-valor">Valor</th>
-                                <th class="col-data">Data</th>
-                                <th class="col-parcela">Parcela</th>
-                                <th class="col-acoes">Ações</th>
-                                <th class="col-anexos">Anexos</th>
-                            </tr>
-                        </thead>
-                        <tbody id="lista-receitas">
-                            <!-- Receitas serão inseridas aqui -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- ABA DESPESAS -->
-            <div id="tab-despesas" class="tab-content">
+            <!-- TABELA UNIFICADA -->
+            <div id="tab-despesas">
                 <!-- Conteúdo gerado dinamicamente pelo despesas.js -->
             </div>
 
@@ -1854,49 +1818,6 @@
     </div>
 </div>
 
-<!-- ================================================================ -->
-<!-- TEMPLATES PARA RECEITAS  -->
-<!-- ================================================================ -->
-
-<template id="template-linha-receita">
-    <tr class="receita-row" data-categoria="">
-        <td class="col-id"><span class="receita-id"></span></td>
-        <td class="col-descricao"><span class="receita-descricao"></span></td>
-        <td class="col-valor"><span class="receita-valor"></span></td>
-        <td class="col-data"><span class="receita-data"></span></td>
-        <td class="col-parcela"><span class="receita-parcela"></span></td>
-        <td class="col-acoes">
-            <div class="acoes-grupo">
-                <button class="btn btn-sm btn-editar" data-index="" title="Editar">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn btn-sm btn-excluir" data-index="" title="Excluir">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        </td>
-        <td class="col-anexos">
-            <div class="acoes-grupo">
-                <button class="btn btn-sm btn-anexos" data-index="" title="Ver anexos">
-                    <i class="fas fa-paperclip"></i>
-                    <span class="contador-anexos">0</span>
-                </button>
-            </div>
-        </td>
-    </tr>
-</template>
-
-<template id="template-linha-saldo-anterior">
-    <tr class="saldo-anterior-row">
-        <td class="col-id">-</td>
-        <td class="col-descricao"><span class="saldo-anterior-desc"></span></td>
-        <td class="col-valor"><span class="saldo-anterior-valor"></span></td>
-        <td class="col-data">-</td>
-        <td class="col-parcela">-</td>
-        <td class="col-acoes"><span class="badge-saldo-anterior">AUTOMÁTICO</span></td>
-        <td class="col-anexos">-</td>
-    </tr>
-</template>
 
 <template id="template-reserva-mini">
     <div class="reserva-mini-item">
@@ -1923,18 +1844,6 @@
 <!-- TEMPLATES -->
 <!-- ======================================================== -->
 
-<!-- Template para linha de saldo anterior -->
-<template id="template-linha-saldo-anterior">
-    <tr class="saldo-anterior-row">
-        <td class="col-id">-</td>
-        <td class="col-descricao"><span class="saldo-anterior-desc"></span></td>
-        <td class="col-valor"><span class="saldo-anterior-valor"></span></td>
-        <td class="col-data">-</td>
-        <td class="col-parcela">-</td>
-        <td class="col-acoes"><span class="badge-saldo-anterior">AUTOMÁTICO</span></td>
-        <td class="col-anexos">-</td>
-    </tr>
-</template>
 
 <!-- ======================================================== -->
 <!-- MODAL: CADASTRO DE RECEITAS -->
