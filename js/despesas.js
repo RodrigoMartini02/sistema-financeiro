@@ -981,7 +981,6 @@ function gerarHTMLCard(cardId) {
             </div>
             <input type="text" class="card-descricao" placeholder="Descrição da despesa" required>
             <select class="card-categoria"><option value="">Categoria...</option></select>
-            <button type="button" class="card-delete-btn" title="Remover"><i class="fas fa-times"></i></button>
         </div>
         <div class="card-values-row">
             <div class="card-field"><label>Valor orig. *</label><input type="number" class="card-valor-original" min="0.01" step="0.01" placeholder="0,00" required></div>
@@ -996,15 +995,18 @@ function gerarHTMLCard(cardId) {
             <span>Valor parcela: <strong class="card-valor-parcela">R$ 0,00</strong></span>
             <span>Total: <strong class="card-valor-total">R$ 0,00</strong></span>
         </div>
-        <div class="card-flags-row">
-            <label class="card-flag"><input type="checkbox" class="card-ja-paga"> Já está Paga</label>
-            <label class="card-flag"><input type="checkbox" class="card-recorrente"> Recorrente</label>
-            <label class="card-flag"><input type="checkbox" class="card-replicar"> Replicar até</label>
-            <div class="card-replicar-options hidden">
-                <select class="card-replicar-mes">${optsMeses}</select>
-                <select class="card-replicar-ano">${optsAnos}</select>
+        <div class="card-bottom-row">
+            <div class="card-flags-row">
+                <label class="card-flag"><input type="checkbox" class="card-ja-paga"> Já está Paga</label>
+                <label class="card-flag"><input type="checkbox" class="card-recorrente"> Recorrente</label>
+                <label class="card-flag"><input type="checkbox" class="card-replicar"> Replicar até</label>
+                <div class="card-replicar-options hidden">
+                    <select class="card-replicar-mes">${optsMeses}</select>
+                    <select class="card-replicar-ano">${optsAnos}</select>
+                </div>
+                <button type="button" class="card-anexos-btn"><i class="fas fa-paperclip"></i> Anexos (<span class="card-anexos-count">0</span>)</button>
             </div>
-            <button type="button" class="card-anexos-btn"><i class="fas fa-paperclip"></i> Anexos (<span class="card-anexos-count">0</span>)</button>
+            <button type="button" class="card-delete-btn" title="Remover este lançamento"><i class="fas fa-trash-alt"></i> Remover</button>
         </div>
         <div class="card-anexos-lista"></div>
         <div class="card-error hidden"></div>
@@ -1531,6 +1533,8 @@ function abrirModalNovaDespesa(index) {
     }
     modal.classList.add('active');
     modal.style.display = 'block';
+    // Garante que as categorias estejam carregadas (async)
+    if (typeof window.atualizarDropdowns === 'function') window.atualizarDropdowns();
 }
 
 function fecharModalLancamentoDespesas() {
@@ -4277,6 +4281,61 @@ window.salvarTodasDespesas = salvarTodasDespesas;
 window.adicionarCard = adicionarCard;
 window.removerCard = removerCard;
 window.popularTodosOsCards = popularTodosOsCards;
+
+// Abre form inline no footer do modal para criar nova categoria
+async function abrirModalNovaCategoriaInline() {
+    const footer = document.querySelector('#modal-lancamento-despesas .modal-lancamento-footer');
+    if (!footer) return;
+    if (footer.querySelector('.nova-cat-inline')) return; // já aberto
+
+    const form = document.createElement('div');
+    form.className = 'nova-cat-inline';
+    form.innerHTML = `
+        <input type="text" class="nova-cat-input" placeholder="Nome da categoria..." maxlength="50" autocomplete="off">
+        <button type="button" class="nova-cat-salvar btn btn-primary btn-sm">Salvar</button>
+        <button type="button" class="nova-cat-cancelar btn btn-secondary btn-sm">Cancelar</button>
+    `;
+    footer.insertBefore(form, footer.firstChild);
+    const input = form.querySelector('.nova-cat-input');
+    input.focus();
+
+    form.querySelector('.nova-cat-cancelar').addEventListener('click', () => form.remove());
+
+    const salvar = async () => {
+        const nome = input.value.trim();
+        if (!nome) { input.classList.add('campo-invalido'); return; }
+        input.classList.remove('campo-invalido');
+
+        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+        try {
+            const response = await fetch(`${API_URL}/categorias`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
+                },
+                body: JSON.stringify({ nome })
+            });
+            if (response.ok) {
+                form.remove();
+                if (typeof window.atualizarDropdowns === 'function') await window.atualizarDropdowns();
+                if (window.mostrarMensagemSucesso) window.mostrarMensagemSucesso(`Categoria "${nome}" criada!`);
+            } else {
+                const data = await response.json().catch(() => ({}));
+                if (window.mostrarMensagemErro) window.mostrarMensagemErro(data.message || 'Erro ao criar categoria');
+            }
+        } catch (error) {
+            if (window.mostrarMensagemErro) window.mostrarMensagemErro('Erro ao criar categoria');
+        }
+    };
+
+    form.querySelector('.nova-cat-salvar').addEventListener('click', salvar);
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') salvar();
+        if (e.key === 'Escape') form.remove();
+    });
+}
+window.abrirModalNovaCategoria = abrirModalNovaCategoriaInline;
 window.editarDespesa = editarDespesa;
 window.excluirDespesa = excluirDespesa;
 window.moverParaProximoMes = moverParaProximoMes;

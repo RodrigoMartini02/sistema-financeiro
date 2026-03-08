@@ -281,6 +281,36 @@ select.campo-invalido {
     background: #4f46e5;
 }
 
+/* Form inline nova categoria no footer */
+.nova-cat-inline {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 8px 0 4px;
+    order: -1;
+}
+
+.nova-cat-input {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1px solid #667eea;
+    border-radius: 6px;
+    font-size: 12px;
+    background: #fff;
+    color: #1e293b;
+    min-width: 0;
+}
+
+.nova-cat-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(102,126,234,0.15);
+}
+
+.nova-cat-input.campo-invalido {
+    border-color: #ef4444;
+}
+
 /* ================================================================
    CARD DE DESPESA
    ================================================================ */
@@ -313,13 +343,57 @@ select.campo-invalido {
     border-color: #34d399;
 }
 
-/* Linha do topo: descrição + categoria + botão remover */
+/* Linha do topo: pagamento | descrição | categoria */
 .card-header-row {
     display: grid;
-    grid-template-columns: 1fr 1fr auto;
+    grid-template-columns: auto 1fr 180px;
     gap: 8px;
-    align-items: end;
+    align-items: center;
     margin-bottom: 8px;
+}
+
+.card-descricao {
+    padding: 6px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 13px;
+    width: 100%;
+    background: #fff;
+    color: #1e293b;
+    transition: border-color 0.15s;
+}
+
+.card-descricao:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102,126,234,0.12);
+}
+
+.card-descricao::placeholder {
+    color: #94a3b8;
+}
+
+.card-categoria {
+    padding: 6px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 13px;
+    width: 100%;
+    background: #fff;
+    color: #1e293b;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+
+.card-categoria:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102,126,234,0.12);
+}
+
+.card-categoria.campo-invalido {
+    border-color: #ef4444 !important;
+    background: #fef2f2 !important;
 }
 
 /* Linha de valores: valor original, valor final, parcelas, data compra, data vencimento */
@@ -376,22 +450,37 @@ select.campo-invalido {
     background: #fef2f2 !important;
 }
 
-/* Botão remover card */
+/* Linha inferior do card: flags + botão remover */
+.card-bottom-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+
+/* Botão remover card — canto inferior direito */
 .card-delete-btn {
-    background: none;
-    border: none;
-    color: #cbd5e1;
-    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 14px;
+    background: #fff;
+    border: 1px solid #fca5a5;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #ef4444;
     cursor: pointer;
-    padding: 4px 6px;
-    border-radius: 4px;
-    transition: color 0.15s, background 0.15s;
-    align-self: center;
+    white-space: nowrap;
+    transition: background 0.15s, border-color 0.15s;
+    flex-shrink: 0;
 }
 
 .card-delete-btn:hover {
-    color: #ef4444;
     background: #fef2f2;
+    border-color: #ef4444;
 }
 
 /* ================================================================
@@ -627,10 +716,12 @@ select.campo-invalido {
     }
 
     .card-header-row {
-        grid-template-columns: 1fr auto;
+        grid-template-columns: 1fr;
     }
 
-    .card-header-row .card-field:nth-child(2) {
+    .card-header-row .card-pgto-group,
+    .card-header-row .card-descricao,
+    .card-header-row .card-categoria {
         grid-column: 1 / -1;
     }
 
