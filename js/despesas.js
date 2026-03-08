@@ -973,9 +973,9 @@ function gerarHTMLCard(cardId) {
                 <div class="card-pgto-grupo card-pgto-grupo-conta">
                     <span class="pgto-grupo-label">Saldo em Conta</span>
                     <div class="pgto-grupo-botoes">
-                        <button type="button" class="pgto-btn pgto-pix" data-forma="pix" title="PIX"><i class="fas fa-bolt"></i></button>
-                        <button type="button" class="pgto-btn pgto-dinheiro" data-forma="dinheiro" title="Dinheiro"><i class="fas fa-money-bill-wave"></i></button>
-                        <button type="button" class="pgto-btn pgto-debito" data-forma="debito" title="Débito"><i class="fas fa-credit-card"></i></button>
+                        <button type="button" class="pgto-btn pgto-pix pgto-conta-btn" data-forma="pix" title="PIX"><span class="pgto-conta-nome">PIX</span><i class="fas fa-bolt"></i></button>
+                        <button type="button" class="pgto-btn pgto-dinheiro pgto-conta-btn" data-forma="dinheiro" title="Dinheiro"><span class="pgto-conta-nome">Dinheiro</span><i class="fas fa-money-bill-wave"></i></button>
+                        <button type="button" class="pgto-btn pgto-debito pgto-conta-btn" data-forma="debito" title="Débito"><span class="pgto-conta-nome">Débito</span><i class="fas fa-credit-card"></i></button>
                     </div>
                 </div>
                 <div class="card-pgto-grupo card-pgto-grupo-credito">
@@ -1590,7 +1590,16 @@ function resetarModalLancamento() {
 function configurarEventosModalLancamento() {
     const btnAdicionar = document.getElementById('btn-adicionar-despesa-card');
     if (btnAdicionar) {
-        btnAdicionar.addEventListener('click', () => adicionarCard());
+        btnAdicionar.addEventListener('click', () => {
+            const novoCard = adicionarCard();
+            if (novoCard) {
+                const dataAtual = new Date(window.anoAberto, window.mesAberto, new Date().getDate());
+                const dataFormatada = window.dataParaISO ? window.dataParaISO(dataAtual) :
+                    `${dataAtual.getFullYear()}-${String(dataAtual.getMonth()+1).padStart(2,'0')}-${String(dataAtual.getDate()).padStart(2,'0')}`;
+                novoCard.querySelector('.card-compra').value = dataFormatada;
+                novoCard.querySelector('.card-vencimento').value = dataFormatada;
+            }
+        });
     }
 
     const btnSalvar = document.getElementById('btn-salvar-todas');

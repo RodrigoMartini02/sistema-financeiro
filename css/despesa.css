@@ -574,6 +574,38 @@ select.campo-invalido {
 .pgto-btn.pgto-debito.pgto-ativo   { background: #e0f2fe; border-color: #7dd3fc; color: #0369a1; }
 .pgto-btn.pgto-cartao.pgto-ativo   { background: #ede9fe; border-color: #c4b5fd; color: #6d28d9; font-weight: 600; }
 
+/* Botões de conta e cartão: mesmo estilo de tamanho fixo com nome no topo */
+.pgto-btn.pgto-conta-btn {
+    position: relative;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 36px;
+    padding: 0;
+    gap: 0;
+}
+
+.pgto-conta-nome {
+    position: absolute;
+    top: -7px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ffffff;
+    padding: 0 4px;
+    font-size: 9px;
+    font-weight: 500;
+    color: #64748b;
+    white-space: nowrap;
+    max-width: 64px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pgto-btn.pgto-conta-btn i {
+    font-size: 14px;
+}
+
 /* Botão de cartão: tamanho fixo, nome cortando a borda no topo */
 .pgto-btn.pgto-cartao {
     position: relative;
