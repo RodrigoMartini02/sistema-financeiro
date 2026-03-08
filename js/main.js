@@ -2637,7 +2637,20 @@ async function reabrirMes(mes, ano) {
 async function criarReceitaSaldoAnterior(mes, ano, valor, mesOrigem, anoOrigem) {
     try {
         if (!dadosFinanceiros[ano]) {
-            await criarAnoSimples(ano);
+            // Criar ano silenciosamente (sem mudar anoAtual nem re-renderizar)
+            const tokenAno = sessionStorage.getItem('token') || localStorage.getItem('token');
+            const apiUrl = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+            try {
+                await fetch(`${apiUrl}/anos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenAno}` },
+                    body: JSON.stringify({ ano: parseInt(ano) })
+                });
+            } catch (_) { /* ignora erro de rede — estrutura local é suficiente */ }
+            dadosFinanceiros[ano] = { meses: [] };
+            for (let i = 0; i < 12; i++) {
+                dadosFinanceiros[ano].meses[i] = { receitas: [], despesas: [], fechado: false, saldoAnterior: 0, saldoFinal: 0 };
+            }
         }
         
         garantirEstruturaDados(ano, mes);
