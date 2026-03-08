@@ -21,9 +21,7 @@ const pool = new Pool({
 });
 
 pool.on('connect', (client) => {
-    // Configurar timezone para evitar conversões indesejadas de data
     client.query("SET timezone = 'America/Sao_Paulo'");
-    console.log('✅ Conectado ao PostgreSQL (timezone: America/Sao_Paulo)');
 });
 
 pool.on('error', (err) => {
@@ -69,12 +67,8 @@ const executarMigracoes = async () => {
 };
 
 const query = async (text, params) => {
-    const start = Date.now();
     try {
-        const result = await pool.query(text, params);
-        const duration = Date.now() - start;
-        console.log(`✓ Query executada em ${duration}ms`);
-        return result;
+        return await pool.query(text, params);
     } catch (error) {
         console.error('❌ Erro na query:', error.message);
         throw error;

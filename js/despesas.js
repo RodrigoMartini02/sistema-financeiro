@@ -1505,7 +1505,7 @@ function preencherCardEdicao(cardEl, index) {
 }
 
 // Abre o modal de lançamento de despesas
-function abrirModalNovaDespesa(index) {
+async function abrirModalNovaDespesa(index) {
     if (typeof recarregarEAtualizarCartoes === 'function') recarregarEAtualizarCartoes();
     if (window.mesAberto === null || window.anoAberto === null) {
         window.mesAberto = new Date().getMonth();
@@ -1519,6 +1519,12 @@ function abrirModalNovaDespesa(index) {
     resetarModalLancamento();
     document.getElementById('lancamento-mes').value = window.mesAberto;
     document.getElementById('lancamento-ano').value = window.anoAberto;
+
+    // Carregar categorias ANTES de criar o card para garantir que o select seja populado
+    if (typeof window.atualizarDropdowns === 'function') {
+        await window.atualizarDropdowns();
+    }
+
     const primeiroCard = adicionarCard();
     if (primeiroCard) {
         const dataAtual = new Date(window.anoAberto, window.mesAberto, new Date().getDate());
@@ -1533,8 +1539,6 @@ function abrirModalNovaDespesa(index) {
     }
     modal.classList.add('active');
     modal.style.display = 'block';
-    // Garante que as categorias estejam carregadas (async)
-    if (typeof window.atualizarDropdowns === 'function') window.atualizarDropdowns();
 }
 
 function fecharModalLancamentoDespesas() {

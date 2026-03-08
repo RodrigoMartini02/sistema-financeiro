@@ -126,12 +126,12 @@ async function buscarCategoriasAPI() {
 
 async function atualizarDropdowns() {
     try {
-        // Buscar categorias da API e atualizar cache
         const categorias = await buscarCategoriasAPI();
         if (categorias && categorias.length > 0) {
             categoriasUsuario.despesas = categorias;
+            // Garantir que window.categoriasUsuario aponte para o objeto atualizado
+            window.categoriasUsuario = categoriasUsuario;
         }
-        // Atualizar todos os cards abertos no modal de lançamento
         if (typeof window.popularTodosOsCards === 'function') {
             window.popularTodosOsCards();
         }
