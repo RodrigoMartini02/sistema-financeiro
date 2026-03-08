@@ -3,6 +3,9 @@ const router = express.Router();
 const { query } = require('../config/database');
 const { authMiddleware } = require('../middleware/auth');
 
+// Garantir que a coluna ativo existe
+query(`ALTER TABLE categorias ADD COLUMN IF NOT EXISTS ativo BOOLEAN DEFAULT TRUE`).catch(() => {});
+
 // ================================================================
 // FUNÇÃO AUXILIAR - OBTER PRÓXIMO NÚMERO PARA CATEGORIA
 // ================================================================
@@ -37,7 +40,8 @@ router.get('/', authMiddleware, async (req, res) => {
                 ct.nome as cartao_favorito_nome,
                 c.data_criacao,
                 c.data_atualizacao,
-                u.nome as usuario_nome
+                u.nome as usuario_nome,
+                COALESCE(c.ativo, true) as ativo
             FROM categorias c
             LEFT JOIN usuarios u ON c.usuario_id = u.id
             LEFT JOIN cartoes ct ON c.cartao_favorito_id = ct.id
@@ -381,6 +385,40 @@ router.post('/padrao', authMiddleware, async (req, res) => {
             message: 'Erro ao criar categorias padrão',
             error: error.message
         });
+    }
+});
+
+// ================================================================
+// TOGGLE ATIVO/INATIVO
+// ================================================================
+router.patch('/:id/toggle-ativo', authMiddleware, async (req, res) => {
+    try {
+        const categoriaId = parseInt(req.params.id);
+        if (isNaN(categoriaId)) {
+            return res.status(400).json({ success: false, message: 'ID inválido' });
+        }
+
+        const result = await query(
+            `UPDATE categorias
+             SET ativo = NOT COALESCE(ativo, true), data_atualizacao = CURRENT_TIMESTAMP
+             WHERE id = $1 AND usuario_id = $2
+             RETURNING id, nome, COALESCE(ativo, true) as ativo`,
+            [categoriaId, req.usuario.id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Categoria não encontrada' });
+        }
+
+        const ativo = result.rows[0].ativo;
+        res.json({
+            success: true,
+            message: `Categoria ${ativo ? 'ativada' : 'desativada'} com sucesso`,
+            data: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Erro ao alterar status da categoria:', error);
+        res.status(500).json({ success: false, message: 'Erro interno do servidor', error: error.message });
     }
 });
 

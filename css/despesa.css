@@ -340,33 +340,41 @@ select.campo-invalido {
 
 /* Linha do topo: grupos pagamento | descrição | categoria */
 .card-header-row {
-    display: grid;
-    grid-template-columns: auto 180px;
+    display: flex;
     gap: 8px;
-    align-items: start;
+    align-items: flex-start;
     margin-bottom: 8px;
 }
 
-/* Linha 2: descrição + checkboxes + botão anexos */
-.card-desc-flags-row {
+.card-pgto-wrapper {
+    flex: 1;
+}
+
+/* Grupo de opções: mesmo estilo visual dos grupos de pagamento */
+.card-opcoes-grupo {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex-shrink: 0;
+    min-width: 170px;
+}
+
+/* Linha 2: descrição + categoria */
+.card-desc-cat-row {
     display: flex;
     gap: 8px;
     align-items: center;
     margin-bottom: 8px;
-    flex-wrap: nowrap;
 }
 
-.card-desc-flags-row .card-descricao {
+.card-desc-cat-row .card-descricao {
     flex: 1;
     min-width: 0;
 }
 
-.card-flags-inline {
-    display: flex;
-    gap: 10px;
-    align-items: center;
+.card-desc-cat-row .card-categoria {
+    width: 160px;
     flex-shrink: 0;
-    flex-wrap: nowrap;
 }
 
 .card-descricao {
@@ -375,7 +383,7 @@ select.campo-invalido {
     border-radius: 6px;
     font-size: 13px;
     width: 100%;
-    background: #fff;
+    background: transparent;
     color: #1e293b;
     transition: border-color 0.15s;
 }
@@ -416,7 +424,7 @@ select.campo-invalido {
 /* Linha de valores: valor original, valor final, parcelas, data compra, data vencimento */
 .card-values-row {
     display: grid;
-    grid-template-columns: 1fr 1fr 80px 110px 110px;
+    grid-template-columns: 90px 90px 60px 110px 1fr;
     gap: 8px;
     align-items: start;
     margin-bottom: 8px;
@@ -472,11 +480,11 @@ select.campo-invalido {
     background: #fef2f2 !important;
 }
 
-/* Linha inferior do card: botão remover */
+/* Linha inferior do card: anexos + botão remover */
 .card-bottom-row {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: space-between;
     gap: 8px;
     margin-top: 4px;
 }
@@ -656,15 +664,21 @@ select.campo-invalido {
 
 /* Estrela de favorito no card */
 .card-fav-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
     background: none;
     border: none;
-    color: #cbd5e1;
-    font-size: 14px;
+    color: #94a3b8;
+    font-size: 11px;
     cursor: pointer;
-    padding: 4px 5px;
+    padding: 2px 0;
     border-radius: 4px;
     transition: color 0.15s;
+    white-space: nowrap;
 }
+
+.card-fav-btn i { font-size: 12px; }
 
 .card-fav-btn:hover { color: #f59e0b; }
 
@@ -755,7 +769,8 @@ select.campo-invalido {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
-    margin-top: 4px;
+    flex: 1;
+    min-width: 0;
 }
 
 .card-anexo-item {
@@ -827,20 +842,15 @@ select.campo-invalido {
     }
 
     .card-header-row {
-        grid-template-columns: 1fr;
-    }
-
-    .card-header-row .card-pgto-wrapper,
-    .card-header-row .card-categoria {
-        grid-column: 1 / -1;
-    }
-
-    .card-desc-flags-row {
         flex-wrap: wrap;
     }
 
-    .card-flags-inline {
+    .card-desc-cat-row {
         flex-wrap: wrap;
+    }
+
+    .card-desc-cat-row .card-categoria {
+        width: 100%;
     }
 
     .card-pgto-wrapper {

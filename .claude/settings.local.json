@@ -36,7 +36,8 @@
       "Bash(npm install:*)",
       "Bash(curl:*)",
       "Bash(for f in \"c:/Users/rodri/Music/sistema financas/js/\"*.js)",
-      "Bash(done)"
+      "Bash(done)",
+      "WebSearch"
     ]
   }
 }

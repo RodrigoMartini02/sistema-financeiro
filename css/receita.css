@@ -15,6 +15,37 @@
     font-size: 10px;
 }
 
+/* Inputs e selects do modal de receita — padrão igual às despesas */
+#modal-nova-receita .modal-body input[type="text"],
+#modal-nova-receita .modal-body input[type="number"],
+#modal-nova-receita .modal-body input[type="date"],
+#modal-nova-receita .modal-body select {
+    padding: 6px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 12px;
+    width: 100%;
+    background: #fff;
+    color: #1e293b;
+    box-sizing: border-box;
+    transition: border-color 0.15s;
+}
+
+#modal-nova-receita .modal-body input:focus,
+#modal-nova-receita .modal-body select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.12);
+}
+
+#modal-nova-receita .modal-body label {
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+    color: #64748b;
+    margin-bottom: 4px;
+}
+
 /* Indicador de mês derivado da data */
 .data-mes-indicador,
 .card-mes-indicador {

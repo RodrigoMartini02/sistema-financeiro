@@ -128,8 +128,8 @@ async function atualizarDropdowns() {
     try {
         const categorias = await buscarCategoriasAPI();
         if (categorias && categorias.length > 0) {
-            categoriasUsuario.despesas = categorias;
-            // Garantir que window.categoriasUsuario aponte para o objeto atualizado
+            // Apenas categorias ativas aparecem nos dropdowns
+            categoriasUsuario.despesas = categorias.filter(c => c.ativo !== false);
             window.categoriasUsuario = categoriasUsuario;
         }
         if (typeof window.popularTodosOsCards === 'function') {
@@ -251,8 +251,28 @@ async function atualizarListaCategorias() {
                 : '';
         }
 
+        // Status ativo/inativo
+        const tdStatus = linha.querySelector('.categoria-status');
+        const ativo = categoria.ativo !== false;
+        if (tdStatus) {
+            tdStatus.innerHTML = ativo
+                ? `<span class="badge-categoria-ativo">Ativa</span>`
+                : `<span class="badge-categoria-inativo">Inativa</span>`;
+        }
+
+        // Linha inteira fica opaca quando inativa
+        const tr = linha.querySelector('tr');
+        if (tr && !ativo) tr.classList.add('categoria-inativa');
+
         // Configurar botões
+        const btnToggle = linha.querySelector('.btn-toggle-categoria');
         if (btnEditar) btnEditar.setAttribute('data-categoria-id', categoria.id);
+        if (btnToggle) {
+            btnToggle.setAttribute('data-categoria-id', categoria.id);
+            btnToggle.setAttribute('data-ativo', ativo ? '1' : '0');
+            btnToggle.title = ativo ? 'Desativar categoria' : 'Ativar categoria';
+            btnToggle.querySelector('i').className = ativo ? 'fas fa-ban' : 'fas fa-check-circle';
+        }
         if (btnRemover) btnRemover.setAttribute('data-categoria-id', categoria.id);
 
         listaCategorias.appendChild(linha);
@@ -272,6 +292,31 @@ async function editarCategoria(categoriaId) {
         nomeInput.value = categoria.nome;
         idInput.value = categoria.id;
         modalEditar.style.display = 'flex';
+    }
+}
+
+async function toggleAtivoCategoria(categoriaId) {
+    const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+    try {
+        const response = await fetch(`${API_URL}/categorias/${categoriaId}/toggle-ativo`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}` }
+        });
+        const data = await response.json();
+        if (data.success) {
+            mostrarFeedback(data.message, 'success');
+            await atualizarListaCategorias();
+            // Recarregar dropdowns dos cards para refletir o novo status
+            const categorias = await buscarCategoriasAPI();
+            window.categoriasUsuario = window.categoriasUsuario || {};
+            window.categoriasUsuario.despesas = categorias.filter(c => c.ativo !== false);
+            if (typeof window.popularTodosOsCards === 'function') window.popularTodosOsCards();
+        } else {
+            mostrarFeedback(data.message || 'Erro ao alterar status', 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao alterar status da categoria:', error);
+        mostrarFeedback('Erro ao alterar status da categoria', 'error');
     }
 }
 
@@ -3155,6 +3200,11 @@ function setupEventListeners() {
         if (target.classList.contains('btn-editar-categoria')) {
             const categoriaId = target.getAttribute('data-categoria-id');
             if (categoriaId) editarCategoria(categoriaId);
+        }
+
+        if (target.classList.contains('btn-toggle-categoria')) {
+            const categoriaId = target.getAttribute('data-categoria-id');
+            if (categoriaId) toggleAtivoCategoria(categoriaId);
         }
 
         if (target.classList.contains('btn-remover-categoria')) {

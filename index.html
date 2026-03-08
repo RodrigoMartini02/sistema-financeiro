@@ -333,12 +333,6 @@
             <div class="dashboard-card dashboard-card-full chart-accent-blue">
                 <h3>
                     <span class="chart-label"><i class="fas fa-chart-area chart-icon"></i> BALANÇO</span>
-                    <div class="filtros-header">
-                        <select class="filtro-select" id="balanco-ano-filter" onchange="filtrarBalanco()">
-                            <option value="atual">Ano Atual</option>
-                            <option value="todos">Todos os Anos</option>
-                        </select>
-                    </div>
                     <button class="btn-zoom" data-chart="balancoChart"><i class="fas fa-expand-alt"></i></button>
                 </h3>
                 <div class="chart-container">
@@ -925,6 +919,7 @@
                                 <th>Data de Criação</th>
                                 <th>Última Edição</th>
                                 <th class="th-favorito" title="Favorito de pagamento">★</th>
+                                <th>Status</th>
                                 <th>Ações</th>
                             </tr>
                         </thead>
@@ -1554,10 +1549,14 @@
         <td class="categoria-data-criacao"></td>
         <td class="categoria-data-edicao"></td>
         <td class="categoria-favorito"></td>
+        <td class="categoria-status"></td>
         <td class="categoria-acoes">
             <div class="acoes-grupo">
                 <button class="btn btn-sm btn-editar-categoria" data-categoria-id="" title="Editar">
                     <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-toggle-categoria" data-categoria-id="" title="Desativar/Ativar">
+                    <i class="fas fa-ban"></i>
                 </button>
                 <button class="btn btn-sm btn-remover-categoria" data-categoria-id="" title="Excluir">
                     <i class="fas fa-trash"></i>

@@ -223,9 +223,6 @@ function resetarFiltros() {
     document.getElementById('btn-periodo-atual')?.classList.add('active');
     document.getElementById('btn-periodo-todos')?.classList.remove('active');
 
-    // Resetar filtros do balanço
-    const anoFilter = document.getElementById('balanco-ano-filter');
-    if (anoFilter) anoFilter.value = 'atual';
 }
 
 function limparGraficos() {
@@ -475,31 +472,16 @@ const BALANCO_DATASETS_CONFIG = {
         borderColor: 'rgb(253, 126, 20)',
         backgroundColor: 'rgba(253, 126, 20, 0.7)',
         order: 1
-    },
-    saldo: {
-        label: 'Saldo em Conta',
-        borderColor: 'rgb(0, 123, 255)',
-        backgroundColor: 'rgba(0, 123, 255, 0.7)',
-        order: 2
-    },
-    reservas: {
-        label: 'Reservas',
-        borderColor: 'rgb(147, 51, 234)',
-        backgroundColor: 'rgba(147, 51, 234, 0.7)',
-        order: 3
     }
 };
 
 // Resetar filtros do balanço para o padrão
 function resetarFiltrosBalanco() {
-    const anoFilter = document.getElementById('balanco-ano-filter');
-    if (anoFilter) anoFilter.value = 'atual';
     filtrarBalanco();
 }
 
 function filtrarBalanco() {
-    const valor = document.getElementById('balanco-ano-filter')?.value || 'atual';
-    if (valor === 'todos') {
+    if (window.anoDashboard === 'todos') {
         criarGraficoBalancoPorAnos();
     } else {
         criarGraficoBalancoPorMeses(window.anoAtual || new Date().getFullYear());
@@ -606,28 +588,19 @@ function criarGraficoBalancoPorAnos() {
     const ctx = document.getElementById('balanco-chart')?.getContext('2d');
     if (!ctx) return;
 
-    if (window.balancoChart) {
-        window.balancoChart.destroy();
-    }
+    if (window.balancoChart) window.balancoChart.destroy();
 
     const anos = Object.keys(window.dadosFinanceiros || {}).map(Number).sort();
     if (anos.length === 0) return;
 
-    const balancos = [];
-    const saldos = [];
-    const reservas = [];
-
-    anos.forEach(ano => {
-        let receitaAno = 0, despesaAno = 0;
+    const balancos = anos.map(ano => {
+        let receitas = 0, despesas = 0;
         for (let m = 0; m < 12; m++) {
             const s = window.calcularSaldoMes(m, ano);
-            receitaAno += s.receitas;
-            despesaAno += s.despesas;
+            receitas += s.receitas;
+            despesas += s.despesas;
         }
-        const reservaAcum = window.calcularTotalReservasAcumuladas(11, ano);
-        balancos.push(receitaAno - despesaAno);
-        saldos.push(window.calcularSaldoMes(11, ano).saldoFinal - reservaAcum);
-        reservas.push(reservaAcum);
+        return receitas - despesas;
     });
 
     window.balancoChart = new Chart(ctx, {
@@ -635,11 +608,7 @@ function criarGraficoBalancoPorAnos() {
         plugins: [backgroundBarPlugin],
         data: {
             labels: anos.map(a => a.toString()),
-            datasets: [
-                criarDatasetBarra(BALANCO_DATASETS_CONFIG.balanco, balancos),
-                criarDatasetBarra(BALANCO_DATASETS_CONFIG.saldo, saldos),
-                criarDatasetBarra(BALANCO_DATASETS_CONFIG.reservas, reservas)
-            ]
+            datasets: [criarDatasetBarra(BALANCO_DATASETS_CONFIG.balanco, balancos)]
         },
         options: getOpcoesGrafico()
     });
@@ -652,33 +621,20 @@ function criarGraficoBalancoPorMeses(ano) {
     const ctx = document.getElementById('balanco-chart')?.getContext('2d');
     if (!ctx) return;
 
-    if (window.balancoChart) {
-        window.balancoChart.destroy();
-    }
+    if (window.balancoChart) window.balancoChart.destroy();
 
     const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-    const balancos = [];
-    const saldos = [];
-    const reservas = [];
-
-    for (let m = 0; m < 12; m++) {
+    const balancos = Array.from({ length: 12 }, (_, m) => {
         const s = window.calcularSaldoMes(m, ano);
-        const reservaAcum = window.calcularTotalReservasAcumuladas(m, ano);
-        balancos.push(s.receitas - s.despesas);
-        saldos.push(s.saldoFinal - reservaAcum);
-        reservas.push(reservaAcum);
-    }
+        return s.receitas - s.despesas;
+    });
 
     window.balancoChart = new Chart(ctx, {
         type: 'bar',
         plugins: [backgroundBarPlugin],
         data: {
             labels: meses,
-            datasets: [
-                criarDatasetBarra(BALANCO_DATASETS_CONFIG.balanco, balancos),
-                criarDatasetBarra(BALANCO_DATASETS_CONFIG.saldo, saldos),
-                criarDatasetBarra(BALANCO_DATASETS_CONFIG.reservas, reservas)
-            ]
+            datasets: [criarDatasetBarra(BALANCO_DATASETS_CONFIG.balanco, balancos)]
         },
         options: getOpcoesGrafico()
     });

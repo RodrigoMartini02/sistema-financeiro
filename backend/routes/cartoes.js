@@ -3,6 +3,9 @@ const router = express.Router();
 const { query } = require('../config/database');
 const { authMiddleware } = require('../middleware/auth');
 
+// Garantir que a coluna validade existe como VARCHAR
+query(`ALTER TABLE cartoes ADD COLUMN IF NOT EXISTS validade VARCHAR(10)`).catch(() => {});
+
 // ================================================================
 // FUNÇÃO AUXILIAR - OBTER PRÓXIMO NÚMERO PARA CARTÃO
 // ================================================================

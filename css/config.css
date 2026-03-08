@@ -403,11 +403,48 @@
     text-align: center;
 }
 
-/* col 6: Ações (editar + excluir) */
+/* col 6: Status */
 .tabela-categorias th:nth-child(6),
 .tabela-categorias td:nth-child(6) {
-    width: 90px;
+    width: 70px;
     text-align: center;
+}
+
+/* col 7: Ações */
+.tabela-categorias th:nth-child(7),
+.tabela-categorias td:nth-child(7) {
+    width: 110px;
+    text-align: center;
+}
+
+.badge-categoria-ativo {
+    display: inline-block;
+    padding: 2px 8px;
+    background: rgba(34, 197, 94, 0.1);
+    color: #16a34a;
+    border: 1px solid rgba(34, 197, 94, 0.25);
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.badge-categoria-inativo {
+    display: inline-block;
+    padding: 2px 8px;
+    background: rgba(148, 163, 184, 0.1);
+    color: #64748b;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.categoria-inativa td {
+    opacity: 0.5;
+}
+
+.categoria-inativa td.categoria-acoes {
+    opacity: 1;
 }
 
 .tabela-categorias tbody tr {

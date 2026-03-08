@@ -989,13 +989,10 @@ function gerarHTMLCard(cardId) {
                     <span class="pgto-grupo-label">Crédito</span>
                     <div class="pgto-grupo-botoes card-pgto-cartoes"></div>
                 </div>
-                <button type="button" class="card-fav-btn" title="Favoritar para esta categoria"><i class="far fa-star"></i></button>
             </div>
-            <select class="card-categoria"><option value="">Categoria...</option></select>
-        </div>
-        <div class="card-desc-flags-row">
-            <input type="text" class="card-descricao" placeholder="Descrição da despesa" required>
-            <div class="card-flags-inline">
+            <div class="card-pgto-grupo card-opcoes-grupo">
+                <span class="pgto-grupo-label">Opções</span>
+                <button type="button" class="card-fav-btn" title="Favoritar para esta categoria"><i class="far fa-star"></i> Favoritar forma de pagamento</button>
                 <label class="card-flag"><input type="checkbox" class="card-ja-paga"> Já está Paga</label>
                 <label class="card-flag"><input type="checkbox" class="card-recorrente"> Recorrente</label>
                 <label class="card-flag"><input type="checkbox" class="card-replicar"> Replicar até</label>
@@ -1005,6 +1002,10 @@ function gerarHTMLCard(cardId) {
                 </div>
                 <button type="button" class="card-anexos-btn"><i class="fas fa-paperclip"></i> Anexos (<span class="card-anexos-count">0</span>)</button>
             </div>
+        </div>
+        <div class="card-desc-cat-row">
+            <input type="text" class="card-descricao" placeholder="Descrição da despesa" required>
+            <select class="card-categoria"><option value="">Categoria...</option></select>
         </div>
         <div class="card-values-row">
             <div class="card-field"><label>Valor orig. *</label><input type="number" class="card-valor-original" min="0.01" step="0.01" placeholder="0,00" required></div>
@@ -1020,9 +1021,9 @@ function gerarHTMLCard(cardId) {
             <span>Total: <strong class="card-valor-total">R$ 0,00</strong></span>
         </div>
         <div class="card-bottom-row">
+            <div class="card-anexos-lista"></div>
             <button type="button" class="card-delete-btn" title="Remover este lançamento"><i class="fas fa-trash-alt"></i> Remover</button>
         </div>
-        <div class="card-anexos-lista"></div>
         <div class="card-error hidden"></div>
         <div class="card-success hidden"><i class="fas fa-check-circle"></i> Salvo!</div>
     `;
@@ -1345,7 +1346,7 @@ function atualizarIndicadorMesCard(cardEl) {
     if (!indicador) return;
     if (venc) {
         const d = new Date(venc + 'T00:00:00');
-        indicador.textContent = `→ ${NOMES_MESES[d.getMonth()]} ${d.getFullYear()}`;
+        indicador.textContent = `será cadastrada em ${NOMES_MESES[d.getMonth()]} ${d.getFullYear()}`;
     } else {
         indicador.textContent = '';
     }
