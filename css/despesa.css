@@ -538,19 +538,6 @@ select.campo-invalido {
     background: #fef2f2;
 }
 
-/* Grupo conta com borda vermelha quando inválido */
-.card-pgto-wrapper.campo-invalido {
-    outline: 2px solid #f87171;
-    border-radius: 8px;
-}
-
-/* Manter retrocompatibilidade */
-.card-pgto-group {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex-wrap: wrap;
-}
 
 .pgto-btn {
     display: inline-flex;
@@ -580,7 +567,6 @@ select.campo-invalido {
 .pgto-btn.pgto-pix.pgto-ativo      { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
 .pgto-btn.pgto-dinheiro.pgto-ativo { background: #dcfce7; border-color: #86efac; color: #15803d; }
 .pgto-btn.pgto-debito.pgto-ativo   { background: #e0f2fe; border-color: #7dd3fc; color: #0369a1; }
-.pgto-btn.pgto-credito.pgto-ativo  { background: #ede9fe; border-color: #c4b5fd; color: #6d28d9; }
 .pgto-btn.pgto-cartao.pgto-ativo   { background: #ede9fe; border-color: #c4b5fd; color: #6d28d9; font-weight: 600; }
 
 /* Botão de cartão: layout vertical — nome em cima, ícone embaixo */

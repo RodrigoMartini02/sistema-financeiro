@@ -1110,7 +1110,6 @@ function selecionarPagamentoCard(cardEl, forma) {
     if (btn) btn.classList.add('pgto-ativo');
     cardEl.dataset.formaPagamento = forma;
     cardEl.dataset.cartaoId = '';
-    cardEl.querySelector('.card-pgto-wrapper')?.classList.remove('campo-invalido');
     atualizarEstrelasCard(cardEl);
 }
 
@@ -1121,7 +1120,6 @@ function selecionarPagamentoCartao(cardEl, cartaoId) {
     if (btn) btn.classList.add('pgto-ativo');
     cardEl.dataset.formaPagamento = 'credito';
     cardEl.dataset.cartaoId = String(cartaoId);
-    cardEl.querySelector('.card-pgto-wrapper')?.classList.remove('campo-invalido');
     cardEl.querySelector('.card-pgto-grupo-credito')?.classList.remove('campo-invalido');
     atualizarEstrelasCard(cardEl);
 }
@@ -1214,7 +1212,6 @@ async function aplicarFavoritoCard(cardEl, categoriaId) {
         } else {
             selecionarPagamentoCard(cardEl, cat.forma_favorita);
         }
-        atualizarEstrelasCard(cardEl);
     } catch(e) { console.error('Erro ao aplicar favorito:', e); }
 }
 
