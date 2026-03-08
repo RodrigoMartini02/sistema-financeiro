@@ -1214,17 +1214,8 @@ function setupSistemaBloqueio() {
 
 
 function setupEventosFechamento() {
-    const btnFecharMes = document.getElementById('btn-fechar-mes');
     const btnReabrirMes = document.getElementById('btn-reabrir-mes');
-    
-    if (btnFecharMes) {
-        btnFecharMes.addEventListener('click', () => {
-            if (mesAberto !== null && anoAberto !== null) {
-                abrirModalConfirmacaoFechamento(mesAberto, anoAberto);
-            }
-        });
-    }
-    
+
     if (btnReabrirMes) {
         btnReabrirMes.addEventListener('click', () => {
             if (mesAberto !== null && anoAberto !== null) {
@@ -1939,16 +1930,13 @@ function atualizarTituloDetalhes(mes, ano, fechado) {
 }
 
 function atualizarControlesFechamento(mes, ano, fechado) {
-    const btnFechar = document.getElementById('btn-fechar-mes');
     const btnReabrir = document.getElementById('btn-reabrir-mes');
     const statusMes = document.getElementById('status-mes-atual');
-    
+
     if (fechado) {
-        if (btnFechar) btnFechar.classList.add('hidden');
         if (btnReabrir) btnReabrir.classList.remove('hidden');
         if (statusMes) statusMes.textContent = 'Mês Fechado';
     } else {
-        if (btnFechar) btnFechar.classList.remove('hidden');
         if (btnReabrir) btnReabrir.classList.add('hidden');
         if (statusMes) statusMes.textContent = 'Mês Aberto';
     }
@@ -3042,16 +3030,6 @@ function configurarEventListeners() {
     if (btnPagarLote) {
         btnPagarLote.addEventListener('click', pagarDespesasEmLote);
     }
-
-    // Botão fechar mês (delegação de evento - criado dinamicamente)
-    document.addEventListener('click', function(e) {
-        if (e.target && e.target.id === 'btn-fechar-mes') {
-            handleFecharMes();
-        }
-        if (e.target && e.target.id === 'btn-reabrir-mes') {
-            handleReabrirMes();
-        }
-    });
 
     // Botão limpar filtros
     const btnLimparFiltros = document.getElementById('btn-limpar-filtros');

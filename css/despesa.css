@@ -497,22 +497,19 @@ select.campo-invalido {
 
 /* Cada grupo (Saldo em Conta / Crédito) */
 .card-pgto-grupo {
-    position: relative;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 6px 10px 6px 10px;
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    padding: 0;
 }
 
 .pgto-grupo-label {
-    font-size: 10px;
-    font-weight: 600;
-    color: #94a3b8;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    text-align: center;
+    font-size: 11px;
+    font-weight: 500;
+    color: #64748b;
+    white-space: nowrap;
 }
 
 .pgto-grupo-botoes {
@@ -520,6 +517,9 @@ select.campo-invalido {
     gap: 4px;
     flex-wrap: wrap;
     align-items: center;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 4px 8px;
 }
 
 .pgto-sem-cartao {
@@ -528,8 +528,8 @@ select.campo-invalido {
     font-style: italic;
 }
 
-/* Grupo crédito com borda roxa quando tem cartão ativo */
-.card-pgto-grupo-credito.campo-invalido {
+/* Grupo crédito com borda vermelha quando inválido */
+.card-pgto-grupo-credito.campo-invalido .pgto-grupo-botoes {
     border-color: #f87171;
     background: #fef2f2;
 }
@@ -551,8 +551,8 @@ select.campo-invalido {
 .pgto-btn {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 5px 10px;
+    gap: 4px;
+    padding: 3px 8px;
     border: 1px solid #e2e8f0;
     border-radius: 6px;
     background: #f8fafc;
