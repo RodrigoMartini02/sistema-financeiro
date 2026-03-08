@@ -163,8 +163,7 @@
 
 .btn-editar,
 .btn-editar-categoria,
-.btn-editar-cartao,
-.btn-editar-usuario {
+.btn-editar-cartao {
     background-color: #f97316;
     color: #ffffff;
     border-color: #f97316;
@@ -172,16 +171,14 @@
 
 .btn-editar:hover:not(:disabled),
 .btn-editar-categoria:hover:not(:disabled),
-.btn-editar-cartao:hover:not(:disabled),
-.btn-editar-usuario:hover:not(:disabled) {
+.btn-editar-cartao:hover:not(:disabled) {
     background-color: #ea580c;
     border-color: #c2410c;
 }
 
 .btn-excluir,
 .btn-remover-categoria,
-.btn-excluir-cartao,
-.btn-excluir-usuario {
+.btn-excluir-cartao {
     background-color: #ef4444;
     color: #ffffff;
     border-color: #ef4444;
@@ -189,21 +186,9 @@
 
 .btn-excluir:hover:not(:disabled),
 .btn-remover-categoria:hover:not(:disabled),
-.btn-excluir-cartao:hover:not(:disabled),
-.btn-excluir-usuario:hover:not(:disabled) {
+.btn-excluir-cartao:hover:not(:disabled) {
     background-color: #dc2626;
     border-color: #b91c1c;
-}
-
-.btn-bloquear-usuario {
-    background-color: #eab308;
-    color: #ffffff;
-    border-color: #eab308;
-}
-
-.btn-bloquear-usuario:hover:not(:disabled) {
-    background-color: #ca8a04;
-    border-color: #a16207;
 }
 
 .btn-avancar {
