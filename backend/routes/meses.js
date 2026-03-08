@@ -132,30 +132,26 @@ router.get('/:ano/:mes/saldo', authMiddleware, async (req, res) => {
     try {
         const { ano, mes } = req.params;
         
-        const receitas = await query(
-            `SELECT COALESCE(SUM(valor), 0) as total 
-             FROM receitas 
-             WHERE usuario_id = $1 AND ano = $2 AND mes = $3`,
-            [req.usuario.id, parseInt(ano), parseInt(mes)]
-        );
-        
-        const despesas = await query(
-            `SELECT COALESCE(SUM(valor), 0) as total 
-             FROM despesas 
-             WHERE usuario_id = $1 AND ano = $2 AND mes = $3`,
-            [req.usuario.id, parseInt(ano), parseInt(mes)]
-        );
-        
-        const mesAnterior = parseInt(mes) === 0 ? 11 : parseInt(mes) - 1;
-        const anoAnterior = parseInt(mes) === 0 ? parseInt(ano) - 1 : parseInt(ano);
-        
-        const saldoAnterior = await query(
-            `SELECT COALESCE(saldo_final, 0) as saldo 
-             FROM meses 
-             WHERE usuario_id = $1 AND ano = $2 AND mes = $3`,
-            [req.usuario.id, anoAnterior, mesAnterior]
-        );
-        
+        const mesInt = parseInt(mes);
+        const anoInt = parseInt(ano);
+        const mesAnterior = mesInt === 0 ? 11 : mesInt - 1;
+        const anoAnterior = mesInt === 0 ? anoInt - 1 : anoInt;
+
+        const [receitas, despesas, saldoAnterior] = await Promise.all([
+            query(
+                `SELECT COALESCE(SUM(valor), 0) as total FROM receitas WHERE usuario_id = $1 AND ano = $2 AND mes = $3`,
+                [req.usuario.id, anoInt, mesInt]
+            ),
+            query(
+                `SELECT COALESCE(SUM(valor), 0) as total FROM despesas WHERE usuario_id = $1 AND ano = $2 AND mes = $3`,
+                [req.usuario.id, anoInt, mesInt]
+            ),
+            query(
+                `SELECT COALESCE(saldo_final, 0) as saldo FROM meses WHERE usuario_id = $1 AND ano = $2 AND mes = $3`,
+                [req.usuario.id, anoAnterior, mesAnterior]
+            )
+        ]);
+
         const totalReceitas = parseFloat(receitas.rows[0].total);
         const totalDespesas = parseFloat(despesas.rows[0].total);
         const saldoAnt = parseFloat(saldoAnterior.rows[0]?.saldo || 0);

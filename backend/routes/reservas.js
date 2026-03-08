@@ -322,18 +322,16 @@ router.get('/historico', authMiddleware, async (req, res) => {
         const { limite = 50, pagina = 1 } = req.query;
         const offset = (parseInt(pagina) - 1) * parseInt(limite);
         
-        const result = await query(
-            `SELECT * FROM reservas 
-             WHERE usuario_id = $1 
-             ORDER BY ano DESC, mes DESC, data DESC
-             LIMIT $2 OFFSET $3`,
-            [req.usuario.id, parseInt(limite), offset]
-        );
-        
-        const totalResult = await query(
-            'SELECT COUNT(*) as total FROM reservas WHERE usuario_id = $1',
-            [req.usuario.id]
-        );
+        const [result, totalResult] = await Promise.all([
+            query(
+                `SELECT * FROM reservas WHERE usuario_id = $1 ORDER BY ano DESC, mes DESC, data DESC LIMIT $2 OFFSET $3`,
+                [req.usuario.id, parseInt(limite), offset]
+            ),
+            query(
+                'SELECT COUNT(*) as total FROM reservas WHERE usuario_id = $1',
+                [req.usuario.id]
+            )
+        ]);
         
         const total = parseInt(totalResult.rows[0].total);
         const totalPaginas = Math.ceil(total / parseInt(limite));

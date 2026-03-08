@@ -343,12 +343,12 @@ select.campo-invalido {
     border-color: #34d399;
 }
 
-/* Linha do topo: pagamento | descrição | categoria */
+/* Linha do topo: grupos pagamento | descrição | categoria */
 .card-header-row {
     display: grid;
     grid-template-columns: auto 1fr 180px;
     gap: 8px;
-    align-items: center;
+    align-items: start;
     margin-bottom: 8px;
 }
 
@@ -487,6 +487,60 @@ select.campo-invalido {
    BOTÕES DE PAGAMENTO (card)
    ================================================================ */
 
+/* Wrapper dos dois grupos de pagamento */
+.card-pgto-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Cada grupo (Saldo em Conta / Crédito) */
+.card-pgto-grupo {
+    position: relative;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 6px 10px 6px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.pgto-grupo-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-align: center;
+}
+
+.pgto-grupo-botoes {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.pgto-sem-cartao {
+    font-size: 11px;
+    color: #94a3b8;
+    font-style: italic;
+}
+
+/* Grupo crédito com borda roxa quando tem cartão ativo */
+.card-pgto-grupo-credito.campo-invalido {
+    border-color: #f87171;
+    background: #fef2f2;
+}
+
+/* Grupo conta com borda vermelha quando inválido */
+.card-pgto-wrapper.campo-invalido {
+    outline: 2px solid #f87171;
+    border-radius: 8px;
+}
+
+/* Manter retrocompatibilidade */
 .card-pgto-group {
     display: flex;
     align-items: center;
@@ -519,10 +573,11 @@ select.campo-invalido {
     font-weight: 600;
 }
 
-.pgto-btn.pgto-pix.pgto-ativo     { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
+.pgto-btn.pgto-pix.pgto-ativo      { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
 .pgto-btn.pgto-dinheiro.pgto-ativo { background: #dcfce7; border-color: #86efac; color: #15803d; }
 .pgto-btn.pgto-debito.pgto-ativo   { background: #e0f2fe; border-color: #7dd3fc; color: #0369a1; }
 .pgto-btn.pgto-credito.pgto-ativo  { background: #ede9fe; border-color: #c4b5fd; color: #6d28d9; }
+.pgto-btn.pgto-cartao.pgto-ativo   { background: #ede9fe; border-color: #c4b5fd; color: #6d28d9; font-weight: 600; }
 
 /* Estrela de favorito no card */
 .card-fav-btn {
@@ -546,26 +601,7 @@ select.campo-invalido {
     filter: drop-shadow(0 0 2px #fbbf24);
 }
 
-/* Dropdown cartão (visível só quando crédito ativo) */
-.card-cartao-group {
-    display: none;
-    align-items: center;
-    gap: 4px;
-}
-
-.card-cartao-group.visivel {
-    display: inline-flex;
-}
-
-.card-cartao-select {
-    padding: 4px 8px;
-    border: 1px solid #c4b5fd;
-    border-radius: 6px;
-    font-size: 11px;
-    background: #ede9fe;
-    color: #6d28d9;
-    cursor: pointer;
-}
+/* (select de cartão removido — substituído por botões no grupo Crédito) */
 
 /* ================================================================
    FLAGS DO CARD (checkboxes)
@@ -719,10 +755,15 @@ select.campo-invalido {
         grid-template-columns: 1fr;
     }
 
-    .card-header-row .card-pgto-group,
+    .card-header-row .card-pgto-wrapper,
     .card-header-row .card-descricao,
     .card-header-row .card-categoria {
         grid-column: 1 / -1;
+    }
+
+    .card-pgto-wrapper {
+        flex-direction: column;
+        align-items: stretch;
     }
 
     .card-values-row {

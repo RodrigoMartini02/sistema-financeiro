@@ -58,6 +58,16 @@ const executarMigracoes = async () => {
         `);
         console.log('✅ Coluna anexos verificada em receitas');
 
+        // Criar índices de performance (IF NOT EXISTS para idempotência)
+        await Promise.all([
+            pool.query(`CREATE INDEX IF NOT EXISTS idx_despesas_usuario_mes_ano ON despesas (usuario_id, mes, ano)`),
+            pool.query(`CREATE INDEX IF NOT EXISTS idx_receitas_usuario_mes_ano ON receitas (usuario_id, mes, ano)`),
+            pool.query(`CREATE INDEX IF NOT EXISTS idx_reservas_usuario_mes_ano ON reservas (usuario_id, mes, ano)`),
+            pool.query(`CREATE INDEX IF NOT EXISTS idx_meses_usuario_ano_mes ON meses (usuario_id, ano, mes)`),
+            pool.query(`CREATE INDEX IF NOT EXISTS idx_movimentacoes_reserva ON movimentacoes_reservas (reserva_id)`)
+        ]);
+        console.log('✅ Índices de performance verificados');
+
         console.log('✅ Migrações concluídas');
         return true;
     } catch (error) {

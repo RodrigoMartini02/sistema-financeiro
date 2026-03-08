@@ -81,22 +81,21 @@ router.post('/', authMiddleware, async (req, res) => {
             });
         }
 
-        const verificarExistente = `
-            SELECT id FROM categorias
-            WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2)
-        `;
+        // Verificar duplicata e obter próximo número em paralelo
+        const [existente, proximoNumero] = await Promise.all([
+            query(
+                'SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2)',
+                [req.usuario.id, nome.trim()]
+            ),
+            obterProximoNumero(req.usuario.id)
+        ]);
 
-        const existente = await query(verificarExistente, [req.usuario.id, nome.trim()]);
-        
         if (existente.rows.length > 0) {
             return res.status(400).json({
                 success: false,
                 message: 'Já existe uma categoria com este nome'
             });
         }
-        
-        // ✅ OBTER PRÓXIMO NÚMERO
-        const proximoNumero = await obterProximoNumero(req.usuario.id);
 
         const queryText = `
             INSERT INTO categorias (usuario_id, nome, cor, icone, numero)
@@ -198,27 +197,18 @@ router.put('/:id', authMiddleware, async (req, res) => {
             });
         }
         
-        const verificarExistencia = `
-            SELECT id FROM categorias 
-            WHERE id = $1 AND usuario_id = $2
-        `;
-        
-        const existeCategoria = await query(verificarExistencia, [categoriaId, req.usuario.id]);
-        
+        const [existeCategoria, nomeDuplicado] = await Promise.all([
+            query('SELECT id FROM categorias WHERE id = $1 AND usuario_id = $2', [categoriaId, req.usuario.id]),
+            query('SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2) AND id != $3', [req.usuario.id, nome.trim(), categoriaId])
+        ]);
+
         if (existeCategoria.rows.length === 0) {
             return res.status(404).json({
                 success: false,
                 message: 'Categoria não encontrada'
             });
         }
-        
-        const verificarNomeDuplicado = `
-            SELECT id FROM categorias 
-            WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2) AND id != $3
-        `;
-        
-        const nomeDuplicado = await query(verificarNomeDuplicado, [req.usuario.id, nome.trim(), categoriaId]);
-        
+
         if (nomeDuplicado.rows.length > 0) {
             return res.status(400).json({
                 success: false,
@@ -360,37 +350,26 @@ router.get('/estatisticas/uso', authMiddleware, async (req, res) => {
 // ================================================================
 router.post('/padrao', authMiddleware, async (req, res) => {
     try {
-        console.log('📝 Criando categorias padrão para usuário:', req.usuario.id);
-
-        // Primeiro, verificar quantas categorias já existem
         const existentes = await query(
-            'SELECT * FROM categorias WHERE usuario_id = $1',
+            'SELECT COUNT(*) as total FROM categorias WHERE usuario_id = $1',
             [req.usuario.id]
         );
-        console.log('📊 Categorias existentes ANTES:', existentes.rows.length);
-        if (existentes.rows.length > 0) {
-            console.log('📋 IDs existentes:', existentes.rows.map(r => `${r.id}:${r.nome}`).join(', '));
-        }
+        const totalAntes = parseInt(existentes.rows[0].total);
 
-        // Chamar a função do PostgreSQL para criar categorias padrão
         await query('SELECT criar_categorias_padrao($1)', [req.usuario.id]);
 
-        // Buscar as categorias criadas/existentes
         const result = await query(
             'SELECT * FROM categorias WHERE usuario_id = $1 ORDER BY id ASC',
             [req.usuario.id]
         );
 
-        console.log('✅ Total de categorias DEPOIS:', result.rows.length);
-        console.log('📋 IDs das categorias:', result.rows.map(r => `${r.id}:${r.nome}`).join(', '));
-
         res.json({
             success: true,
-            message: `${result.rows.length} categorias disponíveis (${result.rows.length - existentes.rows.length} novas criadas)`,
+            message: `${result.rows.length} categorias disponíveis (${result.rows.length - totalAntes} novas criadas)`,
             data: result.rows,
             resumo: {
                 total: result.rows.length,
-                novas: result.rows.length - existentes.rows.length,
+                novas: result.rows.length - totalAntes,
                 ids: result.rows.map(r => r.id)
             }
         });

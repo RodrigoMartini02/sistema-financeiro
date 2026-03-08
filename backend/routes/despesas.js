@@ -82,12 +82,6 @@ router.post('/', authMiddleware, [
     body('ano').isInt({ min: 2000 }).withMessage('Ano inválido')
 ], async (req, res) => {
     try {
-        // Log detalhado dos dados recebidos
-        console.log('📥 Dados recebidos para criar despesa:', JSON.stringify({
-            ...req.body,
-            anexos: req.body.anexos ? `[${req.body.anexos.length} anexo(s)]` : null
-        }, null, 2));
-
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
             console.error('❌ Erros de validação na despesa:', errors.array());
@@ -104,47 +98,31 @@ router.post('/', authMiddleware, [
             valor_original, valor_total_com_juros, valor_pago, anexos, recorrente
         } = req.body;
 
-        console.log('📝 Criando despesa:', {
-            descricao, valor, data_vencimento, mes, ano,
-            categoria_id, forma_pagamento, parcelado, usuario_id: req.usuario.id,
-            temAnexos: anexos && anexos.length > 0
-        });
-
-        // ✅ Se categoria_id não foi fornecida, buscar a primeira categoria do usuário
-        let categoriaFinal = categoria_id;
-        if (!categoriaFinal) {
-            const catResult = await query(
-                'SELECT id FROM categorias WHERE usuario_id = $1 ORDER BY id ASC LIMIT 1',
-                [req.usuario.id]
-            );
-            if (catResult.rows.length > 0) {
-                categoriaFinal = catResult.rows[0].id;
-                console.log('📁 Usando categoria padrão:', categoriaFinal);
-            } else {
-                console.warn('⚠️ Nenhuma categoria encontrada para o usuário');
-                categoriaFinal = null; // Permitir NULL na tabela
-            }
-        }
-
         // ✅ CORRIGIR: aceitar total_parcelas do frontend
         const numeroParcelas = total_parcelas || null;
         const parcelaAtual = parcela_atual || (parcelado ? 1 : null);
 
-        // ✅ VALIDAR CARTAO_ID: verificar se existe na tabela cartoes do usuário
-        let cartaoIdFinal = cartao_id || null;
-        if (cartaoIdFinal) {
-            const cartaoResult = await query(
-                'SELECT id FROM cartoes WHERE id = $1 AND usuario_id = $2',
-                [cartaoIdFinal, req.usuario.id]
-            );
-            if (cartaoResult.rows.length === 0) {
-                console.warn(`⚠️ Cartão ID ${cartaoIdFinal} não encontrado para usuário ${req.usuario.id}, ignorando cartao_id`);
-                cartaoIdFinal = null;
-            }
+        // Buscar categoria padrão (se necessário), validar cartão e obter próximo número em paralelo
+        const [catResult, cartaoResult, proximoNumero] = await Promise.all([
+            !categoria_id
+                ? query('SELECT id FROM categorias WHERE usuario_id = $1 ORDER BY id ASC LIMIT 1', [req.usuario.id])
+                : Promise.resolve(null),
+            cartao_id
+                ? query('SELECT id FROM cartoes WHERE id = $1 AND usuario_id = $2', [cartao_id, req.usuario.id])
+                : Promise.resolve(null),
+            obterProximoNumero(req.usuario.id)
+        ]);
+
+        let categoriaFinal = categoria_id;
+        if (!categoriaFinal) {
+            categoriaFinal = catResult && catResult.rows.length > 0 ? catResult.rows[0].id : null;
         }
 
-        // ✅ OBTER PRÓXIMO NÚMERO
-        const proximoNumero = await obterProximoNumero(req.usuario.id);
+        let cartaoIdFinal = cartao_id || null;
+        if (cartaoIdFinal && cartaoResult && cartaoResult.rows.length === 0) {
+            console.warn(`⚠️ Cartão ID ${cartaoIdFinal} não encontrado para usuário ${req.usuario.id}, ignorando cartao_id`);
+            cartaoIdFinal = null;
+        }
 
         // Converter anexos para JSON se existirem
         const anexosJson = anexos && Array.isArray(anexos) && anexos.length > 0 ? JSON.stringify(anexos) : null;
@@ -171,8 +149,6 @@ router.post('/', authMiddleware, [
                 recorrente || false
             ]
         );
-
-        console.log('✅ Despesa criada com sucesso:', result.rows[0].id);
 
         // ✅ Se for parcelado, criar as parcelas futuras
         if (parcelado && numeroParcelas && numeroParcelas > 1) {
@@ -526,8 +502,6 @@ router.post('/corrigir-cartao', authMiddleware, async (req, res) => {
         );
 
         const quantidadeAtualizada = updateResult.rows.length;
-
-        console.log(`✅ Atualizadas ${quantidadeAtualizada} despesas para cartão ${cartao_id} (usuário ${usuarioId})`);
 
         res.json({
             success: true,

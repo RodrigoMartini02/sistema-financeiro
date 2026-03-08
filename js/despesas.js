@@ -95,7 +95,7 @@ function configurarEventosGrid() {
     if (btnPagarLote) {
         btnPagarLote.addEventListener('click', function(e) {
             e.preventDefault();
-            abrirModalPagamentoLote();
+            window.abrirModalPagamentoLote();
         });
     }
 
@@ -969,13 +969,18 @@ function gerarHTMLCard(cardId) {
 
     return `
         <div class="card-header-row">
-            <div class="card-pgto-group">
-                <button type="button" class="pgto-btn pgto-pix" data-forma="pix" title="PIX"><i class="fas fa-bolt"></i></button>
-                <button type="button" class="pgto-btn pgto-dinheiro" data-forma="dinheiro" title="Dinheiro"><i class="fas fa-money-bill-wave"></i></button>
-                <button type="button" class="pgto-btn pgto-debito" data-forma="debito" title="Débito"><i class="fas fa-credit-card"></i></button>
-                <button type="button" class="pgto-btn pgto-credito" data-forma="credito" title="Crédito"><i class="fas fa-credit-card"></i></button>
-                <div class="card-cartao-group hidden">
-                    <select class="card-cartao-select"><option value="">Cartão...</option></select>
+            <div class="card-pgto-wrapper">
+                <div class="card-pgto-grupo card-pgto-grupo-conta">
+                    <span class="pgto-grupo-label">Saldo em Conta</span>
+                    <div class="pgto-grupo-botoes">
+                        <button type="button" class="pgto-btn pgto-pix" data-forma="pix" title="PIX"><i class="fas fa-bolt"></i> PIX</button>
+                        <button type="button" class="pgto-btn pgto-dinheiro" data-forma="dinheiro" title="Dinheiro"><i class="fas fa-money-bill-wave"></i> Dinheiro</button>
+                        <button type="button" class="pgto-btn pgto-debito" data-forma="debito" title="Débito"><i class="fas fa-credit-card"></i> Débito</button>
+                    </div>
+                </div>
+                <div class="card-pgto-grupo card-pgto-grupo-credito">
+                    <span class="pgto-grupo-label">Crédito</span>
+                    <div class="pgto-grupo-botoes card-pgto-cartoes"></div>
                 </div>
                 <button type="button" class="card-fav-btn" title="Favoritar para esta categoria"><i class="far fa-star"></i></button>
             </div>
@@ -1038,29 +1043,28 @@ function adicionarCard(dadosIniciais = {}) {
     container.appendChild(card);
     popularCategoriasCard(card);
     popularCartoesCard(card);
+    // Primeiro card é sempre fixo — esconde o botão remover
+    if (container.children.length === 1) {
+        card.classList.add('card-primeiro');
+        const deleteBtn = card.querySelector('.card-delete-btn');
+        if (deleteBtn) deleteBtn.style.display = 'none';
+    }
     return card;
 }
 
-// Remove um card do DOM
+// Remove um card do DOM (primeiro card é sempre fixo)
 function removerCard(cardId) {
-    const todos = document.querySelectorAll('.despesa-card');
-    if (todos.length <= 1) return;
     const card = document.querySelector(`.despesa-card[data-card-id="${cardId}"]`);
-    if (card) {
-        cardAnexosStore.delete(cardId);
-        card.remove();
-    }
+    if (!card || card.classList.contains('card-primeiro')) return;
+    cardAnexosStore.delete(cardId);
+    card.remove();
 }
 
 // Configura todos os eventos de um card
 function configurarEventosCard(cardEl) {
-    // Pagamento
-    cardEl.querySelectorAll('.pgto-btn').forEach(btn => {
+    // Pagamento (conta: pix/dinheiro/debito)
+    cardEl.querySelectorAll('.pgto-btn[data-forma]').forEach(btn => {
         btn.addEventListener('click', () => selecionarPagamentoCard(cardEl, btn.dataset.forma));
-    });
-    cardEl.querySelector('.card-cartao-select').addEventListener('change', function() {
-        cardEl.dataset.cartaoId = this.value;
-        atualizarEstrelasCard(cardEl);
     });
 
     // Categoria → aplicar favorito
@@ -1099,15 +1103,26 @@ function configurarEventosCard(cardEl) {
     cardEl.querySelector('.card-anexos-btn').addEventListener('click', () => abrirAnexosCard(cardEl));
 }
 
-// Seleciona uma forma de pagamento no card
+// Seleciona uma forma de pagamento conta (pix/dinheiro/debito)
 function selecionarPagamentoCard(cardEl, forma) {
     cardEl.querySelectorAll('.pgto-btn').forEach(b => b.classList.remove('pgto-ativo'));
     const btn = cardEl.querySelector(`.pgto-btn[data-forma="${forma}"]`);
     if (btn) btn.classList.add('pgto-ativo');
     cardEl.dataset.formaPagamento = forma;
-    cardEl.querySelector('.card-cartao-group').classList.toggle('hidden', forma !== 'credito');
-    // Limpa erros de pagamento
-    cardEl.querySelector('.card-pgto-group').classList.remove('campo-invalido');
+    cardEl.dataset.cartaoId = '';
+    cardEl.querySelector('.card-pgto-wrapper')?.classList.remove('campo-invalido');
+    atualizarEstrelasCard(cardEl);
+}
+
+// Seleciona um cartão de crédito específico
+function selecionarPagamentoCartao(cardEl, cartaoId) {
+    cardEl.querySelectorAll('.pgto-btn').forEach(b => b.classList.remove('pgto-ativo'));
+    const btn = cardEl.querySelector(`.pgto-btn[data-cartao-id="${cartaoId}"]`);
+    if (btn) btn.classList.add('pgto-ativo');
+    cardEl.dataset.formaPagamento = 'credito';
+    cardEl.dataset.cartaoId = String(cartaoId);
+    cardEl.querySelector('.card-pgto-wrapper')?.classList.remove('campo-invalido');
+    cardEl.querySelector('.card-pgto-grupo-credito')?.classList.remove('campo-invalido');
     atualizarEstrelasCard(cardEl);
 }
 
@@ -1128,19 +1143,30 @@ function popularCategoriasCard(cardEl) {
     if (valorAtual) select.value = valorAtual;
 }
 
-// Popula o select de cartões de um card
+// Popula os botões de cartão de crédito de um card
 function popularCartoesCard(cardEl) {
-    const select = cardEl.querySelector('.card-cartao-select');
+    const container = cardEl.querySelector('.card-pgto-cartoes');
+    if (!container) return;
     const cartoes = (window.cartoesUsuario || []).filter(c => c.ativo);
-    const valorAtual = select.value;
-    while (select.options.length > 1) select.remove(1);
+    const cartaoIdAtual = cardEl.dataset.cartaoId;
+    const formaAtual = cardEl.dataset.formaPagamento;
+    container.innerHTML = '';
+    if (cartoes.length === 0) {
+        container.innerHTML = '<span class="pgto-sem-cartao">Nenhum cartão</span>';
+        return;
+    }
     cartoes.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c.id;
-        opt.textContent = (c.banco || c.nome || '').toUpperCase();
-        select.appendChild(opt);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'pgto-btn pgto-cartao';
+        btn.dataset.cartaoId = c.id;
+        btn.innerHTML = `<i class="fas fa-credit-card"></i> ${(c.banco || c.nome || '').toUpperCase()}`;
+        if (formaAtual === 'credito' && String(cartaoIdAtual) === String(c.id)) {
+            btn.classList.add('pgto-ativo');
+        }
+        btn.addEventListener('click', () => selecionarPagamentoCartao(cardEl, c.id));
+        container.appendChild(btn);
     });
-    if (valorAtual) select.value = valorAtual;
 }
 
 // Popula categorias e cartões em todos os cards existentes
@@ -1184,10 +1210,7 @@ async function aplicarFavoritoCard(cardEl, categoriaId) {
         const cat = data.data || {};
         if (!cat.forma_favorita) return;
         if (cat.forma_favorita === 'credito' && cat.cartao_favorito_id) {
-            selecionarPagamentoCard(cardEl, 'credito');
-            const sel = cardEl.querySelector('.card-cartao-select');
-            sel.value = cat.cartao_favorito_id;
-            cardEl.dataset.cartaoId = cat.cartao_favorito_id;
+            selecionarPagamentoCartao(cardEl, cat.cartao_favorito_id);
         } else {
             selecionarPagamentoCard(cardEl, cat.forma_favorita);
         }
@@ -1217,14 +1240,21 @@ async function atualizarEstrelasCard(cardEl) {
     } catch(e) { console.error('Erro ao verificar favorito:', e); }
 }
 
-// Salva o favorito de pagamento do card para a categoria selecionada
+// Salva/remove o favorito de pagamento (toggle)
 async function salvarFavoritoCard(cardEl) {
     const categoriaId = cardEl.querySelector('.card-categoria').value;
     if (!categoriaId) { if (window.mostrarMensagemErro) window.mostrarMensagemErro('Selecione uma categoria primeiro'); return; }
     const forma = cardEl.dataset.formaPagamento;
     if (!forma) { if (window.mostrarMensagemErro) window.mostrarMensagemErro('Selecione uma forma de pagamento primeiro'); return; }
-    const cartaoId = forma === 'credito' ? (parseInt(cardEl.dataset.cartaoId) || null) : null;
-    await _persistirFavorito(categoriaId, forma, cartaoId);
+    const starBtn = cardEl.querySelector('.card-fav-btn');
+    if (starBtn.classList.contains('fav-ativo')) {
+        // Desfavoritar
+        await _persistirFavorito(categoriaId, null, null);
+    } else {
+        // Favoritar
+        const cartaoId = forma === 'credito' ? (parseInt(cardEl.dataset.cartaoId) || null) : null;
+        await _persistirFavorito(categoriaId, forma, cartaoId);
+    }
     await atualizarEstrelasCard(cardEl);
 }
 
@@ -1284,7 +1314,7 @@ function removerAnexoCard(cardId, index) {
 // Coleta todos os dados de um card
 function coletarDadosCard(cardEl) {
     const formaPagamento = cardEl.dataset.formaPagamento;
-    const cartaoId = formaPagamento === 'credito' ? (parseInt(cardEl.querySelector('.card-cartao-select')?.value) || null) : null;
+    const cartaoId = formaPagamento === 'credito' ? (parseInt(cardEl.dataset.cartaoId) || null) : null;
     const parcelas = parseInt(cardEl.querySelector('.card-parcelas').value) || 1;
     return {
         id: cardEl.dataset.despesaId || '',
@@ -1324,10 +1354,10 @@ function validarCard(cardEl) {
     const categoria = cardEl.querySelector('.card-categoria');
     if (!categoria.value) { categoria.classList.add('campo-invalido'); erros.push('Categoria'); valido = false; }
 
-    if (!cardEl.dataset.formaPagamento) { cardEl.querySelector('.card-pgto-group').classList.add('campo-invalido'); erros.push('Pagamento'); valido = false; }
+    if (!cardEl.dataset.formaPagamento) { cardEl.querySelector('.card-pgto-wrapper').classList.add('campo-invalido'); erros.push('Pagamento'); valido = false; }
 
-    if (cardEl.dataset.formaPagamento === 'credito' && !cardEl.querySelector('.card-cartao-select').value) {
-        cardEl.querySelector('.card-cartao-select').classList.add('campo-invalido'); erros.push('Cartão'); valido = false;
+    if (cardEl.dataset.formaPagamento === 'credito' && !cardEl.dataset.cartaoId) {
+        cardEl.querySelector('.card-pgto-grupo-credito').classList.add('campo-invalido'); erros.push('Cartão'); valido = false;
     }
 
     const valor = cardEl.querySelector('.card-valor-original');
@@ -1488,8 +1518,11 @@ function preencherCardEdicao(cardEl, index) {
             const cp = (window.cartoesUsuario || [])[(parseInt(despesa.numeroCartao) - 1)];
             if (cp) cartaoIdReal = cp.id;
         }
-        selecionarPagamentoCard(cardEl, 'credito');
-        if (cartaoIdReal) { cardEl.querySelector('.card-cartao-select').value = cartaoIdReal; cardEl.dataset.cartaoId = cartaoIdReal; }
+        if (cartaoIdReal) {
+            selecionarPagamentoCartao(cardEl, cartaoIdReal);
+        } else {
+            cardEl.dataset.formaPagamento = 'credito';
+        }
     } else if (despesa.formaPagamento) {
         selecionarPagamentoCard(cardEl, despesa.formaPagamento);
     }
@@ -4285,6 +4318,7 @@ window.salvarTodasDespesas = salvarTodasDespesas;
 window.adicionarCard = adicionarCard;
 window.removerCard = removerCard;
 window.popularTodosOsCards = popularTodosOsCards;
+window.selecionarPagamentoCartao = selecionarPagamentoCartao;
 
 // Abre form inline no footer do modal para criar nova categoria
 async function abrirModalNovaCategoriaInline() {

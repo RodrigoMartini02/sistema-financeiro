@@ -304,21 +304,16 @@ async function carregarDadosLocais() {
             }
         }
 
-        // ✅ Carregar dados da API através do usuarioDataManager
-        if (window.usuarioDataManager && typeof window.usuarioDataManager.getDadosFinanceirosUsuario === 'function') {
-            dadosFinanceiros = await window.usuarioDataManager.getDadosFinanceirosUsuario();
+        // ✅ Carregar dados financeiros e cartões em paralelo
+        const [dadosAPI] = await Promise.all([
+            window.usuarioDataManager && typeof window.usuarioDataManager.getDadosFinanceirosUsuario === 'function'
+                ? window.usuarioDataManager.getDadosFinanceirosUsuario()
+                : Promise.resolve(criarEstruturaVazia()),
+            carregarCartoesDoUsuario()
+        ]);
 
-            if (!dadosFinanceiros || Object.keys(dadosFinanceiros).length === 0) {
-                dadosFinanceiros = criarEstruturaVazia();
-            }
-        } else {
-            dadosFinanceiros = criarEstruturaVazia();
-        }
-
+        dadosFinanceiros = (!dadosAPI || Object.keys(dadosAPI).length === 0) ? criarEstruturaVazia() : dadosAPI;
         window.dadosFinanceiros = dadosFinanceiros;
-
-        // ✅ Carregar cartões do usuário antes do dashboard
-        await carregarCartoesDoUsuario();
 
     } catch (error) {
         console.error('Erro ao carregar dados:', error);
@@ -391,15 +386,6 @@ async function carregarCartoesDoUsuario() {
             }
 
             window.cartoesUsuario = cartoes;
-            console.log('✅ Cartões carregados:', cartoes);
-
-            const cartaoCredito = cartoes.find(c => c.ativo && c.banco && c.banco.toLowerCase().includes('cred'));
-            if (cartaoCredito && cartaoCredito.id) {
-                await corrigirDespesasSemCartao(cartaoCredito.id, token);
-            } else if (cartoes.length > 0 && cartoes[0].id) {
-                // Usar o primeiro cartão disponível
-                await corrigirDespesasSemCartao(cartoes[0].id, token);
-            }
         } else {
             window.cartoesUsuario = [];
         }
