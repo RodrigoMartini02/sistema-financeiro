@@ -3104,13 +3104,21 @@
 <script src="https://sdk.mercadopago.com/js/v2"></script>
 <script src="js/planos.js"></script>
 
-<!-- Registro do Service Worker (PWA) -->
-<script>
+<!-- Registro do Service Worker (PWA) - DESATIVADO TEMPORARIAMENTE -->
+<!-- <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
             navigator.serviceWorker.register('/sw.js')
                 .then(function(reg) { console.log('[PWA] Service Worker registrado:', reg.scope); })
                 .catch(function(err) { console.warn('[PWA] Service Worker falhou:', err); });
+        });
+    }
+</script> -->
+<script>
+    // Desregistra qualquer SW ativo para garantir código sempre fresco
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            registrations.forEach(function(reg) { reg.unregister(); });
         });
     }
 </script>
