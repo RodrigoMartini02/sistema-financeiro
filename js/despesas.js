@@ -973,9 +973,9 @@ function gerarHTMLCard(cardId) {
                 <div class="card-pgto-grupo card-pgto-grupo-conta">
                     <span class="pgto-grupo-label">Saldo em Conta</span>
                     <div class="pgto-grupo-botoes">
-                        <button type="button" class="pgto-btn pgto-pix pgto-conta-btn" data-forma="pix" title="PIX"><span class="pgto-conta-nome">PIX</span><i class="fas fa-bolt"></i></button>
-                        <button type="button" class="pgto-btn pgto-dinheiro pgto-conta-btn" data-forma="dinheiro" title="Dinheiro"><span class="pgto-conta-nome">Dinheiro</span><i class="fas fa-money-bill-wave"></i></button>
-                        <button type="button" class="pgto-btn pgto-debito pgto-conta-btn" data-forma="debito" title="Débito"><span class="pgto-conta-nome">Débito</span><i class="fas fa-credit-card"></i></button>
+                        <button type="button" class="pgto-btn pgto-pix pgto-conta-btn" data-forma="pix" title="PIX"><i class="fas fa-bolt"></i></button>
+                        <button type="button" class="pgto-btn pgto-dinheiro pgto-conta-btn" data-forma="dinheiro" title="Dinheiro"><i class="fas fa-money-bill-wave"></i></button>
+                        <button type="button" class="pgto-btn pgto-debito pgto-conta-btn" data-forma="debito" title="Débito"><i class="fas fa-credit-card"></i></button>
                     </div>
                 </div>
                 <div class="card-pgto-grupo card-pgto-grupo-credito">
