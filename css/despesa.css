@@ -401,7 +401,7 @@ select.campo-invalido {
     display: grid;
     grid-template-columns: 1fr 1fr 80px 110px 110px;
     gap: 8px;
-    align-items: end;
+    align-items: start;
     margin-bottom: 8px;
 }
 
@@ -414,18 +414,23 @@ select.campo-invalido {
     margin-bottom: 4px;
 }
 
-/* Labels dos campos */
+/* Labels dos campos — label corta a borda superior do input */
 .card-field {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
+    position: relative;
+    padding-top: 8px;
 }
 
 .card-field label {
+    position: absolute;
+    top: 0;
+    left: 8px;
+    background: #ffffff;
+    padding: 0 4px;
     font-size: 10px;
     font-weight: 500;
     color: #64748b;
     white-space: nowrap;
+    z-index: 1;
 }
 
 .card-field input,
@@ -569,28 +574,36 @@ select.campo-invalido {
 .pgto-btn.pgto-debito.pgto-ativo   { background: #e0f2fe; border-color: #7dd3fc; color: #0369a1; }
 .pgto-btn.pgto-cartao.pgto-ativo   { background: #ede9fe; border-color: #c4b5fd; color: #6d28d9; font-weight: 600; }
 
-/* Botão de cartão: layout vertical — nome em cima, ícone embaixo */
+/* Botão de cartão: tamanho fixo, nome cortando a borda no topo */
 .pgto-btn.pgto-cartao {
+    position: relative;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
-    padding: 4px 10px;
-    min-width: 44px;
+    justify-content: center;
+    width: 52px;
+    height: 36px;
+    padding: 0;
+    gap: 0;
 }
 
 .pgto-cartao-nome {
+    position: absolute;
+    top: -7px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ffffff;
+    padding: 0 4px;
     font-size: 9px;
     font-weight: 500;
     color: #64748b;
-    line-height: 1;
     white-space: nowrap;
-    max-width: 80px;
+    max-width: 64px;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 .pgto-btn.pgto-cartao i {
-    font-size: 13px;
+    font-size: 14px;
 }
 
 /* Estrela de favorito no card */
