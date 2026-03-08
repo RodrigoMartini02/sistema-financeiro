@@ -475,24 +475,24 @@ function atualizarResumoDashboard(resumo) {
 // Cache dos dados do gráfico de balanço
 window.dadosBalancoCache = null;
 
-// Configuração das 5 linhas do gráfico
+// Configuração das colunas do gráfico de balanço
 const BALANCO_DATASETS_CONFIG = {
     balanco: {
         label: 'Balanço',
         borderColor: 'rgb(253, 126, 20)',
-        backgroundColor: 'rgba(253, 126, 20, 0.1)',
+        backgroundColor: 'rgba(253, 126, 20, 0.7)',
         order: 1
     },
     saldo: {
         label: 'Saldo em Conta',
         borderColor: 'rgb(0, 123, 255)',
-        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+        backgroundColor: 'rgba(0, 123, 255, 0.7)',
         order: 2
     },
     reservas: {
         label: 'Reservas',
         borderColor: 'rgb(147, 51, 234)',
-        backgroundColor: 'rgba(147, 51, 234, 0.1)',
+        backgroundColor: 'rgba(147, 51, 234, 0.7)',
         order: 3
     }
 };
@@ -553,24 +553,16 @@ function filtrarBalancoPeriodo() {
     // Inicializar filtros se necessário (sem forçar reset)
     inicializarFiltrosBalanco(false);
 
-    // Mostrar/esconder filtros conforme período selecionado
+    // Mostrar/esconder filtro de ano conforme período
     if (anoFilter) {
-        // ANO: esconde tudo (mostra todos os anos)
-        // MÊS: mostra ano
-        // SEMANA/DIA: mostra ano + mês
-        anoFilter.style.display = (periodo === 'mes' || periodo === 'semana' || periodo === 'dia') ? 'inline-block' : 'none';
+        anoFilter.style.display = periodo === 'mes' ? 'inline-block' : 'none';
     }
 
     if (mesFilter) {
-        mesFilter.style.display = (periodo === 'semana' || periodo === 'dia') ? 'inline-block' : 'none';
-        if (mesFilter.style.display !== 'none' && !mesFilter.dataset.initialized) {
-            mesFilter.value = new Date().getMonth();
-            mesFilter.dataset.initialized = 'true';
-        }
+        mesFilter.style.display = 'none';
     }
 
     const ano = parseInt(anoFilter?.value) || window.anoAtual;
-    const mes = parseInt(mesFilter?.value) || 0;
 
     switch(periodo) {
         case 'ano':
@@ -579,28 +571,18 @@ function filtrarBalancoPeriodo() {
         case 'mes':
             criarGraficoBalancoPorMeses(ano);
             break;
-        case 'semana':
-            criarGraficoBalancoPorSemanas(ano, mes);
-            break;
-        case 'dia':
-            criarGraficoBalancoPorDias(ano, mes);
-            break;
     }
 }
 
-// Criar dataset padrão para linha
-function criarDatasetLinha(config, data) {
+// Criar dataset padrão para barra
+function criarDatasetBarra(config, data) {
     return {
         label: config.label,
         data: data,
-        borderColor: config.borderColor,
         backgroundColor: config.backgroundColor,
-        fill: false,
-        tension: 0,
-        borderWidth: 1.5,
-        pointRadius: 0,
-        pointHoverRadius: 4,
-        pointBackgroundColor: config.borderColor,
+        borderColor: config.borderColor,
+        borderWidth: 1,
+        borderRadius: 3,
         order: config.order
     };
 }
@@ -723,13 +705,13 @@ function criarGraficoBalancoPorAnos() {
     });
 
     window.balancoChart = new Chart(ctx, {
-        type: 'line',
+        type: 'bar',
         data: {
             labels: labels,
             datasets: [
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.balanco, balancos),
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.saldo, saldos),
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.reservas, reservas)
+                criarDatasetBarra(BALANCO_DATASETS_CONFIG.balanco, balancos),
+                criarDatasetBarra(BALANCO_DATASETS_CONFIG.saldo, saldos),
+                criarDatasetBarra(BALANCO_DATASETS_CONFIG.reservas, reservas)
             ]
         },
         options: getOpcoesGrafico()
@@ -800,195 +782,18 @@ function criarGraficoBalancoPorMeses(ano) {
     }
 
     window.balancoChart = new Chart(ctx, {
-        type: 'line',
+        type: 'bar',
         data: {
             labels: meses,
             datasets: [
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.balanco, balancos),
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.saldo, saldos),
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.reservas, reservas)
+                criarDatasetBarra(BALANCO_DATASETS_CONFIG.balanco, balancos),
+                criarDatasetBarra(BALANCO_DATASETS_CONFIG.saldo, saldos),
+                criarDatasetBarra(BALANCO_DATASETS_CONFIG.reservas, reservas)
             ]
         },
         options: getOpcoesGrafico()
     });
 }
-
-// ================================================================
-// FILTRO SEMANA: Mostra semanas do mês selecionado
-// ================================================================
-function criarGraficoBalancoPorSemanas(ano, mes) {
-    const ctx = document.getElementById('balanco-chart')?.getContext('2d');
-    if (!ctx) return;
-
-    if (window.balancoChart) {
-        window.balancoChart.destroy();
-    }
-
-    const dadosFinanceiros = window.dadosFinanceiros || {};
-    const reservasCache = window.reservasCache || [];
-    const totalDias = new Date(ano, mes + 1, 0).getDate();
-
-    const mesDados = dadosFinanceiros[ano]?.meses?.[mes];
-    const receitaMes = mesDados ? (mesDados.receitas || []).reduce((sum, r) => sum + parseFloat(r.valor || 0), 0) : 0;
-    const despesaMes = mesDados ? (mesDados.despesas || []).reduce((sum, d) => sum + parseFloat(d.valor || 0), 0) : 0;
-    const reservaMes = reservasCache
-        .filter(r => parseInt(r.ano) === ano && parseInt(r.mes) === mes)
-        .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-
-    const labels = [];
-    const receitas = [];
-    const despesas = [];
-    const balancos = [];
-    const saldos = [];
-    const reservas = [];
-
-    // Calcular saldo inicial do mês
-    let saldoAcumulado = calcularSaldoAteData(ano, mes, dadosFinanceiros, reservasCache);
-    let reservasAcumuladas = calcularReservasAteData(ano, mes, reservasCache);
-
-    let diaAtual = 1;
-    let semanaNum = 1;
-
-    while (diaAtual <= totalDias) {
-        const inicioSemana = diaAtual;
-        const fimSemana = Math.min(diaAtual + 6, totalDias);
-        const proporcao = (fimSemana - inicioSemana + 1) / totalDias;
-
-        labels.push(`Sem ${semanaNum}`);
-
-        const receitaSemana = receitaMes * proporcao;
-        const despesaSemana = despesaMes * proporcao;
-        const reservaSemana = reservaMes * proporcao;
-        const balancoSemana = receitaSemana - despesaSemana;
-
-        saldoAcumulado += balancoSemana - reservaSemana;
-        reservasAcumuladas += reservaSemana;
-
-        receitas.push(receitaSemana);
-        despesas.push(despesaSemana);
-        balancos.push(balancoSemana);
-        saldos.push(saldoAcumulado);
-        reservas.push(reservasAcumuladas);
-
-        diaAtual = fimSemana + 1;
-        semanaNum++;
-    }
-
-    window.balancoChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.balanco, balancos),
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.saldo, saldos),
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.reservas, reservas)
-            ]
-        },
-        options: getOpcoesGrafico()
-    });
-}
-
-// ================================================================
-// FILTRO DIA: Mostra dias do mês selecionado
-// ================================================================
-function criarGraficoBalancoPorDias(ano, mes) {
-    const ctx = document.getElementById('balanco-chart')?.getContext('2d');
-    if (!ctx) return;
-
-    if (window.balancoChart) {
-        window.balancoChart.destroy();
-    }
-
-    const dadosFinanceiros = window.dadosFinanceiros || {};
-    const reservasCache = window.reservasCache || [];
-    const totalDias = new Date(ano, mes + 1, 0).getDate();
-
-    const mesDados = dadosFinanceiros[ano]?.meses?.[mes];
-    const receitaMes = mesDados ? (mesDados.receitas || []).reduce((sum, r) => sum + parseFloat(r.valor || 0), 0) : 0;
-    const despesaMes = mesDados ? (mesDados.despesas || []).reduce((sum, d) => sum + parseFloat(d.valor || 0), 0) : 0;
-    const reservaMes = reservasCache
-        .filter(r => parseInt(r.ano) === ano && parseInt(r.mes) === mes)
-        .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-
-    const receitaDia = receitaMes / totalDias;
-    const despesaDia = despesaMes / totalDias;
-    const reservaDia = reservaMes / totalDias;
-
-    const labels = [];
-    const receitas = [];
-    const despesas = [];
-    const balancos = [];
-    const saldos = [];
-    const reservas = [];
-
-    // Calcular saldo inicial do mês
-    let saldoAcumulado = calcularSaldoAteData(ano, mes, dadosFinanceiros, reservasCache);
-    let reservasAcumuladas = calcularReservasAteData(ano, mes, reservasCache);
-
-    for (let dia = 1; dia <= totalDias; dia++) {
-        labels.push(dia.toString());
-
-        const balancoDia = receitaDia - despesaDia;
-        saldoAcumulado += balancoDia - reservaDia;
-        reservasAcumuladas += reservaDia;
-
-        receitas.push(receitaDia);
-        despesas.push(despesaDia);
-        balancos.push(balancoDia);
-        saldos.push(saldoAcumulado);
-        reservas.push(reservasAcumuladas);
-    }
-
-    window.balancoChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.balanco, balancos),
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.saldo, saldos),
-                criarDatasetLinha(BALANCO_DATASETS_CONFIG.reservas, reservas)
-            ]
-        },
-        options: getOpcoesGrafico()
-    });
-}
-
-// Funções auxiliares para calcular saldo e reservas acumuladas
-function calcularSaldoAteData(ano, mes, dadosFinanceiros, reservasCache) {
-    let saldo = 0;
-
-    Object.keys(dadosFinanceiros).map(Number).sort().forEach(anoProc => {
-        if (anoProc > ano) return;
-        const anoData = dadosFinanceiros[anoProc];
-        if (!anoData?.meses) return;
-
-        const mesLimite = anoProc === ano ? mes : 12;
-        for (let m = 0; m < mesLimite; m++) {
-            const mesDados = anoData.meses[m];
-            if (mesDados) {
-                const recMes = (mesDados.receitas || []).reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-                const despMes = (mesDados.despesas || []).reduce((sum, d) => sum + parseFloat(d.valor || 0), 0);
-                const resMes = reservasCache
-                    .filter(r => parseInt(r.ano) === anoProc && parseInt(r.mes) === m)
-                    .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-                saldo += recMes - despMes - resMes;
-            }
-        }
-    });
-
-    return saldo;
-}
-
-function calcularReservasAteData(ano, mes, reservasCache) {
-    return reservasCache
-        .filter(r => {
-            const rAno = parseInt(r.ano);
-            const rMes = parseInt(r.mes);
-            return rAno < ano || (rAno === ano && rMes < mes);
-        })
-        .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-}
-
 // Função legada para compatibilidade
 function criarGraficoBalanco(dados) {
     window.dadosBalancoCache = dados;
