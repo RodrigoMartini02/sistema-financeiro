@@ -579,6 +579,30 @@ select.campo-invalido {
 .pgto-btn.pgto-credito.pgto-ativo  { background: #ede9fe; border-color: #c4b5fd; color: #6d28d9; }
 .pgto-btn.pgto-cartao.pgto-ativo   { background: #ede9fe; border-color: #c4b5fd; color: #6d28d9; font-weight: 600; }
 
+/* Botão de cartão: layout vertical — nome em cima, ícone embaixo */
+.pgto-btn.pgto-cartao {
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 10px;
+    min-width: 44px;
+}
+
+.pgto-cartao-nome {
+    font-size: 9px;
+    font-weight: 500;
+    color: #64748b;
+    line-height: 1;
+    white-space: nowrap;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pgto-btn.pgto-cartao i {
+    font-size: 13px;
+}
+
 /* Estrela de favorito no card */
 .card-fav-btn {
     background: none;

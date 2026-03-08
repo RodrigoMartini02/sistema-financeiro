@@ -973,9 +973,9 @@ function gerarHTMLCard(cardId) {
                 <div class="card-pgto-grupo card-pgto-grupo-conta">
                     <span class="pgto-grupo-label">Saldo em Conta</span>
                     <div class="pgto-grupo-botoes">
-                        <button type="button" class="pgto-btn pgto-pix" data-forma="pix" title="PIX"><i class="fas fa-bolt"></i> PIX</button>
-                        <button type="button" class="pgto-btn pgto-dinheiro" data-forma="dinheiro" title="Dinheiro"><i class="fas fa-money-bill-wave"></i> Dinheiro</button>
-                        <button type="button" class="pgto-btn pgto-debito" data-forma="debito" title="Débito"><i class="fas fa-credit-card"></i> Débito</button>
+                        <button type="button" class="pgto-btn pgto-pix" data-forma="pix" title="PIX"><i class="fas fa-bolt"></i></button>
+                        <button type="button" class="pgto-btn pgto-dinheiro" data-forma="dinheiro" title="Dinheiro"><i class="fas fa-money-bill-wave"></i></button>
+                        <button type="button" class="pgto-btn pgto-debito" data-forma="debito" title="Débito"><i class="fas fa-credit-card"></i></button>
                     </div>
                 </div>
                 <div class="card-pgto-grupo card-pgto-grupo-credito">
@@ -1160,7 +1160,7 @@ function popularCartoesCard(cardEl) {
         btn.type = 'button';
         btn.className = 'pgto-btn pgto-cartao';
         btn.dataset.cartaoId = c.id;
-        btn.innerHTML = `<i class="fas fa-credit-card"></i> ${(c.banco || c.nome || '').toUpperCase()}`;
+        btn.innerHTML = `<span class="pgto-cartao-nome">${c.banco || c.nome || ''}</span><i class="fas fa-credit-card"></i>`;
         if (formaAtual === 'credito' && String(cartaoIdAtual) === String(c.id)) {
             btn.classList.add('pgto-ativo');
         }
