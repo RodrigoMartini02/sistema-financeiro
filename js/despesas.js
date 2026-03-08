@@ -984,8 +984,20 @@ function gerarHTMLCard(cardId) {
                 </div>
                 <button type="button" class="card-fav-btn" title="Favoritar para esta categoria"><i class="far fa-star"></i></button>
             </div>
-            <input type="text" class="card-descricao" placeholder="Descrição da despesa" required>
             <select class="card-categoria"><option value="">Categoria...</option></select>
+        </div>
+        <div class="card-desc-flags-row">
+            <input type="text" class="card-descricao" placeholder="Descrição da despesa" required>
+            <div class="card-flags-inline">
+                <label class="card-flag"><input type="checkbox" class="card-ja-paga"> Já está Paga</label>
+                <label class="card-flag"><input type="checkbox" class="card-recorrente"> Recorrente</label>
+                <label class="card-flag"><input type="checkbox" class="card-replicar"> Replicar até</label>
+                <div class="card-replicar-options hidden">
+                    <select class="card-replicar-mes">${optsMeses}</select>
+                    <select class="card-replicar-ano">${optsAnos}</select>
+                </div>
+                <button type="button" class="card-anexos-btn"><i class="fas fa-paperclip"></i> Anexos (<span class="card-anexos-count">0</span>)</button>
+            </div>
         </div>
         <div class="card-values-row">
             <div class="card-field"><label>Valor orig. *</label><input type="number" class="card-valor-original" min="0.01" step="0.01" placeholder="0,00" required></div>
@@ -1001,16 +1013,6 @@ function gerarHTMLCard(cardId) {
             <span>Total: <strong class="card-valor-total">R$ 0,00</strong></span>
         </div>
         <div class="card-bottom-row">
-            <div class="card-flags-row">
-                <label class="card-flag"><input type="checkbox" class="card-ja-paga"> Já está Paga</label>
-                <label class="card-flag"><input type="checkbox" class="card-recorrente"> Recorrente</label>
-                <label class="card-flag"><input type="checkbox" class="card-replicar"> Replicar até</label>
-                <div class="card-replicar-options hidden">
-                    <select class="card-replicar-mes">${optsMeses}</select>
-                    <select class="card-replicar-ano">${optsAnos}</select>
-                </div>
-                <button type="button" class="card-anexos-btn"><i class="fas fa-paperclip"></i> Anexos (<span class="card-anexos-count">0</span>)</button>
-            </div>
             <button type="button" class="card-delete-btn" title="Remover este lançamento"><i class="fas fa-trash-alt"></i> Remover</button>
         </div>
         <div class="card-anexos-lista"></div>
@@ -1035,29 +1037,43 @@ function criarCard(dadosIniciais = {}) {
     return div;
 }
 
-// Adiciona um card ao container e popula selects
+// Atualiza visibilidade dos botões remover (esconde quando só há 1 card)
+function atualizarBotoesRemoverCards() {
+    const container = document.getElementById('despesa-cards-container');
+    if (!container) return;
+    const cards = container.querySelectorAll('.despesa-card');
+    cards.forEach(card => {
+        const btn = card.querySelector('.card-delete-btn');
+        if (btn) btn.style.display = cards.length > 1 ? '' : 'none';
+    });
+}
+
+// Adiciona um card no TOPO do container e popula selects
 function adicionarCard(dadosIniciais = {}) {
     const container = document.getElementById('despesa-cards-container');
     if (!container) return null;
     const card = criarCard(dadosIniciais);
-    container.appendChild(card);
+    container.insertBefore(card, container.firstChild);
     popularCategoriasCard(card);
     popularCartoesCard(card);
-    // Primeiro card é sempre fixo — esconde o botão remover
-    if (container.children.length === 1) {
-        card.classList.add('card-primeiro');
-        const deleteBtn = card.querySelector('.card-delete-btn');
-        if (deleteBtn) deleteBtn.style.display = 'none';
-    }
+    atualizarBotoesRemoverCards();
+    // Scroll para o topo do modal para o novo card ficar visível
+    const modalBody = container.closest('.modal-body');
+    if (modalBody) modalBody.scrollTop = 0;
     return card;
 }
 
-// Remove um card do DOM (primeiro card é sempre fixo)
+// Remove um card do DOM
 function removerCard(cardId) {
+    const container = document.getElementById('despesa-cards-container');
+    if (!container) return;
+    const cards = container.querySelectorAll('.despesa-card');
+    if (cards.length <= 1) return; // sempre manter ao menos 1
     const card = document.querySelector(`.despesa-card[data-card-id="${cardId}"]`);
-    if (!card || card.classList.contains('card-primeiro')) return;
+    if (!card) return;
     cardAnexosStore.delete(cardId);
     card.remove();
+    atualizarBotoesRemoverCards();
 }
 
 // Configura todos os eventos de um card
@@ -3174,7 +3190,7 @@ function configurarFormPagamento(index, mes, ano, despesa) {
                     return;
                 }
                 
-                const sucesso = await processarPagamento(index, mes, ano, valorPago, quitarFuturas);
+                const sucesso = await _processarPagamentoDespesa(index, mes, ano, valorPago, quitarFuturas);
 
                 if (sucesso) {
                     const modal = document.getElementById('modal-pagamento-individual');
@@ -3203,7 +3219,7 @@ function configurarFormPagamento(index, mes, ano, despesa) {
     }
 }
 
-async function processarPagamento(index, mes, ano, valorPago = null, quitarParcelasFuturas = false, skipRerender = false) {
+async function _processarPagamentoDespesa(index, mes, ano, valorPago = null, quitarParcelasFuturas = false, skipRerender = false) {
     try {
         if (!dadosFinanceiros[ano] || !dadosFinanceiros[ano].meses[mes]) {
             throw new Error('Estrutura de dados do mês é inválida');
@@ -3558,8 +3574,8 @@ async function processarValoresPersonalizados() {
        const valorPago = parseFloat(input.value);
        
        if (!isNaN(valorPago) && valorPago >= 0) {
-           if (comprovantes.length > 0 && dadosFinanceiros[mesAberto]?.meses[mesAberto]?.despesas?.[index]) {
-               const despesa = dadosFinanceiros[mesAberto].meses[mesAberto].despesas[index];
+           if (comprovantes.length > 0 && dadosFinanceiros[anoAberto]?.meses[mesAberto]?.despesas?.[index]) {
+               const despesa = dadosFinanceiros[anoAberto].meses[mesAberto].despesas[index];
                if (!despesa.comprovantes) {
                    despesa.comprovantes = [];
                }
@@ -3604,7 +3620,7 @@ async function processarPagamentoComData(index, mes, ano, valorPago = null, quit
         inputDataTemp.value = dataPagamento;
     }
 
-    const resultado = await processarPagamento(index, mes, ano, valorPago, quitarParcelasFuturas, skipRerender);
+    const resultado = await _processarPagamentoDespesa(index, mes, ano, valorPago, quitarParcelasFuturas, skipRerender);
 
     // Restaurar valor original
     if (inputDataTemp && valorOriginal !== null) {
@@ -4384,7 +4400,7 @@ window.editarDespesa = editarDespesa;
 window.excluirDespesa = excluirDespesa;
 window.moverParaProximoMes = moverParaProximoMes;
 window.abrirModalPagamento = abrirModalPagamento;
-window.processarPagamento = processarPagamento;
+window.processarPagamentoDespesa = _processarPagamentoDespesa;
 window.pagarDespesasEmLote = pagarDespesasEmLote;
 window.abrirModalPagamentoLote = pagarDespesasEmLote;
 window.renderizarDespesas = renderizarDespesas;
