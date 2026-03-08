@@ -345,7 +345,7 @@
 .tabela-categorias {
     width: 100%;
     border-collapse: collapse;
-    table-layout: fixed;
+    table-layout: auto;
 }
 
 .tabela-categorias thead {
@@ -362,44 +362,51 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     border-right: 1px solid rgba(255,255,255,0.2);
+    white-space: nowrap;
 }
 
 .tabela-categorias th:last-child {
     border-right: none;
 }
 
-/* ID - menor */
+/* col 1: ID */
 .tabela-categorias th:nth-child(1),
 .tabela-categorias td:nth-child(1) {
-    width: 8%;
+    width: 60px;
     text-align: center;
 }
 
-/* Nome da Categoria - maior */
+/* col 2: Nome — ocupa o espaço restante */
 .tabela-categorias th:nth-child(2),
 .tabela-categorias td:nth-child(2) {
-    width: 34%;
+    width: auto;
 }
 
-/* Data de Criação - igual */
+/* col 3: Data de Criação */
 .tabela-categorias th:nth-child(3),
 .tabela-categorias td:nth-child(3) {
-    width: 22%;
+    width: 120px;
     text-align: center;
 }
 
-/* Última Edição - igual */
+/* col 4: Última Edição */
 .tabela-categorias th:nth-child(4),
 .tabela-categorias td:nth-child(4) {
-    width: 22%;
+    width: 120px;
     text-align: center;
 }
 
-/* Ações - menor */
+/* col 5: Favorito (★) */
 .tabela-categorias th:nth-child(5),
-.tabela-categorias td:nth-child(5),
-.tabela-categorias th.th-acoes {
-    width: 14%;
+.tabela-categorias td:nth-child(5) {
+    width: 55px;
+    text-align: center;
+}
+
+/* col 6: Ações (editar + excluir) */
+.tabela-categorias th:nth-child(6),
+.tabela-categorias td:nth-child(6) {
+    width: 90px;
     text-align: center;
 }
 
@@ -1098,12 +1105,37 @@
     border-right: none;
 }
 
-.tabela-cartoes th:nth-child(1) { width: 60px; }
-.tabela-cartoes th:nth-child(2) { width: auto; }
-.tabela-cartoes th:nth-child(3) { width: 120px; }
-.tabela-cartoes th:nth-child(4) { width: 120px; }
-.tabela-cartoes th:nth-child(5) { width: 80px; }
-.tabela-cartoes th:nth-child(6) { width: 100px; text-align: center; }
+/* col 1: ID */
+.tabela-cartoes th:nth-child(1),
+.tabela-cartoes td:nth-child(1) { width: 55px; text-align: center; }
+
+/* col 2: Banco — ocupa o espaço restante */
+.tabela-cartoes th:nth-child(2),
+.tabela-cartoes td:nth-child(2) { width: auto; }
+
+/* col 3: Validade */
+.tabela-cartoes th:nth-child(3),
+.tabela-cartoes td:nth-child(3) { width: 80px; text-align: center; }
+
+/* col 4: Fechamento */
+.tabela-cartoes th:nth-child(4),
+.tabela-cartoes td:nth-child(4) { width: 95px; text-align: center; }
+
+/* col 5: Vencimento */
+.tabela-cartoes th:nth-child(5),
+.tabela-cartoes td:nth-child(5) { width: 95px; text-align: center; }
+
+/* col 6: Limite */
+.tabela-cartoes th:nth-child(6),
+.tabela-cartoes td:nth-child(6) { width: 100px; text-align: right; }
+
+/* col 7: Status */
+.tabela-cartoes th:nth-child(7),
+.tabela-cartoes td:nth-child(7) { width: 75px; text-align: center; }
+
+/* col 8: Ações (crown + editar + excluir) */
+.tabela-cartoes th:nth-child(8),
+.tabela-cartoes td:nth-child(8) { width: 110px; text-align: center; }
 
 .tabela-cartoes tbody tr {
     border-bottom: 1px solid #e9ecef;
