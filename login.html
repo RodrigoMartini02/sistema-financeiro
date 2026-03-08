@@ -298,7 +298,9 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
     <!-- Scripts - ORDEM CORRETA -->
-    <!-- 1. UsuarioDados PRIMEIRO -->
+    <!-- 1. Utils PRIMEIRO (funções compartilhadas: formatarMoeda, validarCPF, etc.) -->
+    <script src="js/utils.js"></script>
+    <!-- 2. UsuarioDados -->
     <script src="js/usuarioDados.js"></script>
 
     <!-- 2. Loading Screen Script -->
