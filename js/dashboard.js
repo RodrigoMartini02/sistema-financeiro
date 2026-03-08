@@ -469,8 +469,8 @@ window.dadosBalancoCache = null;
 const BALANCO_DATASETS_CONFIG = {
     balanco: {
         label: 'Balanço',
-        borderColor: 'rgb(253, 126, 20)',
-        backgroundColor: 'rgba(253, 126, 20, 0.7)',
+        borderColor: 'rgb(43, 41, 170)',
+        backgroundColor: 'rgba(60, 35, 219, 0.45)',
         order: 1
     }
 };
