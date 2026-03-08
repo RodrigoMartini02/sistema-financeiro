@@ -253,26 +253,6 @@ select.campo-invalido {
     flex-wrap: wrap;
 }
 
-.btn-adicionar-card {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 14px;
-    background: #f1f5f9;
-    border: 1px dashed #94a3b8;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 500;
-    color: #475569;
-    cursor: pointer;
-    transition: all 0.15s;
-}
-
-.btn-adicionar-card:hover {
-    background: #e2e8f0;
-    border-color: #667eea;
-    color: #4338ca;
-}
 
 .btn-salvar-lancamento {
     margin-left: auto;
@@ -338,6 +318,11 @@ select.campo-invalido {
     padding: 10px 12px;
     position: relative;
     transition: box-shadow 0.15s;
+}
+
+.despesa-card:first-child {
+    background: #f5f7ff;
+    border-color: #c7d0f8;
 }
 
 .despesa-card:hover {

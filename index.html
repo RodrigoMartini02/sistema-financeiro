@@ -146,15 +146,8 @@
 
    <main class="main-content">
         <header class="main-header">
-            <!-- Esquerda: Ações + Cotações -->
+            <!-- Esquerda: Cotações -->
             <div class="header-left">
-                <button id="btn-adicionar-receita-rapida" class="header-action-btn header-action-receita">
-                    <i class="fas fa-plus"></i> RECEITA
-                </button>
-                <button id="btn-adicionar-despesa-rapida" class="header-action-btn header-action-despesa">
-                    <i class="fas fa-plus"></i> DESPESA
-                </button>
-                <div class="header-separator"></div>
                 <div class="header-item cambio-container-compact" title="Cotações em tempo real">
                     <i class="fas fa-exchange-alt"></i>
                     <span id="cotacoes-compact">Carregando...</span>
@@ -1855,8 +1848,6 @@
         <div class="modal-body">
             <form id="form-nova-receita">
                 <input type="hidden" id="receita-id">
-                <input type="hidden" id="receita-mes">
-                <input type="hidden" id="receita-ano">
                 
                 <div class="form-group form-group-full">
                     <label for="receita-descricao">Descrição:</label>
@@ -1878,8 +1869,9 @@
                     </div>
                     
                     <div class="form-group">
-                        <label for="receita-data">Data:</label>
+                        <label for="receita-data">Data de Registro:</label>
                         <input type="date" id="receita-data" required>
+                        <span id="receita-mes-indicador" class="data-mes-indicador"></span>
                     </div>
                 </div>
                 
@@ -2053,18 +2045,16 @@
            <button type="button" class="close" data-modal="modal-lancamento-despesas" title="Fechar">&times;</button>
        </div>
        <div class="modal-body modal-lancamento-body">
-           <input type="hidden" id="lancamento-mes">
-           <input type="hidden" id="lancamento-ano">
            <div id="despesa-cards-container" class="despesa-cards-container">
                <!-- Cards gerados dinamicamente pelo JS -->
            </div>
-           <button type="button" id="btn-adicionar-despesa-card" class="btn-adicionar-card">
-               <i class="fas fa-plus"></i> Adicionar despesa
-           </button>
        </div>
        <div class="modal-footer modal-lancamento-footer">
            <button type="button" id="btn-nova-categoria-lancamento" class="btn btn-secondary btn-sm">
                <i class="fas fa-plus"></i> Nova Categoria
+           </button>
+           <button type="button" id="btn-adicionar-despesa-card" class="btn btn-secondary btn-sm">
+               <i class="fas fa-plus"></i> Adicionar Despesa
            </button>
            <button type="button" id="btn-salvar-todas" class="btn btn-primary btn-salvar-lancamento">
                Salvar
@@ -2385,35 +2375,6 @@
    </tr>
 </template>
 
-<!-- ======================================================== -->
-<!-- MODAL: SELETOR DE MÊS PARA TRANSAÇÕES RÁPIDAS -->
-<!-- ======================================================== -->
-<div id="modal-selecionar-mes" class="modal">
-    <div class="modal-content modal-medium">
-        <div class="modal-header">
-            <h2 id="selecionar-mes-titulo">Selecionar Mês</h2>
-            <button type="button" class="close" data-modal="modal-selecionar-mes" title="Fechar">&times;</button>
-        </div>
-        <div class="modal-body">
-            <p>Para qual mês você deseja adicionar a transação?</p>
-            <div id="seletor-mes-rapido-grid" class="meses-grid-rapido">
-                <button class="mes-btn" data-mes="0">Jan</button>                
-                <button class="mes-btn" data-mes="1">Fev</button>
-                <button class="mes-btn" data-mes="2">Mar</button>
-                <button class="mes-btn" data-mes="3">Abr</button>
-                <button class="mes-btn" data-mes="4">Mai</button>
-                <button class="mes-btn" data-mes="5">Jun</button>
-                <button class="mes-btn" data-mes="6">Jul</button>
-                <button class="mes-btn" data-mes="7">Ago</button>
-                <button class="mes-btn" data-mes="8">Set</button>
-                <button class="mes-btn" data-mes="9">Out</button>
-                <button class="mes-btn" data-mes="10">Nov</button>
-                <button class="mes-btn" data-mes="11">Dez</button>
-            </div>
-            <input type="hidden" id="tipo-transacao-rapida">
-        </div>
-    </div>
-</div>
 
 <!-- ================================================================ -->
 <!-- TEMPLATES DE MENSAGENS E STATUS (OCULTOS) -->

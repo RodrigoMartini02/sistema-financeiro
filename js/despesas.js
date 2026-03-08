@@ -1011,7 +1011,7 @@ function gerarHTMLCard(cardId) {
             <div class="card-field"><label>Valor final</label><input type="number" class="card-valor-final" min="0" step="0.01" placeholder="0,00"></div>
             <div class="card-field card-field-sm"><label>Parcelas</label><input type="number" class="card-parcelas" min="1" max="999" value="1"></div>
             <div class="card-field"><label>Compra *</label><input type="date" class="card-compra" required></div>
-            <div class="card-field"><label>Vencimento *</label><input type="date" class="card-vencimento" required></div>
+            <div class="card-field"><label>Vencimento *</label><input type="date" class="card-vencimento" required><span class="card-mes-indicador"></span></div>
         </div>
         <div class="card-info-parcela hidden">
             <span>Juros: <strong class="card-juros-total">R$ 0,00</strong></span>
@@ -1104,7 +1104,15 @@ function configurarEventosCard(cardEl) {
     // Compra → preencher vencimento se vazio
     cardEl.querySelector('.card-compra').addEventListener('change', function() {
         const venc = cardEl.querySelector('.card-vencimento');
-        if (!venc.value) venc.value = this.value;
+        if (!venc.value) {
+            venc.value = this.value;
+            atualizarIndicadorMesCard(cardEl);
+        }
+    });
+
+    // Vencimento → atualizar indicador de mês
+    cardEl.querySelector('.card-vencimento').addEventListener('change', function() {
+        atualizarIndicadorMesCard(cardEl);
     });
 
     // Replicar
@@ -1331,15 +1339,29 @@ function removerAnexoCard(cardId, index) {
     if (card) atualizarAnexosVisuaisCard(card);
 }
 
+function atualizarIndicadorMesCard(cardEl) {
+    const venc = cardEl.querySelector('.card-vencimento').value;
+    const indicador = cardEl.querySelector('.card-mes-indicador');
+    if (!indicador) return;
+    if (venc) {
+        const d = new Date(venc + 'T00:00:00');
+        indicador.textContent = `→ ${NOMES_MESES[d.getMonth()]} ${d.getFullYear()}`;
+    } else {
+        indicador.textContent = '';
+    }
+}
+
 // Coleta todos os dados de um card
 function coletarDadosCard(cardEl) {
     const formaPagamento = cardEl.dataset.formaPagamento;
     const cartaoId = formaPagamento === 'credito' ? (parseInt(cardEl.dataset.cartaoId) || null) : null;
     const parcelas = parseInt(cardEl.querySelector('.card-parcelas').value) || 1;
+    const venc = cardEl.querySelector('.card-vencimento').value;
+    const dVenc = new Date(venc + 'T00:00:00');
     return {
         id: cardEl.dataset.despesaId || '',
-        mes: parseInt(document.getElementById('lancamento-mes').value),
-        ano: parseInt(document.getElementById('lancamento-ano').value),
+        mes: dVenc.getMonth(),
+        ano: dVenc.getFullYear(),
         descricao: cardEl.querySelector('.card-descricao').value.trim(),
         categoria_id: parseInt(cardEl.querySelector('.card-categoria').value) || null,
         formaPagamento,
@@ -1449,7 +1471,7 @@ async function salvarTodasDespesas() {
         if (ehEdicao) {
             fecharModalLancamentoDespesas();
         } else {
-            setTimeout(() => resetarModalLancamento(), 800);
+            setTimeout(() => limparParaNovaEntrada(), 800);
         }
     } else {
         if (window.mostrarMensagemErro) window.mostrarMensagemErro(`${erroCount} despesa(s) com erro.`);
@@ -1513,11 +1535,6 @@ function preencherCardEdicao(cardEl, index) {
     }
 
     if (despesa.parcelado && despesa.parcelaAtual > 1) {
-        let mesPrimeira = despesa.mes - (despesa.parcelaAtual - 1);
-        let anoPrimeira = despesa.ano;
-        while (mesPrimeira < 0) { mesPrimeira += 12; anoPrimeira--; }
-        document.getElementById('lancamento-mes').value = mesPrimeira;
-        document.getElementById('lancamento-ano').value = anoPrimeira;
         const dv = window.dataDeISO ? window.dataDeISO(despesa.dataVencimento) : new Date(despesa.dataVencimento + 'T00:00:00');
         dv.setMonth(dv.getMonth() - (despesa.parcelaAtual - 1));
         const dpStr = window.dataParaISO ? window.dataParaISO(dv) : `${dv.getFullYear()}-${String(dv.getMonth()+1).padStart(2,'0')}-${String(dv.getDate()).padStart(2,'0')}`;
@@ -1555,6 +1572,7 @@ function preencherCardEdicao(cardEl, index) {
         atualizarAnexosVisuaisCard(cardEl);
     }
     atualizarEstrelasCard(cardEl);
+    atualizarIndicadorMesCard(cardEl);
 }
 
 // Abre o modal de lançamento de despesas
@@ -1570,8 +1588,6 @@ async function abrirModalNovaDespesa(index) {
         return;
     }
     resetarModalLancamento();
-    document.getElementById('lancamento-mes').value = window.mesAberto;
-    document.getElementById('lancamento-ano').value = window.anoAberto;
 
     // Carregar categorias ANTES de criar o card para garantir que o select seja populado
     if (typeof window.atualizarDropdowns === 'function') {
@@ -1585,6 +1601,7 @@ async function abrirModalNovaDespesa(index) {
             `${dataAtual.getFullYear()}-${String(dataAtual.getMonth()+1).padStart(2,'0')}-${String(dataAtual.getDate()).padStart(2,'0')}`;
         primeiroCard.querySelector('.card-compra').value = dataFormatada;
         primeiroCard.querySelector('.card-vencimento').value = dataFormatada;
+        atualizarIndicadorMesCard(primeiroCard);
         if (index !== undefined && window.dadosFinanceiros[window.anoAberto]?.meses[window.mesAberto]?.despesas?.[index]) {
             preencherCardEdicao(primeiroCard, index);
         }
@@ -1610,6 +1627,20 @@ function resetarModalLancamento() {
     cardCounter = 0;
 }
 
+function limparParaNovaEntrada() {
+    resetarModalLancamento();
+    const card = adicionarCard();
+    if (card) {
+        const dataAtual = new Date(window.anoAberto, window.mesAberto, new Date().getDate());
+        const dataFormatada = window.dataParaISO ? window.dataParaISO(dataAtual) :
+            `${dataAtual.getFullYear()}-${String(dataAtual.getMonth()+1).padStart(2,'0')}-${String(dataAtual.getDate()).padStart(2,'0')}`;
+        card.querySelector('.card-compra').value = dataFormatada;
+        card.querySelector('.card-vencimento').value = dataFormatada;
+        atualizarIndicadorMesCard(card);
+        card.querySelector('.card-descricao').focus();
+    }
+}
+
 function configurarEventosModalLancamento() {
     const btnAdicionar = document.getElementById('btn-adicionar-despesa-card');
     if (btnAdicionar) {
@@ -1621,6 +1652,7 @@ function configurarEventosModalLancamento() {
                     `${dataAtual.getFullYear()}-${String(dataAtual.getMonth()+1).padStart(2,'0')}-${String(dataAtual.getDate()).padStart(2,'0')}`;
                 novoCard.querySelector('.card-compra').value = dataFormatada;
                 novoCard.querySelector('.card-vencimento').value = dataFormatada;
+                atualizarIndicadorMesCard(novoCard);
             }
         });
     }

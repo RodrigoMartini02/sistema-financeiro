@@ -161,9 +161,6 @@ function abrirModalNovaReceita(index, mes, ano) {
         form.reset();
         resetarOpcoesReplicacao();
         
-        document.getElementById('receita-mes').value = mesReceita;
-        document.getElementById('receita-ano').value = anoReceita;
-        
         if (receitaExiste) {
             const receita = receitas[index];
             
@@ -201,6 +198,7 @@ function abrirModalNovaReceita(index, mes, ano) {
         }
         
         configurarOpcoesReplicacao();
+        atualizarIndicadorMesReceita();
         modal.style.display = 'block';
         
         setTimeout(() => {
@@ -302,14 +300,16 @@ async function salvarReceita(e) {
 
 function coletarDadosFormulario() {
     const idValue = document.getElementById('receita-id').value;
-    
+    const data = document.getElementById('receita-data').value;
+    const d = new Date(data + 'T00:00:00');
+
     return {
         id: idValue,
-        mes: parseInt(document.getElementById('receita-mes').value),
-        ano: parseInt(document.getElementById('receita-ano').value),
+        mes: d.getMonth(),
+        ano: d.getFullYear(),
         descricao: document.getElementById('receita-descricao').value.trim(),
         valor: parseFloat(document.getElementById('receita-valor').value),
-        data: document.getElementById('receita-data').value
+        data
     };
 }
 
@@ -737,24 +737,24 @@ function configurarOpcoesReplicacao() {
 }
 
 // ================================================================
-// FUNÇÕES GLOBAIS DE EXCLUSÃO
+// FUNÇÕES DE EXCLUSÃO
 // ================================================================
 
-window.excluirAtual = function() {
+function excluirAtual() {
     if (window.dadosExclusao) {
         const modal = document.getElementById('modal-exclusao-receita');
         modal.style.display = 'none';
         processarExclusaoReceita('atual', window.dadosExclusao.index, window.dadosExclusao.mes, window.dadosExclusao.ano, window.dadosExclusao.descricao);
     }
-};
+}
 
-window.excluirTodas = function() {
+function excluirTodas() {
     if (window.dadosExclusao) {
         const modal = document.getElementById('modal-exclusao-receita');
         modal.style.display = 'none';
         processarExclusaoReceita('todas', window.dadosExclusao.index, window.dadosExclusao.mes, window.dadosExclusao.ano, window.dadosExclusao.descricao);
     }
-};
+}
 
 // ================================================================
 // INICIALIZAÇÃO DE EVENT LISTENERS
@@ -769,17 +769,36 @@ document.addEventListener('DOMContentLoaded', async function() {
     }, 100);
 });
 
+const NOMES_MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+function atualizarIndicadorMesReceita() {
+    const data = document.getElementById('receita-data')?.value;
+    const indicador = document.getElementById('receita-mes-indicador');
+    if (!indicador) return;
+    if (data) {
+        const d = new Date(data + 'T00:00:00');
+        indicador.textContent = `→ ${NOMES_MESES[d.getMonth()]} ${d.getFullYear()}`;
+    } else {
+        indicador.textContent = '';
+    }
+}
+
 function inicializarEventListeners() {
     const form = document.getElementById('form-nova-receita');
     if (form) {
         form.addEventListener('submit', salvarReceita);
     }
-    
+
     const btnNovaReceita = document.getElementById('btn-nova-receita');
     if (btnNovaReceita) {
         btnNovaReceita.addEventListener('click', () => abrirModalNovaReceita());
     }
-    
+
+    const inputData = document.getElementById('receita-data');
+    if (inputData) {
+        inputData.addEventListener('change', atualizarIndicadorMesReceita);
+    }
+
     configurarEventListenersAnexos();
     configurarEventListenersModais();
 }
@@ -861,12 +880,12 @@ function configurarEventListenersModais() {
     // Configurar botões do modal de exclusão
     const btnExcluirAtual = document.getElementById('btn-excluir-atual');
     if (btnExcluirAtual) {
-        btnExcluirAtual.addEventListener('click', window.excluirAtual);
+        btnExcluirAtual.addEventListener('click', excluirAtual);
     }
 
     const btnExcluirTodas = document.getElementById('btn-excluir-todas');
     if (btnExcluirTodas) {
-        btnExcluirTodas.addEventListener('click', window.excluirTodas);
+        btnExcluirTodas.addEventListener('click', excluirTodas);
     }
 }
 

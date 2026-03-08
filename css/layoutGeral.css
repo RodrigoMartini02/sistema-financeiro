@@ -605,42 +605,6 @@ textarea:focus {
     flex-shrink: 0;
 }
 
-/* Botões de ação (Receita/Despesa) */
-.header-action-btn {
-    height: 32px;
-    padding: 0 14px;
-    font-size: 11px;
-    font-weight: 700;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: #fff;
-    transition: all 0.2s ease;
-    letter-spacing: 0.3px;
-    white-space: nowrap;
-}
-
-.header-action-receita {
-    background: var(--success-color);
-}
-
-.header-action-receita:hover {
-    background: #23903d;
-    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
-}
-
-.header-action-despesa {
-    background: var(--despesa-color);
-}
-
-.header-action-despesa:hover {
-    background: #e85555;
-    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
-}
-
 /* Separador vertical entre grupos */
 .header-separator {
     width: 1px;
@@ -1847,33 +1811,6 @@ table tr:hover {
    ================================================================ */
 
 
-
-.meses-grid-rapido {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    padding: var(--space-md) 0;
-}
-
-.mes-btn {
-    background: var(--white);
-    border: 2px solid var(--gray-200);
-    padding: 16px 12px;
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-semibold);
-    color: var(--gray-700);
-    cursor: pointer;
-    transition: var(--transition-base);
-    min-height: 50px;
-    text-transform: uppercase;
-}
-
-.mes-btn:hover {
-    background: var(--primary-color);
-    border-color: var(--primary-color);
-    color: var(--white);
-    transform: translateY(-2px);
-}
 
 /* ================================================================
    CONTINUA NO PRÓXIMO BLOCO...

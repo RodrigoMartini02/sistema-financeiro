@@ -656,58 +656,30 @@ function criarGraficoBalancoPorAnos() {
         window.balancoChart.destroy();
     }
 
-    const dadosFinanceiros = window.dadosFinanceiros || {};
-    const reservasCache = window.reservasCache || [];
-    const anos = Object.keys(dadosFinanceiros).map(Number).sort();
-
+    const anos = Object.keys(window.dadosFinanceiros || {}).map(Number).sort();
     if (anos.length === 0) return;
 
-    const labels = anos.map(a => a.toString());
-    const receitas = [];
-    const despesas = [];
     const balancos = [];
     const saldos = [];
     const reservas = [];
 
-    let saldoAcumulado = 0;
-    let reservasAcumuladas = 0;
-
     anos.forEach(ano => {
-        const anoData = dadosFinanceiros[ano];
-        let receitaAno = 0;
-        let despesaAno = 0;
-        let reservaAno = 0;
-
-        if (anoData?.meses) {
-            for (let m = 0; m < 12; m++) {
-                const mesDados = anoData.meses[m];
-                if (mesDados) {
-                    receitaAno += (mesDados.receitas || []).reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-                    despesaAno += (mesDados.despesas || []).reduce((sum, d) => sum + parseFloat(d.valor || 0), 0);
-                }
-            }
+        let receitaAno = 0, despesaAno = 0;
+        for (let m = 0; m < 12; m++) {
+            const s = window.calcularSaldoMes(m, ano);
+            receitaAno += s.receitas;
+            despesaAno += s.despesas;
         }
-
-        // Reservas do ano
-        reservaAno = reservasCache
-            .filter(r => parseInt(r.ano) === ano)
-            .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-
-        const balancoAno = receitaAno - despesaAno;
-        saldoAcumulado += balancoAno - reservaAno;
-        reservasAcumuladas += reservaAno;
-
-        receitas.push(receitaAno);
-        despesas.push(despesaAno);
-        balancos.push(balancoAno);
-        saldos.push(saldoAcumulado);
-        reservas.push(reservasAcumuladas);
+        const reservaAcum = window.calcularTotalReservasAcumuladas(11, ano);
+        balancos.push(receitaAno - despesaAno);
+        saldos.push(window.calcularSaldoMes(11, ano).saldoFinal - reservaAcum);
+        reservas.push(reservaAcum);
     });
 
     window.balancoChart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: labels,
+            labels: anos.map(a => a.toString()),
             datasets: [
                 criarDatasetBarra(BALANCO_DATASETS_CONFIG.balanco, balancos),
                 criarDatasetBarra(BALANCO_DATASETS_CONFIG.saldo, saldos),
@@ -729,56 +701,17 @@ function criarGraficoBalancoPorMeses(ano) {
         window.balancoChart.destroy();
     }
 
-    const dadosFinanceiros = window.dadosFinanceiros || {};
-    const reservasCache = window.reservasCache || [];
-    const anoData = dadosFinanceiros[ano];
-
     const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-    const receitas = [];
-    const despesas = [];
     const balancos = [];
     const saldos = [];
     const reservas = [];
 
-    // Calcular saldo inicial (anos anteriores)
-    let saldoAcumulado = 0;
-    let reservasAcumuladas = 0;
-
-    Object.keys(dadosFinanceiros).map(Number).filter(a => a < ano).forEach(anoAnt => {
-        const anoAntData = dadosFinanceiros[anoAnt];
-        if (anoAntData?.meses) {
-            for (let m = 0; m < 12; m++) {
-                const mesDados = anoAntData.meses[m];
-                if (mesDados) {
-                    const recMes = (mesDados.receitas || []).reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-                    const despMes = (mesDados.despesas || []).reduce((sum, d) => sum + parseFloat(d.valor || 0), 0);
-                    const resMes = reservasCache
-                        .filter(r => parseInt(r.ano) === anoAnt && parseInt(r.mes) === m)
-                        .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-                    saldoAcumulado += recMes - despMes - resMes;
-                    reservasAcumuladas += resMes;
-                }
-            }
-        }
-    });
-
     for (let m = 0; m < 12; m++) {
-        const mesDados = anoData?.meses?.[m];
-        const receitaMes = mesDados ? (mesDados.receitas || []).reduce((sum, r) => sum + parseFloat(r.valor || 0), 0) : 0;
-        const despesaMes = mesDados ? (mesDados.despesas || []).reduce((sum, d) => sum + parseFloat(d.valor || 0), 0) : 0;
-        const reservaMes = reservasCache
-            .filter(r => parseInt(r.ano) === ano && parseInt(r.mes) === m)
-            .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-
-        const balancoMes = receitaMes - despesaMes;
-        saldoAcumulado += balancoMes - reservaMes;
-        reservasAcumuladas += reservaMes;
-
-        receitas.push(receitaMes);
-        despesas.push(despesaMes);
-        balancos.push(balancoMes);
-        saldos.push(saldoAcumulado);
-        reservas.push(reservasAcumuladas);
+        const s = window.calcularSaldoMes(m, ano);
+        const reservaAcum = window.calcularTotalReservasAcumuladas(m, ano);
+        balancos.push(s.receitas - s.despesas);
+        saldos.push(s.saldoFinal - reservaAcum);
+        reservas.push(reservaAcum);
     }
 
     window.balancoChart = new Chart(ctx, {

@@ -15,6 +15,17 @@
     font-size: 10px;
 }
 
+/* Indicador de mês derivado da data */
+.data-mes-indicador,
+.card-mes-indicador {
+    display: block;
+    font-size: 9px;
+    font-weight: 600;
+    color: #667eea;
+    margin-top: 3px;
+    min-height: 12px;
+}
+
 /* Container de descrição e anexos */
 .descricao-anexos-container {
     display: flex;

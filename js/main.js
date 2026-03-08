@@ -539,7 +539,6 @@ function configurarInterface() {
     setupNavigation();
     setupControlesAno();
     setupModais();
-    setupTransacoesRapidas();
     setupToolbarButtons();
     setupOutrosControles();
     setupSistemaBloqueio();
@@ -791,58 +790,6 @@ function setupModais() {
     });
 }
 
-function setupTransacoesRapidas() {
-    const btnAdicionarReceitaRapida = document.getElementById('btn-adicionar-receita-rapida');
-    const btnAdicionarDespesaRapida = document.getElementById('btn-adicionar-despesa-rapida');
-    const modalSelecionarMes = document.getElementById('modal-selecionar-mes');
-
-    if (!btnAdicionarReceitaRapida || !btnAdicionarDespesaRapida || !modalSelecionarMes) {
-        return;
-    }
-
-    const seletorMesGrid = document.getElementById('seletor-mes-rapido-grid');
-    const tipoTransacaoRapidaInput = document.getElementById('tipo-transacao-rapida');
-    const selecionarMesTitulo = document.getElementById('selecionar-mes-titulo');
-    const spanCloseSeletorMes = modalSelecionarMes.querySelector('.close');
-
-    const abrirModalSelecaoMes = (tipo) => {
-        tipoTransacaoRapidaInput.value = tipo;
-        selecionarMesTitulo.textContent = `Adicionar ${tipo.charAt(0).toUpperCase() + tipo.slice(1)}`;
-        modalSelecionarMes.style.display = 'block';
-    };
-
-    btnAdicionarReceitaRapida.addEventListener('click', () => abrirModalSelecaoMes('receita'));
-    btnAdicionarDespesaRapida.addEventListener('click', () => abrirModalSelecaoMes('despesa'));
-    
-    if (spanCloseSeletorMes) {
-        spanCloseSeletorMes.addEventListener('click', () => {
-            modalSelecionarMes.style.display = 'none';
-        });
-    }
-
-    if (seletorMesGrid) {
-        seletorMesGrid.addEventListener('click', function(e) {
-            const botaoMes = e.target.closest('.mes-btn');
-            if (!botaoMes) return;
-
-            const mesSelecionado = parseInt(botaoMes.dataset.mes);
-            const tipo = tipoTransacaoRapidaInput.value;
-            
-            modalSelecionarMes.style.display = 'none';
-
-            mesAberto = mesSelecionado;
-            anoAberto = anoAtual;
-            window.mesAberto = mesAberto;
-            window.anoAberto = anoAberto;
-
-            if (tipo === 'receita' && typeof window.abrirModalNovaReceita === 'function') {
-                window.abrirModalNovaReceita();
-            } else if (tipo === 'despesa' && typeof window.abrirModalNovaDespesa === 'function') {
-                window.abrirModalNovaDespesa();
-            }
-        });
-    }
-}
 
 function setupToolbarButtons() {
     // Botão Nova Despesa na toolbar
