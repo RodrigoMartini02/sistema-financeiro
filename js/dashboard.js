@@ -467,12 +467,12 @@ window.dadosBalancoCache = null;
 
 // Configuração das colunas do gráfico de balanço
 const BALANCO_DATASETS_CONFIG = {
-    balanco: {
-        label: 'Balanço',
-        borderColor: 'rgb(43, 41, 170)',
-        backgroundColor: 'rgba(60, 35, 219, 0.45)',
-        order: 1
-    }
+  balanco: {
+  label: 'Balanço',
+  borderColor: 'rgb(0, 0, 128)',
+  backgroundColor: 'rgba(0, 0, 128, 0.45)',
+  order: 1
+}
 };
 
 // Resetar filtros do balanço para o padrão
