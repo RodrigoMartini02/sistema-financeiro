@@ -121,10 +121,6 @@ function exportarVariaveisGlobais() {
     window.mesAberto = mesAberto;
     window.anoAberto = anoAberto;
     
-    window.formatarMoeda = formatarMoeda;
-    window.formatarMoedaCompacta = formatarMoedaCompacta;
-    window.formatarData = formatarData;
-    window.gerarId = gerarId;
     window.salvarDados = salvarDados;
     window.garantirEstruturaDados = garantirEstruturaDados;
     
@@ -2815,57 +2811,6 @@ function garantirEstruturaDados(ano, mes) {
     }
 }
 
-function formatarMoeda(valor) {
-    try {
-        return new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-        }).format(valor || 0);
-    } catch (error) {
-        return `R$ ${(valor || 0).toFixed(2)}`;
-    }
-}
-
-function formatarMoedaCompacta(valor) {
-    if (valor === null || valor === undefined || isNaN(valor) || valor === 0) return 'R$ 0';
-    const negativo = valor < 0;
-    const abs = Math.abs(valor);
-    let resultado;
-    if (abs >= 1000000) {
-        resultado = (abs / 1000000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + 'M';
-    } else if (abs >= 1000) {
-        resultado = (abs / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + 'k';
-    } else {
-        resultado = abs.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
-    }
-    return (negativo ? '-R$ ' : 'R$ ') + resultado;
-}
-
-function formatarData(dataString) {
-    if (!dataString) return '';
-    try {
-        // Adiciona T00:00:00 para evitar problema de timezone
-        const data = typeof dataString === 'string' && !dataString.includes('T')
-            ? new Date(dataString + 'T00:00:00')
-            : new Date(dataString);
-
-        if (isNaN(data.getTime())) return 'Data inválida';
-
-        const dia = String(data.getDate()).padStart(2, '0');
-        const mes = String(data.getMonth() + 1).padStart(2, '0');
-        const ano = data.getFullYear();
-        return `${dia}/${mes}/${ano}`;
-    } catch (error) {
-        return 'Data inválida';
-    }
-}
-
-function gerarId() {
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substr(2, 9);
-    return `${timestamp}-${random}`;
-}
-
 function atualizarElemento(id, valor) {
     const elemento = document.getElementById(id);
     if (elemento) {
@@ -3050,6 +2995,7 @@ function fecharModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.style.display = 'none';
+        modal.classList.remove('active');
     }
 }
 

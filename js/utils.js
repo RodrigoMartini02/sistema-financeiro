@@ -69,14 +69,15 @@ function logout() {
  * @returns {string} Valor formatado (ex: "R$ 1.234,56")
  */
 function formatarMoeda(valor) {
-    if (valor === null || valor === undefined || isNaN(valor)) {
-        return 'R$ 0,00';
+    try {
+        if (valor === null || valor === undefined || isNaN(valor)) return 'R$ 0,00';
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        }).format(valor);
+    } catch (error) {
+        return `R$ ${(valor || 0).toFixed(2)}`;
     }
-
-    return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-    }).format(valor);
 }
 
 function formatarMoedaCompacta(valor) {
@@ -122,9 +123,11 @@ function formatarData(data) {
     if (!data) return '';
 
     try {
-        const dataObj = typeof data === 'string' ? new Date(data + 'T00:00:00') : new Date(data);
+        const dataObj = typeof data === 'string' && !data.includes('T')
+            ? new Date(data + 'T00:00:00')
+            : new Date(data);
 
-        if (isNaN(dataObj.getTime())) return '';
+        if (isNaN(dataObj.getTime())) return 'Data inválida';
 
         const dia = String(dataObj.getDate()).padStart(2, '0');
         const mes = String(dataObj.getMonth() + 1).padStart(2, '0');
@@ -132,8 +135,7 @@ function formatarData(data) {
 
         return `${dia}/${mes}/${ano}`;
     } catch (error) {
-        console.error('Erro ao formatar data:', error);
-        return '';
+        return 'Data inválida';
     }
 }
 
@@ -300,6 +302,39 @@ function validarCNPJ(cnpj) {
 
     resultado = soma % 11 < 2 ? 0 : 11 - soma % 11;
     return resultado == digitos.charAt(1);
+}
+
+/**
+ * Valida CPF ou CNPJ com base no comprimento
+ * @param {string} documento - CPF ou CNPJ
+ * @returns {boolean} True se válido
+ */
+function validarDocumento(documento) {
+    const doc = documento.replace(/[^\d]+/g, '');
+    if (doc.length === 11) return validarCPF(doc);
+    if (doc.length === 14) return validarCNPJ(doc);
+    return false;
+}
+
+/**
+ * Aplica máscara de CPF ou CNPJ a um input
+ * @param {HTMLInputElement} input - Campo de input
+ */
+function formatarDocumento(input) {
+    let documento = input.value.replace(/\D/g, '');
+
+    if (documento.length <= 11) {
+        documento = documento.replace(/(\d{3})(\d)/, '$1.$2');
+        documento = documento.replace(/(\d{3})(\d)/, '$1.$2');
+        documento = documento.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    } else {
+        documento = documento.replace(/^(\d{2})(\d)/, '$1.$2');
+        documento = documento.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+        documento = documento.replace(/\.(\d{3})(\d)/, '.$1/$2');
+        documento = documento.replace(/(\d{4})(\d)/, '$1-$2');
+    }
+
+    input.value = documento.substring(0, 18);
 }
 
 /**

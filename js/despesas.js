@@ -2079,11 +2079,6 @@ async function excluirParcelaEFuturas(index, mes, ano) {
 // ================================================================
 
 
-window.handleSalvarDespesa = function(event) {
-    if (event && event.preventDefault) event.preventDefault();
-    salvarTodasDespesas();
-    return false;
-};
 
 // ================================================================
 // INICIALIZAÇÃO AUTOMÁTICA
@@ -2761,23 +2756,6 @@ async function excluirRecorrenteEFuturas(index, mes, ano) {
     }
 }
 
-window.excluirDespesaAtual = async function() {
-    if (window.despesaParaExcluir) {
-        const { index, mes, ano } = window.despesaParaExcluir;
-        
-        try {
-            await processarExclusao('atual', index, mes, ano, '', '', null);
-        } catch (error) {
-            alert('Erro ao excluir: ' + error.message);
-        }
-    }
-};
-
-window.fecharModalExclusao = function() {
-    const modal = document.getElementById('modal-confirmacao-exclusao-despesa');
-    if (modal) modal.style.display = 'none';
-    window.despesaParaExcluir = null;
-};
 
 // ================================================================
 // MOVIMENTAÇÃO PARA PRÓXIMO MÊS

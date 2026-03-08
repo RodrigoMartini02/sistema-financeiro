@@ -3,7 +3,7 @@
 // Sistema de Controle Financeiro
 // ================================================================
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const CACHE_STATIC  = `sf-static-${CACHE_VERSION}`;
 
 // Assets estáticos que serão cacheados no install
@@ -34,13 +34,19 @@ const STATIC_ASSETS = [
 ];
 
 // ── Install: resiliente — não aborta se um asset falhar ────────
+// Usa cache:'reload' para buscar direto do servidor, ignorando caches anteriores
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_STATIC).then(async (cache) => {
             await Promise.allSettled(
-                STATIC_ASSETS.map(url =>
-                    cache.add(url).catch(err => console.warn('[SW] Falha ao cachear:', url, err))
-                )
+                STATIC_ASSETS.map(async (url) => {
+                    try {
+                        const response = await fetch(url, { cache: 'reload' });
+                        if (response.ok) await cache.put(url, response);
+                    } catch (err) {
+                        console.warn('[SW] Falha ao cachear:', url, err);
+                    }
+                })
             );
         }).then(() => self.skipWaiting())
     );
