@@ -45,7 +45,6 @@ async function iniciarSistema() {
 
     exportarVariaveisGlobais();
 
-    // ✅ Aguardar carregamento dos dados da API
     await carregarDadosLocais();
 
     sistemaInicializado = true;
@@ -181,7 +180,6 @@ function exportarVariaveisGlobais() {
         }
     };
 
-    // ✅ FUNÇÕES DE NOTIFICAÇÃO DE SUCESSO/ERRO
     window.mostrarMensagemSucesso = function(mensagem) {
         mostrarNotificacao(mensagem, 'sucesso');
     };
@@ -293,7 +291,6 @@ async function carregarDadosLocais() {
     }
 
     try {
-        // ✅ Aguardar inicialização do usuarioDataManager
         if (window.usuarioDataManager) {
             // Aguardar até que o usuarioDataManager esteja pronto
             let tentativas = 0;
@@ -304,7 +301,6 @@ async function carregarDadosLocais() {
             }
         }
 
-        // ✅ Carregar dados financeiros e cartões em paralelo
         const [dadosAPI] = await Promise.all([
             window.usuarioDataManager && typeof window.usuarioDataManager.getDadosFinanceirosUsuario === 'function'
                 ? window.usuarioDataManager.getDadosFinanceirosUsuario()
@@ -415,7 +411,6 @@ async function corrigirDespesasSemCartao(cartaoId, token) {
         if (response.ok) {
             const data = await response.json();
             if (data.success && data.quantidade > 0) {
-                console.log(`✅ ${data.quantidade} despesa(s) corrigida(s) com cartao_id=${cartaoId}`);
 
                 if (window.usuarioDataManager) {
                     // Limpar cache para forçar nova requisição
@@ -635,19 +630,16 @@ function onSecaoAtivada(secao) {
 }
 
 function setupControlesAno() {
-    // ✅ Botões de navegação de ano
     const btnAnoAnterior = document.getElementById('btn-ano-anterior');
     const btnProximoAno = document.getElementById('btn-proximo-ano');
     const btnAnoAtualDisplay = document.getElementById('ano-atual-btn');
     const dropdownAnos = document.getElementById('dropdown-anos');
 
-    // ✅ Menu de gerenciamento de ano
     const btnAnoMenu = document.getElementById('btn-ano-menu');
     const dropdownAnoMenu = document.getElementById('dropdown-ano-menu');
     const btnNovoAnoMenu = document.getElementById('btn-novo-ano-menu');
     const btnExcluirAnoMenu = document.getElementById('btn-excluir-ano-menu');
 
-    // ✅ Botões antigos (manter compatibilidade)
     const btnNovoAno = document.getElementById('btn-novo-ano');
     const btnExcluirAno = document.getElementById('btn-excluir-ano-atual');
 
@@ -660,7 +652,6 @@ function setupControlesAno() {
         btnProximoAno.addEventListener('click', () => mudarAno(anoAtual + 1));
     }
 
-    // ✅ Dropdown de anos ao clicar no ano atual
     if (btnAnoAtualDisplay && dropdownAnos) {
         btnAnoAtualDisplay.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -672,7 +663,6 @@ function setupControlesAno() {
         });
     }
 
-    // ✅ Menu de gerenciamento de ano
     if (btnAnoMenu && dropdownAnoMenu) {
         btnAnoMenu.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -704,7 +694,6 @@ function setupControlesAno() {
         btnExcluirAno.addEventListener('click', () => excluirAno(anoAtual));
     }
 
-    // ✅ Fechar dropdowns ao clicar fora
     document.addEventListener('click', () => {
         if (dropdownAnos) dropdownAnos.classList.remove('show');
         if (dropdownAnoMenu) dropdownAnoMenu.classList.remove('show');
@@ -716,7 +705,6 @@ function setupControlesAno() {
     }
 }
 
-// ✅ Preencher dropdown com anos disponíveis
 function preencherDropdownAnos() {
     const dropdownAnos = document.getElementById('dropdown-anos');
     if (!dropdownAnos) return;
@@ -745,7 +733,6 @@ function preencherDropdownAnos() {
     });
 }
 
-// ✅ Atualizar display do ano no botão
 function atualizarDisplayAno(ano) {
     const btnAnoAtualDisplay = document.getElementById('ano-atual-btn');
     if (btnAnoAtualDisplay) {
@@ -755,8 +742,6 @@ function atualizarDisplayAno(ano) {
     // Manter compatibilidade com elemento antigo
     atualizarElemento('ano-atual', ano);
 }
-
-// ✅ Função removida - saldo agora está apenas no dashboard
 
 function setupModais() {
     document.querySelectorAll('.close').forEach(closeBtn => {
@@ -1307,7 +1292,6 @@ async function criarAnoSimples(ano) {
             return;
         }
 
-        // ✅ Salvar ano no backend primeiro
         const token = sessionStorage.getItem('token') || localStorage.getItem('token');
         const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
@@ -1630,14 +1614,8 @@ function abrirDetalhesDoMes(mes, ano) {
         configurarBotoesModal();
         
         setTimeout(() => {
-            if (typeof window.criarFiltrosCategorias === 'function') {
-                window.criarFiltrosCategorias(mes, ano);
-            }
             if (typeof window.criarFiltrosFormaPagamento === 'function') {
-                window.criarFiltrosFormaPagamento(mes, ano);
-            }
-            if (typeof window.criarFiltrosStatus === 'function') {
-                window.criarFiltrosStatus();
+                window.criarFiltrosFormaPagamento();
             }
         }, 100);
         
@@ -1811,7 +1789,6 @@ async function buscarDespesasAPI(mes, ano) {
 
 async function renderizarDetalhesDoMes(mes, ano) {
     try {
-        // ✅ Recarregar dados da API para garantir sincronização
         if (window.usuarioDataManager && typeof window.usuarioDataManager.getDadosFinanceirosUsuario === 'function') {
             const dadosAtualizados = await window.usuarioDataManager.getDadosFinanceirosUsuario();
             if (dadosAtualizados && Object.keys(dadosAtualizados).length > 0) {
@@ -1870,13 +1847,7 @@ async function renderizarDetalhesDoMes(mes, ano) {
             window.atualizarContadoresFiltro();
         }
 
-        // ✅ NOVO: Forçar inicialização dos resizers de coluna após renderização
         setTimeout(() => {
-            // Reinicializar resizer de receitas
-            if (typeof window.reinitReceitasResizer === 'function') {
-                window.reinitReceitasResizer();
-            }
-            // Reinicializar resizer de despesas
             if (typeof window.reinitDespesasResizer === 'function') {
                 window.reinitDespesasResizer();
             }
@@ -1993,7 +1964,6 @@ function configurarBotao(id, callback) {
 
 async function carregarDadosDashboard(ano) {
     try {
-        // ✅ Recarregar dados da API para garantir sincronização
         if (window.usuarioDataManager && typeof window.usuarioDataManager.getDadosFinanceirosUsuario === 'function') {
             const dadosAtualizados = await window.usuarioDataManager.getDadosFinanceirosUsuario();
             if (dadosAtualizados && Object.keys(dadosAtualizados).length > 0) {
@@ -2002,7 +1972,6 @@ async function carregarDadosDashboard(ano) {
             }
         }
 
-        // ✅ Carregar reservas para calcular saldo disponível
         if (typeof window.carregarReservasAPI === 'function') {
             await window.carregarReservasAPI();
         }
@@ -2483,7 +2452,6 @@ async function fecharMes(mes, ano) {
     }
 
     try {
-        // ✅ CHAMAR ENDPOINT DA API PARA FECHAR MÊS
         const token = sessionStorage.getItem('token');
         const response = await fetch(`${API_URL}/meses/${ano}/${mes}/fechar`, {
             method: 'POST',
@@ -2544,7 +2512,6 @@ async function reabrirMes(mes, ano) {
     }
 
     try {
-        // ✅ CHAMAR ENDPOINT DA API PARA REABRIR MÊS
         const token = sessionStorage.getItem('token');
         const response = await fetch(`${API_URL}/meses/${ano}/${mes}/reabrir`, {
             method: 'POST',
@@ -3134,7 +3101,6 @@ window.fecharPainelCentral = fecharPainelCentral;
 
 
 function iniciarAtualizacaoCotacoes() {
-    // ✅ Suportar ambos os elementos (antigo e novo)
     const elemento = document.getElementById('cotacoes') || document.getElementById('cotacoes-compact');
     if (!elemento) return;
 

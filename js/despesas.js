@@ -121,64 +121,7 @@ function configurarEventosGrid() {
     configurarEventoOrdenacao();
 }
 
-// ================================================================
-// APLICAR TODOS OS FILTROS SIMULTANEAMENTE
-// ================================================================
-function aplicarTodosFiltros() {
-    const filtroCategoria = document.getElementById('filtro-categoria')?.value || 'todas';
-    const filtroFormaPagamento = document.getElementById('filtro-forma-pagamento-tabela')?.value || 'todas';
-    const filtroStatus = document.getElementById('filtro-status')?.value || 'todas';
-    
-    const linhas = document.querySelectorAll('tr.despesa-row');
-    
-    linhas.forEach(linha => {
-        let mostrarLinha = true;
-        
-        // Verificar filtro de categoria
-        if (filtroCategoria !== 'todas') {
-            if (!verificarCategoriaDespesa(linha, filtroCategoria)) {
-                mostrarLinha = false;
-            }
-        }
-        
-        // Verificar filtro de forma de pagamento
-        if (filtroFormaPagamento !== 'todas' && mostrarLinha) {
-            if (!verificarFormaPagamentoDespesa(linha, filtroFormaPagamento)) {
-                mostrarLinha = false;
-            }
-        }
-        
-        // Verificar filtro de status
-        if (filtroStatus !== 'todas' && mostrarLinha) {
-            if (!verificarStatusDespesa(linha, filtroStatus)) {
-                mostrarLinha = false;
-            }
-        }
-        
-        // Aplicar visibilidade
-        linha.style.display = mostrarLinha ? '' : 'none';
-    });
-    
-    atualizarContadoresFiltro();
-}
-
 function configurarEventosFiltros() {
-    // Filtros antigos (se existirem)
-    const filtros = [
-        { id: 'filtro-categoria', handler: filtrarDespesasPorCategoria },
-        { id: 'filtro-forma-pagamento-tabela', handler: filtrarDespesasPorFormaPagamento },
-        { id: 'filtro-status', handler: filtrarDespesasPorStatus }
-    ];
-
-    filtros.forEach(filtro => {
-        const elemento = document.getElementById(filtro.id);
-        if (elemento) {
-            elemento.addEventListener('change', function() {
-                filtro.handler(this.value);
-            });
-        }
-    });
-
     // Filtros da toolbar unificada
     const filtrosToolbar = [
         'filtro-categoria-toolbar',
@@ -285,25 +228,6 @@ function limparFiltrosToolbarDespesas() {
 
 function atualizarFiltrosExistentes(mes, ano) {
     const categorias = obterCategoriasDoMes(mes, ano);
-
-    // Atualizar filtro antigo (se existir)
-    const filtroCategoria = document.getElementById('filtro-categoria');
-    if (filtroCategoria) {
-        const valorAtual = filtroCategoria.value;
-
-        filtroCategoria.innerHTML = '<option value="todas">Categorias</option>';
-
-        categorias.forEach(categoria => {
-            const option = document.createElement('option');
-            option.value = categoria;
-            option.textContent = categoria;
-            filtroCategoria.appendChild(option);
-        });
-
-        if (valorAtual && categorias.includes(valorAtual)) {
-            filtroCategoria.value = valorAtual;
-        }
-    }
 
     // Atualizar filtro da toolbar unificada
     const filtroCategoriaToolbar = document.getElementById('filtro-categoria-toolbar');
@@ -631,7 +555,6 @@ function preencherCelulaParcela(clone, despesa) {
     if (despesa.recorrente) {
         celulaParcela.textContent = 'recorrente';
     }
-    // ✅ CORRIGIDO: Usar campo parcela pré-construído do main.js
     else if (despesa.parcela) {
         celulaParcela.textContent = despesa.parcela;
     }
@@ -817,8 +740,6 @@ function encontrarDespesaPorIndice(index, despesas) {
 }
 
 function criarObjetoDespesa(dados) {
-   // ✅ CORRIGIDO: Não gera mais ID temporário
-   // O ID será atribuído pelo backend após o POST
    return {
        id: dados.id || null,  // Apenas usa ID se já existir (edição)
        descricao: dados.descricao || '',
@@ -851,7 +772,6 @@ function atualizarStatusDespesas(despesas) {
     hoje.setHours(0, 0, 0, 0);
 
     despesas.forEach(despesa => {
-        // ✅ Se foi paga/quitada, status é "quitada"
         if (despesa.quitado === true || despesa.pago === true) {
             despesa.status = 'quitada';
             return;
@@ -1756,8 +1676,6 @@ async function salvarDespesaLocal(formData) {
     try {
         const ehEdicao = formData.id !== '' && formData.id !== null && formData.id !== undefined;
 
-        console.log('💾 Salvando despesa via API:', formData);
-
         // Calcular valores originais e juros
         const valorDigitado = parseFloat(formData.valor);
         const numParcelas = formData.parcelado ? (formData.totalParcelas || 1) : 1;
@@ -1775,9 +1693,6 @@ async function salvarDespesaLocal(formData) {
         const ehEdicaoParcelada = ehEdicao && despesaEmEdicao.parcelado && despesaEmEdicao.idGrupoParcelamento;
 
         if (ehEdicaoParcelada) {
-            // ✅ EDIÇÃO DE DESPESA PARCELADA: Atualizar todas as parcelas do grupo
-            console.log('📝 Editando despesa parcelada - atualizando todas as parcelas do grupo:', despesaEmEdicao.idGrupoParcelamento);
-
             const sucesso = await atualizarTodasParcelasGrupo(formData, despesaEmEdicao, valorParcela, valorComJuros, totalJuros);
 
             if (sucesso) {
@@ -1844,13 +1759,11 @@ async function salvarDespesaLocal(formData) {
 
 // Função auxiliar para recarregar despesas do mês
 async function recarregarDespesasDoMes(mes, ano) {
-    console.log('🔄 Recarregando despesas do backend...');
     if (typeof window.buscarDespesasAPI === 'function') {
         const despesasAtualizadas = await window.buscarDespesasAPI(mes, ano);
         if (despesasAtualizadas) {
             window.garantirEstruturaDados(ano, mes);
             window.dadosFinanceiros[ano].meses[mes].despesas = despesasAtualizadas;
-            console.log('✅ Despesas atualizadas com IDs reais do backend');
         }
     }
 }
@@ -1869,7 +1782,6 @@ function limparAposGravacao(formData, ehEdicao) {
     }
 }
 
-// ✅ NOVA FUNÇÃO: Atualizar todas as parcelas de um grupo
 async function atualizarTodasParcelasGrupo(formData, despesaEmEdicao, valorParcela, valorComJuros, totalJuros) {
     try {
         // Se idGrupoParcelamento for null, a despesa EM EDIÇÃO é a primeira parcela (usa próprio ID)
@@ -1900,8 +1812,6 @@ async function atualizarTodasParcelasGrupo(formData, despesaEmEdicao, valorParce
                 todasParcelas.push(...parcelas);
             }
         }
-
-        console.log(`📦 Encontradas ${todasParcelas.length} parcelas do grupo ${idGrupo}`);
 
         // Atualizar cada parcela
         for (const parcela of todasParcelas) {
@@ -1947,8 +1857,6 @@ async function atualizarTodasParcelasGrupo(formData, despesaEmEdicao, valorParce
                 recorrente: formData.recorrente || false  // Incluir campo recorrente
             };
 
-            console.log(`📝 Atualizando parcela ${parcelaNum}/${totalParcelasAtual} (ID: ${parcela.id})`);
-
             const updateResponse = await fetch(`${API_URL}/despesas/${parcela.id}`, {
                 method: 'PUT',
                 headers: {
@@ -1959,15 +1867,14 @@ async function atualizarTodasParcelasGrupo(formData, despesaEmEdicao, valorParce
             });
 
             if (!updateResponse.ok) {
-                console.error(`❌ Erro ao atualizar parcela ${parcela.id}:`, updateResponse.status);
+                console.error(`Erro ao atualizar parcela ${parcela.id}:`, updateResponse.status);
             }
         }
 
-        console.log('✅ Todas as parcelas atualizadas com sucesso');
         return true;
 
     } catch (error) {
-        console.error('❌ Erro ao atualizar parcelas do grupo:', error);
+        console.error('Erro ao atualizar parcelas do grupo:', error);
         return false;
     }
 }
@@ -2159,8 +2066,6 @@ async function excluirParcelaEFuturas(index, mes, ano) {
         const idGrupo = despesa.idGrupoParcelamento || despesa.id;
         const parcelaAtual = despesa.parcelaAtual || (despesa.parcela ? parseInt(despesa.parcela.split('/')[0]) : 1);
 
-        console.log('🗑️ Excluindo parcela atual e futuras:', { idGrupo, parcelaAtual, despesaId: despesa.id });
-
         // Excluir a parcela atual primeiro
         await fetch(`${API_URL}/despesas/${despesa.id}`, {
             method: 'DELETE',
@@ -2180,7 +2085,6 @@ async function excluirParcelaEFuturas(index, mes, ano) {
                 const data = await response.json();
                 for (const d of (data.data || [])) {
                     if (d.grupo_parcelamento_id === idGrupo && d.parcela_atual > parcelaAtual) {
-                        console.log('🗑️ Excluindo parcela futura:', d.id, `${d.parcela_atual}/${d.numero_parcelas}`);
                         await fetch(`${API_URL}/despesas/${d.id}`, {
                             method: 'DELETE',
                             headers: { 'Authorization': `Bearer ${getToken()}` }
@@ -2198,7 +2102,6 @@ async function excluirParcelaEFuturas(index, mes, ano) {
                 const dataProx = await responseProx.json();
                 for (const d of (dataProx.data || [])) {
                     if (d.grupo_parcelamento_id === idGrupo) {
-                        console.log('🗑️ Excluindo parcela futura (ano seguinte):', d.id);
                         await fetch(`${API_URL}/despesas/${d.id}`, {
                             method: 'DELETE',
                             headers: { 'Authorization': `Bearer ${getToken()}` }
@@ -2561,9 +2464,7 @@ async function excluirDespesaLocal(opcao, index, mes, ano, descricaoDespesa, cat
                 throw new Error('Despesa não encontrada');
             }
 
-            // ✅ CORRIGIDO: Validação simplificada - agora sempre temos IDs reais do backend
             if (!despesa.id) {
-                console.error('❌ Despesa sem ID:', despesa);
                 if (window.mostrarMensagemErro) {
                     window.mostrarMensagemErro('Erro: Despesa sem identificador. Por favor, recarregue a página.');
                 } else {
@@ -2632,8 +2533,6 @@ async function excluirTodasParcelas(ano, descricao, categoria, idGrupo) {
     if (!idGrupo) return { quantidade: 0, valorTotal: 0 };
 
     try {
-        console.log('🗑️ Excluindo TODAS as parcelas do grupo:', idGrupo);
-
         // Usar o endpoint do backend com excluir_grupo=true para excluir todas de uma vez
         const response = await fetch(`${API_URL}/despesas/${idGrupo}?excluir_grupo=true`, {
             method: 'DELETE',
@@ -2645,8 +2544,6 @@ async function excluirTodasParcelas(ano, descricao, categoria, idGrupo) {
         if (!response.ok) {
             throw new Error(`Erro ao excluir grupo: ${response.status}`);
         }
-
-        console.log('✅ Grupo de parcelas excluído com sucesso');
 
         // Recarregar dados do mês atual
         if (typeof window.buscarDespesasAPI === 'function') {
@@ -3409,9 +3306,7 @@ async function _processarPagamentoDespesa(index, mes, ano, valorPago = null, qui
             await processarParcelasFuturas(despesa, ano, mes);
         }
 
-        // ✅ CORRIGIDO: Salvar via API em vez de localStorage
         if (window.usuarioDataManager && typeof window.usuarioDataManager.salvarDespesa === 'function') {
-            console.log('💾 Salvando pagamento via API:', despesa);
             const sucesso = await window.usuarioDataManager.salvarDespesa(mes, ano, despesa, despesa.id);
             if (!sucesso) {
                 throw new Error('Falha ao salvar pagamento na API');
@@ -3775,26 +3670,6 @@ async function pagarLoteComValoresOriginais(checkboxes) {
 // SISTEMA DE FILTROS
 // ================================================================
 
-function criarFiltrosCategorias(mes, ano) {
-    const categorias = obterCategoriasDoMes(mes, ano);
-    const selectCategoria = document.getElementById('filtro-categoria');
-    
-    if (selectCategoria) {
-        limparSelect(selectCategoria);
-        adicionarOpcaoSelect(selectCategoria, 'todas', 'Todas as Categorias');
-        
-        categorias.forEach(categoria => {
-            adicionarOpcaoSelect(selectCategoria, categoria, categoria);
-        });
-        
-        selectCategoria.removeEventListener('change', selectCategoria._filterHandler);
-        
-        selectCategoria._filterHandler = function() {
-            filtrarDespesasPorCategoria(this.value);
-        };
-        selectCategoria.addEventListener('change', selectCategoria._filterHandler);
-    }
-}
 
 function obterOpcoesFormaPagamento() {
     const opcoes = [
@@ -3817,25 +3692,7 @@ function obterOpcoesFormaPagamento() {
     return opcoes;
 }
 
-function criarFiltrosFormaPagamento(mes, ano) {
-    const selectFormaPagamento = document.getElementById('filtro-forma-pagamento-tabela');
-
-    if (selectFormaPagamento) {
-        limparSelect(selectFormaPagamento);
-
-        obterOpcoesFormaPagamento().forEach(opcao => {
-            adicionarOpcaoSelect(selectFormaPagamento, opcao.value, opcao.text);
-        });
-
-        selectFormaPagamento.removeEventListener('change', selectFormaPagamento._filterHandler);
-
-        selectFormaPagamento._filterHandler = function() {
-            filtrarDespesasPorFormaPagamento(this.value);
-        };
-        selectFormaPagamento.addEventListener('change', selectFormaPagamento._filterHandler);
-    }
-
-    // Atualizar também o filtro da toolbar
+function criarFiltrosFormaPagamento() {
     popularFiltroFormaPagamentoToolbar();
 }
 
@@ -3859,32 +3716,6 @@ function popularFiltroFormaPagamentoToolbar() {
     }
 }
 
-function criarFiltrosStatus() {
-    const selectStatus = document.getElementById('filtro-status');
-    
-    if (selectStatus) {
-        limparSelect(selectStatus);
-        
-        const opcoes = [
-            { value: 'todas', text: 'Todos os Status' },
-            { value: 'pendentes', text: 'Pendentes' },
-            { value: 'em_dia', text: 'Em dia' },
-            { value: 'atrasada', text: 'Atrasadas' },
-            { value: 'pagas', text: 'Pagas' }
-        ];
-        
-        opcoes.forEach(opcao => {
-            adicionarOpcaoSelect(selectStatus, opcao.value, opcao.text);
-        });
-        
-        selectStatus.removeEventListener('change', selectStatus._filterHandler);
-        
-        selectStatus._filterHandler = function() {
-            filtrarDespesasPorStatus(this.value);
-        };
-        selectStatus.addEventListener('change', selectStatus._filterHandler);
-    }
-}
 
 function obterCategoriasDoMes(mes, ano) {
     if (!dadosFinanceiros[ano] || !dadosFinanceiros[ano].meses[mes]) {
@@ -3900,18 +3731,6 @@ function obterCategoriasDoMes(mes, ano) {
     });
     
     return Array.from(categorias).sort();
-}
-
-function filtrarDespesasPorCategoria(categoria) {
-    aplicarTodosFiltros();
-}
-
-function filtrarDespesasPorFormaPagamento(formaPagamento) {
-    aplicarTodosFiltros();
-}
-
-function filtrarDespesasPorStatus(status) {
-    aplicarTodosFiltros();
 }
 
 function verificarCategoriaDespesa(linha, categoria) {
@@ -3985,25 +3804,8 @@ function obterDespesaDaLinha(linha) {
 }
 
 function limparFiltros() {
-    const filtros = [
-        'filtro-categoria',
-        'filtro-status', 
-        'filtro-forma-pagamento-tabela',
-        'filtro-ordenacao-despesas'
-    ];
-    
-    filtros.forEach(id => {
-        const select = document.getElementById(id);
-        if (select) {
-            if (id === 'filtro-ordenacao-despesas') {
-                select.value = 'original';
-            } else {
-                select.value = 'todas';
-            }
-        }
-    });
-    
-    aplicarTodosFiltros();
+    const filtroOrdenacao = document.getElementById('filtro-ordenacao-despesas');
+    if (filtroOrdenacao) filtroOrdenacao.value = 'original';
     aplicarOrdenacaoDespesas('original');
 }
 
@@ -4504,11 +4306,9 @@ window.obterCategoriaLimpa = obterCategoriaLimpa;
 window.criarBadgeStatus = criarBadgeStatus;
 window.obterDatasExibicao = obterDatasExibicao;
 window.obterValorRealDespesa = obterValorRealDespesa;
-window.criarFiltrosCategorias = criarFiltrosCategorias;
 window.criarFiltrosFormaPagamento = criarFiltrosFormaPagamento;
 window.obterOpcoesFormaPagamento = obterOpcoesFormaPagamento;
 window.popularFiltroFormaPagamentoToolbar = popularFiltroFormaPagamentoToolbar;
-window.criarFiltrosStatus = criarFiltrosStatus;
 window.limparFiltros = limparFiltros;
 window.atualizarContadoresFiltro = atualizarContadoresFiltro;
 window.inicializarTabelaDespesasGrid = inicializarTabelaDespesasGrid;

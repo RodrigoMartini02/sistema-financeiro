@@ -4,9 +4,6 @@ const { query } = require('../config/database');
 const { authMiddleware } = require('../middleware/auth');
 const { body, validationResult } = require('express-validator');
 
-// ================================================================
-// FUNÇÃO AUXILIAR - OBTER PRÓXIMO NÚMERO PARA DESPESA
-// ================================================================
 async function obterProximoNumero(usuarioId) {
     const result = await query(
         'SELECT COALESCE(MAX(numero), 0) + 1 as proximo FROM despesas WHERE usuario_id = $1',
@@ -15,14 +12,19 @@ async function obterProximoNumero(usuarioId) {
     return result.rows[0].proximo;
 }
 
-// ================================================================
-// BUSCAR DESPESAS - COMPATÍVEL COM FRONTEND
-// ================================================================
+async function validarCartaoId(cartaoId, usuarioId) {
+    if (!cartaoId) return null;
+    const result = await query(
+        'SELECT id FROM cartoes WHERE id = $1 AND usuario_id = $2',
+        [cartaoId, usuarioId]
+    );
+    return result.rows.length > 0 ? cartaoId : null;
+}
+
 router.get('/', authMiddleware, async (req, res) => {
     try {
         const { mes, ano, usuario_id } = req.query;
 
-        // ✅ MASTER pode ver dados de qualquer usuário
         let whereClause = '';
         let params = [];
         let paramCount = 0;
@@ -98,30 +100,20 @@ router.post('/', authMiddleware, [
             valor_original, valor_total_com_juros, valor_pago, anexos, recorrente
         } = req.body;
 
-        // ✅ CORRIGIR: aceitar total_parcelas do frontend
         const numeroParcelas = total_parcelas || null;
         const parcelaAtual = parcela_atual || (parcelado ? 1 : null);
 
-        // Buscar categoria padrão (se necessário), validar cartão e obter próximo número em paralelo
-        const [catResult, cartaoResult, proximoNumero] = await Promise.all([
+        const [catResult, proximoNumero, cartaoIdFinal] = await Promise.all([
             !categoria_id
                 ? query('SELECT id FROM categorias WHERE usuario_id = $1 ORDER BY id ASC LIMIT 1', [req.usuario.id])
                 : Promise.resolve(null),
-            cartao_id
-                ? query('SELECT id FROM cartoes WHERE id = $1 AND usuario_id = $2', [cartao_id, req.usuario.id])
-                : Promise.resolve(null),
-            obterProximoNumero(req.usuario.id)
+            obterProximoNumero(req.usuario.id),
+            validarCartaoId(cartao_id, req.usuario.id)
         ]);
 
         let categoriaFinal = categoria_id;
         if (!categoriaFinal) {
             categoriaFinal = catResult && catResult.rows.length > 0 ? catResult.rows[0].id : null;
-        }
-
-        let cartaoIdFinal = cartao_id || null;
-        if (cartaoIdFinal && cartaoResult && cartaoResult.rows.length === 0) {
-            console.warn(`⚠️ Cartão ID ${cartaoIdFinal} não encontrado para usuário ${req.usuario.id}, ignorando cartao_id`);
-            cartaoIdFinal = null;
         }
 
         // Converter anexos para JSON se existirem
@@ -150,7 +142,6 @@ router.post('/', authMiddleware, [
             ]
         );
 
-        // ✅ Se for parcelado, criar as parcelas futuras
         if (parcelado && numeroParcelas && numeroParcelas > 1) {
             await criarParcelasFuturas(req.usuario.id, result.rows[0], numeroParcelas);
         }
@@ -269,22 +260,9 @@ router.put('/:id', authMiddleware, async (req, res) => {
             mes, ano, parcelado, recorrente
         } = req.body;
 
-        // ✅ ACEITAR total_parcelas e parcela_atual do frontend
         const numeroParcelas = total_parcelas || null;
         const parcelaAtual = parcela_atual || null;
-
-        // ✅ VALIDAR CARTAO_ID: verificar se existe na tabela cartoes do usuário
-        let cartaoIdFinal = cartao_id || null;
-        if (cartaoIdFinal) {
-            const cartaoResult = await query(
-                'SELECT id FROM cartoes WHERE id = $1 AND usuario_id = $2',
-                [cartaoIdFinal, req.usuario.id]
-            );
-            if (cartaoResult.rows.length === 0) {
-                console.warn(`⚠️ Cartão ID ${cartaoIdFinal} não encontrado para usuário ${req.usuario.id}, ignorando cartao_id`);
-                cartaoIdFinal = null;
-            }
-        }
+        const cartaoIdFinal = await validarCartaoId(cartao_id, req.usuario.id);
 
         // Converter anexos para JSON se existirem
         const anexosJson = anexos && Array.isArray(anexos) && anexos.length > 0 ? JSON.stringify(anexos) : null;
@@ -407,7 +385,6 @@ router.post('/:id/pagar', authMiddleware, async (req, res) => {
             });
         }
         
-        // ✅ Se quitar_futuras = true, quitar parcelas futuras do mesmo grupo
         if (quitar_futuras && result.rows[0].grupo_parcelamento_id) {
             await query(
                 `UPDATE despesas 

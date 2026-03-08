@@ -4,15 +4,10 @@ const { query } = require('../config/database');
 const { authMiddleware } = require('../middleware/auth');
 const { body, validationResult } = require('express-validator');
 
-// ================================================================
-// ROTAS ORIGINAIS (mantidas)
-// ================================================================
-
 router.get('/', authMiddleware, async (req, res) => {
     try {
         const { mes, ano, usuario_id } = req.query;
 
-        // ✅ MASTER pode ver dados de qualquer usuário
         let whereClause = '';
         let params = [];
         let paramCount = 0;
@@ -76,11 +71,6 @@ router.post('/', authMiddleware, [
 
         const { descricao, valor, data_recebimento, mes, ano, observacoes, anexos } = req.body;
 
-        console.log('📝 Criando receita:', {
-            descricao, valor, data_recebimento, mes, ano,
-            usuario_id: req.usuario.id
-        });
-
         // Converter anexos para JSON se existirem
         const anexosJson = anexos && Array.isArray(anexos) && anexos.length > 0 ? JSON.stringify(anexos) : null;
 
@@ -90,8 +80,6 @@ router.post('/', authMiddleware, [
              RETURNING *`,
             [req.usuario.id, descricao, parseFloat(valor), data_recebimento, mes, ano, observacoes || null, anexosJson]
         );
-
-        console.log('✅ Receita criada com sucesso:', result.rows[0].id);
 
         res.status(201).json({
             success: true,
@@ -153,17 +141,12 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
 
-        console.log('🗑️ Tentando excluir receita:', { id, usuario_id: req.usuario.id, tipo_id: typeof id });
-
         const result = await query(
             'DELETE FROM receitas WHERE id = $1 AND usuario_id = $2 RETURNING *',
             [parseInt(id), req.usuario.id]
         );
 
-        console.log('✅ Resultado da exclusão:', { rows: result.rows.length, deletada: result.rows[0] });
-
         if (result.rows.length === 0) {
-            console.warn('⚠️ Receita não encontrada para exclusão');
             return res.status(404).json({
                 success: false,
                 message: 'Receita não encontrada'
