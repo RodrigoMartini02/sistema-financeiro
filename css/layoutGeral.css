@@ -1600,14 +1600,6 @@ table tr:hover {
     justify-content: flex-end;
 }
 
-/* Ações contextuais (escondidas por padrão) */
-.toolbar-esquerda .toolbar-acoes {
-    display: none;
-}
-
-.toolbar-esquerda .toolbar-acoes.active {
-    display: flex;
-}
 
 .tabs-nav {
     display: flex;
