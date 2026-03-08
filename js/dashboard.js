@@ -224,15 +224,8 @@ function resetarFiltros() {
     document.getElementById('btn-periodo-todos')?.classList.remove('active');
 
     // Resetar filtros do balanço
-    const periodoFilter = document.getElementById('balanco-periodo-filter');
-    const anoFilter     = document.getElementById('balanco-ano-filter');
-    const mesFilter     = document.getElementById('balanco-mes-filter');
-    if (periodoFilter) periodoFilter.value = 'ano';
-    if (anoFilter) anoFilter.style.display = 'none';
-    if (mesFilter) {
-        mesFilter.style.display = 'none';
-        mesFilter.dataset.initialized = '';
-    }
+    const anoFilter = document.getElementById('balanco-ano-filter');
+    if (anoFilter) anoFilter.value = 'atual';
 }
 
 function limparGraficos() {
@@ -497,82 +490,43 @@ const BALANCO_DATASETS_CONFIG = {
     }
 };
 
-// Inicializar filtros de ano
-function inicializarFiltrosBalanco(forceReset = false) {
-    const anoFilter = document.getElementById('balanco-ano-filter');
-    if (!anoFilter) return;
-
-    // Só preencher se estiver vazio ou forçado
-    if (anoFilter.options.length === 0 || forceReset) {
-        const valorAtual = anoFilter.value;
-        const anosDisponiveis = Object.keys(window.dadosFinanceiros || {}).map(Number).sort();
-        const anoAtual = window.anoAtual || new Date().getFullYear();
-
-        anoFilter.innerHTML = '';
-        anosDisponiveis.forEach(ano => {
-            const option = document.createElement('option');
-            option.value = ano;
-            option.textContent = ano;
-            if (forceReset) {
-                if (ano === anoAtual) option.selected = true;
-            } else {
-                if (valorAtual && ano === parseInt(valorAtual)) option.selected = true;
-                else if (!valorAtual && ano === anoAtual) option.selected = true;
-            }
-            anoFilter.appendChild(option);
-        });
-    }
-}
-
 // Resetar filtros do balanço para o padrão
 function resetarFiltrosBalanco() {
-    const periodoFilter = document.getElementById('balanco-periodo-filter');
     const anoFilter = document.getElementById('balanco-ano-filter');
-    const mesFilter = document.getElementById('balanco-mes-filter');
-
-    if (periodoFilter) periodoFilter.value = 'ano';
-    if (anoFilter) {
-        anoFilter.style.display = 'none';
-        anoFilter.dataset.initialized = '';
-    }
-    if (mesFilter) {
-        mesFilter.style.display = 'none';
-        mesFilter.value = new Date().getMonth();
-        mesFilter.dataset.initialized = '';
-    }
-
-    inicializarFiltrosBalanco(true);
-    criarGraficoBalancoPorAnos();
+    if (anoFilter) anoFilter.value = 'atual';
+    filtrarBalanco();
 }
 
-function filtrarBalancoPeriodo() {
-    const periodo = document.getElementById('balanco-periodo-filter')?.value || 'ano';
-    const anoFilter = document.getElementById('balanco-ano-filter');
-    const mesFilter = document.getElementById('balanco-mes-filter');
-
-    // Inicializar filtros se necessário (sem forçar reset)
-    inicializarFiltrosBalanco(false);
-
-    // Mostrar/esconder filtro de ano conforme período
-    if (anoFilter) {
-        anoFilter.style.display = periodo === 'mes' ? 'inline-block' : 'none';
-    }
-
-    if (mesFilter) {
-        mesFilter.style.display = 'none';
-    }
-
-    const ano = parseInt(anoFilter?.value) || window.anoAtual;
-
-    switch(periodo) {
-        case 'ano':
-            criarGraficoBalancoPorAnos();
-            break;
-        case 'mes':
-            criarGraficoBalancoPorMeses(ano);
-            break;
+function filtrarBalanco() {
+    const valor = document.getElementById('balanco-ano-filter')?.value || 'atual';
+    if (valor === 'todos') {
+        criarGraficoBalancoPorAnos();
+    } else {
+        criarGraficoBalancoPorMeses(window.anoAtual || new Date().getFullYear());
     }
 }
+
+// Alias de compatibilidade
+const filtrarBalancoPeriodo = filtrarBalanco;
+
+// Plugin termômetro: barra de fundo sempre até o topo, valor preenchido por cima
+const backgroundBarPlugin = {
+    id: 'backgroundBar',
+    beforeDatasetsDraw(chart) {
+        const { ctx, chartArea: { top, height } } = chart;
+        chart.data.datasets.forEach((dataset, i) => {
+            if (!chart.isDatasetVisible(i)) return;
+            chart.getDatasetMeta(i).data.forEach(bar => {
+                const bgColor = dataset.backgroundColor.replace(/[\d.]+\)$/, '0.12)');
+                ctx.save();
+                ctx.fillStyle = bgColor;
+                const w = bar.width;
+                ctx.fillRect(bar.x - w / 2, top, w, height);
+                ctx.restore();
+            });
+        });
+    }
+};
 
 // Criar dataset padrão para barra
 function criarDatasetBarra(config, data) {
@@ -678,6 +632,7 @@ function criarGraficoBalancoPorAnos() {
 
     window.balancoChart = new Chart(ctx, {
         type: 'bar',
+        plugins: [backgroundBarPlugin],
         data: {
             labels: anos.map(a => a.toString()),
             datasets: [
@@ -716,6 +671,7 @@ function criarGraficoBalancoPorMeses(ano) {
 
     window.balancoChart = new Chart(ctx, {
         type: 'bar',
+        plugins: [backgroundBarPlugin],
         data: {
             labels: meses,
             datasets: [
@@ -730,7 +686,7 @@ function criarGraficoBalancoPorMeses(ano) {
 // Função legada para compatibilidade
 function criarGraficoBalanco(dados) {
     window.dadosBalancoCache = dados;
-    filtrarBalancoPeriodo();
+    filtrarBalanco();
 }
 
 // ================================================================
@@ -1959,5 +1915,6 @@ window.filtrarFormaPagamento = function() {
 // ================================================================
 
 window.carregarDadosDashboard = carregarDadosDashboard;
-window.filtrarBalancoPeriodo = filtrarBalancoPeriodo;
+window.filtrarBalanco = filtrarBalanco;
+window.filtrarBalancoPeriodo = filtrarBalanco; // alias legado
 window.resetarFiltrosBalanco = resetarFiltrosBalanco;

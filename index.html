@@ -146,8 +146,14 @@
 
    <main class="main-content">
         <header class="main-header">
-            <!-- Esquerda: Cotações -->
+            <!-- Esquerda: Ações rápidas + Cotações -->
             <div class="header-left">
+                <button id="btn-nova-despesa" class="btn btn-danger btn-sm" title="Nova Despesa">
+                    <i class="fas fa-plus"></i> Despesa
+                </button>
+                <button id="btn-nova-receita" class="btn btn-success btn-sm" title="Nova Receita">
+                    <i class="fas fa-plus"></i> Receita
+                </button>
                 <div class="header-item cambio-container-compact" title="Cotações em tempo real">
                     <i class="fas fa-exchange-alt"></i>
                     <span id="cotacoes-compact">Carregando...</span>
@@ -328,24 +334,9 @@
                 <h3>
                     <span class="chart-label"><i class="fas fa-chart-area chart-icon"></i> BALANÇO</span>
                     <div class="filtros-header">
-                        <select class="filtro-select" id="balanco-periodo-filter" onchange="filtrarBalancoPeriodo()">
-                            <option value="ano">Ano</option>
-                            <option value="mes">Mês</option>
-                        </select>
-                        <select class="filtro-select" id="balanco-ano-filter" onchange="filtrarBalancoPeriodo()" style="display: none;"></select>
-                        <select class="filtro-select" id="balanco-mes-filter" onchange="filtrarBalancoPeriodo()" style="display: none;">
-                            <option value="0">Janeiro</option>
-                            <option value="1">Fevereiro</option>
-                            <option value="2">Março</option>
-                            <option value="3">Abril</option>
-                            <option value="4">Maio</option>
-                            <option value="5">Junho</option>
-                            <option value="6">Julho</option>
-                            <option value="7">Agosto</option>
-                            <option value="8">Setembro</option>
-                            <option value="9">Outubro</option>
-                            <option value="10">Novembro</option>
-                            <option value="11">Dezembro</option>
+                        <select class="filtro-select" id="balanco-ano-filter" onchange="filtrarBalanco()">
+                            <option value="atual">Ano Atual</option>
+                            <option value="todos">Todos os Anos</option>
                         </select>
                     </div>
                     <button class="btn-zoom" data-chart="balancoChart"><i class="fas fa-expand-alt"></i></button>
