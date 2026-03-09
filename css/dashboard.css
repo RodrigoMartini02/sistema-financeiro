@@ -1,27 +1,25 @@
 /* ================================================================
-   DASHBOARD.CSS - Otimizado
-   Estilos específicos para gráficos e visualizações do dashboard
-   (Cards de resumo agora usam .resumo-cards de layoutGeral.css)
+   DASHBOARD.CSS
+   Estilos de gráficos, cards, filtros e modal de zoom
+   Cards de resumo usam .resumo-cards de layoutGeral.css
    ================================================================ */
 
-/* --- GRÁFICO BALANÇO (full-width dentro do grid) --- */
-.dashboard-card.dashboard-card-full {
-    grid-column: 1 / -1;
-    height: auto;
-}
 
-.dashboard-card.dashboard-card-full .chart-container {
-    height: 220px;
-    min-height: 220px;
-    flex: none;
-}
+/* ================================================================
+   1. GRID & CARDS
+   ================================================================ */
 
-/* --- GRID DE GRÁFICOS LADO A LADO --- */
 .dashboard-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 25px;
     margin-bottom: 25px;
+}
+
+.dashboard-card,
+.dashboard-card-full {
+    border-top: 4px solid transparent;
+    animation: fadeInUp 0.3s ease-out;
 }
 
 .dashboard-card {
@@ -39,6 +37,7 @@
     transform: translateY(-2px);
 }
 
+
 .dashboard-card h3 {
     font-size: 13px;
     margin-bottom: 12px;
@@ -53,6 +52,18 @@
     letter-spacing: 0.3px;
 }
 
+
+/* ================================================================
+   2. CHART CONTAINERS & CANVAS
+   ================================================================ */
+
+.chart-container {
+    position: relative;
+    width: 100%;
+    flex: 1;
+    min-height: 180px;
+}
+
 .chart-label {
     display: flex;
     align-items: center;
@@ -65,42 +76,6 @@
     flex-shrink: 0;
 }
 
-/* Filtros e Selects */
-.filtros-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 11px;
-    margin-left: auto;
-}
-
-.filtros-header .btn-refresh {
-    padding: 4px 8px;
-    font-size: 11px;
-    background: transparent;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    color: #64748b;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.filtros-header .btn-refresh:hover {
-    background: #f1f5f9;
-    color: #3b82f6;
-    border-color: #3b82f6;
-}
-
-/* Removido - agora usa .form-control padrão de layoutGeral.css */
-
-/* Containers de Gráficos */
-.chart-container {
-    position: relative;
-    width: 100%;
-    flex: 1;
-    min-height: 180px;
-}
-
 #balanco-chart, #tendencia-chart, #receitas-despesas-chart,
 #categorias-barras-chart, #categorias-mensais-chart,
 #juros-chart, #parcelamentos-chart, #forma-pagamento-chart,
@@ -109,100 +84,38 @@
     height: 100%;
 }
 
-/* Estatísticas */
-.estatisticas-container {
-    margin-top: 10px;
-    padding: 8px;
-    background: #f8fafc;
-    border-radius: 8px;
-    font-size: 11px;
-}
 
-.estatistica-item {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 4px;
-}
+/* ================================================================
+   3. ACCENT COLORS — borda superior + ícone colorido
+   ================================================================ */
 
-.estatistica-label {
-    color: #64748b;
-    font-weight: 500;
-}
+.chart-accent-violet  { border-top-color: #7c3aed; }
+.chart-accent-emerald { border-top-color: #059669; }
+.chart-accent-amber   { border-top-color: #d97706; }
+.chart-accent-cyan    { border-top-color: #0891b2; }
+.chart-accent-indigo  { border-top-color: #4f46e5; }
+.chart-accent-pink    { border-top-color: #db2777; }
+.chart-accent-red     { border-top-color: #dc2626; }
+.chart-accent-orange  { border-top-color: #ea580c; }
+.chart-accent-teal    { border-top-color: #0d9488; }
+.chart-accent-blue    { border-top-color: #2563eb; }
 
-.estatistica-valor {
-    color: #1e293b;
-    font-weight: 600;
-}
+.chart-accent-violet  .chart-icon { color: #7c3aed; }
+.chart-accent-emerald .chart-icon { color: #059669; }
+.chart-accent-amber   .chart-icon { color: #d97706; }
+.chart-accent-cyan    .chart-icon { color: #0891b2; }
+.chart-accent-indigo  .chart-icon { color: #4f46e5; }
+.chart-accent-pink    .chart-icon { color: #db2777; }
+.chart-accent-red     .chart-icon { color: #dc2626; }
+.chart-accent-orange  .chart-icon { color: #ea580c; }
+.chart-accent-teal    .chart-icon { color: #0d9488; }
+.chart-accent-blue    .chart-icon { color: #2563eb; }
 
-/* --- MODAL ZOOM GRÁFICO --- */
-.modal-zoom-container {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.85);
-    z-index: 10000;
-    justify-content: center;
-    align-items: center;
-    backdrop-filter: blur(8px);
-    padding: 20px;
-    animation: fadeIn 0.3s ease;
-}
 
-.modal-zoom-content {
-    background-color: #ffffff;
-    width: 95%;
-    max-width: 1200px;
-    height: 85vh;
-    position: relative;
-    padding: 40px 20px 20px 20px;
-    border-radius: 8px;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    display: flex;
-    flex-direction: column;
-}
+/* ================================================================
+   4. BARRA DE FILTROS GLOBAL
+   ================================================================ */
 
-/* Botão fechar do modal de zoom */
-#fechar-modal-zoom {
-    position: absolute;
-    top: 15px;
-    right: 20px;
-    width: 40px;
-    height: 40px;
-    font-size: 1.5rem;
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 6px;
-    color: #333;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-    z-index: 10001;
-}
-
-#fechar-modal-zoom:hover {
-    background: #dc3545;
-    border-color: #dc3545;
-    color: #fff;
-}
-
-#canvas-zoom-render {
-    width: 100% !important;
-    height: 100% !important;
-}
-
-/* Animações */
-.dashboard-card, .dashboard-card-full {
-    animation: fadeInUp 0.3s ease-out;
-}
-
-/* ---------------------------------------------------------------- */
-/* BARRA DE FILTROS GLOBAL DO DASHBOARD                              */
-/* ---------------------------------------------------------------- */
 .dashboard-filtros-bar {
     display: flex;
     align-items: center;
@@ -240,13 +153,15 @@
     white-space: nowrap;
 }
 
-.filtro-toggle-btn:hover { color: #1e293b; }
+.filtro-toggle-btn:hover {
+    color: #1e293b;
+}
 
 .filtro-toggle-btn.active {
     background: white;
     color: #1e293b;
     font-weight: 600;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.10);
 }
 
 .filtro-bar-sep {
@@ -277,49 +192,16 @@
 }
 
 .filtro-select:hover,
-.filtro-select:focus { border-color: #94a3b8; color: #1e293b; }
-
-@media (max-width: 600px) {
-    .dashboard-filtros-bar {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-    }
-    .filtro-selects { width: 100%; }
-    .filtro-select  { flex: 1; min-width: 0; }
+.filtro-select:focus {
+    border-color: #94a3b8;
+    color: #1e293b;
 }
 
-/* ---------------------------------------------------------------- */
-/* CHART CARD — ACCENT COLORS (left border + icon color)             */
-/* ---------------------------------------------------------------- */
-.dashboard-card,
-.dashboard-card-full {
-    border-top: 4px solid transparent;
-}
 
-.chart-accent-violet  { border-top-color: #7c3aed; }
-.chart-accent-emerald { border-top-color: #059669; }
-.chart-accent-amber   { border-top-color: #d97706; }
-.chart-accent-cyan    { border-top-color: #0891b2; }
-.chart-accent-indigo  { border-top-color: #4f46e5; }
-.chart-accent-pink    { border-top-color: #db2777; }
-.chart-accent-red     { border-top-color: #dc2626; }
-.chart-accent-orange  { border-top-color: #ea580c; }
-.chart-accent-teal    { border-top-color: #0d9488; }
-.chart-accent-blue    { border-top-color: #2563eb; }
+/* ================================================================
+   5. BOTÃO ZOOM NOS HEADERS DE GRÁFICO
+   ================================================================ */
 
-.chart-accent-violet  .chart-icon { color: #7c3aed; }
-.chart-accent-emerald .chart-icon { color: #059669; }
-.chart-accent-amber   .chart-icon { color: #d97706; }
-.chart-accent-cyan    .chart-icon { color: #0891b2; }
-.chart-accent-indigo  .chart-icon { color: #4f46e5; }
-.chart-accent-pink    .chart-icon { color: #db2777; }
-.chart-accent-red     .chart-icon { color: #dc2626; }
-.chart-accent-orange  .chart-icon { color: #ea580c; }
-.chart-accent-teal    .chart-icon { color: #0d9488; }
-.chart-accent-blue    .chart-icon { color: #2563eb; }
-
-/* ---- Zoom button in chart headers ---- */
 .btn-zoom {
     background: none;
     border: 1px solid #e2e8f0;
@@ -343,7 +225,75 @@
     background: #eff6ff;
 }
 
-/* --- RESPONSIVIDADE --- */
+
+/* ================================================================
+   6. MODAL ZOOM DE GRÁFICO
+   ================================================================ */
+
+.modal-zoom-container {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+    z-index: 10000;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(8px);
+    padding: 20px;
+    animation: fadeIn 0.3s ease;
+}
+
+.modal-zoom-content {
+    background-color: #ffffff;
+    width: 95%;
+    max-width: 1200px;
+    height: 85vh;
+    position: relative;
+    padding: 40px 20px 20px 20px;
+    border-radius: 8px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+}
+
+#fechar-modal-zoom {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    font-size: 1.5rem;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    color: #333;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    z-index: 10001;
+}
+
+#fechar-modal-zoom:hover {
+    background: #dc3545;
+    border-color: #dc3545;
+    color: #fff;
+}
+
+#canvas-zoom-render {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+
+/* ================================================================
+   7. RESPONSIVIDADE
+   ================================================================ */
+
 @media (max-width: 1024px) {
     .dashboard-grid {
         grid-template-columns: 1fr;
@@ -356,13 +306,25 @@
         min-height: 300px;
     }
 
-    .dashboard-card.dashboard-card-full .chart-container {
-        height: 180px;
-        min-height: 180px;
-    }
-
     .chart-container {
         min-height: 250px;
+    }
+}
+
+@media (max-width: 600px) {
+    .dashboard-filtros-bar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .filtro-selects {
+        width: 100%;
+    }
+
+    .filtro-select {
+        flex: 1;
+        min-width: 0;
     }
 }
 
@@ -376,9 +338,5 @@
         font-size: 13px;
         flex-direction: column;
         align-items: flex-start;
-    }
-
-    .filtros-header {
-        width: 100%;
     }
 }

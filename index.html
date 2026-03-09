@@ -330,16 +330,6 @@
 
         <div class="dashboard-grid">
 
-            <div class="dashboard-card dashboard-card-full chart-accent-blue">
-                <h3>
-                    <span class="chart-label"><i class="fas fa-chart-area chart-icon"></i> BALANÇO</span>
-                    <button class="btn-zoom" data-chart="balancoChart"><i class="fas fa-expand-alt"></i></button>
-                </h3>
-                <div class="chart-container">
-                    <canvas id="balanco-chart"></canvas>
-                </div>
-            </div>
-
             <div class="dashboard-card chart-accent-violet">
                 <h3>
                     <span class="chart-label"><i class="fas fa-chart-line chart-icon"></i> TENDÊNCIA ANUAL</span>
@@ -347,6 +337,16 @@
                 </h3>
                 <div class="chart-container">
                     <canvas id="tendencia-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="dashboard-card chart-accent-blue">
+                <h3>
+                    <span class="chart-label"><i class="fas fa-chart-area chart-icon"></i> BALANÇO</span>
+                    <button class="btn-zoom" data-chart="balancoChart"><i class="fas fa-expand-alt"></i></button>
+                </h3>
+                <div class="chart-container">
+                    <canvas id="balanco-chart"></canvas>
                 </div>
             </div>
 
@@ -377,6 +377,16 @@
                 </h3>
                 <div class="chart-container">
                     <canvas id="categorias-mensais-chart"></canvas>
+                </div>
+            </div>
+
+             <div class="dashboard-card chart-accent-teal">
+                <h3>
+                    <span class="chart-label"><i class="fas fa-chart-bar chart-icon"></i> MÉDIA ANUAL</span>
+                    <button class="btn-zoom" data-chart="mediaCategoriasChart"><i class="fas fa-expand-alt"></i></button>
+                </h3>
+                <div class="chart-container">
+                    <canvas id="media-categorias-chart"></canvas>
                 </div>
             </div>
 
@@ -419,17 +429,7 @@
                     <canvas id="parcelamentos-chart"></canvas>
                 </div>
             </div>
-
-            <div class="dashboard-card chart-accent-teal">
-                <h3>
-                    <span class="chart-label"><i class="fas fa-chart-bar chart-icon"></i> MÉDIA ANUAL</span>
-                    <button class="btn-zoom" data-chart="mediaCategoriasChart"><i class="fas fa-expand-alt"></i></button>
-                </h3>
-                <div class="chart-container">
-                    <canvas id="media-categorias-chart"></canvas>
-                </div>
-            </div>
-
+ 
         </div>
     </section>
 
