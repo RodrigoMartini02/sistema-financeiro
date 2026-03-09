@@ -3,359 +3,558 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Controle Financeiro - Login</title>
+    <title>FinançasPro — Controle Financeiro Inteligente</title>
 
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#6366f1">
+    <meta name="theme-color" content="#667eea">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Finanças">
+    <meta name="apple-mobile-web-app-title" content="FinançasPro">
     <link rel="apple-touch-icon" href="icons/financeiro.png">
+
+    <!-- SEO -->
+    <meta name="description" content="Controle suas finanças com inteligência. Receitas, despesas, cartões, relatórios e muito mais em um só lugar.">
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/login.css">
 </head>
 <body>
-    <!-- Loading Screen - Aparece após Login -->
-    <div id="loading-screen" class="loading-screen">
-        <div class="loading-spinner"></div>
-        <div class="loading-tips">
-            <p class="tip-text"></p>
+
+<!-- Loading Screen -->
+<div id="loading-screen" class="loading-screen">
+    <div class="loading-spinner"></div>
+    <div class="loading-tips">
+        <p class="tip-text"></p>
+    </div>
+</div>
+
+<!-- ================================================================
+     NAVBAR
+     ================================================================ -->
+<nav class="landing-nav" id="landing-nav">
+    <div class="nav-container">
+        <div class="nav-logo">
+            <i class="fas fa-chart-line"></i>
+            <span>FinançasPro</span>
         </div>
+        <div class="nav-links">
+            <a href="#features">Funcionalidades</a>
+            <a href="#como-funciona">Como Funciona</a>
+            <a href="#whatsapp-button" onclick="document.getElementById('whatsapp-button').querySelector('a').click();return false;">Suporte</a>
+        </div>
+        <button class="nav-btn-entrar" onclick="document.getElementById('hero-section').scrollIntoView({behavior:'smooth'})">
+            <i class="fas fa-sign-in-alt"></i> Entrar
+        </button>
+    </div>
+</nav>
+
+<!-- ================================================================
+     HERO SECTION — headline + login side by side
+     ================================================================ -->
+<section class="hero-section" id="hero-section">
+    <div class="hero-bg">
+        <div class="hero-shape shape-1"></div>
+        <div class="hero-shape shape-2"></div>
+        <div class="hero-shape shape-3"></div>
     </div>
 
-    <!-- Página de Login -->
-    <div class="login-page">
-        <div class="login-page-bg">
-            <div class="floating-elements">
-                <div class="element element-1"></div>
-                <div class="element element-2"></div>
-                <div class="element element-3"></div>
+    <div class="hero-container">
+        <!-- Lado esquerdo: marketing -->
+        <div class="hero-content">
+            <span class="hero-badge">
+                <i class="fas fa-shield-alt"></i> Sistema Seguro & Completo
+            </span>
+
+            <h1 class="hero-title">
+                Controle total das suas
+                <span class="hero-highlight">finanças pessoais</span>
+            </h1>
+
+            <p class="hero-desc">
+                Organize receitas, despesas, cartões de crédito e reservas em um único sistema.
+                Relatórios inteligentes para você tomar decisões com mais segurança.
+            </p>
+
+            <div class="hero-features-list">
+                <div class="hero-feature-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Lançamento rápido de despesas e receitas</span>
+                </div>
+                <div class="hero-feature-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Controle de cartões de crédito e limites</span>
+                </div>
+                <div class="hero-feature-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Gráficos e relatórios por categoria</span>
+                </div>
+                <div class="hero-feature-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Importação de extratos bancários</span>
+                </div>
+                <div class="hero-feature-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Notificações de vencimento</span>
+                </div>
+            </div>
+
+            <div class="hero-stats">
+                <div class="hero-stat">
+                    <strong>+15</strong>
+                    <span>Funcionalidades</span>
+                </div>
+                <div class="hero-stat-divider"></div>
+                <div class="hero-stat">
+                    <strong>100%</strong>
+                    <span>Web & Mobile</span>
+                </div>
+                <div class="hero-stat-divider"></div>
+                <div class="hero-stat">
+                    <strong>PWA</strong>
+                    <span>Instale no celular</span>
+                </div>
             </div>
         </div>
 
-    
-        <!-- Card de Login (visível direto) -->
-        <div class="login-card">
-            <h1 class="login-title">Controle Financeiro</h1>
+        <!-- Lado direito: login -->
+        <div class="hero-login">
+            <div class="login-card">
+                <h2 class="login-title">Controle Financeiro</h2>
 
-            <div id="modal-error-message" class="error-message">
-                <i class="fas fa-exclamation-triangle"></i>
-                <span>CPF/CNPJ ou senha incorretos. Tente novamente.</span>
-            </div>
-
-            <form id="modal-login-form">
-                <div class="form-group">
-                    <label for="modal-documento">
-                        <i class="fas fa-id-card"></i>
-                        CPF/CNPJ
-                    </label>
-                    <input type="text" id="modal-documento" name="documento" required placeholder="Digite seu CPF ou CNPJ" autocomplete="username">
+                <div id="modal-error-message" class="error-message" style="display:none;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>CPF/CNPJ ou senha incorretos. Tente novamente.</span>
                 </div>
 
-                <div class="form-group">
-                    <label for="modal-password">
-                        <i class="fas fa-lock"></i>
-                        Senha
-                    </label>
-                    <div class="password-input">
-                        <input type="password" id="modal-password" name="password" required placeholder="Digite sua senha" autocomplete="current-password">
-                        <button type="button" class="password-toggle" data-target="modal-password">
-                            <i class="fas fa-eye"></i>
-                        </button>
+                <form id="modal-login-form">
+                    <div class="form-group">
+                        <label for="modal-documento">
+                            <i class="fas fa-id-card"></i> CPF/CNPJ
+                        </label>
+                        <input type="text" id="modal-documento" name="documento" required
+                               placeholder="Digite seu CPF ou CNPJ" autocomplete="username">
                     </div>
-                </div>
 
-                <button type="submit" class="btn btn-primary">
-                    <span>Entrar</span>
-                </button>
-
-                <div class="separator-or">
-                    <span>ou</span>
-                </div>
-
-                <button type="button" class="btn btn-google" id="btn-google-login">
-                    <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-                    <span>Entrar com Google</span>
-                </button>
-
-                <div class="login-footer">
-                    <p>Não tem uma conta? <a href="#" id="modal-abrir-cadastro">Cadastre-se</a></p>
-                    <p><a href="#" id="modal-esqueceu-senha">Esqueceu sua senha?</a></p>
-                </div>
-            </form>
-        </div>
-
-        <footer class="login-page-footer">
-            <p>&copy; 2025 Sistema de Controle Financeiro | Todos os direitos reservados</p>
-        </footer>
-    </div>
-
-    <!-- WhatsApp Button -->
-    <div id="whatsapp-button">
-        <a href="https://wa.me/5549999554856" target="_blank" rel="noopener noreferrer">
-            <i class="fab fa-whatsapp"></i>
-        </a>
-    </div>
-
-  
-    <div id="recuperacaoSenhaModal" class="modal">
-        <div class="modal-content">
-            <span class="recuperacao-close">&times;</span>
-          
-            <div id="recuperacao-error-message" class="error-message">
-                <i class="fas fa-exclamation-triangle"></i>
-                <span>Não foi possível encontrar uma conta com este e-mail.</span>
-            </div>
-            
-            <div id="recuperacao-success-message" class="success-message">
-                <i class="fas fa-check-circle"></i>
-                <span>E-mail de recuperação enviado! Verifique sua caixa de entrada e spam.</span>
-            </div>
-            
-            <form id="form-recuperacao-senha">
-                <div class="form-group">
-                    <label for="recuperacao-email">
-                        <i class="fas fa-envelope"></i>
-                        E-mail cadastrado
-                    </label>
-                    <input type="email" id="recuperacao-email" name="email" required placeholder="Digite seu e-mail" autocomplete="email">
-                </div>
-
-                <div id="campo-codigo-container" class="form-group" style="display: none;">
-                    <label for="codigo-recuperacao">
-                        <i class="fas fa-shield-alt"></i>
-                        Código de verificação
-                    </label>
-                    <input type="text" id="codigo-recuperacao" name="codigo" placeholder="Digite o código recebido por email" maxlength="6">
-                    <small>Verifique sua caixa de entrada e spam</small>
-                </div>
-                
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-paper-plane"></i>
-                    <span>Enviar Código</span>
-                </button>
-                
-                <div class="login-footer">
-                    <p>Lembrou sua senha? <a href="#" id="recuperacao-abrir-login">Voltar para o login</a></p>
-                </div>
-            </form>
-        </div>
-    </div>
-    
-    <!-- Modal de Nova Senha -->
-    <div id="novaSenhaModal" class="modal">
-        <div class="modal-content">
-            <span class="nova-senha-close">&times;</span>
-          
-            
-            <div id="nova-senha-error-message" class="error-message">
-                <i class="fas fa-exclamation-triangle"></i>
-                <span>As senhas não coincidem ou não atendem aos requisitos.</span>
-            </div>
-            
-            <div id="nova-senha-success-message" class="success-message">
-                <i class="fas fa-check-circle"></i>
-                <span>Senha alterada com sucesso! Você já pode fazer login.</span>
-            </div>
-            
-            <form id="form-nova-senha">
-                <input type="hidden" id="email-nova-senha" name="email">
-                
-                <div class="form-group">
-                    <label for="nova-senha">
-                        <i class="fas fa-key"></i>
-                        Nova senha
-                    </label>
-                    <div class="password-input">
-                        <input type="password" id="nova-senha" name="password" required minlength="6" placeholder="Digite sua nova senha" autocomplete="new-password">
-                        <button type="button" class="password-toggle" data-target="nova-senha">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </div>
-                    <div class="password-strength">
-                        <div class="strength-bar">
-                            <div class="strength-fill"></div>
+                    <div class="form-group">
+                        <label for="modal-password">
+                            <i class="fas fa-lock"></i> Senha
+                        </label>
+                        <div class="password-input">
+                            <input type="password" id="modal-password" name="password" required
+                                   placeholder="Digite sua senha" autocomplete="current-password">
+                            <button type="button" class="password-toggle" data-target="modal-password">
+                                <i class="fas fa-eye"></i>
+                            </button>
                         </div>
-                        <small class="strength-text">Mínimo de 6 caracteres</small>
                     </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="confirmar-nova-senha">
-                        <i class="fas fa-key"></i>
-                        Confirme a nova senha
-                    </label>
-                    <div class="password-input">
-                        <input type="password" id="confirmar-nova-senha" name="confirm-password" required placeholder="Confirme sua nova senha" autocomplete="new-password">
-                        <button type="button" class="password-toggle" data-target="confirmar-nova-senha">
-                            <i class="fas fa-eye"></i>
-                        </button>
+
+                    <button type="submit" class="btn btn-primary">
+                        <span>Entrar</span>
+                    </button>
+
+                    <div class="separator-or"><span>ou</span></div>
+
+                    <button type="button" class="btn btn-google" id="btn-google-login">
+                        <svg width="18" height="18" viewBox="0 0 48 48">
+                            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                        </svg>
+                        <span>Entrar com Google</span>
+                    </button>
+
+                    <div class="login-footer">
+                        <p>Não tem uma conta? <a href="#" id="modal-abrir-cadastro">Cadastre-se grátis</a></p>
+                        <p><a href="#" id="modal-esqueceu-senha">Esqueceu sua senha?</a></p>
                     </div>
-                </div>
-                
-                <button type="submit" class="btn btn-primary">
-                   
-                    <span>Salvar Nova Senha</span>
-                </button>
-            </form>
+                </form>
+            </div>
         </div>
     </div>
+</section>
 
-    <!-- Modal de Cadastro -->
-    <div id="cadastroModal" class="modal">
-        <div class="modal-content">
-            <span class="cadastro-close">&times;</span>
-         
-            
-            <div id="cadastro-error-message" class="error-message">
-                <i class="fas fa-exclamation-triangle"></i>
-                <span>Erro no cadastro. Verifique os dados e tente novamente.</span>
+<!-- ================================================================
+     FEATURES SECTION
+     ================================================================ -->
+<section class="features-section" id="features">
+    <div class="section-container">
+        <div class="section-header">
+            <span class="section-badge">Funcionalidades</span>
+            <h2 class="section-title">Tudo que você precisa para controlar suas finanças</h2>
+            <p class="section-desc">Um sistema completo, pensado para o dia a dia brasileiro</p>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon" style="background: rgba(102,126,234,0.1); color: #667eea;">
+                    <i class="fas fa-receipt"></i>
+                </div>
+                <h3>Receitas & Despesas</h3>
+                <p>Lançamento rápido com categorias, parcelas, recorrências e comprovantes anexados.</p>
             </div>
-            
-            <div id="cadastro-success-message" class="success-message">
-                <i class="fas fa-check-circle"></i>
-                <span>Cadastro realizado com sucesso! Você já pode fazer login.</span>
+
+            <div class="feature-card">
+                <div class="feature-icon" style="background: rgba(16,185,129,0.1); color: #10b981;">
+                    <i class="fas fa-credit-card"></i>
+                </div>
+                <h3>Cartões de Crédito</h3>
+                <p>Controle de limites, fechamento e vencimento de múltiplos cartões em tempo real.</p>
             </div>
-            
-            <form id="form-cadastro">
-                <div class="form-group">
-                    <label for="cadastro-nome">
-                        <i class="fas fa-user"></i>
-                        Nome completo
-                    </label>
-                    <input type="text" id="cadastro-nome" name="nome" required placeholder="Digite seu nome completo" autocomplete="name">
+
+            <div class="feature-card">
+                <div class="feature-icon" style="background: rgba(245,158,11,0.1); color: #f59e0b;">
+                    <i class="fas fa-chart-bar"></i>
                 </div>
-                
-                <div class="form-group">
-                    <label for="cadastro-email">
-                        <i class="fas fa-envelope"></i>
-                        E-mail
-                    </label>
-                    <input type="email" id="cadastro-email" name="email" required placeholder="Digite seu e-mail" autocomplete="email">
+                <h3>Relatórios & Gráficos</h3>
+                <p>Dashboard completo com balanço mensal, tendências e distribuição por categoria.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon" style="background: rgba(239,68,68,0.1); color: #ef4444;">
+                    <i class="fas fa-bell"></i>
                 </div>
-                
-                <div class="form-group">
-                    <label for="cadastro-documento">
-                        <i class="fas fa-id-card"></i>
-                        CPF/CNPJ
-                    </label>
-                    <input type="text" id="cadastro-documento" name="documento" required placeholder="Digite seu CPF ou CNPJ" autocomplete="off">
-                    
+                <h3>Notificações</h3>
+                <p>Alertas de vencimento para nunca mais perder um pagamento importante.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon" style="background: rgba(147,51,234,0.1); color: #9333ea;">
+                    <i class="fas fa-piggy-bank"></i>
                 </div>
-                
-                <div class="form-group">
-                    <label for="cadastro-password">
-                        <i class="fas fa-lock"></i>
-                        Senha
-                    </label>
-                    <div class="password-input">
-                        <input type="password" id="cadastro-password" name="password" required minlength="6" placeholder="Digite sua senha" autocomplete="new-password">
-                        <button type="button" class="password-toggle" data-target="cadastro-password">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </div>
-                    <div class="password-strength">
-                        <div class="strength-bar">
-                            <div class="strength-fill"></div>
-                        </div>
-                        <small class="strength-text">Mínimo de 6 caracteres</small>
-                    </div>
+                <h3>Reservas Financeiras</h3>
+                <p>Crie e acompanhe metas de economia com rastreamento de movimentações.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon" style="background: rgba(14,165,233,0.1); color: #0ea5e9;">
+                    <i class="fas fa-file-import"></i>
                 </div>
-                
-                <div class="form-group">
-                    <label for="cadastro-confirm-password">
-                        <i class="fas fa-lock"></i>
-                        Confirme a senha
-                    </label>
-                    <div class="password-input">
-                        <input type="password" id="cadastro-confirm-password" name="confirm-password" required placeholder="Confirme sua senha" autocomplete="new-password">
-                        <button type="button" class="password-toggle" data-target="cadastro-confirm-password">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </div>
+                <h3>Importação de Extrato</h3>
+                <p>Importe seu extrato bancário (OFX/CSV) e ganhe tempo no lançamento.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon" style="background: rgba(34,197,94,0.1); color: #22c55e;">
+                    <i class="fas fa-layer-group"></i>
                 </div>
-                
-            
-                
-                <button type="submit" class="btn btn-primary">
-                   
-                    <span>Criar Conta</span>
-                </button>
-                
-                <div class="login-footer">
-                    <p>Já tem uma conta? <a href="#" id="cadastro-abrir-login">Faça login</a></p>
+                <h3>Parcelas & Recorrências</h3>
+                <p>Controle parcelamentos e despesas recorrentes com cálculo automático de juros.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon" style="background: rgba(249,115,22,0.1); color: #f97316;">
+                    <i class="fas fa-users"></i>
                 </div>
-            </form>
+                <h3>Multi-Usuário</h3>
+                <p>Gerencie finanças de toda a família com perfis independentes e acesso seguro.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon" style="background: rgba(99,102,241,0.1); color: #6366f1;">
+                    <i class="fas fa-mobile-alt"></i>
+                </div>
+                <h3>PWA — Instale no Celular</h3>
+                <p>Acesse pelo navegador ou instale como app no Android e iOS sem precisar de loja.</p>
+            </div>
         </div>
     </div>
+</section>
 
-    <!-- Google Identity Services -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+<!-- ================================================================
+     COMO FUNCIONA
+     ================================================================ -->
+<section class="how-section" id="como-funciona">
+    <div class="section-container">
+        <div class="section-header">
+            <span class="section-badge">Como Funciona</span>
+            <h2 class="section-title">Simples, rápido e intuitivo</h2>
+            <p class="section-desc">Em poucos passos você tem o controle completo das suas finanças</p>
+        </div>
 
-    <!-- Scripts - ORDEM CORRETA -->
-    <!-- 1. Utils PRIMEIRO (funções compartilhadas: formatarMoeda, validarCPF, etc.) -->
-    <script src="js/utils.js"></script>
-    <!-- 2. UsuarioDados -->
-    <script src="js/usuarioDados.js"></script>
+        <div class="how-steps">
+            <div class="how-step">
+                <div class="step-number">01</div>
+                <div class="step-content">
+                    <h3>Crie sua conta</h3>
+                    <p>Cadastro gratuito em menos de 1 minuto. Basta CPF, e-mail e senha.</p>
+                </div>
+            </div>
+            <div class="how-arrow"><i class="fas fa-arrow-right"></i></div>
 
-    <!-- 2. Loading Screen Script -->
-    <script>
-        window.showLoadingScreen = function() {
-            const loadingScreen = document.getElementById('loading-screen');
-            const tipText = document.querySelector('.tip-text');
+            <div class="how-step">
+                <div class="step-number">02</div>
+                <div class="step-content">
+                    <h3>Configure categorias e cartões</h3>
+                    <p>Personalize as categorias e adicione seus cartões de crédito com limites.</p>
+                </div>
+            </div>
+            <div class="how-arrow"><i class="fas fa-arrow-right"></i></div>
 
-            const tips = [
-                'Organizando suas finanças...',
-                'Carregando dashboard personalizado...',
-                'Preparando relatórios financeiros...',
-                'Sincronizando dados...',
-                'Quase lá, aguarde mais um instante...'
-            ];
+            <div class="how-step">
+                <div class="step-number">03</div>
+                <div class="step-content">
+                    <h3>Lance e acompanhe</h3>
+                    <p>Registre receitas e despesas e veja seus relatórios atualizarem em tempo real.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
 
-            let currentTip = 0;
-            let tipInterval;
+<!-- ================================================================
+     CTA FINAL
+     ================================================================ -->
+<section class="cta-section">
+    <div class="cta-container">
+        <h2>Pronto para organizar suas finanças?</h2>
+        <p>Crie sua conta gratuita agora e tenha controle total do seu dinheiro.</p>
+        <div class="cta-buttons">
+            <button class="cta-btn-primary" onclick="document.getElementById('modal-abrir-cadastro').click()">
+                <i class="fas fa-rocket"></i> Criar Conta Grátis
+            </button>
+            <button class="cta-btn-secondary" onclick="document.getElementById('hero-section').scrollIntoView({behavior:'smooth'})">
+                <i class="fas fa-sign-in-alt"></i> Já tenho conta
+            </button>
+        </div>
+    </div>
+</section>
 
-            function rotateTips() {
-                tipText.style.opacity = '0';
-                setTimeout(() => {
-                    tipText.textContent = tips[currentTip];
-                    tipText.style.opacity = '1';
-                    currentTip = (currentTip + 1) % tips.length;
-                }, 300);
-            }
+<!-- ================================================================
+     FOOTER
+     ================================================================ -->
+<footer class="landing-footer">
+    <div class="footer-container">
+        <div class="footer-brand">
+            <div class="nav-logo">
+                <i class="fas fa-chart-line"></i>
+                <span>FinançasPro</span>
+            </div>
+            <p>Sistema de controle financeiro pessoal completo e seguro.</p>
+        </div>
+        <div class="footer-links">
+            <span>Suporte via WhatsApp</span>
+            <a href="https://wa.me/5549999554856" target="_blank" rel="noopener noreferrer">
+                <i class="fab fa-whatsapp"></i> Falar com suporte
+            </a>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        <p>&copy; 2025 FinançasPro — Todos os direitos reservados</p>
+    </div>
+</footer>
 
-            loadingScreen.classList.add('active');
-            rotateTips();
-            tipInterval = setInterval(rotateTips, 3000);
+<!-- WhatsApp Button -->
+<div id="whatsapp-button">
+    <a href="https://wa.me/5549999554856" target="_blank" rel="noopener noreferrer">
+        <i class="fab fa-whatsapp"></i>
+    </a>
+</div>
 
-            window.hideLoadingScreen = function() {
-                clearInterval(tipInterval);
-                loadingScreen.classList.add('fade-out');
-                setTimeout(() => {
-                    loadingScreen.classList.remove('active', 'fade-out');
-                }, 1000);
-            };
-        };
-    </script>
+<!-- ================================================================
+     MODAIS (cadastro, recuperação, nova senha) — sem alterações
+     ================================================================ -->
+<div id="recuperacaoSenhaModal" class="modal">
+    <div class="modal-content">
+        <span class="recuperacao-close">&times;</span>
+        <div id="recuperacao-error-message" class="error-message">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>Não foi possível encontrar uma conta com este e-mail.</span>
+        </div>
+        <div id="recuperacao-success-message" class="success-message">
+            <i class="fas fa-check-circle"></i>
+            <span>E-mail de recuperação enviado! Verifique sua caixa de entrada e spam.</span>
+        </div>
+        <form id="form-recuperacao-senha">
+            <div class="form-group">
+                <label for="recuperacao-email">
+                    <i class="fas fa-envelope"></i> E-mail cadastrado
+                </label>
+                <input type="email" id="recuperacao-email" name="email" required
+                       placeholder="Digite seu e-mail" autocomplete="email">
+            </div>
+            <div id="campo-codigo-container" class="form-group" style="display: none;">
+                <label for="codigo-recuperacao">
+                    <i class="fas fa-shield-alt"></i> Código de verificação
+                </label>
+                <input type="text" id="codigo-recuperacao" name="codigo"
+                       placeholder="Digite o código recebido por email" maxlength="6">
+                <small>Verifique sua caixa de entrada e spam</small>
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-paper-plane"></i> <span>Enviar Código</span>
+            </button>
+            <div class="login-footer">
+                <p>Lembrou sua senha? <a href="#" id="recuperacao-abrir-login">Voltar para o login</a></p>
+            </div>
+        </form>
+    </div>
+</div>
 
-    <!-- 3. Login por último -->
-    <script src="js/login.js"></script>
+<div id="novaSenhaModal" class="modal">
+    <div class="modal-content">
+        <span class="nova-senha-close">&times;</span>
+        <div id="nova-senha-error-message" class="error-message">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>As senhas não coincidem ou não atendem aos requisitos.</span>
+        </div>
+        <div id="nova-senha-success-message" class="success-message">
+            <i class="fas fa-check-circle"></i>
+            <span>Senha alterada com sucesso! Você já pode fazer login.</span>
+        </div>
+        <form id="form-nova-senha">
+            <input type="hidden" id="email-nova-senha" name="email">
+            <div class="form-group">
+                <label for="nova-senha"><i class="fas fa-key"></i> Nova senha</label>
+                <div class="password-input">
+                    <input type="password" id="nova-senha" name="password" required minlength="6"
+                           placeholder="Digite sua nova senha" autocomplete="new-password">
+                    <button type="button" class="password-toggle" data-target="nova-senha">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+                <div class="password-strength">
+                    <div class="strength-bar"><div class="strength-fill"></div></div>
+                    <small class="strength-text">Mínimo de 6 caracteres</small>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="confirmar-nova-senha"><i class="fas fa-key"></i> Confirme a nova senha</label>
+                <div class="password-input">
+                    <input type="password" id="confirmar-nova-senha" name="confirm-password" required
+                           placeholder="Confirme sua nova senha" autocomplete="new-password">
+                    <button type="button" class="password-toggle" data-target="confirmar-nova-senha">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary"><span>Salvar Nova Senha</span></button>
+        </form>
+    </div>
+</div>
 
-    <!-- Registro do Service Worker (PWA) -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(function(reg) { console.log('[PWA] Service Worker registrado:', reg.scope); })
-                    .catch(function(err) { console.warn('[PWA] Service Worker falhou:', err); });
-            });
+<div id="cadastroModal" class="modal">
+    <div class="modal-content">
+        <span class="cadastro-close">&times;</span>
+        <div id="cadastro-error-message" class="error-message">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>Erro no cadastro. Verifique os dados e tente novamente.</span>
+        </div>
+        <div id="cadastro-success-message" class="success-message">
+            <i class="fas fa-check-circle"></i>
+            <span>Cadastro realizado com sucesso! Você já pode fazer login.</span>
+        </div>
+        <form id="form-cadastro">
+            <div class="form-group">
+                <label for="cadastro-nome"><i class="fas fa-user"></i> Nome completo</label>
+                <input type="text" id="cadastro-nome" name="nome" required
+                       placeholder="Digite seu nome completo" autocomplete="name">
+            </div>
+            <div class="form-group">
+                <label for="cadastro-email"><i class="fas fa-envelope"></i> E-mail</label>
+                <input type="email" id="cadastro-email" name="email" required
+                       placeholder="Digite seu e-mail" autocomplete="email">
+            </div>
+            <div class="form-group">
+                <label for="cadastro-documento"><i class="fas fa-id-card"></i> CPF/CNPJ</label>
+                <input type="text" id="cadastro-documento" name="documento" required
+                       placeholder="Digite seu CPF ou CNPJ" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="cadastro-password"><i class="fas fa-lock"></i> Senha</label>
+                <div class="password-input">
+                    <input type="password" id="cadastro-password" name="password" required minlength="6"
+                           placeholder="Digite sua senha" autocomplete="new-password">
+                    <button type="button" class="password-toggle" data-target="cadastro-password">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+                <div class="password-strength">
+                    <div class="strength-bar"><div class="strength-fill"></div></div>
+                    <small class="strength-text">Mínimo de 6 caracteres</small>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="cadastro-confirm-password"><i class="fas fa-lock"></i> Confirme a senha</label>
+                <div class="password-input">
+                    <input type="password" id="cadastro-confirm-password" name="confirm-password" required
+                           placeholder="Confirme sua senha" autocomplete="new-password">
+                    <button type="button" class="password-toggle" data-target="cadastro-confirm-password">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary"><span>Criar Conta</span></button>
+            <div class="login-footer">
+                <p>Já tem uma conta? <a href="#" id="cadastro-abrir-login">Faça login</a></p>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="js/utils.js"></script>
+<script src="js/usuarioDados.js"></script>
+
+<script>
+    // Navbar scroll effect
+    window.addEventListener('scroll', () => {
+        const nav = document.getElementById('landing-nav');
+        if (window.scrollY > 50) nav.classList.add('nav-scrolled');
+        else nav.classList.remove('nav-scrolled');
+    });
+
+    window.showLoadingScreen = function() {
+        const loadingScreen = document.getElementById('loading-screen');
+        const tipText = document.querySelector('.tip-text');
+        const tips = [
+            'Organizando suas finanças...',
+            'Carregando dashboard personalizado...',
+            'Preparando relatórios financeiros...',
+            'Sincronizando dados...',
+            'Quase lá, aguarde mais um instante...'
+        ];
+        let currentTip = 0;
+        let tipInterval;
+
+        function rotateTips() {
+            tipText.style.opacity = '0';
+            setTimeout(() => {
+                tipText.textContent = tips[currentTip];
+                tipText.style.opacity = '1';
+                currentTip = (currentTip + 1) % tips.length;
+            }, 300);
         }
-    </script>
+
+        loadingScreen.classList.add('active');
+        rotateTips();
+        tipInterval = setInterval(rotateTips, 3000);
+
+        window.hideLoadingScreen = function() {
+            clearInterval(tipInterval);
+            loadingScreen.classList.add('fade-out');
+            setTimeout(() => { loadingScreen.classList.remove('active', 'fade-out'); }, 1000);
+        };
+    };
+</script>
+
+<script src="js/login.js"></script>
+
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/sw.js')
+                .then(reg => console.log('[PWA] Service Worker registrado:', reg.scope))
+                .catch(err => console.warn('[PWA] Service Worker falhou:', err));
+        });
+    }
+</script>
 
 </body>
 </html>
