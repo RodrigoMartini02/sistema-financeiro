@@ -271,6 +271,17 @@ select.campo-invalido {
     background: #4f46e5;
 }
 
+#btn-adicionar-despesa-card {
+    background: #f97316;
+    color: #fff;
+    border-color: #f97316;
+}
+
+#btn-adicionar-despesa-card:hover {
+    background: #ea6c0a;
+    border-color: #ea6c0a;
+}
+
 /* Form inline nova categoria no footer */
 .nova-cat-inline {
     display: flex;
@@ -458,7 +469,7 @@ select.campo-invalido {
     position: absolute;
     top: 0;
     left: 8px;
-    background: #ffffff;
+    background: transparent;
     padding: 0 4px;
     font-size: 10px;
     font-weight: 500;
