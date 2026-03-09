@@ -528,7 +528,7 @@ function criarDatasetBarra(config, data) {
         backgroundColor: config.backgroundColor,
         borderColor: config.borderColor,
         borderWidth: 1,
-        borderRadius: 8,
+        borderRadius: 14,
         borderSkipped: false,
         order: config.order
     };
@@ -620,7 +620,7 @@ function criarGraficoBalancoPorAnos() {
     const opcoesBalanco = getOpcoesGrafico();
     opcoesBalanco.scales.y.min = -(maxAbs + margem);
     opcoesBalanco.scales.y.max =   maxAbs + margem;
-    opcoesBalanco.plugins.legend.onClick = null;
+    opcoesBalanco.plugins.legend.display = false;
 
     window.balancoChart = new Chart(ctx, {
         type: 'bar',
@@ -654,7 +654,7 @@ function criarGraficoBalancoPorMeses(ano) {
     const opcoesBalanco = getOpcoesGrafico();
     opcoesBalanco.scales.y.min = -(maxAbs + margem);
     opcoesBalanco.scales.y.max =   maxAbs + margem;
-    opcoesBalanco.plugins.legend.onClick = null;
+    opcoesBalanco.plugins.legend.display = false;
 
     window.balancoChart = new Chart(ctx, {
         type: 'bar',
