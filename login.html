@@ -21,6 +21,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/loading.css">
     <link rel="stylesheet" href="css/login.css">
 </head>
 <body>
@@ -509,41 +510,9 @@
         if (window.scrollY > 50) nav.classList.add('nav-scrolled');
         else nav.classList.remove('nav-scrolled');
     });
-
-    window.showLoadingScreen = function() {
-        const loadingScreen = document.getElementById('loading-screen');
-        const tipText = document.querySelector('.tip-text');
-        const tips = [
-            'Organizando suas finanças...',
-            'Carregando dashboard personalizado...',
-            'Preparando relatórios financeiros...',
-            'Sincronizando dados...',
-            'Quase lá, aguarde mais um instante...'
-        ];
-        let currentTip = 0;
-        let tipInterval;
-
-        function rotateTips() {
-            tipText.style.opacity = '0';
-            setTimeout(() => {
-                tipText.textContent = tips[currentTip];
-                tipText.style.opacity = '1';
-                currentTip = (currentTip + 1) % tips.length;
-            }, 300);
-        }
-
-        loadingScreen.classList.add('active');
-        rotateTips();
-        tipInterval = setInterval(rotateTips, 3000);
-
-        window.hideLoadingScreen = function() {
-            clearInterval(tipInterval);
-            loadingScreen.classList.add('fade-out');
-            setTimeout(() => { loadingScreen.classList.remove('active', 'fade-out'); }, 1000);
-        };
-    };
 </script>
 
+<script src="js/loading.js"></script>
 <script src="js/login.js"></script>
 
 <script>

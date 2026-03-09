@@ -41,6 +41,7 @@
     <!-- CSS EXTERNOS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- CSS DO SISTEMA -->
+    <link rel="stylesheet" href="css/loading.css">
     <link rel="stylesheet" href="css/layoutGeral.css">
     <link rel="stylesheet" href="css/botoes.css">
     <link rel="stylesheet" href="css/modais.css">
@@ -61,39 +62,7 @@
         <p class="tip-text"></p>
     </div>
 </div>
-
-<script>
-(function() {
-    var tips = [
-        'Organizando suas finanças...',
-        'Carregando dashboard personalizado...',
-        'Preparando relatórios financeiros...',
-        'Sincronizando dados...',
-        'Quase lá, aguarde mais um instante...'
-    ];
-    var tipText = document.querySelector('.tip-text');
-    var currentTip = 0;
-    function rotateTips() {
-        tipText.style.opacity = '0';
-        setTimeout(function() {
-            tipText.textContent = tips[currentTip];
-            tipText.style.opacity = '1';
-            currentTip = (currentTip + 1) % tips.length;
-        }, 300);
-    }
-    rotateTips();
-    window._loadingTipInterval = setInterval(rotateTips, 3000);
-
-    window.hideLoadingScreen = function() {
-        clearInterval(window._loadingTipInterval);
-        var screen = document.getElementById('loading-screen');
-        if (screen) {
-            screen.classList.add('fade-out');
-            setTimeout(function() { screen.classList.remove('active', 'fade-out'); }, 1000);
-        }
-    };
-})();
-</script>
+<script src="js/loading.js"></script>
 
 <!-- ================================================================ -->
 <!-- ESTRUTURA PRINCIPAL DA APLICAÇÃO -->
