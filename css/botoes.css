@@ -573,59 +573,6 @@
     width: 100%;
 }
 
-/* ================================================================
-   BOTÕES DE TOGGLE MÊS (Fechar/Reabrir)
-   ================================================================ */
-
-.btn-toggle-mes {
-    width: 100%;
-    padding: 14px 0;
-    border: none;
-    font-size: 14px;
-    font-weight: 600;
-    text-transform: uppercase;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    margin: 0;
-    transition: background-color 0.2s ease;
-    outline: none;
-}
-
-.btn-toggle-mes:focus {
-    outline: none;
-}
-
-.btn-toggle-mes:active {
-    outline: none;
-}
-
-/* Botão Fechar (Verde) */
-.btn-toggle-mes.btn-fechar {
-    background-color: #2ecc71;
-    color: #ffffff;
-}
-
-.btn-toggle-mes.btn-fechar:hover {
-    background-color: #27ae60;
-}
-
-/* Botão Reabrir (Cinza) */
-.btn-toggle-mes.btn-reabrir {
-    background-color: #64748b;
-    color: #ffffff;
-}
-
-.btn-toggle-mes.btn-reabrir:hover {
-    background-color: #475569;
-}
-
-.btn-toggle-mes i {
-    font-size: 14px;
-}
-
 /* Botão Reabrir Mês (detalhe e template) */
 .btn-reabrir-mes,
 #btn-reabrir-mes {
@@ -640,10 +587,6 @@
     border-color: #475569;
 }
 
-/* Classe utilitária para esconder botões (usada no seu HTML) */
-.hidden {
-    display: none !important;
-}
 
 
 
