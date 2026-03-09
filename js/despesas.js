@@ -975,19 +975,42 @@ function gerarHTMLCard(cardId) {
     const optsAnos = Array.from({length: 6}, (_, i) => anoAtual + i).map(a => `<option value="${a}">${a}</option>`).join('');
 
     return `
-        <div class="card-header-row">
-            <div class="card-pgto-wrapper">
-                <div class="card-pgto-grupo card-pgto-grupo-conta">
-                    <span class="pgto-grupo-label">Saldo em Conta</span>
-                    <div class="pgto-grupo-botoes">
-                        <button type="button" class="pgto-btn pgto-pix pgto-conta-btn" data-forma="pix" title="PIX"><i class="fas fa-bolt"></i></button>
-                        <button type="button" class="pgto-btn pgto-dinheiro pgto-conta-btn" data-forma="dinheiro" title="Dinheiro"><i class="fas fa-money-bill-wave"></i></button>
-                        <button type="button" class="pgto-btn pgto-debito pgto-conta-btn" data-forma="debito" title="Débito"><i class="fas fa-credit-card"></i></button>
+        <div class="card-main-row">
+            <div class="card-left-col">
+                <div class="card-pgto-wrapper">
+                    <div class="card-pgto-grupo card-pgto-grupo-conta">
+                        <span class="pgto-grupo-label">Saldo em Conta</span>
+                        <div class="pgto-grupo-botoes">
+                            <button type="button" class="pgto-btn pgto-pix pgto-conta-btn" data-forma="pix" title="PIX"><i class="fas fa-bolt"></i></button>
+                            <button type="button" class="pgto-btn pgto-dinheiro pgto-conta-btn" data-forma="dinheiro" title="Dinheiro"><i class="fas fa-money-bill-wave"></i></button>
+                            <button type="button" class="pgto-btn pgto-debito pgto-conta-btn" data-forma="debito" title="Débito"><i class="fas fa-credit-card"></i></button>
+                        </div>
+                    </div>
+                    <div class="card-pgto-grupo card-pgto-grupo-credito">
+                        <span class="pgto-grupo-label">Crédito</span>
+                        <div class="pgto-grupo-botoes card-pgto-cartoes"></div>
                     </div>
                 </div>
-                <div class="card-pgto-grupo card-pgto-grupo-credito">
-                    <span class="pgto-grupo-label">Crédito</span>
-                    <div class="pgto-grupo-botoes card-pgto-cartoes"></div>
+                <div class="card-desc-cat-row">
+                    <input type="text" class="card-descricao" placeholder="Descrição da despesa" required>
+                    <select class="card-categoria"><option value="">Categoria...</option></select>
+                </div>
+                <div class="card-values-row">
+                    <div class="card-field"><label>Valor orig. *</label><input type="number" class="card-valor-original" min="0.01" step="0.01" placeholder="0,00" required></div>
+                    <div class="card-field"><label>Valor final</label><input type="number" class="card-valor-final" min="0" step="0.01" placeholder="0,00"></div>
+                    <div class="card-field card-field-sm"><label>Parcelas</label><input type="number" class="card-parcelas" min="1" max="999" value="1"></div>
+                    <div class="card-field"><label>Compra *</label><input type="date" class="card-compra" required></div>
+                    <div class="card-field"><label>Vencimento *</label><input type="date" class="card-vencimento" required><span class="card-mes-indicador"></span></div>
+                </div>
+                <div class="card-info-parcela hidden">
+                    <span>Juros: <strong class="card-juros-total">R$ 0,00</strong></span>
+                    <span>Por parcela: <strong class="card-juros-parcela">R$ 0,00</strong></span>
+                    <span>Valor parcela: <strong class="card-valor-parcela">R$ 0,00</strong></span>
+                    <span>Total: <strong class="card-valor-total">R$ 0,00</strong></span>
+                </div>
+                <div class="card-bottom-row">
+                    <div class="card-anexos-lista"></div>
+                    <button type="button" class="card-delete-btn" title="Remover este lançamento"><i class="fas fa-trash-alt"></i> Remover</button>
                 </div>
             </div>
             <div class="card-pgto-grupo card-opcoes-grupo">
@@ -1002,27 +1025,6 @@ function gerarHTMLCard(cardId) {
                 </div>
                 <button type="button" class="card-anexos-btn"><i class="fas fa-paperclip"></i> Anexos (<span class="card-anexos-count">0</span>)</button>
             </div>
-        </div>
-        <div class="card-desc-cat-row">
-            <input type="text" class="card-descricao" placeholder="Descrição da despesa" required>
-            <select class="card-categoria"><option value="">Categoria...</option></select>
-        </div>
-        <div class="card-values-row">
-            <div class="card-field"><label>Valor orig. *</label><input type="number" class="card-valor-original" min="0.01" step="0.01" placeholder="0,00" required></div>
-            <div class="card-field"><label>Valor final</label><input type="number" class="card-valor-final" min="0" step="0.01" placeholder="0,00"></div>
-            <div class="card-field card-field-sm"><label>Parcelas</label><input type="number" class="card-parcelas" min="1" max="999" value="1"></div>
-            <div class="card-field"><label>Compra *</label><input type="date" class="card-compra" required></div>
-            <div class="card-field"><label>Vencimento *</label><input type="date" class="card-vencimento" required><span class="card-mes-indicador"></span></div>
-        </div>
-        <div class="card-info-parcela hidden">
-            <span>Juros: <strong class="card-juros-total">R$ 0,00</strong></span>
-            <span>Por parcela: <strong class="card-juros-parcela">R$ 0,00</strong></span>
-            <span>Valor parcela: <strong class="card-valor-parcela">R$ 0,00</strong></span>
-            <span>Total: <strong class="card-valor-total">R$ 0,00</strong></span>
-        </div>
-        <div class="card-bottom-row">
-            <div class="card-anexos-lista"></div>
-            <button type="button" class="card-delete-btn" title="Remover este lançamento"><i class="fas fa-trash-alt"></i> Remover</button>
         </div>
         <div class="card-error hidden"></div>
         <div class="card-success hidden"><i class="fas fa-check-circle"></i> Salvo!</div>

@@ -134,12 +134,8 @@ function obterSaldoAnteriorValido(mes, ano) {
 
 function abrirModalNovaReceita(index, mes, ano) {
     try {
-        const mesReceita = mes !== undefined ? mes : window.mesAberto;
-        const anoReceita = ano !== undefined ? ano : window.anoAberto;
-        
-        if (mesReceita === null || anoReceita === null) {
-            throw new Error('Mês ou ano não definido');
-        }
+        const mesReceita = mes !== undefined ? mes : (window.mesAberto ?? new Date().getMonth());
+        const anoReceita = ano !== undefined ? ano : (window.anoAberto ?? new Date().getFullYear());
         
         const modal = document.getElementById('modal-nova-receita');
         const form = document.getElementById('form-nova-receita');

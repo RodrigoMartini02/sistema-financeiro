@@ -338,16 +338,22 @@ select.campo-invalido {
     border-color: #34d399;
 }
 
-/* Linha do topo: grupos pagamento | descrição | categoria */
-.card-header-row {
+/* Layout principal: coluna esquerda + painel opções */
+.card-main-row {
     display: flex;
     gap: 8px;
     align-items: stretch;
-    margin-bottom: 8px;
+}
+
+.card-left-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
 }
 
 .card-pgto-wrapper {
-    flex: 1;
     display: flex;
     align-items: flex-start;
     gap: 8px;
@@ -369,7 +375,6 @@ select.campo-invalido {
     display: flex;
     gap: 8px;
     align-items: center;
-    margin-bottom: 8px;
 }
 
 .card-desc-cat-row .card-descricao {
@@ -432,7 +437,6 @@ select.campo-invalido {
     grid-template-columns: 90px 90px 60px 110px 1fr;
     gap: 8px;
     align-items: start;
-    margin-bottom: 8px;
 }
 
 /* Linha de pagamento + flags */
@@ -444,23 +448,20 @@ select.campo-invalido {
     margin-bottom: 4px;
 }
 
-/* Labels dos campos — label corta a borda superior do input */
+/* Labels dos campos */
 .card-field {
-    position: relative;
-    padding-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
 .card-field label {
-    position: absolute;
-    top: 0;
-    left: 8px;
-    background: #ffffff;
-    padding: 0 4px;
     font-size: 10px;
-    font-weight: 500;
+    font-weight: 600;
     color: #64748b;
     white-space: nowrap;
-    z-index: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
 }
 
 .card-field input,
@@ -491,7 +492,6 @@ select.campo-invalido {
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    margin-top: 4px;
 }
 
 /* Botão remover card — canto inferior direito */
@@ -558,9 +558,33 @@ select.campo-invalido {
     font-style: italic;
 }
 
+/* Grupos de pagamento sem borda (Saldo em Conta e Crédito) */
+.card-pgto-grupo-conta,
+.card-pgto-grupo-credito {
+    border: none;
+    padding: 0;
+}
+
+.card-pgto-grupo-conta .pgto-grupo-label,
+.card-pgto-grupo-credito .pgto-grupo-label {
+    position: static;
+    transform: none;
+    background: none;
+    font-size: 10px;
+    font-weight: 600;
+    color: #64748b;
+    padding: 0;
+    margin-bottom: 4px;
+    display: block;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
 /* Grupo crédito com borda vermelha quando inválido */
 .card-pgto-grupo-credito.campo-invalido {
-    border-color: #f87171;
+    border: 1px solid #f87171;
+    border-radius: 6px;
+    padding: 6px;
     background: #fef2f2;
 }
 
@@ -838,7 +862,7 @@ select.campo-invalido {
         border-radius: 0;
     }
 
-    .card-header-row {
+    .card-main-row {
         flex-wrap: wrap;
     }
 
