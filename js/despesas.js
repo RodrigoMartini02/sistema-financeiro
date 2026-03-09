@@ -977,18 +977,21 @@ function gerarHTMLCard(cardId) {
     return `
         <div class="card-main-row">
             <div class="card-left-col">
-                <div class="card-pgto-wrapper">
-                    <div class="card-pgto-grupo card-pgto-grupo-conta">
-                        <span class="pgto-grupo-label">Saldo em Conta</span>
-                        <div class="pgto-grupo-botoes">
-                            <button type="button" class="pgto-btn pgto-pix pgto-conta-btn" data-forma="pix" title="PIX"><i class="fas fa-bolt"></i></button>
-                            <button type="button" class="pgto-btn pgto-dinheiro pgto-conta-btn" data-forma="dinheiro" title="Dinheiro"><i class="fas fa-money-bill-wave"></i></button>
-                            <button type="button" class="pgto-btn pgto-debito pgto-conta-btn" data-forma="debito" title="Débito"><i class="fas fa-credit-card"></i></button>
+                <div class="card-pgto-outer">
+                    <span class="pgto-grupo-label">Forma de pagamento</span>
+                    <div class="card-pgto-wrapper">
+                        <div class="card-pgto-grupo card-pgto-grupo-conta">
+                            <span class="pgto-grupo-label">Saldo em Conta</span>
+                            <div class="pgto-grupo-botoes">
+                                <button type="button" class="pgto-btn pgto-pix pgto-conta-btn" data-forma="pix" title="PIX"><i class="fas fa-bolt"></i></button>
+                                <button type="button" class="pgto-btn pgto-dinheiro pgto-conta-btn" data-forma="dinheiro" title="Dinheiro"><i class="fas fa-money-bill-wave"></i></button>
+                                <button type="button" class="pgto-btn pgto-debito pgto-conta-btn" data-forma="debito" title="Débito"><i class="fas fa-credit-card"></i></button>
+                            </div>
                         </div>
-                    </div>
-                    <div class="card-pgto-grupo card-pgto-grupo-credito">
-                        <span class="pgto-grupo-label">Crédito</span>
-                        <div class="pgto-grupo-botoes card-pgto-cartoes"></div>
+                        <div class="card-pgto-grupo card-pgto-grupo-credito">
+                            <span class="pgto-grupo-label">Crédito</span>
+                            <div class="pgto-grupo-botoes card-pgto-cartoes"></div>
+                        </div>
                     </div>
                 </div>
                 <div class="card-desc-cat-row">
@@ -1399,7 +1402,7 @@ function validarCard(cardEl) {
     const categoria = cardEl.querySelector('.card-categoria');
     if (!categoria.value) { categoria.classList.add('campo-invalido'); erros.push('Categoria'); valido = false; }
 
-    if (!cardEl.dataset.formaPagamento) { cardEl.querySelector('.card-pgto-wrapper').classList.add('campo-invalido'); erros.push('Pagamento'); valido = false; }
+    if (!cardEl.dataset.formaPagamento) { cardEl.querySelector('.card-pgto-outer').classList.add('campo-invalido'); erros.push('Pagamento'); valido = false; }
 
     if (cardEl.dataset.formaPagamento === 'credito' && !cardEl.dataset.cartaoId) {
         cardEl.querySelector('.card-pgto-grupo-credito').classList.add('campo-invalido'); erros.push('Cartão'); valido = false;

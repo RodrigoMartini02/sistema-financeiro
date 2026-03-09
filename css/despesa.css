@@ -364,6 +364,13 @@ select.campo-invalido {
     min-width: 0;
 }
 
+.card-pgto-outer {
+    position: relative;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 16px 10px 8px 10px;
+}
+
 .card-pgto-wrapper {
     display: flex;
     align-items: flex-start;
