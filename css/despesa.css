@@ -342,12 +342,16 @@ select.campo-invalido {
 .card-header-row {
     display: flex;
     gap: 8px;
-    align-items: flex-start;
+    align-items: stretch;
     margin-bottom: 8px;
 }
 
 .card-pgto-wrapper {
     flex: 1;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
 /* Grupo de opções: mesmo estilo visual dos grupos de pagamento */
@@ -357,6 +361,7 @@ select.campo-invalido {
     gap: 6px;
     flex-shrink: 0;
     min-width: 170px;
+    align-self: stretch;
 }
 
 /* Linha 2: descrição + categoria */
@@ -515,14 +520,6 @@ select.campo-invalido {
 /* ================================================================
    BOTÕES DE PAGAMENTO (card)
    ================================================================ */
-
-/* Wrapper dos dois grupos de pagamento */
-.card-pgto-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-}
 
 /* Cada grupo (Saldo em Conta / Crédito) */
 .card-pgto-grupo {

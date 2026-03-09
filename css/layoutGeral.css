@@ -839,6 +839,11 @@ textarea:focus {
     min-height: 0;
 }
 
+.meses-section.active {
+    display: flex;
+    flex-direction: column;
+}
+
 
 
 /* ================================================================
@@ -847,11 +852,12 @@ textarea:focus {
 
 .meses-container {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(3, 1fr);
     gap: 14px;
     padding: 16px;
     width: 100%;
-    align-content: start;
+    height: 100%;
 }
 
 /* --- CARD --- */
@@ -2863,10 +2869,6 @@ table tr:hover {
 
 /* Tablets (768px - 1024px) */
 @media (min-width: 768px) and (max-width: 1024px) {
-    .meses-container {
-        grid-template-columns: repeat(3, 1fr);
-    }
-
     .user-welcome .welcome-text {
         display: none;
     }
@@ -2879,11 +2881,6 @@ table tr:hover {
 
 /* Monitores grandes (1920px+) */
 @media (min-width: 1920px) {
-    .meses-container {
-        grid-template-columns: repeat(6, 1fr);
-        gap: 20px;
-    }
-
     .modal-content {
         max-width: 1400px;
     }
@@ -2895,10 +2892,6 @@ table tr:hover {
 
 /* Monitores ultra-wide (2560px+) */
 @media (min-width: 2560px) {
-    .meses-container {
-        grid-template-columns: repeat(12, 1fr);
-    }
-
     .modal-content {
         max-width: 1800px;
     }
