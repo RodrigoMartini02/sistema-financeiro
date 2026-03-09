@@ -110,6 +110,16 @@ function inicializarPeriodFilter() {
     document.getElementById('global-tipo-filter')?.addEventListener('change', _reaplicarFiltrosGlobais);
     document.getElementById('global-categoria-filter')?.addEventListener('change', _reaplicarFiltrosGlobais);
     document.getElementById('global-pagamento-filter')?.addEventListener('change', _reaplicarFiltrosGlobais);
+
+    document.getElementById('btn-limpar-filtros-dash')?.addEventListener('click', () => {
+        const elTipo  = document.getElementById('global-tipo-filter');
+        const elCat   = document.getElementById('global-categoria-filter');
+        const elPgto  = document.getElementById('global-pagamento-filter');
+        if (elTipo)  elTipo.value  = 'ambos';
+        if (elCat)   elCat.value   = '';
+        if (elPgto)  elPgto.value  = 'todas';
+        aplicarFiltroPeriodo('atual');
+    });
 }
 
 function obterFiltrosGlobais() {
@@ -610,6 +620,7 @@ function criarGraficoBalancoPorAnos() {
     const opcoesBalanco = getOpcoesGrafico();
     opcoesBalanco.scales.y.min = -(maxAbs + margem);
     opcoesBalanco.scales.y.max =   maxAbs + margem;
+    opcoesBalanco.plugins.legend.onClick = null;
 
     window.balancoChart = new Chart(ctx, {
         type: 'bar',
@@ -643,6 +654,7 @@ function criarGraficoBalancoPorMeses(ano) {
     const opcoesBalanco = getOpcoesGrafico();
     opcoesBalanco.scales.y.min = -(maxAbs + margem);
     opcoesBalanco.scales.y.max =   maxAbs + margem;
+    opcoesBalanco.plugins.legend.onClick = null;
 
     window.balancoChart = new Chart(ctx, {
         type: 'bar',
