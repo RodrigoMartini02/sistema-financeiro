@@ -518,7 +518,8 @@ function criarDatasetBarra(config, data) {
         backgroundColor: config.backgroundColor,
         borderColor: config.borderColor,
         borderWidth: 1,
-        borderRadius: 3,
+        borderRadius: 8,
+        borderSkipped: false,
         order: config.order
     };
 }
@@ -715,16 +716,20 @@ function criarGraficoTendenciaAnualComFiltros(dadosFinanceiros, anoAtual, filtro
             label: 'Receitas Totais',
             data: dadosReceitas,
             backgroundColor: 'rgba(40, 167, 69, 0.7)',
-            borderColor: 'rgb(40, 167, 69)'
+            borderColor: 'rgb(40, 167, 69)',
+            borderRadius: 8,
+            borderSkipped: false
         });
     }
-    
+
     if (filtros.tipo === 'ambos' || filtros.tipo === 'despesas') {
         datasets.push({
             label: 'Despesas Totais',
             data: dadosDespesas,
             backgroundColor: 'rgba(220, 53, 69, 0.7)',
-            borderColor: 'rgb(220, 53, 69)'
+            borderColor: 'rgb(220, 53, 69)',
+            borderRadius: 8,
+            borderSkipped: false
         });
     }
     
@@ -792,16 +797,20 @@ function criarGraficoReceitasDespesasComFiltros(dados, filtros) {
             label: 'Receitas',
             data: dados.receitas,
             backgroundColor: 'rgba(40, 167, 69, 0.7)',
-            borderColor: 'rgb(40, 167, 69)'
+            borderColor: 'rgb(40, 167, 69)',
+            borderRadius: 8,
+            borderSkipped: false
         });
     }
-    
+
     if (filtros.tipo === 'ambos' || filtros.tipo === 'despesas') {
         datasets.push({
             label: 'Despesas',
             data: dados.despesas,
             backgroundColor: 'rgba(220, 53, 69, 0.7)',
-            borderColor: 'rgb(220, 53, 69)'
+            borderColor: 'rgb(220, 53, 69)',
+            borderRadius: 8,
+            borderSkipped: false
         });
     }
     
@@ -928,7 +937,9 @@ function criarGraficoBarrasCategoriasComFiltros(dadosFinanceiros, ano, filtros) 
                     data: valores,
                     backgroundColor: cores,
                     borderColor: cores.map(cor => cor.replace('0.7', '1')),
-                    borderWidth: 1
+                    borderWidth: 1,
+                    borderRadius: 8,
+                    borderSkipped: false
                 }]
             },
             options: {
@@ -1044,7 +1055,9 @@ function criarGraficoCategoriasMensaisComFiltros(dadosFinanceiros, ano, filtros)
             data: dadosParaGrafico.map(dadosMes => dadosMes[categoria] || 0),
             backgroundColor: obterCorCategoria(categoria),
             borderColor: obterCorCategoria(categoria).replace('0.7', '1'),
-            borderWidth: 1
+            borderWidth: 1,
+            borderRadius: 4,
+            borderSkipped: false
         };
     });
     
@@ -1116,13 +1129,17 @@ function criarGraficoJurosComFiltros(dadosFinanceiros, ano, filtros) {
                     label: 'Juros a Pagar',
                     data: dados.jurosAPagar,
                     backgroundColor: 'rgba(255, 159, 64, 0.7)',
-                    borderColor: 'rgb(255, 159, 64)'
+                    borderColor: 'rgb(255, 159, 64)',
+                    borderRadius: 8,
+                    borderSkipped: false
                 },
                 {
                     label: 'Juros Pagos',
                     data: dados.jurosPagos,
                     backgroundColor: 'rgba(255, 99, 132, 0.9)',
-                    borderColor: 'rgb(255, 99, 132)'
+                    borderColor: 'rgb(255, 99, 132)',
+                    borderRadius: 8,
+                    borderSkipped: false
                 }
             ]
         },
@@ -1235,13 +1252,17 @@ function criarGraficoParcelamentosComFiltros(dadosFinanceiros, ano, filtros) {
                     label: 'Parcelas Pendentes',
                     data: dados.parcelasAPagar,
                     backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                    borderColor: 'rgb(54, 162, 235)'
+                    borderColor: 'rgb(54, 162, 235)',
+                    borderRadius: 8,
+                    borderSkipped: false
                 },
                 {
                     label: 'Parcelas Pagas',
                     data: dados.parcelasPagas,
                     backgroundColor: 'rgba(75, 192, 192, 0.9)',
-                    borderColor: 'rgb(75, 192, 192)'
+                    borderColor: 'rgb(75, 192, 192)',
+                    borderRadius: 8,
+                    borderSkipped: false
                 }
             ]
         },
@@ -1472,7 +1493,9 @@ function criarGraficoMediaItens(dadosFinanceiros, ano, filtros) {
                 data: mediasArray.map(m => m.media),
                 backgroundColor: 'rgba(54, 162, 235, 0.7)',
                 borderColor: 'rgb(54, 162, 235)',
-                borderWidth: 1
+                borderWidth: 1,
+                borderRadius: 8,
+                borderSkipped: false
             }]
         },
         options: {
@@ -1548,7 +1571,9 @@ function renderizarGraficoMediaCategorias(ano) {
                     data: valoresMedios,
                     backgroundColor: cores,
                     borderColor: cores.map(cor => cor.replace('0.7', '1')),
-                    borderWidth: 1
+                    borderWidth: 1,
+                    borderRadius: 8,
+                    borderSkipped: false
                 }]
             },
             options: {
