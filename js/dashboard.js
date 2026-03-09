@@ -621,6 +621,7 @@ function criarGraficoBalancoPorAnos() {
     opcoesBalanco.scales.y.min = -(maxAbs + margem);
     opcoesBalanco.scales.y.max =   maxAbs + margem;
     opcoesBalanco.plugins.legend.display = false;
+    opcoesBalanco.layout = { padding: { top: 16, bottom: 16 } };
 
     window.balancoChart = new Chart(ctx, {
         type: 'bar',
@@ -655,6 +656,7 @@ function criarGraficoBalancoPorMeses(ano) {
     opcoesBalanco.scales.y.min = -(maxAbs + margem);
     opcoesBalanco.scales.y.max =   maxAbs + margem;
     opcoesBalanco.plugins.legend.display = false;
+    opcoesBalanco.layout = { padding: { top: 16, bottom: 16 } };
 
     window.balancoChart = new Chart(ctx, {
         type: 'bar',

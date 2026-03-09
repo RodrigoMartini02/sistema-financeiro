@@ -956,7 +956,7 @@ function setupSistemaBloqueio() {
     }
 
     const passwordInput = document.getElementById('lock-screen-password');
-    const modalContent = modal.querySelector('.modal-content');
+    const modalContent = modal.querySelector('.lock-card');
     let inactivityTimer;
 
     const LOCK_STATE_KEY = 'sistema_bloqueado';

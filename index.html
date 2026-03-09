@@ -1669,22 +1669,21 @@
 <!-- ======================================================== -->
 <div id="lock-screen-overlay" class="lock-screen-overlay"></div>
 <div id="modal-lock-screen" class="modal">
-    <div class="modal-content modal-sm">
-        <div class="modal-header">
-            <h2><i class="fas fa-lock"></i> Sistema Bloqueado</h2>
+    <div class="lock-card">
+        <div class="lock-icon-wrap">
+            <i class="fas fa-lock"></i>
         </div>
-        <div class="modal-body">
-            <form id="form-lock-screen">
-                <div class="form-group">
-                    <input type="password" id="lock-screen-password" placeholder="Sua Senha" required>
-                </div>
-            </form>
-        </div>
-        <div class="modal-footer">
-            <button type="submit" form="form-lock-screen" class="btn btn-primary btn-block">
-                <i class="fas fa-unlock"></i> Desbloquear
+        <div class="lock-title">Sistema Bloqueado</div>
+        <div class="lock-subtitle">Digite sua senha para continuar</div>
+        <form id="form-lock-screen">
+            <div class="lock-input-wrap">
+                <i class="fas fa-key lock-input-icon"></i>
+                <input type="password" id="lock-screen-password" placeholder="Sua senha" required>
+            </div>
+            <button type="submit" class="lock-btn">
+                <i class="fas fa-unlock-alt"></i> Desbloquear
             </button>
-        </div>
+        </form>
     </div>
 </div>
 
