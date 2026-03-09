@@ -604,6 +604,13 @@ function criarGraficoBalancoPorAnos() {
         return receitas - despesas;
     });
 
+    const maxAbs = Math.max(...balancos.map(Math.abs), 1);
+    const margem = maxAbs * 0.15;
+
+    const opcoesBalanco = getOpcoesGrafico();
+    opcoesBalanco.scales.y.min = -(maxAbs + margem);
+    opcoesBalanco.scales.y.max =   maxAbs + margem;
+
     window.balancoChart = new Chart(ctx, {
         type: 'bar',
         plugins: [backgroundBarPlugin],
@@ -611,7 +618,7 @@ function criarGraficoBalancoPorAnos() {
             labels: anos.map(a => a.toString()),
             datasets: [criarDatasetBarra(BALANCO_DATASETS_CONFIG.balanco, balancos)]
         },
-        options: getOpcoesGrafico()
+        options: opcoesBalanco
     });
 }
 
@@ -630,6 +637,13 @@ function criarGraficoBalancoPorMeses(ano) {
         return s.receitas - s.despesas;
     });
 
+    const maxAbs = Math.max(...balancos.map(Math.abs), 1);
+    const margem = maxAbs * 0.15;
+
+    const opcoesBalanco = getOpcoesGrafico();
+    opcoesBalanco.scales.y.min = -(maxAbs + margem);
+    opcoesBalanco.scales.y.max =   maxAbs + margem;
+
     window.balancoChart = new Chart(ctx, {
         type: 'bar',
         plugins: [backgroundBarPlugin],
@@ -637,7 +651,7 @@ function criarGraficoBalancoPorMeses(ano) {
             labels: meses,
             datasets: [criarDatasetBarra(BALANCO_DATASETS_CONFIG.balanco, balancos)]
         },
-        options: getOpcoesGrafico()
+        options: opcoesBalanco
     });
 }
 // Função legada para compatibilidade
@@ -1054,8 +1068,8 @@ function criarGraficoCategoriasMensaisComFiltros(dadosFinanceiros, ano, filtros)
             label: categoria,
             data: dadosParaGrafico.map(dadosMes => dadosMes[categoria] || 0),
             backgroundColor: obterCorCategoria(categoria),
-            borderColor: obterCorCategoria(categoria).replace('0.7', '1'),
-            borderWidth: 0,
+            borderColor: 'rgba(255,255,255,0.6)',
+            borderWidth: 2,
             borderRadius: 10,
             borderSkipped: false
         };
@@ -1416,6 +1430,9 @@ function criarGraficoFormaPagamentoComFiltros(dadosFinanceiros, ano, filtros) {
                 plugins: {
                     legend: { display: false },
                     tooltip: {
+                        usePointStyle: false,
+                        boxWidth: 12,
+                        boxHeight: 12,
                         callbacks: {
                             title: () => '',
                             label: function(context) {
@@ -1711,6 +1728,9 @@ function renderDistribuicaoCartoes(dadosFinanceiros, ano, filtros = {}) {
                 plugins: {
                     legend: { display: false },
                     tooltip: {
+                        usePointStyle: false,
+                        boxWidth: 12,
+                        boxHeight: 12,
                         callbacks: {
                             title: () => '',
                             label: function(context) {

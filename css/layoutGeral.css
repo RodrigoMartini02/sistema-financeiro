@@ -842,99 +842,168 @@ textarea:focus {
 
 
 /* ================================================================
-   SEÇÃO MESES 
+   SEÇÃO MESES
    ================================================================ */
 
 .meses-container {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 15px;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
     padding: 16px;
     width: 100%;
     align-content: start;
 }
 
+/* --- CARD --- */
 .mes-card {
-    background: var(--white);
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
     overflow: hidden;
     cursor: pointer;
-    transition: var(--transition-base);
-    border: 1px solid var(--gray-300);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
     display: flex;
     flex-direction: column;
-    margin: 0;
-    min-height: 230px;
+    min-height: 210px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .mes-card:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    transform: translateY(-2px);
+    transform: translateY(-4px);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.13);
 }
 
+/* --- HEADER --- */
 .mes-header {
-    background: var(--primary-color);
-    color: var(--white);
-    padding: 8px;
-    text-align: center;
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: #ffffff;
+    padding: 14px 16px 12px;
+    text-align: left;
     flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.mes-header::before {
+    content: '';
+    position: absolute;
+    top: -18px;
+    right: -18px;
+    width: 72px;
+    height: 72px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 50%;
+}
+
+.mes-header::after {
+    content: '';
+    position: absolute;
+    bottom: -28px;
+    right: 28px;
+    width: 52px;
+    height: 52px;
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: 50%;
+}
+
+/* Mês com transações */
+.mes-card.mes-ativo .mes-header {
+    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+}
+
+/* Mês fechado */
+.mes-card.mes-fechado .mes-header {
+    background: linear-gradient(135deg, #64748b 0%, #475569 100%);
 }
 
 .mes-nome {
-    font-size: 13px;
-    font-weight: var(--font-weight-bold);
+    font-size: 15px;
+    font-weight: 700;
     text-transform: uppercase;
-    margin: 0;
-    letter-spacing: 1px;
+    letter-spacing: 0.8px;
+    position: relative;
+    z-index: 1;
 }
 
+/* --- BODY --- */
 .mes-body {
-    padding: 10px 12px;
+    padding: 12px 14px;
     flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    gap: 6px;
+    gap: 8px;
 }
 
-.mes-saldos-container,
-.mes-resumo {
+.mes-saldos-container {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px;
 }
 
 .mes-saldo-anterior,
-.mes-saldo,
-.mes-valor {
-    padding: 5px;
+.mes-saldo {
+    padding: 7px 10px;
     text-align: center;
-    border: 1px solid var(--gray-200);
+    background: #f8fafc;
+    border-radius: 10px;
+    border: none;
 }
 
+.mes-resumo {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.mes-valor {
+    padding: 7px 10px;
+    text-align: center;
+    border-radius: 10px;
+}
+
+.mes-valor:first-child {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+}
+
+.mes-valor:last-child {
+    background: #fff5f5;
+    border: 1px solid #fecaca;
+}
+
+/* --- LABELS E VALORES --- */
 .mes-label {
     font-size: 8px;
-    color: var(--gray-600);
-    margin-bottom: 2px;
+    color: #94a3b8;
+    margin-bottom: 3px;
     text-transform: uppercase;
     font-weight: 700;
+    letter-spacing: 0.5px;
     display: block;
 }
 
 .valor-anterior,
-.mes-saldo-valor,
+.mes-saldo-valor {
+    font-size: 13px;
+    font-weight: 800;
+    display: block;
+}
+
 .mes-receita,
 .mes-despesa {
     font-size: 12px;
     font-weight: 800;
+    display: block;
 }
 
-.mes-receita { color: var(--receita-color); }
-.mes-despesa { color: var(--despesa-color); }
+.mes-receita         { color: #16a34a; }
+.mes-despesa         { color: #dc2626; }
+.mes-saldo-positivo  { color: #2563eb; }
+.mes-saldo-negativo  { color: #dc2626; }
+.valor-anterior.positivo { color: #2563eb; }
+.valor-anterior.negativo { color: #dc2626; }
 
-/* --- SEÇÃO FOOTER / BOTÕES --- */
-
+/* --- FOOTER / BOTÕES --- */
 .mes-footer {
     padding: 0;
     display: flex;
@@ -942,22 +1011,45 @@ textarea:focus {
     flex-shrink: 0;
 }
 
-
-.meses-section::-webkit-scrollbar {
-    width: 8px;
+.btn-toggle-mes {
+    width: 100%;
+    padding: 11px;
+    font-size: 12px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    transition: all 0.2s ease;
+    letter-spacing: 0.3px;
 }
 
-.meses-section::-webkit-scrollbar-track {
-    background: #f1f1f1;
+.btn-fechar {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    color: #ffffff;
 }
 
-.meses-section::-webkit-scrollbar-thumb {
-    background: #ccc;
+.btn-fechar:hover {
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
 }
 
-.meses-section::-webkit-scrollbar-thumb:hover {
-    background: #aaa;
+.btn-reabrir {
+    background: #f1f5f9;
+    color: #64748b;
 }
+
+.btn-reabrir:hover {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+
+/* --- SCROLLBAR --- */
+.meses-section::-webkit-scrollbar       { width: 8px; }
+.meses-section::-webkit-scrollbar-track { background: #f1f1f1; }
+.meses-section::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+.meses-section::-webkit-scrollbar-thumb:hover { background: #aaa; }
 
 
 
