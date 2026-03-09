@@ -1055,8 +1055,8 @@ function criarGraficoCategoriasMensaisComFiltros(dadosFinanceiros, ano, filtros)
             data: dadosParaGrafico.map(dadosMes => dadosMes[categoria] || 0),
             backgroundColor: obterCorCategoria(categoria),
             borderColor: obterCorCategoria(categoria).replace('0.7', '1'),
-            borderWidth: 1,
-            borderRadius: 4,
+            borderWidth: 0,
+            borderRadius: 10,
             borderSkipped: false
         };
     });
@@ -1717,8 +1717,7 @@ function renderDistribuicaoCartoes(dadosFinanceiros, ano, filtros = {}) {
                                 const valor = context.raw;
                                 const total = valores.reduce((sum, val) => sum + val, 0);
                                 const porcentagem = total > 0 ? ((valor / total) * 100).toFixed(1) : 0;
-                                const cartaoInfo = cartoesComUso[context.dataIndex];
-                                return `${context.label}: ${window.formatarMoeda(valor)} (${porcentagem}%) - ${cartaoInfo.quantidade} compras`;
+                                return `${context.label}: ${window.formatarMoeda(valor)} (${porcentagem}%)`;
                             }
                         }
                     }
