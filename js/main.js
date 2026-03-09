@@ -36,10 +36,8 @@ let timerSalvamento = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     await iniciarSistema();
-    const overlay = document.getElementById('loading-overlay');
-    if (overlay) {
-        overlay.classList.add('fadeout');
-        setTimeout(() => overlay.remove(), 450);
+    if (typeof window.hideLoadingScreen === 'function') {
+        window.hideLoadingScreen();
     }
 });
 
@@ -50,10 +48,7 @@ async function iniciarSistema() {
 
     exportarVariaveisGlobais();
 
-    const loadingText = document.getElementById('loading-text');
-    if (loadingText) loadingText.textContent = 'Buscando dados...';
     await carregarDadosLocais();
-    if (loadingText) loadingText.textContent = 'Preparando dashboard...';
 
     sistemaInicializado = true;
     window.sistemaInicializado = true;
