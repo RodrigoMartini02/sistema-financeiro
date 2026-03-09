@@ -275,9 +275,6 @@ function configurarEventListenersRecuperacao() {
 
 async function processarLogin(documento, password, isModal, tentativa = 1) {
     const errorElement = isModal ? elementos.modalErrorMessage : elementos.errorMessage;
-    const botaoSubmit = isModal ?
-        document.querySelector('#modal-login-form button[type="submit"]') :
-        document.querySelector('#login-form button[type="submit"]');
 
     if (errorElement) errorElement.style.display = 'none';
 
@@ -416,8 +413,6 @@ async function processarFormularioCadastro() {
     const documento = document.getElementById('cadastro-documento')?.value?.trim();
     const password = document.getElementById('cadastro-password')?.value?.trim();
     const confirmPassword = document.getElementById('cadastro-confirm-password')?.value?.trim();
-    const botaoSubmit = elementos.formCadastro?.querySelector('button[type="submit"]');
-    
     // Limpar mensagens
     if (elementos.cadastroErrorMessage) elementos.cadastroErrorMessage.style.display = 'none';
     if (elementos.cadastroSuccessMessage) elementos.cadastroSuccessMessage.style.display = 'none';
@@ -443,11 +438,13 @@ async function processarFormularioCadastro() {
         return;
     }
     
-    setLoadingState(botaoSubmit, true);
-    
+    if (typeof window.showLoadingScreen === 'function') window.showLoadingScreen();
+
     try {
         const resultado = await processarCadastro(nome, email, documento, password);
-        
+
+        if (typeof window.hideLoadingScreen === 'function') window.hideLoadingScreen();
+
         if (elementos.cadastroSuccessMessage) {
             elementos.cadastroSuccessMessage.textContent = 'Cadastro realizado com sucesso!';
             elementos.cadastroSuccessMessage.style.display = 'block';
@@ -466,11 +463,10 @@ async function processarFormularioCadastro() {
         setTimeout(() => {
             if (elementos.cadastroModal) elementos.cadastroModal.style.display = 'none';
         }, 2000);
-        
+
     } catch (error) {
+        if (typeof window.hideLoadingScreen === 'function') window.hideLoadingScreen();
         mostrarErroCadastro(error.message || 'Erro ao criar conta.');
-    } finally {
-        setLoadingState(botaoSubmit, false);
     }
 }
 
@@ -527,8 +523,6 @@ function criarEstruturaFinanceiraInicial() {
 
 async function processarRecuperacaoSenha() {
     const email = document.getElementById('recuperacao-email')?.value?.trim();
-    const botaoSubmit = elementos.formRecuperacao?.querySelector('button[type="submit"]');
-
     if (elementos.recuperacaoErrorMessage) elementos.recuperacaoErrorMessage.style.display = 'none';
     if (elementos.recuperacaoSuccessMessage) elementos.recuperacaoSuccessMessage.style.display = 'none';
 
@@ -537,7 +531,7 @@ async function processarRecuperacaoSenha() {
         return;
     }
 
-    setLoadingState(botaoSubmit, true);
+    if (typeof window.showLoadingScreen === 'function') window.showLoadingScreen();
 
     try {
         const response = await fetch(`${API_URL}/auth/forgot-password`, {
@@ -573,9 +567,10 @@ async function processarRecuperacaoSenha() {
         }
 
     } catch (error) {
+        if (typeof window.hideLoadingScreen === 'function') window.hideLoadingScreen();
         mostrarErroRecuperacao(error.message);
     } finally {
-        setLoadingState(botaoSubmit, false);
+        if (typeof window.hideLoadingScreen === 'function') window.hideLoadingScreen();
     }
 }
 
@@ -583,8 +578,6 @@ async function processarNovaSenha() {
     const email = document.getElementById('email-nova-senha')?.value?.trim();
     const novaSenha = document.getElementById('nova-senha')?.value?.trim();
     const confirmarSenha = document.getElementById('confirmar-nova-senha')?.value?.trim();
-    const botaoSubmit = elementos.formNovaSenha?.querySelector('button[type="submit"]');
-    
     if (elementos.novaSenhaErrorMessage) elementos.novaSenhaErrorMessage.style.display = 'none';
     if (elementos.novaSenhaSuccessMessage) elementos.novaSenhaSuccessMessage.style.display = 'none';
     
@@ -603,7 +596,7 @@ async function processarNovaSenha() {
         return;
     }
     
-    setLoadingState(botaoSubmit, true);
+    if (typeof window.showLoadingScreen === 'function') window.showLoadingScreen();
 
     try {
         const response = await fetch(`${API_URL}/auth/reset-password`, {
@@ -623,20 +616,21 @@ async function processarNovaSenha() {
             throw new Error(data.message || 'Erro ao atualizar senha no servidor');
         }
 
+        if (typeof window.hideLoadingScreen === 'function') window.hideLoadingScreen();
+
         if (elementos.novaSenhaSuccessMessage) {
             elementos.novaSenhaSuccessMessage.textContent = 'Senha alterada com sucesso no banco!';
             elementos.novaSenhaSuccessMessage.style.display = 'block';
         }
-        
+
         // Fechar modal de nova senha após sucesso
         setTimeout(() => {
             if (elementos.novaSenhaModal) elementos.novaSenhaModal.style.display = 'none';
         }, 2000);
 
     } catch (error) {
+        if (typeof window.hideLoadingScreen === 'function') window.hideLoadingScreen();
         mostrarErroNovaSenha(error.message || 'Erro ao alterar senha no servidor.');
-    } finally {
-        setLoadingState(botaoSubmit, false);
     }
 }
 
@@ -998,25 +992,6 @@ function testLocalStorage() {
     }
 }
 
-function setLoadingState(button, loading = true) {
-    if (!button) return;
-
-    if (loading) {
-        // Salvar texto original antes de alterar
-        if (!button.hasAttribute('data-original-text')) {
-            button.setAttribute('data-original-text', button.textContent);
-        }
-        button.disabled = true;
-        button.textContent = 'Carregando...';
-        button.style.opacity = '0.7';
-    } else {
-        button.disabled = false;
-        // Restaurar texto original
-        const originalText = button.getAttribute('data-original-text');
-        button.textContent = originalText || 'Entrar';
-        button.style.opacity = '1';
-    }
-}
 
 function verificarELimparDados() {
     try {
