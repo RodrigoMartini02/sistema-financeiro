@@ -448,20 +448,23 @@ select.campo-invalido {
     margin-bottom: 4px;
 }
 
-/* Labels dos campos */
+/* Labels dos campos — label corta a borda superior do input */
 .card-field {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+    position: relative;
+    padding-top: 8px;
 }
 
 .card-field label {
+    position: absolute;
+    top: 0;
+    left: 8px;
+    background: #ffffff;
+    padding: 0 4px;
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 500;
     color: #64748b;
     white-space: nowrap;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
+    z-index: 1;
 }
 
 .card-field input,
@@ -558,27 +561,6 @@ select.campo-invalido {
     font-style: italic;
 }
 
-/* Grupos de pagamento sem borda (Saldo em Conta e Crédito) */
-.card-pgto-grupo-conta,
-.card-pgto-grupo-credito {
-    border: none;
-    padding: 0;
-}
-
-.card-pgto-grupo-conta .pgto-grupo-label,
-.card-pgto-grupo-credito .pgto-grupo-label {
-    position: static;
-    transform: none;
-    background: none;
-    font-size: 10px;
-    font-weight: 600;
-    color: #64748b;
-    padding: 0;
-    margin-bottom: 4px;
-    display: block;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-}
 
 /* Grupo crédito com borda vermelha quando inválido */
 .card-pgto-grupo-credito.campo-invalido {

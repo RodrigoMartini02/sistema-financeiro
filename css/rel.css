@@ -223,12 +223,6 @@
     gap: 8px;
 }
 
-.resumo-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 15px;
-}
-
 .resumo-card {
     background: white;
     padding: 15px;
@@ -780,7 +774,7 @@
         grid-template-columns: repeat(2, 1fr);
     }
 
-    .resumo-cards {
+    .relatorios-section .resumo-cards {
         grid-template-columns: repeat(2, 1fr);
     }
 
@@ -805,7 +799,7 @@
         grid-template-columns: repeat(4, 1fr);
     }
 
-    .resumo-cards {
+    .relatorios-section .resumo-cards {
         grid-template-columns: repeat(5, 1fr);
     }
 
@@ -835,7 +829,7 @@
         grid-template-columns: repeat(6, 1fr);
     }
 
-    .resumo-cards {
+    .relatorios-section .resumo-cards {
         grid-template-columns: repeat(6, 1fr);
     }
 

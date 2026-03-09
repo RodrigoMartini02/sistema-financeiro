@@ -2919,6 +2919,7 @@ table tr:hover {
     overflow: hidden;
     transition: transform 0.2s, box-shadow 0.2s;
     border-left: 4px solid transparent;
+    min-width: 0;
 }
 
 .resumo-cards .card:hover {
@@ -2949,6 +2950,8 @@ table tr:hover {
     font-size: 28px;
     font-weight: 700;
     line-height: 1.2;
+    overflow-wrap: break-word;
+    word-break: break-all;
     margin-bottom: 4px;
 }
 
