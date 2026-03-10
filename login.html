@@ -459,24 +459,20 @@
         <form id="form-cadastro">
             <div class="form-group">
                 <label for="cadastro-nome"><i class="fas fa-user"></i> Nome completo</label>
-                <input type="text" id="cadastro-nome" name="nome" required
-                       placeholder="Digite seu nome completo" autocomplete="name">
+                <input type="text" id="cadastro-nome" name="nome" required placeholder="Digite seu nome completo" autocomplete="name">
             </div>
             <div class="form-group">
                 <label for="cadastro-email"><i class="fas fa-envelope"></i> E-mail</label>
-                <input type="email" id="cadastro-email" name="email" required
-                       placeholder="Digite seu e-mail" autocomplete="email">
+                <input type="email" id="cadastro-email" name="email" required placeholder="Digite seu e-mail" autocomplete="email">
             </div>
             <div class="form-group">
                 <label for="cadastro-documento"><i class="fas fa-id-card"></i> CPF/CNPJ</label>
-                <input type="text" id="cadastro-documento" name="documento" required
-                       placeholder="Digite seu CPF ou CNPJ" autocomplete="off">
+                <input type="text" id="cadastro-documento" name="documento" required placeholder="Digite seu CPF ou CNPJ" autocomplete="off">
             </div>
             <div class="form-group">
                 <label for="cadastro-password"><i class="fas fa-lock"></i> Senha</label>
                 <div class="password-input">
-                    <input type="password" id="cadastro-password" name="password" required minlength="6"
-                           placeholder="Digite sua senha" autocomplete="new-password">
+                    <input type="password" id="cadastro-password" name="password" required minlength="6" placeholder="Digite sua senha" autocomplete="new-password">
                     <button type="button" class="password-toggle" data-target="cadastro-password">
                         <i class="fas fa-eye"></i>
                     </button>
@@ -489,8 +485,7 @@
             <div class="form-group">
                 <label for="cadastro-confirm-password"><i class="fas fa-lock"></i> Confirme a senha</label>
                 <div class="password-input">
-                    <input type="password" id="cadastro-confirm-password" name="confirm-password" required
-                           placeholder="Confirme sua senha" autocomplete="new-password">
+                    <input type="password" id="cadastro-confirm-password" name="confirm-password" required placeholder="Confirme sua senha" autocomplete="new-password">
                     <button type="button" class="password-toggle" data-target="cadastro-confirm-password">
                         <i class="fas fa-eye"></i>
                     </button>
@@ -500,34 +495,39 @@
             <div class="login-footer">
                 <p>Já tem uma conta? <a href="#" id="cadastro-abrir-login">Faça login</a></p>
             </div>
-       </form>
+        </form>
     </div>
 </div>
 
 <div id="pwa-overlay"></div>
 
 <div id="pwa-install-banner">
-    <img src="icons/financeiro.png" alt="Logo" class="pwa-logo-img">
+    <img src="icons/financeiro.png" alt="Fin-Gerence Logo" class="pwa-modal-logo">
     
-    <strong class="pwa-title">Instalar Fin-Gerence</strong>
-    <span class="pwa-desc">Acesse suas finanças com um toque direto da sua tela inicial.</span>
+    <div class="pwa-modal-body">
+        <h3 class="pwa-modal-title">Instalar Fin-Gerence</h3>
+        <p class="pwa-modal-desc">Acesse suas finanças com um toque pela tela inicial e ganhe agilidade no dia a dia.</p>
+    </div>
     
     <div id="pwa-android-actions" style="display: none;">
-        <button id="btn-install-pwa" class="pwa-btn-baixar">Baixar Agora</button>
-        <button class="btn-close-pwa pwa-btn-fechar">Agora não</button>
+        <button id="btn-install-pwa" class="pwa-btn-main">Baixar Agora</button>
+        <button class="btn-close-pwa pwa-btn-link">Agora não</button>
     </div>
 
     <div id="pwa-ios-instructions" style="display: none;">
-        <div class="ios-instrucao-box">
-            Toque em <img src="https://img.icons8.com/ios/50/000000/export.png" style="width:18px;"> **Compartilhar** e depois em **Adicionar à Tela de Início**.
+        <div class="pwa-ios-steps">
+            Toque em <img src="https://img.icons8.com/ios/50/000000/export.png" alt="Icone Compartilhar"> **Compartilhar** e depois em **Adicionar à Tela de Início**.
         </div>
-        <button class="btn-close-pwa pwa-btn-baixar" style="background-color: #f1f5f9; color: #64748b;">Entendi</button>
+        <button class="btn-close-pwa pwa-btn-main pwa-btn-alt">Entendi</button>
     </div>
 </div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="js/utils.js"></script>
 <script src="js/usuarioDados.js"></script>
+<script src="js/loading.js"></script>
+<script src="js/login.js"></script>
+<script src="js/pwa-handler.js" defer></script> 
 
 <script>
     // Navbar scroll effect
@@ -536,17 +536,13 @@
         if (window.scrollY > 50) nav.classList.add('nav-scrolled');
         else nav.classList.remove('nav-scrolled');
     });
-</script>
 
-<script src="js/loading.js"></script>
-<script src="js/login.js"></script>
-
-<script src="js/pwa-handler.js" defer></script> 
-
-<script>
+    // Service Worker Registration
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-            navigator.serviceWorker.register('/sw.js').catch(err => {});
+            navigator.serviceWorker.register('/sw.js').catch(err => {
+                console.warn('Service Worker registration failed:', err);
+            });
         });
     }
 </script>

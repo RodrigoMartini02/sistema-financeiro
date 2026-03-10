@@ -1,94 +1,61 @@
-/**
- * Fin-Gerence - PWA Installation Handler
- * Gerencia a detecção e o banner de instalação customizado
- */
-
 (function() {
     try {
         let deferredPrompt;
-        
-        // Seleção dos elementos
-        const pwaBanner = document.getElementById('pwa-install-banner');
-        const pwaOverlay = document.getElementById('pwa-overlay');
+        const banner = document.getElementById('pwa-install-banner');
+        const overlay = document.getElementById('pwa-overlay');
         const androidActions = document.getElementById('pwa-android-actions');
         const iosInstructions = document.getElementById('pwa-ios-instructions');
 
-        // Detecções de Sistema e Estado
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
-        // Função para mostrar o banner centralizado
-        const showPwaModal = (type) => {
-            if (!pwaBanner || !pwaOverlay) return;
-
-            pwaBanner.style.display = 'block';
-            pwaOverlay.style.display = 'block';
-
+        const openPwaModal = (type) => {
+            if (!banner || !overlay) return;
+            banner.style.display = 'block';
+            overlay.style.display = 'block';
+            
             if (type === 'android') {
-                if (androidActions) androidActions.style.display = 'block';
-                if (iosInstructions) iosInstructions.style.display = 'none';
-            } else if (type === 'ios') {
-                if (androidActions) androidActions.style.display = 'none';
-                if (iosInstructions) iosInstructions.style.display = 'block';
+                androidActions.style.display = 'block';
+                iosInstructions.style.display = 'none';
+            } else {
+                androidActions.style.display = 'none';
+                iosInstructions.style.display = 'block';
             }
         };
 
-        // Função para fechar o modal
         const closePwaModal = () => {
-            if (pwaBanner) pwaBanner.style.display = 'none';
-            if (pwaOverlay) pwaOverlay.style.display = 'none';
-            // Opcional: não mostrar novamente nesta sessão
-            sessionStorage.setItem('pwa_prompt_closed', 'true');
+            banner.style.display = 'none';
+            overlay.style.display = 'none';
+            sessionStorage.setItem('pwa_banner_viewed', 'true');
         };
 
-        // 1. LÓGICA ANDROID / CHROME
+        // Escutador Android
         window.addEventListener('beforeinstallprompt', (e) => {
-            // Impede o banner padrão do navegador
             e.preventDefault();
-            // Salva o evento para disparar no clique do botão "Baixar"
             deferredPrompt = e;
-
-            // Se não estiver instalado e não tiver sido fechado nesta sessão, mostra
-            if (!isStandalone && !sessionStorage.getItem('pwa_prompt_closed')) {
-                showPwaModal('android');
+            if (!isStandalone && !sessionStorage.getItem('pwa_banner_viewed')) {
+                openPwaModal('android');
             }
         });
 
-        // 2. LÓGICA IOS / SAFARI
-        // iOS não tem o evento 'beforeinstallprompt', mostramos por tempo de navegação
-        if (isIOS && !isStandalone && !sessionStorage.getItem('pwa_prompt_closed')) {
-            setTimeout(() => {
-                showPwaModal('ios');
-            }, 6000); // 6 segundos após carregar
+        // Escutador iOS
+        if (isIOS && !isStandalone && !sessionStorage.getItem('pwa_banner_viewed')) {
+            setTimeout(() => openPwaModal('ios'), 5000);
         }
 
-        // 3. EVENTOS DOS BOTÕES
-        
-        // Botão Baixar (Android)
-        const btnInstall = document.getElementById('btn-install-pwa');
-        if (btnInstall) {
-            btnInstall.addEventListener('click', async () => {
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    const { outcome } = await deferredPrompt.userChoice;
-                    console.log(`[PWA] Escolha do usuário: ${outcome}`);
-                    deferredPrompt = null;
-                    closePwaModal();
-                }
-            });
-        }
-
-        // Botões de Fechar (Ambos)
-        document.querySelectorAll('.btn-close-pwa').forEach(btn => {
-            btn.addEventListener('click', closePwaModal);
+        // Botão de instalação Android
+        document.getElementById('btn-install-pwa')?.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                await deferredPrompt.userChoice;
+                deferredPrompt = null;
+                closePwaModal();
+            }
         });
 
-        // Fechar ao clicar no overlay (fundo escuro)
-        if (pwaOverlay) {
-            pwaOverlay.addEventListener('click', closePwaModal);
-        }
+        // Botões de fechar e clique no fundo
+        document.querySelectorAll('.btn-close-pwa').forEach(btn => btn.addEventListener('click', closePwaModal));
+        overlay?.addEventListener('click', closePwaModal);
 
-    } catch (err) {
-        console.error("[PWA Handler Error]: ", err);
-    }
+    } catch (e) { console.error("PWA Handler Error:", e); }
 })();
