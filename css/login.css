@@ -1153,3 +1153,57 @@ form .btn-primary:hover {
     .how-steps { flex-direction: column; gap: 32px; }
     .hero-section { padding: 80px 0 40px; }
 }
+
+
+
+
+/* Banner PWA Estilizado - Centralizado */
+#pwa-install-banner {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%); /* Centraliza perfeitamente */
+    width: 85%;
+    max-width: 350px;
+    background: #ffffff;
+    padding: 25px;
+    border-radius: 20px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+    z-index: 10001; /* Fica acima de tudo */
+    font-family: 'Inter', sans-serif;
+    text-align: center;
+    display: none; /* Começa escondido */
+    border: 1px solid #e2e8f0;
+}
+
+/* Overlay de fundo para dar foco ao banner */
+#pwa-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 10000;
+    display: none;
+}
+
+.pwa-logo { 
+    width: 70px; 
+    height: 70px; 
+    margin: 0 auto 15px; 
+    display: block; 
+    border-radius: 15px;
+}
+
+.pwa-text strong { display: block; font-size: 18px; color: #1e293b; margin-bottom: 5px; }
+.pwa-text span { display: block; font-size: 14px; color: #64748b; margin-bottom: 20px; }
+
+.pwa-actions { display: flex; flex-direction: column; gap: 10px; }
+.btn-primary { 
+    background: #6366f1; color: white; border: none; 
+    padding: 12px; border-radius: 10px; font-weight: 600; cursor: pointer; 
+}
+.btn-close-pwa { 
+    background: #f1f5f9; color: #64748b; border: none; 
+    padding: 10px; border-radius: 10px; cursor: pointer; 
+}
+
+.pwa-instructions img { width: 22px; vertical-align: middle; }

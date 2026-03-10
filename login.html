@@ -504,23 +504,24 @@
     </div>
 </div>
 
-<div id="pwa-install-banner" class="pwa-banner-hidden">
-    <div class="pwa-content">
-        <img src="icons/financeiro.png" alt="Logo" class="pwa-logo">
-        <div class="pwa-text">
-            <strong>Fin-Gerence App</strong>
-            <span>Instale para acesso rápido e seguro.</span>
-        </div>
-    </div>
+<div id="pwa-overlay"></div>
+
+<div id="pwa-install-banner">
+    <img src="icons/financeiro.png" alt="Logo" class="pwa-logo-img">
     
-    <div id="pwa-android-actions" class="pwa-actions">
-        <button id="btn-install-pwa" class="btn-primary">Baixar Agora</button>
-        <button class="btn-close-pwa">Depois</button>
+    <strong class="pwa-title">Instalar Fin-Gerence</strong>
+    <span class="pwa-desc">Acesse suas finanças com um toque direto da sua tela inicial.</span>
+    
+    <div id="pwa-android-actions" style="display: none;">
+        <button id="btn-install-pwa" class="pwa-btn-baixar">Baixar Agora</button>
+        <button class="btn-close-pwa pwa-btn-fechar">Agora não</button>
     </div>
 
-    <div id="pwa-ios-instructions" class="pwa-instructions">
-        <p>Para instalar: toque em <img src="https://img.icons8.com/ios/50/000000/export.png" class="ios-icon"> **Compartilhar** e depois em **Adicionar à Tela de Início**.</p>
-        <button class="btn-close-pwa">Entendi</button>
+    <div id="pwa-ios-instructions" style="display: none;">
+        <div class="ios-instrucao-box">
+            Toque em <img src="https://img.icons8.com/ios/50/000000/export.png" style="width:18px;"> **Compartilhar** e depois em **Adicionar à Tela de Início**.
+        </div>
+        <button class="btn-close-pwa pwa-btn-baixar" style="background-color: #f1f5f9; color: #64748b;">Entendi</button>
     </div>
 </div>
 
