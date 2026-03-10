@@ -1,65 +1,73 @@
-/* CONTAINER E SEÇÃO */
+/* ================================================================
+   SEÇÃO DE REVIEWS - ESTILO PREMIUM (BLINDADO)
+   ================================================================ */
+
+/* 1. Container Principal e Espaçamento */
 .reviews-section {
-    padding: 60px 20px !important;
-    background-color: #f8fafc !important;
+    padding: 80px 20px !important;
+    background-color: #f8fafc !important; /* Fundo suave para destacar o card */
     display: block !important;
+    font-family: 'Inter', sans-serif !important;
 }
 
 .reviews-story-wrapper {
     display: flex !important;
     align-items: center !important;
-    gap: 40px !important;
-    max-width: 1100px !important;
+    gap: 60px !important;
+    max-width: 1200px !important;
     margin: 0 auto !important;
 }
 
-/* LADO ESQUERDO */
+/* 2. Bloco de Texto Fixo (Esquerda) */
 .reviews-fixed-content {
     flex: 1 !important;
-    text-align: left !important;
 }
 
 .story-title {
-    font-size: 2.2rem !important;
+    font-size: 2.8rem !important;
     color: #1e293b !important;
     font-weight: 800 !important;
     line-height: 1.1 !important;
-    margin-bottom: 20px !important;
+    margin-bottom: 25px !important;
 }
 
-.text-blue { color: #6366f1 !important; }
+.text-blue { 
+    color: #6366f1 !important; /* Roxo/Azul do Fin-Gerence */
+}
 
 .story-subtitle {
-    font-size: 1rem !important;
+    font-size: 1.1rem !important;
     color: #64748b !important;
     line-height: 1.6 !important;
+    max-width: 400px !important;
 }
 
-/* LADO DIREITO - CARD AZUL */
+/* 3. Card de Depoimento (Direita) */
 .reviews-story-card {
-    flex: 1.2 !important;
-    background: #6366f1 !important; /* Azul Sólido/Roxo da marca */
-    border-radius: 20px !important;
-    padding: 35px !important;
-    box-shadow: 0 15px 30px rgba(99, 102, 241, 0.2) !important;
-    min-height: 280px !important;
+    flex: 1.3 !important;
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
+    border-radius: 30px !important;
+    padding: 45px !important;
+    box-shadow: 0 25px 50px -12px rgba(99, 102, 241, 0.35) !important;
+    min-height: 350px !important;
     display: flex !important;
     flex-direction: column !important;
     box-sizing: border-box !important;
+    position: relative !important;
 }
 
-/* BARRINHAS DE STATUS */
+/* 4. Barrinhas de Progresso (Topo do Card) */
 .story-progress-container {
     display: flex !important;
-    gap: 6px !important;
-    margin-bottom: 25px !important;
+    gap: 8px !important;
+    margin-bottom: 35px !important;
 }
 
 .story-progress-bar {
     flex: 1 !important;
-    height: 3px !important;
-    background: rgba(255, 255, 255, 0.2) !important;
-    border-radius: 4px !important;
+    height: 4px !important;
+    background: rgba(255, 255, 255, 0.25) !important;
+    border-radius: 10px !important;
     overflow: hidden !important;
 }
 
@@ -67,48 +75,79 @@
     height: 100% !important;
     width: 0%;
     background: #ffffff !important;
+    border-radius: 10px !important;
 }
 
-/* ESTRELAS E TEXTO */
+/* 5. ESTRELAS AMARELAS (O ponto principal) */
 .stars-gold {
-    color: #fbbf24 !important; /* Amarelo Ouro */
-    font-size: 1.1rem !important;
-    margin-bottom: 15px !important;
-    letter-spacing: 2px !important;
+    color: #fbbf24 !important; /* Amarelo Ouro Vivo */
+    font-size: 1.3rem !important;
+    margin-bottom: 20px !important;
+    letter-spacing: 3px !important;
+    display: block !important;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1) !important; /* Leve destaque */
 }
 
+/* 6. Texto do Depoimento */
 #review-text {
     color: #ffffff !important;
-    font-size: 1.25rem !important;
+    font-size: 1.5rem !important;
     font-weight: 600 !important;
     line-height: 1.4 !important;
-    margin: 0 0 20px 0 !important;
-    min-height: 80px !important;
-    transition: opacity 0.3s ease !important;
+    margin: 0 0 30px 0 !important;
+    min-height: 110px !important;
+    transition: opacity 0.4s ease, transform 0.4s ease !important;
 }
 
+/* 7. Rodapé (Autor) */
 .story-footer {
     display: flex !important;
     align-items: center !important;
-    gap: 10px !important;
+    gap: 12px !important;
     margin-top: auto !important;
 }
 
-.author-dash { color: rgba(255, 255, 255, 0.6) !important; font-weight: bold !important; }
+.author-dash { 
+    color: rgba(255, 255, 255, 0.6) !important; 
+    font-weight: 900 !important; 
+    font-size: 1.2rem !important;
+}
 
 #review-author {
     color: #ffffff !important;
-    font-size: 0.9rem !important;
+    font-size: 1rem !important;
+    font-weight: 700 !important;
     text-transform: uppercase !important;
-    letter-spacing: 1px !important;
+    letter-spacing: 1.5px !important;
 }
 
-/* RESPONSIVIDADE (MOBILE) */
-@media (max-width: 768px) {
+/* 8. Responsividade (Ajuste para Celular) */
+@media (max-width: 992px) {
     .reviews-story-wrapper {
         flex-direction: column !important;
+        gap: 40px !important;
         text-align: center !important;
     }
-    .reviews-fixed-content { text-align: center !important; }
-    .reviews-story-card { width: 100% !important; padding: 25px !important; }
+    
+    .reviews-fixed-content {
+        text-align: center !important;
+    }
+
+    .story-title {
+        font-size: 2.2rem !important;
+    }
+
+    .story-subtitle {
+        margin: 0 auto !important;
+    }
+
+    .reviews-story-card {
+        width: 100% !important;
+        padding: 30px !important;
+        min-height: 300px !important;
+    }
+
+    #review-text {
+        font-size: 1.2rem !important;
+    }
 }
