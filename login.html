@@ -500,7 +500,7 @@
     </div>
 </div>
 
-<div id="pwa-overlay"></div>
+<div id="pwa-overlay" onclick="fecharModalPwa()"></div>
 
 <div id="pwa-install-banner">
     <img src="icons/financeiro.png" alt="Fin-Gerence Logo" class="pwa-modal-logo">
@@ -511,15 +511,16 @@
     </div>
     
     <div id="pwa-android-actions" style="display: none;">
-        <button id="btn-install-pwa" class="pwa-btn-main">Baixar Agora</button>
-        <button class="btn-close-pwa pwa-btn-link">Agora não</button>
+        <button id="btn-install-pwa" class="pwa-btn-main" onclick="iniciarInstalacao()">Baixar Agora</button>
+        <button class="pwa-btn-link" onclick="fecharModalPwa()">Agora não</button>
     </div>
 
     <div id="pwa-ios-instructions" style="display: none;">
         <div class="pwa-ios-steps">
-            Toque em <img src="https://img.icons8.com/ios/50/000000/export.png" alt="Icone Compartilhar"> **Compartilhar** e depois em **Adicionar à Tela de Início**.
+            Toque no ícone <img src="https://img.icons8.com/ios/50/000000/export.png" alt="Compartilhar" style="width: 20px; vertical-align: middle;"> **Compartilhar** <br> 
+            e selecione **Adicionar à Tela de Início**.
         </div>
-        <button class="btn-close-pwa pwa-btn-main pwa-btn-alt">Entendi</button>
+        <button class="pwa-btn-main" onclick="fecharModalPwa()">Entendi</button>
     </div>
 </div>
 
