@@ -25,8 +25,7 @@
     <link rel="stylesheet" href="css/loading.css">
     <link rel="stylesheet" href="css/login.css">
     <link rel="stylesheet" href="css/pwa.css">
-    <link rel="stylesheet" href="css/avaliacao.css">
-    
+     <link rel="stylesheet" href="css/avaliacao.css">
 </head>
 <body>
 
@@ -313,51 +312,6 @@
 </section>
 
 
-<div class="testimonials-section">
-    <div class="testimonials-track">
-        <div class="testimonial-card">
-            <div class="stars">★★★★★</div>
-            <p>"O melhor controle que já usei. Simples e direto!"</p>
-            <strong>Ricardo</strong>
-        </div>
-        <div class="testimonial-card">
-            <div class="stars">★★★★★</div>
-            <p>"Finalmente organizei minhas metas de reserva."</p>
-            <strong>Ana</strong>
-        </div>
-        <div class="testimonial-card">
-            <div class="stars">★★★★★</div>
-            <p>"A versão PWA no meu iPhone ficou fantástica."</p>
-            <strong>Marcos</strong>
-        </div>
-        <div class="testimonial-card">
-            <div class="stars">★★★★☆</div>
-            <p>"Interface limpa e suporte nota 10 pelo Whats."</p>
-            <strong>Carla</strong>
-        </div>
-        
-        <div class="testimonial-card">
-            <div class="stars">★★★★★</div>
-            <p>"O melhor controle que já usei. Simples e direto!"</p>
-            <strong>Ricardo</strong>
-        </div>
-        <div class="testimonial-card">
-            <div class="stars">★★★★★</div>
-            <p>"Finalmente organizei minhas metas de reserva."</p>
-            <strong>Ana</strong>
-        </div>
-        <div class="testimonial-card">
-            <div class="stars">★★★★★</div>
-            <p>"A versão PWA no meu iPhone ficou fantástica."</p>
-            <strong>Marcos</strong>
-        </div>
-        <div class="testimonial-card">
-            <div class="stars">★★★★☆</div>
-            <p>"Interface limpa e suporte nota 10 pelo Whats."</p>
-            <strong>Carla</strong>
-        </div>
-    </div>
-</div>
 
 
 <!-- ================================================================
@@ -549,6 +503,20 @@
     </div>
 </div>
 
+<div class="reviews-container">
+    <div class="progress-container" id="progress-bars">
+        </div>
+
+    <div class="review-content">
+        <div class="stars">★★★★★</div>
+        <p id="review-text">Carregando avaliações...</p>
+        <strong id="review-author">Aguarde</strong>
+    </div>
+</div>
+
+<script src="js/avaliacao.js"></script>
+
+
 <div id="pwa-overlay" onclick="fecharModalPwa()"></div>
 
 <div id="pwa-install-banner">
@@ -590,6 +558,7 @@
 <script src="js/loading.js"></script>
 <script src="js/login.js"></script>
 <script src="js/pwa-handler.js" defer></script> 
+<script src="js/avaliacao.js"></script>
 
 <script>
     // Navbar scroll effect
