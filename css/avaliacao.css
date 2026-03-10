@@ -1,22 +1,26 @@
-.reviews-container {
+.reviews-card-premium {
     width: 100% !important;
-    background: #f8fafc !important; 
-    border-radius: 16px !important;
-    padding: 20px !important;
-    margin-bottom: 20px !important;
+    background: #ffffff !important;
+    border-radius: 20px !important;
+    padding: 25px !important;
+    margin: 20px 0 !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05) !important;
+    border: 1px solid #f1f5f9 !important;
     box-sizing: border-box !important;
+    position: relative !important;
 }
 
+/* Barrinhas estilo Stories */
 .progress-container {
     display: flex !important;
-    gap: 6px !important;
-    margin-bottom: 15px !important;
+    gap: 8px !important;
+    margin-bottom: 20px !important;
 }
 
 .progress-bar {
     flex: 1 !important;
     height: 4px !important;
-    background: rgba(0, 0, 0, 0.08) !important;
+    background: #e2e8f0 !important;
     border-radius: 10px !important;
     overflow: hidden !important;
 }
@@ -24,22 +28,44 @@
 .progress-fill {
     height: 100% !important;
     width: 0%;
-    background: #6366f1 !important;
+    background: #6366f1 !important; /* Seu Roxo Principal */
+    border-radius: 10px !important;
 }
 
+/* Estrelas Amarelas Ouro */
+.stars-gold {
+    color: #fbbf24 !important;
+    font-size: 16px !important;
+    margin-bottom: 15px !important;
+    letter-spacing: 2px !important;
+}
+
+/* Texto do Depoimento - Fonte maior e elegante */
 #review-text {
     color: #1e293b !important;
-    font-size: 14px !important;
+    font-size: 1.1rem !important;
     line-height: 1.5 !important;
-    margin: 10px 0 !important;
-    font-weight: 500 !important;
-    transition: opacity 0.3s ease; /* Efeito suave na troca */
+    font-weight: 600 !important;
+    margin-bottom: 15px !important;
+    min-height: 60px !important;
+    transition: all 0.3s ease !important;
+}
+
+/* Rodapé do card */
+.author-info {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+.dash {
+    color: #94a3b8 !important;
+    font-weight: bold !important;
 }
 
 #review-author {
-    color: #64748b !important;
-    font-size: 11px !important;
-    text-transform: uppercase !important;
-    letter-spacing: 1px !important;
-    display: block !important;
+    color: #475569 !important;
+    font-size: 0.9rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.5px !important;
 }
