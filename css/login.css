@@ -1157,79 +1157,74 @@ form .btn-primary:hover {
 
 
 
-/* Fundo escurecido atrás do modal */
+/* BANNER PWA - FORÇAR SOBREPOSIÇÃO TOTAL */
+
 #pwa-overlay {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.7);
-    z-index: 9998;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    background: rgba(0, 0, 0, 0.75) !important;
+    z-index: 2147483646 !important; /* Valor máximo para ficar acima de tudo */
     display: none;
 }
 
-/* Modal Centralizado */
 #pwa-install-banner {
-    position: fixed;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    width: 85%;
-    max-width: 320px;
-    background: #ffffff;
-    padding: 24px;
-    border-radius: 24px;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-    z-index: 9999;
-    font-family: 'Inter', sans-serif;
-    text-align: center;
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 90% !important;
+    max-width: 340px !important;
+    background: #ffffff !important;
+    padding: 25px !important;
+    border-radius: 20px !important;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5) !important;
+    z-index: 2147483647 !important; /* O maior z-index possível */
+    font-family: 'Inter', sans-serif !important;
+    text-align: center !important;
     display: none;
+    border: none !important;
 }
 
-/* Controle da Imagem (Evita que fique gigante) */
+/* Ajuste da Logo para não quebrar o layout */
 .pwa-modal-logo {
-    width: 72px;
-    height: 72px;
-    margin: 0 auto 16px;
-    display: block;
-    border-radius: 16px;
-    object-fit: cover;
+    width: 80px !important;
+    height: 80px !important;
+    margin: 0 auto 15px !important;
+    display: block !important;
+    border-radius: 15px !important;
+    object-fit: cover !important;
 }
 
-.pwa-modal-title { font-size: 1.2rem; color: #1e293b; margin: 0 0 8px; font-weight: 700; }
-.pwa-modal-desc { font-size: 0.95rem; color: #64748b; line-height: 1.5; margin: 0 0 20px; }
+.pwa-modal-title { font-size: 1.2rem !important; color: #1e293b !important; font-weight: 700 !important; margin-bottom: 8px !important; }
+.pwa-modal-desc { font-size: 0.9rem !important; color: #64748b !important; line-height: 1.4 !important; margin-bottom: 20px !important; }
 
-/* Botões */
 .pwa-btn-main {
-    width: 100%;
-    background: #6366f1;
-    color: white;
-    border: none;
-    padding: 14px;
-    border-radius: 12px;
-    font-weight: 600;
-    font-size: 1rem;
-    cursor: pointer;
+    width: 100% !important;
+    background: #6366f1 !important;
+    color: #fff !important;
+    border: none !important;
+    padding: 14px !important;
+    border-radius: 12px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
 }
-
-.pwa-btn-alt { background: #f1f5f9; color: #475569; }
 
 .pwa-btn-link {
-    background: none;
-    border: none;
-    color: #94a3b8;
-    padding: 12px;
-    font-size: 0.9rem;
-    cursor: pointer;
-    width: 100%;
+    background: none !important;
+    border: none !important;
+    color: #94a3b8 !important;
+    padding: 10px !important;
+    width: 100% !important;
+    cursor: pointer !important;
 }
 
-/* Caixa de instrução iOS */
 .pwa-ios-steps {
-    background: #f8fafc;
-    padding: 12px;
-    border-radius: 12px;
-    font-size: 0.9rem;
-    color: #334155;
-    margin-bottom: 16px;
-    line-height: 1.4;
+    background: #f1f5f9 !important;
+    padding: 12px !important;
+    border-radius: 10px !important;
+    font-size: 0.85rem !important;
+    margin-bottom: 15px !important;
 }
-.pwa-ios-steps img { width: 18px; vertical-align: middle; }
