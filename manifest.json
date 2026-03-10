@@ -1,15 +1,14 @@
 {
-  "name": "Sistema de Controle Financeiro",
-  "short_name": "Finanças",
+  "name": "Fin-Gerence - Controle Financeiro",
+  "short_name": "Fin-Gerence",
   "description": "Controle financeiro pessoal — receitas, despesas, reservas e cartões",
-  "start_url": "/index.html?source=pwa",
+  "start_url": "./login.html?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#0f172a",
   "theme_color": "#6366f1",
   "lang": "pt-BR",
-  "categories": ["finance", "productivity"],
   "icons": [
     {
       "src": "icons/financeiro.png",
@@ -21,14 +20,14 @@
       "src": "icons/financeiro.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [
     {
-      "name": "Dashboard",
-      "url": "/index.html?source=pwa",
-      "description": "Abrir painel financeiro"
+      "name": "Ver Dashboard",
+      "url": "./index.html",
+      "icons": [{ "src": "icons/financeiro.png", "sizes": "192x192" }]
     }
   ]
 }
