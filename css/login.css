@@ -1156,4 +1156,55 @@ form .btn-primary:hover {
 
 
 
+/* ================================================================
+   MELHORIAS PARA MOBILE (PWA OPTIMIZED)
+   ================================================================ */
 
+@media (max-width: 600px) {
+    /* 1. Impedir Zoom Automático no iOS e ajustar altura de toque */
+    .form-group input {
+        font-size: 16px !important; /* Essencial para evitar zoom no iPhone */
+        padding: 12px 16px !important;
+        height: 50px; /* Toque mais confortável */
+    }
+
+    /* 2. Ajuste do WhatsApp para não tampar botões importantes */
+    #whatsapp-button a {
+        width: 55px;
+        height: 55px;
+        bottom: 1rem;
+        right: 1rem;
+    }
+
+    /* 3. Feedback tátil para botões (Substitui o hover no mobile) */
+    .btn:active, .btn-google:active, .nav-btn-entrar:active {
+        transform: scale(0.96);
+        opacity: 0.8;
+    }
+
+    /* 4. Ajuste de Modais para telas pequenas */
+    .modal-content {
+        width: 95%;
+        padding: 1.25rem;
+        max-height: 90vh;
+        margin: 0 auto;
+    }
+
+    /* 5. Safe Area para iPhones novos (evita botões cortados pela barra de gestos) */
+    .login-page {
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+}
+
+/* 6. Desativar animações pesadas em celulares simples (Opcional para Performance) */
+@media (prefers-reduced-motion: reduce) {
+    .element, .btn::before {
+        display: none !important;
+    }
+}
+
+/* 7. Melhorar a visibilidade do teclado */
+/* Garante que o fundo não "suba" de forma estranha quando o teclado abre */
+.login-page {
+    min-height: -webkit-fill-available;
+}
