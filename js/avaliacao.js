@@ -1,67 +1,58 @@
 const reviews = [
-    { text: '"O faturamento cresceu 25% com a organização financeira."', author: "Mariana", stars: 5 },
-    { text: '"Finalmente um sistema simples que eu realmente uso todo dia."', author: "Ricardo", stars: 5 },
-    { text: '"A versão PWA no meu iPhone ficou fantástica, muito ágil."', author: "Marcos", stars: 4 },
-    { text: '"Interface limpa, intuitiva e suporte nota 10."', author: "Carla", stars: 5 },
-    { text: '"Controle total das despesas na palma da mão. Recomendo!"', author: "Lucas", stars: 5 }
+    { text: '"O Fin-Gerence foi como ter um funcionário a mais. A produtividade e rentabilidade aumentaram."', author: "Mariana Penedo", stars: 5 },
+    { text: '"Finalmente uma organização financeira que faz toda a diferença no meu dia a dia."', author: "Ricardo Silva", stars: 5 },
+    { text: '"A versão PWA é fantástica. Rápida, leve e intuitiva como um app nativo."', author: "Marcos Oliveira", stars: 4 },
+    { text: '"O melhor suporte que já tive. O sistema resolveu todos os meus problemas de fluxo."', author: "Carla Mendes", stars: 5 }
 ];
 
 let currentIndex = 0;
-const duration = 5000; 
-const progressContainer = document.getElementById('progress-bars');
+const duration = 5000;
+const container = document.getElementById('progress-bars');
 const textEl = document.getElementById('review-text');
 const authorEl = document.getElementById('review-author');
 const starsEl = document.getElementById('stars-container');
 
-// Gera as barras
+// Criar barras
 reviews.forEach(() => {
     const bar = document.createElement('div');
-    bar.className = 'progress-bar';
-    bar.innerHTML = '<div class="progress-fill"></div>';
-    progressContainer.appendChild(bar);
+    bar.className = 'story-progress-bar';
+    bar.innerHTML = '<div class="story-progress-fill"></div>';
+    container.appendChild(bar);
 });
 
-const fills = document.querySelectorAll('.progress-fill');
+const fills = document.querySelectorAll('.story-progress-fill');
 
-function updateReview() {
-    // Reseta barras
+function nextSlide() {
+    // Resetar barras
     fills.forEach((f, i) => {
         f.style.transition = 'none';
         f.style.width = i < currentIndex ? '100%' : '0%';
     });
 
-    const currentReview = reviews[currentIndex];
-
-    // Atualiza Estrelas (Varia entre 4 e 5)
-    let starHtml = '';
-    for(let i=0; i<5; i++) {
-        starHtml += i < currentReview.stars ? '★' : '☆';
-    }
-    starsEl.innerHTML = starHtml;
-
-    // Atualiza Texto com fade
-    textEl.style.opacity = 0;
-    textEl.style.transform = 'translateY(10px)';
+    const current = reviews[currentIndex];
     
+    // Update Estrelas (Varia 4 e 5)
+    starsEl.innerHTML = '★'.repeat(current.stars) + '☆'.repeat(5 - current.stars);
+    
+    // Update Texto com animação de fade
+    textEl.style.opacity = 0;
     setTimeout(() => {
-        textEl.innerText = currentReview.text;
-        authorEl.innerText = currentReview.author;
+        textEl.innerText = current.text;
+        authorEl.innerText = current.author;
         textEl.style.opacity = 1;
-        textEl.style.transform = 'translateY(0)';
     }, 300);
 
-    // Anima a barra
+    // Animar barra atual
     setTimeout(() => {
-        const currentFill = fills[currentIndex];
-        currentFill.style.transition = `width ${duration}ms linear`;
-        currentFill.style.width = '100%';
+        fills[currentIndex].style.transition = `width ${duration}ms linear`;
+        fills[currentIndex].style.width = '100%';
     }, 50);
 
-    // Próximo slide
+    // Timer para o próximo
     setTimeout(() => {
         currentIndex = (currentIndex + 1) % reviews.length;
-        updateReview();
+        nextSlide();
     }, duration);
 }
 
-if (progressContainer) updateReview();
+if (container) nextSlide();
