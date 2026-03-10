@@ -1,0 +1,124 @@
+
+
+/* ================================================================
+   CARROSSEL DE DEPOIMENTOS - Fin-Gerence
+   ================================================================ */
+
+.testimonials-section {
+    width: 100%;
+    overflow: hidden;
+    padding: 60px 0;
+    background: transparent;
+    position: relative;
+    /* Máscara suave para sumir os cards nas pontas */
+    mask-image: linear-gradient(to right, 
+        transparent, 
+        black 15%, 
+        black 85%, 
+        transparent
+    );
+    -webkit-mask-image: linear-gradient(to right, 
+        transparent, 
+        black 15%, 
+        black 85%, 
+        transparent
+    );
+}
+
+.testimonials-track {
+    display: flex;
+    /* 20 cards * (largura 250px + margens 30px) = 5600px */
+    width: calc(280px * 20); 
+    animation: scrollInfinite 50s linear infinite;
+}
+
+/* Estilo do Card individual */
+.testimonial-card {
+    width: 250px;
+    background: rgba(255, 255, 255, 0.08); /* Efeito vidro */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 24px;
+    padding: 24px;
+    margin: 0 15px;
+    flex-shrink: 0;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+/* Efeito ao passar o mouse */
+.testimonial-card:hover {
+    transform: translateY(-10px) scale(1.05);
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+/* Pausar animação no hover */
+.testimonials-section:hover .testimonials-track {
+    animation-play-state: paused;
+}
+
+/* Estrelas */
+.stars {
+    color: #fbbf24; /* Amarelo Ouro */
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+    letter-spacing: 2px;
+}
+
+/* Texto da avaliação */
+.testimonial-card p {
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 0.88rem;
+    line-height: 1.6;
+    margin-bottom: 15px;
+    font-weight: 400;
+}
+
+/* Nome do Usuário */
+.testimonial-card strong {
+    color: #ffffff;
+    font-size: 0.8rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.8;
+}
+
+/* Animação do movimento */
+@keyframes scrollInfinite {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        /* Move até a metade (se você duplicou os cards no HTML) 
+           ou ajuste conforme o fechamento do loop */
+        transform: translateX(calc(-280px * 10)); 
+    }
+}
+
+/* Responsividade Mobile */
+@media (max-width: 600px) {
+    .testimonials-section {
+        padding: 40px 0;
+    }
+    
+    .testimonial-card {
+        width: 220px;
+        padding: 18px;
+    }
+
+    .testimonials-track {
+        width: calc(250px * 20);
+        animation-duration: 40s; /* Um pouco mais rápido no mobile */
+    }
+
+    @keyframes scrollInfinite {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(calc(-250px * 10)); }
+    }
+}
