@@ -500,11 +500,30 @@
             <div class="login-footer">
                 <p>Já tem uma conta? <a href="#" id="cadastro-abrir-login">Faça login</a></p>
             </div>
-        </form>
+       </form>
     </div>
 </div>
 
-<!-- Google Identity Services -->
+<div id="pwa-install-banner" class="pwa-banner-hidden">
+    <div class="pwa-content">
+        <img src="icons/financeiro.png" alt="Logo" class="pwa-logo">
+        <div class="pwa-text">
+            <strong>Fin-Gerence App</strong>
+            <span>Instale para acesso rápido e seguro.</span>
+        </div>
+    </div>
+    
+    <div id="pwa-android-actions" class="pwa-actions">
+        <button id="btn-install-pwa" class="btn-primary">Baixar Agora</button>
+        <button class="btn-close-pwa">Depois</button>
+    </div>
+
+    <div id="pwa-ios-instructions" class="pwa-instructions">
+        <p>Para instalar: toque em <img src="https://img.icons8.com/ios/50/000000/export.png" class="ios-icon"> **Compartilhar** e depois em **Adicionar à Tela de Início**.</p>
+        <button class="btn-close-pwa">Entendi</button>
+    </div>
+</div>
+
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="js/utils.js"></script>
 <script src="js/usuarioDados.js"></script>
@@ -520,6 +539,8 @@
 
 <script src="js/loading.js"></script>
 <script src="js/login.js"></script>
+
+<script src="js/pwa-handler.js"></script>
 
 <script>
     if ('serviceWorker' in navigator) {
