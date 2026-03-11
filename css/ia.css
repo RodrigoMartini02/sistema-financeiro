@@ -1,5 +1,5 @@
 /* ================================================================
-   FIN GERENCE AI - Versão Completa, Integrada e Sobreposta
+   FIN GERENCE AI - Estilos Centralizados e Sobrepostos
    ================================================================ */
 
 /* ── BOTÃO FAB (flutuante) ───────────────────────────────────── */
@@ -7,14 +7,14 @@
     position: fixed;
     bottom: 24px;
     right: 24px;
-    width: 52px;
-    height: 52px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     background: var(--primary-color, #4361ee);
     color: #fff;
     border: none;
     cursor: pointer;
-    font-size: 20px;
+    font-size: 18px;
     box-shadow: 0 4px 16px rgba(67,97,238,0.35);
     z-index: 900;
     transition: transform 0.2s, box-shadow 0.2s;
@@ -50,7 +50,7 @@
     border-color: var(--primary-color, #4361ee);
 }
 
-/* ── PAINEL DE CHAT (Centralizado e Sobre Todos) ─────────────── */
+/* ── PAINEL DE CHAT (Centralizado e Sobre Tudo) ──────────────── */
 .ai-chat-panel {
     position: fixed;
     top: 50%;
@@ -63,8 +63,8 @@
     background: var(--card-bg, #fff);
     border: 1px solid var(--border-color, #ddd);
     border-radius: 16px;
-    box-shadow: 0 24px 60px rgba(0,0,0,0.3); /* Sombra profunda para destaque */
-    z-index: 9999; /* Sobrepõe todos os modais do sistema */
+    box-shadow: 0 24px 48px rgba(0,0,0,0.25);
+    z-index: 9999; /* Garante que fique sobre qualquer outro modal */
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -188,22 +188,43 @@
     word-break: break-word;
 }
 
-.ai-msg--user .ai-msg-bub { background: var(--primary-color, #4361ee); color: #fff; border-bottom-right-radius: 4px; }
-.ai-msg--ai .ai-msg-bub   { background: #fff; color: var(--text-color, #060606); border: 1px solid var(--border-color, #ddd); border-bottom-left-radius: 4px; }
-.ai-msg--sys .ai-msg-bub  { background: #e8f4fd; color: #0369a1; border: 1px solid #bae6fd; border-radius: 20px; font-size: 12px; text-align: center; padding: 6px 16px; }
+.ai-msg--user .ai-msg-bub {
+    background: var(--primary-color, #4361ee);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+}
+.ai-msg--ai .ai-msg-bub {
+    background: #fff;
+    color: var(--text-color, #060606);
+    border: 1px solid var(--border-color, #ddd);
+    border-bottom-left-radius: 4px;
+}
+.ai-msg--sys .ai-msg-bub {
+    background: #e8f4fd;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+    border-radius: 20px;
+    font-size: 12px;
+    text-align: center;
+    padding: 6px 16px;
+}
 
 /* Cartão de despesa */
-.ai-despesa-card { background: var(--bg-color, #f5f8ff); border: 1px solid var(--border-color,#ddd); border-radius: 10px; padding: 12px; margin-top: 10px; font-size: 12.5px; }
-.ai-despesa-card .ai-dc-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+.ai-despesa-card {
+    background: var(--bg-color, #f5f8ff);
+    border: 1px solid var(--border-color,#ddd);
+    border-radius: 10px;
+    padding: 12px;
+    margin-top: 10px;
+    font-size: 12.5px;
+}
+.ai-despesa-card .ai-dc-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
 .ai-despesa-card .ai-dc-label { color: var(--gray-500,#6c757d); }
 .ai-despesa-card .ai-dc-valor { color: var(--primary-color,#4361ee); font-weight: 700; font-size:15px; }
-
-/* Botões de ação na mensagem */
-.ai-msg-btns { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
-.ai-msg-btns button { padding: 5px 14px; border-radius: 16px; font-size: 12px; cursor: pointer; border: 1px solid; transition: all 0.2s; }
-.ai-msg-btn-ok   { background:var(--success,#28a745); color:#fff; border-color:var(--success,#28a745); }
-.ai-msg-btn-edit { background:transparent; border-color:var(--primary-color,#4361ee); color:var(--primary-color,#4361ee); }
-.ai-msg-btn-no   { background:transparent; border-color:var(--border-color,#ddd); color:var(--gray-500,#6c757d); }
 
 /* Digitando */
 .ai-typing { display:flex; gap:5px; align-items:center; padding:6px 0; }
@@ -212,45 +233,11 @@
 .ai-typing span:nth-child(3){animation-delay:.4s}
 @keyframes ai-dot { 0%,80%,100%{transform:scale(.6);opacity:.4} 40%{transform:scale(1);opacity:1} }
 
-/* ── COMPONENTES EXTRAS (Boleto, File Preview) ──────────────── */
-.ai-file-preview {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 14px;
-    background: #eff6ff;
-    border-top: 1px solid #bfdbfe;
-    font-size: 12px;
-    color: #1d4ed8;
-    flex-shrink: 0;
-}
-.ai-file-preview span { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.ai-file-preview button { background:none; border:none; cursor:pointer; color:var(--gray-500,#6c757d); }
-
-.ai-boleto-bar {
-    display: flex;
-    gap: 6px;
-    padding: 10px 14px;
-    border-top: 1px solid var(--border-color,#eee);
-    background: #fff;
-    flex-shrink: 0;
-}
-.ai-boleto-field {
-    flex: 1;
-    border: 1px solid var(--border-color,#ddd);
-    border-radius: 6px;
-    padding: 7px 10px;
-    font-size: 12px;
-    font-family: monospace;
-    outline: none;
-    color: var(--text-color,#060606);
-}
-
 /* ── BARRA DE INPUT ──────────────────────────────────────────── */
 .ai-input-row {
     display: flex;
     align-items: flex-end;
-    gap: 8px;
+    gap: 6px;
     padding: 12px 14px;
     border-top: 1px solid var(--border-color, #eee);
     background: #fff;
@@ -263,42 +250,16 @@
     border-radius: 20px;
     padding: 10px 16px;
     font-size: 13.5px;
+    font-family: inherit;
     resize: none;
     outline: none;
     max-height: 100px;
     overflow-y: auto;
     background: #fcfcfc;
     line-height: 1.4;
-}
-
-.ai-icon-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: none;
-    border: 1px solid var(--border-color,#ddd);
-    color: var(--gray-500,#6c757d);
-    cursor: pointer;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
     transition: all 0.2s;
 }
-.ai-icon-btn:hover { border-color: var(--primary-color,#4361ee); color: var(--primary-color,#4361ee); }
-
-/* Pulsação do Microfone (Gravando) */
-.ai-btn-voice.gravando {
-    background: var(--danger,#dc3545);
-    border-color: var(--danger,#dc3545);
-    color: #fff;
-    animation: ai-pulse 1s infinite;
-}
-@keyframes ai-pulse {
-    0%,100%{ box-shadow:0 0 0 0 rgba(220,53,69,.4); }
-    50%    { box-shadow:0 0 0 8px rgba(220,53,69,0); }
-}
+.ai-textarea:focus { border-color: var(--primary-color, #4361ee); background: #fff; box-shadow: 0 0 0 3px rgba(67,97,238,0.1); }
 
 .ai-send-btn {
     width: 38px;
@@ -308,13 +269,14 @@
     border: none;
     color: #fff;
     cursor: pointer;
-    transition: all 0.2s;
+    font-size: 15px;
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
 }
-.ai-send-btn:hover:not(:disabled) { transform: scale(1.1); background: var(--secondary-color, #3f37c9); }
-.ai-send-btn:disabled { opacity:.4; cursor:not-allowed; }
+.ai-send-btn:hover { background: var(--secondary-color, #3f37c9); transform: scale(1.08); }
 
 /* Chips de Boas-vindas */
 .ai-welcome-chips { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
@@ -326,13 +288,11 @@
     font-size: 12.5px;
     color: var(--gray-600,#495057);
     cursor: pointer;
-    text-align: left;
     transition: all 0.2s;
-    font-style: italic;
 }
 .ai-welcome-chip:hover { border-color:var(--primary-color,#4361ee); color:var(--primary-color,#4361ee); background:#f0f3ff; }
 
-/* Status Badges Config */
+/* Status Badges */
 #ia-badge-status.ativo   { background:#d1fae5; color:#065f46; }
 #ia-badge-status.heurist { background:#e0e7ff; color:#3730a3; }
 #ia-badge-status.erro    { background:#fee2e2; color:#991b1b; }
@@ -340,8 +300,13 @@
 /* ── RESPONSIVO ──────────────────────────────────────────────── */
 @media (max-width: 480px) {
     .ai-chat-panel {
-        width: 100vw; height: 100vh; max-height: 100vh; max-width: 100vw;
-        border-radius: 0; top: 0; left: 0; transform: none;
+        width: 100vw;
+        height: 100vh;
+        max-height: 100vh;
+        max-width: 100vw;
+        border-radius: 0;
+        top: 0; left: 0;
+        transform: none;
         animation: ai-slide-up-mobile 0.3s ease;
     }
 }
