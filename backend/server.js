@@ -78,6 +78,7 @@ const mesesRoutes = require('./routes/meses');
 const reservasRoutes = require('./routes/reservas');
 const anosRoutes = require('./routes/anos');
 const planosRoutes = require('./routes/planos');
+const aiRoutes = require('./routes/aiRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', usuariosRoutes);
@@ -89,6 +90,7 @@ app.use('/api/meses', mesesRoutes);
 app.use('/api/reservas', reservasRoutes);
 app.use('/api/anos', anosRoutes);
 app.use('/api/planos', planosRoutes);
+app.use('/api/ai', aiRoutes);
 
 app.use((req, res) => {
     res.status(404).json({
@@ -354,6 +356,45 @@ async function criarEstruturaBanco() {
         await query(`CREATE INDEX IF NOT EXISTS idx_meses_usuario_ano_mes ON meses(usuario_id, ano, mes);`);
         await query(`CREATE INDEX IF NOT EXISTS idx_despesas_grupo_parcelamento ON despesas(grupo_parcelamento_id);`);
         console.log('✅ Indexes de performance criados!');
+
+        // ✅ TABELA APRENDIZADO_CATEGORIA (módulo IA)
+        await query(`
+            CREATE TABLE IF NOT EXISTS aprendizado_categoria (
+                id SERIAL PRIMARY KEY,
+                usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                texto VARCHAR(100) NOT NULL,
+                categoria VARCHAR(100) NOT NULL,
+                data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+        await query(`CREATE INDEX IF NOT EXISTS idx_aprendizado_usuario ON aprendizado_categoria(usuario_id);`);
+        console.log('✅ Tabela aprendizado_categoria verificada/criada!');
+
+        // ✅ TABELA RECORRENCIAS_IA (módulo IA)
+        await query(`
+            CREATE TABLE IF NOT EXISTS recorrencias_ia (
+                id SERIAL PRIMARY KEY,
+                usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                descricao VARCHAR(255) NOT NULL,
+                valor DECIMAL(10,2),
+                dia_vencimento INTEGER CHECK (dia_vencimento BETWEEN 1 AND 31),
+                frequencia VARCHAR(20) DEFAULT 'mensal',
+                categoria_id INTEGER REFERENCES categorias(id) ON DELETE SET NULL,
+                forma_pagamento VARCHAR(50) DEFAULT 'dinheiro',
+                ativa BOOLEAN DEFAULT true,
+                data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(usuario_id, descricao)
+            );
+        `);
+        await query(`CREATE INDEX IF NOT EXISTS idx_recorrencias_usuario ON recorrencias_ia(usuario_id);`);
+        console.log('✅ Tabela recorrencias_ia verificada/criada!');
+
+        // ✅ DIRETÓRIO DE UPLOADS (módulo IA)
+        const uploadsDir = require('path').join(__dirname, 'uploads');
+        if (!require('fs').existsSync(uploadsDir)) {
+            require('fs').mkdirSync(uploadsDir, { recursive: true });
+            console.log('✅ Diretório uploads criado!');
+        }
 
         console.log('🎉 Estrutura do banco de dados está pronta!');
         return true;
