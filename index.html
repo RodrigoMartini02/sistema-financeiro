@@ -54,6 +54,7 @@
     <link rel="stylesheet" href="css/rel.css">
     <link rel="stylesheet" href="css/config.css">
     <link rel="stylesheet" href="css/planos.css">
+    <link rel="stylesheet" href="css/ia.css">
 </head>
 <body>
 
@@ -116,14 +117,6 @@
                 <a href="#" class="nav-link" data-section="config">
                     <span class="nav-icon"><i class="fas fa-user-cog"></i></span>
                     <span class="nav-text">Configurações</span>
-                </a>
-            </li>
-
-            <li class="nav-item">
-                <a href="ia.html" class="nav-link" style="background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(34,211,238,0.1)); border: 1px solid rgba(99,102,241,0.3); border-radius: 8px; margin: 4px 0;">
-                    <span class="nav-icon" style="color:#6366f1"><i class="fas fa-robot"></i></span>
-                    <span class="nav-text" style="color:#a5b4fc; font-weight:600;">Assistente IA</span>
-                    <span style="font-size:10px; background:#6366f1; color:white; padding:2px 6px; border-radius:8px; margin-left:auto;">NEW</span>
                 </a>
             </li>
         </ul>
@@ -917,6 +910,9 @@
         <button class="config-tab-btn" data-tab="sistema">
             <i class="fas fa-cogs"></i> Sistema
         </button>
+        <button class="config-tab-btn" data-tab="assistente-ia">
+            <i class="fas fa-robot"></i> Assistente IA
+        </button>
     </div>
     
     <div class="config-tab-content">
@@ -1011,6 +1007,63 @@
             </div>
         </div>
         
+        <!-- ============================================== -->
+        <!-- ABA: ASSISTENTE IA -->
+        <!-- ============================================== -->
+        <div id="assistente-ia-tab" class="config-tab-pane">
+            <div class="config-card">
+                <h3><i class="fas fa-robot"></i> Assistente IA — FIN GERENCE AI</h3>
+                <p style="color:var(--gray-500);margin-bottom:16px">Configure e use o assistente inteligente para cadastrar despesas por texto ou voz, interpretar documentos e analisar seus gastos.</p>
+
+                <div id="ia-status-config" style="margin-bottom:20px">
+                    <span class="badge" id="ia-badge-status" style="padding:6px 14px;border-radius:20px;font-size:13px">Verificando...</span>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-key"></i> OpenAI API Key</label>
+                    <p style="font-size:12px;color:var(--gray-500);margin-bottom:8px">
+                        Opcional. Sem a chave o assistente funciona com análise heurística (regex). Com a chave, usa GPT para interpretação mais precisa.<br>
+                        Configure em <code>backend/.env</code> → <code>OPENAI_API_KEY=sk-...</code>
+                    </p>
+                    <div style="display:flex;gap:8px">
+                        <input type="password" id="ia-openai-key-input" placeholder="sk-..." style="flex:1;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px">
+                        <button class="btn btn-primary" onclick="IAChat.salvarChaveAPI()" style="white-space:nowrap">
+                            <i class="fas fa-save"></i> Salvar
+                        </button>
+                    </div>
+                </div>
+
+                <hr style="border:none;border-top:1px solid var(--border-color);margin:20px 0">
+
+                <h4 style="margin-bottom:12px"><i class="fas fa-lightbulb"></i> Como usar</h4>
+                <div style="display:grid;gap:10px">
+                    <div class="config-card" style="padding:12px;background:var(--gray-50)">
+                        <strong>💬 Chat por texto</strong><br>
+                        <small>Clique no ícone <i class="fas fa-robot"></i> no modal de Despesas ou no botão flutuante e escreva:</small><br>
+                        <code style="font-size:12px">"paguei 120 de internet da vivo no cartão vence dia 15"</code>
+                    </div>
+                    <div class="config-card" style="padding:12px;background:var(--gray-50)">
+                        <strong>🎙️ Voz</strong><br>
+                        <small>Clique no microfone no chat e fale a despesa normalmente.</small>
+                    </div>
+                    <div class="config-card" style="padding:12px;background:var(--gray-50)">
+                        <strong>📄 Documentos (boleto, NF, comprovante PIX)</strong><br>
+                        <small>Clique no clipe <i class="fas fa-paperclip"></i> e envie a imagem ou PDF.</small>
+                    </div>
+                    <div class="config-card" style="padding:12px;background:var(--gray-50)">
+                        <strong>📊 Análise financeira</strong><br>
+                        <code style="font-size:12px">"quanto gastei em alimentação esse mês?"</code>
+                    </div>
+                </div>
+
+                <div style="margin-top:20px">
+                    <button class="btn btn-primary" onclick="IAChat.abrir()">
+                        <i class="fas fa-robot"></i> Abrir Assistente IA
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- ============================================== -->
         <!-- ABA: GERENCIAMENTO DE USUÁRIOS INTEGRADA -->
         <!-- ============================================== -->
@@ -1854,6 +1907,9 @@
     <div class="modal-content modal-md">
         <div class="modal-header">
             <h2>Nova Receita</h2>
+            <button type="button" class="btn-ia-assistente" onclick="IAChat.abrir('receita')" title="Assistente IA">
+                <i class="fas fa-robot"></i>
+            </button>
             <button type="button" class="close" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
@@ -2053,6 +2109,9 @@
    <div class="modal-content modal-lancamento">
        <div class="modal-header">
            <h2><i class="fas fa-receipt"></i> Lançar Despesas</h2>
+           <button type="button" class="btn-ia-assistente" onclick="IAChat.abrir('despesa')" title="Assistente IA — cadastre por voz ou texto">
+               <i class="fas fa-robot"></i>
+           </button>
            <button type="button" class="close" data-modal="modal-lancamento-despesas" title="Fechar">&times;</button>
        </div>
        <div class="modal-body modal-lancamento-body">
@@ -2752,6 +2811,53 @@
 <script src="js/receita.js"></script>
 <script src="js/despesas.js"></script>
 <script src="js/anexos.js"></script>
+<script src="js/ia.js"></script>
+
+<!-- ================================================================ -->
+<!-- ASSISTENTE IA - Painel de Chat Flutuante                         -->
+<!-- ================================================================ -->
+<button id="btn-fab-ia" class="btn-fab-ia" onclick="IAChat.abrir()" title="Assistente IA">
+    <i class="fas fa-robot"></i>
+</button>
+
+<div id="ai-chat-panel" class="ai-chat-panel" style="display:none">
+    <div class="ai-panel-header">
+        <div class="ai-panel-title">
+            <div class="ai-avatar-mini"><i class="fas fa-robot"></i></div>
+            <div>
+                <strong>Assistente IA</strong>
+                <small id="ai-panel-status">carregando...</small>
+            </div>
+        </div>
+        <div class="ai-panel-actions">
+            <button onclick="IAChat.limpar()" title="Nova conversa"><i class="fas fa-plus"></i></button>
+            <button onclick="IAChat.fechar()" title="Fechar"><i class="fas fa-times"></i></button>
+        </div>
+    </div>
+
+    <div class="ai-messages" id="ai-messages"></div>
+
+    <div class="ai-boleto-bar" id="ai-boleto-bar" style="display:none">
+        <input type="text" id="ai-boleto-input" class="ai-boleto-field" placeholder="Cole a linha digitável (47 dígitos)...">
+        <button class="ai-send-btn" onclick="IAChat.processarBoleto()"><i class="fas fa-barcode"></i></button>
+        <button onclick="IAChat.fecharBoleto()" style="background:none;border:none;cursor:pointer;color:var(--gray-500)"><i class="fas fa-times"></i></button>
+    </div>
+
+    <div class="ai-file-preview" id="ai-file-preview" style="display:none">
+        <i class="fas fa-file-alt"></i>
+        <span id="ai-file-nome"></span>
+        <button onclick="IAChat.cancelarArquivo()"><i class="fas fa-times"></i></button>
+    </div>
+
+    <div class="ai-input-row">
+        <input type="file" id="ai-file-input" accept="image/*,.pdf" style="display:none" onchange="IAChat.selecionarArquivo(this)">
+        <button class="ai-icon-btn" onclick="document.getElementById('ai-file-input').click()" title="Enviar arquivo"><i class="fas fa-paperclip"></i></button>
+        <button class="ai-icon-btn" onclick="IAChat.abrirBoleto()" title="Ler boleto"><i class="fas fa-barcode"></i></button>
+        <textarea id="ai-input" class="ai-textarea" rows="1" placeholder="Ex: paguei 120 de internet no cartão..." onkeydown="IAChat.keydown(event)" oninput="IAChat.resize(this)"></textarea>
+        <button class="ai-icon-btn ai-btn-voice" id="ai-btn-voice" onclick="IAChat.toggleVoz()" title="Voz"><i class="fas fa-microphone"></i></button>
+        <button class="ai-send-btn" onclick="IAChat.enviar()"><i class="fas fa-paper-plane"></i></button>
+    </div>
+</div>
 
 <!-- Loader Global para Importação -->
 <div id="global-loader">

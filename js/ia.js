@@ -1,918 +1,477 @@
 // ================================================================
-// FIN GERENCE AI - Frontend do Módulo de Inteligência Artificial
+// FIN GERENCE AI — Assistente integrado (painel flutuante)
+// Exposto como window.IAChat
 // ================================================================
 
-const IA = (() => {
+window.IAChat = (function () {
 
-    // ── CONFIGURAÇÃO ─────────────────────────────────────────────
-    const API_URL = (() => {
-        if (typeof window.API_BASE_URL !== 'undefined') return window.API_BASE_URL;
-        if (typeof CONFIG !== 'undefined' && CONFIG.API_URL) return CONFIG.API_URL;
-        return 'http://localhost:3010';
-    })();
-
-    // ── ESTADO ────────────────────────────────────────────────────
-    let estado = {
+    var estado = {
         enviando: false,
         gravandoVoz: false,
-        despesaPendente: null,
-        categorias: [],
-        cartoes: [],
-        arquivoPendente: null,
         reconhecimento: null,
-        sessaoAtiva: true,
-        aprendizadoPendente: null,
+        despesaPendente: null,
+        arquivoPendente: null,
+        contexto: null
     };
 
-    // ── HELPERS DE API ────────────────────────────────────────────
+    function apiURL() {
+        if (typeof CONFIG !== 'undefined' && CONFIG.API_URL) return CONFIG.API_URL;
+        if (typeof window.API_BASE_URL !== 'undefined') return window.API_BASE_URL;
+        return 'http://localhost:3010';
+    }
+
     function getToken() {
-        return sessionStorage.getItem('token') || localStorage.getItem('token');
+        return sessionStorage.getItem('token') || localStorage.getItem('token') || '';
     }
 
-    async function apiPost(endpoint, body) {
-        const r = await fetch(`${API_URL}/api/ai${endpoint}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${getToken()}`,
-            },
-            body: JSON.stringify(body),
-        });
-        return r.json();
+    function hdrs() {
+        return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() };
     }
 
-    async function apiGet(endpoint) {
-        const r = await fetch(`${API_URL}/api/ai${endpoint}`, {
-            headers: { 'Authorization': `Bearer ${getToken()}` },
-        });
-        return r.json();
+    function apiPost(path, body) {
+        return fetch(apiURL() + '/api/ai' + path, {
+            method: 'POST', headers: hdrs(), body: JSON.stringify(body)
+        }).then(function (r) { return r.json(); });
     }
 
-    async function apiPostForm(endpoint, formData) {
-        const r = await fetch(`${API_URL}/api/ai${endpoint}`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${getToken()}` },
-            body: formData,
-        });
-        return r.json();
+    function apiForm(path, form) {
+        return fetch(apiURL() + '/api/ai' + path, {
+            method: 'POST', headers: { 'Authorization': 'Bearer ' + getToken() }, body: form
+        }).then(function (r) { return r.json(); });
     }
 
-    async function apiDespesas(despesa) {
-        const r = await fetch(`${API_URL}/api/despesas`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${getToken()}`,
-            },
-            body: JSON.stringify(despesa),
-        });
-        return r.json();
+    function apiGet(path) {
+        return fetch(apiURL() + '/api/ai' + path, { headers: hdrs() })
+            .then(function (r) { return r.json(); });
     }
 
-    async function apiCategorias() {
-        const r = await fetch(`${API_URL}/api/categorias`, {
-            headers: { 'Authorization': `Bearer ${getToken()}` },
-        });
-        const data = await r.json();
-        return data.categorias || data.data || [];
+    // ── PAINEL ────────────────────────────────────────────────────
+    function abrir(contexto) {
+        estado.contexto = contexto || null;
+        var panel = document.getElementById('ai-chat-panel');
+        if (!panel) return;
+        panel.style.display = 'flex';
+        panel.style.flexDirection = 'column';
+        var msgs = document.getElementById('ai-messages');
+        if (msgs && msgs.children.length === 0) {
+            boasVindas(contexto);
+            inicializar();
+        }
+        setTimeout(function () {
+            var inp = document.getElementById('ai-input');
+            if (inp) inp.focus();
+        }, 100);
     }
 
-    async function apiCartoes() {
-        const r = await fetch(`${API_URL}/api/cartoes`, {
-            headers: { 'Authorization': `Bearer ${getToken()}` },
-        });
-        const data = await r.json();
-        return data.cartoes || data.data || [];
+    function fechar() {
+        var panel = document.getElementById('ai-chat-panel');
+        if (panel) panel.style.display = 'none';
     }
 
-    // ── INICIALIZAÇÃO ─────────────────────────────────────────────
-    async function inicializar() {
-        try {
-            setStatus('inicializando', 'Conectando...');
+    function limpar() {
+        var msgs = document.getElementById('ai-messages');
+        if (msgs) msgs.innerHTML = '';
+        estado.despesaPendente = null;
+        cancelarArquivo();
+        fecharBoleto();
+        boasVindas(estado.contexto);
+        apiPost('/chat', { mensagem: '_reset_', limpar_sessao: true }).catch(function () { });
+    }
 
-            // Verifica autenticação
-            const token = getToken();
-            if (!token) {
-                window.location.replace('login.html');
-                return;
+    function inicializar() {
+        apiGet('/status').then(function (st) {
+            var el = document.getElementById('ai-panel-status');
+            if (el) {
+                el.textContent = (st && st.openai && st.openai.ativo)
+                    ? 'IA ativa (' + st.openai.modelo + ')'
+                    : 'modo heurístico';
             }
-
-            // Carrega categorias e cartões em paralelo
-            [estado.categorias, estado.cartoes] = await Promise.all([
-                apiCategorias().catch(() => []),
-                apiCartoes().catch(() => []),
-            ]);
-
-            // Preenche selects do modal
-            preencherSelectCategorias();
-            preencherSelectCartoes();
-
-            // Verifica status do módulo IA
-            const statusIA = await apiGet('/status').catch(() => null);
-
-            if (statusIA?.openai?.ativo) {
-                setStatus('ia', `IA Ativa (${statusIA.openai.modelo})`);
-            } else {
-                setStatus('online', 'Modo Heurístico (sem OpenAI)');
+            var badge = document.getElementById('ia-badge-status');
+            if (badge) {
+                if (st && st.openai && st.openai.ativo) {
+                    badge.textContent = 'OpenAI ativa — ' + st.openai.modelo;
+                    badge.className = 'badge ativo';
+                } else {
+                    badge.textContent = 'Modo heurístico — configure OPENAI_API_KEY no .env';
+                    badge.className = 'badge heurist';
+                }
             }
+        }).catch(function () {
+            var el = document.getElementById('ai-panel-status');
+            if (el) el.textContent = 'offline';
+        });
+    }
 
-            // Configura eventos
-            configurarEventos();
-
-            // Foca no input
-            document.getElementById('ia-texto-input')?.focus();
-
-        } catch (err) {
-            console.error('Erro ao inicializar IA:', err);
-            setStatus('offline', 'Erro de conexão');
-            adicionarMensagemSistema('⚠️ Erro ao conectar ao servidor. Verifique sua conexão.');
+    function boasVindas(ctx) {
+        var chips = '';
+        if (ctx === 'despesa') {
+            chips = '<button class="ai-welcome-chip" onclick="IAChat._chip(this)">paguei 120 de internet no cartão vence dia 15</button>' +
+                    '<button class="ai-welcome-chip" onclick="IAChat._chip(this)">200 mercado pix hoje</button>' +
+                    '<button class="ai-welcome-chip" onclick="IAChat._chip(this)">netflix 55,90 débito</button>';
+            addAI('Descreva a despesa em texto livre e eu preencho o formulário para você.<div class="ai-welcome-chips">' + chips + '</div>');
+        } else if (ctx === 'receita') {
+            chips = '<button class="ai-welcome-chip" onclick="IAChat._chip(this)">recebi salário 3500 hoje</button>' +
+                    '<button class="ai-welcome-chip" onclick="IAChat._chip(this)">freelance 800 pix</button>';
+            addAI('Descreva a receita e eu preencho o formulário.<div class="ai-welcome-chips">' + chips + '</div>');
+        } else {
+            chips = '<button class="ai-welcome-chip" onclick="IAChat._chip(this)">paguei 150 de mercado no pix</button>' +
+                    '<button class="ai-welcome-chip" onclick="IAChat._chip(this)">quanto gastei esse mês?</button>' +
+                    '<button class="ai-welcome-chip" onclick="IAChat._chip(this)">qual meu saldo?</button>';
+            addAI('Olá! Sou o assistente financeiro. Posso cadastrar despesas, analisar gastos e ler documentos.<div class="ai-welcome-chips">' + chips + '</div>');
         }
     }
 
-    function configurarEventos() {
-        // Controla exibição do campo de cartão
-        document.getElementById('ia-campo-forma-pagamento')?.addEventListener('change', (e) => {
-            const rowCartao = document.getElementById('row-cartao');
-            if (rowCartao) {
-                rowCartao.style.display = e.target.value.includes('cartao') ? 'grid' : 'none';
-            }
-        });
+    function _chip(btn) {
+        var input = document.getElementById('ai-input');
+        if (input) { input.value = btn.textContent.trim(); resize(input); input.focus(); }
     }
 
-    function setStatus(tipo, texto) {
-        const dot = document.getElementById('ia-status-dot');
-        const txt = document.getElementById('ia-status-text');
-        if (dot) {
-            dot.className = `ia-status-dot ${tipo}`;
-        }
-        if (txt) txt.textContent = texto;
-    }
-
-    // ── CHAT ──────────────────────────────────────────────────────
-    async function enviarMensagem() {
-        const input = document.getElementById('ia-texto-input');
-        const texto = input?.value?.trim();
-
-        if (!texto && !estado.arquivoPendente) return;
-        if (estado.enviando) return;
-
-        // Processa arquivo se houver
-        if (estado.arquivoPendente) {
-            await processarArquivoEnvio();
-            return;
-        }
+    // ── ENVIO ─────────────────────────────────────────────────────
+    function enviar() {
+        if (estado.arquivoPendente) { _enviarArquivo(); return; }
+        var input = document.getElementById('ai-input');
+        var texto = input ? input.value.trim() : '';
+        if (!texto || estado.enviando) return;
 
         input.value = '';
-        autoResize(input);
+        resize(input);
         estado.enviando = true;
-        document.getElementById('ia-btn-send').disabled = true;
+        setBtnDisabled(true);
+        addUser(texto);
+        var tid = addTyping();
 
-        // Oculta welcome se visível
-        ocultarWelcome();
-
-        // Adiciona mensagem do usuário
-        adicionarMensagem(texto, 'user');
-
-        // Mostra indicador de digitação
-        const typingId = adicionarTyping();
-
-        try {
-            const res = await apiPost('/chat', { mensagem: texto });
-
-            removerTyping(typingId);
-
-            if (!res.success) {
-                adicionarMensagemAI('Desculpe, ocorreu um erro. Tente novamente.');
-                return;
-            }
-
-            const resposta = res.resposta || '';
-
+        apiPost('/chat', { mensagem: texto }).then(function (res) {
+            removeTyping(tid);
+            if (!res || !res.success) { addAI('Desculpe, ocorreu um erro. Tente novamente.'); return; }
             if (res.acao === 'confirmar_despesa' && res.despesa) {
-                // Exibe card de confirmação
-                adicionarMensagemAIComDespesa(resposta, res.despesa);
                 estado.despesaPendente = res.despesa;
+                addComDespesa(res.resposta, res.despesa);
             } else {
-                adicionarMensagemAI(resposta);
+                addAI(res.resposta || '...');
             }
-
-        } catch (err) {
-            removerTyping(typingId);
-            console.error('Erro no chat:', err);
-            adicionarMensagemAI('Não consegui me conectar ao servidor. Tente novamente.');
-        } finally {
+        }).catch(function () {
+            removeTyping(tid);
+            addAI('Erro de conexão. Verifique se o servidor está rodando.');
+        }).finally(function () {
             estado.enviando = false;
-            document.getElementById('ia-btn-send').disabled = false;
-        }
+            setBtnDisabled(false);
+        });
     }
 
-    function handleKeyDown(event) {
-        if (event.key === 'Enter' && !event.shiftKey) {
-            event.preventDefault();
-            enviarMensagem();
-        }
+    function keydown(e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); }
     }
 
-    function autoResize(el) {
+    function resize(el) {
         el.style.height = 'auto';
-        el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+        el.style.height = Math.min(el.scrollHeight, 80) + 'px';
     }
 
-    function preencherInput(texto) {
-        const input = document.getElementById('ia-texto-input');
-        if (input) {
-            input.value = texto;
-            input.focus();
-            autoResize(input);
-        }
+    // ── MENSAGENS ─────────────────────────────────────────────────
+    function addUser(texto) {
+        _ins('<div class="ai-msg ai-msg--user">' +
+            '<div class="ai-msg-av"><i class="fas fa-user"></i></div>' +
+            '<div class="ai-msg-bub">' + esc(texto) + '</div></div>');
     }
 
-    function enviarAcaoRapida(texto) {
-        preencherInput(texto);
-        enviarMensagem();
+    function addAI(html) {
+        _ins('<div class="ai-msg ai-msg--ai">' +
+            '<div class="ai-msg-av"><i class="fas fa-robot"></i></div>' +
+            '<div class="ai-msg-bub">' + html + '</div></div>');
     }
 
-    function limparConversa() {
-        const chatArea = document.getElementById('ia-chat-area');
-        if (!chatArea) return;
-
-        estado.despesaPendente = null;
-        estado.aprendizadoPendente = null;
-
-        // Mostra welcome novamente
-        chatArea.innerHTML = `
-            <div class="ia-welcome">
-                <div class="ia-welcome-icon"><i class="fas fa-robot"></i></div>
-                <h2>Nova Conversa</h2>
-                <p>Pronto para uma nova consulta! O que posso fazer por você?</p>
-                <div class="ia-welcome-chips">
-                    <span onclick="IA.preencherInput('paguei 150 de mercado no pix')">💸 Cadastrar despesa</span>
-                    <span onclick="IA.preencherInput('quanto gastei esse mês')">📊 Analisar gastos</span>
-                    <span onclick="IA.abrirUpload()">📄 Enviar documento</span>
-                    <span onclick="IA.abrirBoleto()">🏦 Ler boleto</span>
-                </div>
-            </div>`;
-
-        // Limpa sessão no backend
-        apiPost('/chat', { mensagem: 'nova sessao', limpar_sessao: true }).catch(() => {});
+    function addSys(texto) {
+        _ins('<div class="ai-msg ai-msg--sys"><div class="ai-msg-bub">' + esc(texto) + '</div></div>');
     }
 
-    // ── RENDERIZAÇÃO DE MENSAGENS ─────────────────────────────────
-    function adicionarMensagem(texto, tipo) {
-        const chatArea = document.getElementById('ia-chat-area');
-        if (!chatArea) return;
-
-        const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        const isUser = tipo === 'user';
-
-        const div = document.createElement('div');
-        div.className = `ia-msg ia-msg--${tipo}`;
-        div.innerHTML = `
-            <div class="ia-msg-avatar">
-                <i class="fas fa-${isUser ? 'user' : 'robot'}"></i>
-            </div>
-            <div>
-                <div class="ia-msg-bubble">${formatarTexto(texto)}</div>
-                <div class="ia-msg-time">${hora}</div>
-            </div>`;
-
-        chatArea.appendChild(div);
-        rolarParaBaixo();
-        return div;
+    function addComDespesa(texto, d) {
+        var v = fmtV(d.valor);
+        var f = fmtF(d.forma_pagamento);
+        var parc = d.parcelas > 1
+            ? '<div class="ai-dc-row"><span class="ai-dc-label">Parcelas</span><span class="ai-dc-val">' + d.parcelas + 'x</span></div>'
+            : '';
+        _ins('<div class="ai-msg ai-msg--ai">' +
+            '<div class="ai-msg-av"><i class="fas fa-robot"></i></div>' +
+            '<div class="ai-msg-bub">' + fmt(texto) +
+            '<div class="ai-despesa-card">' +
+            '<div class="ai-dc-row"><span class="ai-dc-label">Descrição</span><span class="ai-dc-val">' + esc(d.descricao) + '</span></div>' +
+            '<div class="ai-dc-row"><span class="ai-dc-label">Valor</span><span class="ai-dc-valor">' + v + '</span></div>' +
+            '<div class="ai-dc-row"><span class="ai-dc-label">Categoria</span><span class="ai-dc-val">' + esc(d.categoria || 'Outros') + '</span></div>' +
+            '<div class="ai-dc-row"><span class="ai-dc-label">Pagamento</span><span class="ai-dc-val">' + f + '</span></div>' +
+            parc + '</div>' +
+            '<div class="ai-msg-btns">' +
+            '<button class="ai-msg-btn-ok" onclick="IAChat.confirmarDespesa()"><i class="fas fa-check"></i> Confirmar</button>' +
+            '<button class="ai-msg-btn-edit" onclick="IAChat.editarDespesa()"><i class="fas fa-edit"></i> Editar</button>' +
+            '<button class="ai-msg-btn-no" onclick="IAChat.cancelarDespesa()"><i class="fas fa-times"></i> Cancelar</button>' +
+            '</div></div></div>');
     }
 
-    function adicionarMensagemAI(texto) {
-        return adicionarMensagem(texto, 'ai');
-    }
-
-    function adicionarMensagemSistema(texto) {
-        const chatArea = document.getElementById('ia-chat-area');
-        if (!chatArea) return;
-
-        const div = document.createElement('div');
-        div.className = 'ia-msg ia-msg--system';
-        div.innerHTML = `<div class="ia-msg-bubble">${formatarTexto(texto)}</div>`;
-        chatArea.appendChild(div);
-        rolarParaBaixo();
-    }
-
-    function adicionarMensagemAIComDespesa(texto, despesa) {
-        const chatArea = document.getElementById('ia-chat-area');
-        if (!chatArea) return;
-
-        const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        const valor = Number(despesa.valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        const forma = formatarFormaPagamento(despesa.forma_pagamento);
-
-        const div = document.createElement('div');
-        div.className = 'ia-msg ia-msg--ai';
-        div.innerHTML = `
-            <div class="ia-msg-avatar"><i class="fas fa-robot"></i></div>
-            <div>
-                <div class="ia-msg-bubble">
-                    ${formatarTexto(texto)}
-                    <div class="ia-despesa-card">
-                        <div class="ia-dc-row">
-                            <span class="ia-dc-label">Descrição</span>
-                            <span class="ia-dc-value">${esc(despesa.descricao)}</span>
-                        </div>
-                        <div class="ia-dc-row">
-                            <span class="ia-dc-label">Valor</span>
-                            <span class="ia-dc-valor">${valor}</span>
-                        </div>
-                        <div class="ia-dc-row">
-                            <span class="ia-dc-label">Categoria</span>
-                            <span class="ia-dc-value">${esc(despesa.categoria || 'Outros')}</span>
-                        </div>
-                        <div class="ia-dc-row">
-                            <span class="ia-dc-label">Pagamento</span>
-                            <span class="ia-dc-value">${esc(forma)}</span>
-                        </div>
-                        ${despesa.parcelas > 1 ? `<div class="ia-dc-row"><span class="ia-dc-label">Parcelas</span><span class="ia-dc-value">${despesa.parcelas}x</span></div>` : ''}
-                    </div>
-                    <div class="ia-msg-actions">
-                        <button class="ia-msg-action-btn confirmar" onclick="IA.abrirModalDespesa()">
-                            <i class="fas fa-check"></i> Confirmar
-                        </button>
-                        <button class="ia-msg-action-btn editar" onclick="IA.abrirModalDespesa()">
-                            <i class="fas fa-edit"></i> Editar
-                        </button>
-                        <button class="ia-msg-action-btn cancelar" onclick="IA.cancelarDespesa()">
-                            <i class="fas fa-times"></i> Cancelar
-                        </button>
-                    </div>
-                </div>
-                <div class="ia-msg-time">${hora}</div>
-            </div>`;
-
-        chatArea.appendChild(div);
-        rolarParaBaixo();
-    }
-
-    function adicionarTyping() {
-        const chatArea = document.getElementById('ia-chat-area');
-        if (!chatArea) return null;
-
-        const id = `typing-${Date.now()}`;
-        const div = document.createElement('div');
-        div.className = 'ia-msg ia-msg--ai';
-        div.id = id;
-        div.innerHTML = `
-            <div class="ia-msg-avatar"><i class="fas fa-robot"></i></div>
-            <div class="ia-msg-bubble">
-                <div class="ia-typing">
-                    <span></span><span></span><span></span>
-                </div>
-            </div>`;
-        chatArea.appendChild(div);
-        rolarParaBaixo();
+    function addTyping() {
+        var id = 'ai-typ-' + Date.now();
+        _ins('<div class="ai-msg ai-msg--ai" id="' + id + '">' +
+            '<div class="ai-msg-av"><i class="fas fa-robot"></i></div>' +
+            '<div class="ai-msg-bub"><div class="ai-typing"><span></span><span></span><span></span></div></div></div>');
         return id;
     }
 
-    function removerTyping(id) {
-        if (id) document.getElementById(id)?.remove();
+    function removeTyping(id) {
+        var el = document.getElementById(id);
+        if (el) el.remove();
     }
 
-    function rolarParaBaixo() {
-        const chatArea = document.getElementById('ia-chat-area');
-        if (chatArea) {
-            setTimeout(() => {
-                chatArea.scrollTop = chatArea.scrollHeight;
-            }, 50);
-        }
+    function _ins(html) {
+        var msgs = document.getElementById('ai-messages');
+        if (!msgs) return;
+        msgs.insertAdjacentHTML('beforeend', html);
+        msgs.scrollTop = msgs.scrollHeight;
     }
 
-    function ocultarWelcome() {
-        document.querySelector('.ia-welcome')?.remove();
+    // ── CONFIRMAR / EDITAR DESPESA ────────────────────────────────
+    function confirmarDespesa() {
+        var d = estado.despesaPendente;
+        if (!d) return;
+        if (_preencherCard(d)) {
+            addSys('Despesa preenchida no formulário!');
+            fechar();
+        } else {
+            if (typeof abrirModalLancamentoDespesas === 'function') abrirModalLancamentoDespesas();
+            setTimeout(function () {
+                if (_preencherCard(d)) { addSys('Formulário preenchido!'); fechar(); }
+                else { addSys('Abra o modal "Lançar Despesas" e tente novamente.'); }
+            }, 500);
+        }
+        estado.despesaPendente = null;
     }
 
-    // ── MODAL DE DESPESA ──────────────────────────────────────────
-    function abrirModalDespesa(dados) {
-        const despesa = dados || estado.despesaPendente;
-        if (!despesa) return;
-
-        estado.despesaPendente = despesa;
-
-        // Preenche os campos
-        const set = (id, val) => {
-            const el = document.getElementById(id);
-            if (el && val !== null && val !== undefined) el.value = val;
-        };
-
-        set('ia-campo-descricao', despesa.descricao || '');
-        set('ia-campo-valor', despesa.valor || '');
-        set('ia-campo-forma-pagamento', despesa.forma_pagamento || 'dinheiro');
-        set('ia-campo-parcelas', despesa.parcelas || 1);
-        set('ia-campo-data', despesa.data || new Date().toISOString().split('T')[0]);
-        set('ia-campo-vencimento', despesa.vencimento || '');
-
-        // Categoria
-        if (despesa.categoria_id) {
-            set('ia-campo-categoria', despesa.categoria_id);
-        } else if (despesa.categoria) {
-            const opt = [...document.getElementById('ia-campo-categoria')?.options || []]
-                .find(o => o.text.toLowerCase() === despesa.categoria.toLowerCase());
-            if (opt) set('ia-campo-categoria', opt.value);
-        }
-
-        // Exibe campo cartão se necessário
-        const rowCartao = document.getElementById('row-cartao');
-        if (rowCartao) {
-            rowCartao.style.display = despesa.forma_pagamento?.includes('cartao') ? 'grid' : 'none';
-        }
-
-        // Sugestão de aprendizado
-        const hintEl = document.getElementById('ia-aprendizado-hint');
-        const textoEl = document.getElementById('ia-aprendizado-texto');
-        if (hintEl && textoEl && despesa.descricao && despesa.categoria) {
-            textoEl.textContent = despesa.descricao;
-            hintEl.style.display = 'flex';
-            estado.aprendizadoPendente = {
-                texto: despesa.descricao,
-                categoria: despesa.categoria,
-            };
-        } else if (hintEl) {
-            hintEl.style.display = 'none';
-        }
-
-        abrirModal('modal-confirmar-despesa');
-    }
-
-    async function salvarDespesa(event) {
-        event.preventDefault();
-
-        const despesa = {
-            descricao: document.getElementById('ia-campo-descricao').value.trim(),
-            valor: parseFloat(document.getElementById('ia-campo-valor').value),
-            categoria_id: parseInt(document.getElementById('ia-campo-categoria').value) || null,
-            forma_pagamento: document.getElementById('ia-campo-forma-pagamento').value,
-            cartao_id: parseInt(document.getElementById('ia-campo-cartao').value) || null,
-            numero_parcelas: parseInt(document.getElementById('ia-campo-parcelas').value) || 1,
-            data_vencimento: document.getElementById('ia-campo-vencimento').value ||
-                             document.getElementById('ia-campo-data').value,
-            data_compra: document.getElementById('ia-campo-data').value,
-            mes: new Date(document.getElementById('ia-campo-data').value + 'T12:00:00').getMonth(),
-            ano: new Date(document.getElementById('ia-campo-data').value + 'T12:00:00').getFullYear(),
-            parcelado: parseInt(document.getElementById('ia-campo-parcelas').value) > 1,
-            parcela_atual: 1,
-        };
-
-        try {
-            const btn = event.target.querySelector('button[type=submit]');
-            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...'; }
-
-            const res = await apiDespesas(despesa);
-
-            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Salvar Despesa'; }
-
-            if (res.success || res.id || (res.despesa && res.despesa.id)) {
-                fecharModal('modal-confirmar-despesa');
-                estado.despesaPendente = null;
-
-                adicionarMensagemSistema('✅ Despesa cadastrada com sucesso!');
-
-                // Salva aprendizado se confirmado
-                if (estado.aprendizadoPendente) {
-                    const catSelect = document.getElementById('ia-campo-categoria');
-                    const catNome = catSelect?.options[catSelect.selectedIndex]?.text || despesa.categoria_nome;
-                    if (catNome) {
-                        await apiPost('/aprendizado', {
-                            texto: estado.aprendizadoPendente.texto,
-                            categoria: catNome,
-                        }).catch(() => {});
-                    }
-                    estado.aprendizadoPendente = null;
-                }
-            } else {
-                adicionarMensagemSistema('❌ Erro ao salvar: ' + (res.message || 'Tente novamente.'));
-            }
-
-        } catch (err) {
-            console.error('Erro ao salvar despesa:', err);
-            adicionarMensagemSistema('❌ Erro de conexão. Tente novamente.');
-        }
+    function editarDespesa() {
+        var d = estado.despesaPendente;
+        if (!d) return;
+        if (typeof abrirModalLancamentoDespesas === 'function') abrirModalLancamentoDespesas();
+        setTimeout(function () { _preencherCard(d); }, 500);
+        addSys('Formulário aberto para edição.');
+        estado.despesaPendente = null;
+        fechar();
     }
 
     function cancelarDespesa() {
         estado.despesaPendente = null;
-        adicionarMensagemSistema('Operação cancelada.');
+        addSys('Operação cancelada.');
     }
 
-    async function confirmarAprendizado() {
-        if (!estado.aprendizadoPendente) return;
-        const catSelect = document.getElementById('ia-campo-categoria');
-        const catNome = catSelect?.options[catSelect.selectedIndex]?.text;
+    function _preencherCard(d) {
+        var card = document.querySelector('.despesa-card-item, .despesa-card, [data-despesa-card]');
+        if (!card) return false;
+        _sv(card, 'input[placeholder*="escri"], input[placeholder*="Descri"]', d.descricao);
+        _sv(card, 'input[type="number"]', d.valor);
+        var sel = card.querySelector('select');
+        if (sel && d.forma_pagamento) sel.value = d.forma_pagamento;
+        if (d.vencimento) _sv(card, 'input[type="date"]', d.vencimento);
+        if (d.parcelas > 1) _sv(card, 'input[id*="parcela"], input[name*="parcela"]', d.parcelas);
+        return true;
+    }
 
-        if (catNome) {
-            await apiPost('/aprendizado', {
-                texto: estado.aprendizadoPendente.texto,
-                categoria: catNome,
-            }).catch(() => {});
-            document.getElementById('ia-aprendizado-hint').style.display = 'none';
-            estado.aprendizadoPendente = null;
-            adicionarMensagemSistema('🧠 Aprendizado salvo! Vou usar essa categoria automaticamente.');
+    function _sv(parent, selector, val) {
+        if (val === null || val === undefined) return;
+        var el = parent.querySelector(selector);
+        if (el) {
+            el.value = val;
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
         }
     }
 
-    // ── UPLOAD DE ARQUIVO ─────────────────────────────────────────
-    function abrirUpload() {
-        document.getElementById('ia-file-input')?.click();
-    }
-
-    function processarArquivo(input) {
-        const file = input.files[0];
+    // ── ARQUIVO ───────────────────────────────────────────────────
+    function selecionarArquivo(input) {
+        var file = input.files[0];
         if (!file) return;
-
         estado.arquivoPendente = file;
-
-        const preview = document.getElementById('ia-file-preview');
-        const nome = document.getElementById('ia-file-nome');
-        if (preview) preview.style.display = 'flex';
+        var prev = document.getElementById('ai-file-preview');
+        var nome = document.getElementById('ai-file-nome');
+        if (prev) prev.style.display = 'flex';
         if (nome) nome.textContent = file.name;
-
-        adicionarMensagemSistema(`📎 Arquivo "${file.name}" selecionado. Pressione enviar para processar.`);
-        document.getElementById('ia-texto-input')?.focus();
+        addSys('"' + file.name + '" selecionado. Clique em enviar para processar.');
     }
 
     function cancelarArquivo() {
         estado.arquivoPendente = null;
-        const preview = document.getElementById('ia-file-preview');
-        if (preview) preview.style.display = 'none';
-        const fileInput = document.getElementById('ia-file-input');
-        if (fileInput) fileInput.value = '';
+        var prev = document.getElementById('ai-file-preview');
+        if (prev) prev.style.display = 'none';
+        var fi = document.getElementById('ai-file-input');
+        if (fi) fi.value = '';
     }
 
-    async function processarArquivoEnvio() {
-        if (!estado.arquivoPendente) return;
-
-        const file = estado.arquivoPendente;
-        const typingId = adicionarTyping();
-        ocultarWelcome();
-        estado.enviando = true;
-
-        adicionarMensagem(`📄 Processando "${file.name}"...`, 'user');
+    function _enviarArquivo() {
+        var file = estado.arquivoPendente;
         cancelarArquivo();
+        estado.enviando = true;
+        setBtnDisabled(true);
+        addUser('📄 ' + file.name);
+        var tid = addTyping();
+        var form = new FormData();
+        form.append('arquivo', file);
 
-        try {
-            const formData = new FormData();
-            formData.append('arquivo', file);
-
-            const res = await apiPostForm('/arquivo', formData);
-
-            removerTyping(typingId);
-
-            if (!res.success) {
-                adicionarMensagemAI(`Não consegui processar o arquivo: ${res.message || 'erro desconhecido'}`);
-                return;
-            }
-
-            const r = res.resultado || {};
-            const despesa = res.despesa_sugerida || {};
-
-            let textoResposta = `✅ Arquivo processado!\n\n`;
-            if (r.tipo) textoResposta += `📋 Tipo: **${formatarTipoDocumento(r.tipo)}**\n`;
-            if (r.empresa || r.descricao) textoResposta += `🏢 ${r.empresa || r.descricao}\n`;
-            if (r.valor) textoResposta += `💰 Valor: **R$ ${Number(r.valor).toFixed(2).replace('.', ',')}**\n`;
-            if (r.vencimento) textoResposta += `📅 Vencimento: ${formatarData(r.vencimento)}\n`;
-            if (r.cnpj) textoResposta += `🔢 CNPJ: ${r.cnpj}\n`;
-
-            if (despesa.valor) {
-                textoResposta += '\n\nDeseja cadastrar esta despesa?';
-                adicionarMensagemAIComDespesa(textoResposta, despesa);
-                estado.despesaPendente = despesa;
+        apiForm('/arquivo', form).then(function (res) {
+            removeTyping(tid);
+            if (!res || !res.success) { addAI('Não consegui processar: ' + (res && res.message ? res.message : 'erro')); return; }
+            var r = res.resultado || {};
+            var html = '✅ Documento processado!<br>';
+            if (r.tipo) html += '📋 ' + fmtTipo(r.tipo) + '<br>';
+            if (r.empresa || r.descricao) html += '🏢 ' + esc(r.empresa || r.descricao) + '<br>';
+            if (r.valor) html += '💰 Valor: <strong>' + fmtV(r.valor) + '</strong><br>';
+            if (r.vencimento) html += '📅 Vencimento: ' + fmtD(r.vencimento) + '<br>';
+            var ds = res.despesa_sugerida;
+            if (ds && ds.valor) {
+                estado.despesaPendente = ds;
+                addComDespesa(html + '<br>Cadastrar esta despesa?', ds);
             } else {
-                textoResposta += '\n\nNão consegui identificar o valor. Informe manualmente para cadastrar.';
-                adicionarMensagemAI(textoResposta);
+                addAI(html + '<br>Não identifiquei o valor. Informe manualmente.');
             }
-
-        } catch (err) {
-            removerTyping(typingId);
-            console.error('Erro ao processar arquivo:', err);
-            adicionarMensagemAI('Erro ao processar o arquivo. Tente novamente.');
-        } finally {
-            estado.enviando = false;
-            document.getElementById('ia-btn-send').disabled = false;
-        }
+        }).catch(function () {
+            removeTyping(tid); addAI('Erro ao processar arquivo.');
+        }).finally(function () {
+            estado.enviando = false; setBtnDisabled(false);
+        });
     }
 
     // ── BOLETO ────────────────────────────────────────────────────
     function abrirBoleto() {
-        const bar = document.getElementById('ia-boleto-bar');
-        if (bar) {
-            bar.style.display = bar.style.display === 'none' ? 'flex' : 'none';
-            if (bar.style.display === 'flex') {
-                document.getElementById('ia-boleto-input')?.focus();
-            }
+        var bar = document.getElementById('ai-boleto-bar');
+        if (!bar) return;
+        bar.style.display = bar.style.display === 'none' ? 'flex' : 'none';
+        if (bar.style.display === 'flex') {
+            var inp = document.getElementById('ai-boleto-input');
+            if (inp) inp.focus();
         }
     }
 
     function fecharBoleto() {
-        const bar = document.getElementById('ia-boleto-bar');
+        var bar = document.getElementById('ai-boleto-bar');
         if (bar) bar.style.display = 'none';
+        var inp = document.getElementById('ai-boleto-input');
+        if (inp) inp.value = '';
     }
 
-    async function processarBoleto() {
-        const linha = document.getElementById('ia-boleto-input')?.value?.trim();
-        if (!linha) {
-            adicionarMensagemSistema('⚠️ Informe a linha digitável do boleto.');
-            return;
-        }
-
-        ocultarWelcome();
+    function processarBoleto() {
+        var campo = document.getElementById('ai-boleto-input');
+        if (!campo || !campo.value.trim()) { addSys('Informe a linha digitável.'); return; }
+        var val = campo.value.trim();
         fecharBoleto();
-        adicionarMensagem(`🏦 Processando boleto...`, 'user');
-        const typingId = adicionarTyping();
+        addUser('🏦 Processando boleto...');
+        var tid = addTyping();
 
-        try {
-            const res = await apiPost('/boleto', { linha_digitavel: linha });
-            removerTyping(typingId);
-
-            if (!res.sucesso) {
-                adicionarMensagemAI(`Não consegui interpretar o boleto: ${res.erro || 'formato inválido'}`);
-                return;
-            }
-
-            const valor = res.valor ? `R$ ${Number(res.valor).toFixed(2).replace('.', ',')}` : 'Não identificado';
-            const venc = res.vencimento ? formatarData(res.vencimento) : 'Não identificado';
-
-            const texto = `✅ Boleto lido!\n\n🏦 Banco: **${res.banco_nome || '?'}**\n💰 Valor: **${valor}**\n📅 Vencimento: ${venc}\n\nDeseja cadastrar esta despesa?`;
-
+        apiPost('/boleto', { linha_digitavel: val }).then(function (res) {
+            removeTyping(tid);
+            if (!res || !res.sucesso) { addAI('Não interpretei o boleto: ' + (res && res.erro ? res.erro : 'formato inválido')); return; }
+            var valor = res.valor ? fmtV(res.valor) : 'não identificado';
+            var venc  = res.vencimento ? fmtD(res.vencimento) : 'não identificado';
+            var html  = '✅ Boleto lido!<br>🏦 Banco: <strong>' + esc(res.banco_nome || '?') + '</strong><br>💰 Valor: <strong>' + valor + '</strong><br>📅 Vencimento: ' + venc + '<br><br>Cadastrar esta despesa?';
             if (res.despesa && res.despesa.valor) {
-                adicionarMensagemAIComDespesa(texto, res.despesa);
                 estado.despesaPendente = res.despesa;
+                addComDespesa(html, res.despesa);
             } else {
-                adicionarMensagemAI(texto);
+                addAI(html);
             }
-
-            document.getElementById('ia-boleto-input').value = '';
-
-        } catch (err) {
-            removerTyping(typingId);
-            console.error('Erro ao processar boleto:', err);
-            adicionarMensagemAI('Erro ao processar boleto. Tente novamente.');
-        }
+        }).catch(function () { removeTyping(tid); addAI('Erro ao processar boleto.'); });
     }
-
-    // ── PIX ───────────────────────────────────────────────────────
-    // (usado via upload - detecção automática no arquivo)
 
     // ── VOZ ───────────────────────────────────────────────────────
     function toggleVoz() {
         if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
-            adicionarMensagemSistema('⚠️ Seu navegador não suporta reconhecimento de voz.');
-            return;
+            addSys('Seu navegador não suporta reconhecimento de voz.'); return;
         }
-
         if (estado.gravandoVoz) {
-            pararGravacaoVoz();
+            if (estado.reconhecimento) estado.reconhecimento.stop();
         } else {
-            iniciarGravacaoVoz();
+            _iniciarVoz();
         }
     }
 
-    function iniciarGravacaoVoz() {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        const rec = new SpeechRecognition();
-
-        rec.lang = 'pt-BR';
-        rec.continuous = false;
-        rec.interimResults = false;
-
-        rec.onstart = () => {
-            estado.gravandoVoz = true;
-            estado.reconhecimento = rec;
-            const btn = document.getElementById('ia-btn-voice');
-            if (btn) btn.className = 'ia-btn-voice gravando';
-            adicionarMensagemSistema('🎙️ Ouvindo... fale agora!');
+    function _iniciarVoz() {
+        var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        var rec = new SR();
+        rec.lang = 'pt-BR'; rec.continuous = false; rec.interimResults = false;
+        rec.onstart = function () {
+            estado.gravandoVoz = true; estado.reconhecimento = rec;
+            var b = document.getElementById('ai-btn-voice'); if (b) b.classList.add('gravando');
+            addSys('🎙️ Ouvindo...');
         };
-
-        rec.onresult = (event) => {
-            const texto = event.results[0][0].transcript;
-            preencherInput(texto);
-            adicionarMensagemSistema(`🎤 Reconhecido: "${texto}"`);
+        rec.onresult = function (e) {
+            var t = e.results[0][0].transcript;
+            var inp = document.getElementById('ai-input');
+            if (inp) { inp.value = t; resize(inp); }
         };
-
-        rec.onend = () => {
+        rec.onend = function () {
+            estado.gravandoVoz = false; estado.reconhecimento = null;
+            var b = document.getElementById('ai-btn-voice'); if (b) b.classList.remove('gravando');
+        };
+        rec.onerror = function (e) {
             estado.gravandoVoz = false;
-            estado.reconhecimento = null;
-            const btn = document.getElementById('ia-btn-voice');
-            if (btn) btn.className = 'ia-btn-voice';
+            var b = document.getElementById('ai-btn-voice'); if (b) b.classList.remove('gravando');
+            if (e.error !== 'aborted') addSys('Erro de voz: ' + e.error);
         };
-
-        rec.onerror = (event) => {
-            estado.gravandoVoz = false;
-            const btn = document.getElementById('ia-btn-voice');
-            if (btn) btn.className = 'ia-btn-voice';
-            if (event.error !== 'aborted') {
-                adicionarMensagemSistema('❌ Erro no reconhecimento de voz: ' + event.error);
-            }
-        };
-
         rec.start();
     }
 
-    function pararGravacaoVoz() {
-        if (estado.reconhecimento) {
-            estado.reconhecimento.stop();
-        }
+    // ── CONFIG ────────────────────────────────────────────────────
+    function salvarChaveAPI() {
+        var el = document.getElementById('ia-openai-key-input');
+        if (!el || !el.value.trim()) return;
+        alert('Para ativar a IA com OpenAI:\n1. Abra backend/.env\n2. Adicione: OPENAI_API_KEY=' + el.value.trim() + '\n3. Reinicie: npm run dev');
     }
 
-    // ── RECORRÊNCIAS ──────────────────────────────────────────────
-    async function detectarRecorrencias() {
-        const btn = document.querySelector('.ia-btn-detectar');
-        if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
-        try {
-            const res = await apiGet('/recorrencias?detectar=true');
-
-            if (btn) btn.innerHTML = '<i class="fas fa-sync-alt"></i>';
-
-            if (!res.success || !res.sugestoes?.length) {
-                document.getElementById('recorrencias-lista').innerHTML =
-                    '<p class="ia-hint">Nenhum padrão detectado ainda. Continue registrando despesas!</p>';
-                return;
-            }
-
-            // Atualiza sidebar
-            const lista = document.getElementById('recorrencias-lista');
-            lista.innerHTML = res.sugestoes.slice(0, 5).map(r => `
-                <div class="ia-recorrencia-item">
-                    <div class="ia-rec-desc">${esc(r.descricao)}</div>
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
-                        <span class="ia-rec-valor">R$ ${Number(r.valor_medio).toFixed(2).replace('.', ',')}</span>
-                        <span class="ia-rec-dia">dia ${r.dia_vencimento || '?'}/mês</span>
-                    </div>
-                </div>`).join('');
-
-            // Abre modal com lista completa
-            const modalLista = document.getElementById('recorrencias-modal-lista');
-            if (modalLista) {
-                modalLista.innerHTML = res.sugestoes.map(r => `
-                    <div class="ia-rec-modal-item">
-                        <div class="ia-rec-modal-info">
-                            <h4>${esc(r.descricao)}</h4>
-                            <p>Detectado em ${r.meses_detectados} meses • Dia ${r.dia_vencimento || '?'} do mês</p>
-                            <span class="ia-badge ${r.confianca}">${r.confianca === 'alta' ? 'Alta confiança' : r.confianca === 'media' ? 'Média confiança' : 'Baixa confiança'}</span>
-                        </div>
-                        <div style="text-align:right">
-                            <div class="ia-rec-modal-valor">R$ ${Number(r.valor_medio).toFixed(2).replace('.', ',')}</div>
-                            <button class="ia-btn-primary" style="margin-top:8px;font-size:12px" onclick="IA.confirmarRecorrenciaItem(${JSON.stringify(r).replace(/"/g, '&quot;')}, this)">
-                                <i class="fas fa-check"></i> Ativar
-                            </button>
-                        </div>
-                    </div>`).join('');
-            }
-
-            abrirModal('modal-recorrencias');
-
-        } catch (err) {
-            if (btn) btn.innerHTML = '<i class="fas fa-sync-alt"></i>';
-            console.error('Erro ao detectar recorrências:', err);
-        }
+    // ── UTILITÁRIOS ───────────────────────────────────────────────
+    function setBtnDisabled(v) {
+        var b = document.querySelector('#ai-chat-panel .ai-send-btn');
+        if (b) b.disabled = v;
     }
 
-    async function confirmarRecorrenciaItem(recorrencia, btn) {
-        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
-
-        try {
-            const res = await apiPost('/recorrencias', recorrencia);
-            if (res.success) {
-                btn?.closest('.ia-rec-modal-item')?.remove();
-                adicionarMensagemSistema(`✅ Recorrência "${recorrencia.descricao}" ativada!`);
-            }
-        } catch (err) {
-            console.error(err);
-            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i> Ativar'; }
-        }
+    function esc(s) {
+        return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
-    // ── HELPERS DE UI ─────────────────────────────────────────────
-    function abrirModal(id) {
-        const modal = document.getElementById(id);
-        if (modal) modal.style.display = 'flex';
+    function fmt(s) {
+        return esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
     }
 
-    function fecharModal(id) {
-        const modal = document.getElementById(id);
-        if (modal) modal.style.display = 'none';
+    function fmtV(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ','); }
+
+    function fmtF(f) {
+        var m = { cartao_credito: 'Cartão Crédito', cartao_debito: 'Cartão Débito', pix: 'PIX', dinheiro: 'Dinheiro', transferencia: 'Transferência', boleto: 'Boleto' };
+        return m[f] || f || 'Dinheiro';
     }
 
-    function toggleSidebar() {
-        document.querySelector('.ia-sidebar')?.classList.toggle('open');
+    function fmtD(d) {
+        if (!d) return '';
+        var p = d.split('-');
+        return p[2] + '/' + p[1] + '/' + p[0];
     }
 
-    function preencherSelectCategorias() {
-        const select = document.getElementById('ia-campo-categoria');
-        if (!select) return;
-        select.innerHTML = '<option value="">Selecione a categoria...</option>';
-        estado.categorias.forEach(c => {
-            const opt = document.createElement('option');
-            opt.value = c.id;
-            opt.textContent = c.nome;
-            select.appendChild(opt);
-        });
+    function fmtTipo(t) {
+        var m = { boleto: 'Boleto', nota_fiscal: 'Nota Fiscal', comprovante: 'Comprovante PIX', recibo: 'Recibo', documento: 'Documento' };
+        return m[t] || t;
     }
 
-    function preencherSelectCartoes() {
-        const select = document.getElementById('ia-campo-cartao');
-        if (!select) return;
-        select.innerHTML = '<option value="">Selecione um cartão...</option>';
-        estado.cartoes.forEach(c => {
-            const opt = document.createElement('option');
-            opt.value = c.id;
-            opt.textContent = c.nome;
-            select.appendChild(opt);
-        });
-    }
-
-    // ── FORMATADORES ──────────────────────────────────────────────
-    function formatarTexto(texto) {
-        if (!texto) return '';
-        return esc(texto)
-            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\n/g, '<br>');
-    }
-
-    function esc(str) {
-        return String(str || '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
-    }
-
-    function formatarFormaPagamento(forma) {
-        const mapa = {
-            'cartao_credito': 'Cartão de Crédito',
-            'cartao_debito': 'Cartão de Débito',
-            'pix': 'PIX',
-            'dinheiro': 'Dinheiro',
-            'transferencia': 'Transferência',
-            'boleto': 'Boleto',
-        };
-        return mapa[forma] || forma || 'Dinheiro';
-    }
-
-    function formatarTipoDocumento(tipo) {
-        const mapa = {
-            'boleto': 'Boleto', 'nota_fiscal': 'Nota Fiscal',
-            'comprovante': 'Comprovante de Pagamento', 'recibo': 'Recibo',
-            'documento': 'Documento',
-        };
-        return mapa[tipo] || tipo;
-    }
-
-    function formatarData(data) {
-        if (!data) return '';
-        const [ano, mes, dia] = data.split('-');
-        return `${dia}/${mes}/${ano}`;
-    }
-
-    // Fecha modal ao clicar fora
-    document.addEventListener('click', (e) => {
-        if (e.target.classList.contains('ia-modal-overlay')) {
-            e.target.style.display = 'none';
-        }
+    document.addEventListener('DOMContentLoaded', function () {
+        setTimeout(inicializar, 1500);
     });
 
-    // Fecha sidebar mobile ao clicar fora
-    document.addEventListener('click', (e) => {
-        const sidebar = document.querySelector('.ia-sidebar');
-        const btnMenu = document.querySelector('.ia-btn-menu-mobile');
-        if (sidebar?.classList.contains('open') &&
-            !sidebar.contains(e.target) &&
-            !btnMenu?.contains(e.target)) {
-            sidebar.classList.remove('open');
-        }
-    });
-
-    // ── INICIALIZA ────────────────────────────────────────────────
-    document.addEventListener('DOMContentLoaded', inicializar);
-
-    // ── API PÚBLICA ───────────────────────────────────────────────
     return {
-        enviarMensagem,
-        enviarAcaoRapida,
-        handleKeyDown,
-        autoResize,
-        preencherInput,
-        limparConversa,
-        abrirModalDespesa,
-        salvarDespesa,
-        cancelarDespesa,
-        confirmarAprendizado,
-        abrirUpload,
-        processarArquivo,
-        cancelarArquivo,
-        abrirBoleto,
-        fecharBoleto,
-        processarBoleto,
-        toggleVoz,
-        detectarRecorrencias,
-        confirmarRecorrenciaItem,
-        abrirModal,
-        fecharModal,
-        toggleSidebar,
+        abrir: abrir,
+        fechar: fechar,
+        limpar: limpar,
+        enviar: enviar,
+        keydown: keydown,
+        resize: resize,
+        confirmarDespesa: confirmarDespesa,
+        editarDespesa: editarDespesa,
+        cancelarDespesa: cancelarDespesa,
+        selecionarArquivo: selecionarArquivo,
+        cancelarArquivo: cancelarArquivo,
+        abrirBoleto: abrirBoleto,
+        fecharBoleto: fecharBoleto,
+        processarBoleto: processarBoleto,
+        toggleVoz: toggleVoz,
+        salvarChaveAPI: salvarChaveAPI,
+        _chip: _chip
     };
-
-})();
+}());
