@@ -1153,6 +1153,22 @@ form .btn-primary:hover {
     }
 }
 
+/* Esconde a div de login inicialmente */
+.hero-login {
+    display: none;
+}
+
+/* Classe para mostrar a div quando o botão for clicado */
+.hero-login.show {
+    display: block;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 /* ================================================================
    RESPONSIVO LANDING PAGE
    ================================================================ */

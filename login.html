@@ -613,14 +613,19 @@
     }
 
     function scrollToLogin() {
-    // Faz a página deslizar suavemente até a seção de login
-    const loginSection = document.getElementById('hero-section');
-    loginSection.scrollIntoView({ behavior: 'smooth' });
-    
-    // Opcional: Dar um foco visual no campo de CPF após o scroll
+    const loginDiv = document.querySelector('.hero-login');
+    const heroSection = document.getElementById('hero-section');
+
+    // Torna a div visível adicionando a classe
+    loginDiv.classList.add('show');
+
+    // Rola a página suavemente até o formulário
+    heroSection.scrollIntoView({ behavior: 'smooth' });
+
+    // Foca no campo de input após o scroll
     setTimeout(() => {
         document.getElementById('modal-documento').focus();
-    }, 800);
+    }, 600);
 }
 
 </script>
