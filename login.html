@@ -612,17 +612,18 @@
         });
     }
 
-    function scrollToLogin() {
+  // Adicione isso fora de qualquer função, no topo do seu script
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelector('.hero-login').classList.remove('show');
+});
+
+// Mantenha sua função de clique como está
+function scrollToLogin() {
     const loginDiv = document.querySelector('.hero-login');
-    const heroSection = document.getElementById('hero-section');
-
-    // Torna a div visível adicionando a classe
     loginDiv.classList.add('show');
+    
+    document.getElementById('hero-section').scrollIntoView({ behavior: 'smooth' });
 
-    // Rola a página suavemente até o formulário
-    heroSection.scrollIntoView({ behavior: 'smooth' });
-
-    // Foca no campo de input após o scroll
     setTimeout(() => {
         document.getElementById('modal-documento').focus();
     }, 600);
