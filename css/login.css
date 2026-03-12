@@ -1126,6 +1126,33 @@ form .btn-primary:hover {
     font-size: 12px;
 }
 
+
+
+.btn-nav-login {
+    background-color: #667eea;
+    color: white;
+    padding: 8px 20px;
+    border-radius: 50px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.2s;
+    margin-left: 15px;
+}
+
+.btn-nav-login:hover {
+    background-color: #5a67d8;
+    transform: translateY(-2px);
+}
+
+/* No celular, o botão pode ser menor */
+@media (max-width: 768px) {
+    .btn-nav-login {
+        padding: 5px 12px;
+        font-size: 14px;
+    }
+}
+
 /* ================================================================
    RESPONSIVO LANDING PAGE
    ================================================================ */

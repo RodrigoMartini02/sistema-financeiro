@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fin-Gerence | Sistema de Controle Financeiro Pessoal</title>
+   <title>Fin-Gerence | Sistema de Gestão Financeira e Controle de Gastos</title>
+    <meta name="description" content="O Fin-Gerence é o melhor sistema de controle financeiro pessoal e empresarial. Organize seu fluxo de caixa, cartões de crédito e economize dinheiro.">
+    <meta name="robots" content="index, follow">
 
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
@@ -46,9 +48,10 @@
             <i class="fas fa-chart-line"></i>
             <span>Fin-Gerence</span>
         </div>
-        <div class="nav-links">
+       <div class="nav-links">
             <a href="#features">Funcionalidades</a>
             <a href="#como-funciona">Como Funciona</a>
+            <button class="btn-nav-login" onclick="scrollToLogin()">Acessar Sistema</button>
         </div>
         
     </div>
@@ -608,6 +611,18 @@
             });
         });
     }
+
+    function scrollToLogin() {
+    // Faz a página deslizar suavemente até a seção de login
+    const loginSection = document.getElementById('hero-section');
+    loginSection.scrollIntoView({ behavior: 'smooth' });
+    
+    // Opcional: Dar um foco visual no campo de CPF após o scroll
+    setTimeout(() => {
+        document.getElementById('modal-documento').focus();
+    }, 800);
+}
+
 </script>
 
 </body>
