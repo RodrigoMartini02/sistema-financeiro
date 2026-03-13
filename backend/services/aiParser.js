@@ -73,6 +73,14 @@ async function parsearComOpenAI(texto, contextoConversa = []) {
 }
 
 // ── GEN — PARSER INTERNO (fallback) ─────────────────────────────
+// Bancos conhecidos para resolução de nome de cartão
+const BANCOS_CONHECIDOS = [
+    'nubank', 'nu', 'itaú', 'itau', 'bradesco', 'santander', 'inter',
+    'caixa', 'bb', 'banco do brasil', 'sicoob', 'sicredi', 'c6', 'neon',
+    'next', 'original', 'pan', 'safra', 'modal', 'bmg', 'mercado pago',
+    'picpay', 'pagbank', 'will bank', 'xp', 'rico', 'clear'
+];
+
 function parsearComGen(texto) {
     const lower = texto.toLowerCase();
     const result = {
@@ -80,9 +88,12 @@ function parsearComGen(texto) {
         valor: null,
         categoria: null,
         forma_pagamento: null,
+        nome_cartao: null,
         vencimento: null,
         parcelas: 1,
-        data: new Date().toISOString().split('T')[0]
+        data: new Date().toISOString().split('T')[0],
+        ja_pago: false,
+        recorrente: false
     };
 
     // ── Extração de VALOR ──────────────────────────────────────
@@ -106,7 +117,17 @@ function parsearComGen(texto) {
         }
     }
 
-    // ── Extração de FORMA DE PAGAMENTO ────────────────────────
+    // ── Já pago ────────────────────────────────────────────────
+    if (/(?:já\s+)?paguei|já\s+pago|quitei|quitado|pago\s+hoje/i.test(texto)) {
+        result.ja_pago = true;
+    }
+
+    // ── Recorrente ────────────────────────────────────────────
+    if (/todo\s+m[eê]s|mensal|recorrente|fixo|mensalidade|sempre|toda\s+semana|semanal/i.test(texto)) {
+        result.recorrente = true;
+    }
+
+    // ── Extração de FORMA DE PAGAMENTO + NOME DO CARTÃO ───────
     if (/cartão\s+de?\s+crédito|cartao\s+credito|crédito|credito/i.test(texto)) {
         result.forma_pagamento = 'cartao_credito';
     } else if (/cartão\s+de?\s+débito|cartao\s+debito|débito|debito/i.test(texto)) {
@@ -121,6 +142,16 @@ function parsearComGen(texto) {
         result.forma_pagamento = 'transferencia';
     } else if (/\bboleto\b/i.test(texto)) {
         result.forma_pagamento = 'boleto';
+    }
+
+    // ── Nome do cartão/banco mencionado ───────────────────────
+    for (const banco of BANCOS_CONHECIDOS) {
+        if (lower.includes(banco)) {
+            result.nome_cartao = banco;
+            // Se mencionou banco sem forma explícita, assume crédito
+            if (!result.forma_pagamento) result.forma_pagamento = 'cartao_credito';
+            break;
+        }
     }
 
     // ── Extração de VENCIMENTO ───────────────────────────────
@@ -152,8 +183,10 @@ function parsearComGen(texto) {
     let descricao = texto
         .replace(/R\$\s*[\d.,]+/gi, '')
         .replace(/[\d.,]+\s*reais?/gi, '')
-        .replace(/(?:paguei|gastei|comprei|recebi|adicionei|adicione|lançar)\s*/gi, '')
+        .replace(/(?:já\s+)?paguei|já\s+pago|quitei|quitado/gi, '')
+        .replace(/(?:gastei|comprei|recebi|adicionei|adicione|lançar)\s*/gi, '')
         .replace(/(?:no|na|com|via|pelo|pela)\s+(?:cartão|cartao|pix|dinheiro|débito|debito|crédito|credito|boleto)\s*/gi, '')
+        .replace(/todo\s+m[eê]s|mensal(?:idade)?|recorrente|fixo|toda\s+semana|semanal/gi, '')
         .replace(/vence(?:mento)?\s+(?:dia\s+)?\d{1,2}(?:\/\d{1,2}(?:\/\d{2,4})?)?/gi, '')
         .replace(/em\s+\d+\s*(?:x|vezes?|parcelas?)/gi, '')
         .replace(/\s{2,}/g, ' ')

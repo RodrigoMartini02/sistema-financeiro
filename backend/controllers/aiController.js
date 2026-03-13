@@ -557,6 +557,121 @@ async function salvarAprendizadoCategoria(req, res) {
 }
 
 // ================================================================
+// POST /api/ai/despesa/salvar
+// Salva despesa diretamente via IA (usado pela página ia.html)
+// ================================================================
+async function salvarDespesaIA(req, res) {
+    try {
+        const usuarioId = req.usuario.id;
+        const { descricao, valor, forma_pagamento, data, vencimento, parcelas, categoria_id, cartao_id } = req.body;
+
+        if (!descricao || !valor || !forma_pagamento || !data) {
+            return res.status(400).json({ success: false, message: 'Campos obrigatórios: descricao, valor, forma_pagamento, data.' });
+        }
+
+        const dataVenc = vencimento || data;
+        const dataObj = new Date(dataVenc);
+        const mes = dataObj.getMonth();
+        const ano = dataObj.getFullYear();
+        const totalParcelas = parseInt(parcelas) || 1;
+        const parcelado = totalParcelas > 1;
+
+        // Busca categoria padrão se não informada
+        let categoriaFinal = categoria_id || null;
+        if (!categoriaFinal) {
+            const catR = await query('SELECT id FROM categorias WHERE usuario_id = $1 ORDER BY id ASC LIMIT 1', [usuarioId]);
+            if (catR.rows.length > 0) categoriaFinal = catR.rows[0].id;
+        }
+
+        const result = await query(
+            `INSERT INTO despesas (
+                usuario_id, descricao, valor, data_vencimento, data_compra,
+                mes, ano, categoria_id, cartao_id, forma_pagamento,
+                parcelado, numero_parcelas, parcela_atual, pago, recorrente
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+            RETURNING id, descricao, valor`,
+            [
+                usuarioId, descricao, parseFloat(valor), dataVenc, data,
+                mes, ano, categoriaFinal || null, cartao_id || null, forma_pagamento,
+                parcelado, parcelado ? totalParcelas : null, parcelado ? 1 : null, false, false
+            ]
+        );
+
+        // Salva aprendizado de categoria
+        if (categoriaFinal) {
+            const catR = await query('SELECT nome FROM categorias WHERE id = $1', [categoriaFinal]);
+            if (catR.rows.length > 0) {
+                await salvarAprendizado(usuarioId, descricao, catR.rows[0].nome).catch(() => {});
+            }
+        }
+
+        return res.json({ success: true, message: `Despesa "${descricao}" cadastrada!`, data: result.rows[0] });
+
+    } catch (err) {
+        console.error('Erro ao salvar despesa via IA:', err);
+        res.status(500).json({ success: false, message: 'Erro ao salvar despesa.' });
+    }
+}
+
+// ================================================================
+// POST /api/ai/receita/salvar
+// Salva receita diretamente via IA (usado pela página ia.html)
+// ================================================================
+async function salvarReceitaIA(req, res) {
+    try {
+        const usuarioId = req.usuario.id;
+        const { descricao, valor, data } = req.body;
+
+        if (!descricao || !valor || !data) {
+            return res.status(400).json({ success: false, message: 'Campos obrigatórios: descricao, valor, data.' });
+        }
+
+        const dataObj = new Date(data);
+        const mes = dataObj.getMonth();
+        const ano = dataObj.getFullYear();
+
+        const result = await query(
+            `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano)
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, descricao, valor`,
+            [usuarioId, descricao, parseFloat(valor), data, mes, ano]
+        );
+
+        return res.json({ success: true, message: `Receita "${descricao}" cadastrada!`, data: result.rows[0] });
+
+    } catch (err) {
+        console.error('Erro ao salvar receita via IA:', err);
+        res.status(500).json({ success: false, message: 'Erro ao salvar receita.' });
+    }
+}
+
+// ================================================================
+// POST /api/ai/config/chave
+// Salva preferência de chave OpenAI por usuário (em dados_usuario)
+// ================================================================
+async function salvarConfigChave(req, res) {
+    try {
+        const usuarioId = req.usuario.id;
+        const { openai_api_key } = req.body;
+
+        if (!openai_api_key || !openai_api_key.startsWith('sk-')) {
+            return res.status(400).json({ success: false, message: 'Chave inválida. Deve começar com sk-' });
+        }
+
+        // Armazena no campo de dados extras do usuário
+        await query(
+            `UPDATE usuarios SET dados_financeiros = COALESCE(dados_financeiros, '{}'::jsonb) || $1::jsonb WHERE id = $2`,
+            [JSON.stringify({ openai_key_config: openai_api_key }), usuarioId]
+        );
+
+        return res.json({ success: true, message: 'Chave salva. Ela será usada nas próximas conversas.' });
+
+    } catch (err) {
+        console.error('Erro ao salvar chave IA:', err);
+        res.status(500).json({ success: false, message: 'Erro ao salvar configuração.' });
+    }
+}
+
+// ================================================================
 // GET /api/ai/status
 // Status do módulo IA
 // ================================================================
@@ -617,5 +732,8 @@ module.exports = {
     listarRecorrencias,
     confirmarRecorrencia,
     salvarAprendizadoCategoria,
+    salvarDespesaIA,
+    salvarReceitaIA,
+    salvarConfigChave,
     status,
 };

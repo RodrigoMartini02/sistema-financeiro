@@ -70,6 +70,13 @@ router.post('/recorrencias', authMiddleware, ctrl.confirmarRecorrencia);
 // Aprendizado de categoria
 router.post('/aprendizado', authMiddleware, ctrl.salvarAprendizadoCategoria);
 
+// Salvar despesa/receita diretamente via IA (página ia.html)
+router.post('/despesa/salvar', authMiddleware, ctrl.salvarDespesaIA);
+router.post('/receita/salvar', authMiddleware, ctrl.salvarReceitaIA);
+
+// Configuração de chave OpenAI por usuário
+router.post('/config/chave', authMiddleware, ctrl.salvarConfigChave);
+
 // ── TRATAMENTO DE ERRO DO MULTER ─────────────────────────────────
 router.use((err, req, res, next) => {
     if (err instanceof multer.MulterError) {

@@ -4268,6 +4268,7 @@ window.adicionarCard = adicionarCard;
 window.removerCard = removerCard;
 window.popularTodosOsCards = popularTodosOsCards;
 window.selecionarPagamentoCartao = selecionarPagamentoCartao;
+window.aplicarFavoritoCard = aplicarFavoritoCard;
 
 // Abre form inline no footer do modal para criar nova categoria
 async function abrirModalNovaCategoriaInline() {
