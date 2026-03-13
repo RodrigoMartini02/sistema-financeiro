@@ -94,37 +94,41 @@ window.IA = (function () {
 
     // ── INICIALIZAR STATUS ────────────────────────────────────────
     function inicializar() {
-        apiGet('/status').then(function (st) {
-            // Painel flutuante
-            var el = document.getElementById('ai-panel-status');
-            if (el) {
-                el.textContent = (st && st.openai && st.openai.ativo)
-                    ? 'OpenAI ativa (' + st.openai.modelo + ')'
-                    : 'Gen ativa';
-            }
+        // Carrega config do usuário (provider salvo)
+        apiGet('/config').then(function (cfg) {
+            var provider = (cfg && cfg.provider) || 'gen';
+            var nome     = (cfg && cfg.nome)     || 'Gen ativa — IA interna Fin-Gerence';
+            var isGen    = provider === 'gen';
+
             var badge = document.getElementById('ia-badge-status');
-            if (badge) {
-                if (st && st.openai && st.openai.ativo) {
-                    badge.textContent = 'OpenAI ativa — ' + st.openai.modelo;
-                    badge.className = 'badge ativo';
-                } else {
-                    badge.textContent = 'Gen ativa — IA interna Fin-Gerence';
-                    badge.className = 'badge gen';
-                }
-            }
-            // Página completa
+            if (badge) { badge.textContent = nome; badge.className = 'badge ' + (isGen ? 'gen' : 'ativo'); }
+
             var statusTxt = document.getElementById('ia-status-text');
             var statusDot = document.getElementById('ia-status-dot');
-            if (statusTxt) {
-                statusTxt.textContent = (st && st.openai && st.openai.ativo)
-                    ? 'OpenAI ativa (' + st.openai.modelo + ')'
-                    : 'Gen ativa — IA interna';
-            }
+            if (statusTxt) statusTxt.textContent = nome;
             if (statusDot) statusDot.classList.add('online');
+
+            var el = document.getElementById('ai-panel-status');
+            if (el) el.textContent = nome;
+
+            // Pré-seleciona o provider no select das configurações
+            var sel = document.getElementById('ia-provider-select');
+            if (sel) {
+                sel.value = provider;
+                sel.dispatchEvent(new Event('change'));
+            }
         }).catch(function () {
-            var statusTxt = document.getElementById('ia-status-text');
-            if (document.getElementById('ai-panel-status')) document.getElementById('ai-panel-status').textContent = 'offline';
-            if (statusTxt) statusTxt.textContent = 'offline';
+            // Fallback: tenta apenas /status (sem auth)
+            apiGet('/status').then(function (st) {
+                var el = document.getElementById('ai-panel-status');
+                if (el) el.textContent = (st && st.openai && st.openai.ativo) ? 'OpenAI ativa' : 'Gen ativa';
+                var statusDot = document.getElementById('ia-status-dot');
+                if (statusDot) statusDot.classList.add('online');
+            }).catch(function () {
+                if (document.getElementById('ai-panel-status')) document.getElementById('ai-panel-status').textContent = 'offline';
+                var statusTxt = document.getElementById('ia-status-text');
+                if (statusTxt) statusTxt.textContent = 'offline';
+            });
         });
     }
 
@@ -727,19 +731,50 @@ window.IA = (function () {
         if (input) { input.value = btn.textContent.trim(); autoResize(input); input.focus(); }
     }
 
-    // ── SALVAR CHAVE API ─────────────────────────────────────────
+    // ── SALVAR CHAVE / PROVEDOR DE IA ────────────────────────────
+    var HINTS_PROVIDER = {
+        openai:  'Chave começa com <code>sk-</code>. Obtenha em platform.openai.com',
+        gemini:  'Obtenha sua chave em aistudio.google.com/apikey',
+        claude:  'Chave começa com <code>sk-ant-</code>. Obtenha em console.anthropic.com'
+    };
+    var LABELS_PROVIDER = {
+        gen:    'Gen ativa — IA interna Fin-Gerence',
+        openai: 'OpenAI ativa — GPT-4o mini',
+        gemini: 'Google Gemini ativo — Gemini 2.0 Flash',
+        claude: 'Anthropic Claude ativo — Claude Haiku'
+    };
+
+    function setupProviderSelect() {
+        var sel = document.getElementById('ia-provider-select');
+        if (!sel) return;
+        function atualizarUI() {
+            var v = sel.value;
+            var row  = document.getElementById('ia-key-row');
+            var hint = document.getElementById('ia-key-hint');
+            if (row)  row.style.display  = (v === 'gen') ? 'none' : 'flex';
+            if (hint) hint.innerHTML = HINTS_PROVIDER[v] || '';
+        }
+        sel.addEventListener('change', atualizarUI);
+        atualizarUI();
+    }
+
     function salvarChaveAPI() {
-        var input = document.getElementById('ia-openai-key-input');
-        var chave = input ? input.value.trim() : '';
-        if (!chave) { addSys('Informe a chave antes de salvar.'); return; }
-        apiPost('/config/chave', { openai_api_key: chave }).then(function (res) {
+        var provider = document.getElementById('ia-provider-select')?.value || 'gen';
+        var input    = document.getElementById('ia-api-key-input');
+        var chave    = input ? input.value.trim() : '';
+        if (provider !== 'gen' && !chave) { alert('Informe a chave antes de salvar.'); return; }
+        apiPost('/config/chave', { provider: provider, api_key: chave }).then(function (res) {
             if (res && res.success) {
-                addSys('✅ Chave OpenAI salva com sucesso!');
+                var msg = '✅ ' + (LABELS_PROVIDER[provider] || 'Configuração salva');
+                alert(msg);
                 if (input) input.value = '';
+                // Atualiza badge de status
+                var badge = document.getElementById('ia-badge-status');
+                if (badge) { badge.textContent = LABELS_PROVIDER[provider] || provider; badge.className = 'badge ' + (provider === 'gen' ? 'gen' : 'ativo'); }
             } else {
-                addSys('Erro ao salvar: ' + (res?.message || 'tente novamente.'));
+                alert('Erro ao salvar: ' + (res?.message || 'tente novamente.'));
             }
-        }).catch(function () { addSys('Erro de conexão ao salvar a chave.'); });
+        }).catch(function () { alert('Erro de conexão ao salvar a configuração.'); });
     }
 
     // ── INICIALIZAÇÃO ─────────────────────────────────────────────
@@ -768,7 +803,8 @@ window.IA = (function () {
             document.getElementById('btn-ia-lancamento')?.addEventListener('click', function () { abrir('despesa'); });
             document.getElementById('btn-ia-nova-receita')?.addEventListener('click', function () { abrir('receita'); });
 
-            // Config — salvar chave OpenAI
+            // Config — provedor e chave
+            setupProviderSelect();
             document.getElementById('ia-btn-salvar-chave')?.addEventListener('click', salvarChaveAPI);
 
             setTimeout(inicializar, 1500);

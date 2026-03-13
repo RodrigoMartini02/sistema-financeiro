@@ -74,7 +74,8 @@ router.post('/aprendizado', authMiddleware, ctrl.salvarAprendizadoCategoria);
 router.post('/despesa/salvar', authMiddleware, ctrl.salvarDespesaIA);
 router.post('/receita/salvar', authMiddleware, ctrl.salvarReceitaIA);
 
-// Configuração de chave OpenAI por usuário
+// Configuração de provedor de IA por usuário
+router.get('/config', authMiddleware, ctrl.obterConfigIA);
 router.post('/config/chave', authMiddleware, ctrl.salvarConfigChave);
 
 // ── TRATAMENTO DE ERRO DO MULTER ─────────────────────────────────

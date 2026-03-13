@@ -47,8 +47,10 @@ Input: "netflix 55,90 debito todo mes"
 Output: {"descricao":"Netflix","valor":55.90,"categoria":"Assinaturas","forma_pagamento":"cartao_debito","vencimento":null,"parcelas":1,"data":"HOJE"}`;
 
 // ── PARSER COM OPENAI ────────────────────────────────────────────
-async function parsearComOpenAI(texto, contextoConversa = []) {
-    const openai = getOpenAI();
+async function parsearComOpenAI(texto, contextoConversa = [], apiKeyOverride) {
+    let openai = apiKeyOverride
+        ? (() => { const OpenAI = require('openai'); return new OpenAI({ apiKey: apiKeyOverride }); })()
+        : getOpenAI();
     if (!openai) throw new Error('OpenAI não configurado');
 
     const hoje = new Date().toISOString().split('T')[0];
@@ -56,7 +58,7 @@ async function parsearComOpenAI(texto, contextoConversa = []) {
 
     const messages = [
         { role: 'system', content: systemWithDate },
-        ...contextoConversa.slice(-6), // últimas 3 trocas
+        ...contextoConversa.slice(-6),
         { role: 'user', content: texto }
     ];
 
@@ -70,6 +72,48 @@ async function parsearComOpenAI(texto, contextoConversa = []) {
 
     const content = response.choices[0].message.content;
     return JSON.parse(content);
+}
+
+// ── PARSER COM GEMINI ─────────────────────────────────────────────
+async function parsearComGemini(texto, contextoConversa = [], apiKey) {
+    if (!apiKey) throw new Error('Gemini API key não configurada');
+    const fetch = require('node-fetch');
+    const hoje = new Date().toISOString().split('T')[0];
+    const prompt = SYSTEM_PROMPT + `\n\nData de hoje: ${hoje}\n\nTexto do usuário: ${texto}`;
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const body = {
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.1, maxOutputTokens: 500, responseMimeType: 'application/json' }
+    };
+
+    const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!r.ok) throw new Error('Gemini HTTP ' + r.status);
+    const data = await r.json();
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!content) throw new Error('Resposta vazia do Gemini');
+    return JSON.parse(content);
+}
+
+// ── PARSER COM CLAUDE ─────────────────────────────────────────────
+async function parsearComClaude(texto, contextoConversa = [], apiKey) {
+    if (!apiKey) throw new Error('Anthropic API key não configurada');
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client = new Anthropic({ apiKey });
+    const hoje = new Date().toISOString().split('T')[0];
+
+    const response = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 500,
+        system: SYSTEM_PROMPT + `\n\nData de hoje: ${hoje}\n\nResponda APENAS com JSON válido.`,
+        messages: [{ role: 'user', content: texto }]
+    });
+
+    const content = response.content[0]?.text;
+    if (!content) throw new Error('Resposta vazia do Claude');
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('JSON não encontrado na resposta do Claude');
+    return JSON.parse(jsonMatch[0]);
 }
 
 // ── GEN — PARSER INTERNO (fallback) ─────────────────────────────
@@ -268,72 +312,104 @@ function detectarIntencao(texto) {
  * @param {string} texto - Texto do usuário
  * @param {Array} contextoConversa - Histórico do chat (msgs OpenAI format)
  * @param {boolean} forcarHeuristica - Forçar uso de heurísticas
+ * @param {{ provider: string, apiKey: string }} providerConfig - Config do usuário
  * @returns {Object} { dados, metodo, intencao }
  */
-async function parsearDespesa(texto, contextoConversa = [], forcarHeuristica = false) {
+async function parsearDespesa(texto, contextoConversa = [], forcarHeuristica = false, providerConfig = null) {
     const intencao = detectarIntencao(texto);
 
     let dados = null;
     let metodo = 'gen';
 
-    const openai = getOpenAI();
-
-    if (openai && !forcarHeuristica) {
+    if (!forcarHeuristica && providerConfig?.provider && providerConfig.provider !== 'gen') {
+        try {
+            if (providerConfig.provider === 'openai') {
+                dados = await parsearComOpenAI(texto, contextoConversa, providerConfig.apiKey);
+                metodo = 'openai';
+            } else if (providerConfig.provider === 'gemini') {
+                dados = await parsearComGemini(texto, contextoConversa, providerConfig.apiKey);
+                metodo = 'gemini';
+            } else if (providerConfig.provider === 'claude') {
+                dados = await parsearComClaude(texto, contextoConversa, providerConfig.apiKey);
+                metodo = 'claude';
+            }
+        } catch (err) {
+            console.warn(`⚠️ ${providerConfig.provider} falhou, usando Gen:`, err.message);
+            dados = parsearComGen(texto);
+        }
+    } else if (!forcarHeuristica && getOpenAI()) {
+        // fallback para chave env do servidor
         try {
             dados = await parsearComOpenAI(texto, contextoConversa);
             metodo = 'openai';
         } catch (err) {
-            console.warn('⚠️ OpenAI falhou, usando Gen (IA interna):', err.message);
+            console.warn('⚠️ OpenAI falhou, usando Gen:', err.message);
             dados = parsearComGen(texto);
         }
     } else {
         dados = parsearComGen(texto);
     }
 
-    // Normaliza os dados extraídos
     const normalizado = normalizarDespesa(dados);
-
     return { dados: normalizado, metodo, intencao };
 }
 
-// ── CONVERSA FINANCEIRA COM OPENAI ────────────────────────────────
+// ── CONVERSA FINANCEIRA COM IA EXTERNA ───────────────────────────
 /**
  * Responde perguntas financeiras usando dados do banco
  * @param {string} pergunta
  * @param {Object} dadosFinanceiros - { despesas, receitas, saldo, etc }
  * @param {Array} historico
+ * @param {{ provider: string, apiKey: string }} providerConfig
  */
-async function responderPerguntaFinanceira(pergunta, dadosFinanceiros, historico = []) {
-    const openai = getOpenAI();
-
+async function responderPerguntaFinanceira(pergunta, dadosFinanceiros, historico = [], providerConfig = null) {
     const hoje = new Date().toISOString().split('T')[0];
     const resumo = JSON.stringify(dadosFinanceiros, null, 2).substring(0, 3000);
+    const systemMsg = `Você é um assistente financeiro pessoal. Responda de forma clara, concisa e em português brasileiro.\nData de hoje: ${hoje}\nDados financeiros do usuário:\n${resumo}\n\nResponda em no máximo 3 frases. Use R$ para valores monetários. Seja direto.`;
 
-    if (!openai) {
-        // Resposta baseada em regras simples
-        return gerarRespostaSimples(pergunta, dadosFinanceiros);
-    }
-
-    const systemMsg = `Você é um assistente financeiro pessoal. Responda de forma clara, concisa e em português brasileiro.
-Data de hoje: ${hoje}
-Dados financeiros do usuário:
-${resumo}
-
-Responda em no máximo 3 frases. Use R$ para valores monetários. Seja direto.`;
+    const provider = providerConfig?.provider;
+    const apiKey   = providerConfig?.apiKey;
 
     try {
+        if (provider === 'gemini' && apiKey) {
+            const fetch = require('node-fetch');
+            const url   = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const r = await fetch(url, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: systemMsg + '\n\nPergunta: ' + pergunta }] }], generationConfig: { temperature: 0.3, maxOutputTokens: 300 } })
+            });
+            if (!r.ok) throw new Error('Gemini HTTP ' + r.status);
+            const data = await r.json();
+            return data.candidates?.[0]?.content?.parts?.[0]?.text || gerarRespostaSimples(pergunta, dadosFinanceiros);
+        }
+
+        if (provider === 'claude' && apiKey) {
+            const Anthropic = require('@anthropic-ai/sdk');
+            const client = new Anthropic({ apiKey });
+            const response = await client.messages.create({
+                model: 'claude-haiku-4-5-20251001',
+                max_tokens: 300,
+                system: systemMsg,
+                messages: [...historico.slice(-4), { role: 'user', content: pergunta }]
+            });
+            return response.content[0]?.text || gerarRespostaSimples(pergunta, dadosFinanceiros);
+        }
+
+        // OpenAI (chave do usuário ou env)
+        const openai = (provider === 'openai' && apiKey)
+            ? (() => { const OpenAI = require('openai'); return new OpenAI({ apiKey }); })()
+            : getOpenAI();
+
+        if (!openai) return gerarRespostaSimples(pergunta, dadosFinanceiros);
+
         const response = await openai.chat.completions.create({
             model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-            messages: [
-                { role: 'system', content: systemMsg },
-                ...historico.slice(-4),
-                { role: 'user', content: pergunta }
-            ],
+            messages: [{ role: 'system', content: systemMsg }, ...historico.slice(-4), { role: 'user', content: pergunta }],
             temperature: 0.3,
             max_tokens: 300,
         });
-
         return response.choices[0].message.content;
+
     } catch (err) {
         console.error('Erro ao responder pergunta financeira:', err.message);
         return gerarRespostaSimples(pergunta, dadosFinanceiros);

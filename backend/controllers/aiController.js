@@ -32,6 +32,19 @@ function limparSessao(usuarioId) {
     sessoes.delete(usuarioId);
 }
 
+// ── HELPER: Busca configuração de IA do usuário ───────────────────
+async function buscarConfigIA(usuarioId) {
+    try {
+        const r = await query('SELECT dados_financeiros FROM usuarios WHERE id = $1', [usuarioId]);
+        const df = r.rows[0]?.dados_financeiros || {};
+        const provider = df.ia_provider || null;
+        const apiKey   = df.ia_api_key   || null;
+        return provider && provider !== 'gen' && apiKey ? { provider, apiKey } : null;
+    } catch {
+        return null;
+    }
+}
+
 // ── HELPER: Busca categorias do usuário ──────────────────────────
 async function buscarCategorias(usuarioId) {
     try {
@@ -115,6 +128,7 @@ async function chat(req, res) {
         if (limpar_sessao) limparSessao(usuarioId);
 
         const sessao = obterSessao(usuarioId);
+        const providerConfig = await buscarConfigIA(usuarioId);
 
         // Adiciona ao histórico
         sessao.historico.push({ role: 'user', content: mensagem });
@@ -188,7 +202,7 @@ async function chat(req, res) {
 
         if (intencao === 'analise') {
             const resumo = await buscarResumoFinanceiro(usuarioId);
-            resposta = await responderPerguntaFinanceira(mensagem, resumo, sessao.historico.slice(-6));
+            resposta = await responderPerguntaFinanceira(mensagem, resumo, sessao.historico.slice(-6), providerConfig);
             sessao.historico.push({ role: 'assistant', content: resposta });
             return res.json({ success: true, resposta, acao: 'analise', dados: resumo });
         }
@@ -196,7 +210,7 @@ async function chat(req, res) {
         // ── Parseia despesa ─────────────────────────────────────
         let parsedResult;
         try {
-            parsedResult = await parsearDespesa(mensagem, sessao.historico, false);
+            parsedResult = await parsearDespesa(mensagem, sessao.historico, false, providerConfig);
         } catch (err) {
             parsedResult = { dados: null, metodo: 'erro', intencao: 'despesa' };
         }
@@ -471,8 +485,9 @@ async function analisarFinancas(req, res) {
         );
 
         const sessao = obterSessao(usuarioId);
+        const providerConfig = await buscarConfigIA(usuarioId);
         const resposta = await responderPerguntaFinanceira(
-            pergunta, resumo, sessao.historico.slice(-4)
+            pergunta, resumo, sessao.historico.slice(-4), providerConfig
         );
 
         return res.json({
@@ -646,28 +661,58 @@ async function salvarReceitaIA(req, res) {
 
 // ================================================================
 // POST /api/ai/config/chave
-// Salva preferência de chave OpenAI por usuário (em dados_usuario)
+// Salva provedor e chave de IA por usuário
 // ================================================================
 async function salvarConfigChave(req, res) {
     try {
         const usuarioId = req.usuario.id;
-        const { openai_api_key } = req.body;
+        const { provider, api_key } = req.body;
 
-        if (!openai_api_key || !openai_api_key.startsWith('sk-')) {
-            return res.status(400).json({ success: false, message: 'Chave inválida. Deve começar com sk-' });
+        const provedoresValidos = ['gen', 'openai', 'gemini', 'claude'];
+        if (!provider || !provedoresValidos.includes(provider)) {
+            return res.status(400).json({ success: false, message: 'Provedor inválido. Use: gen, openai, gemini ou claude.' });
         }
 
-        // Armazena no campo de dados extras do usuário
+        if (provider !== 'gen' && !api_key) {
+            return res.status(400).json({ success: false, message: 'Chave de API obrigatória para esse provedor.' });
+        }
+
+        if (provider === 'openai' && !api_key.startsWith('sk-')) {
+            return res.status(400).json({ success: false, message: 'Chave OpenAI inválida. Deve começar com sk-' });
+        }
+
+        if (provider === 'claude' && !api_key.startsWith('sk-ant-')) {
+            return res.status(400).json({ success: false, message: 'Chave Anthropic inválida. Deve começar com sk-ant-' });
+        }
+
+        const config = { ia_provider: provider, ia_api_key: provider === 'gen' ? null : api_key };
+
         await query(
             `UPDATE usuarios SET dados_financeiros = COALESCE(dados_financeiros, '{}'::jsonb) || $1::jsonb WHERE id = $2`,
-            [JSON.stringify({ openai_key_config: openai_api_key }), usuarioId]
+            [JSON.stringify(config), usuarioId]
         );
 
-        return res.json({ success: true, message: 'Chave salva. Ela será usada nas próximas conversas.' });
+        const nomes = { gen: 'Gen (IA interna)', openai: 'OpenAI GPT-4o mini', gemini: 'Google Gemini', claude: 'Anthropic Claude Haiku' };
+        return res.json({ success: true, message: `Configuração salva! Usando: ${nomes[provider]}` });
 
     } catch (err) {
-        console.error('Erro ao salvar chave IA:', err);
+        console.error('Erro ao salvar config IA:', err);
         res.status(500).json({ success: false, message: 'Erro ao salvar configuração.' });
+    }
+}
+
+// ================================================================
+// GET /api/ai/config
+// Retorna configuração de IA do usuário autenticado
+// ================================================================
+async function obterConfigIA(req, res) {
+    try {
+        const config = await buscarConfigIA(req.usuario.id);
+        const provider = config?.provider || 'gen';
+        const nomes = { gen: 'Gen (IA interna)', openai: 'OpenAI GPT-4o mini', gemini: 'Google Gemini 2.0 Flash', claude: 'Anthropic Claude Haiku' };
+        return res.json({ success: true, provider, nome: nomes[provider] || provider, tem_chave: !!config?.apiKey });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Erro ao buscar configuração.' });
     }
 }
 
@@ -735,5 +780,6 @@ module.exports = {
     salvarDespesaIA,
     salvarReceitaIA,
     salvarConfigChave,
+    obterConfigIA,
     status,
 };
