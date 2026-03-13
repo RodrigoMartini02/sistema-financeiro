@@ -9,16 +9,13 @@
 
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#667eea">
+    <meta name="theme-color" content="#6366f1">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="FinançasPro">
+    <meta name="apple-mobile-web-app-title" content="Fin-Gerence">
     <link rel="apple-touch-icon" href="icons/financeiro.png">
     <link rel="icon" type="image/png" href="icons/financeiro.png?v=1">
-
-    <!-- SEO -->
-    <meta name="description" content="Controle suas finanças com inteligência. Receitas, despesas, cartões, relatórios e muito mais em um só lugar.">
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -51,7 +48,8 @@
        <div class="nav-links">
             <a href="#features">Funcionalidades</a>
             <a href="#como-funciona">Como Funciona</a>
-            <button class="btn-nav-login" onclick="scrollToLogin()">Acessar Sistema</button>
+            <a href="#avaliacoes">Avaliações</a>
+            <button class="btn-nav-login" id="btn-nav-acessar">Acessar Sistema</button>
         </div>
         
     </div>
@@ -122,6 +120,15 @@
                     <strong>PWA</strong>
                     <span>Instale no celular</span>
                 </div>
+            </div>
+
+            <div class="hero-cta-buttons">
+                <button class="btn-hero-acesso" id="btn-hero-acessar">
+                    <i class="fas fa-sign-in-alt"></i> Acessar Sistema
+                </button>
+                <button class="btn-hero-cadastro" id="btn-hero-cadastro">
+                    <i class="fas fa-user-plus"></i> Criar Conta Grátis
+                </button>
             </div>
         </div>
 
@@ -196,7 +203,7 @@
 
         <div class="features-grid">
             <div class="feature-card">
-                <div class="feature-icon" style="background: rgba(102,126,234,0.1); color: #667eea;">
+                <div class="feature-icon icon-receitas">
                     <i class="fas fa-receipt"></i>
                 </div>
                 <h3>Receitas & Despesas</h3>
@@ -204,7 +211,7 @@
             </div>
 
             <div class="feature-card">
-                <div class="feature-icon" style="background: rgba(16,185,129,0.1); color: #10b981;">
+                <div class="feature-icon icon-cartoes">
                     <i class="fas fa-credit-card"></i>
                 </div>
                 <h3>Cartões de Crédito</h3>
@@ -212,7 +219,7 @@
             </div>
 
             <div class="feature-card">
-                <div class="feature-icon" style="background: rgba(245,158,11,0.1); color: #f59e0b;">
+                <div class="feature-icon icon-relatorios">
                     <i class="fas fa-chart-bar"></i>
                 </div>
                 <h3>Relatórios & Gráficos</h3>
@@ -220,7 +227,7 @@
             </div>
 
             <div class="feature-card">
-                <div class="feature-icon" style="background: rgba(239,68,68,0.1); color: #ef4444;">
+                <div class="feature-icon icon-notificacoes">
                     <i class="fas fa-bell"></i>
                 </div>
                 <h3>Notificações</h3>
@@ -228,7 +235,7 @@
             </div>
 
             <div class="feature-card">
-                <div class="feature-icon" style="background: rgba(147,51,234,0.1); color: #9333ea;">
+                <div class="feature-icon icon-reservas">
                     <i class="fas fa-piggy-bank"></i>
                 </div>
                 <h3>Reservas Financeiras</h3>
@@ -236,7 +243,7 @@
             </div>
 
             <div class="feature-card">
-                <div class="feature-icon" style="background: rgba(14,165,233,0.1); color: #0ea5e9;">
+                <div class="feature-icon icon-extrato">
                     <i class="fas fa-file-import"></i>
                 </div>
                 <h3>Importação de Extrato</h3>
@@ -244,7 +251,7 @@
             </div>
 
             <div class="feature-card">
-                <div class="feature-icon" style="background: rgba(34,197,94,0.1); color: #22c55e;">
+                <div class="feature-icon icon-parcelas">
                     <i class="fas fa-layer-group"></i>
                 </div>
                 <h3>Parcelas & Recorrências</h3>
@@ -252,7 +259,7 @@
             </div>
 
             <div class="feature-card">
-                <div class="feature-icon" style="background: rgba(249,115,22,0.1); color: #f97316;">
+                <div class="feature-icon icon-usuarios">
                     <i class="fas fa-users"></i>
                 </div>
                 <h3>Multi-Usuário</h3>
@@ -260,7 +267,7 @@
             </div>
 
             <div class="feature-card">
-                <div class="feature-icon" style="background: rgba(99,102,241,0.1); color: #6366f1;">
+                <div class="feature-icon icon-pwa">
                     <i class="fas fa-mobile-alt"></i>
                 </div>
                 <h3>PWA — Instale no Celular</h3>
@@ -272,11 +279,13 @@
 
 
 
-<section class="reviews-section">
+<!-- ================================================================
+     AVALIAÇÕES
+     ================================================================ -->
+<section class="reviews-section" id="avaliacoes">
     <div class="section-container">
         <div class="reviews-story-wrapper">
-            
-           <div class="reviews-fixed-content">
+            <div class="reviews-fixed-content">
                 <h2 class="story-title">Depoimentos <br><span class="text-blue">de quem usa</span></h2>
                 <p class="story-subtitle">
                     Confiança que transforma a gestão. O que os usuários dizem após utilizar o <strong>Fin-Gerence</strong>:
@@ -368,11 +377,11 @@
         <h2>Pronto para organizar suas finanças?</h2>
         <p>Crie sua conta gratuita agora e tenha controle total do seu dinheiro.</p>
         <div class="cta-buttons">
-            <button class="cta-btn-primary" onclick="document.getElementById('modal-abrir-cadastro').click()">
+            <button class="cta-btn-primary" id="btn-cta-cadastro">
                 <i class="fas fa-rocket"></i> Criar Conta Grátis
             </button>
-            <button class="cta-btn-secondary" onclick="document.getElementById('hero-section').scrollIntoView({behavior:'smooth'})">
-                <i class="fas fa-sign-in-alt"></i> Já tenho conta
+            <button class="cta-btn-secondary" id="btn-cta-acessar">
+                <i class="fas fa-sign-in-alt"></i> Acessar Sistema
             </button>
         </div>
     </div>
@@ -552,7 +561,7 @@
 
 
 
-<div id="pwa-overlay" onclick="fecharModalPwa()"></div>
+<div id="pwa-overlay"></div>
 
 <div id="pwa-install-banner">
     <img src="icons/financeiro.png" alt="Fin-Gerence Logo" class="pwa-modal-logo">
@@ -563,8 +572,8 @@
     </div>
     
     <div id="pwa-android-actions" style="display: none;">
-        <button id="btn-install-pwa" class="pwa-btn-main" onclick="iniciarInstalacao()">Baixar Agora</button>
-        <button class="pwa-btn-link" onclick="fecharModalPwa()">Agora não</button>
+        <button id="btn-install-pwa" class="pwa-btn-main">Baixar Agora</button>
+        <button id="btn-pwa-dispensar" class="pwa-btn-link">Agora não</button>
     </div>
 
     <div id="pwa-ios-instructions" style="display: none;">
@@ -583,7 +592,7 @@
             <p>2. Role e selecione <strong>Adicionar à Tela de Início</strong>.</p>
         </div>
     </div>
-    <button class="pwa-btn-main" onclick="fecharModalPwa()">Entendi</button>
+    <button id="btn-pwa-entendi" class="pwa-btn-main">Entendi</button>
 </div>
 </div>
 
@@ -595,41 +604,6 @@
 <script src="js/pwa-handler.js" defer></script> 
 <script src="js/avaliacao.js"></script>
 
-<script>
-    // Navbar scroll effect
-    window.addEventListener('scroll', () => {
-        const nav = document.getElementById('landing-nav');
-        if (window.scrollY > 50) nav.classList.add('nav-scrolled');
-        else nav.classList.remove('nav-scrolled');
-    });
-
-    // Service Worker Registration
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function() {
-            navigator.serviceWorker.register('/sw.js').catch(err => {
-                console.warn('Service Worker registration failed:', err);
-            });
-        });
-    }
-
-  // Adicione isso fora de qualquer função, no topo do seu script
-document.addEventListener('DOMContentLoaded', () => {
-    document.querySelector('.hero-login').classList.remove('show');
-});
-
-// Mantenha sua função de clique como está
-function scrollToLogin() {
-    const loginDiv = document.querySelector('.hero-login');
-    loginDiv.classList.add('show');
-    
-    document.getElementById('hero-section').scrollIntoView({ behavior: 'smooth' });
-
-    setTimeout(() => {
-        document.getElementById('modal-documento').focus();
-    }, 600);
-}
-
-</script>
 
 </body>
 </html>

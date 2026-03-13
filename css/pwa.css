@@ -1,162 +1,166 @@
+/* ================================================================
+   PWA.CSS — Modal de instalação PWA
+   ================================================================ */
+
 /* 1. OVERLAY (Fundo Escuro) */
 #pwa-overlay {
     display: none;
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    background: rgba(0, 0, 0, 0.75) !important;
-    z-index: 2147483646 !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.75);
+    z-index: 2147483645;
     backdrop-filter: blur(4px);
 }
 
 /* 2. MODAL CENTRALIZADO */
 #pwa-install-banner {
     display: none;
-    position: fixed !important;
-    top: 50% !important;
-    left: 50% !important;
-    transform: translate(-50%, -50%) !important;
-    width: 85% !important;
-    max-width: 360px !important;
-    background: #ffffff !important;
-    padding: 24px !important;
-    border-radius: 28px !important;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
-    z-index: 2147483647 !important;
-    text-align: center !important;
-    font-family: 'Inter', sans-serif !important;
-    border: none !important;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 85%;
+    max-width: 360px;
+    background: #ffffff;
+    padding: 24px;
+    border-radius: 28px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    z-index: 2147483646;
+    text-align: center;
+    font-family: 'Inter', sans-serif;
+    border: none;
 }
 
 /* 3. LOGO E TEXTOS */
 .pwa-modal-logo {
-    width: 80px !important;
-    height: 80px !important;
-    margin: 0 auto 16px !important;
-    display: block !important;
-    border-radius: 20px !important;
-    object-fit: cover !important;
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 16px;
+    display: block;
+    border-radius: 20px;
+    object-fit: cover;
 }
 
 .pwa-modal-title {
-    font-size: 22px !important;
-    color: #1e293b !important;
-    font-weight: 800 !important;
-    margin-bottom: 8px !important;
+    font-size: 22px;
+    color: var(--text-color);
+    font-weight: 800;
+    margin-bottom: 8px;
 }
 
 .pwa-modal-desc {
-    font-size: 14px !important;
-    color: #64748b !important;
-    line-height: 1.5 !important;
-    margin-bottom: 20px !important;
+    font-size: 14px;
+    color: var(--text-light);
+    line-height: 1.5;
+    margin-bottom: 20px;
 }
 
-/* 4. CARD DE INSTRUÇÕES IOS (NOVO) */
+/* 4. CARD DE INSTRUÇÕES iOS */
 .pwa-ios-card {
-    background: #f1f5f9 !important;
-    border-radius: 18px !important;
-    padding: 18px !important;
-    margin-bottom: 20px !important;
-    text-align: left !important;
-    border: 1px solid #e2e8f0 !important;
+    background: #f1f5f9;
+    border-radius: 18px;
+    padding: 18px;
+    margin-bottom: 20px;
+    text-align: left;
+    border: 1px solid var(--border-color);
 }
 
 .pwa-ios-step-item {
-    display: flex !important;
-    align-items: center !important;
-    gap: 12px !important;
-    margin-bottom: 14px !important;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
 }
 
 .pwa-ios-step-item:last-child {
-    margin-bottom: 0 !important;
+    margin-bottom: 0;
 }
 
 .step-icon {
-    background: #ffffff !important;
-    width: 36px !important;
-    height: 36px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    border-radius: 10px !important;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1) !important;
-    flex-shrink: 0 !important;
+    background: #ffffff;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    flex-shrink: 0;
 }
 
 .step-icon img {
-    width: 20px !important;
-    height: 20px !important;
+    width: 20px;
+    height: 20px;
 }
 
 .pwa-ios-step-item p {
-    margin: 0 !important;
-    font-size: 13px !important;
-    color: #475569 !important;
-    line-height: 1.4 !important;
+    margin: 0;
+    font-size: 13px;
+    color: #475569;
+    line-height: 1.4;
 }
 
 .pwa-ios-step-item strong {
-    color: #6366f1 !important;
-    font-weight: 700 !important;
+    color: #6366f1;
+    font-weight: 700;
 }
 
 /* 5. BOTÕES */
 .pwa-btn-main {
-    width: 100% !important;
-    background: #6366f1 !important;
-    color: #ffffff !important;
-    border: none !important;
-    padding: 14px !important;
-    border-radius: 14px !important;
-    font-weight: 700 !important;
-    font-size: 16px !important;
-    cursor: pointer !important;
-    transition: all 0.2s ease !important;
+    width: 100%;
+    background: #6366f1;
+    color: #ffffff;
+    border: none;
+    padding: 14px;
+    border-radius: 14px;
+    font-weight: 700;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
 .pwa-btn-main:active {
-    background: #4f46e5 !important;
-    transform: scale(0.98) !important;
+    background: #4f46e5;
+    transform: scale(0.98);
 }
 
 .pwa-btn-link {
-    background: none !important;
-    border: none !important;
-    color: #94a3b8 !important;
-    padding: 12px !important;
-    cursor: pointer !important;
-    font-size: 14px !important;
-    font-weight: 500 !important;
-    display: block !important;
-    margin: 8px auto 0 !important;
+    background: none;
+    border: none;
+    color: #94a3b8;
+    padding: 12px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    display: block;
+    margin: 8px auto 0;
 }
 
 /* 6. TOAST DE FEEDBACK */
 .pwa-toast {
-    position: fixed !important;
-    bottom: 40px !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
-    background: #1e293b !important;
-    color: #ffffff !important;
-    padding: 12px 24px !important;
-    border-radius: 50px !important;
-    font-size: 14px !important;
-    z-index: 2147483648 !important;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3) !important;
-    animation: pwaToastIn 0.3s ease, pwaToastOut 0.3s ease 2.7s forwards !important;
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text-color);
+    color: #ffffff;
+    padding: 12px 24px;
+    border-radius: 50px;
+    font-size: 14px;
+    z-index: 2147483647;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    animation: pwaToastIn 0.3s ease, pwaToastOut 0.3s ease 2.7s forwards;
 }
 
 @keyframes pwaToastIn {
     from { opacity: 0; bottom: 20px; }
-    to { opacity: 1; bottom: 40px; }
+    to   { opacity: 1; bottom: 40px; }
 }
 
 @keyframes pwaToastOut {
     from { opacity: 1; bottom: 40px; }
-    to { opacity: 0; bottom: 20px; }
+    to   { opacity: 0; bottom: 20px; }
 }

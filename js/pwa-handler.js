@@ -25,7 +25,7 @@
             }
         };
 
-        // FUNÇÃO PARA FECHAR (Exposta globalmente para o onclick do HTML)
+        // FUNÇÃO PARA FECHAR
         window.fecharModalPwa = () => {
             if (!banner || !overlay) return;
             banner.style.setProperty('display', 'none', 'important');
@@ -33,7 +33,7 @@
             sessionStorage.setItem('pwa_banner_viewed', 'true');
         };
 
-        // FUNÇÃO DE INSTALAÇÃO (Exposta globalmente para o onclick do HTML)
+        // FUNÇÃO DE INSTALAÇÃO
         window.iniciarInstalacao = async () => {
             if (deferredPrompt) {
                 deferredPrompt.prompt();
@@ -69,10 +69,13 @@
             setTimeout(() => openPwaModal('ios'), 5000);
         }
 
-        // Listener para clique no overlay (fundo escuro)
+        // Listeners dos botões
         overlay?.addEventListener('click', window.fecharModalPwa);
+        document.getElementById('btn-install-pwa')?.addEventListener('click', window.iniciarInstalacao);
+        document.getElementById('btn-pwa-dispensar')?.addEventListener('click', window.fecharModalPwa);
+        document.getElementById('btn-pwa-entendi')?.addEventListener('click', window.fecharModalPwa);
 
-    } catch (e) { 
+    } catch (e) {
         console.error("PWA Handler Error:", e); 
     }
 })();

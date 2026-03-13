@@ -555,11 +555,19 @@ function setupNavigation() {
     const toggleSidebar = document.getElementById('toggleSidebar');
     const sidebar = document.getElementById('sidebar');
     const mainContent = document.querySelector('.main-content');
-    
+
+    // Inicia colapsada por padrão; expande se o usuário expandiu antes
+    const sidebarColapsada = localStorage.getItem('sidebarCollapsed') !== 'false';
+    if (sidebarColapsada) {
+        sidebar?.classList.add('collapsed');
+        mainContent?.classList.add('expanded');
+    }
+
     if (toggleSidebar && sidebar && mainContent) {
         toggleSidebar.addEventListener('click', () => {
             sidebar.classList.toggle('collapsed');
             mainContent.classList.toggle('expanded');
+            localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
         });
     }
     

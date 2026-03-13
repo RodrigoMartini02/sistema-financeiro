@@ -3,28 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FIN GERENCE AI - Assistente Financeiro</title>
+    <title>Gen — IA Financeira | Fin-Gerence</title>
 
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#6366f1">
     <link rel="icon" type="image/png" href="icons/financeiro.png?v=1">
+    <meta name="apple-mobile-web-app-title" content="Fin-Gerence">
     <link rel="apple-touch-icon" href="icons/financeiro.png">
-
-    <!-- VERIFICAÇÃO DE AUTENTICAÇÃO -->
-    <script>
-        (function() {
-            var keys = ['token', 'usuarioAtual', 'dadosUsuarioLogado'];
-            keys.forEach(function(k) {
-                if (!sessionStorage.getItem(k)) {
-                    var val = localStorage.getItem(k);
-                    if (val) sessionStorage.setItem(k, val);
-                }
-            });
-            var usuarioAtual = sessionStorage.getItem('usuarioAtual');
-            if (!usuarioAtual) window.location.replace('login.html');
-        })();
-    </script>
 
     <!-- CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -49,9 +35,9 @@
         <div class="ia-sidebar-header">
             <div class="ia-logo">
                 <i class="fas fa-robot"></i>
-                <span>FIN GERENCE AI</span>
+                <span>Gen</span>
             </div>
-            <button class="ia-btn-voltar" onclick="window.location.href='index.html'" title="Voltar ao sistema">
+            <button id="btn-voltar-sistema" class="ia-btn-voltar" title="Voltar ao sistema">
                 <i class="fas fa-arrow-left"></i>
             </button>
         </div>
@@ -59,23 +45,23 @@
         <!-- Ações rápidas -->
         <div class="ia-acoes-rapidas">
             <h4>Ações Rápidas</h4>
-            <button class="ia-acao-btn" onclick="IA.enviarAcaoRapida('quanto gastei este mês')">
+            <button class="ia-acao-btn" data-acao-rapida="quanto gastei este mês">
                 <i class="fas fa-chart-bar"></i>
                 <span>Resumo do mês</span>
             </button>
-            <button class="ia-acao-btn" onclick="IA.enviarAcaoRapida('mostrar despesas de alimentação')">
+            <button class="ia-acao-btn" data-acao-rapida="mostrar despesas de alimentação">
                 <i class="fas fa-utensils"></i>
                 <span>Gasto em Alimentação</span>
             </button>
-            <button class="ia-acao-btn" onclick="IA.enviarAcaoRapida('qual meu saldo atual')">
+            <button class="ia-acao-btn" data-acao-rapida="qual meu saldo atual">
                 <i class="fas fa-wallet"></i>
                 <span>Meu saldo</span>
             </button>
-            <button class="ia-acao-btn" onclick="IA.abrirUpload()">
+            <button class="ia-acao-btn" id="btn-abrir-upload">
                 <i class="fas fa-file-upload"></i>
                 <span>Enviar documento</span>
             </button>
-            <button class="ia-acao-btn" onclick="IA.abrirBoleto()">
+            <button class="ia-acao-btn" id="btn-abrir-boleto">
                 <i class="fas fa-barcode"></i>
                 <span>Ler boleto</span>
             </button>
@@ -85,7 +71,7 @@
         <div class="ia-recorrencias-panel">
             <h4>
                 Despesas Recorrentes
-                <button class="ia-btn-detectar" onclick="IA.detectarRecorrencias()" title="Analisar histórico">
+                <button id="btn-detectar-recorrencias" class="ia-btn-detectar" title="Analisar histórico">
                     <i class="fas fa-sync-alt"></i>
                 </button>
             </h4>
@@ -97,16 +83,19 @@
         <!-- Exemplos de uso -->
         <div class="ia-exemplos">
             <h4>Exemplos</h4>
-            <div class="ia-exemplo-item" onclick="IA.preencherInput('paguei 120 de internet da vivo no cartão vence dia 15')">
+            <div class="ia-exemplo-item" data-exemplo="paguei 120 de internet da vivo no cartão vence dia 15">
                 "paguei 120 de internet da vivo no cartão vence dia 15"
             </div>
-            <div class="ia-exemplo-item" onclick="IA.preencherInput('netflix 55,90 debito')">
+            <div class="ia-exemplo-item" data-exemplo="netflix 55,90 debito">
                 "netflix 55,90 débito"
             </div>
-            <div class="ia-exemplo-item" onclick="IA.preencherInput('200 de mercado pix')">
+            <div class="ia-exemplo-item" data-exemplo="200 de mercado pix">
                 "200 de mercado pix"
             </div>
-            <div class="ia-exemplo-item" onclick="IA.preencherInput('quanto gastei em alimentação esse mês')">
+            <div class="ia-exemplo-item" data-exemplo="recebi salário 3500 hoje">
+                "recebi salário 3500 hoje"
+            </div>
+            <div class="ia-exemplo-item" data-exemplo="quanto gastei em alimentação esse mês">
                 "quanto gastei em alimentação esse mês"
             </div>
         </div>
@@ -120,16 +109,16 @@
             <div class="ia-header-info">
                 <div class="ia-status-dot" id="ia-status-dot"></div>
                 <div>
-                    <h1>Assistente Financeiro</h1>
+                    <h1>Gen — IA Financeira</h1>
                     <span class="ia-status-text" id="ia-status-text">Inicializando...</span>
                 </div>
             </div>
             <div class="ia-header-actions">
-                <button class="ia-btn-icon" onclick="IA.limparConversa()" title="Nova conversa">
+                <button class="ia-btn-icon" id="btn-nova-conversa" title="Nova conversa">
                     <i class="fas fa-plus"></i>
                     <span>Nova conversa</span>
                 </button>
-                <button class="ia-btn-icon ia-btn-menu-mobile" onclick="IA.toggleSidebar()" title="Menu">
+                <button class="ia-btn-icon ia-btn-menu-mobile" id="btn-toggle-sidebar" title="Menu">
                     <i class="fas fa-bars"></i>
                 </button>
             </div>
@@ -142,13 +131,14 @@
                 <div class="ia-welcome-icon">
                     <i class="fas fa-robot"></i>
                 </div>
-                <h2>Olá! Sou o FIN GERENCE AI</h2>
-                <p>Seu assistente financeiro inteligente. Posso ajudar a cadastrar despesas, analisar seus gastos e interpretar documentos financeiros.</p>
+                <h2>Olá! Sou a Gen</h2>
+                <p>Sua IA financeira do Fin-Gerence. Posso cadastrar despesas e receitas, analisar seus gastos e interpretar documentos financeiros.</p>
                 <div class="ia-welcome-chips">
-                    <span onclick="IA.preencherInput('paguei 150 de mercado no pix')">💸 Cadastrar despesa</span>
-                    <span onclick="IA.preencherInput('quanto gastei esse mês')">📊 Analisar gastos</span>
-                    <span onclick="IA.abrirUpload()">📄 Enviar documento</span>
-                    <span onclick="IA.abrirBoleto()">🏦 Ler boleto</span>
+                    <span data-preencher="paguei 150 de mercado no pix">💸 Cadastrar despesa</span>
+                    <span data-preencher="recebi salário 3500 hoje">💰 Cadastrar receita</span>
+                    <span data-preencher="quanto gastei esse mês">📊 Analisar gastos</span>
+                    <span id="chip-upload">📄 Enviar documento</span>
+                    <span id="chip-boleto">🏦 Ler boleto</span>
                 </div>
             </div>
         </div>
@@ -161,10 +151,10 @@
                 <input type="text" id="ia-boleto-input"
                     placeholder="Cole a linha digitável do boleto (47 dígitos)..."
                     class="ia-boleto-field">
-                <button class="ia-btn-primary" onclick="IA.processarBoleto()">
+                <button class="ia-btn-primary" id="btn-processar-boleto-page">
                     <i class="fas fa-barcode"></i> Ler
                 </button>
-                <button class="ia-btn-ghost" onclick="IA.fecharBoleto()">
+                <button class="ia-btn-ghost" id="btn-fechar-boleto-page">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -172,19 +162,19 @@
             <!-- Upload de arquivo (oculto) -->
             <input type="file" id="ia-file-input"
                 accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
-                style="display:none" onchange="IA.processarArquivo(this)">
+                style="display:none">
 
             <!-- Preview de arquivo -->
             <div class="ia-file-preview" id="ia-file-preview" style="display:none">
                 <i class="fas fa-file"></i>
                 <span id="ia-file-nome"></span>
-                <button onclick="IA.cancelarArquivo()"><i class="fas fa-times"></i></button>
+                <button id="btn-cancelar-arquivo-page"><i class="fas fa-times"></i></button>
             </div>
 
             <!-- Barra principal -->
             <div class="ia-input-bar">
                 <!-- Anexo / Upload -->
-                <button class="ia-btn-attach" onclick="document.getElementById('ia-file-input').click()" title="Enviar arquivo">
+                <button class="ia-btn-attach" id="btn-attach-file" title="Enviar arquivo">
                     <i class="fas fa-paperclip"></i>
                 </button>
 
@@ -192,19 +182,17 @@
                 <textarea
                     id="ia-texto-input"
                     class="ia-text-input"
-                    placeholder="Digite sua despesa ou faça uma pergunta..."
+                    placeholder="Digite sua despesa, receita ou faça uma pergunta..."
                     rows="1"
-                    onkeydown="IA.handleKeyDown(event)"
-                    oninput="IA.autoResize(this)"
                 ></textarea>
 
                 <!-- Voz -->
-                <button class="ia-btn-voice" id="ia-btn-voice" onclick="IA.toggleVoz()" title="Usar voz">
+                <button class="ia-btn-voice" id="ia-btn-voice" title="Usar voz">
                     <i class="fas fa-microphone"></i>
                 </button>
 
                 <!-- Enviar -->
-                <button class="ia-btn-send" id="ia-btn-send" onclick="IA.enviarMensagem()" title="Enviar">
+                <button class="ia-btn-send" id="ia-btn-send" title="Enviar">
                     <i class="fas fa-paper-plane"></i>
                 </button>
             </div>
@@ -224,12 +212,12 @@
     <div class="ia-modal">
         <div class="ia-modal-header">
             <h3><i class="fas fa-check-circle"></i> Confirmar Despesa</h3>
-            <button onclick="IA.fecharModal('modal-confirmar-despesa')">
+            <button id="btn-fechar-modal-despesa">
                 <i class="fas fa-times"></i>
             </button>
         </div>
         <div class="ia-modal-body">
-            <form id="form-despesa-ia" onsubmit="IA.salvarDespesa(event)">
+            <form id="form-despesa-ia">
                 <div class="ia-form-row">
                     <div class="ia-form-group">
                         <label>Descrição *</label>
@@ -288,12 +276,12 @@
                 <!-- Aprendizado de categoria -->
                 <div class="ia-aprendizado-hint" id="ia-aprendizado-hint" style="display:none">
                     <i class="fas fa-brain"></i>
-                    <span>Deseja que eu aprenda a classificar "<strong id="ia-aprendizado-texto"></strong>" como esta categoria no futuro?</span>
-                    <button type="button" onclick="IA.confirmarAprendizado()">Sim, aprender</button>
+                    <span>Deseja que a Gen aprenda a classificar "<strong id="ia-aprendizado-texto"></strong>" como esta categoria no futuro?</span>
+                    <button type="button" id="btn-confirmar-aprendizado">Sim, aprender</button>
                 </div>
 
                 <div class="ia-modal-footer">
-                    <button type="button" class="ia-btn-ghost" onclick="IA.fecharModal('modal-confirmar-despesa')">
+                    <button type="button" class="ia-btn-ghost" id="btn-cancelar-modal-despesa">
                         Cancelar
                     </button>
                     <button type="submit" class="ia-btn-primary">
@@ -312,7 +300,7 @@
     <div class="ia-modal ia-modal--wide">
         <div class="ia-modal-header">
             <h3><i class="fas fa-redo"></i> Despesas Recorrentes Detectadas</h3>
-            <button onclick="IA.fecharModal('modal-recorrencias')">
+            <button id="btn-fechar-modal-recorrencias">
                 <i class="fas fa-times"></i>
             </button>
         </div>
@@ -321,7 +309,7 @@
             <div id="recorrencias-modal-lista"></div>
         </div>
         <div class="ia-modal-footer">
-            <button class="ia-btn-ghost" onclick="IA.fecharModal('modal-recorrencias')">Fechar</button>
+            <button class="ia-btn-ghost" id="btn-fechar-recorrencias">Fechar</button>
         </div>
     </div>
 </div>

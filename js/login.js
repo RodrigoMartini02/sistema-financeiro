@@ -30,6 +30,7 @@ function inicializarSistemaLoginRapido() {
         // Obter elementos e configurar sistema imediatamente
         elementos = obterElementosDOM();
         configurarSistemaCompleto();
+        configurarLandingPage();
 
         // Carregar dependências opcionais em background
         carregarDependenciasBackground();
@@ -1207,8 +1208,63 @@ function limparSessao() {
 
 
 
+// ================================================================
+// NAVEGAÇÃO E UI DA LANDING PAGE
+// ================================================================
+
+function scrollToLogin() {
+    const loginDiv = document.querySelector('.hero-login');
+    loginDiv.classList.add('show');
+    document.getElementById('hero-section').scrollIntoView({ behavior: 'smooth' });
+    setTimeout(() => {
+        const campo = document.getElementById('modal-documento');
+        if (campo) campo.focus();
+    }, 600);
+}
+
+function configurarLandingPage() {
+    // Navbar scroll effect
+    window.addEventListener('scroll', () => {
+        const nav = document.getElementById('landing-nav');
+        if (!nav) return;
+        if (window.scrollY > 50) nav.classList.add('nav-scrolled');
+        else nav.classList.remove('nav-scrolled');
+    });
+
+    // Botões "Acessar Sistema"
+    const botoesAcessar = [
+        document.getElementById('btn-nav-acessar'),
+        document.getElementById('btn-hero-acessar'),
+        document.getElementById('btn-cta-acessar'),
+    ];
+    botoesAcessar.forEach(btn => {
+        if (btn) btn.addEventListener('click', scrollToLogin);
+    });
+
+    // Botões "Criar Conta Grátis"
+    const botoesCadastro = [
+        document.getElementById('btn-hero-cadastro'),
+        document.getElementById('btn-cta-cadastro'),
+    ];
+    botoesCadastro.forEach(btn => {
+        if (btn) btn.addEventListener('click', () => {
+            document.getElementById('modal-abrir-cadastro').click();
+        });
+    });
+
+    // Service Worker
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').catch(err => {
+                console.warn('Service Worker registration failed:', err);
+            });
+        });
+    }
+}
+
 // Exportar para escopo global
 window.togglePassword = togglePassword;
 window.diagnosticoLogin = diagnosticoLogin;
 window.limparSessao = limparSessao;
+window.scrollToLogin = scrollToLogin;
 window.loginSistemaInicializado = false;

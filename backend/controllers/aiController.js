@@ -158,9 +158,32 @@ async function chat(req, res) {
         const intencao = detectarIntencao(mensagem);
 
         if (intencao === 'saudacao') {
-            resposta = 'Olá! Sou o assistente financeiro do FIN GERENCE. Posso ajudá-lo a:\n\n• Cadastrar despesas (ex: "paguei 150 de mercado no pix")\n• Responder perguntas (ex: "quanto gastei esse mês")\n• Interpretar boletos, PIX e documentos\n\nComo posso ajudar?';
+            resposta = 'Olá! Sou a Gen, sua IA financeira do Fin-Gerence. Posso ajudá-lo a:\n\n• Cadastrar despesas (ex: "paguei 150 de mercado no pix")\n• Cadastrar receitas (ex: "recebi salário 3500 hoje")\n• Responder perguntas (ex: "quanto gastei esse mês")\n• Interpretar boletos, PIX e documentos\n\nComo posso ajudar?';
             sessao.historico.push({ role: 'assistant', content: resposta });
             return res.json({ success: true, resposta, acao: 'saudacao' });
+        }
+
+        if (intencao === 'receita') {
+            // Parse básico de receita a partir do texto
+            const valorMatch = mensagem.match(/(\d+(?:[.,]\d{1,2})?)/);
+            const valor = valorMatch ? parseFloat(valorMatch[1].replace(',', '.')) : null;
+            const hoje = new Date().toISOString().split('T')[0];
+            // Remove palavras-chave e extrai descrição
+            let descricao = mensagem
+                .replace(/recebi|ganhei|entrou|salário|salario|freelance|renda/gi, '')
+                .replace(/R\$\s*[\d.,]+/gi, '')
+                .replace(/[\d.,]+\s*reais?/gi, '')
+                .replace(/pix|dinheiro|hoje|ontem/gi, '')
+                .replace(/\s{2,}/g, ' ')
+                .trim();
+            descricao = descricao.replace(/^(?:de|do|da|um|uma|o|a)\s+/i, '').trim();
+            if (!descricao) descricao = 'Receita';
+            descricao = descricao.charAt(0).toUpperCase() + descricao.slice(1);
+
+            const dadosReceita = { descricao, valor, data: hoje };
+            resposta = `Encontrei a seguinte receita:\n\n💰 **${descricao}**\n${valor ? `💵 Valor: R$ ${Number(valor).toFixed(2).replace('.', ',')}\n` : ''}📅 Data: ${hoje.split('-').reverse().join('/')}\n\nDeseja confirmar o cadastro?`;
+            sessao.historico.push({ role: 'assistant', content: resposta });
+            return res.json({ success: true, resposta, acao: 'confirmar_receita', receita: dadosReceita });
         }
 
         if (intencao === 'analise') {
@@ -542,8 +565,12 @@ async function status(req, res) {
 
     res.json({
         success: true,
-        modulo_ia: 'FIN GERENCE AI',
+        modulo_ia: 'Gen',
         versao: '1.0.0',
+        gen: {
+            ativo: true,
+            descricao: 'IA interna Fin-Gerence',
+        },
         openai: {
             ativo: openaiAtivo,
             modelo: openaiAtivo ? (process.env.OPENAI_MODEL || 'gpt-4o-mini') : null,

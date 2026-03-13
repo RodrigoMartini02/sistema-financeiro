@@ -1,7 +1,7 @@
 // ================================================================
 // AI PARSER - Interpreta linguagem natural para despesas
 // Usa OpenAI GPT se OPENAI_API_KEY disponível, caso contrário
-// utiliza análise por regex/heurísticas
+// utiliza a Gen (IA interna do Fin-Gerence)
 // ================================================================
 
 const { normalizarDespesa, normalizarValor, normalizarFormaPagamento,
@@ -72,8 +72,8 @@ async function parsearComOpenAI(texto, contextoConversa = []) {
     return JSON.parse(content);
 }
 
-// ── PARSER COM HEURÍSTICAS (fallback) ───────────────────────────
-function parsearComHeuristicas(texto) {
+// ── GEN — PARSER INTERNO (fallback) ─────────────────────────────
+function parsearComGen(texto) {
     const lower = texto.toLowerCase();
     const result = {
         descricao: null,
@@ -205,6 +205,11 @@ function detectarIntencao(texto) {
         return 'analise';
     }
 
+    // Receita
+    if (/(?:recebi|ganhei|entrou|salário|salario|freelance|renda|pagamento\s+recebido|receita)/i.test(lower)) {
+        return 'receita';
+    }
+
     // Despesa
     if (/(?:paguei|gastei|comprei|adicionei|adicione|lançar|lancei|registre?|cobr)/i.test(lower) ||
         /R\$|reais|\d+,\d{2}/.test(lower)) {
@@ -236,7 +241,7 @@ async function parsearDespesa(texto, contextoConversa = [], forcarHeuristica = f
     const intencao = detectarIntencao(texto);
 
     let dados = null;
-    let metodo = 'heuristica';
+    let metodo = 'gen';
 
     const openai = getOpenAI();
 
@@ -245,11 +250,11 @@ async function parsearDespesa(texto, contextoConversa = [], forcarHeuristica = f
             dados = await parsearComOpenAI(texto, contextoConversa);
             metodo = 'openai';
         } catch (err) {
-            console.warn('⚠️ OpenAI falhou, usando heurísticas:', err.message);
-            dados = parsearComHeuristicas(texto);
+            console.warn('⚠️ OpenAI falhou, usando Gen (IA interna):', err.message);
+            dados = parsearComGen(texto);
         }
     } else {
-        dados = parsearComHeuristicas(texto);
+        dados = parsearComGen(texto);
     }
 
     // Normaliza os dados extraídos
@@ -329,5 +334,5 @@ module.exports = {
     parsearDespesa,
     responderPerguntaFinanceira,
     detectarIntencao,
-    parsearComHeuristicas,
+    parsearComGen,
 };

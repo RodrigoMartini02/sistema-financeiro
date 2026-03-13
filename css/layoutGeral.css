@@ -85,6 +85,7 @@
     
     /* LAYOUT DIMENSIONS */
     --sidebar-width: 180px;
+    --sidebar-collapsed-width: 52px;
     --header-height: 80px;
     
     /* Z-INDEX SYSTEM */
@@ -557,6 +558,130 @@ textarea:focus {
 }
 
 /* ================================================================
+   SIDEBAR — BOTÃO TOGGLE E TRANSIÇÕES
+   ================================================================ */
+
+.sidebar {
+    transition: width 0.25s ease;
+}
+
+.sidebar-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 6px;
+}
+
+.sidebar-title {
+    flex: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: opacity 0.2s, width 0.2s;
+}
+
+.btn-sidebar-toggle {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.7);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    flex-shrink: 0;
+    transition: background 0.2s, transform 0.25s;
+}
+
+.btn-sidebar-toggle:hover {
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+}
+
+/* ── SIDEBAR COLAPSADA ───────────────────────────────────────── */
+.sidebar.collapsed {
+    width: var(--sidebar-collapsed-width);
+}
+
+.sidebar.collapsed .sidebar-title {
+    opacity: 0;
+    width: 0;
+    pointer-events: none;
+}
+
+.sidebar.collapsed .btn-sidebar-toggle i {
+    transform: rotate(180deg);
+}
+
+.sidebar.collapsed .user-profile-sidebar {
+    display: none;
+}
+
+.sidebar.collapsed .nav-text {
+    display: none;
+}
+
+.sidebar.collapsed .nav-link {
+    justify-content: center;
+    padding: 12px 0;
+    position: relative;
+}
+
+.sidebar.collapsed .nav-icon {
+    margin-right: 0;
+}
+
+/* Tooltip ao passar o mouse nos itens quando colapsada */
+.sidebar.collapsed .nav-link::after {
+    content: attr(data-label);
+    position: absolute;
+    left: calc(var(--sidebar-collapsed-width) + 8px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: #1e293b;
+    color: #fff;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 1100;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.sidebar.collapsed .nav-link:hover::after {
+    opacity: 1;
+}
+
+.sidebar.collapsed #plano-sidebar-container {
+    display: none;
+}
+
+.sidebar.collapsed .sidebar-footer .info-row span,
+.sidebar.collapsed .sidebar-footer .info-row i:last-child {
+    display: none;
+}
+
+.sidebar.collapsed .sidebar-footer {
+    padding: 8px 0;
+    display: flex;
+    justify-content: center;
+}
+
+.sidebar.collapsed .system-info {
+    align-items: center;
+}
+
+.sidebar.collapsed .info-row {
+    justify-content: center;
+}
+
+/* ================================================================
    CONTEÚDO PRINCIPAL
    ================================================================ */
 
@@ -568,6 +693,11 @@ textarea:focus {
     flex-direction: column;
     margin-left: var(--sidebar-width);
     min-width: 0;
+    transition: margin-left 0.25s ease;
+}
+
+.main-content.expanded {
+    margin-left: var(--sidebar-collapsed-width);
 }
 
 /* ================================================================
