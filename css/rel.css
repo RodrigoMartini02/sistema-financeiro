@@ -851,3 +851,64 @@
         font-size: 1.8rem;
     }
 }
+
+/* Mobile (≤768px) */
+@media (max-width: 768px) {
+    .filtros-linha-super-compacta {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .filtros-acoes-inline {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .comparativo-cards,
+    .gastos-reais-cards,
+    .relatorios-section .resumo-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .tabela-responsiva {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .relatorio-tabela {
+        min-width: 600px;
+    }
+
+    .relatorio-tabela th,
+    .relatorio-tabela td {
+        padding: 8px 6px;
+        font-size: 0.78rem;
+    }
+
+    .card-valor {
+        font-size: 1.2rem;
+    }
+
+    .relatorios-section {
+        padding: 12px;
+    }
+}
+
+/* Phones pequenos (≤480px) */
+@media (max-width: 480px) {
+    .filtros-linha-super-compacta {
+        grid-template-columns: 1fr;
+    }
+
+    .relatorio-tabela {
+        min-width: 480px;
+    }
+
+    .relatorios-section {
+        padding: 8px;
+    }
+
+    .card-valor {
+        font-size: 1.1rem;
+    }
+}

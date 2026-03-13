@@ -370,21 +370,48 @@
 /* ----------------------------------------------------------------
    RESPONSIVO
    ---------------------------------------------------------------- */
+
+/* Tablets (≤768px) */
+@media (max-width: 768px) {
+    .painel-central {
+        width: 340px;
+        right: 8px;
+        max-height: 480px;
+    }
+}
+
+/* Phones (≤480px) */
 @media (max-width: 480px) {
     .painel-central {
         right: 5px;
         left: 5px;
         width: auto;
+        top: 50px;
+        max-height: calc(100vh - 60px);
+        border-radius: 10px 10px 0 0;
+    }
+
+    .painel-central-header {
+        padding: 8px 10px;
+    }
+
+    .painel-tab {
+        padding: 6px 8px;
+        font-size: 11px;
     }
 
     #toast-container {
-        right: 10px;
-        left: 10px;
+        right: 8px;
+        left: 8px;
         max-width: none;
+        bottom: 16px;
+        top: auto;
     }
 
     .toast {
         min-width: auto;
         width: 100%;
+        font-size: 13px;
+        padding: 10px 12px;
     }
 }

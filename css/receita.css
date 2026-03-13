@@ -343,3 +343,99 @@
     text-transform: uppercase;
     letter-spacing: 0.3px;
 }
+
+/* ================================================================
+   RESPONSIVO
+   ================================================================ */
+
+/* Tablets */
+@media (max-width: 1024px) {
+    .limites-cartoes-container {
+        padding: 10px;
+    }
+
+    .lista-barras-cartoes {
+        gap: 10px;
+    }
+}
+
+/* Mobile (≤768px) */
+@media (max-width: 768px) {
+    /* Modal receita — tela cheia no mobile */
+    #modal-nova-receita .modal-content {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        min-height: 100vh;
+    }
+
+    #modal-nova-receita .modal-body {
+        max-height: calc(100vh - 110px);
+        padding: 14px 16px;
+    }
+
+    /* Inputs maiores para toque */
+    #modal-nova-receita .modal-body input[type="text"],
+    #modal-nova-receita .modal-body input[type="number"],
+    #modal-nova-receita .modal-body input[type="date"],
+    #modal-nova-receita .modal-body select {
+        padding: 10px 12px;
+        font-size: 14px;
+        border-radius: 8px;
+        min-height: 44px;
+    }
+
+    #modal-nova-receita .modal-body label {
+        font-size: 12px;
+        margin-bottom: 5px;
+    }
+
+    /* Form groups em coluna */
+    #modal-nova-receita .form-row,
+    #modal-nova-receita .form-row-cartao {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    /* Resumo cartões */
+    .limites-cartoes-container {
+        padding: 10px;
+        margin: 8px 0;
+    }
+
+    .cartao-limite-item {
+        padding: 10px;
+        padding-right: 10px;
+    }
+
+    .cartao-status {
+        position: static;
+        transform: none;
+        margin-top: 6px;
+    }
+
+    .descricao-anexos-container {
+        flex-wrap: wrap;
+    }
+}
+
+/* Phones pequenos (≤480px) */
+@media (max-width: 480px) {
+    #form-nova-receita button[type="submit"] {
+        width: 100%;
+        padding: 12px;
+        font-size: 14px;
+        min-height: 44px;
+    }
+
+    .opcoes-replicacao-grupo {
+        gap: 14px;
+    }
+
+    .select-grupo {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+}

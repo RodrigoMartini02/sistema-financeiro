@@ -1951,41 +1951,7 @@ table tr:hover {
     display: block;
 }
 
-/* Responsivo para toolbar */
-@media (max-width: 768px) {
-    .tabs-toolbar {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-    }
-
-    .toolbar-esquerda,
-    .toolbar-direita {
-        width: 100%;
-        flex-wrap: wrap;
-    }
-
-    .toolbar-direita {
-        justify-content: flex-start;
-    }
-
-    .tab-toolbar-content {
-        width: 100%;
-        justify-content: flex-start;
-    }
-
-    .toolbar-acoes {
-        flex-wrap: wrap;
-    }
-
-    .tab-toolbar-content .form-control-sm {
-        min-width: 80px;
-    }
-
-    .toolbar-divider {
-        display: none;
-    }
-}
+/* (Responsivo da toolbar já incluído no bloco @media (max-width: 768px) acima) */
 
 
 
@@ -3011,6 +2977,61 @@ table tr:hover {
 /* ================================================================
    MEDIA QUERIES PADRONIZADAS
    ================================================================ */
+
+/* ── Mobile (≤768px) — Sidebar como overlay ─────────────────── */
+@media (max-width: 768px) {
+    /* Sidebar sempre em posição fixa, escondida por padrão (collapsed) */
+    .sidebar {
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        z-index: 1200;
+        width: var(--sidebar-width) !important;
+        transition: transform 0.25s ease !important;
+        overflow-y: auto;
+    }
+
+    /* Collapsed = escorrega para fora da tela */
+    .sidebar.collapsed {
+        transform: translateX(-100%) !important;
+        width: var(--sidebar-width) !important;
+    }
+
+    /* Expandida = overlay visível */
+    .sidebar:not(.collapsed) {
+        transform: translateX(0) !important;
+        box-shadow: 4px 0 24px rgba(0,0,0,0.3);
+    }
+
+    /* Conteúdo sempre ocupa largura total */
+    .main-content,
+    .main-content.expanded {
+        margin-left: 0 !important;
+    }
+
+    /* Header principal */
+    .main-header {
+        padding: 0 10px;
+    }
+
+    /* Toolbar de tabs */
+    .tabs-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    .toolbar-esquerda,
+    .toolbar-direita {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+    .toolbar-direita { justify-content: flex-start; }
+    .tab-toolbar-content { width: 100%; justify-content: flex-start; }
+    .toolbar-acoes { flex-wrap: wrap; }
+    .tab-toolbar-content .form-control-sm { min-width: 80px; }
+    .toolbar-divider { display: none; }
+}
 
 /* Tablets (768px - 1024px) */
 @media (min-width: 768px) and (max-width: 1024px) {
