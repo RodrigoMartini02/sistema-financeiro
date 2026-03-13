@@ -558,58 +558,110 @@ textarea:focus {
 }
 
 /* ================================================================
-   SIDEBAR — MODELO GEMINI (overlay via hambúrguer, sem toggle interno)
+   SIDEBAR — MODELO ÍCONE/EXPANDIDA
+   Desktop: strip de ícones (52px) ↔ sidebar completa (180px), sem overlay
+   Mobile:  overlay via hambúrguer no header
    ================================================================ */
 
-/* Sidebar sempre fixa, escondida por padrão (translate fora da tela) */
+/* ── Base (desktop): transição de largura, sem translateX ─────── */
 .sidebar {
     position: fixed !important;
-    top: 0;
-    left: 0;
+    top: 0; left: 0;
     height: 100vh;
-    width: var(--sidebar-width) !important;
-    z-index: 1200;
-    transform: translateX(-100%);
-    transition: transform 0.25s ease;
-    overflow-y: auto;
+    width: var(--sidebar-width);
+    z-index: 200;
+    transform: none !important;
+    transition: width 0.25s ease;
+    overflow: hidden;
 }
 
-/* Sidebar aberta = desliza para dentro */
-.sidebar:not(.collapsed) {
-    transform: translateX(0);
-    box-shadow: 4px 0 24px rgba(0,0,0,0.25);
-}
-
-/* Sidebar fechada (collapsed) = fora da tela */
+/* Recolhida = strip de ícones */
 .sidebar.collapsed {
-    transform: translateX(-100%);
+    width: var(--sidebar-collapsed-width);
 }
 
-/* Conteúdo principal — sempre largura total, sem margin-left */
-.main-content,
-.main-content.expanded {
+/* Conteúdo principal acompanha a sidebar */
+.main-content, .main-content.expanded {
     flex: 1;
     height: 100vh;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    margin-left: 0 !important;
+    margin-left: var(--sidebar-width);
+    transition: margin-left 0.25s ease;
     min-width: 0;
+}
+.main-content.sidebar-collapsed {
+    margin-left: var(--sidebar-collapsed-width);
+}
+
+/* ── Botão toggle dentro da sidebar ───────────────────────────── */
+.sidebar-toggle-btn {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.75);
+    cursor: pointer;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 17px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+}
+.sidebar-toggle-btn:hover {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+}
+
+/* ── Header da sidebar com linha de toggle + título ───────────── */
+.sidebar-header-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
 }
 
 /* Título da sidebar */
 .sidebar-title {
     overflow: hidden;
     white-space: nowrap;
+    flex: 1;
 }
 
-/* ================================================================
-   HAMBÚRGUER MOBILE + OVERLAY SIDEBAR
-   ================================================================ */
+/* ── Estado recolhido: esconde textos, centraliza ícones ───────── */
+.sidebar.collapsed .sidebar-title,
+.sidebar.collapsed .user-profile-sidebar,
+.sidebar.collapsed .sidebar-footer,
+.sidebar.collapsed #plano-sidebar-container {
+    display: none;
+}
+.sidebar.collapsed .sidebar-header-row {
+    justify-content: center;
+}
+.sidebar.collapsed .sidebar-header {
+    padding: var(--space-sm) 0;
+    align-items: center;
+}
+.sidebar.collapsed .nav-link {
+    justify-content: center;
+    padding: 12px 0;
+}
+.sidebar.collapsed .nav-icon {
+    margin-right: 0;
+}
+.sidebar.collapsed .nav-text {
+    display: none;
+}
+.sidebar.collapsed .nav-link.active {
+    border-right: none;
+    border-left: 3px solid var(--primary-color);
+}
 
-/* Hambúrguer — sempre visível, abre/fecha sidebar em qualquer tela */
+/* ── Hambúrguer no header (só mobile) ────────────────────────── */
 .btn-hamburger-mobile {
-    display: flex;
+    display: none;
     width: 36px;
     height: 36px;
     border: none;
@@ -624,24 +676,54 @@ textarea:focus {
     transition: background 0.15s;
     margin-right: 8px;
 }
-
 .btn-hamburger-mobile:hover {
     background: var(--gray-100);
     color: var(--gray-800);
 }
 
-/* Overlay escuro quando sidebar aberta no mobile */
+/* ── Overlay (só mobile via .visivel) ────────────────────────── */
 .sidebar-overlay-mobile {
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(0,0,0,0.45);
     z-index: 1199;
     backdrop-filter: blur(1px);
 }
-
 .sidebar-overlay-mobile.visivel {
     display: block;
+}
+
+/* ── Mobile (<769px): modelo overlay ─────────────────────────── */
+@media (max-width: 768px) {
+    .sidebar {
+        width: var(--sidebar-width) !important;
+        transform: translateX(-100%) !important;
+        transition: transform 0.25s ease !important;
+        z-index: 1200;
+    }
+    .sidebar:not(.collapsed) {
+        transform: translateX(0) !important;
+        box-shadow: 4px 0 20px rgba(0,0,0,0.3);
+    }
+    /* Mostra textos no mobile mesmo quando tecnicamente "collapsed" */
+    .sidebar .sidebar-title,
+    .sidebar .user-profile-sidebar,
+    .sidebar .sidebar-footer,
+    .sidebar #plano-sidebar-container,
+    .sidebar .nav-text {
+        display: revert;
+    }
+    .sidebar .nav-link {
+        justify-content: flex-start;
+        padding: 12px var(--space-md);
+    }
+    .sidebar .nav-icon { margin-right: 12px; }
+    .sidebar .nav-link.active { border-right: 4px solid var(--primary-color); border-left: none; }
+    .main-content, .main-content.sidebar-collapsed {
+        margin-left: 0 !important;
+    }
+    .btn-hamburger-mobile { display: flex; }
 }
 
 /* ================================================================

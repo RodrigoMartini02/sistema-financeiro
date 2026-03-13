@@ -1,7 +1,8 @@
 // ================================================================
 // SISTEMA PRINCIPAL - MAIN.JS OTIMIZADO
 // ================================================================
-const API_URL = 'https://sistema-financeiro-backend-o199.onrender.com/api'
+window.API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+const API_URL = window.API_URL;
 
 // Função padrão para enviar dados para o servidor
 async function enviarDados(rota, dados) {
@@ -552,19 +553,26 @@ function configurarInterface() {
 }
 
 function setupNavigation() {
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebar-overlay');
+    const sidebar    = document.getElementById('sidebar');
+    const overlay    = document.getElementById('sidebar-overlay');
+    const mainContent = document.querySelector('.main-content');
 
-    // Sidebar sempre inicia fechada (modelo Gemini — overlay via hambúrguer)
+    const isMobile = () => window.innerWidth <= 768;
+
+    // Desktop inicia com sidebar recolhida (strip de ícones)
+    // Mobile inicia com sidebar escondida (overlay model)
     sidebar?.classList.add('collapsed');
+    mainContent?.classList.add('sidebar-collapsed');
 
     function abrirSidebar() {
         sidebar?.classList.remove('collapsed');
-        overlay?.classList.add('visivel');
+        mainContent?.classList.remove('sidebar-collapsed');
+        if (isMobile()) overlay?.classList.add('visivel');
     }
 
     function fecharSidebar() {
         sidebar?.classList.add('collapsed');
+        mainContent?.classList.add('sidebar-collapsed');
         overlay?.classList.remove('visivel');
     }
 
@@ -573,17 +581,24 @@ function setupNavigation() {
         else fecharSidebar();
     }
 
-    // Único controle: hambúrguer no header
+    // Toggle dentro da sidebar (desktop + mobile quando aberta)
+    document.getElementById('btn-toggle-sidebar')?.addEventListener('click', toggleSidebar);
+    // Hambúrguer no header (mobile)
     document.getElementById('btn-abrir-sidebar')?.addEventListener('click', toggleSidebar);
-    // Overlay fecha a sidebar
+    // Overlay fecha a sidebar (mobile)
     overlay?.addEventListener('click', fecharSidebar);
 
-    // Nav links: navega E fecha sidebar
+    // Ao redimensionar: ajusta overlay se necessário
+    window.addEventListener('resize', () => {
+        if (!isMobile()) overlay?.classList.remove('visivel');
+    });
+
+    // Nav links: no mobile fecha sidebar; no desktop mantém estado
     const navLinks = document.querySelectorAll('.nav-link');
     navLinks.forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
-            fecharSidebar();
+            if (isMobile()) fecharSidebar();
 
             navLinks.forEach(l => l.classList.remove('active'));
             link.classList.add('active');

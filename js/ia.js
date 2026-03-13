@@ -44,7 +44,7 @@ window.IA = (function () {
     // window.API_URL já termina em /api (ex: https://…/api)
     // As rotas da IA ficam em /api/ai/…
     function apiURL() {
-        return (typeof window.API_URL !== 'undefined' ? window.API_URL : 'http://localhost:3010/api');
+        return window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
     }
 
     function getToken() {
@@ -93,41 +93,49 @@ window.IA = (function () {
     }
 
     // ── INICIALIZAR STATUS ────────────────────────────────────────
-    function inicializar() {
-        // Carrega config do usuário (provider salvo)
+    function _setStatus(texto, online) {
+        var el  = document.getElementById('ai-panel-status');
+        var txt = document.getElementById('ia-status-text');
+        var dot = document.getElementById('ia-status-dot');
+        if (el)  el.textContent  = texto;
+        if (txt) txt.textContent = texto;
+        if (dot) { dot.classList.toggle('online', !!online); dot.classList.toggle('offline', !online); }
+    }
+
+    function inicializar(tentativa) {
+        tentativa = tentativa || 1;
+        _setStatus(tentativa > 1 ? 'iniciando... (' + tentativa + ')' : 'conectando...', false);
+
         apiGet('/config').then(function (cfg) {
             var provider = (cfg && cfg.provider) || 'gen';
             var nome     = (cfg && cfg.nome)     || 'Gen ativa — IA interna Fin-Gerence';
             var isGen    = provider === 'gen';
 
+            _setStatus(nome, true);
+
             var badge = document.getElementById('ia-badge-status');
             if (badge) { badge.textContent = nome; badge.className = 'badge ' + (isGen ? 'gen' : 'ativo'); }
 
-            var statusTxt = document.getElementById('ia-status-text');
-            var statusDot = document.getElementById('ia-status-dot');
-            if (statusTxt) statusTxt.textContent = nome;
-            if (statusDot) statusDot.classList.add('online');
-
-            var el = document.getElementById('ai-panel-status');
-            if (el) el.textContent = nome;
-
-            // Pré-seleciona o provider no select das configurações
             var sel = document.getElementById('ia-provider-select');
-            if (sel) {
-                sel.value = provider;
-                sel.dispatchEvent(new Event('change'));
-            }
+            if (sel) { sel.value = provider; sel.dispatchEvent(new Event('change')); }
+
         }).catch(function () {
-            // Fallback: tenta apenas /status (sem auth)
+            // /config falhou (novo endpoint ainda não deployado?) — tenta /status sem auth
             apiGet('/status').then(function (st) {
-                var el = document.getElementById('ai-panel-status');
-                if (el) el.textContent = (st && st.openai && st.openai.ativo) ? 'OpenAI ativa' : 'Gen ativa';
-                var statusDot = document.getElementById('ia-status-dot');
-                if (statusDot) statusDot.classList.add('online');
+                var nome = (st && st.openai && st.openai.ativo)
+                    ? 'OpenAI ativa — ' + (st.openai.modelo || 'gpt-4o-mini')
+                    : 'Gen ativa — IA interna';
+                _setStatus(nome, true);
+                var badge = document.getElementById('ia-badge-status');
+                if (badge) { badge.textContent = nome; badge.className = 'badge gen'; }
             }).catch(function () {
-                if (document.getElementById('ai-panel-status')) document.getElementById('ai-panel-status').textContent = 'offline';
-                var statusTxt = document.getElementById('ia-status-text');
-                if (statusTxt) statusTxt.textContent = 'offline';
+                if (tentativa < 3) {
+                    // Retry com backoff (servidor pode estar acordando)
+                    _setStatus('iniciando... aguarde', false);
+                    setTimeout(function () { inicializar(tentativa + 1); }, tentativa * 10000);
+                } else {
+                    _setStatus('servidor offline', false);
+                }
             });
         });
     }
@@ -175,6 +183,14 @@ window.IA = (function () {
         estado.enviando = true;
         setBtnDisabled(true);
         addUser(texto);
+        // Mensagem de espera aleatória para o chat parecer mais humano
+        var frases = [
+            'Deixa eu processar isso para você...',
+            'Entendido! Preparando tudo, aguarde...',
+            'Analisando sua mensagem...',
+            'Um instante, estou organizando os dados...'
+        ];
+        addSys('⏳ ' + frases[Math.floor(Math.random() * frases.length)]);
         var tid = addTyping();
 
         apiPost('/chat', { mensagem: texto }).then(function (res) {
@@ -192,7 +208,10 @@ window.IA = (function () {
             }
         }).catch(function () {
             removeTyping(tid);
-            addGen('Erro de conexão. Verifique se o servidor está rodando.');
+            addSys('⏳ Servidor iniciando, pode levar alguns segundos. Clique em enviar para tentar de novo.');
+            // Devolve o texto ao input para facilitar reenvio
+            var inp = elInput();
+            if (inp) { inp.value = texto; autoResize(inp); inp.focus(); }
         }).finally(function () {
             estado.enviando = false;
             setBtnDisabled(false);
@@ -344,6 +363,7 @@ window.IA = (function () {
 
         if (estado.modoPagina) {
             // Página ia.html: salva diretamente via API de receitas
+            addSys('⏳ Registrando sua receita, aguarde um momento...');
             apiPost('/receita/salvar', { descricao: r.descricao, valor: r.valor, data: r.data })
                 .then(function (res) {
                     if (res && res.success) addSys('✅ Receita "' + r.descricao + '" cadastrada!');
@@ -519,6 +539,7 @@ window.IA = (function () {
         if (catId)    payload.categoria_id = parseInt(catId);
         if (cartaoId) payload.cartao_id    = parseInt(cartaoId);
 
+        addSys('⏳ Cadastrando sua despesa, aguarde um momento...');
         apiPost('/despesa/salvar', payload).then(function (res) {
             _fecharModal('modal-confirmar-despesa');
             if (res && res.success) addSys('✅ Despesa "' + descricao + '" cadastrada!');
@@ -568,14 +589,17 @@ window.IA = (function () {
     }
 
     // ── ARQUIVO ───────────────────────────────────────────────────
-    function abrirUpload() { document.getElementById('ia-file-input')?.click(); }
+    function abrirUpload() {
+        var fi = _el('ia-file-input', 'ai-file-input');
+        if (fi) fi.click();
+    }
 
     function processarArquivo(input) {
         var file = input.files[0];
         if (!file) return;
         estado.arquivoPendente = file;
-        var prev = document.getElementById('ia-file-preview');
-        var nome = document.getElementById('ia-file-nome');
+        var prev = _el('ia-file-preview', 'ai-file-preview');
+        var nome = _el('ia-file-nome',    'ai-file-nome');
         if (prev) prev.style.display = 'flex';
         if (nome) nome.textContent = file.name;
         addSys('"' + file.name + '" selecionado. Clique em enviar para processar.');
@@ -583,9 +607,9 @@ window.IA = (function () {
 
     function cancelarArquivo() {
         estado.arquivoPendente = null;
-        var prev = document.getElementById('ia-file-preview');
+        var prev = _el('ia-file-preview', 'ai-file-preview');
         if (prev) prev.style.display = 'none';
-        var fi = document.getElementById('ia-file-input');
+        var fi = _el('ia-file-input', 'ai-file-input');
         if (fi) fi.value = '';
     }
 
@@ -594,7 +618,8 @@ window.IA = (function () {
         cancelarArquivo();
         estado.enviando = true;
         setBtnDisabled(true);
-        addUser('📄 ' + file.name);
+        addUser('📎 ' + file.name);
+        addGen('📄 Analisando seu documento... isso pode levar alguns segundos, estou preparando tudo para você!');
         var tid = addTyping();
         var form = new FormData();
         form.append('arquivo', file);
@@ -618,25 +643,26 @@ window.IA = (function () {
 
     // ── BOLETO ────────────────────────────────────────────────────
     function abrirBoleto() {
-        var bar = document.getElementById('ia-boleto-bar');
+        var bar = _el('ia-boleto-bar', 'ai-boleto-bar');
         if (!bar) return;
         bar.style.display = bar.style.display === 'none' ? 'flex' : 'none';
-        if (bar.style.display === 'flex') document.getElementById('ia-boleto-input')?.focus();
+        if (bar.style.display === 'flex') { var inp = _el('ia-boleto-input', 'ai-boleto-input'); if (inp) inp.focus(); }
     }
 
     function fecharBoleto() {
-        var bar = document.getElementById('ia-boleto-bar');
+        var bar = _el('ia-boleto-bar', 'ai-boleto-bar');
         if (bar) bar.style.display = 'none';
-        var inp = document.getElementById('ia-boleto-input');
+        var inp = _el('ia-boleto-input', 'ai-boleto-input');
         if (inp) inp.value = '';
     }
 
     function processarBoleto() {
-        var campo = document.getElementById('ia-boleto-input');
+        var campo = _el('ia-boleto-input', 'ai-boleto-input');
         if (!campo || !campo.value.trim()) { addSys('Informe a linha digitável.'); return; }
         var val = campo.value.trim();
         fecharBoleto();
-        addUser('🏦 Processando boleto...');
+        addUser('🏦 Linha digitável enviada');
+        addGen('🔍 Decodificando o boleto... aguarde um instante, vou buscar todos os detalhes para você!');
         var tid = addTyping();
 
         apiPost('/boleto', { linha_digitavel: val }).then(function (res) {
@@ -689,6 +715,11 @@ window.IA = (function () {
     }
 
     // ── UTILITÁRIOS ───────────────────────────────────────────────
+    // Resolve elemento que pode ter prefixo 'ia-' (página ia.html) ou 'ai-' (painel flutuante)
+    function _el(idIA, idAI) {
+        return document.getElementById(idIA) || document.getElementById(idAI);
+    }
+
     function setBtnDisabled(v) {
         var b = elSend();
         if (b) b.disabled = v;
