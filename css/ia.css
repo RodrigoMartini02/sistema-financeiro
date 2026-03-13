@@ -28,24 +28,27 @@
     box-shadow: 0 6px 20px rgba(67,97,238,0.5);
 }
 
-/* ── BOTÃO IA dentro dos modais ──────────────────────────────── */
-.btn-ia-assistente {
+/* ── BOTÃO GEN dentro dos modais ─────────────────────────────── */
+.btn-ia-assistente,
+.btn-ia-contexto {
     background: rgba(67,97,238,0.08);
     border: 1px solid rgba(67,97,238,0.25);
     color: var(--primary-color, #4361ee);
-    border-radius: 50%;
-    width: 30px;
+    border-radius: 20px;
+    padding: 4px 10px;
     height: 30px;
     display: inline-flex;
     align-items: center;
-    justify-content: center;
+    gap: 5px;
     cursor: pointer;
-    font-size: 13px;
-    margin-right: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
     transition: all 0.2s;
     flex-shrink: 0;
 }
-.btn-ia-assistente:hover {
+.btn-ia-assistente:hover,
+.btn-ia-contexto:hover {
     background: var(--primary-color, #4361ee);
     color: #fff;
     border-color: var(--primary-color, #4361ee);

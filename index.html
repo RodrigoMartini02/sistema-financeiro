@@ -161,8 +161,16 @@
         </div>
     </nav>
 
+    <!-- Overlay para fechar sidebar no mobile -->
+    <div id="sidebar-overlay" class="sidebar-overlay-mobile"></div>
+
    <main class="main-content">
         <header class="main-header">
+            <!-- Hambúrguer — visível só no mobile -->
+            <button id="btn-abrir-sidebar" class="btn-hamburger-mobile" title="Abrir menu" aria-label="Abrir menu">
+                <i class="fas fa-bars"></i>
+            </button>
+
             <!-- Esquerda: Ações rápidas + Cotações -->
             <div class="header-left">
                 <button id="btn-nova-despesa" class="btn btn-danger btn-sm" title="Nova Despesa">
@@ -1032,7 +1040,7 @@
                     </p>
                     <div style="display:flex;gap:8px">
                         <input type="password" id="ia-openai-key-input" placeholder="sk-..." style="flex:1;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px">
-                        <button class="btn btn-primary" onclick="IAChat.salvarChaveAPI()" style="white-space:nowrap">
+                        <button id="ia-btn-salvar-chave" class="btn btn-primary" style="white-space:nowrap">
                             <i class="fas fa-save"></i> Salvar
                         </button>
                     </div>
@@ -1774,7 +1782,7 @@
         <div class="modal-header">
             <h2 id="detalhes-mes-titulo">Detalhes do Mês</h2>
             <div class="header-navigation">
-                <button class="btn btn-primary" onclick="IAChat.abrir()"><i class="fas fa-robot"></i></button>
+                <button id="btn-ia-detalhes-mes" class="btn btn-primary btn-ia-contexto" title="Abrir Gen"><i class="fas fa-robot"></i> Gen</button>
                 <button id="btn-mes-anterior" class="btn btn-navegacao-mes">Anterior</button>
                 <button id="btn-mes-proximo" class="btn btn-navegacao-mes">Próximo</button>
             </div>
@@ -1906,7 +1914,7 @@
 <div id="modal-nova-receita" class="modal modal-nova-receita">
     <div class="modal-content modal-md">
         <div class="modal-header">
-             <button class="btn btn-primary" onclick="IAChat.abrir()"><i class="fas fa-robot"></i></button>
+             <button id="btn-ia-nova-receita" class="btn btn-primary btn-ia-contexto" title="Abrir Gen"><i class="fas fa-robot"></i> Gen</button>
             <h2>Nova Receita</h2>
             <button type="button" class="close" title="Fechar">&times;</button>
         </div>
@@ -2106,8 +2114,8 @@
 <div id="modal-lancamento-despesas" class="modal">
    <div class="modal-content modal-lancamento">
        <div class="modal-header">
-          <button class="btn btn-primary" onclick="IAChat.abrir()">
-                        <i class="fas fa-robot"></i></button>
+          <button id="btn-ia-lancamento" class="btn btn-primary btn-ia-contexto" title="Abrir Gen">
+                        <i class="fas fa-robot"></i> Gen</button>
            <h2><i class="fas fa-receipt"></i> Lançar Despesas</h2>
           
            <button type="button" class="close" data-modal="modal-lancamento-despesas" title="Fechar">&times;</button>
@@ -2814,7 +2822,7 @@
 <!-- ================================================================ -->
 <!-- ASSISTENTE IA - Painel de Chat Flutuante                         -->
 <!-- ================================================================ -->
-<button id="btn-fab-ia" class="btn-fab-ia" onclick="IAChat.abrir()" title="Assistente IA">
+<button id="btn-fab-ia" class="btn-fab-ia" title="Assistente Gen">
     <i class="fas fa-robot"></i>
 </button>
 
@@ -2823,13 +2831,13 @@
         <div class="ai-panel-title">
             <div class="ai-avatar-mini"><i class="fas fa-robot"></i></div>
             <div>
-                <strong>Assistente IA</strong>
+                <strong>Gen — IA Financeira</strong>
                 <small id="ai-panel-status">carregando...</small>
             </div>
         </div>
         <div class="ai-panel-actions">
-            <button onclick="IAChat.limpar()" title="Nova conversa"><i class="fas fa-plus"></i></button>
-            <button onclick="IAChat.fechar()" title="Fechar"><i class="fas fa-times"></i></button>
+            <button id="ai-btn-nova-conversa" title="Nova conversa"><i class="fas fa-plus"></i></button>
+            <button id="ai-btn-fechar-panel" title="Fechar"><i class="fas fa-times"></i></button>
         </div>
     </div>
 
@@ -2837,23 +2845,23 @@
 
     <div class="ai-boleto-bar" id="ai-boleto-bar" style="display:none">
         <input type="text" id="ai-boleto-input" class="ai-boleto-field" placeholder="Cole a linha digitável (47 dígitos)...">
-        <button class="ai-send-btn" onclick="IAChat.processarBoleto()"><i class="fas fa-barcode"></i></button>
-        <button onclick="IAChat.fecharBoleto()" style="background:none;border:none;cursor:pointer;color:var(--gray-500)"><i class="fas fa-times"></i></button>
+        <button id="ai-btn-processar-boleto" class="ai-send-btn"><i class="fas fa-barcode"></i></button>
+        <button id="ai-btn-fechar-boleto" style="background:none;border:none;cursor:pointer;color:var(--gray-500)"><i class="fas fa-times"></i></button>
     </div>
 
     <div class="ai-file-preview" id="ai-file-preview" style="display:none">
         <i class="fas fa-file-alt"></i>
         <span id="ai-file-nome"></span>
-        <button onclick="IAChat.cancelarArquivo()"><i class="fas fa-times"></i></button>
+        <button id="ai-btn-cancelar-arquivo"><i class="fas fa-times"></i></button>
     </div>
 
     <div class="ai-input-row">
-        <input type="file" id="ai-file-input" accept="image/*,.pdf" style="display:none" onchange="IAChat.selecionarArquivo(this)">
-        <button class="ai-icon-btn" onclick="document.getElementById('ai-file-input').click()" title="Enviar arquivo"><i class="fas fa-paperclip"></i></button>
-        <button class="ai-icon-btn" onclick="IAChat.abrirBoleto()" title="Ler boleto"><i class="fas fa-barcode"></i></button>
-        <textarea id="ai-input" class="ai-textarea" rows="1" placeholder="Ex: paguei 120 de internet no cartão..." onkeydown="IAChat.keydown(event)" oninput="IAChat.resize(this)"></textarea>
-        <button class="ai-icon-btn ai-btn-voice" id="ai-btn-voice" onclick="IAChat.toggleVoz()" title="Voz"><i class="fas fa-microphone"></i></button>
-        <button class="ai-send-btn" onclick="IAChat.enviar()"><i class="fas fa-paper-plane"></i></button>
+        <input type="file" id="ai-file-input" accept="image/*,.pdf" style="display:none">
+        <button id="ai-btn-attach" class="ai-icon-btn" title="Enviar arquivo"><i class="fas fa-paperclip"></i></button>
+        <button id="ai-btn-abrir-boleto" class="ai-icon-btn" title="Ler boleto"><i class="fas fa-barcode"></i></button>
+        <textarea id="ai-input" class="ai-textarea" rows="1" placeholder="Ex: paguei 120 de internet no cartão..."></textarea>
+        <button class="ai-icon-btn ai-btn-voice" id="ai-btn-voice" title="Voz"><i class="fas fa-microphone"></i></button>
+        <button class="ai-send-btn" id="ai-btn-send" title="Enviar"><i class="fas fa-paper-plane"></i></button>
     </div>
 </div>
 

@@ -36,7 +36,7 @@ window.IA = (function () {
     // ── HELPERS DE ELEMENTOS (painel flutuante vs página completa) ─
     function elChat()  { return document.getElementById('ia-chat-area')   || document.getElementById('ai-messages'); }
     function elInput() { return document.getElementById('ia-texto-input') || document.getElementById('ai-input'); }
-    function elSend()  { return document.getElementById('ia-btn-send')    || document.querySelector('#ai-chat-panel .ai-send-btn'); }
+    function elSend()  { return document.getElementById('ia-btn-send') || document.getElementById('ai-btn-send') || document.querySelector('#ai-chat-panel .ai-send-btn'); }
 
     // ── API ───────────────────────────────────────────────────────
     function apiURL() {
@@ -673,9 +673,52 @@ window.IA = (function () {
         if (input) { input.value = btn.textContent.trim(); autoResize(input); input.focus(); }
     }
 
+    // ── SALVAR CHAVE API ─────────────────────────────────────────
+    function salvarChaveAPI() {
+        var input = document.getElementById('ia-openai-key-input');
+        var chave = input ? input.value.trim() : '';
+        if (!chave) { addSys('Informe a chave antes de salvar.'); return; }
+        apiPost('/config/chave', { openai_api_key: chave }).then(function (res) {
+            if (res && res.success) {
+                addSys('✅ Chave OpenAI salva com sucesso!');
+                if (input) input.value = '';
+            } else {
+                addSys('Erro ao salvar: ' + (res?.message || 'tente novamente.'));
+            }
+        }).catch(function () { addSys('Erro de conexão ao salvar a chave.'); });
+    }
+
     // ── INICIALIZAÇÃO ─────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', function () {
         estado.modoPagina = !!document.querySelector('.ia-container');
+
+        // ── Painel flutuante (index.html) ────────────────────────
+        if (!estado.modoPagina) {
+            // FAB e controles do painel
+            document.getElementById('btn-fab-ia')?.addEventListener('click', function () { abrir(); });
+            document.getElementById('ai-btn-fechar-panel')?.addEventListener('click', fechar);
+            document.getElementById('ai-btn-nova-conversa')?.addEventListener('click', limparConversa);
+
+            // Boleto
+            document.getElementById('ai-btn-abrir-boleto')?.addEventListener('click', abrirBoleto);
+            document.getElementById('ai-btn-processar-boleto')?.addEventListener('click', processarBoleto);
+            document.getElementById('ai-btn-fechar-boleto')?.addEventListener('click', fecharBoleto);
+
+            // Arquivo
+            document.getElementById('ai-btn-attach')?.addEventListener('click', abrirUpload);
+            document.getElementById('ai-btn-cancelar-arquivo')?.addEventListener('click', cancelarArquivo);
+            document.getElementById('ai-file-input')?.addEventListener('change', function () { processarArquivo(this); });
+
+            // Botões de contexto nos modais
+            document.getElementById('btn-ia-detalhes-mes')?.addEventListener('click', function () { abrir(); });
+            document.getElementById('btn-ia-lancamento')?.addEventListener('click', function () { abrir('despesa'); });
+            document.getElementById('btn-ia-nova-receita')?.addEventListener('click', function () { abrir('receita'); });
+
+            // Config — salvar chave OpenAI
+            document.getElementById('ia-btn-salvar-chave')?.addEventListener('click', salvarChaveAPI);
+
+            setTimeout(inicializar, 1500);
+        }
 
         // ── Página completa (ia.html) ────────────────────────────
         if (estado.modoPagina) {
@@ -701,6 +744,7 @@ window.IA = (function () {
             document.getElementById('btn-fechar-boleto-page')?.addEventListener('click', fecharBoleto);
             document.getElementById('btn-cancelar-arquivo-page')?.addEventListener('click', cancelarArquivo);
             document.getElementById('btn-detectar-recorrencias')?.addEventListener('click', detectarRecorrencias);
+            document.getElementById('ia-file-input')?.addEventListener('change', function () { processarArquivo(this); });
 
             document.getElementById('btn-fechar-modal-despesa')?.addEventListener('click', function () { _fecharModal('modal-confirmar-despesa'); });
             document.getElementById('btn-cancelar-modal-despesa')?.addEventListener('click', function () { _fecharModal('modal-confirmar-despesa'); });
@@ -717,26 +761,19 @@ window.IA = (function () {
             inicializar();
         }
 
-        // ── Painel flutuante e ambos ─────────────────────────────
+        // ── Ambos os contextos ───────────────────────────────────
         var input = elInput();
         if (input) {
             input.addEventListener('keydown', handleKeyDown);
             input.addEventListener('input', function () { autoResize(this); });
         }
 
+        // send btn — elSend() já resolve o botão certo em cada contexto
         var sendBtn = elSend();
         if (sendBtn) sendBtn.addEventListener('click', enviarMensagem);
 
         document.getElementById('ia-btn-voice')?.addEventListener('click', toggleVoz);
         document.getElementById('ai-btn-voice')?.addEventListener('click', toggleVoz);
-
-        document.getElementById('btn-attach-file')?.addEventListener('click', abrirUpload);
-        document.getElementById('ia-file-input')?.addEventListener('change', function () { processarArquivo(this); });
-        document.getElementById('ai-file-input')?.addEventListener('change', function () { processarArquivo(this); });
-
-        if (!estado.modoPagina) {
-            setTimeout(inicializar, 1500);
-        }
     });
 
     return {
@@ -747,6 +784,6 @@ window.IA = (function () {
         selecionarArquivo: processarArquivo, cancelarArquivo,
         abrirBoleto, fecharBoleto, processarBoleto, abrirUpload,
         toggleVoz, confirmarAprendizado, detectarRecorrencias,
-        _chip
+        salvarChaveAPI, _chip
     };
 }());

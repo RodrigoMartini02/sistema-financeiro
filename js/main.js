@@ -552,9 +552,9 @@ function configurarInterface() {
 }
 
 function setupNavigation() {
-    const toggleSidebar = document.getElementById('toggleSidebar');
     const sidebar = document.getElementById('sidebar');
     const mainContent = document.querySelector('.main-content');
+    const overlay = document.getElementById('sidebar-overlay');
 
     // Inicia colapsada por padrão; expande se o usuário expandiu antes
     const sidebarColapsada = localStorage.getItem('sidebarCollapsed') !== 'false';
@@ -563,13 +563,24 @@ function setupNavigation() {
         mainContent?.classList.add('expanded');
     }
 
-    if (toggleSidebar && sidebar && mainContent) {
-        toggleSidebar.addEventListener('click', () => {
-            sidebar.classList.toggle('collapsed');
-            mainContent.classList.toggle('expanded');
-            localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
-        });
+    function toggleSidebarState() {
+        const isCollapsed = sidebar.classList.toggle('collapsed');
+        mainContent.classList.toggle('expanded', isCollapsed);
+        overlay?.classList.toggle('visivel', !isCollapsed);
+        localStorage.setItem('sidebarCollapsed', isCollapsed);
     }
+
+    // Botão dentro da sidebar (desktop)
+    document.getElementById('toggleSidebar')?.addEventListener('click', toggleSidebarState);
+    // Hambúrguer no header (mobile)
+    document.getElementById('btn-abrir-sidebar')?.addEventListener('click', toggleSidebarState);
+    // Overlay fecha a sidebar
+    overlay?.addEventListener('click', () => {
+        sidebar.classList.add('collapsed');
+        mainContent.classList.remove('expanded');
+        overlay.classList.remove('visivel');
+        localStorage.setItem('sidebarCollapsed', true);
+    });
     
     const navLinks = document.querySelectorAll('.nav-link');
     navLinks.forEach(link => {
