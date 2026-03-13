@@ -558,155 +558,58 @@ textarea:focus {
 }
 
 /* ================================================================
-   SIDEBAR — BOTÃO TOGGLE E TRANSIÇÕES
+   SIDEBAR — MODELO GEMINI (overlay via hambúrguer, sem toggle interno)
    ================================================================ */
 
+/* Sidebar sempre fixa, escondida por padrão (translate fora da tela) */
 .sidebar {
-    transition: width 0.25s ease;
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: var(--sidebar-width) !important;
+    z-index: 1200;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    overflow-y: auto;
 }
 
-.sidebar-header-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    gap: 6px;
+/* Sidebar aberta = desliza para dentro */
+.sidebar:not(.collapsed) {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0,0,0,0.25);
 }
 
-.sidebar-title {
-    flex: 1;
-    overflow: hidden;
-    white-space: nowrap;
-    transition: opacity 0.2s, width 0.2s;
-}
-
-.btn-sidebar-toggle {
-    width: 26px;
-    height: 26px;
-    border-radius: 6px;
-    background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.15);
-    color: rgba(255,255,255,0.7);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    flex-shrink: 0;
-    transition: background 0.2s, transform 0.25s;
-}
-
-.btn-sidebar-toggle:hover {
-    background: rgba(255,255,255,0.2);
-    color: #fff;
-}
-
-/* ── SIDEBAR COLAPSADA ───────────────────────────────────────── */
+/* Sidebar fechada (collapsed) = fora da tela */
 .sidebar.collapsed {
-    width: var(--sidebar-collapsed-width);
+    transform: translateX(-100%);
 }
 
-.sidebar.collapsed .sidebar-title {
-    opacity: 0;
-    width: 0;
-    pointer-events: none;
-}
-
-.sidebar.collapsed .btn-sidebar-toggle i {
-    transform: rotate(180deg);
-}
-
-.sidebar.collapsed .user-profile-sidebar {
-    display: none;
-}
-
-.sidebar.collapsed .nav-text {
-    display: none;
-}
-
-.sidebar.collapsed .nav-link {
-    justify-content: center;
-    padding: 12px 0;
-    position: relative;
-}
-
-.sidebar.collapsed .nav-icon {
-    margin-right: 0;
-}
-
-/* Tooltip ao passar o mouse nos itens quando colapsada */
-.sidebar.collapsed .nav-link::after {
-    content: attr(data-label);
-    position: absolute;
-    left: calc(var(--sidebar-collapsed-width) + 8px);
-    top: 50%;
-    transform: translateY(-50%);
-    background: #1e293b;
-    color: #fff;
-    padding: 5px 10px;
-    border-radius: 6px;
-    font-size: 12px;
-    white-space: nowrap;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.15s;
-    z-index: 1100;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-}
-
-.sidebar.collapsed .nav-link:hover::after {
-    opacity: 1;
-}
-
-.sidebar.collapsed #plano-sidebar-container {
-    display: none;
-}
-
-.sidebar.collapsed .sidebar-footer .info-row span,
-.sidebar.collapsed .sidebar-footer .info-row i:last-child {
-    display: none;
-}
-
-.sidebar.collapsed .sidebar-footer {
-    padding: 8px 0;
-    display: flex;
-    justify-content: center;
-}
-
-.sidebar.collapsed .system-info {
-    align-items: center;
-}
-
-.sidebar.collapsed .info-row {
-    justify-content: center;
-}
-
-/* ================================================================
-   CONTEÚDO PRINCIPAL
-   ================================================================ */
-
-.main-content {
+/* Conteúdo principal — sempre largura total, sem margin-left */
+.main-content,
+.main-content.expanded {
     flex: 1;
     height: 100vh;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    margin-left: var(--sidebar-width);
+    margin-left: 0 !important;
     min-width: 0;
-    transition: margin-left 0.25s ease;
 }
 
-.main-content.expanded {
-    margin-left: var(--sidebar-collapsed-width);
+/* Título da sidebar */
+.sidebar-title {
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 /* ================================================================
    HAMBÚRGUER MOBILE + OVERLAY SIDEBAR
    ================================================================ */
 
-/* Botão hambúrguer: oculto por padrão, só no mobile */
+/* Hambúrguer — sempre visível, abre/fecha sidebar em qualquer tela */
 .btn-hamburger-mobile {
-    display: none;
+    display: flex;
     width: 36px;
     height: 36px;
     border: none;
@@ -716,10 +619,10 @@ textarea:focus {
     border-radius: 8px;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
+    font-size: 18px;
     flex-shrink: 0;
     transition: background 0.15s;
-    margin-right: 6px;
+    margin-right: 8px;
 }
 
 .btn-hamburger-mobile:hover {
@@ -3019,48 +2922,8 @@ table tr:hover {
    MEDIA QUERIES PADRONIZADAS
    ================================================================ */
 
-/* ── Mobile (≤768px) — Sidebar como overlay ─────────────────── */
+/* ── Mobile (≤768px) ─────────────────────────────────────────── */
 @media (max-width: 768px) {
-    /* Sidebar sempre em posição fixa, escondida por padrão (collapsed) */
-    .sidebar {
-        position: fixed !important;
-        top: 0;
-        left: 0;
-        height: 100vh;
-        z-index: 1200;
-        width: var(--sidebar-width) !important;
-        transition: transform 0.25s ease !important;
-        overflow-y: auto;
-    }
-
-    /* Collapsed = escorrega para fora da tela */
-    .sidebar.collapsed {
-        transform: translateX(-100%) !important;
-        width: var(--sidebar-width) !important;
-    }
-
-    /* Expandida = overlay visível */
-    .sidebar:not(.collapsed) {
-        transform: translateX(0) !important;
-        box-shadow: 4px 0 24px rgba(0,0,0,0.3);
-    }
-
-    /* Conteúdo sempre ocupa largura total */
-    .main-content,
-    .main-content.expanded {
-        margin-left: 0 !important;
-    }
-
-    /* Hambúrguer visível no mobile */
-    .btn-hamburger-mobile {
-        display: flex;
-    }
-
-    /* Botão toggle dentro da sidebar: esconde no mobile (hambúrguer faz o trabalho) */
-    .btn-sidebar-toggle {
-        display: none;
-    }
-
     /* Header principal */
     .main-header {
         padding: 0 10px;

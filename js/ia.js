@@ -39,10 +39,10 @@ window.IA = (function () {
     function elSend()  { return document.getElementById('ia-btn-send') || document.getElementById('ai-btn-send') || document.querySelector('#ai-chat-panel .ai-send-btn'); }
 
     // ── API ───────────────────────────────────────────────────────
+    // window.API_URL já termina em /api (ex: https://…/api)
+    // As rotas da IA ficam em /api/ai/…
     function apiURL() {
-        if (typeof CONFIG !== 'undefined' && CONFIG.API_URL) return CONFIG.API_URL;
-        if (typeof window.API_BASE_URL !== 'undefined') return window.API_BASE_URL;
-        return 'http://localhost:3010';
+        return (typeof window.API_URL !== 'undefined' ? window.API_URL : 'http://localhost:3010/api');
     }
 
     function getToken() {
@@ -54,19 +54,19 @@ window.IA = (function () {
     }
 
     function apiPost(path, body) {
-        return fetch(apiURL() + '/api/ai' + path, {
+        return fetch(apiURL() + '/ai' + path, {
             method: 'POST', headers: hdrs(), body: JSON.stringify(body)
         }).then(function (r) { return r.json(); });
     }
 
     function apiForm(path, form) {
-        return fetch(apiURL() + '/api/ai' + path, {
+        return fetch(apiURL() + '/ai' + path, {
             method: 'POST', headers: { 'Authorization': 'Bearer ' + getToken() }, body: form
         }).then(function (r) { return r.json(); });
     }
 
     function apiGet(path) {
-        return fetch(apiURL() + '/api/ai' + path, { headers: hdrs() })
+        return fetch(apiURL() + '/ai' + path, { headers: hdrs() })
             .then(function (r) { return r.json(); });
     }
 

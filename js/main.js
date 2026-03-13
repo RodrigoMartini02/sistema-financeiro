@@ -553,47 +553,45 @@ function configurarInterface() {
 
 function setupNavigation() {
     const sidebar = document.getElementById('sidebar');
-    const mainContent = document.querySelector('.main-content');
     const overlay = document.getElementById('sidebar-overlay');
 
-    // Inicia colapsada por padrão; expande se o usuário expandiu antes
-    const sidebarColapsada = localStorage.getItem('sidebarCollapsed') !== 'false';
-    if (sidebarColapsada) {
+    // Sidebar sempre inicia fechada (modelo Gemini — overlay via hambúrguer)
+    sidebar?.classList.add('collapsed');
+
+    function abrirSidebar() {
+        sidebar?.classList.remove('collapsed');
+        overlay?.classList.add('visivel');
+    }
+
+    function fecharSidebar() {
         sidebar?.classList.add('collapsed');
-        mainContent?.classList.add('expanded');
+        overlay?.classList.remove('visivel');
     }
 
-    function toggleSidebarState() {
-        const isCollapsed = sidebar.classList.toggle('collapsed');
-        mainContent.classList.toggle('expanded', isCollapsed);
-        overlay?.classList.toggle('visivel', !isCollapsed);
-        localStorage.setItem('sidebarCollapsed', isCollapsed);
+    function toggleSidebar() {
+        if (sidebar?.classList.contains('collapsed')) abrirSidebar();
+        else fecharSidebar();
     }
 
-    // Botão dentro da sidebar (desktop)
-    document.getElementById('toggleSidebar')?.addEventListener('click', toggleSidebarState);
-    // Hambúrguer no header (mobile)
-    document.getElementById('btn-abrir-sidebar')?.addEventListener('click', toggleSidebarState);
+    // Único controle: hambúrguer no header
+    document.getElementById('btn-abrir-sidebar')?.addEventListener('click', toggleSidebar);
     // Overlay fecha a sidebar
-    overlay?.addEventListener('click', () => {
-        sidebar.classList.add('collapsed');
-        mainContent.classList.remove('expanded');
-        overlay.classList.remove('visivel');
-        localStorage.setItem('sidebarCollapsed', true);
-    });
-    
+    overlay?.addEventListener('click', fecharSidebar);
+
+    // Nav links: navega E fecha sidebar
     const navLinks = document.querySelectorAll('.nav-link');
     navLinks.forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
-            
+            fecharSidebar();
+
             navLinks.forEach(l => l.classList.remove('active'));
             link.classList.add('active');
-            
+
             document.querySelectorAll('section[id$="-section"]').forEach(section => {
                 section.classList.remove('active');
             });
-            
+
             const sectionId = link.getAttribute('data-section') + '-section';
             const section = document.getElementById(sectionId);
             if (section) {
