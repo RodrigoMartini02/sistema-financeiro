@@ -975,71 +975,32 @@ function inicializarSistemaAnexosDespesas() {
 const cardAnexosStore = new Map();
 let cardCounter = 0;
 
-// Gera o HTML interno de um card de despesa
-function gerarHTMLCard(cardId) {
-    const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-    const anoAtual = window.anoAberto || new Date().getFullYear();
-    const optsMeses = meses.map((m, i) => `<option value="${i}">${m}</option>`).join('');
-    const optsAnos = Array.from({length: 6}, (_, i) => anoAtual + i).map(a => `<option value="${a}">${a}</option>`).join('');
+// Clona o template do card e preenche os selects dinâmicos (mês/ano de replicação)
+function _montarCardDespesa() {
+    const tmpl = document.getElementById('template-card-despesa-lancamento');
+    if (!tmpl) return null;
+    const clone = tmpl.content.cloneNode(true);
 
-    return `
-        <div class="card-main-row">
-            <div class="card-left-col">
-                <div class="card-pgto-outer">
-                    <span class="pgto-grupo-label">Forma de pagamento</span>
-                    <div class="card-pgto-wrapper">
-                        <div class="card-pgto-grupo card-pgto-grupo-conta">
-                            <span class="pgto-grupo-label">Saldo em Conta</span>
-                            <div class="pgto-grupo-botoes">
-                                <button type="button" class="pgto-btn pgto-pix pgto-conta-btn" data-forma="pix" title="PIX"><i class="fas fa-bolt"></i></button>
-                                <button type="button" class="pgto-btn pgto-dinheiro pgto-conta-btn" data-forma="dinheiro" title="Dinheiro"><i class="fas fa-money-bill-wave"></i></button>
-                                <button type="button" class="pgto-btn pgto-debito pgto-conta-btn" data-forma="debito" title="Débito"><i class="fas fa-credit-card"></i></button>
-                            </div>
-                        </div>
-                        <div class="card-pgto-grupo card-pgto-grupo-credito">
-                            <span class="pgto-grupo-label">Crédito</span>
-                            <div class="pgto-grupo-botoes card-pgto-cartoes"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-desc-cat-row">
-                    <input type="text" class="card-descricao" placeholder="Descrição da despesa" required>
-                    <select class="card-categoria"><option value="">Categoria...</option></select>
-                </div>
-                <div class="card-values-row">
-                    <div class="card-field"><label>Valor orig. *</label><input type="number" class="card-valor-original" min="0.01" step="0.01" placeholder="0,00" required></div>
-                    <div class="card-field"><label>Valor final</label><input type="number" class="card-valor-final" min="0" step="0.01" placeholder="0,00"></div>
-                    <div class="card-field card-field-sm"><label>Parcelas</label><input type="number" class="card-parcelas" min="1" max="999" value="1"></div>
-                    <div class="card-field"><label>Compra *</label><input type="date" class="card-compra" required></div>
-                    <div class="card-field"><label>Vencimento *</label><input type="date" class="card-vencimento" required><span class="card-mes-indicador"></span></div>
-                </div>
-                <div class="card-info-parcela hidden">
-                    <span>Juros: <strong class="card-juros-total">R$ 0,00</strong></span>
-                    <span>Por parcela: <strong class="card-juros-parcela">R$ 0,00</strong></span>
-                    <span>Valor parcela: <strong class="card-valor-parcela">R$ 0,00</strong></span>
-                    <span>Total: <strong class="card-valor-total">R$ 0,00</strong></span>
-                </div>
-                <div class="card-bottom-row">
-                    <div class="card-anexos-lista"></div>
-                    <button type="button" class="card-delete-btn" title="Remover este lançamento"><i class="fas fa-trash-alt"></i> Remover</button>
-                </div>
-            </div>
-            <div class="card-pgto-grupo card-opcoes-grupo">
-                <span class="pgto-grupo-label">Opções</span>
-                <button type="button" class="card-fav-btn" title="Favoritar para esta categoria"><i class="far fa-star"></i> Favoritar forma de pagamento</button>
-                <label class="card-flag"><input type="checkbox" class="card-ja-paga"> Já está Paga</label>
-                <label class="card-flag"><input type="checkbox" class="card-recorrente"> Recorrente</label>
-                <label class="card-flag"><input type="checkbox" class="card-replicar"> Replicar até</label>
-                <div class="card-replicar-options hidden">
-                    <select class="card-replicar-mes">${optsMeses}</select>
-                    <select class="card-replicar-ano">${optsAnos}</select>
-                </div>
-                <button type="button" class="card-anexos-btn"><i class="fas fa-paperclip"></i> Anexos (<span class="card-anexos-count">0</span>)</button>
-            </div>
-        </div>
-        <div class="card-error hidden"></div>
-        <div class="card-success hidden"><i class="fas fa-check-circle"></i> Salvo!</div>
-    `;
+    const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const anoBase = window.anoAberto || new Date().getFullYear();
+
+    const selMes = clone.querySelector('.card-replicar-mes');
+    meses.forEach((m, i) => {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = m;
+        selMes.appendChild(opt);
+    });
+
+    const selAno = clone.querySelector('.card-replicar-ano');
+    Array.from({length: 6}, (_, i) => anoBase + i).forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a;
+        opt.textContent = a;
+        selAno.appendChild(opt);
+    });
+
+    return clone;
 }
 
 // Cria um card DOM e configura seus eventos
@@ -1052,7 +1013,8 @@ function criarCard(dadosIniciais = {}) {
     div.dataset.formaPagamento = '';
     div.dataset.cartaoId = '';
     div.dataset.despesaId = '';
-    div.innerHTML = gerarHTMLCard(cardId);
+    const frag = _montarCardDespesa();
+    if (frag) div.appendChild(frag);
     cardAnexosStore.set(cardId, []);
     configurarEventosCard(div);
     return div;
@@ -1195,7 +1157,8 @@ function popularCartoesCard(cardEl) {
     const formaAtual = cardEl.dataset.formaPagamento;
     container.innerHTML = '';
     if (cartoes.length === 0) {
-        container.innerHTML = '<span class="pgto-sem-cartao">Nenhum cartão</span>';
+        const tmplSemCartao = document.getElementById('template-sem-cartao');
+        container.appendChild(tmplSemCartao ? tmplSemCartao.content.cloneNode(true) : Object.assign(document.createElement('span'), { className: 'pgto-sem-cartao', textContent: 'Nenhum cartão' }));
         return;
     }
     cartoes.forEach(c => {

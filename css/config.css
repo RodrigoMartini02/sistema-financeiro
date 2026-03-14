@@ -1422,3 +1422,16 @@
     flex: 1;
     min-width: 130px;
 }
+
+/* Estado vazio em tabelas */
+.tabela-vazio {
+    text-align: center;
+    padding: 40px;
+    color: #6c757d;
+}
+.tabela-vazio-icone {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+    display: block;
+}

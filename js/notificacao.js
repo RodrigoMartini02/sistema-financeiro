@@ -510,7 +510,8 @@ class SistemaNotificacoes {
             if (!container) return;
 
             if (this.notificacoes.length === 0) {
-                container.innerHTML = '<div class="notif-vazio"><i class="fas fa-bell-slash"></i><br>Nenhuma notificação</div>';
+                const tmplNotifVazio = document.getElementById('template-notif-vazio');
+                if (tmplNotifVazio) container.appendChild(tmplNotifVazio.content.cloneNode(true));
                 return;
             }
 

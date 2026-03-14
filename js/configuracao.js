@@ -688,14 +688,8 @@ function renderizarListaCartoes() {
     listaCartoes.innerHTML = '';
 
     if (cartoesUsuario.length === 0) {
-        listaCartoes.innerHTML = `
-            <tr>
-                <td colspan="8" style="text-align: center; padding: 40px; color: #6c757d;">
-                    <i class="fas fa-credit-card" style="font-size: 48px; margin-bottom: 16px; opacity: 0.3;"></i>
-                    <p style="margin: 0;">Nenhum cartão cadastrado. Adicione seu primeiro cartão acima.</p>
-                </td>
-            </tr>
-        `;
+        const tmplCartVazio = document.getElementById('template-cartoes-vazio');
+        if (tmplCartVazio) listaCartoes.appendChild(tmplCartVazio.content.cloneNode(true));
         return;
     }
 
@@ -1707,61 +1701,7 @@ async function salvarEdicaoUsuario(isNovo = false) {
     }
 }
 
-// ================================================================
-// UTILITÁRIOS DE FEEDBACK E UI - SISTEMA DE TOAST
-// ================================================================
-function mostrarToast(mensagem, tipo = 'info', duracao = 4000) {
-    // Garantir que o container de toast existe
-    let container = document.getElementById('toast-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'toast-container';
-        document.body.appendChild(container);
-    }
-
-    // Criar elemento toast
-    const toast = document.createElement('div');
-    toast.className = `toast ${tipo}`;
-
-    // Ícones por tipo
-    const icons = {
-        success: 'fas fa-check-circle',
-        error: 'fas fa-exclamation-circle',
-        warning: 'fas fa-exclamation-triangle',
-        info: 'fas fa-info-circle'
-    };
-
-    toast.innerHTML = `
-        <i class="toast-icon ${icons[tipo] || icons.info}"></i>
-        <div class="toast-content">
-            <p class="toast-message">${mensagem}</p>
-        </div>
-        <button class="toast-close" aria-label="Fechar">
-            <i class="fas fa-times"></i>
-        </button>
-    `;
-
-    // Adicionar ao container
-    container.appendChild(toast);
-
-    // Mostrar toast com animação
-    setTimeout(() => toast.classList.add('show'), 10);
-
-    // Fechar toast ao clicar no botão X
-    const closeBtn = toast.querySelector('.toast-close');
-    closeBtn.addEventListener('click', () => {
-        fecharToast(toast);
-    });
-
-    // Auto-fechar após duração
-    if (duracao > 0) {
-        setTimeout(() => {
-            fecharToast(toast);
-        }, duracao);
-    }
-
-    return toast;
-}
+// mostrarToast centralizado em utils.js / main.js (window.mostrarToast)
 
 function fecharToast(toast) {
     toast.classList.remove('show');

@@ -262,15 +262,25 @@ window.IA = (function () {
 
     // ── MENSAGENS ─────────────────────────────────────────────────
     function addUser(texto) {
-        _ins('<div class="ai-msg ai-msg--user">' +
-            '<div class="ai-msg-bub">' + esc(texto) +
-            '<span class="ai-msg-time">' + _hhmm() + '</span></div></div>');
+        var c = _cloneTmpl('template-ia-msg-user');
+        if (c) {
+            c.querySelector('.ia-msg-texto').textContent = texto;
+            c.querySelector('.ai-msg-time').textContent = _hhmm();
+            _insNode(c);
+        } else {
+            _ins('<div class="ai-msg ai-msg--user"><div class="ai-msg-bub">' + esc(texto) + '<span class="ai-msg-time">' + _hhmm() + '</span></div></div>');
+        }
     }
 
     function addGen(html) {
-        _ins('<div class="ai-msg ai-msg--ai">' +
-            '<div class="ai-msg-bub">' + html +
-            '<span class="ai-msg-time">' + _hhmm() + '</span></div></div>');
+        var c = _cloneTmpl('template-ia-msg-gen');
+        if (c) {
+            c.querySelector('.ia-msg-conteudo').innerHTML = html;
+            c.querySelector('.ai-msg-time').textContent = _hhmm();
+            _insNode(c);
+        } else {
+            _ins('<div class="ai-msg ai-msg--ai"><div class="ai-msg-bub">' + html + '<span class="ai-msg-time">' + _hhmm() + '</span></div></div>');
+        }
     }
 
     function addComDespesa(texto, d) {
@@ -278,82 +288,110 @@ window.IA = (function () {
         var parcelado     = totalParcelas > 1;
         var valorTotal    = parseFloat(d.valor) || 0;
         var valorParcela  = parcelado ? valorTotal / totalParcelas : valorTotal;
-
-        // Calcula mês/ano do vencimento para exibir
-        var dataVenc  = d.vencimento || '';
-        var dataCompra = d.data || '';
+        var dataVenc      = d.vencimento || '';
+        var dataCompra    = d.data || '';
         var meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-        var mesLabel = '';
-        var mesRegistro = '';
+        var mesLabel = '', mesRegistro = '';
         if (dataVenc) {
-            var p = dataVenc.split('-');
-            mesLabel = ' → ' + (meses[parseInt(p[1])-1] || '') + '/' + p[0];
-            mesRegistro = (meses[parseInt(p[1])-1] || '') + '/' + p[0];
+            var pv = dataVenc.split('-');
+            mesLabel    = ' → ' + (meses[parseInt(pv[1])-1] || '') + '/' + pv[0];
+            mesRegistro = (meses[parseInt(pv[1])-1] || '') + '/' + pv[0];
         } else if (dataCompra) {
             var pc = dataCompra.split('-');
             mesRegistro = (meses[parseInt(pc[1])-1] || '') + '/' + pc[0];
         }
-
-        var semValor = valorTotal <= 0;
-
-        var rows = '';
-        rows += '<div class="ai-dc-row"><span class="ai-dc-label">Descrição</span><span class="ai-dc-val">' + esc(d.descricao || '—') + '</span></div>';
-        if (parcelado) {
-            rows += '<div class="ai-dc-row"><span class="ai-dc-label">Valor total</span><span class="ai-dc-valor' + (semValor ? ' ai-dc-alerta' : '') + '">' + (semValor ? '⚠ não informado' : fmtV(valorTotal)) + '</span></div>';
-            rows += '<div class="ai-dc-row"><span class="ai-dc-label">Parcelas</span><span class="ai-dc-val">' + totalParcelas + 'x de ' + fmtV(valorParcela) + '</span></div>';
-        } else {
-            rows += '<div class="ai-dc-row"><span class="ai-dc-label">Valor</span><span class="ai-dc-valor' + (semValor ? ' ai-dc-alerta' : '') + '">' + (semValor ? '⚠ não informado' : fmtV(valorTotal)) + '</span></div>';
-        }
-        rows += '<div class="ai-dc-row"><span class="ai-dc-label">Forma de pagamento</span><span class="ai-dc-val">' + fmtF(d.forma_pagamento) + '</span></div>';
-        // Cartão: só mostrar quando forma_pagamento é crédito
+        var semValor   = valorTotal <= 0;
         var nomeCartao = d.nome_cartao || d.cartao_nome || (d.cartao_id ? 'Cartão #' + d.cartao_id : '');
-        if ((d.forma_pagamento === 'credito' || d.forma_pagamento === 'cartao_credito') && nomeCartao) {
-            rows += '<div class="ai-dc-row"><span class="ai-dc-label">Cartão</span><span class="ai-dc-val">' + esc(nomeCartao) + '</span></div>';
-        }
-        rows += '<div class="ai-dc-row"><span class="ai-dc-label">Categoria</span><span class="ai-dc-val">' + esc(d.categoria || 'Outros') + '</span></div>';
-        if (dataCompra && dataCompra !== dataVenc) rows += '<div class="ai-dc-row"><span class="ai-dc-label">Data de compra</span><span class="ai-dc-val">' + fmtD(dataCompra) + '</span></div>';
-        if (dataVenc) rows += '<div class="ai-dc-row"><span class="ai-dc-label">Vencimento</span><span class="ai-dc-val">' + fmtD(dataVenc) + '<small class="ai-dc-mes">' + mesLabel + '</small></span></div>';
-        if (mesRegistro) rows += '<div class="ai-dc-row"><span class="ai-dc-label">Mês de registro</span><span class="ai-dc-val">' + esc(mesRegistro) + '</span></div>';
-        rows += '<div class="ai-dc-row"><span class="ai-dc-label">Já pago</span><span class="ai-dc-val ' + (d.ja_pago ? 'ai-dc-pago' : 'ai-dc-pendente') + '">' + (d.ja_pago ? 'Sim' : 'Não') + '</span></div>';
-        if (d.recorrente) rows += '<div class="ai-dc-row"><span class="ai-dc-label">Recorrente</span><span class="ai-dc-val">Sim</span></div>';
-        if (d.replicar_ate) rows += '<div class="ai-dc-row"><span class="ai-dc-label">Replicar até</span><span class="ai-dc-val">' + esc(d.replicar_ate) + '</span></div>';
+        var isCredito  = d.forma_pagamento === 'credito' || d.forma_pagamento === 'cartao_credito';
 
-        _ins('<div class="ai-msg ai-msg--ai">' +
-            '<div class="ai-msg-bub">' + fmt(texto) +
-            '<div class="ai-despesa-card">' + rows + '</div>' +
-            '<p class="ai-card-pergunta">Quer revisar algum dado antes de salvar?</p>' +
-            '<div class="ai-msg-btns">' +
-            '<button class="ai-msg-btn-ok"   data-action="confirmar-despesa">Não, salvar</button>' +
-            '<button class="ai-msg-btn-edit" data-action="editar-despesa">Sim, revisar</button>' +
-            '</div>' +
-            '<button class="ai-msg-btn-link" data-action="cancelar-despesa">Cancelar registro</button>' +
-            '<span class="ai-msg-time">' + _hhmm() + '</span>' +
-            '</div></div>');
+        var c = _cloneTmpl('template-ia-card-despesa');
+        if (!c) return; // template obrigatório
+
+        c.querySelector('.ia-card-intro').innerHTML = fmt(texto);
+        c.querySelector('.dc-descricao').textContent = d.descricao || '—';
+
+        if (parcelado) {
+            c.querySelector('.dc-row-valor').hidden = true;
+            c.querySelector('.dc-row-valor-total').hidden = false;
+            c.querySelector('.dc-row-parcelas').hidden = false;
+            var elVT = c.querySelector('.dc-valor-total');
+            elVT.textContent = semValor ? '⚠ não informado' : fmtV(valorTotal);
+            if (semValor) elVT.classList.add('ai-dc-alerta');
+            c.querySelector('.dc-parcelas').textContent = totalParcelas + 'x de ' + fmtV(valorParcela);
+        } else {
+            var elV = c.querySelector('.dc-valor');
+            elV.textContent = semValor ? '⚠ não informado' : fmtV(valorTotal);
+            if (semValor) elV.classList.add('ai-dc-alerta');
+        }
+
+        c.querySelector('.dc-forma').textContent = fmtF(d.forma_pagamento);
+
+        if (isCredito && nomeCartao) {
+            c.querySelector('.dc-row-cartao').hidden = false;
+            c.querySelector('.dc-cartao').textContent = nomeCartao;
+        }
+
+        c.querySelector('.dc-categoria').textContent = d.categoria || 'Outros';
+
+        if (dataCompra && dataCompra !== dataVenc) {
+            c.querySelector('.dc-row-data-compra').hidden = false;
+            c.querySelector('.dc-data-compra').textContent = fmtD(dataCompra);
+        }
+
+        if (dataVenc) {
+            c.querySelector('.dc-row-vencimento').hidden = false;
+            var elVenc = c.querySelector('.dc-vencimento');
+            elVenc.textContent = fmtD(dataVenc);
+            var small = document.createElement('small');
+            small.className = 'ai-dc-mes';
+            small.textContent = mesLabel;
+            elVenc.appendChild(small);
+        }
+
+        if (mesRegistro) {
+            c.querySelector('.dc-row-mes').hidden = false;
+            c.querySelector('.dc-mes').textContent = mesRegistro;
+        }
+
+        var elJaPago = c.querySelector('.dc-ja-pago');
+        elJaPago.textContent = d.ja_pago ? 'Sim' : 'Não';
+        elJaPago.className = 'ai-dc-val ' + (d.ja_pago ? 'ai-dc-pago' : 'ai-dc-pendente');
+
+        if (d.recorrente) c.querySelector('.dc-row-recorrente').hidden = false;
+
+        if (d.replicar_ate) {
+            c.querySelector('.dc-row-replicar').hidden = false;
+            c.querySelector('.dc-replicar').textContent = d.replicar_ate;
+        }
+
+        c.querySelector('.ai-msg-time').textContent = _hhmm();
+        _insNode(c);
     }
 
     function addComReceita(texto, r) {
-        var rows = '';
-        rows += '<div class="ai-dc-row"><span class="ai-dc-label">Descrição</span><span class="ai-dc-val">' + esc(r.descricao || '—') + '</span></div>';
-        rows += '<div class="ai-dc-row"><span class="ai-dc-label">Valor</span><span class="ai-dc-valor">' + fmtV(r.valor) + '</span></div>';
-        if (r.data) rows += '<div class="ai-dc-row"><span class="ai-dc-label">Data</span><span class="ai-dc-val">' + fmtD(r.data) + '</span></div>';
-
-        _ins('<div class="ai-msg ai-msg--ai">' +
-            '<div class="ai-msg-bub">' + fmt(texto) +
-            '<div class="ai-despesa-card">' + rows + '</div>' +
-            '<p class="ai-card-pergunta">Quer revisar algum dado antes de salvar?</p>' +
-            '<div class="ai-msg-btns">' +
-            '<button class="ai-msg-btn-ok"   data-action="confirmar-receita">Não, salvar</button>' +
-            '<button class="ai-msg-btn-edit" data-action="editar-receita">Sim, revisar</button>' +
-            '</div>' +
-            '<button class="ai-msg-btn-link" data-action="cancelar-receita">Cancelar registro</button>' +
-            '<span class="ai-msg-time">' + _hhmm() + '</span>' +
-            '</div></div>');
+        var c = _cloneTmpl('template-ia-card-receita');
+        if (!c) return;
+        c.querySelector('.ia-card-intro').innerHTML = fmt(texto);
+        c.querySelector('.dc-descricao').textContent = r.descricao || '—';
+        c.querySelector('.dc-valor').textContent = fmtV(r.valor);
+        if (r.data) {
+            c.querySelector('.dc-row-data').hidden = false;
+            c.querySelector('.dc-data').textContent = fmtD(r.data);
+        }
+        c.querySelector('.ai-msg-time').textContent = _hhmm();
+        _insNode(c);
     }
 
     function addTyping() {
         var id = 'ai-typ-' + Date.now();
-        _ins('<div class="ai-msg ai-msg--ai" id="' + id + '">' +
-            '<div class="ai-msg-bub"><div class="ai-typing"><span></span><span></span><span></span></div></div></div>');
+        var c = _cloneTmpl('template-ia-typing');
+        if (c) {
+            var el = c.querySelector('.ai-msg');
+            el.id = id;
+            _insNode(c);
+        } else {
+            _ins('<div class="ai-msg ai-msg--ai" id="' + id + '"><div class="ai-msg-bub"><div class="ai-typing"><span></span><span></span><span></span></div></div></div>');
+        }
         return id;
     }
 
@@ -366,6 +404,21 @@ window.IA = (function () {
         if (welcome) welcome.remove();
         area.insertAdjacentHTML('beforeend', html);
         area.scrollTop = area.scrollHeight;
+    }
+
+    // Insere um nó DOM (DocumentFragment ou Element) na área de chat
+    function _insNode(node) {
+        var area = elChat();
+        if (!area) return;
+        var welcome = area.querySelector('.ia-welcome');
+        if (welcome) welcome.remove();
+        area.appendChild(node);
+        area.scrollTop = area.scrollHeight;
+    }
+
+    function _cloneTmpl(id) {
+        var t = document.getElementById(id);
+        return t ? t.content.cloneNode(true) : null;
     }
 
     // ── CONFIRMAR DESPESA ─────────────────────────────────────────

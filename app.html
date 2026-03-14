@@ -2811,6 +2811,247 @@
 </template>
 
 
+<!-- ======================================================== -->
+<!-- Templates: Relatórios -->
+<!-- ======================================================== -->
+
+<template id="template-linha-categoria-relatorio">
+    <tr>
+        <td><strong class="rel-cat-nome"></strong></td>
+        <td class="valor-positivo rel-cat-receitas"></td>
+        <td class="valor-negativo rel-cat-despesas"></td>
+        <td class="rel-cat-saldo"></td>
+        <td class="rel-cat-percentual"></td>
+        <td class="rel-cat-transacoes"></td>
+    </tr>
+</template>
+
+<template id="template-linha-transacao-relatorio">
+    <tr>
+        <td class="rel-tr-data"></td>
+        <td><span class="badge rel-tr-tipo"></span></td>
+        <td class="rel-tr-descricao"></td>
+        <td class="rel-tr-categoria"></td>
+        <td class="rel-tr-forma"></td>
+        <td class="rel-tr-valor"></td>
+        <td><span class="badge rel-tr-status"></span></td>
+    </tr>
+</template>
+
+<template id="template-linha-parcelamento-relatorio">
+    <tr>
+        <td class="rel-parc-descricao"></td>
+        <td class="valor-negativo rel-parc-total"></td>
+        <td class="rel-parc-num-parcelas"></td>
+        <td class="valor-negativo rel-parc-valor-parcela"></td>
+        <td class="rel-parc-pagas"></td>
+        <td class="rel-parc-restantes"></td>
+        <td><span class="badge rel-parc-status"></span></td>
+    </tr>
+</template>
+
+<!-- ======================================================== -->
+<!-- Template: Card de lançamento de despesa -->
+<!-- ======================================================== -->
+<template id="template-card-despesa-lancamento">
+    <div class="card-main-row">
+        <div class="card-left-col">
+            <div class="card-pgto-outer">
+                <span class="pgto-grupo-label">Forma de pagamento</span>
+                <div class="card-pgto-wrapper">
+                    <div class="card-pgto-grupo card-pgto-grupo-conta">
+                        <span class="pgto-grupo-label">Saldo em Conta</span>
+                        <div class="pgto-grupo-botoes">
+                            <button type="button" class="pgto-btn pgto-pix pgto-conta-btn" data-forma="pix" title="PIX"><i class="fas fa-bolt"></i></button>
+                            <button type="button" class="pgto-btn pgto-dinheiro pgto-conta-btn" data-forma="dinheiro" title="Dinheiro"><i class="fas fa-money-bill-wave"></i></button>
+                            <button type="button" class="pgto-btn pgto-debito pgto-conta-btn" data-forma="debito" title="Débito"><i class="fas fa-credit-card"></i></button>
+                        </div>
+                    </div>
+                    <div class="card-pgto-grupo card-pgto-grupo-credito">
+                        <span class="pgto-grupo-label">Crédito</span>
+                        <div class="pgto-grupo-botoes card-pgto-cartoes"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-desc-cat-row">
+                <input type="text" class="card-descricao" placeholder="Descrição da despesa" required>
+                <select class="card-categoria"><option value="">Categoria...</option></select>
+            </div>
+            <div class="card-values-row">
+                <div class="card-field"><label>Valor orig. *</label><input type="number" class="card-valor-original" min="0.01" step="0.01" placeholder="0,00" required></div>
+                <div class="card-field"><label>Valor final</label><input type="number" class="card-valor-final" min="0" step="0.01" placeholder="0,00"></div>
+                <div class="card-field card-field-sm"><label>Parcelas</label><input type="number" class="card-parcelas" min="1" max="999" value="1"></div>
+                <div class="card-field"><label>Compra *</label><input type="date" class="card-compra" required></div>
+                <div class="card-field"><label>Vencimento *</label><input type="date" class="card-vencimento" required><span class="card-mes-indicador"></span></div>
+            </div>
+            <div class="card-info-parcela hidden">
+                <span>Juros: <strong class="card-juros-total">R$ 0,00</strong></span>
+                <span>Por parcela: <strong class="card-juros-parcela">R$ 0,00</strong></span>
+                <span>Valor parcela: <strong class="card-valor-parcela">R$ 0,00</strong></span>
+                <span>Total: <strong class="card-valor-total">R$ 0,00</strong></span>
+            </div>
+            <div class="card-bottom-row">
+                <div class="card-anexos-lista"></div>
+                <button type="button" class="card-delete-btn" title="Remover este lançamento"><i class="fas fa-trash-alt"></i> Remover</button>
+            </div>
+        </div>
+        <div class="card-pgto-grupo card-opcoes-grupo">
+            <span class="pgto-grupo-label">Opções</span>
+            <button type="button" class="card-fav-btn" title="Favoritar para esta categoria"><i class="far fa-star"></i> Favoritar forma de pagamento</button>
+            <label class="card-flag"><input type="checkbox" class="card-ja-paga"> Já está Paga</label>
+            <label class="card-flag"><input type="checkbox" class="card-recorrente"> Recorrente</label>
+            <label class="card-flag"><input type="checkbox" class="card-replicar"> Replicar até</label>
+            <div class="card-replicar-options hidden">
+                <select class="card-replicar-mes"></select>
+                <select class="card-replicar-ano"></select>
+            </div>
+            <button type="button" class="card-anexos-btn"><i class="fas fa-paperclip"></i> Anexos (<span class="card-anexos-count">0</span>)</button>
+        </div>
+    </div>
+    <div class="card-error hidden"></div>
+    <div class="card-success hidden"><i class="fas fa-check-circle"></i> Salvo!</div>
+</template>
+
+<!-- ======================================================== -->
+<!-- Templates: Chat da Gen IA -->
+<!-- ======================================================== -->
+
+<template id="template-ia-msg-user">
+    <div class="ai-msg ai-msg--user">
+        <div class="ai-msg-bub">
+            <span class="ia-msg-texto"></span>
+            <span class="ai-msg-time"></span>
+        </div>
+    </div>
+</template>
+
+<template id="template-ia-msg-gen">
+    <div class="ai-msg ai-msg--ai">
+        <div class="ai-msg-bub">
+            <span class="ia-msg-conteudo"></span>
+            <span class="ai-msg-time"></span>
+        </div>
+    </div>
+</template>
+
+<template id="template-ia-typing">
+    <div class="ai-msg ai-msg--ai">
+        <div class="ai-msg-bub">
+            <div class="ai-typing"><span></span><span></span><span></span></div>
+        </div>
+    </div>
+</template>
+
+<template id="template-ia-card-despesa">
+    <div class="ai-msg ai-msg--ai">
+        <div class="ai-msg-bub">
+            <span class="ia-card-intro"></span>
+            <div class="ai-despesa-card">
+                <div class="ai-dc-row"><span class="ai-dc-label">Descrição</span><span class="ai-dc-val dc-descricao"></span></div>
+                <div class="ai-dc-row dc-row-valor"><span class="ai-dc-label">Valor</span><span class="ai-dc-valor dc-valor"></span></div>
+                <div class="ai-dc-row dc-row-valor-total" hidden><span class="ai-dc-label">Valor total</span><span class="ai-dc-valor dc-valor-total"></span></div>
+                <div class="ai-dc-row dc-row-parcelas" hidden><span class="ai-dc-label">Parcelas</span><span class="ai-dc-val dc-parcelas"></span></div>
+                <div class="ai-dc-row"><span class="ai-dc-label">Forma de pagamento</span><span class="ai-dc-val dc-forma"></span></div>
+                <div class="ai-dc-row dc-row-cartao" hidden><span class="ai-dc-label">Cartão</span><span class="ai-dc-val dc-cartao"></span></div>
+                <div class="ai-dc-row"><span class="ai-dc-label">Categoria</span><span class="ai-dc-val dc-categoria"></span></div>
+                <div class="ai-dc-row dc-row-data-compra" hidden><span class="ai-dc-label">Data de compra</span><span class="ai-dc-val dc-data-compra"></span></div>
+                <div class="ai-dc-row dc-row-vencimento" hidden><span class="ai-dc-label">Vencimento</span><span class="ai-dc-val dc-vencimento"></span></div>
+                <div class="ai-dc-row dc-row-mes" hidden><span class="ai-dc-label">Mês de registro</span><span class="ai-dc-val dc-mes"></span></div>
+                <div class="ai-dc-row"><span class="ai-dc-label">Já pago</span><span class="ai-dc-val dc-ja-pago"></span></div>
+                <div class="ai-dc-row dc-row-recorrente" hidden><span class="ai-dc-label">Recorrente</span><span class="ai-dc-val">Sim</span></div>
+                <div class="ai-dc-row dc-row-replicar" hidden><span class="ai-dc-label">Replicar até</span><span class="ai-dc-val dc-replicar"></span></div>
+            </div>
+            <p class="ai-card-pergunta">Quer revisar algum dado antes de salvar?</p>
+            <div class="ai-msg-btns">
+                <button class="ai-msg-btn-ok" data-action="confirmar-despesa">Não, salvar</button>
+                <button class="ai-msg-btn-edit" data-action="editar-despesa">Sim, revisar</button>
+            </div>
+            <button class="ai-msg-btn-link" data-action="cancelar-despesa">Cancelar registro</button>
+            <span class="ai-msg-time"></span>
+        </div>
+    </div>
+</template>
+
+<template id="template-ia-card-receita">
+    <div class="ai-msg ai-msg--ai">
+        <div class="ai-msg-bub">
+            <span class="ia-card-intro"></span>
+            <div class="ai-despesa-card">
+                <div class="ai-dc-row"><span class="ai-dc-label">Descrição</span><span class="ai-dc-val dc-descricao"></span></div>
+                <div class="ai-dc-row"><span class="ai-dc-label">Valor</span><span class="ai-dc-valor dc-valor"></span></div>
+                <div class="ai-dc-row dc-row-data" hidden><span class="ai-dc-label">Data</span><span class="ai-dc-val dc-data"></span></div>
+            </div>
+            <p class="ai-card-pergunta">Quer revisar algum dado antes de salvar?</p>
+            <div class="ai-msg-btns">
+                <button class="ai-msg-btn-ok" data-action="confirmar-receita">Não, salvar</button>
+                <button class="ai-msg-btn-edit" data-action="editar-receita">Sim, revisar</button>
+            </div>
+            <button class="ai-msg-btn-link" data-action="cancelar-receita">Cancelar registro</button>
+            <span class="ai-msg-time"></span>
+        </div>
+    </div>
+</template>
+
+<!-- ======================================================== -->
+<!-- Templates: Logs -->
+<!-- ======================================================== -->
+
+<template id="template-linha-log">
+    <tr>
+        <td class="log-data"></td>
+        <td class="log-hora"></td>
+        <td><span class="badge-modulo log-modulo"></span></td>
+        <td><span class="badge-acao log-acao"></span></td>
+        <td class="log-usuario"></td>
+        <td class="log-categoria"></td>
+        <td class="log-descricao"></td>
+        <td class="log-valor"></td>
+    </tr>
+</template>
+
+<!-- ======================================================== -->
+<!-- Templates utilitários -->
+<!-- ======================================================== -->
+
+<!-- Toast de notificação -->
+<template id="template-toast">
+    <i class="toast-icon"></i>
+    <div class="toast-content">
+        <p class="toast-message"></p>
+    </div>
+    <button class="toast-close" aria-label="Fechar">
+        <i class="fas fa-times"></i>
+    </button>
+</template>
+
+<!-- Estado vazio: dropdown de anos -->
+<template id="template-ano-vazio">
+    <button class="btn btn-secondary" disabled>Nenhum ano disponível</button>
+</template>
+
+<!-- Estado vazio: botões de cartão de crédito no card de despesa -->
+<template id="template-sem-cartao">
+    <span class="pgto-sem-cartao">Nenhum cartão</span>
+</template>
+
+<!-- Estado vazio: tabela de cartões em Configurações -->
+<template id="template-cartoes-vazio">
+    <tr>
+        <td colspan="8" class="tabela-vazio">
+            <i class="fas fa-credit-card tabela-vazio-icone"></i>
+            <p>Nenhum cartão cadastrado. Adicione seu primeiro cartão acima.</p>
+        </td>
+    </tr>
+</template>
+
+<!-- Estado vazio: painel de notificações -->
+<template id="template-notif-vazio">
+    <div class="notif-vazio">
+        <i class="fas fa-bell-slash"></i>
+        <br>Nenhuma notificação
+    </div>
+</template>
+
 <!-- Input files para anexos -->
 <input type="file" id="input-file-anexos-receita" multiple accept=".pdf,.jpg,.jpeg,.png,.gif" style="display: none;">
 <input type="file" id="input-file-anexos-despesa" multiple accept=".pdf,.jpg,.jpeg,.png,.gif" style="display: none;">

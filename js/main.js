@@ -210,15 +210,15 @@ function mostrarToast(mensagem, tipo = 'info', duracao = 4000) {
                            tipo === 'erro' ? 'error' :
                            tipo === 'aviso' ? 'warning' : tipo;
 
-    toast.innerHTML = `
-        <i class="toast-icon ${icons[tipo] || icons.info}"></i>
-        <div class="toast-content">
-            <p class="toast-message">${mensagem}</p>
-        </div>
-        <button class="toast-close" aria-label="Fechar">
-            <i class="fas fa-times"></i>
-        </button>
-    `;
+    const toastTmpl = document.getElementById('template-toast');
+    if (toastTmpl) {
+        const clone = toastTmpl.content.cloneNode(true);
+        clone.querySelector('.toast-icon').className = `toast-icon ${icons[tipo] || icons.info}`;
+        clone.querySelector('.toast-message').textContent = mensagem;
+        toast.appendChild(clone);
+    } else {
+        toast.innerHTML = `<i class="toast-icon ${icons[tipo] || icons.info}"></i><div class="toast-content"><p class="toast-message">${mensagem}</p></div><button class="toast-close" aria-label="Fechar"><i class="fas fa-times"></i></button>`;
+    }
 
     toast.className = `toast ${tipoNormalizado}`;
 
@@ -682,7 +682,8 @@ function preencherDropdownAnos() {
     dropdownAnos.innerHTML = '';
 
     if (anosDisponiveis.length === 0) {
-        dropdownAnos.innerHTML = '<button class="btn btn-secondary" disabled>Nenhum ano disponível</button>';
+        const tmplAno = document.getElementById('template-ano-vazio');
+        dropdownAnos.appendChild(tmplAno ? tmplAno.content.cloneNode(true) : (() => { const b = document.createElement('button'); b.className = 'btn btn-secondary'; b.disabled = true; b.textContent = 'Nenhum ano disponível'; return b; })());
         return;
     }
 

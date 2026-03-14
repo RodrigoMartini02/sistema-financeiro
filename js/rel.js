@@ -938,23 +938,24 @@ class SistemaRelatorios {
         
         const totalGeral = Object.values(categorias).reduce((sum, cat) => sum + cat.despesas, 0);
         
-        tbody.innerHTML = Object.entries(categorias)
+        const tmplCat = document.getElementById('template-linha-categoria-relatorio');
+        tbody.innerHTML = '';
+        Object.entries(categorias)
             .sort((a, b) => (b[1].receitas + b[1].despesas) - (a[1].receitas + a[1].despesas))
-            .map(([categoria, dados]) => {
+            .forEach(([categoria, dados]) => {
                 const saldo = dados.receitas - dados.despesas;
                 const percentual = totalGeral > 0 ? ((dados.despesas / totalGeral) * 100) : 0;
-                
-                return `
-                    <tr>
-                        <td><strong>${categoria}</strong></td>
-                        <td class="valor-positivo">${this.formatarMoeda(dados.receitas)}</td>
-                        <td class="valor-negativo">${this.formatarMoeda(dados.despesas)}</td>
-                        <td class="${saldo >= 0 ? 'valor-positivo' : 'valor-negativo'}">${this.formatarMoeda(saldo)}</td>
-                        <td>${percentual.toFixed(1)}%</td>
-                        <td>${dados.transacoes}</td>
-                    </tr>
-                `;
-            }).join('');
+                const clone = tmplCat.content.cloneNode(true);
+                clone.querySelector('.rel-cat-nome').textContent = categoria;
+                clone.querySelector('.rel-cat-receitas').textContent = this.formatarMoeda(dados.receitas);
+                clone.querySelector('.rel-cat-despesas').textContent = this.formatarMoeda(dados.despesas);
+                const tdSaldo = clone.querySelector('.rel-cat-saldo');
+                tdSaldo.textContent = this.formatarMoeda(saldo);
+                tdSaldo.className = saldo >= 0 ? 'valor-positivo' : 'valor-negativo';
+                clone.querySelector('.rel-cat-percentual').textContent = percentual.toFixed(1) + '%';
+                clone.querySelector('.rel-cat-transacoes').textContent = dados.transacoes;
+                tbody.appendChild(clone);
+            });
         
         secao.classList.remove('hidden');
     }
@@ -1003,29 +1004,33 @@ class SistemaRelatorios {
             info.textContent = `Mostrando ${transacoes.length} transações`;
         }
         
-        tbody.innerHTML = transacoes.map(transacao => {
+        const tmplTr = document.getElementById('template-linha-transacao-relatorio');
+        tbody.innerHTML = '';
+        transacoes.forEach(transacao => {
             const data = new Date(transacao.data).toLocaleDateString('pt-BR');
             const tipo = transacao.tipo === 'receita' ? 'Receita' : 'Despesa';
             const categoria = this.obterCategoriaTransacao(transacao);
             const formaPagamento = this.obterFormaPagamentoTransacao(transacao);
             const status = transacao.tipo === 'receita' ? 'Recebida' : this.obterStatusTexto(this.obterStatusDespesa(transacao));
-            
             const classeValor = transacao.tipo === 'receita' ? 'valor-positivo' : 'valor-negativo';
             const classeTipo = transacao.tipo === 'receita' ? 'badge-tipo receita' : 'badge-tipo despesa';
             const classeStatus = this.obterClasseStatus(status);
-            
-            return `
-                <tr>
-                    <td>${data}</td>
-                    <td><span class="badge ${classeTipo}">${tipo}</span></td>
-                    <td>${transacao.descricao || 'Sem descrição'}</td>
-                    <td>${categoria}</td>
-                    <td>${formaPagamento}</td>
-                    <td class="${classeValor}">${this.formatarMoeda(transacao.valor || 0)}</td>
-                    <td><span class="badge ${classeStatus}">${status}</span></td>
-                </tr>
-            `;
-        }).join('');
+            const clone = tmplTr.content.cloneNode(true);
+            clone.querySelector('.rel-tr-data').textContent = data;
+            const badgeTipo = clone.querySelector('.rel-tr-tipo');
+            badgeTipo.textContent = tipo;
+            badgeTipo.className = `badge ${classeTipo}`;
+            clone.querySelector('.rel-tr-descricao').textContent = transacao.descricao || 'Sem descrição';
+            clone.querySelector('.rel-tr-categoria').textContent = categoria;
+            clone.querySelector('.rel-tr-forma').textContent = formaPagamento;
+            const tdValor = clone.querySelector('.rel-tr-valor');
+            tdValor.textContent = this.formatarMoeda(transacao.valor || 0);
+            tdValor.className = classeValor;
+            const badgeStatus = clone.querySelector('.rel-tr-status');
+            badgeStatus.textContent = status;
+            badgeStatus.className = `badge ${classeStatus}`;
+            tbody.appendChild(clone);
+        });
         
         secao.classList.remove('hidden');
     }
@@ -1037,17 +1042,21 @@ class SistemaRelatorios {
         
         const parcelamentos = this.processarParcelamentos(despesas);
         
-        tbody.innerHTML = parcelamentos.map(p => `
-            <tr>
-                <td>${p.descricao}</td>
-                <td class="valor-negativo">${this.formatarMoeda(p.valorTotal)}</td>
-                <td>${p.totalParcelas}</td>
-                <td class="valor-negativo">${this.formatarMoeda(p.valorParcela)}</td>
-                <td>${p.parcelasPagas}</td>
-                <td>${p.parcelasRestantes}</td>
-                <td><span class="badge ${p.classe}">${p.status}</span></td>
-            </tr>
-        `).join('');
+        const tmplParc = document.getElementById('template-linha-parcelamento-relatorio');
+        tbody.innerHTML = '';
+        parcelamentos.forEach(p => {
+            const clone = tmplParc.content.cloneNode(true);
+            clone.querySelector('.rel-parc-descricao').textContent = p.descricao;
+            clone.querySelector('.rel-parc-total').textContent = this.formatarMoeda(p.valorTotal);
+            clone.querySelector('.rel-parc-num-parcelas').textContent = p.totalParcelas;
+            clone.querySelector('.rel-parc-valor-parcela').textContent = this.formatarMoeda(p.valorParcela);
+            clone.querySelector('.rel-parc-pagas').textContent = p.parcelasPagas;
+            clone.querySelector('.rel-parc-restantes').textContent = p.parcelasRestantes;
+            const badge = clone.querySelector('.rel-parc-status');
+            badge.textContent = p.status;
+            badge.className = `badge ${p.classe}`;
+            tbody.appendChild(clone);
+        });
         
         secao.classList.remove('hidden');
     }

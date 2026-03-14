@@ -285,30 +285,25 @@ function renderizarLogs(logs = null) {
 
     if (semLogsMessage) semLogsMessage.classList.add('hidden');
 
+    const tmplLog = document.getElementById('template-linha-log');
     logsParaRenderizar.forEach(log => {
-        const tr = document.createElement('tr');
-
-        // Adicionar classe baseada na ação
-        if (log.acao.toLowerCase() === 'criado') {
-            tr.classList.add('log-criado');
-        } else if (log.acao.toLowerCase() === 'editado') {
-            tr.classList.add('log-editado');
-        } else if (log.acao.toLowerCase() === 'excluído') {
-            tr.classList.add('log-excluido');
-        }
-
-        tr.innerHTML = `
-            <td>${formatarDataLog(log.data)}</td>
-            <td>${log.hora}</td>
-            <td><span class="badge-modulo">${log.modulo}</span></td>
-            <td><span class="badge-acao acao-${log.acao.toLowerCase()}">${log.acao}</span></td>
-            <td>${log.usuario}</td>
-            <td>${log.categoria}</td>
-            <td>${log.descricao}</td>
-            <td>${log.valor !== null ? window.formatarMoeda(log.valor) : '-'}</td>
-        `;
-
-        listaLogs.appendChild(tr);
+        const clone = tmplLog.content.cloneNode(true);
+        const tr = clone.querySelector('tr');
+        const acaoLower = log.acao.toLowerCase();
+        if (acaoLower === 'criado') tr.classList.add('log-criado');
+        else if (acaoLower === 'editado') tr.classList.add('log-editado');
+        else if (acaoLower === 'excluído') tr.classList.add('log-excluido');
+        clone.querySelector('.log-data').textContent = formatarDataLog(log.data);
+        clone.querySelector('.log-hora').textContent = log.hora;
+        clone.querySelector('.log-modulo').textContent = log.modulo;
+        const badgeAcao = clone.querySelector('.log-acao');
+        badgeAcao.textContent = log.acao;
+        badgeAcao.className = `badge-acao acao-${acaoLower}`;
+        clone.querySelector('.log-usuario').textContent = log.usuario;
+        clone.querySelector('.log-categoria').textContent = log.categoria;
+        clone.querySelector('.log-descricao').textContent = log.descricao;
+        clone.querySelector('.log-valor').textContent = log.valor !== null ? window.formatarMoeda(log.valor) : '-';
+        listaLogs.appendChild(clone);
     });
 }
 
