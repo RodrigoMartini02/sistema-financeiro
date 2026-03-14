@@ -1,160 +1,158 @@
 /* ================================================================
-   BLINDAGEM TOTAL - ESTILO STORIES PREMIUM
+   ESTILO STORIES PREMIUM
    ================================================================ */
 
 .reviews-section {
-    padding: 80px 20px !important;
-    background-color: #ffffff !important;
-    font-family: 'Inter', sans-serif !important;
+    padding: 80px 20px;
+    background-color: #ffffff;
+    font-family: 'Inter', sans-serif;
 }
 
 .section-container {
-    max-width: 1200px !important;
-    margin: 0 auto !important;
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
 .reviews-story-wrapper {
-    display: flex !important;
-    align-items: center !important;
-    gap: 60px !important;
-    flex-wrap: wrap !important;
+    display: flex;
+    align-items: center;
+    gap: 60px;
+    flex-wrap: wrap;
 }
 
 /* TEXTO FIXO (ESQUERDA) */
 .reviews-fixed-content {
-    flex: 1 !important;
-    min-width: 300px !important;
+    flex: 1;
+    min-width: 300px;
 }
 
 .story-title {
-    font-size: 2.8rem !important;
-    color: var(--text-color) !important;
-    font-weight: 800 !important;
-    line-height: 1.1 !important;
-    margin-bottom: 20px !important;
+    font-size: 2.8rem;
+    color: var(--text-color);
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 20px;
 }
 
-.text-blue { color: #6366f1 !important; }
+.text-blue { color: #6366f1; }
 
 .story-subtitle {
-    font-size: 1.1rem !important;
-    color: var(--text-light) !important;
-    line-height: 1.6 !important;
+    font-size: 1.1rem;
+    color: var(--text-light);
+    line-height: 1.6;
 }
 
 /* CARD AZUL (DIREITA) */
 .reviews-story-card {
-    flex: 1.3 !important;
-    min-width: 320px !important;
-    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
-    border-radius: 24px !important;
-    padding: 40px !important;
-    box-shadow: 0 20px 40px rgba(99, 102, 241, 0.25) !important;
-    position: relative !important;
-    min-height: 320px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    box-sizing: border-box !important;
+    flex: 1.3;
+    min-width: 320px;
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    border-radius: 24px;
+    padding: 40px;
+    box-shadow: 0 20px 40px rgba(99, 102, 241, 0.25);
+    position: relative;
+    min-height: 320px;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
 }
 
 /* BARRAS DE PROGRESSO (CONECTADO AO JS) */
 .story-progress-container {
-    display: flex !important;
-    gap: 8px !important;
-    margin-bottom: 30px !important;
+    display: flex;
+    gap: 8px;
+    margin-bottom: 30px;
 }
 
 .story-progress-bar {
-    flex: 1 !important;
-    height: 4px !important;
-    background: rgba(255, 255, 255, 0.25) !important;
-    border-radius: 10px !important;
-    overflow: hidden !important;
+    flex: 1;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 10px;
+    overflow: hidden;
 }
 
 .story-progress-fill {
-    height: 100% !important;
+    height: 100%;
     width: 0%;
-    background: #ffffff !important;
+    background: #ffffff;
     /* A transição é controlada pelo JS, por isso não colocamos aqui */
 }
 
 /* ESTRELAS AMARELAS (CONECTADO AO JS) */
 #stars-container {
-    color: #fbbf24 !important; /* COR AMARELA FIXA */
-    font-size: 1.3rem !important;
-    margin-bottom: 20px !important;
-    letter-spacing: 3px !important;
-    display: block !important;
+    color: #fbbf24; /* COR AMARELA FIXA */
+    font-size: 1.3rem;
+    margin-bottom: 20px;
+    letter-spacing: 3px;
+    display: block;
 }
 
 /* TEXTO DO DEPOIMENTO (CONECTADO AO JS) */
 #review-text {
-    color: #ffffff !important;
-    font-size: 1.5rem !important;
-    font-weight: 600 !important;
-    line-height: 1.4 !important;
-    margin: 0 0 25px 0 !important;
-    min-height: 100px !important;
-    transition: opacity 0.3s ease !important; /* Para o efeito de fade do JS */
+    color: #ffffff;
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.4;
+    margin: 0 0 25px 0;
+    min-height: 100px;
+    transition: opacity 0.3s ease; /* Para o efeito de fade do JS */
 }
 
 /* RODAPÉ DO CARD */
 .story-footer {
-    display: flex !important;
-    align-items: center !important;
-    gap: 10px !important;
-    margin-top: auto !important;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: auto;
 }
 
-.author-dash { color: rgba(255, 255, 255, 0.6) !important; font-weight: bold !important; }
+.author-dash { color: rgba(255, 255, 255, 0.6); font-weight: bold; }
 
 #review-author {
-    color: #ffffff !important;
-    font-size: 1rem !important;
-    font-weight: 700 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 1px !important;
+    color: #ffffff;
+    font-size: 1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 /* RESPONSIVIDADE */
 @media (max-width: 992px) {
-    .reviews-story-wrapper { flex-direction: column !important; text-align: center !important; }
-    .story-title { font-size: 2.2rem !important; }
-    .reviews-story-card { width: 100% !important; padding: 30px !important; }
+    .reviews-story-wrapper { flex-direction: column; text-align: center; }
+    .story-title { font-size: 2.2rem; }
+    .reviews-story-card { width: 100%; padding: 30px; }
 }
-
-
 
 
 .reviews-summary {
-    margin-top: 30px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 5px !important;
+    margin-top: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
 }
 
 .summary-score {
-    display: flex !important;
-    align-items: center !important;
-    gap: 10px !important;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 #average-rating {
-    font-size: 2rem !important;
-    font-weight: 800 !important;
-    color: var(--text-color) !important;
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--text-color);
 }
 
 .summary-stars {
-    color: #fbbf24 !important;
-    font-size: 1.2rem !important;
+    color: #fbbf24;
+    font-size: 1.2rem;
 }
 
 .summary-text {
-    color: var(--text-light) !important;
-    font-size: 0.9rem !important;
-    font-weight: 500 !important;
+    color: var(--text-light);
+    font-size: 0.9rem;
+    font-weight: 500;
 }
 
 /* ================================================================

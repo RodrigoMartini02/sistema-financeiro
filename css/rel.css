@@ -71,22 +71,6 @@
     width: 100%;
 }
 
-/* Removido - agora usa .form-control padrão de layoutGeral.css */
-.form-input {
-    width: 100%;
-    padding: 8px 12px;
-    border: 1px solid #ced4da;
-    border-radius: 6px;
-    font-size: 0.9rem;
-    background-color: white;
-    transition: all 0.2s ease;
-}
-
-.form-input:focus {
-    outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-}
 
 .periodo-personalizado-ultra-compacto {
     display: grid;
@@ -108,12 +92,6 @@
     white-space: nowrap;
 }
 
-.periodo-personalizado-ultra-compacto .form-input {
-    padding: 6px 8px;
-    border: 1px solid #ced4da;
-    border-radius: 6px;
-    font-size: 0.85rem;
-}
 
 .filtros-linha-checkboxes-inline {
     margin-bottom: 8px;

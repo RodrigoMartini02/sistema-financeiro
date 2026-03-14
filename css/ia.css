@@ -1139,8 +1139,7 @@ body:has(.ia-container) {
         max-height: 100vh;
         border-radius: 0;
     }
-    .ai-overlay { display: none; }
-    .btn-fab-ia { right: 16px; bottom: 20px; }
+.btn-fab-ia { right: 16px; bottom: 20px; }
 
     /* Página */
     .ia-form-row { flex-direction: column; }

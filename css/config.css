@@ -647,9 +647,7 @@
 /* ================================================================ */
 /* UTILITÁRIOS */
 /* ================================================================ */
-.hidden {
-    display: none !important;
-}
+/* .hidden definido em layoutGeral.css */
 
 .status-feedback {
     margin-top: 16px;
@@ -921,17 +919,6 @@
     color: #1565c0;
 }
 
-.acao-criado {
-    color: #155724;
-}
-
-.acao-editado {
-    color: #856404;
-}
-
-.acao-excluído {
-    color: #721c24;
-}
 
 /* Linhas coloridas por tipo de ação */
 .log-criado {

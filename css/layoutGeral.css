@@ -2054,53 +2054,6 @@ table tr:hover {
     font-size: 24px;
 }
 
-.config-tabs {
-    display: flex;
-    border-bottom: 1px solid #dee2e6;
-    margin-bottom: 20px;
-    gap: 5px;
-}
-
-.config-tab-btn {
-    padding: 12px 20px;
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-bottom: none;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-weight: 500;
-    color: #495057;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.config-tab-btn:hover {
-    background: #e9ecef;
-    color: #212529;
-}
-
-.config-tab-btn.active {
-    background: #fff;
-    color: #007bff;
-    font-weight: 600;
-    border-bottom: 2px solid #007bff;
-}
-
-.config-tab-btn i {
-    font-size: 14px;
-}
-
-/* .config-tab-content movido para config.css */
-
-.config-tab-pane {
-    display: none;
-    padding: 20px 0;
-}
-
-.config-tab-pane.active {
-    display: block;
-}
 
 .config-card {
     background: #fff;
