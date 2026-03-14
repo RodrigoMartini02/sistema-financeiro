@@ -527,24 +527,20 @@ window.IA = (function () {
     function editarDespesa() {
         var d = estado.despesaPendente;
         if (!d) return;
-        // Editar = abre o modal preenchido para o usuário ajustar antes de salvar
-        if (typeof window.abrirModalNovaDespesa === 'function') {
-            window.abrirModalNovaDespesa();
-            setTimeout(function () {
-                var card = document.querySelector('#despesa-cards-container .despesa-card');
-                if (card) {
-                    _preencherCardDespesa(card, d);
-                    addGen('Formulário preenchido! Edite o que precisar e clique em Salvar.');
-                } else {
-                    addGen('Modal aberto. Preencha os dados e salve.');
-                }
-                fechar();
-            }, 400);
-        } else {
-            addGen('Abra o modal "Lançar Despesas" para editar.');
-            fechar();
-        }
-        estado.despesaPendente = null;
+        estado.dadosParciais   = Object.assign({}, d);
+        estado.tipoColeta      = 'despesa';
+        estado.aguardandoCampo = 'campo_revisao';
+        var campos = [
+            { label: 'Descrição',          val: 'descricao' },
+            { label: 'Valor',              val: 'valor' },
+            { label: 'Forma de pagamento', val: 'forma_pagamento' },
+            { label: 'Data de vencimento', val: 'vencimento' },
+            { label: 'Categoria',          val: 'categoria' }
+        ];
+        var btns = campos.map(function(c) {
+            return '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="' + esc(c.val) + '" data-opcao-label="' + esc(c.label) + '">' + esc(c.label) + '</button>';
+        }).join('');
+        addGen('Qual informação deseja corrigir?<div class="ai-welcome-chips">' + btns + '</div>');
     }
 
     function cancelarDespesa() {
@@ -607,19 +603,18 @@ window.IA = (function () {
     function editarReceita() {
         var r = estado.receitaPendente;
         if (!r) return;
-        // Editar = abre o modal preenchido para o usuário ajustar
-        if (typeof window.abrirModalNovaReceita === 'function') {
-            window.abrirModalNovaReceita();
-            setTimeout(function () {
-                _preencherFormReceita(r);
-                addGen('Formulário preenchido! Edite o que precisar e clique em Salvar.');
-                fechar();
-            }, 400);
-        } else {
-            addGen('Abra o modal "Nova Receita" para editar.');
-            fechar();
-        }
-        estado.receitaPendente = null;
+        estado.dadosParciais   = Object.assign({}, r);
+        estado.tipoColeta      = 'receita';
+        estado.aguardandoCampo = 'campo_revisao';
+        var campos = [
+            { label: 'Descrição', val: 'descricao' },
+            { label: 'Valor',     val: 'valor' },
+            { label: 'Data',      val: 'data_receita' }
+        ];
+        var btns = campos.map(function(c) {
+            return '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="' + esc(c.val) + '" data-opcao-label="' + esc(c.label) + '">' + esc(c.label) + '</button>';
+        }).join('');
+        addGen('Qual informação deseja corrigir?<div class="ai-welcome-chips">' + btns + '</div>');
     }
 
     function cancelarReceita() {
@@ -633,7 +628,7 @@ window.IA = (function () {
         if (!d.descricao) falta.push('descricao');
         if (!d.valor || parseFloat(d.valor) <= 0) falta.push('valor');
         if (!d.forma_pagamento) falta.push('forma_pagamento');
-        if (!d.vencimento && !d.data) falta.push('vencimento');
+        if (!d.vencimento) falta.push('vencimento');
         // Se crédito e nenhum cartão foi resolvido, pergunta qual cartão
         var isCredito = d.forma_pagamento === 'cartao_credito' || d.forma_pagamento === 'credito';
         if (isCredito && !d.cartao_id && !_resolverCartaoPorNome(d.nome_cartao)) {
@@ -736,7 +731,8 @@ window.IA = (function () {
             'descricao':    'Qual a descrição da despesa?',
             'valor':        'Qual o valor?',
             'vencimento':   'Qual a data de vencimento? (ex: hoje, amanhã, 15/04, 20/05/2026)',
-            'data_receita': 'Qual a data de recebimento? (ex: hoje, 15/03)'
+            'data_receita': 'Qual a data de recebimento? (ex: hoje, 15/03)',
+            'categoria':    'Qual a categoria? (ex: Alimentação, Transporte, Lazer)'
         };
         var pergunta = perguntas[campo] || 'Informe o ' + campo + ':';
         setTimeout(function () {
@@ -748,6 +744,13 @@ window.IA = (function () {
     function _processarCampoColetado(texto) {
         var campo = estado.aguardandoCampo;
         var d     = estado.dadosParciais;
+
+        if (campo === 'campo_revisao') {
+            estado.filaCampos      = [texto];
+            estado.aguardandoCampo = null;
+            _proximoCampo();
+            return;
+        }
 
         switch (campo) {
             case 'descricao':
@@ -799,6 +802,9 @@ window.IA = (function () {
                 }
                 d.cartao_id = found.id;
                 break;
+            case 'categoria':
+                d.categoria = texto.trim();
+                break;
         }
 
         estado.filaCampos.shift();
@@ -844,91 +850,6 @@ window.IA = (function () {
     }
 
     // ── PREENCHIMENTO — CARD DE DESPESA (painel flutuante) ────────
-    function _preencherCardDespesa(card, d) {
-        // Descrição
-        _setEl(card.querySelector('.card-descricao'), d.descricao);
-
-        // Valor
-        if (d.valor) {
-            var valEl = card.querySelector('.card-valor-original');
-            if (valEl) { valEl.value = Number(d.valor).toFixed(2); valEl.dispatchEvent(new Event('input', { bubbles: true })); }
-        }
-
-        // Parcelas (parcelado fica visível automaticamente via calcularInfoCard quando parcelas > 1)
-        if (d.parcelas > 1) {
-            var parEl = card.querySelector('.card-parcelas');
-            if (parEl) { parEl.value = d.parcelas; parEl.dispatchEvent(new Event('input', { bubbles: true })); }
-        }
-
-        // Data de compra
-        if (d.data) {
-            var compraEl = card.querySelector('.card-compra');
-            if (compraEl) { compraEl.value = d.data; compraEl.dispatchEvent(new Event('change', { bubbles: true })); }
-        }
-
-        // Vencimento
-        if (d.vencimento) {
-            var vencEl = card.querySelector('.card-vencimento');
-            if (vencEl) { vencEl.value = d.vencimento; vencEl.dispatchEvent(new Event('change', { bubbles: true })); }
-        }
-
-        // Já pago
-        if (d.ja_pago) {
-            var jaPagoEl = card.querySelector('.card-ja-paga');
-            if (jaPagoEl) { jaPagoEl.checked = true; jaPagoEl.dispatchEvent(new Event('change', { bubbles: true })); }
-        }
-
-        // Recorrente
-        if (d.recorrente) {
-            var recEl = card.querySelector('.card-recorrente');
-            if (recEl) { recEl.checked = true; recEl.dispatchEvent(new Event('change', { bubbles: true })); }
-        }
-
-        // Categoria — após selecionar, dispara aplicarFavoritoCard (que já existe no sistema)
-        if (d.categoria) {
-            var sel = card.querySelector('.card-categoria');
-            if (sel) {
-                var opt = Array.from(sel.options).find(function (o) {
-                    return o.text.toLowerCase() === d.categoria.toLowerCase();
-                });
-                if (opt) {
-                    sel.value = opt.value;
-                    sel.dispatchEvent(new Event('change', { bubbles: true }));
-                    // aplicarFavoritoCard já é chamado pelo listener nativo de change da categoria
-                    // mas chamamos explicitamente caso o listener ainda não exista
-                    if (typeof window.aplicarFavoritoCard === 'function') {
-                        window.aplicarFavoritoCard(card, opt.value);
-                    }
-                }
-            }
-        }
-
-        // Forma de pagamento — primeiro tenta pelo favorito da categoria (já aplicado acima)
-        // só sobrescreve se a Gen extraiu forma explícita no texto
-        var forma = d.forma_pagamento || '';
-        if (forma) {
-            if (forma === 'cartao_credito' || forma === 'credito') {
-                // Tenta identificar cartão pelo nome extraído
-                var cartaoId = d.cartao_id || _resolverCartaoPorNome(d.nome_cartao);
-                if (cartaoId && typeof window.selecionarPagamentoCartao === 'function') {
-                    window.selecionarPagamentoCartao(card, cartaoId);
-                } else {
-                    // Clica no primeiro botão de cartão disponível
-                    var btnCartao = card.querySelector('.pgto-btn[data-cartao-id]');
-                    if (btnCartao) btnCartao.click();
-                    else addGen('Selecione o cartão de crédito manualmente.');
-                }
-            } else if (forma === 'cartao_debito' || forma === 'debito') {
-                card.querySelector('.pgto-btn[data-forma="debito"]')?.click();
-            } else if (forma === 'pix') {
-                card.querySelector('.pgto-btn[data-forma="pix"]')?.click();
-            } else if (forma === 'dinheiro') {
-                card.querySelector('.pgto-btn[data-forma="dinheiro"]')?.click();
-            } else if (forma === 'transferencia') {
-                card.querySelector('.pgto-btn[data-forma="transferencia"]')?.click();
-            }
-        }
-    }
 
     // Resolve cartão pelo nome mencionado no texto (ex: "Nubank", "Inter")
     function _resolverCartaoPorNome(nome) {
@@ -941,17 +862,7 @@ window.IA = (function () {
         return cartao ? cartao.id : null;
     }
 
-    // ── PREENCHIMENTO — FORM DE RECEITA (painel flutuante) ────────
-    function _preencherFormReceita(r) {
-        _setEl(document.getElementById('receita-descricao'), r.descricao);
-        _setEl(document.getElementById('receita-valor'),     r.valor ? Number(r.valor).toFixed(2) : '');
-        _setEl(document.getElementById('receita-data'),      r.data || '');
-        document.getElementById('receita-descricao')?.dispatchEvent(new Event('input',  { bubbles: true }));
-        document.getElementById('receita-valor')?.dispatchEvent(new Event('input',  { bubbles: true }));
-        document.getElementById('receita-data')?.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-
-    // ── PREENCHIMENTO — MODAL DE DESPESA (página ia.html) ─────────
+// ── PREENCHIMENTO — MODAL DE DESPESA (página ia.html) ─────────
     function _preencherModalDespesa(d) {
         _setId('ia-campo-descricao',   d.descricao);
         _setId('ia-campo-valor',       d.valor ? Number(d.valor).toFixed(2) : '');

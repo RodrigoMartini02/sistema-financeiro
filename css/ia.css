@@ -268,8 +268,8 @@
     background: var(--bg-color, #f5f8ff);
     border: 1px solid var(--border-color,#ddd);
     border-radius: 8px;
-    padding: 10px;
-    margin-top: 8px;
+    padding: 6px 8px;
+    margin-top: 6px;
     font-size: 12px;
 }
 .ai-despesa-card .ai-dc-row {
@@ -277,8 +277,9 @@
     justify-content: space-between;
     align-items: baseline;
     gap: 8px;
-    margin-bottom: 3px;
+    margin-bottom: 2px;
 }
+.ai-dc-row[hidden] { display: none; }
 .ai-despesa-card .ai-dc-label {
     color: var(--gray-500,#6c757d);
     white-space: nowrap;
@@ -299,9 +300,9 @@
 /* Botões de ação na mensagem */
 .ai-msg-btns {
     display: flex;
+    flex-direction: column;
     gap: 6px;
     margin-top: 8px;
-    flex-wrap: wrap;
 }
 .ai-msg-btns button {
     padding: 4px 12px;
