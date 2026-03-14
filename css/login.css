@@ -1322,8 +1322,86 @@ form .btn-primary:hover {
     }
 }
 
+/* ================================================================
+   SEÇÃO DOR / PROBLEMA
+   ================================================================ */
+.pain-section {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    padding: 60px 0;
+}
 
+.pain-content {
+    display: flex;
+    flex-direction: column;
+    gap: 36px;
+    max-width: 780px;
+    margin: 0 auto;
+    text-align: center;
+}
 
+.pain-questions {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.pain-question {
+    font-size: 1.15rem;
+    color: #e2e8f0;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    line-height: 1.5;
+}
+
+.pain-question i {
+    color: #6366f1;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.pain-solution {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 14px;
+    background: rgba(99, 102, 241, 0.12);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 16px;
+    padding: 24px 28px;
+    text-align: left;
+}
+
+.pain-solution i {
+    color: #fbbf24;
+    font-size: 1.4rem;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.pain-solution p {
+    font-size: 1.05rem;
+    color: #cbd5e1;
+    line-height: 1.7;
+}
+
+.pain-solution p strong {
+    color: #a5b4fc;
+}
+
+@media (max-width: 640px) {
+    .pain-question {
+        font-size: 1rem;
+        text-align: left;
+    }
+    .pain-solution {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+}
 
 
 
