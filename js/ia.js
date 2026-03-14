@@ -30,7 +30,11 @@ window.IA = (function () {
         receitaPendente: null,
         arquivoPendente: null,
         contexto: null,
-        modoPagina: false // true quando em ia.html
+        modoPagina: false, // true quando em ia.html
+        aguardandoCampo: null,   // campo sendo coletado ('descricao', 'valor', 'forma_pagamento', 'vencimento', 'data_receita')
+        dadosParciais:   null,   // objeto despesa/receita em construção
+        tipoColeta:      null,   // 'despesa' ou 'receita'
+        filaCampos:      []      // fila de campos ainda a coletar
     };
 
     // ── HELPERS DE ELEMENTOS (painel flutuante vs página completa) ─
@@ -43,6 +47,7 @@ window.IA = (function () {
     // ── API ───────────────────────────────────────────────────────
     // window.API_URL já termina em /api (ex: https://…/api)
     // As rotas da IA ficam em /api/ai/…
+    // As rotas principais ficam em /api/despesas, /api/receitas, etc.
     function apiURL() {
         return window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
     }
@@ -55,6 +60,7 @@ window.IA = (function () {
         return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() };
     }
 
+    // Rotas do módulo IA (/api/ai/…)
     function apiPost(path, body) {
         return fetch(apiURL() + '/ai' + path, {
             method: 'POST', headers: hdrs(), body: JSON.stringify(body)
@@ -70,6 +76,13 @@ window.IA = (function () {
     function apiGet(path) {
         return fetch(apiURL() + '/ai' + path, { headers: hdrs() })
             .then(function (r) { return r.json(); });
+    }
+
+    // Rotas principais do sistema (/api/despesas, /api/receitas, …)
+    function apiMainPost(path, body) {
+        return fetch(apiURL() + path, {
+            method: 'POST', headers: hdrs(), body: JSON.stringify(body)
+        }).then(function (r) { return r.json(); });
     }
 
     // ── PAINEL FLUTUANTE ──────────────────────────────────────────
@@ -174,6 +187,19 @@ window.IA = (function () {
     // ── ENVIO ─────────────────────────────────────────────────────
     function enviarMensagem() {
         if (estado.arquivoPendente) { _enviarArquivo(); return; }
+
+        // Se estamos coletando campos faltantes, processa localmente sem chamar backend
+        if (estado.aguardandoCampo) {
+            var inputC = elInput();
+            var textoC = inputC ? inputC.value.trim() : '';
+            if (!textoC) return;
+            inputC.value = '';
+            autoResize(inputC);
+            addUser(textoC);
+            _processarCampoColetado(textoC);
+            return;
+        }
+
         var input = elInput();
         var texto = input ? input.value.trim() : '';
         if (!texto || estado.enviando) return;
@@ -190,11 +216,11 @@ window.IA = (function () {
             if (!res || !res.success) { addGen('Desculpe, ocorreu um erro. Tente novamente.'); return; }
 
             if (res.acao === 'confirmar_despesa' && res.despesa) {
-                estado.despesaPendente = res.despesa;
-                addComDespesa(res.resposta, res.despesa);
+                if (res.resposta) addGen(fmt(res.resposta));
+                _iniciarColetaCampos(res.despesa, 'despesa');
             } else if (res.acao === 'confirmar_receita' && res.receita) {
-                estado.receitaPendente = res.receita;
-                addComReceita(res.resposta, res.receita);
+                if (res.resposta) addGen(fmt(res.resposta));
+                _iniciarColetaCampos(res.receita, 'receita');
             } else {
                 addGen(res.resposta || '...');
             }
@@ -239,58 +265,80 @@ window.IA = (function () {
     // ── MENSAGENS ─────────────────────────────────────────────────
     function addUser(texto) {
         _ins('<div class="ai-msg ai-msg--user">' +
-            '<div class="ai-msg-av"><i class="fas fa-user"></i></div>' +
-            '<div class="ai-msg-bub">' + esc(texto) + '</div></div>');
+            '<div class="ai-msg-bub">' + esc(texto) +
+            '<span class="ai-msg-time">' + _hhmm() + '</span></div></div>');
     }
 
     function addGen(html) {
         _ins('<div class="ai-msg ai-msg--ai">' +
-            '<div class="ai-msg-av"><i class="fas fa-robot"></i></div>' +
-            '<div class="ai-msg-bub">' + html + '</div></div>');
+            '<div class="ai-msg-bub">' + html +
+            '<span class="ai-msg-time">' + _hhmm() + '</span></div></div>');
     }
 
     function addComDespesa(texto, d) {
-        var v = fmtV(d.valor);
-        var f = fmtF(d.forma_pagamento);
-        var parc = d.parcelas > 1
-            ? '<div class="ai-dc-row"><span class="ai-dc-label">Parcelas</span><span class="ai-dc-val">' + d.parcelas + 'x</span></div>'
-            : '';
+        var totalParcelas = parseInt(d.parcelas) || 1;
+        var parcelado     = totalParcelas > 1;
+        var valorTotal    = parseFloat(d.valor) || 0;
+        var valorParcela  = parcelado ? valorTotal / totalParcelas : valorTotal;
+
+        // Calcula mês/ano do vencimento para exibir
+        var dataVenc = d.vencimento || d.data || '';
+        var mesLabel = '';
+        if (dataVenc) {
+            var p = dataVenc.split('-');
+            var meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+            mesLabel = ' → ' + (meses[parseInt(p[1])-1] || '') + '/' + p[0];
+        }
+
+        var semValor = valorTotal <= 0;
+
+        var rows = '';
+        rows += '<div class="ai-dc-row"><span class="ai-dc-label">Descrição</span><span class="ai-dc-val">' + esc(d.descricao || '—') + '</span></div>';
+        if (parcelado) {
+            rows += '<div class="ai-dc-row"><span class="ai-dc-label">Valor total</span><span class="ai-dc-valor' + (semValor ? ' ai-dc-alerta' : '') + '">' + (semValor ? '⚠ não informado' : fmtV(valorTotal)) + '</span></div>';
+            rows += '<div class="ai-dc-row"><span class="ai-dc-label">Parcelas</span><span class="ai-dc-val">' + totalParcelas + 'x de ' + fmtV(valorParcela) + '</span></div>';
+        } else {
+            rows += '<div class="ai-dc-row"><span class="ai-dc-label">Valor</span><span class="ai-dc-valor' + (semValor ? ' ai-dc-alerta' : '') + '">' + (semValor ? '⚠ não informado' : fmtV(valorTotal)) + '</span></div>';
+        }
+        rows += '<div class="ai-dc-row"><span class="ai-dc-label">Categoria</span><span class="ai-dc-val">' + esc(d.categoria || 'Outros') + '</span></div>';
+        rows += '<div class="ai-dc-row"><span class="ai-dc-label">Pagamento</span><span class="ai-dc-val">' + fmtF(d.forma_pagamento) + '</span></div>';
+        if (dataVenc) rows += '<div class="ai-dc-row"><span class="ai-dc-label">Vencimento</span><span class="ai-dc-val">' + fmtD(dataVenc) + '<small class="ai-dc-mes">' + mesLabel + '</small></span></div>';
+        rows += '<div class="ai-dc-row"><span class="ai-dc-label">Status</span><span class="ai-dc-val ' + (d.ja_pago ? 'ai-dc-pago' : 'ai-dc-pendente') + '">' + (d.ja_pago ? '✔ Paga' : '⏳ Pendente') + '</span></div>';
+        if (d.recorrente) rows += '<div class="ai-dc-row"><span class="ai-dc-label">Recorrente</span><span class="ai-dc-val">🔄 Sim</span></div>';
+
         _ins('<div class="ai-msg ai-msg--ai">' +
-            '<div class="ai-msg-av"><i class="fas fa-robot"></i></div>' +
             '<div class="ai-msg-bub">' + fmt(texto) +
-            '<div class="ai-despesa-card">' +
-            '<div class="ai-dc-row"><span class="ai-dc-label">Descrição</span><span class="ai-dc-val">' + esc(d.descricao) + '</span></div>' +
-            '<div class="ai-dc-row"><span class="ai-dc-label">Valor</span><span class="ai-dc-valor">' + v + '</span></div>' +
-            '<div class="ai-dc-row"><span class="ai-dc-label">Categoria</span><span class="ai-dc-val">' + esc(d.categoria || 'Outros') + '</span></div>' +
-            '<div class="ai-dc-row"><span class="ai-dc-label">Pagamento</span><span class="ai-dc-val">' + f + '</span></div>' +
-            parc + '</div>' +
+            '<div class="ai-despesa-card">' + rows + '</div>' +
             '<div class="ai-msg-btns">' +
-            '<button class="ai-msg-btn-ok" data-action="confirmar-despesa"><i class="fas fa-check"></i> Confirmar</button>' +
+            '<button class="ai-msg-btn-ok"   data-action="confirmar-despesa"><i class="fas fa-check"></i> Confirmar</button>' +
             '<button class="ai-msg-btn-edit" data-action="editar-despesa"><i class="fas fa-edit"></i> Editar</button>' +
-            '<button class="ai-msg-btn-no" data-action="cancelar-despesa"><i class="fas fa-times"></i> Cancelar</button>' +
-            '</div></div></div>');
+            '<button class="ai-msg-btn-no"   data-action="cancelar-despesa"><i class="fas fa-times"></i> Cancelar</button>' +
+            '</div>' +
+            '<span class="ai-msg-time">' + _hhmm() + '</span>' +
+            '</div></div>');
     }
 
     function addComReceita(texto, r) {
+        var rows = '';
+        rows += '<div class="ai-dc-row"><span class="ai-dc-label">Descrição</span><span class="ai-dc-val">' + esc(r.descricao || '—') + '</span></div>';
+        rows += '<div class="ai-dc-row"><span class="ai-dc-label">Valor</span><span class="ai-dc-valor">' + fmtV(r.valor) + '</span></div>';
+        if (r.data) rows += '<div class="ai-dc-row"><span class="ai-dc-label">Data</span><span class="ai-dc-val">' + fmtD(r.data) + '</span></div>';
+
         _ins('<div class="ai-msg ai-msg--ai">' +
-            '<div class="ai-msg-av"><i class="fas fa-robot"></i></div>' +
             '<div class="ai-msg-bub">' + fmt(texto) +
-            '<div class="ai-despesa-card">' +
-            '<div class="ai-dc-row"><span class="ai-dc-label">Descrição</span><span class="ai-dc-val">' + esc(r.descricao) + '</span></div>' +
-            '<div class="ai-dc-row"><span class="ai-dc-label">Valor</span><span class="ai-dc-valor">' + fmtV(r.valor) + '</span></div>' +
-            '<div class="ai-dc-row"><span class="ai-dc-label">Data</span><span class="ai-dc-val">' + fmtD(r.data) + '</span></div>' +
-            '</div>' +
+            '<div class="ai-despesa-card">' + rows + '</div>' +
             '<div class="ai-msg-btns">' +
-            '<button class="ai-msg-btn-ok" data-action="confirmar-receita"><i class="fas fa-check"></i> Confirmar</button>' +
+            '<button class="ai-msg-btn-ok"   data-action="confirmar-receita"><i class="fas fa-check"></i> Confirmar</button>' +
             '<button class="ai-msg-btn-edit" data-action="editar-receita"><i class="fas fa-edit"></i> Editar</button>' +
-            '<button class="ai-msg-btn-no" data-action="cancelar-receita"><i class="fas fa-times"></i> Cancelar</button>' +
-            '</div></div></div>');
+            '<button class="ai-msg-btn-no"   data-action="cancelar-receita"><i class="fas fa-times"></i> Cancelar</button>' +
+            '</div>' +
+            '<span class="ai-msg-time">' + _hhmm() + '</span>' +
+            '</div></div>');
     }
 
     function addTyping() {
         var id = 'ai-typ-' + Date.now();
         _ins('<div class="ai-msg ai-msg--ai" id="' + id + '">' +
-            '<div class="ai-msg-av"><i class="fas fa-robot"></i></div>' +
             '<div class="ai-msg-bub"><div class="ai-typing"><span></span><span></span><span></span></div></div></div>');
         return id;
     }
@@ -313,35 +361,64 @@ window.IA = (function () {
         estado.despesaPendente = null;
 
         if (estado.modoPagina) {
-            // Página ia.html: preenche o modal interno
+            // Página ia.html: preenche o modal interno para revisão
             _preencherModalDespesa(d);
             _abrirModal('modal-confirmar-despesa');
             return;
         }
 
-        // Painel flutuante: salva diretamente via API (sem abrir modal)
-        var hoje = new Date().toISOString().split('T')[0];
-        var payload = {
-            descricao:       d.descricao,
-            valor:           d.valor,
-            forma_pagamento: d.forma_pagamento || 'dinheiro',
-            data:            d.data || hoje,
-            vencimento:      d.vencimento || null,
-            parcelas:        d.parcelas   || 1,
-            ja_pago:         !!d.ja_pago,
-            recorrente:      !!d.recorrente
-        };
-        if (d.categoria_id) payload.categoria_id = d.categoria_id;
-        // Tenta resolver cartão pelo nome se não tem ID ainda
+        // ── Monta payload idêntico ao do modal manual ────────────
+        var totalParcelas = parseInt(d.parcelas) || 1;
+        var parcelado     = totalParcelas > 1;
+        var valorTotal    = parseFloat(d.valor) || 0;
+        var valorParcela  = parcelado ? valorTotal / totalParcelas : valorTotal;
+
+        // Data de vencimento: usa a extraída ou o dia 15 do mês aberto
+        var mesAb  = window.mesAberto;
+        var anoAb  = window.anoAberto;
+        var dataFallback = (mesAb !== undefined && anoAb)
+            ? anoAb + '-' + String(mesAb + 1).padStart(2, '0') + '-15'
+            : new Date().toISOString().split('T')[0];
+
+        var dataVencimento = d.vencimento || d.data || dataFallback;
+        var dataCompra     = d.data       || dataFallback;
+
+        // mes/ano derivados do vencimento (sem new Date para evitar bug UTC)
+        var partsVenc = dataVencimento.split('-');
+        var mes = parseInt(partsVenc[1]) - 1;   // 0-based
+        var ano = parseInt(partsVenc[0]);
+
+        // Cartão: tenta por ID direto ou resolve pelo nome mencionado
         var cartaoId = d.cartao_id || _resolverCartaoPorNome(d.nome_cartao);
-        if (cartaoId) payload.cartao_id = cartaoId;
+
+        var payload = {
+            descricao:             d.descricao,
+            valor:                 parseFloat(valorParcela.toFixed(2)),
+            valor_original:        parseFloat(valorTotal.toFixed(2)),
+            forma_pagamento:       d.forma_pagamento || 'dinheiro',
+            data_vencimento:       dataVencimento,
+            data_compra:           dataCompra,
+            mes:                   mes,
+            ano:                   ano,
+            parcelado:             parcelado,
+            total_parcelas:        parcelado ? totalParcelas : null,
+            parcela_atual:         parcelado ? 1 : null,
+            pago:                  !!d.ja_pago,
+            recorrente:            !!d.recorrente,
+            categoria_id:          d.categoria_id || null,
+            cartao_id:             cartaoId || null
+        };
 
         var tidD = addTyping();
-        apiPost('/despesa/salvar', payload).then(function (res) {
+        // Chama o mesmo endpoint que o modal manual usa
+        apiMainPost('/despesas', payload).then(function (res) {
             removeTyping(tidD);
             if (res && res.success) {
-                addGen('Despesa "' + d.descricao + '" cadastrada com sucesso!');
-                // Atualiza a tela de detalhes do mês se estiver aberta
+                var sufixo = parcelado ? ' (' + totalParcelas + 'x de ' + fmtV(valorParcela) + ')' : '';
+                addGen('Despesa "' + d.descricao + '"' + sufixo + ' cadastrada com sucesso!');
+                if (window.usuarioDataManager && typeof window.usuarioDataManager.limparCache === 'function') {
+                    window.usuarioDataManager.limparCache();
+                }
                 if (typeof window.renderizarDetalhesDoMes === 'function') {
                     window.renderizarDetalhesDoMes(window.mesAberto, window.anoAberto);
                 }
@@ -349,7 +426,7 @@ window.IA = (function () {
                     window.carregarDadosDashboard(window.anoAberto);
                 }
             } else {
-                addGen('Erro ao cadastrar: ' + (res?.message || 'tente novamente.'));
+                addGen('Erro ao cadastrar: ' + ((res && res.message) || 'tente novamente.'));
             }
         }).catch(function () {
             removeTyping(tidD);
@@ -389,25 +466,49 @@ window.IA = (function () {
     function confirmarReceita() {
         var r = estado.receitaPendente;
         if (!r) return;
-
-        // Tanto modoPagina quanto painel flutuante: salva diretamente via API
-        var tidR = addTyping();
-        apiPost('/receita/salvar', { descricao: r.descricao, valor: r.valor, data: r.data })
-            .then(function (res) {
-                removeTyping(tidR);
-                if (res && res.success) {
-                    addGen('Receita "' + r.descricao + '" cadastrada!');
-                    if (typeof window.renderizarDetalhesDoMes === 'function') {
-                        window.renderizarDetalhesDoMes(window.mesAberto, window.anoAberto);
-                    }
-                    if (typeof window.carregarDadosDashboard === 'function') {
-                        window.carregarDadosDashboard(window.anoAberto);
-                    }
-                } else {
-                    addGen('Erro ao salvar: ' + (res?.message || 'tente novamente.'));
-                }
-            }).catch(function () { removeTyping(tidR); addGen('Erro de conexão ao salvar receita.'); });
         estado.receitaPendente = null;
+
+        // Data: usa a extraída ou o dia 15 do mês aberto
+        var mesAb  = window.mesAberto;
+        var anoAb  = window.anoAberto;
+        var dataFallback = (mesAb !== undefined && anoAb)
+            ? anoAb + '-' + String(mesAb + 1).padStart(2, '0') + '-15'
+            : new Date().toISOString().split('T')[0];
+
+        var dataReceita = r.data || dataFallback;
+
+        // mes/ano derivados da data (sem new Date para evitar bug UTC)
+        var parts = dataReceita.split('-');
+        var mes = parseInt(parts[1]) - 1;  // 0-based
+        var ano = parseInt(parts[0]);
+
+        var payload = {
+            descricao:         r.descricao,
+            valor:             parseFloat(r.valor),
+            data_recebimento:  dataReceita,
+            mes:               mes,
+            ano:               ano
+        };
+
+        var tidR = addTyping();
+        // Chama o mesmo endpoint que o modal de receita usa
+        apiMainPost('/receitas', payload).then(function (res) {
+            removeTyping(tidR);
+            if (res && res.success) {
+                addGen('Receita "' + r.descricao + '" cadastrada!');
+                if (window.usuarioDataManager && typeof window.usuarioDataManager.limparCache === 'function') {
+                    window.usuarioDataManager.limparCache();
+                }
+                if (typeof window.renderizarDetalhesDoMes === 'function') {
+                    window.renderizarDetalhesDoMes(window.mesAberto, window.anoAberto);
+                }
+                if (typeof window.carregarDadosDashboard === 'function') {
+                    window.carregarDadosDashboard(window.anoAberto);
+                }
+            } else {
+                addGen('Erro ao salvar: ' + ((res && res.message) || 'tente novamente.'));
+            }
+        }).catch(function () { removeTyping(tidR); addGen('Erro de conexão ao salvar receita.'); });
     }
 
     function editarReceita() {
@@ -431,6 +532,155 @@ window.IA = (function () {
     function cancelarReceita() {
         estado.receitaPendente = null;
         addGen('Operação cancelada.');
+    }
+
+    // ── COLETA DE CAMPOS FALTANTES ────────────────────────────────
+    function _camposFaltandoDespesa(d) {
+        var falta = [];
+        if (!d.descricao) falta.push('descricao');
+        if (!d.valor || parseFloat(d.valor) <= 0) falta.push('valor');
+        if (!d.forma_pagamento) falta.push('forma_pagamento');
+        if (!d.vencimento && !d.data) falta.push('vencimento');
+        return falta;
+    }
+
+    function _camposFaltandoReceita(r) {
+        var falta = [];
+        if (!r.descricao) falta.push('descricao');
+        if (!r.valor || parseFloat(r.valor) <= 0) falta.push('valor');
+        return falta;
+    }
+
+    function _iniciarColetaCampos(despesa, tipo) {
+        estado.dadosParciais = Object.assign({}, despesa);
+        estado.tipoColeta    = tipo;
+        estado.filaCampos    = tipo === 'despesa'
+            ? _camposFaltandoDespesa(despesa)
+            : _camposFaltandoReceita(despesa);
+
+        if (estado.filaCampos.length === 0) {
+            // Nada faltando — exibe card direto
+            if (tipo === 'despesa') {
+                estado.despesaPendente = estado.dadosParciais;
+                addComDespesa('Confirma o cadastro desta despesa?', estado.dadosParciais);
+            } else {
+                estado.receitaPendente = estado.dadosParciais;
+                addComReceita('Confirma o cadastro desta receita?', estado.dadosParciais);
+            }
+            estado.dadosParciais = null;
+            estado.tipoColeta    = null;
+        } else {
+            _proximoCampo();
+        }
+    }
+
+    function _proximoCampo() {
+        if (estado.filaCampos.length === 0) {
+            var d  = estado.dadosParciais;
+            var tp = estado.tipoColeta;
+            estado.aguardandoCampo = null;
+            estado.dadosParciais   = null;
+            estado.tipoColeta      = null;
+            var tid = addTyping();
+            setTimeout(function () {
+                removeTyping(tid);
+                if (tp === 'despesa') {
+                    estado.despesaPendente = d;
+                    addComDespesa('Confirma o cadastro desta despesa?', d);
+                } else {
+                    estado.receitaPendente = d;
+                    addComReceita('Confirma o cadastro desta receita?', d);
+                }
+            }, 500);
+            return;
+        }
+
+        var campo = estado.filaCampos[0];
+        estado.aguardandoCampo = campo;
+        var perguntas = {
+            'descricao':       'Qual a descrição da despesa?',
+            'valor':           'Qual o valor?',
+            'forma_pagamento': 'Como foi pago? (cartão crédito/débito, pix, dinheiro, transferência, boleto)',
+            'vencimento':      'Qual a data de vencimento? (ex: hoje, amanhã, 15/04, 20/05/2026)',
+            'data_receita':    'Qual a data de recebimento? (ex: hoje, 15/03)'
+        };
+        var pergunta = perguntas[campo] || 'Informe o ' + campo + ':';
+        var tid2 = addTyping();
+        setTimeout(function () {
+            removeTyping(tid2);
+            addGen(pergunta);
+        }, 600);
+    }
+
+    function _processarCampoColetado(texto) {
+        var campo = estado.aguardandoCampo;
+        var d     = estado.dadosParciais;
+
+        switch (campo) {
+            case 'descricao':
+                d.descricao = texto.trim();
+                break;
+            case 'valor':
+                var v = _normValor(texto);
+                if (v <= 0) { addGen('Valor inválido. Informe apenas o número, ex: 50 ou 120,50'); return; }
+                d.valor = v;
+                break;
+            case 'forma_pagamento':
+                d.forma_pagamento = _normForma(texto);
+                break;
+            case 'vencimento':
+                var dt = _normData(texto);
+                if (!dt) { addGen('Não entendi a data. Tente: hoje, amanhã, 15/04, 20/05/2026'); return; }
+                d.vencimento = dt;
+                if (!d.data) d.data = dt;
+                break;
+            case 'data_receita':
+                var dt2 = _normData(texto);
+                if (!dt2) { addGen('Não entendi a data. Tente: hoje, amanhã, 15/04'); return; }
+                d.data = dt2;
+                break;
+        }
+
+        estado.filaCampos.shift();
+        estado.aguardandoCampo = null;
+        _proximoCampo();
+    }
+
+    // Normalizadores locais (sem chamada ao backend)
+    function _normValor(str) {
+        var s = String(str).replace(/R\$\s*/gi, '').replace(/\./g, '').replace(',', '.').trim();
+        var v = parseFloat(s);
+        return isNaN(v) ? 0 : v;
+    }
+
+    function _normForma(str) {
+        var s = str.toLowerCase().trim();
+        if (/cart[aã]o\s*(de\s*)?cr[eé]dito|cr[eé]dito\b/.test(s)) return 'cartao_credito';
+        if (/cart[aã]o\s*(de\s*)?d[eé]bito|d[eé]bito\b/.test(s)) return 'cartao_debito';
+        if (/pix/.test(s)) return 'pix';
+        if (/dinheiro|esp[eé]cie/.test(s)) return 'dinheiro';
+        if (/transfer[eê]ncia|ted|doc\b/.test(s)) return 'transferencia';
+        if (/boleto/.test(s)) return 'boleto';
+        if (/cart[aã]o|card/.test(s)) return 'cartao_credito';
+        return 'dinheiro';
+    }
+
+    function _normData(str) {
+        var s = str.toLowerCase().trim();
+        var hoje = new Date();
+        var pad  = function (n) { return String(n).padStart(2, '0'); };
+        var fmt0 = function (d) { return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); };
+        if (s === 'hoje') return fmt0(hoje);
+        if (s === 'amanha' || s === 'amanhã') { var a = new Date(hoje); a.setDate(a.getDate()+1); return fmt0(a); }
+        var m = s.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/);
+        if (m) {
+            var y = m[3] ? (m[3].length === 2 ? '20'+m[3] : m[3]) : String(hoje.getFullYear());
+            return y + '-' + pad(parseInt(m[2])) + '-' + pad(parseInt(m[1]));
+        }
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+        var dm = s.match(/^(?:dia\s+)?(\d{1,2})$/);
+        if (dm) return hoje.getFullYear() + '-' + pad(hoje.getMonth()+1) + '-' + pad(parseInt(dm[1]));
+        return null;
     }
 
     // ── PREENCHIMENTO — CARD DE DESPESA (painel flutuante) ────────
@@ -564,27 +814,59 @@ window.IA = (function () {
 
     function _salvarModalDespesa(e) {
         e.preventDefault();
-        var descricao  = document.getElementById('ia-campo-descricao')?.value.trim();
-        var valor      = parseFloat(document.getElementById('ia-campo-valor')?.value);
-        var forma      = document.getElementById('ia-campo-forma-pagamento')?.value;
-        var data       = document.getElementById('ia-campo-data')?.value;
-        var vencimento = document.getElementById('ia-campo-vencimento')?.value || null;
-        var parcelas   = parseInt(document.getElementById('ia-campo-parcelas')?.value) || 1;
-        var catId      = document.getElementById('ia-campo-categoria')?.value || null;
-        var cartaoId   = document.getElementById('ia-campo-cartao')?.value || null;
+        var descricao  = document.getElementById('ia-campo-descricao') ? document.getElementById('ia-campo-descricao').value.trim() : '';
+        var valorTotal = parseFloat(document.getElementById('ia-campo-valor') ? document.getElementById('ia-campo-valor').value : 0);
+        var forma      = document.getElementById('ia-campo-forma-pagamento') ? document.getElementById('ia-campo-forma-pagamento').value : '';
+        var dataCompra = document.getElementById('ia-campo-data') ? document.getElementById('ia-campo-data').value : '';
+        var vencimento = document.getElementById('ia-campo-vencimento') ? (document.getElementById('ia-campo-vencimento').value || null) : null;
+        var totalParcelas = parseInt(document.getElementById('ia-campo-parcelas') ? document.getElementById('ia-campo-parcelas').value : 1) || 1;
+        var catId      = document.getElementById('ia-campo-categoria') ? (document.getElementById('ia-campo-categoria').value || null) : null;
+        var cartaoId   = document.getElementById('ia-campo-cartao') ? (document.getElementById('ia-campo-cartao').value || null) : null;
 
-        if (!descricao || !valor || !forma || !data) { addGen('Preencha todos os campos obrigatórios.'); return; }
+        if (!descricao || !valorTotal || !forma || !dataCompra) {
+            addGen('Preencha todos os campos obrigatórios.');
+            return;
+        }
 
-        var payload = { descricao, valor, forma_pagamento: forma, data, vencimento, parcelas };
+        var parcelado    = totalParcelas > 1;
+        var valorParcela = parcelado ? valorTotal / totalParcelas : valorTotal;
+        var dataVencimento = vencimento || dataCompra;
+
+        // mes/ano derivados do vencimento (sem new Date para evitar bug UTC)
+        var partsVenc = dataVencimento.split('-');
+        var mes = parseInt(partsVenc[1]) - 1;
+        var ano = parseInt(partsVenc[0]);
+
+        var payload = {
+            descricao:        descricao,
+            valor:            parseFloat(valorParcela.toFixed(2)),
+            valor_original:   parseFloat(valorTotal.toFixed(2)),
+            forma_pagamento:  forma,
+            data_vencimento:  dataVencimento,
+            data_compra:      dataCompra,
+            mes:              mes,
+            ano:              ano,
+            parcelado:        parcelado,
+            total_parcelas:   parcelado ? totalParcelas : null,
+            parcela_atual:    parcelado ? 1 : null,
+            pago:             false,
+            recorrente:       false
+        };
         if (catId)    payload.categoria_id = parseInt(catId);
         if (cartaoId) payload.cartao_id    = parseInt(cartaoId);
 
         var tidM = addTyping();
-        apiPost('/despesa/salvar', payload).then(function (res) {
+        apiMainPost('/despesas', payload).then(function (res) {
             removeTyping(tidM);
             _fecharModal('modal-confirmar-despesa');
-            if (res && res.success) addGen('Despesa "' + descricao + '" cadastrada!');
-            else addGen('Erro ao salvar: ' + (res?.message || 'tente novamente.'));
+            if (res && res.success) {
+                if (window.usuarioDataManager && typeof window.usuarioDataManager.limparCache === 'function') {
+                    window.usuarioDataManager.limparCache();
+                }
+                addGen('Despesa "' + descricao + '" cadastrada!');
+            } else {
+                addGen('Erro ao salvar: ' + ((res && res.message) || 'tente novamente.'));
+            }
         }).catch(function () {
             removeTyping(tidM);
             _fecharModal('modal-confirmar-despesa');
@@ -667,18 +949,22 @@ window.IA = (function () {
 
         apiForm('/arquivo', form).then(function (res) {
             removeTyping(tid);
-            if (!res || !res.success) { addGen('Não consegui processar: ' + (res?.message || 'erro')); return; }
+            if (!res || !res.success) { addGen('Não consegui processar o arquivo: ' + (res?.message || 'tente outro formato ou informe os dados manualmente.')); return; }
             var r = res.resultado || {};
-            var html = '✅ Documento processado!<br>';
-            if (r.tipo) html += '📋 ' + fmtTipo(r.tipo) + '<br>';
-            if (r.empresa || r.descricao) html += '🏢 ' + esc(r.empresa || r.descricao) + '<br>';
-            if (r.valor) html += '💰 Valor: <strong>' + fmtV(r.valor) + '</strong><br>';
-            if (r.vencimento) html += '📅 Vencimento: ' + fmtD(r.vencimento) + '<br>';
-            var ds = res.despesa_sugerida;
-            if (ds && ds.valor) { estado.despesaPendente = ds; addComDespesa(html + '<br>Cadastrar esta despesa?', ds); }
-            else addGen(html + '<br>Não identifiquei o valor. Informe manualmente.');
+            var partes = ['Documento lido.'];
+            if (r.tipo)                  partes.push(fmtTipo(r.tipo));
+            if (r.empresa || r.descricao) partes.push(esc(r.empresa || r.descricao));
+            if (r.valor)                 partes.push('Valor: ' + fmtV(r.valor));
+            if (r.vencimento)            partes.push('Vencimento: ' + fmtD(r.vencimento));
+            addGen(partes.join(' · '));
+            var ds = res.despesa_sugerida || {};
+            if (!ds.descricao && (r.empresa || r.descricao)) ds.descricao = r.empresa || r.descricao;
+            if (!ds.valor && r.valor)         ds.valor      = r.valor;
+            if (!ds.vencimento && r.vencimento) ds.vencimento = r.vencimento;
+            if (!ds.forma_pagamento)          ds.forma_pagamento = 'boleto';
+            _iniciarColetaCampos(ds, 'despesa');
         }).catch(function () {
-            removeTyping(tid); addGen('Erro ao processar arquivo.');
+            removeTyping(tid); addGen('Erro ao processar arquivo. Tente novamente ou informe os dados manualmente.');
         }).finally(function () { estado.enviando = false; setBtnDisabled(false); });
     }
 
@@ -707,12 +993,16 @@ window.IA = (function () {
 
         apiPost('/boleto', { linha_digitavel: val }).then(function (res) {
             removeTyping(tid);
-            if (!res || !res.sucesso) { addGen('Não interpretei o boleto: ' + (res?.erro || 'formato inválido')); return; }
-            var valor = res.valor ? fmtV(res.valor) : 'não identificado';
-            var venc  = res.vencimento ? fmtD(res.vencimento) : 'não identificado';
-            var html  = '✅ Boleto lido!<br>🏦 Banco: <strong>' + esc(res.banco_nome || '?') + '</strong><br>💰 Valor: <strong>' + valor + '</strong><br>📅 Vencimento: ' + venc + '<br><br>Cadastrar esta despesa?';
-            if (res.despesa?.valor) { estado.despesaPendente = res.despesa; addComDespesa(html, res.despesa); }
-            else addGen(html);
+            if (!res || !res.sucesso) { addGen('Não consegui interpretar o boleto: ' + (res?.erro || 'verifique a linha digitável e tente novamente.')); return; }
+            var partes = [];
+            if (res.banco_nome) partes.push('Banco: ' + esc(res.banco_nome));
+            if (res.valor)      partes.push('Valor: ' + fmtV(res.valor));
+            if (res.vencimento) partes.push('Vencimento: ' + fmtD(res.vencimento));
+            addGen('Boleto lido. ' + partes.join(' · '));
+            var ds = res.despesa || {};
+            if (!ds.descricao) ds.descricao = 'Boleto ' + (res.banco_nome || '');
+            if (!ds.forma_pagamento) ds.forma_pagamento = 'boleto';
+            _iniciarColetaCampos(ds, 'despesa');
         }).catch(function () { removeTyping(tid); addGen('Erro ao processar boleto.'); });
     }
 
@@ -771,6 +1061,10 @@ window.IA = (function () {
     function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
     function fmt(s) { return esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>'); }
     function fmtV(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ','); }
+    function _hhmm() {
+        var n = new Date();
+        return String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0');
+    }
     function fmtD(d) { if (!d) return ''; var p = d.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
     function fmtF(f) {
         var m = { cartao_credito: 'Cartão Crédito', cartao_debito: 'Cartão Débito', credito: 'Cartão Crédito', debito: 'Cartão Débito', pix: 'PIX', dinheiro: 'Dinheiro', transferencia: 'Transferência', boleto: 'Boleto' };
@@ -849,7 +1143,7 @@ window.IA = (function () {
     }
 
     // ── INICIALIZAÇÃO ─────────────────────────────────────────────
-    document.addEventListener('DOMContentLoaded', function () {
+    function _init() {
         estado.modoPagina = !!document.querySelector('.ia-container');
 
         // ── Painel flutuante (index.html) ────────────────────────
@@ -868,11 +1162,6 @@ window.IA = (function () {
             document.getElementById('ai-btn-attach')?.addEventListener('click', abrirUpload);
             document.getElementById('ai-btn-cancelar-arquivo')?.addEventListener('click', cancelarArquivo);
             document.getElementById('ai-file-input')?.addEventListener('change', function () { processarArquivo(this); });
-
-            // Botões de contexto nos modais
-            document.getElementById('btn-ia-detalhes-mes')?.addEventListener('click', function () { abrir(); });
-            document.getElementById('btn-ia-lancamento')?.addEventListener('click', function () { abrir('despesa'); });
-            document.getElementById('btn-ia-nova-receita')?.addEventListener('click', function () { abrir('receita'); });
 
             // Config — provedor e chave
             setupProviderSelect();
@@ -935,7 +1224,14 @@ window.IA = (function () {
 
         document.getElementById('ia-btn-voice')?.addEventListener('click', toggleVoz);
         document.getElementById('ai-btn-voice')?.addEventListener('click', toggleVoz);
-    });
+    }
+
+    // Garante inicialização mesmo se DOMContentLoaded já disparou
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', _init);
+    } else {
+        _init();
+    }
 
     return {
         abrir, fechar, limpar: limparConversa, enviar: enviarMensagem,

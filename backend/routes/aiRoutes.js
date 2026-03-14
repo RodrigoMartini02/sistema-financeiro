@@ -70,10 +70,6 @@ router.post('/recorrencias', authMiddleware, ctrl.confirmarRecorrencia);
 // Aprendizado de categoria
 router.post('/aprendizado', authMiddleware, ctrl.salvarAprendizadoCategoria);
 
-// Salvar despesa/receita diretamente via IA (página ia.html)
-router.post('/despesa/salvar', authMiddleware, ctrl.salvarDespesaIA);
-router.post('/receita/salvar', authMiddleware, ctrl.salvarReceitaIA);
-
 // Configuração de provedor de IA por usuário
 router.get('/config', authMiddleware, ctrl.obterConfigIA);
 router.post('/config/chave', authMiddleware, ctrl.salvarConfigChave);

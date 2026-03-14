@@ -28,31 +28,6 @@
     box-shadow: 0 6px 20px rgba(67,97,238,0.5);
 }
 
-/* ── BOTÃO GEN dentro dos modais ─────────────────────────────── */
-.btn-ia-assistente,
-.btn-ia-contexto {
-    background: rgba(67,97,238,0.08);
-    border: 1px solid rgba(67,97,238,0.25);
-    color: var(--primary-color, #4361ee);
-    border-radius: 20px;
-    padding: 4px 10px;
-    height: 30px;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    cursor: pointer;
-    font-size: 12px;
-    font-weight: 600;
-    white-space: nowrap;
-    transition: all 0.2s;
-    flex-shrink: 0;
-}
-.btn-ia-assistente:hover,
-.btn-ia-contexto:hover {
-    background: var(--primary-color, #4361ee);
-    color: #fff;
-    border-color: var(--primary-color, #4361ee);
-}
 
 /* ================================================================
    OVERLAY — aparece atrás do painel, sobre tudo o mais
@@ -167,11 +142,11 @@
 .ai-messages {
     flex: 1;
     overflow-y: auto;
-    padding: 12px;
+    padding: 14px 12px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    background: var(--bg-color, #f5f8ff);
+    gap: 4px;
+    background: var(--card-bg, #fff);
     min-height: 200px;
 }
 
@@ -181,47 +156,40 @@
 /* Mensagens */
 .ai-msg {
     display: flex;
-    gap: 8px;
-    animation: ai-fade 0.2s ease;
+    animation: ai-fade 0.18s ease;
     max-width: 100%;
 }
-@keyframes ai-fade { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+@keyframes ai-fade { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
 
-.ai-msg--user { flex-direction: row-reverse; align-self: flex-end; }
-.ai-msg--ai   { align-self: flex-start; }
+.ai-msg--user { justify-content: flex-end; align-self: flex-end; }
+.ai-msg--ai   { justify-content: flex-start; align-self: flex-start; }
 
-.ai-msg-av {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    flex-shrink: 0;
-}
-.ai-msg--user .ai-msg-av { background: var(--primary-color,#4361ee); color:#fff; }
-.ai-msg--ai   .ai-msg-av { background: var(--gray-100,#e9ecef); color: var(--primary-color,#4361ee); border:1px solid var(--border-color,#ddd); }
+.ai-msg-av { display: none; }
 
 .ai-msg-bub {
-    padding: 8px 12px;
-    border-radius: 12px;
-    font-size: 13px;
-    line-height: 1.5;
-    max-width: calc(100% - 40px);
+    padding: 3px 6px;
+    font-size: 13.5px;
+    line-height: 1.55;
+    max-width: 80%;
     word-break: break-word;
 }
 
 .ai-msg--user .ai-msg-bub {
-    background: var(--primary-color, #4361ee);
-    color: #fff;
-    border-bottom-right-radius: 3px;
+    color: var(--primary-color, #4361ee);
+    text-align: right;
 }
 .ai-msg--ai .ai-msg-bub {
-    background: #fff;
-    color: var(--text-color, #060606);
-    border: 1px solid var(--border-color, #ddd);
-    border-bottom-left-radius: 3px;
+    color: var(--text-color, #1a1a1a);
+}
+
+/* Timestamp — discreto, inline ao final da bolha */
+.ai-msg-time {
+    display: block;
+    font-size: 10px;
+    opacity: 0.45;
+    text-align: right;
+    margin-top: 2px;
+    line-height: 1;
 }
 /* Cartão de despesa dentro da mensagem */
 .ai-despesa-card {
@@ -240,6 +208,10 @@
 .ai-despesa-card .ai-dc-label { color: var(--gray-500,#6c757d); }
 .ai-despesa-card .ai-dc-val   { font-weight: 500; }
 .ai-despesa-card .ai-dc-valor { color: var(--primary-color,#4361ee); font-weight: 700; font-size:14px; }
+.ai-dc-mes   { font-size: 10px; color: var(--primary-color,#4361ee); margin-left: 4px; }
+.ai-dc-pago  { color: #16a34a; font-weight: 600; }
+.ai-dc-pendente { color: var(--gray-500,#6c757d); }
+.ai-dc-alerta { color: #dc3545; font-weight: 600; font-size: 12px; }
 
 /* Botões de ação na mensagem */
 .ai-msg-btns {
@@ -656,10 +628,11 @@ body:has(.ia-container) {
 .ia-chat-area {
     flex: 1;
     overflow-y: auto;
-    padding: 24px 20px;
+    padding: 16px 20px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 4px;
+    background: var(--card-bg, #fff);
 }
 
 .ia-chat-area::-webkit-scrollbar { width: 5px; }

@@ -179,6 +179,13 @@ function normalizarDespesa(dados) {
     // Parcelas
     normalizado.parcelas = normalizarParcelas(dados.parcelas);
 
+    // Campos extras preservados do parser
+    normalizado.ja_pago    = !!dados.ja_pago;
+    normalizado.recorrente = !!dados.recorrente;
+    if (dados.nome_cartao) normalizado.nome_cartao = dados.nome_cartao;
+    if (dados.categoria_id) normalizado.categoria_id = dados.categoria_id;
+    if (dados.cartao_id)    normalizado.cartao_id    = dados.cartao_id;
+
     return normalizado;
 }
 
