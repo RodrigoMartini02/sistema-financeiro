@@ -132,6 +132,8 @@ window.IA = (function () {
             var sel = document.getElementById('ia-provider-select');
             if (sel) { sel.value = provider; sel.dispatchEvent(new Event('change')); }
 
+            _atualizarBadgeExterna(provider);
+
         }).catch(function () {
             // /config falhou (novo endpoint ainda não deployado?) — tenta /status sem auth
             apiGet('/status').then(function (st) {
@@ -1184,23 +1186,33 @@ window.IA = (function () {
         atualizarUI();
     }
 
+    function _toast(msg, tipo) {
+        if (typeof window.mostrarToast === 'function') window.mostrarToast(msg, tipo || 'info');
+        else if (typeof window.mostrarNotificacao === 'function') window.mostrarNotificacao(msg, tipo || 'info');
+    }
+
+    function _atualizarBadgeExterna(provider) {
+        var badge = document.getElementById('ai-externa-badge');
+        if (!badge) return;
+        badge.style.display = (provider && provider !== 'gen') ? 'inline-flex' : 'none';
+    }
+
     function salvarChaveAPI() {
         var provider = document.getElementById('ia-provider-select')?.value || 'gen';
         var input    = document.getElementById('ia-api-key-input');
         var chave    = input ? input.value.trim() : '';
-        if (provider !== 'gen' && !chave) { alert('Informe a chave antes de salvar.'); return; }
+        if (provider !== 'gen' && !chave) { _toast('Informe a chave antes de salvar.', 'warning'); return; }
         apiPost('/config/chave', { provider: provider, api_key: chave }).then(function (res) {
             if (res && res.success) {
-                var msg = '✅ ' + (LABELS_PROVIDER[provider] || 'Configuração salva');
-                alert(msg);
+                _toast((LABELS_PROVIDER[provider] || 'Configuração salva') + ' ativa!', 'success');
                 if (input) input.value = '';
-                // Atualiza badge de status
                 var badge = document.getElementById('ia-badge-status');
                 if (badge) { badge.textContent = LABELS_PROVIDER[provider] || provider; badge.className = 'badge ' + (provider === 'gen' ? 'gen' : 'ativo'); }
+                _atualizarBadgeExterna(provider);
             } else {
-                alert('Erro ao salvar: ' + (res?.message || 'tente novamente.'));
+                _toast('Erro ao salvar: ' + (res?.message || 'tente novamente.'), 'error');
             }
-        }).catch(function () { alert('Erro de conexão ao salvar a configuração.'); });
+        }).catch(function () { _toast('Erro de conexão ao salvar a configuração.', 'error'); });
     }
 
     // ── INICIALIZAÇÃO ─────────────────────────────────────────────
@@ -1322,7 +1334,7 @@ function fecharModalInstrucoesGen() {
 function salvarInstrucoesGen() {
     var input = document.getElementById('instrucoes-gen-input');
     var conteudo = input ? input.value.trim() : '';
-    if (!conteudo) { alert('Escreva uma instrução antes de salvar.'); return; }
+    if (!conteudo) { mostrarToast('Escreva uma instrução antes de salvar.', 'warning'); return; }
     fetch('/api/ai/instrucoes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('token') || '') },
@@ -1330,10 +1342,11 @@ function salvarInstrucoesGen() {
     }).then(function (r) { return r.json(); }).then(function (res) {
         if (res && res.success) {
             fecharModalInstrucoesGen();
+            mostrarToast('Instrução salva com sucesso!', 'success');
         } else {
-            alert('Erro ao salvar: ' + (res.erro || 'tente novamente'));
+            mostrarToast('Erro ao salvar: ' + (res.erro || 'tente novamente'), 'error');
         }
-    }).catch(function () { alert('Erro de conexão ao salvar instruções.'); });
+    }).catch(function () { mostrarToast('Erro de conexão ao salvar instruções.', 'error'); });
 }
 
 // ── ATIVAR / DESATIVAR IA ─────────────────────────────────────

@@ -4,6 +4,9 @@
 - Registrar despesas e receitas a partir de texto livre, voz, boleto ou documento anexado
 - Responder perguntas sobre gastos, saldo, reservas e análise financeira do usuário
 - Nunca executar nenhuma ação sem confirmação explícita do usuário
+- A Gen é a base do sistema e **sempre funciona**, mesmo quando uma IA externa (OpenAI, Gemini, Claude) está ativa
+- IA externa é um "plus" — melhora a interpretação de texto, mas não substitui a Gen
+- Quando IA externa está ativa, a Gen aprende com as interpretações para melhorar continuamente
 
 ---
 
