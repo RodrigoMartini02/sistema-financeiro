@@ -61,12 +61,19 @@ async function carregarStatusPlano() {
 
         const plano = data.data;
 
+        // Expor globalmente para outros módulos (ex: ia.js)
+        window._planoStatus = plano.status;
+        window._planoTipo   = plano.plano_tipo;
+
         if (plano.status === 'expirado') {
             bloquearSistema();
         } else {
             desbloquearSistema();
             atualizarSidebarPlano(plano);
         }
+
+        // Re-aplicar visibilidade da IA após saber o plano
+        if (typeof aplicarVisibilidadeIA === 'function') aplicarVisibilidadeIA();
     } catch (error) {
         console.warn('Nao foi possivel carregar status do plano:', error);
     }
@@ -121,7 +128,7 @@ function atualizarSidebarPlano(plano) {
         if (fillEl) fillEl.style.width = `${progresso}%`;
 
         trialBanner.style.display = 'flex';
-        if (btnLabel) btnLabel.textContent = 'Assinar agora';
+        if (btnLabel) btnLabel.textContent = 'Plano Pro';
         btnUpgrade.style.cssText = '';
         btnUpgrade.style.display = 'flex';
 
@@ -132,7 +139,7 @@ function atualizarSidebarPlano(plano) {
     } else if (plano.status === 'ativo') {
         const tipo = plano.plano_tipo;
         if (btnLabel) {
-            btnLabel.textContent = tipo === 'anual' ? 'Plano Anual ativo' : tipo === 'master' ? 'Plano Master' : 'Plano Mensal ativo';
+            btnLabel.textContent = tipo === 'anual' ? 'Plano Pro Anual' : tipo === 'master' ? 'Plano Pro' : 'Plano Pro Mensal';
         }
         btnUpgrade.style.cssText = '';
         btnUpgrade.style.display = 'flex';

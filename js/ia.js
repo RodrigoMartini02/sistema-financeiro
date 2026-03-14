@@ -1358,32 +1358,48 @@ function _iaMaster() {
 }
 
 function aplicarVisibilidadeIA() {
-    var ativo   = localStorage.getItem('ia_ativo') !== 'false'; // padrão: true
-    var master  = _iaMaster();
+    var ativo         = localStorage.getItem('ia_ativo') !== 'false'; // padrão: true
+    var planoStatus   = window._planoStatus || 'trial';
+    var planoPago     = (planoStatus === 'ativo');
 
-    var fab          = document.getElementById('btn-fab-ia');
-    var btnInstrucoes= document.getElementById('btn-instrucoes-gen');
-    var tabBtn       = document.querySelector('.config-tab-btn[data-tab="assistente-ia"]');
-    var toggle       = document.getElementById('ia-toggle-ativo');
+    var fab           = document.getElementById('btn-fab-ia');
+    var btnInstrucoes = document.getElementById('btn-instrucoes-gen');
+    var tabBtn        = document.querySelector('.config-tab-btn[data-tab="assistente-ia"]');
+    var toggle        = document.getElementById('ia-toggle-ativo');
 
     // Sincronizar toggle
     if (toggle) toggle.checked = ativo;
 
-    if (ativo) {
-        if (fab)           fab.style.display           = '';
-        if (btnInstrucoes) btnInstrucoes.style.display = '';
-        if (tabBtn)        tabBtn.style.display        = '';
-    } else {
-        // FAB sempre escondido quando IA desativa
-        if (fab) fab.style.display = 'none';
-
-        if (!master) {
-            // Usuário comum: esconder aba IA e botão instruções
-            if (btnInstrucoes) btnInstrucoes.style.display = 'none';
-            if (tabBtn)        tabBtn.style.display        = 'none';
-        }
-        // MASTER continua vendo aba e botão instruções para poder reativar
+    // ── Prioridade 1: toggle OFF → tudo oculto para todos (manutenção) ──
+    if (!ativo) {
+        if (fab)           fab.style.display           = 'none';
+        if (btnInstrucoes) btnInstrucoes.style.display = 'none';
+        if (tabBtn)        tabBtn.style.display        = 'none';
+        return;
     }
+
+    // ── Prioridade 2: toggle ON + plano gratuito (trial/expirado) ──
+    if (!planoPago) {
+        // FAB visível mas redireciona para planos ao clicar
+        if (fab) {
+            fab.style.display = '';
+            fab.onclick = function (e) {
+                e.stopPropagation();
+                if (typeof window.abrirModalPlanos === 'function') window.abrirModalPlanos();
+            };
+        }
+        if (btnInstrucoes) btnInstrucoes.style.display = 'none';
+        if (tabBtn)        tabBtn.style.display        = 'none';
+        return;
+    }
+
+    // ── Prioridade 3: toggle ON + plano pago → acesso total ──
+    if (fab) {
+        fab.style.display = '';
+        fab.onclick = null; // restaura comportamento padrão
+    }
+    if (btnInstrucoes) btnInstrucoes.style.display = '';
+    if (tabBtn)        tabBtn.style.display        = '';
 }
 
 function _initToggleIA() {
