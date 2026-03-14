@@ -151,13 +151,6 @@
     line-height: 1.2;
 }
 
-.ai-panel-title small {
-    display: block;
-    font-size: 11px;
-    opacity: 0.8;
-    margin-top: 1px;
-}
-
 /* Badge IA externa */
 .ai-externa-badge {
     display: inline-flex;

@@ -107,10 +107,8 @@ window.IA = (function () {
 
     // ── INICIALIZAR STATUS ────────────────────────────────────────
     function _setStatus(texto, online) {
-        var el  = document.getElementById('ai-panel-status');
         var txt = document.getElementById('ia-status-text');
         var dot = document.getElementById('ia-status-dot');
-        if (el)  el.textContent  = texto;
         if (txt) txt.textContent = texto;
         if (dot) { dot.classList.toggle('online', !!online); dot.classList.toggle('offline', !online); }
     }
@@ -1221,8 +1219,8 @@ window.IA = (function () {
 
         // ── Painel flutuante (index.html) ────────────────────────
         if (!estado.modoPagina) {
-            // FAB e controles do painel
-            document.getElementById('btn-fab-ia')?.addEventListener('click', function () { abrir(); });
+            // FAB: NÃO registra addEventListener aqui — aplicarVisibilidadeIA() controla
+            // o onclick do FAB exclusivamente para evitar disparo duplo no plano gratuito.
             document.getElementById('ai-btn-fechar-panel')?.addEventListener('click', fechar);
             document.getElementById('ai-btn-nova-conversa')?.addEventListener('click', limparConversa);
 
@@ -1396,7 +1394,7 @@ function aplicarVisibilidadeIA() {
     // ── Prioridade 3: toggle ON + plano pago → acesso total ──
     if (fab) {
         fab.style.display = '';
-        fab.onclick = null; // restaura comportamento padrão
+        fab.onclick = function () { if (typeof window.IA !== 'undefined') window.IA.abrir(); };
     }
     if (btnInstrucoes) btnInstrucoes.style.display = '';
     if (tabBtn)        tabBtn.style.display        = '';
