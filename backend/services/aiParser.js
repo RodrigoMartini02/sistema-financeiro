@@ -4,8 +4,22 @@
 // utiliza a Gen (IA interna do Fin-Gerence)
 // ================================================================
 
+const fs   = require('fs');
+const path = require('path');
 const { normalizarDespesa, normalizarValor, normalizarFormaPagamento,
     normalizarData, inferirCategoria } = require('../utils/expenseNormalizer');
+
+const INSTRUCOES_PATH = path.join(__dirname, '../../docs/gen-instrucoes.md');
+
+function carregarInstrucoesCustom() {
+    try {
+        return fs.existsSync(INSTRUCOES_PATH)
+            ? '\n\n---\n' + fs.readFileSync(INSTRUCOES_PATH, 'utf8')
+            : '';
+    } catch (e) {
+        return '';
+    }
+}
 
 // Lazy-load OpenAI (só inicializa se a chave existir)
 let openaiClient = null;
@@ -54,7 +68,7 @@ async function parsearComOpenAI(texto, contextoConversa = [], apiKeyOverride) {
     if (!openai) throw new Error('OpenAI não configurado');
 
     const hoje = new Date().toISOString().split('T')[0];
-    const systemWithDate = SYSTEM_PROMPT + `\n\nData de hoje: ${hoje}`;
+    const systemWithDate = `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${carregarInstrucoesCustom()}`;
 
     const messages = [
         { role: 'system', content: systemWithDate },
@@ -79,7 +93,7 @@ async function parsearComGemini(texto, contextoConversa = [], apiKey) {
     if (!apiKey) throw new Error('Gemini API key não configurada');
     const fetch = require('node-fetch');
     const hoje = new Date().toISOString().split('T')[0];
-    const prompt = SYSTEM_PROMPT + `\n\nData de hoje: ${hoje}\n\nTexto do usuário: ${texto}`;
+    const prompt = `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${carregarInstrucoesCustom()}\n\nTexto do usuário: ${texto}`;
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     const body = {
@@ -105,7 +119,7 @@ async function parsearComClaude(texto, contextoConversa = [], apiKey) {
     const response = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 500,
-        system: SYSTEM_PROMPT + `\n\nData de hoje: ${hoje}\n\nResponda APENAS com JSON válido.`,
+        system: `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${carregarInstrucoesCustom()}\n\nResponda APENAS com JSON válido.`,
         messages: [{ role: 'user', content: texto }]
     });
 

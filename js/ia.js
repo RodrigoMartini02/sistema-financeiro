@@ -216,10 +216,8 @@ window.IA = (function () {
             if (!res || !res.success) { addGen('Desculpe, ocorreu um erro. Tente novamente.'); return; }
 
             if (res.acao === 'confirmar_despesa' && res.despesa) {
-                if (res.resposta) addGen(fmt(res.resposta));
                 _iniciarColetaCampos(res.despesa, 'despesa');
             } else if (res.acao === 'confirmar_receita' && res.receita) {
-                if (res.resposta) addGen(fmt(res.resposta));
                 _iniciarColetaCampos(res.receita, 'receita');
             } else {
                 addGen(res.resposta || '...');
