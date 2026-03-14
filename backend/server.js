@@ -79,6 +79,7 @@ const reservasRoutes = require('./routes/reservas');
 const anosRoutes = require('./routes/anos');
 const planosRoutes = require('./routes/planos');
 const aiRoutes = require('./routes/aiRoutes');
+const avaliacoesRoutes = require('./routes/avaliacoes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', usuariosRoutes);
@@ -91,6 +92,7 @@ app.use('/api/reservas', reservasRoutes);
 app.use('/api/anos', anosRoutes);
 app.use('/api/planos', planosRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/avaliacoes', avaliacoesRoutes);
 
 app.use((req, res) => {
     res.status(404).json({
@@ -388,6 +390,23 @@ async function criarEstruturaBanco() {
         `);
         await query(`CREATE INDEX IF NOT EXISTS idx_recorrencias_usuario ON recorrencias_ia(usuario_id);`);
         console.log('✅ Tabela recorrencias_ia verificada/criada!');
+
+        // ✅ TABELA AVALIACOES
+        await query(`
+            CREATE TABLE IF NOT EXISTS avaliacoes (
+                id SERIAL PRIMARY KEY,
+                usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+                autor VARCHAR(100) NOT NULL,
+                estrelas INTEGER NOT NULL CHECK (estrelas BETWEEN 1 AND 5),
+                comentario TEXT NOT NULL,
+                aprovada BOOLEAN DEFAULT true,
+                data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(usuario_id)
+            );
+        `);
+        await query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS avaliacao_feita BOOLEAN DEFAULT false;`);
+        await query(`CREATE INDEX IF NOT EXISTS idx_avaliacoes_aprovada ON avaliacoes(aprovada);`);
+        console.log('✅ Tabela avaliacoes verificada/criada!');
 
         // ✅ DIRETÓRIO DE UPLOADS (módulo IA)
         const uploadsDir = require('path').join(__dirname, 'uploads');

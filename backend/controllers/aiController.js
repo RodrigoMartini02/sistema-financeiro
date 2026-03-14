@@ -578,7 +578,7 @@ async function salvarAprendizadoCategoria(req, res) {
 async function salvarDespesaIA(req, res) {
     try {
         const usuarioId = req.usuario.id;
-        const { descricao, valor, forma_pagamento, data, vencimento, parcelas, categoria_id, cartao_id } = req.body;
+        const { descricao, valor, forma_pagamento, data, vencimento, parcelas, categoria_id, cartao_id, ja_pago, recorrente } = req.body;
 
         if (!descricao || !valor || !forma_pagamento || !data) {
             return res.status(400).json({ success: false, message: 'Campos obrigatórios: descricao, valor, forma_pagamento, data.' });
@@ -590,6 +590,8 @@ async function salvarDespesaIA(req, res) {
         const ano = dataObj.getFullYear();
         const totalParcelas = parseInt(parcelas) || 1;
         const parcelado = totalParcelas > 1;
+        const pago = !!ja_pago;
+        const ehRecorrente = !!recorrente;
 
         // Busca categoria padrão se não informada
         let categoriaFinal = categoria_id || null;
@@ -608,7 +610,7 @@ async function salvarDespesaIA(req, res) {
             [
                 usuarioId, descricao, parseFloat(valor), dataVenc, data,
                 mes, ano, categoriaFinal || null, cartao_id || null, forma_pagamento,
-                parcelado, parcelado ? totalParcelas : null, parcelado ? 1 : null, false, false
+                parcelado, parcelado ? totalParcelas : null, parcelado ? 1 : null, pago, ehRecorrente
             ]
         );
 

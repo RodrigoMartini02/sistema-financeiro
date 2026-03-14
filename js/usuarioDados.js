@@ -82,11 +82,8 @@ class UsuarioDataManager {
 
     redirecionarParaLogin() {
         const pathname = window.location.pathname;
-        if (pathname.includes('index.html') || 
-            pathname.includes('financeiro.html') ||
-            pathname === '/' ||
-            (!pathname.includes('home.html') && pathname.length > 1)) {
-            window.location.href = 'home.html';
+        if (!pathname.includes('index.html') && pathname.length > 1) {
+            window.location.href = 'index.html';
         }
     }
 

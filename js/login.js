@@ -13,7 +13,6 @@ document.addEventListener('DOMContentLoaded', function() {
 const API_URL = 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
 let elementos = {};
-let emailJSDisponivel = false; // Mantido para compatibilidade, mas não usado mais
 
 // ================================================================
 // INICIALIZAÇÃO RÁPIDA - SEM AGUARDOS
@@ -84,7 +83,7 @@ function configurarGoogleLogin() {
             client_id: GOOGLE_CLIENT_ID,
             scope: 'email profile',
             ux_mode: 'redirect',
-            redirect_uri: window.location.origin + '/home.html',
+            redirect_uri: window.location.origin + '/index.html',
             state: 'google_login'
         });
         client.requestCode();
@@ -113,7 +112,7 @@ async function verificarRetornoGoogle() {
         const response = await fetch(`${API_URL}/auth/google`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, redirect_uri: window.location.origin + '/home.html' })
+            body: JSON.stringify({ code, redirect_uri: window.location.origin + '/index.html' })
         });
 
         const data = await response.json();
@@ -160,7 +159,7 @@ async function verificarRetornoGoogle() {
         localStorage.setItem('usuarioAtual', usuario.documento || usuario.email);
         localStorage.setItem('dadosUsuarioLogado', dadosUsuarioGoogle);
 
-        window.location.href = 'index.html';
+        window.location.href = 'app.html';
     } catch (error) {
         if (typeof window.hideLoadingScreen === 'function') {
             window.hideLoadingScreen();
@@ -335,7 +334,7 @@ async function processarLogin(documento, password, isModal, tentativa = 1) {
         registrarTentativaBackground(documento, true);
 
         // Redirecionamento
-        window.location.href = 'index.html';
+        window.location.href = 'app.html';
 
     } catch (error) {
         // ✅ Esconder loading screen em caso de erro
@@ -369,40 +368,6 @@ async function processarLogin(documento, password, isModal, tentativa = 1) {
     }
 }
 
-function validarLoginRapido(documento, password) {
-    const docLimpo = documento.replace(/[^\d]+/g, '');
-    
-    // Verificar bloqueio simples
-    const bloqueio = verificarBloqueio(documento);
-    if (bloqueio.bloqueado) {
-        throw new Error(`Conta bloqueada. Aguarde ${bloqueio.tempoRestante} minutos.`);
-    }
-    
-    // Validação direta
-    const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-    const usuario = usuarios.find(u => 
-        u.documento && 
-        u.documento.replace(/[^\d]+/g, '') === docLimpo && 
-        u.password === password
-    );
-    
-    return !!usuario;
-}
-
-function salvarDadosUsuarioSessao(docLimpo) {
-    try {
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const usuario = usuarios.find(u => 
-            u.documento && u.documento.replace(/[^\d]+/g, '') === docLimpo
-        );
-        
-        if (usuario) {
-            sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify(usuario));
-        }
-    } catch (error) {
-        // Erro ao salvar dados da sessão - silencioso
-    }
-}
 
 // ================================================================
 // CADASTRO
@@ -442,7 +407,7 @@ async function processarFormularioCadastro() {
     if (typeof window.showLoadingScreen === 'function') window.showLoadingScreen();
 
     try {
-        const resultado = await processarCadastro(nome, email, documento, password);
+        await processarCadastro(nome, email, documento, password);
 
         if (typeof window.hideLoadingScreen === 'function') window.hideLoadingScreen();
 
@@ -500,23 +465,6 @@ async function processarCadastro(nome, email, documento, password) {
     }
 }
 
-function criarEstruturaFinanceiraInicial() {
-    const anoAtual = new Date().getFullYear();
-    const estrutura = {};
-    
-    estrutura[anoAtual] = { meses: [] };
-    for (let i = 0; i < 12; i++) {
-        estrutura[anoAtual].meses[i] = {
-            receitas: [],
-            despesas: [],
-            fechado: false,
-            saldoAnterior: 0,
-            saldoFinal: 0
-        };
-    }
-    
-    return estrutura;
-}
 
 // ================================================================
 // RECUPERAÇÃO DE SENHA
@@ -716,7 +664,6 @@ function configurarFechamentoModais() {
 
 function configurarLimpezaMensagens() {
     const configuracoes = [
-        { campos: ['documento', 'password'], erro: elementos.errorMessage },
         { campos: ['modal-documento', 'modal-password'], erro: elementos.modalErrorMessage },
         { campos: ['cadastro-nome', 'cadastro-email', 'cadastro-documento', 'cadastro-password', 'cadastro-confirm-password'], erro: elementos.cadastroErrorMessage },
         { campos: ['recuperacao-email', 'codigo-recuperacao'], erro: elementos.recuperacaoErrorMessage },
@@ -782,14 +729,12 @@ function obterElementosDOM() {
         novaSenhaModal: document.getElementById('novaSenhaModal'),
 
         // Formulários
-        loginForm: document.getElementById('login-form'),
         modalLoginForm: document.getElementById('modal-login-form'),
         formCadastro: document.getElementById('form-cadastro'),
         formRecuperacao: document.getElementById('form-recuperacao-senha'),
         formNovaSenha: document.getElementById('form-nova-senha'),
 
         // Mensagens
-        errorMessage: document.getElementById('error-message'),
         modalErrorMessage: document.getElementById('modal-error-message'),
         cadastroErrorMessage: document.getElementById('cadastro-error-message'),
         cadastroSuccessMessage: document.getElementById('cadastro-success-message'),
@@ -866,9 +811,6 @@ function registrarTentativaBackground(documento, sucesso) {
 // FUNÇÕES DE RECUPERAÇÃO DE SENHA
 // ================================================================
 
-function gerarCodigoRecuperacao() {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-}
 
 function salvarCodigoRecuperacao(email, codigo) {
     const codigosRecuperacao = JSON.parse(localStorage.getItem('codigosRecuperacao') || '{}');
@@ -937,15 +879,6 @@ async function enviarEmailRecuperacao(email, codigo, nomeUsuario = 'Usuário') {
         return { success: false, message: 'Erro ao enviar e-mail: ' + error.message };
     }
 }
-
-function obterUsuarioPorEmail(email) {
-    const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-    return usuarios.find(u => u.email.toLowerCase() === email.toLowerCase());
-}
-
-// ================================================================
-// VALIDAÇÕES
-// ================================================================
 
 // ================================================================
 // FUNÇÕES DE MENSAGENS
@@ -1045,18 +978,7 @@ function verificarELimparDados() {
 function configurarLoginMinimo() {
     // Fallback básico caso tudo falhe
     try {
-        const loginForm = document.getElementById('login-form');
         const modalLoginForm = document.getElementById('modal-login-form');
-        
-        if (loginForm) {
-            loginForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const doc = document.getElementById('documento')?.value;
-                const pass = document.getElementById('password')?.value;
-                if (doc && pass) processarLoginMinimo(doc, pass);
-            });
-        }
-        
         if (modalLoginForm) {
             modalLoginForm.addEventListener('submit', (e) => {
                 e.preventDefault();
@@ -1086,7 +1008,7 @@ function processarLoginMinimo(documento, password) {
             sessionStorage.setItem('dadosUsuarioLogado', dadosOffline);
             localStorage.setItem('usuarioAtual', docLimpo);
             localStorage.setItem('dadosUsuarioLogado', dadosOffline);
-            window.location.href = 'index.html';
+            window.location.href = 'app.html';
         } else {
             alert('Login inválido');
         }
@@ -1188,9 +1110,7 @@ function diagnosticoLogin() {
     return {
         timestamp: new Date().toISOString(),
         sistemaInicializado: window.loginSistemaInicializado || false,
-        emailJSDisponivel,
         localStorage: testLocalStorage(),
-        usuarios: JSON.parse(localStorage.getItem('usuarios') || '[]').length,
         usuarioAtual: sessionStorage.getItem('usuarioAtual'),
         usuarioDadosDisponivel: !!window.usuarioDados
     };
@@ -1213,12 +1133,9 @@ function limparSessao() {
 // ================================================================
 
 function scrollToLogin() {
-    const loginDiv = document.querySelector('.hero-login');
-    loginDiv.classList.add('show');
-    document.getElementById('hero-section').scrollIntoView({ behavior: 'smooth' });
+    document.getElementById('hero-section')?.scrollIntoView({ behavior: 'smooth' });
     setTimeout(() => {
-        const campo = document.getElementById('modal-documento');
-        if (campo) campo.focus();
+        document.getElementById('modal-documento')?.focus();
     }, 600);
 }
 
@@ -1229,16 +1146,6 @@ function configurarLandingPage() {
         if (!nav) return;
         if (window.scrollY > 50) nav.classList.add('nav-scrolled');
         else nav.classList.remove('nav-scrolled');
-    });
-
-    // Botões "Acessar Sistema"
-    const botoesAcessar = [
-        document.getElementById('btn-nav-acessar'),
-        document.getElementById('btn-hero-acessar'),
-        document.getElementById('btn-cta-acessar'),
-    ];
-    botoesAcessar.forEach(btn => {
-        if (btn) btn.addEventListener('click', scrollToLogin);
     });
 
     // Botões "Criar Conta Grátis"

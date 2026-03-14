@@ -15,7 +15,7 @@
         }
     });
     if (!sessionStorage.getItem('usuarioAtual')) {
-        window.location.replace('home.html');
+        window.location.replace('index.html');
     }
 })();
 
@@ -344,7 +344,9 @@ window.IA = (function () {
             recorrente:      !!d.recorrente
         };
         if (d.categoria_id) payload.categoria_id = d.categoria_id;
-        if (d.cartao_id)    payload.cartao_id    = d.cartao_id;
+        // Tenta resolver cartão pelo nome se não tem ID ainda
+        var cartaoId = d.cartao_id || _resolverCartaoPorNome(d.nome_cartao);
+        if (cartaoId) payload.cartao_id = cartaoId;
 
         addSys('⏳ Cadastrando sua despesa, aguarde um momento...');
         apiPost('/despesa/salvar', payload).then(function (res) {
@@ -890,7 +892,7 @@ window.IA = (function () {
 
         // ── Página completa (ia.html) ────────────────────────────
         if (estado.modoPagina) {
-            document.getElementById('btn-voltar-sistema')?.addEventListener('click', function () { window.location.href = 'index.html'; });
+            document.getElementById('btn-voltar-sistema')?.addEventListener('click', function () { window.location.href = 'app.html'; });
             document.getElementById('btn-nova-conversa')?.addEventListener('click', limparConversa);
             document.getElementById('btn-toggle-sidebar')?.addEventListener('click', toggleSidebar);
 

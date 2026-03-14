@@ -1,13 +1,11 @@
-<!-- ================================================================ -->
-<!-- index.html -->
-<!-- ================================================================ -->
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Controle Financeiro</title>
+    <title>Fin-Gerence | Sistema de Gestão Financeira Inteligente</title>
+    <meta name="description" content="Fin-Gerence é o sistema completo de controle financeiro pessoal com IA, leitura de boletos, OCR de documentos, cartões de crédito, reservas e relatórios inteligentes.">
+    <meta name="robots" content="index, follow">
 
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
@@ -15,3092 +13,635 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Finanças">
+    <meta name="apple-mobile-web-app-title" content="Fin-Gerence">
     <link rel="apple-touch-icon" href="icons/financeiro.png">
     <link rel="icon" type="image/png" href="icons/financeiro.png?v=1">
 
-
-    <!-- VERIFICAÇÃO DE AUTENTICAÇÃO (ANTES DE TUDO) -->
-    <script>
-        (function() {
-            // PWA: restaura sessão do localStorage se sessionStorage estiver vazio (app foi fechado e reaberto)
-            var keys = ['token', 'usuarioAtual', 'dadosUsuarioLogado'];
-            keys.forEach(function(k) {
-                if (!sessionStorage.getItem(k)) {
-                    var val = localStorage.getItem(k);
-                    if (val) sessionStorage.setItem(k, val);
-                }
-            });
-
-            // Verificar autenticação
-            var usuarioAtual = sessionStorage.getItem('usuarioAtual');
-            if (!usuarioAtual) {
-                window.location.replace('home.html');
-            }
-        })();
-    </script>
-
-    <!-- CSS EXTERNOS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- CSS DO SISTEMA -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/loading.css">
-    <link rel="stylesheet" href="css/layoutGeral.css">
-    <link rel="stylesheet" href="css/botoes.css">
-    <link rel="stylesheet" href="css/modais.css">
-    <link rel="stylesheet" href="css/dashboard.css">
-    <link rel="stylesheet" href="css/receita.css">
-    <link rel="stylesheet" href="css/despesa.css">
-    <link rel="stylesheet" href="css/notificacao.css">
-    <link rel="stylesheet" href="css/rel.css">
-    <link rel="stylesheet" href="css/config.css">
-    <link rel="stylesheet" href="css/planos.css">
-    <link rel="stylesheet" href="css/ia.css">
+    <link rel="stylesheet" href="css/login.css">
+    <link rel="stylesheet" href="css/pwa.css">
+    <link rel="stylesheet" href="css/avaliacao.css">
 </head>
 <body>
 
 <!-- Loading Screen -->
-<div id="loading-screen" class="loading-screen active">
+<div id="loading-screen" class="loading-screen">
     <div class="loading-spinner"></div>
     <div class="loading-tips">
         <p class="tip-text"></p>
     </div>
 </div>
-<script src="js/loading.js"></script>
-
-<!-- ================================================================ -->
-<!-- ESTRUTURA PRINCIPAL DA APLICAÇÃO -->
-<!-- ================================================================ -->
-<div class="app-container">
-    
-    <!-- ============================================================ -->
-    <!-- SIDEBAR DE NAVEGAÇÃO PRINCIPAL -->
-    <!-- ============================================================ -->
-    <nav class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <div class="sidebar-header-row">
-                <button id="btn-toggle-sidebar" class="sidebar-toggle-btn" title="Recolher/expandir menu">
-                    <i class="fas fa-bars"></i>
-                </button>
-                <h3 class="sidebar-title">Fin-Gerence</h3>
-            </div>
-            <div class="user-profile-sidebar">
-                <div class="avatar-container" id="avatar-container" title="Clique para alterar a foto">
-                    <div class="avatar-img" id="avatar-img">
-                        <i class="fas fa-user avatar-placeholder"></i>
-                    </div>
-                    <div class="avatar-edit-icon">
-                        <i class="fas fa-camera"></i>
-                    </div>
-                </div>
-                <input type="file" id="input-foto-perfil" accept="image/*" style="display:none">
-                <div class="user-info-sidebar">
-                    <span id="nome-usuario-sidebar"></span>
-                </div>
-            </div>
-        </div>
-        <ul class="sidebar-nav">
-            <li class="nav-item">
-                <a href="#" class="nav-link active" data-section="dashboard" data-label="Dashboard">
-                    <span class="nav-icon"><i class="fas fa-chart-line"></i></span>
-                    <span class="nav-text">Dashboard</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="#" class="nav-link" data-section="meses" data-label="Meses">
-                    <span class="nav-icon"><i class="fas fa-calendar-alt"></i></span>
-                    <span class="nav-text">Meses</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="#" class="nav-link" data-section="relatorios" id="nav-relatorios" data-label="Relatórios">
-                    <span class="nav-icon"><i class="fas fa-chart-bar"></i></span>
-                    <span class="nav-text">Relatórios</span>
-                </a>
-            </li>
-
-            <li class="nav-item">
-                <a href="#" class="nav-link" data-section="config" data-label="Configurações">
-                    <span class="nav-icon"><i class="fas fa-user-cog"></i></span>
-                    <span class="nav-text">Configurações</span>
-                </a>
-            </li>
-        </ul>
-
-        <div id="plano-sidebar-container">
-            <div id="trial-banner" style="display:none">
-                <div class="trial-banner-top">
-                    <i class="fas fa-clock"></i>
-                    <span>Período gratuito</span>
-                </div>
-                <div class="trial-progress-bar">
-                    <div class="trial-progress-fill" id="trial-progress-fill"></div>
-                </div>
-                <span id="trial-dias-restantes" class="trial-dias">-- dias restantes</span>
-            </div>
-            <div id="expirado-banner" style="display:none">
-                <i class="fas fa-exclamation-triangle"></i>
-                <span>Acesso expirado</span>
-                <button onclick="abrirModalPlanos()">Renovar</button>
-            </div>
-            <button id="btn-upgrade" style="display:none" onclick="abrirModalPlanos()">
-                <span id="btn-upgrade-label">Assinar agora</span>
-            </button>
-        </div>
-
-        <div class="sidebar-footer">
-            <div class="system-info">
-                <div class="info-row">
-                    <i class="fas fa-code-branch"></i>
-                    <span>v<span id="system-version">1.0.0</span></span>
-                </div>
-                <div class="info-row info-secondary">
-                    <i class="fas fa-calendar"></i>
-                    <span id="system-update-date">03/01/2026</span>
-                </div>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Overlay para fechar sidebar no mobile -->
-    <div id="sidebar-overlay" class="sidebar-overlay-mobile"></div>
-
-   <main class="main-content">
-        <header class="main-header">
-            <!-- Hambúrguer — visível só no mobile -->
-            <button id="btn-abrir-sidebar" class="btn-hamburger-mobile" title="Abrir menu" aria-label="Abrir menu">
-                <i class="fas fa-bars"></i>
-            </button>
-
-            <!-- Esquerda: Ações rápidas + Cotações -->
-            <div class="header-left">
-                <button id="btn-nova-despesa" class="btn btn-danger btn-sm" title="Nova Despesa">
-                    <i class="fas fa-plus"></i> Despesa
-                </button>
-                <button id="btn-nova-receita" class="btn btn-success btn-sm" title="Nova Receita">
-                    <i class="fas fa-plus"></i> Receita
-                </button>
-                <div class="header-item cambio-container-compact" title="Cotações em tempo real">
-                    <i class="fas fa-exchange-alt"></i>
-                    <span id="cotacoes-compact">Carregando...</span>
-                </div>
-            </div>
-
-            <!-- Direita: Ano + Ícones utilitários -->
-            <div class="header-right">
-                <div class="periodo-selector">
-                    <button class="header-icon-btn" id="btn-ano-anterior" title="Ano Anterior">
-                        <i class="fas fa-chevron-left"></i>
-                    </button>
-                    <div class="ano-dropdown">
-                        <button class="header-icon-btn header-ano-label" id="ano-atual-btn">2026</button>
-                        <div id="dropdown-anos" class="dropdown-anos-lista">
-                            <!-- Será preenchido dinamicamente -->
-                        </div>
-                    </div>
-                    <button class="header-icon-btn" id="btn-proximo-ano" title="Próximo Ano">
-                        <i class="fas fa-chevron-right"></i>
-                    </button>
-                </div>
-                <div class="header-separator"></div>
-                 <div class="notification-wrapper">
-                    <button class="header-icon-btn" id="notification-bell" type="button" aria-label="Notificações">
-                        <i class="fas fa-bell"></i>
-                    </button>
-                </div>
-                 <div class="notification-wrapper">
-                    <button class="header-icon-btn" id="btn-toggle-noticias" type="button" title="Ver Notícias">
-                        <i class="fas fa-newspaper"></i>
-                    </button>
-                </div>
-                <button class="header-icon-btn" id="btn-refresh" title="Atualizar Dados">
-                    <i class="fas fa-sync-alt"></i>
-                </button>
-                <button class="header-icon-btn" id="btn-lock-system" title="Bloquear Sistema">
-                    <i class="fas fa-lock"></i>
-                </button>               
-                <div class="ano-menu-container">
-                    <button class="header-icon-btn" id="btn-ano-menu" title="Gerenciar Ano">
-                        <i class="fas fa-cog"></i>
-                    </button>
-                    <div id="dropdown-ano-menu" class="dropdown-ano-menu">
-                        <button id="btn-novo-ano-menu" class="dropdown-item">
-                            <i class="fas fa-calendar-plus"></i> Criar Novo Ano
-                        </button>
-                        <button id="btn-excluir-ano-menu" class="dropdown-item dropdown-item-danger">
-                            <i class="fas fa-calendar-times"></i> Excluir Ano Atual
-                        </button>
-                        <div class="dropdown-divider"></div>
-                        <button id="btn-alterar-senha-menu" class="dropdown-item">
-                            <i class="fas fa-key"></i> Alterar Senha
-                        </button>
-                    </div>
-                </div>
-               
-                <button class="header-icon-btn" id="logout-btn" title="Sair">
-                    <i class="fas fa-sign-out-alt"></i>
-                </button>
-            </div>
-        </header>
-
-        <!-- Painel Central: Notificações + Notícias -->
-        <div id="painel-central" class="painel-central hidden">
-            <div class="painel-central-header">
-                <div class="painel-tabs">
-                    <button class="painel-tab ativo" data-tab="notificacoes">
-                        <i class="fas fa-bell"></i> Notificações
-                        <span class="painel-tab-badge hidden" id="notif-tab-badge">0</span>
-                    </button>
-                    <button class="painel-tab" data-tab="noticias">
-                        <i class="fas fa-newspaper"></i> Notícias
-                        <span class="painel-tab-badge hidden" id="noticias-tab-badge">0</span>
-                    </button>
-                </div>
-                <div class="painel-central-acoes hidden" id="painel-notif-acoes">
-                    <button id="btn-mark-all-read" title="Marcar como lidas"><i class="fas fa-check-double"></i></button>
-                    <button id="btn-clear-notifications" title="Limpar tudo"><i class="fas fa-trash"></i></button>
-                </div>
-                <button class="btn-fechar-painel" id="btn-fechar-painel">&times;</button>
-            </div>
-            <div class="painel-central-body">
-                <div class="painel-tab-content ativo" id="tab-notificacoes">
-                    <div id="notifications-list"></div>
-                </div>
-                <div class="painel-tab-content" id="tab-noticias">
-                    <div id="lista-noticias"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ======================================================== -->
-        <!-- CONTAINER DE TODAS AS SEÇÕES -->
-        <!-- SEÇÃO 1: DASHBOARD/ANÁLISE FINANCEIRA -->
-        <!-- ======================================================== -->
-       <div class="content-area">
-    <section class="dashboard-section active" id="dashboard-section">
-
-        <!-- Barra de filtro de período -->
-        <div class="dashboard-filtros-bar">
-            <div class="filtro-periodo-toggle">
-                <button class="filtro-toggle-btn active" id="btn-periodo-atual">
-                    <i class="fas fa-calendar"></i> Ano Atual
-                </button>
-                <button class="filtro-toggle-btn" id="btn-periodo-todos">
-                    <i class="fas fa-layer-group"></i> Todos os Anos
-                </button>
-            </div>
-            <div class="filtro-bar-sep"></div>
-            <div class="filtro-selects">
-                <select class="filtro-select" id="global-tipo-filter">
-                    <option value="ambos">Todos os Tipos</option>
-                    <option value="receitas">Receitas</option>
-                    <option value="despesas">Despesas</option>
-                </select>
-                <select class="filtro-select" id="global-categoria-filter">
-                    <option value="">Todas as Categorias</option>
-                </select>
-                <select class="filtro-select" id="global-pagamento-filter">
-                    <option value="todas">Todas as Formas de Pag.</option>
-                    <option value="debito">Débito</option>
-                    <option value="credito">Crédito</option>
-                    <option value="pix">Pix</option>
-                    <option value="dinheiro">Dinheiro</option>
-                </select>
-            </div>
-            <button id="btn-limpar-filtros-dash" class="btn btn-secondary btn-sm" title="Limpar Filtros">
-                <i class="fas fa-eraser"></i>
-            </button>
-        </div>
-
-        <div class="resumo-cards">
-            <div class="card card-receitas">
-                <div class="card-header">
-                    <i class="fas fa-arrow-up"></i>
-                    <span>RECEITAS</span>
-                </div>
-                <div class="card-value" id="dashboard-total-receitas">R$ 0,00</div>
-                <div class="card-footer">Receitas do ano</div>
-            </div>
-            <div class="card card-despesas">
-                <div class="card-header">
-                    <i class="fas fa-arrow-down"></i>
-                    <span>DESPESAS</span>
-                </div>
-                <div class="card-value" id="dashboard-total-despesas">R$ 0,00</div>
-                <div class="card-footer">Despesas do ano</div>
-            </div>
-            <div class="card card-saldo">
-                <div class="card-header">
-                    <i class="fas fa-wallet"></i>
-                    <span>SALDO ANO</span>
-                </div>
-                <div class="card-value" id="dashboard-saldo-anual">R$ 0,00</div>
-                <div class="card-footer">Receitas - despesas do ano</div>
-            </div>
-            <div class="card card-juros">
-                <div class="card-header">
-                    <i class="fas fa-percentage"></i>
-                    <span>JUROS</span>
-                </div>
-                <div class="card-value" id="dashboard-total-juros">R$ 0,00</div>
-                <div class="card-footer">Juros pagos no ano</div>
-            </div>
-            <div class="card card-economias">
-                <div class="card-header">
-                    <i class="fas fa-piggy-bank"></i>
-                    <span>ECONOMIAS</span>
-                </div>
-                <div class="card-value" id="dashboard-total-economias">R$ 0,00</div>
-                <div class="card-footer">Valor economizado no ano</div>
-            </div>
-        </div>
-
-       
-
-        <div class="dashboard-grid">
-
-            <div class="dashboard-card chart-accent-violet">
-                <h3>
-                    <span class="chart-label"><i class="fas fa-chart-line chart-icon"></i> TENDÊNCIA ANUAL</span>
-                    <button class="btn-zoom" data-chart="tendenciaChart"><i class="fas fa-expand-alt"></i></button>
-                </h3>
-                <div class="chart-container">
-                    <canvas id="tendencia-chart"></canvas>
-                </div>
-            </div>
-
-            <div class="dashboard-card chart-accent-blue">
-                <h3>
-                    <span class="chart-label"><i class="fas fa-chart-area chart-icon"></i> BALANÇO</span>
-                    <button class="btn-zoom" data-chart="balancoChart"><i class="fas fa-expand-alt"></i></button>
-                </h3>
-                <div class="chart-container">
-                    <canvas id="balanco-chart"></canvas>
-                </div>
-            </div>
-
-            <div class="dashboard-card chart-accent-emerald">
-                <h3>
-                    <span class="chart-label"><i class="fas fa-exchange-alt chart-icon"></i> ENTRADAS E SAÍDAS</span>
-                    <button class="btn-zoom" data-chart="receitasDespesasChart"><i class="fas fa-expand-alt"></i></button>
-                </h3>
-                <div class="chart-container">
-                    <canvas id="receitas-despesas-chart"></canvas>
-                </div>
-            </div>
-
-            <div class="dashboard-card chart-accent-amber">
-                <h3>
-                    <span class="chart-label"><i class="fas fa-tags chart-icon"></i> CATEGORIAS ANUAIS</span>
-                    <button class="btn-zoom" data-chart="categoriasBarrasChart"><i class="fas fa-expand-alt"></i></button>
-                </h3>
-                <div class="chart-container">
-                    <canvas id="categorias-barras-chart"></canvas>
-                </div>
-            </div>
-
-            <div class="dashboard-card chart-accent-cyan">
-                <h3>
-                    <span class="chart-label"><i class="fas fa-calendar-alt chart-icon"></i> CATEGORIAS MENSAIS</span>
-                    <button class="btn-zoom" data-chart="categoriasEmpilhadasChart"><i class="fas fa-expand-alt"></i></button>
-                </h3>
-                <div class="chart-container">
-                    <canvas id="categorias-mensais-chart"></canvas>
-                </div>
-            </div>
-
-             <div class="dashboard-card chart-accent-teal">
-                <h3>
-                    <span class="chart-label"><i class="fas fa-chart-bar chart-icon"></i> MÉDIA ANUAL</span>
-                    <button class="btn-zoom" data-chart="mediaCategoriasChart"><i class="fas fa-expand-alt"></i></button>
-                </h3>
-                <div class="chart-container">
-                    <canvas id="media-categorias-chart"></canvas>
-                </div>
-            </div>
-
-            <div class="dashboard-card chart-accent-indigo">
-                <h3>
-                    <span class="chart-label"><i class="fas fa-credit-card chart-icon"></i> FORMAS DE PAGAMENTO</span>
-                    <button class="btn-zoom" data-chart="formaPagamentoChart"><i class="fas fa-expand-alt"></i></button>
-                </h3>
-                <div class="chart-container">
-                    <canvas id="forma-pagamento-chart"></canvas>
-                </div>
-            </div>
-
-            <div class="dashboard-card chart-accent-pink">
-                <h3>
-                    <span class="chart-label"><i class="fas fa-wallet chart-icon"></i> USO DE CARTÕES</span>
-                    <button class="btn-zoom" data-chart="chartDistribuicaoCartoes"><i class="fas fa-expand-alt"></i></button>
-                </h3>
-                <div class="chart-container">
-                    <canvas id="cartoes-usados-chart"></canvas>
-                </div>
-            </div>
-
-            <div class="dashboard-card chart-accent-red">
-                <h3>
-                    <span class="chart-label"><i class="fas fa-percentage chart-icon"></i> JUROS</span>
-                    <button class="btn-zoom" data-chart="jurosChart"><i class="fas fa-expand-alt"></i></button>
-                </h3>
-                <div class="chart-container">
-                    <canvas id="juros-chart"></canvas>
-                </div>
-            </div>
-
-            <div class="dashboard-card chart-accent-orange">
-                <h3>
-                    <span class="chart-label"><i class="fas fa-layer-group chart-icon"></i> PARCELAMENTOS</span>
-                    <button class="btn-zoom" data-chart="parcelamentosChart"><i class="fas fa-expand-alt"></i></button>
-                </h3>
-                <div class="chart-container">
-                    <canvas id="parcelamentos-chart"></canvas>
-                </div>
-            </div>
- 
-        </div>
-    </section>
-
-<div id="modal-zoom-grafico" class="modal-zoom-container">
-    <div class="modal-zoom-content">
-        <button type="button" id="fechar-modal-zoom" class="close" title="Fechar">&times;</button>
-        <canvas id="canvas-zoom-render"></canvas>
-    </div>
-</div>
-
-
-    <!-- ================================================== -->
-    <!-- SEÇÃO 2: VISUALIZAÇÃO MENSAL -->
-    <!-- ================================================== -->
-    <section class="meses-section" id="meses-section">
-        <div class="meses-container">
-        </div>
-    </section>
 
 <!-- ================================================================
-   SEÇÃO DE RELATÓRIOS
-   ================================================================ -->
-<section class="relatorios-section" id="relatorios-section">
-    <div class="relatorios-filtros-area">
-        <!-- LINHA 1: Selects + Botões de ação -->
-        <div class="filtros-linha filtros-linha-super-compacta">
-            <div class="filtro-grupo filtro-periodo">
-                <label for="filtro-periodo">Período:</label>
-                <select id="filtro-periodo" class="form-control">
-                    <option value="mes-atual">Mês Atual</option>
-                    <option value="mes-anterior">Mês Anterior</option>
-                    <option value="ultimos-3-meses">Últimos 3 Meses</option>
-                    <option value="ultimos-6-meses">Últimos 6 Meses</option>
-                    <option value="ano-atual">Ano Atual</option>
-                    <option value="ano-anterior">Ano Anterior</option>
-                    <option value="personalizado">Período Personalizado</option>
-                </select>
+     NAVBAR
+     ================================================================ -->
+<nav class="landing-nav" id="landing-nav">
+    <div class="nav-container">
+        <div class="nav-logo">
+            <i class="fas fa-chart-line"></i>
+            <span>Fin-Gerence</span>
+        </div>
+        <div class="nav-links">
+            <a href="#features">Funcionalidades</a>
+            <a href="#ia-showcase">Inteligência IA</a>
+            <a href="#como-funciona">Como Funciona</a>
+            <a href="#avaliacoes">Avaliações</a>
+            <a href="#hero-section" class="btn-nav-login">Entrar</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ================================================================
+     HERO SECTION — headline + login side by side
+     ================================================================ -->
+<section class="hero-section" id="hero-section">
+    <div class="hero-bg">
+        <div class="hero-shape shape-1"></div>
+        <div class="hero-shape shape-2"></div>
+        <div class="hero-shape shape-3"></div>
+    </div>
+
+    <div class="hero-container">
+        <!-- Lado esquerdo: marketing -->
+        <div class="hero-content">
+            <span class="hero-badge">
+                <i class="fas fa-robot"></i> Com Inteligência Artificial Integrada
+            </span>
+
+            <h1 class="hero-title">
+                Controle financeiro
+                <span class="hero-highlight">inteligente e completo</span>
+            </h1>
+
+            <p class="hero-desc">
+                Organize receitas, despesas, cartões e reservas com a ajuda da IA. Registre gastos conversando, leia boletos pela câmera e importe extratos automaticamente.
+            </p>
+
+            <div class="hero-features-list">
+                <div class="hero-feature-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Registre despesas por voz ou texto com IA</span>
+                </div>
+                <div class="hero-feature-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Leitura de boletos e QR Code PIX pela câmera</span>
+                </div>
+                <div class="hero-feature-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Controle de cartões de crédito e limites</span>
+                </div>
+                <div class="hero-feature-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Relatórios, gráficos e reservas financeiras</span>
+                </div>
+                <div class="hero-feature-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span>PWA — instale no celular sem app store</span>
+                </div>
             </div>
 
-            <div class="filtro-grupo filtro-tipo">
-                <label for="filtro-tipo-relatorio">Tipo:</label>
-                <select id="filtro-tipo-relatorio" class="form-control">
-                    <option value="completo">Completo</option>
-                    <option value="apenas-receitas">Receitas</option>
-                    <option value="apenas-despesas">Despesas</option>
-                    <option value="por-categoria">Por Categoria</option>
-                    <option value="por-forma-pagamento">Por Pagamento</option>
-                    <option value="parcelamentos">Parcelamentos</option>
-                    <option value="gastos-reais">Gastos Reais</option>
-                </select>
+            <div class="hero-stats">
+                <div class="hero-stat">
+                    <strong>+20</strong>
+                    <span>Funcionalidades</span>
+                </div>
+                <div class="hero-stat-divider"></div>
+                <div class="hero-stat">
+                    <strong>IA</strong>
+                    <span>Integrada</span>
+                </div>
+                <div class="hero-stat-divider"></div>
+                <div class="hero-stat">
+                    <strong>PWA</strong>
+                    <span>Instale no celular</span>
+                </div>
             </div>
 
-            <div class="filtro-grupo filtro-criterio">
-                <label for="filtro-criterio-data">Data:</label>
-                <select id="filtro-criterio-data" class="form-control">
-                    <option value="vencimento">Vencimento</option>
-                    <option value="compra">Compra</option>
-                    <option value="pagamento">Pagamento</option>
-                    <option value="mista">Mista</option>
-                </select>
-            </div>
-
-            <div class="filtro-grupo filtro-categoria">
-                <label for="filtro-categoria-relatorio">Categoria:</label>
-                <select id="filtro-categoria-relatorio" class="form-control">
-                    <option value="todas">Todas</option>
-                </select>
-            </div>
-
-            <div class="filtro-grupo filtro-status">
-                <label for="filtro-status-relatorio">Status:</label>
-                <select id="filtro-status-relatorio" class="form-control">
-                    <option value="todos">Todos</option>
-                    <option value="quitadas">Pagas</option>
-                    <option value="pendentes">Pendentes</option>
-                    <option value="atrasadas">Atrasadas</option>
-                </select>
-            </div>
-
-            <div class="filtro-grupo filtro-ordenacao">
-                <label for="filtro-ordenacao">Ordenar:</label>
-                <select id="filtro-ordenacao" class="form-control">
-                    <option value="data">Data</option>
-                    <option value="valor-desc">Maior Valor</option>
-                    <option value="valor-asc">Menor Valor</option>
-                    <option value="categoria">Categoria</option>
-                    <option value="forma-pagamento">Pagamento</option>
-                    <option value="descricao">Descrição</option>
-                </select>
-            </div>
-
-            <!-- Botões inline com filtros -->
-            <div class="filtros-acoes-inline">
-                <button id="btn-gerar-relatorio" class="btn-icon-action btn-icon-primary" title="Gerar Relatório">
-                    <i class="fas fa-search"></i>
+            <div class="hero-cta-buttons">
+                <button class="btn-hero-cadastro" id="btn-hero-cadastro">
+                    <i class="fas fa-user-plus"></i> Criar Conta Grátis
                 </button>
-                <button id="btn-limpar-filtros-relatorio" class="btn-icon-action btn-icon-secondary" title="Limpar Filtros">
-                    <i class="fas fa-eraser"></i>
-                </button>
-                <button id="btn-exportar-pdf-relatorio" class="btn-icon-action btn-icon-success" title="Exportar PDF" disabled>
-                    <i class="fas fa-file-pdf"></i>
-                </button>
             </div>
         </div>
 
-        <!-- PERÍODO PERSONALIZADO -->
-        <div id="periodo-personalizado-container" class="periodo-personalizado-ultra-compacto hidden">
-            <label for="data-inicio-relatorio">De:</label>
-            <input type="date" id="data-inicio-relatorio" class="form-input">
-            <label for="data-fim-relatorio">Até:</label>
-            <input type="date" id="data-fim-relatorio" class="form-input">
-        </div>
+        <!-- Lado direito: login -->
+        <div class="hero-login">
+            <div class="login-card">
+                <h2 class="login-title">Controle Financeiro</h2>
 
-        <!-- LINHA 2: Checkboxes -->
-        <div class="filtros-linha filtros-linha-checkboxes-inline">
-            <div class="grupo-checkboxes-completo">
-                <span class="grupo-label">Pagamento:</span>
-                <label class="checkbox-mini">
-                    <input type="checkbox" id="forma-todas" value="todas" checked>
-                    <span>Todas</span>
-                </label>
-                <label class="checkbox-mini">
-                    <input type="checkbox" id="forma-pix" value="pix">
-                    <span>PIX</span>
-                </label>
-                <label class="checkbox-mini">
-                    <input type="checkbox" id="forma-debito" value="debito">
-                    <span>Débito</span>
-                </label>
-                <label class="checkbox-mini">
-                    <input type="checkbox" id="forma-dinheiro" value="dinheiro">
-                    <span>Dinheiro</span>
-                </label>
-                <label class="checkbox-mini">
-                    <input type="checkbox" id="forma-credito" value="credito">
-                    <span>Crédito</span>
-                </label>
-
-                <span class="grupo-label grupo-label-separador">Opções:</span>
-                <label class="checkbox-mini">
-                    <input type="checkbox" id="incluir-transferencias">
-                    <span>Transferências</span>
-                </label>
-                <label class="checkbox-mini">
-                    <input type="checkbox" id="agrupar-parcelamentos">
-                    <span>Agrupar</span>
-                </label>
-                <label class="checkbox-mini">
-                    <input type="checkbox" id="mostrar-projecoes">
-                    <span>Projeções</span>
-                </label>
-            </div>
-        </div>
-
-        <div id="resumo-filtros-aplicados" class="filtros-resumo hidden">
-            <h4>Filtros Aplicados:</h4>
-            <div id="texto-filtros-resumo"></div>
-        </div>
-    </div>
-
-    <!-- RESULTADOS DOS RELATÓRIOS -->
-    <div class="relatorios-resultados">
-        <!-- Resumo Executivo -->
-        <div id="resumo-executivo" class="resultado-secao hidden">
-            <div class="secao-header">
-                <h3><i class="fas fa-chart-line"></i> Resumo Executivo</h3>
-            </div>
-            <div class="resumo-cards">
-                <div class="resumo-card receitas">
-                    <div class="card-header">
-                        <i class="fas fa-arrow-up"></i>
-                        <span>Total de Receitas</span>
-                    </div>
-                    <div class="card-valor" id="resumo-total-receitas">R$ 0,00</div>
-                    <div class="card-info" id="resumo-count-receitas">0 transações</div>
-                </div>
-                
-                <div class="resumo-card despesas">
-                    <div class="card-header">
-                        <i class="fas fa-arrow-down"></i>
-                        <span>Total de Despesas</span>
-                    </div>
-                    <div class="card-valor" id="resumo-total-despesas">R$ 0,00</div>
-                    <div class="card-info" id="resumo-count-despesas">0 transações</div>
-                </div>
-                
-                <div class="resumo-card saldo">
-                    <div class="card-header">
-                        <i class="fas fa-balance-scale"></i>
-                        <span>Saldo Líquido</span>
-                    </div>
-                    <div class="card-valor" id="resumo-saldo-liquido">R$ 0,00</div>
-                    <div class="card-info" id="resumo-economia">0% de economia</div>
-                </div>
-                
-                <div class="resumo-card juros">
-                    <div class="card-header">
-                        <i class="fas fa-percentage"></i>
-                        <span>Juros Pagos</span>
-                    </div>
-                    <div class="card-valor" id="resumo-total-juros">R$ 0,00</div>
-                    <div class="card-info" id="resumo-percent-juros">0% do total</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Comparativo por Forma de Pagamento -->
-        <div id="comparativo-formas-pagamento" class="resultado-secao hidden">
-            <div class="secao-header">
-                <h3><i class="fas fa-chart-bar"></i> Comparativo por Forma de Pagamento</h3>
-            </div>
-            <div class="comparativo-cards">
-                <div class="comparativo-card pix">
-                    <div class="card-header">
-                        <i class="fas fa-mobile-alt"></i>
-                        <span>PIX</span>
-                    </div>
-                    <div class="card-valor" id="comparativo-pix-valor">R$ 0,00</div>
-                    <div class="card-info">
-                        <span id="comparativo-pix-count">0 transações</span>
-                        <span id="comparativo-pix-percent">0%</span>
-                    </div>
-                </div>
-                
-                <div class="comparativo-card debito">
-                    <div class="card-header">
-                        <i class="fas fa-credit-card"></i>
-                        <span>Débito</span>
-                    </div>
-                    <div class="card-valor" id="comparativo-debito-valor">R$ 0,00</div>
-                    <div class="card-info">
-                        <span id="comparativo-debito-count">0 transações</span>
-                        <span id="comparativo-debito-percent">0%</span>
-                    </div>
+                <div id="modal-error-message" class="error-message" style="display:none;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>CPF/CNPJ ou senha incorretos. Tente novamente.</span>
                 </div>
 
-                <div class="comparativo-card dinheiro">
-                    <div class="card-header">
-                        <i class="fas fa-money-bill-wave"></i>
-                        <span>Dinheiro</span>
+                <form id="modal-login-form">
+                    <div class="form-group">
+                        <label for="modal-documento">
+                            <i class="fas fa-id-card"></i> CPF/CNPJ
+                        </label>
+                        <input type="text" id="modal-documento" name="documento" required
+                               placeholder="Digite seu CPF ou CNPJ" autocomplete="username">
                     </div>
-                    <div class="card-valor" id="comparativo-dinheiro-valor">R$ 0,00</div>
-                    <div class="card-info">
-                        <span id="comparativo-dinheiro-count">0 transações</span>
-                        <span id="comparativo-dinheiro-percent">0%</span>
-                    </div>
-                </div>
 
-                <div class="comparativo-card credito">
-                    <div class="card-header">
-                        <i class="fas fa-credit-card"></i>
-                        <span>Crédito</span>
-                    </div>
-                    <div class="card-valor" id="comparativo-credito-valor">R$ 0,00</div>
-                    <div class="card-info">
-                        <span id="comparativo-credito-count">0 transações</span>
-                        <span id="comparativo-credito-percent">0%</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Análise de Gastos Reais -->
-        <div id="analise-gastos-reais" class="resultado-secao hidden">
-            <div class="secao-header">
-                <h3><i class="fas fa-calculator"></i> Análise de Gastos Reais</h3>
-            </div>
-            <div class="gastos-reais-cards">
-                <div class="gasto-real-card total">
-                    <div class="card-header">
-                        <i class="fas fa-coins"></i>
-                        <span>Total Gasto no Período</span>
-                    </div>
-                    <div class="card-valor" id="total-gastos-reais">R$ 0,00</div>
-                    <div class="card-info" id="gastos-reais-criterio">Por data de vencimento</div>
-                </div>
-                
-                <div class="gasto-real-card media">
-                    <div class="card-header">
-                        <i class="fas fa-calendar-day"></i>
-                        <span>Média Diária</span>
-                    </div>
-                    <div class="card-valor" id="media-diaria-gastos">R$ 0,00</div>
-                    <div class="card-info" id="dias-periodo">0 dias</div>
-                </div>
-                
-                <div class="gasto-real-card maior">
-                    <div class="card-header">
-                        <i class="fas fa-arrow-up"></i>
-                        <span>Maior Gasto</span>
-                    </div>
-                    <div class="card-valor" id="maior-gasto-periodo">R$ 0,00</div>
-                    <div class="card-info" id="maior-gasto-descricao">-</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Detalhamento por Categoria -->
-        <div id="detalhamento-categorias" class="resultado-secao hidden">
-            <div class="secao-header">
-                <h3><i class="fas fa-tags"></i> Detalhamento por Categoria</h3>
-            </div>
-            <div class="tabela-responsiva">
-                <table class="relatorio-tabela">
-                    <thead>
-                        <tr>
-                            <th>Categoria</th>
-                            <th>Receitas</th>
-                            <th>Despesas</th>
-                            <th>Saldo</th>
-                            <th>% do Total</th>
-                            <th>Transações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabela-categorias-body">
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Detalhamento por Forma de Pagamento -->
-        <div id="detalhamento-pagamento" class="resultado-secao hidden">
-            <div class="secao-header">
-                <h3><i class="fas fa-credit-card"></i> Detalhamento por Forma de Pagamento</h3>
-            </div>
-            <div class="pagamento-resumo">
-                <div class="pagamento-item pix">
-                    <div class="pagamento-header">
-                        <i class="fas fa-mobile-alt"></i>
-                        <span>PIX</span>
-                    </div>
-                    <div class="pagamento-valor" id="pagamento-pix-valor">R$ 0,00</div>
-                    <div class="pagamento-info">
-                        <span id="pagamento-pix-count">0 transações</span>
-                        <span id="pagamento-pix-percent">0%</span>
-                    </div>
-                </div>
-                
-                <div class="pagamento-item debito">
-                    <div class="pagamento-header">
-                        <i class="fas fa-credit-card"></i>
-                        <span>Débito</span>
-                    </div>
-                    <div class="pagamento-valor" id="pagamento-debito-valor">R$ 0,00</div>
-                    <div class="pagamento-info">
-                        <span id="pagamento-debito-count">0 transações</span>
-                        <span id="pagamento-debito-percent">0%</span>
-                    </div>
-                </div>
-
-                <div class="pagamento-item dinheiro">
-                    <div class="pagamento-header">
-                        <i class="fas fa-money-bill-wave"></i>
-                        <span>Dinheiro</span>
-                    </div>
-                    <div class="pagamento-valor" id="pagamento-dinheiro-valor">R$ 0,00</div>
-                    <div class="pagamento-info">
-                        <span id="pagamento-dinheiro-count">0 transações</span>
-                        <span id="pagamento-dinheiro-percent">0%</span>
-                    </div>
-                </div>
-
-                <div class="pagamento-item credito">
-                    <div class="pagamento-header">
-                        <i class="fas fa-credit-card"></i>
-                        <span>Crédito</span>
-                    </div>
-                    <div class="pagamento-valor" id="pagamento-credito-valor">R$ 0,00</div>
-                    <div class="pagamento-info">
-                        <span id="pagamento-credito-count">0 transações</span>
-                        <span id="pagamento-credito-percent">0%</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Lista de Transações -->
-        <div id="lista-transacoes" class="resultado-secao hidden">
-            <div class="secao-header">
-                <h3><i class="fas fa-list"></i> Lista de Transações</h3>
-                <div class="transacoes-info">
-                    <p id="transacoes-count-info">Mostrando 0 transações</p>
-                </div>
-            </div>
-            <div class="tabela-responsiva">
-                <table class="relatorio-tabela">
-                    <thead>
-                        <tr>
-                            <th>Data</th>
-                            <th>Tipo</th>
-                            <th>Descrição</th>
-                            <th>Categoria</th>
-                            <th>Forma Pagamento</th>
-                            <th>Valor</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabela-transacoes-body">
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Detalhamento de Parcelamentos -->
-        <div id="detalhamento-parcelamentos" class="resultado-secao hidden">
-            <div class="secao-header">
-                <h3><i class="fas fa-credit-card"></i> Parcelamentos</h3>
-            </div>
-            <div class="tabela-responsiva">
-                <table class="relatorio-tabela">
-                    <thead>
-                        <tr>
-                            <th>Descrição</th>
-                            <th>Valor Total</th>
-                            <th>Parcelas</th>
-                            <th>Valor/Parcela</th>
-                            <th>Pagas</th>
-                            <th>Restantes</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabela-parcelamentos-body">
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Mensagem Sem Dados -->
-        <div id="sem-dados-mensagem" class="sem-dados hidden">
-            <div class="sem-dados-icon">
-                <i class="fas fa-search"></i>
-            </div>
-            <h4>Nenhum dado encontrado</h4>
-            <p>Não foram encontradas transações para os filtros selecionados. Tente ajustar os critérios de busca.</p>
-        </div>
-    </div>
-
-    <!-- Loading Overlay -->
-    <div id="relatorios-loading" class="loading-overlay hidden">
-        <div class="loading-spinner"></div>
-    </div>
-</section>
-
-
-<!-- ================================================== -->
-<!-- SEÇÃO DE CONFIGURAÇÕES -->
-<!-- ================================================== -->
-<section class="config-section" id="config-section">
-       
-    <div class="config-tabs">
-       <button class="config-tab-btn active" data-tab="usuarios">
-            <i class="fas fa-users"></i> Usuários
-        </button>
-         <button class="config-tab-btn" data-tab="cartoes">
-            <i class="fas fa-credit-card"></i> Cartões de Crédito
-        </button>
-         <button class="config-tab-btn" data-tab="categorias">
-            <i class="fas fa-tags"></i> Gerenciar Categorias
-        </button>        
-        <button class="config-tab-btn" data-tab="logs">
-            <i class="fas fa-history"></i> Logs do Sistema
-        </button>
-        <button class="config-tab-btn" data-tab="sistema">
-            <i class="fas fa-cogs"></i> Sistema
-        </button>
-        <button class="config-tab-btn" data-tab="assistente-ia">
-            <i class="fas fa-robot"></i> Assistente IA
-        </button>
-    </div>
-    
-    <div class="config-tab-content">
-
-        <!-- ============================================== -->
-        <!-- ABA: GERENCIAMENTO DE CATEGORIAS -->
-        <!-- ============================================== -->
-        <div id="categorias-tab" class="config-tab-pane">
-                <div class="form-add-categoria">
-                    <input type="text" id="nova-categoria-nome" placeholder="Nome da categoria" maxlength="50">
-                    <button id="btn-adicionar-categoria" class="btn btn-primary">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                </div>
-                
-                <div class="table-responsive">
-                    <table class="tabela-categorias">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Nome da Categoria</th>
-                                <th>Data de Criação</th>
-                                <th>Última Edição</th>
-                                <th class="th-favorito" title="Favorito de pagamento">★</th>
-                                <th>Status</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="lista-categorias">
-                            <!-- Categorias serão inseridas aqui -->
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Mensagem quando não há categorias -->
-                <div id="sem-categorias-message" class="notification-empty hidden">
-                    <i class="fas fa-tags"></i>
-                    <p>Nenhuma categoria encontrada</p>
-                </div>
-
-            <div class="config-card info-card">
-                <h3><i class="fas fa-info-circle"></i> Dicas</h3>
-                <ul>
-                    <li>Use categorias específicas para melhor organizar suas finanças</li>
-                    <li>Você pode identificar a <strong>forma de pagamento</strong> (PIX, Débito, Crédito) diretamente no formulário de despesas</li>
-                    <li>Todas as despesas da mesma categoria são agrupadas nos gráficos, independente da forma de pagamento</li>
-                    <li>Categorias bem definidas melhoram a visualização nos relatórios</li>
-                    <li>Você pode analisar seus gastos tanto por categoria quanto por forma de pagamento</li>
-                </ul>
-            </div>
-        </div>
-        
-        <!-- ============================================== -->
-        <!-- ABA: CONFIGURAÇÕES DO SISTEMA -->
-        <!-- ============================================== -->
-        <div id="sistema-tab" class="config-tab-pane">
-                <div class="form-group">
-                    <h4><i class="fas fa-download"></i> Backup e Restauração</h4>
-                    <div class="btn-group">
-                        <button id="btn-exportar-dados" class="btn btn-primary">
-                            <i class="fas fa-download"></i> Exportar Todos os Dados
-                        </button>
-                        <button id="btn-exportar-mes-a-mes" class="btn btn-primary">
-                            <i class="fas fa-calendar-alt"></i> Exportar Mês a Mês
-                        </button>
-                        <button id="btn-importar-dados" class="btn btn-primary">
-                            <i class="fas fa-upload"></i> Importar Dados
-                        </button>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <h4><i class="fas fa-trash-alt"></i> Limpeza de Dados</h4>
-                    <button id="btn-limpar-dados" class="btn btn-danger">
-                        <i class="fas fa-trash"></i> Limpar Todos os Dados
-                    </button>
-                    <p class="texto-alerta">⚠️ Atenção: Esta ação é irreversível!</p>
-                </div>
-            
-
-            <!-- Status de operações do sistema -->
-            <div id="sistema-status" class="config-card hidden">
-                <h3><i class="fas fa-info-circle"></i> Status da Operação</h3>
-                <div class="status-container">
-                    <div id="status-message" class="status-message"></div>
-                    <div id="status-progress" class="status-progress hidden">
-                        <div class="progress-bar">
-                            <div class="progress-fill"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- ============================================== -->
-        <!-- ABA: ASSISTENTE IA -->
-        <!-- ============================================== -->
-        <div id="assistente-ia-tab" class="config-tab-pane">
-            <div class="config-card">
-                <h3><i class="fas fa-robot"></i> Assistente IA — FIN GERENCE AI</h3>
-                <p style="color:var(--gray-500);margin-bottom:16px">Configure e use o assistente inteligente para cadastrar despesas por texto ou voz, interpretar documentos e analisar seus gastos.</p>
-
-                <div id="ia-status-config" style="margin-bottom:20px">
-                    <span class="badge" id="ia-badge-status" style="padding:6px 14px;border-radius:20px;font-size:13px">Verificando...</span>
-                </div>
-
-                <div class="form-group">
-                    <label><i class="fas fa-robot"></i> Provedor de IA</label>
-                    <p style="font-size:12px;color:var(--gray-500);margin-bottom:10px">
-                        Opcional. Sem provedor externo o assistente usa a <strong>Gen</strong> (IA interna). Com uma chave própria, a interpretação de texto fica ainda mais precisa.
-                    </p>
-                    <select id="ia-provider-select" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;margin-bottom:10px;background:var(--bg-card);color:var(--text-primary)">
-                        <option value="gen">Gen — IA interna Fin-Gerence (sem chave)</option>
-                        <option value="openai">OpenAI — GPT-4o mini</option>
-                        <option value="gemini">Google — Gemini 2.0 Flash</option>
-                        <option value="claude">Anthropic — Claude Haiku</option>
-                    </select>
-                    <div id="ia-key-row" style="display:none;flex-direction:column;gap:8px">
-                        <div style="display:flex;gap:8px">
-                            <input type="password" id="ia-api-key-input" placeholder="Cole sua chave de API aqui..." style="flex:1;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px">
-                            <button id="ia-btn-salvar-chave" class="btn btn-primary" style="white-space:nowrap">
-                                <i class="fas fa-save"></i> Salvar
+                    <div class="form-group">
+                        <label for="modal-password">
+                            <i class="fas fa-lock"></i> Senha
+                        </label>
+                        <div class="password-input">
+                            <input type="password" id="modal-password" name="password" required
+                                   placeholder="Digite sua senha" autocomplete="current-password">
+                            <button type="button" class="password-toggle" data-target="modal-password">
+                                <i class="fas fa-eye"></i>
                             </button>
                         </div>
-                        <p id="ia-key-hint" style="font-size:11px;color:var(--gray-500);margin:0"></p>
                     </div>
-                </div>
 
-                <hr style="border:none;border-top:1px solid var(--border-color);margin:20px 0">
+                    <button type="submit" class="btn btn-primary">
+                        <span>Entrar</span>
+                    </button>
 
-                <h4 style="margin-bottom:12px"><i class="fas fa-lightbulb"></i> Como usar</h4>
-                <div style="display:grid;gap:10px">
-                    <div class="config-card" style="padding:12px;background:var(--gray-50)">
-                        <strong>💬 Chat por texto</strong><br>
-                        <small>Clique no ícone <i class="fas fa-robot"></i> no modal de Despesas ou no botão flutuante e escreva:</small><br>
-                        <code style="font-size:12px">"paguei 120 de internet da vivo no cartão vence dia 15"</code>
+                    <div class="separator-or"><span>ou</span></div>
+
+                    <button type="button" class="btn btn-google" id="btn-google-login">
+                        <svg width="18" height="18" viewBox="0 0 48 48">
+                            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                        </svg>
+                        <span>Entrar com Google</span>
+                    </button>
+
+                    <div class="login-footer">
+                        <p>Não tem uma conta? <a href="#" id="modal-abrir-cadastro">Cadastre-se grátis</a></p>
+                        <p><a href="#" id="modal-esqueceu-senha">Esqueceu sua senha?</a></p>
                     </div>
-                    <div class="config-card" style="padding:12px;background:var(--gray-50)">
-                        <strong>🎙️ Voz</strong><br>
-                        <small>Clique no microfone no chat e fale a despesa normalmente.</small>
-                    </div>
-                    <div class="config-card" style="padding:12px;background:var(--gray-50)">
-                        <strong>📄 Documentos (boleto, NF, comprovante PIX)</strong><br>
-                        <small>Clique no clipe <i class="fas fa-paperclip"></i> e envie a imagem ou PDF.</small>
-                    </div>
-                    <div class="config-card" style="padding:12px;background:var(--gray-50)">
-                        <strong>📊 Análise financeira</strong><br>
-                        <code style="font-size:12px">"quanto gastei em alimentação esse mês?"</code>
-                    </div>
-                </div>
+                </form>
             </div>
         </div>
-
-        <!-- ============================================== -->
-        <!-- ABA: GERENCIAMENTO DE USUÁRIOS INTEGRADA -->
-        <!-- ============================================== -->
-        <div id="usuarios-tab" class="config-tab-pane active">
-                <!-- Controles de Usuários Integrados -->
-                <div class="user-management-controls">
-                    <div class="search-container">
-                        <input type="text" id="usuario-search" placeholder="Buscar usuário..." maxlength="100">
-                        <button id="btn-search-user" class="btn btn-primary">
-                            <i class="fas fa-search"></i>
-                        </button>
-                    </div>
-                    
-                    <div class="filter-container">
-                        <select id="filter-user-type" class="form-control">
-                            <option value="todos">Todos os usuários</option>
-                            <option value="master">Master</option>
-                            <option value="admin">Administradores</option>
-                            <option value="padrao">Usuários padrão</option>
-                        </select>
-                    </div>
-                    
-                    <button id="btn-adicionar-usuario" class="btn btn-primary">
-                        <i class="fas fa-user-plus"></i> Novo Usuário
-                    </button>
-                </div>
-
-                <!-- Tabela de Usuários Integrada -->
-                <div class="table-responsive">
-                    <table class="tabela-usuarios">
-                        <thead>
-                            <tr>
-                                <th>Nome</th>
-                                <th>Documento</th>
-                                <th>E-mail</th>
-                                <th>Tipo</th>
-                                <th>Status</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="lista-usuarios">
-                            <!-- Preenchido dinamicamente via template -->
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Mensagem quando não há usuários -->
-                <div id="no-users-message" class="notification-empty hidden">
-                    <i class="fas fa-users-slash"></i>
-                    <p>Nenhum usuário encontrado</p>
-                </div>
-
-                <!-- Controles de Paginação -->
-                <div class="pagination-controls">
-                    <button id="btn-prev-page" class="btn btn-secondary btn-sm" disabled>
-                        <i class="fas fa-chevron-left"></i> Anterior
-                    </button>
-                    <span id="pagination-info">Página 1 de 1</span>
-                    <button id="btn-next-page" class="btn btn-secondary btn-sm" disabled>
-                        Próxima <i class="fas fa-chevron-right"></i>
-                    </button>
-                </div>
-
-            <!-- Card de Informações de Segurança -->
-            <div class="config-card info-card">
-                <h3><i class="fas fa-shield-alt"></i> Segurança</h3>
-                <p>O gerenciamento de usuários permite controlar quem tem acesso ao sistema e quais ações cada usuário pode realizar.</p>
-                <ul>
-                    <li>Apenas usuários Master podem adicionar novos usuários</li>
-                    <li>Usuários Master têm acesso total às configurações do sistema</li>
-                    <li>Administradores só podem editar usuários do tipo Padrão</li>
-                    <li>A exclusão de usuários também remove todos os seus dados</li>
-                    <li>Cada usuário possui suas próprias categorias personalizadas</li>
-                </ul>
-            </div>
-        </div>
-
-       <div id="cartoes-tab" class="config-tab-pane">
-        <div class="form-add-cartao">
-            <input type="text" id="novo-cartao-banco" placeholder="Nome do Banco" maxlength="50">
-            <input type="text" id="novo-cartao-validade" placeholder="Validade (MM/AAAA)" maxlength="7" inputmode="numeric" oninput="formatarValidadeCartao(this)">
-            <!-- REMOVIDO: bandeira e ultimos_digitos -->
-            <select id="novo-cartao-bandeira" title="Bandeira" style="display:none">
-                <option value="">Bandeira</option>
-                <option value="visa">Visa</option>
-                <option value="mastercard">Mastercard</option>
-                <option value="elo">Elo</option>
-                <option value="hipercard">Hipercard</option>
-                <option value="amex">Amex</option>
-                <option value="outro">Outro</option>
-            </select>
-            <input type="text" id="novo-cartao-digitos" placeholder="Últimos 4 dígitos" maxlength="4" pattern="\d{4}" inputmode="numeric" style="display:none">
-            <input type="number" id="novo-cartao-fechamento" placeholder="Dia Fechamento" min="1" max="31">
-            <input type="number" id="novo-cartao-vencimento" placeholder="Dia Vencimento" min="1" max="31">
-            <input type="number" id="novo-cartao-limite" placeholder="Limite (R$)" step="0.01" min="0">
-            <button id="btn-adicionar-cartao" class="btn btn-primary">
-                <i class="fas fa-plus"></i> Adicionar Cartão
-            </button>
-        </div>
-
-        <div class="lista-cartoes-container">
-            <table id="tabela-cartoes" class="tabela-cartoes">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Banco</th>
-                        <th>Validade</th>
-                        <th>Fechamento</th>
-                        <th>Vencimento</th>
-                        <th>Limite</th>
-                        <th>Status</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="lista-cartoes">
-                    <!-- Cartões serão inseridos aqui dinamicamente -->
-                </tbody>
-            </table>
-        </div>
-
-        <div id="cartoes-status" class="status-feedback hidden">
-            <div class="feedback-message">
-                <i class="feedback-icon"></i>
-                <span class="feedback-text"></span>
-            </div>
-        </div>
-
-    <div class="config-card info-card">
-        <h3><i class="fas fa-info-circle"></i> Dicas sobre Cartões</h3>
-        <ul>
-            <li>Mantenha sempre o controle dos limites dos seus cartões</li>
-            <li>Verifique regularmente as datas de validade</li>
-            <li>Use o checkbox "Ativo" para cartões que você realmente utiliza</li>
-        </ul>
-    </div>
-</div>
-
-        <!-- ============================================== -->
-        <!-- ABA: LOGS DO SISTEMA -->
-        <!-- ============================================== -->
-        <div id="logs-tab" class="config-tab-pane">
-                <!-- Filtros -->
-                <div class="filtros-linha filtros-linha-logs">
-                    <div class="filtro-grupo">
-                        <label for="filtro-modulo">Módulo:</label>
-                        <select id="filtro-modulo" class="form-control">
-                            <option value="todos">Todos</option>
-                            <option value="Receitas">Receitas</option>
-                            <option value="Despesas">Despesas</option>
-                            <option value="Configurações">Configurações</option>
-                        </select>
-                    </div>
-
-                    <div class="filtro-grupo">
-                        <label for="filtro-acao">Ação:</label>
-                        <select id="filtro-acao" class="form-control">
-                            <option value="todos">Todas</option>
-                            <option value="criado">Criado</option>
-                            <option value="editado">Editado</option>
-                            <option value="excluído">Excluído</option>
-                        </select>
-                    </div>
-
-                    <div class="filtro-grupo">
-                        <label for="filtro-data-inicio">De:</label>
-                        <input type="date" id="filtro-data-inicio" class="form-control">
-                    </div>
-
-                    <div class="filtro-grupo">
-                        <label for="filtro-data-fim">Até:</label>
-                        <input type="date" id="filtro-data-fim" class="form-control">
-                    </div>
-
-                    <div class="filtro-grupo">
-                        <label for="filtro-busca">Buscar:</label>
-                        <input type="text" id="filtro-busca" class="form-control" placeholder="Descrição, categoria...">
-                    </div>
-
-                    <div class="filtros-acoes-inline">
-                        <button id="btn-filtrar-logs" class="btn-icon-action btn-icon-primary" title="Filtrar">
-                            <i class="fas fa-search"></i>
-                        </button>
-                        <button id="btn-limpar-filtros-logs" class="btn-icon-action btn-icon-secondary" title="Limpar Filtros">
-                            <i class="fas fa-eraser"></i>
-                        </button>
-                        <button id="btn-exportar-logs" class="btn-icon-action btn-icon-success" title="Exportar CSV">
-                            <i class="fas fa-download"></i>
-                        </button>
-                        <button id="btn-limpar-todos-logs" class="btn-icon-action btn-icon-danger" title="Limpar Logs">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Tabela de Logs -->
-                <div class="lista-logs-container">
-                    <table id="tabela-logs" class="tabela-logs">
-                        <thead>
-                            <tr>
-                                <th>Data</th>
-                                <th>Hora</th>
-                                <th>Módulo</th>
-                                <th>Ação</th>
-                                <th>Usuário</th>
-                                <th>Categoria</th>
-                                <th>Descrição</th>
-                                <th>Valor</th>
-                            </tr>
-                        </thead>
-                        <tbody id="lista-logs">
-                            <!-- Preenchido dinamicamente -->
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Mensagem quando não há logs -->
-                <div id="sem-logs-message" class="empty-state hidden">
-                    <i class="fas fa-inbox"></i>
-                    <p>Nenhum log encontrado</p>
-                    <small>As ações realizadas no sistema aparecerão aqui</small>
-                </div>
-        </div>
-
     </div>
 </section>
 
-</div> <!-- /.content-area -->
-
-
-<!-- ================================================== -->
-<!-- TODOS OS MODAIS DE CONFIGURAÇÕES -->
-<!-- ================================================== -->
-
-
-<!-- Modal: Editar Categoria -->
-<div id="modal-editar-categoria" class="modal">
-    <div class="modal-content modal-sm">
-        <div class="modal-header">
-            <h2><i class="fas fa-edit"></i> Editar Categoria</h2>
-            <button type="button" class="close" title="Fechar">&times;</button>
+<!-- ================================================================
+     FEATURES SECTION
+     ================================================================ -->
+<section class="features-section" id="features">
+    <div class="section-container">
+        <div class="section-header">
+            <span class="section-badge">Funcionalidades</span>
+            <h2 class="section-title">Tudo que você precisa para controlar suas finanças</h2>
+            <p class="section-desc">Um sistema completo, pensado para o dia a dia brasileiro</p>
         </div>
-        <div class="modal-body">
-            <form id="form-editar-categoria">
-                <input type="hidden" id="categoria-edit-id">
 
-                <div class="form-group">
-                    <label for="categoria-edit-nome">
-                        <i class="fas fa-tag"></i> Nome da Categoria: <span class="required">*</span>
-                    </label>
-                    <input type="text" id="categoria-edit-nome" class="form-input" required maxlength="50">
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon icon-receitas">
+                    <i class="fas fa-receipt"></i>
                 </div>
-            </form>
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-action="cancelar">
-                Cancelar
-            </button>
-            <button type="submit" form="form-editar-categoria" class="btn btn-primary">
-                Salvar
-            </button>
-        </div>
-    </div>
-</div>
+                <h3>Receitas & Despesas</h3>
+                <p>Lançamento rápido com categorias, parcelas, recorrências e comprovantes anexados.</p>
+            </div>
 
-<!-- Modal: Editar Cartão -->
-<div id="modal-editar-cartao" class="modal">
-    <div class="modal-content modal-md">
-        <div class="modal-header">
-            <h2><i class="fas fa-credit-card"></i> Editar Cartão</h2>
-            <button type="button" class="close" title="Fechar">&times;</button>
-        </div>
-        <div class="modal-body">
-            <form id="form-editar-cartao">
-                <input type="hidden" id="cartao-edit-id">
-
-                <div class="form-row-cartao">
-                    <div class="form-group flex-grow">
-                        <label for="cartao-edit-banco">
-                            <i class="fas fa-university"></i> Nome do Banco <span class="required">*</span>
-                        </label>
-                        <input type="text" id="cartao-edit-banco" class="form-input" required maxlength="50" placeholder="Ex: Nubank, Itaú, etc.">
-                    </div>
-                    <div class="form-group form-group-checkbox">
-                        <label>Ativo</label>
-                        <div class="checkbox-container">
-                            <input type="checkbox" id="cartao-edit-ativo">
-                        </div>
-                    </div>
+            <div class="feature-card">
+                <div class="feature-icon icon-cartoes">
+                    <i class="fas fa-credit-card"></i>
                 </div>
+                <h3>Cartões de Crédito</h3>
+                <p>Controle de limites, fechamento e vencimento de múltiplos cartões em tempo real.</p>
+            </div>
 
-                <div class="form-row-cartao">
-                    <div class="form-group flex-grow">
-                        <label for="cartao-edit-validade">
-                            <i class="fas fa-calendar-alt"></i> Validade (MM/AAAA)
-                        </label>
-                        <input type="text" id="cartao-edit-validade" class="form-input" maxlength="7" inputmode="numeric" placeholder="MM/AAAA" oninput="formatarValidadeCartao(this)">
-                    </div>
+            <div class="feature-card">
+                <div class="feature-icon icon-relatorios">
+                    <i class="fas fa-chart-bar"></i>
                 </div>
+                <h3>Relatórios & Gráficos</h3>
+                <p>Dashboard completo com balanço mensal, tendências e distribuição por categoria.</p>
+            </div>
 
-                <div class="form-row-cartao">
-                    <div class="form-group">
-                        <label for="cartao-edit-fechamento">
-                            <i class="fas fa-calendar-alt"></i> Dia Fechamento <span class="required">*</span>
-                        </label>
-                        <input type="number" id="cartao-edit-fechamento" class="form-input" min="1" max="31" required placeholder="1-31">
-                    </div>
-                    <div class="form-group">
-                        <label for="cartao-edit-vencimento">
-                            <i class="fas fa-calendar-check"></i> Dia Vencimento <span class="required">*</span>
-                        </label>
-                        <input type="number" id="cartao-edit-vencimento" class="form-input" min="1" max="31" required placeholder="1-31">
-                    </div>
-                    <div class="form-group">
-                        <label for="cartao-edit-limite">
-                            <i class="fas fa-dollar-sign"></i> Limite (R$) <span class="required">*</span>
-                        </label>
-                        <input type="number" id="cartao-edit-limite" class="form-input" step="0.01" min="0" required placeholder="0,00">
-                    </div>
+            <div class="feature-card">
+                <div class="feature-icon icon-notificacoes">
+                    <i class="fas fa-bell"></i>
                 </div>
-            </form>
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-action="cancelar">
-                Cancelar
-            </button>
-            <button type="submit" form="form-editar-cartao" class="btn btn-primary">
-                Salvar
-            </button>
+                <h3>Notificações</h3>
+                <p>Alertas de vencimento para nunca mais perder um pagamento importante.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon icon-reservas">
+                    <i class="fas fa-piggy-bank"></i>
+                </div>
+                <h3>Reservas Financeiras</h3>
+                <p>Crie e acompanhe metas de economia com rastreamento automático de movimentações.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon icon-extrato">
+                    <i class="fas fa-file-import"></i>
+                </div>
+                <h3>Importação de Extrato</h3>
+                <p>Importe seu extrato bancário (OFX/CSV) e ganhe tempo no lançamento de despesas.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon icon-parcelas">
+                    <i class="fas fa-layer-group"></i>
+                </div>
+                <h3>Parcelas & Recorrências</h3>
+                <p>Controle parcelamentos e despesas recorrentes com cálculo automático mês a mês.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon icon-usuarios">
+                    <i class="fas fa-users"></i>
+                </div>
+                <h3>Multi-Usuário</h3>
+                <p>Gerencie finanças de toda a família com perfis independentes e acesso seguro.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon icon-pwa">
+                    <i class="fas fa-mobile-alt"></i>
+                </div>
+                <h3>PWA — Instale no Celular</h3>
+                <p>Acesse pelo navegador ou instale como app no Android e iOS sem precisar de loja.</p>
+            </div>
         </div>
     </div>
-</div>
+</section>
 
-
-<!-- Modal: Adicionar Usuário -->
-<div id="modal-adicionar-usuario" class="modal">
-    <div class="modal-content modal-md">
-        <div class="modal-header">
-            <h2>Novo Usuário</h2>
-            <button type="button" class="close" title="Fechar">&times;</button>
+<!-- ================================================================
+     IA SHOWCASE SECTION
+     ================================================================ -->
+<section class="ia-section" id="ia-showcase">
+    <div class="section-container">
+        <div class="section-header">
+            <span class="section-badge ia-badge"><i class="fas fa-robot"></i> Inteligência Artificial</span>
+            <h2 class="section-title">Seu assistente financeiro com IA</h2>
+            <p class="section-desc">Registre, analise e controle suas finanças de forma natural — sem digitar formulários</p>
         </div>
-        <div class="modal-body">
-            <form id="form-adicionar-usuario">
-                <div class="form-group">
-                    <label for="novo-usuario-nome">Nome <span class="required">*</span></label>
-                    <input type="text" id="novo-usuario-nome" class="form-input" required maxlength="100">
-                </div>
 
-                <div class="form-group">
-                    <label for="novo-usuario-email">E-mail <span class="required">*</span></label>
-                    <input type="email" id="novo-usuario-email" class="form-input" required maxlength="100">
+        <div class="ia-cards-grid">
+            <div class="ia-card ia-card-main">
+                <div class="ia-card-icon">
+                    <i class="fas fa-comments"></i>
                 </div>
-
-                <div class="form-group">
-                    <label for="novo-usuario-documento">Documento (CPF/CNPJ) <span class="required">*</span></label>
-                    <input type="text" id="novo-usuario-documento" class="form-input" required maxlength="18">
-                    <small class="field-help">Digite apenas números</small>
+                <h3>Chat Natural</h3>
+                <p>Diga <em>"Paguei R$ 150 no supermercado"</em> e a IA registra a despesa automaticamente na categoria certa, no mês correto.</p>
+                <div class="ia-demo-bubble">
+                    <span class="ia-user-msg"><i class="fas fa-user-circle"></i> "Gastei 89 reais no posto hoje"</span>
+                    <span class="ia-bot-msg"><i class="fas fa-robot"></i> ✅ Despesa de R$ 89,00 em <strong>Combustível</strong> registrada!</span>
                 </div>
+            </div>
 
-                <div class="form-group">
-                    <label for="novo-usuario-tipo">Tipo de Usuário</label>
-                    <select id="novo-usuario-tipo" class="form-control">
-                        <option value="padrao">Usuário Padrão</option>
-                        <option value="admin">Administrador</option>
-                        <option value="master">Master</option>
-                    </select>
+            <div class="ia-card">
+                <div class="ia-card-icon ia-icon-scan">
+                    <i class="fas fa-barcode"></i>
                 </div>
+                <h3>Leitura de Boletos</h3>
+                <p>Aponte a câmera para o código de barras de qualquer boleto. A IA lê, identifica o valor e o vencimento automaticamente.</p>
+            </div>
 
-                <div class="form-group">
-                    <label for="novo-usuario-senha">Senha <span class="required">*</span></label>
-                    <input type="password" id="novo-usuario-senha" class="form-input" required minlength="6">
-                    <small class="field-help">Mínimo 6 caracteres</small>
+            <div class="ia-card">
+                <div class="ia-card-icon ia-icon-ocr">
+                    <i class="fas fa-file-image"></i>
                 </div>
+                <h3>OCR de Documentos</h3>
+                <p>Envie uma foto de nota fiscal, comprovante ou extrato. A IA extrai os dados e lança as despesas sem você digitar nada.</p>
+            </div>
 
-                <div class="form-group">
-                    <label for="novo-usuario-confirmar-senha">Confirmar Senha <span class="required">*</span></label>
-                    <input type="password" id="novo-usuario-confirmar-senha" class="form-input" required minlength="6">
+            <div class="ia-card">
+                <div class="ia-card-icon ia-icon-pix">
+                    <i class="fas fa-qrcode"></i>
                 </div>
+                <h3>Leitura de PIX</h3>
+                <p>Escaneie o QR Code de um PIX recebido ou pago. O sistema identifica o valor e registra automaticamente como receita ou despesa.</p>
+            </div>
 
-                <!-- Status de validação -->
-                <div id="validacao-status" class="validation-feedback hidden">
-                    <div class="validation-message">
-                        <i class="validation-icon"></i>
-                        <span class="validation-text"></span>
+            <div class="ia-card">
+                <div class="ia-card-icon ia-icon-analise">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <h3>Análise Financeira</h3>
+                <p>Pergunte à IA: <em>"Quanto gastei com alimentação esse mês?"</em> ou <em>"Tenho como fazer uma reserva de R$ 500?"</em></p>
+            </div>
+
+            <div class="ia-card">
+                <div class="ia-card-icon ia-icon-provider">
+                    <i class="fas fa-plug"></i>
+                </div>
+                <h3>Multi-Provider IA</h3>
+                <p>Use a IA padrão do sistema ou conecte sua própria chave — compatível com <strong>ChatGPT</strong>, <strong>Gemini</strong> e <strong>Claude</strong>.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ================================================================
+     AVALIAÇÕES
+     ================================================================ -->
+<section class="reviews-section" id="avaliacoes">
+    <div class="section-container">
+        <div class="reviews-story-wrapper">
+            <div class="reviews-fixed-content">
+                <h2 class="story-title">Depoimentos <br><span class="text-blue">de quem usa</span></h2>
+                <p class="story-subtitle">
+                    Confiança que transforma a gestão. O que os usuários dizem após utilizar o <strong>Fin-Gerence</strong>:
+                </p>
+
+                <div class="reviews-summary">
+                    <div class="summary-score">
+                        <span id="average-rating">4.9</span>
+                        <div class="summary-stars">★★★★★</div>
                     </div>
+                    <p class="summary-text"><span id="total-reviews">27</span> avaliações de clientes</p>
                 </div>
-            </form>
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-action="cancelar">Cancelar</button>
-            <button type="submit" form="form-adicionar-usuario" class="btn btn-primary">Salvar</button>
-        </div>
-    </div>
-</div>
+            </div>
 
-<!-- Modal: Editar Usuário -->
-<div id="modal-editar-usuario" class="modal">
-    <div class="modal-content modal-md">
-        <div class="modal-header">
-            <h2 id="editar-usuario-titulo">Editar Usuário</h2>
-            <button type="button" class="close" title="Fechar">&times;</button>
-        </div>
-        <div class="modal-body">
-            <form id="form-editar-usuario">
-                <input type="hidden" id="editar-usuario-id">
-
-                <div class="form-group">
-                    <label for="editar-usuario-nome">Nome <span class="required">*</span></label>
-                    <input type="text" id="editar-usuario-nome" class="form-input" required maxlength="100">
-                </div>
-
-                <div class="form-group">
-                    <label for="editar-usuario-email">E-mail <span class="required">*</span></label>
-                    <input type="email" id="editar-usuario-email" class="form-input" required maxlength="100">
-                </div>
-
-                <div class="form-group">
-                    <label for="editar-usuario-documento">Documento (CPF/CNPJ) <span class="required">*</span></label>
-                    <input type="text" id="editar-usuario-documento" class="form-input" required maxlength="18" disabled>
-                    <small class="field-help">O documento não pode ser alterado após o cadastro</small>
-                </div>
-
-                <div id="form-group-tipo" class="form-group">
-                    <label for="editar-usuario-tipo">Tipo de Usuário</label>
-                    <select id="editar-usuario-tipo" class="form-control">
-                        <option value="padrao">Usuário Padrão</option>
-                        <option value="admin">Administrador</option>
-                        <option value="master">Master</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="editar-usuario-status">Status</label>
-                    <select id="editar-usuario-status" class="form-control">
-                        <option value="ativo">Ativo</option>
-                        <option value="inativo">Inativo</option>
-                        <option value="bloqueado">Bloqueado</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="editar-usuario-senha">Nova Senha</label>
-                    <input type="password" id="editar-usuario-senha" class="form-input" placeholder="Deixe em branco para manter a atual" minlength="6">
-                    <small class="field-help">Mínimo 6 caracteres</small>
-                </div>
-
-                <div class="form-group">
-                    <label for="editar-usuario-confirmar-senha">Confirmar Nova Senha</label>
-                    <input type="password" id="editar-usuario-confirmar-senha" class="form-input" placeholder="Confirme a nova senha">
-                </div>
-
-                <!-- Mensagem de permissão -->
-                <div id="permissao-message" class="alert-message hidden">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <span>Você só pode editar usuários do tipo Padrão</span>
-                </div>
-            </form>
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-action="cancelar">Cancelar</button>
-            <button type="submit" form="form-editar-usuario" class="btn btn-primary">Salvar</button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal: Confirmação de Exclusão de Usuário -->
-<div id="modal-confirmar-exclusao-usuario" class="modal">
-    <div class="modal-content modal-small">
-        <div class="modal-header">
-            <h2><i class="fas fa-exclamation-triangle"></i> Confirmar Exclusão</h2>
-            <button type="button" class="close" title="Fechar">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div class="confirmacao-exclusao">
-                <div class="warning-message">
-                    <i class="fas fa-user-times"></i>
-                    <p>Tem certeza que deseja excluir o usuário <strong id="usuario-nome-exclusao"></strong>?</p>
-                </div>
-                
-                <div class="alert-message">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <p><strong>ATENÇÃO:</strong> Todos os dados deste usuário serão perdidos permanentemente. Esta ação não pode ser desfeita.</p>
+            <div class="reviews-story-card">
+                <div class="story-progress-container" id="progress-bars"></div>
+                <div class="story-body">
+                    <div id="stars-container" class="stars-white"></div>
+                    <div class="quote-box">
+                        <p id="review-text">"Carregando a melhor experiência financeira..."</p>
+                    </div>
+                    <div class="story-footer">
+                        <span class="author-dash">—</span>
+                        <strong id="review-author">Aguarde</strong>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="modal-footer">
-            <button id="btn-cancelar-exclusao-usuario" class="btn btn-secondary">
-                Cancelar
-            </button>
-            <button id="btn-confirmar-exclusao-usuario" class="btn btn-danger">
-                <i class="fas fa-trash"></i> Sim, Excluir
+    </div>
+</section>
+
+<!-- ================================================================
+     COMO FUNCIONA
+     ================================================================ -->
+<section class="how-section" id="como-funciona">
+    <div class="section-container">
+        <div class="section-header">
+            <span class="section-badge">Como Funciona</span>
+            <h2 class="section-title">Simples, rápido e intuitivo</h2>
+            <p class="section-desc">Em poucos passos você tem o controle completo das suas finanças</p>
+        </div>
+
+        <div class="how-steps">
+            <div class="how-step">
+                <div class="step-number">01</div>
+                <div class="step-content">
+                    <h3>Crie sua conta</h3>
+                    <p>Cadastro gratuito em menos de 1 minuto. Basta nome, e-mail e senha.</p>
+                </div>
+            </div>
+            <div class="how-arrow"><i class="fas fa-arrow-right"></i></div>
+
+            <div class="how-step">
+                <div class="step-number">02</div>
+                <div class="step-content">
+                    <h3>Configure e personalize</h3>
+                    <p>Adicione seus cartões, categorias e conecte a IA de sua preferência.</p>
+                </div>
+            </div>
+            <div class="how-arrow"><i class="fas fa-arrow-right"></i></div>
+
+            <div class="how-step">
+                <div class="step-number">03</div>
+                <div class="step-content">
+                    <h3>Lance com IA e acompanhe</h3>
+                    <p>Use o chat, escaneie boletos ou importe extratos — seus relatórios atualizam em tempo real.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ================================================================
+     CTA FINAL
+     ================================================================ -->
+<section class="cta-section">
+    <div class="cta-container">
+        <h2>Pronto para organizar suas finanças?</h2>
+        <p>Crie sua conta gratuita e tenha controle total — com a ajuda da inteligência artificial.</p>
+        <div class="cta-buttons">
+            <button class="cta-btn-primary" id="btn-cta-cadastro">
+                <i class="fas fa-rocket"></i> Criar Conta Grátis
             </button>
         </div>
     </div>
+</section>
+
+<!-- ================================================================
+     FOOTER
+     ================================================================ -->
+<footer class="landing-footer">
+    <div class="footer-container">
+        <div class="footer-brand">
+            <div class="nav-logo">
+                <i class="fas fa-chart-line"></i>
+                <span>Fin-Gerence</span>
+            </div>
+            <p>Sistema de controle financeiro pessoal completo e inteligente.</p>
+        </div>
+
+        <div class="footer-links">
+            <span>Links Legais</span>
+            <a href="termoPrivacidade.html">Política de Privacidade</a>
+            <a href="termoPrivacidade.html#termos">Termos de Uso</a>
+            <a href="https://wa.me/5549999554856" target="_blank" rel="noopener noreferrer">
+                <i class="fab fa-whatsapp"></i> Suporte via WhatsApp
+            </a>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        <p>&copy; 2025 Fin-Gerence - Todos os direitos reservados</p>
+    </div>
+</footer>
+
+<!-- WhatsApp Button -->
+<div id="whatsapp-button">
+    <a href="https://wa.me/5549999554856" target="_blank" rel="noopener noreferrer">
+        <i class="fab fa-whatsapp"></i>
+    </a>
 </div>
 
-<!-- Modal: Feedback do Sistema -->
-<div id="modal-feedback-sistema" class="modal">
-    <div class="modal-content modal-small">
-        <div class="modal-header">
-            <h2 id="feedback-titulo">Mensagem do Sistema</h2>
-            <button type="button" class="close" title="Fechar">&times;</button>
+<!-- ================================================================
+     MODAIS — Cadastro, Recuperação de Senha, Nova Senha
+     ================================================================ -->
+<div id="recuperacaoSenhaModal" class="modal">
+    <div class="modal-content">
+        <span class="recuperacao-close">&times;</span>
+        <div id="recuperacao-error-message" class="error-message">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>Não foi possível encontrar uma conta com este e-mail.</span>
         </div>
-        <div class="modal-body">
-            <div id="feedback-conteudo" class="feedback-message">
-                <div id="feedback-icone" class="feedback-icon"></div>
-                <p id="feedback-texto">Mensagem</p>
+        <div id="recuperacao-success-message" class="success-message">
+            <i class="fas fa-check-circle"></i>
+            <span>E-mail de recuperação enviado! Verifique sua caixa de entrada e spam.</span>
+        </div>
+        <form id="form-recuperacao-senha">
+            <div class="form-group">
+                <label for="recuperacao-email">
+                    <i class="fas fa-envelope"></i> E-mail cadastrado
+                </label>
+                <input type="email" id="recuperacao-email" name="email" required
+                       placeholder="Digite seu e-mail" autocomplete="email">
             </div>
-        </div>
-        <div class="modal-footer">
-            <button id="btn-feedback-ok" class="btn btn-primary btn-block">OK</button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal: Alterar Senha -->
-<div id="modal-alterar-senha" class="modal">
-    <div class="modal-content modal-sm">
-        <div class="modal-header">
-            <h2><i class="fas fa-key"></i> Alterar Senha</h2>
-            <button type="button" class="close" title="Fechar">&times;</button>
-        </div>
-        <div class="modal-body">
-            <form id="form-alterar-senha">
-                <div class="form-group">
-                    <label for="senha-atual-modal">Senha Atual</label>
-                    <input type="password" id="senha-atual-modal" class="form-control" placeholder="Digite sua senha atual" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="senha-nova-modal">Nova Senha</label>
-                    <input type="password" id="senha-nova-modal" class="form-control" placeholder="Digite a nova senha" required minlength="6">
-                </div>
-
-                <div class="form-group">
-                    <label for="senha-confirmar-modal">Confirmar Nova Senha</label>
-                    <input type="password" id="senha-confirmar-modal" class="form-control" placeholder="Digite novamente a nova senha" required minlength="6">
-                </div>
-            </form>
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-action="cancelar">
-                Cancelar
+            <div id="campo-codigo-container" class="form-group" style="display: none;">
+                <label for="codigo-recuperacao">
+                    <i class="fas fa-shield-alt"></i> Código de verificação
+                </label>
+                <input type="text" id="codigo-recuperacao" name="codigo"
+                       placeholder="Digite o código recebido por email" maxlength="6">
+                <small>Verifique sua caixa de entrada e spam</small>
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-paper-plane"></i> <span>Enviar Código</span>
             </button>
-            <button type="submit" form="form-alterar-senha" class="btn btn-primary">Salvar</button>
-        </div>
-    </div>
-</div>
-
-<!-- ================================================== -->
-<!-- TEMPLATES PARA REUTILIZAÇÃO -->
-<!-- ================================================== -->
-
-<!-- Template: Linha de Categoria -->
-<template id="template-linha-categoria">
-    <tr class="categoria-row">
-        <td class="categoria-id"></td>
-        <td class="categoria-nome"></td>
-        <td class="categoria-data-criacao"></td>
-        <td class="categoria-data-edicao"></td>
-        <td class="categoria-favorito"></td>
-        <td class="categoria-status"></td>
-        <td class="categoria-acoes">
-            <div class="acoes-grupo">
-                <button class="btn btn-sm btn-editar-categoria" data-categoria-id="" title="Editar">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn btn-sm btn-toggle-categoria" data-categoria-id="" title="Desativar/Ativar">
-                    <i class="fas fa-ban"></i>
-                </button>
-                <button class="btn btn-sm btn-remover-categoria" data-categoria-id="" title="Excluir">
-                    <i class="fas fa-trash"></i>
-                </button>
+            <div class="login-footer">
+                <p>Lembrou sua senha? <a href="#" id="recuperacao-abrir-login">Voltar para o login</a></p>
             </div>
-        </td>
-    </tr>
-</template>
-
-<!-- Template: Linha de Usuário -->
-<template id="template-linha-usuario">
-    <tr class="usuario-row">
-        <td class="usuario-nome"></td>
-        <td class="usuario-documento"></td>
-        <td class="usuario-email"></td>
-        <td class="usuario-tipo">
-            <span class="tipo-badge"></span>
-        </td>
-        <td class="usuario-status">
-            <span class="status-badge"></span>
-        </td>
-        <td class="acoes-usuario">
-            <div class="acoes-grupo">
-                <button class="btn btn-sm btn-editar-usuario" data-index="" title="Editar usuário">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn btn-sm btn-bloquear-usuario" data-index="" title="Bloquear usuário">
-                    <i class="fas fa-ban"></i>
-                </button>
-                <button class="btn btn-sm btn-excluir-usuario" data-index="" title="Excluir usuário">
-                    <i class="fas fa-trash"></i>
-                </button>
-                <span class="texto-sem-permissao hidden">Sem permissão</span>
-            </div>
-        </td>
-    </tr>
-</template>
-
-<!-- Template: Badge de Tipo de Usuário -->
-<template id="template-tipo-badge">
-    <span class="tipo-badge tipo-padrao">Padrão</span>
-</template>
-
-<!-- Template: Badge de Status de Usuário -->
-<template id="template-status-badge">
-    <span class="status-badge status-ativo">Ativo</span>
-</template>
-
-<!-- Template: Mensagem de Status -->
-<template id="template-status-message">
-    <div class="status-message">
-        <i class="status-icon"></i>
-        <span class="status-text"></span>
-    </div>
-</template>
-
-<!-- Template: Mensagem de Validação -->
-<template id="template-validation-message">
-    <div class="validation-message">
-        <i class="validation-icon"></i>
-        <span class="validation-text"></span>
-    </div>
-</template>
-
-<!-- ======================================================== -->
-<!-- TELA DE BLOQUEIO -->
-<!-- ======================================================== -->
-<div id="lock-screen-overlay" class="lock-screen-overlay"></div>
-<div id="modal-lock-screen" class="modal">
-    <div class="lock-card">
-        <div class="lock-icon-wrap">
-            <i class="fas fa-lock"></i>
-        </div>
-        <div class="lock-title">Sistema Bloqueado</div>
-        <div class="lock-subtitle">Digite sua senha para continuar</div>
-        <form id="form-lock-screen">
-            <div class="lock-input-wrap">
-                <i class="fas fa-key lock-input-icon"></i>
-                <input type="password" id="lock-screen-password" placeholder="Sua senha" required>
-            </div>
-            <button type="submit" class="lock-btn">
-                <i class="fas fa-unlock-alt"></i> Desbloquear
-            </button>
         </form>
     </div>
 </div>
 
-<!--======================================================== -->
-<!-- MODAL: CRIAÇÃO DE ANO FINANCEIRO -->
-<!-- ======================================================== -->
-<div id="modal-novo-ano" class="modal">
-    <div class="modal-content modal-sm">
-        <div class="modal-header">
-            <h2>Criar Novo Ano Financeiro</h2>
-            <button type="button" class="close" data-modal="modal-novo-ano" title="Fechar">&times;</button>
+<div id="novaSenhaModal" class="modal">
+    <div class="modal-content">
+        <span class="nova-senha-close">&times;</span>
+        <div id="nova-senha-error-message" class="error-message">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>As senhas não coincidem ou não atendem aos requisitos.</span>
         </div>
-        <div class="modal-body">
-            <form id="form-novo-ano" onsubmit="handleCriarNovoAno(event)">
-                <div class="form-group">
-                    <label for="ano">Ano:</label>
-                    <input type="number" id="ano" min="2000" max="2100" required>
-                </div>
-                <div class="form-group">
-                    <label for="receita-mensal">Receita Mensal Padrão:</label>
-                    <input type="number" id="receita-mensal" min="0" step="0.01" placeholder="0.00">
-                </div>
-            </form>
+        <div id="nova-senha-success-message" class="success-message">
+            <i class="fas fa-check-circle"></i>
+            <span>Senha alterada com sucesso! Você já pode fazer login.</span>
         </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-action="cancelar">
-                Cancelar
-            </button>
-            <button type="submit" form="form-novo-ano" class="btn btn-primary">
-                <i class="fas fa-save"></i> Criar
-            </button>
-        </div>
-    </div>
-</div>
-
-
-<!-- ======================================================== -->
-<!-- MODAL: FECHAMENTO AUTOMÁTICO -->
-<!-- Notifica quando um mês é fechado automaticamente -->
-<!-- ======================================================== -->
-<div id="modal-notificacao-fechamento" class="notificacao-fechamento hidden">
-    <div class="notificacao-content">
-        <div class="notificacao-icon">🔒</div>
-        <div class="notificacao-texto">
-            <strong id="notificacao-titulo">Mês fechado automaticamente</strong>
-            <small id="notificacao-saldo">Saldo transferido: R$ 0,00</small>
-        </div>
-        <button type="button" class="notificacao-close" title="Fechar">&times;</button>
-    </div>
-</div>
-
-<!-- ======================================================== -->
-<!-- MODAL: DETALHES MENSAIS -->
-<!-- ======================================================== -->
-<div id="modal-detalhes-mes" class="modal">
-    <div class="modal-content modal-lg">
-        <div class="modal-header">
-            <h2 id="detalhes-mes-titulo">Detalhes do Mês</h2>
-            <div class="header-navigation">
-                <button id="btn-ia-detalhes-mes" class="btn btn-primary btn-ia-contexto" title="Abrir Gen"><i class="fas fa-robot"></i> Gen</button>
-                <button id="btn-mes-anterior" class="btn btn-navegacao-mes">Anterior</button>
-                <button id="btn-mes-proximo" class="btn btn-navegacao-mes">Próximo</button>
-            </div>
-            <button type="button" class="close" title="Fechar">&times;</button>
-        </div>
-        <div class="modal-body">
-           <!-- TOOLBAR UNIFICADA -->
-           <div class="tabs-toolbar">
-                <!-- Lado esquerdo: Ações -->
-                <div class="toolbar-esquerda">
-                    <div class="toolbar-acoes">
-                        <button id="btn-nova-despesa-toolbar" class="btn btn-danger btn-sm" title="Nova Despesa">
-                            <i class="fas fa-plus"></i> Despesa
-                        </button>
-                        <button id="btn-nova-receita-toolbar" class="btn btn-success btn-sm" title="Nova Receita">
-                            <i class="fas fa-plus"></i> Receita
-                        </button>
-                        <button id="btn-pagar-lote-toolbar" class="btn btn-secondary btn-sm" disabled title="Pagar em Lote">
-                            <i class="fas fa-check-circle"></i> Lote
-                        </button>
-                        <button id="btn-reservas-toolbar" class="btn btn-secondary btn-sm" title="Reservas">
-                            <i class="fas fa-piggy-bank"></i>
-                        </button>
-                        <span class="toolbar-divider"></span>
-                    </div>
-                </div>
-
-                <!-- Lado direito: Filtros e Informações -->
-                <div class="toolbar-direita">
-                    <select id="filtro-tipo-toolbar" class="form-control form-control-sm">
-                        <option value="todos">Todos</option>
-                        <option value="despesa">Despesas</option>
-                        <option value="receita">Receitas</option>
-                    </select>
-                    <select id="filtro-categoria-toolbar" class="form-control form-control-sm">
-                        <option value="todas">Categorias</option>
-                    </select>
-                    <select id="filtro-forma-pagamento-toolbar" class="form-control form-control-sm">
-                        <option value="todas">Pagamento</option>
-                    </select>
-                    <select id="filtro-status-toolbar" class="form-control form-control-sm">
-                        <option value="todas">Status</option>
-                        <option value="em_dia">Em Dia</option>
-                        <option value="atrasada">Atrasadas</option>
-                        <option value="pagas">Pagas</option>
-                        <option value="pendentes">Pendentes</option>
-                    </select>
-                    <button id="btn-limpar-filtros-toolbar" class="btn btn-secondary btn-sm" title="Limpar Filtros">
-                        <i class="fas fa-eraser"></i>
+        <form id="form-nova-senha">
+            <input type="hidden" id="email-nova-senha" name="email">
+            <div class="form-group">
+                <label for="nova-senha"><i class="fas fa-key"></i> Nova senha</label>
+                <div class="password-input">
+                    <input type="password" id="nova-senha" name="password" required minlength="6"
+                           placeholder="Digite sua nova senha" autocomplete="new-password">
+                    <button type="button" class="password-toggle" data-target="nova-senha">
+                        <i class="fas fa-eye"></i>
                     </button>
-                    <span id="saldo-anterior-toolbar" class="toolbar-contador toolbar-saldo-anterior hidden" title="Saldo do mês anterior"></span>
-                    <span id="contador-despesas-toolbar" class="toolbar-contador">0 itens</span>
-                    <span id="total-despesas-toolbar" class="toolbar-contador toolbar-total">R$ 0,00</span>
+                </div>
+                <div class="password-strength">
+                    <div class="strength-bar"><div class="strength-fill"></div></div>
+                    <small class="strength-text">Mínimo de 6 caracteres</small>
                 </div>
             </div>
-
-            <!-- Painel de Indicadores -->
-            <div id="limites-cartoes-container" class="limites-cartoes-container">
-                <h3 class="indicadores-toggle collapsed" id="indicadores-toggle">
-                    <i class="fas fa-chart-bar"></i> Indicadores
-                    <i class="fas fa-chevron-down indicadores-seta"></i>
-                </h3>
-                <div class="lista-barras-vertical collapsed" id="indicadores-conteudo">
-                    <!-- Barra Receitas vs Despesas -->
-                    <div class="cartao-limite-item" id="barra-receitas-despesas">
-                        <div class="cartao-info-header">
-                            <span class="cartao-nome">RECEITAS x DESPESAS</span>
-                            <div class="cartao-valores">
-                                <span class="valor-usado" id="barra-rd-despesas">R$ 0,00</span>
-                                <span class="separador">/</span>
-                                <span class="valor-limite" id="barra-rd-receitas">R$ 0,00</span>
-                            </div>
-                        </div>
-                        <div class="cartao-barra-progresso">
-                            <div class="barra-fundo">
-                                <div class="barra-preenchida status-ok" id="barra-rd-progresso" style="width: 0%"></div>
-                            </div>
-                            <div class="cartao-percentual">
-                                <span class="percentual-texto" id="barra-rd-percentual">0% usado</span>
-                                <span class="disponivel-texto">Disponível: <span id="barra-rd-disponivel">R$ 0,00</span></span>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Barras de Cartões -->
-                    <div id="lista-barras-cartoes" class="lista-barras-cartoes">
-                    </div>
+            <div class="form-group">
+                <label for="confirmar-nova-senha"><i class="fas fa-key"></i> Confirme a nova senha</label>
+                <div class="password-input">
+                    <input type="password" id="confirmar-nova-senha" name="confirm-password" required
+                           placeholder="Confirme sua nova senha" autocomplete="new-password">
+                    <button type="button" class="password-toggle" data-target="confirmar-nova-senha">
+                        <i class="fas fa-eye"></i>
+                    </button>
                 </div>
             </div>
-
-            <!-- TABELA UNIFICADA -->
-            <div id="tab-despesas">
-                <!-- Conteúdo gerado dinamicamente pelo despesas.js -->
-            </div>
-
-        </div>
+            <button type="submit" class="btn btn-primary"><span>Salvar Nova Senha</span></button>
+        </form>
     </div>
 </div>
 
-
-<template id="template-reserva-mini">
-    <div class="reserva-mini-item">
-        <div class="reserva-icon">
-            <i class="fas fa-lock"></i>
+<div id="cadastroModal" class="modal">
+    <div class="modal-content">
+        <span class="cadastro-close">&times;</span>
+        <div id="cadastro-error-message" class="error-message">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>Erro no cadastro. Verifique os dados e tente novamente.</span>
         </div>
-        <div class="reserva-info">
-            <span class="reserva-descricao"></span>
-            <span class="reserva-data-mini"></span>
+        <div id="cadastro-success-message" class="success-message">
+            <i class="fas fa-check-circle"></i>
+            <span>Cadastro realizado com sucesso! Você já pode fazer login.</span>
         </div>
-        <span class="reserva-valor-mini"></span>
-        <button class="btn btn-remover-reserva-mini" title="Remover reserva">
-            <i class="fas fa-times"></i>
-        </button>
-    </div>
-</template>
-
-        </div>
-      </div>
-    </div>
-
-
-<!-- ======================================================== -->
-<!-- TEMPLATES -->
-<!-- ======================================================== -->
-
-
-<!-- ======================================================== -->
-<!-- MODAL: CADASTRO DE RECEITAS -->
-<!-- ======================================================== -->
-<div id="modal-nova-receita" class="modal modal-nova-receita">
-    <div class="modal-content modal-md">
-        <div class="modal-header">
-             <button id="btn-ia-nova-receita" class="btn btn-primary btn-ia-contexto" title="Abrir Gen"><i class="fas fa-robot"></i> Gen</button>
-            <h2>Nova Receita</h2>
-            <button type="button" class="close" title="Fechar">&times;</button>
-        </div>
-        <div class="modal-body">
-            <form id="form-nova-receita">
-                <input type="hidden" id="receita-id">
-                
-                <div class="form-group form-group-full">
-                    <label for="receita-descricao">Descrição:</label>
-                    <div class="descricao-anexos-container">
-                        <input type="text" id="receita-descricao" placeholder="Descrição" required>
-                        <button type="button" id="btn-anexar-receita" class="btn btn-anexar">
-                            <i class="fas fa-paperclip"></i>Anexos</button>
-                    </div>
-                </div>
-                
-                <div id="lista-anexos-receita" class="lista-anexos-container">
-                    <!-- Anexos serão inseridos aqui -->
-                </div>
-                
-                <div class="form-row-grid">
-                    <div class="form-group campo-valor">
-                        <label for="receita-valor">Valor:</label>
-                        <input type="number" id="receita-valor" min="0.01" step="0.01" placeholder="0,00" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="receita-data">Data de Registro:</label>
-                        <input type="date" id="receita-data" required>
-                        <span id="receita-mes-indicador" class="data-mes-indicador"></span>
-                    </div>
-                </div>
-                
-                <div id="opcoes-parcelamento-receita" class="hidden">
-                    <div class="form-group">
-                        <label for="receita-parcelas">Número de Parcelas:</label>
-                        <input type="number" id="receita-parcelas" min="2" max="36" value="2" placeholder="Número de Parcelas">
-                    </div>
-                </div>
-                
-                <div class="checkboxes-inline">
-                    <label class="checkbox-inline">
-                        <input type="checkbox" id="receita-replicar" onchange="toggleReplicarReceita()">
-                        Replicar até
-                    </label>
-                    <div id="opcoes-replicacao-detalhes" class="replicar-options hidden">
-                        <select id="replicar-ate-mes" class="form-control form-control-sm">
-                            <option value="0">Janeiro</option>
-                            <option value="1">Fevereiro</option>
-                            <option value="2">Março</option>
-                            <option value="3">Abril</option>
-                            <option value="4">Maio</option>
-                            <option value="5">Junho</option>
-                            <option value="6">Julho</option>
-                            <option value="7">Agosto</option>
-                            <option value="8">Setembro</option>
-                            <option value="9">Outubro</option>
-                            <option value="10">Novembro</option>
-                            <option value="11">Dezembro</option>
-                        </select>
-                        <select id="replicar-ate-ano" class="form-control form-control-sm"></select>
-                    </div>
-                </div>
-
-                <div class="modal-footer">
-                    <button type="submit" class="btn btn-salvar-transacao">Salvar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- ======================================================== -->
-<!-- MODAL: EXCLUSÃO DE RECEITAS -->
-<!-- ======================================================== -->
-<div id="modal-exclusao-receita" class="modal">
-    <div class="modal-content modal-sm">
-        <div class="modal-header">
-            <h2>Excluir receita</h2>
-            <button type="button" class="close" title="Fechar">&times;</button>
-        </div>
-        <div class="modal-body">
-            <p>Como deseja excluir esta receita?</p>
-        </div>
-        <div class="modal-footer">
-            <button id="btn-excluir-atual" class="btn btn-secondary">
-                <i class="fas fa-times"></i> Excluir apenas esta receita
-            </button>
-            <button id="btn-excluir-todas" class="btn btn-danger">
-                <i class="fas fa-trash"></i> Excluir todas com esta descrição
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- ======================================================== -->
-<!-- MODAIS DE ANEXOS -->
-<!-- ======================================================== -->
-
-<!-- Modal: Visualizar anexos da receita -->
-<div id="modal-anexos-receita" class="modal">
-    <div class="modal-content modal-md">
-        <div class="modal-header">
-            <h2>Anexos da Receita</h2>
-            <button type="button" class="close" title="Fechar">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div id="lista-anexos-visualizar" class="lista-anexos-visualizar">
-                <!-- Anexos para download serão inseridos aqui -->
+        <form id="form-cadastro">
+            <div class="form-group">
+                <label for="cadastro-nome"><i class="fas fa-user"></i> Nome completo</label>
+                <input type="text" id="cadastro-nome" name="nome" required placeholder="Digite seu nome completo" autocomplete="name">
             </div>
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary close">
-                <i class="fas fa-times"></i> Fechar
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal Reservas -->
-<div id="modal-reservar-valor" class="modal">
-    <div class="modal-content modal-reservas">
-        <div class="modal-header">
-            <h2><i class="fas fa-piggy-bank"></i> Reservas</h2>
-            <button type="button" class="close" title="Fechar">&times;</button>
-        </div>
-        <div class="modal-body">
-            <!-- Totalizador -->
-            <div class="reservas-totalizador">
-                <div class="totalizador-item">
-                    <span class="totalizador-label">Total Reservado</span>
-                    <span class="totalizador-valor" id="total-reservado">R$ 0,00</span>
+            <div class="form-group">
+                <label for="cadastro-email"><i class="fas fa-envelope"></i> E-mail</label>
+                <input type="email" id="cadastro-email" name="email" required placeholder="Digite seu e-mail" autocomplete="email">
+            </div>
+            <div class="form-group">
+                <label for="cadastro-documento"><i class="fas fa-id-card"></i> CPF/CNPJ</label>
+                <input type="text" id="cadastro-documento" name="documento" required placeholder="Digite seu CPF ou CNPJ" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="cadastro-password"><i class="fas fa-lock"></i> Senha</label>
+                <div class="password-input">
+                    <input type="password" id="cadastro-password" name="password" required minlength="6" placeholder="Digite sua senha" autocomplete="new-password">
+                    <button type="button" class="password-toggle" data-target="cadastro-password">
+                        <i class="fas fa-eye"></i>
+                    </button>
                 </div>
-                <div class="totalizador-item disponivel">
-                    <span class="totalizador-label">Saldo Atual Mês</span>
-                    <span class="totalizador-valor" id="saldo-atual-mes-reservas">R$ 0,00</span>
+                <div class="password-strength">
+                    <div class="strength-bar"><div class="strength-fill"></div></div>
+                    <small class="strength-text">Mínimo de 6 caracteres</small>
                 </div>
             </div>
-
-            <!-- Lista de Reservas com campo inline para +/- valor -->
-            <div class="reservas-lista-simples" id="lista-reservas">
-                <!-- Reservas serão inseridas aqui -->
-            </div>
-
-            <!-- Nova Reserva -->
-            <div class="nova-reserva-inline">
-                <input type="text" id="input-descricao-reserva" class="form-control" placeholder="Nome da reserva" maxlength="50">
-                <input type="number" id="input-valor-reserva" class="form-control" placeholder="Valor" step="0.01" min="0.01">
-                <button type="button" id="btn-adicionar-reserva" class="btn btn-success" title="Criar reserva">
-                    <i class="fas fa-plus"></i>
-                </button>
-            </div>
-
-            <!-- Histórico Geral -->
-            <div class="historico-geral-container collapsed" id="historico-geral-container">
-                <h4 id="historico-geral-toggle"><i class="fas fa-history"></i> Histórico<i class="fas fa-chevron-right seta-historico"></i></h4>
-                <div class="historico-geral-lista" id="historico-geral-reservas">
-                    <div class="historico-vazio">Nenhuma movimentação</div>
+            <div class="form-group">
+                <label for="cadastro-confirm-password"><i class="fas fa-lock"></i> Confirme a senha</label>
+                <div class="password-input">
+                    <input type="password" id="cadastro-confirm-password" name="confirm-password" required placeholder="Confirme sua senha" autocomplete="new-password">
+                    <button type="button" class="password-toggle" data-target="cadastro-confirm-password">
+                        <i class="fas fa-eye"></i>
+                    </button>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
-
-<!-- Templates para anexos -->
-<template id="template-anexo-item">
-    <div class="anexo-item">
-        <div class="anexo-info">
-            <i class="anexo-icone"></i>
-            <span class="anexo-nome"></span>
-        </div>
-        <button class="btn btn-remover-anexo" data-anexo-id="">
-            <i class="fas fa-times"></i>
-        </button>
-    </div>
-</template>
-
-<template id="template-anexo-download">
-    <div class="anexo-download-item">
-        <div class="anexo-info">
-            <i class="anexo-icone"></i>
-            <span class="anexo-nome"></span>
-        </div>
-        <button class="btn btn-download-anexo" data-anexo-id="">
-            <i class="fas fa-download"></i>
-        </button>
-    </div>
-</template>
-
-
-
-
-
-<!-- Input oculto para seleção de arquivos de anexos nos cards -->
-<input type="file" id="input-file-card-despesa" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.xls,.xlsx,.doc,.docx,.txt" style="display:none">
-
-<div id="modal-lancamento-despesas" class="modal">
-   <div class="modal-content modal-lancamento">
-       <div class="modal-header">
-          <button id="btn-ia-lancamento" class="btn btn-primary btn-ia-contexto" title="Abrir Gen">
-                        <i class="fas fa-robot"></i> Gen</button>
-           <h2><i class="fas fa-receipt"></i> Lançar Despesas</h2>
-          
-           <button type="button" class="close" data-modal="modal-lancamento-despesas" title="Fechar">&times;</button>
-       </div>
-       <div class="modal-body modal-lancamento-body">
-           <div id="despesa-cards-container" class="despesa-cards-container">
-               <!-- Cards gerados dinamicamente pelo JS -->
-           </div>
-       </div>
-       <div class="modal-footer modal-lancamento-footer">
-           <button type="button" id="btn-nova-categoria-lancamento" class="btn btn-primary btn-sm">
-               <i class="fas fa-plus"></i> Nova Categoria
-           </button>
-           <button type="button" id="btn-adicionar-despesa-card" class="btn btn-secondary btn-sm">
-               <i class="fas fa-plus"></i> Adicionar Despesa
-           </button>
-           <button type="button" id="btn-salvar-todas" class="btn btn-primary btn-salvar-lancamento">
-               Salvar
-           </button>
-       </div>
-   </div>
-</div>
-
-
-
-<template id="template-estrutura-despesas-grid">
-    <div id="despesas-grid-container" class="tabela-despesas-container">
-        <table class="tabela-despesas" id="tabela-despesas">
-            <thead>
-                <tr>
-                    <th class="col-checkbox"><input type="checkbox" id="select-all-despesas" onchange="toggleTodasDespesas(this)"></th>
-                    <th class="col-numero">ID</th>
-                    <th class="col-descricao">Descrição</th>
-                    <th class="col-categoria">Categoria</th>
-                    <th class="col-forma-pagamento">Método</th>
-                    <th class="col-valor">Valor</th>
-                    <th class="col-parcela">Parcela</th>
-                    <th class="col-valor-pago">Valor Pago</th>
-                    <th class="col-status">Status</th>
-                    <th class="col-compra">Compra</th>
-                    <th class="col-vencimento">Vencimento</th>
-                    <th class="col-data-pagamento">Pagamento</th>
-                    <th class="col-acoes">Ações</th>
-                    <th class="col-anexos">Anexos</th>
-                </tr>
-            </thead>
-            <tbody id="lista-despesas">
-                <!-- Linhas serão inseridas aqui -->
-            </tbody>
-        </table>
-    </div>
-</template>
-
-<template id="template-linha-despesa-grid">
-    <tr class="despesa-row">
-        <td class="col-checkbox"></td>
-        <td class="col-numero"></td>
-        <td class="col-descricao"></td>
-        <td class="col-categoria"></td>
-        <td class="col-forma-pagamento"></td>
-        <td class="col-valor"></td>
-        <td class="col-parcela"></td>
-        <td class="col-valor-pago"></td>
-        <td class="col-status"></td>
-        <td class="col-compra"></td>
-        <td class="col-vencimento"></td>
-        <td class="col-data-pagamento"></td>
-        <td class="col-acoes"></td>
-        <td class="col-anexos">
-            <div class="acoes-grupo">
-                <button class="btn btn-sm btn-anexos" data-index="" title="Ver anexos">
-                    <i class="fas fa-paperclip"></i>
-                    <span class="contador-anexos">0</span>
-                </button>
+            <button type="submit" class="btn btn-primary"><span>Criar Conta</span></button>
+            <div class="login-footer">
+                <p>Já tem uma conta? <a href="#" id="cadastro-abrir-login">Faça login</a></p>
             </div>
-        </td>
-    </tr>
-</template>
-
-<template id="template-botoes-acao-despesa">
-    <div class="acoes-grupo">
-        <button class="btn btn-sm btn-editar" title="Editar">
-            <i class="fas fa-edit"></i>
-        </button>
-        <button class="btn btn-sm btn-excluir" title="Excluir">
-            <i class="fas fa-trash"></i>
-        </button>
-        <button class="btn btn-sm btn-pagar" title="Pagar">
-            <i class="fas fa-check"></i>
-        </button>
-        <button class="btn btn-sm btn-mover" title="Mover para próximo mês">
-            <i class="fas fa-arrow-right"></i>
-        </button>
+        </form>
     </div>
-</template>
-
-<template id="template-valor-com-juros">
-    <div class="valor-com-juros">
-        <span class="valor-original"></span>
-        <span class="valor-juros"></span>
-    </div>
-</template>
-
-<template id="template-badge-forma-pagamento-despesa">
-    <span class="badge-pagamento debito">DÉBITO</span>
-</template>
-
-<template id="template-badge-status-despesa">
-    <span class="badge-status badge-em-dia">EM DIA</span>
-</template>
-
-<template id="template-celula-checkbox-despesa">
-    <input type="checkbox" class="despesa-checkbox">
-</template>
-
-<!-- Templates para anexos -->
-<template id="template-botao-anexos-com-anexos">
-    <button class="btn btn-sm btn-anexos" data-index="" title="">
-        <i class="fas fa-paperclip"></i>
-        <span class="contador-anexos"></span>
-    </button>
-</template>
-
-<template id="template-botao-anexos-sem-anexos">
-    <button class="btn btn-sm btn-anexos btn-anexos-vazio" data-index="" title="Nenhum anexo">
-        <i class="fas fa-paperclip"></i>
-        <span class="contador-anexos">0</span>
-    </button>
-</template>
-
-
-<!-- ======================================================== -->
-<!-- MODAL: CONFIRMAÇÃO DE EXCLUSÃO DE DESPESAS -->
-<!-- ======================================================== -->
-<div id="modal-confirmacao-exclusao-despesa" class="modal">
-   <div class="modal-content modal-sm">
-       <div class="modal-header">
-           <h2 id="exclusao-titulo">Excluir item parcelado</h2>
-           <button type="button" class="close" data-action="fechar-modal-exclusao" title="Fechar">&times;</button>
-       </div>
-       <div class="modal-body">
-           <p id="exclusao-mensagem">Este item está parcelado. Como deseja prosseguir?</p>
-       </div>
-       <div class="modal-footer modal-footer-exclusao-despesa">
-           <button id="btn-excluir-todos-meses" class="btn btn-danger opcao-exclusao-basica">
-               <i class="fas fa-trash"></i> Excluir Despesa
-           </button>
-           <button id="btn-excluir-parcela-atual" class="btn btn-secondary opcao-exclusao-parcelada">
-               <i class="fas fa-times"></i> Excluir apenas esta parcela
-           </button>
-           <button id="btn-excluir-parcelas-futuras" class="btn btn-secondary opcao-exclusao-parcelada">
-               <i class="fas fa-arrow-right"></i> Excluir esta e parcelas futuras
-           </button>
-           <button id="btn-excluir-todas-parcelas" class="btn btn-danger opcao-exclusao-parcelada">
-               <i class="fas fa-trash"></i> Excluir todas as parcelas
-           </button>
-           <button id="btn-excluir-recorrente-atual" class="btn btn-secondary opcao-exclusao-recorrente">
-               <i class="fas fa-times"></i> Excluir apenas esta
-           </button>
-           <button id="btn-excluir-recorrente-futuras" class="btn btn-secondary opcao-exclusao-recorrente">
-               <i class="fas fa-arrow-right"></i> Excluir esta e futuras
-           </button>
-           <button id="btn-excluir-recorrente-todas" class="btn btn-danger opcao-exclusao-recorrente">
-               <i class="fas fa-trash"></i> Excluir todas
-           </button>
-       </div>
-   </div>
 </div>
 
+<div id="pwa-overlay"></div>
 
-<!-- ======================================================== -->
-<!-- MODAL: PAGAMENTO INDIVIDUAL -->
-<!-- ======================================================== -->
-<div id="modal-pagamento-individual" class="modal">
-  <div class="modal-content modal-md">
-      <div class="modal-header">
-          <h2>Pagar Despesa</h2>
-          <button type="button" class="close" title="Fechar">&times;</button>
-      </div>
-      <div class="modal-body">
-          <div id="info-despesa-pagamento" class="info-despesa-container-compact">
-              <div class="info-row">
-                  <span class="info-label">Descrição:</span>
-                  <span class="info-valor" id="pagamento-descricao">-</span>
-              </div>
-              <div class="info-row">
-                  <span class="info-label">Categoria:</span>
-                  <span class="info-valor" id="pagamento-categoria">-</span>
-              </div>
-              <div class="info-row" id="pagamento-forma-container">
-                  <span class="info-label">Forma:</span>
-                  <span class="info-valor" id="pagamento-forma">-</span>
-              </div>
-              <div class="info-row">
-                  <span class="info-label">Valor Original:</span>
-                  <span class="info-valor" id="pagamento-valor-original">R$ 0,00</span>
-              </div>
-          </div>
-
-          <form id="form-pagamento-individual">
-              <div class="form-row-inline">
-                  <div class="form-group" style="flex: 1;">
-                      <label for="valor-pago-individual">Valor Pago:</label>
-                      <input type="number" id="valor-pago-individual" class="form-control" step="0.01" min="0" oninput="calcularDiferencaPagamento()">
-                  </div>
-                  <div class="form-group" style="width: 180px; margin-left: 10px;">
-                      <label>&nbsp;</label>
-                      <button type="button" id="btn-anexar-comprovante" class="btn btn-anexar">
-                          <i class="fas fa-paperclip"></i>Comprovante</button>
-                  </div>
-              </div>
-
-              <div id="diferenca-pagamento-info" class="diferenca-info hidden">
-                  <span id="diferenca-texto"></span>
-              </div>
-
-              <div id="lista-comprovantes" class="lista-anexos-container">
-                  <!-- Comprovantes serão inseridos aqui -->
-              </div>
-
-              <div class="form-group">
-                <label for="data-pagamento-individual">Data do Pagamento:</label>
-                <input type="date" id="data-pagamento-individual" class="form-control">
-              </div>
-
-              <div class="form-group">
-                  <div class="checkbox-row">
-                      <input type="checkbox" id="despesa-quitado-individual">
-                      <label for="despesa-quitado-individual">Despesa Quitada</label>
-                  </div>
-                  <div id="info-parcelas-futuras" class="info-texto hidden">
-                      Quando marcado, todas as parcelas futuras serão marcadas como pagas e seus valores zerados.
-                  </div>
-              </div>
-          </form>
-      </div>
-      <div class="modal-footer">
-          <button type="button" class="btn btn-secondary close">
-              Cancelar
-          </button>
-          <button type="submit" form="form-pagamento-individual" class="btn btn-primary">
-              <i class="fas fa-check"></i> Confirmar Pagamento
-          </button>
-      </div>
-  </div>
-</div>
-
-<!-- ======================================================== -->
-<!-- MODAL: PAGAMENTO EM LOTE -->
-<!-- ======================================================== -->
-<div id="modal-pagamento-lote-despesas" class="modal">
-   <div class="modal-content modal-md">
-       <div class="modal-header">
-           <h2>Pagar Despesas em Lote</h2>
-           <button type="button" class="close" title="Fechar">&times;</button>
-       </div>
-       <div class="modal-body">
-           <div class="info-container">
-               <p id="lote-contagem-despesas">Você está prestes a pagar despesas em lote.</p>
-               <p class="info-texto">O pagamento em lote afeta apenas as despesas do mês atual.</p>
-           </div>
-           <div class="form-group">
-                <label for="data-pagamento-lote">Data do Pagamento (para todas):</label>
-                <input type="date" id="data-pagamento-lote" class="form-control">
+<div id="pwa-install-banner">
+    <img src="icons/financeiro.png" alt="Fin-Gerence Logo" class="pwa-modal-logo">
+    <div class="pwa-modal-body">
+        <h3 class="pwa-modal-title">Instalar Fin-Gerence</h3>
+        <p class="pwa-modal-desc">Acesse suas finanças com um toque pela tela inicial e ganhe agilidade no dia a dia.</p>
+    </div>
+    <div id="pwa-android-actions" style="display: none;">
+        <button id="btn-install-pwa" class="pwa-btn-main">Baixar Agora</button>
+        <button id="btn-pwa-dispensar" class="pwa-btn-link">Agora não</button>
+    </div>
+    <div id="pwa-ios-instructions" style="display: none;">
+        <div class="pwa-ios-card">
+            <div class="pwa-ios-step-item">
+                <span class="step-icon">
+                    <img src="https://img.icons8.com/ios/100/6366f1/upload--v1.png" alt="Compartilhar">
+                </span>
+                <p>1. Toque em <strong>Compartilhar</strong> na barra inferior.</p>
             </div>
-       </div>
-       <div class="modal-footer">
-           <button type="button" class="btn btn-secondary close">
-               Cancelar
-           </button>
-           <button id="btn-pagar-valor-original" class="btn">
-               <i class="fas fa-check"></i> Pagar com valores originais
-           </button>
-           <button id="btn-pagar-com-valor-personalizado" class="btn">
-               <i class="fas fa-edit"></i> Personalizar valores
-           </button>
-       </div>
-   </div>
-</div>
-
-<!-- ======================================================== -->
-<!-- MODAL: VALORES PERSONALIZADOS -->
-<!-- ======================================================== -->
-<div id="modal-valores-personalizados-despesas" class="modal">
-   <div class="modal-content modal-lg">
-       <div class="modal-header">
-           <h2>Personalizar Valores de Pagamento</h2>
-           <button type="button" class="close" title="Fechar">&times;</button>
-       </div>
-       
-       <div class="modal-body">
-           <p>Defina os valores a serem pagos para cada despesa:</p>
-           <div class="tabela-container">
-               <table class="tabela-valores-personalizados">
-                   <thead>
-                       <tr>
-                           <th>Descrição</th>
-                           <th>Categoria</th>
-                           <th>Forma Pagamento</th>
-                           <th>Valor Original</th>
-                           <th>Valor a Pagar</th>
-                       </tr>
-                   </thead>
-                   <tbody id="valores-personalizados-body"></tbody>
-               </table>
-           </div>
-       </div>
-       <div class="modal-footer">
-           <button type="button" class="btn btn-secondary close">
-               Cancelar
-           </button>
-           <button id="btn-confirmar-valores" class="btn btn-primary">
-               <i class="fas fa-check"></i> Confirmar Pagamento
-           </button>
-       </div>
-   </div>
-</div>
-
-<!-- ======================================================== -->
-<!-- TEMPLATES -->
-<!-- ======================================================== -->
-<template id="template-linha-valor-personalizado">
-   <tr>
-       <td class="despesa-descricao">-</td>
-       <td class="despesa-categoria">-</td>
-       <td class="despesa-forma-pagamento">
-           <span class="badge-pagamento">-</span>
-       </td>
-       <td class="despesa-valor-original">R$ 0,00</td>
-       <td>
-           <input type="number" class="input-valor-pago" min="0" step="0.01" data-index="">
-       </td>
-   </tr>
-</template>
-
-
-<!-- ================================================================ -->
-<!-- TEMPLATES DE MENSAGENS E STATUS (OCULTOS) -->
-<!-- ================================================================ -->
-<div id="ui-templates" style="display: none;">
-    
-    <!-- Mensagens de Status do Mês -->
-    <div id="template-status-mes-fechado">
-        <i class="fas fa-lock"></i> <strong>Mês fechado</strong> - não é possível editar transações
-    </div>
-    
-    <div id="template-status-mes-ativo">
-        <i class="fas fa-edit"></i> <strong>Mês ativo</strong> - você pode fechar quando quiser
-    </div>
-    
-    <div id="template-status-mes-vazio">
-        <i class="fas fa-plus-circle"></i> Adicione receitas ou despesas para poder fechar o mês
-    </div>
-    
-    <!-- Botões de Controle do Mês -->
-    <div id="template-btn-reabrir">
-        <button id="btn-reabrir-mes" class="btn btn-warning">
-            <i class="fas fa-unlock"></i> Reabrir Mês
-        </button>
-    </div>
-    
-    <div id="template-btn-fechar">
-        <button id="btn-fechar-mes" class="btn btn-primary">
-            <i class="fas fa-lock"></i> Fechar Mês (<span class="saldo-valor"></span>)
-        </button>
-    </div>
-    
-    <!-- Títulos com Status -->
-    <div id="template-titulo-mes-fechado">
-        <i class="fas fa-lock"></i> <span class="mes-nome"></span> de <span class="ano"></span> (Fechado)
-    </div>
-    
-    <div id="template-titulo-mes-ativo">
-        <i class="fas fa-chart-bar"></i> <span class="mes-nome"></span> de <span class="ano"></span>
-    </div>
-
-</div>
-
-<!-- ======================================================== -->
-<!-- MODAIS DE ANEXOS PARA DESPESAS -->
-<!-- ======================================================== -->
-
-<!-- Modal: Visualizar anexos da despesa -->
-<div id="modal-anexos-despesa" class="modal">
-    <div class="modal-content modal-md">
-        <div class="modal-header">
-            <h2>Anexos da Despesa</h2>
-            <button type="button" class="close" title="Fechar">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div id="lista-anexos-despesa-visualizar" class="lista-anexos-visualizar">
-                <!-- Anexos para download serão inseridos aqui -->
+            <div class="pwa-ios-step-item">
+                <span class="step-icon">
+                    <img src="https://img.icons8.com/ios-filled/50/6366f1/plus-2-math.png" alt="Adicionar">
+                </span>
+                <p>2. Role e selecione <strong>Adicionar à Tela de Início</strong>.</p>
             </div>
         </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary close">
-                <i class="fas fa-times"></i> Fechar
-            </button>
-        </div>
+        <button id="btn-pwa-entendi" class="pwa-btn-main">Entendi</button>
     </div>
 </div>
 
-<!-- Templates para anexos -->
-<template id="template-anexo-item-despesa">
-    <div class="anexo-item">
-        <div class="anexo-info">
-            <i class="anexo-icone"></i>
-            <span class="anexo-nome"></span>
-        </div>
-        <button class="btn btn-remover-anexo" data-anexo-id="">
-            <i class="fas fa-times"></i>
-        </button>
-    </div>
-</template>
-
-<template id="template-anexo-download-despesa">
-    <div class="anexo-download-item">
-        <div class="anexo-info">
-            <i class="anexo-icone"></i>
-            <span class="anexo-nome"></span>
-        </div>
-        <button class="btn btn-download-anexo" data-anexo-id="">
-            <i class="fas fa-download"></i>
-        </button>
-    </div>
-</template>
-
-<!-- ======================================================== -->
-<!-- MODAL: CENTRO DE NOTIFICAÇÕES SIMPLES -->
-<!-- ======================================================== -->
-<template id="template-badge-pagamento">
-    <span class="badge-pagamento"></span>
-</template>
-
-<!-- Template para valor com juros -->
-<template id="template-valor-com-juros">
-    <div class="valor-com-juros">
-        <span class="valor-original"></span>
-        <span class="valor-juros"></span>
-    </div>
-</template>
-
-<!-- Template para badge de forma de pagamento -->
-<template id="template-badge-forma-pagamento">
-    <span class="badge-pagamento"></span>
-</template>
-
-<!-- Template para badge de status -->
-<template id="template-badge-status">
-    <span class="badge-status"></span>
-</template>
-
-<template id="template-mes-card">
-    <div class="mes-header">
-        <span class="mes-nome"></span>
-    </div>
-    <div class="mes-body">
-        <div class="mes-saldos-container">
-            <div class="mes-saldo-anterior hidden">
-                <span class="mes-label"><i class="fas fa-history"></i> Saldo Anterior</span>
-                <span class="valor-anterior"></span>
-            </div>
-            <div class="mes-saldo">
-                <span class="mes-label"><i class="fas fa-wallet"></i> Saldo Atual</span>
-                <span class="mes-saldo-valor"></span>
-            </div>
-        </div>
-        <div class="mes-resumo">
-            <div class="mes-valor">
-                <span class="mes-label"><i class="fas fa-arrow-up"></i> Receitas</span>
-                <span class="mes-receita"></span>
-            </div>
-            <div class="mes-valor">
-                <span class="mes-label"><i class="fas fa-arrow-down"></i> Despesas</span>
-                <span class="mes-despesa"></span>
-            </div>
-        </div>
-    </div>
-    <div class="mes-footer">
-        <button class="btn-toggle-mes btn-reabrir hidden">
-            <i class="fas fa-unlock"></i> Reabrir Mês
-        </button>
-        <button class="btn-toggle-mes btn-fechar hidden">
-            <i class="fas fa-lock"></i> Fechar Mês
-        </button>
-    </div>
-</template>
-
-
-
-<!-- ================================================================ -->
-<!-- CONTROLES DE FECHAMENTO/REABERTURA DE MÊS -->
-<!-- ================================================================ -->
-
-<div id="controles-mes" class="controles-mes">
-    <div class="status-mes">
-        <span id="status-mes-atual" class="status-badge"></span>
-    </div>
-    <div class="botoes-controle">
-        <button id="btn-reabrir-mes" class="btn btn-reabrir-mes hidden">
-            <i class="fas fa-unlock"></i> Reabrir Mês
-        </button>
-    </div>
-</div>
-
-<!-- ================================================================ -->
-<!-- MODAL CONFIRMAÇÃO FECHAMENTO DE MÊS -->
-<!-- ================================================================ -->
-
-<div id="modal-confirmar-fechamento" class="modal">
-    <div class="modal-content modal-medium">
-        <div class="modal-header">
-            <h2><i class="fas fa-lock"></i> Fechar Mês</h2>
-            <button type="button" class="close" data-modal="modal-confirmar-fechamento" title="Fechar">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div class="confirmacao-fechamento">
-                <p id="mensagem-fechamento" class="texto-confirmacao"></p>
-                
-                <div class="resumo-fechamento">
-                    <h4>Resumo do Mês</h4>
-                    <div class="resumo-grid">
-                        <div class="item-resumo receitas">
-                            <div class="icone">
-                                <i class="fas fa-plus-circle"></i>
-                            </div>
-                            <div class="detalhes">
-                                <span class="label">Receitas</span>
-                                <span id="resumo-receitas-fechamento" class="valor positivo"></span>
-                            </div>
-                        </div>
-                        
-                        <div class="item-resumo despesas">
-                            <div class="icone">
-                                <i class="fas fa-minus-circle"></i>
-                            </div>
-                            <div class="detalhes">
-                                <span class="label">Despesas</span>
-                                <span id="resumo-despesas-fechamento" class="valor negativo"></span>
-                            </div>
-                        </div>
-                        
-                        <div class="item-resumo saldo total">
-                            <div class="icone">
-                                <i class="fas fa-equals"></i>
-                            </div>
-                            <div class="detalhes">
-                                <span class="label">Saldo Final</span>
-                                <span id="resumo-saldo-fechamento" class="valor"></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="transferencia-info">
-                    <div class="info-box">
-                        <i class="fas fa-arrow-right"></i>
-                        <p id="info-transferencia"></p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button id="btn-cancelar-fechamento" class="btn btn-secondary">
-                Cancelar
-            </button>
-            <button id="btn-confirmar-fechamento" class="btn btn-primary">
-                <i class="fas fa-lock"></i> Confirmar Fechamento
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- ================================================================ -->
-<!-- MODAL CONFIRMAÇÃO REABERTURA DE MÊS -->
-<!-- ================================================================ -->
-
-<div id="modal-confirmar-reabertura" class="modal">
-    <div class="modal-content modal-medium">
-        <div class="modal-header">
-            <h2><i class="fas fa-unlock"></i> Reabrir Mês</h2>
-            <button type="button" class="close" data-modal="modal-confirmar-reabertura" title="Fechar">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div class="confirmacao-reabertura">
-                <p id="mensagem-reabertura" class="texto-confirmacao"></p>
-                
-                <div class="aviso-reabertura">
-                    <div class="alerta">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <div class="alerta-conteudo">
-                            <h4>Atenção</h4>
-                            <ul>
-                                <li>A receita de saldo anterior será removida do próximo mês</li>
-                                <li>O saldo do próximo mês será recalculado automaticamente</li>
-                                <li>Esta ação afetará todos os cálculos subsequentes</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="info-mes-atual">
-                    <h4>Dados do Mês Atual</h4>
-                    <div class="dados-mes">
-                        <div class="dado-item">
-                            <span class="label">Receitas:</span>
-                            <span id="reabertura-receitas" class="valor"></span>
-                        </div>
-                        <div class="dado-item">
-                            <span class="label">Despesas:</span>
-                            <span id="reabertura-despesas" class="valor"></span>
-                        </div>
-                        <div class="dado-item">
-                            <span class="label">Saldo:</span>
-                            <span id="reabertura-saldo" class="valor"></span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button id="btn-cancelar-reabertura" class="btn btn-secondary">
-                Cancelar
-            </button>
-            <button id="btn-confirmar-reabertura" class="btn btn-danger">
-                <i class="fas fa-unlock"></i> Confirmar Reabertura
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- ================================================================ -->
-<!-- TEMPLATES PARA NOTIFICAÇÕES DE FECHAMENTO -->
-<!-- ================================================================ -->
-
-<template id="template-status-mes-aberto">
-    <span class="status-badge aberto">
-        <i class="fas fa-unlock"></i> Mês Aberto
-    </span>
-</template>
-
-<template id="template-status-mes-fechado">
-    <span class="status-badge fechado">
-        <i class="fas fa-lock"></i> Mês Fechado
-    </span>
-</template>
-
-<template id="template-notificacao-fechamento-sucesso">
-    <div class="notificacao sucesso fechamento">
-        <i class="fas fa-check-circle"></i>
-        <div class="conteudo">
-            <h4>Mês fechado com sucesso!</h4>
-            <p class="mensagem"></p>
-        </div>
-    </div>
-</template>
-
-<template id="template-notificacao-reabertura-sucesso">
-    <div class="notificacao sucesso reabertura">
-        <i class="fas fa-unlock"></i>
-        <div class="conteudo">
-            <h4>Mês reaberto com sucesso!</h4>
-            <p class="mensagem"></p>
-        </div>
-    </div>
-</template>
-
-<template id="template-notificacao-erro-fechamento">
-    <div class="notificacao erro fechamento">
-        <i class="fas fa-exclamation-circle"></i>
-        <div class="conteudo">
-            <h4>Erro ao fechar mês</h4>
-            <p class="mensagem"></p>
-        </div>
-    </div>
-</template>
-
-
-<!-- JAVASCRIPT EXTERNOS -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<!-- Input files para anexos -->
-<input type="file" id="input-file-anexos-receita" multiple accept=".pdf,.jpg,.jpeg,.png,.gif" style="display: none;">
-<input type="file" id="input-file-anexos-despesa" multiple accept=".pdf,.jpg,.jpeg,.png,.gif" style="display: none;">
-<input type="file" id="input-file-comprovante" multiple accept=".pdf,.jpg,.jpeg,.png,.gif" style="display: none;">
-
-<!-- Bibliotecas externas -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-<script src="https://sdk.mercadopago.com/js/v2"></script>
-
-<!-- Sistema base -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="js/utils.js"></script>
 <script src="js/usuarioDados.js"></script>
-<script src="js/main.js"></script>
-<script src="js/logs.js"></script>
-<script src="js/configuracao.js"></script>
-<script src="js/receita.js"></script>
-<script src="js/despesas.js"></script>
-<script src="js/anexos.js"></script>
-<script src="js/ia.js"></script>
-
-<!-- ================================================================ -->
-<!-- ASSISTENTE IA - Painel de Chat Flutuante                         -->
-<!-- ================================================================ -->
-<button id="btn-fab-ia" class="btn-fab-ia" title="Assistente Gen">
-    <i class="fas fa-robot"></i>
-</button>
-
-<div id="ai-chat-panel" class="ai-chat-panel" style="display:none">
-    <div class="ai-panel-header">
-        <div class="ai-panel-title">
-            <div class="ai-avatar-mini"><i class="fas fa-robot"></i></div>
-            <div>
-                <strong>Gen — IA Financeira</strong>
-                <small id="ai-panel-status">carregando...</small>
-            </div>
-        </div>
-        <div class="ai-panel-actions">
-            <button id="ai-btn-nova-conversa" title="Nova conversa"><i class="fas fa-plus"></i></button>
-            <button id="ai-btn-fechar-panel" title="Fechar"><i class="fas fa-times"></i></button>
-        </div>
-    </div>
-
-    <div class="ai-messages" id="ai-messages"></div>
-
-    <div class="ai-boleto-bar" id="ai-boleto-bar" style="display:none">
-        <input type="text" id="ai-boleto-input" class="ai-boleto-field" placeholder="Cole a linha digitável (47 dígitos)...">
-        <button id="ai-btn-processar-boleto" class="ai-send-btn"><i class="fas fa-barcode"></i></button>
-        <button id="ai-btn-fechar-boleto" style="background:none;border:none;cursor:pointer;color:var(--gray-500)"><i class="fas fa-times"></i></button>
-    </div>
-
-    <div class="ai-file-preview" id="ai-file-preview" style="display:none">
-        <i class="fas fa-file-alt"></i>
-        <span id="ai-file-nome"></span>
-        <button id="ai-btn-cancelar-arquivo"><i class="fas fa-times"></i></button>
-    </div>
-
-    <div class="ai-input-row">
-        <input type="file" id="ai-file-input" accept="image/*,.pdf" style="display:none">
-        <button id="ai-btn-attach" class="ai-icon-btn" title="Enviar arquivo"><i class="fas fa-paperclip"></i></button>
-        <button id="ai-btn-abrir-boleto" class="ai-icon-btn" title="Ler boleto"><i class="fas fa-barcode"></i></button>
-        <textarea id="ai-input" class="ai-textarea" rows="1" placeholder="Ex: paguei 120 de internet no cartão..."></textarea>
-        <button class="ai-icon-btn ai-btn-voice" id="ai-btn-voice" title="Voz"><i class="fas fa-microphone"></i></button>
-        <button class="ai-send-btn" id="ai-btn-send" title="Enviar"><i class="fas fa-paper-plane"></i></button>
-    </div>
-</div>
-
-<!-- Loader Global para Importação -->
-<div id="global-loader">
-    <div class="loader-content">
-        <div class="loader-spinner"></div>
-        <p class="loader-text">Importando dados...</p>
-        <p class="loader-subtext">Por favor, aguarde</p>
-        <p class="loader-progress" id="loader-progress"></p>
-    </div>
-</div>
-
-<!-- Overlay de Bloqueio -->
-<div id="overlay-bloqueio" class="pgmt-bloqueio-overlay" style="display:none">
-    <div class="pgmt-bloqueio-box">
-        <div class="pgmt-bloqueio-icon"><i class="fas fa-lock"></i></div>
-        <h2>Acesso bloqueado</h2>
-        <p id="bloqueio-mensagem">Seu período de acesso expirou. Assine um plano para continuar.</p>
-        <button class="pgmt-bloqueio-btn" onclick="abrirModalPlanos()">
-            Ver planos e assinar
-        </button>
-    </div>
-</div>
-
-<!-- Modal de Planos / Pagamento -->
-<div id="modal-planos" class="pgmt-overlay" style="display:none" onclick="fecharModalPlanosOverlay(event)">
-    <div class="pgmt-modal" id="pgmt-modal-box">
-        <button class="pgmt-close" id="modal-planos-close-btn" onclick="fecharModalPlanos()">
-            <i class="fas fa-times"></i>
-        </button>
-
-        <!-- TELA 1: Escolha do plano -->
-        <div id="pgmt-tela-planos">
-            <div class="pgmt-header">
-                <h2>Escolha seu plano</h2>
-                <p>Controle financeiro completo, sem limites</p>
-            </div>
-            <div class="pgmt-planos-lista">
-                <div class="pgmt-plano-row" onclick="irParaPagamento('mensal')">
-                    <div class="pgmt-plano-info">
-                        <span class="pgmt-plano-nome">Mensal</span>
-                        <span class="pgmt-plano-desc">Acesso completo · Cancele quando quiser</span>
-                    </div>
-                    <div class="pgmt-plano-preco">R$ 79,90<small>/mês</small></div>
-                    <i class="fas fa-chevron-right pgmt-arrow"></i>
-                </div>
-                <div class="pgmt-plano-row pgmt-plano-popular" onclick="irParaPagamento('anual')">
-                    <span class="pgmt-popular-badge">Economize 33%</span>
-                    <div class="pgmt-plano-info">
-                        <span class="pgmt-plano-nome">Anual</span>
-                        <span class="pgmt-plano-desc">R$ 53,33/mês</span>
-                    </div>
-                    <div class="pgmt-plano-preco">R$ 639,90<small>/ano</small></div>
-                    <i class="fas fa-chevron-right pgmt-arrow"></i>
-                </div>
-            </div>
-            <p class="pgmt-rodape">Ambiente seguro · Sem taxa de cancelamento</p>
-        </div>
-
-        <!-- TELA 2: Pagamento -->
-        <div id="pgmt-tela-pagamento" style="display:none">
-            <div class="pgmt-pag-header">
-                <button class="pgmt-voltar" onclick="voltarParaPlanos()">
-                    <i class="fas fa-chevron-left"></i> Voltar
-                </button>
-                <span class="pgmt-pag-resumo" id="pgmt-pag-resumo"></span>
-            </div>
-
-            <!-- Banner: cartão vindo de configurações -->
-            <div id="pgmt-banner-cartao-ctx" class="pgmt-banner-cartao-ctx" style="display:none">
-                <i class="fas fa-credit-card"></i>
-                <span>Pagando com: <strong id="pgmt-banner-cartao-nome"></strong></span>
-                <button onclick="contextoCartaoPlano=null;document.getElementById('pgmt-banner-cartao-ctx').style.display='none'" title="Remover referência">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-
-            <!-- Tabs: Cartão / PIX -->
-            <div class="pgmt-tabs">
-                <button class="pgmt-tab pgmt-tab-ativo" id="pgmt-tab-cartao" onclick="selecionarMetodo('cartao')">
-                    <i class="fas fa-credit-card"></i> Cartão
-                </button>
-                <button class="pgmt-tab" id="pgmt-tab-pix" onclick="selecionarMetodo('pix')">
-                    <i class="fas fa-qrcode"></i> PIX
-                </button>
-            </div>
-
-            <!-- Form: Cartão -->
-            <div id="pgmt-form-cartao">
-                <div class="pgmt-field">
-                    <input type="text" id="pgmt-card-number" class="pgmt-input"
-                        placeholder="Número do cartão" maxlength="19" inputmode="numeric"
-                        oninput="fmtNumeroCartao(this)">
-                    <span class="pgmt-brand" id="pgmt-brand"></span>
-                </div>
-                <div class="pgmt-field-row">
-                    <div class="pgmt-field">
-                        <input type="text" id="pgmt-card-expiry" class="pgmt-input"
-                            placeholder="Validade MM/AA" maxlength="5" inputmode="numeric"
-                            oninput="fmtValidade(this)">
-                    </div>
-                    <div class="pgmt-field">
-                        <input type="text" id="pgmt-card-cvv" class="pgmt-input"
-                            placeholder="CVV" maxlength="4" inputmode="numeric">
-                    </div>
-                </div>
-                <div class="pgmt-field">
-                    <input type="text" id="pgmt-card-name" class="pgmt-input"
-                        placeholder="Nome impresso no cartão"
-                        oninput="this.value=this.value.toUpperCase()">
-                </div>
-                <div class="pgmt-field">
-                    <input type="text" id="pgmt-card-cpf" class="pgmt-input"
-                        placeholder="CPF do titular" maxlength="14" inputmode="numeric"
-                        oninput="fmtCPF(this)">
-                </div>
-
-                <!-- Opção de recorrência -->
-                <label class="pgmt-recorrente-toggle" id="pgmt-recorrente-wrap">
-                    <input type="checkbox" id="pgmt-recorrente" checked>
-                    <div class="pgmt-recorrente-info">
-                        <span class="pgmt-recorrente-titulo">
-                            <i class="fas fa-rotate"></i> Renovação automática
-                        </span>
-                        <span class="pgmt-recorrente-desc">
-                            Pagamento recorrente: seu cartão será debitado automaticamente a cada período, sem ocupar limite de crédito. Cancele quando quiser.
-                        </span>
-                    </div>
-                </label>
-            </div>
-
-            <!-- Form: PIX -->
-            <div id="pgmt-form-pix" style="display:none">
-                <div id="pgmt-pix-instrucao" class="pgmt-pix-aviso">
-                    <p>Clique em "Gerar QR Code" para gerar o PIX de pagamento.</p>
-                </div>
-                <div id="pgmt-pix-display" style="display:none">
-                    <div class="pgmt-pix-qr-wrap">
-                        <img id="pgmt-pix-img" src="" alt="QR Code PIX">
-                    </div>
-                    <div class="pgmt-pix-codigo-row">
-                        <input id="pgmt-pix-codigo" type="text" readonly class="pgmt-input">
-                        <button class="pgmt-btn-copiar" onclick="copiarPix()">
-                            <i class="fas fa-copy"></i> Copiar
-                        </button>
-                    </div>
-                    <p class="pgmt-pix-validade" id="pgmt-pix-validade">PIX válido por 30:00</p>
-                    <button class="pgmt-btn-ja-paguei" onclick="verificarPagamentoPix()">
-                        Clique aqui para confirmar pagamento
-                    </button>
-                </div>
-            </div>
-
-            <div id="pgmt-acoes">
-                <button class="pgmt-btn-assinar" id="pgmt-btn-assinar" onclick="processarPagamento()">
-                    <i class="fas fa-lock"></i> Confirmar pagamento
-                </button>
-                <p class="pgmt-seguro"><i class="fas fa-lock"></i> Pagamento seguro e criptografado</p>
-            </div>
-        </div>
-
-        <!-- TELA 3: Gerenciar / Cancelar plano -->
-        <div id="pgmt-tela-gerenciar" style="display:none">
-            <div class="pgmt-pag-header">
-                <button class="pgmt-voltar" onclick="fecharModalPlanos()">
-                    <i class="fas fa-times"></i>
-                </button>
-                <h3>Gerenciar assinatura</h3>
-            </div>
-
-            <div class="pgmt-gerenciar-info">
-                <div class="pgmt-gerenciar-row">
-                    <span class="pgmt-gerenciar-label">Plano atual</span>
-                    <span class="pgmt-gerenciar-valor" id="pgmt-ger-plano">—</span>
-                </div>
-                <div class="pgmt-gerenciar-row">
-                    <span class="pgmt-gerenciar-label">Ativo desde</span>
-                    <span class="pgmt-gerenciar-valor" id="pgmt-ger-inicio">—</span>
-                </div>
-                <div class="pgmt-gerenciar-row">
-                    <span class="pgmt-gerenciar-label">Renovação</span>
-                    <span class="pgmt-gerenciar-valor" id="pgmt-ger-renovacao">—</span>
-                </div>
-            </div>
-
-            <div class="pgmt-reembolso-box" id="pgmt-reembolso-box" style="display:none">
-                <p class="pgmt-reembolso-titulo">Reembolso proporcional</p>
-                <p class="pgmt-reembolso-desc">
-                    Meses restantes: <strong id="pgmt-ger-meses-rest">0</strong> de 12<br>
-                    Valor a reembolsar: <strong id="pgmt-ger-valor-reembolso">R$ 0,00</strong>
-                </p>
-                <p class="pgmt-reembolso-aviso">
-                    O reembolso é processado diretamente pelo Mercado Pago e pode levar alguns dias úteis.
-                    Uma dedução de 15% sobre o valor restante é aplicada para cobrir despesas operacionais.
-                </p>
-            </div>
-
-            <div class="pgmt-gerenciar-acoes">
-                <button class="pgmt-btn-cancelar-plano" id="pgmt-btn-cancelar-confirm" onclick="confirmarCancelamento()">
-                    <i class="fas fa-times-circle"></i> Cancelar assinatura
-                </button>
-                <p class="pgmt-cancelar-aviso">O acesso será bloqueado imediatamente após o cancelamento.</p>
-            </div>
-        </div>
-
-    </div>
-</div>
-
-<!-- Módulos secundários -->
-<script src="js/dashboard.js"></script>
-<script src="js/notificacao.js"></script>
-<script src="js/rel.js"></script>
-<script src="https://sdk.mercadopago.com/js/v2"></script>
-<script src="js/planos.js"></script>
-
-
-<!-- PWA -->
-<script>
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function() {
-            navigator.serviceWorker.register('/sw.js')
-                .then(function(reg) { 
-                    console.log('[PWA] Service Worker registrado com sucesso:', reg.scope); 
-                })
-                .catch(function(err) { 
-                    console.warn('[PWA] Falha ao registrar Service Worker:', err); 
-                });
-        });
-    }
-</script>
+<script src="js/loading.js"></script>
+<script src="js/login.js"></script>
+<script src="js/pwa-handler.js" defer></script>
+<script src="js/avaliacao.js"></script>
 
 </body>
 </html>
