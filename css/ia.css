@@ -210,11 +210,11 @@
 .ai-messages {
     flex: 1;
     overflow-y: auto;
-    padding: 14px 12px;
+    padding: 8px 6px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    background: var(--card-bg, #fff);
+    gap: 3px;
+    background: #f0f2f5;
     min-height: 200px;
 }
 
@@ -225,25 +225,27 @@
 .ai-msg {
     display: flex;
     animation: ai-fade 0.18s ease;
-    max-width: 100%;
+    width: 100%;
 }
 @keyframes ai-fade { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
 
-.ai-msg--user { justify-content: flex-end;  width: 100%; }
-.ai-msg--ai   { justify-content: flex-start; width: 100%; }
+.ai-msg--user { justify-content: flex-end; }
+.ai-msg--ai   { justify-content: flex-start; }
 
 .ai-msg-av { display: none; }
 
 .ai-msg-bub {
-    padding: 4px 8px;
+    padding: 6px 10px 4px;
     font-size: 13px;
-    line-height: 1.5;
-    max-width: 92%;
+    line-height: 1.45;
+    max-width: 88%;
     min-width: 2em;
     width: fit-content;
     word-break: break-word;
     overflow-wrap: break-word;
     white-space: pre-wrap;
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
 /* Mensagem que contém card: estica para usar o espaço */
@@ -251,22 +253,28 @@
     width: 92%;
 }
 
+/* Bolha do usuário — direita, estilo WhatsApp verde */
 .ai-msg--user .ai-msg-bub {
-    color: var(--primary-color, #4361ee);
+    background: #d9fdd3;
+    color: #111b21;
+    border-radius: 12px 2px 12px 12px;
     text-align: right;
-    margin-left: auto;
-}
-.ai-msg--ai .ai-msg-bub {
-    color: var(--text-color, #1a1a1a);
 }
 
-/* Timestamp — discreto, inline ao final da bolha */
+/* Bolha da IA — esquerda, branco */
+.ai-msg--ai .ai-msg-bub {
+    background: #ffffff;
+    color: #111b21;
+    border-radius: 2px 12px 12px 12px;
+}
+
+/* Timestamp — colado ao texto, pequeno */
 .ai-msg-time {
     display: block;
-    font-size: 10px;
-    opacity: 0.45;
+    font-size: 9px;
+    opacity: 0.5;
     text-align: right;
-    margin-top: 2px;
+    margin-top: 1px;
     line-height: 1;
 }
 /* Cartão de despesa dentro da mensagem */
@@ -323,31 +331,19 @@
     border: 1px solid;
     transition: all 0.15s;
 }
-.ai-msg-btn-ok   { background:var(--success,#28a745); color:#fff; border-color:var(--success,#28a745); }
-.ai-msg-btn-edit { background:transparent; border-color:var(--primary-color,#4361ee); color:var(--primary-color,#4361ee); }
-.ai-msg-btn-no   { background:transparent; border-color:var(--border-color,#ddd); color:var(--gray-500,#6c757d); }
+.ai-msg-btn-ok     { background:var(--success,#28a745); color:#fff; border-color:var(--success,#28a745); }
+.ai-msg-btn-edit   { background:transparent; border-color:var(--primary-color,#4361ee); color:var(--primary-color,#4361ee); }
+.ai-msg-btn-no     { background:transparent; border-color:var(--border-color,#ddd); color:var(--gray-500,#6c757d); }
+.ai-msg-btn-danger { background:transparent; border-color:#dc3545; color:#dc3545; }
 .ai-msg-btns button:hover { opacity: 0.82; }
 
 /* Pergunta antes dos botões de confirmação */
 .ai-card-pergunta {
-    font-size: 13px;
+    font-size: 12px;
     color: var(--text-secondary, #6c757d);
-    margin: 10px 0 4px;
+    margin: 8px 0 4px;
+    white-space: normal;
 }
-
-/* Botão cancelar discreto (link) */
-.ai-msg-btn-link {
-    display: block;
-    background: none;
-    border: none;
-    padding: 4px 0;
-    font-size: 11px;
-    color: var(--gray-400, #adb5bd);
-    cursor: pointer;
-    text-decoration: underline;
-    margin-top: 4px;
-}
-.ai-msg-btn-link:hover { color: #dc3545; }
 
 /* Digitando */
 .ai-typing { display:flex; gap:4px; align-items:center; padding:4px 0; }

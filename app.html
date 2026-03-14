@@ -256,7 +256,6 @@
                     </button>
                     <button class="painel-tab" data-tab="noticias">
                         <i class="fas fa-newspaper"></i> Notícias
-                        <span class="painel-tab-badge hidden" id="noticias-tab-badge">0</span>
                     </button>
                 </div>
                 <div class="painel-central-acoes hidden" id="painel-notif-acoes">
@@ -1854,6 +1853,8 @@
                         <i class="fas fa-eraser"></i>
                     </button>
                     <span id="saldo-anterior-toolbar" class="toolbar-contador toolbar-saldo-anterior hidden" title="Saldo do mês anterior"></span>
+                    <span id="saldo-real-toolbar" class="toolbar-contador toolbar-saldo-real hidden" title="Saldo Real (despesas pagas)"></span>
+                    <span id="saldo-projetado-toolbar" class="toolbar-contador toolbar-saldo-projetado hidden" title="Saldo Projetado (todas as despesas)"></span>
                     <span id="contador-despesas-toolbar" class="toolbar-contador">0 itens</span>
                     <span id="total-despesas-toolbar" class="toolbar-contador toolbar-total">R$ 0,00</span>
                 </div>
@@ -2061,18 +2062,6 @@
             <button type="button" class="close" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
-            <!-- Totalizador -->
-            <div class="reservas-totalizador">
-                <div class="totalizador-item">
-                    <span class="totalizador-label">Total Reservado</span>
-                    <span class="totalizador-valor" id="total-reservado">R$ 0,00</span>
-                </div>
-                <div class="totalizador-item disponivel">
-                    <span class="totalizador-label">Saldo Atual Mês</span>
-                    <span class="totalizador-valor" id="saldo-atual-mes-reservas">R$ 0,00</span>
-                </div>
-            </div>
-
             <!-- Lista de Reservas com campo inline para +/- valor -->
             <div class="reservas-lista-simples" id="lista-reservas">
                 <!-- Reservas serão inseridas aqui -->
@@ -2594,8 +2583,12 @@
                 <span class="valor-anterior"></span>
             </div>
             <div class="mes-saldo">
-                <span class="mes-label"><i class="fas fa-wallet"></i> Saldo Atual</span>
+                <span class="mes-label"><i class="fas fa-wallet"></i> Saldo Real</span>
                 <span class="mes-saldo-valor"></span>
+            </div>
+            <div class="mes-saldo-projetado">
+                <span class="mes-label"><i class="fas fa-chart-line"></i> Projetado</span>
+                <span class="mes-saldo-projetado-valor"></span>
             </div>
         </div>
         <div class="mes-resumo">
@@ -2985,8 +2978,8 @@
             <div class="ai-msg-btns">
                 <button class="ai-msg-btn-ok" data-action="confirmar-despesa">Não, salvar</button>
                 <button class="ai-msg-btn-edit" data-action="editar-despesa">Sim, revisar</button>
+                <button class="ai-msg-btn-danger" data-action="cancelar-despesa">Cancelar registro</button>
             </div>
-            <button class="ai-msg-btn-link" data-action="cancelar-despesa">Cancelar registro</button>
             <span class="ai-msg-time"></span>
         </div>
     </div>
@@ -3005,8 +2998,8 @@
             <div class="ai-msg-btns">
                 <button class="ai-msg-btn-ok" data-action="confirmar-receita">Não, salvar</button>
                 <button class="ai-msg-btn-edit" data-action="editar-receita">Sim, revisar</button>
+                <button class="ai-msg-btn-danger" data-action="cancelar-receita">Cancelar registro</button>
             </div>
-            <button class="ai-msg-btn-link" data-action="cancelar-receita">Cancelar registro</button>
             <span class="ai-msg-time"></span>
         </div>
     </div>

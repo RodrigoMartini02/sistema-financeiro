@@ -652,8 +652,8 @@ window.utilsCarregado = true;
 
             var header = e.target.closest('.modal-header');
             if (!header) return;
-            // Não arrastar se clicou no botão fechar
-            if (e.target.closest('.close')) return;
+            // Não arrastar se clicou em qualquer botão do header
+            if (e.target.closest('button')) return;
             var content = header.closest('.modal-content');
             if (!content) return;
 

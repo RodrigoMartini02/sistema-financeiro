@@ -884,24 +884,71 @@ function configurarEventListenersModais() {
 
 function atualizarSaldoAnteriorToolbar() {
     const span = document.getElementById('saldo-anterior-toolbar');
-    if (!span) return;
+    const spanReal = document.getElementById('saldo-real-toolbar');
+    const spanProjetado = document.getElementById('saldo-projetado-toolbar');
 
     const mes = window.mesAberto;
     const ano = window.anoAberto;
+
+    // Ocultar tudo se não há mês aberto
     if (mes === undefined || ano === undefined) {
-        span.classList.add('hidden');
+        if (span) span.classList.add('hidden');
+        if (spanReal) spanReal.classList.add('hidden');
+        if (spanProjetado) spanProjetado.classList.add('hidden');
         return;
     }
 
-    const valor = obterSaldoAnteriorValido(mes, ano);
-    if (valor === 0) {
-        span.classList.add('hidden');
-        return;
+    // --- Saldo Anterior ---
+    if (span) {
+        const valor = obterSaldoAnteriorValido(mes, ano);
+        if (valor === 0) {
+            span.classList.add('hidden');
+        } else {
+            span.textContent = `Saldo ant.: ${window.formatarMoeda(valor)}`;
+            span.classList.remove('hidden', 'toolbar-saldo-positivo', 'toolbar-saldo-negativo');
+            span.classList.add(valor >= 0 ? 'toolbar-saldo-positivo' : 'toolbar-saldo-negativo');
+        }
     }
 
-    span.textContent = `Saldo ant.: ${window.formatarMoeda(valor)}`;
-    span.classList.remove('hidden', 'toolbar-saldo-positivo', 'toolbar-saldo-negativo');
-    span.classList.add(valor >= 0 ? 'toolbar-saldo-positivo' : 'toolbar-saldo-negativo');
+    // --- Saldo Real e Projetado ---
+    if (spanReal || spanProjetado) {
+        const saldo = typeof window.calcularSaldoMes === 'function'
+            ? window.calcularSaldoMes(mes, ano)
+            : null;
+
+        let movimentacoesAcumuladas = 0;
+        if (typeof window.calcularTotalReservasAcumuladas === 'function') {
+            movimentacoesAcumuladas = window.calcularTotalReservasAcumuladas(mes, ano);
+        }
+
+        const temTransacoes = saldo && (saldo.receitas > 0 || saldo.despesas > 0 || saldo.despesasTotal > 0);
+
+        if (saldo && temTransacoes) {
+            const saldoReal = saldo.saldoFinal - movimentacoesAcumuladas;
+            const saldoProjetado = saldo.saldoProjetado - movimentacoesAcumuladas;
+
+            if (spanReal) {
+                spanReal.textContent = `Real: ${window.formatarMoeda(saldoReal)}`;
+                spanReal.classList.remove('hidden', 'toolbar-saldo-positivo', 'toolbar-saldo-negativo');
+                spanReal.classList.add(saldoReal >= 0 ? 'toolbar-saldo-positivo' : 'toolbar-saldo-negativo');
+            }
+
+            // Mostrar projetado apenas se difere do real (há despesas não pagas)
+            const temDespesasNaoPagas = Math.round(saldoProjetado * 100) !== Math.round(saldoReal * 100);
+            if (spanProjetado) {
+                if (temDespesasNaoPagas) {
+                    spanProjetado.textContent = `Projetado: ${window.formatarMoeda(saldoProjetado)}`;
+                    spanProjetado.classList.remove('hidden', 'toolbar-saldo-positivo', 'toolbar-saldo-negativo');
+                    spanProjetado.classList.add(saldoProjetado >= 0 ? 'toolbar-saldo-positivo' : 'toolbar-saldo-negativo');
+                } else {
+                    spanProjetado.classList.add('hidden');
+                }
+            }
+        } else {
+            if (spanReal) spanReal.classList.add('hidden');
+            if (spanProjetado) spanProjetado.classList.add('hidden');
+        }
+    }
 }
 
 // ================================================================
@@ -1287,22 +1334,6 @@ async function abrirModalReservarValor() {
     // Carregar reservas do backend
     await carregarReservasAPI();
 
-    // Calcular saldo atual do mês (igual ao resumo do mês)
-    const { saldoAtualMes, totalReservado } = calcularSaldoAtualMes();
-
-    // Atualizar totalizadores do modal
-    const elemTotal = document.getElementById('total-reservado');
-    if (elemTotal) {
-        elemTotal.textContent = window.formatarMoeda(totalReservado);
-    }
-
-    // Mostrar Saldo Atual Mês (igual ao resumo)
-    const elemSaldoAtual = document.getElementById('saldo-atual-mes-reservas');
-    if (elemSaldoAtual) {
-        elemSaldoAtual.textContent = window.formatarMoeda(saldoAtualMes);
-        elemSaldoAtual.style.color = saldoAtualMes >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
-    }
-
     // Limpar campos do formulário
     const inputValor = document.getElementById('input-valor-reserva');
     const inputDescricao = document.getElementById('input-descricao-reserva');
@@ -1618,21 +1649,6 @@ async function processarAdicionarReserva() {
  * Atualiza valores do modal de reservas
  */
 async function atualizarModalReservas() {
-    // Calcular saldo atual do mês (igual ao resumo do mês)
-    const { saldoAtualMes, totalReservado } = calcularSaldoAtualMes();
-
-    const elemTotal = document.getElementById('total-reservado');
-    if (elemTotal) {
-        elemTotal.textContent = window.formatarMoeda(totalReservado);
-    }
-
-    // Mostrar Saldo Atual Mês (igual ao resumo)
-    const elemSaldoAtual = document.getElementById('saldo-atual-mes-reservas');
-    if (elemSaldoAtual) {
-        elemSaldoAtual.textContent = window.formatarMoeda(saldoAtualMes);
-        elemSaldoAtual.style.color = saldoAtualMes >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
-    }
-
     await renderizarListaReservasModal();
     await renderizarHistoricoGeral();
 }

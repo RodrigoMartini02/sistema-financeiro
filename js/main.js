@@ -1390,12 +1390,16 @@ function criarCardMes(mes, ano) {
     }
     const saldoAnteriorDisponivel = saldo.saldoAnterior - movimentacoesAnteriores;
 
+    // Saldo projetado disponível = saldo projetado - movimentações acumuladas
+    const saldoProjetadoDisponivel = saldo.saldoProjetado - movimentacoesAcumuladas;
+
     // Criar objeto de saldo ajustado para o card
     const saldoAjustado = {
         saldoAnterior: saldoAnteriorDisponivel,
         receitas: saldo.receitas,
         despesas: saldo.despesas,
-        saldoFinal: saldoDisponivel
+        saldoFinal: saldoDisponivel,
+        saldoProjetado: saldoProjetadoDisponivel
     };
 
     if (fechado) {
@@ -1439,13 +1443,30 @@ function preencherConteudoMes(mesCard, mes, ano, saldo, fechado, temTransacoes) 
     
     const saldoValor = clone.querySelector('.mes-saldo-valor');
     const saldoContainer = clone.querySelector('.mes-saldo');
-    
+    const saldoProjetadoContainer = clone.querySelector('.mes-saldo-projetado');
+    const saldoProjetadoValor = clone.querySelector('.mes-saldo-projetado-valor');
+
     if (fechado || ehUltimoMesProcessado(mes, ano)) {
         saldoValor.textContent = formatarMoeda(saldo.saldoFinal);
         saldoValor.className = `mes-saldo-valor ${saldo.saldoFinal >= 0 ? 'mes-saldo-positivo' : 'mes-saldo-negativo'}`;
         saldoContainer.style.display = 'block';
+
+        // Mostrar saldo projetado apenas se diferir do saldo real (há despesas não pagas)
+        const temDespesasNaoPagas = saldoProjetadoContainer &&
+            saldoProjetadoValor &&
+            saldo.saldoProjetado !== undefined &&
+            Math.round(saldo.saldoProjetado * 100) !== Math.round(saldo.saldoFinal * 100);
+
+        if (temDespesasNaoPagas) {
+            saldoProjetadoValor.textContent = formatarMoeda(saldo.saldoProjetado);
+            saldoProjetadoValor.className = `mes-saldo-projetado-valor ${saldo.saldoProjetado >= 0 ? 'mes-saldo-positivo' : 'mes-saldo-negativo'}`;
+            saldoProjetadoContainer.style.display = 'block';
+        } else if (saldoProjetadoContainer) {
+            saldoProjetadoContainer.style.display = 'none';
+        }
     } else {
         saldoContainer.style.display = 'none';
+        if (saldoProjetadoContainer) saldoProjetadoContainer.style.display = 'none';
     }
     
     const btnReabrir = clone.querySelector('.btn-reabrir');
@@ -1742,7 +1763,21 @@ async function renderizarDetalhesDoMes(mes, ano) {
             }
         });
         const despesasMarcadas = despesas.map(d => ({ ...d, tipo: 'despesa' }));
-        const itensUnificados = [...receitasMarcadas, ...despesasMarcadas];
+
+        // Incluir movimentações de reservas do mês atual na tabela
+        const movimentacoesReservaMes = [];
+        if (window.movimentacoesReservasCache && Array.isArray(window.movimentacoesReservasCache)) {
+            window.movimentacoesReservasCache.forEach(mov => {
+                const dataHora = new Date(mov.data_hora);
+                const movAno = dataHora.getFullYear();
+                const movMes = dataHora.getMonth(); // 0-11
+                if (movAno === ano && movMes === mes) {
+                    movimentacoesReservaMes.push({ ...mov, tipo: 'reserva', tipoMovimento: mov.tipo });
+                }
+            });
+        }
+
+        const itensUnificados = [...receitasMarcadas, ...despesasMarcadas, ...movimentacoesReservaMes];
 
         if (typeof window.renderizarDespesas === 'function') {
             window.renderizarDespesas(itensUnificados, mes, ano, fechado);
@@ -2178,17 +2213,25 @@ function calcularSaldoMes(mes, ano) {
             return sum + (r.valor || 0);
         }, 0);
 
-        // Apenas despesas PAGAS afetam o saldo (dinheiro que já saiu da conta)
+        // Apenas despesas PAGAS afetam o saldo real (dinheiro que já saiu da conta)
         const despesas = typeof window.calcularTotalDespesas === 'function' ?
                         window.calcularTotalDespesas(dadosMes.despesas || [], true) :
                         (dadosMes.despesas || []).reduce((sum, d) => d.pago ? sum + (window.obterValorRealDespesa ? window.obterValorRealDespesa(d) : (d.valor || 0)) : sum, 0);
 
+        // Todas as despesas (pagas + não pagas) para o saldo projetado
+        const despesasTotal = typeof window.calcularTotalDespesas === 'function' ?
+                        window.calcularTotalDespesas(dadosMes.despesas || [], false) :
+                        (dadosMes.despesas || []).reduce((sum, d) => sum + (window.obterValorRealDespesa ? window.obterValorRealDespesa(d) : (d.valor || 0)), 0);
+
         // Saldo Final = Saldo Anterior + Receitas - Despesas PAGAS (SEM descontar reservas)
+        // Saldo Projetado = Saldo Anterior + Receitas - TODAS Despesas (SEM descontar reservas)
         return {
             saldoAnterior: saldoAnterior,
             receitas: receitas,
             despesas: despesas,
-            saldoFinal: saldoAnterior + receitas - despesas
+            despesasTotal: despesasTotal,
+            saldoFinal: saldoAnterior + receitas - despesas,
+            saldoProjetado: saldoAnterior + receitas - despesasTotal
         };
 
     } catch (error) {
@@ -2196,7 +2239,9 @@ function calcularSaldoMes(mes, ano) {
             saldoAnterior: 0,
             receitas: 0,
             despesas: 0,
-            saldoFinal: 0
+            despesasTotal: 0,
+            saldoFinal: 0,
+            saldoProjetado: 0
         };
     }
 }
@@ -2913,16 +2958,11 @@ function renderizarNoticias() {
 
 function atualizarBadgeNoticias() {
     const badge = document.getElementById('noticias-count');
-    const tabBadge = document.getElementById('noticias-tab-badge');
     const total = listaNoticias.length;
 
     if (badge) {
         badge.textContent = total;
         badge.classList.toggle('hidden', total === 0);
-    }
-    if (tabBadge) {
-        tabBadge.textContent = total;
-        tabBadge.classList.toggle('hidden', total === 0);
     }
 }
 

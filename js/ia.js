@@ -127,8 +127,20 @@ window.IA = (function () {
             var badge = document.getElementById('ia-badge-status');
             if (badge) { badge.textContent = nome; badge.className = 'badge ' + (isGen ? 'gen' : 'ativo'); }
 
+            // Cacheia quais provedores têm chave salva
+            var hasKeys = (cfg && cfg.has_keys) || {};
+            ['openai','gemini','claude'].forEach(function(p) {
+                if (hasKeys[p]) sessionStorage.setItem('ia_tem_chave_' + p, '1');
+            });
+
             var sel = document.getElementById('ia-provider-select');
             if (sel) { sel.value = provider; sel.dispatchEvent(new Event('change')); }
+
+            // Se o provedor atual tem chave, mostra máscara
+            if (!isGen && (cfg.tem_chave || hasKeys[provider])) {
+                var inp = document.getElementById('ia-api-key-input');
+                if (inp) inp.value = '••••••••';
+            }
 
             _atualizarBadgeExterna(provider);
 
@@ -1277,7 +1289,19 @@ window.IA = (function () {
         }
         sel.addEventListener('change', function () {
             atualizarUI();
-            if (sel.value === 'gen') salvarChaveAPI();
+            var v = sel.value;
+            if (v === 'gen') {
+                salvarChaveAPI();
+                return;
+            }
+            var inp = document.getElementById('ia-api-key-input');
+            // Se já tem chave salva para este provedor, mostra máscara e auto-salva
+            if (sessionStorage.getItem('ia_tem_chave_' + v)) {
+                if (inp) inp.value = '••••••••';
+                salvarChaveAPI(); // envia provider com chave vazia → backend mantém existente
+            } else {
+                if (inp) inp.value = '';
+            }
         });
         atualizarUI();
     }
@@ -1293,15 +1317,31 @@ window.IA = (function () {
         badge.style.display = (provider && provider !== 'gen') ? 'inline-flex' : 'none';
     }
 
+    var _CHAVE_MASK = '••••••••';
+
     function salvarChaveAPI() {
         var provider = document.getElementById('ia-provider-select')?.value || 'gen';
         var input    = document.getElementById('ia-api-key-input');
         var chave    = input ? input.value.trim() : '';
-        if (provider !== 'gen' && !chave) { _toast('Informe a chave antes de salvar.', 'warning'); return; }
+
+        // Máscara = usuário não alterou, envia vazio (backend mantém chave existente)
+        if (chave === _CHAVE_MASK) chave = '';
+
+        // Sem chave e sem registro anterior
+        if (provider !== 'gen' && !chave && !sessionStorage.getItem('ia_tem_chave_' + provider)) {
+            _toast('Informe a chave antes de salvar.', 'warning'); return;
+        }
+
         apiPost('/config/chave', { provider: provider, api_key: chave }).then(function (res) {
             if (res && res.success) {
                 _toast((LABELS_PROVIDER[provider] || 'Configuração salva') + ' ativa!', 'success');
-                if (input) input.value = '';
+                // Mostra máscara em vez de limpar
+                if (input && provider !== 'gen') {
+                    input.value = _CHAVE_MASK;
+                    sessionStorage.setItem('ia_tem_chave_' + provider, '1');
+                } else if (input) {
+                    input.value = '';
+                }
                 var badge = document.getElementById('ia-badge-status');
                 if (badge) { badge.textContent = LABELS_PROVIDER[provider] || provider; badge.className = 'badge ' + (provider === 'gen' ? 'gen' : 'ativo'); }
                 _atualizarBadgeExterna(provider);
@@ -1431,9 +1471,9 @@ function salvarInstrucoesGen() {
     var input = document.getElementById('instrucoes-gen-input');
     var conteudo = input ? input.value.trim() : '';
     if (!conteudo) { mostrarToast('Escreva uma instrução antes de salvar.', 'warning'); return; }
-    fetch('/api/ai/instrucoes', {
+    fetch(apiURL() + '/ai/instrucoes', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('token') || '') },
+        headers: hdrs(),
         body: JSON.stringify({ conteudo: conteudo })
     }).then(function (r) { return r.json(); }).then(function (res) {
         if (res && res.success) {

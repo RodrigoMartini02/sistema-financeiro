@@ -37,11 +37,12 @@ async function buscarConfigIA(usuarioId) {
     try {
         const r = await query('SELECT dados_financeiros FROM usuarios WHERE id = $1', [usuarioId]);
         const df = r.rows[0]?.dados_financeiros || {};
-        const provider = df.ia_provider || null;
-        const apiKey   = df.ia_api_key   || null;
-        return provider && provider !== 'gen' && apiKey ? { provider, apiKey } : null;
+        const provider  = df.ia_provider  || null;
+        const apiKeys   = df.ia_api_keys  || {};   // { openai: '...', gemini: '...', claude: '...' }
+        const apiKey    = df.ia_api_key   || apiKeys[provider] || null;
+        return { provider, apiKey, apiKeys };
     } catch {
-        return null;
+        return { provider: null, apiKey: null, apiKeys: {} };
     }
 }
 
@@ -584,19 +585,33 @@ async function salvarConfigChave(req, res) {
             return res.status(400).json({ success: false, message: 'Provedor inválido. Use: gen, openai, gemini ou claude.' });
         }
 
-        if (provider !== 'gen' && !api_key) {
+        // Busca chaves já salvas para manter as de outros provedores
+        const current   = await buscarConfigIA(usuarioId);
+        const apiKeys   = current.apiKeys || {};
+
+        // Chave vazia = manter a existente para este provedor
+        const chaveAtual = api_key || apiKeys[provider] || null;
+
+        if (provider !== 'gen' && !chaveAtual) {
             return res.status(400).json({ success: false, message: 'Chave de API obrigatória para esse provedor.' });
         }
 
-        if (provider === 'openai' && !api_key.startsWith('sk-')) {
-            return res.status(400).json({ success: false, message: 'Chave OpenAI inválida. Deve começar com sk-' });
+        if (api_key) {
+            if (provider === 'openai' && !api_key.startsWith('sk-')) {
+                return res.status(400).json({ success: false, message: 'Chave OpenAI inválida. Deve começar com sk-' });
+            }
+            if (provider === 'claude' && !api_key.startsWith('sk-ant-')) {
+                return res.status(400).json({ success: false, message: 'Chave Anthropic inválida. Deve começar com sk-ant-' });
+            }
+            // Atualiza chave deste provedor no mapa
+            apiKeys[provider] = api_key;
         }
 
-        if (provider === 'claude' && !api_key.startsWith('sk-ant-')) {
-            return res.status(400).json({ success: false, message: 'Chave Anthropic inválida. Deve começar com sk-ant-' });
-        }
-
-        const config = { ia_provider: provider, ia_api_key: provider === 'gen' ? null : api_key };
+        const config = {
+            ia_provider:  provider,
+            ia_api_key:   provider === 'gen' ? null : chaveAtual,
+            ia_api_keys:  apiKeys
+        };
 
         await query(
             `UPDATE usuarios SET dados_financeiros = COALESCE(dados_financeiros, '{}'::jsonb) || $1::jsonb WHERE id = $2`,
@@ -618,10 +633,13 @@ async function salvarConfigChave(req, res) {
 // ================================================================
 async function obterConfigIA(req, res) {
     try {
-        const config = await buscarConfigIA(req.usuario.id);
+        const config   = await buscarConfigIA(req.usuario.id);
         const provider = config?.provider || 'gen';
-        const nomes = { gen: 'Gen (IA interna)', openai: 'OpenAI GPT-4o mini', gemini: 'Google Gemini 2.0 Flash', claude: 'Anthropic Claude Haiku' };
-        return res.json({ success: true, provider, nome: nomes[provider] || provider, tem_chave: !!config?.apiKey });
+        const apiKeys  = config?.apiKeys  || {};
+        const nomes    = { gen: 'Gen (IA interna)', openai: 'OpenAI GPT-4o mini', gemini: 'Google Gemini 2.0 Flash', claude: 'Anthropic Claude Haiku' };
+        // has_keys: mapa de quais provedores têm chave salva (sem expor as chaves)
+        const has_keys = { openai: !!apiKeys.openai, gemini: !!apiKeys.gemini, claude: !!apiKeys.claude };
+        return res.json({ success: true, provider, nome: nomes[provider] || provider, tem_chave: !!config?.apiKey, has_keys });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Erro ao buscar configuração.' });
     }

@@ -115,6 +115,20 @@
     font-weight: 600;
 }
 
+/* Linha de reserva na tabela unificada */
+.tabela-despesas tbody tr.tipo-reserva {
+    background-color: #fefce8;
+}
+
+.tabela-despesas tbody tr.tipo-reserva .col-valor {
+    color: #854d0e;
+    font-weight: 600;
+}
+
+.tabela-despesas tbody tr.tipo-reserva .col-descricao {
+    font-style: italic;
+}
+
 /* Checkboxes - estilos em layoutGeral.css (SISTEMA UNIFICADO) */
 
 /* ================================================================

@@ -1065,18 +1065,26 @@ textarea:focus {
 }
 
 .mes-saldos-container {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
+    flex-wrap: wrap;
     gap: 8px;
 }
 
 .mes-saldo-anterior,
-.mes-saldo {
+.mes-saldo,
+.mes-saldo-projetado {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
     padding: 7px 10px;
     text-align: center;
     background: #f8fafc;
     border-radius: 10px;
     border: none;
+}
+
+.mes-saldo-projetado {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
 }
 
 .mes-resumo {
@@ -1113,7 +1121,8 @@ textarea:focus {
 }
 
 .valor-anterior,
-.mes-saldo-valor {
+.mes-saldo-valor,
+.mes-saldo-projetado-valor {
     font-size: 13px;
     font-weight: 800;
     display: block;
@@ -1943,6 +1952,16 @@ table tr:hover {
     font-weight: 600;
 }
 
+/* Saldo real e projetado na toolbar */
+.toolbar-saldo-real {
+    font-weight: 700;
+}
+
+.toolbar-saldo-projetado {
+    font-weight: 600;
+    opacity: 0.8;
+}
+
 .toolbar-saldo-positivo {
     color: #166534;
 }
@@ -1951,7 +1970,9 @@ table tr:hover {
     color: #991b1b;
 }
 
-.toolbar-saldo-anterior.hidden {
+.toolbar-saldo-anterior.hidden,
+.toolbar-saldo-real.hidden,
+.toolbar-saldo-projetado.hidden {
     display: none;
 }
 
