@@ -5,6 +5,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
+const fs   = require('fs');
 const path = require('path');
 const { authMiddleware } = require('../middleware/auth');
 const ctrl = require('../controllers/aiController');
@@ -73,6 +74,34 @@ router.post('/aprendizado', authMiddleware, ctrl.salvarAprendizadoCategoria);
 // Configuração de provedor de IA por usuário
 router.get('/config', authMiddleware, ctrl.obterConfigIA);
 router.post('/config/chave', authMiddleware, ctrl.salvarConfigChave);
+
+// Instruções da Gen
+const INSTRUCOES_PATH = path.join(__dirname, '../../docs/gen-instrucoes.md');
+
+router.get('/instrucoes', authMiddleware, (req, res) => {
+    try {
+        const conteudo = fs.existsSync(INSTRUCOES_PATH)
+            ? fs.readFileSync(INSTRUCOES_PATH, 'utf8')
+            : '';
+        res.json({ conteudo });
+    } catch (e) {
+        res.status(500).json({ erro: 'Erro ao ler instruções' });
+    }
+});
+
+router.post('/instrucoes', authMiddleware, (req, res) => {
+    try {
+        const { conteudo } = req.body;
+        if (!conteudo || !conteudo.trim()) return res.status(400).json({ erro: 'Conteúdo vazio' });
+        const atual = fs.existsSync(INSTRUCOES_PATH)
+            ? fs.readFileSync(INSTRUCOES_PATH, 'utf8')
+            : '# Instruções da Gen\n';
+        fs.writeFileSync(INSTRUCOES_PATH, atual + '\n' + conteudo.trim(), 'utf8');
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ erro: 'Erro ao salvar instruções' });
+    }
+});
 
 // ── TRATAMENTO DE ERRO DO MULTER ─────────────────────────────────
 router.use((err, req, res, next) => {

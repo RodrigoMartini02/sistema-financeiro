@@ -1172,7 +1172,10 @@ window.IA = (function () {
             if (row)  row.style.display  = (v === 'gen') ? 'none' : 'flex';
             if (hint) hint.innerHTML = HINTS_PROVIDER[v] || '';
         }
-        sel.addEventListener('change', atualizarUI);
+        sel.addEventListener('change', function () {
+            atualizarUI();
+            if (sel.value === 'gen') salvarChaveAPI();
+        });
         atualizarUI();
     }
 
@@ -1297,3 +1300,33 @@ window.IA = (function () {
         salvarChaveAPI
     };
 }());
+
+function abrirModalInstrucoesGen() {
+    var modal = document.getElementById('modal-instrucoes-gen');
+    var input = document.getElementById('instrucoes-gen-input');
+    if (!modal) return;
+    if (input) input.value = '';
+    modal.style.display = 'flex';
+}
+
+function fecharModalInstrucoesGen() {
+    var modal = document.getElementById('modal-instrucoes-gen');
+    if (modal) modal.style.display = 'none';
+}
+
+function salvarInstrucoesGen() {
+    var input = document.getElementById('instrucoes-gen-input');
+    var conteudo = input ? input.value.trim() : '';
+    if (!conteudo) { alert('Escreva uma instrução antes de salvar.'); return; }
+    fetch('/api/ai/instrucoes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('token') || '') },
+        body: JSON.stringify({ conteudo: conteudo })
+    }).then(function (r) { return r.json(); }).then(function (res) {
+        if (res && res.success) {
+            fecharModalInstrucoesGen();
+        } else {
+            alert('Erro ao salvar: ' + (res.erro || 'tente novamente'));
+        }
+    }).catch(function () { alert('Erro de conexão ao salvar instruções.'); });
+}

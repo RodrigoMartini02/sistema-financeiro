@@ -371,7 +371,6 @@ async function processarArquivoUpload(req, res) {
         const despesaSugerida = {
             descricao: resultado.descricao || resultado.empresa || 'Documento financeiro',
             valor: resultado.valor,
-            forma_pagamento: resultado.tipo === 'boleto' ? 'boleto' : resultado.tipo === 'comprovante' ? 'pix' : 'dinheiro',
             vencimento: resultado.vencimento,
             data: resultado.data || new Date().toISOString().split('T')[0],
             parcelas: 1,

@@ -182,6 +182,7 @@ function normalizarDespesa(dados) {
     // Campos extras preservados do parser
     normalizado.ja_pago    = !!dados.ja_pago;
     normalizado.recorrente = !!dados.recorrente;
+    if (dados.data_pagamento) normalizado.data_pagamento = dados.data_pagamento;
     if (dados.nome_cartao) normalizado.nome_cartao = dados.nome_cartao;
     if (dados.categoria_id) normalizado.categoria_id = dados.categoria_id;
     if (dados.cartao_id)    normalizado.cartao_id    = dados.cartao_id;
