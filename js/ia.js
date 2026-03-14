@@ -280,12 +280,18 @@ window.IA = (function () {
         var valorParcela  = parcelado ? valorTotal / totalParcelas : valorTotal;
 
         // Calcula mês/ano do vencimento para exibir
-        var dataVenc = d.vencimento || d.data || '';
+        var dataVenc  = d.vencimento || '';
+        var dataCompra = d.data || '';
+        var meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
         var mesLabel = '';
+        var mesRegistro = '';
         if (dataVenc) {
             var p = dataVenc.split('-');
-            var meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
             mesLabel = ' → ' + (meses[parseInt(p[1])-1] || '') + '/' + p[0];
+            mesRegistro = (meses[parseInt(p[1])-1] || '') + '/' + p[0];
+        } else if (dataCompra) {
+            var pc = dataCompra.split('-');
+            mesRegistro = (meses[parseInt(pc[1])-1] || '') + '/' + pc[0];
         }
 
         var semValor = valorTotal <= 0;
@@ -298,11 +304,19 @@ window.IA = (function () {
         } else {
             rows += '<div class="ai-dc-row"><span class="ai-dc-label">Valor</span><span class="ai-dc-valor' + (semValor ? ' ai-dc-alerta' : '') + '">' + (semValor ? '⚠ não informado' : fmtV(valorTotal)) + '</span></div>';
         }
+        rows += '<div class="ai-dc-row"><span class="ai-dc-label">Forma de pagamento</span><span class="ai-dc-val">' + fmtF(d.forma_pagamento) + '</span></div>';
+        // Cartão: só mostrar quando forma_pagamento é crédito
+        var nomeCartao = d.nome_cartao || d.cartao_nome || (d.cartao_id ? 'Cartão #' + d.cartao_id : '');
+        if ((d.forma_pagamento === 'credito' || d.forma_pagamento === 'cartao_credito') && nomeCartao) {
+            rows += '<div class="ai-dc-row"><span class="ai-dc-label">Cartão</span><span class="ai-dc-val">' + esc(nomeCartao) + '</span></div>';
+        }
         rows += '<div class="ai-dc-row"><span class="ai-dc-label">Categoria</span><span class="ai-dc-val">' + esc(d.categoria || 'Outros') + '</span></div>';
-        rows += '<div class="ai-dc-row"><span class="ai-dc-label">Pagamento</span><span class="ai-dc-val">' + fmtF(d.forma_pagamento) + '</span></div>';
+        if (dataCompra && dataCompra !== dataVenc) rows += '<div class="ai-dc-row"><span class="ai-dc-label">Data de compra</span><span class="ai-dc-val">' + fmtD(dataCompra) + '</span></div>';
         if (dataVenc) rows += '<div class="ai-dc-row"><span class="ai-dc-label">Vencimento</span><span class="ai-dc-val">' + fmtD(dataVenc) + '<small class="ai-dc-mes">' + mesLabel + '</small></span></div>';
-        rows += '<div class="ai-dc-row"><span class="ai-dc-label">Status</span><span class="ai-dc-val ' + (d.ja_pago ? 'ai-dc-pago' : 'ai-dc-pendente') + '">' + (d.ja_pago ? '✔ Paga' : '⏳ Pendente') + '</span></div>';
-        if (d.recorrente) rows += '<div class="ai-dc-row"><span class="ai-dc-label">Recorrente</span><span class="ai-dc-val">🔄 Sim</span></div>';
+        if (mesRegistro) rows += '<div class="ai-dc-row"><span class="ai-dc-label">Mês de registro</span><span class="ai-dc-val">' + esc(mesRegistro) + '</span></div>';
+        rows += '<div class="ai-dc-row"><span class="ai-dc-label">Já pago</span><span class="ai-dc-val ' + (d.ja_pago ? 'ai-dc-pago' : 'ai-dc-pendente') + '">' + (d.ja_pago ? 'Sim' : 'Não') + '</span></div>';
+        if (d.recorrente) rows += '<div class="ai-dc-row"><span class="ai-dc-label">Recorrente</span><span class="ai-dc-val">Sim</span></div>';
+        if (d.replicar_ate) rows += '<div class="ai-dc-row"><span class="ai-dc-label">Replicar até</span><span class="ai-dc-val">' + esc(d.replicar_ate) + '</span></div>';
 
         _ins('<div class="ai-msg ai-msg--ai">' +
             '<div class="ai-msg-bub">' + fmt(texto) +
@@ -420,6 +434,10 @@ window.IA = (function () {
                 addGen('✔ "' + d.descricao + '"' + sufixo + ' salva em ' + (meses[mes] || '') + '/' + ano + '.');
                 if (window.usuarioDataManager && typeof window.usuarioDataManager.limparCache === 'function') {
                     window.usuarioDataManager.limparCache();
+                }
+                // Limpa o cache global para forçar recarga da API com a nova despesa
+                if (window.dadosFinanceiros) {
+                    window.dadosFinanceiros = {};
                 }
                 // Atualiza a tabela do mês correto (o mês do vencimento, não o mês aberto)
                 if (typeof window.renderizarDetalhesDoMes === 'function') {

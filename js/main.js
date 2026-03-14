@@ -1756,7 +1756,13 @@ async function buscarDespesasAPI(mes, ano) {
                 observacoes: d.observacoes,
                 anexos: Array.isArray(anexos) ? anexos : [],
                 metadados: d.metadados || null,
-                status: d.pago ? 'quitada' : (new Date(d.data_vencimento) < new Date() ? 'atrasada' : 'em_dia')
+                status: d.pago ? 'quitada' : (function() {
+                    // Comparação sem timezone: extrai partes da string YYYY-MM-DD diretamente
+                    var hoje = new Date(); hoje.setHours(0,0,0,0);
+                    var partsV = (d.data_vencimento || '').split('-');
+                    var venc = partsV.length === 3 ? new Date(parseInt(partsV[0]), parseInt(partsV[1])-1, parseInt(partsV[2])) : hoje;
+                    return venc < hoje ? 'atrasada' : 'em_dia';
+                })()
             };
         });
 
