@@ -620,13 +620,16 @@ form .btn-primary:hover {
 .shape-3 { width: 200px; height: 200px; top: 40%; left: 38%; }
 
 .hero-container {
-    max-width: 900px;
+    max-width: 1200px;
     margin: 0 auto;
     padding: 0 2rem;
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    gap: 4rem;
+    align-items: center;
     position: relative;
     z-index: 1;
     width: 100%;
-    text-align: center;
 }
 
 .hero-badge {
@@ -641,7 +644,7 @@ form .btn-primary:hover {
     border-radius: 50px;
     font-size: 13px;
     font-weight: 600;
-    margin: 0 auto 24px;
+    margin-bottom: 24px;
     width: fit-content;
 }
 
@@ -665,8 +668,8 @@ form .btn-primary:hover {
     font-size: 16px;
     color: rgba(255,255,255,0.85);
     line-height: 1.7;
-    margin: 0 auto 28px;
-    max-width: 640px;
+    margin-bottom: 28px;
+    max-width: 500px;
 }
 
 .hero-features-list {
@@ -674,7 +677,6 @@ form .btn-primary:hover {
     flex-direction: column;
     gap: 10px;
     margin-bottom: 36px;
-    align-items: center;
 }
 
 .hero-feature-item {
@@ -696,7 +698,6 @@ form .btn-primary:hover {
     display: flex;
     align-items: center;
     gap: 0;
-    justify-content: center;
 }
 
 .hero-stat {
@@ -839,7 +840,6 @@ form .btn-primary:hover {
     gap: 12px;
     flex-wrap: wrap;
     margin-top: 36px;
-    justify-content: center;
 }
 
 
@@ -1063,33 +1063,6 @@ form .btn-primary:hover {
 
 
 
-.btn-nav-login {
-    background-color: #667eea;
-    color: white;
-    padding: 8px 20px;
-    border-radius: 50px;
-    border: none;
-    font-weight: 600;
-    cursor: pointer;
-    transition: transform 0.2s, background 0.2s;
-    margin-left: 15px;
-    text-decoration: none;
-    display: inline-block;
-}
-
-.btn-nav-login:hover {
-    background-color: #5a67d8;
-    transform: translateY(-2px);
-}
-
-/* No celular, o botão pode ser menor */
-@media (max-width: 768px) {
-    .btn-nav-login {
-        padding: 5px 12px;
-        font-size: 14px;
-    }
-}
-
 /* Login card always visible in hero */
 .hero-login {
     display: flex;
@@ -1270,7 +1243,19 @@ form .btn-primary:hover {
    ================================================================ */
 
 @media (max-width: 900px) {
+    .hero-container {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+
+    .hero-badge { margin: 0 auto 24px; }
+    .hero-desc { margin: 0 auto 28px; }
+    .hero-features-list { align-items: center; }
+    .hero-stats { justify-content: center; }
+    .hero-login { justify-content: center; }
+
     .features-grid { grid-template-columns: repeat(2, 1fr); }
+
     .nav-links { display: none; }
 }
 

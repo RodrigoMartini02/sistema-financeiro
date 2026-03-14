@@ -592,17 +592,15 @@ function configurarNavegacaoModais() {
     if (elementos.modalAbrirCadastroBtn) {
         elementos.modalAbrirCadastroBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            if (elementos.loginModal) elementos.loginModal.style.display = 'none';
             if (elementos.cadastroModal) elementos.cadastroModal.style.display = 'flex';
         });
     }
 
-    // Cadastro -> Login
+    // Cadastro -> Login (fechar modal de cadastro)
     if (elementos.cadastroAbrirLoginBtn) {
         elementos.cadastroAbrirLoginBtn.addEventListener('click', (e) => {
             e.preventDefault();
             if (elementos.cadastroModal) elementos.cadastroModal.style.display = 'none';
-            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
         });
     }
 
@@ -610,17 +608,15 @@ function configurarNavegacaoModais() {
     if (elementos.esqueceuSenhaBtn) {
         elementos.esqueceuSenhaBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            if (elementos.loginModal) elementos.loginModal.style.display = 'none';
             if (elementos.recuperacaoModal) elementos.recuperacaoModal.style.display = 'flex';
         });
     }
 
-    // Recuperação -> Login
+    // Recuperação -> Login (fechar modal de recuperação)
     if (elementos.recuperacaoAbrirLoginBtn) {
         elementos.recuperacaoAbrirLoginBtn.addEventListener('click', (e) => {
             e.preventDefault();
             if (elementos.recuperacaoModal) elementos.recuperacaoModal.style.display = 'none';
-            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
         });
     }
 }
@@ -643,7 +639,6 @@ function configurarFechamentoModais() {
     }
 
     const closeButtons = [
-        { btn: elementos.loginCloseBtn, modal: elementos.loginModal },
         { btn: elementos.cadastroCloseBtn, modal: elementos.cadastroModal },
         { btn: elementos.recuperacaoCloseBtn, modal: elementos.recuperacaoModal },
         { btn: elementos.novaSenhaCloseBtn, modal: elementos.novaSenhaModal }
@@ -657,7 +652,7 @@ function configurarFechamentoModais() {
 
     // Fechar clicando fora
     window.addEventListener('click', function(event) {
-        const modais = [elementos.loginModal, elementos.cadastroModal, elementos.recuperacaoModal, elementos.novaSenhaModal];
+        const modais = [elementos.cadastroModal, elementos.recuperacaoModal, elementos.novaSenhaModal];
         modais.forEach(modal => {
             if (event.target === modal) {
                 fecharModal(modal);
@@ -700,7 +695,7 @@ function configurarFormatacaoDocumentos() {
 }
 
 function inicializarModais() {
-    const modais = [elementos.loginModal, elementos.cadastroModal, elementos.recuperacaoModal, elementos.novaSenhaModal];
+    const modais = [elementos.cadastroModal, elementos.recuperacaoModal, elementos.novaSenhaModal];
     modais.forEach(modal => {
         if (modal) modal.style.display = 'none';
     });
@@ -727,7 +722,6 @@ function inicializarModais() {
 function obterElementosDOM() {
     return {
         // Modais
-        loginModal: document.getElementById('loginModal'),
         cadastroModal: document.getElementById('cadastroModal'),
         recuperacaoModal: document.getElementById('recuperacaoSenhaModal'),
         novaSenhaModal: document.getElementById('novaSenhaModal'),
@@ -754,7 +748,6 @@ function obterElementosDOM() {
         recuperacaoAbrirLoginBtn: document.getElementById('recuperacao-abrir-login'),
 
         // Botões de fechar
-        loginCloseBtn: document.querySelector('.login-close'),
         cadastroCloseBtn: document.querySelector('.cadastro-close'),
         recuperacaoCloseBtn: document.querySelector('.recuperacao-close'),
         novaSenhaCloseBtn: document.querySelector('.nova-senha-close')
@@ -1144,25 +1137,6 @@ function configurarLandingPage() {
         if (!nav) return;
         if (window.scrollY > 50) nav.classList.add('nav-scrolled');
         else nav.classList.remove('nav-scrolled');
-    });
-
-    // Botão "Entrar" da navbar
-    const btnNavLogin = document.getElementById('btn-nav-login');
-    if (btnNavLogin) {
-        btnNavLogin.addEventListener('click', () => {
-            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
-        });
-    }
-
-    // Botões "Criar Conta Grátis"
-    const botoesCadastro = [
-        document.getElementById('btn-hero-cadastro'),
-        document.getElementById('btn-cta-cadastro'),
-    ];
-    botoesCadastro.forEach(btn => {
-        if (btn) btn.addEventListener('click', () => {
-            document.getElementById('modal-abrir-cadastro').click();
-        });
     });
 
     // Service Worker
