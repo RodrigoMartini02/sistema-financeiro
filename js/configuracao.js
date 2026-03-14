@@ -1860,7 +1860,6 @@ async function exportarDadosMesAMes() {
             return;
         }
 
-        console.log('📤 Iniciando exportação MÊS A MÊS (PostgreSQL)...');
         mostrarFeedback('Buscando dados do PostgreSQL...', 'info');
 
         // ✅ BUSCAR TODAS AS RECEITAS
@@ -2025,8 +2024,6 @@ async function exportarDadosMesAMes() {
             return;
         }
 
-        console.log(`📊 Encontrados ${mesesComDados.length} meses com dados`);
-
         // ✅ EXPORTAR CADA MÊS
         for (const chave of mesesComDados) {
             const mesData = dadosPorMes[chave];
@@ -2076,8 +2073,6 @@ async function exportarDadosMesAMes() {
             link.click();
             document.body.removeChild(link);
 
-            console.log(`✅ Exportado: ${nomeArquivo} (${mesData.receitas.length} receitas, ${mesData.despesas.length} despesas)`);
-
             // Aguardar entre downloads
             await new Promise(resolve => setTimeout(resolve, 500));
         }
@@ -2110,7 +2105,6 @@ async function exportarDados() {
         }
 
         mostrarFeedback('Buscando dados do PostgreSQL...', 'info');
-        console.log('📦 Iniciando exportação COMPLETA dos dados do PostgreSQL...');
 
         // ✅ BUSCAR RECEITAS DIRETAMENTE DA TABELA receitas
         const receitasResponse = await fetch(`${API_URL}/receitas`, {
@@ -2176,14 +2170,7 @@ async function exportarDados() {
         // Contar cartões ativos
         const cartoesAtivos = Object.values(cartoesUsuario).filter(c => c.ativo).length;
 
-        // Debug
         const totalCategorias = (categoriasUsuario.receitas?.length || 0) + (categoriasUsuario.despesas?.length || 0);
-
-        console.log('📊 Dados encontrados no PostgreSQL:');
-        console.log('  - Receitas:', todasReceitas.length);
-        console.log('  - Despesas:', todasDespesas.length);
-        console.log('  - Categorias:', totalCategorias);
-        console.log('  - Cartões ativos:', cartoesAtivos);
 
         if (todasReceitas.length === 0 && todasDespesas.length === 0) {
             mostrarFeedback('Não há dados para exportar', 'warning');
@@ -2200,8 +2187,6 @@ async function exportarDados() {
             categorias: categoriasUsuario,
             cartoes: cartoesUsuario
         };
-
-        console.log('📦 Backup gerado:', backup);
 
         // Criar arquivo JSON
         const jsonContent = JSON.stringify(backup, null, 2);
@@ -2220,7 +2205,6 @@ async function exportarDados() {
 
         const mensagem = `✅ Exportados: ${todasReceitas.length} receitas, ${todasDespesas.length} despesas, ${totalCategorias} categorias e ${cartoesAtivos} cartões`;
         mostrarFeedback(mensagem, 'success');
-        console.log(mensagem);
     } catch (error) {
         console.error('Erro ao exportar dados:', error);
         mostrarFeedback('Erro ao exportar dados: ' + error.message, 'error');
@@ -2289,14 +2273,12 @@ async function importarDados() {
                 despesas = backup.dados.despesas || [];
                 categorias = backup.dados.categorias || [];
                 cartoes = backup.dados.cartoes || {};
-                console.log('📦 Backup v2.0 detectado (mês a mês)');
             } else if (backup.receitas && backup.despesas) {
                 // Formato antigo
                 receitas = backup.receitas || [];
                 despesas = backup.despesas || [];
                 categorias = backup.categorias || {};
                 cartoes = backup.cartoes || {};
-                console.log('📦 Backup v1.0 detectado (completo)');
             } else {
                 mostrarFeedback('Arquivo inválido: formato de backup não reconhecido', 'error');
                 return;
@@ -2340,7 +2322,6 @@ async function importarDados() {
 
             // ✅ PASSO 0: Criar categorias padrão no PostgreSQL PRIMEIRO
             if (progressText) progressText.textContent = 'Criando categorias padrão no banco de dados...';
-            console.log('🏗️ Criando categorias padrão no PostgreSQL...');
 
             try {
                 const responsePadrao = await fetch(`${API_URL}/categorias/padrao`, {
@@ -2351,13 +2332,7 @@ async function importarDados() {
                     }
                 });
 
-                if (responsePadrao.ok) {
-                    const data = await responsePadrao.json();
-                    console.log('✅ Categorias padrão:', data.message);
-                    console.log('📋 Total de categorias:', data.resumo?.total);
-                    console.log('📋 IDs disponíveis:', data.resumo?.ids);
-                    console.log('📊 Detalhes:', data.data);
-                } else {
+                if (!responsePadrao.ok) {
                     const errorData = await responsePadrao.json();
                     console.error('❌ Erro ao criar categorias padrão:', errorData);
                 }
@@ -2369,8 +2344,6 @@ async function importarDados() {
             if (backup.categorias && backup.categorias.despesas) {
                 const totalCategorias = backup.categorias.despesas.length;
                 if (progressText) progressText.textContent = `Importando ${totalCategorias} categorias...`;
-                console.log('📁 Importando categorias para tabela categorias...');
-
                 try {
                     // Buscar categorias existentes
                     const responseCatExistentes = await fetch(`${API_URL}/categorias`, {
@@ -2385,7 +2358,6 @@ async function importarDados() {
                     if (responseCatExistentes.ok) {
                         const data = await responseCatExistentes.json();
                         categoriasExistentes = (data.data || []).map(c => c.nome.toLowerCase());
-                        console.log('📋 Categorias já existentes:', categoriasExistentes);
                     }
 
                     // Criar cada categoria do backup que ainda não existe
@@ -2405,21 +2377,16 @@ async function importarDados() {
                                     })
                                 });
 
-                                if (responseCreate.ok) {
-                                    console.log(`✅ Categoria "${nomeCategoria}" criada`);
-                                } else {
+                                if (!responseCreate.ok) {
                                     const errorData = await responseCreate.json();
                                     console.warn(`⚠️ Erro ao criar categoria "${nomeCategoria}":`, errorData);
                                 }
                             } catch (error) {
                                 console.warn(`⚠️ Exceção ao criar categoria "${nomeCategoria}":`, error);
                             }
-                        } else {
-                            console.log(`⏭️ Categoria "${nomeCategoria}" já existe, pulando...`);
                         }
                     }
 
-                    console.log('✅ Importação de categorias concluída');
                 } catch (error) {
                     console.warn('⚠️ Erro ao importar categorias:', error);
                 }
@@ -2442,7 +2409,6 @@ async function importarDados() {
                     (categoriasData.data || []).forEach(cat => {
                         mapaCategorias[cat.nome] = cat.id;
                     });
-                    console.log('📋 Mapa de categorias criado:', mapaCategorias);
                 }
             } catch (error) {
                 console.warn('⚠️ Erro ao buscar categorias para mapeamento:', error);
@@ -2467,7 +2433,6 @@ async function importarDados() {
                             mapaCartoes[cartao.numero_cartao] = cartao.id;
                         }
                     });
-                    console.log('💳 Mapa de cartões criado:', mapaCartoes);
                 }
             } catch (error) {
                 console.warn('⚠️ Erro ao buscar cartões para mapeamento:', error);
@@ -2477,7 +2442,6 @@ async function importarDados() {
             if (backup.cartoes) {
                 const totalCartoes = Object.values(backup.cartoes).filter(c => c.ativo).length;
                 if (progressText) progressText.textContent = `Importando ${totalCartoes} cartões...`;
-                console.log('💳 Importando cartões...');
 
                 try {
                     const responseCartoes = await fetch(`${API_URL}/usuarios/${usuario.id}/cartoes`, {
@@ -2490,7 +2454,6 @@ async function importarDados() {
                     });
 
                     if (responseCartoes.ok) {
-                        console.log('✅ Cartões importados com sucesso');
                         window.cartoesUsuario = backup.cartoes;
                     } else {
                         const errorData = await responseCartoes.json();
@@ -2502,16 +2465,10 @@ async function importarDados() {
             }
 
             // ✅ PASSO 3: Importar receitas
-            console.log('📊 Total de receitas a importar:', backup.receitas.length);
-
             for (const receita of backup.receitas) {
                 try {
-                    console.log('🔍 Processando receita:', receita);
-
                     // Validar e converter data para formato ISO8601
                     let dataRecebimento = receita.data_recebimento || receita.data;
-
-                    console.log('📅 Data original:', dataRecebimento);
 
                     // Se a data não estiver no formato YYYY-MM-DD, converter
                     if (dataRecebimento && !dataRecebimento.match(/^\d{4}-\d{2}-\d{2}$/)) {
@@ -2522,8 +2479,6 @@ async function importarDados() {
                         }
                     }
 
-                    console.log('📅 Data convertida:', dataRecebimento);
-
                     const dadosReceita = {
                         descricao: receita.descricao,
                         valor: parseFloat(receita.valor),
@@ -2532,8 +2487,6 @@ async function importarDados() {
                         ano: parseInt(receita.ano),
                         observacoes: receita.observacoes || ''
                     };
-
-                    console.log('📤 Enviando para API:', dadosReceita);
 
                     const response = await fetch(`${API_URL}/receitas`, {
                         method: 'POST',
@@ -2546,36 +2499,14 @@ async function importarDados() {
 
                     if (response.ok) {
                         sucessos++;
-                        const resultado = await response.json();
-                        if (resultado.data && resultado.data.id) {
-                            console.log(`✅ Receita importada com ID ${resultado.data.id}`);
-                        } else {
-                            console.log('✅ Receita importada com sucesso');
-                        }
+                        await response.json();
                     } else {
                         erros++;
-                        let errorData;
-                        try {
-                            errorData = await response.json();
-                        } catch (e) {
-                            errorData = { message: await response.text() };
-                        }
-                        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-                        console.error('❌ ERRO AO IMPORTAR RECEITA');
-                        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-                        console.error('📊 Status HTTP:', response.status, response.statusText);
-                        console.error('📤 Dados enviados:', JSON.stringify(dadosReceita, null, 2));
-                        console.error('📥 Resposta do servidor:', JSON.stringify(errorData, null, 2));
-                        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                        console.error('❌ Erro ao importar receita (HTTP ' + response.status + ')');
                     }
                 } catch (error) {
                     erros++;
-                    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-                    console.error('❌ EXCEÇÃO AO IMPORTAR RECEITA');
-                    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-                    console.error('Erro:', error.message);
-                    console.error('Stack:', error.stack);
-                    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                    console.error('❌ Exceção ao importar receita:', error.message);
                 }
 
                 processados++;
@@ -2589,7 +2520,6 @@ async function importarDados() {
 
             // ✅ PASSO 3.5: Buscar receitas do banco para obter IDs reais
             if (progressText) progressText.textContent = 'Sincronizando receitas com banco de dados...';
-            console.log('🔄 Buscando receitas do banco para obter IDs reais...');
 
             try {
                 // Buscar anos únicos das receitas importadas
@@ -2606,8 +2536,7 @@ async function importarDados() {
                         });
 
                         if (responseReceitas.ok) {
-                            const receitasData = await responseReceitas.json();
-                            console.log(`✅ Receitas ${mes+1}/${ano} sincronizadas: ${receitasData.data?.length || 0} registros com IDs`);
+                            await responseReceitas.json();
                         }
                     }
                 }
@@ -2617,14 +2546,12 @@ async function importarDados() {
 
             // ✅ PASSO 4: Importar despesas
             let despesasProcessadas = 0;
-            console.log('💳 Total de despesas a importar:', totalDespesas);
 
             for (const despesa of backup.despesas) {
                 try {
                     // ✅ FILTRO: Ignorar parcelas que não sejam a primeira
                     // Se for parcelada E parcela_atual não for 1, PULAR
                     if (despesa.parcelado && despesa.parcela_atual && despesa.parcela_atual !== 1) {
-                        console.log(`⏭️ Pulando parcela ${despesa.parcela_atual} de: ${despesa.descricao}`);
                         despesasProcessadas++;
                         processados++;
                         continue;
@@ -2664,7 +2591,6 @@ async function importarDados() {
                     let categoriaId = null;
                     if (despesa.categoria && mapaCategorias[despesa.categoria]) {
                         categoriaId = mapaCategorias[despesa.categoria];
-                        console.log(`📁 Mapeando categoria "${despesa.categoria}" → ID ${categoriaId}`);
                     }
 
                     // ✅ Mapear cartao_id_original para ID real do banco
@@ -2672,7 +2598,6 @@ async function importarDados() {
                     const cartaoOriginal = despesa.cartao_id_original || despesa.cartao_id || despesa.cartao || despesa.numeroCartao;
                     if (cartaoOriginal && mapaCartoes[cartaoOriginal]) {
                         cartaoId = mapaCartoes[cartaoOriginal];
-                        console.log(`💳 Mapeando cartão ${cartaoOriginal} → ID ${cartaoId}`);
                     }
 
                     // ✅ CORRIGIDO: Respeitar campo mes_fechado da exportação
@@ -2712,10 +2637,7 @@ async function importarDados() {
 
                     if (response.ok) {
                         sucessos++;
-                        const resultado = await response.json();
-                        if (resultado.data && resultado.data.id) {
-                            console.log(`✅ Despesa importada com ID ${resultado.data.id}`);
-                        }
+                        await response.json();
                     } else {
                         erros++;
                         let errorData;
@@ -2724,13 +2646,11 @@ async function importarDados() {
                         } catch (e) {
                             errorData = { message: await response.text() };
                         }
-                        console.error('❌ Erro ao importar despesa:', errorData);
-                        console.error('📤 Dados enviados:', dadosDespesa);
-                        console.error('📊 Status:', response.status, response.statusText);
+                        console.error('Erro ao importar despesa:', errorData);
                     }
                 } catch (error) {
                     erros++;
-                    console.error('❌ Exceção ao importar despesa:', error);
+                    console.error('Exceção ao importar despesa:', error);
                 }
 
                 despesasProcessadas++;
@@ -2746,7 +2666,6 @@ async function importarDados() {
 
             // ✅ PASSO 4.5: Buscar despesas do banco para obter IDs reais
             if (progressText) progressText.textContent = 'Sincronizando despesas com banco de dados...';
-            console.log('🔄 Buscando despesas do banco para obter IDs reais...');
 
             try {
                 // Buscar anos únicos das despesas importadas
@@ -2763,13 +2682,12 @@ async function importarDados() {
                         });
 
                         if (responseDespesas.ok) {
-                            const despesasData = await responseDespesas.json();
-                            console.log(`✅ Despesas ${mes+1}/${ano} sincronizadas: ${despesasData.data?.length || 0} registros com IDs`);
+                            await responseDespesas.json();
                         }
                     }
                 }
             } catch (error) {
-                console.warn('⚠️ Erro ao sincronizar despesas:', error);
+                console.warn('Erro ao sincronizar despesas:', error);
             }
 
             // ✅ PASSO 5: Salvar anos na tabela 'anos'
@@ -2783,7 +2701,6 @@ async function importarDados() {
 
             if (anosImportados.size > 0) {
                 if (progressText) progressText.textContent = `Salvando ${anosImportados.size} anos...`;
-                console.log(`📅 Salvando anos: ${Array.from(anosImportados).sort().join(', ')}`);
 
                 for (const ano of anosImportados) {
                     try {
@@ -2795,9 +2712,8 @@ async function importarDados() {
                             },
                             body: JSON.stringify({ ano: parseInt(ano) })
                         });
-                        console.log(`✅ Ano ${ano} salvo`);
                     } catch (error) {
-                        console.warn(`⚠️ Erro ao salvar ano ${ano}:`, error);
+                        console.warn(`Erro ao salvar ano ${ano}:`, error);
                     }
                 }
             }
@@ -2805,11 +2721,10 @@ async function importarDados() {
             // ✅ PASSO 6: Salvar meses fechados na tabela 'meses_fechados'
             if (backup.mesesFechados && backup.mesesFechados.length > 0) {
                 if (progressText) progressText.textContent = `Fechando ${backup.mesesFechados.length} meses...`;
-                console.log(`🔒 Fechando ${backup.mesesFechados.length} meses`);
 
                 for (const mesFechado of backup.mesesFechados) {
                     try {
-                        // ✅ Buscar saldo do mês antes de fechar
+                        // Buscar saldo do mês antes de fechar
                         const saldoResponse = await fetch(`${API_URL}/meses/${mesFechado.ano}/${mesFechado.mes}/saldo`, {
                             headers: {
                                 'Content-Type': 'application/json',
@@ -2821,10 +2736,8 @@ async function importarDados() {
                         if (saldoResponse.ok) {
                             const saldoData = await saldoResponse.json();
                             saldoFinal = saldoData.data?.saldo_final || 0;
-                            console.log(`📊 Saldo calculado para ${mesFechado.mes + 1}/${mesFechado.ano}: R$ ${saldoFinal}`);
                         }
 
-                        // ✅ CORRIGIDO: Fechar com saldo correto
                         const response = await fetch(`${API_URL}/meses/${mesFechado.ano}/${mesFechado.mes}/fechar`, {
                             method: 'POST',
                             headers: {
@@ -2836,35 +2749,29 @@ async function importarDados() {
                             })
                         });
 
-                        if (response.ok) {
-                            console.log(`✅ Mês ${mesFechado.mes + 1}/${mesFechado.ano} fechado com sucesso (saldo: R$ ${saldoFinal})`);
-                        } else {
+                        if (!response.ok) {
                             const errorData = await response.json();
-                            console.warn(`⚠️ Erro ao fechar mês ${mesFechado.mes + 1}/${mesFechado.ano}:`, errorData);
+                            console.warn(`Erro ao fechar mês ${mesFechado.mes + 1}/${mesFechado.ano}:`, errorData);
                         }
                     } catch (error) {
-                        console.warn(`⚠️ Exceção ao fechar mês ${mesFechado.mes + 1}/${mesFechado.ano}:`, error);
+                        console.warn(`Exceção ao fechar mês ${mesFechado.mes + 1}/${mesFechado.ano}:`, error);
                     }
                 }
             }
 
             // ✅ PASSO 7: Forçar recarga dos dados do banco com IDs reais
             if (progressText) progressText.textContent = 'Finalizando e atualizando dados...';
-            console.log('🔄 Forçando recarga de dados do banco de dados...');
 
             // Limpar cache do usuarioDataManager
             if (window.usuarioDataManager && typeof window.usuarioDataManager.limparCache === 'function') {
-                console.log('🗑️ Limpando cache do usuarioDataManager...');
                 window.usuarioDataManager.limparCache();
             }
 
             // Recarregar dados financeiros do banco
             if (window.usuarioDataManager && typeof window.usuarioDataManager.getDadosFinanceirosUsuario === 'function') {
-                console.log('📥 Buscando dados atualizados do banco...');
                 const dadosAtualizados = await window.usuarioDataManager.getDadosFinanceirosUsuario();
                 if (dadosAtualizados) {
                     window.dadosFinanceiros = dadosAtualizados;
-                    console.log('✅ Dados financeiros atualizados em memória com IDs do PostgreSQL');
                 }
             }
 
@@ -2993,10 +2900,10 @@ async function limparDados() {
                 notificationCount.classList.add('hidden');
             }
 
-            alert('Tudo limpo com sucesso!');
+            mostrarFeedback('Tudo limpo com sucesso!', 'success');
             window.location.reload();
         } else {
-            alert('Erro ao limpar dados no servidor.');
+            mostrarFeedback('Erro ao limpar dados no servidor.', 'error');
         }
     } catch (error) {
         // Erro de conexão - silencioso
@@ -3015,10 +2922,10 @@ async function fazerChamadaGenerica(apiBase, usuarioId) {
     });
     
     if (response.ok) {
-        alert('Dados excluídos!');
+        mostrarFeedback('Dados excluídos!', 'success');
         window.location.reload();
     } else {
-        alert('Erro Crítico: A rota de limpeza não existe no Backend. Verifique o código do servidor.');
+        mostrarFeedback('Erro Crítico: A rota de limpeza não existe no Backend. Verifique o código do servidor.', 'error');
     }
 }
 
@@ -3388,13 +3295,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Validar se as senhas novas coincidem
             if (senhaNova !== senhaConfirmar) {
-                alert('As senhas não coincidem!');
+                mostrarFeedback('As senhas não coincidem!', 'error');
                 return;
             }
 
             // Validar tamanho mínimo
             if (senhaNova.length < 6) {
-                alert('A senha deve ter no mínimo 6 caracteres!');
+                mostrarFeedback('A senha deve ter no mínimo 6 caracteres!', 'error');
                 return;
             }
 
@@ -3418,15 +3325,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 const data = await response.json();
 
                 if (response.ok) {
-                    alert('Senha alterada com sucesso!');
+                    mostrarFeedback('Senha alterada com sucesso!', 'success');
                     formAlterarSenha.reset();
                     modalAlterarSenha.style.display = 'none';
                 } else {
-                    alert(data.message || 'Erro ao alterar senha. Verifique se a senha atual está correta.');
+                    mostrarFeedback(data.message || 'Erro ao alterar senha. Verifique se a senha atual está correta.', 'error');
                 }
             } catch (error) {
                 console.error('Erro ao alterar senha:', error);
-                alert('Erro ao alterar senha. Tente novamente.');
+                mostrarFeedback('Erro ao alterar senha. Tente novamente.', 'error');
             }
         });
     }

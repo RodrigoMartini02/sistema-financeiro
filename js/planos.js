@@ -411,7 +411,7 @@ async function pagarCartao() {
             const msg = recorrente
                 ? 'Assinatura ativada! Seu cartão será cobrado automaticamente a cada período.'
                 : 'Pagamento aprovado! Seu plano está ativo.';
-            alert(msg);
+            (window.mostrarToast || alert)(msg, 'success');
         } else {
             mostrarErro(data.message || 'Não foi possível processar o pagamento. Verifique os dados do cartão.');
             btn.disabled = false;
@@ -549,13 +549,13 @@ window.verificarPagamentoPix = async function () {
     if (!sistemaEstaBloqueado) {
         pararContagemPix();
         fecharModalAposPageamento();
-        alert('Pagamento confirmado! Seu plano está ativo. Obrigado!');
+        (window.mostrarToast || alert)('Pagamento confirmado! Seu plano está ativo. Obrigado!', 'success');
     } else {
         if (btn) {
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-check"></i> Já paguei';
         }
-        alert('Pagamento ainda não identificado. Aguarde alguns instantes e tente novamente.');
+        (window.mostrarToast || alert)('Pagamento ainda não identificado. Aguarde alguns instantes e tente novamente.', 'warning');
     }
 };
 
@@ -695,21 +695,21 @@ window.confirmarCancelamento = async function () {
         const data = await res.json();
 
         if (data.success) {
-            alert(data.message + (data.aviso ? `\n\n⚠️ ${data.aviso}` : ''));
+            (window.mostrarToast || alert)(data.message + (data.aviso ? ` - ${data.aviso}` : ''), 'success');
             // Bloqueia o sistema localmente e fecha modal
             sistemaEstaBloqueado = true;
             const modal = document.getElementById('modal-planos');
             if (modal) modal.style.display = 'none';
             bloquearSistema();
         } else {
-            alert(data.message || 'Erro ao cancelar assinatura.');
+            (window.mostrarToast || alert)(data.message || 'Erro ao cancelar assinatura.', 'error');
             if (btn) {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-times-circle"></i> Cancelar assinatura';
             }
         }
     } catch (e) {
-        alert('Erro ao conectar com o servidor. Tente novamente.');
+        (window.mostrarToast || alert)('Erro ao conectar com o servidor. Tente novamente.', 'error');
         if (btn) {
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-times-circle"></i> Cancelar assinatura';
@@ -722,5 +722,5 @@ window.confirmarCancelamento = async function () {
 // ================================================================
 
 function mostrarErro(msg) {
-    alert(msg);
+    (window.mostrarToast || alert)(msg, 'error');
 }

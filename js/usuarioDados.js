@@ -214,8 +214,6 @@ class UsuarioDataManager {
             const despesas = despesasData.data || [];
             const mesesStatus = mesesData.data || [];
 
-            console.log(`📊 Carregadas ${receitas.length} receitas e ${despesas.length} despesas da API`);
-
             // ✅ BUSCAR ANOS CRIADOS PELO USUÁRIO DA TABELA 'anos'
             let anosDoBackend = [];
             try {
@@ -229,7 +227,6 @@ class UsuarioDataManager {
                 if (anosResponse.ok) {
                     const anosData = await anosResponse.json();
                     anosDoBackend = anosData.data || [];
-                    console.log(`📅 Anos salvos no backend: ${anosDoBackend.join(', ')}`);
                 }
             } catch (error) {
                 console.warn('⚠️ Erro ao buscar anos do backend:', error);
@@ -260,8 +257,6 @@ class UsuarioDataManager {
                     };
                 }
             });
-
-            console.log(`📅 Anos carregados: ${Array.from(anosComDados).sort().join(', ')}`);
 
             // Processar receitas
             receitas.forEach(receita => {
@@ -317,7 +312,6 @@ class UsuarioDataManager {
             });
 
             // ✅ APLICAR STATUS DOS MESES (fechado/aberto, saldo final)
-            console.log(`🔒 Carregando status de ${mesesStatus.length} meses da API`);
             mesesStatus.forEach(mesInfo => {
                 const ano = parseInt(mesInfo.ano);
                 const mes = parseInt(mesInfo.mes);
@@ -590,7 +584,6 @@ class UsuarioDataManager {
                 // ✅ CORRIGIDO: Atualizar ID local com o ID retornado pelo backend
                 if (!ehEdicao && resultado.data && resultado.data.id) {
                     receita.id = resultado.data.id;
-                    console.log('✅ ID atualizado após criação:', resultado.data.id);
 
                     // Atualizar também na memória local
                     if (window.dadosFinanceiros && window.dadosFinanceiros[ano]?.meses[mes]) {
@@ -653,7 +646,6 @@ class UsuarioDataManager {
                 const categoriaEncontrada = categoriasUsuario.find(c => c.nome === despesa.categoria);
                 if (categoriaEncontrada) {
                     categoriaId = categoriaEncontrada.id;
-                    console.log(`📁 Categoria mapeada: ${despesa.categoria} → ID ${categoriaId}`);
                 }
             }
 
@@ -671,7 +663,6 @@ class UsuarioDataManager {
                     const cartaoEncontrado = cartoesUsuario[numeroCartao - 1];
                     if (cartaoEncontrado) {
                         cartaoId = cartaoEncontrado.id;
-                        console.log(`💳 Cartão mapeado: posição ${numeroCartao} → ID ${cartaoId} (${cartaoEncontrado.nome})`);
                     }
                 }
 

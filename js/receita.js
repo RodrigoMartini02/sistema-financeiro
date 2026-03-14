@@ -162,7 +162,7 @@ function abrirModalNovaReceita(index, mes, ano) {
             
             
             if (receita.saldoAnterior === true || receita.descricao?.includes('Saldo Anterior')) {
-                alert('Não é possível editar receitas de saldo anterior.');
+                (window.mostrarToast || alert)('Não é possível editar receitas de saldo anterior.', 'warning');
                 return;
             }
             
@@ -202,7 +202,7 @@ function abrirModalNovaReceita(index, mes, ano) {
         }, 100);
         
     } catch (error) {
-        alert("Erro ao abrir modal: " + error.message);
+        (window.mostrarToast || alert)("Erro ao abrir modal: " + error.message, 'error');
     }
 }
 
@@ -229,7 +229,7 @@ async function salvarReceita(e) {
     }
     
     if (!window.sistemaInicializado || !window.dadosFinanceiros) {
-        alert('Sistema ainda carregando. Aguarde alguns segundos e tente novamente.');
+        (window.mostrarToast || alert)('Sistema ainda carregando. Aguarde alguns segundos e tente novamente.', 'info');
         return false;
     }
     
@@ -273,21 +273,13 @@ async function salvarReceita(e) {
             }
 
         } else {
-            if (window.mostrarMensagemErro) {
-                window.mostrarMensagemErro('Não foi possível salvar a receita. Tente novamente.');
-            } else {
-                alert('Não foi possível salvar a receita. Tente novamente.');
-            }
+            (window.mostrarToast || alert)('Não foi possível salvar a receita. Tente novamente.', 'error');
         }
 
         return false;
 
     } catch (error) {
-        if (window.mostrarMensagemErro) {
-            window.mostrarMensagemErro('Erro ao salvar receita: ' + error.message);
-        } else {
-            alert('Erro ao salvar receita: ' + error.message);
-        }
+        (window.mostrarToast || alert)('Erro ao salvar receita: ' + error.message, 'error');
         return false;
     } finally {
         processandoReceita = false;
@@ -311,24 +303,24 @@ function coletarDadosFormulario() {
 
 function validarDadosFormulario(formData) {
     if (!formData.descricao) {
-        alert('Por favor, informe a descrição da receita.');
+        (window.mostrarToast || alert)('Por favor, informe a descrição da receita.', 'warning');
         document.getElementById('receita-descricao').focus();
         return false;
     }
-    
+
     if (isNaN(formData.valor) || formData.valor <= 0) {
-        alert('Por favor, informe um valor válido para a receita.');
+        (window.mostrarToast || alert)('Por favor, informe um valor válido para a receita.', 'warning');
         document.getElementById('receita-valor').focus();
         return false;
     }
 
     if (isNaN(formData.mes) || formData.mes < 0 || formData.mes > 11) {
-        alert('Mês inválido.');
+        (window.mostrarToast || alert)('Mês inválido.', 'error');
         return false;
     }
 
     if (isNaN(formData.ano) || formData.ano < 2020 || formData.ano > 2050) {
-        alert('Ano inválido.');
+        (window.mostrarToast || alert)('Ano inválido.', 'error');
         return false;
     }
     
@@ -527,11 +519,11 @@ function editarReceita(index, mes, ano) {
         const receita = window.dadosFinanceiros[ano].meses[mes].receitas[index];
 
         if (receita.saldoAnterior === true || receita.descricao?.includes('Saldo Anterior')) {
-            alert('Não é possível editar receitas de saldo anterior. Estas são geradas automaticamente.');
+            (window.mostrarToast || alert)('Não é possível editar receitas de saldo anterior. Estas são geradas automaticamente.', 'warning');
             return;
         }
     } else {
-        alert('Receita não encontrada!');
+        (window.mostrarToast || alert)('Receita não encontrada!', 'error');
         return;
     }
     
@@ -541,14 +533,14 @@ function editarReceita(index, mes, ano) {
 function excluirReceita(index, mes, ano) {
     try {
         if (!window.dadosFinanceiros[ano]?.meses[mes]?.receitas[index]) {
-            alert('Receita não encontrada!');
+            (window.mostrarToast || alert)('Receita não encontrada!', 'error');
             return;
         }
-        
+
         const receita = window.dadosFinanceiros[ano].meses[mes].receitas[index];
-        
+
         if (receita.saldoAnterior === true || receita.descricao.includes('Saldo Anterior')) {
-            alert('Não é possível excluir receitas de saldo anterior. Estas são geradas automaticamente.');
+            (window.mostrarToast || alert)('Não é possível excluir receitas de saldo anterior. Estas são geradas automaticamente.', 'warning');
             return;
         }
         
@@ -571,7 +563,7 @@ function excluirReceita(index, mes, ano) {
         modal.style.display = 'block';
         
     } catch (error) {
-        alert("Erro ao excluir receita: " + error.message);
+        (window.mostrarToast || alert)("Erro ao excluir receita: " + error.message, 'error');
     }
 }
 
@@ -601,7 +593,7 @@ async function processarExclusaoReceita(opcao, index, mes, ano, descricaoReceita
         }
 
     } catch (error) {
-        alert("Erro ao processar exclusão: " + error.message);
+        (window.mostrarToast || alert)("Erro ao processar exclusão: " + error.message, 'error');
     }
 }
 
@@ -615,7 +607,7 @@ async function excluirReceitaLocal(opcao, index, mes, ano, descricaoReceita) {
             if (!receita) throw new Error('Receita não encontrada');
 
             if (!receita.id) {
-                alert('Erro: Receita sem identificador. Por favor, recarregue a página.');
+                (window.mostrarToast || alert)('Erro: Receita sem identificador. Por favor, recarregue a página.', 'error');
                 return false;
             }
 
@@ -808,7 +800,7 @@ function configurarEventListenersAnexos() {
             if (window.sistemaAnexos) {
                 window.sistemaAnexos.abrirSeletorArquivos('receita');
             } else {
-                alert('Sistema de anexos não disponível');
+                (window.mostrarToast || alert)('Sistema de anexos não disponível', 'warning');
             }
         });
     }
@@ -1279,7 +1271,7 @@ function renderizarUltimasReservas() {
  */
 async function abrirModalReservarValor() {
     if (window.mesAberto === null || window.anoAberto === null) {
-        alert('Selecione um mês primeiro');
+        (window.mostrarToast || alert)('Selecione um mês primeiro', 'warning');
         return;
     }
 
@@ -1288,7 +1280,7 @@ async function abrirModalReservarValor() {
         const nomesMeses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
                            'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
         const msg = `O mês de ${nomesMeses[window.mesAberto]}/${window.anoAberto} está fechado. Não é possível gerenciar reservas.`;
-        window.mostrarMensagemErro ? window.mostrarMensagemErro(msg) : alert(msg);
+        (window.mostrarToast || alert)(msg, 'warning');
         return;
     }
 
@@ -1403,12 +1395,12 @@ async function movimentarReservaSimples(reservaId, valorStr) {
 
     // Verificar se o mês está fechado
     if (mesFechadoAtual()) {
-        window.mostrarMensagemErro ? window.mostrarMensagemErro('Mês fechado. Não é possível movimentar reservas.') : alert('Mês fechado.');
+        (window.mostrarToast || alert)('Mês fechado. Não é possível movimentar reservas.', 'warning');
         return;
     }
 
     if (isNaN(valor) || valor === 0) {
-        window.mostrarMensagemErro ? window.mostrarMensagemErro('Informe um valor válido') : alert('Informe um valor válido');
+        (window.mostrarToast || alert)('Informe um valor válido', 'warning');
         return;
     }
 
@@ -1421,14 +1413,14 @@ async function movimentarReservaSimples(reservaId, valorStr) {
 
         if (valorAbsoluto > saldoAtualMes) {
             const msg = `Valor indisponível para reserva. Disponível: ${window.formatarMoeda(saldoAtualMes)}`;
-            window.mostrarMensagemErro ? window.mostrarMensagemErro(msg) : alert(msg);
+            (window.mostrarToast || alert)(msg, 'warning');
             return;
         }
     }
 
     const token = sessionStorage.getItem('token') || localStorage.getItem('token');
     if (!token) {
-        alert('Sessão expirada.');
+        (window.mostrarToast || alert)('Sessão expirada.', 'error');
         return;
     }
 
@@ -1466,11 +1458,11 @@ async function movimentarReservaSimples(reservaId, valorStr) {
             window.mostrarMensagemSucesso ? window.mostrarMensagemSucesso(msg) : null;
         } else {
             const error = await response.json();
-            window.mostrarMensagemErro ? window.mostrarMensagemErro(error.message || 'Erro') : alert(error.message);
+            (window.mostrarToast || alert)(error.message || 'Erro', 'error');
         }
     } catch (error) {
         console.error('Erro:', error);
-        window.mostrarMensagemErro ? window.mostrarMensagemErro('Erro ao processar') : alert('Erro');
+        (window.mostrarToast || alert)('Erro ao processar', 'error');
     }
 }
 
@@ -1541,7 +1533,7 @@ async function processarAdicionarReserva() {
 
     // Verificar se o mês está fechado
     if (mesFechadoAtual()) {
-        window.mostrarMensagemErro ? window.mostrarMensagemErro('Mês fechado. Não é possível criar reservas.') : alert('Mês fechado.');
+        (window.mostrarToast || alert)('Mês fechado. Não é possível criar reservas.', 'warning');
         return;
     }
 
@@ -1549,12 +1541,12 @@ async function processarAdicionarReserva() {
     const descricao = document.getElementById('input-descricao-reserva').value.trim();
 
     if (!descricao) {
-        window.mostrarMensagemErro ? window.mostrarMensagemErro('Informe o nome da reserva') : alert('Informe o nome da reserva');
+        (window.mostrarToast || alert)('Informe o nome da reserva', 'warning');
         return;
     }
 
     if (isNaN(valor) || valor <= 0) {
-        window.mostrarMensagemErro ? window.mostrarMensagemErro('Informe um valor válido') : alert('Informe um valor válido');
+        (window.mostrarToast || alert)('Informe um valor válido', 'warning');
         return;
     }
 
@@ -1563,13 +1555,13 @@ async function processarAdicionarReserva() {
 
     if (valor > saldoAtualMes) {
         const msg = `Valor indisponível para reserva. Disponível: ${window.formatarMoeda(saldoAtualMes)}`;
-        window.mostrarMensagemErro ? window.mostrarMensagemErro(msg) : alert(msg);
+        (window.mostrarToast || alert)(msg, 'warning');
         return;
     }
 
     const token = sessionStorage.getItem('token') || localStorage.getItem('token');
     if (!token) {
-        alert('Sessão expirada. Faça login novamente.');
+        (window.mostrarToast || alert)('Sessão expirada. Faça login novamente.', 'error');
         return;
     }
 
@@ -1614,11 +1606,11 @@ async function processarAdicionarReserva() {
             window.mostrarMensagemSucesso ? window.mostrarMensagemSucesso('Reserva criada com sucesso!') : null;
         } else {
             const error = await response.json();
-            window.mostrarMensagemErro ? window.mostrarMensagemErro(error.message || 'Erro ao criar reserva') : alert(error.message || 'Erro ao criar reserva');
+            (window.mostrarToast || alert)(error.message || 'Erro ao criar reserva', 'error');
         }
     } catch (error) {
         console.error('Erro ao criar reserva:', error);
-        window.mostrarMensagemErro ? window.mostrarMensagemErro('Erro ao criar reserva') : alert('Erro ao criar reserva');
+        (window.mostrarToast || alert)('Erro ao criar reserva', 'error');
     }
 }
 
@@ -1651,7 +1643,7 @@ async function atualizarModalReservas() {
 async function excluirReserva(id) {
     // Verificar se o mês está fechado
     if (mesFechadoAtual()) {
-        window.mostrarMensagemErro ? window.mostrarMensagemErro('Mês fechado. Não é possível excluir reservas.') : alert('Mês fechado.');
+        (window.mostrarToast || alert)('Mês fechado. Não é possível excluir reservas.', 'warning');
         return;
     }
 
@@ -1682,7 +1674,7 @@ async function excluirReserva(id) {
 
             window.mostrarMensagemSucesso ? window.mostrarMensagemSucesso('Reserva excluída!') : null;
         } else {
-            window.mostrarMensagemErro ? window.mostrarMensagemErro('Erro ao excluir reserva') : alert('Erro ao excluir reserva');
+            (window.mostrarToast || alert)('Erro ao excluir reserva', 'error');
         }
     } catch (error) {
         console.error('Erro ao excluir reserva:', error);

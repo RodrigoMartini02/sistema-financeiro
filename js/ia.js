@@ -645,20 +645,12 @@ window.IA = (function () {
         var tid2 = addTyping();
 
         if (campo === 'forma_pagamento') {
-            var opcoesPgto = [
-                {label: 'Crédito',      val: 'crédito'},
-                {label: 'Débito',       val: 'débito'},
-                {label: 'PIX',          val: 'pix'},
-                {label: 'Dinheiro',     val: 'dinheiro'},
-                {label: 'Transferência',val: 'transferência'},
-                {label: 'Boleto',       val: 'boleto'}
-            ];
-            var btnsPgto = opcoesPgto.map(function(o) {
-                return '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="' + o.val + '">' + o.label + '</button>';
-            }).join('');
+            var btnsPgto =
+                '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="saldo_conta" data-opcao-label="Saldo em conta">Saldo em conta</button>' +
+                '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="crédito" data-opcao-label="Crédito">Crédito</button>';
             setTimeout(function () {
                 removeTyping(tid2);
-                addGen('Como foi pago?<div class="ai-welcome-chips">' + btnsPgto + '</div>');
+                addGen('Foi pago com saldo em conta ou crédito?<div class="ai-welcome-chips">' + btnsPgto + '</div>');
             }, 600);
             return;
         }
@@ -714,6 +706,15 @@ window.IA = (function () {
                 d.valor = v;
                 break;
             case 'forma_pagamento':
+                if (texto === 'saldo_conta') {
+                    // Sub-nível: PIX, Débito, Dinheiro — mantém aguardandoCampo para capturar próximo clique
+                    var btnsSubForma =
+                        '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="pix" data-opcao-label="PIX">PIX</button>' +
+                        '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="débito" data-opcao-label="Débito">Débito</button>' +
+                        '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="dinheiro" data-opcao-label="Dinheiro">Dinheiro</button>';
+                    addGen('Como foi pago?<div class="ai-welcome-chips">' + btnsSubForma + '</div>');
+                    return; // não avança a fila — aguarda o clique seguinte
+                }
                 d.forma_pagamento = _normForma(texto);
                 // Se crédito e sem cartão ainda, insere cartao_id na frente da fila
                 if ((d.forma_pagamento === 'cartao_credito') && !d.cartao_id && !_resolverCartaoPorNome(d.nome_cartao)) {
@@ -1258,13 +1259,14 @@ window.IA = (function () {
         // Botões de opção rápida (forma de pagamento, cartão, etc.)
         var opcaoEl = e.target.closest('[data-opcao]');
         if (opcaoEl && estado.aguardandoCampo) {
-            var opcaoVal = opcaoEl.dataset.opcao;
+            var opcaoVal   = opcaoEl.dataset.opcao;
+            var opcaoLabel = opcaoEl.dataset.opcaoLabel || opcaoEl.textContent.trim();
             // Desabilita todos os botões da mesma mensagem para evitar re-clique
             var msgContainer = opcaoEl.closest('.ai-msg');
             if (msgContainer) {
                 msgContainer.querySelectorAll('[data-opcao]').forEach(function(b) { b.disabled = true; b.style.opacity = '0.5'; });
             }
-            addUser(opcaoVal);
+            addUser(opcaoLabel);
             _processarCampoColetado(opcaoVal);
             return;
         }

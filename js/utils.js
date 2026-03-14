@@ -618,6 +618,37 @@ window.utilsCarregado = true;
 (function () {
     function initModalDrag() {
         document.addEventListener('mousedown', function (e) {
+            // Painel flutuante da Gen IA
+            if (e.target.closest('.ai-panel-header') && !e.target.closest('button')) {
+                var panel = document.getElementById('ai-chat-panel');
+                if (panel) {
+                    var pr = panel.getBoundingClientRect();
+                    panel.style.position = 'fixed';
+                    panel.style.bottom   = 'auto';
+                    panel.style.right    = 'auto';
+                    panel.style.left     = pr.left + 'px';
+                    panel.style.top      = pr.top  + 'px';
+                    var pox = e.clientX - pr.left;
+                    var poy = e.clientY - pr.top;
+                    e.target.closest('.ai-panel-header').classList.add('dragging');
+                    function pMove(ev) {
+                        var l = Math.max(0, Math.min(window.innerWidth  - panel.offsetWidth,  ev.clientX - pox));
+                        var t = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, ev.clientY - poy));
+                        panel.style.left = l + 'px';
+                        panel.style.top  = t + 'px';
+                    }
+                    function pUp() {
+                        e.target.closest('.ai-panel-header')?.classList.remove('dragging');
+                        document.removeEventListener('mousemove', pMove);
+                        document.removeEventListener('mouseup',   pUp);
+                    }
+                    document.addEventListener('mousemove', pMove);
+                    document.addEventListener('mouseup',   pUp);
+                    e.preventDefault();
+                }
+                return;
+            }
+
             var header = e.target.closest('.modal-header');
             if (!header) return;
             // Não arrastar se clicou no botão fechar

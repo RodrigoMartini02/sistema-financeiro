@@ -124,7 +124,10 @@
     color: #fff;
     border-radius: 14px 14px 0 0;
     flex-shrink: 0;
+    cursor: grab;
+    user-select: none;
 }
+.ai-panel-header.dragging { cursor: grabbing; }
 
 .ai-panel-title {
     display: flex;

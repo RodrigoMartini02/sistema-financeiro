@@ -38,7 +38,6 @@
             if (deferredPrompt) {
                 deferredPrompt.prompt();
                 const { outcome } = await deferredPrompt.userChoice;
-                console.log(`Usuário respondeu à instalação: ${outcome}`);
                 deferredPrompt = null;
                 window.fecharModalPwa();
                 

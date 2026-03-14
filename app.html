@@ -1757,7 +1757,7 @@
             <button type="button" class="close" data-modal="modal-novo-ano" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
-            <form id="form-novo-ano" onsubmit="handleCriarNovoAno(event)">
+            <form id="form-novo-ano" onsubmit="criarNovoAno(event)">
                 <div class="form-group">
                     <label for="ano">Ano:</label>
                     <input type="number" id="ano" min="2000" max="2100" required>
@@ -2811,9 +2811,6 @@
 </template>
 
 
-<!-- JAVASCRIPT EXTERNOS -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <!-- Input files para anexos -->
 <input type="file" id="input-file-anexos-receita" multiple accept=".pdf,.jpg,.jpeg,.png,.gif" style="display: none;">
 <input type="file" id="input-file-anexos-despesa" multiple accept=".pdf,.jpg,.jpeg,.png,.gif" style="display: none;">
@@ -2823,7 +2820,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-<script src="https://sdk.mercadopago.com/js/v2"></script>
 
 <!-- Sistema base -->
 <script src="js/utils.js"></script>

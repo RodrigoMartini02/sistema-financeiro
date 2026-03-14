@@ -180,7 +180,7 @@ class LogManager {
         const logsParaExportar = logs || this.obterTodos();
 
         if (logsParaExportar.length === 0) {
-            alert('Não há logs para exportar');
+            (window.mostrarToast || alert)('Não há logs para exportar', 'warning');
             return;
         }
 

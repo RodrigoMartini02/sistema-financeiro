@@ -479,8 +479,7 @@ class SistemaRelatorios {
             if (btnPDF) btnPDF.disabled = false;
             
         } catch (error) {
-
-            alert('Erro ao gerar relatório: ' + error.message);
+            (window.mostrarToast || alert)('Erro ao gerar relatório: ' + error.message, 'error');
         } finally {
             this.mostrarLoading(false);
             processandoRelatorio = false;
@@ -1320,7 +1319,7 @@ class SistemaRelatorios {
     
     exportarPDF() {
         if (!this.dadosProcessados) {
-            alert('Gere um relatório primeiro!');
+            (window.mostrarToast || alert)('Gere um relatório primeiro!', 'warning');
             return;
         }
 
@@ -1330,18 +1329,17 @@ class SistemaRelatorios {
             try {
                 this.gerarPDF();
             } catch (error) {
-
-                alert('Erro ao gerar PDF: ' + error.message);
+                (window.mostrarToast || alert)('Erro ao gerar PDF: ' + error.message, 'error');
             } finally {
                 this.mostrarLoading(false);
             }
         }, 1000);
     }
-    
+
     gerarPDF() {
         // Verificar se jsPDF está disponível
         if (!window.jspdf) {
-            alert('Biblioteca de PDF não está carregada. Por favor, inclua a biblioteca jsPDF.');
+            (window.mostrarToast || alert)('Biblioteca de PDF não está carregada. Por favor, inclua a biblioteca jsPDF.', 'error');
             return;
         }
         
@@ -1789,7 +1787,7 @@ class GeradorPDFMelhorado {
 
     async gerarPDFCompleto() {
         if (!this.sistema.dadosProcessados) {
-            alert('Gere um relatório primeiro!');
+            (window.mostrarToast || alert)('Gere um relatório primeiro!', 'warning');
             return;
         }
 
@@ -1825,8 +1823,7 @@ class GeradorPDFMelhorado {
             doc.save(nomeArquivo);
 
         } catch (error) {
-
-            alert('Erro ao gerar PDF: ' + error.message);
+            (window.mostrarToast || alert)('Erro ao gerar PDF: ' + error.message, 'error');
         } finally {
             this.sistema.mostrarLoading(false);
         }

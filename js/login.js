@@ -22,7 +22,7 @@ function inicializarSistemaLoginRapido() {
     try {
         // Teste básico de localStorage
         if (!testLocalStorage()) {
-            alert("Seu navegador tem o armazenamento local desativado. Por favor, ative-o nas configurações.");
+            (window.mostrarToast || alert)("Seu navegador tem o armazenamento local desativado. Por favor, ative-o nas configurações.", 'error');
             return;
         }
 
@@ -75,7 +75,7 @@ function configurarGoogleLogin() {
     btnGoogle.addEventListener('click', function() {
         // Aguardar a biblioteca do Google carregar
         if (typeof google === 'undefined' || !google.accounts) {
-            alert('Aguarde o carregamento do Google. Tente novamente em instantes.');
+            (window.mostrarToast || alert)('Aguarde o carregamento do Google. Tente novamente em instantes.', 'warning');
             return;
         }
 
@@ -1008,10 +1008,10 @@ function processarLoginMinimo(documento, password) {
             localStorage.setItem('dadosUsuarioLogado', dadosOffline);
             window.location.href = 'app.html';
         } else {
-            alert('Login inválido');
+            (window.mostrarToast || alert)('Login inválido', 'error');
         }
     } catch (error) {
-        alert('Erro no sistema');
+        (window.mostrarToast || alert)('Erro no sistema', 'error');
     }
 }
 

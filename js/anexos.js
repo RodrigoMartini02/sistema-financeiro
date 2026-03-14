@@ -21,7 +21,6 @@ if (!window.sistemaAnexos) {
         abrirSeletorArquivos: function(tipo) {
             // Evitar múltiplas aberturas simultâneas
             if (this._seletorAberto) {
-                console.log('⏳ Seletor já está aberto, ignorando...');
                 return;
             }
 
@@ -130,13 +129,13 @@ if (!window.sistemaAnexos) {
             ];
             
             if (!tiposPermitidos.includes(file.type)) {
-                alert('Tipo de arquivo não permitido. Use: PDF, Imagens (JPG, PNG, GIF), Excel, Word ou TXT.');
+                (window.mostrarToast || alert)('Tipo de arquivo não permitido. Use: PDF, Imagens (JPG, PNG, GIF), Excel, Word ou TXT.', 'warning');
                 return false;
             }
             
             const tamanhoMaximo = 10 * 1024 * 1024; // 10MB
             if (file.size > tamanhoMaximo) {
-                alert('Arquivo muito grande. Tamanho máximo: 10MB.');
+                (window.mostrarToast || alert)('Arquivo muito grande. Tamanho máximo: 10MB.', 'warning');
                 return false;
             }
             
@@ -312,13 +311,13 @@ window.abrirSeletorArquivos = function(tipo) {
 function abrirModalVisualizarAnexosDespesa(index) {
     try {
         if (window.mesAberto === null || window.anoAberto === null) {
-            alert('Erro: Mês/ano não definido');
+            (window.mostrarToast || alert)('Erro: Mês/ano não definido', 'error');
             return;
         }
         
         const dadosMes = window.dadosFinanceiros[window.anoAberto]?.meses[window.mesAberto];
         if (!dadosMes || !dadosMes.despesas || !dadosMes.despesas[index]) {
-            alert('Despesa não encontrada');
+            (window.mostrarToast || alert)('Despesa não encontrada', 'error');
             return;
         }
         
@@ -326,7 +325,7 @@ function abrirModalVisualizarAnexosDespesa(index) {
         const anexos = despesa.anexos || [];
         
         if (anexos.length === 0) {
-            alert('Esta despesa não possui anexos');
+            (window.mostrarToast || alert)('Esta despesa não possui anexos', 'info');
             return;
         }
         
@@ -341,7 +340,7 @@ function abrirModalVisualizarAnexosDespesa(index) {
         
     } catch (error) {
 
-        alert('Erro ao carregar anexos da despesa');
+        (window.mostrarToast || alert)('Erro ao carregar anexos da despesa', 'error');
     }
 }
 
@@ -441,7 +440,7 @@ function criarItemAnexoDespesaParaDownload(anexo, indice, tipo = 'cadastro') {
 function baixarAnexoDespesa(anexo, nomeArquivo) {
     try {
         if (!anexo || !anexo.dados) {
-            alert('Dados do anexo não encontrados');
+            (window.mostrarToast || alert)('Dados do anexo não encontrados', 'error');
             return;
         }
         
@@ -472,7 +471,7 @@ function baixarAnexoDespesa(anexo, nomeArquivo) {
         
     } catch (error) {
 
-        alert('Erro ao baixar anexo. Verifique se o arquivo está íntegro.');
+        (window.mostrarToast || alert)('Erro ao baixar anexo. Verifique se o arquivo está íntegro.', 'error');
     }
 }
 
@@ -622,13 +621,13 @@ function inicializarSistemaAnexosDespesas() {
 function abrirModalVisualizarAnexosReceita(index) {
     try {
         if (window.mesAberto === null || window.anoAberto === null) {
-            alert('Erro: Mês/ano não definido');
+            (window.mostrarToast || alert)('Erro: Mês/ano não definido', 'error');
             return;
         }
         
         const dadosMes = window.dadosFinanceiros[window.anoAberto]?.meses[window.mesAberto];
         if (!dadosMes || !dadosMes.receitas || !dadosMes.receitas[index]) {
-            alert('Receita não encontrada');
+            (window.mostrarToast || alert)('Receita não encontrada', 'error');
             return;
         }
         
@@ -636,7 +635,7 @@ function abrirModalVisualizarAnexosReceita(index) {
         const anexos = receita.anexos || [];
         
         if (anexos.length === 0) {
-            alert('Esta receita não possui anexos');
+            (window.mostrarToast || alert)('Esta receita não possui anexos', 'info');
             return;
         }
         
@@ -651,7 +650,7 @@ function abrirModalVisualizarAnexosReceita(index) {
         
     } catch (error) {
 
-        alert('Erro ao carregar anexos da receita');
+        (window.mostrarToast || alert)('Erro ao carregar anexos da receita', 'error');
     }
 }
 
@@ -705,7 +704,7 @@ function criarItemAnexoParaDownload(anexo, indice) {
 function baixarAnexoReceita(anexo, nomeArquivo) {
     try {
         if (!anexo || !anexo.dados) {
-            alert('Dados do anexo não encontrados');
+            (window.mostrarToast || alert)('Dados do anexo não encontrados', 'error');
             return;
         }
         
@@ -736,7 +735,7 @@ function baixarAnexoReceita(anexo, nomeArquivo) {
         
     } catch (error) {
 
-        alert('Erro ao baixar anexo. Verifique se o arquivo está íntegro.');
+        (window.mostrarToast || alert)('Erro ao baixar anexo. Verifique se o arquivo está íntegro.', 'error');
     }
 }
 

@@ -111,12 +111,6 @@ function verificarAcessoUsuario() {
     return true;
 }
 
-function redirecionarParaLogin() {
-    if (!window.location.pathname.includes('index.html')) {
-        window.location.href = 'index.html';
-    }
-}
-
 function exportarVariaveisGlobais() {
     // window.dadosFinanceiros será definido APÓS carregarDadosLocais() para evitar cache vazio
     window.anoAtual = anoAtual;
@@ -1064,7 +1058,7 @@ function setupSistemaBloqueio() {
 
         const enteredPassword = passwordInput?.value;
         if (!enteredPassword) {
-            alert('Por favor, digite sua senha.');
+            (window.mostrarToast || alert)('Por favor, digite sua senha.', 'warning');
             return;
         }
 
@@ -1072,7 +1066,7 @@ function setupSistemaBloqueio() {
             const token = sessionStorage.getItem('token') || localStorage.getItem('token');
 
             if (!token) {
-                alert('Sessão expirada. Faça login novamente.');
+                (window.mostrarToast || alert)('Sessão expirada. Faça login novamente.', 'error');
                 window.location.href = 'index.html';
                 return;
             }
@@ -1100,7 +1094,7 @@ function setupSistemaBloqueio() {
             }
         } catch (error) {
             console.error('Erro ao verificar senha:', error);
-            alert('Erro ao verificar senha. Tente novamente.');
+            (window.mostrarToast || alert)('Erro ao verificar senha. Tente novamente.', 'error');
         }
     };
 
@@ -1259,18 +1253,14 @@ async function mudarAno(ano) {
         await renderizarMeses(anoAtual, false);
 
     } catch (error) {
-        alert('Erro ao mudar ano: ' + error.message);
+        (window.mostrarToast || alert)('Erro ao mudar ano: ' + error.message, 'error');
     }
 }
 
 async function criarAnoSimples(ano) {
     try {
         if (dadosFinanceiros[ano]) {
-            if (window.mostrarToast) {
-                window.mostrarToast(`O ano ${ano} já existe!`, 'warning');
-            } else {
-                alert(`O ano ${ano} já existe!`);
-            }
+            (window.mostrarToast || alert)(`O ano ${ano} já existe!`, 'warning');
             return;
         }
 
@@ -1313,19 +1303,11 @@ async function criarAnoSimples(ano) {
         // Dados já carregados pelo dashboard
         await renderizarMeses(anoAtual, false);
 
-        if (window.mostrarToast) {
-            window.mostrarToast(`Ano ${ano} criado com sucesso!`, 'success');
-        } else {
-            alert(`Ano ${ano} criado com sucesso!`);
-        }
+        (window.mostrarToast || alert)(`Ano ${ano} criado com sucesso!`, 'success');
 
     } catch (error) {
         console.error('Erro ao criar ano:', error);
-        if (window.mostrarToast) {
-            window.mostrarToast('Erro ao criar ano: ' + error.message, 'error');
-        } else {
-            alert('Erro ao criar ano: ' + error.message);
-        }
+        (window.mostrarToast || alert)('Erro ao criar ano: ' + error.message, 'error');
     }
 }
 
@@ -1336,22 +1318,22 @@ async function criarNovoAno(e) {
         const ano = parseInt(obterValorElemento('ano'));
         
         if (isNaN(ano) || ano < 2020 || ano > 2050) {
-            alert('Por favor, informe um ano válido entre 2020 e 2050.');
+            (window.mostrarToast || alert)('Por favor, informe um ano válido entre 2020 e 2050.', 'warning');
             return;
         }
-        
+
         await criarAnoSimples(ano);
         fecharModal('modal-novo-ano');
-        
+
     } catch (error) {
-        alert('Erro ao criar novo ano: ' + error.message);
+        (window.mostrarToast || alert)('Erro ao criar novo ano: ' + error.message, 'error');
     }
 }
 
 async function excluirAno(ano) {
     try {
         if (!dadosFinanceiros[ano]) {
-            alert(`O ano ${ano} não existe!`);
+            (window.mostrarToast || alert)(`O ano ${ano} não existe!`, 'error');
             return;
         }
 
@@ -1384,10 +1366,10 @@ async function excluirAno(ano) {
             await renderizarMeses(anoAtual, false);
         }
         
-        alert(`O ano ${ano} foi excluído com sucesso!`);
-        
+        (window.mostrarToast || alert)(`O ano ${ano} foi excluído com sucesso!`, 'success');
+
     } catch (error) {
-        alert('Erro ao excluir ano: ' + error.message);
+        (window.mostrarToast || alert)('Erro ao excluir ano: ' + error.message, 'error');
     }
 }
 
@@ -1604,7 +1586,7 @@ function abrirDetalhesDoMes(mes, ano) {
         abrirModal('modal-detalhes-mes');
         
     } catch (error) {
-        alert('Erro ao abrir detalhes do mês: ' + error.message);
+        (window.mostrarToast || alert)('Erro ao abrir detalhes do mês: ' + error.message, 'error');
     }
 }
 
@@ -1629,7 +1611,7 @@ function navegarMesModal(direcao) {
     
     // Verificar se o ano existe
     if (!dadosFinanceiros[novoAno]) {
-        alert(`O ano ${novoAno} não está disponível.`);
+        (window.mostrarToast || alert)(`O ano ${novoAno} não está disponível.`, 'warning');
         return;
     }
     
@@ -1667,10 +1649,6 @@ function atualizarBotoesNavegacaoMes(mes, ano) {
 // ================================================================
 // FUNÇÕES DE API - CENTRALIZAÇÃO
 // ================================================================
-
-function getToken() {
-    return sessionStorage.getItem('token');
-}
 
 async function buscarReceitasAPI(mes, ano) {
     try {
@@ -1842,12 +1820,8 @@ async function renderizarDetalhesDoMes(mes, ano) {
         }, 100);
 
     } catch (error) {
-        console.error('❌ Erro ao carregar dados do mês:', error);
-        if (window.mostrarToast) {
-            window.mostrarToast('Erro ao carregar dados do mês: ' + error.message, 'error');
-        } else {
-            alert('Erro ao carregar dados do mês: ' + error.message);
-        }
+        console.error('Erro ao carregar dados do mês:', error);
+        (window.mostrarToast || alert)('Erro ao carregar dados do mês: ' + error.message, 'error');
     }
 }
 
@@ -2339,10 +2313,10 @@ function obterSaldoAnterior(mes, ano) {
 function abrirModalConfirmacaoFechamento(mes, ano) {
     const dadosMes = dadosFinanceiros[ano]?.meses[mes];
     if (!dadosMes || dadosMes.fechado) {
-        alert('Mês já está fechado ou não existe!');
+        (window.mostrarToast || alert)('Mês já está fechado ou não existe!', 'warning');
         return;
     }
-    
+
     const saldo = calcularSaldoMes(mes, ano);
     const nomesMeses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
                        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -2371,7 +2345,7 @@ function abrirModalConfirmacaoFechamento(mes, ano) {
 function abrirModalConfirmacaoReabertura(mes, ano) {
     const dadosMes = dadosFinanceiros[ano]?.meses[mes];
     if (!dadosMes || !dadosMes.fechado) {
-        alert('Mês já está aberto ou não existe!');
+        (window.mostrarToast || alert)('Mês já está aberto ou não existe!', 'warning');
         return;
     }
     
@@ -2401,7 +2375,7 @@ async function confirmarFechamento() {
             }
         }
     } catch (error) {
-        alert('Erro ao fechar mês: ' + error.message);
+        (window.mostrarToast || alert)('Erro ao fechar mês: ' + error.message, 'error');
     }
 }
 
@@ -2418,14 +2392,14 @@ async function confirmarReabertura() {
             }
         }
     } catch (error) {
-        alert('Erro ao reabrir mês: ' + error.message);
+        (window.mostrarToast || alert)('Erro ao reabrir mês: ' + error.message, 'error');
     }
 }
 
 async function fecharMes(mes, ano) {
     const dadosMes = dadosFinanceiros[ano]?.meses[mes];
     if (!dadosMes || dadosMes.fechado) {
-        alert('Mês já está fechado ou não existe!');
+        (window.mostrarToast || alert)('Mês já está fechado ou não existe!', 'warning');
         return false;
     }
 
@@ -2479,7 +2453,7 @@ async function fecharMes(mes, ano) {
 
     } catch (error) {
         console.error('Erro ao fechar mês:', error);
-        alert('Erro ao fechar mês: ' + error.message);
+        (window.mostrarToast || alert)('Erro ao fechar mês: ' + error.message, 'error');
         return false;
     }
 }
@@ -2487,7 +2461,7 @@ async function fecharMes(mes, ano) {
 async function reabrirMes(mes, ano) {
     const dadosMes = dadosFinanceiros[ano]?.meses[mes];
     if (!dadosMes || !dadosMes.fechado) {
-        alert('Mês já está aberto ou não existe!');
+        (window.mostrarToast || alert)('Mês já está aberto ou não existe!', 'warning');
         return false;
     }
 
@@ -2534,7 +2508,7 @@ async function reabrirMes(mes, ano) {
 
     } catch (error) {
         console.error('Erro ao reabrir mês:', error);
-        alert('Erro ao reabrir mês: ' + error.message);
+        (window.mostrarToast || alert)('Erro ao reabrir mês: ' + error.message, 'error');
         return false;
     }
 }
@@ -2814,7 +2788,7 @@ function inicializarFotoPerfil() {
         if (!file) return;
 
         if (file.size > 2 * 1024 * 1024) {
-            alert('A imagem deve ter no máximo 2MB.');
+            (window.mostrarToast || alert)('A imagem deve ter no máximo 2MB.', 'warning');
             inputFoto.value = '';
             return;
         }
