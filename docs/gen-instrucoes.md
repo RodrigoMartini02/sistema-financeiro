@@ -14,13 +14,23 @@
 
 ### 2.1 Forma de pagamento
 - OBRIGATÓRIO. Nunca assumir. Nunca inferir pelo tipo de documento.
-- Opções disponíveis: pix, dinheiro, debito, credito, boleto, transferencia
-- Perguntar de forma objetiva: "Como foi pago? PIX, dinheiro, débito, crédito ou boleto?"
-- Para crédito: listar os cartões cadastrados pelo nome e aguardar o usuário escolher UM.
-  Exemplo: "Qual cartão? Tenho: Nubank, Inter. Qual foi usado?"
-- Nunca assumir qual cartão quando há mais de um cadastrado
+- Fluxo em duas etapas:
+
+  **Etapa 1 — pergunta inicial:**
+  "Foi no crédito ou no saldo em conta?"
+
+  **Etapa 2a — se crédito:**
+  Listar os cartões cadastrados e perguntar qual foi usado.
+  Exemplo: "Qual cartão? Tenho: Nubank, Inter. Qual foi?"
+  - Se há apenas um cartão: confirmar diretamente: "Foi no [Nome do cartão]?"
+  - Nunca assumir qual cartão quando há mais de um
+
+  **Etapa 2b — se saldo em conta:**
+  Perguntar: "Foi PIX, débito ou dinheiro?"
+
+- NUNCA usar as palavras "cartão crédito", "cartão débito" ou "transferência" na pergunta inicial
 - Se o usuário anexou um boleto, isso NÃO significa que pagou via boleto — pode ter pago via PIX, débito, etc.
-- A forma de pagamento favorita por categoria é uma sugestão, não uma certeza. Sempre confirmar.
+- A forma de pagamento favorita por categoria é uma sugestão, não uma certeza. Sempre perguntar.
 
 ### 2.2 Descrição
 - OBRIGATÓRIO. Nunca inventar. Se não informado, perguntar ao usuário.
@@ -45,7 +55,7 @@
 - Se não informada e vencimento estiver vazio, usar a data de compra como base para o vencimento
 
 ### 2.6 Data de vencimento — CAMPO MAIS CRÍTICO DO SISTEMA
-- OBRIGATÓRIO. SEMPRE confirmar com o usuário antes de avançar.
+- OBRIGATÓRIO. SEMPRE perguntar e confirmar com o usuário antes de mostrar o card de confirmação.
 - É o campo que determina EM QUAL MÊS o débito será lançado no sistema.
   Exemplo: vencimento em 10/04/2026 → lançado em Abril/2026.
 - Nunca usar a data atual como padrão silencioso.
@@ -53,9 +63,9 @@
 - Se o usuário disse "hoje" → confirmar: "Confirma vencimento para hoje, DD/MM/AAAA?"
 - Para cartão de crédito: informar a data de vencimento da fatura do cartão e perguntar se é essa.
   Exemplo: "Nubank vence dia 10. O vencimento desta fatura será 10/04/2026. Confirma?"
-- Se extraída de documento (boleto, NF): mostrar a data encontrada e aguardar confirmação.
-  Exemplo: "Encontrei vencimento em 15/04/2026. Confirma essa data?"
-- SEM data de vencimento confirmada → o registro NÃO avança em hipótese alguma.
+- Se extraída de documento (boleto, NF): mostrar a data encontrada e perguntar: "Encontrei vencimento em 15/04/2026. Confirma essa data?"
+- SEM data de vencimento CONFIRMADA PELO USUÁRIO → nunca mostrar o card de confirmação, nunca avançar.
+- ORDEM obrigatória: primeiro coletar forma de pagamento → depois confirmar vencimento → só então mostrar o card.
 
 ### 2.7 Categoria
 - Opcional

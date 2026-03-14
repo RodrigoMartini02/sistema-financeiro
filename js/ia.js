@@ -307,11 +307,12 @@ window.IA = (function () {
         _ins('<div class="ai-msg ai-msg--ai">' +
             '<div class="ai-msg-bub">' + fmt(texto) +
             '<div class="ai-despesa-card">' + rows + '</div>' +
+            '<p class="ai-card-pergunta">Quer revisar algum dado antes de salvar?</p>' +
             '<div class="ai-msg-btns">' +
-            '<button class="ai-msg-btn-ok"   data-action="confirmar-despesa"><i class="fas fa-check"></i> Confirmar</button>' +
-            '<button class="ai-msg-btn-edit" data-action="editar-despesa"><i class="fas fa-edit"></i> Editar</button>' +
-            '<button class="ai-msg-btn-no"   data-action="cancelar-despesa"><i class="fas fa-times"></i> Cancelar</button>' +
+            '<button class="ai-msg-btn-ok"   data-action="confirmar-despesa">Não, salvar</button>' +
+            '<button class="ai-msg-btn-edit" data-action="editar-despesa">Sim, revisar</button>' +
             '</div>' +
+            '<button class="ai-msg-btn-link" data-action="cancelar-despesa">Cancelar registro</button>' +
             '<span class="ai-msg-time">' + _hhmm() + '</span>' +
             '</div></div>');
     }
@@ -325,11 +326,12 @@ window.IA = (function () {
         _ins('<div class="ai-msg ai-msg--ai">' +
             '<div class="ai-msg-bub">' + fmt(texto) +
             '<div class="ai-despesa-card">' + rows + '</div>' +
+            '<p class="ai-card-pergunta">Quer revisar algum dado antes de salvar?</p>' +
             '<div class="ai-msg-btns">' +
-            '<button class="ai-msg-btn-ok"   data-action="confirmar-receita"><i class="fas fa-check"></i> Confirmar</button>' +
-            '<button class="ai-msg-btn-edit" data-action="editar-receita"><i class="fas fa-edit"></i> Editar</button>' +
-            '<button class="ai-msg-btn-no"   data-action="cancelar-receita"><i class="fas fa-times"></i> Cancelar</button>' +
+            '<button class="ai-msg-btn-ok"   data-action="confirmar-receita">Não, salvar</button>' +
+            '<button class="ai-msg-btn-edit" data-action="editar-receita">Sim, revisar</button>' +
             '</div>' +
+            '<button class="ai-msg-btn-link" data-action="cancelar-receita">Cancelar registro</button>' +
             '<span class="ai-msg-time">' + _hhmm() + '</span>' +
             '</div></div>');
     }

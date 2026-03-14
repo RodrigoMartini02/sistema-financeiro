@@ -271,10 +271,21 @@
 .ai-despesa-card .ai-dc-row {
     display: flex;
     justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
     margin-bottom: 3px;
 }
-.ai-despesa-card .ai-dc-label { color: var(--gray-500,#6c757d); }
-.ai-despesa-card .ai-dc-val   { font-weight: 500; }
+.ai-despesa-card .ai-dc-label {
+    color: var(--gray-500,#6c757d);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.ai-despesa-card .ai-dc-val {
+    font-weight: 500;
+    text-align: right;
+    word-break: break-word;
+    max-width: 65%;
+}
 .ai-despesa-card .ai-dc-valor { color: var(--primary-color,#4361ee); font-weight: 700; font-size:14px; }
 .ai-dc-mes   { font-size: 10px; color: var(--primary-color,#4361ee); margin-left: 4px; }
 .ai-dc-pago  { color: #16a34a; font-weight: 600; }
@@ -300,6 +311,27 @@
 .ai-msg-btn-edit { background:transparent; border-color:var(--primary-color,#4361ee); color:var(--primary-color,#4361ee); }
 .ai-msg-btn-no   { background:transparent; border-color:var(--border-color,#ddd); color:var(--gray-500,#6c757d); }
 .ai-msg-btns button:hover { opacity: 0.82; }
+
+/* Pergunta antes dos botões de confirmação */
+.ai-card-pergunta {
+    font-size: 13px;
+    color: var(--text-secondary, #6c757d);
+    margin: 10px 0 4px;
+}
+
+/* Botão cancelar discreto (link) */
+.ai-msg-btn-link {
+    display: block;
+    background: none;
+    border: none;
+    padding: 4px 0;
+    font-size: 11px;
+    color: var(--gray-400, #adb5bd);
+    cursor: pointer;
+    text-decoration: underline;
+    margin-top: 4px;
+}
+.ai-msg-btn-link:hover { color: #dc3545; }
 
 /* Digitando */
 .ai-typing { display:flex; gap:4px; align-items:center; padding:4px 0; }
