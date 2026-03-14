@@ -611,3 +611,71 @@ if (window.ENVIRONMENT === 'development') {
 }
 
 window.utilsCarregado = true;
+
+// ================================================================
+// DRAG — MODAIS ARRASTÁVEIS PELO HEADER
+// ================================================================
+(function () {
+    function initModalDrag() {
+        document.addEventListener('mousedown', function (e) {
+            var header = e.target.closest('.modal-header');
+            if (!header) return;
+            // Não arrastar se clicou no botão fechar
+            if (e.target.closest('.close')) return;
+            var content = header.closest('.modal-content');
+            if (!content) return;
+
+            var rect = content.getBoundingClientRect();
+            content.style.position = 'fixed';
+            content.style.margin   = '0';
+            content.style.left     = rect.left + 'px';
+            content.style.top      = rect.top  + 'px';
+            content.style.width    = rect.width + 'px';
+
+            var ox = e.clientX - rect.left;
+            var oy = e.clientY - rect.top;
+            header.classList.add('dragging');
+
+            function onMove(e) {
+                var l = e.clientX - ox;
+                var t = e.clientY - oy;
+                l = Math.max(0, Math.min(window.innerWidth  - content.offsetWidth,  l));
+                t = Math.max(0, Math.min(window.innerHeight - content.offsetHeight, t));
+                content.style.left = l + 'px';
+                content.style.top  = t + 'px';
+            }
+
+            function onUp() {
+                header.classList.remove('dragging');
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup',   onUp);
+            }
+
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup',   onUp);
+            e.preventDefault();
+        });
+
+        // Resetar posição ao fechar o modal
+        document.addEventListener('click', function (e) {
+            var closeBtn = e.target.closest('.close');
+            if (!closeBtn) return;
+            var modal = closeBtn.closest('.modal');
+            if (!modal) return;
+            var content = modal.querySelector('.modal-content');
+            if (content) {
+                content.style.position = '';
+                content.style.margin   = '';
+                content.style.left     = '';
+                content.style.top      = '';
+                content.style.width    = '';
+            }
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initModalDrag);
+    } else {
+        initModalDrag();
+    }
+})();

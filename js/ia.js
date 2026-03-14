@@ -414,18 +414,22 @@ window.IA = (function () {
             removeTyping(tidD);
             if (res && res.success) {
                 var sufixo = parcelado ? ' (' + totalParcelas + 'x de ' + fmtV(valorParcela) + ')' : '';
-                addGen('Despesa "' + d.descricao + '"' + sufixo + ' cadastrada com sucesso!');
+                var meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+                addGen('✔ "' + d.descricao + '"' + sufixo + ' salva em ' + (meses[mes] || '') + '/' + ano + '.');
                 if (window.usuarioDataManager && typeof window.usuarioDataManager.limparCache === 'function') {
                     window.usuarioDataManager.limparCache();
                 }
+                // Atualiza a tabela do mês correto (o mês do vencimento, não o mês aberto)
                 if (typeof window.renderizarDetalhesDoMes === 'function') {
-                    window.renderizarDetalhesDoMes(window.mesAberto, window.anoAberto);
+                    window.mesAberto = mes;
+                    window.anoAberto = ano;
+                    window.renderizarDetalhesDoMes(mes, ano);
                 }
                 if (typeof window.carregarDadosDashboard === 'function') {
-                    window.carregarDadosDashboard(window.anoAberto);
+                    window.carregarDadosDashboard(ano);
                 }
             } else {
-                addGen('Erro ao cadastrar: ' + ((res && res.message) || 'tente novamente.'));
+                addGen('Erro ao cadastrar: ' + ((res && res.message) || (res && res.errors && res.errors[0] && res.errors[0].msg) || 'tente novamente.'));
             }
         }).catch(function () {
             removeTyping(tidD);
@@ -494,15 +498,18 @@ window.IA = (function () {
         apiMainPost('/receitas', payload).then(function (res) {
             removeTyping(tidR);
             if (res && res.success) {
-                addGen('Receita "' + r.descricao + '" cadastrada!');
+                var meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+                addGen('✔ Receita "' + r.descricao + '" salva em ' + (meses[mes] || '') + '/' + ano + '.');
                 if (window.usuarioDataManager && typeof window.usuarioDataManager.limparCache === 'function') {
                     window.usuarioDataManager.limparCache();
                 }
                 if (typeof window.renderizarDetalhesDoMes === 'function') {
-                    window.renderizarDetalhesDoMes(window.mesAberto, window.anoAberto);
+                    window.mesAberto = mes;
+                    window.anoAberto = ano;
+                    window.renderizarDetalhesDoMes(mes, ano);
                 }
                 if (typeof window.carregarDadosDashboard === 'function') {
-                    window.carregarDadosDashboard(window.anoAberto);
+                    window.carregarDadosDashboard(ano);
                 }
             } else {
                 addGen('Erro ao salvar: ' + ((res && res.message) || 'tente novamente.'));
@@ -1328,3 +1335,66 @@ function salvarInstrucoesGen() {
         }
     }).catch(function () { alert('Erro de conexão ao salvar instruções.'); });
 }
+
+// ── ATIVAR / DESATIVAR IA ─────────────────────────────────────
+function _iaMaster() {
+    try {
+        var u = JSON.parse(sessionStorage.getItem('dadosUsuarioLogado') || '{}');
+        return (u.tipo || '').toLowerCase() === 'master';
+    } catch (e) { return false; }
+}
+
+function aplicarVisibilidadeIA() {
+    var ativo   = localStorage.getItem('ia_ativo') !== 'false'; // padrão: true
+    var master  = _iaMaster();
+
+    var fab          = document.getElementById('btn-fab-ia');
+    var btnInstrucoes= document.getElementById('btn-instrucoes-gen');
+    var tabBtn       = document.querySelector('.config-tab-btn[data-tab="assistente-ia"]');
+    var toggle       = document.getElementById('ia-toggle-ativo');
+
+    // Sincronizar toggle
+    if (toggle) toggle.checked = ativo;
+
+    if (ativo) {
+        if (fab)           fab.style.display           = '';
+        if (btnInstrucoes) btnInstrucoes.style.display = '';
+        if (tabBtn)        tabBtn.style.display        = '';
+    } else {
+        // FAB sempre escondido quando IA desativa
+        if (fab) fab.style.display = 'none';
+
+        if (!master) {
+            // Usuário comum: esconder aba IA e botão instruções
+            if (btnInstrucoes) btnInstrucoes.style.display = 'none';
+            if (tabBtn)        tabBtn.style.display        = 'none';
+        }
+        // MASTER continua vendo aba e botão instruções para poder reativar
+    }
+}
+
+function _initToggleIA() {
+    var toggle = document.getElementById('ia-toggle-ativo');
+    if (!toggle) return;
+    toggle.addEventListener('change', function () {
+        localStorage.setItem('ia_ativo', this.checked ? 'true' : 'false');
+        aplicarVisibilidadeIA();
+    });
+    aplicarVisibilidadeIA();
+}
+
+// Inicializar toggle quando o DOM estiver pronto
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () {
+        setTimeout(_initToggleIA, 300);
+    });
+} else {
+    setTimeout(_initToggleIA, 300);
+}
+
+// Re-aplicar quando a aba IA for aberta (o toggle pode ainda não existir no DOM)
+document.addEventListener('click', function (e) {
+    if (e.target.closest('.config-tab-btn[data-tab="assistente-ia"]')) {
+        setTimeout(function () { _initToggleIA(); aplicarVisibilidadeIA(); }, 100);
+    }
+});

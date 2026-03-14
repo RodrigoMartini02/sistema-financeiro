@@ -3,6 +3,59 @@
    Estilos: painel flutuante (.ai-*) + página ia.html (.ia-*)
    ================================================================ */
 
+/* ── TOGGLE ATIVAR/DESATIVAR IA ──────────────────────────────── */
+.ia-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 4px;
+}
+
+.ia-toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 26px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.ia-toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.ia-toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--gray-300, #cbd5e1);
+    border-radius: 26px;
+    transition: background 0.25s;
+}
+
+.ia-toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    left: 3px;
+    top: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.25s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.ia-toggle-switch input:checked + .ia-toggle-slider {
+    background: var(--primary-color, #4361ee);
+}
+
+.ia-toggle-switch input:checked + .ia-toggle-slider::before {
+    transform: translateX(22px);
+}
+
 /* ── BOTÃO FAB (flutuante) ───────────────────────────────────── */
 .btn-fab-ia {
     position: fixed;
@@ -157,7 +210,10 @@
     font-size: 13.5px;
     line-height: 1.55;
     max-width: 80%;
+    width: fit-content;
     word-break: break-word;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
 }
 
 .ai-msg--user .ai-msg-bub {

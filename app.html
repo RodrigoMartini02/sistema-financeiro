@@ -1029,8 +1029,18 @@
         <!-- ============================================== -->
         <div id="assistente-ia-tab" class="config-tab-pane">
             <div class="config-card">
-                <h3><i class="fas fa-robot"></i> Assistente IA — FIN GERENCE AI</h3>
-                <p style="color:var(--gray-500);margin-bottom:16px">Configure e use o assistente inteligente para cadastrar despesas por texto ou voz, interpretar documentos e analisar seus gastos.</p>
+                <div class="ia-toggle-row">
+                    <div>
+                        <h3 style="margin:0"><i class="fas fa-robot"></i> Assistente IA — FIN GERENCE AI</h3>
+                        <p style="color:var(--gray-500);margin:4px 0 0;font-size:13px">Ative para liberar o assistente para todos os usuários.</p>
+                    </div>
+                    <label class="ia-toggle-switch" title="Ativar / Desativar IA">
+                        <input type="checkbox" id="ia-toggle-ativo">
+                        <span class="ia-toggle-slider"></span>
+                    </label>
+                </div>
+
+                <p style="color:var(--gray-500);margin:16px 0">Configure e use o assistente inteligente para cadastrar despesas por texto ou voz, interpretar documentos e analisar seus gastos.</p>
 
                 <div id="ia-status-config" style="margin-bottom:20px">
                     <span class="badge" id="ia-badge-status" style="padding:6px 14px;border-radius:20px;font-size:13px">Verificando...</span>

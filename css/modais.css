@@ -83,6 +83,12 @@
     justify-content: space-between;
     align-items: center;
     border-radius: 8px 8px 0 0;
+    cursor: grab;
+    user-select: none;
+}
+
+.modal-header.dragging {
+    cursor: grabbing;
 }
 
 .modal-header h2 {
