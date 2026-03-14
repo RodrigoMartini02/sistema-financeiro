@@ -4,19 +4,6 @@
 window.API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
 const API_URL = window.API_URL;
 
-// Função padrão para enviar dados para o servidor
-async function enviarDados(rota, dados) {
-    try {
-        const resposta = await fetch(`${API_URL}${rota}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(dados)
-        });
-        return await resposta.json();
-    } catch (erro) {
-        // Erro na conexão - silencioso
-    }
-}
 // ================================================================
 // VARIÁVEIS GLOBAIS
 // ================================================================
@@ -390,47 +377,6 @@ async function carregarCartoesDoUsuario() {
     }
 }
 
-/**
- * Corrige despesas de crédito que não têm cartao_id válido
- */
-async function corrigirDespesasSemCartao(cartaoId, token) {
-    try {
-        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
-
-        const response = await fetch(`${API_URL}/despesas/corrigir-cartao`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ cartao_id: cartaoId })
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.quantidade > 0) {
-
-                if (window.usuarioDataManager) {
-                    // Limpar cache para forçar nova requisição
-                    if (typeof window.usuarioDataManager.limparCache === 'function') {
-                        window.usuarioDataManager.limparCache();
-                    }
-
-                    if (typeof window.usuarioDataManager.getDadosFinanceirosUsuario === 'function') {
-                        dadosFinanceiros = await window.usuarioDataManager.getDadosFinanceirosUsuario();
-                        window.dadosFinanceiros = dadosFinanceiros;
-                        // Atualizar dashboard se visível
-                        if (typeof atualizarDashboard === 'function') {
-                            atualizarDashboard();
-                        }
-                    }
-                }
-            }
-        }
-    } catch (error) {
-        console.error('Erro ao corrigir despesas sem cartão:', error);
-    }
-}
 
 function criarEstruturaVazia() {
     const estrutura = {};
@@ -637,11 +583,6 @@ function onSecaoAtivada(secao) {
             }, 100);
             break;
 
-        case 'fin-sights':
-            if (typeof onRevistaActivated === 'function') {
-                setTimeout(() => onRevistaActivated(), 100);
-            }
-            break;
 
         case 'relatorios':
             if (window.sistemaRelatoriosTelaCheia) {
@@ -651,9 +592,6 @@ function onSecaoAtivada(secao) {
             }
             break;
 
-        case 'registros':
-            // Seção removida
-            break;
     }
 }
 

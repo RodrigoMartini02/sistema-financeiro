@@ -1219,11 +1219,11 @@ async function filtrarUsuarios() {
             const todosUsuarios = data.data || [];
             usuariosFiltrados = todosUsuarios.filter(usuario => podeVisualizarUsuario(usuario));
         } else {
-            console.error('❌ Erro ao buscar usuários:', data.message);
+            console.error('Erro ao buscar usuários:', data.message);
             usuariosFiltrados = [];
         }
     } catch (error) {
-        console.error('❌ Erro ao filtrar usuários:', error);
+        console.error('Erro ao filtrar usuários:', error);
         usuariosFiltrados = [];
     }
 
@@ -2080,7 +2080,7 @@ async function exportarDadosMesAMes() {
         mostrarFeedback(`✅ Exportação concluída! ${mesesComDados.length} arquivos gerados (um por mês)`, 'success');
 
     } catch (error) {
-        console.error('❌ Erro ao exportar dados mês a mês:', error);
+        console.error('Erro ao exportar dados mês a mês:', error);
         mostrarFeedback('Erro ao exportar dados: ' + error.message, 'error');
     }
 }
@@ -2334,7 +2334,7 @@ async function importarDados() {
 
                 if (!responsePadrao.ok) {
                     const errorData = await responsePadrao.json();
-                    console.error('❌ Erro ao criar categorias padrão:', errorData);
+                    console.error('Erro ao criar categorias padrão:', errorData);
                 }
             } catch (error) {
                 console.warn('⚠️ Erro ao criar categorias padrão:', error);
@@ -2457,7 +2457,7 @@ async function importarDados() {
                         window.cartoesUsuario = backup.cartoes;
                     } else {
                         const errorData = await responseCartoes.json();
-                        console.error('⚠️ Erro ao importar cartões:', errorData);
+                        console.error('Erro ao importar cartões:', errorData);
                     }
                 } catch (error) {
                     console.warn('⚠️ Erro ao importar cartões:', error);
@@ -2502,11 +2502,11 @@ async function importarDados() {
                         await response.json();
                     } else {
                         erros++;
-                        console.error('❌ Erro ao importar receita (HTTP ' + response.status + ')');
+                        console.error('Erro ao importar receita (HTTP ' + response.status + ')');
                     }
                 } catch (error) {
                     erros++;
-                    console.error('❌ Exceção ao importar receita:', error.message);
+                    console.error('Exceção ao importar receita:', error.message);
                 }
 
                 processados++;
