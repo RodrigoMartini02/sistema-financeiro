@@ -404,6 +404,7 @@ window.IA = (function () {
             total_parcelas:        parcelado ? totalParcelas : null,
             parcela_atual:         parcelado ? 1 : null,
             pago:                  !!d.ja_pago,
+            data_pagamento:        d.ja_pago ? (dataCompra || dataVencimento) : null,
             recorrente:            !!d.recorrente,
             categoria_id:          d.categoria_id || null,
             cartao_id:             cartaoId || null
@@ -541,6 +542,11 @@ window.IA = (function () {
         if (!d.valor || parseFloat(d.valor) <= 0) falta.push('valor');
         if (!d.forma_pagamento) falta.push('forma_pagamento');
         if (!d.vencimento && !d.data) falta.push('vencimento');
+        // Se crédito e nenhum cartão foi resolvido, pergunta qual cartão
+        var isCredito = d.forma_pagamento === 'cartao_credito' || d.forma_pagamento === 'credito';
+        if (isCredito && !d.cartao_id && !_resolverCartaoPorNome(d.nome_cartao)) {
+            falta.push('cartao_id');
+        }
         return falta;
     }
 
@@ -597,14 +603,32 @@ window.IA = (function () {
 
         var campo = estado.filaCampos[0];
         estado.aguardandoCampo = campo;
-        var perguntas = {
-            'descricao':       'Qual a descrição da despesa?',
-            'valor':           'Qual o valor?',
-            'forma_pagamento': 'Como foi pago? (cartão crédito/débito, pix, dinheiro, transferência, boleto)',
-            'vencimento':      'Qual a data de vencimento? (ex: hoje, amanhã, 15/04, 20/05/2026)',
-            'data_receita':    'Qual a data de recebimento? (ex: hoje, 15/03)'
-        };
-        var pergunta = perguntas[campo] || 'Informe o ' + campo + ':';
+        var pergunta;
+        if (campo === 'cartao_id') {
+            var cartoes = (window.cartoesUsuario || []).filter(function(c) { return c.ativo !== false; });
+            if (cartoes.length === 0) {
+                pergunta = 'Qual cartão de crédito?';
+            } else if (cartoes.length === 1) {
+                // Só um cartão — resolve automaticamente sem perguntar
+                estado.dadosParciais.cartao_id = cartoes[0].id;
+                estado.filaCampos.shift();
+                estado.aguardandoCampo = null;
+                _proximoCampo();
+                return;
+            } else {
+                var nomes = cartoes.map(function(c) { return c.nome || c.banco; }).join(', ');
+                pergunta = 'Qual cartão de crédito? (' + nomes + ')';
+            }
+        } else {
+            var perguntas = {
+                'descricao':       'Qual a descrição da despesa?',
+                'valor':           'Qual o valor?',
+                'forma_pagamento': 'Como foi pago? (cartão crédito/débito, pix, dinheiro, transferência, boleto)',
+                'vencimento':      'Qual a data de vencimento? (ex: hoje, amanhã, 15/04, 20/05/2026)',
+                'data_receita':    'Qual a data de recebimento? (ex: hoje, 15/03)'
+            };
+            pergunta = perguntas[campo] || 'Informe o ' + campo + ':';
+        }
         var tid2 = addTyping();
         setTimeout(function () {
             removeTyping(tid2);
@@ -638,6 +662,20 @@ window.IA = (function () {
                 var dt2 = _normData(texto);
                 if (!dt2) { addGen('Não entendi a data. Tente: hoje, amanhã, 15/04'); return; }
                 d.data = dt2;
+                break;
+            case 'cartao_id':
+                var cartoes = (window.cartoesUsuario || []).filter(function(c) { return c.ativo !== false; });
+                var lower = texto.toLowerCase().trim();
+                var found = cartoes.find(function(c) {
+                    return (c.nome || '').toLowerCase().includes(lower) ||
+                           (c.banco || '').toLowerCase().includes(lower);
+                });
+                if (!found) {
+                    var nomes = cartoes.map(function(c) { return c.nome || c.banco; }).join(', ');
+                    addGen('Não encontrei esse cartão. Disponíveis: ' + nomes);
+                    return;
+                }
+                d.cartao_id = found.id;
                 break;
         }
 
@@ -947,25 +985,39 @@ window.IA = (function () {
         var form = new FormData();
         form.append('arquivo', file);
 
-        apiForm('/arquivo', form).then(function (res) {
+        // Garante mínimo de 10 segundos de análise para leitura mais precisa
+        var apiPromise  = apiForm('/arquivo', form);
+        var minDelay    = new Promise(function (resolve) { setTimeout(resolve, 10000); });
+        // Mensagens de progresso durante análise
+        var prog1 = setTimeout(function () { removeTyping(tid); addGen('Lendo conteúdo do documento...'); tid = addTyping(); }, 3000);
+        var prog2 = setTimeout(function () { removeTyping(tid); addGen('Identificando campos e valores...'); tid = addTyping(); }, 6500);
+
+        Promise.all([apiPromise, minDelay]).then(function (results) {
+            clearTimeout(prog1); clearTimeout(prog2);
             removeTyping(tid);
-            if (!res || !res.success) { addGen('Não consegui processar o arquivo: ' + (res?.message || 'tente outro formato ou informe os dados manualmente.')); return; }
+            var res = results[0];
+            if (!res || !res.success) { addGen('Não consegui processar o arquivo: ' + (res?.message || 'tente outro formato ou informe os dados manualmente.')); estado.enviando = false; setBtnDisabled(false); return; }
             var r = res.resultado || {};
-            var partes = ['Documento lido.'];
-            if (r.tipo)                  partes.push(fmtTipo(r.tipo));
+            var partes = ['Documento analisado.'];
+            if (r.tipo)                   partes.push(fmtTipo(r.tipo));
             if (r.empresa || r.descricao) partes.push(esc(r.empresa || r.descricao));
-            if (r.valor)                 partes.push('Valor: ' + fmtV(r.valor));
-            if (r.vencimento)            partes.push('Vencimento: ' + fmtD(r.vencimento));
+            if (r.valor)                  partes.push('Valor: ' + fmtV(r.valor));
+            if (r.vencimento)             partes.push('Vencimento: ' + fmtD(r.vencimento));
             addGen(partes.join(' · '));
             var ds = res.despesa_sugerida || {};
             if (!ds.descricao && (r.empresa || r.descricao)) ds.descricao = r.empresa || r.descricao;
-            if (!ds.valor && r.valor)         ds.valor      = r.valor;
+            if (!ds.valor && r.valor)           ds.valor     = r.valor;
             if (!ds.vencimento && r.vencimento) ds.vencimento = r.vencimento;
-            if (!ds.forma_pagamento)          ds.forma_pagamento = 'boleto';
+            // NÃO assume forma de pagamento — coleta do usuário
+            delete ds.forma_pagamento;
             _iniciarColetaCampos(ds, 'despesa');
+            estado.enviando = false; setBtnDisabled(false);
         }).catch(function () {
-            removeTyping(tid); addGen('Erro ao processar arquivo. Tente novamente ou informe os dados manualmente.');
-        }).finally(function () { estado.enviando = false; setBtnDisabled(false); });
+            clearTimeout(prog1); clearTimeout(prog2);
+            removeTyping(tid);
+            addGen('Erro ao processar arquivo. Tente novamente ou informe os dados manualmente.');
+            estado.enviando = false; setBtnDisabled(false);
+        });
     }
 
     // ── BOLETO ────────────────────────────────────────────────────
@@ -1001,7 +1053,8 @@ window.IA = (function () {
             addGen('Boleto lido. ' + partes.join(' · '));
             var ds = res.despesa || {};
             if (!ds.descricao) ds.descricao = 'Boleto ' + (res.banco_nome || '');
-            if (!ds.forma_pagamento) ds.forma_pagamento = 'boleto';
+            // NÃO assume forma de pagamento — o boleto é o documento, não necessariamente a forma de pagar
+            delete ds.forma_pagamento;
             _iniciarColetaCampos(ds, 'despesa');
         }).catch(function () { removeTyping(tid); addGen('Erro ao processar boleto.'); });
     }
@@ -1241,6 +1294,6 @@ window.IA = (function () {
         selecionarArquivo: processarArquivo, cancelarArquivo,
         abrirBoleto, fecharBoleto, processarBoleto, abrirUpload,
         toggleVoz, confirmarAprendizado, detectarRecorrencias,
-        salvarChaveAPI, _chip
+        salvarChaveAPI
     };
 }());

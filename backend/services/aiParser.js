@@ -252,24 +252,6 @@ function parsearComGen(texto) {
     return result;
 }
 
-// ── COMPLETAR CAMPOS COM CONTEXTO ────────────────────────────────
-function completarComContexto(parcial, contextoChat) {
-    if (!contextoChat || contextoChat.length === 0) return parcial;
-
-    const ultimo = contextoChat[contextoChat.length - 1];
-    if (!ultimo || !ultimo.despesaParcial) return parcial;
-
-    const base = { ...ultimo.despesaParcial };
-
-    // Mescla campos novos sobre a base anterior
-    for (const [key, val] of Object.entries(parcial)) {
-        if (val !== null && val !== undefined) {
-            base[key] = val;
-        }
-    }
-
-    return base;
-}
 
 // ── DETECTAR INTENÇÃO DA MENSAGEM ────────────────────────────────
 function detectarIntencao(texto) {
