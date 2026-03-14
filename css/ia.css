@@ -229,16 +229,16 @@
 }
 @keyframes ai-fade { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
 
-.ai-msg--user { justify-content: flex-end; align-self: flex-end; }
-.ai-msg--ai   { justify-content: flex-start; align-self: flex-start; }
+.ai-msg--user { justify-content: flex-end;  width: 100%; }
+.ai-msg--ai   { justify-content: flex-start; width: 100%; }
 
 .ai-msg-av { display: none; }
 
 .ai-msg-bub {
-    padding: 6px 10px;
-    font-size: 13.5px;
-    line-height: 1.55;
-    max-width: 80%;
+    padding: 4px 8px;
+    font-size: 13px;
+    line-height: 1.5;
+    max-width: 92%;
     min-width: 2em;
     width: fit-content;
     word-break: break-word;
@@ -246,9 +246,15 @@
     white-space: pre-wrap;
 }
 
+/* Mensagem que contém card: estica para usar o espaço */
+.ai-msg-bub:has(.ai-despesa-card) {
+    width: 92%;
+}
+
 .ai-msg--user .ai-msg-bub {
     color: var(--primary-color, #4361ee);
     text-align: right;
+    margin-left: auto;
 }
 .ai-msg--ai .ai-msg-bub {
     color: var(--text-color, #1a1a1a);
@@ -268,22 +274,27 @@
     background: var(--bg-color, #f5f8ff);
     border: 1px solid var(--border-color,#ddd);
     border-radius: 8px;
-    padding: 6px 8px;
-    margin-top: 6px;
+    padding: 5px 8px;
+    margin-top: 5px;
     font-size: 12px;
+    /* Reseta pre-wrap do bubble para não criar linhas em branco entre os divs do template */
+    white-space: normal;
 }
 .ai-despesa-card .ai-dc-row {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
     gap: 8px;
-    margin-bottom: 2px;
+    padding: 2px 0;
+    border-bottom: 1px solid var(--border-color, #f0f0f0);
 }
+.ai-despesa-card .ai-dc-row:last-child { border-bottom: none; }
 .ai-dc-row[hidden] { display: none; }
 .ai-despesa-card .ai-dc-label {
     color: var(--gray-500,#6c757d);
     white-space: nowrap;
     flex-shrink: 0;
+    font-size: 11px;
 }
 .ai-despesa-card .ai-dc-val {
     font-weight: 500;
@@ -291,8 +302,8 @@
     word-break: break-word;
     max-width: 65%;
 }
-.ai-despesa-card .ai-dc-valor { color: var(--primary-color,#4361ee); font-weight: 700; font-size:14px; }
-.ai-dc-mes   { font-size: 10px; color: var(--primary-color,#4361ee); margin-left: 4px; }
+.ai-despesa-card .ai-dc-valor { color: var(--primary-color,#4361ee); font-weight: 700; font-size:13px; }
+.ai-dc-mes   { font-size: 10px; color: var(--primary-color,#4361ee); margin-left: 4px; white-space: nowrap; }
 .ai-dc-pago  { color: #16a34a; font-weight: 600; }
 .ai-dc-pendente { color: var(--gray-500,#6c757d); }
 .ai-dc-alerta { color: #dc3545; font-weight: 600; font-size: 12px; }

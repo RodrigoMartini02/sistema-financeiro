@@ -417,7 +417,6 @@ function preencherCelulasGrid(clone, despesa, index, fechado, mes, ano) {
    preencherCelulaValorPago(clone, despesa);
    preencherCelulaStatus(clone, despesa);
    preencherCelulaDatas(clone, despesa);
-   preencherCelulaDataPagamento(clone, despesa);
    preencherCelulaAcoes(clone, despesa, index, fechado);
    preencherCelulaAnexos(clone, despesa, index, fechado);
 }
@@ -442,18 +441,6 @@ function preencherCelulaNumero(clone, despesa) {
     }
 }
 
-function preencherCelulaDataPagamento(clone, despesa) {
-    const celulaDataPagamento = clone.querySelector('.col-data-pagamento');
-    if (celulaDataPagamento) {
-        if (despesa.dataPagamento && despesa.quitado) {
-            celulaDataPagamento.textContent = formatarData(despesa.dataPagamento);
-            celulaDataPagamento.title = `Pago em: ${formatarData(despesa.dataPagamento)}`;
-        } else {
-            celulaDataPagamento.textContent = '-';
-            celulaDataPagamento.title = 'Não pago';
-        }
-    }
-}
 
 function preencherCelulaDescricao(clone, despesa) {
     const celulaDescricao = clone.querySelector('.col-descricao');

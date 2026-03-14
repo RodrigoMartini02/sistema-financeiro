@@ -623,11 +623,12 @@ window.utilsCarregado = true;
                 var panel = document.getElementById('ai-chat-panel');
                 if (panel) {
                     var pr = panel.getBoundingClientRect();
-                    panel.style.position = 'fixed';
-                    panel.style.bottom   = 'auto';
-                    panel.style.right    = 'auto';
-                    panel.style.left     = pr.left + 'px';
-                    panel.style.top      = pr.top  + 'px';
+                    panel.style.position  = 'fixed';
+                    panel.style.transform = 'none';   // remove translate(-50%,-50%) do centramento
+                    panel.style.bottom    = 'auto';
+                    panel.style.right     = 'auto';
+                    panel.style.left      = pr.left + 'px';
+                    panel.style.top       = pr.top  + 'px';
                     var pox = e.clientX - pr.left;
                     var poy = e.clientY - pr.top;
                     e.target.closest('.ai-panel-header').classList.add('dragging');
