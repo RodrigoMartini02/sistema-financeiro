@@ -1360,6 +1360,11 @@ function aplicarVisibilidadeIA() {
     var planoStatus   = window._planoStatus || 'trial';
     var planoPago     = (planoStatus === 'ativo');
 
+    // Verificar tipo do usuário logado
+    var usuarioAtual  = window.usuarioDataManager?.getUsuarioAtual?.();
+    var tipoUsuario   = usuarioAtual?.tipo || 'padrao';
+    var isMaster      = (tipoUsuario === 'master');
+
     var fab           = document.getElementById('btn-fab-ia');
     var btnInstrucoes = document.getElementById('btn-instrucoes-gen');
     var tabBtn        = document.querySelector('.config-tab-btn[data-tab="assistente-ia"]');
@@ -1368,7 +1373,18 @@ function aplicarVisibilidadeIA() {
     // Sincronizar toggle
     if (toggle) toggle.checked = ativo;
 
-    // ── Prioridade 1: toggle OFF → tudo oculto para todos (manutenção) ──
+    // ── Master: sempre tem acesso total (ignora toggle e plano) ──
+    if (isMaster) {
+        if (fab) {
+            fab.style.display = '';
+            fab.onclick = function () { if (typeof window.IA !== 'undefined') window.IA.abrir(); };
+        }
+        if (btnInstrucoes) btnInstrucoes.style.display = '';
+        if (tabBtn)        tabBtn.style.display        = '';
+        return;
+    }
+
+    // ── Prioridade 1: toggle OFF → tudo oculto para padrão e admin ──
     if (!ativo) {
         if (fab)           fab.style.display           = 'none';
         if (btnInstrucoes) btnInstrucoes.style.display = 'none';
