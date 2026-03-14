@@ -183,14 +183,6 @@ window.IA = (function () {
         estado.enviando = true;
         setBtnDisabled(true);
         addUser(texto);
-        // Mensagem de espera aleatória para o chat parecer mais humano
-        var frases = [
-            'Deixa eu processar isso para você...',
-            'Entendido! Preparando tudo, aguarde...',
-            'Analisando sua mensagem...',
-            'Um instante, estou organizando os dados...'
-        ];
-        addSys('⏳ ' + frases[Math.floor(Math.random() * frases.length)]);
         var tid = addTyping();
 
         apiPost('/chat', { mensagem: texto }).then(function (res) {
@@ -208,7 +200,7 @@ window.IA = (function () {
             }
         }).catch(function () {
             removeTyping(tid);
-            addSys('⏳ Servidor iniciando, pode levar alguns segundos. Clique em enviar para tentar de novo.');
+            addGen('Servidor iniciando, pode levar alguns segundos. Clique em enviar para tentar de novo.');
             // Devolve o texto ao input para facilitar reenvio
             var inp = elInput();
             if (inp) { inp.value = texto; autoResize(inp); inp.focus(); }
@@ -255,10 +247,6 @@ window.IA = (function () {
         _ins('<div class="ai-msg ai-msg--ai">' +
             '<div class="ai-msg-av"><i class="fas fa-robot"></i></div>' +
             '<div class="ai-msg-bub">' + html + '</div></div>');
-    }
-
-    function addSys(texto) {
-        _ins('<div class="ai-msg ai-msg--sys"><div class="ai-msg-bub">' + esc(texto) + '</div></div>');
     }
 
     function addComDespesa(texto, d) {
@@ -348,10 +336,11 @@ window.IA = (function () {
         var cartaoId = d.cartao_id || _resolverCartaoPorNome(d.nome_cartao);
         if (cartaoId) payload.cartao_id = cartaoId;
 
-        addSys('⏳ Cadastrando sua despesa, aguarde um momento...');
+        var tidD = addTyping();
         apiPost('/despesa/salvar', payload).then(function (res) {
+            removeTyping(tidD);
             if (res && res.success) {
-                addSys('✅ Despesa "' + d.descricao + '" cadastrada com sucesso!');
+                addGen('Despesa "' + d.descricao + '" cadastrada com sucesso!');
                 // Atualiza a tela de detalhes do mês se estiver aberta
                 if (typeof window.renderizarDetalhesDoMes === 'function') {
                     window.renderizarDetalhesDoMes(window.mesAberto, window.anoAberto);
@@ -363,6 +352,7 @@ window.IA = (function () {
                 addGen('Erro ao cadastrar: ' + (res?.message || 'tente novamente.'));
             }
         }).catch(function () {
+            removeTyping(tidD);
             addGen('Erro de conexão ao salvar a despesa.');
         });
     }
@@ -377,14 +367,14 @@ window.IA = (function () {
                 var card = document.querySelector('#despesa-cards-container .despesa-card');
                 if (card) {
                     _preencherCardDespesa(card, d);
-                    addSys('Formulário preenchido! Edite o que precisar e clique em Salvar.');
+                    addGen('Formulário preenchido! Edite o que precisar e clique em Salvar.');
                 } else {
-                    addSys('Modal aberto. Preencha os dados e salve.');
+                    addGen('Modal aberto. Preencha os dados e salve.');
                 }
                 fechar();
             }, 400);
         } else {
-            addSys('Abra o modal "Lançar Despesas" para editar.');
+            addGen('Abra o modal "Lançar Despesas" para editar.');
             fechar();
         }
         estado.despesaPendente = null;
@@ -392,7 +382,7 @@ window.IA = (function () {
 
     function cancelarDespesa() {
         estado.despesaPendente = null;
-        addSys('Operação cancelada.');
+        addGen('Operação cancelada.');
     }
 
     // ── CONFIRMAR RECEITA ─────────────────────────────────────────
@@ -401,11 +391,12 @@ window.IA = (function () {
         if (!r) return;
 
         // Tanto modoPagina quanto painel flutuante: salva diretamente via API
-        addSys('⏳ Registrando sua receita, aguarde um momento...');
+        var tidR = addTyping();
         apiPost('/receita/salvar', { descricao: r.descricao, valor: r.valor, data: r.data })
             .then(function (res) {
+                removeTyping(tidR);
                 if (res && res.success) {
-                    addSys('✅ Receita "' + r.descricao + '" cadastrada!');
+                    addGen('Receita "' + r.descricao + '" cadastrada!');
                     if (typeof window.renderizarDetalhesDoMes === 'function') {
                         window.renderizarDetalhesDoMes(window.mesAberto, window.anoAberto);
                     }
@@ -415,7 +406,7 @@ window.IA = (function () {
                 } else {
                     addGen('Erro ao salvar: ' + (res?.message || 'tente novamente.'));
                 }
-            }).catch(function () { addGen('Erro de conexão ao salvar receita.'); });
+            }).catch(function () { removeTyping(tidR); addGen('Erro de conexão ao salvar receita.'); });
         estado.receitaPendente = null;
     }
 
@@ -427,11 +418,11 @@ window.IA = (function () {
             window.abrirModalNovaReceita();
             setTimeout(function () {
                 _preencherFormReceita(r);
-                addSys('Formulário preenchido! Edite o que precisar e clique em Salvar.');
+                addGen('Formulário preenchido! Edite o que precisar e clique em Salvar.');
                 fechar();
             }, 400);
         } else {
-            addSys('Abra o modal "Nova Receita" para editar.');
+            addGen('Abra o modal "Nova Receita" para editar.');
             fechar();
         }
         estado.receitaPendente = null;
@@ -439,7 +430,7 @@ window.IA = (function () {
 
     function cancelarReceita() {
         estado.receitaPendente = null;
-        addSys('Operação cancelada.');
+        addGen('Operação cancelada.');
     }
 
     // ── PREENCHIMENTO — CARD DE DESPESA (painel flutuante) ────────
@@ -515,7 +506,7 @@ window.IA = (function () {
                     // Clica no primeiro botão de cartão disponível
                     var btnCartao = card.querySelector('.pgto-btn[data-cartao-id]');
                     if (btnCartao) btnCartao.click();
-                    else addSys('Selecione o cartão de crédito manualmente.');
+                    else addGen('Selecione o cartão de crédito manualmente.');
                 }
             } else if (forma === 'cartao_debito' || forma === 'debito') {
                 card.querySelector('.pgto-btn[data-forma="debito"]')?.click();
@@ -582,18 +573,20 @@ window.IA = (function () {
         var catId      = document.getElementById('ia-campo-categoria')?.value || null;
         var cartaoId   = document.getElementById('ia-campo-cartao')?.value || null;
 
-        if (!descricao || !valor || !forma || !data) { addSys('Preencha todos os campos obrigatórios.'); return; }
+        if (!descricao || !valor || !forma || !data) { addGen('Preencha todos os campos obrigatórios.'); return; }
 
         var payload = { descricao, valor, forma_pagamento: forma, data, vencimento, parcelas };
         if (catId)    payload.categoria_id = parseInt(catId);
         if (cartaoId) payload.cartao_id    = parseInt(cartaoId);
 
-        addSys('⏳ Cadastrando sua despesa, aguarde um momento...');
+        var tidM = addTyping();
         apiPost('/despesa/salvar', payload).then(function (res) {
+            removeTyping(tidM);
             _fecharModal('modal-confirmar-despesa');
-            if (res && res.success) addSys('✅ Despesa "' + descricao + '" cadastrada!');
+            if (res && res.success) addGen('Despesa "' + descricao + '" cadastrada!');
             else addGen('Erro ao salvar: ' + (res?.message || 'tente novamente.'));
         }).catch(function () {
+            removeTyping(tidM);
             _fecharModal('modal-confirmar-despesa');
             addGen('Erro de conexão ao salvar a despesa.');
         });
@@ -633,7 +626,7 @@ window.IA = (function () {
         apiPost('/aprendizado', { texto, categoria }).then(function (res) {
             var hint = document.getElementById('ia-aprendizado-hint');
             if (hint) hint.style.display = 'none';
-            if (res && res.success) addSys('✅ Gen vai lembrar: "' + texto + '" → ' + categoria);
+            if (res && res.success) addGen('Gen vai lembrar: "' + texto + '" → ' + categoria);
         }).catch(function () { });
     }
 
@@ -651,7 +644,7 @@ window.IA = (function () {
         var nome = _el('ia-file-nome',    'ai-file-nome');
         if (prev) prev.style.display = 'flex';
         if (nome) nome.textContent = file.name;
-        addSys('"' + file.name + '" selecionado. Clique em enviar para processar.');
+        addGen('"' + file.name + '" selecionado. Clique em enviar para processar.');
     }
 
     function cancelarArquivo() {
@@ -668,7 +661,6 @@ window.IA = (function () {
         estado.enviando = true;
         setBtnDisabled(true);
         addUser('📎 ' + file.name);
-        addGen('📄 Analisando seu documento... isso pode levar alguns segundos, estou preparando tudo para você!');
         var tid = addTyping();
         var form = new FormData();
         form.append('arquivo', file);
@@ -707,11 +699,10 @@ window.IA = (function () {
 
     function processarBoleto() {
         var campo = _el('ia-boleto-input', 'ai-boleto-input');
-        if (!campo || !campo.value.trim()) { addSys('Informe a linha digitável.'); return; }
+        if (!campo || !campo.value.trim()) { addGen('Informe a linha digitável.'); return; }
         var val = campo.value.trim();
         fecharBoleto();
         addUser('🏦 Linha digitável enviada');
-        addGen('🔍 Decodificando o boleto... aguarde um instante, vou buscar todos os detalhes para você!');
         var tid = addTyping();
 
         apiPost('/boleto', { linha_digitavel: val }).then(function (res) {
@@ -728,7 +719,7 @@ window.IA = (function () {
     // ── VOZ ───────────────────────────────────────────────────────
     function toggleVoz() {
         if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
-            addSys('Seu navegador não suporta reconhecimento de voz.'); return;
+            addGen('Seu navegador não suporta reconhecimento de voz.'); return;
         }
         if (estado.gravandoVoz) { if (estado.reconhecimento) estado.reconhecimento.stop(); }
         else _iniciarVoz();
@@ -742,7 +733,7 @@ window.IA = (function () {
             estado.gravandoVoz = true; estado.reconhecimento = rec;
             document.getElementById('ia-btn-voice')?.classList.add('gravando');
             document.getElementById('ai-btn-voice')?.classList.add('gravando');
-            addSys('🎙️ Ouvindo...');
+            addGen('🎙️ Ouvindo...');
         };
         rec.onresult = function (e) {
             var t = e.results[0][0].transcript;
@@ -758,7 +749,7 @@ window.IA = (function () {
             estado.gravandoVoz = false;
             document.getElementById('ia-btn-voice')?.classList.remove('gravando');
             document.getElementById('ai-btn-voice')?.classList.remove('gravando');
-            if (e.error !== 'aborted') addSys('Erro de voz: ' + e.error);
+            if (e.error !== 'aborted') addGen('Erro de voz: ' + e.error);
         };
         rec.start();
     }

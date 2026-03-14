@@ -189,7 +189,6 @@
 
 .ai-msg--user { flex-direction: row-reverse; align-self: flex-end; }
 .ai-msg--ai   { align-self: flex-start; }
-.ai-msg--sys  { align-self: center; justify-content: center; }
 
 .ai-msg-av {
     width: 28px;
@@ -224,16 +223,6 @@
     border: 1px solid var(--border-color, #ddd);
     border-bottom-left-radius: 3px;
 }
-.ai-msg--sys .ai-msg-bub {
-    background: #e8f4fd;
-    color: #0369a1;
-    border: 1px solid #bae6fd;
-    border-radius: 20px;
-    font-size: 12px;
-    text-align: center;
-    padding: 5px 14px;
-}
-
 /* Cartão de despesa dentro da mensagem */
 .ai-despesa-card {
     background: var(--bg-color, #f5f8ff);
@@ -753,7 +742,6 @@ body:has(.ia-container) {
     margin-left: auto;
 }
 .ia-msg--ai { align-self: flex-start; }
-.ia-msg--sys { align-self: center; }
 
 .ia-msg-av {
     width: 34px;
@@ -791,15 +779,6 @@ body:has(.ia-container) {
     border-bottom-left-radius: 4px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
-.ia-msg--sys .ia-msg-bub {
-    background: #e8f4fd;
-    color: #0369a1;
-    border: 1px solid #bae6fd;
-    border-radius: 20px;
-    font-size: 13px;
-    padding: 6px 16px;
-}
-
 /* Botões ação na mensagem (página) */
 .ia-msg-btns {
     display: flex;

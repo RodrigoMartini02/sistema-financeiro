@@ -588,19 +588,21 @@ async function processarNovaSenha() {
 // ================================================================
 
 function configurarNavegacaoModais() {
-    // Navegação login -> cadastro
+    // Login -> Cadastro
     if (elementos.modalAbrirCadastroBtn) {
         elementos.modalAbrirCadastroBtn.addEventListener('click', (e) => {
             e.preventDefault();
+            if (elementos.loginModal) elementos.loginModal.style.display = 'none';
             if (elementos.cadastroModal) elementos.cadastroModal.style.display = 'flex';
         });
     }
 
-    // Cadastro -> login (fechar modal de cadastro)
+    // Cadastro -> Login
     if (elementos.cadastroAbrirLoginBtn) {
         elementos.cadastroAbrirLoginBtn.addEventListener('click', (e) => {
             e.preventDefault();
             if (elementos.cadastroModal) elementos.cadastroModal.style.display = 'none';
+            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
         });
     }
 
@@ -608,15 +610,17 @@ function configurarNavegacaoModais() {
     if (elementos.esqueceuSenhaBtn) {
         elementos.esqueceuSenhaBtn.addEventListener('click', (e) => {
             e.preventDefault();
+            if (elementos.loginModal) elementos.loginModal.style.display = 'none';
             if (elementos.recuperacaoModal) elementos.recuperacaoModal.style.display = 'flex';
         });
     }
 
-    // Recuperação -> login (fechar modal de recuperação)
+    // Recuperação -> Login
     if (elementos.recuperacaoAbrirLoginBtn) {
         elementos.recuperacaoAbrirLoginBtn.addEventListener('click', (e) => {
             e.preventDefault();
             if (elementos.recuperacaoModal) elementos.recuperacaoModal.style.display = 'none';
+            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
         });
     }
 }
@@ -638,8 +642,8 @@ function configurarFechamentoModais() {
         }
     }
 
-    // Botões de fechar (apenas modais secundários)
     const closeButtons = [
+        { btn: elementos.loginCloseBtn, modal: elementos.loginModal },
         { btn: elementos.cadastroCloseBtn, modal: elementos.cadastroModal },
         { btn: elementos.recuperacaoCloseBtn, modal: elementos.recuperacaoModal },
         { btn: elementos.novaSenhaCloseBtn, modal: elementos.novaSenhaModal }
@@ -653,7 +657,7 @@ function configurarFechamentoModais() {
 
     // Fechar clicando fora
     window.addEventListener('click', function(event) {
-        const modais = [elementos.cadastroModal, elementos.recuperacaoModal, elementos.novaSenhaModal];
+        const modais = [elementos.loginModal, elementos.cadastroModal, elementos.recuperacaoModal, elementos.novaSenhaModal];
         modais.forEach(modal => {
             if (event.target === modal) {
                 fecharModal(modal);
@@ -696,8 +700,7 @@ function configurarFormatacaoDocumentos() {
 }
 
 function inicializarModais() {
-    // Esconder apenas modais secundários (login é visível direto na página)
-    const modais = [elementos.cadastroModal, elementos.recuperacaoModal, elementos.novaSenhaModal];
+    const modais = [elementos.loginModal, elementos.cadastroModal, elementos.recuperacaoModal, elementos.novaSenhaModal];
     modais.forEach(modal => {
         if (modal) modal.style.display = 'none';
     });
@@ -723,7 +726,8 @@ function inicializarModais() {
 
 function obterElementosDOM() {
     return {
-        // Modais (apenas secundários - login é direto na página)
+        // Modais
+        loginModal: document.getElementById('loginModal'),
         cadastroModal: document.getElementById('cadastroModal'),
         recuperacaoModal: document.getElementById('recuperacaoSenhaModal'),
         novaSenhaModal: document.getElementById('novaSenhaModal'),
@@ -750,6 +754,7 @@ function obterElementosDOM() {
         recuperacaoAbrirLoginBtn: document.getElementById('recuperacao-abrir-login'),
 
         // Botões de fechar
+        loginCloseBtn: document.querySelector('.login-close'),
         cadastroCloseBtn: document.querySelector('.cadastro-close'),
         recuperacaoCloseBtn: document.querySelector('.recuperacao-close'),
         novaSenhaCloseBtn: document.querySelector('.nova-senha-close')
@@ -1132,13 +1137,6 @@ function limparSessao() {
 // NAVEGAÇÃO E UI DA LANDING PAGE
 // ================================================================
 
-function scrollToLogin() {
-    document.getElementById('hero-section')?.scrollIntoView({ behavior: 'smooth' });
-    setTimeout(() => {
-        document.getElementById('modal-documento')?.focus();
-    }, 600);
-}
-
 function configurarLandingPage() {
     // Navbar scroll effect
     window.addEventListener('scroll', () => {
@@ -1147,6 +1145,14 @@ function configurarLandingPage() {
         if (window.scrollY > 50) nav.classList.add('nav-scrolled');
         else nav.classList.remove('nav-scrolled');
     });
+
+    // Botão "Entrar" da navbar
+    const btnNavLogin = document.getElementById('btn-nav-login');
+    if (btnNavLogin) {
+        btnNavLogin.addEventListener('click', () => {
+            if (elementos.loginModal) elementos.loginModal.style.display = 'flex';
+        });
+    }
 
     // Botões "Criar Conta Grátis"
     const botoesCadastro = [
@@ -1173,5 +1179,4 @@ function configurarLandingPage() {
 window.togglePassword = togglePassword;
 window.diagnosticoLogin = diagnosticoLogin;
 window.limparSessao = limparSessao;
-window.scrollToLogin = scrollToLogin;
 window.loginSistemaInicializado = false;
