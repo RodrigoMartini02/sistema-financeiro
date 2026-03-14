@@ -322,34 +322,71 @@ window.IA = (function () {
     function confirmarDespesa() {
         var d = estado.despesaPendente;
         if (!d) return;
+        estado.despesaPendente = null;
 
         if (estado.modoPagina) {
             // Página ia.html: preenche o modal interno
             _preencherModalDespesa(d);
             _abrirModal('modal-confirmar-despesa');
-        } else {
-            // Painel flutuante: abre modal de lançamento do sistema principal
-            if (typeof window.abrirModalNovaDespesa === 'function') {
-                window.abrirModalNovaDespesa();
-                setTimeout(function () {
-                    var card = document.querySelector('#despesa-cards-container .despesa-card');
-                    if (card) {
-                        _preencherCardDespesa(card, d);
-                        addSys('Formulário preenchido! Confira e clique em Salvar.');
-                    } else {
-                        addSys('Modal aberto. Preencha os dados manualmente.');
-                    }
-                    fechar();
-                }, 400);
+            return;
+        }
+
+        // Painel flutuante: salva diretamente via API (sem abrir modal)
+        var hoje = new Date().toISOString().split('T')[0];
+        var payload = {
+            descricao:       d.descricao,
+            valor:           d.valor,
+            forma_pagamento: d.forma_pagamento || 'dinheiro',
+            data:            d.data || hoje,
+            vencimento:      d.vencimento || null,
+            parcelas:        d.parcelas   || 1,
+            ja_pago:         !!d.ja_pago,
+            recorrente:      !!d.recorrente
+        };
+        if (d.categoria_id) payload.categoria_id = d.categoria_id;
+        if (d.cartao_id)    payload.cartao_id    = d.cartao_id;
+
+        addSys('⏳ Cadastrando sua despesa, aguarde um momento...');
+        apiPost('/despesa/salvar', payload).then(function (res) {
+            if (res && res.success) {
+                addSys('✅ Despesa "' + d.descricao + '" cadastrada com sucesso!');
+                // Atualiza a tela de detalhes do mês se estiver aberta
+                if (typeof window.renderizarDetalhesDoMes === 'function') {
+                    window.renderizarDetalhesDoMes(window.mesAberto, window.anoAberto);
+                }
+                if (typeof window.carregarDadosDashboard === 'function') {
+                    window.carregarDadosDashboard(window.anoAberto);
+                }
             } else {
-                addSys('Abra o modal "Lançar Despesas" para registrar.');
-                fechar();
+                addGen('Erro ao cadastrar: ' + (res?.message || 'tente novamente.'));
             }
+        }).catch(function () {
+            addGen('Erro de conexão ao salvar a despesa.');
+        });
+    }
+
+    function editarDespesa() {
+        var d = estado.despesaPendente;
+        if (!d) return;
+        // Editar = abre o modal preenchido para o usuário ajustar antes de salvar
+        if (typeof window.abrirModalNovaDespesa === 'function') {
+            window.abrirModalNovaDespesa();
+            setTimeout(function () {
+                var card = document.querySelector('#despesa-cards-container .despesa-card');
+                if (card) {
+                    _preencherCardDespesa(card, d);
+                    addSys('Formulário preenchido! Edite o que precisar e clique em Salvar.');
+                } else {
+                    addSys('Modal aberto. Preencha os dados e salve.');
+                }
+                fechar();
+            }, 400);
+        } else {
+            addSys('Abra o modal "Lançar Despesas" para editar.');
+            fechar();
         }
         estado.despesaPendente = null;
     }
-
-    function editarDespesa() { confirmarDespesa(); }
 
     function cancelarDespesa() {
         estado.despesaPendente = null;
@@ -361,32 +398,42 @@ window.IA = (function () {
         var r = estado.receitaPendente;
         if (!r) return;
 
-        if (estado.modoPagina) {
-            // Página ia.html: salva diretamente via API de receitas
-            addSys('⏳ Registrando sua receita, aguarde um momento...');
-            apiPost('/receita/salvar', { descricao: r.descricao, valor: r.valor, data: r.data })
-                .then(function (res) {
-                    if (res && res.success) addSys('✅ Receita "' + r.descricao + '" cadastrada!');
-                    else addGen('Erro ao salvar: ' + (res?.message || 'tente novamente.'));
-                }).catch(function () { addGen('Erro de conexão ao salvar receita.'); });
-        } else {
-            // Painel flutuante: abre modal de receita do sistema principal
-            if (typeof window.abrirModalNovaReceita === 'function') {
-                window.abrirModalNovaReceita();
-                setTimeout(function () {
-                    _preencherFormReceita(r);
-                    addSys('Formulário preenchido! Confira e clique em Salvar.');
-                    fechar();
-                }, 400);
-            } else {
-                addSys('Abra o modal "Nova Receita" para registrar.');
-                fechar();
-            }
-        }
+        // Tanto modoPagina quanto painel flutuante: salva diretamente via API
+        addSys('⏳ Registrando sua receita, aguarde um momento...');
+        apiPost('/receita/salvar', { descricao: r.descricao, valor: r.valor, data: r.data })
+            .then(function (res) {
+                if (res && res.success) {
+                    addSys('✅ Receita "' + r.descricao + '" cadastrada!');
+                    if (typeof window.renderizarDetalhesDoMes === 'function') {
+                        window.renderizarDetalhesDoMes(window.mesAberto, window.anoAberto);
+                    }
+                    if (typeof window.carregarDadosDashboard === 'function') {
+                        window.carregarDadosDashboard(window.anoAberto);
+                    }
+                } else {
+                    addGen('Erro ao salvar: ' + (res?.message || 'tente novamente.'));
+                }
+            }).catch(function () { addGen('Erro de conexão ao salvar receita.'); });
         estado.receitaPendente = null;
     }
 
-    function editarReceita() { confirmarReceita(); }
+    function editarReceita() {
+        var r = estado.receitaPendente;
+        if (!r) return;
+        // Editar = abre o modal preenchido para o usuário ajustar
+        if (typeof window.abrirModalNovaReceita === 'function') {
+            window.abrirModalNovaReceita();
+            setTimeout(function () {
+                _preencherFormReceita(r);
+                addSys('Formulário preenchido! Edite o que precisar e clique em Salvar.');
+                fechar();
+            }, 400);
+        } else {
+            addSys('Abra o modal "Nova Receita" para editar.');
+            fechar();
+        }
+        estado.receitaPendente = null;
+    }
 
     function cancelarReceita() {
         estado.receitaPendente = null;
