@@ -387,20 +387,34 @@ window.IA = (function () {
         var valorTotal    = parseFloat(d.valor) || 0;
         var valorParcela  = parcelado ? valorTotal / totalParcelas : valorTotal;
 
-        // Data de vencimento: usa a extraída ou o dia 15 do mês aberto
+        // Data de vencimento: vem do campo d.vencimento (extraído pela IA/boleto).
+        // Data de compra: vem de d.data (data da compra/emissão). São campos distintos.
+        // Fallback só se ambos estiverem ausentes: usa dia 15 do mês aberto.
+        var _hoje = new Date();
+        var _pad  = function(n) { return String(n).padStart(2, '0'); };
+        var _fmtLocal = function(dt) { return dt.getFullYear() + '-' + _pad(dt.getMonth()+1) + '-' + _pad(dt.getDate()); };
+
         var mesAb  = window.mesAberto;
         var anoAb  = window.anoAberto;
-        var dataFallback = (mesAb !== undefined && anoAb)
+        var dataFallback = (mesAb !== undefined && mesAb !== null && anoAb)
             ? anoAb + '-' + String(mesAb + 1).padStart(2, '0') + '-15'
-            : new Date().toISOString().split('T')[0];
+            : _fmtLocal(_hoje);
 
+        // vencimento: prioridade d.vencimento, depois d.data, depois fallback
         var dataVencimento = d.vencimento || d.data || dataFallback;
-        var dataCompra     = d.data       || dataFallback;
+        // compra: prioridade d.data, depois d.vencimento (boleto), depois fallback
+        var dataCompra     = d.data || d.vencimento || dataFallback;
 
-        // mes/ano derivados do vencimento (sem new Date para evitar bug UTC)
+        // mes/ano derivados do vencimento — split direto na string para evitar bug UTC
         var partsVenc = dataVencimento.split('-');
-        var mes = parseInt(partsVenc[1]) - 1;   // 0-based
+        var mes = parseInt(partsVenc[1]) - 1;   // 0-based (0=Jan … 11=Dez)
         var ano = parseInt(partsVenc[0]);
+
+        // data_pagamento: se já pago, usa data_pagamento explícita ou hoje (não a data de compra)
+        var dataPagamento = null;
+        if (d.ja_pago) {
+            dataPagamento = d.data_pagamento || _fmtLocal(_hoje);
+        }
 
         // Cartão: tenta por ID direto ou resolve pelo nome mencionado
         var cartaoId = d.cartao_id || _resolverCartaoPorNome(d.nome_cartao);
@@ -418,7 +432,7 @@ window.IA = (function () {
             total_parcelas:        parcelado ? totalParcelas : null,
             parcela_atual:         parcelado ? 1 : null,
             pago:                  !!d.ja_pago,
-            data_pagamento:        d.ja_pago ? (dataCompra || dataVencimento) : null,
+            data_pagamento:        dataPagamento,
             recorrente:            !!d.recorrente,
             categoria_id:          d.categoria_id || null,
             cartao_id:             cartaoId || null
@@ -628,33 +642,58 @@ window.IA = (function () {
 
         var campo = estado.filaCampos[0];
         estado.aguardandoCampo = campo;
-        var pergunta;
+        var tid2 = addTyping();
+
+        if (campo === 'forma_pagamento') {
+            var opcoesPgto = [
+                {label: 'Crédito',      val: 'crédito'},
+                {label: 'Débito',       val: 'débito'},
+                {label: 'PIX',          val: 'pix'},
+                {label: 'Dinheiro',     val: 'dinheiro'},
+                {label: 'Transferência',val: 'transferência'},
+                {label: 'Boleto',       val: 'boleto'}
+            ];
+            var btnsPgto = opcoesPgto.map(function(o) {
+                return '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="' + o.val + '">' + o.label + '</button>';
+            }).join('');
+            setTimeout(function () {
+                removeTyping(tid2);
+                addGen('Como foi pago?<div class="ai-welcome-chips">' + btnsPgto + '</div>');
+            }, 600);
+            return;
+        }
+
         if (campo === 'cartao_id') {
             var cartoes = (window.cartoesUsuario || []).filter(function(c) { return c.ativo !== false; });
             if (cartoes.length === 0) {
-                pergunta = 'Qual cartão de crédito?';
+                setTimeout(function () { removeTyping(tid2); addGen('Qual cartão de crédito?'); }, 600);
             } else if (cartoes.length === 1) {
                 // Só um cartão — resolve automaticamente sem perguntar
                 estado.dadosParciais.cartao_id = cartoes[0].id;
                 estado.filaCampos.shift();
                 estado.aguardandoCampo = null;
+                removeTyping(tid2);
                 _proximoCampo();
-                return;
             } else {
-                var nomes = cartoes.map(function(c) { return c.nome || c.banco; }).join(', ');
-                pergunta = 'Qual cartão de crédito? (' + nomes + ')';
+                var btnsCartao = cartoes.map(function(c) {
+                    var nome = c.nome || c.banco || 'Cartão';
+                    return '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="' + esc(nome) + '">' + esc(nome) + '</button>';
+                }).join('');
+                setTimeout(function () {
+                    removeTyping(tid2);
+                    addGen('Qual cartão de crédito?<div class="ai-welcome-chips">' + btnsCartao + '</div>');
+                }, 600);
             }
-        } else {
-            var perguntas = {
-                'descricao':       'Qual a descrição da despesa?',
-                'valor':           'Qual o valor?',
-                'forma_pagamento': 'Como foi pago? (cartão crédito/débito, pix, dinheiro, transferência, boleto)',
-                'vencimento':      'Qual a data de vencimento? (ex: hoje, amanhã, 15/04, 20/05/2026)',
-                'data_receita':    'Qual a data de recebimento? (ex: hoje, 15/03)'
-            };
-            pergunta = perguntas[campo] || 'Informe o ' + campo + ':';
+            return;
         }
-        var tid2 = addTyping();
+
+        var perguntas = {
+            'descricao':    'Qual a descrição da despesa?',
+            'valor':        'Qual o valor?',
+            'vencimento':   'Qual a data de vencimento? (ex: hoje, amanhã, 15/04, 20/05/2026)',
+            'data_receita': 'Qual a data de recebimento? (ex: hoje, 15/03)'
+        };
+        var pergunta = perguntas[campo] || 'Informe o ' + campo + ':';
         setTimeout(function () {
             removeTyping(tid2);
             addGen(pergunta);
@@ -676,6 +715,10 @@ window.IA = (function () {
                 break;
             case 'forma_pagamento':
                 d.forma_pagamento = _normForma(texto);
+                // Se crédito e sem cartão ainda, insere cartao_id na frente da fila
+                if ((d.forma_pagamento === 'cartao_credito') && !d.cartao_id && !_resolverCartaoPorNome(d.nome_cartao)) {
+                    estado.filaCampos.unshift('cartao_id');
+                }
                 break;
             case 'vencimento':
                 var dt = _normData(texto);
@@ -867,6 +910,35 @@ window.IA = (function () {
             selForma.value = d.forma_pagamento;
             selForma.dispatchEvent(new Event('change', { bubbles: true }));
         }
+
+        // Checkbox "já pago"
+        var jaPagoEl = document.getElementById('ia-campo-ja-pago');
+        if (jaPagoEl) {
+            jaPagoEl.checked = !!d.ja_pago;
+            jaPagoEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        // Checkbox "recorrente"
+        var recorrenteEl = document.getElementById('ia-campo-recorrente');
+        if (recorrenteEl) {
+            recorrenteEl.checked = !!d.recorrente;
+            recorrenteEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        // Categoria por ID (prioridade) ou por nome
+        var selCat = document.getElementById('ia-campo-categoria');
+        if (selCat) {
+            if (d.categoria_id) {
+                selCat.value = d.categoria_id;
+            } else if (d.categoria) {
+                var optCat = Array.from(selCat.options).find(function(o) {
+                    return o.text.toLowerCase() === String(d.categoria).toLowerCase();
+                });
+                if (optCat) selCat.value = optCat.value;
+            }
+            selCat.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
         if (d.descricao && d.categoria) {
             var hint = document.getElementById('ia-aprendizado-hint');
             var textoEl = document.getElementById('ia-aprendizado-texto');
@@ -885,6 +957,11 @@ window.IA = (function () {
         var totalParcelas = parseInt(document.getElementById('ia-campo-parcelas') ? document.getElementById('ia-campo-parcelas').value : 1) || 1;
         var catId      = document.getElementById('ia-campo-categoria') ? (document.getElementById('ia-campo-categoria').value || null) : null;
         var cartaoId   = document.getElementById('ia-campo-cartao') ? (document.getElementById('ia-campo-cartao').value || null) : null;
+        // Lê checkbox "já pago" e "recorrente" do modal — evita hardcode false
+        var jaPagoEl   = document.getElementById('ia-campo-ja-pago');
+        var jaPago     = jaPagoEl ? !!jaPagoEl.checked : false;
+        var recorrenteEl = document.getElementById('ia-campo-recorrente');
+        var recorrente   = recorrenteEl ? !!recorrenteEl.checked : false;
 
         if (!descricao || !valorTotal || !forma || !dataCompra) {
             addGen('Preencha todos os campos obrigatórios.');
@@ -900,6 +977,13 @@ window.IA = (function () {
         var mes = parseInt(partsVenc[1]) - 1;
         var ano = parseInt(partsVenc[0]);
 
+        // data_pagamento: se já pago, usa hoje
+        var _hj = new Date();
+        var _p2 = function(n) { return String(n).padStart(2,'0'); };
+        var dataPagamentoModal = jaPago
+            ? (_hj.getFullYear() + '-' + _p2(_hj.getMonth()+1) + '-' + _p2(_hj.getDate()))
+            : null;
+
         var payload = {
             descricao:        descricao,
             valor:            parseFloat(valorParcela.toFixed(2)),
@@ -912,8 +996,9 @@ window.IA = (function () {
             parcelado:        parcelado,
             total_parcelas:   parcelado ? totalParcelas : null,
             parcela_atual:    parcelado ? 1 : null,
-            pago:             false,
-            recorrente:       false
+            pago:             jaPago,
+            data_pagamento:   dataPagamentoModal,
+            recorrente:       recorrente
         };
         if (catId)    payload.categoria_id = parseInt(catId);
         if (cartaoId) payload.cartao_id    = parseInt(cartaoId);
@@ -926,7 +1011,20 @@ window.IA = (function () {
                 if (window.usuarioDataManager && typeof window.usuarioDataManager.limparCache === 'function') {
                     window.usuarioDataManager.limparCache();
                 }
+                // Limpa cache global para forçar recarga da API com a nova despesa
+                if (window.dadosFinanceiros) {
+                    window.dadosFinanceiros = {};
+                }
                 addGen('Despesa "' + descricao + '" cadastrada!');
+                // Atualiza a tabela do mês correto
+                if (typeof window.renderizarDetalhesDoMes === 'function') {
+                    window.mesAberto = mes;
+                    window.anoAberto = ano;
+                    window.renderizarDetalhesDoMes(mes, ano);
+                }
+                if (typeof window.carregarDadosDashboard === 'function') {
+                    window.carregarDadosDashboard(ano);
+                }
             } else {
                 addGen('Erro ao salvar: ' + ((res && res.message) || 'tente novamente.'));
             }
@@ -1157,6 +1255,20 @@ window.IA = (function () {
     document.addEventListener('click', function (e) {
         if (e.target.closest('[data-chip]')) { _chip(e.target.closest('[data-chip]')); return; }
 
+        // Botões de opção rápida (forma de pagamento, cartão, etc.)
+        var opcaoEl = e.target.closest('[data-opcao]');
+        if (opcaoEl && estado.aguardandoCampo) {
+            var opcaoVal = opcaoEl.dataset.opcao;
+            // Desabilita todos os botões da mesma mensagem para evitar re-clique
+            var msgContainer = opcaoEl.closest('.ai-msg');
+            if (msgContainer) {
+                msgContainer.querySelectorAll('[data-opcao]').forEach(function(b) { b.disabled = true; b.style.opacity = '0.5'; });
+            }
+            addUser(opcaoVal);
+            _processarCampoColetado(opcaoVal);
+            return;
+        }
+
         var action = e.target.closest('[data-action]');
         if (action) {
             var a = action.dataset.action;
@@ -1385,16 +1497,18 @@ function aplicarVisibilidadeIA() {
     var tipoUsuario   = usuarioAtual?.tipo || 'padrao';
     var isMaster      = (tipoUsuario === 'master');
 
-    var fab           = document.getElementById('btn-fab-ia');
-    var btnInstrucoes = document.getElementById('btn-instrucoes-gen');
-    var tabBtn        = document.querySelector('.config-tab-btn[data-tab="assistente-ia"]');
-    var toggle        = document.getElementById('ia-toggle-ativo');
+    var fab              = document.getElementById('btn-fab-ia');
+    var btnInstrucoes    = document.getElementById('btn-instrucoes-gen');
+    var tabBtn           = document.querySelector('.config-tab-btn[data-tab="assistente-ia"]');
+    var toggle           = document.getElementById('ia-toggle-ativo');
+    var toggleContainer  = document.getElementById('ia-toggle-container');
 
     // Sincronizar toggle
     if (toggle) toggle.checked = ativo;
 
-    // ── Master: sempre tem acesso total (ignora toggle e plano) ──
+    // ── Master: acesso total + toggle visível ──
     if (isMaster) {
+        if (toggleContainer) toggleContainer.style.display = '';
         if (fab) {
             fab.style.display = '';
             fab.onclick = function () { if (typeof window.IA !== 'undefined') window.IA.abrir(); };
@@ -1403,6 +1517,9 @@ function aplicarVisibilidadeIA() {
         if (tabBtn)        tabBtn.style.display        = '';
         return;
     }
+
+    // Não-master: sempre ocultar o toggle
+    if (toggleContainer) toggleContainer.style.display = 'none';
 
     // ── Prioridade 1: toggle OFF → tudo oculto para padrão e admin ──
     if (!ativo) {

@@ -1105,12 +1105,14 @@
                         </select>
                     </div>
                     
-                    <div style="display:flex;align-items:center;gap:10px;margin-left:auto">
-                        <label class="ia-toggle-switch" title="Ativar / Desativar Assistente IA">
-                            <input type="checkbox" id="ia-toggle-ativo">
-                            <span class="ia-toggle-slider"></span>
-                        </label>
-                        <span style="font-size:12px;font-weight:600;color:var(--text-secondary);white-space:nowrap">Assistente IA</span>
+                    <div style="display:flex;align-items:center;gap:10px;margin-left:auto;flex-shrink:0">
+                        <div id="ia-toggle-container" style="display:flex;align-items:center;gap:6px">
+                            <label class="ia-toggle-switch" title="Ativar / Desativar Assistente IA">
+                                <input type="checkbox" id="ia-toggle-ativo">
+                                <span class="ia-toggle-slider"></span>
+                            </label>
+                            <span style="font-size:12px;font-weight:600;color:var(--text-secondary);white-space:nowrap">Assistente IA</span>
+                        </div>
                         <button id="btn-adicionar-usuario" class="btn btn-primary">
                             <i class="fas fa-user-plus"></i> Novo Usuário
                         </button>

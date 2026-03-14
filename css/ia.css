@@ -232,13 +232,14 @@
 .ai-msg-av { display: none; }
 
 .ai-msg-bub {
-    padding: 3px 6px;
+    padding: 6px 10px;
     font-size: 13.5px;
     line-height: 1.55;
     max-width: 80%;
+    min-width: 2em;
     width: fit-content;
     word-break: break-word;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
     white-space: pre-wrap;
 }
 

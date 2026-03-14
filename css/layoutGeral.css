@@ -2234,9 +2234,10 @@ table tr:hover {
     gap: 12px;
     align-items: center;
     margin-bottom: 24px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     padding: 16px;
     background: #f8f9fa;
+    overflow-x: auto;
 }
 
 .search-container {

@@ -767,19 +767,31 @@ function criarObjetoDespesa(dados) {
 
 function atualizarStatusDespesas(despesas) {
     if (!Array.isArray(despesas)) return;
-    
+
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
 
+    // Converte string YYYY-MM-DD para Date local sem problema de timezone UTC
+    function _parseDateLocal(str) {
+        if (!str) return null;
+        const s = String(str);
+        // Formato YYYY-MM-DD: constrói com partes para evitar interpretação UTC
+        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (m) return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+        // Fallback: deixa o JS interpretar (pode ter problema de timezone, mas melhor que nada)
+        const d = new Date(s);
+        d.setHours(0, 0, 0, 0);
+        return d;
+    }
+
     despesas.forEach(despesa => {
-        if (despesa.quitado === true || despesa.pago === true) {
+        // Se pago ou quitado (qualquer truthy, inclusive string "true" do localStorage antigo)
+        if (despesa.quitado || despesa.pago) {
             despesa.status = 'quitada';
             return;
         }
 
-        const dataVencimento = despesa.dataVencimento ? new Date(despesa.dataVencimento) :
-                              (despesa.data ? new Date(despesa.data) : new Date());
-        dataVencimento.setHours(0, 0, 0, 0);
+        const dataVencimento = _parseDateLocal(despesa.dataVencimento || despesa.data) || hoje;
 
         if (dataVencimento < hoje) {
             despesa.status = 'atrasada';
