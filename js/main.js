@@ -112,8 +112,8 @@ function verificarAcessoUsuario() {
 }
 
 function redirecionarParaLogin() {
-    if (!window.location.pathname.includes('login.html')) {
-        window.location.href = 'login.html';
+    if (!window.location.pathname.includes('home.html')) {
+        window.location.href = 'home.html';
     }
 }
 
@@ -972,7 +972,7 @@ function setupOutrosControles() {
             localStorage.removeItem('dadosUsuarioLogado');
             localStorage.removeItem('token');
 
-            window.location.href = 'login.html';
+            window.location.href = 'home.html';
         });
     }
 }
@@ -1073,7 +1073,7 @@ function setupSistemaBloqueio() {
 
             if (!token) {
                 alert('Sessão expirada. Faça login novamente.');
-                window.location.href = 'login.html';
+                window.location.href = 'home.html';
                 return;
             }
 

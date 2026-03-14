@@ -10,7 +10,7 @@ const CACHE_STATIC  = `sf-static-${CACHE_VERSION}`;
 const STATIC_ASSETS = [
     '/',
     '/index.html',
-    '/login.html',
+    '/home.html',
     '/manifest.json',
     '/icons/financeiro.png',
     // CSS
@@ -95,7 +95,7 @@ self.addEventListener('fetch', (event) => {
                     caches.open(CACHE_STATIC).then((cache) => cache.put(event.request, clone));
                     return response;
                 })
-                .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/login.html')))
+                .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/home.html')))
         );
         return;
     }

@@ -84,7 +84,7 @@ function configurarGoogleLogin() {
             client_id: GOOGLE_CLIENT_ID,
             scope: 'email profile',
             ux_mode: 'redirect',
-            redirect_uri: window.location.origin + '/login.html',
+            redirect_uri: window.location.origin + '/home.html',
             state: 'google_login'
         });
         client.requestCode();
@@ -113,7 +113,7 @@ async function verificarRetornoGoogle() {
         const response = await fetch(`${API_URL}/auth/google`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, redirect_uri: window.location.origin + '/login.html' })
+            body: JSON.stringify({ code, redirect_uri: window.location.origin + '/home.html' })
         });
 
         const data = await response.json();

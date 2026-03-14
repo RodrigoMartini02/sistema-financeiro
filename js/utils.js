@@ -45,8 +45,8 @@ function isAuthenticated() {
  * Redireciona para a página de login
  */
 function redirecionarParaLogin() {
-    if (!window.location.pathname.includes('login.html')) {
-        window.location.href = 'login.html';
+    if (!window.location.pathname.includes('home.html')) {
+        window.location.href = 'home.html';
     }
 }
 

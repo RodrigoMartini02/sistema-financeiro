@@ -85,8 +85,8 @@ class UsuarioDataManager {
         if (pathname.includes('index.html') || 
             pathname.includes('financeiro.html') ||
             pathname === '/' ||
-            (!pathname.includes('login.html') && pathname.length > 1)) {
-            window.location.href = 'login.html';
+            (!pathname.includes('home.html') && pathname.length > 1)) {
+            window.location.href = 'home.html';
         }
     }
 

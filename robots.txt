@@ -3,7 +3,7 @@ User-agent: *
 
 # O que eles PODEM indexar (Páginas públicas)
 Allow: /
-Allow: /login.html
+Allow: /home.html
 Allow: /termoPrivacidade.html
 Allow: /css/
 Allow: /icons/

@@ -15,7 +15,7 @@
         }
     });
     if (!sessionStorage.getItem('usuarioAtual')) {
-        window.location.replace('login.html');
+        window.location.replace('home.html');
     }
 })();
 

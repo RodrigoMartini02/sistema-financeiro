@@ -2,7 +2,7 @@
   "name": "Fin-Gerence - Controle Financeiro",
   "short_name": "Fin-Gerence",
   "description": "Controle financeiro pessoal — receitas, despesas, reservas e cartões",
-  "start_url": "./login.html?source=pwa",
+  "start_url": "./home.html?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
