@@ -693,40 +693,26 @@ function renderizarListaCartoes() {
         return;
     }
 
+    const tmplCartao = document.getElementById('template-linha-cartao');
     cartoesUsuario.forEach(cartao => {
-        const tr = document.createElement('tr');
+        const clone = tmplCartao.content.cloneNode(true);
 
-        const validadeDisplay = cartao.validade || '-';
-        const fechamentoDisplay = cartao.dia_fechamento ? `Dia ${cartao.dia_fechamento}` : '-';
-        const vencimentoDisplay = cartao.dia_vencimento ? `Dia ${cartao.dia_vencimento}` : '-';
+        clone.querySelector('.cartao-id').textContent = '#' + cartao.id;
+        clone.querySelector('.cartao-banco').textContent = cartao.banco || cartao.nome || '';
+        clone.querySelector('.cartao-validade').textContent = cartao.validade || '-';
+        clone.querySelector('.cartao-fechamento').textContent = cartao.dia_fechamento ? `Dia ${cartao.dia_fechamento}` : '-';
+        clone.querySelector('.cartao-vencimento').textContent = cartao.dia_vencimento ? `Dia ${cartao.dia_vencimento}` : '-';
+        clone.querySelector('.cartao-limite').textContent = 'R$ ' + formatarValorCartao(cartao.limite);
 
-        tr.innerHTML = `
-            <td><span class="cartao-id">#${cartao.id}</span></td>
-            <td><span class="cartao-banco">${cartao.banco || cartao.nome || ''}</span></td>
-            <td><span class="cartao-validade">${validadeDisplay}</span></td>
-            <td><span class="cartao-fechamento">${fechamentoDisplay}</span></td>
-            <td><span class="cartao-vencimento">${vencimentoDisplay}</span></td>
-            <td><span class="cartao-limite">R$ ${formatarValorCartao(cartao.limite)}</span></td>
-            <td>
-                <span class="badge-status ${cartao.ativo ? 'ativo' : 'inativo'}">
-                    ${cartao.ativo ? 'Ativo' : 'Inativo'}
-                </span>
-            </td>
-            <td class="cartao-acoes">
-                <div class="acoes-grupo">
-                    <button class="btn btn-sm btn-pagar-plano-cartao" onclick="usarCartaoParaPlano(${cartao.id})" title="Pagar plano com este cartão">
-                        <i class="fas fa-crown"></i>
-                    </button>
-                    <button class="btn btn-sm btn-editar-cartao" onclick="abrirModalEditarCartao(${cartao.id})" title="Editar cartão">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-sm btn-excluir-cartao" onclick="excluirCartao(${cartao.id})" title="Excluir cartão">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </td>
-        `;
-        listaCartoes.appendChild(tr);
+        const badge = clone.querySelector('.cartao-status');
+        badge.textContent = cartao.ativo ? 'Ativo' : 'Inativo';
+        badge.classList.add(cartao.ativo ? 'ativo' : 'inativo');
+
+        clone.querySelector('.btn-pagar-plano-cartao').addEventListener('click', () => usarCartaoParaPlano(cartao.id));
+        clone.querySelector('.btn-editar-cartao').addEventListener('click', () => abrirModalEditarCartao(cartao.id));
+        clone.querySelector('.btn-excluir-cartao').addEventListener('click', () => excluirCartao(cartao.id));
+
+        listaCartoes.appendChild(clone);
     });
 }
 

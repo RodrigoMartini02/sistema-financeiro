@@ -2851,6 +2851,28 @@
 </template>
 
 <!-- ======================================================== -->
+<!-- Template: Linha de cartão (Configurações) -->
+<!-- ======================================================== -->
+<template id="template-linha-cartao">
+    <tr>
+        <td><span class="cartao-id"></span></td>
+        <td><span class="cartao-banco"></span></td>
+        <td><span class="cartao-validade"></span></td>
+        <td><span class="cartao-fechamento"></span></td>
+        <td><span class="cartao-vencimento"></span></td>
+        <td><span class="cartao-limite"></span></td>
+        <td><span class="badge-status cartao-status"></span></td>
+        <td class="cartao-acoes">
+            <div class="acoes-grupo">
+                <button class="btn btn-sm btn-pagar-plano-cartao" title="Pagar plano com este cartão"><i class="fas fa-crown"></i></button>
+                <button class="btn btn-sm btn-editar-cartao" title="Editar cartão"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-sm btn-excluir-cartao" title="Excluir cartão"><i class="fas fa-trash"></i></button>
+            </div>
+        </td>
+    </tr>
+</template>
+
+<!-- ======================================================== -->
 <!-- Template: Card de lançamento de despesa -->
 <!-- ======================================================== -->
 <template id="template-card-despesa-lancamento">
