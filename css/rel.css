@@ -746,7 +746,6 @@
 
     .tabela-responsiva {
         overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
     }
 
     .relatorio-tabela {

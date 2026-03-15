@@ -32,10 +32,12 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // app.use(rateLimiter()); // Desativado temporariamente
 
-app.use((req, res, next) => {
-    console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
-    next();
-});
+if (process.env.NODE_ENV !== 'production') {
+    app.use((req, res, next) => {
+        console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
+        next();
+    });
+}
 
 app.get('/', (req, res) => {
     const packageJson = require('./package.json');

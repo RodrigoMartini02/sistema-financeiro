@@ -774,6 +774,20 @@ textarea:focus {
     flex-shrink: 0;
 }
 
+/* Botões Despesa / Receita no header */
+#btn-nova-despesa,
+#btn-nova-receita {
+    height: 42px;
+    padding: 0 16px;
+    font-size: 15px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
 /* Botão ícone padrão do header (uniforme) */
 .header-icon-btn {
     height: 42px;

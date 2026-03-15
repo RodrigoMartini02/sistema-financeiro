@@ -8,9 +8,12 @@
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#6366f1">
-    <link rel="icon" type="image/png" href="icons/financeiro.png?v=1">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Fin-Gerence">
     <link rel="apple-touch-icon" href="icons/financeiro.png">
+    <link rel="icon" type="image/png" href="icons/financeiro.png?v=1">
 
     <!-- CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -360,5 +363,16 @@
 <!-- JS -->
 <script src="js/config.js"></script>
 <script src="js/ia.js"></script>
+
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch((err) => {
+            console.warn('Service Worker registration failed:', err);
+        });
+    });
+}
+</script>
+
 </body>
 </html>

@@ -3,7 +3,7 @@
 // Sistema de Controle Financeiro
 // ================================================================
 
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 const CACHE_STATIC  = `sf-static-${CACHE_VERSION}`;
 
 // Assets estáticos que serão cacheados no install
@@ -11,34 +11,43 @@ const STATIC_ASSETS = [
     '/',
     '/index.html',
     '/app.html',
-    '/index.html',
+    '/ia.html',
+    '/offline.html',
     '/manifest.json',
     '/icons/financeiro.png',
     // CSS
-    '/css/login.css',
+    '/css/loading.css',
+    '/css/index.css',
     '/css/pwa.css',
     '/css/avaliacao.css',
-    '/css/loading.css',
     '/css/layoutGeral.css',
-    '/css/config.css',
     '/css/botoes.css',
-    '/css/planos.css',
+    '/css/modais.css',
+    '/css/dashboard.css',
+    '/css/receita.css',
     '/css/despesa.css',
+    '/css/notificacao.css',
+    '/css/rel.css',
+    '/css/config.css',
+    '/css/planos.css',
+    '/css/ia.css',
     // JS principais
+    '/js/utils.js',
+    '/js/loading.js',
     '/js/login.js',
     '/js/pwa-handler.js',
     '/js/avaliacao.js',
-    '/js/utils.js',
-    '/js/loading.js',
+    '/js/usuarioDados.js',
     '/js/main.js',
-    '/js/planos.js',
-    '/js/configuracao.js',
     '/js/dashboard.js',
     '/js/despesas.js',
     '/js/receita.js',
     '/js/notificacao.js',
     '/js/rel.js',
-    '/js/usuarioDados.js'
+    '/js/config.js',
+    '/js/configuracao.js',
+    '/js/planos.js',
+    '/js/ia.js'
 ];
 
 // ── Install: resiliente — não aborta se um asset falhar ────────
@@ -87,7 +96,7 @@ self.addEventListener('fetch', (event) => {
     const externalHosts = ['cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com', 'sdk.mercadopago.com'];
     if (externalHosts.some((h) => url.hostname.includes(h))) return;
 
-    // Navegação (HTML): Network-first com fallback para cache
+    // Navegação (HTML): Network-first com fallback para cache e offline.html
     if (event.request.mode === 'navigate') {
         event.respondWith(
             fetch(event.request)
@@ -96,7 +105,11 @@ self.addEventListener('fetch', (event) => {
                     caches.open(CACHE_STATIC).then((cache) => cache.put(event.request, clone));
                     return response;
                 })
-                .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/index.html')))
+                .catch(() =>
+                    caches.match(event.request).then(
+                        (cached) => cached || caches.match('/offline.html') || caches.match('/index.html')
+                    )
+                )
         );
         return;
     }

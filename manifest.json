@@ -1,14 +1,16 @@
 {
+  "id": "/",
   "name": "Fin-Gerence - Controle Financeiro",
   "short_name": "Fin-Gerence",
   "description": "Controle financeiro pessoal — receitas, despesas, reservas e cartões",
-  "start_url": "./home.html?source=pwa",
-  "scope": "/",
+  "start_url": "./index.html?source=pwa",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#0f172a",
   "theme_color": "#6366f1",
   "lang": "pt-BR",
+  "categories": ["finance", "productivity"],
   "icons": [
     {
       "src": "icons/financeiro.png",
@@ -20,13 +22,22 @@
       "src": "icons/financeiro.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     }
   ],
   "shortcuts": [
     {
-      "name": "Ver Dashboard",
-      "url": "./index.html",
+      "name": "Abrir App",
+      "short_name": "App",
+      "description": "Acessar o painel principal",
+      "url": "./app.html?source=shortcut",
+      "icons": [{ "src": "icons/financeiro.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Assistente IA",
+      "short_name": "Gen IA",
+      "description": "Conversar com a assistente financeira",
+      "url": "./ia.html?source=shortcut",
       "icons": [{ "src": "icons/financeiro.png", "sizes": "192x192" }]
     }
   ]

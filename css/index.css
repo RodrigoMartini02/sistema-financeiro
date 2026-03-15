@@ -577,9 +577,9 @@ form .btn-primary:hover {
 }
 
 .nav-container {
-    max-width: 1200px;
+    max-width: 100%;
     margin: 0 auto;
-    padding: 0 2rem;
+    padding: 0 3rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -723,9 +723,9 @@ form .btn-primary:hover {
 }
 
 .hero-container {
-    max-width: 1200px;
+    max-width: 100%;
     margin: 0 auto;
-    padding: 0 2rem;
+    padding: 0 3rem;
     display: grid;
     grid-template-columns: 1fr 420px;
     gap: 4rem;
@@ -1012,9 +1012,9 @@ form .btn-primary:hover {
 }
 
 .section-container {
-    max-width: 1200px;
+    max-width: 100%;
     margin: 0 auto;
-    padding: 0 2rem;
+    padding: 0 3rem;
 }
 
 .section-header {

@@ -7,7 +7,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Controle Financeiro</title>
+    <title>Fin-Gerence | Controle Financeiro</title>
 
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
@@ -15,7 +15,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Finanças">
+    <meta name="apple-mobile-web-app-title" content="Fin-Gerence">
     <link rel="apple-touch-icon" href="icons/financeiro.png">
     <link rel="icon" type="image/png" href="icons/financeiro.png?v=1">
 
@@ -3385,6 +3385,16 @@
         </div>
     </div>
 </div>
+
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch((err) => {
+            console.warn('Service Worker registration failed:', err);
+        });
+    });
+}
+</script>
 
 </body>
 </html>
