@@ -23,7 +23,7 @@ function obterSessao(usuarioId) {
             despesaParcial: null,
             esperandoCampo: null,
             ultimaAcao: null,
-            contextoSistema: null,      // { texto, expira }
+            contextoSistema: null,      // { texto, carta, expira }
         });
     }
     return sessoes.get(usuarioId);
@@ -51,6 +51,32 @@ async function buscarConfigIA(usuarioId) {
 // Alias público para uso externo (ex: aiRoutes)
 async function buscarConfigIAPublic(usuarioId) {
     return buscarConfigIA(usuarioId);
+}
+
+// ── HELPER: Busca carta de serviços do usuário master no banco ────
+async function buscarCartaServicos() {
+    try {
+        const r = await query(`SELECT dados_financeiros FROM usuarios WHERE tipo = 'master' LIMIT 1`);
+        const carta = r.rows[0]?.dados_financeiros?.carta_servicos;
+        if (carta) return carta;
+        // Fallback para arquivo se ainda não migrado
+        const fs = require('fs');
+        const path = require('path');
+        const CARTA_PATH = path.join(__dirname, '../../docs/gen-instrucoes.md');
+        return fs.existsSync(CARTA_PATH) ? fs.readFileSync(CARTA_PATH, 'utf8') : '';
+    } catch {
+        return '';
+    }
+}
+
+// ── Invalida cache da carta em todas as sessões ativas ────────────
+function invalidarCacheCartaSessoes() {
+    sessoes.forEach(function(sessao) {
+        if (sessao.contextoSistema) {
+            sessao.contextoSistema.carta = null;
+            sessao.contextoSistema.expira = 0; // força refresh
+        }
+    });
 }
 
 // ── HELPER: Busca categorias do usuário ──────────────────────────
@@ -197,13 +223,15 @@ async function chat(req, res) {
         const agora = Date.now();
         if (!sessao.contextoSistema || agora > sessao.contextoSistema.expira) {
             const texto = await buscarContextoSistema(usuarioId, mes_atual, ano_atual);
-            sessao.contextoSistema = { texto, expira: agora + 5 * 60 * 1000 };
+            const carta = await buscarCartaServicos();
+            sessao.contextoSistema = { texto, carta, expira: agora + 5 * 60 * 1000 };
         }
         // Monta contexto: dados do sistema + instruções personalizadas do usuário
         const instrucoesUsuario = providerConfig.instrucoesGen
             ? `\n\nInstruções personalizadas do usuário:\n${providerConfig.instrucoesGen}`
             : '';
         const ctxSistema = sessao.contextoSistema.texto + instrucoesUsuario;
+        const cartaBase  = sessao.contextoSistema.carta || '';
 
         // Adiciona ao histórico
         sessao.historico.push({ role: 'user', content: mensagem });
@@ -285,7 +313,7 @@ async function chat(req, res) {
         // ── Parseia despesa ─────────────────────────────────────
         let parsedResult;
         try {
-            parsedResult = await parsearDespesa(mensagem, sessao.historico, false, providerConfig, ctxSistema);
+            parsedResult = await parsearDespesa(mensagem, sessao.historico, false, providerConfig, ctxSistema, cartaBase);
         } catch (err) {
             parsedResult = { dados: null, metodo: 'erro', intencao: 'despesa' };
         }
@@ -784,4 +812,5 @@ module.exports = {
     obterConfigIA,
     status,
     buscarConfigIAPublic,
+    invalidarCacheCartaSessoes,
 };

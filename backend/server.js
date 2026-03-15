@@ -483,6 +483,28 @@ async function criarUsuarioMaster() {
     }
 }
 
+// ✅ SEED: Migra carta de serviços do arquivo para o banco (one-time)
+async function seedCartaServicos() {
+    try {
+        const fs = require('fs');
+        const path = require('path');
+        const { query } = require('./config/database');
+        const CARTA_PATH = path.join(__dirname, '../docs/gen-instrucoes.md');
+        if (!fs.existsSync(CARTA_PATH)) return;
+        const r = await query(`SELECT dados_financeiros FROM usuarios WHERE tipo = 'master' LIMIT 1`);
+        if (!r.rows[0]) return;
+        if (r.rows[0].dados_financeiros?.carta_servicos) return; // já existe
+        const conteudo = fs.readFileSync(CARTA_PATH, 'utf8');
+        await query(
+            `UPDATE usuarios SET dados_financeiros = COALESCE(dados_financeiros, '{}'::jsonb) || jsonb_build_object('carta_servicos', $1::text) WHERE tipo = 'master'`,
+            [conteudo]
+        );
+        console.log('✅ Carta de Serviços migrada para o banco de dados');
+    } catch (e) {
+        console.error('⚠️ Seed carta falhou:', e.message);
+    }
+}
+
 // ✅ FUNÇÃO PRINCIPAL DE INICIALIZAÇÃO
 const iniciarServidor = async () => {
     try {
@@ -502,6 +524,9 @@ const iniciarServidor = async () => {
 
         // ✅ Criar/atualizar usuário master
         await criarUsuarioMaster();
+
+        // ✅ Migrar carta de serviços para o banco (one-time seed)
+        await seedCartaServicos();
 
         // ✅ Iniciar cron de cobranças (e-mails de vencimento)
         try {

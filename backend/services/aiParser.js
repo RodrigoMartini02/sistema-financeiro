@@ -4,38 +4,8 @@
 // utiliza a Gen (IA interna do Fin-Gerence)
 // ================================================================
 
-const fs   = require('fs');
-const path = require('path');
 const { normalizarDespesa, normalizarValor, normalizarFormaPagamento,
     normalizarData, inferirCategoria } = require('../utils/expenseNormalizer');
-
-// Instruções base da Gen (regras do sistema — globais, imutáveis)
-const INSTRUCOES_PATH = path.join(__dirname, '../../docs/gen-instrucoes.md');
-
-function carregarInstrucoesBase() {
-    try {
-        return fs.existsSync(INSTRUCOES_PATH)
-            ? '\n\n---\n' + fs.readFileSync(INSTRUCOES_PATH, 'utf8')
-            : '';
-    } catch (e) {
-        return '';
-    }
-}
-
-// Cache das instruções base com TTL de 1 minuto (invalida após salvar nova carta)
-let _instrucoesBaseCache = null;
-let _instrucoesBaseCacheTs = 0;
-function getInstrucoesBase() {
-    if (_instrucoesBaseCache === null || Date.now() - _instrucoesBaseCacheTs > 60 * 1000) {
-        _instrucoesBaseCache = carregarInstrucoesBase();
-        _instrucoesBaseCacheTs = Date.now();
-    }
-    return _instrucoesBaseCache;
-}
-function invalidarCacheInstrucoes() {
-    _instrucoesBaseCache = null;
-    _instrucoesBaseCacheTs = 0;
-}
 
 // Lazy-load OpenAI (só inicializa se a chave existir)
 let openaiClient = null;
@@ -77,7 +47,7 @@ Input: "netflix 55,90 debito todo mes"
 Output: {"descricao":"Netflix","valor":55.90,"categoria":"Assinaturas","forma_pagamento":"cartao_debito","vencimento":null,"parcelas":1,"data":"HOJE"}`;
 
 // ── PARSER COM OPENAI ────────────────────────────────────────────
-async function parsearComOpenAI(texto, contextoConversa = [], apiKeyOverride, ctxSistema = '') {
+async function parsearComOpenAI(texto, contextoConversa = [], apiKeyOverride, ctxSistema = '', cartaBase = '') {
     let openai = apiKeyOverride
         ? (() => { const OpenAI = require('openai'); return new OpenAI({ apiKey: apiKeyOverride }); })()
         : getOpenAI();
@@ -85,7 +55,7 @@ async function parsearComOpenAI(texto, contextoConversa = [], apiKeyOverride, ct
 
     const hoje = new Date().toISOString().split('T')[0];
     const ctxExtra = ctxSistema ? `\n\nContexto do sistema do usuário:\n${ctxSistema}` : '';
-    const systemWithDate = `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${ctxExtra}${getInstrucoesBase()}`;
+    const systemWithDate = `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${ctxExtra}${cartaBase ? '\n\n---\n' + cartaBase : ''}`;
 
     const messages = [
         { role: 'system', content: systemWithDate },
@@ -106,12 +76,12 @@ async function parsearComOpenAI(texto, contextoConversa = [], apiKeyOverride, ct
 }
 
 // ── PARSER COM GEMINI ─────────────────────────────────────────────
-async function parsearComGemini(texto, contextoConversa = [], apiKey, ctxSistema = '') {
+async function parsearComGemini(texto, contextoConversa = [], apiKey, ctxSistema = '', cartaBase = '') {
     if (!apiKey) throw new Error('Gemini API key não configurada');
     const fetch = require('node-fetch');
     const hoje = new Date().toISOString().split('T')[0];
     const ctxExtra = ctxSistema ? `\n\nContexto do sistema do usuário:\n${ctxSistema}` : '';
-    const prompt = `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${ctxExtra}${getInstrucoesBase()}\n\nTexto do usuário: ${texto}`;
+    const prompt = `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${ctxExtra}${cartaBase ? '\n\n---\n' + cartaBase : ''}\n\nTexto do usuário: ${texto}`;
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     const body = {
@@ -128,7 +98,7 @@ async function parsearComGemini(texto, contextoConversa = [], apiKey, ctxSistema
 }
 
 // ── PARSER COM CLAUDE ─────────────────────────────────────────────
-async function parsearComClaude(texto, contextoConversa = [], apiKey, ctxSistema = '') {
+async function parsearComClaude(texto, contextoConversa = [], apiKey, ctxSistema = '', cartaBase = '') {
     if (!apiKey) throw new Error('Anthropic API key não configurada');
     const Anthropic = require('@anthropic-ai/sdk');
     const client = new Anthropic({ apiKey });
@@ -138,7 +108,7 @@ async function parsearComClaude(texto, contextoConversa = [], apiKey, ctxSistema
     const response = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 500,
-        system: `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${ctxExtra}${getInstrucoesBase()}\n\nResponda APENAS com JSON válido.`,
+        system: `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${ctxExtra}${cartaBase ? '\n\n---\n' + cartaBase : ''}\n\nResponda APENAS com JSON válido.`,
         messages: [{ role: 'user', content: texto }]
     });
 
@@ -330,7 +300,7 @@ function detectarIntencao(texto) {
  * @param {{ provider: string, apiKey: string }} providerConfig - Config do usuário
  * @returns {Object} { dados, metodo, intencao }
  */
-async function parsearDespesa(texto, contextoConversa = [], forcarHeuristica = false, providerConfig = null, ctxSistema = '') {
+async function parsearDespesa(texto, contextoConversa = [], forcarHeuristica = false, providerConfig = null, ctxSistema = '', cartaBase = '') {
     const intencao = detectarIntencao(texto);
 
     let dados = null;
@@ -339,13 +309,13 @@ async function parsearDespesa(texto, contextoConversa = [], forcarHeuristica = f
     if (!forcarHeuristica && providerConfig?.provider && providerConfig.provider !== 'gen') {
         try {
             if (providerConfig.provider === 'openai') {
-                dados = await parsearComOpenAI(texto, contextoConversa, providerConfig.apiKey, ctxSistema);
+                dados = await parsearComOpenAI(texto, contextoConversa, providerConfig.apiKey, ctxSistema, cartaBase);
                 metodo = 'openai';
             } else if (providerConfig.provider === 'gemini') {
-                dados = await parsearComGemini(texto, contextoConversa, providerConfig.apiKey, ctxSistema);
+                dados = await parsearComGemini(texto, contextoConversa, providerConfig.apiKey, ctxSistema, cartaBase);
                 metodo = 'gemini';
             } else if (providerConfig.provider === 'claude') {
-                dados = await parsearComClaude(texto, contextoConversa, providerConfig.apiKey, ctxSistema);
+                dados = await parsearComClaude(texto, contextoConversa, providerConfig.apiKey, ctxSistema, cartaBase);
                 metodo = 'claude';
             }
         } catch (err) {
@@ -355,7 +325,7 @@ async function parsearDespesa(texto, contextoConversa = [], forcarHeuristica = f
     } else if (!forcarHeuristica && getOpenAI()) {
         // fallback para chave env do servidor
         try {
-            dados = await parsearComOpenAI(texto, contextoConversa, undefined, ctxSistema);
+            dados = await parsearComOpenAI(texto, contextoConversa, undefined, ctxSistema, cartaBase);
             metodo = 'openai';
         } catch (err) {
             console.warn('⚠️ OpenAI falhou, usando Gen:', err.message);
@@ -535,5 +505,4 @@ module.exports = {
     detectarIntencao,
     parsearComGen,
     revisarCarta,
-    invalidarCacheInstrucoes,
 };

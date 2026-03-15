@@ -77,7 +77,7 @@ router.post('/config/chave', authMiddleware, ctrl.salvarConfigChave);
 
 // Instruções da Gen — por usuário, armazenadas no banco
 const { query } = require('../config/database');
-const { revisarCarta, invalidarCacheInstrucoes } = require('../services/aiParser');
+const { revisarCarta } = require('../services/aiParser');
 
 router.get('/instrucoes', authMiddleware, async (req, res) => {
     try {
@@ -107,12 +107,15 @@ router.post('/instrucoes', authMiddleware, async (req, res) => {
 });
 
 // Carta de Serviços global — leitura para todos
-router.get('/carta', authMiddleware, (req, res) => {
+router.get('/carta', authMiddleware, async (req, res) => {
     try {
-        const CARTA_PATH = path.join(__dirname, '../../docs/gen-instrucoes.md');
-        const conteudo = fs.existsSync(CARTA_PATH)
-            ? fs.readFileSync(CARTA_PATH, 'utf8')
-            : '';
+        const r = await query(`SELECT dados_financeiros FROM usuarios WHERE tipo = 'master' LIMIT 1`);
+        let conteudo = r.rows[0]?.dados_financeiros?.carta_servicos || '';
+        // Fallback para arquivo se ainda não migrado
+        if (!conteudo) {
+            const CARTA_PATH = path.join(__dirname, '../../docs/gen-instrucoes.md');
+            conteudo = fs.existsSync(CARTA_PATH) ? fs.readFileSync(CARTA_PATH, 'utf8') : '';
+        }
         res.json({ conteudo });
     } catch (e) {
         res.status(500).json({ erro: 'Erro ao ler carta' });
@@ -129,15 +132,25 @@ router.post('/carta', authMiddleware, async (req, res) => {
         const { instrucao } = req.body;
         if (!instrucao || !instrucao.trim()) return res.status(400).json({ erro: 'Instrução vazia' });
 
-        const CARTA_PATH = path.join(__dirname, '../../docs/gen-instrucoes.md');
-        const cartaAtual = fs.existsSync(CARTA_PATH) ? fs.readFileSync(CARTA_PATH, 'utf8') : '';
+        // Lê carta atual do banco (com fallback para arquivo)
+        const cartaR = await query(`SELECT dados_financeiros FROM usuarios WHERE tipo = 'master' LIMIT 1`);
+        let cartaAtual = cartaR.rows[0]?.dados_financeiros?.carta_servicos || '';
+        if (!cartaAtual) {
+            const CARTA_PATH = path.join(__dirname, '../../docs/gen-instrucoes.md');
+            cartaAtual = fs.existsSync(CARTA_PATH) ? fs.readFileSync(CARTA_PATH, 'utf8') : '';
+        }
 
         // Usa IA para mesclar a instrução na carta
         const providerConfig = await ctrl.buscarConfigIAPublic(req.usuario.id);
         const cartaAtualizada = await revisarCarta(cartaAtual, instrucao.trim(), providerConfig);
 
-        fs.writeFileSync(CARTA_PATH, cartaAtualizada, 'utf8');
-        invalidarCacheInstrucoes(); // força releitura imediata do arquivo
+        // Salva no banco no usuário master
+        await query(
+            `UPDATE usuarios SET dados_financeiros = COALESCE(dados_financeiros, '{}'::jsonb) || jsonb_build_object('carta_servicos', $1::text) WHERE tipo = 'master'`,
+            [cartaAtualizada]
+        );
+        // Invalida cache de sessão de todos os usuários ativos
+        if (typeof ctrl.invalidarCacheCartaSessoes === 'function') ctrl.invalidarCacheCartaSessoes();
         res.json({ success: true, conteudo: cartaAtualizada });
     } catch (e) {
         console.error('Erro ao revisar carta:', e);
