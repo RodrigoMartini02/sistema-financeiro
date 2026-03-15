@@ -1891,31 +1891,28 @@
                 </h3>
                 <div class="lista-barras-vertical collapsed" id="indicadores-conteudo">
                     <!-- Barra Receitas vs Despesas -->
-                    <div class="cartao-limite-item" id="barra-receitas-despesas" style="cursor:pointer" title="Clique para ver detalhes">
+                    <div class="cartao-limite-item ind-sem-fundo" id="barra-receitas-despesas">
                         <div class="cartao-info-header">
                             <span class="cartao-nome">RECEITAS x DESPESAS</span>
                             <div class="cartao-valores">
                                 <span class="valor-usado" id="barra-rd-despesas">R$ 0,00</span>
-                                <span class="separador">/</span>
+                                <span class="separador">×</span>
                                 <span class="valor-limite" id="barra-rd-receitas">R$ 0,00</span>
                             </div>
                         </div>
                         <div class="cartao-barra-progresso">
-                            <div class="barra-fundo">
-                                <div class="barra-preenchida status-ok" id="barra-rd-progresso" style="width:0%"></div>
+                            <div class="barra-fundo barra-fundo-dupla">
+                                <div class="barra-preenchida status-ok" id="barra-rd-projetado" style="width:0%"></div>
+                                <div class="barra-preenchida barra-real status-ok" id="barra-rd-progresso" style="width:0%"></div>
                             </div>
                             <div class="cartao-percentual">
                                 <span class="percentual-texto" id="barra-rd-percentual">0% usado</span>
-                                <span class="barra-tendencia" id="barra-rd-tendencia"></span>
                                 <span class="disponivel-texto">Disponível: <span id="barra-rd-disponivel">R$ 0,00</span></span>
                             </div>
                         </div>
-                        <div class="cartao-status" id="barra-rd-status-container">
-                            <span id="barra-rd-status-icon"></span>
-                        </div>
                     </div>
                     <!-- Barra Reservado -->
-                    <div class="cartao-limite-item" id="barra-reservado" style="display:none">
+                    <div class="cartao-limite-item ind-sem-fundo" id="barra-reservado" style="display:none">
                         <div class="cartao-info-header">
                             <span class="cartao-nome"><i class="fas fa-lock" style="font-size:8px;margin-right:4px"></i> RESERVADO</span>
                             <div class="cartao-valores">
@@ -1925,8 +1922,9 @@
                             </div>
                         </div>
                         <div class="cartao-barra-progresso">
-                            <div class="barra-fundo">
+                            <div class="barra-fundo barra-fundo-dupla">
                                 <div class="barra-preenchida status-alerta" id="barra-reservas-fill" style="width:0%"></div>
+                                <div class="barra-preenchida barra-real status-alerta" id="barra-reservas-fill-real" style="width:0%"></div>
                             </div>
                             <div class="cartao-percentual">
                                 <span class="percentual-texto" id="barra-reservas-percentual">0% reservado</span>

@@ -66,7 +66,7 @@ function atualizarBarraReceitasDespesas() {
     const percentualTotal = base > 0 ? (despesasTotal / base) * 100 : 0;
     const disponivel = base - despesasTotal;
 
-    // ---- Receitas x Despesas: textos ----
+    // ---- Textos informativos ----
     const elDespesas = document.getElementById('barra-rd-despesas');
     const elReceitas = document.getElementById('barra-rd-receitas');
     const elPercentual = document.getElementById('barra-rd-percentual');
@@ -80,84 +80,25 @@ function atualizarBarraReceitasDespesas() {
         elDisponivel.style.color = disponivel >= 0 ? '' : '#dc3545';
     }
 
-    // ---- Barra sólida com cor dinâmica por % (padrão cartão) ----
+    // ---- Cor dinâmica por % ----
+    const statusClass = percentualTotal >= 90 ? 'status-critico'
+        : percentualTotal >= 70 ? 'status-alerta'
+        : 'status-ok';
+
+    // ---- Barra projetada (sólida) — despesas totais ----
+    const elProjetado = document.getElementById('barra-rd-projetado');
+    if (elProjetado) {
+        elProjetado.style.width = `${Math.min(percentualTotal, 100)}%`;
+        elProjetado.classList.remove('status-ok', 'status-alerta', 'status-critico');
+        elProjetado.classList.add(statusClass);
+    }
+
+    // ---- Barra real (translúcida) — despesas pagas ----
     const elProgresso = document.getElementById('barra-rd-progresso');
     if (elProgresso) {
         elProgresso.style.width = `${Math.min(percentualPago, 100)}%`;
         elProgresso.classList.remove('status-ok', 'status-alerta', 'status-critico');
-        if (percentualTotal >= 90) {
-            elProgresso.classList.add('status-critico');
-        } else if (percentualTotal >= 70) {
-            elProgresso.classList.add('status-alerta');
-        } else {
-            elProgresso.classList.add('status-ok');
-        }
-    }
-
-    // ---- Ícone de status ----
-    const elStatusIcon = document.getElementById('barra-rd-status-icon');
-    if (elStatusIcon) {
-        if (percentualTotal < 70) {
-            elStatusIcon.innerHTML = '<i class="fas fa-check-circle" style="color:#16a34a"></i>';
-        } else if (percentualTotal < 90) {
-            elStatusIcon.innerHTML = '<i class="fas fa-exclamation-triangle" style="color:#f59e0b"></i>';
-        } else {
-            elStatusIcon.innerHTML = '<i class="fas fa-times-circle" style="color:#dc3545"></i>';
-        }
-    }
-
-    // ---- Tendência vs mês anterior ----
-    const elTendencia = document.getElementById('barra-rd-tendencia');
-    if (elTendencia) {
-        try {
-            const mesPrev = mes > 0 ? mes - 1 : 11;
-            const anoPrev = mes > 0 ? ano : ano - 1;
-            const dadosPrev = window.dadosFinanceiros[anoPrev]?.meses[mesPrev];
-            if (dadosPrev) {
-                const saldoPrev = typeof window.calcularSaldoMes === 'function'
-                    ? window.calcularSaldoMes(mesPrev, anoPrev) : { saldoAnterior: 0 };
-                const totalReceitasPrev = calcularTotalReceitas(dadosPrev.receitas || []);
-                const reservasPrev = typeof window.calcularMovimentacoesReservasAcumuladas === 'function'
-                    ? (window.calcularMovimentacoesReservasAcumuladas(mesPrev, anoPrev) || 0) : 0;
-                const basePrev = (saldoPrev.saldoAnterior || 0) + totalReceitasPrev - reservasPrev;
-                const despesasTotalPrev = (dadosPrev.despesas || []).reduce((s, d) => s + (parseFloat(d.valor) || 0), 0);
-                const pctPrev = basePrev > 0 ? (despesasTotalPrev / basePrev) * 100 : 0;
-                const diff = percentualTotal - pctPrev;
-                if (Math.abs(diff) >= 0.5) {
-                    elTendencia.innerHTML = diff > 0
-                        ? `<span style="color:#dc3545">↑ +${diff.toFixed(1)}%</span>`
-                        : `<span style="color:#16a34a">↓ ${diff.toFixed(1)}%</span>`;
-                } else {
-                    elTendencia.innerHTML = '';
-                }
-            } else {
-                elTendencia.innerHTML = '';
-            }
-        } catch (e) {
-            elTendencia.innerHTML = '';
-        }
-    }
-
-    // ---- Tooltip com breakdown ----
-    const elCard = document.getElementById('barra-receitas-despesas');
-    if (elCard) {
-        elCard.title = [
-            `Receitas: ${window.formatarMoeda(totalReceitas)}`,
-            `Saldo anterior: ${window.formatarMoeda(saldoAnterior)}`,
-            `Despesas pagas: ${window.formatarMoeda(despesasPagas)}`,
-            `Despesas pendentes: ${window.formatarMoeda(despesasTotal - despesasPagas)}`,
-            `Reservado: ${window.formatarMoeda(reservasAcumuladas)}`,
-            `Disponível: ${window.formatarMoeda(disponivel)}`
-        ].join('\n');
-
-        if (!elCard._rdClickHandlerAttached) {
-            elCard._rdClickHandlerAttached = true;
-            elCard.addEventListener('click', function () {
-                if (typeof window.abrirDetalhesMes === 'function') {
-                    window.abrirDetalhesMes(window.mesAberto, window.anoAberto);
-                }
-            });
-        }
+        elProgresso.classList.add(statusClass);
     }
 
     // ---- Bloco Reservado separado ----
