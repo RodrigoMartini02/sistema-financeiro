@@ -330,7 +330,6 @@ window.IA = (function () {
         if (parcelado) {
             c.querySelector('.dc-row-valor').hidden = true;
             c.querySelector('.dc-row-valor-total').hidden = false;
-            c.querySelector('.dc-row-parcelas').hidden = false;
             var elVT = c.querySelector('.dc-valor-total');
             elVT.textContent = semValor ? '⚠ não informado' : fmtV(valorTotal);
             if (semValor) elVT.classList.add('ai-dc-alerta');
@@ -339,6 +338,7 @@ window.IA = (function () {
             var elV = c.querySelector('.dc-valor');
             elV.textContent = semValor ? '⚠ não informado' : fmtV(valorTotal);
             if (semValor) elV.classList.add('ai-dc-alerta');
+            c.querySelector('.dc-parcelas').textContent = '1x';
         }
 
         c.querySelector('.dc-forma').textContent = fmtF(d.forma_pagamento);
@@ -385,11 +385,21 @@ window.IA = (function () {
         elStatusD.textContent = _statusLabel;
         elStatusD.className = 'ai-dc-val ' + _statusCls;
 
-        if (d.recorrente) c.querySelector('.dc-row-recorrente').hidden = false;
+        var elRecorr = c.querySelector('.dc-recorrente-val');
+        if (elRecorr) {
+            elRecorr.textContent = d.recorrente ? 'Sim' : 'Não';
+            elRecorr.className = 'ai-dc-val ' + (d.recorrente ? 'ai-dc-pago' : '');
+        }
 
         if (d.replicar_ate) {
             c.querySelector('.dc-row-replicar').hidden = false;
             c.querySelector('.dc-replicar').textContent = d.replicar_ate;
+        }
+
+        var numAnexos = (d.anexos && d.anexos.length) || 0;
+        if (numAnexos > 0) {
+            c.querySelector('.dc-row-anexos').hidden = false;
+            c.querySelector('.dc-anexos-count').textContent = numAnexos + ' arquivo' + (numAnexos > 1 ? 's' : '');
         }
 
         c.querySelector('.ai-msg-time').textContent = _hhmm();
@@ -564,7 +574,10 @@ window.IA = (function () {
             { label: 'Forma de pagamento', val: 'forma_pagamento' },
             { label: 'Data de vencimento', val: 'vencimento' },
             { label: 'Categoria',          val: 'categoria' },
-            { label: 'Status',             val: 'status_despesa' }
+            { label: 'Status',             val: 'status_despesa' },
+            { label: 'Parcelas',           val: 'parcelas' },
+            { label: 'Recorrente',         val: 'recorrente' },
+            { label: 'Replicar até',       val: 'replicar_ate' }
         ];
         var btns = campos.map(function(c) {
             return '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="' + esc(c.val) + '" data-opcao-label="' + esc(c.label) + '">' + esc(c.label) + '</button>';
@@ -772,12 +785,25 @@ window.IA = (function () {
             return;
         }
 
+        if (campo === 'recorrente') {
+            var btnsRecorr =
+                '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="sim" data-opcao-label="Sim">Sim</button>' +
+                '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="nao" data-opcao-label="Não">Não</button>';
+            setTimeout(function () {
+                removeTyping(tid2);
+                addGen('É uma despesa recorrente (todo mês)?<div class="ai-welcome-chips">' + btnsRecorr + '</div>');
+            }, 600);
+            return;
+        }
+
         var perguntas = {
             'descricao':    'Qual a descrição da despesa?',
             'valor':        'Qual o valor?',
             'vencimento':   'Qual a data de vencimento? (ex: hoje, amanhã, 15/04, 20/05/2026)',
             'data_receita': 'Qual a data de recebimento? (ex: hoje, 15/03)',
-            'categoria':    'Qual a categoria? (ex: Alimentação, Transporte, Lazer)'
+            'categoria':    'Qual a categoria? (ex: Alimentação, Transporte, Lazer)',
+            'parcelas':     'Quantas parcelas? (ex: 3, 12 — ou 1 para à vista)',
+            'replicar_ate': 'Replicar até qual mês? (ex: 12/2026) — ou "não" para remover'
         };
         var pergunta = perguntas[campo] || 'Informe o ' + campo + ':';
         setTimeout(function () {
@@ -859,6 +885,32 @@ window.IA = (function () {
                 } else {
                     d.ja_pago = false;
                     d.status  = 'em_dia';
+                }
+                break;
+            case 'parcelas':
+                var np = parseInt(texto);
+                if (isNaN(np) || np < 1) { addGen('Informe um número válido de parcelas. Ex: 1, 3, 12'); return; }
+                d.parcelas = np;
+                break;
+            case 'recorrente':
+                d.recorrente = (texto === 'sim');
+                break;
+            case 'replicar_ate':
+                var textoLower = texto.toLowerCase().trim();
+                if (textoLower === 'não' || textoLower === 'nao' || textoLower === 'n') {
+                    d.replicar_ate = null;
+                } else {
+                    // Aceita MM/YYYY ou YYYY-MM → normaliza para YYYY-MM-DD
+                    var mMatch = texto.match(/^(\d{1,2})[\/\-](\d{4})$/);
+                    var yMatch = texto.match(/^(\d{4})[\/\-](\d{1,2})$/);
+                    if (mMatch) {
+                        d.replicar_ate = mMatch[2] + '-' + String(mMatch[1]).padStart(2,'0') + '-01';
+                    } else if (yMatch) {
+                        d.replicar_ate = yMatch[1] + '-' + String(yMatch[2]).padStart(2,'0') + '-01';
+                    } else {
+                        addGen('Não entendi. Use o formato MM/AAAA (ex: 12/2026) ou "não" para remover.');
+                        return;
+                    }
                 }
                 break;
         }
