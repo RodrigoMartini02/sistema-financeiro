@@ -128,9 +128,14 @@
             </li>
         </ul>
 
-        <button id="btn-cofre-sidebar-fixed" onclick="abrirCofre()" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;margin-bottom:6px;cursor:pointer;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;width:calc(100% - 32px);margin-left:16px;justify-content:center">
-            <i class="fas fa-piggy-bank"></i> Cofre
-        </button>
+        <ul class="sidebar-nav sidebar-nav-cofre">
+            <li class="nav-item">
+                <a href="#" class="nav-link" id="btn-cofre-sidebar-fixed" onclick="abrirCofre(); return false;" data-label="Cofre">
+                    <span class="nav-icon"><i class="fas fa-piggy-bank"></i></span>
+                    <span class="nav-text">Cofre</span>
+                </a>
+            </li>
+        </ul>
 
         <div id="plano-sidebar-container">
             <div id="trial-banner" style="display:none">
