@@ -1557,9 +1557,9 @@ form .btn-primary:hover {
 }
 
 .footer-container {
-    max-width: 1200px;
+    max-width: 100%;
     margin: 0 auto;
-    padding: 0 2rem 36px;
+    padding: 0 3rem 36px;
     display: flex;
     align-items: flex-start;
     justify-content: space-between;

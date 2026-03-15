@@ -1422,25 +1422,21 @@ function preencherConteudoMes(mesCard, mes, ano, saldo, fechado, temTransacoes) 
     clone.querySelector('.mes-nome').textContent = nomesMeses[mes];
     
     const saldoAnteriorDiv = clone.querySelector('.mes-saldo-anterior');
-    if (saldo.saldoAnterior !== 0 && temSaldoAnteriorValido(mes, ano)) {
-        saldoAnteriorDiv.classList.remove('hidden');
-        const valorAnterior = clone.querySelector('.valor-anterior');
-        valorAnterior.textContent = formatarMoeda(saldo.saldoAnterior);
-        valorAnterior.className = `valor-anterior ${saldo.saldoAnterior >= 0 ? 'positivo' : 'negativo'}`;
-    }
-    
+    saldoAnteriorDiv.classList.remove('hidden');
+    const valorAnterior = clone.querySelector('.valor-anterior');
+    const saldoAnt = (temSaldoAnteriorValido(mes, ano) ? saldo.saldoAnterior : 0) || 0;
+    valorAnterior.textContent = formatarMoeda(saldoAnt);
+    valorAnterior.className = `valor-anterior ${saldoAnt >= 0 ? 'positivo' : 'negativo'}`;
+
     clone.querySelector('.mes-receita').textContent = formatarMoeda(saldo.receitas);
     clone.querySelector('.mes-despesa').textContent = formatarMoeda(saldo.despesas);
-    
+
     const saldoValor = clone.querySelector('.mes-saldo-valor');
     const saldoContainer = clone.querySelector('.mes-saldo');
-    if (fechado || ehUltimoMesProcessado(mes, ano)) {
-        saldoValor.textContent = formatarMoeda(saldo.saldoFinal);
-        saldoValor.className = `mes-saldo-valor ${saldo.saldoFinal >= 0 ? 'mes-saldo-positivo' : 'mes-saldo-negativo'}`;
-        saldoContainer.style.display = 'block';
-    } else {
-        saldoContainer.style.display = 'none';
-    }
+    const saldoFinalExibir = (fechado || ehUltimoMesProcessado(mes, ano)) ? saldo.saldoFinal : 0;
+    saldoValor.textContent = formatarMoeda(saldoFinalExibir);
+    saldoValor.className = `mes-saldo-valor ${saldoFinalExibir >= 0 ? 'mes-saldo-positivo' : 'mes-saldo-negativo'}`;
+    saldoContainer.style.display = 'block';
     
     const btnReabrir = clone.querySelector('.btn-reabrir');
     const btnFechar = clone.querySelector('.btn-fechar');

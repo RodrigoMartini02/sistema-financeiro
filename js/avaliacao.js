@@ -334,6 +334,7 @@ carregarAvaliacoesReais(); // Atualiza em background sem bloquear
     // Expor globalmente para que main.js possa chamar após sistemaReady
     // ----------------------------------------------------------------
     window.inicializarAvaliacaoApp = inicializarAvaliacaoApp;
+    window.abrirModalAvaliacao = exibirModalAvaliacao;
 
     // Disparar APENAS em app.html, após o sistema estar pronto.
     // Escuta o evento custom que main.js emite ao fim de iniciarSistema().
