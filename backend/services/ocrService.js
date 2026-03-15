@@ -76,27 +76,34 @@ function extrairInfoFinanceira(texto) {
     const lines = texto.split('\n').map(l => l.trim()).filter(Boolean);
 
     // ── VALOR ──────────────────────────────────────────────────
+    // Prioridade: padrões com label explícito > R$ solto > número isolado
     const valorPatterns = [
-        /(?:valor|total|pagamento|cobrado?|pagar)\s*:?\s*R?\$?\s*([\d.,]+)/i,
-        /R\$\s*([\d.,]+)/i,
-        /(?:^|\s)([\d]{1,4}[.,][\d]{2})(?:\s|$)/m,
+        /(?:valor\s+cobrado|valor\s+do\s+documento|valor\s+total|total\s+a\s+pagar|total\s+cobrado)\s*[:\-]?\s*R?\$?\s*([\d.]+,\d{2})/i,
+        /(?:valor|total|pagamento|cobrado?|pagar)\s*[:\-]?\s*R?\$?\s*([\d.]+,\d{2})/i,
+        /R\$\s*([\d.]+,\d{2})/,
+        /\b([\d]{1,4}\.\d{3},\d{2})\b/,
+        /\b([\d]{1,4},\d{2})\b/,
     ];
 
     for (const pattern of valorPatterns) {
-        const m = texto.match(pattern);
-        if (m) {
-            const v = parseFloat(m[1].replace(/\./g, '').replace(',', '.'));
-            if (!isNaN(v) && v > 0 && v < 1000000) {
-                info.valor = v;
-                break;
+        const allMatches = [...texto.matchAll(new RegExp(pattern.source, pattern.flags + 'g'))];
+        // Pega o maior valor encontrado para evitar pegar parcelas menores
+        let melhorValor = null;
+        for (const m of allMatches) {
+            const raw = m[1] || m[0];
+            const v = parseFloat(raw.replace(/\./g, '').replace(',', '.'));
+            if (!isNaN(v) && v > 0 && v < 10000000) {
+                if (melhorValor === null || v > melhorValor) melhorValor = v;
             }
         }
+        if (melhorValor !== null) { info.valor = melhorValor; break; }
     }
 
     // ── VENCIMENTO ─────────────────────────────────────────────
     const vencPatterns = [
-        /(?:vencimento|vence|validade|prazo)\s*:?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
-        /data\s+de?\s+vencimento\s*:?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
+        /(?:vencimento|vence|validade|prazo|venc\.?)\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
+        /data\s+de?\s+vencimento\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
+        /(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})\s*(?:vencimento|venc)/i,
     ];
 
     for (const pattern of vencPatterns) {

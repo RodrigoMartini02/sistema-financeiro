@@ -665,7 +665,7 @@ window.IA = (function () {
     }
 
     // ── COLETA DE CAMPOS FALTANTES ────────────────────────────────
-    var _FORMAS_IMEDIATAS = ['pix', 'dinheiro', 'cartao_debito', 'debito', 'transferencia', 'boleto'];
+    var _FORMAS_IMEDIATAS = ['pix', 'dinheiro', 'cartao_debito', 'debito'];
 
     function _vencimentoImediato(forma) {
         return _FORMAS_IMEDIATAS.indexOf(forma) !== -1;
@@ -1220,7 +1220,7 @@ window.IA = (function () {
             var res = results[0];
             if (!res || !res.success) { addGen('Não consegui processar o arquivo: ' + (res?.message || 'tente outro formato ou informe os dados manualmente.')); estado.enviando = false; setBtnDisabled(false); return; }
             var r = res.resultado || {};
-            var partes = ['Documento analisado.'];
+            var partes = [res.fonte === 'vision_ia' ? 'Documento analisado com IA.' : 'Documento analisado.'];
             if (r.tipo)                   partes.push(fmtTipo(r.tipo));
             if (r.empresa || r.descricao) partes.push(esc(r.empresa || r.descricao));
             if (r.valor)                  partes.push('Valor: ' + fmtV(r.valor));
@@ -1228,9 +1228,10 @@ window.IA = (function () {
             addGen(partes.join(' · '));
             var ds = res.despesa_sugerida || {};
             if (!ds.descricao && (r.empresa || r.descricao)) ds.descricao = r.empresa || r.descricao;
-            if (!ds.valor && r.valor)           ds.valor     = r.valor;
-            if (!ds.vencimento && r.vencimento) ds.vencimento = r.vencimento;
-            // NÃO assume forma de pagamento — coleta do usuário
+            if (!ds.valor && r.valor)                       ds.valor      = r.valor;
+            if (!ds.vencimento && r.vencimento)             ds.vencimento = r.vencimento;
+            if (!ds.categoria && r.categoria_sugerida)      ds.categoria  = r.categoria_sugerida;
+            // Forma de pagamento: não assume — coleta do usuário
             delete ds.forma_pagamento;
             _iniciarColetaCampos(ds, 'despesa');
             estado.enviando = false; setBtnDisabled(false);
@@ -1275,7 +1276,7 @@ window.IA = (function () {
             addGen('Boleto lido. ' + partes.join(' · '));
             var ds = res.despesa || {};
             if (!ds.descricao) ds.descricao = 'Boleto ' + (res.banco_nome || '');
-            if (!ds.forma_pagamento) ds.forma_pagamento = 'boleto';
+            delete ds.forma_pagamento; // boleto é documento — coleta forma de pagamento do usuário
             _iniciarColetaCampos(ds, 'despesa');
         }).catch(function () { removeTyping(tid); addGen('Erro ao processar boleto.'); });
     }

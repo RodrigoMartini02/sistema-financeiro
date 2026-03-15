@@ -6,6 +6,7 @@ const { query } = require('../config/database');
 const { parsearDespesa, responderPerguntaFinanceira, detectarIntencao } = require('../services/aiParser');
 const { classificarCategoria, salvarAprendizado } = require('../services/categoryAI');
 const { processarArquivo } = require('../services/ocrService');
+const { analisarDocumentoComIA } = require('../services/visionService');
 const { processarQRCodePIX, processarTextoPIX } = require('../services/pixReader');
 const { parsearBoleto, encontrarLinhaDigitavel } = require('../services/boletoParser');
 const { detectarRecorrencias, salvarRecorrencia, buscarRecorrencias } = require('../services/recurrenceDetector');
@@ -454,13 +455,17 @@ async function processarArquivoUpload(req, res) {
             return res.status(400).json({ success: false, message: 'Arquivo muito grande (máx 10MB).' });
         }
 
-        const resultado = await processarArquivo(filePath, mimeType);
+        // ── 1. Tenta análise com IA Vision (mais precisa) ─────────
+        const providerConfig = await buscarConfigIA(req.usuario.id);
+        const visionResult = await analisarDocumentoComIA(filePath, mimeType, providerConfig);
 
-        // Tenta extrair linha digitável de boleto do texto
-        if (resultado.texto_bruto) {
-            const linhaDigitavel = encontrarLinhaDigitavel(resultado.texto_bruto);
-            if (linhaDigitavel) {
-                const boleto = parsearBoleto(linhaDigitavel);
+        let resultado;
+        if (visionResult) {
+            // Usa resultado da IA Vision
+            resultado = { sucesso: true, ...visionResult };
+            // Se a IA extraiu linha digitável, confirma via parser para garantir valor/vencimento
+            if (visionResult.linha_digitavel) {
+                const boleto = parsearBoleto(visionResult.linha_digitavel);
                 if (boleto.sucesso) {
                     resultado.boleto = boleto;
                     if (!resultado.valor && boleto.valor) resultado.valor = boleto.valor;
@@ -468,19 +473,37 @@ async function processarArquivoUpload(req, res) {
                     resultado.tipo = 'boleto';
                 }
             }
+        } else {
+            // ── 2. Fallback: OCR + regex ──────────────────────────
+            resultado = await processarArquivo(filePath, mimeType);
+            // Tenta extrair linha digitável de boleto do texto OCR
+            if (resultado.texto_bruto) {
+                const linhaDigitavel = encontrarLinhaDigitavel(resultado.texto_bruto);
+                if (linhaDigitavel) {
+                    const boleto = parsearBoleto(linhaDigitavel);
+                    if (boleto.sucesso) {
+                        resultado.boleto = boleto;
+                        if (!resultado.valor && boleto.valor) resultado.valor = boleto.valor;
+                        if (!resultado.vencimento && boleto.vencimento) resultado.vencimento = boleto.vencimento;
+                        resultado.tipo = 'boleto';
+                    }
+                }
+            }
         }
 
-        // Monta sugestão de despesa
+        // ── Monta sugestão de despesa ─────────────────────────────
         const despesaSugerida = {
-            descricao: resultado.descricao || resultado.empresa || 'Documento financeiro',
-            valor: resultado.valor,
-            vencimento: resultado.vencimento,
-            data: resultado.data || new Date().toISOString().split('T')[0],
-            parcelas: 1,
+            descricao:  resultado.descricao || resultado.empresa || 'Documento financeiro',
+            valor:      resultado.valor || null,
+            vencimento: resultado.vencimento || null,
+            data:       resultado.data || new Date().toISOString().split('T')[0],
+            parcelas:   1,
+            categoria:  resultado.categoria_sugerida || null,
         };
 
         return res.json({
             success: true,
+            fonte: visionResult ? 'vision_ia' : 'ocr',
             arquivo: {
                 nome: req.file.originalname,
                 tipo: mimeType,
