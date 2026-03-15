@@ -6,7 +6,7 @@
   "start_url": "./index.html?source=pwa",
   "scope": "./",
   "display": "standalone",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "background_color": "#0f172a",
   "theme_color": "#6366f1",
   "lang": "pt-BR",
@@ -22,7 +22,13 @@
       "src": "icons/financeiro.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "icons/financeiro.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [

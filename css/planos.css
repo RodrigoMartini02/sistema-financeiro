@@ -115,8 +115,9 @@
     background: rgba(255, 255, 255, 0.07);
     border: none;
     border-radius: 8px;
-    width: 32px;
-    height: 32px;
+    /* Mínimo 44px para toque em mobile */
+    width: 44px;
+    height: 44px;
     color: #94a3b8;
     font-size: 14px;
     cursor: pointer;
@@ -125,6 +126,7 @@
     justify-content: center;
     transition: background 0.2s, color 0.2s;
     z-index: 10;
+    touch-action: manipulation;
 }
 
 .pgmt-close:hover {
@@ -934,4 +936,47 @@
 
 #expirado-banner button:hover {
     background: rgba(239, 68, 68, 0.32);
+}
+
+/* ----------------------------------------------------------------
+   RESPONSIVIDADE MOBILE
+   ---------------------------------------------------------------- */
+
+@media (max-width: 480px) {
+    /* Modal ocupa quase tela cheia em phones */
+    .pgmt-overlay {
+        padding: 8px;
+        align-items: flex-end;
+    }
+
+    .pgmt-modal {
+        max-width: 100%;
+        border-radius: 20px 20px 0 0;
+        padding: 24px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+        max-height: 92vh;
+    }
+
+    /* Campo de formulário com altura mínima de toque */
+    .pgmt-input,
+    .pgmt-tab,
+    .pgmt-btn-assinar,
+    .pgmt-btn-ja-paguei,
+    .pgmt-btn-cancelar-plano,
+    .pgmt-plano-row {
+        min-height: 44px;
+    }
+
+    /* PIX QR code proporcional */
+    .pgmt-pix-qr-wrap img {
+        width: 160px;
+        height: 160px;
+    }
+}
+
+@media (max-width: 768px) {
+    /* Bloqueio overlay: safe area */
+    .pgmt-bloqueio-overlay {
+        padding-top: calc(24px + env(safe-area-inset-top, 0px));
+        padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    }
 }

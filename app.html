@@ -3429,15 +3429,7 @@
     </div>
 </div>
 
-<script>
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch((err) => {
-            console.warn('Service Worker registration failed:', err);
-        });
-    });
-}
-</script>
+<!-- (Service Worker já registrado acima) -->
 
 <!-- Modal: Nova instrução para Carta de Serviços -->
 <div id="modal-carta-instrucao" style="display:none;position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,0.5);align-items:center;justify-content:center">

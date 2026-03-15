@@ -689,5 +689,20 @@
 <script src="js/pwa-handler.js" defer></script>
 <script src="js/avaliacao.js"></script>
 
+<!-- Service Worker -->
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/sw.js')
+            .then(function(reg) {
+                console.log('[PWA] Service Worker registrado:', reg.scope);
+            })
+            .catch(function(err) {
+                console.warn('[PWA] Falha ao registrar Service Worker:', err);
+            });
+    });
+}
+</script>
+
 </body>
 </html>

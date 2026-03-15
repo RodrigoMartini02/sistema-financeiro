@@ -100,6 +100,47 @@
 }
 
 /* ================================================================
+   PWA / MOBILE — SAFE AREA & TOUCH ENHANCEMENTS
+   ================================================================ */
+
+/* Safe-area para iPhone X+ (notch, home bar) */
+:root {
+    --safe-top:    env(safe-area-inset-top,    0px);
+    --safe-right:  env(safe-area-inset-right,  0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left:   env(safe-area-inset-left,   0px);
+}
+
+/* Elimina delay de 300ms em dispositivos touch */
+button,
+a,
+input,
+select,
+textarea,
+label,
+[role="button"] {
+    touch-action: manipulation;
+}
+
+/* Scroll com momentum no iOS para contêineres que fazem overflow */
+.main-content,
+.content-area,
+.sidebar-nav,
+.dashboard-section,
+.meses-section,
+.relatorios-section,
+.config-section,
+.modal-body,
+.ai-messages,
+.ia-chat-area,
+.ai-chat-panel,
+.pgmt-modal,
+.historico-geral-lista,
+.reservas-lista-simples {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ================================================================
    RESET CSS MODERNO
    ================================================================ */
 
@@ -122,6 +163,9 @@ html,
 body {
     height: 100%;
     width: 100%;
+    /* overflow:hidden is intentional — the app manages its own scroll regions.
+       Do NOT set overflow:auto/scroll here as it breaks the fixed sidebar layout.
+       Mobile scroll is handled by .content-area and individual section overflows. */
     overflow: hidden;
 }
 
@@ -701,6 +745,10 @@ textarea:focus {
         transform: translateX(-100%) !important;
         transition: transform 0.25s ease !important;
         z-index: 1200;
+        /* Safe area para sidebar aberta (iPhone X+) */
+        padding-top: var(--safe-top);
+        padding-bottom: var(--safe-bottom);
+        padding-left: var(--safe-left);
     }
     .sidebar:not(.collapsed) {
         transform: translateX(0) !important;
@@ -717,6 +765,8 @@ textarea:focus {
     .sidebar .nav-link {
         justify-content: flex-start;
         padding: 12px var(--space-md);
+        /* Altura mínima de toque 44px */
+        min-height: 44px;
     }
     .sidebar .nav-icon { margin-right: 12px; }
     .sidebar .nav-link.active { border-right: 4px solid var(--primary-color); border-left: none; }
@@ -724,18 +774,35 @@ textarea:focus {
         margin-left: 0 !important;
     }
     .btn-hamburger-mobile { display: flex; }
+
+    /* Safe area no header */
+    .main-header {
+        padding-top: var(--safe-top);
+        padding-left: calc(24px + var(--safe-left));
+        padding-right: calc(24px + var(--safe-right));
+    }
+
+    /* Comprime o header esquerdo em mobile */
+    .header-left {
+        gap: 6px;
+    }
+    .cambio-container-compact {
+        display: none;
+    }
+
+    /* Header botões ocupam toque mínimo */
+    .header-icon-btn,
+    #btn-nova-despesa,
+    #btn-nova-receita {
+        min-height: 44px;
+        min-width: 44px;
+    }
 }
 
 /* ================================================================
    HEADER PRINCIPAL
    ================================================================ */
 
-/* ================================================================
-   HEADER PRINCIPAL - REDESENHADO
-   ================================================================ */
-/* ================================================================
-   HEADER UNIFICADA
-   ================================================================ */
 .main-header {
     height: 69px;
     background-color: var(--white);
@@ -1247,6 +1314,47 @@ textarea:focus {
 
 
 /* ================================================================
+   RESPONSIVIDADE EXTRA — TELAS MUITO PEQUENAS (≤ 360px)
+   ================================================================ */
+
+@media (max-width: 360px) {
+    .main-header {
+        padding: 0 10px;
+        padding-top: var(--safe-top, 0px);
+        gap: 6px;
+    }
+
+    /* Esconde labels de texto nos botões Despesa/Receita */
+    #btn-nova-despesa span,
+    #btn-nova-receita span {
+        display: none;
+    }
+
+    #btn-nova-despesa,
+    #btn-nova-receita {
+        width: 36px;
+        padding: 0;
+        min-width: 36px;
+    }
+
+    /* Esconde separadores para ganhar espaço */
+    .header-separator {
+        display: none;
+    }
+
+    .header-icon-btn {
+        width: 36px;
+        height: 36px;
+    }
+
+    /* Seletor de ano menor */
+    .header-ano-label {
+        font-size: 15px;
+        min-width: 50px;
+    }
+}
+
+/* ================================================================
    MODAL DE BLOQUEIO
    ================================================================ */
 
@@ -1284,7 +1392,7 @@ textarea:focus {
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 24px;
     padding: 40px 36px 36px;
-    width: 340px;
+    width: min(340px, 92vw);
     box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.04) inset;
     display: flex;
     flex-direction: column;

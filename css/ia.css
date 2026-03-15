@@ -92,7 +92,7 @@
     left: 50%;
     transform: translate(-50%, -50%);
 
-    width: 420px;
+    width: min(420px, 96vw);
     height: 85vh;
     max-height: 640px;
 
@@ -1131,29 +1131,56 @@ body:has(.ia-container) {
         position: fixed;
         inset: 0;
         z-index: 2000;
-        width: 280px;
+        width: min(280px, 85vw);
+        /* Safe area para sidebar no iOS */
+        padding-top: var(--safe-top, 0px);
+        padding-bottom: var(--safe-bottom, 0px);
+        padding-left: var(--safe-left, 0px);
     }
     .ia-btn-menu-mobile { display: flex !important; }
     .ia-chat-area { padding: 16px 12px; }
-    .ia-input-area { padding: 10px 12px 12px; }
-    .ia-header { padding: 10px 14px; }
+    /* Safe area na input area (acima da home bar iOS) */
+    .ia-input-area {
+        padding: 10px 12px calc(12px + var(--safe-bottom, 0px));
+    }
+    .ia-header {
+        padding: 10px 14px;
+        padding-top: calc(10px + var(--safe-top, 0px));
+    }
     .ia-msg-bub { max-width: calc(100vw - 100px); }
+
+    /* Botões e inputs com mínimo de toque */
+    .ia-btn-icon,
+    .ia-btn-send,
+    .ia-send-btn,
+    .ia-btn-attach,
+    .ia-btn-voice {
+        min-width: 44px;
+        min-height: 44px;
+    }
 }
 
 @media (max-width: 480px) {
-    /* Painel flutuante */
+    /* Painel flutuante — tela cheia com safe area */
     .ai-chat-panel {
         top: 0;
         left: 0;
         transform: none;
         width: 100vw;
         height: 100vh;
+        height: calc(100vh - var(--safe-bottom, 0px));
         max-height: 100vh;
         border-radius: 0;
+        /* Aplica safe areas no painel full-screen */
+        padding-top: var(--safe-top, 0px);
+        padding-bottom: var(--safe-bottom, 0px);
     }
-.btn-fab-ia { right: 16px; bottom: 20px; }
+    .btn-fab-ia {
+        right: 16px;
+        bottom: calc(20px + var(--safe-bottom, 0px));
+    }
 
-    /* Página */
+    /* Página ia.html */
     .ia-form-row { flex-direction: column; }
     .ia-form-group--sm { flex: none; }
     .ia-modal { border-radius: 10px; }
