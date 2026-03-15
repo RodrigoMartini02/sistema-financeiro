@@ -665,12 +665,31 @@ window.IA = (function () {
     }
 
     // ── COLETA DE CAMPOS FALTANTES ────────────────────────────────
+    var _FORMAS_IMEDIATAS = ['pix', 'dinheiro', 'cartao_debito', 'debito', 'transferencia', 'boleto'];
+
+    function _vencimentoImediato(forma) {
+        return _FORMAS_IMEDIATAS.indexOf(forma) !== -1;
+    }
+
+    function _hoje() {
+        var d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
     function _camposFaltandoDespesa(d) {
         var falta = [];
         if (!d.descricao) falta.push('descricao');
         if (!d.valor || parseFloat(d.valor) <= 0) falta.push('valor');
         if (!d.forma_pagamento) falta.push('forma_pagamento');
-        if (!d.vencimento) falta.push('vencimento');
+        // PIX, débito, dinheiro, transferência e boleto → vencimento = hoje automaticamente
+        if (!d.vencimento) {
+            if (_vencimentoImediato(d.forma_pagamento)) {
+                d.vencimento = _hoje();
+                if (!d.data) d.data = d.vencimento;
+            } else {
+                falta.push('vencimento');
+            }
+        }
         // Se crédito e nenhum cartão foi resolvido, pergunta qual cartão
         var isCredito = d.forma_pagamento === 'cartao_credito' || d.forma_pagamento === 'credito';
         if (isCredito && !d.cartao_id && !_resolverCartaoPorNome(d.nome_cartao)) {
