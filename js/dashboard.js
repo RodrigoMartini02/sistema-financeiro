@@ -153,7 +153,7 @@ function _reaplicarFiltrosGlobais() {
     }
     criarGraficoBarrasCategoriasComFiltros(window.dadosFinanceiros, ano, filtros);
     criarGraficoCategoriasMensaisComFiltros(window.dadosFinanceiros, ano, filtros);
-    criarGraficoJurosComFiltros(window.dadosFinanceiros, ano, filtros);
+    criarGraficoJurosEconomias(_anoGraficosAtual());
     criarGraficoParcelamentosComFiltros(window.dadosFinanceiros, ano, filtros);
     criarGraficoFormaPagamentoComFiltros(window.dadosFinanceiros, ano, filtros);
     renderDistribuicaoCartoes(window.dadosFinanceiros, ano, filtros);
@@ -242,7 +242,7 @@ function limparGraficos() {
         'receitasDespesasChart',
         'categoriasBarrasChart',
         'categoriasEmpilhadasChart',
-        'jurosChart',
+        'jurosEconomiasChart',
         'parcelamentosChart',
         'formaPagamentoChart',
         'chartDistribuicaoCartoes',
@@ -358,7 +358,7 @@ async function carregarDadosDashboard(ano) {
         criarGraficoReceitasDespesasComFiltros(dadosProcessados.dadosMensais, filtros);
         criarGraficoBarrasCategoriasComFiltros(window.dadosFinanceiros, ano, filtros);
         criarGraficoCategoriasMensaisComFiltros(window.dadosFinanceiros, ano, filtros);
-        criarGraficoJurosComFiltros(window.dadosFinanceiros, ano, filtros);
+        criarGraficoJurosEconomias(ano);
         criarGraficoParcelamentosComFiltros(window.dadosFinanceiros, ano, filtros);
         criarGraficoFormaPagamentoComFiltros(window.dadosFinanceiros, ano, filtros);
         renderDistribuicaoCartoes(window.dadosFinanceiros, ano, filtros);
@@ -1135,127 +1135,81 @@ function criarGraficoCategoriasMensaisComFiltros(dadosFinanceiros, ano, filtros)
 }
 
 // ================================================================
-// GRÁFICO 6: JUROS MENSAIS
+// GRÁFICO 6: JUROS × ECONOMIAS
 // ================================================================
 
-function criarGraficoJurosComFiltros(dadosFinanceiros, ano, filtros) {
-    const ctx = document.getElementById('juros-chart')?.getContext('2d');
+function criarGraficoJurosEconomias(ano) {
+    const ctx = document.getElementById('juros-economias-chart')?.getContext('2d');
     if (!ctx) return;
-    
-    const dados = calcularDadosJurosMensaisComFiltros(dadosFinanceiros, ano, filtros);
-    
-    if (window.jurosChart) {
-        window.jurosChart.destroy();
+
+    const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const juros = [];
+    const economias = [];
+
+    for (let m = 0; m < 12; m++) {
+        const dadosMes = window.dadosFinanceiros?.[ano]?.meses?.[m];
+        const despesas = dadosMes?.despesas || [];
+        const j = typeof window.calcularTotalJuros === 'function' ? window.calcularTotalJuros(despesas) : 0;
+        const e = typeof window.calcularTotalEconomias === 'function' ? window.calcularTotalEconomias(despesas) : 0;
+        juros.push(-(j || 0));      // negativo = para baixo
+        economias.push(e || 0);    // positivo = para cima
     }
-    
-    window.jurosChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: dados.meses,
-            datasets: [
-                {
-                    label: 'Juros a Pagar',
-                    data: dados.jurosAPagar,
-                    backgroundColor: 'rgba(255, 159, 64, 0.7)',
-                    borderColor: 'rgb(255, 159, 64)',
-                    borderRadius: 8,
-                    borderSkipped: false
-                },
-                {
-                    label: 'Juros Pagos',
-                    data: dados.jurosPagos,
-                    backgroundColor: 'rgba(255, 99, 132, 0.9)',
-                    borderColor: 'rgb(255, 99, 132)',
-                    borderRadius: 8,
-                    borderSkipped: false
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) {
-                            return window.formatarMoedaCompacta(value);
-                        }
-                    }
-                }
-            },
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return `${context.dataset.label}: ${window.formatarMoeda(context.raw)}`;
-                        }
-                    }
-                }
+
+    if (window.jurosEconomiasChart) window.jurosEconomiasChart.destroy();
+
+    // Escala simétrica igual ao balanço
+    const todosValores = [...juros, ...economias].map(Math.abs);
+    const maxAbs = Math.max(...todosValores, 1);
+    const margem = maxAbs * 0.15;
+
+    const opcoes = getOpcoesGrafico();
+    opcoes.scales.y.min = -(maxAbs + margem);
+    opcoes.scales.y.max =   maxAbs + margem;
+    opcoes.scales.y.ticks = {
+        callback: function(value) {
+            return window.formatarMoedaCompacta ? window.formatarMoedaCompacta(Math.abs(value)) : Math.abs(value);
+        }
+    };
+    opcoes.plugins.legend.display = true;
+    opcoes.plugins.tooltip = {
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderWidth: 1,
+        callbacks: {
+            label: function(ctx) {
+                const v = Math.abs(ctx.raw);
+                return `${ctx.dataset.label}: ${window.formatarMoeda ? window.formatarMoeda(v) : 'R$ ' + v.toFixed(2)}`;
             }
         }
-    });
-    
-    atualizarEstatisticasJuros(dados.resumo);
-}
-
-function calcularDadosJurosMensaisComFiltros(dadosFinanceiros, ano, filtros) {
-    const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-
-    const dadosMensais = {
-        meses: nomesMeses,
-        jurosAPagar: Array(12).fill(0),
-        jurosPagos: Array(12).fill(0)
     };
+    opcoes.layout = { padding: { top: 16, bottom: 16 } };
 
-    let resumoGeral = {
-        totalJuros: 0,
-        jurosPagos: 0
-    };
-
-    const anosParaIterar = ano === 'todos'
-        ? Object.keys(dadosFinanceiros).map(Number).filter(Boolean)
-        : (dadosFinanceiros[ano] ? [ano] : []);
-
-    if (anosParaIterar.length === 0) {
-        return { ...dadosMensais, resumo: resumoGeral };
-    }
-
-    anosParaIterar.forEach(anoN => {
-        for (let mes = 0; mes < 12; mes++) {
-            const dadosMes = dadosFinanceiros[anoN]?.meses?.[mes];
-            if (!dadosMes || !dadosMes.despesas) continue;
-            const despesasFiltradas = aplicarFiltrosDespesas(dadosMes.despesas, filtros);
-            despesasFiltradas.forEach(despesa => {
-                const isPago = despesa.quitado || despesa.status === 'quitada';
-                const jurosValor = window.calcularJurosDespesa ? window.calcularJurosDespesa(despesa) : 0;
-                if (jurosValor > 0) {
-                    resumoGeral.totalJuros += jurosValor;
-                    if (isPago) {
-                        dadosMensais.jurosPagos[mes] += jurosValor;
-                        resumoGeral.jurosPagos += jurosValor;
-                    } else {
-                        dadosMensais.jurosAPagar[mes] += jurosValor;
-                    }
-                }
-            });
-        }
+    window.jurosEconomiasChart = new Chart(ctx, {
+        type: 'bar',
+        plugins: [backgroundBarPlugin],
+        data: {
+            labels: meses,
+            datasets: [
+                criarDatasetBarra({
+                    label: 'Economias',
+                    backgroundColor: 'rgba(20, 184, 166, 0.55)',
+                    borderColor: 'rgb(20, 184, 166)',
+                    order: 1
+                }, economias),
+                criarDatasetBarra({
+                    label: 'Juros',
+                    backgroundColor: 'rgba(239, 68, 68, 0.55)',
+                    borderColor: 'rgb(239, 68, 68)',
+                    order: 2
+                }, juros)
+            ]
+        },
+        options: opcoes
     });
-
-    return { ...dadosMensais, resumo: resumoGeral };
 }
-
-function atualizarEstatisticasJuros(dados) {
-    const porcentagemPagos = dados.totalJuros > 0 ?
-        ((dados.jurosPagos / dados.totalJuros) * 100).toFixed(1) : 0;
-    const jurosPendentes = dados.totalJuros - dados.jurosPagos;
-
-    const elPendentes = document.getElementById('juros-pendentes-valor');
-    const elPercentual = document.getElementById('juros-pagos-percentual');
-    if (elPendentes) elPendentes.textContent = window.formatarMoeda(jurosPendentes);
-    if (elPercentual) elPercentual.textContent = porcentagemPagos + '%';
-}
+window.criarGraficoJurosEconomias = criarGraficoJurosEconomias;
 
 // ================================================================
 // GRÁFICO 7: PARCELAMENTOS MENSAIS
@@ -1910,8 +1864,7 @@ window.filtrarCategoriasMensal = function() {
 };
 
 window.filtrarJuros = function() {
-    const ano = window.anoDashboard === 'todos' ? 'todos' : _anoGraficosAtual();
-    criarGraficoJurosComFiltros(window.dadosFinanceiros, ano, obterFiltrosDoGrafico('juros'));
+    criarGraficoJurosEconomias(_anoGraficosAtual());
 };
 
 window.filtrarParcelamentos = function() {

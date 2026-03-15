@@ -1773,6 +1773,4 @@ window.atualizarCardReservasIntegrado = atualizarCardReservasIntegrado;
 window.abrirModalReservarValor = abrirModalReservarValor;
 window.carregarReservasAPI = carregarReservasAPI;
 window.calcularTotalReservas = calcularTotalReservas;
-window.calcularTotalReservasAcumuladas = calcularMovimentacoesReservasAcumuladas;
-window.calcularMovimentacoesReservasMes = calcularMovimentacoesReservasMes;
 

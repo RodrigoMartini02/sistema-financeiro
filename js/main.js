@@ -1003,7 +1003,14 @@ function setupSistemaBloqueio() {
             const resultado = await response.json();
 
             if (resultado.success) {
-                unlockSystem();
+                if (window._lockScreenSuccessCallback) {
+                    const cb = window._lockScreenSuccessCallback;
+                    window._lockScreenSuccessCallback = null;
+                    _fecharLockScreenCofre();
+                    cb();
+                } else {
+                    unlockSystem();
+                }
             } else {
                 if (modalContent) {
                     modalContent.classList.add('shake-animation');
@@ -1023,6 +1030,50 @@ function setupSistemaBloqueio() {
 
         clearTimeout(inactivityTimer);
         inactivityTimer = setTimeout(lockSystem, 20 * 60 * 1000);
+    };
+
+    const _fecharLockScreenCofre = () => {
+        window._lockScreenSuccessCallback = null;
+        overlay.classList.remove('visible');
+        modal.classList.remove('visible');
+        if (overlay._cofreCancelListener) {
+            overlay.removeEventListener('click', overlay._cofreCancelListener);
+            overlay._cofreCancelListener = null;
+        }
+        const escListener = modal._cofreEscListener;
+        if (escListener) {
+            document.removeEventListener('keydown', escListener);
+            modal._cofreEscListener = null;
+        }
+        const title = modal.querySelector('.lock-title');
+        const subtitle = modal.querySelector('.lock-subtitle');
+        const lockIcon = modal.querySelector('.lock-icon-wrap i');
+        const submitBtn = modal.querySelector('.lock-btn');
+        if (title) title.textContent = 'Sistema Bloqueado';
+        if (subtitle) subtitle.textContent = 'Digite sua senha para continuar';
+        if (lockIcon) lockIcon.className = 'fas fa-lock';
+        if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-unlock-alt"></i> Desbloquear';
+    };
+
+    window.mostrarLockScreenParaVerificacao = (callback) => {
+        window._lockScreenSuccessCallback = callback;
+        const title = modal.querySelector('.lock-title');
+        const subtitle = modal.querySelector('.lock-subtitle');
+        const lockIcon = modal.querySelector('.lock-icon-wrap i');
+        const submitBtn = modal.querySelector('.lock-btn');
+        if (title) title.textContent = 'Acesso ao Cofre';
+        if (subtitle) subtitle.textContent = 'Digite sua senha para acessar o Cofre';
+        if (lockIcon) lockIcon.className = 'fas fa-piggy-bank';
+        if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-unlock-alt"></i> Entrar';
+        if (passwordInput) { passwordInput.value = ''; setTimeout(() => passwordInput.focus(), 100); }
+        overlay.classList.add('visible');
+        modal.classList.add('visible');
+        const cancelOnOverlay = (e) => { if (e.target === overlay) _fecharLockScreenCofre(); };
+        overlay._cofreCancelListener = cancelOnOverlay;
+        overlay.addEventListener('click', cancelOnOverlay);
+        const escHandler = (e) => { if (e.key === 'Escape') _fecharLockScreenCofre(); };
+        modal._cofreEscListener = escHandler;
+        document.addEventListener('keydown', escHandler);
     };
 
     // Event listeners
@@ -3088,22 +3139,13 @@ document.addEventListener('DOMContentLoaded', iniciarAtualizacaoCotacoes);
 // COFRE — ACESSO COM SENHA
 // ================================================================
 
-/**
- * Abre o Cofre (modal de reservas), pedindo senha antes se necessário.
- * Se localStorage.cofre_senha_desabilitada === 'true', abre direto.
- */
 function abrirCofre() {
     if (localStorage.getItem('cofre_senha_desabilitada') === 'true') {
         _abrirModalCofreInterno();
+    } else if (typeof window.mostrarLockScreenParaVerificacao === 'function') {
+        window.mostrarLockScreenParaVerificacao(_abrirModalCofreInterno);
     } else {
-        const inputSenha = document.getElementById('input-senha-cofre');
-        const erroEl = document.getElementById('erro-senha-cofre');
-        const modal = document.getElementById('modal-senha-cofre');
-        if (!modal) { _abrirModalCofreInterno(); return; }
-        if (inputSenha) inputSenha.value = '';
-        if (erroEl) { erroEl.style.display = 'none'; erroEl.textContent = ''; }
-        modal.style.display = 'flex';
-        setTimeout(() => { if (inputSenha) inputSenha.focus(); }, 100);
+        _abrirModalCofreInterno();
     }
 }
 
@@ -3118,67 +3160,8 @@ function _abrirModalCofreInterno() {
 
 window.abrirCofre = abrirCofre;
 
-// Inicializar eventos do modal senha do cofre
+// Checkbox desabilitar senha do Cofre
 document.addEventListener('DOMContentLoaded', function() {
-    const modalSenhaCofre = document.getElementById('modal-senha-cofre');
-    const inputSenhaCofre = document.getElementById('input-senha-cofre');
-    const erroSenhaCofre = document.getElementById('erro-senha-cofre');
-    const btnConfirmar = document.getElementById('btn-confirmar-senha-cofre');
-    const btnCancelar = document.getElementById('btn-cancelar-senha-cofre');
-    const btnFechar = document.getElementById('btn-fechar-senha-cofre');
-
-    function fecharModalSenhaCofre() {
-        if (modalSenhaCofre) modalSenhaCofre.style.display = 'none';
-    }
-
-    async function tentarEntrarCofre() {
-        const senha = inputSenhaCofre ? inputSenhaCofre.value : '';
-        if (!senha) {
-            if (erroSenhaCofre) { erroSenhaCofre.textContent = 'Digite sua senha.'; erroSenhaCofre.style.display = 'block'; }
-            return;
-        }
-
-        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-        try {
-            const response = await fetch(`${API_URL}/auth/verify-password`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ senha })
-            });
-            const resultado = await response.json();
-
-            if (resultado.success) {
-                fecharModalSenhaCofre();
-                _abrirModalCofreInterno();
-            } else {
-                if (erroSenhaCofre) { erroSenhaCofre.textContent = 'Senha incorreta. Tente novamente.'; erroSenhaCofre.style.display = 'block'; }
-                if (inputSenhaCofre) { inputSenhaCofre.value = ''; inputSenhaCofre.focus(); }
-            }
-        } catch (err) {
-            if (erroSenhaCofre) { erroSenhaCofre.textContent = 'Erro ao verificar senha.'; erroSenhaCofre.style.display = 'block'; }
-        }
-    }
-
-    if (btnConfirmar) btnConfirmar.addEventListener('click', tentarEntrarCofre);
-    if (btnCancelar) btnCancelar.addEventListener('click', fecharModalSenhaCofre);
-    if (btnFechar) btnFechar.addEventListener('click', fecharModalSenhaCofre);
-
-    if (inputSenhaCofre) {
-        inputSenhaCofre.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') tentarEntrarCofre();
-        });
-    }
-
-    if (modalSenhaCofre) {
-        modalSenhaCofre.addEventListener('click', function(e) {
-            if (e.target === modalSenhaCofre) fecharModalSenhaCofre();
-        });
-    }
-
-    // Checkbox desabilitar senha
     const chkDesabilitar = document.getElementById('chk-desabilitar-senha-cofre');
     if (chkDesabilitar) {
         chkDesabilitar.addEventListener('change', function() {
