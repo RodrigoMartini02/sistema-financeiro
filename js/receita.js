@@ -46,27 +46,27 @@ function atualizarBarraReceitasDespesas() {
     const receitas = window.dadosFinanceiros[ano]?.meses[mes]?.receitas || [];
     const despesas = window.dadosFinanceiros[ano]?.meses[mes]?.despesas || [];
 
-    // Saldo anterior faz parte do mês atual
     const saldo = typeof window.calcularSaldoMes === 'function'
         ? window.calcularSaldoMes(mes, ano) : { saldoAnterior: 0 };
     const saldoAnterior = saldo.saldoAnterior || 0;
-
     const totalReceitas = calcularTotalReceitas(receitas);
 
-    // Separar despesas pagas vs total (melhoria 1)
-    const despesasPagas = despesas.filter(d => d.ja_pago).reduce((s, d) => s + (parseFloat(d.valor) || 0), 0);
-    const despesasTotal = despesas.reduce((s, d) => s + (parseFloat(d.valor) || 0), 0);
-
-    // Excluir reservas da base (melhoria 2)
     const reservasAcumuladas = typeof window.calcularMovimentacoesReservasAcumuladas === 'function'
         ? (window.calcularMovimentacoesReservasAcumuladas(mes, ano) || 0) : 0;
+
+    // Base disponível para despesas (sem reservas)
     const base = saldoAnterior + totalReceitas - reservasAcumuladas;
 
-    const percentualReal = base > 0 ? (despesasPagas / base) * 100 : 0;
-    const percentualProjetado = base > 0 ? (despesasTotal / base) * 100 : 0;
+    // Despesas realizadas (pagas) = barra sólida
+    const despesasPagas = despesas.filter(d => d.ja_pago).reduce((s, d) => s + (parseFloat(d.valor) || 0), 0);
+    // Despesas totais (projetadas) para calcular % exibida
+    const despesasTotal = despesas.reduce((s, d) => s + (parseFloat(d.valor) || 0), 0);
+
+    const percentualPago = base > 0 ? (despesasPagas / base) * 100 : 0;
+    const percentualTotal = base > 0 ? (despesasTotal / base) * 100 : 0;
     const disponivel = base - despesasTotal;
 
-    // ---- Atualizar elementos de texto ----
+    // ---- Receitas x Despesas: textos ----
     const elDespesas = document.getElementById('barra-rd-despesas');
     const elReceitas = document.getElementById('barra-rd-receitas');
     const elPercentual = document.getElementById('barra-rd-percentual');
@@ -74,46 +74,39 @@ function atualizarBarraReceitasDespesas() {
 
     if (elDespesas) elDespesas.textContent = window.formatarMoeda(despesasTotal);
     if (elReceitas) elReceitas.textContent = window.formatarMoeda(base);
-    if (elPercentual) elPercentual.textContent = `${percentualProjetado.toFixed(1)}% usado`;
+    if (elPercentual) elPercentual.textContent = `${percentualTotal.toFixed(1)}% usado`;
     if (elDisponivel) {
         elDisponivel.textContent = window.formatarMoeda(disponivel);
         elDisponivel.style.color = disponivel >= 0 ? '' : '#dc3545';
     }
 
-    // ---- Barra dupla: projetado + real (melhoria 1) ----
-    const elProjetado = document.getElementById('barra-rd-projetado');
+    // ---- Barra sólida com cor dinâmica por % (padrão cartão) ----
     const elProgresso = document.getElementById('barra-rd-progresso');
-    if (elProjetado) elProjetado.style.width = `${Math.min(percentualProjetado, 100)}%`;
-    if (elProgresso) elProgresso.style.width = `${Math.min(percentualReal, 100)}%`;
+    if (elProgresso) {
+        elProgresso.style.width = `${Math.min(percentualPago, 100)}%`;
+        elProgresso.classList.remove('status-ok', 'status-alerta', 'status-critico');
+        if (percentualTotal >= 90) {
+            elProgresso.classList.add('status-critico');
+        } else if (percentualTotal >= 70) {
+            elProgresso.classList.add('status-alerta');
+        } else {
+            elProgresso.classList.add('status-ok');
+        }
+    }
 
-    // ---- Ícone de status (melhoria 4) ----
+    // ---- Ícone de status ----
     const elStatusIcon = document.getElementById('barra-rd-status-icon');
     if (elStatusIcon) {
-        if (percentualProjetado < 70) {
+        if (percentualTotal < 70) {
             elStatusIcon.innerHTML = '<i class="fas fa-check-circle" style="color:#16a34a"></i>';
-        } else if (percentualProjetado < 90) {
+        } else if (percentualTotal < 90) {
             elStatusIcon.innerHTML = '<i class="fas fa-exclamation-triangle" style="color:#f59e0b"></i>';
         } else {
             elStatusIcon.innerHTML = '<i class="fas fa-times-circle" style="color:#dc3545"></i>';
         }
     }
 
-    // ---- Linha de reservas (melhoria 5) ----
-    const elReservasRow = document.getElementById('barra-reservas-row');
-    const elReservasFill = document.getElementById('barra-reservas-fill');
-    const elReservasValor = document.getElementById('barra-reservas-valor');
-    if (elReservasRow) {
-        if (reservasAcumuladas > 0) {
-            elReservasRow.style.display = 'flex';
-            const pctReservas = base > 0 ? Math.min((reservasAcumuladas / (base + reservasAcumuladas)) * 100, 100) : 0;
-            if (elReservasFill) elReservasFill.style.width = `${pctReservas}%`;
-            if (elReservasValor) elReservasValor.textContent = window.formatarMoeda(reservasAcumuladas);
-        } else {
-            elReservasRow.style.display = 'none';
-        }
-    }
-
-    // ---- Tendência vs mês anterior (melhoria 6) ----
+    // ---- Tendência vs mês anterior ----
     const elTendencia = document.getElementById('barra-rd-tendencia');
     if (elTendencia) {
         try {
@@ -121,24 +114,19 @@ function atualizarBarraReceitasDespesas() {
             const anoPrev = mes > 0 ? ano : ano - 1;
             const dadosPrev = window.dadosFinanceiros[anoPrev]?.meses[mesPrev];
             if (dadosPrev) {
-                const receitasPrev = dadosPrev.receitas || [];
-                const despesasPrev = dadosPrev.despesas || [];
                 const saldoPrev = typeof window.calcularSaldoMes === 'function'
                     ? window.calcularSaldoMes(mesPrev, anoPrev) : { saldoAnterior: 0 };
-                const saldoAnteriorPrev = saldoPrev.saldoAnterior || 0;
-                const totalReceitasPrev = calcularTotalReceitas(receitasPrev);
+                const totalReceitasPrev = calcularTotalReceitas(dadosPrev.receitas || []);
                 const reservasPrev = typeof window.calcularMovimentacoesReservasAcumuladas === 'function'
                     ? (window.calcularMovimentacoesReservasAcumuladas(mesPrev, anoPrev) || 0) : 0;
-                const basePrev = saldoAnteriorPrev + totalReceitasPrev - reservasPrev;
-                const despesasTotalPrev = despesasPrev.reduce((s, d) => s + (parseFloat(d.valor) || 0), 0);
+                const basePrev = (saldoPrev.saldoAnterior || 0) + totalReceitasPrev - reservasPrev;
+                const despesasTotalPrev = (dadosPrev.despesas || []).reduce((s, d) => s + (parseFloat(d.valor) || 0), 0);
                 const pctPrev = basePrev > 0 ? (despesasTotalPrev / basePrev) * 100 : 0;
-                const diff = percentualProjetado - pctPrev;
+                const diff = percentualTotal - pctPrev;
                 if (Math.abs(diff) >= 0.5) {
-                    if (diff > 0) {
-                        elTendencia.innerHTML = `<span style="color:#dc3545">↑ +${diff.toFixed(1)}%</span>`;
-                    } else {
-                        elTendencia.innerHTML = `<span style="color:#16a34a">↓ ${diff.toFixed(1)}%</span>`;
-                    }
+                    elTendencia.innerHTML = diff > 0
+                        ? `<span style="color:#dc3545">↑ +${diff.toFixed(1)}%</span>`
+                        : `<span style="color:#16a34a">↓ ${diff.toFixed(1)}%</span>`;
                 } else {
                     elTendencia.innerHTML = '';
                 }
@@ -150,29 +138,51 @@ function atualizarBarraReceitasDespesas() {
         }
     }
 
-    // ---- Tooltip com breakdown completo (melhoria 7) ----
-    const elContainer = document.getElementById('barra-rd-progresso-container');
-    if (elContainer) {
-        const despesasPendentes = despesasTotal - despesasPagas;
-        const disponivelReal = base - despesasPagas;
-        elContainer.title = [
+    // ---- Tooltip com breakdown ----
+    const elCard = document.getElementById('barra-receitas-despesas');
+    if (elCard) {
+        elCard.title = [
             `Receitas: ${window.formatarMoeda(totalReceitas)}`,
+            `Saldo anterior: ${window.formatarMoeda(saldoAnterior)}`,
             `Despesas pagas: ${window.formatarMoeda(despesasPagas)}`,
-            `Despesas pendentes: ${window.formatarMoeda(despesasPendentes)}`,
+            `Despesas pendentes: ${window.formatarMoeda(despesasTotal - despesasPagas)}`,
             `Reservado: ${window.formatarMoeda(reservasAcumuladas)}`,
-            `Disponível real: ${window.formatarMoeda(disponivelReal)}`
+            `Disponível: ${window.formatarMoeda(disponivel)}`
         ].join('\n');
+
+        if (!elCard._rdClickHandlerAttached) {
+            elCard._rdClickHandlerAttached = true;
+            elCard.addEventListener('click', function () {
+                if (typeof window.abrirDetalhesMes === 'function') {
+                    window.abrirDetalhesMes(window.mesAberto, window.anoAberto);
+                }
+            });
+        }
     }
 
-    // ---- Click handler: abrir detalhe do mês (melhoria 8) ----
-    const elCard = document.getElementById('barra-receitas-despesas');
-    if (elCard && !elCard._rdClickHandlerAttached) {
-        elCard._rdClickHandlerAttached = true;
-        elCard.addEventListener('click', function () {
-            if (typeof window.abrirDetalhesMes === 'function') {
-                window.abrirDetalhesMes(window.mesAberto, window.anoAberto);
+    // ---- Bloco Reservado separado ----
+    const elReservado = document.getElementById('barra-reservado');
+    const elReservasFill = document.getElementById('barra-reservas-fill');
+    const elReservasValor = document.getElementById('barra-reservas-valor');
+    const elReservasBase = document.getElementById('barra-reservas-base');
+    const elReservasPct = document.getElementById('barra-reservas-percentual');
+    const elReservasDisponivel = document.getElementById('barra-reservas-disponivel');
+
+    if (elReservado) {
+        if (reservasAcumuladas > 0) {
+            elReservado.style.display = '';
+            const baseTotal = base + reservasAcumuladas; // base antes de deduzir reservas
+            const pctReservas = baseTotal > 0 ? Math.min((reservasAcumuladas / baseTotal) * 100, 100) : 0;
+            if (elReservasFill) {
+                elReservasFill.style.width = `${pctReservas}%`;
             }
-        });
+            if (elReservasValor) elReservasValor.textContent = window.formatarMoeda(reservasAcumuladas);
+            if (elReservasBase) elReservasBase.textContent = window.formatarMoeda(baseTotal);
+            if (elReservasPct) elReservasPct.textContent = `${pctReservas.toFixed(1)}% reservado`;
+            if (elReservasDisponivel) elReservasDisponivel.textContent = window.formatarMoeda(base);
+        } else {
+            elReservado.style.display = 'none';
+        }
     }
 }
 window.atualizarBarraReceitasDespesas = atualizarBarraReceitasDespesas;
