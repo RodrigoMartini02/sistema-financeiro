@@ -1052,8 +1052,12 @@ form .btn-primary:hover {
 
 .features-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 24px;
+}
+
+@media (max-width: 1200px) {
+    .features-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
 .feature-card {
@@ -1163,8 +1167,8 @@ form .btn-primary:hover {
     flex-direction: column;
     align-items: center;
     text-align: center;
-    max-width: 240px;
-    padding: 0 20px;
+    max-width: 300px;
+    padding: 0 24px;
 }
 
 .step-number {
@@ -1276,6 +1280,7 @@ form .btn-primary:hover {
     position: relative;
     z-index: 1;
 }
+
 
 .ia-card {
     background: rgba(255,255,255,0.04);
@@ -1664,7 +1669,6 @@ form .btn-primary:hover {
     .hero-login { justify-content: center; }
 
     .features-grid { grid-template-columns: repeat(2, 1fr); }
-
     .nav-links { display: none; }
 }
 

@@ -74,9 +74,27 @@ async function carregarAvaliacoesReais() {
         if (totalEl) totalEl.innerText = totalCombinado;
         if (avgEl) avgEl.innerText = mediaCombinada;
 
+        atualizarBreakdown(reviews);
+
     } catch {
         // Fallback silencioso — mantém avaliações estáticas
     }
+}
+
+// ================================================================
+// BREAKDOWN DE ESTRELAS
+// ================================================================
+function atualizarBreakdown(lista) {
+    const total = lista.length;
+    if (!total) return;
+    [5, 4, 3, 2, 1].forEach(s => {
+        const count = lista.filter(r => r.stars === s).length;
+        const pct = Math.round((count / total) * 100);
+        const fill = document.getElementById(`bar-${s}`);
+        const pctEl = document.getElementById(`pct-${s}`);
+        if (fill) { setTimeout(() => { fill.style.width = pct + '%'; }, 200); }
+        if (pctEl) pctEl.textContent = pct + '%';
+    });
 }
 
 // ================================================================
@@ -92,14 +110,16 @@ function inicializarSlider() {
         avgEl.innerText = avg;
     }
 
-    // Criar barras de progresso (máx 5 barras)
-    const displayCount = Math.min(reviews.length, 5);
+    // Criar barras de progresso (máx 7 barras)
+    const displayCount = Math.min(reviews.length, 7);
     for (let i = 0; i < displayCount; i++) {
         const bar = document.createElement('div');
         bar.className = 'story-progress-bar';
         bar.innerHTML = '<div class="story-progress-fill"></div>';
         container.appendChild(bar);
     }
+
+    atualizarBreakdown(reviews);
 
     if (container) nextSlide();
 }
