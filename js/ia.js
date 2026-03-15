@@ -1275,8 +1275,7 @@ window.IA = (function () {
             addGen('Boleto lido. ' + partes.join(' · '));
             var ds = res.despesa || {};
             if (!ds.descricao) ds.descricao = 'Boleto ' + (res.banco_nome || '');
-            // NÃO assume forma de pagamento — o boleto é o documento, não necessariamente a forma de pagar
-            delete ds.forma_pagamento;
+            if (!ds.forma_pagamento) ds.forma_pagamento = 'boleto';
             _iniciarColetaCampos(ds, 'despesa');
         }).catch(function () { removeTyping(tid); addGen('Erro ao processar boleto.'); });
     }

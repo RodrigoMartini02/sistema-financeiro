@@ -119,11 +119,11 @@ function linhaParaCodigoBarras(linha) {
     // Campo 4: posição 31 (dígito verificador)
     // Campo 5: posições 32-47 (data vencimento + valor)
 
-    const campo1 = limpa.substring(0, 9);
-    const campo2 = limpa.substring(10, 20);
-    const campo3 = limpa.substring(21, 31);
-    const campo4 = limpa.substring(31, 32);
-    const campo5 = limpa.substring(32, 47);
+    const campo1 = limpa.substring(0, 10);
+    const campo2 = limpa.substring(10, 21);
+    const campo3 = limpa.substring(21, 32);
+    const campo4 = limpa.substring(32, 33);
+    const campo5 = limpa.substring(33, 47);
 
     // Remonta o código de barras
     const banco = campo1.substring(0, 3);
@@ -150,19 +150,31 @@ function linhaParaCodigoBarras(linha) {
 /**
  * Calcula data de vencimento a partir do fator
  * Fator 0000 = sem vencimento
- * Data base: 07/10/1997
+ * Base original: 07/10/1997
+ * Após reset FEBRABAN (22/02/2025): fator 1000 = 22/02/2025
  */
 function calcularVencimento(fatorVencimento) {
     const fator = parseInt(fatorVencimento);
     if (!fator || fator === 0) return null;
 
-    const dataBase = new Date('1997-10-07');
-    dataBase.setDate(dataBase.getDate() + fator);
+    // Tenta base original primeiro
+    const dataBaseOriginal = new Date('1997-10-07T12:00:00Z');
+    dataBaseOriginal.setUTCDate(dataBaseOriginal.getUTCDate() + fator);
 
-    const ano = dataBase.getFullYear();
-    const mes = String(dataBase.getMonth() + 1).padStart(2, '0');
-    const dia = String(dataBase.getDate()).padStart(2, '0');
+    // Se a data calculada ficou antes de 2020 e o fator está na faixa pós-reset (1000-9999),
+    // usa a nova base FEBRABAN: fator 1000 = 22/02/2025
+    if (dataBaseOriginal.getUTCFullYear() < 2020 && fator >= 1000) {
+        const dataBaseNova = new Date('2025-02-22T12:00:00Z');
+        dataBaseNova.setUTCDate(dataBaseNova.getUTCDate() + (fator - 1000));
+        const ano = dataBaseNova.getUTCFullYear();
+        const mes = String(dataBaseNova.getUTCMonth() + 1).padStart(2, '0');
+        const dia = String(dataBaseNova.getUTCDate()).padStart(2, '0');
+        return `${ano}-${mes}-${dia}`;
+    }
 
+    const ano = dataBaseOriginal.getUTCFullYear();
+    const mes = String(dataBaseOriginal.getUTCMonth() + 1).padStart(2, '0');
+    const dia = String(dataBaseOriginal.getUTCDate()).padStart(2, '0');
     return `${ano}-${mes}-${dia}`;
 }
 
