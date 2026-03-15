@@ -140,30 +140,6 @@
     gap: 6px;
 }
 
-.contador-filtros {
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    padding: 8px 12px;
-    margin-bottom: 15px;
-    text-align: center;
-}
-
-.contador-filtros p {
-    margin: 0;
-    font-size: 0.85rem;
-    color: #495057;
-    font-weight: 500;
-}
-
-#numero-filtros {
-    color: #007bff;
-    font-weight: 700;
-    background-color: #e3f2fd;
-    border-radius: 4px;
-    padding: 2px 8px;
-    margin-left: 4px;
-}
 
 /* Estilos antigos .filtros-acoes removidos - agora usa .filtros-acoes-inline */
 
@@ -653,88 +629,8 @@
     to { transform: rotate(360deg); }
 }
 
-.selector-container {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
 
-.selector-container .form-select {
-    flex: 1;
-}
 
-.btn-adicionar {
-    flex-shrink: 0;
-    width: 36px;
-    height: 36px;
-    border: 1px solid #007bff;
-    border-radius: 6px;
-    background-color: #007bff;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 0.9rem;
-}
-
-.btn-adicionar:hover {
-    background-color: #0056b3;
-    border-color: #0056b3;
-}
-
-.btn-adicionar:active {
-    transform: scale(0.95);
-}
-
-.itens-selecionados {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 8px;
-    min-height: 20px;
-}
-
-.item-selecionado {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background-color: #e3f2fd;
-    border: 1px solid #bbdefb;
-    border-radius: 6px;
-    padding: 4px 8px 4px 12px;
-    font-size: 0.8rem;
-    color: #1976d2;
-    animation: fadeInScale 0.2s ease;
-}
-
-.item-texto {
-    font-weight: 500;
-    line-height: 1;
-}
-
-.btn-remover-item {
-    background: none;
-    border: none;
-    border-radius: 50%;
-    color: #1976d2;
-    cursor: pointer;
-    padding: 2px;
-    width: 16px;
-    height: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.7rem;
-    transition: all 0.2s ease;
-    margin-left: 2px;
-}
-
-.btn-remover-item:hover {
-    background-color: #d32f2f;
-    color: white;
-}
 
 /* ================================================================
    MEDIA QUERIES PADRONIZADAS

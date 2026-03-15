@@ -101,7 +101,7 @@
     border-radius: 14px;
     box-shadow: 0 20px 60px rgba(0,0,0,0.35);
 
-    z-index: 2147483646;
+    z-index: 9999;
 
     display: flex;
     flex-direction: column;
@@ -232,7 +232,6 @@
 .ai-msg--user { justify-content: flex-end; }
 .ai-msg--ai   { justify-content: flex-start; }
 
-.ai-msg-av { display: none; }
 
 .ai-msg-bub {
     padding: 5px 9px 3px;

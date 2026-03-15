@@ -225,7 +225,10 @@ window.IA = (function () {
         addUser(texto);
         var tid = addTyping();
 
-        apiPost('/chat', { mensagem: texto }).then(function (res) {
+        var _payload = { mensagem: texto };
+        if (window.mesAberto !== undefined) _payload.mes_atual = window.mesAberto;
+        if (window.anoAberto !== undefined) _payload.ano_atual = window.anoAberto;
+        apiPost('/chat', _payload).then(function (res) {
             removeTyping(tid);
             if (!res || !res.success) { addGen('Desculpe, ocorreu um erro. Tente novamente.'); return; }
 

@@ -60,16 +60,6 @@
     width: 99%;
 }
 
-/* Aliases para compatibilidade com código legado */
-.modal-small {
-    max-width: 500px;
-    width: 90%;
-}
-
-.modal-medium {
-    max-width: 700px;
-    width: 95%;
-}
 
 /* ================================================================
    ESTRUTURA DO MODAL
@@ -281,20 +271,6 @@
 
 /* Usa estilo padrão de .close definido acima */
 
-/* ================================================================
-   MODAIS ESPECÍFICOS - DESPESA COMPACT
-   ================================================================ */
-
-.modal-despesa-compact {
-    max-width: 700px;
-    width: 90%;
-}
-
-.modal-despesa-compact .modal-body {
-    padding: 15px 20px;
-    max-height: calc(100vh - 200px);
-    overflow-y: auto;
-}
 
 /* ================================================================
    MODAIS ESPECÍFICOS - PAGAMENTO EM LOTE
@@ -306,56 +282,6 @@
 }
 
 
-/* ================================================================
-   MODAIS ESPECÍFICOS - RESERVAR COMPACT
-   ================================================================ */
-
-.modal-reservar-compact .modal-content {
-    max-width: 450px;
-}
-
-.modal-reservar-compact .form-group {
-    margin-bottom: 20px;
-}
-
-.modal-reservar-compact label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: 600;
-    color: var(--config-dark);
-    font-size: 14px;
-}
-
-.modal-reservar-compact .form-control {
-    width: 100%;
-}
-
-.modal-reservar-compact .form-hint {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 8px;
-    font-size: 13px;
-    color: var(--gray-600);
-}
-
-.modal-reservar-compact .form-hint i {
-    color: var(--primary-color);
-}
-
-.modal-reservar-compact #modal-disponivel-info {
-    font-weight: 700;
-    color: var(--success);
-}
-
-.modal-reservar-compact .modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    margin-top: 24px;
-    padding-top: 20px;
-    border-top: 2px solid var(--gray-200);
-}
 
 /* ================================================================
    MODAIS PADRONIZADOS - Usuário, Categoria, Cartão, Senha
@@ -1004,10 +930,7 @@
 @media (max-width: 768px) {
 /* Modais menores: tela quase cheia */
     .modal-sm,
-    .modal-small,
-    .modal-md,
-    .modal-medium,
-    .modal-despesa-compact {
+    .modal-md {
         width: 96% !important;
         margin: 10px auto;
     }
@@ -1056,10 +979,7 @@
     }
 
     .modal-sm,
-    .modal-small,
-    .modal-md,
-    .modal-medium,
-    .modal-despesa-compact {
+    .modal-md {
         width: 100% !important;
         max-width: 100% !important;
         margin: 0 !important;

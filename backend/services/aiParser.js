@@ -61,14 +61,15 @@ Input: "netflix 55,90 debito todo mes"
 Output: {"descricao":"Netflix","valor":55.90,"categoria":"Assinaturas","forma_pagamento":"cartao_debito","vencimento":null,"parcelas":1,"data":"HOJE"}`;
 
 // ── PARSER COM OPENAI ────────────────────────────────────────────
-async function parsearComOpenAI(texto, contextoConversa = [], apiKeyOverride) {
+async function parsearComOpenAI(texto, contextoConversa = [], apiKeyOverride, ctxSistema = '') {
     let openai = apiKeyOverride
         ? (() => { const OpenAI = require('openai'); return new OpenAI({ apiKey: apiKeyOverride }); })()
         : getOpenAI();
     if (!openai) throw new Error('OpenAI não configurado');
 
     const hoje = new Date().toISOString().split('T')[0];
-    const systemWithDate = `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${carregarInstrucoesCustom()}`;
+    const ctxExtra = ctxSistema ? `\n\nContexto do sistema do usuário:\n${ctxSistema}` : '';
+    const systemWithDate = `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${ctxExtra}${carregarInstrucoesCustom()}`;
 
     const messages = [
         { role: 'system', content: systemWithDate },
@@ -89,11 +90,12 @@ async function parsearComOpenAI(texto, contextoConversa = [], apiKeyOverride) {
 }
 
 // ── PARSER COM GEMINI ─────────────────────────────────────────────
-async function parsearComGemini(texto, contextoConversa = [], apiKey) {
+async function parsearComGemini(texto, contextoConversa = [], apiKey, ctxSistema = '') {
     if (!apiKey) throw new Error('Gemini API key não configurada');
     const fetch = require('node-fetch');
     const hoje = new Date().toISOString().split('T')[0];
-    const prompt = `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${carregarInstrucoesCustom()}\n\nTexto do usuário: ${texto}`;
+    const ctxExtra = ctxSistema ? `\n\nContexto do sistema do usuário:\n${ctxSistema}` : '';
+    const prompt = `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${ctxExtra}${carregarInstrucoesCustom()}\n\nTexto do usuário: ${texto}`;
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     const body = {
@@ -110,16 +112,17 @@ async function parsearComGemini(texto, contextoConversa = [], apiKey) {
 }
 
 // ── PARSER COM CLAUDE ─────────────────────────────────────────────
-async function parsearComClaude(texto, contextoConversa = [], apiKey) {
+async function parsearComClaude(texto, contextoConversa = [], apiKey, ctxSistema = '') {
     if (!apiKey) throw new Error('Anthropic API key não configurada');
     const Anthropic = require('@anthropic-ai/sdk');
     const client = new Anthropic({ apiKey });
     const hoje = new Date().toISOString().split('T')[0];
+    const ctxExtra = ctxSistema ? `\n\nContexto do sistema do usuário:\n${ctxSistema}` : '';
 
     const response = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 500,
-        system: `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${carregarInstrucoesCustom()}\n\nResponda APENAS com JSON válido.`,
+        system: `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${ctxExtra}${carregarInstrucoesCustom()}\n\nResponda APENAS com JSON válido.`,
         messages: [{ role: 'user', content: texto }]
     });
 
@@ -311,7 +314,7 @@ function detectarIntencao(texto) {
  * @param {{ provider: string, apiKey: string }} providerConfig - Config do usuário
  * @returns {Object} { dados, metodo, intencao }
  */
-async function parsearDespesa(texto, contextoConversa = [], forcarHeuristica = false, providerConfig = null) {
+async function parsearDespesa(texto, contextoConversa = [], forcarHeuristica = false, providerConfig = null, ctxSistema = '') {
     const intencao = detectarIntencao(texto);
 
     let dados = null;
@@ -320,13 +323,13 @@ async function parsearDespesa(texto, contextoConversa = [], forcarHeuristica = f
     if (!forcarHeuristica && providerConfig?.provider && providerConfig.provider !== 'gen') {
         try {
             if (providerConfig.provider === 'openai') {
-                dados = await parsearComOpenAI(texto, contextoConversa, providerConfig.apiKey);
+                dados = await parsearComOpenAI(texto, contextoConversa, providerConfig.apiKey, ctxSistema);
                 metodo = 'openai';
             } else if (providerConfig.provider === 'gemini') {
-                dados = await parsearComGemini(texto, contextoConversa, providerConfig.apiKey);
+                dados = await parsearComGemini(texto, contextoConversa, providerConfig.apiKey, ctxSistema);
                 metodo = 'gemini';
             } else if (providerConfig.provider === 'claude') {
-                dados = await parsearComClaude(texto, contextoConversa, providerConfig.apiKey);
+                dados = await parsearComClaude(texto, contextoConversa, providerConfig.apiKey, ctxSistema);
                 metodo = 'claude';
             }
         } catch (err) {
@@ -336,7 +339,7 @@ async function parsearDespesa(texto, contextoConversa = [], forcarHeuristica = f
     } else if (!forcarHeuristica && getOpenAI()) {
         // fallback para chave env do servidor
         try {
-            dados = await parsearComOpenAI(texto, contextoConversa);
+            dados = await parsearComOpenAI(texto, contextoConversa, undefined, ctxSistema);
             metodo = 'openai';
         } catch (err) {
             console.warn('⚠️ OpenAI falhou, usando Gen:', err.message);
@@ -358,10 +361,11 @@ async function parsearDespesa(texto, contextoConversa = [], forcarHeuristica = f
  * @param {Array} historico
  * @param {{ provider: string, apiKey: string }} providerConfig
  */
-async function responderPerguntaFinanceira(pergunta, dadosFinanceiros, historico = [], providerConfig = null) {
+async function responderPerguntaFinanceira(pergunta, dadosFinanceiros, historico = [], providerConfig = null, ctxSistema = '') {
     const hoje = new Date().toISOString().split('T')[0];
-    const resumo = JSON.stringify(dadosFinanceiros, null, 2).substring(0, 3000);
-    const systemMsg = `Você é um assistente financeiro pessoal. Responda de forma clara, concisa e em português brasileiro.\nData de hoje: ${hoje}\nDados financeiros do usuário:\n${resumo}\n\nResponda em no máximo 3 frases. Use R$ para valores monetários. Seja direto.`;
+    const resumo = JSON.stringify(dadosFinanceiros, null, 2).substring(0, 2000);
+    const ctxExtra = ctxSistema ? `\nContexto adicional do sistema:\n${ctxSistema}\n` : '';
+    const systemMsg = `Você é um assistente financeiro pessoal. Responda de forma clara, concisa e em português brasileiro.\nData de hoje: ${hoje}\n${ctxExtra}\nDados financeiros do usuário:\n${resumo}\n\nResponda em no máximo 3 frases. Use R$ para valores monetários. Seja direto.`;
 
     const provider = providerConfig?.provider;
     const apiKey   = providerConfig?.apiKey;

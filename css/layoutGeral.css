@@ -964,7 +964,6 @@ textarea:focus {
 .dashboard-section,
 .meses-section,
 .relatorios-section,
-.fin-sights-section,
 .config-section {
     display: none;
     animation: fadeIn var(--transition-base);
@@ -982,7 +981,6 @@ textarea:focus {
 .dashboard-section.active,
 .meses-section.active,
 .relatorios-section.active,
-.fin-sights-section.active,
 .config-section.active {
     display: block;
     flex: 1;
@@ -1244,7 +1242,7 @@ textarea:focus {
     background: rgba(10, 10, 20, 0.75);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    z-index: 2147483644;
+    z-index: 10000;
     display: none;
 }
 
@@ -1255,7 +1253,7 @@ textarea:focus {
 #modal-lock-screen {
     position: fixed;
     inset: 0;
-    z-index: 2147483645;
+    z-index: 10001;
     display: none;
     align-items: flex-start;
     justify-content: center;

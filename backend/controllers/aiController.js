@@ -19,10 +19,11 @@ const sessoes = new Map();
 function obterSessao(usuarioId) {
     if (!sessoes.has(usuarioId)) {
         sessoes.set(usuarioId, {
-            historico: [], // formato OpenAI: [{role, content}]
+            historico: [],
             despesaParcial: null,
             esperandoCampo: null,
             ultimaAcao: null,
+            contextoSistema: null,      // { texto, expira }
         });
     }
     return sessoes.get(usuarioId);
@@ -113,6 +114,61 @@ async function buscarResumoFinanceiro(usuarioId, mes, ano) {
     }
 }
 
+// ── HELPER: Constrói contexto do sistema para enriquecer a IA ────
+const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+async function buscarContextoSistema(usuarioId, mes, ano) {
+    const hoje = new Date();
+    const m = mes ?? hoje.getMonth();
+    const a = ano ?? hoje.getFullYear();
+
+    try {
+        const [categorias, cartoes, despesasMes, receitasMes, despesasRecentes] = await Promise.all([
+            buscarCategorias(usuarioId),
+            buscarCartoes(usuarioId),
+            query(
+                `SELECT SUM(valor) as total,
+                        (SELECT nome FROM categorias c WHERE c.id = d.categoria_id) as categoria
+                 FROM despesas d
+                 WHERE usuario_id = $1 AND mes = $2 AND ano = $3
+                 GROUP BY categoria_id ORDER BY total DESC LIMIT 5`,
+                [usuarioId, m, a]
+            ),
+            query(
+                'SELECT SUM(valor) as total FROM receitas WHERE usuario_id = $1 AND mes = $2 AND ano = $3',
+                [usuarioId, m, a]
+            ),
+            query(
+                `SELECT descricao, valor FROM despesas
+                 WHERE usuario_id = $1 AND mes = $2 AND ano = $3
+                 ORDER BY criado_em DESC LIMIT 8`,
+                [usuarioId, m, a]
+            )
+        ]);
+
+        const totalDespesas = despesasMes.rows.reduce((s, r) => s + parseFloat(r.total || 0), 0);
+        const totalReceitas = parseFloat(receitasMes.rows[0]?.total || 0);
+
+        const linhas = [
+            `Período atual: ${MESES[m]}/${a}`,
+            `Categorias cadastradas: ${categorias.map(c => c.nome).join(', ') || 'nenhuma'}`,
+            `Cartões do usuário: ${cartoes.map(c => c.nome).join(', ') || 'nenhum'}`,
+            `Resumo do mês: Receitas R$ ${totalReceitas.toFixed(2)} | Despesas R$ ${totalDespesas.toFixed(2)} | Saldo R$ ${(totalReceitas - totalDespesas).toFixed(2)}`,
+        ];
+
+        if (despesasMes.rows.length > 0) {
+            linhas.push(`Gastos por categoria: ${despesasMes.rows.map(r => `${r.categoria || 'Outros'} R$ ${parseFloat(r.total).toFixed(2)}`).join(', ')}`);
+        }
+        if (despesasRecentes.rows.length > 0) {
+            linhas.push(`Despesas já registradas este mês: ${despesasRecentes.rows.map(r => `"${r.descricao}" R$ ${parseFloat(r.valor).toFixed(2)}`).join(', ')}`);
+        }
+
+        return linhas.join('\n');
+    } catch {
+        return '';
+    }
+}
+
 // ================================================================
 // POST /api/ai/chat
 // Endpoint principal do assistente conversacional
@@ -120,7 +176,7 @@ async function buscarResumoFinanceiro(usuarioId, mes, ano) {
 async function chat(req, res) {
     try {
         const usuarioId = req.usuario.id;
-        const { mensagem, limpar_sessao } = req.body;
+        const { mensagem, limpar_sessao, mes_atual, ano_atual } = req.body;
 
         if (!mensagem?.trim()) {
             return res.status(400).json({ success: false, message: 'Mensagem não pode estar vazia.' });
@@ -130,6 +186,14 @@ async function chat(req, res) {
 
         const sessao = obterSessao(usuarioId);
         const providerConfig = await buscarConfigIA(usuarioId);
+
+        // ── Contexto do sistema (cache de 5 min) ────────────────
+        const agora = Date.now();
+        if (!sessao.contextoSistema || agora > sessao.contextoSistema.expira) {
+            const texto = await buscarContextoSistema(usuarioId, mes_atual, ano_atual);
+            sessao.contextoSistema = { texto, expira: agora + 5 * 60 * 1000 };
+        }
+        const ctxSistema = sessao.contextoSistema.texto;
 
         // Adiciona ao histórico
         sessao.historico.push({ role: 'user', content: mensagem });
@@ -203,7 +267,7 @@ async function chat(req, res) {
 
         if (intencao === 'analise') {
             const resumo = await buscarResumoFinanceiro(usuarioId);
-            resposta = await responderPerguntaFinanceira(mensagem, resumo, sessao.historico.slice(-6), providerConfig);
+            resposta = await responderPerguntaFinanceira(mensagem, resumo, sessao.historico.slice(-6), providerConfig, ctxSistema);
             sessao.historico.push({ role: 'assistant', content: resposta });
             return res.json({ success: true, resposta, acao: 'analise', dados: resumo });
         }
@@ -211,7 +275,7 @@ async function chat(req, res) {
         // ── Parseia despesa ─────────────────────────────────────
         let parsedResult;
         try {
-            parsedResult = await parsearDespesa(mensagem, sessao.historico, false, providerConfig);
+            parsedResult = await parsearDespesa(mensagem, sessao.historico, false, providerConfig, ctxSistema);
         } catch (err) {
             parsedResult = { dados: null, metodo: 'erro', intencao: 'despesa' };
         }
