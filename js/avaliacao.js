@@ -154,7 +154,14 @@ carregarAvaliacoesReais(); // Atualiza em background sem bloquear
     let estrelaSelecionada = 0;
     const labels = ['', 'Ruim', 'Regular', 'Bom', 'Muito bom', 'Excelente!'];
 
-    // Só faz sentido rodar em app.html onde o modal existe
+    // Expõe globalmente antes de qualquer guard para que o botão funcione
+    window.abrirModalAvaliacao = function () {
+        const modal = document.getElementById('modal-avaliacao');
+        if (!modal) return;
+        exibirModalAvaliacao();
+    };
+
+    // Só inicializa o resto em app.html onde o modal existe
     if (!document.getElementById('modal-avaliacao') && document.readyState !== 'loading') return;
 
     // ----------------------------------------------------------------
@@ -334,7 +341,6 @@ carregarAvaliacoesReais(); // Atualiza em background sem bloquear
     // Expor globalmente para que main.js possa chamar após sistemaReady
     // ----------------------------------------------------------------
     window.inicializarAvaliacaoApp = inicializarAvaliacaoApp;
-    window.abrirModalAvaliacao = exibirModalAvaliacao;
 
     // Disparar APENAS em app.html, após o sistema estar pronto.
     // Escuta o evento custom que main.js emite ao fim de iniciarSistema().
