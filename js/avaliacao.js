@@ -154,11 +154,43 @@ carregarAvaliacoesReais(); // Atualiza em background sem bloquear
     let estrelaSelecionada = 0;
     const labels = ['', 'Ruim', 'Regular', 'Bom', 'Muito bom', 'Excelente!'];
 
+    // Só faz sentido rodar em app.html onde o modal existe
+    if (!document.getElementById('modal-avaliacao') && document.readyState !== 'loading') return;
+
+    // ----------------------------------------------------------------
+    // Chave localStorage user-specific para evitar conflito entre users
+    // ----------------------------------------------------------------
+    function getUserId() {
+        try {
+            const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+            if (!token) return 'anon';
+            // JWT payload é o segundo segmento, base64url-encoded
+            const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+            return payload.id || payload.userId || payload.sub || 'anon';
+        } catch {
+            return 'anon';
+        }
+    }
+
+    function chaveDispensado() { return `avaliacao_dispensada_${getUserId()}`; }
+    function chaveFeita()      { return `avaliacao_feita_${getUserId()}`; }
+
+    // ----------------------------------------------------------------
+    // Inicialização — chamada UMA VEZ após sistema estar pronto
+    // ----------------------------------------------------------------
     async function inicializarAvaliacaoApp() {
-        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+        // Apenas executa se o modal existe na página (app.html)
+        if (!document.getElementById('modal-avaliacao')) return;
+
+        // Token: sessionStorage tem prioridade (sessão atual); localStorage é "lembrar"
+        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
         if (!token) return;
 
-        const dispensado = localStorage.getItem('avaliacao_dispensada');
+        // Guard local: já avaliou neste browser
+        if (localStorage.getItem(chaveFeita())) return;
+
+        // Guard local: dispensado recentemente (7 dias)
+        const dispensado = localStorage.getItem(chaveDispensado());
         if (dispensado) {
             const dias = (Date.now() - parseInt(dispensado)) / (1000 * 60 * 60 * 24);
             if (dias < 7) return;
@@ -170,10 +202,18 @@ carregarAvaliacoesReais(); // Atualiza em background sem bloquear
             });
             if (!response.ok) return;
             const data = await response.json();
-            if (data.success && data.data.deveExibir) {
-                setTimeout(exibirModalAvaliacao, 3000);
+
+            if (data.success) {
+                // Se backend confirma que já avaliou, salvar guard local e sair
+                if (data.data.jaAvaliou) {
+                    localStorage.setItem(chaveFeita(), '1');
+                    return;
+                }
+                if (data.data.deveExibir) {
+                    setTimeout(exibirModalAvaliacao, 3000);
+                }
             }
-        } catch { /* silencioso */ }
+        } catch { /* silencioso — não prejudica a experiência */ }
     }
 
     function exibirModalAvaliacao() {
@@ -244,7 +284,7 @@ carregarAvaliacoesReais(); // Atualiza em background sem bloquear
             return;
         }
 
-        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
         if (!token) return;
 
         btnEnviar.disabled = true;
@@ -262,6 +302,9 @@ carregarAvaliacoesReais(); // Atualiza em background sem bloquear
             const data = await response.json();
             if (!response.ok) throw new Error(data.message || 'Erro ao enviar avaliação');
 
+            // Marcar como feita localmente para não perguntar de novo
+            localStorage.setItem(chaveFeita(), '1');
+
             sucessoEl.textContent = '✅ Obrigado pela sua avaliação! Ela já está visível na home.';
             sucessoEl.style.display = 'block';
             document.getElementById('btn-enviar-avaliacao').style.display = 'none';
@@ -277,7 +320,8 @@ carregarAvaliacoesReais(); // Atualiza em background sem bloquear
     }
 
     function dispensarAvaliacao() {
-        localStorage.setItem('avaliacao_dispensada', Date.now().toString());
+        // Chave user-specific: não bloqueia outros usuários no mesmo browser
+        localStorage.setItem(chaveDispensado(), Date.now().toString());
         fecharModal();
     }
 
@@ -286,11 +330,18 @@ carregarAvaliacoesReais(); // Atualiza em background sem bloquear
         if (modal) modal.style.display = 'none';
     }
 
+    // ----------------------------------------------------------------
+    // Expor globalmente para que main.js possa chamar após sistemaReady
+    // ----------------------------------------------------------------
     window.inicializarAvaliacaoApp = inicializarAvaliacaoApp;
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', inicializarAvaliacaoApp);
-    } else {
-        inicializarAvaliacaoApp();
+    // Disparar APENAS em app.html, após o sistema estar pronto.
+    // Escuta o evento custom que main.js emite ao fim de iniciarSistema().
+    // Se o evento já foi disparado antes deste script carregar (improvável mas
+    // possível), usa DOMContentLoaded como fallback.
+    if (document.getElementById('modal-avaliacao')) {
+        window.addEventListener('sistemaFinanceiroReady', () => {
+            inicializarAvaliacaoApp();
+        }, { once: true });
     }
 })();

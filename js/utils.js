@@ -622,16 +622,17 @@ window.utilsCarregado = true;
             if (e.target.closest('.ai-panel-header') && !e.target.closest('button')) {
                 var panel = document.getElementById('ai-chat-panel');
                 if (panel) {
+                    var panelHeader = e.target.closest('.ai-panel-header');
                     var pr = panel.getBoundingClientRect();
                     panel.style.position  = 'fixed';
-                    panel.style.transform = 'none';   // remove translate(-50%,-50%) do centramento
+                    panel.style.transform = 'none';
+                    panel.style.top       = pr.top  + 'px';
+                    panel.style.left      = pr.left + 'px';
                     panel.style.bottom    = 'auto';
                     panel.style.right     = 'auto';
-                    panel.style.left      = pr.left + 'px';
-                    panel.style.top       = pr.top  + 'px';
                     var pox = e.clientX - pr.left;
                     var poy = e.clientY - pr.top;
-                    e.target.closest('.ai-panel-header').classList.add('dragging');
+                    panelHeader.classList.add('dragging');
                     function pMove(ev) {
                         var l = Math.max(0, Math.min(window.innerWidth  - panel.offsetWidth,  ev.clientX - pox));
                         var t = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, ev.clientY - poy));
@@ -639,7 +640,7 @@ window.utilsCarregado = true;
                         panel.style.top  = t + 'px';
                     }
                     function pUp() {
-                        e.target.closest('.ai-panel-header')?.classList.remove('dragging');
+                        panelHeader.classList.remove('dragging');
                         document.removeEventListener('mousemove', pMove);
                         document.removeEventListener('mouseup',   pUp);
                     }
@@ -652,8 +653,8 @@ window.utilsCarregado = true;
 
             var header = e.target.closest('.modal-header');
             if (!header) return;
-            // Não arrastar se clicou em qualquer botão do header
-            if (e.target.closest('button')) return;
+            // Não arrastar se clicou em botão, link ou elemento interativo
+            if (e.target.closest('button, a, input, select, .header-navigation')) return;
             var content = header.closest('.modal-content');
             if (!content) return;
 

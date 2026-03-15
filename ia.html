@@ -316,75 +316,45 @@
 
 <!-- Templates: Chat da Gen IA -->
 <template id="template-ia-msg-user">
-    <div class="ai-msg ai-msg--user">
-        <div class="ai-msg-bub">
-            <span class="ia-msg-texto"></span>
-            <span class="ai-msg-time"></span>
-        </div>
-    </div>
+<div class="ai-msg ai-msg--user"><div class="ai-msg-bub"><span class="ia-msg-texto"></span><span class="ai-msg-time"></span></div></div>
 </template>
 <template id="template-ia-msg-gen">
-    <div class="ai-msg ai-msg--ai">
-        <div class="ai-msg-bub">
-            <span class="ia-msg-conteudo"></span>
-            <span class="ai-msg-time"></span>
-        </div>
-    </div>
+<div class="ai-msg ai-msg--ai"><div class="ai-msg-bub"><span class="ia-msg-conteudo"></span><span class="ai-msg-time"></span></div></div>
 </template>
 <template id="template-ia-typing">
-    <div class="ai-msg ai-msg--ai">
-        <div class="ai-msg-bub">
-            <div class="ai-typing"><span></span><span></span><span></span></div>
-        </div>
-    </div>
+<div class="ai-msg ai-msg--ai"><div class="ai-msg-bub"><div class="ai-typing"><span></span><span></span><span></span></div></div></div>
 </template>
 <template id="template-ia-card-despesa">
-    <div class="ai-msg ai-msg--ai">
-        <div class="ai-msg-bub">
-            <span class="ia-card-intro"></span>
-            <div class="ai-despesa-card">
-                <div class="ai-dc-row"><span class="ai-dc-label">Descrição</span><span class="ai-dc-val dc-descricao"></span></div>
-                <div class="ai-dc-row dc-row-valor"><span class="ai-dc-label">Valor</span><span class="ai-dc-valor dc-valor"></span></div>
-                <div class="ai-dc-row dc-row-valor-total" hidden><span class="ai-dc-label">Valor total</span><span class="ai-dc-valor dc-valor-total"></span></div>
-                <div class="ai-dc-row dc-row-parcelas" hidden><span class="ai-dc-label">Parcelas</span><span class="ai-dc-val dc-parcelas"></span></div>
-                <div class="ai-dc-row"><span class="ai-dc-label">Forma de pagamento</span><span class="ai-dc-val dc-forma"></span></div>
-                <div class="ai-dc-row dc-row-cartao" hidden><span class="ai-dc-label">Cartão</span><span class="ai-dc-val dc-cartao"></span></div>
-                <div class="ai-dc-row"><span class="ai-dc-label">Categoria</span><span class="ai-dc-val dc-categoria"></span></div>
-                <div class="ai-dc-row dc-row-data-compra" hidden><span class="ai-dc-label">Data de compra</span><span class="ai-dc-val dc-data-compra"></span></div>
-                <div class="ai-dc-row dc-row-vencimento" hidden><span class="ai-dc-label">Vencimento</span><span class="ai-dc-val dc-vencimento"></span></div>
-                <div class="ai-dc-row dc-row-mes" hidden><span class="ai-dc-label">Mês de registro</span><span class="ai-dc-val dc-mes"></span></div>
-                <div class="ai-dc-row"><span class="ai-dc-label">Já pago</span><span class="ai-dc-val dc-ja-pago"></span></div>
-                <div class="ai-dc-row dc-row-recorrente" hidden><span class="ai-dc-label">Recorrente</span><span class="ai-dc-val">Sim</span></div>
-                <div class="ai-dc-row dc-row-replicar" hidden><span class="ai-dc-label">Replicar até</span><span class="ai-dc-val dc-replicar"></span></div>
-            </div>
-            <p class="ai-card-pergunta">Quer revisar algum dado antes de salvar?</p>
-            <div class="ai-msg-btns">
-                <button class="ai-msg-btn-ok" data-action="confirmar-despesa">Não, salvar</button>
-                <button class="ai-msg-btn-edit" data-action="editar-despesa">Sim, revisar</button>
-                <button class="ai-msg-btn-danger" data-action="cancelar-despesa">Cancelar registro</button>
-            </div>
-            <span class="ai-msg-time"></span>
-        </div>
-    </div>
+<div class="ai-msg ai-msg--ai"><div class="ai-msg-bub"><span class="ia-card-intro"></span><div class="ai-despesa-card">
+    <div class="ai-dc-row"><span class="ai-dc-label">Descrição</span><span class="ai-dc-val dc-descricao"></span></div>
+    <div class="ai-dc-row dc-row-valor"><span class="ai-dc-label">Valor</span><span class="ai-dc-valor dc-valor"></span></div>
+    <div class="ai-dc-row dc-row-valor-total" hidden><span class="ai-dc-label">Valor total</span><span class="ai-dc-valor dc-valor-total"></span></div>
+    <div class="ai-dc-row dc-row-parcelas" hidden><span class="ai-dc-label">Parcelas</span><span class="ai-dc-val dc-parcelas"></span></div>
+    <div class="ai-dc-row"><span class="ai-dc-label">Forma de pagamento</span><span class="ai-dc-val dc-forma"></span></div>
+    <div class="ai-dc-row dc-row-cartao" hidden><span class="ai-dc-label">Cartão</span><span class="ai-dc-val dc-cartao"></span></div>
+    <div class="ai-dc-row"><span class="ai-dc-label">Categoria</span><span class="ai-dc-val dc-categoria"></span></div>
+    <div class="ai-dc-row dc-row-data-compra" hidden><span class="ai-dc-label">Data de compra</span><span class="ai-dc-val dc-data-compra"></span></div>
+    <div class="ai-dc-row dc-row-vencimento" hidden><span class="ai-dc-label">Vencimento</span><span class="ai-dc-val dc-vencimento"></span></div>
+    <div class="ai-dc-row dc-row-mes" hidden><span class="ai-dc-label">Mês de registro</span><span class="ai-dc-val dc-mes"></span></div>
+    <div class="ai-dc-row"><span class="ai-dc-label">Já pago</span><span class="ai-dc-val dc-ja-pago"></span></div>
+    <div class="ai-dc-row dc-row-recorrente" hidden><span class="ai-dc-label">Recorrente</span><span class="ai-dc-val">Sim</span></div>
+    <div class="ai-dc-row dc-row-replicar" hidden><span class="ai-dc-label">Replicar até</span><span class="ai-dc-val dc-replicar"></span></div>
+</div><p class="ai-card-pergunta">Quer revisar algum dado antes de salvar?</p><div class="ai-msg-btns">
+    <button class="ai-msg-btn-ok" data-action="confirmar-despesa">Não, salvar</button>
+    <button class="ai-msg-btn-edit" data-action="editar-despesa">Sim, revisar</button>
+    <button class="ai-msg-btn-danger" data-action="cancelar-despesa">Cancelar registro</button>
+</div><span class="ai-msg-time"></span></div></div>
 </template>
 <template id="template-ia-card-receita">
-    <div class="ai-msg ai-msg--ai">
-        <div class="ai-msg-bub">
-            <span class="ia-card-intro"></span>
-            <div class="ai-despesa-card">
-                <div class="ai-dc-row"><span class="ai-dc-label">Descrição</span><span class="ai-dc-val dc-descricao"></span></div>
-                <div class="ai-dc-row"><span class="ai-dc-label">Valor</span><span class="ai-dc-valor dc-valor"></span></div>
-                <div class="ai-dc-row dc-row-data" hidden><span class="ai-dc-label">Data</span><span class="ai-dc-val dc-data"></span></div>
-            </div>
-            <p class="ai-card-pergunta">Quer revisar algum dado antes de salvar?</p>
-            <div class="ai-msg-btns">
-                <button class="ai-msg-btn-ok" data-action="confirmar-receita">Não, salvar</button>
-                <button class="ai-msg-btn-edit" data-action="editar-receita">Sim, revisar</button>
-                <button class="ai-msg-btn-danger" data-action="cancelar-receita">Cancelar registro</button>
-            </div>
-            <span class="ai-msg-time"></span>
-        </div>
-    </div>
+<div class="ai-msg ai-msg--ai"><div class="ai-msg-bub"><span class="ia-card-intro"></span><div class="ai-despesa-card">
+    <div class="ai-dc-row"><span class="ai-dc-label">Descrição</span><span class="ai-dc-val dc-descricao"></span></div>
+    <div class="ai-dc-row"><span class="ai-dc-label">Valor</span><span class="ai-dc-valor dc-valor"></span></div>
+    <div class="ai-dc-row dc-row-data" hidden><span class="ai-dc-label">Data</span><span class="ai-dc-val dc-data"></span></div>
+</div><p class="ai-card-pergunta">Quer revisar algum dado antes de salvar?</p><div class="ai-msg-btns">
+    <button class="ai-msg-btn-ok" data-action="confirmar-receita">Não, salvar</button>
+    <button class="ai-msg-btn-edit" data-action="editar-receita">Sim, revisar</button>
+    <button class="ai-msg-btn-danger" data-action="cancelar-receita">Cancelar registro</button>
+</div><span class="ai-msg-time"></span></div></div>
 </template>
 
 <!-- JS -->

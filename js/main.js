@@ -859,39 +859,30 @@ function setupOutrosControles() {
         });
     }
 
-    const refreshBtn = document.getElementById('btn-refresh');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', async function(e) {
-            e.preventDefault();
-            const icon = this.querySelector('i');
-            icon.classList.add('fa-spin');
-
-            // Limpar cache do usuarioDataManager
-            if (window.usuarioDataManager && typeof window.usuarioDataManager.limparCache === 'function') {
-                window.usuarioDataManager.limparCache();
-            }
-
-            // Recarregar dados principais
-            await carregarDadosLocais();
-            await carregarDadosDashboard(anoAtual);
-
-            // Carregar em paralelo: meses (sem re-fetch), categorias, cartões, notificações
-            await Promise.all([
-                renderizarMeses(anoAtual, false),
-                typeof window.carregarCategoriasDoServidor === 'function' ? window.carregarCategoriasDoServidor() : Promise.resolve(),
-                typeof window.carregarCartoesDoServidor === 'function' ? window.carregarCartoesDoServidor() : Promise.resolve(),
-                typeof window.carregarNotificacoes === 'function' ? window.carregarNotificacoes() : Promise.resolve()
-            ]);
-
-            // Recarregar seção ativa
-            const secaoAtiva = document.querySelector('.nav-link.active')?.dataset.section;
-            if (secaoAtiva) {
-                onSecaoAtivada(secaoAtiva);
-            }
-
-            icon.classList.remove('fa-spin');
-        });
+    // Auto-atualização de dados
+    async function atualizarDados() {
+        if (window.usuarioDataManager && typeof window.usuarioDataManager.limparCache === 'function') {
+            window.usuarioDataManager.limparCache();
+        }
+        await carregarDadosLocais();
+        await carregarDadosDashboard(anoAtual);
+        await Promise.all([
+            renderizarMeses(anoAtual, false),
+            typeof window.carregarCategoriasDoServidor === 'function' ? window.carregarCategoriasDoServidor() : Promise.resolve(),
+            typeof window.carregarCartoesDoUsuario === 'function' ? window.carregarCartoesDoUsuario() : Promise.resolve(),
+            typeof window.carregarNotificacoes === 'function' ? window.carregarNotificacoes() : Promise.resolve()
+        ]);
+        const secaoAtiva = document.querySelector('.nav-link.active')?.dataset.section;
+        if (secaoAtiva) onSecaoAtivada(secaoAtiva);
     }
+
+    // Atualiza ao voltar para a aba
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') atualizarDados();
+    });
+
+    // Atualiza a cada 5 minutos em segundo plano
+    setInterval(atualizarDados, 5 * 60 * 1000);
 
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
@@ -1443,27 +1434,10 @@ function preencherConteudoMes(mesCard, mes, ano, saldo, fechado, temTransacoes) 
     
     const saldoValor = clone.querySelector('.mes-saldo-valor');
     const saldoContainer = clone.querySelector('.mes-saldo');
-    const saldoProjetadoContainer = clone.querySelector('.mes-saldo-projetado');
-    const saldoProjetadoValor = clone.querySelector('.mes-saldo-projetado-valor');
-
     if (fechado || ehUltimoMesProcessado(mes, ano)) {
         saldoValor.textContent = formatarMoeda(saldo.saldoFinal);
         saldoValor.className = `mes-saldo-valor ${saldo.saldoFinal >= 0 ? 'mes-saldo-positivo' : 'mes-saldo-negativo'}`;
         saldoContainer.style.display = 'block';
-
-        // Mostrar saldo projetado apenas se diferir do saldo real (há despesas não pagas)
-        const temDespesasNaoPagas = saldoProjetadoContainer &&
-            saldoProjetadoValor &&
-            saldo.saldoProjetado !== undefined &&
-            Math.round(saldo.saldoProjetado * 100) !== Math.round(saldo.saldoFinal * 100);
-
-        if (temDespesasNaoPagas) {
-            saldoProjetadoValor.textContent = formatarMoeda(saldo.saldoProjetado);
-            saldoProjetadoValor.className = `mes-saldo-projetado-valor ${saldo.saldoProjetado >= 0 ? 'mes-saldo-positivo' : 'mes-saldo-negativo'}`;
-            saldoProjetadoContainer.style.display = 'block';
-        } else if (saldoProjetadoContainer) {
-            saldoProjetadoContainer.style.display = 'none';
-        }
     } else {
         saldoContainer.style.display = 'none';
         if (saldoProjetadoContainer) saldoProjetadoContainer.style.display = 'none';

@@ -210,10 +210,10 @@
 .ai-messages {
     flex: 1;
     overflow-y: auto;
-    padding: 8px 6px;
+    padding: 6px 8px;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 2px;
     background: #f0f2f5;
     min-height: 200px;
 }
@@ -235,22 +235,25 @@
 .ai-msg-av { display: none; }
 
 .ai-msg-bub {
-    padding: 6px 10px 4px;
+    padding: 5px 9px 3px;
     font-size: 13px;
-    line-height: 1.45;
-    max-width: 88%;
+    line-height: 1.4;
+    max-width: 90%;
     min-width: 2em;
     width: fit-content;
     word-break: break-word;
     overflow-wrap: break-word;
-    white-space: pre-wrap;
+    white-space: normal;
     border-radius: 12px;
     box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
+/* Usuário: preservar quebras de linha digitadas */
+.ai-msg--user .ai-msg-bub { white-space: pre-wrap; }
+
 /* Mensagem que contém card: estica para usar o espaço */
 .ai-msg-bub:has(.ai-despesa-card) {
-    width: 92%;
+    width: 90%;
 }
 
 /* Bolha do usuário — direita, estilo WhatsApp verde */
@@ -274,18 +277,17 @@
     font-size: 9px;
     opacity: 0.5;
     text-align: right;
-    margin-top: 1px;
-    line-height: 1;
+    margin-top: 0;
+    line-height: 1.2;
 }
 /* Cartão de despesa dentro da mensagem */
 .ai-despesa-card {
     background: var(--bg-color, #f5f8ff);
     border: 1px solid var(--border-color,#ddd);
     border-radius: 8px;
-    padding: 5px 8px;
-    margin-top: 5px;
+    padding: 3px 7px;
+    margin-top: 4px;
     font-size: 12px;
-    /* Reseta pre-wrap do bubble para não criar linhas em branco entre os divs do template */
     white-space: normal;
 }
 .ai-despesa-card .ai-dc-row {
@@ -293,7 +295,7 @@
     justify-content: space-between;
     align-items: baseline;
     gap: 8px;
-    padding: 2px 0;
+    padding: 1px 0;
     border-bottom: 1px solid var(--border-color, #f0f0f0);
 }
 .ai-despesa-card .ai-dc-row:last-child { border-bottom: none; }
@@ -320,16 +322,18 @@
 .ai-msg-btns {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    margin-top: 8px;
+    gap: 4px;
+    margin-top: 5px;
 }
 .ai-msg-btns button {
-    padding: 4px 12px;
+    padding: 5px 12px;
     border-radius: 14px;
     font-size: 12px;
+    font-weight: 500;
     cursor: pointer;
     border: 1px solid;
     transition: all 0.15s;
+    text-align: center;
 }
 .ai-msg-btn-ok     { background:var(--success,#28a745); color:#fff; border-color:var(--success,#28a745); }
 .ai-msg-btn-edit   { background:transparent; border-color:var(--primary-color,#4361ee); color:var(--primary-color,#4361ee); }
@@ -341,7 +345,7 @@
 .ai-card-pergunta {
     font-size: 12px;
     color: var(--text-secondary, #6c757d);
-    margin: 8px 0 4px;
+    margin: 5px 0 3px;
     white-space: normal;
 }
 

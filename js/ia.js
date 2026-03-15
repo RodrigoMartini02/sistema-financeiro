@@ -784,10 +784,6 @@ window.IA = (function () {
                     return; // não avança a fila — aguarda o clique seguinte
                 }
                 d.forma_pagamento = _normForma(texto);
-                // Se crédito e sem cartão ainda, insere cartao_id na frente da fila
-                if ((d.forma_pagamento === 'cartao_credito') && !d.cartao_id && !_resolverCartaoPorNome(d.nome_cartao)) {
-                    estado.filaCampos.unshift('cartao_id');
-                }
                 break;
             case 'vencimento':
                 var dt = _normData(texto);
@@ -821,6 +817,13 @@ window.IA = (function () {
 
         estado.filaCampos.shift();
         estado.aguardandoCampo = null;
+        // Se forma_pagamento=crédito, insere cartao_id APÓS remover forma_pagamento da fila
+        if (campo === 'forma_pagamento') {
+            var _d = estado.dadosParciais;
+            if (_d && (_d.forma_pagamento === 'cartao_credito') && !_d.cartao_id && !_resolverCartaoPorNome(_d.nome_cartao)) {
+                estado.filaCampos.unshift('cartao_id');
+            }
+        }
         _proximoCampo();
     }
 
@@ -1471,9 +1474,11 @@ function salvarInstrucoesGen() {
     var input = document.getElementById('instrucoes-gen-input');
     var conteudo = input ? input.value.trim() : '';
     if (!conteudo) { mostrarToast('Escreva uma instrução antes de salvar.', 'warning'); return; }
-    fetch(apiURL() + '/ai/instrucoes', {
+    var url = (window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api') + '/ai/instrucoes';
+    var token = sessionStorage.getItem('token') || localStorage.getItem('token') || '';
+    fetch(url, {
         method: 'POST',
-        headers: hdrs(),
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
         body: JSON.stringify({ conteudo: conteudo })
     }).then(function (r) { return r.json(); }).then(function (res) {
         if (res && res.success) {
