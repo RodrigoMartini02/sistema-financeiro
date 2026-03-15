@@ -816,7 +816,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
     width: 100%;
     padding: 7px 10px;
     background: linear-gradient(135deg, #3b82f6, #6366f1);
@@ -831,13 +830,27 @@
     margin-bottom: 6px;
 }
 
-#btn-instrucoes-gen:hover {
-    opacity: 0.88;
+#btn-instrucoes-gen:hover { opacity: 0.88; }
+
+#btn-abrir-avaliacao {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 7px 10px;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    letter-spacing: 0.2px;
+    margin-bottom: 6px;
 }
 
-#btn-instrucoes-gen i {
-    font-size: 10px;
-}
+#btn-abrir-avaliacao:hover { opacity: 0.88; }
 
 /* Trial banner */
 #trial-banner {
