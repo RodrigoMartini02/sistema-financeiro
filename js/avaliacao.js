@@ -6,7 +6,7 @@ const reviewsEstaticas = [
     { text: '"O Fin-Gerence foi como ter um funcionário a mais. A produtividade e rentabilidade aumentaram."', author: "Dra. Mariana", stars: 5 },
     { text: '"Finalmente uma organização financeira que faz toda a diferença no meu dia a dia."', author: "Ricardo", stars: 5 },
     { text: '"A versão PWA é fantástica. Rápida, leve e intuitiva como um app nativo."', author: "Marcos", stars: 5 },
-    { text: '"O melhor suporte que já tive. O sistema resolveu todos os meus problemas de fluxo."', author: "Dra. Carla", stars: 5 },
+    { text: '"O melhor suporte que já tive. O sistema resolveu todos os meus problemas de fluxo."', author: "Dra. Ana", stars: 5 },
     { text: '"Controle total das despesas na palma da mão. Recomendo!"', author: "Lucas", stars: 5 },
     { text: '"Interface limpa e intuitiva. O melhor para pequenas empresas."', author: "Dr. André", stars: 4 },
     { text: '"Mudou minha relação com o dinheiro. Agora sei exatamente para onde vai meu lucro."', author: "Roberto", stars: 5 },
