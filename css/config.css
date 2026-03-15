@@ -951,6 +951,7 @@
 .tabela-cartoes {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed;
 }
 
 .tabela-cartoes th {

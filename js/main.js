@@ -793,16 +793,6 @@ function setupToolbarButtons() {
         });
     }
 
-    // Botão Reservas na toolbar
-    const btnReservasToolbar = document.getElementById('btn-reservas-toolbar');
-    if (btnReservasToolbar) {
-        btnReservasToolbar.addEventListener('click', function(e) {
-            e.preventDefault();
-            if (typeof window.abrirModalReservarValor === 'function') {
-                window.abrirModalReservarValor();
-            }
-        });
-    }
 }
 
 // Função de atualização do contador da toolbar (usada pelo despesas.js)
@@ -1969,11 +1959,35 @@ function atualizarElementosDashboard(dados) {
     atualizarElemento('dashboard-total-despesas', formatarMoeda(dados.totalDespesas));
     atualizarElemento('dashboard-total-juros', formatarMoeda(dados.totalJuros || 0));
     atualizarElemento('dashboard-total-economias', formatarMoeda(dados.totalEconomias || 0));
-    
+
     const saldoElement = document.getElementById('dashboard-saldo-anual');
     if (saldoElement) {
         saldoElement.textContent = formatarMoeda(dados.saldo);
         saldoElement.className = 'card-value ' + (dados.saldo >= 0 ? 'saldo-positivo' : 'saldo-negativo');
+    }
+
+    // Atualizar card SALDO ATUAL — saldo real do mês aberto (deduzindo reservas)
+    const saldoAtualElement = document.getElementById('dashboard-saldo-atual');
+    if (saldoAtualElement) {
+        if (window.mesAberto !== null && window.mesAberto !== undefined &&
+            window.anoAberto !== null && window.anoAberto !== undefined) {
+            const saldoMes = typeof window.calcularSaldoMes === 'function'
+                ? window.calcularSaldoMes(window.mesAberto, window.anoAberto)
+                : { saldoFinal: 0 };
+            const reservas = typeof window.calcularMovimentacoesReservasAcumuladas === 'function'
+                ? window.calcularMovimentacoesReservasAcumuladas(window.mesAberto, window.anoAberto)
+                : (typeof window.calcularTotalReservasAcumuladas === 'function'
+                    ? window.calcularTotalReservasAcumuladas(window.mesAberto, window.anoAberto)
+                    : 0);
+            const saldoAtual = (saldoMes.saldoFinal || 0) - (reservas || 0);
+            saldoAtualElement.textContent = formatarMoeda(saldoAtual);
+            saldoAtualElement.className = 'card-value ' + (saldoAtual >= 0 ? 'saldo-positivo' : 'saldo-negativo');
+            saldoAtualElement.style.color = saldoAtual >= 0 ? '#8b5cf6' : '#dc3545';
+        } else {
+            saldoAtualElement.textContent = formatarMoeda(0);
+            saldoAtualElement.className = 'card-value';
+            saldoAtualElement.style.color = '#8b5cf6';
+        }
     }
 }
 
@@ -3069,6 +3083,113 @@ function iniciarAtualizacaoCotacoes() {
 
 // IMPORTANTE: Chame a função para ela começar a rodar!
 document.addEventListener('DOMContentLoaded', iniciarAtualizacaoCotacoes);
+
+// ================================================================
+// COFRE — ACESSO COM SENHA
+// ================================================================
+
+/**
+ * Abre o Cofre (modal de reservas), pedindo senha antes se necessário.
+ * Se localStorage.cofre_senha_desabilitada === 'true', abre direto.
+ */
+function abrirCofre() {
+    if (localStorage.getItem('cofre_senha_desabilitada') === 'true') {
+        _abrirModalCofreInterno();
+    } else {
+        const inputSenha = document.getElementById('input-senha-cofre');
+        const erroEl = document.getElementById('erro-senha-cofre');
+        const modal = document.getElementById('modal-senha-cofre');
+        if (!modal) { _abrirModalCofreInterno(); return; }
+        if (inputSenha) inputSenha.value = '';
+        if (erroEl) { erroEl.style.display = 'none'; erroEl.textContent = ''; }
+        modal.style.display = 'flex';
+        setTimeout(() => { if (inputSenha) inputSenha.focus(); }, 100);
+    }
+}
+
+function _abrirModalCofreInterno() {
+    if (typeof window.abrirModalReservarValor === 'function') {
+        window.abrirModalReservarValor();
+    }
+    // Sincronizar checkbox ao abrir
+    const chk = document.getElementById('chk-desabilitar-senha-cofre');
+    if (chk) chk.checked = localStorage.getItem('cofre_senha_desabilitada') === 'true';
+}
+
+window.abrirCofre = abrirCofre;
+
+// Inicializar eventos do modal senha do cofre
+document.addEventListener('DOMContentLoaded', function() {
+    const modalSenhaCofre = document.getElementById('modal-senha-cofre');
+    const inputSenhaCofre = document.getElementById('input-senha-cofre');
+    const erroSenhaCofre = document.getElementById('erro-senha-cofre');
+    const btnConfirmar = document.getElementById('btn-confirmar-senha-cofre');
+    const btnCancelar = document.getElementById('btn-cancelar-senha-cofre');
+    const btnFechar = document.getElementById('btn-fechar-senha-cofre');
+
+    function fecharModalSenhaCofre() {
+        if (modalSenhaCofre) modalSenhaCofre.style.display = 'none';
+    }
+
+    async function tentarEntrarCofre() {
+        const senha = inputSenhaCofre ? inputSenhaCofre.value : '';
+        if (!senha) {
+            if (erroSenhaCofre) { erroSenhaCofre.textContent = 'Digite sua senha.'; erroSenhaCofre.style.display = 'block'; }
+            return;
+        }
+
+        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+        try {
+            const response = await fetch(`${API_URL}/auth/verify-password`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ senha })
+            });
+            const resultado = await response.json();
+
+            if (resultado.success) {
+                fecharModalSenhaCofre();
+                _abrirModalCofreInterno();
+            } else {
+                if (erroSenhaCofre) { erroSenhaCofre.textContent = 'Senha incorreta. Tente novamente.'; erroSenhaCofre.style.display = 'block'; }
+                if (inputSenhaCofre) { inputSenhaCofre.value = ''; inputSenhaCofre.focus(); }
+            }
+        } catch (err) {
+            if (erroSenhaCofre) { erroSenhaCofre.textContent = 'Erro ao verificar senha.'; erroSenhaCofre.style.display = 'block'; }
+        }
+    }
+
+    if (btnConfirmar) btnConfirmar.addEventListener('click', tentarEntrarCofre);
+    if (btnCancelar) btnCancelar.addEventListener('click', fecharModalSenhaCofre);
+    if (btnFechar) btnFechar.addEventListener('click', fecharModalSenhaCofre);
+
+    if (inputSenhaCofre) {
+        inputSenhaCofre.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') tentarEntrarCofre();
+        });
+    }
+
+    if (modalSenhaCofre) {
+        modalSenhaCofre.addEventListener('click', function(e) {
+            if (e.target === modalSenhaCofre) fecharModalSenhaCofre();
+        });
+    }
+
+    // Checkbox desabilitar senha
+    const chkDesabilitar = document.getElementById('chk-desabilitar-senha-cofre');
+    if (chkDesabilitar) {
+        chkDesabilitar.addEventListener('change', function() {
+            if (this.checked) {
+                localStorage.setItem('cofre_senha_desabilitada', 'true');
+            } else {
+                localStorage.removeItem('cofre_senha_desabilitada');
+            }
+        });
+    }
+});
 
 // Executar quando DOM estiver pronto
 document.addEventListener('DOMContentLoaded', configurarEventListeners);

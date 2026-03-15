@@ -144,6 +144,9 @@
                 <span>Acesso expirado</span>
                 <button onclick="abrirModalPlanos()">Renovar</button>
             </div>
+            <button id="btn-cofre-sidebar" onclick="abrirCofre()" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;margin-bottom:6px;cursor:pointer;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;width:100%;justify-content:center">
+                <i class="fas fa-piggy-bank"></i> Cofre
+            </button>
             <button id="btn-abrir-avaliacao" onclick="abrirModalAvaliacao()">Avaliação</button>
             <button id="btn-instrucoes-gen" onclick="abrirModalInstrucoesGen()">Instruções da Gen</button>
             <button id="btn-upgrade" style="display:none" onclick="abrirModalPlanos()">
@@ -334,7 +337,15 @@
                     <span>SALDO ANO</span>
                 </div>
                 <div class="card-value" id="dashboard-saldo-anual">R$ 0,00</div>
-                <div class="card-footer">Receitas - despesas do ano</div>
+                <div class="card-footer">Saldo projetado do ano</div>
+            </div>
+            <div class="card card-saldo-atual">
+                <div class="card-header">
+                    <i class="fas fa-wallet"></i>
+                    <span>SALDO ATUAL</span>
+                </div>
+                <div class="card-value" id="dashboard-saldo-atual">R$ 0,00</div>
+                <div class="card-footer">Saldo real disponível</div>
             </div>
             <div class="card card-juros">
                 <div class="card-header">
@@ -1845,9 +1856,6 @@
                         <button id="btn-pagar-lote-toolbar" class="btn btn-secondary btn-sm" disabled title="Pagar em Lote">
                             <i class="fas fa-check-circle"></i> Lote
                         </button>
-                        <button id="btn-reservas-toolbar" class="btn btn-secondary btn-sm" title="Reservas">
-                            <i class="fas fa-piggy-bank"></i>
-                        </button>
                         <span class="toolbar-divider"></span>
                     </div>
                 </div>
@@ -2099,26 +2107,26 @@
     </div>
 </div>
 
-<!-- Modal Reservas -->
+<!-- Modal Reservas (Cofre) -->
 <div id="modal-reservar-valor" class="modal">
     <div class="modal-content modal-reservas">
         <div class="modal-header">
-            <h2><i class="fas fa-piggy-bank"></i> Reservas</h2>
+            <h2><i class="fas fa-piggy-bank"></i> Cofre</h2>
             <button type="button" class="close" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
-            <!-- Lista de Reservas com campo inline para +/- valor -->
-            <div class="reservas-lista-simples" id="lista-reservas">
-                <!-- Reservas serão inseridas aqui -->
-            </div>
-
-            <!-- Nova Reserva -->
+            <!-- Formulário de criação (TOPO) -->
             <div class="nova-reserva-inline">
                 <input type="text" id="input-descricao-reserva" class="form-control" placeholder="Nome da reserva" maxlength="50">
                 <input type="number" id="input-valor-reserva" class="form-control" placeholder="Valor" step="0.01" min="0.01">
                 <button type="button" id="btn-adicionar-reserva" class="btn btn-success" title="Criar reserva">
                     <i class="fas fa-plus"></i>
                 </button>
+            </div>
+
+            <!-- Lista de Reservas (ABAIXO do formulário) -->
+            <div class="reservas-lista-simples" id="lista-reservas">
+                <!-- Reservas serão inseridas aqui -->
             </div>
 
             <!-- Histórico Geral -->
@@ -2128,6 +2136,35 @@
                     <div class="historico-vazio">Nenhuma movimentação</div>
                 </div>
             </div>
+        </div>
+        <div class="modal-footer" style="padding:12px 20px;border-top:1px solid var(--gray-200)">
+            <div class="cofre-senha-toggle">
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#6b7280;cursor:pointer">
+                    <input type="checkbox" id="chk-desabilitar-senha-cofre">
+                    Não pedir senha novamente
+                </label>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Senha do Cofre -->
+<div id="modal-senha-cofre" class="modal" style="display:none">
+    <div class="modal-content" style="max-width:360px">
+        <div class="modal-header">
+            <h3><i class="fas fa-lock"></i> Acesso ao Cofre</h3>
+            <button class="close" id="btn-fechar-senha-cofre">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="margin-bottom:12px;color:#6b7280;font-size:13px;">Digite sua senha para acessar o Cofre.</p>
+            <div class="form-group">
+                <input type="password" id="input-senha-cofre" class="form-control" placeholder="Sua senha" autocomplete="current-password">
+            </div>
+            <div id="erro-senha-cofre" style="display:none;color:#dc2626;font-size:12px"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" id="btn-cancelar-senha-cofre">Cancelar</button>
+            <button class="btn btn-primary" id="btn-confirmar-senha-cofre">Entrar</button>
         </div>
     </div>
 </div>

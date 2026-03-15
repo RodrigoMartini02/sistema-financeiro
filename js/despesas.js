@@ -122,15 +122,13 @@ function configurarEventosGrid() {
 }
 
 function configurarEventosFiltros() {
-    // Filtros da toolbar unificada
-    const filtrosToolbar = [
+    const filtrosSecundarios = [
         'filtro-categoria-toolbar',
         'filtro-forma-pagamento-toolbar',
-        'filtro-status-toolbar',
-        'filtro-tipo-toolbar'
+        'filtro-status-toolbar'
     ];
 
-    filtrosToolbar.forEach(id => {
+    filtrosSecundarios.forEach(id => {
         const elemento = document.getElementById(id);
         if (elemento) {
             elemento.addEventListener('change', function() {
@@ -139,7 +137,13 @@ function configurarEventosFiltros() {
         }
     });
 
-    // Botão limpar filtros da toolbar
+    const filtroTipoEl = document.getElementById('filtro-tipo-toolbar');
+    if (filtroTipoEl) {
+        filtroTipoEl.addEventListener('change', function() {
+            aplicarFiltrosToolbarDespesas();
+        });
+    }
+
     const btnLimparToolbar = document.getElementById('btn-limpar-filtros-toolbar');
     if (btnLimparToolbar) {
         btnLimparToolbar.addEventListener('click', function(e) {
@@ -160,6 +164,12 @@ function aplicarFiltrosToolbarDespesas() {
     linhas.forEach(linha => {
         let mostrarLinha = true;
         const tipoLinha = linha.dataset.tipo || 'despesa';
+
+        // Linhas de reserva nunca aparecem na tabela do mês
+        if (tipoLinha === 'reserva') {
+            linha.style.display = 'none';
+            return;
+        }
 
         // Filtro de tipo (receita/despesa)
         if (filtroTipo !== 'todos') {
@@ -218,9 +228,8 @@ function limparFiltrosToolbarDespesas() {
         if (filtro) filtro.value = 'todas';
     });
 
-    // Mostrar todas as linhas
     document.querySelectorAll('tr.despesa-row').forEach(linha => {
-        linha.style.display = '';
+        linha.style.display = linha.dataset.tipo === 'reserva' ? 'none' : '';
     });
 
     atualizarContadoresFiltro();
@@ -264,13 +273,13 @@ function renderizarDespesas(itens, mes, ano, fechado) {
    listaDespesas.innerHTML = '';
 
    if (Array.isArray(itens) && itens.length > 0) {
-       // Status só se aplica a despesas
-       const soDespesas = itens.filter(i => i.tipo !== 'receita' && i.tipo !== 'reserva');
+       // Status só se aplica a despesas (exclui receitas)
+       const soDespesas = itens.filter(i => i.tipo !== 'receita');
        atualizarStatusDespesas(soDespesas);
 
-       // Receitas sempre exibidas; despesas filtram transferidas
+       // Receitas sempre exibidas; despesas filtram transferidas; reservas não aparecem na tabela
        let itensParaExibir = itens.filter(i =>
-           i.tipo === 'receita' || !i.transferidaParaProximoMes
+           i.tipo !== 'reserva' && (i.tipo === 'receita' || !i.transferidaParaProximoMes)
        );
 
        // Ordenação: maior ID primeiro
@@ -301,97 +310,6 @@ function renderizarDespesas(itens, mes, ano, fechado) {
    }, 100);
 }
 
-function criarLinhaReservaGrid(mov) {
-    const template = document.getElementById('template-linha-despesa-grid');
-    if (!template) return null;
-
-    const clone = template.content.cloneNode(true);
-    const div = clone.querySelector('.despesa-row');
-
-    div.classList.add('tipo-reserva');
-    div.setAttribute('data-tipo', 'reserva');
-
-    // Checkbox vazio
-    const celulaCheckbox = clone.querySelector('.col-checkbox');
-    if (celulaCheckbox) celulaCheckbox.textContent = '';
-
-    // ID vazio
-    const celulaNumero = clone.querySelector('.col-numero');
-    if (celulaNumero) celulaNumero.textContent = '';
-
-    // Descrição: nome da reserva + observações do movimento
-    const nomeReserva = mov.nome_reserva || 'Reserva';
-    const obs = mov.observacoes || '';
-    const descricao = obs && obs !== nomeReserva ? `${nomeReserva}: ${obs}` : nomeReserva;
-    const celulaDescricao = clone.querySelector('.col-descricao');
-    if (celulaDescricao) {
-        celulaDescricao.textContent = descricao;
-        celulaDescricao.title = descricao;
-    }
-
-    // Categoria
-    const celulaCategoria = clone.querySelector('.col-categoria');
-    if (celulaCategoria) celulaCategoria.textContent = 'Reserva';
-
-    // Método
-    const celulaFormaPag = clone.querySelector('.col-forma-pagamento');
-    if (celulaFormaPag) celulaFormaPag.textContent = '-';
-
-    // Valor: saída (dinheiro indo para reserva) = negativo/custo; entrada (retira da reserva) = positivo
-    // tipoMovimento preserva o tipo original ('entrada'/'saida') antes de ser sobrescrito por 'reserva'
-    const tipoMov = mov.tipoMovimento || mov.tipo;
-    const valorAbs = parseFloat(mov.valor || 0);
-    // saida = alocação de dinheiro para a reserva (sai do saldo) → negativo
-    // entrada = resgate da reserva (volta para o saldo) → positivo
-    const valorExibido = tipoMov === 'saida' ? -valorAbs : valorAbs;
-    const celulaValor = clone.querySelector('.col-valor');
-    if (celulaValor) {
-        celulaValor.textContent = (valorExibido >= 0 ? '+' : '') + window.formatarMoeda(Math.abs(valorExibido));
-        celulaValor.style.color = valorExibido >= 0 ? '#166534' : '#854d0e';
-    }
-
-    // Parcela
-    const celulaParcela = clone.querySelector('.col-parcela');
-    if (celulaParcela) celulaParcela.textContent = '-';
-
-    // Valor Pago
-    const celulaValorPago = clone.querySelector('.col-valor-pago');
-    if (celulaValorPago) celulaValorPago.textContent = '-';
-
-    // Status
-    const celulaStatus = clone.querySelector('.col-status');
-    if (celulaStatus) {
-        const badge = document.createElement('span');
-        badge.className = 'badge-status';
-        badge.style.color = '#854d0e';
-        badge.textContent = tipoMov === 'saida' ? 'ALOCADO' : 'RESGATE';
-        celulaStatus.appendChild(badge);
-    }
-
-    // Data compra vazia
-    const celulaCompra = clone.querySelector('.col-compra');
-    if (celulaCompra) celulaCompra.textContent = '-';
-
-    // Vencimento = data da movimentação
-    const celulaVencimento = clone.querySelector('.col-vencimento');
-    if (celulaVencimento && mov.data_hora) {
-        const dataHora = new Date(mov.data_hora);
-        celulaVencimento.textContent = dataHora.toLocaleDateString('pt-BR');
-    } else if (celulaVencimento) {
-        celulaVencimento.textContent = '-';
-    }
-
-    // Ações vazias (leitura apenas)
-    const celulaAcoes = clone.querySelector('.col-acoes');
-    if (celulaAcoes) celulaAcoes.textContent = '';
-
-    // Anexos vazios
-    const celulaAnexos = clone.querySelector('.col-anexos');
-    if (celulaAnexos) celulaAnexos.style.display = 'none';
-
-    return clone;
-}
-
 function criarLinhaDespesaGrid(item, index, fechado, mes, ano) {
   const template = document.getElementById('template-linha-despesa-grid');
   if (!template) return null;
@@ -399,9 +317,7 @@ function criarLinhaDespesaGrid(item, index, fechado, mes, ano) {
   const clone = template.content.cloneNode(true);
   const div = clone.querySelector('.despesa-row');
 
-  if (item.tipo === 'reserva') {
-      return criarLinhaReservaGrid(item);
-  } else if (item.tipo === 'receita') {
+  if (item.tipo === 'receita') {
       div.classList.add('tipo-receita');
       div.setAttribute('data-tipo', 'receita');
       div.setAttribute('data-receita-index', item._receitaIndex ?? index);
@@ -464,12 +380,17 @@ function preencherCelulasGridReceita(clone, receita, fechado) {
     const celulaAnexos = clone.querySelector('.col-anexos');
     if (celulaAnexos) celulaAnexos.style.display = 'none';
 
-    if (!fechado) {
-        const celulaAcoes = clone.querySelector('.col-acoes');
-        if (celulaAcoes) {
+    const celulaAcoes = clone.querySelector('.col-acoes');
+    if (celulaAcoes) {
+        if (!fechado) {
             celulaAcoes.innerHTML = `<div class="acoes-grupo">
                 <button class="btn btn-sm btn-editar-receita" title="Editar receita"><i class="fas fa-edit"></i></button>
                 <button class="btn btn-sm btn-excluir-receita" title="Excluir receita"><i class="fas fa-trash"></i></button>
+            </div>`;
+        } else {
+            celulaAcoes.innerHTML = `<div class="acoes-grupo">
+                <button class="btn btn-sm btn-editar-receita btn-bloqueado" title="Editar receita (mês fechado)" disabled><i class="fas fa-edit"></i></button>
+                <button class="btn btn-sm btn-excluir-receita btn-bloqueado" title="Excluir receita (mês fechado)" disabled><i class="fas fa-trash"></i></button>
             </div>`;
         }
     }
@@ -491,7 +412,7 @@ function sincronizarIndicesDespesas() {
           checkbox.setAttribute('data-index', novoIndex);
       }
       
-      // NOVO: Sincronizar botões de anexos
+      // Sincronizar botões de anexos
       const btnAnexos = linha.querySelector('.btn-anexos');
       if (btnAnexos) {
           btnAnexos.setAttribute('data-index', novoIndex);
@@ -693,25 +614,41 @@ function configurarBotoesAcaoTemplate(clone, despesa, index, fechado) {
     const btnExcluir = clone.querySelector('.btn-excluir');
     const btnPagar = clone.querySelector('.btn-pagar');
     const btnMover = clone.querySelector('.btn-mover');
-    
+
     if (btnEditar) {
         btnEditar.setAttribute('data-index', index);
-        if (fechado) btnEditar.style.display = 'none';
+        if (fechado) {
+            btnEditar.classList.add('btn-bloqueado');
+            btnEditar.disabled = true;
+            btnEditar.title = 'Editar (mês fechado)';
+        }
     }
-    
+
     if (btnExcluir) {
         btnExcluir.setAttribute('data-index', index);
-        if (fechado) btnExcluir.style.display = 'none';
+        if (fechado) {
+            btnExcluir.classList.add('btn-bloqueado');
+            btnExcluir.disabled = true;
+            btnExcluir.title = 'Excluir (mês fechado)';
+        }
     }
-    
+
     if (btnPagar) {
         btnPagar.setAttribute('data-index', index);
-        if (fechado || despesa.quitado) btnPagar.style.display = 'none';
+        if (fechado || despesa.quitado) {
+            btnPagar.classList.add('btn-bloqueado');
+            btnPagar.disabled = true;
+            btnPagar.title = despesa.quitado ? 'Já pago' : 'Pagar (mês fechado)';
+        }
     }
-    
+
     if (btnMover) {
         btnMover.setAttribute('data-index', index);
-        if (fechado || despesa.quitado) btnMover.style.display = 'none';
+        if (fechado || despesa.quitado) {
+            btnMover.classList.add('btn-bloqueado');
+            btnMover.disabled = true;
+            btnMover.title = despesa.quitado ? 'Mover (já pago)' : 'Mover (mês fechado)';
+        }
     }
 }
 
@@ -3459,13 +3396,11 @@ async function configurarModalPagamentoLote(checkboxes) {
        btnPersonalizado.parentNode.replaceChild(novoBtnPersonalizado, btnPersonalizado);
    }
    
-   // NOVO: Configurar data padrão para lote
    const inputDataLote = document.getElementById('data-pagamento-lote');
    if (inputDataLote) {
        inputDataLote.value = new Date().toISOString().split('T')[0];
    }
-   
-   // NOVO: Limpar anexos temporários de comprovantes
+
    if (window.sistemaAnexos) {
        window.sistemaAnexos.limparAnexosTemporarios('comprovante');
    }
@@ -4387,15 +4322,13 @@ document.addEventListener('DOMContentLoaded', configurarBotaoComprovanteSimples)
         const thead = tabela.querySelector('thead');
         if (!thead) return;
 
-        // Remove listeners antigos se existirem
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
-
-        // Adiciona listeners globais
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
 
-        // Adiciona resizers nos th (se não existirem)
+        restaurarLargurasColunas();
+
         const thElements = thead.querySelectorAll('th');
         thElements.forEach(th => {
             // Pular colunas muito pequenas (checkbox, anexos)
@@ -4443,10 +4376,36 @@ document.addEventListener('DOMContentLoaded', configurarBotaoComprovanteSimples)
         if (currentTh) {
             const resizer = currentTh.querySelector('.column-resizer');
             if (resizer) resizer.classList.remove('resizing');
+            salvarLargurasColunas();
         }
         currentTh = null;
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
+    }
+
+    function salvarLargurasColunas() {
+        const tabela = document.getElementById('tabela-despesas');
+        if (!tabela) return;
+        const larguras = {};
+        tabela.querySelectorAll('thead th').forEach(th => {
+            const classe = Array.from(th.classList).find(c => c.startsWith('col-'));
+            if (classe && th.style.width) larguras[classe] = th.style.width;
+        });
+        try { localStorage.setItem('despesas_col_widths', JSON.stringify(larguras)); } catch {}
+    }
+
+    function restaurarLargurasColunas() {
+        const tabela = document.getElementById('tabela-despesas');
+        if (!tabela) return;
+        try {
+            const salvo = localStorage.getItem('despesas_col_widths');
+            if (!salvo) return;
+            const larguras = JSON.parse(salvo);
+            tabela.querySelectorAll('thead th').forEach(th => {
+                const classe = Array.from(th.classList).find(c => c.startsWith('col-'));
+                if (classe && larguras[classe]) th.style.width = larguras[classe];
+            });
+        } catch {}
     }
 
     // Função para resetar larguras
@@ -4454,10 +4413,8 @@ document.addEventListener('DOMContentLoaded', configurarBotaoComprovanteSimples)
         const tabela = document.getElementById('tabela-despesas');
         if (!tabela) return;
 
-        const thElements = tabela.querySelectorAll('thead th');
-        thElements.forEach(th => {
-            th.style.width = '';
-        });
+        tabela.querySelectorAll('thead th').forEach(th => { th.style.width = ''; });
+        try { localStorage.removeItem('despesas_col_widths'); } catch {}
     };
 
     window.reinitDespesasResizer = function() {

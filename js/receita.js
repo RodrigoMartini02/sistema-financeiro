@@ -1267,6 +1267,7 @@ function calcularSaldoAtualMes() {
 // Exportar funções
 window.calcularSaldoAtualMes = calcularSaldoAtualMes;
 window.calcularTotalReservasAcumuladas = calcularMovimentacoesReservasAcumuladas;
+window.calcularMovimentacoesReservasAcumuladas = calcularMovimentacoesReservasAcumuladas;
 window.calcularMovimentacoesReservasMes = calcularMovimentacoesReservasMes;
 
 /**

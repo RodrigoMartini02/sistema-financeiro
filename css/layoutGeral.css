@@ -3293,6 +3293,23 @@ table tr:hover {
     color: #dc3545;
 }
 
+/* Card Saldo Atual - Roxo */
+.resumo-cards .card-saldo-atual {
+    border-left-color: #8b5cf6;
+}
+
+.resumo-cards .card-saldo-atual .card-header i {
+    color: #8b5cf6;
+}
+
+.resumo-cards .card-saldo-atual .card-value {
+    color: #8b5cf6;
+}
+
+.resumo-cards .card-saldo-atual .card-value.saldo-negativo {
+    color: #dc3545;
+}
+
 /* Card Juros - Laranja */
 .resumo-cards .card-juros {
     border-left-color: #fd7e14;
@@ -3830,3 +3847,17 @@ table tr:hover {
 .carta-markdown-body code { background: var(--gray-100); padding: 1px 5px; border-radius: 3px; font-size: 12px; font-family: monospace; }
 .carta-markdown-body hr { border: none; border-top: 1px solid var(--border-color); margin: 20px 0; }
 .carta-loading { color: var(--gray-400); font-size: 14px; text-align: center; padding: 40px; }
+
+/* ================================================================
+   BOTÕES BLOQUEADOS — MELHORIA 5
+   ================================================================ */
+
+.btn-bloqueado,
+.btn-bloqueado:hover,
+.btn-bloqueado:focus {
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+
