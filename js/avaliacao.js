@@ -110,18 +110,19 @@ function inicializarSlider() {
         avgEl.innerText = avg;
     }
 
-    // Criar barras de progresso (máx 7 barras)
-    const displayCount = Math.min(reviews.length, 7);
-    for (let i = 0; i < displayCount; i++) {
-        const bar = document.createElement('div');
-        bar.className = 'story-progress-bar';
-        bar.innerHTML = '<div class="story-progress-fill"></div>';
-        container.appendChild(bar);
+    if (container) {
+        // Criar barras de progresso (máx 7 barras)
+        const displayCount = Math.min(reviews.length, 7);
+        for (let i = 0; i < displayCount; i++) {
+            const bar = document.createElement('div');
+            bar.className = 'story-progress-bar';
+            bar.innerHTML = '<div class="story-progress-fill"></div>';
+            container.appendChild(bar);
+        }
+        nextSlide();
     }
 
     atualizarBreakdown(reviews);
-
-    if (container) nextSlide();
 }
 
 // ================================================================
