@@ -75,31 +75,73 @@ router.post('/aprendizado', authMiddleware, ctrl.salvarAprendizadoCategoria);
 router.get('/config', authMiddleware, ctrl.obterConfigIA);
 router.post('/config/chave', authMiddleware, ctrl.salvarConfigChave);
 
-// Instruções da Gen
-const INSTRUCOES_PATH = path.join(__dirname, '../../docs/gen-instrucoes.md');
+// Instruções da Gen — por usuário, armazenadas no banco
+const { query } = require('../config/database');
+const { revisarCarta, invalidarCacheInstrucoes } = require('../services/aiParser');
 
-router.get('/instrucoes', authMiddleware, (req, res) => {
+router.get('/instrucoes', authMiddleware, async (req, res) => {
     try {
-        const conteudo = fs.existsSync(INSTRUCOES_PATH)
-            ? fs.readFileSync(INSTRUCOES_PATH, 'utf8')
-            : '';
+        const r = await query('SELECT dados_financeiros FROM usuarios WHERE id = $1', [req.usuario.id]);
+        const conteudo = r.rows[0]?.dados_financeiros?.instrucoes_gen || '';
         res.json({ conteudo });
     } catch (e) {
         res.status(500).json({ erro: 'Erro ao ler instruções' });
     }
 });
 
-router.post('/instrucoes', authMiddleware, (req, res) => {
+router.post('/instrucoes', authMiddleware, async (req, res) => {
     try {
         const { conteudo } = req.body;
-        if (!conteudo || !conteudo.trim()) return res.status(400).json({ erro: 'Conteúdo vazio' });
-        const atual = fs.existsSync(INSTRUCOES_PATH)
-            ? fs.readFileSync(INSTRUCOES_PATH, 'utf8')
-            : '# Instruções da Gen\n';
-        fs.writeFileSync(INSTRUCOES_PATH, atual + '\n' + conteudo.trim(), 'utf8');
+        if (conteudo === undefined) return res.status(400).json({ erro: 'Conteúdo ausente' });
+        // UPSERT: substitui as instruções do usuário (não acumula)
+        await query(
+            `UPDATE usuarios
+             SET dados_financeiros = COALESCE(dados_financeiros, '{}'::jsonb) || jsonb_build_object('instrucoes_gen', $1::text)
+             WHERE id = $2`,
+            [conteudo.trim(), req.usuario.id]
+        );
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ erro: 'Erro ao salvar instruções' });
+    }
+});
+
+// Carta de Serviços global — leitura para todos
+router.get('/carta', authMiddleware, (req, res) => {
+    try {
+        const CARTA_PATH = path.join(__dirname, '../../docs/gen-instrucoes.md');
+        const conteudo = fs.existsSync(CARTA_PATH)
+            ? fs.readFileSync(CARTA_PATH, 'utf8')
+            : '';
+        res.json({ conteudo });
+    } catch (e) {
+        res.status(500).json({ erro: 'Erro ao ler carta' });
+    }
+});
+
+// Carta de Serviços global — revisão com IA (só master)
+router.post('/carta', authMiddleware, async (req, res) => {
+    try {
+        const r = await query('SELECT tipo FROM usuarios WHERE id = $1', [req.usuario.id]);
+        if (!r.rows[0] || r.rows[0].tipo !== 'master') {
+            return res.status(403).json({ erro: 'Apenas o master pode editar a carta de serviços' });
+        }
+        const { instrucao } = req.body;
+        if (!instrucao || !instrucao.trim()) return res.status(400).json({ erro: 'Instrução vazia' });
+
+        const CARTA_PATH = path.join(__dirname, '../../docs/gen-instrucoes.md');
+        const cartaAtual = fs.existsSync(CARTA_PATH) ? fs.readFileSync(CARTA_PATH, 'utf8') : '';
+
+        // Usa IA para mesclar a instrução na carta
+        const providerConfig = await ctrl.buscarConfigIAPublic(req.usuario.id);
+        const cartaAtualizada = await revisarCarta(cartaAtual, instrucao.trim(), providerConfig);
+
+        fs.writeFileSync(CARTA_PATH, cartaAtualizada, 'utf8');
+        invalidarCacheInstrucoes(); // força releitura imediata do arquivo
+        res.json({ success: true, conteudo: cartaAtualizada });
+    } catch (e) {
+        console.error('Erro ao revisar carta:', e);
+        res.status(500).json({ erro: 'Erro ao revisar carta com IA' });
     }
 });
 

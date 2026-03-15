@@ -2889,6 +2889,12 @@ function setupConfigTabs() {
                             window.renderizarLogs();
                         }
                     }, 100);
+                } else if (targetTab === 'carta-servicos') {
+                    if (typeof carregarCartaServicos === 'function') carregarCartaServicos();
+                    // Show master actions if user is master
+                    var u = JSON.parse(sessionStorage.getItem('dadosUsuarioLogado') || '{}');
+                    var masterActions = document.getElementById('carta-master-actions');
+                    if (masterActions) masterActions.style.display = (u.tipo === 'master') ? 'block' : 'none';
                 }
             }
         });

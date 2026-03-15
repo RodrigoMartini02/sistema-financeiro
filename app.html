@@ -56,6 +56,7 @@
     <link rel="stylesheet" href="css/planos.css">
     <link rel="stylesheet" href="css/ia.css">
     <link rel="stylesheet" href="css/avaliacao.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
 
@@ -926,6 +927,9 @@
         <button class="config-tab-btn" data-tab="assistente-ia">
             <i class="fas fa-robot"></i> Assistente IA
         </button>
+        <button class="config-tab-btn" data-tab="carta-servicos">
+            <i class="fas fa-scroll"></i> Carta de Serviços
+        </button>
     </div>
     
     <div class="config-tab-content">
@@ -1075,6 +1079,29 @@
                         <strong>📊 Análise financeira</strong><br>
                         <code style="font-size:12px">"quanto gastei em alimentação esse mês?"</code>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- ABA: CARTA DE SERVIÇOS -->
+        <!-- ============================================== -->
+        <div id="carta-servicos-tab" class="config-tab-pane">
+            <div class="config-card carta-servicos-card">
+                <div class="carta-header">
+                    <div>
+                        <h3><i class="fas fa-scroll"></i> Carta de Serviços — Gen IA</h3>
+                        <p style="color:var(--gray-500);margin:4px 0 0;font-size:13px">Regras e comportamentos globais da assistente. Visível para todos, editável apenas pelo master.</p>
+                    </div>
+                    <div id="carta-master-actions" style="display:none">
+                        <button class="btn btn-primary btn-sm" id="btn-carta-nova-instrucao" onclick="abrirModalCartaInstrucao()">
+                            <i class="fas fa-plus"></i> Nova instrução
+                        </button>
+                    </div>
+                </div>
+                <hr style="border:none;border-top:1px solid var(--border-color);margin:16px 0">
+                <div id="carta-servicos-content" class="carta-markdown-body">
+                    <div class="carta-loading"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
                 </div>
             </div>
         </div>
@@ -3377,7 +3404,7 @@
 <div id="modal-instrucoes-gen" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);align-items:center;justify-content:center">
     <div style="background:var(--bg-card,#fff);border-radius:12px;padding:24px;width:100%;max-width:480px;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
         <h3 style="margin:0 0 6px;font-size:16px"><i class="fas fa-sliders-h"></i> Instruções da Gen</h3>
-        <p style="margin:0 0 14px;font-size:12px;color:var(--gray-500,#888)">Escreva uma nova instrução. O texto será adicionado às instruções existentes.</p>
+        <p style="margin:0 0 14px;font-size:12px;color:var(--gray-500,#888)">Suas instruções personalizadas para a Gen. O conteúdo abaixo substitui as instruções anteriores ao salvar.</p>
         <textarea id="instrucoes-gen-input" rows="6" placeholder="Ex: Sempre perguntar a categoria antes de confirmar uma despesa..." style="width:100%;padding:10px 12px;border:1px solid var(--border-color,#e2e8f0);border-radius:8px;font-size:13px;resize:vertical;box-sizing:border-box;background:var(--bg-input,#f8fafc);color:var(--text-primary,#1a1a1a)"></textarea>
         <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">
             <button onclick="fecharModalInstrucoesGen()" style="padding:8px 16px;border:1px solid var(--border-color,#e2e8f0);border-radius:6px;background:transparent;cursor:pointer;font-size:13px">Cancelar</button>
@@ -3395,6 +3422,20 @@ if ('serviceWorker' in navigator) {
     });
 }
 </script>
+
+<!-- Modal: Nova instrução para Carta de Serviços -->
+<div id="modal-carta-instrucao" style="display:none;position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,0.5);align-items:center;justify-content:center">
+    <div style="background:var(--bg-card,#fff);border-radius:12px;padding:24px;width:100%;max-width:520px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+        <h3 style="margin:0 0 6px;font-size:16px"><i class="fas fa-scroll"></i> Atualizar Carta de Serviços</h3>
+        <p style="margin:0 0 14px;font-size:12px;color:var(--gray-500)">A IA vai analisar a instrução e incorporá-la à carta — atualizando uma seção existente ou criando uma nova.</p>
+        <textarea id="carta-instrucao-input" rows="5" placeholder="Ex: Quando o usuário mencionar 'recorrente', sempre perguntar se tem data de fim ou é indefinida..." style="width:100%;padding:10px 12px;border:1px solid var(--border-color,#e2e8f0);border-radius:8px;font-size:13px;resize:vertical;box-sizing:border-box;background:var(--bg-input,#f8fafc);color:var(--text-primary,#1a1a1a)"></textarea>
+        <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end;align-items:center">
+            <span id="carta-instrucao-status" style="font-size:12px;color:var(--gray-500);flex:1"></span>
+            <button onclick="fecharModalCartaInstrucao()" style="padding:8px 16px;border:1px solid var(--border-color,#e2e8f0);border-radius:6px;background:transparent;cursor:pointer;font-size:13px">Cancelar</button>
+            <button onclick="salvarCartaInstrucao()" id="btn-salvar-carta-instrucao" style="padding:8px 16px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600"><i class="fas fa-magic"></i> Revisar com IA</button>
+        </div>
+    </div>
+</div>
 
 </body>
 </html>

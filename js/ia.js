@@ -1510,8 +1510,14 @@ function abrirModalInstrucoesGen() {
     var modal = document.getElementById('modal-instrucoes-gen');
     var input = document.getElementById('instrucoes-gen-input');
     if (!modal) return;
-    if (input) input.value = '';
     modal.style.display = 'flex';
+    // Carrega instruções existentes do usuário
+    var url = (window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api') + '/ai/instrucoes';
+    var token = sessionStorage.getItem('token') || localStorage.getItem('token') || '';
+    fetch(url, { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(function (r) { return r.json(); })
+        .then(function (res) { if (input) input.value = res.conteudo || ''; })
+        .catch(function () { if (input) input.value = ''; });
 }
 
 function fecharModalInstrucoesGen() {
@@ -1522,7 +1528,7 @@ function fecharModalInstrucoesGen() {
 function salvarInstrucoesGen() {
     var input = document.getElementById('instrucoes-gen-input');
     var conteudo = input ? input.value.trim() : '';
-    if (!conteudo) { mostrarToast('Escreva uma instrução antes de salvar.', 'warning'); return; }
+    // Permite salvar vazio (para limpar as instruções)
     var url = (window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api') + '/ai/instrucoes';
     var token = sessionStorage.getItem('token') || localStorage.getItem('token') || '';
     fetch(url, {
@@ -1532,11 +1538,89 @@ function salvarInstrucoesGen() {
     }).then(function (r) { return r.json(); }).then(function (res) {
         if (res && res.success) {
             fecharModalInstrucoesGen();
-            mostrarToast('Instrução salva com sucesso!', 'success');
+            mostrarToast('Instruções salvas com sucesso!', 'success');
         } else {
             mostrarToast('Erro ao salvar: ' + (res.erro || 'tente novamente'), 'error');
         }
     }).catch(function () { mostrarToast('Erro de conexão ao salvar instruções.', 'error'); });
+}
+
+// ── CARTA DE SERVIÇOS ─────────────────────────────────────────────
+function carregarCartaServicos() {
+    var container = document.getElementById('carta-servicos-content');
+    if (!container) return;
+    var url = (window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api') + '/ai/carta';
+    var token = sessionStorage.getItem('token') || localStorage.getItem('token') || '';
+    fetch(url, { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+            if (res.conteudo && typeof marked !== 'undefined') {
+                container.innerHTML = marked.parse(res.conteudo);
+            } else if (res.conteudo) {
+                container.innerHTML = '<pre style="white-space:pre-wrap;font-size:13px">' + res.conteudo + '</pre>';
+            } else {
+                container.innerHTML = '<p style="color:var(--gray-400)">Carta não disponível.</p>';
+            }
+        })
+        .catch(function () {
+            container.innerHTML = '<p style="color:var(--danger-color)">Erro ao carregar carta.</p>';
+        });
+}
+
+function abrirModalCartaInstrucao() {
+    var modal = document.getElementById('modal-carta-instrucao');
+    var input = document.getElementById('carta-instrucao-input');
+    var status = document.getElementById('carta-instrucao-status');
+    if (!modal) return;
+    if (input) input.value = '';
+    if (status) status.textContent = '';
+    modal.style.display = 'flex';
+    setTimeout(function () { if (input) input.focus(); }, 100);
+}
+
+function fecharModalCartaInstrucao() {
+    var modal = document.getElementById('modal-carta-instrucao');
+    if (modal) modal.style.display = 'none';
+}
+
+function salvarCartaInstrucao() {
+    var input  = document.getElementById('carta-instrucao-input');
+    var status = document.getElementById('carta-instrucao-status');
+    var btn    = document.getElementById('btn-salvar-carta-instrucao');
+    var instrucao = input ? input.value.trim() : '';
+    if (!instrucao) { if (status) status.textContent = 'Escreva uma instrução antes de continuar.'; return; }
+
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Revisando...'; }
+    if (status) status.textContent = 'A IA está analisando e incorporando a instrução...';
+
+    var url = (window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api') + '/ai/carta';
+    var token = sessionStorage.getItem('token') || localStorage.getItem('token') || '';
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ instrucao: instrucao })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (res) {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-magic"></i> Revisar com IA'; }
+        if (res.success) {
+            fecharModalCartaInstrucao();
+            mostrarToast('Carta atualizada com sucesso!', 'success');
+            // Recarrega a carta na aba
+            var container = document.getElementById('carta-servicos-content');
+            if (container && res.conteudo) {
+                container.innerHTML = typeof marked !== 'undefined'
+                    ? marked.parse(res.conteudo)
+                    : '<pre style="white-space:pre-wrap;font-size:13px">' + res.conteudo + '</pre>';
+            }
+        } else {
+            if (status) status.textContent = 'Erro: ' + (res.erro || 'tente novamente');
+        }
+    })
+    .catch(function () {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-magic"></i> Revisar com IA'; }
+        if (status) status.textContent = 'Erro de conexão.';
+    });
 }
 
 // ── ATIVAR / DESATIVAR IA ─────────────────────────────────────

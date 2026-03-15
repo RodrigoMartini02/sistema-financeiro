@@ -3755,3 +3755,31 @@ table tr:hover {
     background: #f0fdf4;
     box-shadow: 0 2px 6px rgba(22, 163, 74, 0.15);
 }
+
+/* ── CARTA DE SERVIÇOS ──────────────────────────────────────── */
+.carta-servicos-card {
+    min-height: 60vh;
+}
+
+.carta-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.carta-markdown-body {
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-primary);
+}
+
+.carta-markdown-body h1 { font-size: 20px; margin: 24px 0 12px; color: var(--primary-color); }
+.carta-markdown-body h2 { font-size: 17px; margin: 20px 0 10px; color: var(--primary-color); border-bottom: 1px solid var(--border-color); padding-bottom: 4px; }
+.carta-markdown-body h3 { font-size: 14px; margin: 16px 0 8px; font-weight: 700; }
+.carta-markdown-body ul, .carta-markdown-body ol { padding-left: 20px; margin: 6px 0 12px; }
+.carta-markdown-body li { margin-bottom: 4px; }
+.carta-markdown-body strong { color: var(--text-primary); font-weight: 700; }
+.carta-markdown-body code { background: var(--gray-100); padding: 1px 5px; border-radius: 3px; font-size: 12px; font-family: monospace; }
+.carta-markdown-body hr { border: none; border-top: 1px solid var(--border-color); margin: 20px 0; }
+.carta-loading { color: var(--gray-400); font-size: 14px; text-align: center; padding: 40px; }

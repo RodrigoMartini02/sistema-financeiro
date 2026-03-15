@@ -9,9 +9,10 @@ const path = require('path');
 const { normalizarDespesa, normalizarValor, normalizarFormaPagamento,
     normalizarData, inferirCategoria } = require('../utils/expenseNormalizer');
 
+// Instruções base da Gen (regras do sistema — globais, imutáveis)
 const INSTRUCOES_PATH = path.join(__dirname, '../../docs/gen-instrucoes.md');
 
-function carregarInstrucoesCustom() {
+function carregarInstrucoesBase() {
     try {
         return fs.existsSync(INSTRUCOES_PATH)
             ? '\n\n---\n' + fs.readFileSync(INSTRUCOES_PATH, 'utf8')
@@ -19,6 +20,21 @@ function carregarInstrucoesCustom() {
     } catch (e) {
         return '';
     }
+}
+
+// Cache das instruções base com TTL de 1 minuto (invalida após salvar nova carta)
+let _instrucoesBaseCache = null;
+let _instrucoesBaseCacheTs = 0;
+function getInstrucoesBase() {
+    if (_instrucoesBaseCache === null || Date.now() - _instrucoesBaseCacheTs > 60 * 1000) {
+        _instrucoesBaseCache = carregarInstrucoesBase();
+        _instrucoesBaseCacheTs = Date.now();
+    }
+    return _instrucoesBaseCache;
+}
+function invalidarCacheInstrucoes() {
+    _instrucoesBaseCache = null;
+    _instrucoesBaseCacheTs = 0;
 }
 
 // Lazy-load OpenAI (só inicializa se a chave existir)
@@ -69,7 +85,7 @@ async function parsearComOpenAI(texto, contextoConversa = [], apiKeyOverride, ct
 
     const hoje = new Date().toISOString().split('T')[0];
     const ctxExtra = ctxSistema ? `\n\nContexto do sistema do usuário:\n${ctxSistema}` : '';
-    const systemWithDate = `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${ctxExtra}${carregarInstrucoesCustom()}`;
+    const systemWithDate = `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${ctxExtra}${getInstrucoesBase()}`;
 
     const messages = [
         { role: 'system', content: systemWithDate },
@@ -95,7 +111,7 @@ async function parsearComGemini(texto, contextoConversa = [], apiKey, ctxSistema
     const fetch = require('node-fetch');
     const hoje = new Date().toISOString().split('T')[0];
     const ctxExtra = ctxSistema ? `\n\nContexto do sistema do usuário:\n${ctxSistema}` : '';
-    const prompt = `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${ctxExtra}${carregarInstrucoesCustom()}\n\nTexto do usuário: ${texto}`;
+    const prompt = `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${ctxExtra}${getInstrucoesBase()}\n\nTexto do usuário: ${texto}`;
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     const body = {
@@ -122,7 +138,7 @@ async function parsearComClaude(texto, contextoConversa = [], apiKey, ctxSistema
     const response = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 500,
-        system: `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${ctxExtra}${carregarInstrucoesCustom()}\n\nResponda APENAS com JSON válido.`,
+        system: `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${ctxExtra}${getInstrucoesBase()}\n\nResponda APENAS com JSON válido.`,
         messages: [{ role: 'user', content: texto }]
     });
 
@@ -439,9 +455,85 @@ function gerarRespostaSimples(pergunta, dados) {
     return 'Não entendi sua pergunta. Pode reformular?';
 }
 
+// ── REVISAR / ATUALIZAR CARTA DE SERVIÇOS COM IA ─────────────────
+async function revisarCarta(cartaAtual, novaInstrucao, providerConfig = null) {
+    const prompt = `Você é um editor técnico especializado em documentação de IA.
+
+Abaixo está a Carta de Serviços da IA Gen (assistente financeira).
+O usuário master quer incorporar a seguinte instrução/regra:
+
+"${novaInstrucao}"
+
+Instruções para edição:
+- Se a instrução se relaciona com uma seção existente, atualize essa seção incorporando a nova regra
+- Se é um tópico novo sem seção relacionada, crie uma nova seção numerada ao final (antes do comentário HTML de instruções personalizadas)
+- Mantenha EXATAMENTE o formato markdown existente (##, ###, -, **)
+- Não remova nenhuma regra existente a menos que a nova instrução explicitamente substitua
+- Não adicione comentários explicativos sobre o que mudou — apenas o documento atualizado
+- Retorne APENAS o documento markdown completo, sem texto adicional antes ou depois
+
+Carta atual:
+${cartaAtual}`;
+
+    const provider = providerConfig?.provider;
+    const apiKey   = providerConfig?.apiKey;
+
+    try {
+        if (provider === 'gemini' && apiKey) {
+            const fetch = require('node-fetch');
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const r = await fetch(url, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                    generationConfig: { temperature: 0.2, maxOutputTokens: 4000 }
+                })
+            });
+            if (!r.ok) throw new Error('Gemini HTTP ' + r.status);
+            const data = await r.json();
+            const texto = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (texto) return texto.trim();
+        }
+
+        if (provider === 'claude' && apiKey) {
+            const Anthropic = require('@anthropic-ai/sdk');
+            const client = new Anthropic({ apiKey });
+            const response = await client.messages.create({
+                model: 'claude-haiku-4-5-20251001',
+                max_tokens: 4000,
+                messages: [{ role: 'user', content: prompt }]
+            });
+            const texto = response.content[0]?.text;
+            if (texto) return texto.trim();
+        }
+
+        const openai = (provider === 'openai' && apiKey)
+            ? (() => { const OpenAI = require('openai'); return new OpenAI({ apiKey }); })()
+            : getOpenAI();
+
+        if (openai) {
+            const response = await openai.chat.completions.create({
+                model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+                messages: [{ role: 'user', content: prompt }],
+                temperature: 0.2,
+                max_tokens: 4000,
+            });
+            const texto = response.choices[0].message.content;
+            if (texto) return texto.trim();
+        }
+    } catch (err) {
+        console.error('Erro ao revisar carta com IA:', err.message);
+    }
+
+    // Fallback: acrescenta instrução como novo item na seção 8
+    return cartaAtual + '\n- ' + novaInstrucao;
+}
+
 module.exports = {
     parsearDespesa,
     responderPerguntaFinanceira,
     detectarIntencao,
     parsearComGen,
+    revisarCarta,
+    invalidarCacheInstrucoes,
 };

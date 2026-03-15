@@ -38,13 +38,19 @@ async function buscarConfigIA(usuarioId) {
     try {
         const r = await query('SELECT dados_financeiros FROM usuarios WHERE id = $1', [usuarioId]);
         const df = r.rows[0]?.dados_financeiros || {};
-        const provider  = df.ia_provider  || null;
-        const apiKeys   = df.ia_api_keys  || {};   // { openai: '...', gemini: '...', claude: '...' }
-        const apiKey    = df.ia_api_key   || apiKeys[provider] || null;
-        return { provider, apiKey, apiKeys };
+        const provider       = df.ia_provider  || null;
+        const apiKeys        = df.ia_api_keys  || {};
+        const apiKey         = df.ia_api_key   || apiKeys[provider] || null;
+        const instrucoesGen  = df.instrucoes_gen || '';
+        return { provider, apiKey, apiKeys, instrucoesGen };
     } catch {
-        return { provider: null, apiKey: null, apiKeys: {} };
+        return { provider: null, apiKey: null, apiKeys: {}, instrucoesGen: '' };
     }
+}
+
+// Alias público para uso externo (ex: aiRoutes)
+async function buscarConfigIAPublic(usuarioId) {
+    return buscarConfigIA(usuarioId);
 }
 
 // ── HELPER: Busca categorias do usuário ──────────────────────────
@@ -193,7 +199,11 @@ async function chat(req, res) {
             const texto = await buscarContextoSistema(usuarioId, mes_atual, ano_atual);
             sessao.contextoSistema = { texto, expira: agora + 5 * 60 * 1000 };
         }
-        const ctxSistema = sessao.contextoSistema.texto;
+        // Monta contexto: dados do sistema + instruções personalizadas do usuário
+        const instrucoesUsuario = providerConfig.instrucoesGen
+            ? `\n\nInstruções personalizadas do usuário:\n${providerConfig.instrucoesGen}`
+            : '';
+        const ctxSistema = sessao.contextoSistema.texto + instrucoesUsuario;
 
         // Adiciona ao histórico
         sessao.historico.push({ role: 'user', content: mensagem });
@@ -773,4 +783,5 @@ module.exports = {
     salvarConfigChave,
     obterConfigIA,
     status,
+    buscarConfigIAPublic,
 };
