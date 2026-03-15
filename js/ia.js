@@ -37,6 +37,8 @@ window.IA = (function () {
         filaCampos:      []      // fila de campos ainda a coletar
     };
 
+    var _iaInitializando = false;
+
     // ── HELPERS DE ELEMENTOS (painel flutuante vs página completa) ─
     // Painel flutuante: ai-messages / ai-input / ai-btn-send
     // Página ia.html:   ia-chat-area / ia-texto-input / ia-btn-send (mesmo id, só existe um por vez)
@@ -134,7 +136,7 @@ window.IA = (function () {
             });
 
             var sel = document.getElementById('ia-provider-select');
-            if (sel) { sel.value = provider; sel.dispatchEvent(new Event('change')); }
+            if (sel) { sel.value = provider; _iaInitializando = true; sel.dispatchEvent(new Event('change')); _iaInitializando = false; }
 
             // Se o provedor atual tem chave, mostra máscara
             if (!isGen && (cfg.tem_chave || hasKeys[provider])) {
@@ -365,9 +367,20 @@ window.IA = (function () {
             c.querySelector('.dc-mes').textContent = mesRegistro;
         }
 
-        var elJaPago = c.querySelector('.dc-ja-pago');
-        elJaPago.textContent = d.ja_pago ? 'Sim' : 'Não';
-        elJaPago.className = 'ai-dc-val ' + (d.ja_pago ? 'ai-dc-pago' : 'ai-dc-pendente');
+        var elStatusD = c.querySelector('.dc-status-despesa');
+        var _isCredito = d.forma_pagamento === 'cartao_credito';
+        var _statusLabel, _statusCls;
+        if (d.ja_pago && !_isCredito) {
+            _statusLabel = 'Paga';     _statusCls = 'ai-dc-pago';
+        } else if (d.status === 'atrasada') {
+            _statusLabel = 'Atrasada'; _statusCls = 'ai-dc-atrasada';
+        } else if (d.status === 'pendente' || _isCredito) {
+            _statusLabel = 'Pendente'; _statusCls = 'ai-dc-pendente';
+        } else {
+            _statusLabel = 'Em Dia';   _statusCls = 'ai-dc-pendente';
+        }
+        elStatusD.textContent = _statusLabel;
+        elStatusD.className = 'ai-dc-val ' + _statusCls;
 
         if (d.recorrente) c.querySelector('.dc-row-recorrente').hidden = false;
 
@@ -547,7 +560,8 @@ window.IA = (function () {
             { label: 'Valor',              val: 'valor' },
             { label: 'Forma de pagamento', val: 'forma_pagamento' },
             { label: 'Data de vencimento', val: 'vencimento' },
-            { label: 'Categoria',          val: 'categoria' }
+            { label: 'Categoria',          val: 'categoria' },
+            { label: 'Status',             val: 'status_despesa' }
         ];
         var btns = campos.map(function(c) {
             return '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="' + esc(c.val) + '" data-opcao-label="' + esc(c.label) + '">' + esc(c.label) + '</button>';
@@ -739,6 +753,22 @@ window.IA = (function () {
             return;
         }
 
+        if (campo === 'status_despesa') {
+            var _isCreditoStatus = estado.dadosParciais && estado.dadosParciais.forma_pagamento === 'cartao_credito';
+            var btnsStatus =
+                '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="em_dia"   data-opcao-label="Em Dia">Em Dia</button>' +
+                '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="pendente" data-opcao-label="Pendente">Pendente</button>' +
+                '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="atrasada" data-opcao-label="Atrasada">Atrasada</button>';
+            if (!_isCreditoStatus) {
+                btnsStatus += '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="quitada" data-opcao-label="Paga">Paga</button>';
+            }
+            setTimeout(function () {
+                removeTyping(tid2);
+                addGen('Qual o status da despesa?<div class="ai-welcome-chips">' + btnsStatus + '</div>');
+            }, 600);
+            return;
+        }
+
         var perguntas = {
             'descricao':    'Qual a descrição da despesa?',
             'valor':        'Qual o valor?',
@@ -812,6 +842,21 @@ window.IA = (function () {
                 break;
             case 'categoria':
                 d.categoria = texto.trim();
+                break;
+            case 'status_despesa':
+                if (texto === 'quitada') {
+                    d.ja_pago = true;
+                    d.status  = 'quitada';
+                } else if (texto === 'atrasada') {
+                    d.ja_pago = false;
+                    d.status  = 'atrasada';
+                } else if (texto === 'pendente') {
+                    d.ja_pago = false;
+                    d.status  = 'pendente';
+                } else {
+                    d.ja_pago = false;
+                    d.status  = 'em_dia';
+                }
                 break;
         }
 
@@ -1292,6 +1337,7 @@ window.IA = (function () {
         }
         sel.addEventListener('change', function () {
             atualizarUI();
+            if (_iaInitializando) return; // carregamento inicial — não salvar nem toastar
             var v = sel.value;
             if (v === 'gen') {
                 salvarChaveAPI();

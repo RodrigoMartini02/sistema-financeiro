@@ -1865,21 +1865,29 @@
                 </h3>
                 <div class="lista-barras-vertical collapsed" id="indicadores-conteudo">
                     <!-- Barra Receitas vs Despesas -->
-                    <div class="cartao-limite-item" id="barra-receitas-despesas">
+                    <div class="cartao-limite-item" id="barra-receitas-despesas" style="cursor:pointer" title="Clique para ver detalhes">
                         <div class="cartao-info-header">
-                            <span class="cartao-nome">RECEITAS x DESPESAS</span>
+                            <span class="cartao-nome">RECEITAS x DESPESAS <span id="barra-rd-status-icon"></span></span>
                             <div class="cartao-valores">
                                 <span class="valor-usado" id="barra-rd-despesas">R$ 0,00</span>
                                 <span class="separador">/</span>
                                 <span class="valor-limite" id="barra-rd-receitas">R$ 0,00</span>
                             </div>
                         </div>
-                        <div class="cartao-barra-progresso">
+                        <div class="cartao-barra-progresso" id="barra-rd-progresso-container">
                             <div class="barra-fundo">
-                                <div class="barra-preenchida status-ok" id="barra-rd-progresso" style="width: 0%"></div>
+                                <div class="barra-preenchida barra-projetada" id="barra-rd-projetado" style="width:0%"></div>
+                                <div class="barra-preenchida barra-real" id="barra-rd-progresso" style="width:0%"></div>
+                                <div class="barra-linha-alerta"></div>
+                            </div>
+                            <div class="barra-reservas-row" id="barra-reservas-row" style="display:none">
+                                <span class="barra-reservas-label"><i class="fas fa-lock"></i> Reservado</span>
+                                <div class="barra-reservas-track"><div class="barra-reservas-fill" id="barra-reservas-fill"></div></div>
+                                <span class="barra-reservas-valor" id="barra-reservas-valor"></span>
                             </div>
                             <div class="cartao-percentual">
                                 <span class="percentual-texto" id="barra-rd-percentual">0% usado</span>
+                                <span class="barra-tendencia" id="barra-rd-tendencia"></span>
                                 <span class="disponivel-texto">Disponível: <span id="barra-rd-disponivel">R$ 0,00</span></span>
                             </div>
                         </div>
@@ -2946,7 +2954,7 @@
     <div class="ai-dc-row dc-row-data-compra" hidden><span class="ai-dc-label">Data de compra</span><span class="ai-dc-val dc-data-compra"></span></div>
     <div class="ai-dc-row dc-row-vencimento" hidden><span class="ai-dc-label">Vencimento</span><span class="ai-dc-val dc-vencimento"></span></div>
     <div class="ai-dc-row dc-row-mes" hidden><span class="ai-dc-label">Mês de registro</span><span class="ai-dc-val dc-mes"></span></div>
-    <div class="ai-dc-row"><span class="ai-dc-label">Já pago</span><span class="ai-dc-val dc-ja-pago"></span></div>
+    <div class="ai-dc-row"><span class="ai-dc-label">Status</span><span class="ai-dc-val dc-status-despesa"></span></div>
     <div class="ai-dc-row dc-row-recorrente" hidden><span class="ai-dc-label">Recorrente</span><span class="ai-dc-val">Sim</span></div>
     <div class="ai-dc-row dc-row-replicar" hidden><span class="ai-dc-label">Replicar até</span><span class="ai-dc-val dc-replicar"></span></div>
 </div><p class="ai-card-pergunta">Quer revisar algum dado antes de salvar?</p><div class="ai-msg-btns">

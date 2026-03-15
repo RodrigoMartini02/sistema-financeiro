@@ -1440,7 +1440,6 @@ function preencherConteudoMes(mesCard, mes, ano, saldo, fechado, temTransacoes) 
         saldoContainer.style.display = 'block';
     } else {
         saldoContainer.style.display = 'none';
-        if (saldoProjetadoContainer) saldoProjetadoContainer.style.display = 'none';
     }
     
     const btnReabrir = clone.querySelector('.btn-reabrir');

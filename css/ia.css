@@ -314,9 +314,10 @@
 }
 .ai-despesa-card .ai-dc-valor { color: var(--primary-color,#4361ee); font-weight: 700; font-size:13px; }
 .ai-dc-mes   { font-size: 10px; color: var(--primary-color,#4361ee); margin-left: 4px; white-space: nowrap; }
-.ai-dc-pago  { color: #16a34a; font-weight: 600; }
+.ai-dc-pago     { color: #16a34a; font-weight: 600; }
 .ai-dc-pendente { color: var(--gray-500,#6c757d); }
-.ai-dc-alerta { color: #dc3545; font-weight: 600; font-size: 12px; }
+.ai-dc-atrasada { color: #dc3545; font-weight: 600; }
+.ai-dc-alerta   { color: #dc3545; font-weight: 600; font-size: 12px; }
 
 /* Botões de ação na mensagem */
 .ai-msg-btns {
