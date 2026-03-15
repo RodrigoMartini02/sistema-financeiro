@@ -834,6 +834,27 @@
 
 #btn-instrucoes-gen:hover { opacity: 0.88; }
 
+#btn-cofre-sidebar-fixed {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 7px 10px;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    letter-spacing: 0.2px;
+    margin-bottom: 6px;
+}
+
+#btn-cofre-sidebar-fixed:hover { opacity: 0.88; }
+
 #btn-abrir-avaliacao {
     display: flex;
     align-items: center;

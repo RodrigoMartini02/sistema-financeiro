@@ -516,11 +516,6 @@ textarea:focus {
     margin: 0;
 }
 
-.sidebar-nav-cofre {
-    flex: 0;
-    padding: 0;
-}
-
 .nav-item {
     margin-bottom: 2px;
 }
@@ -2064,6 +2059,18 @@ table tr:hover {
     background-color: var(--gray-300);
     margin: 0 4px;
 }
+
+.btn-cofre-toolbar {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    border-radius: 6px;
+    font-weight: 600;
+    transition: opacity 0.2s;
+}
+
+.btn-cofre-toolbar:hover { opacity: 0.88; }
 
 /* Padronização de botões na toolbar */
 .tabs-toolbar .btn-sm,

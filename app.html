@@ -128,15 +128,6 @@
             </li>
         </ul>
 
-        <ul class="sidebar-nav sidebar-nav-cofre">
-            <li class="nav-item">
-                <a href="#" class="nav-link" id="btn-cofre-sidebar-fixed" onclick="abrirCofre(); return false;" data-label="Cofre">
-                    <span class="nav-icon"><i class="fas fa-piggy-bank"></i></span>
-                    <span class="nav-text">Cofre</span>
-                </a>
-            </li>
-        </ul>
-
         <div id="plano-sidebar-container">
             <div id="trial-banner" style="display:none">
                 <div class="trial-banner-top">
@@ -153,6 +144,7 @@
                 <span>Acesso expirado</span>
                 <button onclick="abrirModalPlanos()">Renovar</button>
             </div>
+            <button id="btn-cofre-sidebar-fixed" onclick="abrirCofre()"><i class="fas fa-piggy-bank"></i> Cofre</button>
             <button id="btn-abrir-avaliacao" onclick="abrirModalAvaliacao()">Avaliação</button>
             <button id="btn-instrucoes-gen" onclick="abrirModalInstrucoesGen()">Instruções da Gen</button>
             <button id="btn-upgrade" style="display:none" onclick="abrirModalPlanos()">
@@ -1861,6 +1853,9 @@
                         </button>
                         <button id="btn-pagar-lote-toolbar" class="btn btn-secondary btn-sm" disabled title="Pagar em Lote">
                             <i class="fas fa-check-circle"></i> Lote
+                        </button>
+                        <button class="btn btn-cofre-toolbar btn-sm" onclick="abrirCofre()" title="Cofre">
+                            <i class="fas fa-piggy-bank"></i> Cofre
                         </button>
                         <span class="toolbar-divider"></span>
                     </div>
