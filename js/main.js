@@ -414,7 +414,7 @@ async function salvarDados() {
             let sucesso = false;
 
             try {
-                // 🔥 SALVAR NA API DO POSTGRESQL PRIMEIRO
+                // Salvar na API do PostgreSQL
                 if (window.usuarioDataManager && typeof window.usuarioDataManager.salvarDadosUsuario === 'function') {
                     sucesso = await window.usuarioDataManager.salvarDadosUsuario(window.dadosFinanceiros);
 
@@ -606,9 +606,6 @@ function setupControlesAno() {
     const btnNovoAnoMenu = document.getElementById('btn-novo-ano-menu');
     const btnExcluirAnoMenu = document.getElementById('btn-excluir-ano-menu');
 
-    const btnNovoAno = document.getElementById('btn-novo-ano');
-    const btnExcluirAno = document.getElementById('btn-excluir-ano-atual');
-
     // Navegação anterior/próximo
     if (btnAnoAnterior) {
         btnAnoAnterior.addEventListener('click', () => mudarAno(anoAtual - 1));
@@ -649,15 +646,6 @@ function setupControlesAno() {
             dropdownAnoMenu.classList.remove('show');
             excluirAno(anoAtual);
         });
-    }
-
-    // Manter compatibilidade com botões antigos
-    if (btnNovoAno) {
-        btnNovoAno.addEventListener('click', abrirModalNovoAno);
-    }
-
-    if (btnExcluirAno) {
-        btnExcluirAno.addEventListener('click', () => excluirAno(anoAtual));
     }
 
     document.addEventListener('click', () => {
@@ -706,8 +694,6 @@ function atualizarDisplayAno(ano) {
         btnAnoAtualDisplay.textContent = ano;
     }
 
-    // Manter compatibilidade com elemento antigo
-    atualizarElemento('ano-atual', ano);
 }
 
 function setupModais() {
@@ -795,25 +781,6 @@ function setupToolbarButtons() {
 
 }
 
-// Função de atualização do contador da toolbar (usada pelo despesas.js)
-function atualizarContadorToolbar(visiveis, total, valorTotal) {
-    const contador = document.getElementById('contador-despesas-toolbar');
-    if (contador) {
-        if (visiveis === total) {
-            contador.textContent = `${total} itens`;
-        } else {
-            contador.textContent = `${visiveis}/${total}`;
-        }
-    }
-
-    // Atualizar valor total
-    const totalElement = document.getElementById('total-despesas-toolbar');
-    if (totalElement && valorTotal !== undefined) {
-        totalElement.textContent = formatarMoeda(valorTotal);
-    }
-}
-
-
 // Atualizar categorias no filtro da toolbar
 function atualizarCategoriasToolbar(categorias) {
     const filtro = document.getElementById('filtro-categoria-toolbar');
@@ -836,7 +803,6 @@ function atualizarCategoriasToolbar(categorias) {
 
 // Exportar funções globalmente
 window.atualizarCategoriasToolbar = atualizarCategoriasToolbar;
-window.atualizarContadorToolbar = atualizarContadorToolbar;
 
 function setupOutrosControles() {
     // Toggle indicadores (accordion)
@@ -1149,28 +1115,6 @@ function setupEventosFechamento() {
     }
 }
 
-function obterUsuarioAtualLocal() {
-    try {
-        // Primeiro tenta pegar do sessionStorage (dados do usuário logado via API)
-        const dadosUsuario = sessionStorage.getItem('dadosUsuarioLogado');
-        if (dadosUsuario) {
-            return JSON.parse(dadosUsuario);
-        }
-
-        // Fallback: busca no localStorage (modo antigo)
-        const usuarioAtual = sessionStorage.getItem('usuarioAtual');
-        if (!usuarioAtual) return null;
-
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        return usuarios.find(u => u.documento && u.documento.replace(/[^\d]+/g, '') === usuarioAtual);
-    } catch (error) {
-        return null;
-    }
-}
-
-
-
-
 function configurarObservadorModal() {
     const modal = document.getElementById('modal-lancamento-despesas');
     if (!modal) return;
@@ -1322,8 +1266,7 @@ async function excluirAno(ano) {
         if (ano === anoAtual) {
             anoAtual = new Date().getFullYear();
             window.anoAtual = anoAtual;
-            atualizarElemento('ano-atual', anoAtual);
-            
+
             if (!dadosFinanceiros[anoAtual]) {
                 abrirModalNovoAno();
             } else {
@@ -1851,34 +1794,7 @@ function configurarBotoesModal() {
         }
     });
     
-    const checkboxTodasDespesas = document.getElementById('pagar-despesas-em-lote');
-    if (checkboxTodasDespesas) {
-        checkboxTodasDespesas.addEventListener('change', function() {
-            const btnPagarEmLote = document.getElementById('btn-pagar-em-lote');
-            if (btnPagarEmLote) {
-                btnPagarEmLote.disabled = !this.checked;
-            }
-            
-            const checkboxes = document.querySelectorAll('.despesa-checkbox');
-            checkboxes.forEach(cb => {
-                cb.checked = this.checked;
-            });
-        });
-    }
-    
-    configurarBotao('btn-pagar-em-lote', () => {
-        if (typeof window.pagarDespesasEmLote === 'function') {
-            window.pagarDespesasEmLote();
-        }
-    });
-    
-    configurarBotao('btn-limpar-filtros', () => {
-        if (typeof window.limparFiltros === 'function') {
-            window.limparFiltros();
-        }
-    });
-    
-       configurarBotao('btn-mes-anterior', () => navegarMesModal(-1));
+    configurarBotao('btn-mes-anterior', () => navegarMesModal(-1));
     configurarBotao('btn-mes-proximo', () => navegarMesModal(1));
     
     // Atualizar estado dos botões
@@ -2900,8 +2816,6 @@ function fecharModal(modalId) {
     }
 }
 
-// Função removida - usar window.obterValorRealDespesa de despesas.js
-
 window.navegarMesModal = navegarMesModal;
 window.atualizarBotoesNavegacaoMes = atualizarBotoesNavegacaoMes;
 
@@ -2939,17 +2853,6 @@ function configurarEventListeners() {
         btn.addEventListener('click', abrirModalNovaDespesa);
     });
 
-    // Botão pagar em lote
-    const btnPagarLote = document.getElementById('btn-pagar-em-lote');
-    if (btnPagarLote) {
-        btnPagarLote.addEventListener('click', pagarDespesasEmLote);
-    }
-
-    // Botão limpar filtros
-    const btnLimparFiltros = document.getElementById('btn-limpar-filtros');
-    if (btnLimparFiltros) {
-        btnLimparFiltros.addEventListener('click', limparFiltros);
-    }
 }
 
 

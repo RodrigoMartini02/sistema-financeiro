@@ -922,71 +922,88 @@ function configurarEventListenersModais() {
 // ================================================================
 
 function atualizarSaldoAnteriorToolbar() {
-    const span = document.getElementById('saldo-anterior-toolbar');
+    const spanAnt = document.getElementById('saldo-anterior-toolbar');
+    const cardAnt = document.getElementById('saldo-anterior-toolbar-card');
+    const sepAnt  = document.getElementById('saldo-sep-ant');
+
     const spanReal = document.getElementById('saldo-real-toolbar');
+    const cardReal = document.getElementById('saldo-real-toolbar-card');
+    const sepReal  = document.getElementById('saldo-sep-real');
+
     const spanProjetado = document.getElementById('saldo-projetado-toolbar');
+    const cardProjetado = document.getElementById('saldo-projetado-toolbar-card');
 
     const mes = window.mesAberto;
     const ano = window.anoAberto;
 
+    function ocultarCard(card, sep) {
+        if (card) card.classList.add('hidden');
+        if (sep)  sep.classList.add('hidden');
+    }
+    function mostrarCard(card, sep) {
+        if (card) card.classList.remove('hidden');
+        if (sep)  sep.classList.remove('hidden');
+    }
+
     // Ocultar tudo se não há mês aberto
     if (mes === undefined || ano === undefined) {
-        if (span) span.classList.add('hidden');
-        if (spanReal) spanReal.classList.add('hidden');
-        if (spanProjetado) spanProjetado.classList.add('hidden');
+        ocultarCard(cardAnt, sepAnt);
+        ocultarCard(cardReal, sepReal);
+        ocultarCard(cardProjetado, null);
         return;
     }
 
     // --- Saldo Anterior ---
-    if (span) {
-        const valor = obterSaldoAnteriorValido(mes, ano);
-        if (valor === 0) {
-            span.classList.add('hidden');
-        } else {
-            span.textContent = `Saldo ant.: ${window.formatarMoeda(valor)}`;
-            span.classList.remove('hidden', 'toolbar-saldo-positivo', 'toolbar-saldo-negativo');
-            span.classList.add(valor >= 0 ? 'toolbar-saldo-positivo' : 'toolbar-saldo-negativo');
+    const valorAnt = obterSaldoAnteriorValido(mes, ano);
+    if (valorAnt === 0) {
+        ocultarCard(cardAnt, sepAnt);
+    } else {
+        if (spanAnt) {
+            spanAnt.textContent = window.formatarMoeda(valorAnt);
+            spanAnt.classList.remove('saldo-positivo', 'saldo-negativo');
+            spanAnt.classList.add(valorAnt >= 0 ? 'saldo-positivo' : 'saldo-negativo');
         }
+        mostrarCard(cardAnt, sepAnt);
     }
 
     // --- Saldo Real e Projetado ---
-    if (spanReal || spanProjetado) {
-        const saldo = typeof window.calcularSaldoMes === 'function'
-            ? window.calcularSaldoMes(mes, ano)
-            : null;
+    const saldo = typeof window.calcularSaldoMes === 'function'
+        ? window.calcularSaldoMes(mes, ano)
+        : null;
 
-        let movimentacoesAcumuladas = 0;
-        if (typeof window.calcularTotalReservasAcumuladas === 'function') {
-            movimentacoesAcumuladas = window.calcularTotalReservasAcumuladas(mes, ano);
+    let movimentacoesAcumuladas = 0;
+    if (typeof window.calcularTotalReservasAcumuladas === 'function') {
+        movimentacoesAcumuladas = window.calcularTotalReservasAcumuladas(mes, ano);
+    }
+
+    const temTransacoes = saldo && (saldo.receitas > 0 || saldo.despesas > 0 || saldo.despesasTotal > 0);
+
+    if (saldo && temTransacoes) {
+        const saldoReal = saldo.saldoFinal - movimentacoesAcumuladas;
+        const saldoProjetado = saldo.saldoProjetado - movimentacoesAcumuladas;
+
+        if (spanReal) {
+            spanReal.textContent = window.formatarMoeda(saldoReal);
+            spanReal.classList.remove('saldo-positivo', 'saldo-negativo');
+            spanReal.classList.add(saldoReal >= 0 ? 'saldo-positivo' : 'saldo-negativo');
         }
+        mostrarCard(cardReal, sepReal);
 
-        const temTransacoes = saldo && (saldo.receitas > 0 || saldo.despesas > 0 || saldo.despesasTotal > 0);
-
-        if (saldo && temTransacoes) {
-            const saldoReal = saldo.saldoFinal - movimentacoesAcumuladas;
-            const saldoProjetado = saldo.saldoProjetado - movimentacoesAcumuladas;
-
-            if (spanReal) {
-                spanReal.textContent = `Real: ${window.formatarMoeda(saldoReal)}`;
-                spanReal.classList.remove('hidden', 'toolbar-saldo-positivo', 'toolbar-saldo-negativo');
-                spanReal.classList.add(saldoReal >= 0 ? 'toolbar-saldo-positivo' : 'toolbar-saldo-negativo');
-            }
-
-            // Mostrar projetado apenas se difere do real (há despesas não pagas)
-            const temDespesasNaoPagas = Math.round(saldoProjetado * 100) !== Math.round(saldoReal * 100);
+        // Mostrar projetado apenas se difere do real (há despesas não pagas)
+        const temDespesasNaoPagas = Math.round(saldoProjetado * 100) !== Math.round(saldoReal * 100);
+        if (temDespesasNaoPagas) {
             if (spanProjetado) {
-                if (temDespesasNaoPagas) {
-                    spanProjetado.textContent = `Projetado: ${window.formatarMoeda(saldoProjetado)}`;
-                    spanProjetado.classList.remove('hidden', 'toolbar-saldo-positivo', 'toolbar-saldo-negativo');
-                    spanProjetado.classList.add(saldoProjetado >= 0 ? 'toolbar-saldo-positivo' : 'toolbar-saldo-negativo');
-                } else {
-                    spanProjetado.classList.add('hidden');
-                }
+                spanProjetado.textContent = window.formatarMoeda(saldoProjetado);
+                spanProjetado.classList.remove('saldo-positivo', 'saldo-negativo');
+                spanProjetado.classList.add(saldoProjetado >= 0 ? 'saldo-positivo' : 'saldo-negativo');
             }
+            mostrarCard(cardProjetado, null);
         } else {
-            if (spanReal) spanReal.classList.add('hidden');
-            if (spanProjetado) spanProjetado.classList.add('hidden');
+            ocultarCard(cardProjetado, null);
         }
+    } else {
+        ocultarCard(cardReal, sepReal);
+        ocultarCard(cardProjetado, null);
     }
 }
 

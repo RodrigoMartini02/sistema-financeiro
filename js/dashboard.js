@@ -487,11 +487,6 @@ balanco: {
     }
 };
 
-// Resetar filtros do balanço para o padrão
-function resetarFiltrosBalanco() {
-    filtrarBalanco();
-}
-
 function filtrarBalanco() {
     if (window.anoDashboard === 'todos') {
         criarGraficoBalancoPorAnos();
@@ -499,9 +494,6 @@ function filtrarBalanco() {
         criarGraficoBalancoPorMeses(window.anoAtual || new Date().getFullYear());
     }
 }
-
-// Alias de compatibilidade
-const filtrarBalancoPeriodo = filtrarBalanco;
 
 // Plugin termômetro: barra de fundo sempre até o topo, valor preenchido por cima
 const backgroundBarPlugin = {
@@ -910,44 +902,6 @@ function criarGraficoReceitasDespesasComFiltros(dados, filtros) {
     });
 }
 
-window.filtrarReceitasDespesas = function() {
-    const filtros = obterFiltrosDoGrafico('receitas-despesas');
-    
-    const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-    const dadosMensais = {
-        labels: nomesMeses,
-        receitas: [],
-        despesas: []
-    };
-    
-    for (let i = 0; i < 12; i++) {
-        const dadosMes = window.dadosFinanceiros[window.anoAtual]?.meses[i];
-        
-        if (!dadosMes) {
-            dadosMensais.receitas.push(0);
-            dadosMensais.despesas.push(0);
-            continue;
-        }
-        
-        const receitasReais = (dadosMes.receitas || []).reduce((sum, r) => {
-            if (r.saldoAnterior === true || 
-                r.descricao?.includes('Saldo Anterior') ||
-                r.automatica === true) {
-                return sum;
-            }
-            return sum + (r.valor || 0);
-        }, 0);
-        
-        const despesasFiltradas = aplicarFiltrosDespesas(dadosMes.despesas || [], filtros);
-        const despesasTotal = window.calcularTotalDespesas ? 
-                             window.calcularTotalDespesas(despesasFiltradas) : 0;
-        
-        dadosMensais.receitas.push(receitasReais);
-        dadosMensais.despesas.push(despesasTotal);
-    }
-    
-    criarGraficoReceitasDespesasComFiltros(dadosMensais, filtros);
-};
 
 // ================================================================
 // GRÁFICO 4: CATEGORIAS ANUAIS (BARRAS)
@@ -1007,7 +961,7 @@ function criarGraficoBarrasCategoriasComFiltros(dadosFinanceiros, ano, filtros) 
                 }]
             },
             options: {
-                indexAxis: 'y', // Define a orientação horizontal
+                indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
@@ -1144,12 +1098,12 @@ function criarGraficoCategoriasMensaisComFiltros(dadosFinanceiros, ano, filtros)
                 datasets: datasets
             },
             options: {
-                indexAxis: 'y', // Ativa barras horizontais
+                indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
                     x: {
-                        stacked: true, // Empilhamento no eixo X (valores)
+                        stacked: true,
                         beginAtZero: true,
                         grid: { display: true, color: 'rgba(0,0,0,0.06)' },
                         border: { display: false },
@@ -1161,7 +1115,7 @@ function criarGraficoCategoriasMensaisComFiltros(dadosFinanceiros, ano, filtros)
                         }
                     },
                     y: {
-                        stacked: true, // Empilhamento no eixo Y (meses)
+                        stacked: true,
                         grid: { display: false },
                         border: { display: false }
                     }
@@ -1498,105 +1452,6 @@ function criarGraficoFormaPagamentoComFiltros(dadosFinanceiros, ano, filtros) {
     }
 }
 
-// Função para filtrar e disparar a criação do gráfico
-window.filtrarMediaItens = function() {
-    const filtros = {
-        categoria: document.getElementById('media-item-categoria-filter').value,
-        formaPagamento: 'todas', // Padrão para este gráfico
-        status: 'todos',
-        tipo: 'despesas'
-    };
-    criarGraficoMediaItens(window.dadosFinanceiros, window.anoAtual, filtros);
-};
-
-function criarGraficoMediaItens(dadosFinanceiros, ano, filtros) {
-    const ctx = document.getElementById('media-itens-chart')?.getContext('2d');
-    if (!ctx || !dadosFinanceiros[ano]) return;
-
-    const contagemItens = {}; // { 'Nome da Despesa': { total: 0, qtd: 0 } }
-
-    // Percorre todos os meses do ano
-    for (let i = 0; i < 12; i++) {
-        const dadosMes = dadosFinanceiros[ano].meses[i];
-        if (!dadosMes || !dadosMes.despesas) continue;
-
-        const despesasFiltradas = aplicarFiltrosDespesas(dadosMes.despesas, filtros);
-
-        despesasFiltradas.forEach(despesa => {
-            const nome = despesa.descricao || 'Sem descrição';
-            const valor = window.obterValorRealDespesa ? window.obterValorRealDespesa(despesa) : (despesa.valor || 0);
-
-            if (valor > 0) {
-                if (!contagemItens[nome]) {
-                    contagemItens[nome] = { total: 0, qtd: 0 };
-                }
-                contagemItens[nome].total += valor;
-                contagemItens[nome].qtd += 1;
-            }
-        });
-    }
-
-    // Calcula a média e ordena pelos maiores valores médios
-    const mediasArray = Object.keys(contagemItens).map(nome => ({
-        nome: nome,
-        media: contagemItens[nome].total / contagemItens[nome].qtd
-    }))
-    .sort((a, b) => b.media - a.media)
-    .slice(0, 10); // Top 10 itens mais caros em média
-
-    const maxValorMediaItens = Math.max(...mediasArray.map(m => Math.abs(m.media || 0)));
-
-    if (window.mediaItensChart) {
-        window.mediaItensChart.destroy();
-    }
-
-    window.mediaItensChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: mediasArray.map(m => m.nome),
-            datasets: [{
-                label: 'Valor Médio por Ocorrência',
-                data: mediasArray.map(m => m.media),
-                backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                borderColor: 'rgb(54, 162, 235)',
-                borderWidth: 1,
-                borderRadius: 8,
-                borderSkipped: false
-            }]
-        },
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    usePointStyle: false,
-                    boxWidth: 10,
-                    boxHeight: 10,
-                    boxPadding: 4,
-                    callbacks: {
-                        label: (context) => `Média: ${window.formatarMoeda(context.raw)}`
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    grid: { display: true, color: 'rgba(0,0,0,0.06)' },
-                    border: { display: false },
-                    ticks: {
-                        stepSize: calcularStepSize(maxValorMediaItens),
-                        callback: (value) => window.formatarMoedaCompacta(value)
-                    }
-                },
-                y: {
-                    grid: { display: false },
-                    border: { display: false }
-                }
-            }
-        }
-    });
-}
 
 function renderizarGraficoMediaCategorias(ano) {
     const ctx = document.getElementById('media-categorias-chart')?.getContext('2d');
@@ -1987,5 +1842,4 @@ window.filtrarFormaPagamento = function() {
 
 window.carregarDadosDashboard = carregarDadosDashboard;
 window.filtrarBalanco = filtrarBalanco;
-window.filtrarBalancoPeriodo = filtrarBalanco; // alias legado
-window.resetarFiltrosBalanco = resetarFiltrosBalanco;
+window.filtrarBalancoPeriodo = filtrarBalanco;

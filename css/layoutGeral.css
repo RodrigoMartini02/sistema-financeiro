@@ -2145,6 +2145,67 @@ table tr:hover {
     display: none;
 }
 
+/* ================================================================
+   BARRA DE SALDOS DO MÊS — mini-cards inline
+   ================================================================ */
+
+.barra-saldos-mes {
+    display: flex;
+    align-items: center;
+    background: var(--bg-card, #fff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 8px;
+    padding: 4px 10px;
+    gap: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    flex-shrink: 0;
+}
+
+.saldo-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2px 12px;
+    min-width: 80px;
+    flex: 1;
+}
+
+.saldo-card.hidden {
+    display: none;
+}
+
+.saldo-label {
+    font-size: 10px;
+    color: var(--gray-500, #94a3b8);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+}
+
+.saldo-valor {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary, #1e293b);
+    white-space: nowrap;
+}
+
+.saldo-sep {
+    width: 1px;
+    height: 26px;
+    background: var(--border-color, #e2e8f0);
+    flex-shrink: 0;
+}
+
+.saldo-sep.hidden {
+    display: none;
+}
+
+.saldo-positivo { color: #10b981; }
+.saldo-negativo { color: #ef4444; }
+.saldo-destaque { color: #f59e0b; }
+
 
 /* Layout vertical para indicadores */
 .lista-barras-vertical {
@@ -2212,19 +2273,6 @@ table tr:hover {
 .mensagem.fade-out {
     opacity: 0;
 }
-
-/* ================================================================
-   ESTADOS DE CARREGAMENTO
-   ================================================================ */
-
-
-
-/* ================================================================
-   CONTINUA NO PRÓXIMO BLOCO...
-   ================================================================ */
-
-
-
 
 /* ================================================================
    MÓDULO CONFIGURAÇÕES
@@ -3097,26 +3145,6 @@ table tr:hover {
 }
 
 
-
-
-    
-    .item-dados-linha {
-        gap: 8px;
-    }
-    
-    .item-viabilidade-inline {
-        padding: 6px 8px;
-    }
-    
-    .status-texto {
-        font-size: 12px;
-    }
-    
-    .motivo-texto {
-        font-size: 10px;
-    }
-
-
 /* ================================================================
    FIM DA REFATORAÇÃO CSS
    ================================================================ */
@@ -3371,7 +3399,6 @@ table tr:hover {
         font-size: 24px;
     }
 }
-/* Botão Retirar */
 
 /* ================================================================
    SISTEMA GRID COMPARTILHADO

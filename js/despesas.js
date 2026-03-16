@@ -3871,33 +3871,38 @@ function atualizarContadoresFiltro() {
    const linhasVisiveis = document.querySelectorAll('tr.despesa-row:not([style*="display: none"])');
    const totalLinhas = document.querySelectorAll('tr.despesa-row').length;
 
-   let valorTotalVisivel = 0;
+   // Somar apenas linhas de despesa visíveis (excluir receitas do total de despesas)
+   let valorTotalDespesas = 0;
+   let countDespesas = 0;
+   let totalDespesasGeral = document.querySelectorAll('tr.despesa-row[data-tipo="despesa"]').length;
 
    linhasVisiveis.forEach(linha => {
-       const valorDespesa = calcularValorDespesaLinha(linha);
-       valorTotalVisivel += valorDespesa;
+       if (linha.getAttribute('data-tipo') === 'despesa') {
+           valorTotalDespesas += calcularValorDespesaLinha(linha);
+           countDespesas++;
+       }
    });
 
    // Atualizar contador antigo (se existir)
    const contadorFiltro = document.getElementById('contador-filtro');
    if (contadorFiltro) {
-       contadorFiltro.textContent = `${linhasVisiveis.length} de ${totalLinhas} despesas (${formatarMoeda(valorTotalVisivel)})`;
+       contadorFiltro.textContent = `${countDespesas} de ${totalDespesasGeral} despesas (${formatarMoeda(valorTotalDespesas)})`;
    }
 
    // Atualizar contador da toolbar unificada
    const contadorToolbar = document.getElementById('contador-despesas-toolbar');
    if (contadorToolbar) {
-       if (linhasVisiveis.length === totalLinhas) {
-           contadorToolbar.textContent = `${totalLinhas} itens`;
+       if (countDespesas === totalDespesasGeral) {
+           contadorToolbar.textContent = `${totalDespesasGeral}`;
        } else {
-           contadorToolbar.textContent = `${linhasVisiveis.length}/${totalLinhas}`;
+           contadorToolbar.textContent = `${countDespesas}/${totalDespesasGeral}`;
        }
    }
 
-   // Atualizar valor total na toolbar
+   // Atualizar valor total na toolbar (apenas despesas)
    const totalToolbar = document.getElementById('total-despesas-toolbar');
    if (totalToolbar) {
-       totalToolbar.textContent = formatarMoeda(valorTotalVisivel);
+       totalToolbar.textContent = formatarMoeda(valorTotalDespesas);
    }
 
    // Atualizar contadores de anexos para linhas visíveis
