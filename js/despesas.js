@@ -384,13 +384,13 @@ function preencherCelulasGridReceita(clone, receita, fechado) {
     if (celulaAcoes) {
         if (!fechado) {
             celulaAcoes.innerHTML = `<div class="acoes-grupo">
-                <button class="btn btn-sm btn-editar-receita" title="Editar receita"><i class="fas fa-edit"></i></button>
-                <button class="btn btn-sm btn-excluir-receita" title="Excluir receita"><i class="fas fa-trash"></i></button>
+                <button class="btn btn-sm btn-editar btn-editar-receita" title="Editar receita"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-sm btn-excluir btn-excluir-receita" title="Excluir receita"><i class="fas fa-trash"></i></button>
             </div>`;
         } else {
             celulaAcoes.innerHTML = `<div class="acoes-grupo">
-                <button class="btn btn-sm btn-editar-receita btn-bloqueado" title="Editar receita (mês fechado)" disabled><i class="fas fa-edit"></i></button>
-                <button class="btn btn-sm btn-excluir-receita btn-bloqueado" title="Excluir receita (mês fechado)" disabled><i class="fas fa-trash"></i></button>
+                <button class="btn btn-sm btn-editar btn-editar-receita btn-bloqueado" title="Editar receita (mês fechado)" disabled><i class="fas fa-edit"></i></button>
+                <button class="btn btn-sm btn-excluir btn-excluir-receita btn-bloqueado" title="Excluir receita (mês fechado)" disabled><i class="fas fa-trash"></i></button>
             </div>`;
         }
     }

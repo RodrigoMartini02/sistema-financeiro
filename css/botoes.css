@@ -191,6 +191,30 @@
     border-color: #b91c1c;
 }
 
+/* Botão toggle categoria — desativar (categoria ativa, data-ativo="1") */
+.btn-toggle-categoria[data-ativo="1"] {
+    background-color: #6b7280;
+    color: #ffffff;
+    border-color: #6b7280;
+}
+
+.btn-toggle-categoria[data-ativo="1"]:hover:not(:disabled) {
+    background-color: #4b5563;
+    border-color: #374151;
+}
+
+/* Botão toggle categoria — reativar (categoria inativa, data-ativo="0") */
+.btn-toggle-categoria[data-ativo="0"] {
+    background-color: #10b981;
+    color: #ffffff;
+    border-color: #10b981;
+}
+
+.btn-toggle-categoria[data-ativo="0"]:hover:not(:disabled) {
+    background-color: #059669;
+    border-color: #047857;
+}
+
 .btn-avancar {
     background-color: #3b82f6;
     color: #ffffff;
