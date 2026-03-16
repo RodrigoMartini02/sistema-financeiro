@@ -388,45 +388,50 @@ select.campo-invalido {
     border-color: #34d399;
 }
 
-/* Layout principal: coluna única com seções empilhadas */
+/* Layout principal: 2 colunas (esquerda flex:1, direita opções) */
 .card-main-row {
     display: flex;
-    flex-direction: column;
-    gap: 14px;
+    flex-direction: row;
+    gap: 12px;
+    align-items: flex-start;
 }
 
-/* Seções visuais */
-.card-secao {
+.card-left-col {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
+    min-width: 0;
 }
 
-.card-secao-label {
+/* Wrapper de grupo com label na borda (estilo fieldset/legend) */
+.card-group {
+    position: relative;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 14px 10px 10px;
+}
+
+/* Label posicionada na linha de borda */
+.card-group-label {
+    position: absolute;
+    top: -9px;
+    left: 10px;
+    background: #fff;
+    padding: 0 6px;
     font-size: 10px;
     font-weight: 700;
+    color: #1e293b;
     text-transform: uppercase;
-    letter-spacing: 0.6px;
-    color: #94a3b8;
-}
-
-/* Seção de opções em linha */
-.card-secao-opcoes .card-secao-inner {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 12px;
-}
-
-/* Retrocompatibilidade: card-left-col não é mais gerado mas pode existir em cards editados */
-.card-left-col {
-    display: contents;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
 }
 
 .card-pgto-outer {
+    position: relative;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
-    padding: 12px 10px 8px 10px;
+    padding: 14px 10px 10px;
 }
 
 .card-pgto-wrapper {
@@ -436,9 +441,30 @@ select.campo-invalido {
     flex-wrap: wrap;
 }
 
-/* Grupo de opções: agora é filho de .card-secao-inner (flex row) */
+/* Coluna direita: Opções */
 .card-opcoes-grupo {
-    display: contents;
+    min-width: 160px;
+    max-width: 180px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: relative;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 14px 12px 10px;
+}
+
+.card-opcoes-grupo > .card-group-label {
+    position: absolute;
+    top: -9px;
+    left: 10px;
+    background: #fff;
+    padding: 0 6px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #1e293b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 /* Linha 2: descrição + categoria */
@@ -464,7 +490,7 @@ select.campo-invalido {
     border-radius: 8px;
     font-size: 14px;
     width: 100%;
-    background: transparent;
+    background: #ffffff !important;
     color: #1e293b;
     transition: border-color 0.15s;
 }
@@ -612,11 +638,11 @@ select.campo-invalido {
     top: -9px;
     left: 50%;
     transform: translateX(-50%);
-    background: transparent;
+    background: #fff;
     padding: 0 6px;
     font-size: 11px;
-    font-weight: 500;
-    color: #64748b;
+    font-weight: 600;
+    color: #1e293b;
     white-space: nowrap;
 }
 
@@ -783,7 +809,7 @@ select.campo-invalido {
     align-items: center;
     gap: 6px;
     font-size: 12px;
-    color: #475569;
+    color: #1e293b;
     cursor: pointer;
     white-space: nowrap;
 }
@@ -982,7 +1008,7 @@ select.campo-invalido {
         gap: 6px;
     }
 
-    .card-secao-opcoes .card-secao-inner {
+    .card-opcoes-grupo {
         gap: 8px;
     }
 }
