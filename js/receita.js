@@ -633,6 +633,7 @@ async function processarExclusaoReceita(opcao, index, mes, ano, descricaoReceita
 
     } catch (error) {
         (window.mostrarToast || alert)("Erro ao processar exclusão: " + error.message, 'error');
+        throw error;
     }
 }
 
@@ -767,19 +768,31 @@ function configurarOpcoesReplicacao() {
 // FUNÇÕES DE EXCLUSÃO
 // ================================================================
 
-function excluirAtual() {
+async function excluirAtual() {
     if (window.dadosExclusao) {
         const modal = document.getElementById('modal-exclusao-receita');
-        modal.style.display = 'none';
-        processarExclusaoReceita('atual', window.dadosExclusao.index, window.dadosExclusao.mes, window.dadosExclusao.ano, window.dadosExclusao.descricao);
+        const btn = document.getElementById('btn-excluir-atual');
+        if (btn) { btn.disabled = true; btn.classList.add('btn-loading'); }
+        try {
+            await processarExclusaoReceita('atual', window.dadosExclusao.index, window.dadosExclusao.mes, window.dadosExclusao.ano, window.dadosExclusao.descricao);
+            if (modal) modal.style.display = 'none';
+        } finally {
+            if (btn) { btn.disabled = false; btn.classList.remove('btn-loading'); }
+        }
     }
 }
 
-function excluirTodas() {
+async function excluirTodas() {
     if (window.dadosExclusao) {
         const modal = document.getElementById('modal-exclusao-receita');
-        modal.style.display = 'none';
-        processarExclusaoReceita('todas', window.dadosExclusao.index, window.dadosExclusao.mes, window.dadosExclusao.ano, window.dadosExclusao.descricao);
+        const btn = document.getElementById('btn-excluir-todas');
+        if (btn) { btn.disabled = true; btn.classList.add('btn-loading'); }
+        try {
+            await processarExclusaoReceita('todas', window.dadosExclusao.index, window.dadosExclusao.mes, window.dadosExclusao.ano, window.dadosExclusao.descricao);
+            if (modal) modal.style.display = 'none';
+        } finally {
+            if (btn) { btn.disabled = false; btn.classList.remove('btn-loading'); }
+        }
     }
 }
 

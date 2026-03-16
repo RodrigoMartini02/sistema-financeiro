@@ -2150,12 +2150,13 @@ table tr:hover {
    ================================================================ */
 
 .barra-saldos-mes {
+    height: 36px;
     display: flex;
     align-items: center;
     background: var(--bg-card, #fff);
     border: 1px solid var(--border-color, #e2e8f0);
-    border-radius: 8px;
-    padding: 4px 10px;
+    border-radius: 6px;
+    padding: 0 10px;
     gap: 0;
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -2166,9 +2167,11 @@ table tr:hover {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 2px 12px;
+    justify-content: center;
+    padding: 0 10px;
     min-width: 80px;
     flex: 1;
+    height: 100%;
 }
 
 .saldo-card.hidden {
@@ -2176,12 +2179,14 @@ table tr:hover {
 }
 
 .saldo-label {
-    font-size: 10px;
+    font-size: 9px;
     color: var(--gray-500, #94a3b8);
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.4px;
     white-space: nowrap;
+    line-height: 1;
+    margin-bottom: 1px;
 }
 
 .saldo-valor {
@@ -2189,11 +2194,12 @@ table tr:hover {
     font-weight: 700;
     color: var(--text-primary, #1e293b);
     white-space: nowrap;
+    line-height: 1;
 }
 
 .saldo-sep {
     width: 1px;
-    height: 26px;
+    height: 20px;
     background: var(--border-color, #e2e8f0);
     flex-shrink: 0;
 }

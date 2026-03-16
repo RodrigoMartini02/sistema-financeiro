@@ -2093,12 +2093,16 @@ async function excluirParcelaEFuturas(index, mes, ano) {
         const parcelaAtual = despesa.parcelaAtual || (despesa.parcela ? parseInt(despesa.parcela.split('/')[0]) : 1);
 
         // Excluir a parcela atual primeiro
-        await fetch(`${API_URL}/despesas/${despesa.id}`, {
+        const resAtual = await fetch(`${API_URL}/despesas/${despesa.id}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${getToken()}`
             }
         });
+
+        if (!resAtual.ok) {
+            throw new Error(`Erro ao excluir parcela atual: ${resAtual.status}`);
+        }
 
         // Buscar e excluir parcelas futuras via API (mais confiável que iterar dadosFinanceiros)
         if (idGrupo) {
@@ -2275,16 +2279,20 @@ async function configurarBotoesExclusao(despesa, index, mes, ano) {
 function configurarBotoesExclusaoSimples(despesa, index, mes, ano) {
     const btnAtual = document.getElementById('btn-excluir-atual');
     const btnTodos = document.getElementById('btn-excluir-todos-meses');
-    
+
     if (btnAtual) {
         btnAtual.onclick = async function(e) {
             e.preventDefault();
             e.stopPropagation();
-            
+            btnAtual.disabled = true;
+            btnAtual.classList.add('btn-loading');
             try {
                 await processarExclusao('atual', index, mes, ano, despesa.descricao, despesa.categoria, despesa.idGrupoParcelamento);
             } catch (error) {
                 (window.mostrarToast || alert)('Erro ao excluir: ' + error.message, 'error');
+            } finally {
+                btnAtual.disabled = false;
+                btnAtual.classList.remove('btn-loading');
             }
         };
     }
@@ -2293,11 +2301,15 @@ function configurarBotoesExclusaoSimples(despesa, index, mes, ano) {
         btnTodos.onclick = async function(e) {
             e.preventDefault();
             e.stopPropagation();
-
+            btnTodos.disabled = true;
+            btnTodos.classList.add('btn-loading');
             try {
                 await processarExclusao('todas', index, mes, ano, despesa.descricao, despesa.categoria, despesa.idGrupoParcelamento);
             } catch (error) {
                 (window.mostrarToast || alert)('Erro ao excluir: ' + error.message, 'error');
+            } finally {
+                btnTodos.disabled = false;
+                btnTodos.classList.remove('btn-loading');
             }
         };
     }
@@ -2307,16 +2319,20 @@ function configurarBotoesExclusaoParcelada(despesa, index, mes, ano) {
     const btnParcela = document.getElementById('btn-excluir-parcela-atual');
     const btnFuturas = document.getElementById('btn-excluir-parcelas-futuras');
     const btnTodas = document.getElementById('btn-excluir-todas-parcelas');
-    
+
     if (btnParcela) {
         btnParcela.onclick = async function(e) {
             e.preventDefault();
             e.stopPropagation();
-            
+            btnParcela.disabled = true;
+            btnParcela.classList.add('btn-loading');
             try {
                 await processarExclusao('parcela', index, mes, ano, despesa.descricao, despesa.categoria, despesa.idGrupoParcelamento);
             } catch (error) {
                 (window.mostrarToast || alert)('Erro ao excluir parcela: ' + error.message, 'error');
+            } finally {
+                btnParcela.disabled = false;
+                btnParcela.classList.remove('btn-loading');
             }
         };
     }
@@ -2325,11 +2341,15 @@ function configurarBotoesExclusaoParcelada(despesa, index, mes, ano) {
         btnFuturas.onclick = async function(e) {
             e.preventDefault();
             e.stopPropagation();
-
+            btnFuturas.disabled = true;
+            btnFuturas.classList.add('btn-loading');
             try {
                 await processarExclusao('futuras', index, mes, ano, despesa.descricao, despesa.categoria, despesa.idGrupoParcelamento);
             } catch (error) {
                 (window.mostrarToast || alert)('Erro ao excluir parcelas futuras: ' + error.message, 'error');
+            } finally {
+                btnFuturas.disabled = false;
+                btnFuturas.classList.remove('btn-loading');
             }
         };
     }
@@ -2338,11 +2358,15 @@ function configurarBotoesExclusaoParcelada(despesa, index, mes, ano) {
         btnTodas.onclick = async function(e) {
             e.preventDefault();
             e.stopPropagation();
-
+            btnTodas.disabled = true;
+            btnTodas.classList.add('btn-loading');
             try {
                 await processarExclusao('todas', index, mes, ano, despesa.descricao, despesa.categoria, despesa.idGrupoParcelamento);
             } catch (error) {
                 (window.mostrarToast || alert)('Erro ao excluir todas as parcelas: ' + error.message, 'error');
+            } finally {
+                btnTodas.disabled = false;
+                btnTodas.classList.remove('btn-loading');
             }
         };
     }
@@ -2357,10 +2381,15 @@ function configurarBotoesExclusaoRecorrente(despesa, index, mes, ano) {
         btnAtual.onclick = async function(e) {
             e.preventDefault();
             e.stopPropagation();
+            btnAtual.disabled = true;
+            btnAtual.classList.add('btn-loading');
             try {
                 await processarExclusao('atual', index, mes, ano, despesa.descricao, despesa.categoria, null);
             } catch (error) {
                 (window.mostrarToast || alert)('Erro ao excluir: ' + error.message, 'error');
+            } finally {
+                btnAtual.disabled = false;
+                btnAtual.classList.remove('btn-loading');
             }
         };
     }
@@ -2369,10 +2398,15 @@ function configurarBotoesExclusaoRecorrente(despesa, index, mes, ano) {
         btnFuturas.onclick = async function(e) {
             e.preventDefault();
             e.stopPropagation();
+            btnFuturas.disabled = true;
+            btnFuturas.classList.add('btn-loading');
             try {
                 await processarExclusao('recorrente-futuras', index, mes, ano, despesa.descricao, despesa.categoria, null);
             } catch (error) {
                 (window.mostrarToast || alert)('Erro ao excluir futuras: ' + error.message, 'error');
+            } finally {
+                btnFuturas.disabled = false;
+                btnFuturas.classList.remove('btn-loading');
             }
         };
     }
@@ -2381,10 +2415,15 @@ function configurarBotoesExclusaoRecorrente(despesa, index, mes, ano) {
         btnTodas.onclick = async function(e) {
             e.preventDefault();
             e.stopPropagation();
+            btnTodas.disabled = true;
+            btnTodas.classList.add('btn-loading');
             try {
                 await processarExclusao('todas', index, mes, ano, despesa.descricao, despesa.categoria, null);
             } catch (error) {
                 (window.mostrarToast || alert)('Erro ao excluir todas: ' + error.message, 'error');
+            } finally {
+                btnTodas.disabled = false;
+                btnTodas.classList.remove('btn-loading');
             }
         };
     }
@@ -2542,88 +2581,6 @@ async function excluirTodasParcelas(ano, descricao, categoria, idGrupo) {
     }
 }
 
-function reindexarParcelasAposExclusao(idGrupo, descricao) {
-    const parcelas = [];
-    const anoBase = new Date().getFullYear();
-    
-    for (let ano = anoBase; ano <= anoBase + 3; ano++) {
-        if (!dadosFinanceiros[ano]) continue;
-        
-        for (let mes = 0; mes < 12; mes++) {
-            if (!dadosFinanceiros[ano].meses[mes]?.despesas) continue;
-            
-            dadosFinanceiros[ano].meses[mes].despesas.forEach(despesa => {
-                if (despesa.idGrupoParcelamento === idGrupo && 
-                    despesa.descricao === descricao) {
-                    parcelas.push(despesa);
-                }
-            });
-        }
-    }
-    
-    parcelas.sort((a, b) => {
-        const dataA = new Date(a.dataVencimento);
-        const dataB = new Date(b.dataVencimento);
-        return dataA - dataB;
-    });
-    
-    parcelas.forEach((parcela, index) => {
-        parcela.parcela = `${index + 1}/${parcelas.length}`;
-        parcela.totalParcelas = parcelas.length;
-    });
-}
-
-function verificarOrfaosParcelamento() {
-    const grupos = new Map();
-    const anoBase = new Date().getFullYear();
-    
-    for (let ano = anoBase; ano <= anoBase + 3; ano++) {
-        if (!dadosFinanceiros[ano]) continue;
-        
-        for (let mes = 0; mes < 12; mes++) {
-            if (!dadosFinanceiros[ano].meses[mes]?.despesas) continue;
-            
-            dadosFinanceiros[ano].meses[mes].despesas.forEach(despesa => {
-                if (despesa.idGrupoParcelamento && despesa.parcelado) {
-                    const key = `${despesa.idGrupoParcelamento}-${despesa.descricao}`;
-                    
-                    if (!grupos.has(key)) {
-                        grupos.set(key, {
-                            idGrupo: despesa.idGrupoParcelamento,
-                            descricao: despesa.descricao,
-                            totalEsperado: despesa.totalParcelas,
-                            parcelas: []
-                        });
-                    }
-                    
-                    grupos.get(key).parcelas.push({
-                        despesa,
-                        mes,
-                        ano,
-                        parcela: despesa.parcela
-                    });
-                }
-            });
-        }
-    }
-    
-    const problemas = [];
-    
-    grupos.forEach((grupo, key) => {
-        if (grupo.parcelas.length !== grupo.totalEsperado) {
-            problemas.push({
-                idGrupo: grupo.idGrupo,
-                descricao: grupo.descricao,
-                esperadas: grupo.totalEsperado,
-                encontradas: grupo.parcelas.length,
-                tipo: grupo.parcelas.length > grupo.totalEsperado ? 'duplicada' : 'faltando'
-            });
-        }
-    });
-    
-    return problemas;
-}
-
 async function excluirDespesaEmTodosMeses(ano, descricao, categoria) {
     let despesasRemovidas = 0;
     let valorTotal = 0;
@@ -2702,10 +2659,13 @@ async function excluirRecorrenteEFuturas(index, mes, ano) {
 
         // 1. Excluir a despesa atual
         if (despesa.id) {
-            await fetch(`${API_URL}/despesas/${despesa.id}`, {
+            const resAtual = await fetch(`${API_URL}/despesas/${despesa.id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${getToken()}` }
             });
+            if (!resAtual.ok) {
+                throw new Error(`Erro ao excluir despesa recorrente: ${resAtual.status}`);
+            }
             despesasRemovidas++;
             mesesAfetados.add(`${ano}-${mes}`);
             anosAfetados.add(ano);

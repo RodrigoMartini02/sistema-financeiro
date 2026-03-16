@@ -604,12 +604,14 @@
 }
 
 .btn-editar-usuario {
-    background-color: #f59e0b;
+    background-color: #f97316;
     color: #ffffff;
+    border-color: #f97316;
 }
 
 .btn-editar-usuario:hover:not(:disabled) {
-    background-color: #d97706;
+    background-color: #ea580c;
+    border-color: #c2410c;
 }
 
 .btn-bloquear-usuario {

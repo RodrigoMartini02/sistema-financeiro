@@ -1057,21 +1057,30 @@
 
 .tabela-cartoes .badge-status {
     display: inline-block;
-    padding: 2px 6px;
+    padding: 2px 8px;
     font-size: 9px;
-    font-weight: 600;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.5px;
+    border-radius: 12px;
+    white-space: nowrap;
+}
+
+.tabela-cartoes td:nth-child(7) {
+    text-align: center;
+    vertical-align: middle;
 }
 
 .tabela-cartoes .badge-status.ativo {
     background: #d4edda;
     color: #155724;
+    border: 1px solid #c3e6cb;
 }
 
 .tabela-cartoes .badge-status.inativo {
-    background: #e9ecef;
-    color: #6c757d;
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
 }
 
 .btn-pagar-plano-cartao {

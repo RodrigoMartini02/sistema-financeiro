@@ -23,8 +23,11 @@ let coresCategorias = {};
 
 function calcularStepSize(maxValor) {
     const abs = Math.abs(maxValor || 0);
+    if (abs <= 50)    return 5;
+    if (abs <= 100)   return 10;
     if (abs <= 500)   return 50;
     if (abs <= 1000)  return 100;
+    if (abs <= 2000)  return 200;
     if (abs <= 5000)  return 500;
     if (abs <= 20000) return 2000;
     if (abs <= 50000) return 5000;
@@ -279,8 +282,9 @@ let graficoZoomInstance = null;
 
 document.addEventListener('click', function(e) {
     // Verifica se o botão clicado tem o atributo data-chart (botões de maximizar gráficos)
-    if (e.target.hasAttribute('data-chart')) {
-        const nomeVariavelGrafico = e.target.getAttribute('data-chart');
+    const btnZoom = e.target.closest('[data-chart]');
+    if (btnZoom) {
+        const nomeVariavelGrafico = btnZoom.getAttribute('data-chart');
         const graficoOriginal = window[nomeVariavelGrafico];
 
         if (graficoOriginal) {
