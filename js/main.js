@@ -1481,7 +1481,8 @@ function abrirDetalhesDoMes(mes, ano) {
         
         window.mesAberto = mesAberto;
         window.anoAberto = anoAberto;
-        
+        atualizarCardSaldoAtual();
+
         const nomesMeses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
                            'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
         
@@ -1957,6 +1958,24 @@ function atualizarElementosDashboard(dados) {
         }
     }
 }
+
+function atualizarCardSaldoAtual() {
+    const el = document.getElementById('dashboard-saldo-atual');
+    if (!el) return;
+    if (window.mesAberto === null || window.mesAberto === undefined ||
+        window.anoAberto === null || window.anoAberto === undefined) return;
+    const saldoMes = typeof window.calcularSaldoMes === 'function'
+        ? window.calcularSaldoMes(window.mesAberto, window.anoAberto)
+        : { saldoFinal: 0 };
+    const reservas = typeof window.calcularMovimentacoesReservasAcumuladas === 'function'
+        ? window.calcularMovimentacoesReservasAcumuladas(window.mesAberto, window.anoAberto)
+        : 0;
+    const saldoAtual = (saldoMes.saldoFinal || 0) - (reservas || 0);
+    el.textContent = formatarMoeda(saldoAtual);
+    el.className = 'card-value ' + (saldoAtual >= 0 ? 'saldo-positivo' : 'saldo-negativo');
+    el.style.color = saldoAtual >= 0 ? '#8b5cf6' : '#dc3545';
+}
+window.atualizarCardSaldoAtual = atualizarCardSaldoAtual;
 
 async function atualizarResumoAnual(ano) {
     await carregarDadosDashboard(ano);

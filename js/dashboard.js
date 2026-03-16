@@ -169,7 +169,7 @@ function _reaplicarFiltrosGlobais() {
     }
     criarGraficoBarrasCategoriasComFiltros(window.dadosFinanceiros, ano, filtros);
     criarGraficoCategoriasMensaisComFiltros(window.dadosFinanceiros, ano, filtros);
-    criarGraficoJurosEconomias(_anoGraficosAtual());
+    criarGraficoJurosEconomias(todos ? 'todos' : _anoGraficosAtual());
     criarGraficoParcelamentosComFiltros(window.dadosFinanceiros, ano, filtros);
     criarGraficoFormaPagamentoComFiltros(window.dadosFinanceiros, ano, filtros);
     renderDistribuicaoCartoes(window.dadosFinanceiros, ano, filtros);
@@ -620,7 +620,11 @@ function criarGraficoBalancoPorAnos() {
     const coresBalanco = balancos.map(v => v >= 0 ? 'rgba(135, 206, 250, 0.7)' : 'rgba(239, 68, 68, 0.7)');
 
     const opcoesBalanco = getOpcoesGrafico();
+    opcoesBalanco.scales.y.min = -(maxAbs * 1.15);
+    opcoesBalanco.scales.y.max =   maxAbs * 1.15;
     opcoesBalanco.scales.y.ticks.stepSize = calcularStepSize(maxAbs);
+    opcoesBalanco.scales.y.grid.color = ctx2 => ctx2.tick?.value === 0 ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.06)';
+    opcoesBalanco.scales.y.grid.lineWidth = ctx2 => ctx2.tick?.value === 0 ? 2 : 1;
     opcoesBalanco.plugins.legend.display = false;
     opcoesBalanco.layout = { padding: { top: 16, bottom: 16 } };
 
@@ -660,7 +664,11 @@ function criarGraficoBalancoPorMeses(ano) {
     const coresBalanco = balancos.map(v => v >= 0 ? 'rgba(135, 206, 250, 0.7)' : 'rgba(239, 68, 68, 0.7)');
 
     const opcoesBalanco = getOpcoesGrafico();
+    opcoesBalanco.scales.y.min = -(maxAbs * 1.15);
+    opcoesBalanco.scales.y.max =   maxAbs * 1.15;
     opcoesBalanco.scales.y.ticks.stepSize = calcularStepSize(maxAbs);
+    opcoesBalanco.scales.y.grid.color = ctx2 => ctx2.tick?.value === 0 ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.06)';
+    opcoesBalanco.scales.y.grid.lineWidth = ctx2 => ctx2.tick?.value === 0 ? 2 : 1;
     opcoesBalanco.plugins.legend.display = false;
     opcoesBalanco.layout = { padding: { top: 16, bottom: 16 } };
 
@@ -1159,11 +1167,20 @@ function criarGraficoJurosEconomias(ano) {
     const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
     const dadosMensais = meses.map((_, m) => {
-        const dadosMes = window.dadosFinanceiros?.[ano]?.meses?.[m];
-        const despesas = dadosMes?.despesas || [];
-        const juros = typeof window.calcularTotalJuros === 'function' ? window.calcularTotalJuros(despesas) : 0;
-        const economias = typeof window.calcularTotalEconomias === 'function' ? window.calcularTotalEconomias(despesas) : 0;
-        return { juros: juros || 0, economias: economias || 0 };
+        let jurosMes = 0, economiasMes = 0;
+        if (ano === 'todos') {
+            const anos = Object.keys(window.dadosFinanceiros || {}).map(Number).filter(Boolean);
+            for (const a of anos) {
+                const despesas = window.dadosFinanceiros?.[a]?.meses?.[m]?.despesas || [];
+                jurosMes += typeof window.calcularTotalJuros === 'function' ? window.calcularTotalJuros(despesas) : 0;
+                economiasMes += typeof window.calcularTotalEconomias === 'function' ? window.calcularTotalEconomias(despesas) : 0;
+            }
+        } else {
+            const despesas = window.dadosFinanceiros?.[ano]?.meses?.[m]?.despesas || [];
+            jurosMes = typeof window.calcularTotalJuros === 'function' ? window.calcularTotalJuros(despesas) : 0;
+            economiasMes = typeof window.calcularTotalEconomias === 'function' ? window.calcularTotalEconomias(despesas) : 0;
+        }
+        return { juros: jurosMes || 0, economias: economiasMes || 0 };
     });
 
     const valores = dadosMensais.map(d => d.economias - d.juros);
@@ -1200,7 +1217,11 @@ function criarGraficoJurosEconomias(ano) {
                 y: {
                     min: -(maxAbs + margem),
                     max:   maxAbs + margem,
-                    grid: { display: true, color: 'rgba(0,0,0,0.06)' },
+                    grid: {
+                        display: true,
+                        color: ctx2 => ctx2.tick?.value === 0 ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.06)',
+                        lineWidth: ctx2 => ctx2.tick?.value === 0 ? 2 : 1
+                    },
                     border: { display: false },
                     ticks: {
                         stepSize: calcularStepSize(maxAbs),

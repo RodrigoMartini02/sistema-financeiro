@@ -115,10 +115,11 @@ async function buscarResumoFinanceiro(usuarioId, mes, ano) {
     try {
         const [despesas, receitas, despesasPago] = await Promise.all([
             query(
-                `SELECT SUM(valor) as total, categoria_id,
+                `SELECT SUM(COALESCE(valor_pago, valor)) as total, categoria_id,
                         (SELECT nome FROM categorias c WHERE c.id = d.categoria_id) as categoria
                  FROM despesas d
                  WHERE usuario_id = $1 AND mes = $2 AND ano = $3
+                   AND NOT (recorrente = true AND LOWER(forma_pagamento) IN ('credito', 'crédito', 'cred-merpago', 'créd-merpago'))
                  GROUP BY categoria_id`,
                 [usuarioId, m, a]
             ),
@@ -168,10 +169,11 @@ async function buscarContextoSistema(usuarioId, mes, ano) {
             buscarCategorias(usuarioId),
             buscarCartoes(usuarioId),
             query(
-                `SELECT SUM(valor) as total,
+                `SELECT SUM(COALESCE(valor_pago, valor)) as total,
                         (SELECT nome FROM categorias c WHERE c.id = d.categoria_id) as categoria
                  FROM despesas d
                  WHERE usuario_id = $1 AND mes = $2 AND ano = $3
+                   AND NOT (recorrente = true AND LOWER(forma_pagamento) IN ('credito', 'crédito', 'cred-merpago', 'créd-merpago'))
                  GROUP BY categoria_id ORDER BY total DESC LIMIT 5`,
                 [usuarioId, m, a]
             ),
