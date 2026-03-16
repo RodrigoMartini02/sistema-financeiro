@@ -1145,3 +1145,52 @@
     opacity: 0.3;
     display: block;
 }
+
+/* ================================================================
+   CLASSES EXTRAÍDAS DE INLINE STYLES — config / carta / cofre
+   ================================================================ */
+
+.user-controls-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.carta-desc {
+    color: var(--gray-500);
+    margin: 4px 0 0;
+    font-size: 13px;
+}
+
+.carta-master-actions {
+    display: none;
+}
+
+.config-sep {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 20px 0;
+}
+
+.config-sep-sm {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 16px 0;
+}
+
+.modal-footer-cofre {
+    padding: 12px 20px;
+    border-top: 1px solid var(--gray-200);
+    justify-content: flex-start;
+}
+
+.cofre-senha-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #6b7280;
+    cursor: pointer;
+}

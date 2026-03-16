@@ -490,6 +490,97 @@
 #ia-badge-status.heurist { background:#e0e7ff; color:#3730a3; }
 #ia-badge-status.erro    { background:#fee2e2; color:#991b1b; }
 
+/* ── CONFIG IA — classes extraídas dos inline styles ────────── */
+.ia-config-desc {
+    color: var(--gray-500);
+    margin-bottom: 16px;
+}
+
+.ia-status-config {
+    margin-bottom: 20px;
+}
+
+.ia-badge-status {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+}
+
+.ia-provider-desc {
+    font-size: 12px;
+    color: var(--gray-500);
+    margin-bottom: 10px;
+}
+
+.ia-provider-select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    margin-bottom: 10px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+.ia-key-row {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ia-key-input-row {
+    display: flex;
+    gap: 8px;
+}
+
+.ia-api-key-input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+}
+
+.ia-btn-salvar-chave {
+    white-space: nowrap;
+}
+
+.ia-key-hint {
+    font-size: 11px;
+    color: var(--gray-500);
+    margin: 0;
+}
+
+.ia-howto-title {
+    margin-bottom: 12px;
+}
+
+.ia-howto-grid {
+    display: grid;
+    gap: 10px;
+}
+
+.config-card-sm {
+    padding: 12px;
+    background: var(--gray-50);
+}
+
+.ia-code-example {
+    font-size: 12px;
+}
+
+.ia-toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ia-toggle-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
 
 /* ================================================================
    PÁGINA IA.HTML — layout completo
@@ -1161,23 +1252,50 @@ body:has(.ia-container) {
 }
 
 @media (max-width: 480px) {
-    /* Painel flutuante — tela cheia com safe area */
+    /* Painel flutuante — tela cheia, respeitando teclado virtual */
     .ai-chat-panel {
         top: 0;
         left: 0;
         transform: none;
         width: 100vw;
-        height: 100vh;
-        height: calc(100vh - var(--safe-bottom, 0px));
-        max-height: 100vh;
+        /* dvh respeita o teclado virtual nos navegadores modernos */
+        height: 100dvh;
+        max-height: 100dvh;
         border-radius: 0;
-        /* Aplica safe areas no painel full-screen */
-        padding-top: var(--safe-top, 0px);
-        padding-bottom: var(--safe-bottom, 0px);
+        box-sizing: border-box;
+        /* Safe area no header (notch) via .ai-panel-header e no footer via .ai-input-row */
     }
+
+    /* Header: padding superior para notch/barra de status */
+    .ai-panel-header {
+        padding-top: calc(12px + env(safe-area-inset-top, 0px));
+        border-radius: 0;
+    }
+
+    /* Área de mensagens: scroll interno, ocupa espaço disponível */
+    .ai-messages {
+        flex: 1;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        min-height: 0;
+    }
+
+    /* Footer de input: fixo na base, acima da home bar */
+    .ai-input-row {
+        flex-shrink: 0;
+        padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    }
+
+    /* Textarea sem resize manual (impede overflow horizontal) */
+    .ai-textarea {
+        resize: none;
+        max-height: 120px;
+    }
+
     .btn-fab-ia {
         right: 16px;
-        bottom: calc(20px + var(--safe-bottom, 0px));
+        bottom: calc(20px + env(safe-area-inset-bottom, 0px));
     }
 
     /* Página ia.html */

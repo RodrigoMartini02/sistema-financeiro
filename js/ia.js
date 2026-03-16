@@ -104,7 +104,11 @@ window.IA = (function () {
 
     function fechar() {
         var panel = document.getElementById('ai-chat-panel');
-        if (panel) panel.style.display = 'none';
+        if (panel) {
+            panel.style.display = 'none';
+            // Limpa height inline definido pelo listener de visualViewport
+            panel.style.height = '';
+        }
     }
 
     // ── INICIALIZAR STATUS ────────────────────────────────────────
@@ -1575,6 +1579,23 @@ window.IA = (function () {
         toggleVoz, confirmarAprendizado, detectarRecorrencias,
         salvarChaveAPI
     };
+}());
+
+// ── VISUAL VIEWPORT — ajuste do painel quando teclado virtual abre ──
+// Em iOS/Android, quando o teclado virtual abre, a viewport diminui.
+// dvh já resolve na maioria dos casos modernos, mas este listener
+// garante compatibilidade com navegadores mais antigos.
+(function () {
+    if (!window.visualViewport) return;
+    function _ajustarPainelIA() {
+        var panel = document.getElementById('ai-chat-panel');
+        if (!panel || panel.style.display === 'none') return;
+        // Só aplica em mobile (< 481px) onde o painel é tela cheia
+        if (window.innerWidth > 480) return;
+        panel.style.height = window.visualViewport.height + 'px';
+    }
+    window.visualViewport.addEventListener('resize', _ajustarPainelIA);
+    window.visualViewport.addEventListener('scroll', _ajustarPainelIA);
 }());
 
 function abrirModalInstrucoesGen() {

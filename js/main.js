@@ -2683,8 +2683,13 @@ function notificarSistemaReady() {
             modoLocal: true
         }
     });
-    
+
     window.dispatchEvent(evento);
+
+    // Disparo automático de avaliação após 7 dias de cadastro
+    if (typeof window.verificarEDispararAvaliacao === 'function') {
+        window.verificarEDispararAvaliacao();
+    }
 }
 
 // ================================================================

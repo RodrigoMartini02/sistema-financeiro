@@ -249,12 +249,13 @@ carregarAvaliacoesReais(); // Atualiza em background sem bloquear
         if (!modal) return;
         estrelaSelecionada = 0;
         document.getElementById('avaliacao-comentario').value = '';
-        document.getElementById('avaliacao-contador').textContent = '0/500';
+        document.getElementById('avaliacao-contador').textContent = '0/50';
         document.getElementById('avaliacao-label-estrelas').textContent = 'Selecione uma nota';
         document.getElementById('avaliacao-msg-erro').style.display = 'none';
         document.getElementById('avaliacao-msg-sucesso').style.display = 'none';
         document.querySelectorAll('.estrela').forEach(e => e.classList.remove('ativa'));
-        modal.style.display = 'flex';
+        modal.style.display = 'block';
+        modal.classList.remove('saindo');
         configurarEventosModal();
     }
 
@@ -268,16 +269,13 @@ carregarAvaliacoesReais(); // Atualiza em background sem bloquear
         const textarea = document.getElementById('avaliacao-comentario');
         if (textarea) {
             textarea.oninput = () => {
-                document.getElementById('avaliacao-contador').textContent = `${textarea.value.length}/500`;
+                document.getElementById('avaliacao-contador').textContent = `${textarea.value.length}/50`;
             };
         }
 
         document.getElementById('btn-enviar-avaliacao').onclick = enviarAvaliacao;
-        document.getElementById('btn-fechar-avaliacao').onclick = dispensarAvaliacao;
+        document.getElementById('btn-fechar-avaliacao').onclick = fecharToastAvaliacao;
         document.getElementById('btn-dispensar-avaliacao').onclick = dispensarAvaliacao;
-
-        const modal = document.getElementById('modal-avaliacao');
-        modal.onclick = (e) => { if (e.target === modal) dispensarAvaliacao(); };
     }
 
     function selecionarEstrela(valor) {
@@ -347,15 +345,21 @@ carregarAvaliacoesReais(); // Atualiza em background sem bloquear
         }
     }
 
+    function fecharToastAvaliacao() {
+        const modal = document.getElementById('modal-avaliacao');
+        if (!modal) return;
+        modal.classList.add('saindo');
+        setTimeout(() => { modal.style.display = 'none'; modal.classList.remove('saindo'); }, 320);
+    }
+
     function dispensarAvaliacao() {
         // Chave user-specific: não bloqueia outros usuários no mesmo browser
         localStorage.setItem(chaveDispensado(), Date.now().toString());
-        fecharModal();
+        fecharToastAvaliacao();
     }
 
     function fecharModal() {
-        const modal = document.getElementById('modal-avaliacao');
-        if (modal) modal.style.display = 'none';
+        fecharToastAvaliacao();
     }
 
     // ----------------------------------------------------------------
@@ -373,3 +377,29 @@ carregarAvaliacoesReais(); // Atualiza em background sem bloquear
         }, { once: true });
     }
 })();
+
+// ================================================================
+// VERIFICAÇÃO AUTOMÁTICA — dispara modal após 7 dias de cadastro
+// ================================================================
+async function verificarEDispararAvaliacao() {
+    // Verifica se usuário já avaliou via API
+    try {
+        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+        const res = await fetch('/api/avaliacoes/minha', { headers: { 'Authorization': 'Bearer ' + token } });
+        if (res.ok) {
+            const data = await res.json();
+            if (data && data.avaliacao) return; // já avaliou, não dispara
+        }
+    } catch(e) { return; }
+    // Verifica data de cadastro
+    const usuario = JSON.parse(sessionStorage.getItem('usuario') || localStorage.getItem('usuario') || '{}');
+    if (!usuario.dataCadastro && !usuario.createdAt) return;
+    const dataCadastro = new Date(usuario.dataCadastro || usuario.createdAt);
+    const diasDesde = (Date.now() - dataCadastro.getTime()) / (1000 * 60 * 60 * 24);
+    if (diasDesde >= 7) {
+        setTimeout(() => {
+            if (window.abrirModalAvaliacao) window.abrirModalAvaliacao();
+        }, 3000); // 3 segundos após carregar
+    }
+}
+window.verificarEDispararAvaliacao = verificarEDispararAvaliacao;

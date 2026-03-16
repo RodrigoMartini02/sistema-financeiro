@@ -144,8 +144,6 @@
                 <span>Acesso expirado</span>
                 <button onclick="abrirModalPlanos()">Renovar</button>
             </div>
-            <button id="btn-cofre-sidebar-fixed" onclick="abrirCofre()"><i class="fas fa-piggy-bank"></i> Cofre</button>
-            <button id="btn-abrir-avaliacao" onclick="abrirModalAvaliacao()">Avaliação</button>
             <button id="btn-instrucoes-gen" onclick="abrirModalInstrucoesGen()">Instruções da Gen</button>
             <button id="btn-upgrade" style="display:none" onclick="abrirModalPlanos()">
                 <span id="btn-upgrade-label">Assinar agora</span>
@@ -1038,54 +1036,54 @@
         <div id="assistente-ia-tab" class="config-tab-pane">
             <div class="config-card">
                 <h3><i class="fas fa-robot"></i> Assistente IA — FIN GERENCE AI</h3>
-                <p style="color:var(--gray-500);margin-bottom:16px">Configure e use o assistente inteligente para cadastrar despesas por texto ou voz, interpretar documentos e analisar seus gastos.</p>
+                <p class="ia-config-desc">Configure e use o assistente inteligente para cadastrar despesas por texto ou voz, interpretar documentos e analisar seus gastos.</p>
 
-                <div id="ia-status-config" style="margin-bottom:20px">
-                    <span class="badge" id="ia-badge-status" style="padding:6px 14px;border-radius:20px;font-size:13px">Verificando...</span>
+                <div id="ia-status-config" class="ia-status-config">
+                    <span class="badge ia-badge-status" id="ia-badge-status">Verificando...</span>
                 </div>
 
                 <div class="form-group">
                     <label><i class="fas fa-robot"></i> Provedor de IA</label>
-                    <p style="font-size:12px;color:var(--gray-500);margin-bottom:10px">
+                    <p class="ia-provider-desc">
                         Opcional. Sem provedor externo o assistente usa a <strong>Gen</strong> (IA interna). Com uma chave própria, a interpretação de texto fica ainda mais precisa.
                     </p>
-                    <select id="ia-provider-select" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;margin-bottom:10px;background:var(--bg-card);color:var(--text-primary)">
+                    <select id="ia-provider-select" class="ia-provider-select">
                         <option value="gen">Gen — IA interna Fin-Gerence (sem chave)</option>
                         <option value="openai">OpenAI — GPT-4o mini</option>
                         <option value="gemini">Google — Gemini 2.0 Flash</option>
                         <option value="claude">Anthropic — Claude Haiku</option>
                     </select>
-                    <div id="ia-key-row" style="display:none;flex-direction:column;gap:8px">
-                        <div style="display:flex;gap:8px">
-                            <input type="password" id="ia-api-key-input" placeholder="Cole sua chave de API aqui..." style="flex:1;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px">
-                            <button id="ia-btn-salvar-chave" class="btn btn-primary" style="white-space:nowrap">
+                    <div id="ia-key-row" class="ia-key-row">
+                        <div class="ia-key-input-row">
+                            <input type="password" id="ia-api-key-input" placeholder="Cole sua chave de API aqui..." class="ia-api-key-input">
+                            <button id="ia-btn-salvar-chave" class="btn btn-primary ia-btn-salvar-chave">
                                 <i class="fas fa-save"></i> Salvar
                             </button>
                         </div>
-                        <p id="ia-key-hint" style="font-size:11px;color:var(--gray-500);margin:0"></p>
+                        <p id="ia-key-hint" class="ia-key-hint"></p>
                     </div>
                 </div>
 
-                <hr style="border:none;border-top:1px solid var(--border-color);margin:20px 0">
+                <hr class="config-sep">
 
-                <h4 style="margin-bottom:12px"><i class="fas fa-lightbulb"></i> Como usar</h4>
-                <div style="display:grid;gap:10px">
-                    <div class="config-card" style="padding:12px;background:var(--gray-50)">
+                <h4 class="ia-howto-title"><i class="fas fa-lightbulb"></i> Como usar</h4>
+                <div class="ia-howto-grid">
+                    <div class="config-card config-card-sm">
                         <strong>💬 Chat por texto</strong><br>
                         <small>Clique no ícone <i class="fas fa-robot"></i> no modal de Despesas ou no botão flutuante e escreva:</small><br>
-                        <code style="font-size:12px">"paguei 120 de internet da vivo no cartão vence dia 15"</code>
+                        <code class="ia-code-example">"paguei 120 de internet da vivo no cartão vence dia 15"</code>
                     </div>
-                    <div class="config-card" style="padding:12px;background:var(--gray-50)">
+                    <div class="config-card config-card-sm">
                         <strong>🎙️ Voz</strong><br>
                         <small>Clique no microfone no chat e fale a despesa normalmente.</small>
                     </div>
-                    <div class="config-card" style="padding:12px;background:var(--gray-50)">
+                    <div class="config-card config-card-sm">
                         <strong>📄 Documentos (boleto, NF, comprovante PIX)</strong><br>
                         <small>Clique no clipe <i class="fas fa-paperclip"></i> e envie a imagem ou PDF.</small>
                     </div>
-                    <div class="config-card" style="padding:12px;background:var(--gray-50)">
+                    <div class="config-card config-card-sm">
                         <strong>📊 Análise financeira</strong><br>
-                        <code style="font-size:12px">"quanto gastei em alimentação esse mês?"</code>
+                        <code class="ia-code-example">"quanto gastei em alimentação esse mês?"</code>
                     </div>
                 </div>
             </div>
@@ -1099,15 +1097,15 @@
                 <div class="carta-header">
                     <div>
                         <h3><i class="fas fa-scroll"></i> Carta de Serviços — Gen IA</h3>
-                        <p style="color:var(--gray-500);margin:4px 0 0;font-size:13px">Regras e comportamentos globais da assistente. Visível para todos, editável apenas pelo master.</p>
+                        <p class="carta-desc">Regras e comportamentos globais da assistente. Visível para todos, editável apenas pelo master.</p>
                     </div>
-                    <div id="carta-master-actions" style="display:none">
+                    <div id="carta-master-actions" class="carta-master-actions">
                         <button class="btn btn-primary btn-sm" id="btn-carta-nova-instrucao" onclick="abrirModalCartaInstrucao()">
                             <i class="fas fa-plus"></i> Nova instrução
                         </button>
                     </div>
                 </div>
-                <hr style="border:none;border-top:1px solid var(--border-color);margin:16px 0">
+                <hr class="config-sep">
                 <div id="carta-servicos-content" class="carta-markdown-body">
                     <div class="carta-loading"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
                 </div>
@@ -1136,13 +1134,13 @@
                         </select>
                     </div>
                     
-                    <div style="display:flex;align-items:center;gap:10px;margin-left:auto;flex-shrink:0">
-                        <div id="ia-toggle-container" style="display:flex;align-items:center;gap:6px">
+                    <div class="user-controls-right">
+                        <div id="ia-toggle-container" class="ia-toggle-container">
                             <label class="ia-toggle-switch" title="Ativar / Desativar Assistente IA">
                                 <input type="checkbox" id="ia-toggle-ativo">
                                 <span class="ia-toggle-slider"></span>
                             </label>
-                            <span style="font-size:12px;font-weight:600;color:var(--text-secondary);white-space:nowrap">Assistente IA</span>
+                            <span class="ia-toggle-label">Assistente IA</span>
                         </div>
                         <button id="btn-adicionar-usuario" class="btn btn-primary">
                             <i class="fas fa-user-plus"></i> Novo Usuário
@@ -1854,7 +1852,7 @@
                         <button id="btn-pagar-lote-toolbar" class="btn btn-secondary btn-sm" disabled title="Pagar em Lote">
                             <i class="fas fa-check-circle"></i> Lote
                         </button>
-                        <button class="btn btn-cofre-toolbar btn-sm" onclick="abrirCofre()" title="Cofre">
+                        <button id="btn-cofre-detalhe-mes" class="btn btn-cofre-mes btn-sm" onclick="abrirCofre()" title="Cofre">
                             <i class="fas fa-piggy-bank"></i> Cofre
                         </button>
                         <span class="toolbar-divider"></span>
@@ -1923,7 +1921,7 @@
                     <!-- Barra Reservado -->
                     <div class="cartao-limite-item ind-sem-fundo" id="barra-reservado" style="display:none">
                         <div class="cartao-info-header">
-                            <span class="cartao-nome"><i class="fas fa-lock" style="font-size:8px;margin-right:4px"></i> RESERVADO</span>
+                            <span class="cartao-nome"><i class="fas fa-lock icone-reservado"></i> RESERVADO</span>
                             <div class="cartao-valores">
                                 <span class="valor-usado" id="barra-reservas-valor">R$ 0,00</span>
                                 <span class="separador">/</span>
@@ -2137,9 +2135,9 @@
                 </div>
             </div>
         </div>
-        <div class="modal-footer" style="padding:12px 20px;border-top:1px solid var(--gray-200)">
+        <div class="modal-footer modal-footer-cofre">
             <div class="cofre-senha-toggle">
-                <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#6b7280;cursor:pointer">
+                <label class="cofre-senha-label">
                     <input type="checkbox" id="chk-desabilitar-senha-cofre">
                     Não pedir senha novamente
                 </label>
@@ -2382,11 +2380,11 @@
 
           <form id="form-pagamento-individual">
               <div class="form-row-inline">
-                  <div class="form-group" style="flex: 1;">
+                  <div class="form-group form-group-flex">
                       <label for="valor-pago-individual">Valor Pago:</label>
                       <input type="number" id="valor-pago-individual" class="form-control" step="0.01" min="0" oninput="calcularDiferencaPagamento()">
                   </div>
-                  <div class="form-group" style="width: 180px; margin-left: 10px;">
+                  <div class="form-group form-group-comprovante">
                       <label>&nbsp;</label>
                       <button type="button" id="btn-anexar-comprovante" class="btn btn-anexar">
                           <i class="fas fa-paperclip"></i>Comprovante</button>
@@ -3143,7 +3141,7 @@
     <div class="ai-boleto-bar" id="ai-boleto-bar" style="display:none">
         <input type="text" id="ai-boleto-input" class="ai-boleto-field" placeholder="Cole a linha digitável (47 dígitos)...">
         <button id="ai-btn-processar-boleto" class="ai-send-btn"><i class="fas fa-barcode"></i></button>
-        <button id="ai-btn-fechar-boleto" style="background:none;border:none;cursor:pointer;color:var(--gray-500)"><i class="fas fa-times"></i></button>
+        <button id="ai-btn-fechar-boleto" class="btn-fechar-boleto"><i class="fas fa-times"></i></button>
     </div>
 
     <div class="ai-file-preview" id="ai-file-preview" style="display:none">
@@ -3377,42 +3375,27 @@
 <script src="js/avaliacao.js"></script>
 
 <!-- ================================================================
-     MODAL DE AVALIAÇÃO DO SISTEMA
+     TOAST DE AVALIAÇÃO DO SISTEMA
      ================================================================ -->
-<div id="modal-avaliacao" class="modal-avaliacao-overlay" style="display:none;">
-    <div class="modal-avaliacao-box">
-        <button class="modal-avaliacao-fechar" id="btn-fechar-avaliacao" aria-label="Fechar">&times;</button>
-
-        <div class="modal-avaliacao-icone">⭐</div>
-        <h2 class="modal-avaliacao-titulo">O que você acha do Fin-Gerence?</h2>
-        <p class="modal-avaliacao-subtitulo">Sua opinião ajuda outros usuários e melhora o sistema!</p>
-
-        <div class="avaliacao-estrelas" id="avaliacao-estrelas">
-            <span class="estrela" data-valor="1">★</span>
-            <span class="estrela" data-valor="2">★</span>
-            <span class="estrela" data-valor="3">★</span>
-            <span class="estrela" data-valor="4">★</span>
-            <span class="estrela" data-valor="5">★</span>
-        </div>
-        <p class="avaliacao-label-estrelas" id="avaliacao-label-estrelas">Selecione uma nota</p>
-
-        <textarea
-            id="avaliacao-comentario"
-            class="avaliacao-textarea"
-            placeholder="Conte sua experiência com o sistema... (mínimo 10 caracteres)"
-            maxlength="500"
-            rows="4"
-        ></textarea>
-        <small class="avaliacao-contador" id="avaliacao-contador">0/500</small>
-
-        <div id="avaliacao-msg-erro" class="avaliacao-msg avaliacao-msg-erro" style="display:none;"></div>
-        <div id="avaliacao-msg-sucesso" class="avaliacao-msg avaliacao-msg-sucesso" style="display:none;"></div>
-
-        <button class="avaliacao-btn-enviar" id="btn-enviar-avaliacao">
-            <i class="fas fa-paper-plane"></i> Enviar Avaliação
-        </button>
-        <button class="avaliacao-btn-dispensar" id="btn-dispensar-avaliacao">Avaliar depois</button>
+<div id="modal-avaliacao" class="avaliacao-toast" style="display:none">
+    <button class="avaliacao-toast-fechar" id="btn-fechar-avaliacao" aria-label="Fechar">&times;</button>
+    <div class="avaliacao-toast-icone"><i class="fas fa-star"></i></div>
+    <h3 class="avaliacao-toast-titulo">O que você acha do Fin-Gerence?</h3>
+    <p class="avaliacao-toast-subtitulo">Sua opinião melhora o sistema!</p>
+    <div class="avaliacao-estrelas" id="avaliacao-estrelas">
+        <span class="estrela" data-valor="1">★</span>
+        <span class="estrela" data-valor="2">★</span>
+        <span class="estrela" data-valor="3">★</span>
+        <span class="estrela" data-valor="4">★</span>
+        <span class="estrela" data-valor="5">★</span>
     </div>
+    <p class="avaliacao-label-estrelas" id="avaliacao-label-estrelas">Selecione uma nota</p>
+    <textarea id="avaliacao-comentario" class="avaliacao-textarea" placeholder="Conte sua experiência... (máx. 50 caracteres)" maxlength="50" rows="2"></textarea>
+    <small class="avaliacao-contador" id="avaliacao-contador">0/50</small>
+    <div id="avaliacao-msg-erro" class="avaliacao-msg avaliacao-msg-erro" style="display:none"></div>
+    <div id="avaliacao-msg-sucesso" class="avaliacao-msg avaliacao-msg-sucesso" style="display:none"></div>
+    <button class="avaliacao-btn-enviar" id="btn-enviar-avaliacao"><i class="fas fa-paper-plane"></i> Enviar Avaliação</button>
+    <button class="avaliacao-btn-dispensar" id="btn-dispensar-avaliacao">Avaliar depois</button>
 </div>
 
 <!-- PWA -->
@@ -3431,14 +3414,14 @@
 </script>
 
 <!-- Modal Instruções da Gen -->
-<div id="modal-instrucoes-gen" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);align-items:center;justify-content:center">
-    <div style="background:var(--bg-card,#fff);border-radius:12px;padding:24px;width:100%;max-width:480px;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
-        <h3 style="margin:0 0 6px;font-size:16px"><i class="fas fa-sliders-h"></i> Instruções da Gen</h3>
-        <p style="margin:0 0 14px;font-size:12px;color:var(--gray-500,#888)">Suas instruções personalizadas para a Gen. O conteúdo abaixo substitui as instruções anteriores ao salvar.</p>
-        <textarea id="instrucoes-gen-input" rows="6" placeholder="Ex: Sempre perguntar a categoria antes de confirmar uma despesa..." style="width:100%;padding:10px 12px;border:1px solid var(--border-color,#e2e8f0);border-radius:8px;font-size:13px;resize:vertical;box-sizing:border-box;background:var(--bg-input,#f8fafc);color:var(--text-primary,#1a1a1a)"></textarea>
-        <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">
-            <button onclick="fecharModalInstrucoesGen()" style="padding:8px 16px;border:1px solid var(--border-color,#e2e8f0);border-radius:6px;background:transparent;cursor:pointer;font-size:13px">Cancelar</button>
-            <button onclick="salvarInstrucoesGen()" style="padding:8px 16px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600">Salvar</button>
+<div id="modal-instrucoes-gen" class="modal-gen-overlay">
+    <div class="modal-gen-box">
+        <h3 class="modal-gen-titulo"><i class="fas fa-sliders-h"></i> Instruções da Gen</h3>
+        <p class="modal-gen-desc">Suas instruções personalizadas para a Gen. O conteúdo abaixo substitui as instruções anteriores ao salvar.</p>
+        <textarea id="instrucoes-gen-input" rows="6" placeholder="Ex: Sempre perguntar a categoria antes de confirmar uma despesa..." class="modal-gen-textarea"></textarea>
+        <div class="modal-gen-footer">
+            <button onclick="fecharModalInstrucoesGen()" class="modal-gen-btn-cancelar">Cancelar</button>
+            <button onclick="salvarInstrucoesGen()" class="modal-gen-btn-salvar">Salvar</button>
         </div>
     </div>
 </div>
@@ -3446,15 +3429,15 @@
 <!-- (Service Worker já registrado acima) -->
 
 <!-- Modal: Nova instrução para Carta de Serviços -->
-<div id="modal-carta-instrucao" style="display:none;position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,0.5);align-items:center;justify-content:center">
-    <div style="background:var(--bg-card,#fff);border-radius:12px;padding:24px;width:100%;max-width:520px;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
-        <h3 style="margin:0 0 6px;font-size:16px"><i class="fas fa-scroll"></i> Atualizar Carta de Serviços</h3>
-        <p style="margin:0 0 14px;font-size:12px;color:var(--gray-500)">A IA vai analisar a instrução e incorporá-la à carta — atualizando uma seção existente ou criando uma nova.</p>
-        <textarea id="carta-instrucao-input" rows="5" placeholder="Ex: Quando o usuário mencionar 'recorrente', sempre perguntar se tem data de fim ou é indefinida..." style="width:100%;padding:10px 12px;border:1px solid var(--border-color,#e2e8f0);border-radius:8px;font-size:13px;resize:vertical;box-sizing:border-box;background:var(--bg-input,#f8fafc);color:var(--text-primary,#1a1a1a)"></textarea>
-        <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end;align-items:center">
-            <span id="carta-instrucao-status" style="font-size:12px;color:var(--gray-500);flex:1"></span>
-            <button onclick="fecharModalCartaInstrucao()" style="padding:8px 16px;border:1px solid var(--border-color,#e2e8f0);border-radius:6px;background:transparent;cursor:pointer;font-size:13px">Cancelar</button>
-            <button onclick="salvarCartaInstrucao()" id="btn-salvar-carta-instrucao" style="padding:8px 16px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600"><i class="fas fa-magic"></i> Revisar com IA</button>
+<div id="modal-carta-instrucao" class="modal-carta-overlay">
+    <div class="modal-gen-box modal-carta-box">
+        <h3 class="modal-gen-titulo"><i class="fas fa-scroll"></i> Atualizar Carta de Serviços</h3>
+        <p class="modal-gen-desc">A IA vai analisar a instrução e incorporá-la à carta — atualizando uma seção existente ou criando uma nova.</p>
+        <textarea id="carta-instrucao-input" rows="5" placeholder="Ex: Quando o usuário mencionar 'recorrente', sempre perguntar se tem data de fim ou é indefinida..." class="modal-gen-textarea"></textarea>
+        <div class="modal-gen-footer modal-carta-footer">
+            <span id="carta-instrucao-status" class="modal-carta-status"></span>
+            <button onclick="fecharModalCartaInstrucao()" class="modal-gen-btn-cancelar">Cancelar</button>
+            <button onclick="salvarCartaInstrucao()" id="btn-salvar-carta-instrucao" class="modal-gen-btn-salvar"><i class="fas fa-magic"></i> Revisar com IA</button>
         </div>
     </div>
 </div>

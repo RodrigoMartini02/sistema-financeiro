@@ -546,18 +546,17 @@ function getOpcoesGrafico() {
         scales: {
             y: {
                 ticks: {
+                    stepSize: 5000,
                     callback: function(value) {
                         return window.formatarMoedaCompacta(value);
                     }
                 },
-                grid: {
-                    color: 'rgba(0, 0, 0, 0.05)'
-                }
+                grid: { display: false },
+                border: { display: false }
             },
             x: {
-                grid: {
-                    display: false
-                }
+                grid: { display: false },
+                border: { display: false }
             }
         },
         plugins: {
@@ -617,18 +616,25 @@ function criarGraficoBalancoPorAnos() {
     const maxAbs = Math.max(...balancos.map(Math.abs), 1);
     const margem = maxAbs * 0.15;
 
+    const coresBalanco = balancos.map(v => v >= 0 ? 'rgba(135, 206, 250, 0.7)' : 'rgba(239, 68, 68, 0.7)');
+
     const opcoesBalanco = getOpcoesGrafico();
     opcoesBalanco.scales.y.min = -(maxAbs + margem);
     opcoesBalanco.scales.y.max =   maxAbs + margem;
     opcoesBalanco.plugins.legend.display = false;
     opcoesBalanco.layout = { padding: { top: 16, bottom: 16 } };
 
+    const datasetBalancoAnos = {
+        ...criarDatasetBarra(BALANCO_DATASETS_CONFIG.balanco, balancos),
+        backgroundColor: coresBalanco,
+        borderColor: coresBalanco.map(c => c.replace('0.7)', '1)'))
+    };
+
     window.balancoChart = new Chart(ctx, {
         type: 'bar',
-        plugins: [backgroundBarPlugin],
         data: {
             labels: anos.map(a => a.toString()),
-            datasets: [criarDatasetBarra(BALANCO_DATASETS_CONFIG.balanco, balancos)]
+            datasets: [datasetBalancoAnos]
         },
         options: opcoesBalanco
     });
@@ -652,18 +658,25 @@ function criarGraficoBalancoPorMeses(ano) {
     const maxAbs = Math.max(...balancos.map(Math.abs), 1);
     const margem = maxAbs * 0.15;
 
+    const coresBalanco = balancos.map(v => v >= 0 ? 'rgba(135, 206, 250, 0.7)' : 'rgba(239, 68, 68, 0.7)');
+
     const opcoesBalanco = getOpcoesGrafico();
     opcoesBalanco.scales.y.min = -(maxAbs + margem);
     opcoesBalanco.scales.y.max =   maxAbs + margem;
     opcoesBalanco.plugins.legend.display = false;
     opcoesBalanco.layout = { padding: { top: 16, bottom: 16 } };
 
+    const datasetBalancoMeses = {
+        ...criarDatasetBarra(BALANCO_DATASETS_CONFIG.balanco, balancos),
+        backgroundColor: coresBalanco,
+        borderColor: coresBalanco.map(c => c.replace('0.7)', '1)'))
+    };
+
     window.balancoChart = new Chart(ctx, {
         type: 'bar',
-        plugins: [backgroundBarPlugin],
         data: {
             labels: meses,
-            datasets: [criarDatasetBarra(BALANCO_DATASETS_CONFIG.balanco, balancos)]
+            datasets: [datasetBalancoMeses]
         },
         options: opcoesBalanco
     });
@@ -773,14 +786,18 @@ function criarGraficoTendenciaAnualComFiltros(dadosFinanceiros, anoAtual, filtro
             scales: {
                 y: {
                     beginAtZero: true,
+                    grid: { display: false },
+                    border: { display: false },
                     ticks: {
+                        stepSize: 5000,
                         callback: function(value) {
                             return window.formatarMoedaCompacta(value);
                         }
                     }
                 },
                 x: {
-                    grid: { display: false }
+                    grid: { display: false },
+                    border: { display: false }
                 }
             },
             plugins: {
@@ -854,11 +871,18 @@ function criarGraficoReceitasDespesasComFiltros(dados, filtros) {
             scales: {
                 y: {
                     beginAtZero: true,
+                    grid: { display: false },
+                    border: { display: false },
                     ticks: {
+                        stepSize: 5000,
                         callback: function(value) {
                             return window.formatarMoedaCompacta(value);
                         }
                     }
+                },
+                x: {
+                    grid: { display: false },
+                    border: { display: false }
                 }
             },
             plugins: {
@@ -977,13 +1001,18 @@ function criarGraficoBarrasCategoriasComFiltros(dadosFinanceiros, ano, filtros) 
                 scales: {
                     x: {
                         beginAtZero: true,
+                        grid: { display: false },
+                        border: { display: false },
                         ticks: {
+                            stepSize: 5000,
                             callback: function(value) {
                                 return window.formatarMoedaCompacta(value);
                             }
                         }
                     },
                     y: {
+                        grid: { display: false },
+                        border: { display: false },
                         ticks: {
                             autoSkip: false
                         }
@@ -1101,17 +1130,22 @@ function criarGraficoCategoriasMensaisComFiltros(dadosFinanceiros, ano, filtros)
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    x: { 
+                    x: {
                         stacked: true, // Empilhamento no eixo X (valores)
                         beginAtZero: true,
+                        grid: { display: false },
+                        border: { display: false },
                         ticks: {
+                            stepSize: 5000,
                             callback: function(value) {
                                 return window.formatarMoedaCompacta(value);
                             }
                         }
                     },
-                    y: { 
-                        stacked: true // Empilhamento no eixo Y (meses)
+                    y: {
+                        stacked: true, // Empilhamento no eixo Y (meses)
+                        grid: { display: false },
+                        border: { display: false }
                     }
                 },
                 plugins: {
@@ -1143,70 +1177,77 @@ function criarGraficoJurosEconomias(ano) {
     if (!ctx) return;
 
     const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-    const juros = [];
-    const economias = [];
 
-    for (let m = 0; m < 12; m++) {
+    const dadosMensais = meses.map((_, m) => {
         const dadosMes = window.dadosFinanceiros?.[ano]?.meses?.[m];
         const despesas = dadosMes?.despesas || [];
-        const j = typeof window.calcularTotalJuros === 'function' ? window.calcularTotalJuros(despesas) : 0;
-        const e = typeof window.calcularTotalEconomias === 'function' ? window.calcularTotalEconomias(despesas) : 0;
-        juros.push(-(j || 0));      // negativo = para baixo
-        economias.push(e || 0);    // positivo = para cima
-    }
+        const juros = typeof window.calcularTotalJuros === 'function' ? window.calcularTotalJuros(despesas) : 0;
+        const economias = typeof window.calcularTotalEconomias === 'function' ? window.calcularTotalEconomias(despesas) : 0;
+        return { juros: juros || 0, economias: economias || 0 };
+    });
+
+    const valores = dadosMensais.map(d => d.economias - d.juros);
+    const cores = valores.map(v => v >= 0 ? '#10b981' : '#ef4444');
 
     if (window.jurosEconomiasChart) window.jurosEconomiasChart.destroy();
 
-    // Escala simétrica igual ao balanço
-    const todosValores = [...juros, ...economias].map(Math.abs);
-    const maxAbs = Math.max(...todosValores, 1);
+    // Escala simétrica centrada no zero
+    const maxAbs = Math.max(...valores.map(Math.abs), 1);
     const margem = maxAbs * 0.15;
-
-    const opcoes = getOpcoesGrafico();
-    opcoes.scales.y.min = -(maxAbs + margem);
-    opcoes.scales.y.max =   maxAbs + margem;
-    opcoes.scales.y.ticks = {
-        callback: function(value) {
-            return window.formatarMoedaCompacta ? window.formatarMoedaCompacta(Math.abs(value)) : Math.abs(value);
-        }
-    };
-    opcoes.plugins.legend.display = true;
-    opcoes.plugins.tooltip = {
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        titleColor: '#fff',
-        bodyColor: '#fff',
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-        borderWidth: 1,
-        callbacks: {
-            label: function(ctx) {
-                const v = Math.abs(ctx.raw);
-                return `${ctx.dataset.label}: ${window.formatarMoeda ? window.formatarMoeda(v) : 'R$ ' + v.toFixed(2)}`;
-            }
-        }
-    };
-    opcoes.layout = { padding: { top: 16, bottom: 16 } };
 
     window.jurosEconomiasChart = new Chart(ctx, {
         type: 'bar',
-        plugins: [backgroundBarPlugin],
         data: {
             labels: meses,
-            datasets: [
-                criarDatasetBarra({
-                    label: 'Economias',
-                    backgroundColor: 'rgba(20, 184, 166, 0.55)',
-                    borderColor: 'rgb(20, 184, 166)',
-                    order: 1
-                }, economias),
-                criarDatasetBarra({
-                    label: 'Juros',
-                    backgroundColor: 'rgba(239, 68, 68, 0.55)',
-                    borderColor: 'rgb(239, 68, 68)',
-                    order: 2
-                }, juros)
-            ]
+            datasets: [{
+                label: 'Economias − Juros',
+                data: valores,
+                backgroundColor: cores,
+                borderRadius: 6,
+                barPercentage: 0.5,
+                borderSkipped: false
+            }]
         },
-        options: opcoes
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: { padding: { top: 16, bottom: 16 } },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    border: { display: false }
+                },
+                y: {
+                    min: -(maxAbs + margem),
+                    max:   maxAbs + margem,
+                    grid: { display: false },
+                    border: { display: false },
+                    ticks: {
+                        stepSize: 5000,
+                        callback: function(value) {
+                            return window.formatarMoedaCompacta ? window.formatarMoedaCompacta(value) : value;
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: function(context) {
+                            const v = context.raw;
+                            const formatado = window.formatarMoeda ? window.formatarMoeda(Math.abs(v)) : 'R$ ' + Math.abs(v).toFixed(2);
+                            return v >= 0 ? `Saldo positivo: ${formatado}` : `Saldo negativo: ${formatado}`;
+                        }
+                    }
+                }
+            }
+        }
     });
 }
 window.criarGraficoJurosEconomias = criarGraficoJurosEconomias;
@@ -1254,11 +1295,18 @@ function criarGraficoParcelamentosComFiltros(dadosFinanceiros, ano, filtros) {
             scales: {
                 y: {
                     beginAtZero: true,
+                    grid: { display: false },
+                    border: { display: false },
                     ticks: {
+                        stepSize: 5000,
                         callback: function(value) {
                             return window.formatarMoedaCompacta(value);
                         }
                     }
+                },
+                x: {
+                    grid: { display: false },
+                    border: { display: false }
                 }
             },
             plugins: {
@@ -1273,7 +1321,7 @@ function criarGraficoParcelamentosComFiltros(dadosFinanceiros, ano, filtros) {
             }
         }
     });
-    
+
     atualizarEstatisticasParcelamentos(dados.resumo);
 }
 
@@ -1497,7 +1545,16 @@ function criarGraficoMediaItens(dadosFinanceiros, ano, filtros) {
             },
             scales: {
                 x: {
-                    ticks: { callback: (value) => window.formatarMoedaCompacta(value) }
+                    grid: { display: false },
+                    border: { display: false },
+                    ticks: {
+                        stepSize: 5000,
+                        callback: (value) => window.formatarMoedaCompacta(value)
+                    }
+                },
+                y: {
+                    grid: { display: false },
+                    border: { display: false }
                 }
             }
         }
@@ -1578,13 +1635,18 @@ function renderizarGraficoMediaCategorias(ano) {
                 scales: {
                     x: {
                         beginAtZero: true,
+                        grid: { display: false },
+                        border: { display: false },
                         ticks: {
+                            stepSize: 5000,
                             callback: function(value) {
                                 return window.formatarMoedaCompacta(value);
                             }
                         }
                     },
                     y: {
+                        grid: { display: false },
+                        border: { display: false },
                         ticks: {
                             autoSkip: false
                         }
