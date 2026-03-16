@@ -347,11 +347,11 @@ async function parsearDespesa(texto, contextoConversa = [], forcarHeuristica = f
  * @param {Array} historico
  * @param {{ provider: string, apiKey: string }} providerConfig
  */
-async function responderPerguntaFinanceira(pergunta, dadosFinanceiros, historico = [], providerConfig = null, ctxSistema = '') {
+async function responderPerguntaFinanceira(pergunta, dadosFinanceiros, historico = [], providerConfig = null, ctxSistema = '', cartaBase = '') {
     const hoje = new Date().toISOString().split('T')[0];
     const resumo = JSON.stringify(dadosFinanceiros, null, 2).substring(0, 2000);
     const ctxExtra = ctxSistema ? `\nContexto adicional do sistema:\n${ctxSistema}\n` : '';
-    const systemMsg = `Você é um assistente financeiro pessoal. Responda de forma clara, concisa e em português brasileiro.\nData de hoje: ${hoje}\n${ctxExtra}\nDados financeiros do usuário:\n${resumo}\n\nResponda em no máximo 3 frases. Use R$ para valores monetários. Seja direto.`;
+    const systemMsg = `Você é um assistente financeiro pessoal. Responda de forma clara, concisa e em português brasileiro.\nData de hoje: ${hoje}\n${ctxExtra}\nDados financeiros do usuário:\n${resumo}\n\nResponda em no máximo 3 frases. Use R$ para valores monetários. Seja direto.${cartaBase ? '\n\n---\nInstruções de comportamento:\n' + cartaBase : ''}`;
 
     const provider = providerConfig?.provider;
     const apiKey   = providerConfig?.apiKey;
@@ -414,6 +414,13 @@ function gerarRespostaSimples(pergunta, dados) {
 
     if (lower.includes('despesa') || lower.includes('gast')) {
         const total = dados.totalDespesas ?? dados.despesas?.reduce((s, d) => s + (d.valor || 0), 0) ?? 0;
+        const pago = dados.totalDespesasPago ?? null;
+        const aberto = dados.totalDespesasEmAberto ?? null;
+        if (pago !== null && aberto !== null) {
+            const mes = dados.mes !== undefined ? ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][dados.mes] : null;
+            const prefixo = mes ? `Suas despesas de ${mes}` : 'Suas despesas';
+            return `${prefixo} totalizam R$ ${Number(total).toFixed(2).replace('.', ',')} — sendo R$ ${Number(pago).toFixed(2).replace('.', ',')} já pagas e R$ ${Number(aberto).toFixed(2).replace('.', ',')} em aberto.`;
+        }
         return `Suas despesas totalizam R$ ${Number(total).toFixed(2).replace('.', ',')}.`;
     }
 

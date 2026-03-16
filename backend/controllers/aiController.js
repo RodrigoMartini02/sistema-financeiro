@@ -321,8 +321,8 @@ async function chat(req, res) {
         }
 
         if (intencao === 'analise') {
-            const resumo = await buscarResumoFinanceiro(usuarioId);
-            resposta = await responderPerguntaFinanceira(mensagem, resumo, sessao.historico.slice(-6), providerConfig, ctxSistema);
+            const resumo = await buscarResumoFinanceiro(usuarioId, mes_atual, ano_atual);
+            resposta = await responderPerguntaFinanceira(mensagem, resumo, sessao.historico.slice(-6), providerConfig, ctxSistema, cartaBase);
             sessao.historico.push({ role: 'assistant', content: resposta });
             return res.json({ success: true, resposta, acao: 'analise', dados: resumo });
         }
@@ -627,8 +627,14 @@ async function analisarFinancas(req, res) {
 
         const sessao = obterSessao(usuarioId);
         const providerConfig = await buscarConfigIA(usuarioId);
+        const cartaAnalise = await buscarCartaServicos();
+        const ctxSistemaAnalise = await buscarContextoSistema(
+            usuarioId,
+            mes !== undefined ? parseInt(mes) : null,
+            ano !== undefined ? parseInt(ano) : null
+        );
         const resposta = await responderPerguntaFinanceira(
-            pergunta, resumo, sessao.historico.slice(-4), providerConfig
+            pergunta, resumo, sessao.historico.slice(-4), providerConfig, ctxSistemaAnalise, cartaAnalise
         );
 
         return res.json({
