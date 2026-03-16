@@ -17,6 +17,20 @@ const CORES_DISPONIVEIS = [
 
 let coresCategorias = {};
 
+// ================================================================
+// UTILITÁRIO: STEP SIZE DINÂMICO PARA EIXOS MONETÁRIOS
+// ================================================================
+
+function calcularStepSize(maxValor) {
+    const abs = Math.abs(maxValor || 0);
+    if (abs <= 500)   return 50;
+    if (abs <= 1000)  return 100;
+    if (abs <= 5000)  return 500;
+    if (abs <= 20000) return 2000;
+    if (abs <= 50000) return 5000;
+    return 10000;
+}
+
 function obterCorCategoria(categoria) {
     categoria = categoria.trim();
     if (categoria === 'Cartão') {
@@ -43,7 +57,6 @@ function obterCoresParaCategorias(categorias) {
 // ================================================================
 
 let dashboardObserverConfigurado = false;
-let dashboardCarregado = false;
 
 // Inicialização: escuta o evento que main.js dispara APÓS tudo estar pronto
 window.addEventListener('sistemaFinanceiroReady', function() {
@@ -460,20 +473,9 @@ function processarDadosReais(dadosFinanceiros, ano) {
     };
 }
 
-function atualizarResumoDashboard(resumo) {
-    document.getElementById('dashboard-total-receitas').textContent = window.formatarMoeda(resumo.receitas);
-    document.getElementById('dashboard-total-despesas').textContent = window.formatarMoeda(resumo.despesas);
-    document.getElementById('dashboard-saldo-anual').textContent = window.formatarMoeda(resumo.saldo);
-    document.getElementById('dashboard-total-juros').textContent = window.formatarMoeda(resumo.juros);
-    document.getElementById('dashboard-total-economias').textContent = window.formatarMoeda(resumo.economias);
-}
-
 // ================================================================
 // GRÁFICO 1: BALANÇO COM FILTRO DE PERÍODO
 // ================================================================
-
-// Cache dos dados do gráfico de balanço
-window.dadosBalancoCache = null;
 
 // Configuração das colunas do gráfico de balanço
 const BALANCO_DATASETS_CONFIG = {
@@ -551,7 +553,7 @@ function getOpcoesGrafico() {
                         return window.formatarMoedaCompacta(value);
                     }
                 },
-                grid: { display: false },
+                grid: { display: true, color: 'rgba(0,0,0,0.06)' },
                 border: { display: false }
             },
             x: {
@@ -581,6 +583,10 @@ function getOpcoesGrafico() {
                 bodyColor: '#fff',
                 borderColor: 'rgba(255, 255, 255, 0.1)',
                 borderWidth: 1,
+                usePointStyle: false,
+                boxWidth: 10,
+                boxHeight: 10,
+                boxPadding: 4,
                 callbacks: {
                     label: function(context) {
                         return context.dataset.label + ': ' + window.formatarMoeda(context.raw);
@@ -614,13 +620,11 @@ function criarGraficoBalancoPorAnos() {
     });
 
     const maxAbs = Math.max(...balancos.map(Math.abs), 1);
-    const margem = maxAbs * 0.15;
 
     const coresBalanco = balancos.map(v => v >= 0 ? 'rgba(135, 206, 250, 0.7)' : 'rgba(239, 68, 68, 0.7)');
 
     const opcoesBalanco = getOpcoesGrafico();
-    opcoesBalanco.scales.y.min = -(maxAbs + margem);
-    opcoesBalanco.scales.y.max =   maxAbs + margem;
+    opcoesBalanco.scales.y.ticks.stepSize = calcularStepSize(maxAbs);
     opcoesBalanco.plugins.legend.display = false;
     opcoesBalanco.layout = { padding: { top: 16, bottom: 16 } };
 
@@ -656,13 +660,11 @@ function criarGraficoBalancoPorMeses(ano) {
     });
 
     const maxAbs = Math.max(...balancos.map(Math.abs), 1);
-    const margem = maxAbs * 0.15;
 
     const coresBalanco = balancos.map(v => v >= 0 ? 'rgba(135, 206, 250, 0.7)' : 'rgba(239, 68, 68, 0.7)');
 
     const opcoesBalanco = getOpcoesGrafico();
-    opcoesBalanco.scales.y.min = -(maxAbs + margem);
-    opcoesBalanco.scales.y.max =   maxAbs + margem;
+    opcoesBalanco.scales.y.ticks.stepSize = calcularStepSize(maxAbs);
     opcoesBalanco.plugins.legend.display = false;
     opcoesBalanco.layout = { padding: { top: 16, bottom: 16 } };
 
@@ -683,7 +685,6 @@ function criarGraficoBalancoPorMeses(ano) {
 }
 // Função legada para compatibilidade
 function criarGraficoBalanco(dados) {
-    window.dadosBalancoCache = dados;
     filtrarBalanco();
 }
 
@@ -745,11 +746,12 @@ function criarGraficoTendenciaAnualComFiltros(dadosFinanceiros, anoAtual, filtro
         dadosReceitas.push(receitasTotais);
         dadosDespesas.push(totalDespesas);
     });
-    
+
     if (window.tendenciaChart) {
         window.tendenciaChart.destroy();
     }
-    
+
+    const maxValorTendencia = Math.max(...dadosReceitas.concat(dadosDespesas).map(v => Math.abs(v || 0)));
     const datasets = [];
     
     if (filtros.tipo === 'ambos' || filtros.tipo === 'receitas') {
@@ -786,10 +788,10 @@ function criarGraficoTendenciaAnualComFiltros(dadosFinanceiros, anoAtual, filtro
             scales: {
                 y: {
                     beginAtZero: true,
-                    grid: { display: false },
+                    grid: { display: true, color: 'rgba(0,0,0,0.06)' },
                     border: { display: false },
                     ticks: {
-                        stepSize: 5000,
+                        stepSize: calcularStepSize(maxValorTendencia),
                         callback: function(value) {
                             return window.formatarMoedaCompacta(value);
                         }
@@ -803,6 +805,10 @@ function criarGraficoTendenciaAnualComFiltros(dadosFinanceiros, anoAtual, filtro
             plugins: {
                 legend: { display: false },
                 tooltip: {
+                    usePointStyle: false,
+                    boxWidth: 10,
+                    boxHeight: 10,
+                    boxPadding: 4,
                     callbacks: {
                         label: function(context) {
                             return context.dataset.label + ': ' + window.formatarMoeda(context.raw);
@@ -834,9 +840,10 @@ function criarGraficoReceitasDespesasComFiltros(dados, filtros) {
     if (window.receitasDespesasChart) {
         window.receitasDespesasChart.destroy();
     }
-    
+
+    const maxValorRD = Math.max(...(dados.receitas || []).concat(dados.despesas || []).map(v => Math.abs(v || 0)));
     const datasets = [];
-    
+
     if (filtros.tipo === 'ambos' || filtros.tipo === 'receitas') {
         datasets.push({
             label: 'Receitas',
@@ -871,10 +878,10 @@ function criarGraficoReceitasDespesasComFiltros(dados, filtros) {
             scales: {
                 y: {
                     beginAtZero: true,
-                    grid: { display: false },
+                    grid: { display: true, color: 'rgba(0,0,0,0.06)' },
                     border: { display: false },
                     ticks: {
-                        stepSize: 5000,
+                        stepSize: calcularStepSize(maxValorRD),
                         callback: function(value) {
                             return window.formatarMoedaCompacta(value);
                         }
@@ -888,6 +895,10 @@ function criarGraficoReceitasDespesasComFiltros(dados, filtros) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
+                    usePointStyle: false,
+                    boxWidth: 10,
+                    boxHeight: 10,
+                    boxPadding: 4,
                     callbacks: {
                         label: function(context) {
                             return context.dataset.label + ': ' + window.formatarMoeda(context.raw);
@@ -974,7 +985,8 @@ function criarGraficoBarrasCategoriasComFiltros(dadosFinanceiros, ano, filtros) 
     const labels = categoriasArray.map(c => c.categoria);
     const valores = categoriasArray.map(c => c.valor);
     const cores = obterCoresParaCategorias(labels);
-    
+    const maxValorCatBarras = Math.max(...valores.map(v => Math.abs(v || 0)));
+
     if (window.categoriasBarrasChart) {
         window.categoriasBarrasChart.destroy();
     }
@@ -1001,10 +1013,10 @@ function criarGraficoBarrasCategoriasComFiltros(dadosFinanceiros, ano, filtros) 
                 scales: {
                     x: {
                         beginAtZero: true,
-                        grid: { display: false },
+                        grid: { display: true, color: 'rgba(0,0,0,0.06)' },
                         border: { display: false },
                         ticks: {
-                            stepSize: 5000,
+                            stepSize: calcularStepSize(maxValorCatBarras),
                             callback: function(value) {
                                 return window.formatarMoedaCompacta(value);
                             }
@@ -1021,6 +1033,10 @@ function criarGraficoBarrasCategoriasComFiltros(dadosFinanceiros, ano, filtros) 
                 plugins: {
                     legend: { display: false },
                     tooltip: {
+                        usePointStyle: false,
+                        boxWidth: 10,
+                        boxHeight: 10,
+                        boxPadding: 4,
                         callbacks: {
                             label: function(context) {
                                 const valor = context.raw;
@@ -1117,7 +1133,9 @@ function criarGraficoCategoriasMensaisComFiltros(dadosFinanceiros, ano, filtros)
             borderSkipped: false
         };
     });
-    
+
+    const maxValorCatMensais = Math.max(...dadosParaGrafico.map(d => d.total || 0));
+
     if (dadosParaGrafico.length > 0 && categoriasParaExibir.length > 0) {
         window.categoriasEmpilhadasChart = new Chart(ctx, {
             type: 'bar',
@@ -1133,10 +1151,10 @@ function criarGraficoCategoriasMensaisComFiltros(dadosFinanceiros, ano, filtros)
                     x: {
                         stacked: true, // Empilhamento no eixo X (valores)
                         beginAtZero: true,
-                        grid: { display: false },
+                        grid: { display: true, color: 'rgba(0,0,0,0.06)' },
                         border: { display: false },
                         ticks: {
-                            stepSize: 5000,
+                            stepSize: calcularStepSize(maxValorCatMensais),
                             callback: function(value) {
                                 return window.formatarMoedaCompacta(value);
                             }
@@ -1151,6 +1169,10 @@ function criarGraficoCategoriasMensaisComFiltros(dadosFinanceiros, ano, filtros)
                 plugins: {
                     legend: { display: false },
                     tooltip: {
+                        usePointStyle: false,
+                        boxWidth: 10,
+                        boxHeight: 10,
+                        boxPadding: 4,
                         callbacks: {
                             label: function(context) {
                                 const valor = context.raw;
@@ -1220,10 +1242,10 @@ function criarGraficoJurosEconomias(ano) {
                 y: {
                     min: -(maxAbs + margem),
                     max:   maxAbs + margem,
-                    grid: { display: false },
+                    grid: { display: true, color: 'rgba(0,0,0,0.06)' },
                     border: { display: false },
                     ticks: {
-                        stepSize: 5000,
+                        stepSize: calcularStepSize(maxAbs),
                         callback: function(value) {
                             return window.formatarMoedaCompacta ? window.formatarMoedaCompacta(value) : value;
                         }
@@ -1238,6 +1260,10 @@ function criarGraficoJurosEconomias(ano) {
                     bodyColor: '#fff',
                     borderColor: 'rgba(255, 255, 255, 0.1)',
                     borderWidth: 1,
+                    usePointStyle: false,
+                    boxWidth: 10,
+                    boxHeight: 10,
+                    boxPadding: 4,
                     callbacks: {
                         label: function(context) {
                             const v = context.raw;
@@ -1261,11 +1287,13 @@ function criarGraficoParcelamentosComFiltros(dadosFinanceiros, ano, filtros) {
     if (!ctx) return;
     
     const dados = calcularDadosParcelamentosMensaisComFiltros(dadosFinanceiros, ano, filtros);
-    
+
     if (window.parcelamentosChart) {
         window.parcelamentosChart.destroy();
     }
-    
+
+    const maxValorParc = Math.max(...dados.parcelasAPagar.concat(dados.parcelasPagas).map(v => Math.abs(v || 0)));
+
     window.parcelamentosChart = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -1295,10 +1323,10 @@ function criarGraficoParcelamentosComFiltros(dadosFinanceiros, ano, filtros) {
             scales: {
                 y: {
                     beginAtZero: true,
-                    grid: { display: false },
+                    grid: { display: true, color: 'rgba(0,0,0,0.06)' },
                     border: { display: false },
                     ticks: {
-                        stepSize: 5000,
+                        stepSize: calcularStepSize(maxValorParc),
                         callback: function(value) {
                             return window.formatarMoedaCompacta(value);
                         }
@@ -1312,6 +1340,10 @@ function criarGraficoParcelamentosComFiltros(dadosFinanceiros, ano, filtros) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
+                    usePointStyle: false,
+                    boxWidth: 10,
+                    boxHeight: 10,
+                    boxPadding: 4,
                     callbacks: {
                         label: function(context) {
                             return `${context.dataset.label}: ${window.formatarMoeda(context.raw)}`;
@@ -1447,8 +1479,9 @@ function criarGraficoFormaPagamentoComFiltros(dadosFinanceiros, ano, filtros) {
                     legend: { display: false },
                     tooltip: {
                         usePointStyle: false,
-                        boxWidth: 12,
-                        boxHeight: 12,
+                        boxWidth: 10,
+                        boxHeight: 10,
+                        boxPadding: 4,
                         callbacks: {
                             title: () => '',
                             label: function(context) {
@@ -1464,8 +1497,6 @@ function criarGraficoFormaPagamentoComFiltros(dadosFinanceiros, ano, filtros) {
         });
     }
 }
-
-
 
 // Função para filtrar e disparar a criação do gráfico
 window.filtrarMediaItens = function() {
@@ -1513,6 +1544,8 @@ function criarGraficoMediaItens(dadosFinanceiros, ano, filtros) {
     .sort((a, b) => b.media - a.media)
     .slice(0, 10); // Top 10 itens mais caros em média
 
+    const maxValorMediaItens = Math.max(...mediasArray.map(m => Math.abs(m.media || 0)));
+
     if (window.mediaItensChart) {
         window.mediaItensChart.destroy();
     }
@@ -1538,6 +1571,10 @@ function criarGraficoMediaItens(dadosFinanceiros, ano, filtros) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
+                    usePointStyle: false,
+                    boxWidth: 10,
+                    boxHeight: 10,
+                    boxPadding: 4,
                     callbacks: {
                         label: (context) => `Média: ${window.formatarMoeda(context.raw)}`
                     }
@@ -1545,10 +1582,10 @@ function criarGraficoMediaItens(dadosFinanceiros, ano, filtros) {
             },
             scales: {
                 x: {
-                    grid: { display: false },
+                    grid: { display: true, color: 'rgba(0,0,0,0.06)' },
                     border: { display: false },
                     ticks: {
-                        stepSize: 5000,
+                        stepSize: calcularStepSize(maxValorMediaItens),
                         callback: (value) => window.formatarMoedaCompacta(value)
                     }
                 },
@@ -1597,8 +1634,8 @@ function renderizarGraficoMediaCategorias(ano) {
     const labels = Object.keys(totaisPorCategoria).sort();
     const valoresMedios = labels.map(cat => totaisPorCategoria[cat] / divisor);
     const cores = obterCoresParaCategorias(labels);
+    const maxValorMediaCat = Math.max(...valoresMedios.map(v => Math.abs(v || 0)));
 
-    // 3. Renderização visual com Chart.js
     if (window.mediaCategoriasChart) {
         window.mediaCategoriasChart.destroy();
     }
@@ -1625,6 +1662,10 @@ function renderizarGraficoMediaCategorias(ano) {
                 plugins: {
                     legend: { display: false },
                     tooltip: {
+                        usePointStyle: false,
+                        boxWidth: 10,
+                        boxHeight: 10,
+                        boxPadding: 4,
                         callbacks: {
                             label: function(context) {
                                 return 'Média Mensal: ' + window.formatarMoeda(context.raw);
@@ -1635,10 +1676,10 @@ function renderizarGraficoMediaCategorias(ano) {
                 scales: {
                     x: {
                         beginAtZero: true,
-                        grid: { display: false },
+                        grid: { display: true, color: 'rgba(0,0,0,0.06)' },
                         border: { display: false },
                         ticks: {
-                            stepSize: 5000,
+                            stepSize: calcularStepSize(maxValorMediaCat),
                             callback: function(value) {
                                 return window.formatarMoedaCompacta(value);
                             }
@@ -1759,8 +1800,9 @@ function renderDistribuicaoCartoes(dadosFinanceiros, ano, filtros = {}) {
                     legend: { display: false },
                     tooltip: {
                         usePointStyle: false,
-                        boxWidth: 12,
-                        boxHeight: 12,
+                        boxWidth: 10,
+                        boxHeight: 10,
+                        boxPadding: 4,
                         callbacks: {
                             title: () => '',
                             label: function(context) {
