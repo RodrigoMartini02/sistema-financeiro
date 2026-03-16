@@ -1,14 +1,8 @@
-// ================================================================
-// SISTEMA DE RELATÓRIOS - VERSÃO REFATORADA PARA FILTROS INLINE
-// Compatível com receita.js e despesas.js
-// PARTE 1 DE 2
-// ================================================================
+// SISTEMA DE RELATÓRIOS — Compatível com receita.js e despesas.js
 
 let processandoRelatorio = false;
 
-// ================================================================
-// CONSTANTES E CONFIGURAÇÕES
-// ================================================================
+// Constantes
 
 const TIPOS_RELATORIO = {
     COMPLETO: 'completo',
@@ -36,10 +30,6 @@ const CRITERIOS_DATA = {
     PAGAMENTO: 'pagamento',
     MISTA: 'mista'
 };
-
-// ================================================================
-// CLASSE PRINCIPAL DO SISTEMA DE RELATÓRIOS
-// ================================================================
 
 class SistemaRelatorios {
     constructor() {
@@ -94,9 +84,7 @@ class SistemaRelatorios {
         });
     }
     
-    // ================================================================
     // CONFIGURAÇÃO DE EVENTOS PARA FILTROS INLINE
-    // ================================================================
     
     configurarEventos() {
         setTimeout(() => {
@@ -239,9 +227,7 @@ class SistemaRelatorios {
         });
     }
     
-    // ================================================================
     // CONFIGURAÇÃO DE FILTROS
-    // ================================================================
     
     configurarFiltrosDefault() {
         // Configurar período como personalizado por padrão
@@ -351,9 +337,7 @@ class SistemaRelatorios {
         return categoriasArray;
     }
     
-    // ================================================================
     // RESUMO DE FILTROS
-    // ================================================================
     
     atualizarResumoFiltros() {
         const resumoContainer = document.getElementById('resumo-filtros-aplicados');
@@ -451,9 +435,7 @@ class SistemaRelatorios {
         return filtros;
     }
     
-    // ================================================================
     // GERAÇÃO DE RELATÓRIOS
-    // ================================================================
     
     async gerarRelatorio() {
         if (processandoRelatorio) return;
@@ -518,9 +500,7 @@ class SistemaRelatorios {
         return elemento ? elemento.value : valorDefault;
     }
 
-  // ================================================================
     // CONTINUAÇÃO DA PARTE 1 - FILTROS E PROCESSAMENTO DE DADOS
-    // ================================================================
     
     filtrarDados() {
         const { dataInicio, dataFim } = this.obterPeriodoSelecionado();
@@ -740,9 +720,7 @@ class SistemaRelatorios {
         return { dataInicio, dataFim };
     }
     
-    // ================================================================
     // PROCESSAMENTO E EXIBIÇÃO DE DADOS
-    // ================================================================
     
     processarDados(dados) {
         const { receitas, despesas } = dados;
@@ -1066,9 +1044,7 @@ class SistemaRelatorios {
         if (mensagem) mensagem.classList.remove('hidden');
     }
     
-    // ================================================================
     // FUNÇÕES AUXILIARES
-    // ================================================================
     
     processarParcelamentos(despesas) {
         const grupos = {};
@@ -1262,9 +1238,7 @@ class SistemaRelatorios {
         }
     }
     
-    // ================================================================
     // LIMPEZA DE FILTROS
-    // ================================================================
     
     limparFiltros() {
         // Reset dos seletores
@@ -1322,9 +1296,7 @@ class SistemaRelatorios {
         this.atualizarResumoFiltros();
     }
     
-    // ================================================================
     // EXPORTAÇÃO PDF MELHORADA
-    // ================================================================
     
     exportarPDF() {
         if (!this.dadosProcessados) {
@@ -1702,37 +1674,30 @@ class SistemaRelatorios {
     }
 }
 
-// ================================================================
-// INICIALIZAÇÃO E INTEGRAÇÃO COM O SISTEMA EXISTENTE
-// ================================================================
+// ----------------------------------------------------------------
+// INICIALIZAÇÃO
+// ----------------------------------------------------------------
 
 let sistemaRelatorios = null;
 
-// Inicialização automática
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(async () => {
         try {
             sistemaRelatorios = new SistemaRelatorios();
-            
-            // Integrar com a navegação existente
             integrarComNavegacao();
-
         } catch (error) {
-
+            // silencioso — sistema pode inicializar mais tarde via evento
         }
     }, 1000);
 });
 
-// Inicialização alternativa quando o sistema financeiro estiver pronto
 window.addEventListener('sistemaFinanceiroReady', function() {
     if (!sistemaRelatorios) {
         setTimeout(async () => {
             try {
                 sistemaRelatorios = new SistemaRelatorios();
                 integrarComNavegacao();
-            } catch (error) {
-
-            }
+            } catch (error) { /* silencioso */ }
         }, 200);
     }
 });
@@ -1742,46 +1707,29 @@ function integrarComNavegacao() {
     navLinks.forEach(link => {
         if (link.getAttribute('data-section') === 'relatorios' && !link._relatoriosIntegrado) {
             link._relatoriosIntegrado = true;
-            
             link.addEventListener('click', function(e) {
                 e.preventDefault();
-                
-                // Remover active de todos os links
                 navLinks.forEach(l => l.classList.remove('active'));
-                
-                // Adicionar active ao link clicado
                 this.classList.add('active');
-                
-                // Esconder todas as seções
-                const sections = document.querySelectorAll('.dashboard-section, .meses-section, .config-section, .relatorios-section');
-                sections.forEach(section => section.classList.remove('active'));
-                
-                // Mostrar seção de relatórios
-                const relatoriosSection = document.getElementById('relatorios-section');
-                if (relatoriosSection) {
-                    relatoriosSection.classList.add('active');
-                }
+                document.querySelectorAll('.dashboard-section, .meses-section, .config-section, .relatorios-section')
+                    .forEach(s => s.classList.remove('active'));
+                document.getElementById('relatorios-section')?.classList.add('active');
             });
         }
     });
 }
 
-// ================================================================
-// EXPORTAÇÕES GLOBAIS
-// ================================================================
-
+// Exportações globais
 window.SistemaRelatorios = SistemaRelatorios;
 window.sistemaRelatorios = sistemaRelatorios;
 window.TIPOS_RELATORIO = TIPOS_RELATORIO;
 window.PERIODOS = PERIODOS;
 window.CRITERIOS_DATA = CRITERIOS_DATA;
+window.RelatoriosTelaCheia = SistemaRelatorios;
 
-// Funções de compatibilidade com o sistema original
-window.RelatoriosTelaCheia = SistemaRelatorios; // Alias para compatibilidade
-
-// SISTEMA DE GERAÇÃO DE PDF MELHORADO - CAPTURA DADOS DA INTERFACE
-// Versão que replica exatamente os dados mostrados na tela
-// ================================================================
+// ----------------------------------------------------------------
+// GERADOR DE PDF MELHORADO
+// ----------------------------------------------------------------
 
 class GeradorPDFMelhorado {
     constructor(sistemaRelatorios) {
@@ -2428,18 +2376,10 @@ class GeradorPDFMelhorado {
     }
 }
 
-// ================================================================
-// INTEGRAÇÃO COM O SISTEMA EXISTENTE - SOBRESCREVER MÉTODO ORIGINAL
-// ================================================================
-
-// Função principal de integração
 function integrarGeradorPDFMelhorado() {
     if (window.sistemaRelatorios && !window.sistemaRelatorios._pdfMelhoradoIntegrado) {
-
-        // Salvar referência do método original (caso necessário)
         window.sistemaRelatorios._exportarPDFOriginal = window.sistemaRelatorios.exportarPDF;
 
-        // Sobrescrever o método exportarPDF com o novo sistema
         window.sistemaRelatorios.exportarPDF = function() {
             const geradorPDF = new GeradorPDFMelhorado(this);
             geradorPDF.gerarPDFCompleto();
@@ -2452,52 +2392,40 @@ function integrarGeradorPDFMelhorado() {
     return false;
 }
 
-// Sobrescrever imediatamente se o sistema já existir
 if (window.sistemaRelatorios) {
     integrarGeradorPDFMelhorado();
 }
 
-// Aguardar carregamento do sistema e integrar
 document.addEventListener('DOMContentLoaded', function() {
     let tentativas = 0;
-    const maxTentativas = 5; // Reduzido de 20 para 5
+    const maxTentativas = 5;
     let jaIntegrado = false;
 
     const verificarEIntegrar = () => {
         if (jaIntegrado) return;
-
         tentativas++;
-
         if (integrarGeradorPDFMelhorado()) {
             jaIntegrado = true;
             return;
         }
-
         if (tentativas < maxTentativas) {
-            setTimeout(verificarEIntegrar, 800); // Aumentado de 500ms para 800ms
+            setTimeout(verificarEIntegrar, 800);
         }
-        // Remover avisos - o sistema funciona mesmo sem integração imediata
     };
 
-    setTimeout(verificarEIntegrar, 1500); // Aumentado de 1000ms para 1500ms
+    setTimeout(verificarEIntegrar, 1500);
 });
 
-// Listener para eventos personalizados
 window.addEventListener('sistemaRelatoriosReady', function() {
     integrarGeradorPDFMelhorado();
 });
 
-// Sobrescrever também no prototype da classe se ela existir
 if (window.SistemaRelatorios && window.SistemaRelatorios.prototype) {
     window.SistemaRelatorios.prototype.exportarPDF = function() {
         const geradorPDF = new GeradorPDFMelhorado(this);
         geradorPDF.gerarPDFCompleto();
     };
 }
-
-// ================================================================
-// CLASSE AUXILIAR PARA CAPTURA DE DADOS ESPECÍFICOS
-// ================================================================
 
 class CapturadorDadosInterface {
     static capturarDadosCard(idElemento) {
@@ -2575,113 +2503,6 @@ class CapturadorDadosInterface {
     }
 }
 
-// ================================================================
-// MELHORIAS ESPECÍFICAS PARA DADOS FINANCEIROS
-// ================================================================
-
-class FormatacoesFinanceiras {
-    static formatarMoedaParaPDF(valor) {
-        // Remove formatação HTML e converte para número se necessário
-        let valorLimpo = valor;
-        if (typeof valor === 'string') {
-            valorLimpo = valor.replace(/[^\d,.-]/g, '').replace(',', '.');
-        }
-        
-        const numero = parseFloat(valorLimpo) || 0;
-        return new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(numero);
-    }
-    
-    static determinarCorSaldo(valorTexto) {
-        const isNegativo = valorTexto.includes('-') || valorTexto.includes('(');
-        return isNegativo ? [220, 53, 69] : [40, 167, 69]; // Vermelho : Verde
-    }
-    
-    static extrairValorNumerico(valorTexto) {
-        // Extrai apenas os números de um texto formatado como moeda
-        const match = valorTexto.match(/[\d.,]+/);
-        if (match) {
-            return parseFloat(match[0].replace(/\./g, '').replace(',', '.')) || 0;
-        }
-        return 0;
-    }
-    
-    static formatarData(dataTexto) {
-        // Tenta converter diferentes formatos de data para DD/MM/AAAA
-        if (!dataTexto) return 'N/A';
-        
-        try {
-            const data = new Date(dataTexto);
-            if (isNaN(data.getTime())) {
-                return dataTexto; // Retorna original se não conseguir converter
-            }
-            return data.toLocaleDateString('pt-BR');
-        } catch {
-            return dataTexto;
-        }
-    }
-    
-    static truncarTexto(texto, maxLength) {
-        if (!texto || texto.length <= maxLength) return texto;
-        return texto.substring(0, maxLength - 3) + '...';
-    }
-    
-    static limparTextoHTML(texto) {
-        if (!texto) return '';
-        return texto
-            .replace(/<[^>]*>/g, '') // Remove tags HTML
-            .replace(/\s+/g, ' ')    // Normaliza espaços
-            .trim();
-    }
-}
-
-// ================================================================
-// EXPORTAÇÕES E LOGS
-// ================================================================
-
+// Exportações globais do módulo PDF
 window.GeradorPDFMelhorado = GeradorPDFMelhorado;
 window.CapturadorDadosInterface = CapturadorDadosInterface;
-window.FormatacoesFinanceiras = FormatacoesFinanceiras;
-
-// FUNÇÃO DE TESTE PARA VERIFICAR INTEGRAÇÃO
-// ================================================================
-
-window.testarPDFMelhorado = function() {
-
-    if (!window.jspdf) {
-
-        return false;
-    }
-    
-    // Verificar se sistema de relatórios está disponível
-    if (!window.sistemaRelatorios) {
-
-        return false;
-    }
-    
-    // Verificar se há dados processados
-    if (!window.sistemaRelatorios.dadosProcessados) {
-        console.warn('⚠️ Nenhum relatório foi gerado ainda. Gere um relatório primeiro.');
-        return false;
-    }
-    
-    // Verificar seções visíveis
-    const secoesVisiveis = CapturadorDadosInterface.capturarSecoesVisiveis();
-
-    const dadosResumo = CapturadorDadosInterface.capturarDadosCard('resumo-total-receitas');
-
-    const filtros = CapturadorDadosInterface.capturarFiltrosAtivos();
-
-    return true;
-};
-
-// Executar teste automático se estiver em desenvolvimento
-if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    setTimeout(() => {
-        window.testarPDFMelhorado();
-    }, 3000);
-}

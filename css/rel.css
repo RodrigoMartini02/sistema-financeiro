@@ -1,28 +1,49 @@
-/* ================================================================
-   REL.CSS - Relatórios Sistema Financeiro
-   ================================================================ */
+/* REL.CSS - Relatórios Sistema Financeiro */
+
+/* ----------------------------------------------------------------
+   ÁREA DE FILTROS
+   ---------------------------------------------------------------- */
 
 .relatorios-filtros-area {
     margin-bottom: 12px;
 }
 
 .filtros-linha {
-    display: grid;
-    gap: 12px;
-    margin-bottom: 15px;
-    align-items: end;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+    align-items: flex-end;
 }
 
-.filtros-linha-super-compacta {
-    grid-template-columns: repeat(6, 1fr) auto;
+
+.filtro-grupo {
+    display: flex;
+    flex-direction: column;
+    min-width: 110px;
+    flex: 1 1 110px;
+}
+
+.filtro-grupo label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #6c757d;
+    margin-bottom: 3px;
+    white-space: nowrap;
+}
+
+.filtro-grupo .form-select,
+.filtro-grupo .form-control {
+    width: 100%;
 }
 
 /* Botões de ação inline (só ícones) */
 .filtros-acoes-inline {
     display: flex;
     gap: 6px;
-    align-items: end;
+    align-items: flex-end;
     padding-bottom: 1px;
+    flex-shrink: 0;
 }
 
 .btn-icon-action {
@@ -54,45 +75,28 @@
 .btn-icon-danger { background: #dc3545; }
 .btn-icon-danger:hover:not(:disabled) { background: #c82333; }
 
-.filtro-grupo {
-    display: flex;
-    flex-direction: column;
-}
-
-.filtro-grupo label {
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: #495057;
-    margin-bottom: 4px;
-}
-
-/* Removido - agora usa .form-control padrão de layoutGeral.css */
-.filtro-grupo .form-select {
-    width: 100%;
-}
-
-
+/* Período personalizado — embutido na barra principal */
 .periodo-personalizado-ultra-compacto {
-    display: grid;
-    grid-template-columns: auto 1fr auto 1fr;
+    display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     align-items: center;
     background-color: #f8f9fa;
-    padding: 10px 12px;
+    padding: 8px 12px;
     border: 1px solid #dee2e6;
     border-radius: 8px;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
 }
 
 .periodo-personalizado-ultra-compacto label {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: #6c757d;
     font-weight: 500;
     margin: 0;
     white-space: nowrap;
 }
 
-
+/* Linha de checkboxes */
 .filtros-linha-checkboxes-inline {
     margin-bottom: 8px;
 }
@@ -109,10 +113,11 @@
 }
 
 .grupo-label {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: #495057;
     margin-right: 4px;
+    white-space: nowrap;
 }
 
 .grupo-label-separador {
@@ -121,8 +126,9 @@
     border-left: 1px solid #dee2e6;
 }
 
-/* .checkbox-mini - estilos em layoutGeral.css (SISTEMA UNIFICADO) */
+/* .checkbox-mini — estilos em layoutGeral.css (SISTEMA UNIFICADO) */
 
+/* Resumo de filtros aplicados */
 .filtros-resumo {
     background: #e3f2fd;
     border: 1px solid #90caf9;
@@ -140,9 +146,9 @@
     gap: 6px;
 }
 
-
-/* Estilos antigos .filtros-acoes removidos - agora usa .filtros-acoes-inline */
-
+/* ----------------------------------------------------------------
+   ÁREA DE RESULTADOS
+   ---------------------------------------------------------------- */
 
 .relatorios-resultados {
     min-height: 300px;
@@ -177,6 +183,10 @@
     gap: 8px;
 }
 
+/* ----------------------------------------------------------------
+   CARDS DE RESUMO
+   ---------------------------------------------------------------- */
+
 .resumo-card {
     background: white;
     padding: 15px;
@@ -198,12 +208,13 @@
     width: 4px;
     height: 100%;
     background-color: #007bff;
+    border-radius: 8px 0 0 8px;
 }
 
 .resumo-card.receitas::before { background-color: #28a745; }
 .resumo-card.despesas::before { background-color: #dc3545; }
-.resumo-card.saldo::before { background-color: #007bff; }
-.resumo-card.juros::before { background-color: #fd7e14; }
+.resumo-card.saldo::before    { background-color: #007bff; }
+.resumo-card.juros::before    { background-color: #fd7e14; }
 
 .card-header {
     display: flex;
@@ -224,8 +235,8 @@
 
 .resumo-card.receitas .card-valor { color: #28a745; }
 .resumo-card.despesas .card-valor { color: #dc3545; }
-.resumo-card.saldo .card-valor { color: #007bff; }
-.resumo-card.juros .card-valor { color: #fd7e14; }
+.resumo-card.saldo .card-valor    { color: #007bff; }
+.resumo-card.juros .card-valor    { color: #fd7e14; }
 
 .card-info {
     font-size: 0.8rem;
@@ -233,35 +244,18 @@
     margin: 0;
 }
 
-.comparativo-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-}
+/* ----------------------------------------------------------------
+   CARDS COMPARATIVOS — FORMAS DE PAGAMENTO
+   ---------------------------------------------------------------- */
 
-.comparativo-card {
-    padding: 20px;
-    border-radius: 8px;
-    text-align: center;
-    color: white;
-    transition: transform 0.2s ease;
-}
-
-.comparativo-card:hover {
-    transform: translateY(-2px);
-}
-
-.comparativo-card.pix { background: linear-gradient(135deg, #17a2b8, #138496); }
-.comparativo-card.debito { background: linear-gradient(135deg, #007bff, #0056b3); }
-.comparativo-card.dinheiro { background: linear-gradient(135deg, #28a745, #1e7e34); }
-.comparativo-card.credito { background: linear-gradient(135deg, #dc3545, #c82333); }
-
+.comparativo-cards,
 .pagamento-resumo {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 15px;
 }
 
+.comparativo-card,
 .pagamento-item {
     padding: 20px;
     border-radius: 8px;
@@ -270,13 +264,21 @@
     transition: transform 0.2s ease;
 }
 
+.comparativo-card:hover,
 .pagamento-item:hover {
     transform: translateY(-2px);
 }
 
-.pagamento-item.pix { background: linear-gradient(135deg, #17a2b8, #138496); }
-.pagamento-item.debito { background: linear-gradient(135deg, #007bff, #0056b3); }
+.comparativo-card.pix,
+.pagamento-item.pix     { background: linear-gradient(135deg, #17a2b8, #138496); }
+
+.comparativo-card.debito,
+.pagamento-item.debito  { background: linear-gradient(135deg, #007bff, #0056b3); }
+
+.comparativo-card.dinheiro,
 .pagamento-item.dinheiro { background: linear-gradient(135deg, #28a745, #1e7e34); }
+
+.comparativo-card.credito,
 .pagamento-item.credito { background: linear-gradient(135deg, #dc3545, #c82333); }
 
 .pagamento-header {
@@ -301,6 +303,10 @@
     font-size: 0.85rem;
     opacity: 0.9;
 }
+
+/* ----------------------------------------------------------------
+   CARDS DE GASTOS REAIS
+   ---------------------------------------------------------------- */
 
 .gastos-reais-cards {
     display: grid;
@@ -329,11 +335,16 @@
     width: 4px;
     height: 100%;
     background-color: #fd7e14;
+    border-radius: 8px 0 0 8px;
 }
 
 .gasto-real-card.total::before { background-color: #dc3545; }
 .gasto-real-card.media::before { background-color: #007bff; }
 .gasto-real-card.maior::before { background-color: #28a745; }
+
+/* ----------------------------------------------------------------
+   TABELA DE RELATÓRIO
+   ---------------------------------------------------------------- */
 
 .tabela-responsiva {
     overflow-x: auto;
@@ -375,23 +386,27 @@
     background-color: #f8f9fa;
 }
 
-/* .col-checkbox - estilos em layoutGeral.css (SISTEMA UNIFICADO) */
-.col-tipo { width: 80px; }
-.col-descricao { min-width: 200px; }
-.col-categoria { width: 120px; }
-.col-forma-pagamento { width: 100px; }
-.col-valor { width: 100px; text-align: right; }
-.col-parcela { width: 80px; text-align: center; }
-.col-valor-pago { width: 100px; text-align: right; }
-.col-status { width: 90px; }
-.col-data-compra { width: 100px; }
-.col-data-vencimento { width: 100px; }
-.col-anexos { width: 80px; text-align: center; }
+/* .col-checkbox — estilos em layoutGeral.css (SISTEMA UNIFICADO) */
+.col-tipo              { width: 80px; }
+.col-descricao         { min-width: 200px; }
+.col-categoria         { width: 120px; }
+.col-forma-pagamento   { width: 100px; }
+.col-valor             { width: 100px; text-align: right; }
+.col-parcela           { width: 80px; text-align: center; }
+.col-valor-pago        { width: 100px; text-align: right; }
+.col-status            { width: 90px; }
+.col-data-compra       { width: 100px; }
+.col-data-vencimento   { width: 100px; }
+.col-anexos            { width: 80px; text-align: center; }
+
+/* ----------------------------------------------------------------
+   BADGES
+   ---------------------------------------------------------------- */
 
 .badge-tipo {
     display: inline-block;
-    padding: 3px 8px;
-    border-radius: 4px;
+    padding: 3px 10px;
+    border-radius: 12px;
     font-size: 0.7rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -412,8 +427,8 @@
 
 .badge-status {
     display: inline-block;
-    padding: 3px 8px;
-    border-radius: 4px;
+    padding: 3px 10px;
+    border-radius: 12px;
     font-size: 0.7rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -443,8 +458,9 @@
     color: #0c5460;
 }
 
-
-
+/* ----------------------------------------------------------------
+   INFORMAÇÕES / CONTAGEM DE TRANSAÇÕES
+   ---------------------------------------------------------------- */
 
 .transacoes-info {
     display: flex;
@@ -455,16 +471,6 @@
     background-color: #f8f9fa;
     border-radius: 8px;
     border-left: 3px solid #007bff;
-}
-
-.transacoes-info p {
-    background-color: #e9ecef;
-    padding: 10px 15px;
-    border-left: 4px solid #007bff;
-    margin: 0;
-    font-weight: 500;
-    color: #495057;
-    font-size: 0.9rem;
 }
 
 #transacoes-count-info {
@@ -478,12 +484,15 @@
     font-size: 0.9rem;
     color: #6c757d;
     font-style: italic;
-    margin: 0;
+    margin: 0 0 20px;
     padding: 8px 12px;
     background-color: #f8f9fa;
     border-left: 3px solid #007bff;
-    margin-bottom: 20px;
 }
+
+/* ----------------------------------------------------------------
+   PAGINAÇÃO
+   ---------------------------------------------------------------- */
 
 .paginacao-container {
     display: flex;
@@ -559,11 +568,15 @@
     color: white;
 }
 
-/* .transacao-checkbox - estilos em layoutGeral.css (SISTEMA UNIFICADO) */
+/* .transacao-checkbox — estilos em layoutGeral.css (SISTEMA UNIFICADO) */
 
 .transacao-row.selecionada {
     background-color: #e3f2fd !important;
 }
+
+/* ----------------------------------------------------------------
+   ESTADO VAZIO
+   ---------------------------------------------------------------- */
 
 .sem-dados {
     text-align: center;
@@ -574,8 +587,8 @@
     border-radius: 8px;
 }
 
-.sem-dados.hidden { 
-    display: none; 
+.sem-dados.hidden {
+    display: none;
 }
 
 .sem-dados-icon {
@@ -597,6 +610,10 @@
     line-height: 1.5;
     font-size: 0.95rem;
 }
+
+/* ----------------------------------------------------------------
+   LOADING
+   ---------------------------------------------------------------- */
 
 #relatorios-loading {
     position: absolute;
@@ -629,22 +646,13 @@
     to { transform: rotate(360deg); }
 }
 
+/* ----------------------------------------------------------------
+   MEDIA QUERIES
+   ---------------------------------------------------------------- */
 
-
-
-/* ================================================================
-   MEDIA QUERIES PADRONIZADAS
-   ================================================================ */
-
-/* Tablets (768px - 1024px) */
 @media (min-width: 768px) and (max-width: 1024px) {
-    .filtros-linha-super-compacta {
-        grid-template-columns: repeat(3, 1fr) auto;
-        gap: 10px;
-    }
-
-    .filtros-acoes-inline {
-        flex-direction: column;
+    .filtro-grupo {
+        flex: 1 1 140px;
     }
 
     .comparativo-cards,
@@ -656,22 +664,13 @@
         grid-template-columns: repeat(2, 1fr);
     }
 
-    .tabela-responsiva {
-        font-size: 0.82rem;
-    }
-
     .relatorio-tabela th,
     .relatorio-tabela td {
         padding: 8px 6px;
     }
 }
 
-/* Monitores grandes (1920px+) */
 @media (min-width: 1920px) {
-    .filtros-linha-super-compacta {
-        grid-template-columns: repeat(8, 1fr) auto;
-    }
-
     .comparativo-cards,
     .gastos-reais-cards {
         grid-template-columns: repeat(4, 1fr);
@@ -696,12 +695,7 @@
     }
 }
 
-/* Monitores ultra-wide (2560px+) */
 @media (min-width: 2560px) {
-    .filtros-linha-super-compacta {
-        grid-template-columns: repeat(10, 1fr) auto;
-    }
-
     .comparativo-cards,
     .gastos-reais-cards {
         grid-template-columns: repeat(6, 1fr);
@@ -726,16 +720,18 @@
     }
 }
 
-/* Mobile (≤768px) */
 @media (max-width: 768px) {
-    .filtros-linha-super-compacta {
-        grid-template-columns: 1fr 1fr;
-        gap: 8px;
+    .filtros-linha {
+        gap: 6px;
+    }
+
+    .filtro-grupo {
+        flex: 1 1 calc(50% - 6px);
     }
 
     .filtros-acoes-inline {
-        flex-direction: column;
-        gap: 8px;
+        width: 100%;
+        justify-content: flex-end;
     }
 
     .comparativo-cards,
@@ -767,10 +763,9 @@
     }
 }
 
-/* Phones pequenos (≤480px) */
 @media (max-width: 480px) {
-    .filtros-linha-super-compacta {
-        grid-template-columns: 1fr;
+    .filtro-grupo {
+        flex: 1 1 100%;
     }
 
     .relatorio-tabela {
