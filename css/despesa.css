@@ -266,7 +266,43 @@ select.campo-invalido {
     flex-wrap: wrap;
 }
 
+/* Botão Nova Categoria — estilo outline/secundário */
+#btn-nova-categoria-lancamento {
+    background: #fff;
+    color: #667eea;
+    border: 1.5px solid #667eea;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
 
+#btn-nova-categoria-lancamento:hover {
+    background: #eef2ff;
+    color: #4f46e5;
+    border-color: #4f46e5;
+}
+
+/* Botão Adicionar Despesa — laranja */
+#btn-adicionar-despesa-card {
+    background: #f97316;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+#btn-adicionar-despesa-card:hover {
+    background: #ea6c0a;
+}
+
+/* Botão Salvar — roxo com destaque, empurrado para a direita */
 .btn-salvar-lancamento {
     margin-left: auto;
     padding: 10px 28px;
@@ -282,17 +318,6 @@ select.campo-invalido {
 
 .btn-salvar-lancamento:hover {
     background: #4f46e5;
-}
-
-#btn-adicionar-despesa-card {
-    background: #f97316;
-    color: #fff;
-    border-color: #f97316;
-}
-
-#btn-adicionar-despesa-card:hover {
-    background: #ea6c0a;
-    border-color: #ea6c0a;
 }
 
 /* Form inline nova categoria no footer */
@@ -336,12 +361,13 @@ select.campo-invalido {
 }
 
 .despesa-card {
+    background: #fff;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
-    background: #fff;
-    padding: 14px 16px;
+    padding: 16px;
     position: relative;
     transition: box-shadow 0.15s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 
 .despesa-card:first-child {
@@ -362,26 +388,45 @@ select.campo-invalido {
     border-color: #34d399;
 }
 
-/* Layout principal: coluna esquerda + painel opções */
+/* Layout principal: coluna única com seções empilhadas */
 .card-main-row {
     display: flex;
-    gap: 8px;
-    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
 }
 
-.card-left-col {
-    flex: 1;
+/* Seções visuais */
+.card-secao {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    min-width: 0;
+}
+
+.card-secao-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #94a3b8;
+}
+
+/* Seção de opções em linha */
+.card-secao-opcoes .card-secao-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Retrocompatibilidade: card-left-col não é mais gerado mas pode existir em cards editados */
+.card-left-col {
+    display: contents;
 }
 
 .card-pgto-outer {
-    position: relative;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
-    padding: 16px 10px 8px 10px;
+    padding: 12px 10px 8px 10px;
 }
 
 .card-pgto-wrapper {
@@ -391,14 +436,9 @@ select.campo-invalido {
     flex-wrap: wrap;
 }
 
-/* Grupo de opções: mesmo estilo visual dos grupos de pagamento */
+/* Grupo de opções: agora é filho de .card-secao-inner (flex row) */
 .card-opcoes-grupo {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    flex-shrink: 0;
-    min-width: 170px;
-    align-self: stretch;
+    display: contents;
 }
 
 /* Linha 2: descrição + categoria */
@@ -520,30 +560,31 @@ select.campo-invalido {
     background: #fef2f2 !important;
 }
 
-/* Linha inferior do card: anexos + botão remover */
+/* Linha inferior do card: lista de anexos */
 .card-bottom-row {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
 }
 
-/* Botão remover card — canto inferior direito */
+/* Botão remover card — dentro da seção de opções */
 .card-delete-btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
+    gap: 5px;
+    padding: 5px 10px;
     background: #fff;
     border: 1px solid #fca5a5;
-    border-radius: 8px;
-    font-size: 13px;
+    border-radius: 6px;
+    font-size: 12px;
     font-weight: 500;
     color: #ef4444;
     cursor: pointer;
     white-space: nowrap;
     transition: background 0.15s, border-color 0.15s;
     flex-shrink: 0;
+    margin-left: auto;
 }
 
 .card-delete-btn:hover {
@@ -783,20 +824,21 @@ select.campo-invalido {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 4px 10px;
+    padding: 5px 10px;
     background: #f8fafc;
     border: 1px solid #e2e8f0;
     border-radius: 6px;
-    font-size: 11px;
-    color: #475569;
+    font-size: 12px;
+    color: #64748b;
     cursor: pointer;
     transition: all 0.15s;
+    flex-shrink: 0;
 }
 
 .card-anexos-btn:hover {
-    background: #eff6ff;
-    border-color: #93c5fd;
-    color: #1d4ed8;
+    border-color: #6366f1;
+    color: #4f46e5;
+    background: #eef2ff;
 }
 
 .card-anexos-lista {
@@ -842,8 +884,15 @@ select.campo-invalido {
 
 /* Info parcelas no card */
 .card-info-parcela {
-    font-size: 10px;
-    color: #667eea;
+    display: flex;
+    gap: 16px;
+    padding: 8px 12px;
+    background: #f0fdf4;
+    border-radius: 8px;
+    border: 1px solid #bbf7d0;
+    font-size: 12px;
+    color: #166534;
+    flex-wrap: wrap;
     margin-top: 2px;
 }
 
@@ -903,10 +952,6 @@ select.campo-invalido {
 
 /* Phones (≤600px) */
 @media (max-width: 600px) {
-    .card-main-row {
-        flex-wrap: wrap;
-    }
-
     .card-desc-cat-row {
         flex-wrap: wrap;
     }
@@ -936,6 +981,10 @@ select.campo-invalido {
     .pgto-grupo-botoes {
         gap: 6px;
     }
+
+    .card-secao-opcoes .card-secao-inner {
+        gap: 8px;
+    }
 }
 
 /* Phones pequenos (≤480px) */
@@ -952,12 +1001,8 @@ select.campo-invalido {
         grid-column: auto;
     }
 
-    .card-bottom-row {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
     .card-delete-btn {
+        margin-left: 0;
         width: 100%;
         justify-content: center;
     }

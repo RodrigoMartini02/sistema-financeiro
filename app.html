@@ -2933,9 +2933,10 @@
 <!-- ======================================================== -->
 <template id="template-card-despesa-lancamento">
     <div class="card-main-row">
-        <div class="card-left-col">
+        <!-- Seção 1: Forma de Pagamento -->
+        <div class="card-secao">
+            <span class="card-secao-label">Forma de Pagamento</span>
             <div class="card-pgto-outer">
-                <span class="pgto-grupo-label">Forma de pagamento</span>
                 <div class="card-pgto-wrapper">
                     <div class="card-pgto-grupo card-pgto-grupo-conta">
                         <span class="pgto-grupo-label">Saldo em Conta</span>
@@ -2951,10 +2952,20 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- Seção 2: Descrição & Categoria -->
+        <div class="card-secao">
+            <span class="card-secao-label">Descrição &amp; Categoria</span>
             <div class="card-desc-cat-row">
                 <input type="text" class="card-descricao" placeholder="Descrição da despesa" required>
                 <select class="card-categoria"><option value="">Categoria...</option></select>
             </div>
+        </div>
+
+        <!-- Seção 3: Valores & Datas -->
+        <div class="card-secao">
+            <span class="card-secao-label">Valores &amp; Datas</span>
             <div class="card-values-row">
                 <div class="card-field"><label>Valor orig. *</label><input type="number" class="card-valor-original" min="0.01" step="0.01" placeholder="0,00" required></div>
                 <div class="card-field"><label>Valor final</label><input type="number" class="card-valor-final" min="0" step="0.01" placeholder="0,00"></div>
@@ -2968,22 +2979,26 @@
                 <span>Valor parcela: <strong class="card-valor-parcela">R$ 0,00</strong></span>
                 <span>Total: <strong class="card-valor-total">R$ 0,00</strong></span>
             </div>
-            <div class="card-bottom-row">
-                <div class="card-anexos-lista"></div>
+        </div>
+
+        <!-- Seção 4: Opções -->
+        <div class="card-secao card-secao-opcoes">
+            <span class="card-secao-label">Opções</span>
+            <div class="card-secao-inner card-opcoes-grupo">
+                <button type="button" class="card-fav-btn" title="Favoritar para esta categoria"><i class="far fa-star"></i> Favoritar forma de pagamento</button>
+                <label class="card-flag"><input type="checkbox" class="card-ja-paga"> Já está Paga</label>
+                <label class="card-flag"><input type="checkbox" class="card-recorrente"> Recorrente</label>
+                <label class="card-flag"><input type="checkbox" class="card-replicar"> Replicar até</label>
+                <div class="card-replicar-options hidden">
+                    <select class="card-replicar-mes"></select>
+                    <select class="card-replicar-ano"></select>
+                </div>
+                <button type="button" class="card-anexos-btn"><i class="fas fa-paperclip"></i> Anexos (<span class="card-anexos-count">0</span>)</button>
                 <button type="button" class="card-delete-btn" title="Remover este lançamento"><i class="fas fa-trash-alt"></i> Remover</button>
             </div>
-        </div>
-        <div class="card-pgto-grupo card-opcoes-grupo">
-            <span class="pgto-grupo-label">Opções</span>
-            <button type="button" class="card-fav-btn" title="Favoritar para esta categoria"><i class="far fa-star"></i> Favoritar forma de pagamento</button>
-            <label class="card-flag"><input type="checkbox" class="card-ja-paga"> Já está Paga</label>
-            <label class="card-flag"><input type="checkbox" class="card-recorrente"> Recorrente</label>
-            <label class="card-flag"><input type="checkbox" class="card-replicar"> Replicar até</label>
-            <div class="card-replicar-options hidden">
-                <select class="card-replicar-mes"></select>
-                <select class="card-replicar-ano"></select>
+            <div class="card-bottom-row">
+                <div class="card-anexos-lista"></div>
             </div>
-            <button type="button" class="card-anexos-btn"><i class="fas fa-paperclip"></i> Anexos (<span class="card-anexos-count">0</span>)</button>
         </div>
     </div>
     <div class="card-error hidden"></div>

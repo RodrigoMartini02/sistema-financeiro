@@ -1672,22 +1672,6 @@ function configurarEventosModalLancamento() {
         if (btnFechar) btnFechar.addEventListener('click', fecharModalLancamentoDespesas);
     }
 
-    const inputFile = document.getElementById('input-file-card-despesa');
-    if (inputFile) {
-        inputFile.addEventListener('change', (e) => {
-            if (!inputFile._cardEl) return;
-            const cardEl = inputFile._cardEl;
-            const cardId = cardEl.dataset.cardId;
-            if (!cardAnexosStore.has(cardId)) cardAnexosStore.set(cardId, []);
-            const existentes = cardAnexosStore.get(cardId);
-            Array.from(e.target.files).forEach(file => {
-                existentes.push({ nome: file.name, arquivo: file, tipo: file.type, tamanho: file.size });
-            });
-            atualizarAnexosVisuaisCard(cardEl);
-            inputFile.value = '';
-            inputFile._cardEl = null;
-        });
-    }
 }
 
 // ================================================================
