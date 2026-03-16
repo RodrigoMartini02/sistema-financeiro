@@ -3133,6 +3133,9 @@ async function inicializarConfiguracoes() {
 
     atualizarDropdowns();
     atualizarOpcoesCartoes();
+
+    // Carregar dados da aba inicial (Usuários) sem precisar clicar
+    filtrarUsuarios();
 }
 
 document.addEventListener('DOMContentLoaded', function() {
