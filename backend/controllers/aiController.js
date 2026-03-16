@@ -113,7 +113,7 @@ async function buscarResumoFinanceiro(usuarioId, mes, ano) {
     const a = ano ?? hoje.getFullYear();
 
     try {
-        const [despesas, receitas] = await Promise.all([
+        const [despesas, receitas, despesasPago] = await Promise.all([
             query(
                 `SELECT SUM(valor) as total, categoria_id,
                         (SELECT nome FROM categorias c WHERE c.id = d.categoria_id) as categoria
@@ -125,16 +125,24 @@ async function buscarResumoFinanceiro(usuarioId, mes, ano) {
             query(
                 'SELECT SUM(valor) as total FROM receitas WHERE usuario_id = $1 AND mes = $2 AND ano = $3',
                 [usuarioId, m, a]
+            ),
+            query(
+                'SELECT SUM(COALESCE(valor_pago, valor)) as pago FROM despesas WHERE usuario_id = $1 AND mes = $2 AND ano = $3 AND pago = true',
+                [usuarioId, m, a]
             )
         ]);
 
         const totalDespesas = despesas.rows.reduce((s, r) => s + parseFloat(r.total || 0), 0);
         const totalReceitas = parseFloat(receitas.rows[0]?.total || 0);
+        const totalPago = parseFloat(despesasPago.rows[0]?.pago || 0);
+        const totalEmAberto = Math.max(0, totalDespesas - totalPago);
 
         return {
             mes: m,
             ano: a,
             totalDespesas: parseFloat(totalDespesas.toFixed(2)),
+            totalDespesasPago: parseFloat(totalPago.toFixed(2)),
+            totalDespesasEmAberto: parseFloat(totalEmAberto.toFixed(2)),
             totalReceitas: parseFloat(totalReceitas.toFixed(2)),
             saldo: parseFloat((totalReceitas - totalDespesas).toFixed(2)),
             porCategoria: despesas.rows.map(r => ({
@@ -143,7 +151,7 @@ async function buscarResumoFinanceiro(usuarioId, mes, ano) {
             }))
         };
     } catch {
-        return { totalDespesas: 0, totalReceitas: 0, saldo: 0, porCategoria: [] };
+        return { totalDespesas: 0, totalDespesasPago: 0, totalDespesasEmAberto: 0, totalReceitas: 0, saldo: 0, porCategoria: [] };
     }
 }
 
@@ -182,11 +190,19 @@ async function buscarContextoSistema(usuarioId, mes, ano) {
         const totalDespesas = despesasMes.rows.reduce((s, r) => s + parseFloat(r.total || 0), 0);
         const totalReceitas = parseFloat(receitasMes.rows[0]?.total || 0);
 
+        // Buscar total pago e em aberto separadamente
+        const despesasPagoCtx = await query(
+            'SELECT SUM(COALESCE(valor_pago, valor)) as pago FROM despesas WHERE usuario_id = $1 AND mes = $2 AND ano = $3 AND pago = true',
+            [usuarioId, m, a]
+        );
+        const totalPagoCtx = parseFloat(despesasPagoCtx.rows[0]?.pago || 0);
+        const totalEmAbertoCtx = Math.max(0, totalDespesas - totalPagoCtx);
+
         const linhas = [
             `Período atual: ${MESES[m]}/${a}`,
             `Categorias cadastradas: ${categorias.map(c => c.nome).join(', ') || 'nenhuma'}`,
             `Cartões do usuário: ${cartoes.map(c => c.nome).join(', ') || 'nenhum'}`,
-            `Resumo do mês: Receitas R$ ${totalReceitas.toFixed(2)} | Despesas R$ ${totalDespesas.toFixed(2)} | Saldo R$ ${(totalReceitas - totalDespesas).toFixed(2)}`,
+            `Resumo do mês: Receitas R$ ${totalReceitas.toFixed(2)} | Despesas total R$ ${totalDespesas.toFixed(2)} (pagas R$ ${totalPagoCtx.toFixed(2)} | em aberto R$ ${totalEmAbertoCtx.toFixed(2)}) | Saldo R$ ${(totalReceitas - totalDespesas).toFixed(2)}`,
         ];
 
         if (despesasMes.rows.length > 0) {
