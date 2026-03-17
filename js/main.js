@@ -1937,24 +1937,36 @@ function atualizarElementosDashboard(dados) {
     // Atualizar card SALDO ATUAL — saldo real do mês aberto (deduzindo reservas)
     const saldoAtualElement = document.getElementById('dashboard-saldo-atual');
     if (saldoAtualElement) {
-        if (window.mesAberto !== null && window.mesAberto !== undefined &&
-            window.anoAberto !== null && window.anoAberto !== undefined) {
-            const saldoMes = typeof window.calcularSaldoMes === 'function'
-                ? window.calcularSaldoMes(window.mesAberto, window.anoAberto)
-                : { saldoFinal: 0 };
+        // Usar mês aberto se disponível; caso contrário, usar mês/ano atual como fallback
+        const mesCálculo = (window.mesAberto !== null && window.mesAberto !== undefined)
+            ? window.mesAberto : (window.mesAtual !== undefined ? window.mesAtual : mesAtual);
+        const anoCálculo = (window.anoAberto !== null && window.anoAberto !== undefined)
+            ? window.anoAberto : (window.anoAtual !== undefined ? window.anoAtual : anoAtual);
+
+        if (typeof window.calcularSaldoMes === 'function' || typeof calcularSaldoMes === 'function') {
+            const fnSaldo = typeof window.calcularSaldoMes === 'function' ? window.calcularSaldoMes : calcularSaldoMes;
+            const saldoMes = fnSaldo(mesCálculo, anoCálculo);
             const reservas = typeof window.calcularMovimentacoesReservasAcumuladas === 'function'
-                ? window.calcularMovimentacoesReservasAcumuladas(window.mesAberto, window.anoAberto)
+                ? window.calcularMovimentacoesReservasAcumuladas(mesCálculo, anoCálculo)
                 : (typeof window.calcularTotalReservasAcumuladas === 'function'
-                    ? window.calcularTotalReservasAcumuladas(window.mesAberto, window.anoAberto)
+                    ? window.calcularTotalReservasAcumuladas(mesCálculo, anoCálculo)
                     : 0);
             const saldoAtual = (saldoMes.saldoFinal || 0) - (reservas || 0);
             saldoAtualElement.textContent = formatarMoeda(saldoAtual);
-            saldoAtualElement.className = 'card-value ' + (saldoAtual >= 0 ? 'saldo-positivo' : 'saldo-negativo');
-            saldoAtualElement.style.color = saldoAtual >= 0 ? '#8b5cf6' : '#dc3545';
+            if (saldoAtual > 0) {
+                saldoAtualElement.className = 'card-value saldo-positivo';
+                saldoAtualElement.style.color = '#3b82f6';
+            } else if (saldoAtual < 0) {
+                saldoAtualElement.className = 'card-value saldo-negativo';
+                saldoAtualElement.style.color = '#ef4444';
+            } else {
+                saldoAtualElement.className = 'card-value';
+                saldoAtualElement.style.color = '#6b7280';
+            }
         } else {
             saldoAtualElement.textContent = formatarMoeda(0);
             saldoAtualElement.className = 'card-value';
-            saldoAtualElement.style.color = '#8b5cf6';
+            saldoAtualElement.style.color = '#6b7280';
         }
     }
 }
@@ -1962,20 +1974,35 @@ function atualizarElementosDashboard(dados) {
 function atualizarCardSaldoAtual() {
     const el = document.getElementById('dashboard-saldo-atual');
     if (!el) return;
-    if (window.mesAberto === null || window.mesAberto === undefined ||
-        window.anoAberto === null || window.anoAberto === undefined) return;
-    const saldoMes = typeof window.calcularSaldoMes === 'function'
-        ? window.calcularSaldoMes(window.mesAberto, window.anoAberto)
-        : { saldoFinal: 0 };
+    // Usar mês aberto se disponível; caso contrário, usar mês/ano atual como fallback
+    const mesCálculo = (window.mesAberto !== null && window.mesAberto !== undefined)
+        ? window.mesAberto : (window.mesAtual !== undefined ? window.mesAtual : mesAtual);
+    const anoCálculo = (window.anoAberto !== null && window.anoAberto !== undefined)
+        ? window.anoAberto : (window.anoAtual !== undefined ? window.anoAtual : anoAtual);
+    const fnSaldo = typeof window.calcularSaldoMes === 'function' ? window.calcularSaldoMes : calcularSaldoMes;
+    const saldoMes = fnSaldo ? fnSaldo(mesCálculo, anoCálculo) : { saldoFinal: 0 };
     const reservas = typeof window.calcularMovimentacoesReservasAcumuladas === 'function'
-        ? window.calcularMovimentacoesReservasAcumuladas(window.mesAberto, window.anoAberto)
+        ? window.calcularMovimentacoesReservasAcumuladas(mesCálculo, anoCálculo)
         : 0;
     const saldoAtual = (saldoMes.saldoFinal || 0) - (reservas || 0);
     el.textContent = formatarMoeda(saldoAtual);
-    el.className = 'card-value ' + (saldoAtual >= 0 ? 'saldo-positivo' : 'saldo-negativo');
-    el.style.color = saldoAtual >= 0 ? '#8b5cf6' : '#dc3545';
+    if (saldoAtual > 0) {
+        el.className = 'card-value saldo-positivo';
+        el.style.color = '#3b82f6';
+    } else if (saldoAtual < 0) {
+        el.className = 'card-value saldo-negativo';
+        el.style.color = '#ef4444';
+    } else {
+        el.className = 'card-value';
+        el.style.color = '#6b7280';
+    }
 }
 window.atualizarCardSaldoAtual = atualizarCardSaldoAtual;
+
+// Recalcular saldo atual após o sistema estar completamente pronto
+window.addEventListener('sistemaFinanceiroReady', () => {
+    atualizarCardSaldoAtual();
+}, { once: true });
 
 async function atualizarResumoAnual(ano) {
     await carregarDadosDashboard(ano);
