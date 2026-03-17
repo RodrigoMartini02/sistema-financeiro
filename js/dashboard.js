@@ -544,7 +544,7 @@ function getOpcoesGrafico() {
         scales: {
             y: {
                 ticks: {
-                    stepSize: 5000,
+                    stepSize: calcularStepSize(0),
                     callback: function(value) {
                         return window.formatarMoedaCompacta(value);
                     }
@@ -623,7 +623,7 @@ function criarGraficoBalancoPorAnos() {
     opcoesBalanco.scales.y.min = -(maxAbs * 1.15);
     opcoesBalanco.scales.y.max =   maxAbs * 1.15;
     opcoesBalanco.scales.y.ticks.stepSize = calcularStepSize(maxAbs);
-    opcoesBalanco.scales.y.grid.color = ctx2 => ctx2.tick?.value === 0 ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.06)';
+    opcoesBalanco.scales.y.grid.color = ctx2 => ctx2.tick?.value === 0 ? '#94a3b8' : '#e5e7eb';
     opcoesBalanco.scales.y.grid.lineWidth = ctx2 => ctx2.tick?.value === 0 ? 2 : 1;
     opcoesBalanco.plugins.legend.display = false;
     opcoesBalanco.layout = { padding: { top: 16, bottom: 16 } };
@@ -667,7 +667,7 @@ function criarGraficoBalancoPorMeses(ano) {
     opcoesBalanco.scales.y.min = -(maxAbs * 1.15);
     opcoesBalanco.scales.y.max =   maxAbs * 1.15;
     opcoesBalanco.scales.y.ticks.stepSize = calcularStepSize(maxAbs);
-    opcoesBalanco.scales.y.grid.color = ctx2 => ctx2.tick?.value === 0 ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.06)';
+    opcoesBalanco.scales.y.grid.color = ctx2 => ctx2.tick?.value === 0 ? '#94a3b8' : '#e5e7eb';
     opcoesBalanco.scales.y.grid.lineWidth = ctx2 => ctx2.tick?.value === 0 ? 2 : 1;
     opcoesBalanco.plugins.legend.display = false;
     opcoesBalanco.layout = { padding: { top: 16, bottom: 16 } };
@@ -1219,7 +1219,7 @@ function criarGraficoJurosEconomias(ano) {
                     max:   maxAbs + margem,
                     grid: {
                         display: true,
-                        color: ctx2 => ctx2.tick?.value === 0 ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.06)',
+                        color: ctx2 => ctx2.tick?.value === 0 ? '#94a3b8' : '#e5e7eb',
                         lineWidth: ctx2 => ctx2.tick?.value === 0 ? 2 : 1
                     },
                     border: { display: false },

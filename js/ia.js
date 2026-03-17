@@ -96,7 +96,7 @@ window.IA = (function () {
         panel.style.flexDirection = 'column';
         var msgs = document.getElementById('ai-messages');
         if (msgs && msgs.children.length === 0) {
-            boasVindas(contexto);
+            boasVindas();
             inicializar();
         }
         setTimeout(function () { var inp = elInput(); if (inp) inp.focus(); }, 100);
@@ -172,23 +172,11 @@ window.IA = (function () {
     }
 
     // ── BOAS-VINDAS ───────────────────────────────────────────────
-    function boasVindas(ctx) {
-        var chips = '';
-        if (ctx === 'despesa') {
-            chips = '<button class="ai-welcome-chip" data-chip>paguei 120 de internet no cartão vence dia 15</button>' +
-                    '<button class="ai-welcome-chip" data-chip>200 mercado pix hoje</button>' +
-                    '<button class="ai-welcome-chip" data-chip>netflix 55,90 débito</button>';
-            addGen('Descreva a despesa em texto livre e eu preencho o formulário para você.<div class="ai-welcome-chips">' + chips + '</div>');
-        } else if (ctx === 'receita') {
-            chips = '<button class="ai-welcome-chip" data-chip>recebi salário 3500 hoje</button>' +
-                    '<button class="ai-welcome-chip" data-chip>freelance 800 pix</button>';
-            addGen('Descreva a receita e eu preencho o formulário.<div class="ai-welcome-chips">' + chips + '</div>');
-        } else {
-            chips = '<button class="ai-welcome-chip" data-chip>paguei 150 de mercado no pix</button>' +
-                    '<button class="ai-welcome-chip" data-chip>recebi salário 3500 hoje</button>' +
+    function boasVindas() {
+        var chips = '<button class="ai-welcome-chip" data-chip>Hiper, 150 de mercado no pix</button>' +
+                    '<button class="ai-welcome-chip" data-chip> salário, caiu 3500 hoje</button>' +
                     '<button class="ai-welcome-chip" data-chip>quanto gastei esse mês?</button>';
-            addGen('Olá! Sou a Gen, sua IA financeira. Posso cadastrar despesas, receitas, analisar gastos e ler documentos.<div class="ai-welcome-chips">' + chips + '</div>');
-        }
+        addGen('Olá! Sou a Gen, sua IA financeira. Posso cadastrar despesas, receitas, analisar gastos e ler documentos.<div class="ai-welcome-chips">' + chips + '</div>');
     }
 
     function limparConversa() {
@@ -199,7 +187,7 @@ window.IA = (function () {
         cancelarArquivo();
         fecharBoleto();
         apiPost('/chat', { mensagem: '_reset_', limpar_sessao: true }).catch(function () { });
-        boasVindas(estado.contexto);
+        boasVindas();
     }
 
     // ── ENVIO ─────────────────────────────────────────────────────
