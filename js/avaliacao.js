@@ -4,6 +4,7 @@
 
 const reviewsEstaticas = [
     { text: '"Antes eu me sentia perdido com meu dinheiro. Hoje tenho clareza total e durmo tranquilo."', author: "Dra. Mariana", stars: 5 },
+    { text: '"O diferencial pra mim foi a IA Gen. Ela realmente facilita o registro de receitas e despesas."', author: "Bruno", stars: 5 },
     { text: '"Eu não imaginava o quanto estava desorganizado até começar a usar. Mudou meu dia a dia."', author: "Ricardo", stars: 5 },
     { text: '"Eu vivia apagando incêndio financeiro. Agora tenho controle e consigo planejar."', author: "Dra. Ana", stars: 5 },
     { text: '"Hoje eu sei exatamente para onde vai cada real. Isso não tem preço."', author: "Lucas", stars: 5 },
@@ -17,6 +18,7 @@ const reviewsEstaticas = [
     { text: '"Eu e minha esposa finalmente paramos de brigar por dinheiro."', author: "Diego", stars: 5 },
     { text: '"Consigo ver o ano inteiro e me planejar com antecedência. Mudou tudo."', author: "Dra. Beatriz", stars: 5 },
     { text: '"Adaptei fácil para minha realidade. Parece que foi feito pra mim."', author: "Vanessa", stars: 4 },
+    { text: '"Nunca fui organizado, mas com a IA Gen ficou fácil manter tudo em dia."', author: "Carlos", stars: 5 },
     { text: '"Nunca mais esqueci conta. Parece simples, mas fez muita diferença."', author: "Dr. Luiz", stars: 5 },
     { text: '"Na primeira semana já cortei vários gastos que nem percebia."', author: "Juliana", stars: 5 },
     { text: '"Sou péssimo com finanças e mesmo assim consegui usar sem dificuldade."', author: "Cláudio", stars: 5 },
@@ -27,9 +29,7 @@ const reviewsEstaticas = [
     { text: '"Como autônoma, eu precisava disso há anos."', author: "Renata", stars: 5 },
     { text: '"Saber quanto vou ter no futuro me deu uma paz absurda."', author: "Daniela", stars: 5 },
     { text: '"Eu entrei sem expectativa… e hoje não fico sem."', author: "Dr. Igor", stars: 5 },
-    { text: '"Eu evitava olhar minhas finanças. Hoje abro todo dia sem medo."', author: "Carla", stars: 5 },
-    { text: '"Em poucos dias já senti diferença no bolso. Nunca foi tão claro onde estou errando."', author: "Eduardo", stars: 5 },
-    { text: '"Parece simples, mas mudou completamente minha organização e minha cabeça."', author: "Dra. Camila", stars: 5 }
+    { text: '"Depois que comecei a usar a IA Gen, cadastrar despesas virou coisa de segundos."', author: "Rafael", stars: 5 }
 ];
 
 let reviews = [...reviewsEstaticas];
