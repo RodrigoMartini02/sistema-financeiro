@@ -948,16 +948,12 @@ function atualizarSaldoAnteriorToolbar() {
 
     // --- Saldo Anterior ---
     const valorAnt = obterSaldoAnteriorValido(mes, ano);
-    if (valorAnt === 0) {
-        ocultarCard(cardAnt, sepAnt);
-    } else {
-        if (spanAnt) {
-            spanAnt.textContent = window.formatarMoeda(valorAnt);
-            spanAnt.classList.remove('saldo-positivo', 'saldo-negativo');
-            spanAnt.classList.add(valorAnt >= 0 ? 'saldo-positivo' : 'saldo-negativo');
-        }
-        mostrarCard(cardAnt, sepAnt);
+    if (spanAnt) {
+        spanAnt.textContent = window.formatarMoeda(valorAnt);
+        spanAnt.classList.remove('saldo-positivo', 'saldo-negativo');
+        spanAnt.classList.add(valorAnt >= 0 ? 'saldo-positivo' : 'saldo-negativo');
     }
+    mostrarCard(cardAnt, sepAnt);
 
     // --- Saldo Real e Projetado ---
     const saldo = typeof window.calcularSaldoMes === 'function'

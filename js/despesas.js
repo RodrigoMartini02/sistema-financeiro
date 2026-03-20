@@ -434,7 +434,16 @@ function preencherCelulasGridReceita(clone, receita, fechado) {
     if (celulaDataPagamento) celulaDataPagamento.textContent = '-';
 
     const celulaAnexos = clone.querySelector('.col-anexos');
-    if (celulaAnexos) celulaAnexos.style.display = 'none';
+    if (celulaAnexos) {
+        const template = document.getElementById('template-botao-anexos-sem-anexos');
+        if (template) {
+            const templateClone = template.content.cloneNode(true);
+            const botaoAnexos = templateClone.querySelector('.btn-anexos');
+            if (botaoAnexos) botaoAnexos.classList.add('btn-anexos-receita');
+            celulaAnexos.innerHTML = '';
+            celulaAnexos.appendChild(templateClone);
+        }
+    }
 
     const celulaAcoes = clone.querySelector('.col-acoes');
     if (celulaAcoes) {
@@ -736,6 +745,8 @@ function configurarEventosDespesas(container, mes, ano) {
                   if (typeof window.editarReceita === 'function') window.editarReceita(receitaIndex, mes, ano);
               } else if (btn.classList.contains('btn-excluir-receita')) {
                   if (typeof window.excluirReceita === 'function') window.excluirReceita(receitaIndex, mes, ano);
+              } else if (btn.classList.contains('btn-anexos')) {
+                  if (typeof window.abrirModalVisualizarAnexosReceita === 'function') window.abrirModalVisualizarAnexosReceita(receitaIndex);
               }
           } catch (error) {
               (window.mostrarToast || alert)('Erro ao processar receita: ' + error.message, 'error');
