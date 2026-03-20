@@ -32,7 +32,16 @@ Campos a extrair:
 - parcelas: número de parcelas (number, padrão 1)
 - data: data da despesa no formato YYYY-MM-DD (padrão: hoje)
 
-Regras:
+REGRA CRÍTICA — VÍRGULA COMO DELIMITADOR DE DESCRIÇÃO (prioridade máxima):
+- Quando a primeira palavra do texto é seguida de vírgula, essa primeira palavra (antes da vírgula) é OBRIGATORIAMENTE a descrição do lançamento.
+- Ignore qualquer outra heurística de extração de descrição quando houver vírgula após a primeira palavra.
+- Exemplos OBRIGATÓRIOS:
+  * "Hiper, 150 de mercado no pix" → descricao="Hiper", valor=150, forma_pagamento="pix"
+  * "Posto, 80 gasolina débito" → descricao="Posto", valor=80, forma_pagamento="cartao_debito"
+  * "Netflix, 55,90 no cartão" → descricao="Netflix", valor=55.90, forma_pagamento="cartao_credito"
+- NUNCA inclua o texto após a vírgula na descrição quando essa regra se aplicar.
+
+Demais regras:
 - Para "cartão" sem especificar = cartao_credito
 - Para datas relativas como "dia 15" use o mês atual
 - Para "amanhã", "hoje" calcule a data real baseado em hoje
@@ -44,10 +53,13 @@ Input: "paguei 120 de internet da vivo no cartão vence dia 15"
 Output: {"descricao":"Internet Vivo","valor":120,"categoria":"Moradia","forma_pagamento":"cartao_credito","vencimento":"DATA_DIA_15","parcelas":1,"data":"HOJE"}
 
 Input: "netflix 55,90 debito todo mes"
-Output: {"descricao":"Netflix","valor":55.90,"categoria":"Assinaturas","forma_pagamento":"cartao_debito","vencimento":null,"parcelas":1,"data":"HOJE"}`;
+Output: {"descricao":"Netflix","valor":55.90,"categoria":"Assinaturas","forma_pagamento":"cartao_debito","vencimento":null,"parcelas":1,"data":"HOJE"}
+
+Input: "Hiper, 150 de mercado no pix"
+Output: {"descricao":"Hiper","valor":150,"categoria":"Alimentação","forma_pagamento":"pix","vencimento":null,"parcelas":1,"data":"HOJE"}`;
 
 // ── PARSER COM OPENAI ────────────────────────────────────────────
-async function parsearComOpenAI(texto, contextoConversa = [], apiKeyOverride, ctxSistema = '', cartaBase = '') {
+async function parsearComOpenAI(texto, contextoConversa = [], apiKeyOverride, ctxSistema = '', cartaBase = '', instrucoesUsuario = '') {
     let openai = apiKeyOverride
         ? (() => { const OpenAI = require('openai'); return new OpenAI({ apiKey: apiKeyOverride }); })()
         : getOpenAI();
@@ -55,7 +67,10 @@ async function parsearComOpenAI(texto, contextoConversa = [], apiKeyOverride, ct
 
     const hoje = new Date().toISOString().split('T')[0];
     const ctxExtra = ctxSistema ? `\n\nContexto do sistema do usuário:\n${ctxSistema}` : '';
-    const systemWithDate = `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${ctxExtra}${cartaBase ? '\n\n---\n' + cartaBase : ''}`;
+    const instrucoesPrio = instrucoesUsuario
+        ? `\n\n=== INSTRUÇÕES PERSONALIZADAS DO USUÁRIO (PRIORIDADE MÁXIMA — sobrepõem qualquer outra regra) ===\n${instrucoesUsuario}\n=== FIM DAS INSTRUÇÕES PERSONALIZADAS ===`
+        : '';
+    const systemWithDate = `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${ctxExtra}${instrucoesPrio}${cartaBase ? '\n\n---\n' + cartaBase : ''}`;
 
     const messages = [
         { role: 'system', content: systemWithDate },
@@ -76,12 +91,15 @@ async function parsearComOpenAI(texto, contextoConversa = [], apiKeyOverride, ct
 }
 
 // ── PARSER COM GEMINI ─────────────────────────────────────────────
-async function parsearComGemini(texto, contextoConversa = [], apiKey, ctxSistema = '', cartaBase = '') {
+async function parsearComGemini(texto, contextoConversa = [], apiKey, ctxSistema = '', cartaBase = '', instrucoesUsuario = '') {
     if (!apiKey) throw new Error('Gemini API key não configurada');
     const fetch = require('node-fetch');
     const hoje = new Date().toISOString().split('T')[0];
     const ctxExtra = ctxSistema ? `\n\nContexto do sistema do usuário:\n${ctxSistema}` : '';
-    const prompt = `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${ctxExtra}${cartaBase ? '\n\n---\n' + cartaBase : ''}\n\nTexto do usuário: ${texto}`;
+    const instrucoesPrio = instrucoesUsuario
+        ? `\n\n=== INSTRUÇÕES PERSONALIZADAS DO USUÁRIO (PRIORIDADE MÁXIMA — sobrepõem qualquer outra regra) ===\n${instrucoesUsuario}\n=== FIM DAS INSTRUÇÕES PERSONALIZADAS ===`
+        : '';
+    const prompt = `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${ctxExtra}${instrucoesPrio}${cartaBase ? '\n\n---\n' + cartaBase : ''}\n\nTexto do usuário: ${texto}`;
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     const body = {
@@ -98,17 +116,20 @@ async function parsearComGemini(texto, contextoConversa = [], apiKey, ctxSistema
 }
 
 // ── PARSER COM CLAUDE ─────────────────────────────────────────────
-async function parsearComClaude(texto, contextoConversa = [], apiKey, ctxSistema = '', cartaBase = '') {
+async function parsearComClaude(texto, contextoConversa = [], apiKey, ctxSistema = '', cartaBase = '', instrucoesUsuario = '') {
     if (!apiKey) throw new Error('Anthropic API key não configurada');
     const Anthropic = require('@anthropic-ai/sdk');
     const client = new Anthropic({ apiKey });
     const hoje = new Date().toISOString().split('T')[0];
     const ctxExtra = ctxSistema ? `\n\nContexto do sistema do usuário:\n${ctxSistema}` : '';
+    const instrucoesPrio = instrucoesUsuario
+        ? `\n\n=== INSTRUÇÕES PERSONALIZADAS DO USUÁRIO (PRIORIDADE MÁXIMA — sobrepõem qualquer outra regra) ===\n${instrucoesUsuario}\n=== FIM DAS INSTRUÇÕES PERSONALIZADAS ===`
+        : '';
 
     const response = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 500,
-        system: `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${ctxExtra}${cartaBase ? '\n\n---\n' + cartaBase : ''}\n\nResponda APENAS com JSON válido.`,
+        system: `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${ctxExtra}${instrucoesPrio}${cartaBase ? '\n\n---\n' + cartaBase : ''}\n\nResponda APENAS com JSON válido.`,
         messages: [{ role: 'user', content: texto }]
     });
 
@@ -226,7 +247,15 @@ function parsearComGen(texto) {
     }
 
     // ── Extração de DESCRIÇÃO ────────────────────────────────
-    // Remove palavras-chave e extrai o restante como descrição
+    // REGRA PRIORITÁRIA: Se a primeira palavra é seguida de vírgula, ela É a descrição
+    const virgulaPrioMatch = texto.match(/^([\w\u00C0-\u017F]+),\s*/);
+    let descricaoFixadaPorVirgula = false;
+    if (virgulaPrioMatch) {
+        result.descricao = virgulaPrioMatch[1].charAt(0).toUpperCase() + virgulaPrioMatch[1].slice(1);
+        descricaoFixadaPorVirgula = true;
+    }
+
+    // Remove palavras-chave e extrai o restante como descrição (apenas se a regra da vírgula não se aplicou)
     let descricao = texto
         .replace(/R\$\s*[\d.,]+/gi, '')
         .replace(/[\d.,]+\s*reais?/gi, '')
@@ -242,11 +271,13 @@ function parsearComGen(texto) {
     // Remove artigos no início
     descricao = descricao.replace(/^(?:de|do|da|um|uma|o|a)\s+/i, '').trim();
 
-    // Capitaliza primeira letra
-    if (descricao) {
-        result.descricao = descricao.charAt(0).toUpperCase() + descricao.slice(1);
-    } else {
-        result.descricao = 'Despesa';
+    // Capitaliza primeira letra (apenas se descrição NÃO foi fixada pela regra da vírgula)
+    if (!descricaoFixadaPorVirgula) {
+        if (descricao) {
+            result.descricao = descricao.charAt(0).toUpperCase() + descricao.slice(1);
+        } else {
+            result.descricao = 'Despesa';
+        }
     }
 
     // ── Inferir CATEGORIA ──────────────────────────────────
@@ -300,7 +331,7 @@ function detectarIntencao(texto) {
  * @param {{ provider: string, apiKey: string }} providerConfig - Config do usuário
  * @returns {Object} { dados, metodo, intencao }
  */
-async function parsearDespesa(texto, contextoConversa = [], forcarHeuristica = false, providerConfig = null, ctxSistema = '', cartaBase = '') {
+async function parsearDespesa(texto, contextoConversa = [], forcarHeuristica = false, providerConfig = null, ctxSistema = '', cartaBase = '', instrucoesUsuario = '') {
     const intencao = detectarIntencao(texto);
 
     let dados = null;
@@ -309,13 +340,13 @@ async function parsearDespesa(texto, contextoConversa = [], forcarHeuristica = f
     if (!forcarHeuristica && providerConfig?.provider && providerConfig.provider !== 'gen') {
         try {
             if (providerConfig.provider === 'openai') {
-                dados = await parsearComOpenAI(texto, contextoConversa, providerConfig.apiKey, ctxSistema, cartaBase);
+                dados = await parsearComOpenAI(texto, contextoConversa, providerConfig.apiKey, ctxSistema, cartaBase, instrucoesUsuario);
                 metodo = 'openai';
             } else if (providerConfig.provider === 'gemini') {
-                dados = await parsearComGemini(texto, contextoConversa, providerConfig.apiKey, ctxSistema, cartaBase);
+                dados = await parsearComGemini(texto, contextoConversa, providerConfig.apiKey, ctxSistema, cartaBase, instrucoesUsuario);
                 metodo = 'gemini';
             } else if (providerConfig.provider === 'claude') {
-                dados = await parsearComClaude(texto, contextoConversa, providerConfig.apiKey, ctxSistema, cartaBase);
+                dados = await parsearComClaude(texto, contextoConversa, providerConfig.apiKey, ctxSistema, cartaBase, instrucoesUsuario);
                 metodo = 'claude';
             }
         } catch (err) {
@@ -325,7 +356,7 @@ async function parsearDespesa(texto, contextoConversa = [], forcarHeuristica = f
     } else if (!forcarHeuristica && getOpenAI()) {
         // fallback para chave env do servidor
         try {
-            dados = await parsearComOpenAI(texto, contextoConversa, undefined, ctxSistema, cartaBase);
+            dados = await parsearComOpenAI(texto, contextoConversa, undefined, ctxSistema, cartaBase, instrucoesUsuario);
             metodo = 'openai';
         } catch (err) {
             console.warn('⚠️ OpenAI falhou, usando Gen:', err.message);

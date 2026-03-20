@@ -245,11 +245,9 @@ async function chat(req, res) {
             const carta = await buscarCartaServicos();
             sessao.contextoSistema = { texto, carta, expira: agora + 5 * 60 * 1000 };
         }
-        // Monta contexto: dados do sistema + instruções personalizadas do usuário
-        const instrucoesUsuario = providerConfig.instrucoesGen
-            ? `\n\nInstruções personalizadas do usuário:\n${providerConfig.instrucoesGen}`
-            : '';
-        const ctxSistema = sessao.contextoSistema.texto + instrucoesUsuario;
+        // Monta contexto: dados do sistema (separado das instruções personalizadas)
+        const instrucoesUsuario = providerConfig.instrucoesGen || '';
+        const ctxSistema = sessao.contextoSistema.texto;
         const cartaBase  = sessao.contextoSistema.carta || '';
 
         // Adiciona ao histórico
@@ -332,7 +330,7 @@ async function chat(req, res) {
         // ── Parseia despesa ─────────────────────────────────────
         let parsedResult;
         try {
-            parsedResult = await parsearDespesa(mensagem, sessao.historico, false, providerConfig, ctxSistema, cartaBase);
+            parsedResult = await parsearDespesa(mensagem, sessao.historico, false, providerConfig, ctxSistema, cartaBase, instrucoesUsuario);
         } catch (err) {
             parsedResult = { dados: null, metodo: 'erro', intencao: 'despesa' };
         }
@@ -425,7 +423,9 @@ async function interpretarDespesa(req, res) {
             return res.status(400).json({ success: false, message: 'Texto da despesa não informado.' });
         }
 
-        const { dados, metodo } = await parsearDespesa(texto, [], false);
+        const providerCfg = await buscarConfigIA(usuarioId);
+        const instrucoesGen = providerCfg.instrucoesGen || '';
+        const { dados, metodo } = await parsearDespesa(texto, [], false, providerCfg, '', '', instrucoesGen);
 
         // Busca categorias e aplica classificação
         const categorias = await buscarCategorias(usuarioId);
