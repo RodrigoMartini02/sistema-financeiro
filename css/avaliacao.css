@@ -171,8 +171,9 @@
 .reviews-summary {
     margin-top: 30px;
     display: flex;
-    flex-direction: column;
-    gap: 5px;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
 }
 
 .summary-score {
