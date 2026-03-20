@@ -119,8 +119,8 @@ async function verificarRetornoGoogle() {
 
         if (!response.ok) {
             if (typeof window.hideLoadingScreen === 'function') window.hideLoadingScreen();
-            const msg = data.needsRegistration
-                ? 'Este e-mail não está cadastrado no sistema. Faça login com CPF/CNPJ e senha.'
+            const msg = data.message === 'Email não cadastrado no sistema.'
+                ? 'Conta não encontrada. Cadastre-se com CPF/CNPJ e senha antes de usar o Google.'
                 : (data.message || 'Erro ao autenticar com Google');
             const errorEl = document.getElementById('modal-error-message');
             if (errorEl) {

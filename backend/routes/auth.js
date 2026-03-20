@@ -448,16 +448,10 @@ router.post('/google', async (req, res) => {
                 await query('UPDATE usuarios SET google_id = $1 WHERE id = $2', [googleUser.id, usuario.id]);
             }
         } else {
-            // Usuário não existe - exigir cadastro com CPF/CNPJ
-            return res.status(404).json({
+            // Usuário não existe - Google login não pode criar conta nova
+            return res.status(403).json({
                 success: false,
-                needsRegistration: true,
-                googleData: {
-                    nome: googleUser.name || googleUser.email.split('@')[0],
-                    email: googleUser.email,
-                    googleId: googleUser.id
-                },
-                message: 'Nenhuma conta encontrada com este e-mail. Cadastre-se informando seu CPF/CNPJ.'
+                message: 'Email não cadastrado no sistema.'
             });
         }
 

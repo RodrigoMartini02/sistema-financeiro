@@ -101,30 +101,6 @@ function atualizarBarraReceitasDespesas() {
         elProgresso.classList.add(statusClass);
     }
 
-    // ---- Bloco Reservado separado ----
-    const elReservado = document.getElementById('barra-reservado');
-    const elReservasFill = document.getElementById('barra-reservas-fill');
-    const elReservasValor = document.getElementById('barra-reservas-valor');
-    const elReservasBase = document.getElementById('barra-reservas-base');
-    const elReservasPct = document.getElementById('barra-reservas-percentual');
-    const elReservasDisponivel = document.getElementById('barra-reservas-disponivel');
-
-    if (elReservado) {
-        if (reservasAcumuladas > 0) {
-            elReservado.style.display = '';
-            const baseTotal = base + reservasAcumuladas; // base antes de deduzir reservas
-            const pctReservas = baseTotal > 0 ? Math.min((reservasAcumuladas / baseTotal) * 100, 100) : 0;
-            if (elReservasFill) {
-                elReservasFill.style.width = `${pctReservas}%`;
-            }
-            if (elReservasValor) elReservasValor.textContent = window.formatarMoeda(reservasAcumuladas);
-            if (elReservasBase) elReservasBase.textContent = window.formatarMoeda(baseTotal);
-            if (elReservasPct) elReservasPct.textContent = `${pctReservas.toFixed(1)}% reservado`;
-            if (elReservasDisponivel) elReservasDisponivel.textContent = window.formatarMoeda(base);
-        } else {
-            elReservado.style.display = 'none';
-        }
-    }
 }
 window.atualizarBarraReceitasDespesas = atualizarBarraReceitasDespesas;
 
@@ -161,9 +137,13 @@ function obterSaldoAnteriorValido(mes, ano) {
     const dadosMesAnterior = window.dadosFinanceiros[anoAnterior].meses[mesAnterior];
     
     if (dadosMesAnterior && dadosMesAnterior.fechado === true) {
-        return dadosMesAnterior.saldoFinal || 0;
+        const saldoFinal = dadosMesAnterior.saldoFinal || 0;
+        const reservas = typeof window.calcularTotalReservasAcumuladas === 'function'
+            ? window.calcularTotalReservasAcumuladas(mesAnterior, anoAnterior)
+            : 0;
+        return saldoFinal - reservas;
     }
-    
+
     return 0;
 }
 
@@ -1413,9 +1393,6 @@ async function abrirModalReservarValor() {
     // Renderizar lista de reservas no modal
     renderizarListaReservasModal();
 
-    // Colapsar histórico ao abrir
-    document.getElementById('historico-geral-container')?.classList.add('collapsed');
-
     // Abrir modal
     const modal = document.getElementById('modal-reservar-valor');
     if (modal) {
@@ -1567,59 +1544,74 @@ async function movimentarReservaSimples(reservaId, valorStr) {
     }
 }
 
-/**
- * Renderiza histórico geral de todas as reservas
- */
+// Estado do histórico para infinite scroll
+const _historicoState = { offset: 0, limite: 20, total: 0, carregando: false, observer: null };
+
+function _renderLinhaHistorico(mov) {
+    const dataHora = new Date(mov.data_hora);
+    const dataFormatada = dataHora.toLocaleDateString('pt-BR');
+    const horaFormatada = dataHora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const isEntrada = mov.tipo === 'entrada';
+    return `<div class="historico-linha ${isEntrada ? 'entrada' : 'saida'}">
+        <span class="hist-nome">${mov.nome_reserva || 'Reserva'}</span>
+        <span class="hist-valor ${isEntrada ? 'positivo' : 'negativo'}">${isEntrada ? '+' : '-'}${window.formatarMoeda(mov.valor)}</span>
+        <span class="hist-data">${dataFormatada} ${horaFormatada}</span>
+    </div>`;
+}
+
+async function _carregarMaisHistorico() {
+    if (_historicoState.carregando) return;
+    if (_historicoState.offset > 0 && _historicoState.offset >= _historicoState.total) return;
+
+    _historicoState.carregando = true;
+    const container = document.getElementById('historico-geral-reservas');
+    if (!container) { _historicoState.carregando = false; return; }
+
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+    if (!token) { _historicoState.carregando = false; return; }
+
+    try {
+        const url = `${API_URL_RESERVAS}/reservas/movimentacoes/todas?limite=${_historicoState.limite}&offset=${_historicoState.offset}`;
+        const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!response.ok) throw new Error();
+
+        const data = await response.json();
+        const movs = data.data || [];
+        _historicoState.total = data.total || 0;
+        _historicoState.offset += movs.length;
+
+        if (_historicoState.offset === movs.length && movs.length === 0) {
+            container.innerHTML = '<div class="historico-vazio">Nenhuma movimentação</div>';
+        } else {
+            container.insertAdjacentHTML('beforeend', movs.map(_renderLinhaHistorico).join(''));
+        }
+    } catch {
+        if (_historicoState.offset === 0) container.innerHTML = '<div class="historico-vazio">Erro ao carregar histórico</div>';
+    } finally {
+        _historicoState.carregando = false;
+    }
+}
+
 async function renderizarHistoricoGeral() {
     const container = document.getElementById('historico-geral-reservas');
     if (!container) return;
 
-    try {
-        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-        if (!token) {
-            container.innerHTML = '<div class="historico-vazio">Sessão expirada</div>';
-            return;
-        }
+    // Reset estado
+    _historicoState.offset = 0;
+    _historicoState.total = 0;
+    _historicoState.carregando = false;
+    container.innerHTML = '';
 
-        // Buscar todas as movimentações em uma única chamada
-        const response = await fetch(`${API_URL_RESERVAS}/reservas/movimentacoes/todas?limite=30`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+    await _carregarMaisHistorico();
 
-        if (!response.ok) {
-            container.innerHTML = '<div class="historico-vazio">Erro ao carregar histórico</div>';
-            return;
-        }
-
-        const data = await response.json();
-        const todasMovimentacoes = data.data || [];
-
-        if (todasMovimentacoes.length === 0) {
-            container.innerHTML = '<div class="historico-vazio">Nenhuma movimentação</div>';
-            return;
-        }
-
-        container.innerHTML = todasMovimentacoes.map(mov => {
-            const dataHora = new Date(mov.data_hora);
-            const dataFormatada = dataHora.toLocaleDateString('pt-BR');
-            const horaFormatada = dataHora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-            const isEntrada = mov.tipo === 'entrada';
-            const nomeReserva = mov.nome_reserva || 'Reserva';
-
-            return `
-                <div class="historico-linha ${isEntrada ? 'entrada' : 'saida'}">
-                    <span class="hist-nome">${nomeReserva}</span>
-                    <span class="hist-valor ${isEntrada ? 'positivo' : 'negativo'}">
-                        ${isEntrada ? '+' : '-'}${window.formatarMoeda(mov.valor)}
-                    </span>
-                    <span class="hist-data">${dataFormatada} ${horaFormatada}</span>
-                </div>
-            `;
-        }).join('');
-
-    } catch (error) {
-        console.error('Erro ao carregar histórico:', error);
-        container.innerHTML = '<div class="historico-vazio">Erro ao carregar histórico</div>';
+    // Configurar IntersectionObserver no sentinel
+    if (_historicoState.observer) _historicoState.observer.disconnect();
+    const sentinel = document.getElementById('historico-sentinel');
+    if (sentinel) {
+        _historicoState.observer = new IntersectionObserver(entries => {
+            if (entries[0].isIntersecting) _carregarMaisHistorico();
+        }, { threshold: 0.1 });
+        _historicoState.observer.observe(sentinel);
     }
 }
 
@@ -1779,13 +1771,6 @@ function inicializarEventosReservasIntegradas() {
     const btnAdicionar = document.getElementById('btn-adicionar-reserva');
     if (btnAdicionar) {
         btnAdicionar.addEventListener('click', processarAdicionarReserva);
-    }
-
-    const historicoToggle = document.getElementById('historico-geral-toggle');
-    if (historicoToggle) {
-        historicoToggle.addEventListener('click', () => {
-            document.getElementById('historico-geral-container')?.classList.toggle('collapsed');
-        });
     }
 
     carregarReservasAPI();

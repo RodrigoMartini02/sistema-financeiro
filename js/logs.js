@@ -266,45 +266,111 @@ window.logManager = new LogManager();
 // FUNÇÕES DE INTERFACE - RENDERIZAÇÃO E FILTROS
 // ================================================================
 
+let _logsBuffer = [];
+let _logsOffset = 0;
+const _LOGS_PAGE_SIZE = 50;
+let _logsObserver = null;
+
+function _criarLinhaLog(log) {
+    const tmplLog = document.getElementById('template-linha-log');
+    const clone = tmplLog.content.cloneNode(true);
+    const tr = clone.querySelector('tr');
+    const acaoLower = log.acao.toLowerCase();
+    if (acaoLower === 'criado') tr.classList.add('log-criado');
+    else if (acaoLower === 'editado') tr.classList.add('log-editado');
+    else if (acaoLower === 'excluído') tr.classList.add('log-excluido');
+    clone.querySelector('.log-data').textContent = formatarDataLog(log.data);
+    clone.querySelector('.log-hora').textContent = log.hora;
+    clone.querySelector('.log-modulo').textContent = log.modulo;
+    const badgeAcao = clone.querySelector('.log-acao');
+    badgeAcao.textContent = log.acao;
+    badgeAcao.className = `badge-acao acao-${acaoLower}`;
+    clone.querySelector('.log-usuario').textContent = log.usuario;
+    clone.querySelector('.log-categoria').textContent = log.categoria;
+    clone.querySelector('.log-descricao').textContent = log.descricao;
+    clone.querySelector('.log-valor').textContent = log.valor !== null ? window.formatarMoeda(log.valor) : '-';
+    return clone;
+}
+
+function _renderizarPagina() {
+    const listaLogs = document.getElementById('lista-logs');
+    const sentinel = document.getElementById('logs-sentinel');
+    if (!listaLogs) return;
+
+    const slice = _logsBuffer.slice(_logsOffset, _logsOffset + _LOGS_PAGE_SIZE);
+    const frag = document.createDocumentFragment();
+    slice.forEach(log => frag.appendChild(_criarLinhaLog(log)));
+    if (sentinel) {
+        listaLogs.insertBefore(frag, sentinel);
+    } else {
+        listaLogs.appendChild(frag);
+    }
+    _logsOffset += slice.length;
+
+    if (_logsOffset >= _logsBuffer.length) {
+        if (_logsObserver) {
+            _logsObserver.disconnect();
+            _logsObserver = null;
+        }
+        if (sentinel) sentinel.style.display = 'none';
+    }
+}
+
+function _iniciarObserver() {
+    const sentinel = document.getElementById('logs-sentinel');
+    if (!sentinel) return;
+
+    sentinel.style.display = '';
+
+    if (_logsObserver) {
+        _logsObserver.disconnect();
+        _logsObserver = null;
+    }
+
+    _logsObserver = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+            _renderizarPagina();
+        }
+    }, { root: null, threshold: 0 });
+
+    _logsObserver.observe(sentinel);
+}
+
 /**
- * Renderiza todos os logs na tabela
+ * Renderiza todos os logs na tabela com infinite scroll
  */
 function renderizarLogs(logs = null) {
     const logsParaRenderizar = logs || window.logManager.obterTodos();
     const listaLogs = document.getElementById('lista-logs');
     const semLogsMessage = document.getElementById('sem-logs-message');
+    const sentinel = document.getElementById('logs-sentinel');
 
     if (!listaLogs) return;
 
-    listaLogs.innerHTML = '';
+    if (_logsObserver) {
+        _logsObserver.disconnect();
+        _logsObserver = null;
+    }
 
-    if (logsParaRenderizar.length === 0) {
+    const nodes = Array.from(listaLogs.childNodes);
+    nodes.forEach(n => { if (n !== sentinel) listaLogs.removeChild(n); });
+
+    _logsBuffer = logsParaRenderizar;
+    _logsOffset = 0;
+
+    if (_logsBuffer.length === 0) {
         if (semLogsMessage) semLogsMessage.classList.remove('hidden');
+        if (sentinel) sentinel.style.display = 'none';
         return;
     }
 
     if (semLogsMessage) semLogsMessage.classList.add('hidden');
 
-    const tmplLog = document.getElementById('template-linha-log');
-    logsParaRenderizar.forEach(log => {
-        const clone = tmplLog.content.cloneNode(true);
-        const tr = clone.querySelector('tr');
-        const acaoLower = log.acao.toLowerCase();
-        if (acaoLower === 'criado') tr.classList.add('log-criado');
-        else if (acaoLower === 'editado') tr.classList.add('log-editado');
-        else if (acaoLower === 'excluído') tr.classList.add('log-excluido');
-        clone.querySelector('.log-data').textContent = formatarDataLog(log.data);
-        clone.querySelector('.log-hora').textContent = log.hora;
-        clone.querySelector('.log-modulo').textContent = log.modulo;
-        const badgeAcao = clone.querySelector('.log-acao');
-        badgeAcao.textContent = log.acao;
-        badgeAcao.className = `badge-acao acao-${acaoLower}`;
-        clone.querySelector('.log-usuario').textContent = log.usuario;
-        clone.querySelector('.log-categoria').textContent = log.categoria;
-        clone.querySelector('.log-descricao').textContent = log.descricao;
-        clone.querySelector('.log-valor').textContent = log.valor !== null ? window.formatarMoeda(log.valor) : '-';
-        listaLogs.appendChild(clone);
-    });
+    _renderizarPagina();
+
+    if (_logsOffset < _logsBuffer.length) {
+        _iniciarObserver();
+    }
 }
 
 /**

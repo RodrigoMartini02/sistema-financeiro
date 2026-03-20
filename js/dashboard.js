@@ -651,8 +651,8 @@ function criarGraficoBalancoPorAnos() {
         backgroundColor: coresBalanco,
         borderColor: coresBalanco.map(c => c.replace('0.7)', '1)')),
         borderRadius: balancos.map(v => v >= 0
-            ? { topLeft: 14, topRight: 14, bottomLeft: 0, bottomRight: 0 }
-            : { topLeft: 0, topRight: 0, bottomLeft: 14, bottomRight: 14 })
+            ? { topLeft: 6, topRight: 6, bottomLeft: 0, bottomRight: 0 }
+            : { topLeft: 0, topRight: 0, bottomLeft: 6, bottomRight: 6 })
     };
 
     window.balancoChart = new Chart(ctx, {
@@ -697,8 +697,8 @@ function criarGraficoBalancoPorMeses(ano) {
         backgroundColor: coresBalanco,
         borderColor: coresBalanco.map(c => c.replace('0.7)', '1)')),
         borderRadius: balancos.map(v => v >= 0
-            ? { topLeft: 14, topRight: 14, bottomLeft: 0, bottomRight: 0 }
-            : { topLeft: 0, topRight: 0, bottomLeft: 14, bottomRight: 14 })
+            ? { topLeft: 6, topRight: 6, bottomLeft: 0, bottomRight: 0 }
+            : { topLeft: 0, topRight: 0, bottomLeft: 6, bottomRight: 6 })
     };
 
     window.balancoChart = new Chart(ctx, {
@@ -788,7 +788,7 @@ function criarGraficoTendenciaAnualComFiltros(dadosFinanceiros, anoAtual, filtro
             data: dadosReceitas,
             backgroundColor: 'rgba(40, 167, 69, 0.7)',
             borderColor: 'rgb(40, 167, 69)',
-            borderRadius: 8,
+            borderRadius: { topLeft: 8, topRight: 8, bottomLeft: 0, bottomRight: 0 },
             borderSkipped: false
         });
     }
@@ -799,7 +799,7 @@ function criarGraficoTendenciaAnualComFiltros(dadosFinanceiros, anoAtual, filtro
             data: dadosDespesas,
             backgroundColor: 'rgba(220, 53, 69, 0.7)',
             borderColor: 'rgb(220, 53, 69)',
-            borderRadius: 8,
+            borderRadius: { topLeft: 8, topRight: 8, bottomLeft: 0, bottomRight: 0 },
             borderSkipped: false
         });
     }
@@ -878,7 +878,7 @@ function criarGraficoReceitasDespesasComFiltros(dados, filtros) {
             data: dados.receitas,
             backgroundColor: 'rgba(40, 167, 69, 0.7)',
             borderColor: 'rgb(40, 167, 69)',
-            borderRadius: 8,
+            borderRadius: { topLeft: 8, topRight: 8, bottomLeft: 0, bottomRight: 0 },
             borderSkipped: false
         });
     }
@@ -889,7 +889,7 @@ function criarGraficoReceitasDespesasComFiltros(dados, filtros) {
             data: dados.despesas,
             backgroundColor: 'rgba(220, 53, 69, 0.7)',
             borderColor: 'rgb(220, 53, 69)',
-            borderRadius: 8,
+            borderRadius: { topLeft: 8, topRight: 8, bottomLeft: 0, bottomRight: 0 },
             borderSkipped: false
         });
     }
@@ -992,7 +992,7 @@ function criarGraficoBarrasCategoriasComFiltros(dadosFinanceiros, ano, filtros) 
                     backgroundColor: cores,
                     borderColor: cores.map(cor => cor.replace('0.7', '1')),
                     borderWidth: 1,
-                    borderRadius: 8,
+                    borderRadius: { topLeft: 0, topRight: 8, bottomLeft: 0, bottomRight: 8 },
                     borderSkipped: false
                 }]
             },
@@ -1119,7 +1119,7 @@ function criarGraficoCategoriasMensaisComFiltros(dadosFinanceiros, ano, filtros)
             backgroundColor: obterCorCategoria(categoria),
             borderColor: 'rgba(255,255,255,0.6)',
             borderWidth: 2,
-            borderRadius: 10,
+            borderRadius: { topLeft: 0, topRight: 4, bottomLeft: 0, bottomRight: 4 },
             borderSkipped: false
         };
     });
@@ -1224,7 +1224,9 @@ function criarGraficoJurosEconomias(ano) {
                 label: 'Economias − Juros',
                 data: valores,
                 backgroundColor: cores,
-                borderRadius: 6,
+                borderRadius: valores.map(v => v >= 0
+                    ? { topLeft: 6, topRight: 6, bottomLeft: 0, bottomRight: 0 }
+                    : { topLeft: 0, topRight: 0, bottomLeft: 6, bottomRight: 6 }),
                 barPercentage: 0.5,
                 borderSkipped: false
             }]
@@ -1307,7 +1309,7 @@ function criarGraficoParcelamentosComFiltros(dadosFinanceiros, ano, filtros) {
                     data: dados.parcelasAPagar,
                     backgroundColor: 'rgba(54, 162, 235, 0.7)',
                     borderColor: 'rgb(54, 162, 235)',
-                    borderRadius: 8,
+                    borderRadius: { topLeft: 8, topRight: 8, bottomLeft: 0, bottomRight: 0 },
                     borderSkipped: false
                 },
                 {
@@ -1315,7 +1317,7 @@ function criarGraficoParcelamentosComFiltros(dadosFinanceiros, ano, filtros) {
                     data: dados.parcelasPagas,
                     backgroundColor: 'rgba(75, 192, 192, 0.9)',
                     borderColor: 'rgb(75, 192, 192)',
-                    borderRadius: 8,
+                    borderRadius: { topLeft: 8, topRight: 8, bottomLeft: 0, bottomRight: 0 },
                     borderSkipped: false
                 }
             ]
@@ -1555,7 +1557,7 @@ function renderizarGraficoMediaCategorias(ano) {
                     backgroundColor: cores,
                     borderColor: cores.map(cor => cor.replace('0.7', '1')),
                     borderWidth: 1,
-                    borderRadius: 8,
+                    borderRadius: { topLeft: 0, topRight: 8, bottomLeft: 0, bottomRight: 8 },
                     borderSkipped: false
                 }]
             },

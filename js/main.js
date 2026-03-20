@@ -2209,18 +2209,22 @@ function calcularSaldoMes(mes, ano) {
             return sum + (r.valor || 0);
         }, 0);
 
-        // Apenas despesas PAGAS afetam o saldo real (dinheiro que já saiu da conta)
-        const despesas = typeof window.calcularTotalDespesas === 'function' ?
-                        window.calcularTotalDespesas(dadosMes.despesas || [], true) :
-                        (dadosMes.despesas || []).reduce((sum, d) => d.pago ? sum + (window.obterValorRealDespesa ? window.obterValorRealDespesa(d) : (d.valor || 0)) : sum, 0);
+        const _mesFuturo = (ano > anoAtual) || (ano === anoAtual && mes > mesAtual);
+        const obterValor = window.obterValorRealDespesa || (d => parseFloat(d.valor || 0));
 
-        // Todas as despesas (pagas + não pagas) para o saldo projetado
-        const despesasTotal = typeof window.calcularTotalDespesas === 'function' ?
-                        window.calcularTotalDespesas(dadosMes.despesas || [], false) :
-                        (dadosMes.despesas || []).reduce((sum, d) => sum + (window.obterValorRealDespesa ? window.obterValorRealDespesa(d) : (d.valor || 0)), 0);
+        const despesas = (dadosMes.despesas || []).reduce((sum, d) => {
+            if (d.quitacaoAntecipada === true) return sum;
+            const ehRecorrente = d.recorrente === true || d.recorrente === 'true' || d.recorrente === 1 || d.recorrente === '1';
+            const ehParcelado = d.parcelado || d.parcela || d.idGrupoParcelamento;
+            if (!d.pago && !(ehRecorrente && !ehParcelado && !_mesFuturo)) return sum;
+            return sum + obterValor(d);
+        }, 0);
 
-        // Saldo Final = Saldo Anterior + Receitas - Despesas PAGAS (SEM descontar reservas)
-        // Saldo Projetado = Saldo Anterior + Receitas - TODAS Despesas (SEM descontar reservas)
+        const despesasTotal = (dadosMes.despesas || []).reduce((sum, d) => {
+            if (d.quitacaoAntecipada === true) return sum;
+            return sum + obterValor(d);
+        }, 0);
+
         return {
             saldoAnterior: saldoAnterior,
             receitas: receitas,

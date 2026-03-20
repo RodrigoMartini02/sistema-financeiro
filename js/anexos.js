@@ -544,14 +544,28 @@ function atualizarTodosContadoresAnexosDespesas() {
     if (!window.dadosFinanceiros || window.mesAberto === null || window.anoAberto === null) {
         return;
     }
-    
+
     const dadosMes = window.dadosFinanceiros[window.anoAberto]?.meses[window.mesAberto];
     if (!dadosMes || !dadosMes.despesas) return;
-    
-    dadosMes.despesas.forEach((despesa, index) => {
-        if (!despesa.transferidaParaProximoMes) {
-            const quantidade = despesa.anexos ? despesa.anexos.length : 0;
-            atualizarContadorAnexosDespesa(index, quantidade);
+
+    dadosMes.despesas.forEach(despesa => {
+        if (despesa.transferidaParaProximoMes || !despesa.id) return;
+        const quantidade = Array.isArray(despesa.anexos) ? despesa.anexos.length : 0;
+        const row = document.querySelector(`.despesa-row[data-despesa-id="${despesa.id}"]`);
+        if (!row) return;
+        const btnAnexos = row.querySelector('.btn-anexos');
+        if (!btnAnexos) return;
+        const contador = btnAnexos.querySelector('.contador-anexos');
+        if (!contador) return;
+        contador.textContent = quantidade;
+        if (quantidade > 0) {
+            btnAnexos.classList.add('tem-anexos');
+            btnAnexos.title = `${quantidade} anexo(s) - Clique para visualizar`;
+            contador.style.display = 'flex';
+        } else {
+            btnAnexos.classList.remove('tem-anexos');
+            btnAnexos.title = 'Sem anexos';
+            contador.style.display = 'none';
         }
     });
 }

@@ -482,22 +482,31 @@ router.post('/:id/movimentar', authMiddleware, [
 // IMPORTANTE: Esta rota deve vir ANTES de /:id/movimentacoes
 router.get('/movimentacoes/todas', authMiddleware, async (req, res) => {
     try {
-        const { limite = 50 } = req.query;
+        const { limite = 20, offset = 0 } = req.query;
 
-        // Buscar todas as movimentações com nome da reserva
         const result = await query(
             `SELECT mr.*, r.observacoes as nome_reserva
              FROM movimentacoes_reservas mr
              INNER JOIN reservas r ON mr.reserva_id = r.id
              WHERE r.usuario_id = $1
-             ORDER BY mr.data_hora DESC
-             LIMIT $2`,
-            [req.usuario.id, parseInt(limite)]
+             ORDER BY mr.data_hora ASC
+             LIMIT $2 OFFSET $3`,
+            [req.usuario.id, parseInt(limite), parseInt(offset)]
+        );
+
+        const total = await query(
+            `SELECT COUNT(*) FROM movimentacoes_reservas mr
+             INNER JOIN reservas r ON mr.reserva_id = r.id
+             WHERE r.usuario_id = $1`,
+            [req.usuario.id]
         );
 
         res.json({
             success: true,
-            data: result.rows
+            data: result.rows,
+            total: parseInt(total.rows[0].count),
+            offset: parseInt(offset),
+            limite: parseInt(limite)
         });
 
     } catch (error) {

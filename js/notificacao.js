@@ -571,16 +571,19 @@ class SistemaNotificacoes {
 
     atualizarBadge() {
         try {
-            const badge = document.getElementById('notification-count');
             const total = this.notificacoes.length;
+            const texto = total > 99 ? '99+' : String(total);
 
+            const badge = document.getElementById('notification-count');
             if (badge) {
-                if (total > 0) {
-                    badge.textContent = total > 99 ? '99+' : total;
-                    badge.classList.remove('hidden');
-                } else {
-                    badge.classList.add('hidden');
-                }
+                badge.textContent = texto;
+                badge.classList.toggle('hidden', total === 0);
+            }
+
+            const tabBadge = document.getElementById('notif-tab-badge');
+            if (tabBadge) {
+                tabBadge.textContent = texto;
+                tabBadge.classList.toggle('hidden', total === 0);
             }
         } catch (error) {
             // Falha silenciosa

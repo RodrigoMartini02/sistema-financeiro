@@ -5,6 +5,13 @@
 
 let processandoDespesa = false;
 
+// ================================================================
+// INFINITE SCROLL — variáveis de módulo
+// ================================================================
+let _despesasBuffer = [];
+let _despesasOffset = 0;
+let _despesasObserver = null;
+
 const ERROS = {
     DESPESA_NAO_ENCONTRADA: 'A despesa solicitada não foi encontrada',
     ESTRUTURA_DADOS_INVALIDA: 'A estrutura de dados do mês/ano é inválida',
@@ -262,6 +269,27 @@ function atualizarFiltrosExistentes(mes, ano) {
 // RENDERIZAÇÃO DE DESPESAS
 // ================================================================
 
+function _renderProximoLote() {
+    const listaDespesas = document.getElementById('lista-despesas');
+    const sentinel = document.getElementById('despesas-sentinel');
+    if (!listaDespesas || !sentinel) return;
+
+    const lote = _despesasBuffer.slice(_despesasOffset, _despesasOffset + 25);
+    lote.forEach((item, i) => {
+        const divRow = criarLinhaDespesaGrid(item, _despesasOffset + i, _despesasBuffer._fechado, _despesasBuffer._mes, _despesasBuffer._ano);
+        if (divRow) listaDespesas.insertBefore(divRow, sentinel);
+    });
+    _despesasOffset += lote.length;
+
+    if (_despesasOffset >= _despesasBuffer.length) {
+        if (_despesasObserver) {
+            _despesasObserver.disconnect();
+            _despesasObserver = null;
+        }
+        sentinel.style.display = 'none';
+    }
+}
+
 function renderizarDespesas(itens, mes, ano, fechado) {
    if (!document.getElementById('despesas-grid-container')) {
        inicializarTabelaDespesasGrid();
@@ -270,7 +298,22 @@ function renderizarDespesas(itens, mes, ano, fechado) {
    const listaDespesas = document.getElementById('lista-despesas');
    if (!listaDespesas) return;
 
-   listaDespesas.innerHTML = '';
+   // Desconectar observer anterior
+   if (_despesasObserver) {
+       _despesasObserver.disconnect();
+       _despesasObserver = null;
+   }
+
+   // Limpar tbody mantendo apenas o sentinel
+   const sentinel = document.getElementById('despesas-sentinel');
+   while (listaDespesas.firstChild && listaDespesas.firstChild !== sentinel) {
+       listaDespesas.removeChild(listaDespesas.firstChild);
+   }
+   if (sentinel) sentinel.style.display = '';
+
+   // Resetar buffer e offset
+   _despesasBuffer = [];
+   _despesasOffset = 0;
 
    if (Array.isArray(itens) && itens.length > 0) {
        // Status só se aplica a despesas (exclui receitas)
@@ -289,10 +332,23 @@ function renderizarDespesas(itens, mes, ano, fechado) {
            return idB - idA;
        });
 
-       itensParaExibir.forEach((item, index) => {
-           const divRow = criarLinhaDespesaGrid(item, index, fechado, mes, ano);
-           if (divRow) listaDespesas.appendChild(divRow);
-       });
+       // Guardar metadados no buffer para uso em _renderProximoLote
+       _despesasBuffer = itensParaExibir;
+       _despesasBuffer._mes = mes;
+       _despesasBuffer._ano = ano;
+       _despesasBuffer._fechado = fechado;
+
+       // Renderizar primeiros 25 imediatamente
+       _renderProximoLote();
+
+       // Se ainda há itens, configurar IntersectionObserver
+       if (_despesasOffset < _despesasBuffer.length) {
+           const modalBody = document.querySelector('#modal-detalhes-mes .modal-body');
+           _despesasObserver = new IntersectionObserver((entries) => {
+               if (entries[0].isIntersecting) _renderProximoLote();
+           }, { root: modalBody, threshold: 0.1 });
+           if (sentinel) _despesasObserver.observe(sentinel);
+       }
    }
 
    if (!fechado) {

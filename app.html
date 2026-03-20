@@ -208,6 +208,7 @@
                  <div class="notification-wrapper">
                     <button class="header-icon-btn" id="notification-bell" type="button" aria-label="Notificações">
                         <i class="fas fa-bell"></i>
+                        <span id="notification-count" class="hidden"></span>
                     </button>
                 </div>
                  <div class="notification-wrapper">
@@ -1315,6 +1316,7 @@
                         </thead>
                         <tbody id="lista-logs">
                             <!-- Preenchido dinamicamente -->
+                            <tr id="logs-sentinel" style="height:1px"><td colspan="8"></td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1922,26 +1924,6 @@
                             </div>
                         </div>
                     </div>
-                    <!-- Barra Reservado -->
-                    <div class="cartao-limite-item ind-sem-fundo" id="barra-reservado" style="display:none">
-                        <div class="cartao-info-header">
-                            <span class="cartao-nome"><i class="fas fa-lock icone-reservado"></i> RESERVADO</span>
-                            <div class="cartao-valores">
-                                <span class="valor-usado" id="barra-reservas-valor">R$ 0,00</span>
-                                <span class="separador">/</span>
-                                <span class="valor-limite" id="barra-reservas-base">R$ 0,00</span>
-                            </div>
-                        </div>
-                        <div class="cartao-barra-progresso">
-                            <div class="barra-fundo">
-                                <div class="barra-preenchida status-alerta" id="barra-reservas-fill" style="width:0%"></div>
-                            </div>
-                            <div class="cartao-percentual">
-                                <span class="percentual-texto" id="barra-reservas-percentual">0% reservado</span>
-                                <span class="disponivel-texto">Disponível: <span id="barra-reservas-disponivel">R$ 0,00</span></span>
-                            </div>
-                        </div>
-                    </div>
                     <!-- Barras de Cartões -->
                     <div id="lista-barras-cartoes" class="lista-barras-cartoes">
                     </div>
@@ -2132,11 +2114,12 @@
             </div>
 
             <!-- Histórico Geral -->
-            <div class="historico-geral-container collapsed" id="historico-geral-container">
-                <h4 id="historico-geral-toggle"><i class="fas fa-history"></i> Histórico<i class="fas fa-chevron-right seta-historico"></i></h4>
+            <div class="historico-geral-container" id="historico-geral-container">
+                <h4><i class="fas fa-history"></i> Histórico</h4>
                 <div class="historico-geral-lista" id="historico-geral-reservas">
                     <div class="historico-vazio">Nenhuma movimentação</div>
                 </div>
+                <div id="historico-sentinel" style="height:1px"></div>
             </div>
         </div>
         <div class="modal-footer modal-footer-cofre">
@@ -2232,6 +2215,7 @@
             </thead>
             <tbody id="lista-despesas">
                 <!-- Linhas serão inseridas aqui -->
+                <tr id="despesas-sentinel" style="height:1px"><td colspan="13"></td></tr>
             </tbody>
         </table>
     </div>
