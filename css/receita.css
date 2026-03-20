@@ -325,7 +325,7 @@
     color: #9ca3af;
 }
 
-.cartao-status {
+.cartao-limite-item .cartao-status {
     position: absolute;
     top: 50%;
     right: 10px;
@@ -409,7 +409,7 @@
         padding-right: 10px;
     }
 
-    .cartao-status {
+    .cartao-limite-item .cartao-status {
         position: static;
         transform: none;
         margin-top: 6px;

@@ -207,7 +207,7 @@
 /* TABELAS */
 /* ================================================================ */
 .table-responsive {
-    overflow-x: auto;
+    overflow: hidden;
     border: 1px solid var(--gray-300);
     border-radius: 8px;
     margin-bottom: 16px;
@@ -720,8 +720,25 @@
 
 /* Filtros de Logs - usa grid padrão de rel.css */
 .filtros-linha-logs {
+    display: grid;
     grid-template-columns: repeat(5, 1fr) auto;
+    align-items: end;
+    gap: 12px;
     margin-bottom: 12px;
+    padding: 12px 0;
+}
+
+.filtros-linha-logs .filtro-grupo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.filtros-linha-logs .filtro-grupo label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #6b7280;
+    white-space: nowrap;
 }
 
 /* Tabela de Logs */
@@ -739,7 +756,7 @@
 .tabela-logs thead {
     background: #667eea !important;
     position: sticky;
-    top: 0;
+    top: 54px;
     z-index: 10;
 }
 
@@ -1067,6 +1084,12 @@
 .tabela-cartoes td:nth-child(7) {
     text-align: center;
     vertical-align: middle;
+}
+
+/* Garante que o badge de status do cartão fique dentro da célula da tabela */
+.tabela-cartoes .cartao-status {
+    position: static;
+    transform: none;
 }
 
 .tabela-cartoes .badge-status.ativo {
