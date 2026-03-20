@@ -2916,19 +2916,24 @@
             <!-- Forma de Pagamento (label já na borda via .card-pgto-outer) -->
             <div class="card-pgto-outer">
                 <span class="card-group-label">Forma de Pagamento</span>
-                <div class="card-pgto-wrapper">
-                    <div class="card-pgto-grupo card-pgto-grupo-conta">
-                        <span class="pgto-grupo-label">Saldo em Conta</span>
-                        <div class="pgto-grupo-botoes">
-                            <button type="button" class="pgto-btn pgto-pix pgto-conta-btn" data-forma="pix" title="PIX"><i class="fas fa-bolt"></i></button>
-                            <button type="button" class="pgto-btn pgto-dinheiro pgto-conta-btn" data-forma="dinheiro" title="Dinheiro"><i class="fas fa-money-bill-wave"></i></button>
-                            <button type="button" class="pgto-btn pgto-debito pgto-conta-btn" data-forma="debito" title="Débito"><i class="fas fa-credit-card"></i></button>
-                        </div>
-                    </div>
-                    <div class="card-pgto-grupo card-pgto-grupo-credito">
-                        <span class="pgto-grupo-label">Crédito</span>
-                        <div class="pgto-grupo-botoes card-pgto-cartoes"></div>
-                    </div>
+                <div class="card-pgto-lista">
+                    <!-- Cartões de crédito (gerados via JS) -->
+                    <div class="card-pgto-credito-lista"></div>
+                    <!-- Separador (só visível quando há cartões) -->
+                    <div class="card-pgto-separador hidden"></div>
+                    <!-- Opções de conta -->
+                    <button type="button" class="pgto-btn pgto-item" data-forma="pix">
+                        <i class="fas fa-bolt pgto-item-icone pix-cor"></i>
+                        <span class="pgto-item-nome">PIX</span>
+                    </button>
+                    <button type="button" class="pgto-btn pgto-item" data-forma="dinheiro">
+                        <i class="fas fa-money-bill-wave pgto-item-icone dinheiro-cor"></i>
+                        <span class="pgto-item-nome">Dinheiro</span>
+                    </button>
+                    <button type="button" class="pgto-btn pgto-item" data-forma="debito">
+                        <i class="fas fa-credit-card pgto-item-icone debito-cor"></i>
+                        <span class="pgto-item-nome">Débito</span>
+                    </button>
                 </div>
             </div>
 

@@ -1211,7 +1211,7 @@ function selecionarPagamentoCartao(cardEl, cartaoId) {
     if (btn) btn.classList.add('pgto-ativo');
     cardEl.dataset.formaPagamento = 'credito';
     cardEl.dataset.cartaoId = String(cartaoId);
-    cardEl.querySelector('.card-pgto-grupo-credito')?.classList.remove('campo-invalido');
+    cardEl.querySelector('.card-pgto-credito-lista')?.classList.remove('campo-invalido');
     atualizarEstrelasCard(cardEl);
 }
 
@@ -1234,23 +1234,24 @@ function popularCategoriasCard(cardEl) {
 
 // Popula os botões de cartão de crédito de um card
 function popularCartoesCard(cardEl) {
-    const container = cardEl.querySelector('.card-pgto-cartoes');
+    const container = cardEl.querySelector('.card-pgto-credito-lista');
     if (!container) return;
+    const separador = cardEl.querySelector('.card-pgto-separador');
     const cartoes = (window.cartoesUsuario || []).filter(c => c.ativo);
     const cartaoIdAtual = cardEl.dataset.cartaoId;
     const formaAtual = cardEl.dataset.formaPagamento;
     container.innerHTML = '';
     if (cartoes.length === 0) {
-        const tmplSemCartao = document.getElementById('template-sem-cartao');
-        container.appendChild(tmplSemCartao ? tmplSemCartao.content.cloneNode(true) : Object.assign(document.createElement('span'), { className: 'pgto-sem-cartao', textContent: 'Nenhum cartão' }));
+        if (separador) separador.classList.add('hidden');
         return;
     }
+    if (separador) separador.classList.remove('hidden');
     cartoes.forEach(c => {
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'pgto-btn pgto-cartao';
+        btn.className = 'pgto-btn pgto-item pgto-cartao';
         btn.dataset.cartaoId = c.id;
-        btn.innerHTML = `<span class="pgto-cartao-nome">${c.banco || c.nome || ''}</span><i class="fas fa-credit-card"></i>`;
+        btn.innerHTML = `<i class="fas fa-credit-card pgto-item-icone credito-cor"></i><span class="pgto-item-nome">${c.banco || c.nome || ''}</span>`;
         if (formaAtual === 'credito' && String(cartaoIdAtual) === String(c.id)) {
             btn.classList.add('pgto-ativo');
         }
@@ -1460,7 +1461,7 @@ function validarCard(cardEl) {
     if (!cardEl.dataset.formaPagamento) { cardEl.querySelector('.card-pgto-outer').classList.add('campo-invalido'); erros.push('Pagamento'); valido = false; }
 
     if (cardEl.dataset.formaPagamento === 'credito' && !cardEl.dataset.cartaoId) {
-        cardEl.querySelector('.card-pgto-grupo-credito').classList.add('campo-invalido'); erros.push('Cartão'); valido = false;
+        cardEl.querySelector('.card-pgto-credito-lista')?.classList.add('campo-invalido'); erros.push('Cartão'); valido = false;
     }
 
     const valor = cardEl.querySelector('.card-valor-original');

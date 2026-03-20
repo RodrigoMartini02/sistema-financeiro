@@ -45,9 +45,8 @@
     text-overflow: ellipsis;
 }
 
-.tabela-despesas thead th:last-child {
-    border-right: none;
-}
+.tabela-despesas thead th:first-child { border-top-left-radius: 7px; }
+.tabela-despesas thead th:last-child  { border-right: none; border-top-right-radius: 7px; }
 
 /* Corpo da tabela */
 .tabela-despesas tbody tr {
@@ -432,11 +431,12 @@ select.campo-invalido {
     padding: 14px 10px 10px;
 }
 
-.card-pgto-wrapper {
+.card-pgto-lista {
     display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 220px;
+    overflow-y: auto;
 }
 
 /* Coluna direita: Opções */
@@ -617,55 +617,8 @@ select.campo-invalido {
 }
 
 /* ================================================================
-   BOTÕES DE PAGAMENTO (card)
+   BOTÕES DE PAGAMENTO (card) — lista vertical
    ================================================================ */
-
-/* Cada grupo (Saldo em Conta / Crédito) */
-.card-pgto-grupo {
-    position: relative;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 18px 12px 10px 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.pgto-grupo-label {
-    position: absolute;
-    top: -9px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #fff;
-    padding: 0 6px;
-    font-size: 11px;
-    font-weight: 600;
-    color: #1e293b;
-    white-space: nowrap;
-}
-
-.pgto-grupo-botoes {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-    align-items: center;
-}
-
-.pgto-sem-cartao {
-    font-size: 11px;
-    color: #94a3b8;
-    font-style: italic;
-}
-
-
-/* Grupo crédito com borda vermelha quando inválido */
-.card-pgto-grupo-credito.campo-invalido {
-    border: 1px solid #f87171;
-    border-radius: 6px;
-    padding: 6px;
-    background: #fef2f2;
-}
-
 
 .pgto-btn {
     display: inline-flex;
@@ -692,73 +645,70 @@ select.campo-invalido {
     font-weight: 600;
 }
 
-.pgto-btn.pgto-pix.pgto-ativo      { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
-.pgto-btn.pgto-dinheiro.pgto-ativo { background: #dcfce7; border-color: #86efac; color: #15803d; }
-.pgto-btn.pgto-debito.pgto-ativo   { background: #e0f2fe; border-color: #7dd3fc; color: #0369a1; }
-.pgto-btn.pgto-cartao.pgto-ativo   { background: #ede9fe; border-color: #c4b5fd; color: #6d28d9; font-weight: 600; }
-
-/* Botões de conta e cartão: mesmo estilo de tamanho fixo com nome no topo */
-.pgto-btn.pgto-conta-btn {
-    position: relative;
-    flex-direction: column;
+/* Item de lista vertical */
+.pgto-item {
+    display: flex;
     align-items: center;
-    justify-content: center;
-    width: 76px;
-    height: 36px;
-    padding: 0;
-    gap: 0;
-}
-
-.pgto-conta-nome {
-    position: absolute;
-    top: -8px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: transparent;
-    padding: 0 4px;
-    font-size: 10px;
+    gap: 10px;
+    padding: 7px 12px;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 13px;
     font-weight: 500;
-    color: #64748b;
-    white-space: nowrap;
-    max-width: 76px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    color: #374151;
+    text-align: left;
+    width: 100%;
 }
 
-.pgto-btn.pgto-conta-btn i {
-    font-size: 16px;
+.pgto-item:hover {
+    background: #f3f4f6;
+    border-color: #667eea;
 }
 
-/* Botão de cartão: tamanho fixo, nome cortando a borda no topo */
-.pgto-btn.pgto-cartao {
-    position: relative;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 76px;
-    height: 36px;
-    padding: 0;
-    gap: 0;
+.pgto-item.pgto-ativo {
+    background: #ede9fe;
+    border-color: #667eea;
+    color: #4c1d95;
+    font-weight: 600;
 }
 
-.pgto-cartao-nome {
-    position: absolute;
-    top: -8px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: transparent;
-    padding: 0 4px;
-    font-size: 10px;
-    font-weight: 500;
-    color: #64748b;
-    white-space: nowrap;
-    max-width: 76px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.pgto-item-icone {
+    width: 20px;
+    text-align: center;
+    font-size: 14px;
 }
 
-.pgto-btn.pgto-cartao i {
-    font-size: 16px;
+.pgto-item-nome {
+    flex: 1;
+}
+
+.pix-cor     { color: #10b981; }
+.dinheiro-cor { color: #f59e0b; }
+.debito-cor  { color: #3b82f6; }
+.credito-cor { color: #667eea; }
+
+/* Separador entre cartões de crédito e opções de conta */
+.card-pgto-separador {
+    height: 1px;
+    background: #e9ecef;
+    margin: 4px 0;
+}
+
+/* Lista de cartões de crédito — estado inválido */
+.card-pgto-credito-lista.campo-invalido {
+    border: 1px solid #f87171;
+    border-radius: 6px;
+    padding: 4px;
+    background: #fef2f2;
+}
+
+.pgto-sem-cartao {
+    font-size: 11px;
+    color: #94a3b8;
+    font-style: italic;
 }
 
 /* Estrela de favorito no card */
@@ -984,9 +934,8 @@ select.campo-invalido {
         width: 100%;
     }
 
-    .card-pgto-wrapper {
-        flex-direction: column;
-        align-items: stretch;
+    .card-pgto-lista {
+        max-height: none;
     }
 
     .card-values-row {
@@ -1000,10 +949,6 @@ select.campo-invalido {
 
     .card-flags-row {
         gap: 10px;
-    }
-
-    .pgto-grupo-botoes {
-        gap: 6px;
     }
 
     .card-opcoes-grupo {
