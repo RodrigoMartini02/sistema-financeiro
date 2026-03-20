@@ -2911,44 +2911,40 @@
 <!-- ======================================================== -->
 <template id="template-card-despesa-lancamento">
     <div class="card-main-row">
-        <!-- Coluna esquerda: Pgto + Descrição/Categoria + Valores/Datas -->
-        <div class="card-left-col">
-            <!-- Forma de Pagamento (label já na borda via .card-pgto-outer) -->
-            <div class="card-pgto-outer">
-                <span class="card-group-label">Forma de Pagamento</span>
-                <div class="card-pgto-lista">
-                    <!-- Cartões de crédito (gerados via JS) -->
-                    <div class="card-pgto-credito-lista"></div>
-                    <!-- Separador (só visível quando há cartões) -->
-                    <div class="card-pgto-separador hidden"></div>
-                    <!-- Opções de conta -->
-                    <button type="button" class="pgto-btn pgto-item" data-forma="pix">
-                        <i class="fas fa-bolt pgto-item-icone pix-cor"></i>
-                        <span class="pgto-item-nome">PIX</span>
-                    </button>
-                    <button type="button" class="pgto-btn pgto-item" data-forma="dinheiro">
-                        <i class="fas fa-money-bill-wave pgto-item-icone dinheiro-cor"></i>
-                        <span class="pgto-item-nome">Dinheiro</span>
-                    </button>
-                    <button type="button" class="pgto-btn pgto-item" data-forma="debito">
-                        <i class="fas fa-credit-card pgto-item-icone debito-cor"></i>
-                        <span class="pgto-item-nome">Débito</span>
-                    </button>
-                </div>
+        <!-- Coluna 1: Forma de Pagamento -->
+        <div class="card-col card-col-pgto">
+            <span class="card-section-label">Forma de Pagamento</span>
+            <div class="card-pgto-lista">
+                <span class="pgto-grupo-titulo card-pgto-credito-titulo hidden">Crédito</span>
+                <div class="card-pgto-credito-lista"></div>
+                <div class="card-pgto-separador hidden"></div>
+                <span class="pgto-grupo-titulo">Saldo em Conta</span>
+                <button type="button" class="pgto-btn pgto-item" data-forma="pix">
+                    <i class="fas fa-bolt pgto-item-icone pix-cor"></i>
+                    <span class="pgto-item-nome">PIX</span>
+                </button>
+                <button type="button" class="pgto-btn pgto-item" data-forma="dinheiro">
+                    <i class="fas fa-money-bill-wave pgto-item-icone dinheiro-cor"></i>
+                    <span class="pgto-item-nome">Dinheiro</span>
+                </button>
+                <button type="button" class="pgto-btn pgto-item" data-forma="debito">
+                    <i class="fas fa-credit-card pgto-item-icone debito-cor"></i>
+                    <span class="pgto-item-nome">Débito</span>
+                </button>
             </div>
+        </div>
 
-            <!-- Descrição & Categoria -->
+        <!-- Coluna 2: Descrição + Valores -->
+        <div class="card-col card-col-middle">
             <div class="card-group">
-                <span class="card-group-label">Descrição &amp; Categoria</span>
+                <span class="card-section-label">Descrição &amp; Categoria</span>
                 <div class="card-desc-cat-row">
                     <input type="text" class="card-descricao" placeholder="Descrição da despesa" required>
                     <select class="card-categoria"><option value="">Categoria...</option></select>
                 </div>
             </div>
-
-            <!-- Valores & Datas -->
             <div class="card-group">
-                <span class="card-group-label">Valores &amp; Datas</span>
+                <span class="card-section-label">Valores &amp; Datas</span>
                 <div class="card-values-row">
                     <div class="card-field"><label>Valor orig. *</label><input type="number" class="card-valor-original" min="0.01" step="0.01" placeholder="0,00" required></div>
                     <div class="card-field"><label>Valor final</label><input type="number" class="card-valor-final" min="0" step="0.01" placeholder="0,00"></div>
@@ -2965,9 +2961,9 @@
             </div>
         </div>
 
-        <!-- Coluna direita: Opções -->
-        <div class="card-opcoes-grupo">
-            <span class="card-group-label">Opções</span>
+        <!-- Coluna 3: Opções -->
+        <div class="card-col card-col-opcoes">
+            <span class="card-section-label">Opções</span>
             <button type="button" class="card-fav-btn" title="Favoritar para esta categoria"><i class="far fa-star"></i> Favoritar forma de pgto</button>
             <label class="card-flag"><input type="checkbox" class="card-ja-paga"> Já está Paga</label>
             <label class="card-flag"><input type="checkbox" class="card-recorrente"> Recorrente</label>

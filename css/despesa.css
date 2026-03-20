@@ -385,50 +385,49 @@ select.campo-invalido {
     border-color: #34d399;
 }
 
-/* Layout principal: 2 colunas (esquerda flex:1, direita opções) */
+/* Layout principal: 3 colunas */
 .card-main-row {
     display: flex;
     flex-direction: row;
-    gap: 12px;
+    gap: 16px;
     align-items: flex-start;
 }
 
-.card-left-col {
-    flex: 1;
+.card-col {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
     min-width: 0;
 }
 
-/* Wrapper de grupo com label na borda (estilo fieldset/legend) */
-.card-group {
-    position: relative;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 14px 10px 10px;
+.card-col-pgto {
+    flex: 0 0 200px;
 }
 
-/* Label posicionada na linha de borda */
-.card-group-label {
-    position: absolute;
-    top: -9px;
-    left: 10px;
-    background: #fff;
-    padding: 0 6px;
+.card-col-middle {
+    flex: 1;
+}
+
+.card-col-opcoes {
+    flex: 0 0 170px;
+}
+
+/* Label de seção simples (sem borda flutuante) */
+.card-section-label {
     font-size: 10px;
     font-weight: 700;
-    color: #1e293b;
+    color: #64748b;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    white-space: nowrap;
+    margin-bottom: 4px;
+    display: block;
 }
 
-.card-pgto-outer {
-    position: relative;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 14px 10px 10px;
+/* Grupo sem borda */
+.card-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
 .card-pgto-lista {
@@ -437,32 +436,6 @@ select.campo-invalido {
     gap: 2px;
     max-height: 220px;
     overflow-y: auto;
-}
-
-/* Coluna direita: Opções */
-.card-opcoes-grupo {
-    min-width: 160px;
-    max-width: 180px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    position: relative;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 14px 12px 10px;
-}
-
-.card-opcoes-grupo > .card-group-label {
-    position: absolute;
-    top: -9px;
-    left: 10px;
-    background: #fff;
-    padding: 0 6px;
-    font-size: 10px;
-    font-weight: 700;
-    color: #1e293b;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
 }
 
 /* Linha 2: descrição + categoria */
@@ -683,6 +656,16 @@ select.campo-invalido {
 
 .pgto-item-nome {
     flex: 1;
+}
+
+.pgto-grupo-titulo {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 6px 0 2px 2px;
 }
 
 .pix-cor     { color: #10b981; }
@@ -951,9 +934,6 @@ select.campo-invalido {
         gap: 10px;
     }
 
-    .card-opcoes-grupo {
-        gap: 8px;
-    }
 }
 
 /* Phones pequenos (≤480px) */

@@ -1237,15 +1237,18 @@ function popularCartoesCard(cardEl) {
     const container = cardEl.querySelector('.card-pgto-credito-lista');
     if (!container) return;
     const separador = cardEl.querySelector('.card-pgto-separador');
+    const tituloCredito = cardEl.querySelector('.card-pgto-credito-titulo');
     const cartoes = (window.cartoesUsuario || []).filter(c => c.ativo);
     const cartaoIdAtual = cardEl.dataset.cartaoId;
     const formaAtual = cardEl.dataset.formaPagamento;
     container.innerHTML = '';
     if (cartoes.length === 0) {
         if (separador) separador.classList.add('hidden');
+        if (tituloCredito) tituloCredito.classList.add('hidden');
         return;
     }
     if (separador) separador.classList.remove('hidden');
+    if (tituloCredito) tituloCredito.classList.remove('hidden');
     cartoes.forEach(c => {
         const btn = document.createElement('button');
         btn.type = 'button';
