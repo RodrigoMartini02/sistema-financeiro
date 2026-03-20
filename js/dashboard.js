@@ -593,6 +593,26 @@ function getOpcoesGrafico() {
     };
 }
 
+// Plugin: desenha linha zero sempre visível
+const zeroLinePlugin = {
+    id: 'zeroLine',
+    afterDraw(chart) {
+        const yScale = chart.scales.y;
+        if (!yScale) return;
+        const y0 = yScale.getPixelForValue(0);
+        if (y0 < yScale.top || y0 > yScale.bottom) return;
+        const { ctx, chartArea } = chart;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(chartArea.left, y0);
+        ctx.lineTo(chartArea.right, y0);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#94a3b8';
+        ctx.stroke();
+        ctx.restore();
+    }
+};
+
 // ================================================================
 // FILTRO ANO: Mostra totais por ano (2024, 2025, 2026...)
 // ================================================================
@@ -623,14 +643,6 @@ function criarGraficoBalancoPorAnos() {
     opcoesBalanco.scales.y.min = -(maxAbs * 1.15);
     opcoesBalanco.scales.y.max =   maxAbs * 1.15;
     opcoesBalanco.scales.y.ticks.stepSize = calcularStepSize(maxAbs);
-    opcoesBalanco.scales.y.grid.color = ctx2 => ctx2.tick?.value === 0 ? '#94a3b8' : '#e5e7eb';
-    opcoesBalanco.scales.y.grid.lineWidth = ctx2 => ctx2.tick?.value === 0 ? 2 : 1;
-    opcoesBalanco.scales.y.afterBuildTicks = function(scale) {
-        if (!scale.ticks.some(t => t.value === 0)) {
-            scale.ticks.push({ value: 0 });
-            scale.ticks.sort((a, b) => a.value - b.value);
-        }
-    };
     opcoesBalanco.plugins.legend.display = false;
     opcoesBalanco.layout = { padding: { top: 16, bottom: 16 } };
 
@@ -649,7 +661,8 @@ function criarGraficoBalancoPorAnos() {
             labels: anos.map(a => a.toString()),
             datasets: [datasetBalancoAnos]
         },
-        options: opcoesBalanco
+        options: opcoesBalanco,
+        plugins: [zeroLinePlugin]
     });
 }
 
@@ -676,14 +689,6 @@ function criarGraficoBalancoPorMeses(ano) {
     opcoesBalanco.scales.y.min = -(maxAbs * 1.15);
     opcoesBalanco.scales.y.max =   maxAbs * 1.15;
     opcoesBalanco.scales.y.ticks.stepSize = calcularStepSize(maxAbs);
-    opcoesBalanco.scales.y.grid.color = ctx2 => ctx2.tick?.value === 0 ? '#94a3b8' : '#e5e7eb';
-    opcoesBalanco.scales.y.grid.lineWidth = ctx2 => ctx2.tick?.value === 0 ? 2 : 1;
-    opcoesBalanco.scales.y.afterBuildTicks = function(scale) {
-        if (!scale.ticks.some(t => t.value === 0)) {
-            scale.ticks.push({ value: 0 });
-            scale.ticks.sort((a, b) => a.value - b.value);
-        }
-    };
     opcoesBalanco.plugins.legend.display = false;
     opcoesBalanco.layout = { padding: { top: 16, bottom: 16 } };
 
@@ -702,7 +707,8 @@ function criarGraficoBalancoPorMeses(ano) {
             labels: meses,
             datasets: [datasetBalancoMeses]
         },
-        options: opcoesBalanco
+        options: opcoesBalanco,
+        plugins: [zeroLinePlugin]
     });
 }
 // Função legada para compatibilidade
