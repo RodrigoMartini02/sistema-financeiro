@@ -164,8 +164,15 @@ function nextSlide() {
 // ================================================================
 // INICIALIZAR SLIDER (home)
 // ================================================================
-inicializarSlider();
-carregarAvaliacoesReais(); // Atualiza em background sem bloquear
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        inicializarSlider();
+        carregarAvaliacoesReais();
+    });
+} else {
+    inicializarSlider();
+    carregarAvaliacoesReais();
+}
 
 // ================================================================
 // MODAL DE AVALIAÇÃO (app.html) — disparado após 5 dias de uso
