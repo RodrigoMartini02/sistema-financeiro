@@ -118,28 +118,18 @@ async function verificarRetornoGoogle() {
         const data = await response.json();
 
         if (!response.ok) {
-            // Usuário Google não cadastrado - abrir cadastro com dados pré-preenchidos
-            if (data.needsRegistration && data.googleData) {
-                if (typeof window.hideLoadingScreen === 'function') {
-                    window.hideLoadingScreen();
-                }
-
-                const gd = data.googleData;
-                const campoNome = document.getElementById('cadastro-nome');
-                const campoEmail = document.getElementById('cadastro-email');
-                if (campoNome) { campoNome.value = gd.nome; campoNome.readOnly = true; }
-                if (campoEmail) { campoEmail.value = gd.email; campoEmail.readOnly = true; }
-
-                // Guardar googleId para vincular no cadastro
-                sessionStorage.setItem('googlePendingId', gd.googleId);
-
-                if (elementos.cadastroModal) elementos.cadastroModal.style.display = 'flex';
-
-                mostrarErroCadastro('Conta Google sem cadastro. Informe seu CPF/CNPJ e crie uma senha para continuar.');
-                return;
+            if (typeof window.hideLoadingScreen === 'function') window.hideLoadingScreen();
+            const msg = data.needsRegistration
+                ? 'Este e-mail não está cadastrado no sistema. Faça login com CPF/CNPJ e senha.'
+                : (data.message || 'Erro ao autenticar com Google');
+            const errorEl = document.getElementById('modal-error-message');
+            if (errorEl) {
+                errorEl.querySelector('span').textContent = msg;
+                errorEl.style.display = 'flex';
+            } else {
+                (window.mostrarToast || alert)(msg, 'error');
             }
-
-            throw new Error(data.message || 'Erro ao autenticar com Google');
+            return;
         }
 
         const token = data.data?.token || data.token;

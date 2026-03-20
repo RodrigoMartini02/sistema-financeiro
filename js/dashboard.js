@@ -625,13 +625,22 @@ function criarGraficoBalancoPorAnos() {
     opcoesBalanco.scales.y.ticks.stepSize = calcularStepSize(maxAbs);
     opcoesBalanco.scales.y.grid.color = ctx2 => ctx2.tick?.value === 0 ? '#94a3b8' : '#e5e7eb';
     opcoesBalanco.scales.y.grid.lineWidth = ctx2 => ctx2.tick?.value === 0 ? 2 : 1;
+    opcoesBalanco.scales.y.afterBuildTicks = function(scale) {
+        if (!scale.ticks.some(t => t.value === 0)) {
+            scale.ticks.push({ value: 0 });
+            scale.ticks.sort((a, b) => a.value - b.value);
+        }
+    };
     opcoesBalanco.plugins.legend.display = false;
     opcoesBalanco.layout = { padding: { top: 16, bottom: 16 } };
 
     const datasetBalancoAnos = {
         ...criarDatasetBarra(BALANCO_DATASETS_CONFIG.balanco, balancos),
         backgroundColor: coresBalanco,
-        borderColor: coresBalanco.map(c => c.replace('0.7)', '1)'))
+        borderColor: coresBalanco.map(c => c.replace('0.7)', '1)')),
+        borderRadius: balancos.map(v => v >= 0
+            ? { topLeft: 14, topRight: 14, bottomLeft: 0, bottomRight: 0 }
+            : { topLeft: 0, topRight: 0, bottomLeft: 14, bottomRight: 14 })
     };
 
     window.balancoChart = new Chart(ctx, {
@@ -669,13 +678,22 @@ function criarGraficoBalancoPorMeses(ano) {
     opcoesBalanco.scales.y.ticks.stepSize = calcularStepSize(maxAbs);
     opcoesBalanco.scales.y.grid.color = ctx2 => ctx2.tick?.value === 0 ? '#94a3b8' : '#e5e7eb';
     opcoesBalanco.scales.y.grid.lineWidth = ctx2 => ctx2.tick?.value === 0 ? 2 : 1;
+    opcoesBalanco.scales.y.afterBuildTicks = function(scale) {
+        if (!scale.ticks.some(t => t.value === 0)) {
+            scale.ticks.push({ value: 0 });
+            scale.ticks.sort((a, b) => a.value - b.value);
+        }
+    };
     opcoesBalanco.plugins.legend.display = false;
     opcoesBalanco.layout = { padding: { top: 16, bottom: 16 } };
 
     const datasetBalancoMeses = {
         ...criarDatasetBarra(BALANCO_DATASETS_CONFIG.balanco, balancos),
         backgroundColor: coresBalanco,
-        borderColor: coresBalanco.map(c => c.replace('0.7)', '1)'))
+        borderColor: coresBalanco.map(c => c.replace('0.7)', '1)')),
+        borderRadius: balancos.map(v => v >= 0
+            ? { topLeft: 14, topRight: 14, bottomLeft: 0, bottomRight: 0 }
+            : { topLeft: 0, topRight: 0, bottomLeft: 14, bottomRight: 14 })
     };
 
     window.balancoChart = new Chart(ctx, {
