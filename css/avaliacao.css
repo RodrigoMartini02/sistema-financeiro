@@ -26,7 +26,7 @@
     color: var(--text-color);
     font-weight: 800;
     line-height: 1.1;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
 }
 
 .text-blue { color: #6366f1; }
@@ -39,10 +39,10 @@
 
 /* BREAKDOWN DE ESTRELAS */
 .rating-breakdown {
-    margin-top: 28px;
+    margin-top: 12px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
 .rating-bar-row {
@@ -169,11 +169,11 @@
 
 
 .reviews-summary {
-    margin-top: 30px;
+    margin-top: 16px;
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
 }
 
 .summary-score {
