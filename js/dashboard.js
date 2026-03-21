@@ -2193,11 +2193,32 @@ function renderizarTemaPagamento() {
 
 // ── TEMA: ENDIVIDAMENTO ──────────────────────────────────────────
 function renderizarTemaDivida() {
-    const { despesas } = obterDadosFiltrados();
+    const { despesas, filtro } = obterDadosFiltrados();
     const parceladas = despesas.filter(d => d.parcelas > 1 || d.parcelado || d.idGrupoParcelamento);
-    const juros = despesas.reduce((s,d)=>s+parseFloat(d.juros||0),0);
-    const economias = despesas.reduce((s,d)=>s+parseFloat(d.economias||d.desconto||0),0);
     const totalParc = parceladas.reduce((s,d)=>s+parseFloat(d.valor||0),0);
+
+    // Juros e economias calculados via funções corretas (campos não existem direto no objeto)
+    const calcJuros = window.calcularTotalJuros || (() => 0);
+    const calcEco = window.calcularTotalEconomias || (() => 0);
+
+    // Agrupar despesas por mês para calcular juros/economias mensais
+    const df = window.dadosFinanceiros || {};
+    const anos = Object.keys(df).map(Number).filter(Boolean);
+    const anosFiltrados = filtro.todos ? anos : anos.filter(a => a === filtro.ano);
+    const jurosPorMes = new Array(12).fill(0);
+    const ecoMensal = new Array(12).fill(0);
+    anosFiltrados.forEach(ano => {
+        const meses = df[ano]?.meses || [];
+        for (let m = 0; m < 12; m++) {
+            if (filtro.mes !== null && filtro.mes !== m) continue;
+            const desp = meses[m]?.despesas || [];
+            jurosPorMes[m] += calcJuros(desp);
+            ecoMensal[m] += calcEco(desp);
+        }
+    });
+
+    const juros = jurosPorMes.reduce((s,v)=>s+v,0);
+    const economias = ecoMensal.reduce((s,v)=>s+v,0);
 
     const el1 = document.getElementById('tk-divida-juros');
     const el2 = document.getElementById('tk-divida-parcelas');
@@ -2205,10 +2226,6 @@ function renderizarTemaDivida() {
     if (el1) { el1.textContent = fmtR(juros); el1.style.color = '#f43f5e'; }
     if (el2) { el2.textContent = fmtR(totalParc); el2.style.color = '#f59e0b'; }
     if (el3) { el3.textContent = fmtR(economias); el3.style.color = '#10b981'; }
-
-    // Gráfico 1: Barras lado a lado — juros × economias por mês
-    const jurosPorMes = agruparPorMes(despesas.map(d=>({...d,valor:parseFloat(d.juros||0)})),'valor');
-    const ecoMensal = agruparPorMes(despesas.map(d=>({...d,valor:parseFloat(d.economias||d.desconto||0)})),'valor');
     criarChart('tema-divida-juros', {
         type: 'bar',
         data: {
