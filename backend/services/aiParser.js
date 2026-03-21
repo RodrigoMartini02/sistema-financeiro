@@ -570,8 +570,108 @@ ${cartaAtual}`;
     return cartaAtual + '\n- ' + novaInstrucao;
 }
 
+// ── SYSTEM PROMPT PARA RECEITAS ───────────────────────────────────
+const SYSTEM_PROMPT_RECEITA = `Você é um assistente financeiro brasileiro especialista em interpretar receitas em linguagem natural.
+
+Sua tarefa é extrair informações de receitas a partir de texto em português e retornar APENAS um JSON válido.
+
+Campos a extrair:
+- descricao: nome/descrição da receita (string)
+- valor: valor numérico (number)
+- data: data no formato YYYY-MM-DD (padrão: hoje)
+
+REGRA CRÍTICA — VÍRGULA COMO DELIMITADOR DE DESCRIÇÃO (prioridade máxima):
+- Quando a primeira palavra do texto é seguida de vírgula, essa primeira palavra (antes da vírgula) é OBRIGATORIAMENTE a descrição.
+- Exemplos OBRIGATÓRIOS:
+  * "salário, caiu 3500 hoje" → descricao="Salário", valor=3500
+  * "freelance, recebi 1200" → descricao="Freelance", valor=1200
+- NUNCA inclua o texto após a vírgula na descrição.
+
+Demais regras:
+- Ignore palavras de contexto como "caiu", "entrou", "recebi", "chegou", "hoje", "ontem"
+- Para "amanhã", "hoje" calcule a data real baseado em hoje
+- Se não houver data explícita, use hoje
+- Retorne APENAS o JSON, sem texto adicional
+
+Exemplos:
+Input: "salário, caiu 3500 hoje"
+Output: {"descricao":"Salário","valor":3500,"data":"HOJE"}
+
+Input: "recebi freelance 1500 ontem"
+Output: {"descricao":"Freelance","valor":1500,"data":"ONTEM"}`;
+
+/**
+ * Parseia receita usando IA externa ou heurística, lendo carta/instrucoes
+ */
+async function parsearReceita(texto, contextoConversa = [], providerConfig = null, ctxSistema = '', cartaBase = '', instrucoesUsuario = '') {
+    const hoje = new Date().toISOString().split('T')[0];
+    const ctxExtra = ctxSistema ? `\n\nContexto do sistema:\n${ctxSistema}` : '';
+    const instrucoesPrio = instrucoesUsuario
+        ? `\n\n=== INSTRUÇÕES PERSONALIZADAS DO USUÁRIO (PRIORIDADE MÁXIMA) ===\n${instrucoesUsuario}\n=== FIM ===`
+        : '';
+    const systemFull = `${SYSTEM_PROMPT_RECEITA}\n\nData de hoje: ${hoje}${ctxExtra}${instrucoesPrio}${cartaBase ? '\n\n---\n' + cartaBase : ''}`;
+
+    // Tenta IA externa
+    if (providerConfig?.provider && providerConfig.provider !== 'gen') {
+        try {
+            const fetch = require('node-fetch');
+            let dados = null;
+
+            if (providerConfig.provider === 'gemini') {
+                const prompt = `${systemFull}\n\nTexto do usuário: ${texto}`;
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${providerConfig.apiKey}`;
+                const body = { contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { temperature: 0.1, maxOutputTokens: 300 } };
+                const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const json = await r.json();
+                const content = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                const match = content.match(/\{[\s\S]*\}/);
+                if (match) dados = JSON.parse(match[0]);
+            } else if (providerConfig.provider === 'openai') {
+                const OpenAI = require('openai');
+                const openai = new OpenAI({ apiKey: providerConfig.apiKey });
+                const response = await openai.chat.completions.create({
+                    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+                    messages: [{ role: 'system', content: systemFull }, ...contextoConversa.slice(-4), { role: 'user', content: texto }],
+                    temperature: 0.1, max_tokens: 300, response_format: { type: 'json_object' }
+                });
+                dados = JSON.parse(response.choices[0].message.content);
+            }
+
+            if (dados) return dados;
+        } catch (err) {
+            console.warn('⚠️ IA falhou no parser de receita, usando heurística:', err.message);
+        }
+    }
+
+    // Heurística com regra da vírgula e instrucoes
+    const partes = texto.split(',');
+    let descricao, valor, data = hoje;
+
+    if (partes.length >= 2) {
+        // Regra da vírgula
+        descricao = partes[0].trim();
+        const resto = partes.slice(1).join(',');
+        const valorMatch = resto.match(/(\d+(?:[.,]\d{1,2})?)/);
+        valor = valorMatch ? parseFloat(valorMatch[1].replace(',', '.')) : null;
+    } else {
+        const valorMatch = texto.match(/(\d+(?:[.,]\d{1,2})?)/);
+        valor = valorMatch ? parseFloat(valorMatch[1].replace(',', '.')) : null;
+        descricao = texto
+            .replace(/recebi|ganhei|entrou|salário|salario|freelance|renda|caiu|chegou/gi, '')
+            .replace(/R\$\s*[\d.,]+/gi, '').replace(/[\d.,]+\s*reais?/gi, '')
+            .replace(/pix|dinheiro|hoje|ontem/gi, '').replace(/\s{2,}/g, ' ').trim();
+        descricao = descricao.replace(/^(?:de|do|da|um|uma|o|a)\s+/i, '').trim();
+    }
+
+    if (!descricao) descricao = 'Receita';
+    descricao = descricao.charAt(0).toUpperCase() + descricao.slice(1);
+
+    return { descricao, valor, data };
+}
+
 module.exports = {
     parsearDespesa,
+    parsearReceita,
     responderPerguntaFinanceira,
     detectarIntencao,
     parsearComGen,

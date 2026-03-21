@@ -3,7 +3,7 @@
 // ================================================================
 
 const { query } = require('../config/database');
-const { parsearDespesa, responderPerguntaFinanceira, detectarIntencao } = require('../services/aiParser');
+const { parsearDespesa, parsearReceita, responderPerguntaFinanceira, detectarIntencao } = require('../services/aiParser');
 const { classificarCategoria, salvarAprendizado } = require('../services/categoryAI');
 const { processarArquivo } = require('../services/ocrService');
 const { analisarDocumentoComIA } = require('../services/visionService');
@@ -298,24 +298,11 @@ async function chat(req, res) {
         }
 
         if (intencao === 'receita') {
-            // Parse básico de receita a partir do texto
-            const valorMatch = mensagem.match(/(\d+(?:[.,]\d{1,2})?)/);
-            const valor = valorMatch ? parseFloat(valorMatch[1].replace(',', '.')) : null;
+            const dadosReceita = await parsearReceita(mensagem, sessao.historico, providerConfig, ctxSistema, cartaBase, instrucoesUsuario);
             const hoje = new Date().toISOString().split('T')[0];
-            // Remove palavras-chave e extrai descrição
-            let descricao = mensagem
-                .replace(/recebi|ganhei|entrou|salário|salario|freelance|renda/gi, '')
-                .replace(/R\$\s*[\d.,]+/gi, '')
-                .replace(/[\d.,]+\s*reais?/gi, '')
-                .replace(/pix|dinheiro|hoje|ontem/gi, '')
-                .replace(/\s{2,}/g, ' ')
-                .trim();
-            descricao = descricao.replace(/^(?:de|do|da|um|uma|o|a)\s+/i, '').trim();
-            if (!descricao) descricao = 'Receita';
-            descricao = descricao.charAt(0).toUpperCase() + descricao.slice(1);
-
-            const dadosReceita = { descricao, valor, data: hoje };
-            resposta = `Encontrei a seguinte receita:\n\n💰 **${descricao}**\n${valor ? `💵 Valor: R$ ${Number(valor).toFixed(2).replace('.', ',')}\n` : ''}📅 Data: ${hoje.split('-').reverse().join('/')}\n\nDeseja confirmar o cadastro?`;
+            if (!dadosReceita.data || dadosReceita.data === 'HOJE') dadosReceita.data = hoje;
+            if (!dadosReceita.descricao) dadosReceita.descricao = 'Receita';
+            resposta = `Encontrei a seguinte receita:\n\n💰 **${dadosReceita.descricao}**\n${dadosReceita.valor ? `💵 Valor: R$ ${Number(dadosReceita.valor).toFixed(2).replace('.', ',')}\n` : ''}📅 Data: ${(dadosReceita.data || hoje).split('-').reverse().join('/')}\n\nDeseja confirmar o cadastro?`;
             sessao.historico.push({ role: 'assistant', content: resposta });
             return res.json({ success: true, resposta, acao: 'confirmar_receita', receita: dadosReceita });
         }
