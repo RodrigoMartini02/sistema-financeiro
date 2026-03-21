@@ -511,39 +511,42 @@
     height: 240px;
 }
 
-/* FLUXO DE CAIXA: faixa full (principal) + Acumulado 1/2 + Donut 1/2 */
+/* FLUXO DE CAIXA: Cobertura (quadrado) à esq. + Entradas (largo) à dir. + Taxa full baixo */
 #tema-fluxo .tema-charts-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 2fr;
     grid-template-rows: auto auto;
     gap: 20px;
 }
 #tema-fluxo .tema-charts-grid .tema-chart-card:nth-child(1) {
-    grid-column: 1 / -1;
-    height: 280px;
+    grid-column: 1;
+    grid-row: 1;
+    height: 320px;
 }
 #tema-fluxo .tema-charts-grid .tema-chart-card:nth-child(2) {
-    grid-column: 1;
-    height: 280px;
+    grid-column: 2;
+    grid-row: 1;
+    height: 320px;
 }
 #tema-fluxo .tema-charts-grid .tema-chart-card:nth-child(3) {
-    grid-column: 2;
-    height: 280px;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    height: 260px;
 }
 
-/* ONDE VAI O DINHEIRO: Donut 1/3 (principal alto) + Evolução 2/3 + faixa full */
+/* ONDE VAI O DINHEIRO: Treemap 2/3 (amplo) + Top5 1/3 + Média full */
 #tema-categorias .tema-charts-grid {
     display: grid;
-    grid-template-columns: 1fr 2fr;
+    grid-template-columns: 2fr 1fr;
     gap: 20px;
 }
 #tema-categorias .tema-charts-grid .tema-chart-card:nth-child(1) {
     grid-column: 1;
-    height: 380px;
+    height: 400px;
 }
 #tema-categorias .tema-charts-grid .tema-chart-card:nth-child(2) {
     grid-column: 2;
-    height: 380px;
+    height: 400px;
 }
 #tema-categorias .tema-charts-grid .tema-chart-card:nth-child(3) {
     grid-column: 1 / -1;
@@ -558,11 +561,11 @@
 }
 #tema-pagamento .tema-charts-grid .tema-chart-card:nth-child(1) {
     grid-column: 1;
-    height: 380px;
+    height: 420px;
 }
 #tema-pagamento .tema-charts-grid .tema-chart-card:nth-child(2) {
     grid-column: 2;
-    height: 380px;
+    height: 420px;
 }
 #tema-pagamento .tema-charts-grid .tema-chart-card:nth-child(3) {
     grid-column: 1 / -1;
@@ -658,11 +661,10 @@
 }
 
 
-/* Cards de donut — layout flex com canvas esticado */
+/* Cards de donut/pizza — layout flex com canvas esticado */
 #tema-pagamento .tema-charts-grid .tema-chart-card:nth-child(1),
 #tema-pagamento .tema-charts-grid .tema-chart-card:nth-child(2),
-#tema-categorias .tema-charts-grid .tema-chart-card:nth-child(1),
-#tema-fluxo .tema-charts-grid .tema-chart-card:nth-child(3) {
+#tema-fluxo .tema-charts-grid .tema-chart-card:nth-child(1) {
     display: flex;
     flex-direction: column;
     align-items: stretch;
@@ -670,8 +672,7 @@
 
 #tema-pagamento .tema-charts-grid .tema-chart-card:nth-child(1) canvas,
 #tema-pagamento .tema-charts-grid .tema-chart-card:nth-child(2) canvas,
-#tema-categorias .tema-charts-grid .tema-chart-card:nth-child(1) canvas,
-#tema-fluxo .tema-charts-grid .tema-chart-card:nth-child(3) canvas {
+#tema-fluxo .tema-charts-grid .tema-chart-card:nth-child(1) canvas {
     flex: 1;
     width: 100% !important;
 }

@@ -25,31 +25,25 @@ const gradientBarsPlugin = {
     }
 };
 
-// Plugin 2: Glow nas linhas
+// Plugin 2: Glow nas linhas — aplica shadow ANTES do draw do Chart.js, remove DEPOIS
+// (sem re-desenhar o path — evita linhas duplicadas)
 const glowLinesPlugin = {
     id: 'glowLines',
-    afterDatasetsDraw(chart) {
-        const { ctx } = chart;
-        chart.data.datasets.forEach(function(dataset, i) {
-            if (!dataset._glowColor) return;
-            const meta = chart.getDatasetMeta(i);
-            if (!meta || meta.type !== 'line') return;
-            ctx.save();
-            ctx.shadowColor = dataset._glowColor;
-            ctx.shadowBlur = dataset._glowBlur || 10;
-            // Re-draw the line path with glow
-            const points = meta.data;
-            if (points.length < 2) { ctx.restore(); return; }
-            ctx.beginPath();
-            ctx.strokeStyle = dataset.borderColor || dataset._glowColor;
-            ctx.lineWidth = (dataset.borderWidth || 2) + 0.5;
-            points.forEach(function(pt, pi) {
-                if (pi === 0) ctx.moveTo(pt.x, pt.y);
-                else ctx.lineTo(pt.x, pt.y);
-            });
-            ctx.stroke();
-            ctx.restore();
-        });
+    beforeDatasetDraw(chart, args) {
+        const dataset = chart.data.datasets[args.index];
+        if (!dataset._glowColor) return;
+        const meta = chart.getDatasetMeta(args.index);
+        if (!meta || meta.type !== 'line') return;
+        chart.ctx.shadowColor = dataset._glowColor;
+        chart.ctx.shadowBlur  = dataset._glowBlur || 10;
+    },
+    afterDatasetDraw(chart, args) {
+        const dataset = chart.data.datasets[args.index];
+        if (!dataset._glowColor) return;
+        const meta = chart.getDatasetMeta(args.index);
+        if (!meta || meta.type !== 'line') return;
+        chart.ctx.shadowColor = 'transparent';
+        chart.ctx.shadowBlur  = 0;
     }
 };
 
@@ -1776,16 +1770,20 @@ function opcoesDonut() {
     return {
         responsive: true,
         maintainAspectRatio: false,
-        radius: '75%',
-        animation: { animateRotate: true, animateScale: true, duration: 600 },
+        radius: '88%',
+        animation: { animateRotate: true, animateScale: true, duration: 700 },
         plugins: {
-            legend: { display: false },
+            legend: {
+                display: true,
+                position: 'bottom',
+                labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 10, padding: 10 }
+            },
             tooltip: {
                 callbacks: {
                     label: function(ctx) {
                         const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
                         const pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
-                        return ` ${ctx.label}: R$ ${ctx.parsed.toLocaleString('pt-BR', {minimumFractionDigits:2})} (${pct}%)`;
+                        return ` ${ctx.label}: ${pct}%`;
                     }
                 }
             }
@@ -2981,7 +2979,7 @@ async function renderizarTemaMetas() {
 
             const sub = document.createElement('div');
             sub.className = 'liquid-fill-sub';
-            sub.textContent = fmtR(obj.valorAtual) + ' / ' + fmtR(obj.objetivo_valor);
+            sub.textContent = obj.progresso.toFixed(1) + '% de ' + fmtR(obj.objetivo_valor);
             item.appendChild(sub);
 
             container.appendChild(item);
