@@ -115,7 +115,7 @@
 .rel-checkboxes-barra {
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 10px;
     padding: 5px 10px;
     background: #f8f9fa;
@@ -140,22 +140,30 @@
 
 /* .checkbox-mini — estilos em layoutGeral.css (SISTEMA UNIFICADO) */
 
-/* Resumo de filtros aplicados */
+/* Resumo de filtros aplicados — inline no canto direito */
 .filtros-resumo {
-    background: #e3f2fd;
-    border: 1px solid #90caf9;
-    border-radius: 8px;
-    padding: 8px 12px;
-    margin-bottom: 8px;
-}
-
-.filtros-resumo h4 {
-    margin: 0 0 8px 0;
-    color: #1976d2;
-    font-size: 14px;
+    margin-left: auto;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
+    font-size: 11px;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 300px;
+}
+
+.filtros-resumo-label {
+    font-weight: 700;
+    color: #1976d2;
+    flex-shrink: 0;
+}
+
+#texto-filtros-resumo {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* ----------------------------------------------------------------

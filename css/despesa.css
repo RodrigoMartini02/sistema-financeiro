@@ -437,6 +437,13 @@ select.campo-invalido {
     gap: 2px;
 }
 
+/* Linha de datas */
+.card-dates-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
 /* Linha 2: descrição + categoria */
 .card-desc-cat-row {
     display: flex;
@@ -501,7 +508,7 @@ select.campo-invalido {
 /* Linha de valores: valor original, valor final, parcelas, data compra, data vencimento */
 .card-values-row {
     display: grid;
-    grid-template-columns: 1fr 1fr 60px 120px 120px;
+    grid-template-columns: 1fr 1fr 60px;
     gap: 10px;
     align-items: start;
 }
@@ -622,7 +629,7 @@ select.campo-invalido {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 4px 8px;
+    padding: 7px 8px;
     border: 1px solid #e9ecef;
     border-radius: 8px;
     background: #fff;
