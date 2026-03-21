@@ -1003,6 +1003,32 @@
     border-radius: 8px;
     display: none;
 }
+.reserva-mov-painel {
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: rgba(16,185,129,0.06);
+    border: 1px solid rgba(16,185,129,0.2);
+    border-radius: 8px;
+}
+.reserva-mov-painel-inputs {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.reserva-mov-painel-inputs input {
+    flex: 1;
+    min-width: 160px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.05);
+    color: #e2e8f0;
+    font-size: 13px;
+}
+[data-theme="light"] .reserva-mov-painel { background: rgba(16,185,129,0.04); }
+[data-theme="light"] .reserva-mov-painel-inputs input { background: #f8faff; color: #1e293b; border-color: #e2e8f0; }
+
 .reserva-meta-painel-inputs {
     display: flex;
     gap: 8px;

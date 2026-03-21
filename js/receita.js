@@ -1466,6 +1466,16 @@ async function renderizarListaReservasModal() {
         const btnMetaAtivo = temMeta ? 'ativo' : '';
         const valorExibir = valorAtual !== 0 ? valorAtual : parseFloat(reserva.valor) || 0;
 
+        // Painel inline de movimentação
+        const painelMovHtml = `
+            <div class="reserva-mov-painel" id="mov-painel-${reserva.id}" style="display:none">
+                <div class="reserva-mov-painel-inputs">
+                    <input type="number" id="mov-valor-${reserva.id}" class="form-control" placeholder="Valor (positivo = entrada, negativo = saída)" step="0.01">
+                    <button class="btn btn-sm btn-success" onclick="confirmarMovimentacao(${reserva.id})"><i class="fas fa-check"></i> Confirmar</button>
+                    <button class="btn btn-sm btn-secondary" onclick="togglePainelMov(${reserva.id})">Cancelar</button>
+                </div>
+            </div>`;
+
         // Painel inline de meta
         const painelMetaHtml = `
             <div class="reserva-meta-painel" id="meta-painel-${reserva.id}" style="display:none">
@@ -1486,6 +1496,7 @@ async function renderizarListaReservasModal() {
 
         const card = document.createElement('div');
         card.className = `reserva-card${temMeta ? ' tem-meta' : ''}`;
+        card.dataset.reservaId = reserva.id;
         card.innerHTML = `
             <div class="reserva-card-top">
                 <div class="reserva-card-info">
@@ -1500,27 +1511,22 @@ async function renderizarListaReservasModal() {
                 </div>
             </div>
             ${metaHtml}
+            ${painelMovHtml}
             ${painelMetaHtml}
         `;
 
-        // Botão entrada — prompt
+        // Botão entrada — abre painel inline com valor positivo
         card.querySelector('.reserva-btn-entrada').addEventListener('click', () => {
-            const v = prompt(`Adicionar valor à reserva "${reserva.observacoes || 'Reserva'}":\nDigite o valor positivo:`);
-            if (v !== null && v.trim() !== '') {
-                const num = parseFloat(v.replace(',', '.'));
-                if (!isNaN(num) && num > 0) movimentarReservaSimples(reserva.id, num);
-                else (window.mostrarToast || alert)('Valor inválido', 'warning');
-            }
+            const input = document.getElementById(`mov-valor-${reserva.id}`);
+            if (input) { input.placeholder = 'Valor a adicionar (R$)'; input.min = '0'; input.dataset.tipo = 'entrada'; }
+            togglePainelMov(reserva.id);
         });
 
-        // Botão saída — prompt
+        // Botão saída — abre painel inline com valor positivo (será negado)
         card.querySelector('.reserva-btn-saida').addEventListener('click', () => {
-            const v = prompt(`Retirar valor da reserva "${reserva.observacoes || 'Reserva'}":\nDigite o valor a retirar:`);
-            if (v !== null && v.trim() !== '') {
-                const num = parseFloat(v.replace(',', '.'));
-                if (!isNaN(num) && num > 0) movimentarReservaSimples(reserva.id, -num);
-                else (window.mostrarToast || alert)('Valor inválido', 'warning');
-            }
+            const input = document.getElementById(`mov-valor-${reserva.id}`);
+            if (input) { input.placeholder = 'Valor a retirar (R$)'; input.min = '0'; input.dataset.tipo = 'saida'; }
+            togglePainelMov(reserva.id);
         });
 
         // Botão excluir
@@ -1919,6 +1925,33 @@ window.marcarObjetivoAtingido = marcarObjetivoAtingido;
 /**
  * Toggle do painel inline de definir/editar meta em um card de reserva
  */
+function togglePainelMov(reservaId) {
+    const painel = document.getElementById(`mov-painel-${reservaId}`);
+    if (!painel) return;
+    const abrir = painel.style.display === 'none';
+    painel.style.display = abrir ? 'block' : 'none';
+    if (abrir) {
+        const input = document.getElementById(`mov-valor-${reservaId}`);
+        if (input) { input.value = ''; input.focus(); }
+    }
+}
+window.togglePainelMov = togglePainelMov;
+
+async function confirmarMovimentacao(reservaId) {
+    const input = document.getElementById(`mov-valor-${reservaId}`);
+    if (!input) return;
+    const num = parseFloat(input.value.replace(',', '.'));
+    if (isNaN(num) || num <= 0) {
+        (window.mostrarToast || alert)('Digite um valor válido', 'warning');
+        return;
+    }
+    const tipo = input.dataset.tipo;
+    const valor = tipo === 'saida' ? -num : num;
+    await movimentarReservaSimples(reservaId, valor);
+    togglePainelMov(reservaId);
+}
+window.confirmarMovimentacao = confirmarMovimentacao;
+
 function togglePainelMeta(reservaId) {
     const painel = document.getElementById(`meta-painel-${reservaId}`);
     if (!painel) return;
