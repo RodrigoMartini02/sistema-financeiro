@@ -500,7 +500,7 @@ select.campo-invalido {
 /* Linha de valores: valor original, valor final, parcelas, data compra, data vencimento */
 .card-values-row {
     display: grid;
-    grid-template-columns: 110px 110px 75px 135px 1fr;
+    grid-template-columns: 1fr 1fr 60px 120px 120px;
     gap: 10px;
     align-items: start;
 }
