@@ -2464,21 +2464,35 @@ function renderizarTemaAnalise() {
         options: opcoesBarraH()
     });
 
-    // Gráfico 2: Barras empilhadas — top 5 categorias mensais (top 5 é intencional — linha fica ilegível com mais)
-    const top5nomes = catArr.slice(0,5).map(([n])=>n);
-    const datasets = top5nomes.map((nome,i)=>{
+    // Gráfico 2: Barras empilhadas — todas as categorias por mês (sem legenda)
+    const datasetsEmpilhado = catArr.map(([nome],i)=>{
         const porMes = new Array(12).fill(0);
         despesas.forEach(function(d){
             const catObj = categorias.find(c=>c.id===d.categoria_id);
             const catNome = catObj?catObj.nome:(d.categoria||'Outros');
             if(catNome===nome&&d.mes>=0&&d.mes<=11) porMes[d.mes]+=parseFloat(d.valor||0);
         });
-        return { label: nome, data: porMes, backgroundColor: CORES[i], stack: 'stack', borderRadius: 2 };
+        return { label: nome, data: porMes, backgroundColor: CORES[i%CORES.length], stack: 'stack', borderRadius: 2 };
     });
+    // Filtra apenas meses com dados reais
+    const mesesComMovimento = MESES_LABELS.map((l,i)=>({l,i})).filter(({i})=>datasetsEmpilhado.some(d=>d.data[i]>0));
+    const labelsEmpilhado = mesesComMovimento.map(m=>m.l);
+    const datasetsEmpilhadoFiltrado = datasetsEmpilhado.map(d=>({...d, data: mesesComMovimento.map(m=>d.data[m.i])}));
     criarChart('tema-analise-mensal', {
         type: 'bar',
-        data: { labels: MESES_LABELS, datasets },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } } }, scales: { x: { stacked: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { stacked: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
+        data: { labels: labelsEmpilhado, datasets: datasetsEmpilhadoFiltrado },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: function(ctx) { return ' ' + ctx.dataset.label + ': R$ ' + parseFloat(ctx.parsed.y||0).toLocaleString('pt-BR',{minimumFractionDigits:2}); } } }
+            },
+            scales: {
+                x: { stacked: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false } },
+                y: { stacked: true, ticks: { color: '#94a3b8', font: { size: 10 }, callback: function(v){ return v>=1000?'R$'+(v/1000).toFixed(0)+'k':'R$'+v; } }, grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false } }
+            }
+        }
     });
 
     // Gráfico 3: Barras agrupadas — balanço por ano (lê estrutura correta)

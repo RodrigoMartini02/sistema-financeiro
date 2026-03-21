@@ -356,23 +356,65 @@
 }
 
 .chart-header {
-    margin-bottom: 14px;
+    margin-bottom: 10px;
 }
 
 .chart-header h3 {
-    font-size: 10px;
-    font-weight: 700;
-    color: #94a3b8;
-    margin: 0 0 2px 0;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #cbd5e1;
+    margin: 0;
+    letter-spacing: 0.3px;
+    cursor: default;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    position: relative;
 }
 
-.chart-header p {
-    font-size: 13px;
-    font-weight: 600;
-    color: #e2e8f0;
-    margin: 0;
+/* Ícone de info sutil */
+.chart-header h3[data-tooltip]::before {
+    content: '';
+    display: inline-block;
+    width: 13px;
+    height: 13px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%2364748b'%3E%3Ccircle cx='8' cy='8' r='7' stroke='%2364748b' stroke-width='1.5' fill='none'/%3E%3Ctext x='8' y='12' text-anchor='middle' font-size='10' fill='%2364748b'%3Ei%3C/text%3E%3C/svg%3E") center/contain no-repeat;
+    opacity: 0.5;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
+}
+
+.chart-header h3[data-tooltip]:hover::before {
+    opacity: 1;
+}
+
+/* Tooltip */
+.chart-header h3[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 0;
+    background: #1e293b;
+    color: #cbd5e1;
+    font-size: 11px;
+    font-weight: 400;
+    padding: 6px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+    border: 1px solid rgba(99,102,241,0.25);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    z-index: 100;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.chart-header h3[data-tooltip]:hover::after {
+    opacity: 1;
+    transform: translateY(0);
 }
 
 .tema-chart-card canvas {
@@ -460,7 +502,7 @@
 }
 #tema-saude .tema-charts-grid .tema-chart-card:nth-child(3) {
     grid-column: 1 / -1;
-    height: 300px;
+    height: 240px;
 }
 
 /* FLUXO DE CAIXA: faixa full (principal) + Acumulado 1/2 + Donut 1/2 */
@@ -561,24 +603,24 @@
     height: 300px;
 }
 
-/* ANÁLISE DETALHADA: Categorias Mensais full (principal) + Média 1/2 + Balanço Anos 1/2 */
+/* ANÁLISE DETALHADA: Média ocupa coluna esquerda (2 linhas) + Balanço/Categorias empilhados à direita */
 #tema-analise .tema-charts-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto;
+    grid-template-rows: 260px 260px;
     gap: 20px;
 }
 #tema-analise .tema-charts-grid .tema-chart-card:nth-child(1) {
     grid-column: 1;
-    height: 320px;
+    grid-row: 1 / 3;
 }
 #tema-analise .tema-charts-grid .tema-chart-card:nth-child(2) {
     grid-column: 2;
-    height: 280px;
+    grid-row: 1;
 }
 #tema-analise .tema-charts-grid .tema-chart-card:nth-child(3) {
-    grid-column: 1 / -1;
-    height: 280px;
+    grid-column: 2;
+    grid-row: 2;
 }
 
 /* Garantir que canvas preencha o card em altura controlada */
@@ -723,6 +765,7 @@
     #tema-anual .tema-charts-grid .tema-chart-card,
     #tema-analise .tema-charts-grid .tema-chart-card {
         grid-column: 1 !important;
+        grid-row: auto !important;
         height: 300px !important;
     }
 
@@ -775,11 +818,14 @@
 }
 
 [data-theme="light"] .chart-header h3 {
-    color: #94a3b8;
+    color: #475569;
 }
 
-[data-theme="light"] .chart-header p {
+[data-theme="light"] .chart-header h3[data-tooltip]::after {
+    background: #ffffff;
     color: #334155;
+    border-color: rgba(99,102,241,0.2);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
 }
 
 [data-theme="light"] .tk-valor {

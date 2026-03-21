@@ -350,9 +350,9 @@
             <div class="tema-kpi"><span class="tk-label">Saúde Geral</span><span class="tk-valor" id="tk-saude-score">--</span></div>
           </div>
           <div class="tema-charts-grid">
-            <div class="tema-chart-card"><div class="chart-header"><h3>Balanço Mensal</h3><p>Receitas, Despesas e Saldo por mês</p></div><canvas id="tema-saude-balanco"></canvas></div>
-            <div class="tema-chart-card"><div class="chart-header"><h3>Saldo Progressivo</h3><p>Evolução do saldo acumulado</p></div><canvas id="tema-saude-progressivo"></canvas></div>
-            <div class="tema-chart-card"><div class="chart-header"><h3>Entradas vs Saídas</h3><p>Comparativo mensal detalhado</p></div><canvas id="tema-saude-entradas"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Receitas, Despesas e Saldo por mês">Balanço Mensal</h3></div><canvas id="tema-saude-balanco"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Comparativo mensal detalhado">Entradas vs Saídas</h3></div><canvas id="tema-saude-entradas"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Evolução do saldo acumulado">Saldo Progressivo</h3></div><canvas id="tema-saude-progressivo"></canvas></div>
           </div>
         </div>
 
@@ -364,9 +364,9 @@
             <div class="tema-kpi"><span class="tk-label">Resultado</span><span class="tk-valor" id="tk-fluxo-resultado">R$ 0,00</span></div>
           </div>
           <div class="tema-charts-grid">
-            <div class="tema-chart-card"><div class="chart-header"><h3>Entradas e Saídas</h3><p>Receitas vs Despesas por mês</p></div><canvas id="tema-fluxo-entradas"></canvas></div>
-            <div class="tema-chart-card"><div class="chart-header"><h3>Fluxo Acumulado</h3><p>Receitas e despesas acumuladas</p></div><canvas id="tema-fluxo-acumulado"></canvas></div>
-            <div class="tema-chart-card"><div class="chart-header"><h3>Cobertura</h3><p>% Receita cobrindo Despesa</p></div><canvas id="tema-fluxo-cobertura"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Receitas vs Despesas por mês">Entradas e Saídas</h3></div><canvas id="tema-fluxo-entradas"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Receitas e despesas acumuladas">Fluxo Acumulado</h3></div><canvas id="tema-fluxo-acumulado"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="% Receita cobrindo Despesa">Cobertura</h3></div><canvas id="tema-fluxo-cobertura"></canvas></div>
           </div>
         </div>
 
@@ -378,9 +378,9 @@
             <div class="tema-kpi"><span class="tk-label">Categorias Ativas</span><span class="tk-valor" id="tk-cat-count">0</span></div>
           </div>
           <div class="tema-charts-grid">
-            <div class="tema-chart-card"><div class="chart-header"><h3>Despesas por Categoria</h3><p>Total anual por categoria</p></div><canvas id="tema-cat-anual"></canvas></div>
-            <div class="tema-chart-card"><div class="chart-header"><h3>Top 5 ao Longo do Tempo</h3><p>Evolução mensal das maiores categorias</p></div><canvas id="tema-cat-evolucao"></canvas></div>
-            <div class="tema-chart-card"><div class="chart-header"><h3>Média Mensal por Categoria</h3><p>Quanto você gasta em média por mês</p></div><canvas id="tema-cat-media"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Total anual por categoria">Despesas por Categoria</h3></div><canvas id="tema-cat-anual"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Evolução mensal das maiores categorias">Top 5 ao Longo do Tempo</h3></div><canvas id="tema-cat-evolucao"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Quanto você gasta em média por mês">Média Mensal por Categoria</h3></div><canvas id="tema-cat-media"></canvas></div>
           </div>
         </div>
 
@@ -392,9 +392,9 @@
             <div class="tema-kpi"><span class="tk-label">% Crédito</span><span class="tk-valor" id="tk-pgto-pct">0%</span></div>
           </div>
           <div class="tema-charts-grid">
-            <div class="tema-chart-card"><div class="chart-header"><h3>Formas de Pagamento</h3><p>Distribuição geral</p></div><canvas id="tema-pgto-formas"></canvas></div>
-            <div class="tema-chart-card"><div class="chart-header"><h3>Uso de Cartões</h3><p>Distribuição entre cartões</p></div><canvas id="tema-pgto-cartoes"></canvas></div>
-            <div class="tema-chart-card"><div class="chart-header"><h3>Forma por Mês</h3><p>Como você pagou ao longo do ano</p></div><canvas id="tema-pgto-mensal"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Distribuição geral">Formas de Pagamento</h3></div><canvas id="tema-pgto-formas"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Distribuição entre cartões">Uso de Cartões</h3></div><canvas id="tema-pgto-cartoes"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Como você pagou ao longo do ano">Forma por Mês</h3></div><canvas id="tema-pgto-mensal"></canvas></div>
           </div>
         </div>
 
@@ -406,9 +406,9 @@
             <div class="tema-kpi"><span class="tk-label">Economias</span><span class="tk-valor" id="tk-divida-economias">R$ 0,00</span></div>
           </div>
           <div class="tema-charts-grid">
-            <div class="tema-chart-card"><div class="chart-header"><h3>Juros × Economias</h3><p>Balanço entre custo e economia</p></div><canvas id="tema-divida-juros"></canvas></div>
-            <div class="tema-chart-card"><div class="chart-header"><h3>Custo Acumulado</h3><p>Juros acumulados ao longo do ano</p></div><canvas id="tema-divida-custo"></canvas></div>
-            <div class="tema-chart-card"><div class="chart-header"><h3>Parcelamentos Ativos</h3><p>Valor parcelado por mês</p></div><canvas id="tema-divida-parcelas"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Balanço entre custo e economia">Juros × Economias</h3></div><canvas id="tema-divida-juros"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Juros acumulados ao longo do ano">Custo Acumulado</h3></div><canvas id="tema-divida-custo"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Valor parcelado por mês">Parcelamentos Ativos</h3></div><canvas id="tema-divida-parcelas"></canvas></div>
           </div>
         </div>
 
@@ -420,9 +420,9 @@
             <div class="tema-kpi"><span class="tk-label">Tendência</span><span class="tk-valor" id="tk-anual-trend">--</span></div>
           </div>
           <div class="tema-charts-grid">
-            <div class="tema-chart-card"><div class="chart-header"><h3>Tendência Anual</h3><p>Evolução do saldo ao longo dos meses</p></div><canvas id="tema-anual-tendencia"></canvas></div>
-            <div class="tema-chart-card"><div class="chart-header"><h3>Comparação Anual</h3><p>Este ano vs ano anterior</p></div><canvas id="tema-anual-comparacao"></canvas></div>
-            <div class="tema-chart-card"><div class="chart-header"><h3>Ranking de Meses</h3><p>Meses ordenados por melhor saldo</p></div><canvas id="tema-anual-ranking"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Evolução do saldo ao longo dos meses">Tendência Anual</h3></div><canvas id="tema-anual-tendencia"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Este ano vs ano anterior">Comparação Anual</h3></div><canvas id="tema-anual-comparacao"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Meses ordenados por melhor saldo">Ranking de Meses</h3></div><canvas id="tema-anual-ranking"></canvas></div>
           </div>
         </div>
 
@@ -434,9 +434,9 @@
             <div class="tema-kpi"><span class="tk-label">Variação Máxima</span><span class="tk-valor" id="tk-analise-variacao">R$ 0,00</span></div>
           </div>
           <div class="tema-charts-grid">
-            <div class="tema-chart-card"><div class="chart-header"><h3>Média por Categoria</h3><p>Gasto médio mensal por categoria</p></div><canvas id="tema-analise-media"></canvas></div>
-            <div class="tema-chart-card"><div class="chart-header"><h3>Balanço por Anos</h3><p>Receitas vs despesas por ano</p></div><canvas id="tema-analise-anos"></canvas></div>
-            <div class="tema-chart-card"><div class="chart-header"><h3>Categorias Mensais</h3><p>Distribuição mensal empilhada</p></div><canvas id="tema-analise-mensal"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Gasto médio mensal por categoria">Média por Categoria</h3></div><canvas id="tema-analise-media"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Receitas vs despesas por ano">Balanço por Anos</h3></div><canvas id="tema-analise-anos"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Distribuição mensal empilhada">Categorias Mensais</h3></div><canvas id="tema-analise-mensal"></canvas></div>
           </div>
         </div>
     </section>
