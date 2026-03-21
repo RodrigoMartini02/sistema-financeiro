@@ -1220,3 +1220,141 @@
     color: #6b7280;
     cursor: pointer;
 }
+
+/* ================================================================
+   DARK MODE — Configuração
+   Variações de densidade:
+   #080c14 = mais denso (fundo)
+   #0d1525 = denso (container)
+   #111827 = médio (tabela fundo)
+   #1a2235 = menos denso (linhas alt)
+   #1e293b = mais claro (hover)
+   ================================================================ */
+
+[data-theme="dark"] .config-section,
+[data-theme="dark"] .config-tab-content {
+    background: #080c14;
+    color: var(--theme-text);
+}
+
+/* Containers e cards internos */
+[data-theme="dark"] .config-card,
+[data-theme="dark"] .carta-item,
+[data-theme="dark"] .config-info-box,
+[data-theme="dark"] .form-add-categoria,
+[data-theme="dark"] .pagination-controls {
+    background: #0d1525;
+    border-color: rgba(99, 149, 255, 0.12);
+    color: var(--theme-text);
+}
+
+/* Textos e labels */
+[data-theme="dark"] .config-label,
+[data-theme="dark"] .carta-desc,
+[data-theme="dark"] .cofre-senha-label,
+[data-theme="dark"] #pagination-info {
+    color: var(--theme-text-muted);
+}
+
+[data-theme="dark"] .config-title,
+[data-theme="dark"] .carta-nome {
+    color: var(--theme-text);
+}
+
+/* Separadores */
+[data-theme="dark"] .config-sep,
+[data-theme="dark"] .config-sep-sm {
+    border-color: rgba(99, 149, 255, 0.1);
+}
+
+/* Inputs */
+[data-theme="dark"] .form-add-categoria input,
+[data-theme="dark"] .config-input,
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="email"],
+[data-theme="dark"] input[type="password"],
+[data-theme="dark"] input[type="number"],
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+    background: #111827;
+    border-color: rgba(99, 149, 255, 0.2);
+    color: var(--theme-text);
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+    color: var(--theme-text-faint);
+}
+
+/* Table responsive wrapper */
+[data-theme="dark"] .table-responsive {
+    background: #0d1525;
+    border-color: rgba(99, 149, 255, 0.12);
+    border-radius: 8px;
+}
+
+/* Tabela usuários */
+[data-theme="dark"] .tabela-usuarios {
+    background: #111827;
+}
+
+[data-theme="dark"] .tabela-usuarios tbody tr {
+    border-bottom-color: rgba(99, 149, 255, 0.08);
+}
+
+[data-theme="dark"] .tabela-usuarios tbody tr:nth-child(even) {
+    background: #0d1525;
+}
+
+[data-theme="dark"] .tabela-usuarios tbody tr:hover {
+    background: #1e293b;
+}
+
+[data-theme="dark"] .tabela-usuarios td {
+    color: var(--theme-text-muted);
+    border-right-color: rgba(99, 149, 255, 0.06);
+}
+
+/* Tabela categorias */
+[data-theme="dark"] .tabela-categorias {
+    background: #111827;
+}
+
+[data-theme="dark"] .tabela-categorias tbody tr {
+    border-bottom-color: rgba(99, 149, 255, 0.08);
+}
+
+[data-theme="dark"] .tabela-categorias tbody tr:nth-child(even) {
+    background: #0d1525;
+}
+
+[data-theme="dark"] .tabela-categorias tbody tr:hover {
+    background: #1e293b;
+}
+
+[data-theme="dark"] .tabela-categorias td {
+    color: var(--theme-text-muted);
+    border-right-color: rgba(99, 149, 255, 0.06);
+}
+
+/* Tabela logs (se existir) */
+[data-theme="dark"] .tabela-logs,
+[data-theme="dark"] .log-table {
+    background: #111827;
+}
+
+[data-theme="dark"] .tabela-logs tbody tr,
+[data-theme="dark"] .log-table tbody tr {
+    border-bottom-color: rgba(99, 149, 255, 0.08);
+    color: var(--theme-text-muted);
+}
+
+[data-theme="dark"] .tabela-logs tbody tr:nth-child(even),
+[data-theme="dark"] .log-table tbody tr:nth-child(even) {
+    background: #0d1525;
+}
+
+[data-theme="dark"] .tabela-logs tbody tr:hover,
+[data-theme="dark"] .log-table tbody tr:hover {
+    background: #1e293b;
+}

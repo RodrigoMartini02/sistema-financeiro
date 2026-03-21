@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(\"c:/Users/rodri/Music/sistema financas/css/config.css\":*)"
+    ]
+  }
+}
