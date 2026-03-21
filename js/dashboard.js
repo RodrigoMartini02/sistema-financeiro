@@ -1,4 +1,142 @@
 // ================================================================
+// PLUGINS GLOBAIS CHART.JS — GRADIENTES + GLOW
+// ================================================================
+
+// Plugin 1: Gradientes automáticos em barras (vertical e horizontal)
+const gradientBarsPlugin = {
+    id: 'gradientBars',
+    beforeDatasetDraw(chart, args) {
+        const dataset = chart.data.datasets[args.index];
+        if (!dataset._gradColors) return;
+        const { ctx, chartArea } = chart;
+        if (!chartArea) return;
+        const { top, bottom, left, right } = chartArea;
+        const [c1, c2] = dataset._gradColors;
+        const isH = chart.options.indexAxis === 'y';
+        let grad;
+        if (isH) {
+            grad = ctx.createLinearGradient(left, 0, right, 0);
+        } else {
+            grad = ctx.createLinearGradient(0, bottom, 0, top);
+        }
+        grad.addColorStop(0, c1);
+        grad.addColorStop(1, c2);
+        dataset.backgroundColor = grad;
+    }
+};
+
+// Plugin 2: Glow nas linhas
+const glowLinesPlugin = {
+    id: 'glowLines',
+    afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        chart.data.datasets.forEach(function(dataset, i) {
+            if (!dataset._glowColor) return;
+            const meta = chart.getDatasetMeta(i);
+            if (!meta || meta.type !== 'line') return;
+            ctx.save();
+            ctx.shadowColor = dataset._glowColor;
+            ctx.shadowBlur = dataset._glowBlur || 10;
+            // Re-draw the line path with glow
+            const points = meta.data;
+            if (points.length < 2) { ctx.restore(); return; }
+            ctx.beginPath();
+            ctx.strokeStyle = dataset.borderColor || dataset._glowColor;
+            ctx.lineWidth = (dataset.borderWidth || 2) + 0.5;
+            points.forEach(function(pt, pi) {
+                if (pi === 0) ctx.moveTo(pt.x, pt.y);
+                else ctx.lineTo(pt.x, pt.y);
+            });
+            ctx.stroke();
+            ctx.restore();
+        });
+    }
+};
+
+// Registrar plugins quando Chart.js estiver disponível
+function _registrarPluginsChart() {
+    if (typeof Chart === 'undefined') return;
+    // Evitar duplo registro
+    if (!Chart.registry.plugins.get('gradientBars')) {
+        Chart.register(gradientBarsPlugin);
+    }
+    if (!Chart.registry.plugins.get('glowLines')) {
+        Chart.register(glowLinesPlugin);
+    }
+}
+// Tentar registrar agora e também no evento de inicialização
+_registrarPluginsChart();
+window.addEventListener('sistemaFinanceiroReady', _registrarPluginsChart, { once: true });
+
+// Tooltip externo singleton
+function criarOuObterTooltipEl() {
+    let el = document.getElementById('dash-tooltip-premium');
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    const bg = isLight ? 'rgba(255,255,255,0.97)' : 'rgba(15,23,42,0.96)';
+    const textColor = isLight ? '#1e293b' : '#e2e8f0';
+    const borderColor = isLight ? 'rgba(99,102,241,0.25)' : 'rgba(99,102,241,0.35)';
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'dash-tooltip-premium';
+        document.body.appendChild(el);
+    }
+    el.style.cssText = [
+        'position:fixed',
+        'pointer-events:none',
+        'z-index:99999',
+        'background:' + bg,
+        'backdrop-filter:blur(12px)',
+        '-webkit-backdrop-filter:blur(12px)',
+        'border:1px solid ' + borderColor,
+        'border-radius:10px',
+        'padding:10px 14px',
+        'font-size:12px',
+        'color:' + textColor,
+        'box-shadow:0 8px 32px rgba(0,0,0,' + (isLight ? '0.18' : '0.5') + ')',
+        'min-width:150px',
+        'max-width:260px',
+        'transition:opacity 0.12s ease',
+        'font-family:Inter,system-ui,sans-serif',
+        'line-height:1.5'
+    ].join(';');
+    return el;
+}
+
+function tooltipExternoHandler(context) {
+    const el = criarOuObterTooltipEl();
+    const { chart, tooltip } = context;
+    if (tooltip.opacity === 0) {
+        el.style.opacity = '0';
+        return;
+    }
+    const pos = chart.canvas.getBoundingClientRect();
+    let left = pos.left + window.scrollX + tooltip.caretX + 14;
+    let top  = pos.top  + window.scrollY + tooltip.caretY - 10;
+    // Evitar sair da tela pela direita
+    const elW = 260;
+    if (left + elW > window.innerWidth - 10) left = pos.left + window.scrollX + tooltip.caretX - elW - 10;
+    el.style.left    = left + 'px';
+    el.style.top     = top  + 'px';
+    el.style.opacity = '1';
+
+    const title = tooltip.title?.[0] || '';
+    const bodyLines = tooltip.body?.map(b => b.lines).flat() || [];
+    const colors = tooltip.labelColors || [];
+
+    let html = title
+        ? '<div style="font-weight:700;margin-bottom:7px;color:#a5b4fc;font-size:11px;text-transform:uppercase;letter-spacing:0.6px">' + title + '</div>'
+        : '';
+    bodyLines.forEach(function(line, i) {
+        const bg = colors[i]?.backgroundColor || '#6366f1';
+        const dotColor = typeof bg === 'string' && bg.startsWith('rgba') ? bg : bg;
+        html += '<div style="display:flex;gap:7px;align-items:center;padding:2px 0">' +
+            '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + dotColor + ';flex-shrink:0"></span>' +
+            '<span>' + line + '</span></div>';
+    });
+    el.innerHTML = html;
+}
+
+// ================================================================
 // SISTEMA DE CORES FIXAS POR CATEGORIA
 // ================================================================
 
@@ -1388,6 +1526,9 @@ function inicializarDashboardTematico() {
     Chart.defaults.borderColor = 'rgba(255,255,255,0.05)';
     if (Chart.defaults.font) Chart.defaults.font.family = "'Inter', sans-serif";
 
+    // Garantir registro dos plugins visuais
+    _registrarPluginsChart();
+
     // Navegação entre temas
     document.querySelectorAll('.tema-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
@@ -1673,20 +1814,43 @@ function renderizarTemaSaude() {
     if (el2) { el2.textContent = totalRec > 0 ? ((saldo/totalRec*100).toFixed(1)+'%') : '0%'; el2.style.color = saldo>=0?'#10b981':'#f43f5e'; }
     if (el3) { el3.textContent = score + '/100'; el3.style.color = score>=70?'#10b981':score>=40?'#f59e0b':'#f43f5e'; }
 
-    // Gráfico 1: Balanço Mensal — barras agrupadas
+    // Gráfico 1: Balanço Mensal — barras agrupadas com gradientes
     criarChart('tema-saude-balanco', {
         type: 'bar',
         data: {
             labels: MESES_LABELS,
             datasets: [
-                { label: 'Receitas', data: recPorMes, backgroundColor: '#10b98166', borderColor: '#10b981', borderWidth: 1.5, borderRadius: 4 },
-                { label: 'Despesas', data: despPorMes, backgroundColor: '#f43f5e66', borderColor: '#f43f5e', borderWidth: 1.5, borderRadius: 4 }
+                {
+                    label: 'Receitas',
+                    data: recPorMes,
+                    backgroundColor: '#10b98166',
+                    borderColor: '#10b981',
+                    borderWidth: 1.5,
+                    borderRadius: 4,
+                    _gradColors: ['#10b981', '#34d399']
+                },
+                {
+                    label: 'Despesas',
+                    data: despPorMes,
+                    backgroundColor: '#f43f5e66',
+                    borderColor: '#f43f5e',
+                    borderWidth: 1.5,
+                    borderRadius: 4,
+                    _gradColors: ['#f43f5e', '#fb7185']
+                }
             ]
         },
-        options: opcoesEscuras({ plugins: { legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } })
+        options: Object.assign(opcoesEscuras({
+            plugins: {
+                legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } },
+                tooltip: { enabled: false, external: tooltipExternoHandler }
+            },
+            animation: { duration: 900, easing: 'easeOutQuart', delay: function(ctx) { return ctx.dataIndex * 55; } },
+            scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } }
+        }))
     });
 
-    // Gráfico 2: Saldo Progressivo — área suave sem pontos
+    // Gráfico 2: Saldo Progressivo — área suave com glow
     criarChart('tema-saude-progressivo', {
         type: 'line',
         data: {
@@ -1699,11 +1863,20 @@ function renderizarTemaSaude() {
                 fill: true,
                 tension: 0.4,
                 pointRadius: 0,
-                pointHoverRadius: 4,
-                borderWidth: 2
+                pointHoverRadius: 5,
+                borderWidth: 2.5,
+                _glowColor: '#6366f1',
+                _glowBlur: 12
             }]
         },
-        options: opcoesEscuras({ plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: false, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } })
+        options: opcoesEscuras({
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false, external: tooltipExternoHandler }
+            },
+            animation: { duration: 900, easing: 'easeOutQuart' },
+            scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: false, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } }
+        })
     });
 
     // Gráfico 3: Fluxo do Mês — waterfall: saldo inicial → receitas (sobe) → categorias (desce) → saldo final
@@ -1782,14 +1955,30 @@ function renderizarTemaSaude() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: { duration: 900, easing: 'easeOutQuart', delay: function(ctx) { return ctx.dataIndex * 60; } },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
-                        callbacks: {
-                            label: function(ctx) {
-                                const v = ctx.parsed.y;
-                                return ' ' + fmtR(Math.abs(v));
-                            }
+                        enabled: false,
+                        external: function(context) {
+                            const el = criarOuObterTooltipEl();
+                            const { chart, tooltip } = context;
+                            if (tooltip.opacity === 0) { el.style.opacity = '0'; return; }
+                            const pos = chart.canvas.getBoundingClientRect();
+                            const left = pos.left + window.scrollX + tooltip.caretX + 14;
+                            const top  = pos.top  + window.scrollY + tooltip.caretY - 10;
+                            el.style.left = left + 'px';
+                            el.style.top  = top  + 'px';
+                            el.style.opacity = '1';
+                            const title = tooltip.title?.[0] || '';
+                            const lines = tooltip.body?.map(b => b.lines).flat() || [];
+                            const colors = tooltip.labelColors || [];
+                            let html = title ? '<div style="font-weight:700;margin-bottom:7px;color:#a5b4fc;font-size:11px;text-transform:uppercase;letter-spacing:0.6px">' + title + '</div>' : '';
+                            lines.forEach(function(line, i) {
+                                const dotBg = colors[i]?.backgroundColor || '#6366f1';
+                                html += '<div style="display:flex;gap:7px;align-items:center;padding:2px 0"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + dotBg + ';flex-shrink:0"></span><span>' + line + '</span></div>';
+                            });
+                            el.innerHTML = html;
                         }
                     }
                 },
@@ -1819,17 +2008,46 @@ function renderizarTemaFluxo() {
     if (el2) { el2.textContent = fmtR(totalDesp); el2.style.color = '#f43f5e'; }
     if (el3) { el3.textContent = fmtR(resultado); el3.style.color = resultado>=0?'#10b981':'#f43f5e'; }
 
-    // Gráfico 1: Área empilhada — receitas e despesas por mês
+    // Gráfico 1: Área empilhada — receitas e despesas por mês com glow
     criarChart('tema-fluxo-entradas', {
         type: 'line',
         data: {
             labels: MESES_LABELS,
             datasets: [
-                { label: 'Receitas', data: recPorMes, borderColor: '#10b981', backgroundColor: criarGradiente('tema-fluxo-entradas','#10b981',0.4,0.02), fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 },
-                { label: 'Despesas', data: despPorMes, borderColor: '#f43f5e', backgroundColor: criarGradiente('tema-fluxo-entradas','#f43f5e',0.3,0.02), fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }
+                {
+                    label: 'Receitas',
+                    data: recPorMes,
+                    borderColor: '#10b981',
+                    backgroundColor: criarGradiente('tema-fluxo-entradas','#10b981',0.4,0.02),
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    borderWidth: 2.5,
+                    _glowColor: '#10b981',
+                    _glowBlur: 10
+                },
+                {
+                    label: 'Despesas',
+                    data: despPorMes,
+                    borderColor: '#f43f5e',
+                    backgroundColor: criarGradiente('tema-fluxo-entradas','#f43f5e',0.3,0.02),
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    borderWidth: 2.5,
+                    _glowColor: '#f43f5e',
+                    _glowBlur: 10
+                }
             ]
         },
-        options: opcoesEscuras({ plugins: { legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } })
+        options: opcoesEscuras({
+            plugins: {
+                legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } },
+                tooltip: { enabled: false, external: tooltipExternoHandler }
+            },
+            animation: { duration: 900, easing: 'easeOutQuart' },
+            scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } }
+        })
     });
 
     // Gráfico 2: Taxa de Poupança — ((receita - despesa) / receita) * 100 por mês, filtra meses sem dados
@@ -1862,7 +2080,9 @@ function renderizarTemaFluxo() {
                     tension: 0.4,
                     pointRadius: 4,
                     pointBackgroundColor: borderTaxa,
-                    borderWidth: 2,
+                    borderWidth: 2.5,
+                    _glowColor: '#10b981',
+                    _glowBlur: 10,
                     segment: {
                         borderColor: function(ctx) {
                             return ctx.p0.parsed.y >= 0 && ctx.p1.parsed.y >= 0 ? '#10b981' : '#f43f5e';
@@ -1873,7 +2093,7 @@ function renderizarTemaFluxo() {
             options: opcoesEscuras({
                 plugins: {
                     legend: { display: false },
-                    tooltip: { callbacks: { label: function(ctx) { return ' ' + parseFloat(ctx.parsed.y).toFixed(1) + '%'; } } }
+                    tooltip: { enabled: false, external: tooltipExternoHandler }
                 },
                 scales: {
                     x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
@@ -1895,6 +2115,182 @@ function renderizarTemaFluxo() {
         },
         options: opcoesDonut()
     });
+}
+
+// ================================================================
+// TREEMAP — canvas 2D puro com squarify simplificado
+// ================================================================
+
+function desenharTreemap(canvasId, dados) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !dados || dados.length === 0) return;
+    const W = canvas.offsetWidth || canvas.parentElement?.offsetWidth || 400;
+    const H = canvas.offsetHeight || canvas.parentElement?.offsetHeight || 300;
+    if (W < 10 || H < 10) return;
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    const total = dados.reduce(function(s, d) { return s + Math.abs(d.value); }, 0);
+    if (total === 0) return;
+
+    ctx.clearRect(0, 0, W, H);
+
+    // Algoritmo squarify — divide em linhas/colunas por área
+    function squarify(items, x, y, w, h) {
+        if (items.length === 0) return;
+        const totalVal = items.reduce(function(s, d) { return s + d.value; }, 0);
+        const areaTotal = w * h;
+
+        // Decidir orientação pela dimensão maior
+        const horizontal = w >= h;
+        let cursor = horizontal ? x : y;
+        let remaining = [...items];
+
+        while (remaining.length > 0) {
+            const rowItems = [];
+            let rowVal = 0;
+            const availLen = horizontal ? (w - (cursor - x)) : (h - (cursor - y));
+            const crossLen  = horizontal ? h : w;
+
+            for (let i = 0; i < remaining.length; i++) {
+                rowItems.push(remaining[i]);
+                rowVal += remaining[i].value;
+                const rowPct = rowVal / totalVal;
+                const rowLen = (areaTotal > 0) ? (rowVal / total) * (horizontal ? W : H) : 0;
+                const rowThickness = (horizontal ? w : h) * (rowVal / totalVal);
+
+                // Verificar razão de aspecto: manter próximo de 1
+                const bestAspect = rowItems.reduce(function(worst, item) {
+                    const areaPct = item.value / totalVal;
+                    const rectW = horizontal ? rowThickness : (areaPct / (rowVal / totalVal)) * crossLen;
+                    const rectH = horizontal ? (areaPct / (rowVal / totalVal)) * crossLen : rowThickness;
+                    const asp = Math.max(rectW, rectH) / Math.min(rectW || 1, rectH || 1);
+                    return Math.max(worst, asp);
+                }, 0);
+
+                // Se adicionar o próximo piorar, parar aqui
+                if (i > 0 && remaining[i + 1]) {
+                    const testItems = [...rowItems, remaining[i + 1]];
+                    const testVal = rowVal + remaining[i + 1].value;
+                    const testThickness = (horizontal ? w : h) * (testVal / totalVal);
+                    const testAspect = testItems.reduce(function(worst, item) {
+                        const areaPct = item.value / totalVal;
+                        const rectW = horizontal ? testThickness : (areaPct / (testVal / totalVal)) * crossLen;
+                        const rectH = horizontal ? (areaPct / (testVal / totalVal)) * crossLen : testThickness;
+                        const asp = Math.max(rectW, rectH) / Math.min(rectW || 1, rectH || 1);
+                        return Math.max(worst, asp);
+                    }, 0);
+                    if (testAspect > bestAspect && rowItems.length >= 1) break;
+                }
+            }
+
+            // Renderizar a linha atual
+            const rowThickness = (horizontal ? w : h) * (rowVal / totalVal);
+            let subCursor = horizontal ? y : x;
+            rowItems.forEach(function(item) {
+                const itemPct = item.value / rowVal;
+                const itemLen = (horizontal ? h : w) * itemPct;
+                let rx, ry, rw, rh;
+                if (horizontal) {
+                    rx = cursor; ry = subCursor; rw = rowThickness; rh = itemLen;
+                } else {
+                    rx = subCursor; ry = cursor; rw = itemLen; rh = rowThickness;
+                }
+
+                // Gradiente
+                const grad = ctx.createLinearGradient(rx, ry, rx + rw, ry + rh);
+                grad.addColorStop(0, item.color + 'ee');
+                grad.addColorStop(1, item.color + '88');
+                ctx.fillStyle = grad;
+
+                const pad = 2;
+                const radius = 5;
+                ctx.beginPath();
+                if (ctx.roundRect) {
+                    ctx.roundRect(rx + pad, ry + pad, rw - pad * 2, rh - pad * 2, radius);
+                } else {
+                    ctx.rect(rx + pad, ry + pad, rw - pad * 2, rh - pad * 2);
+                }
+                ctx.fill();
+
+                // Label
+                const fw = rw - pad * 2;
+                const fh = rh - pad * 2;
+                if (fw > 36 && fh > 22) {
+                    ctx.save();
+                    ctx.beginPath();
+                    if (ctx.roundRect) {
+                        ctx.roundRect(rx + pad, ry + pad, fw, fh, radius);
+                    } else {
+                        ctx.rect(rx + pad, ry + pad, fw, fh);
+                    }
+                    ctx.clip();
+
+                    const pct = ((item.value / total) * 100).toFixed(1);
+                    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    const cx2 = rx + pad + fw / 2;
+                    const cy2 = ry + pad + fh / 2;
+
+                    if (fh > 44) {
+                        ctx.font = 'bold ' + Math.min(13, Math.floor(fw / 6)) + 'px Inter,sans-serif';
+                        const label = item.label.length > 14 ? item.label.slice(0, 12) + '…' : item.label;
+                        ctx.fillText(label, cx2, cy2 - 9);
+                        ctx.font = Math.min(11, Math.floor(fw / 7)) + 'px Inter,sans-serif';
+                        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                        ctx.fillText(pct + '%', cx2, cy2 + 9);
+                    } else {
+                        ctx.font = 'bold ' + Math.min(11, Math.floor(fw / 6)) + 'px Inter,sans-serif';
+                        const label = item.label.length > 10 ? item.label.slice(0, 8) + '…' : item.label;
+                        ctx.fillText(label + ' ' + pct + '%', cx2, cy2);
+                    }
+                    ctx.restore();
+                }
+
+                subCursor += itemLen;
+                item._rect = { x: rx + pad, y: ry + pad, w: rw - pad * 2, h: rh - pad * 2 };
+            });
+
+            cursor += rowThickness;
+            remaining = remaining.slice(rowItems.length);
+        }
+    }
+
+    const sorted = [...dados].sort(function(a, b) { return b.value - a.value; });
+    squarify(sorted, 0, 0, W, H);
+
+    // Hover interativo
+    canvas._treemapData = sorted;
+    canvas.onmousemove = function(e) {
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const hit = sorted.find(function(d) {
+            if (!d._rect) return false;
+            return mx >= d._rect.x && mx <= d._rect.x + d._rect.w && my >= d._rect.y && my <= d._rect.y + d._rect.h;
+        });
+        const el = criarOuObterTooltipEl();
+        if (hit) {
+            const pct = ((hit.value / total) * 100).toFixed(1);
+            el.style.opacity = '1';
+            el.style.left = (e.clientX + 14) + 'px';
+            el.style.top  = (e.clientY - 10) + 'px';
+            el.innerHTML = '<div style="font-weight:700;margin-bottom:6px;color:#a5b4fc;font-size:11px;text-transform:uppercase;letter-spacing:0.6px">' + hit.label + '</div>' +
+                '<div style="display:flex;gap:7px;align-items:center"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + hit.color + ';flex-shrink:0"></span>' +
+                fmtR(hit.value) + ' (' + pct + '%)</div>';
+            canvas.style.cursor = 'crosshair';
+        } else {
+            el.style.opacity = '0';
+            canvas.style.cursor = '';
+        }
+    };
+    canvas.onmouseleave = function() {
+        const el = document.getElementById('dash-tooltip-premium');
+        if (el) el.style.opacity = '0';
+        canvas.style.cursor = '';
+    };
 }
 
 // ── TEMA: CATEGORIAS ─────────────────────────────────────────────
@@ -1922,16 +2318,30 @@ function renderizarTemaCategorias() {
     if (el2) { el2.textContent = top5[0] && total > 0 ? ((top5[0][1]/total*100).toFixed(1)+'%') : '0%'; el2.style.color = '#f59e0b'; }
     if (el3) el3.textContent = catOrdenadas.length;
 
-    // Gráfico 1: Pizza — todas as categorias
+    // Gráfico 1: Treemap — todas as categorias (canvas 2D puro)
     if (catOrdenadas.length > 0) {
-        const cores = catOrdenadas.map((_,i) => CORES[i % CORES.length]);
-        criarChart('tema-cat-anual', {
-            type: 'pie',
-            data: {
-                labels: catOrdenadas.map(([n])=>n),
-                datasets: [{ data: catOrdenadas.map(([,v])=>v), backgroundColor: cores, borderWidth: 0, hoverOffset: 18 }]
-            },
-            options: opcoesDonut()
+        // Destruir chart Chart.js anterior se existir
+        const canvasTreemap = document.getElementById('tema-cat-anual');
+        if (canvasTreemap && canvasTreemap._chartInstance) {
+            canvasTreemap._chartInstance.destroy();
+            canvasTreemap._chartInstance = null;
+        }
+        const dadosTreemap = catOrdenadas.map(function([nome, valor], i) {
+            return { label: nome, value: valor, color: CORES[i % CORES.length] };
+        });
+        // Dar um frame para o card ter dimensões definitivas
+        requestAnimationFrame(function() {
+            desenharTreemap('tema-cat-anual', dadosTreemap);
+            // ResizeObserver para redesenhar se o card mudar de tamanho
+            if (canvasTreemap && !canvasTreemap._treemapObserver) {
+                const card = canvasTreemap.closest('.tema-chart-card');
+                if (card && typeof ResizeObserver !== 'undefined') {
+                    canvasTreemap._treemapObserver = new ResizeObserver(function() {
+                        desenharTreemap('tema-cat-anual', dadosTreemap);
+                    });
+                    canvasTreemap._treemapObserver.observe(card);
+                }
+            }
         });
     }
 
@@ -1946,23 +2356,53 @@ function renderizarTemaCategorias() {
                 porMes[d.mes] += parseFloat(d.valor || 0);
             }
         });
-        return { label: nome, data: porMes, borderColor: CORES[i], backgroundColor: CORES[i]+'22', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0 };
+        return {
+            label: nome,
+            data: porMes,
+            borderColor: CORES[i],
+            backgroundColor: CORES[i]+'22',
+            borderWidth: 2.5,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 0,
+            pointHoverRadius: 5,
+            _glowColor: CORES[i],
+            _glowBlur: 8
+        };
     });
     criarChart('tema-cat-evolucao', {
         type: 'line',
         data: { labels: MESES_LABELS, datasets },
-        options: opcoesEscuras({ plugins: { legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } })
+        options: opcoesEscuras({
+            plugins: {
+                legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } },
+                tooltip: { enabled: false, external: tooltipExternoHandler }
+            },
+            animation: { duration: 900, easing: 'easeOutQuart' },
+            scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } }
+        })
     });
 
-    // Gráfico 3: Barras horizontais — média por categoria (todas)
+    // Gráfico 3: Barras horizontais — média por categoria (todas) com gradiente
     const mediaCat = catOrdenadas.map(([nome, tot]) => ({ nome, media: tot/12 }));
     criarChart('tema-cat-media', {
         type: 'bar',
         data: {
             labels: mediaCat.map(c=>c.nome),
-            datasets: [{ label: 'Média/Mês', data: mediaCat.map(c=>c.media), backgroundColor: mediaCat.map((_,i)=>CORES[i%CORES.length]), borderRadius: 4 }]
+            datasets: [{
+                label: 'Média/Mês',
+                data: mediaCat.map(c=>c.media),
+                backgroundColor: mediaCat.map((_,i)=>CORES[i%CORES.length]),
+                borderRadius: 4,
+                _gradColors: ['#f43f5e', '#fb7185']
+            }]
         },
-        options: opcoesBarraH()
+        options: Object.assign({}, opcoesBarraH(), {
+            animation: { duration: 900, easing: 'easeOutQuart', delay: function(ctx) { return ctx.dataIndex * 40; } },
+            plugins: Object.assign({}, opcoesBarraH().plugins, {
+                tooltip: { enabled: false, external: tooltipExternoHandler }
+            })
+        })
     });
 }
 
@@ -2071,28 +2511,43 @@ function renderizarTemaDivida() {
         data: {
             labels: MESES_LABELS,
             datasets: [
-                { label: 'Juros', data: jurosPorMes, backgroundColor: '#f43f5e', borderRadius: 4 },
-                { label: 'Economias', data: ecoMensal, backgroundColor: '#10b981', borderRadius: 4 }
+                { label: 'Juros', data: jurosPorMes, backgroundColor: '#f43f5e', borderRadius: 4, _gradColors: ['#f43f5e', '#fb7185'] },
+                { label: 'Economias', data: ecoMensal, backgroundColor: '#10b981', borderRadius: 4, _gradColors: ['#10b981', '#34d399'] }
             ]
         },
-        options: opcoesEscuras({ plugins: { legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } })
+        options: opcoesEscuras({
+            plugins: {
+                legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } },
+                tooltip: { enabled: false, external: tooltipExternoHandler }
+            },
+            animation: { duration: 900, easing: 'easeOutQuart', delay: function(ctx) { return ctx.dataIndex * 55; } },
+            scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } }
+        })
     });
 
-    // Gráfico 2: Área — parcelamentos por mês
+    // Gráfico 2: Área — parcelamentos por mês com glow
     const parcPorMes = agruparPorMes(parceladas, 'valor');
     criarChart('tema-divida-parcelas', {
         type: 'line',
-        data: { labels: MESES_LABELS, datasets: [{ label: 'Parcelamentos', data: parcPorMes, borderColor: '#f59e0b', backgroundColor: criarGradiente('tema-divida-parcelas','#f59e0b',0.35,0.02), fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }] },
-        options: opcoesEscuras({ plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } })
+        data: { labels: MESES_LABELS, datasets: [{ label: 'Parcelamentos', data: parcPorMes, borderColor: '#f59e0b', backgroundColor: criarGradiente('tema-divida-parcelas','#f59e0b',0.35,0.02), fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2.5, _glowColor: '#f59e0b', _glowBlur: 10 }] },
+        options: opcoesEscuras({
+            plugins: { legend: { display: false }, tooltip: { enabled: false, external: tooltipExternoHandler } },
+            animation: { duration: 900, easing: 'easeOutQuart' },
+            scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } }
+        })
     });
 
-    // Gráfico 3: Line — custo acumulado de juros
+    // Gráfico 3: Line — custo acumulado de juros com glow
     const jurosCum = [];
     jurosPorMes.reduce((a,v,i)=>{jurosCum[i]=a+v;return jurosCum[i];},0);
     criarChart('tema-divida-custo', {
         type: 'line',
-        data: { labels: MESES_LABELS, datasets: [{ label: 'Juros Acumulados', data: jurosCum, borderColor: '#f43f5e', backgroundColor: criarGradiente('tema-divida-custo','#f43f5e',0.3,0.02), fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }] },
-        options: opcoesEscuras({ plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } })
+        data: { labels: MESES_LABELS, datasets: [{ label: 'Juros Acumulados', data: jurosCum, borderColor: '#f43f5e', backgroundColor: criarGradiente('tema-divida-custo','#f43f5e',0.3,0.02), fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2.5, _glowColor: '#f43f5e', _glowBlur: 12 }] },
+        options: opcoesEscuras({
+            plugins: { legend: { display: false }, tooltip: { enabled: false, external: tooltipExternoHandler } },
+            animation: { duration: 900, easing: 'easeOutQuart' },
+            scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } }
+        })
     });
 }
 
@@ -2191,11 +2646,18 @@ function renderizarTemaAnual() {
         data: {
             labels: MESES_LABELS,
             datasets: [
-                { label: filtro.ano.toString(), data: saldoPorMes, backgroundColor: '#6366f1', borderRadius: 4 },
-                { label: anoAnt.toString(), data: saldoAnt, backgroundColor: '#475569', borderRadius: 4 }
+                { label: filtro.ano.toString(), data: saldoPorMes, backgroundColor: '#6366f1', borderRadius: 4, _gradColors: ['#6366f1', '#a5b4fc'] },
+                { label: anoAnt.toString(), data: saldoAnt, backgroundColor: '#475569', borderRadius: 4, _gradColors: ['#475569', '#94a3b8'] }
             ]
         },
-        options: opcoesEscuras({ plugins: { legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } })
+        options: opcoesEscuras({
+            plugins: {
+                legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } },
+                tooltip: { enabled: false, external: tooltipExternoHandler }
+            },
+            animation: { duration: 900, easing: 'easeOutQuart', delay: function(ctx) { return ctx.dataIndex * 55; } },
+            scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } }
+        })
     });
 
     // Gráfico 3: Barras horizontais ordenadas — ranking de meses
@@ -2274,14 +2736,29 @@ function renderizarTemaAnalise() {
             }]
         },
         options: Object.assign({}, opcoesBarraH(), {
+            animation: { duration: 900, easing: 'easeOutQuart', delay: function(ctx) { return ctx.dataIndex * 40; } },
             plugins: Object.assign({}, opcoesBarraH().plugins, {
                 tooltip: {
-                    callbacks: {
-                        label: function(ctx) {
-                            const v = ctx.parsed.x;
+                    enabled: false,
+                    external: function(context) {
+                        const el = criarOuObterTooltipEl();
+                        const { chart, tooltip } = context;
+                        if (tooltip.opacity === 0) { el.style.opacity = '0'; return; }
+                        const pos = chart.canvas.getBoundingClientRect();
+                        el.style.left = (pos.left + window.scrollX + tooltip.caretX + 14) + 'px';
+                        el.style.top  = (pos.top  + window.scrollY + tooltip.caretY - 10) + 'px';
+                        el.style.opacity = '1';
+                        const title = tooltip.title?.[0] || '';
+                        const lines = tooltip.body?.map(b => b.lines).flat() || [];
+                        const colors = tooltip.labelColors || [];
+                        let html = title ? '<div style="font-weight:700;margin-bottom:7px;color:#a5b4fc;font-size:11px;text-transform:uppercase;letter-spacing:0.6px">' + title + '</div>' : '';
+                        lines.forEach(function(line, i) {
+                            const v = tooltip.dataPoints?.[i]?.parsed?.x || 0;
                             const pct = totalAnualPeso > 0 ? ((v / totalAnualPeso) * 100).toFixed(1) : '0';
-                            return ' ' + fmtR(v) + ' (' + pct + '% do total)';
-                        }
+                            const dotBg = colors[i]?.backgroundColor || '#6366f1';
+                            html += '<div style="display:flex;gap:7px;align-items:center;padding:2px 0"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + dotBg + ';flex-shrink:0"></span><span>' + fmtR(v) + ' <span style="color:#94a3b8;font-size:10px">(' + pct + '%)</span></span></div>';
+                        });
+                        el.innerHTML = html;
                     }
                 }
             })
@@ -2344,11 +2821,18 @@ function renderizarTemaAnalise() {
         data: {
             labels: todosAnos,
             datasets: [
-                { label: 'Receitas', data: recAnos, backgroundColor: '#10b981', borderRadius: 4 },
-                { label: 'Despesas', data: despAnos, backgroundColor: '#f43f5e', borderRadius: 4 }
+                { label: 'Receitas', data: recAnos, backgroundColor: '#10b981', borderRadius: 4, _gradColors: ['#10b981', '#34d399'] },
+                { label: 'Despesas', data: despAnos, backgroundColor: '#f43f5e', borderRadius: 4, _gradColors: ['#f43f5e', '#fb7185'] }
             ]
         },
-        options: opcoesEscuras({ plugins: { legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } })
+        options: opcoesEscuras({
+            plugins: {
+                legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } },
+                tooltip: { enabled: false, external: tooltipExternoHandler }
+            },
+            animation: { duration: 900, easing: 'easeOutQuart', delay: function(ctx) { return ctx.dataIndex * 80; } },
+            scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } }
+        })
     });
 }
 
@@ -2648,7 +3132,9 @@ async function renderizarTemaMetas() {
                     pointHoverRadius: 7,
                     pointBackgroundColor: '#10b981',
                     pointBorderColor: isDark ? '#1e293b' : '#fff',
-                    pointBorderWidth: 2
+                    pointBorderWidth: 2,
+                    _glowColor: '#10b981',
+                    _glowBlur: 12
                 }]
             },
             options: {
