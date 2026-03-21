@@ -1328,7 +1328,7 @@ function criarGraficoFormaPagamentoComFiltros(dadosFinanceiros, ano, filtros) {
                     borderWidth: 4,
                     spacing: 4,
                     borderRadius: 6,
-                    hoverOffset: 8
+                    hoverOffset: 18
                 }]
             },
             options: {
@@ -1550,7 +1550,7 @@ function renderDistribuicaoCartoes(dadosFinanceiros, ano, filtros = {}) {
                     borderWidth: 4,
                     spacing: 4,
                     borderRadius: 6,
-                    hoverOffset: 8
+                    hoverOffset: 18
                 }]
             },
             options: {
@@ -1946,6 +1946,7 @@ function opcoesDonut() {
         responsive: true,
         maintainAspectRatio: false,
         cutout: '55%',
+        animation: { animateRotate: true, animateScale: true, duration: 600 },
         plugins: {
             legend: { display: false },
             tooltip: {
@@ -2082,7 +2083,7 @@ function renderizarTemaFluxo() {
         type: 'doughnut',
         data: {
             labels: ['Receitas', 'Despesas'],
-            datasets: [{ data: [totalRec, totalDesp], backgroundColor: ['#10b981', '#f43f5e'], borderWidth: 0, hoverOffset: 6 }]
+            datasets: [{ data: [totalRec, totalDesp], backgroundColor: ['#10b981', '#f43f5e'], borderWidth: 0, hoverOffset: 18 }]
         },
         options: opcoesDonut()
     });
@@ -2120,7 +2121,7 @@ function renderizarTemaCategorias() {
             type: 'doughnut',
             data: {
                 labels: top8.map(([n])=>n),
-                datasets: [{ data: top8.map(([,v])=>v), backgroundColor: CORES, borderWidth: 0, hoverOffset: 8 }]
+                datasets: [{ data: top8.map(([,v])=>v), backgroundColor: CORES, borderWidth: 0, hoverOffset: 18 }]
             },
             options: opcoesDonut()
         });
@@ -2186,7 +2187,7 @@ function renderizarTemaPagamento() {
     if (formasLabels.length > 0) {
         criarChart('tema-pgto-formas', {
             type: 'doughnut',
-            data: { labels: formasLabels, datasets: [{ data: formasData, backgroundColor: CORES, borderWidth: 0, hoverOffset: 6 }] },
+            data: { labels: formasLabels, datasets: [{ data: formasData, backgroundColor: CORES, borderWidth: 0, hoverOffset: 18 }] },
             options: opcoesDonut()
         });
     }
@@ -2201,7 +2202,7 @@ function renderizarTemaPagamento() {
     if (Object.keys(porCartao).length > 0) {
         criarChart('tema-pgto-cartoes', {
             type: 'doughnut',
-            data: { labels: Object.keys(porCartao), datasets: [{ data: Object.values(porCartao), backgroundColor: CORES, borderWidth: 0, hoverOffset: 6 }] },
+            data: { labels: Object.keys(porCartao), datasets: [{ data: Object.values(porCartao), backgroundColor: CORES, borderWidth: 0, hoverOffset: 18 }] },
             options: opcoesDonut()
         });
     }
