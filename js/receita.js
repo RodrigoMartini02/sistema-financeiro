@@ -1822,7 +1822,7 @@ async function criarObjetivo(dados) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
-            valor: 0,
+            valor: dados.valorInicial || 0,
             mes: mes,
             ano: ano,
             data: `${ano}-${String(mes + 1).padStart(2, '0')}-15`,
@@ -1962,6 +1962,7 @@ window.fecharModalCriarObjetivo = fecharModalCriarObjetivo;
 async function salvarNovoObjetivo() {
     const nome = (document.getElementById('obj-nome')?.value || '').trim();
     const valorMeta = parseFloat(document.getElementById('obj-valor-meta')?.value);
+    const valorInicial = parseFloat(document.getElementById('obj-valor-inicial')?.value) || 0;
     const dataAlvo = document.getElementById('obj-data-alvo')?.value || null;
 
     if (!nome) {
@@ -1974,8 +1975,12 @@ async function salvarNovoObjetivo() {
     }
 
     try {
-        await criarObjetivo({ nome, objetivoValor: valorMeta, dataObjetivo: dataAlvo });
-        fecharModalCriarObjetivo();
+        await criarObjetivo({ nome, objetivoValor: valorMeta, valorInicial, dataObjetivo: dataAlvo });
+        // Limpar campos
+        document.getElementById('obj-nome').value = '';
+        document.getElementById('obj-valor-meta').value = '';
+        document.getElementById('obj-valor-inicial').value = '';
+        document.getElementById('obj-data-alvo').value = '';
         await renderizarListaObjetivos();
         window.mostrarMensagemSucesso ? window.mostrarMensagemSucesso('Objetivo criado com sucesso!') : null;
     } catch (e) {

@@ -2120,9 +2120,14 @@
 
             <!-- ABA: OBJETIVOS -->
             <div id="metas-tab-objetivos" class="metas-tab-content" style="display:none">
-                <div class="objetivos-header-action">
-                    <button class="btn btn-primary btn-sm" onclick="abrirModalCriarObjetivo()">
-                        <i class="fas fa-plus"></i> Novo Objetivo
+                <!-- Formulário inline (igual reservas) -->
+                <div class="nova-reserva-inline nova-objetivo-inline">
+                    <input type="text" id="obj-nome" class="form-control" placeholder="Nome do objetivo" maxlength="80">
+                    <input type="number" id="obj-valor-meta" class="form-control" placeholder="Valor meta (R$)" step="0.01" min="0.01">
+                    <input type="number" id="obj-valor-inicial" class="form-control" placeholder="Valor inicial (R$)" step="0.01" min="0">
+                    <input type="date" id="obj-data-alvo" class="form-control" title="Data alvo (opcional)">
+                    <button type="button" class="btn btn-success" onclick="salvarNovoObjetivo()" title="Cadastrar objetivo">
+                        <i class="fas fa-plus"></i>
                     </button>
                 </div>
                 <div id="lista-objetivos" class="lista-objetivos-container">
@@ -2144,35 +2149,6 @@
     </div>
 </div>
 
-<!-- Modal Criar Objetivo -->
-<div id="modal-criar-objetivo" class="modal">
-    <div class="modal-content" style="max-width:420px">
-        <div class="modal-header">
-            <h2><i class="fas fa-trophy"></i> Novo Objetivo</h2>
-            <button type="button" class="close" onclick="fecharModalCriarObjetivo()" title="Fechar">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div class="form-group">
-                <label>Nome do Objetivo</label>
-                <input type="text" id="obj-nome" class="form-control" placeholder="Ex: Viagem, Carro novo..." maxlength="80">
-            </div>
-            <div class="form-group">
-                <label>Valor Meta (R$)</label>
-                <input type="number" id="obj-valor-meta" class="form-control" placeholder="0,00" step="0.01" min="0.01">
-            </div>
-            <div class="form-group">
-                <label>Data Alvo <span style="font-size:11px;color:#94a3b8">(opcional)</span></label>
-                <input type="date" id="obj-data-alvo" class="form-control">
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" onclick="fecharModalCriarObjetivo()">Cancelar</button>
-            <button type="button" class="btn btn-primary" onclick="salvarNovoObjetivo()">
-                <i class="fas fa-check"></i> Criar Objetivo
-            </button>
-        </div>
-    </div>
-</div>
 
 <!-- Templates para anexos -->
 <template id="template-anexo-item">
