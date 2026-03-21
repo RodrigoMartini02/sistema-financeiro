@@ -1158,6 +1158,9 @@
                         <tbody id="lista-usuarios">
                             <!-- Preenchido dinamicamente via template -->
                         </tbody>
+                        <tbody>
+                            <tr id="usuarios-sentinel" style="height:1px"><td colspan="6"></td></tr>
+                        </tbody>
                     </table>
                 </div>
 
@@ -1167,16 +1170,6 @@
                     <p>Nenhum usuário encontrado</p>
                 </div>
 
-                <!-- Controles de Paginação -->
-                <div class="pagination-controls">
-                    <button id="btn-prev-page" class="btn btn-secondary btn-sm" disabled>
-                        <i class="fas fa-chevron-left"></i> Anterior
-                    </button>
-                    <span id="pagination-info">Página 1 de 1</span>
-                    <button id="btn-next-page" class="btn btn-secondary btn-sm" disabled>
-                        Próxima <i class="fas fa-chevron-right"></i>
-                    </button>
-                </div>
 
             <!-- Card de Informações de Segurança -->
             <div class="config-card info-card">

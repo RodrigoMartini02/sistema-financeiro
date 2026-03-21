@@ -9,10 +9,11 @@ let categoriasUsuario = { despesas: [] };
 let cartoesUsuario = []; // Array dinâmico de cartões com IDs únicos
 let proximoIdCartao = 1; // Contador para gerar IDs únicos
 let usuariosFiltrados = [];
-let paginaAtual = 1;
 let tipoUsuarioAtual = null;
 
-const itensPorPagina = 10;
+const itensPorPagina = 25;
+let _usuariosOffset = 0;
+let _usuariosObserver = null;
 const categoriasPadrao = {
     despesas: ["Alimentação", "Combustível", "Moradia"]
 };
@@ -1207,44 +1208,45 @@ async function filtrarUsuarios() {
         usuariosFiltrados = [];
     }
 
-    paginaAtual = 1;
     renderizarUsuarios();
 }
 
 function renderizarUsuarios() {
     const listaUsuarios = document.getElementById('lista-usuarios');
     const noUsersMessage = document.getElementById('no-users-message');
-    const paginationInfo = document.getElementById('pagination-info');
-    const btnPrevPage = document.getElementById('btn-prev-page');
-    const btnNextPage = document.getElementById('btn-next-page');
-    
     if (!listaUsuarios) return;
-    
+
     listaUsuarios.innerHTML = '';
-    
+    _usuariosOffset = 0;
+
+    if (_usuariosObserver) { _usuariosObserver.disconnect(); _usuariosObserver = null; }
+
     if (usuariosFiltrados.length === 0) {
         if (noUsersMessage) noUsersMessage.classList.remove('hidden');
-        if (paginationInfo) paginationInfo.textContent = 'Página 0 de 0';
-        if (btnPrevPage) btnPrevPage.disabled = true;
-        if (btnNextPage) btnNextPage.disabled = true;
         return;
     }
-    
     if (noUsersMessage) noUsersMessage.classList.add('hidden');
-    
-    const totalPaginas = Math.ceil(usuariosFiltrados.length / itensPorPagina);
-    const inicio = (paginaAtual - 1) * itensPorPagina;
-    const fim = Math.min(inicio + itensPorPagina, usuariosFiltrados.length);
-    
-    if (paginationInfo) paginationInfo.textContent = `Página ${paginaAtual} de ${totalPaginas}`;
-    if (btnPrevPage) btnPrevPage.disabled = paginaAtual <= 1;
-    if (btnNextPage) btnNextPage.disabled = paginaAtual >= totalPaginas;
-    
-    for (let i = inicio; i < fim; i++) {
-        const usuario = usuariosFiltrados[i];
-        const linha = criarLinhaUsuario(usuario, i);
-        listaUsuarios.appendChild(linha);
+
+    _renderProximoLoteUsuarios();
+
+    const sentinel = document.getElementById('usuarios-sentinel');
+    if (sentinel) {
+        _usuariosObserver = new IntersectionObserver(function(entries) {
+            if (entries[0].isIntersecting) _renderProximoLoteUsuarios();
+        }, { threshold: 0.1 });
+        _usuariosObserver.observe(sentinel);
     }
+}
+
+function _renderProximoLoteUsuarios() {
+    const listaUsuarios = document.getElementById('lista-usuarios');
+    if (!listaUsuarios) return;
+    const fim = Math.min(_usuariosOffset + itensPorPagina, usuariosFiltrados.length);
+    for (let i = _usuariosOffset; i < fim; i++) {
+        const linha = criarLinhaUsuario(usuariosFiltrados[i], i);
+        if (linha) listaUsuarios.appendChild(linha);
+    }
+    _usuariosOffset = fim;
 }
 
 function criarLinhaUsuario(usuario, index) {
@@ -2957,28 +2959,6 @@ function setupEventListeners() {
     if (filterUserType) filterUserType.addEventListener('change', filtrarUsuarios);
     if (btnAdicionarUsuario) {
         btnAdicionarUsuario.addEventListener('click', () => abrirModalEditarUsuario(null, true));
-    }
-    
-    const btnPrevPage = document.getElementById('btn-prev-page');
-    const btnNextPage = document.getElementById('btn-next-page');
-    
-    if (btnPrevPage) {
-        btnPrevPage.addEventListener('click', () => {
-            if (paginaAtual > 1) {
-                paginaAtual--;
-                renderizarUsuarios();
-            }
-        });
-    }
-    
-    if (btnNextPage) {
-        btnNextPage.addEventListener('click', () => {
-            const totalPaginas = Math.ceil(usuariosFiltrados.length / itensPorPagina);
-            if (paginaAtual < totalPaginas) {
-                paginaAtual++;
-                renderizarUsuarios();
-            }
-        });
     }
     
     const formAdicionarUsuario = document.getElementById('form-adicionar-usuario');
