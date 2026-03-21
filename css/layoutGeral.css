@@ -152,6 +152,18 @@
     --theme-scrollbar:     #c7d7ff;
 }
 
+/* Variáveis legadas mapeadas para tema no dark mode */
+[data-theme="dark"] {
+    --bg-color: var(--theme-bg);
+    --text-color: var(--theme-text);
+    --border-color: var(--theme-border-solid);
+    --card-bg: var(--theme-surface-solid);
+    --bg-card: var(--theme-surface-solid);
+    --text-primary: var(--theme-text);
+    --text-secondary: var(--theme-text-muted);
+    --bg-input: var(--theme-input-bg);
+}
+
 /* ================================================================
    PWA / MOBILE — SAFE AREA & TOUCH ENHANCEMENTS
    ================================================================ */
@@ -4090,4 +4102,364 @@ table tr:hover {
 .form-group-comprovante {
     width: 180px;
     margin-left: 10px;
+}
+
+/* ================================================================
+   DARK MODE OVERRIDES — LAYOUT GERAL
+   ================================================================ */
+
+/* Cards de meses — receitas/despesas mini-boxes */
+[data-theme="dark"] .mes-valor:first-child {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.2);
+}
+
+[data-theme="dark"] .mes-valor:last-child {
+    background: rgba(244, 63, 94, 0.1);
+    border-color: rgba(244, 63, 94, 0.2);
+}
+
+/* Scrollbar da seção de meses */
+[data-theme="dark"] .meses-section::-webkit-scrollbar-track { background: var(--theme-surface); }
+[data-theme="dark"] .meses-section::-webkit-scrollbar-thumb { background: var(--theme-scrollbar); border-radius: 4px; }
+[data-theme="dark"] .meses-section::-webkit-scrollbar-thumb:hover { background: var(--theme-border-solid); }
+
+/* Grid content scrollbar */
+[data-theme="dark"] .grid-content::-webkit-scrollbar-track { background: var(--theme-surface); }
+[data-theme="dark"] .grid-content::-webkit-scrollbar-thumb { background: var(--theme-scrollbar); }
+[data-theme="dark"] .grid-content::-webkit-scrollbar-thumb:hover { background: var(--theme-border-solid); }
+
+/* Tabela de transações base */
+[data-theme="dark"] .tabela-transacoes {
+    background: var(--theme-surface-solid);
+}
+[data-theme="dark"] .tabela-transacoes td {
+    border-bottom-color: var(--theme-border);
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .tabela-transacoes tr:hover {
+    background: var(--theme-table-hover);
+}
+
+/* Tabelas de categorias e usuários */
+[data-theme="dark"] .tabela-categorias,
+[data-theme="dark"] .tabela-usuarios {
+    background: var(--theme-surface-solid);
+}
+[data-theme="dark"] .tabela-categorias td,
+[data-theme="dark"] .tabela-usuarios td {
+    border-bottom-color: var(--theme-border);
+    border-right-color: var(--theme-border);
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .tabela-categorias tr:hover,
+[data-theme="dark"] .tabela-usuarios tr:hover {
+    background: var(--theme-table-hover);
+}
+
+/* Grid rows */
+[data-theme="dark"] .despesas-grid,
+[data-theme="dark"] .categorias-grid {
+    background: var(--theme-surface-solid);
+}
+[data-theme="dark"] .grid-row {
+    border-bottom-color: var(--theme-border);
+}
+[data-theme="dark"] .grid-row > div,
+[data-theme="dark"] .grid-row > * {
+    color: var(--theme-text-muted);
+    border-right-color: var(--theme-border);
+}
+
+/* Form controls e filtros */
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .filter-select,
+[data-theme="dark"] .form-select {
+    background: var(--theme-input-bg);
+    border-color: var(--theme-input-border);
+    color: var(--theme-text);
+}
+[data-theme="dark"] .form-control:hover,
+[data-theme="dark"] .filter-select:hover,
+[data-theme="dark"] .form-select:hover {
+    border-color: var(--theme-border-solid);
+}
+
+/* Formulários base */
+[data-theme="dark"] .form-group label {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .form-group input,
+[data-theme="dark"] .form-group select,
+[data-theme="dark"] .form-group textarea {
+    background-color: var(--theme-input-bg);
+    border-color: var(--theme-input-border);
+    color: var(--theme-text);
+}
+
+/* Tabs sistema base */
+[data-theme="dark"] .tab-btn {
+    background-color: var(--theme-surface);
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .tab-btn:hover {
+    background-color: var(--theme-surface-2);
+    color: var(--theme-text);
+}
+[data-theme="dark"] .tabs,
+[data-theme="dark"] .tabs-toolbar {
+    border-bottom-color: var(--theme-border);
+}
+[data-theme="dark"] .toolbar-divider {
+    background-color: var(--theme-border);
+}
+[data-theme="dark"] .toolbar-contador {
+    background: var(--theme-surface);
+    color: var(--theme-text-muted);
+}
+
+/* Barra de saldos */
+[data-theme="dark"] .barra-saldos-mes {
+    background: var(--theme-surface-solid);
+    border-color: var(--theme-border);
+}
+[data-theme="dark"] .saldo-valor {
+    color: var(--theme-text);
+}
+[data-theme="dark"] .saldo-sep {
+    background: var(--theme-border);
+}
+
+/* Mensagens e alertas base */
+[data-theme="dark"] .mensagem-sucesso {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #6ee7b7;
+    border-color: rgba(16, 185, 129, 0.2);
+}
+[data-theme="dark"] .mensagem-erro {
+    background-color: rgba(244, 63, 94, 0.1);
+    color: #fca5a5;
+    border-color: rgba(244, 63, 94, 0.2);
+}
+[data-theme="dark"] .mensagem-aviso {
+    background-color: rgba(245, 158, 11, 0.1);
+    color: #fcd34d;
+    border-color: rgba(245, 158, 11, 0.2);
+}
+[data-theme="dark"] .mensagem-info {
+    background-color: rgba(23, 162, 184, 0.1);
+    color: #7dd3fc;
+    border-color: rgba(23, 162, 184, 0.2);
+}
+
+/* Config section */
+[data-theme="dark"] .config-section h2 {
+    color: var(--theme-text);
+    border-bottom-color: var(--primary-color);
+}
+[data-theme="dark"] .config-card {
+    background: var(--theme-surface-solid);
+    border-color: var(--theme-border);
+}
+[data-theme="dark"] .config-card h3 {
+    color: var(--theme-text);
+}
+[data-theme="dark"] .config-card p {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .info-card {
+    background: var(--theme-surface-2);
+}
+[data-theme="dark"] .info-card ul {
+    color: var(--theme-text-muted);
+}
+
+/* User management */
+[data-theme="dark"] .user-management-controls {
+    background: var(--theme-surface);
+}
+[data-theme="dark"] .search-container input {
+    background: var(--theme-input-bg);
+    border-color: var(--theme-input-border);
+    color: var(--theme-text);
+}
+
+/* Modal pagamento individual */
+[data-theme="dark"] .info-despesa-container {
+    background: var(--theme-surface-2);
+}
+[data-theme="dark"] .info-despesa-container .info-label {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .info-despesa-container .info-valor {
+    color: var(--theme-text);
+}
+[data-theme="dark"] #valor-pago-individual {
+    background: var(--theme-input-bg);
+    border-color: var(--theme-input-border);
+    color: var(--theme-text);
+}
+[data-theme="dark"] .checkbox-row {
+    background: rgba(245, 158, 11, 0.08);
+}
+[data-theme="dark"] .checkbox-row label {
+    color: #fcd34d;
+}
+
+/* Carrinho de compras modal */
+[data-theme="dark"] #modal-carrinho-compras .modal-content {
+    background: var(--theme-modal-bg);
+}
+[data-theme="dark"] #modal-carrinho-compras .modal-body {
+    background: var(--theme-bg);
+}
+[data-theme="dark"] .adicionar-item-section,
+[data-theme="dark"] .resumo-rapido,
+[data-theme="dark"] .lista-interesses {
+    background: var(--theme-surface-solid);
+    border-color: var(--theme-border);
+}
+[data-theme="dark"] .adicionar-item-section h3 {
+    color: var(--theme-text);
+}
+[data-theme="dark"] .form-row-carrinho .form-input {
+    background: var(--theme-input-bg);
+    border-color: var(--theme-input-border);
+    color: var(--theme-text);
+}
+[data-theme="dark"] .item-carrinho {
+    background: var(--theme-surface-solid);
+    border-color: var(--theme-border);
+}
+[data-theme="dark"] .item-header-compact {
+    border-bottom-color: var(--theme-border);
+}
+[data-theme="dark"] .item-titulo {
+    color: var(--theme-text);
+}
+[data-theme="dark"] .item-viabilidade-inline {
+    background: var(--theme-surface-2);
+    border-color: var(--theme-border);
+}
+[data-theme="dark"] .resumo-item .label {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .resumo-item .valor {
+    color: var(--theme-text);
+}
+[data-theme="dark"] .sem-itens-carrinho h4 {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .parcelas-info,
+[data-theme="dark"] .mes-desejado-texto {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .motivo-texto {
+    color: var(--theme-text-faint);
+}
+
+/* Prioridades badges no dark */
+[data-theme="dark"] .prioridade-alta {
+    background: rgba(220, 38, 38, 0.15);
+    border-color: rgba(220, 38, 38, 0.3);
+}
+[data-theme="dark"] .prioridade-media {
+    background: rgba(217, 119, 6, 0.15);
+    border-color: rgba(217, 119, 6, 0.3);
+}
+[data-theme="dark"] .prioridade-baixa {
+    background: rgba(37, 99, 235, 0.15);
+    border-color: rgba(37, 99, 235, 0.3);
+}
+
+/* Badge de status de grid (texto) */
+[data-theme="dark"] .badge-status.quitada,
+[data-theme="dark"] .badge-status.paga { color: #4ade80; }
+[data-theme="dark"] .badge-status.pendente { color: #fbbf24; }
+[data-theme="dark"] .badge-status.atrasada { color: #f87171; }
+[data-theme="dark"] .badge-pagamento.pix { color: #22d3ee; }
+[data-theme="dark"] .badge-pagamento.debito { color: #60a5fa; }
+[data-theme="dark"] .badge-pagamento.credito { color: #a78bfa; }
+[data-theme="dark"] .badge-pagamento.dinheiro { color: #4ade80; }
+
+/* Barras de progresso - fundo */
+[data-theme="dark"] .barra-fundo {
+    background: rgba(99, 149, 255, 0.1);
+}
+
+/* Checkbox labels */
+[data-theme="dark"] .checkbox-label {
+    color: var(--theme-text);
+}
+[data-theme="dark"] .checkbox-mini {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .checkbox-form {
+    background: rgba(14, 165, 233, 0.08);
+    border-color: rgba(14, 165, 233, 0.2);
+}
+[data-theme="dark"] .checkbox-form label {
+    color: #7dd3fc;
+}
+
+/* Toolbar saldo positivo/negativo */
+[data-theme="dark"] .toolbar-saldo-positivo { color: #4ade80; }
+[data-theme="dark"] .toolbar-saldo-negativo { color: #f87171; }
+
+/* Dropdown de itens perigosos */
+[data-theme="dark"] .dropdown-item-danger:hover {
+    background: rgba(220, 53, 69, 0.12);
+    color: #f87171;
+}
+
+/* User welcome */
+[data-theme="dark"] .user-welcome {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .user-welcome #nome-usuario-logado {
+    color: var(--theme-text);
+}
+[data-theme="dark"] .user-welcome .welcome-text {
+    color: var(--theme-text-faint);
+}
+
+/* Btn hamburger mobile */
+[data-theme="dark"] .btn-hamburger-mobile {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .btn-hamburger-mobile:hover {
+    background: var(--theme-surface);
+    color: var(--theme-text);
+}
+
+/* Resumo cards (dashboard/rel) */
+[data-theme="dark"] .resumo-cards .card {
+    background: var(--theme-surface-solid);
+    box-shadow: var(--theme-shadow-sm);
+}
+[data-theme="dark"] .resumo-cards .card .card-header span {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .resumo-cards .card .card-footer {
+    color: var(--theme-text-faint);
+}
+
+/* Modal gen/carta */
+[data-theme="dark"] .modal-gen-box,
+[data-theme="dark"] .modal-carta-box {
+    background: var(--theme-modal-bg);
+}
+[data-theme="dark"] .modal-gen-textarea {
+    background: var(--theme-input-bg);
+    border-color: var(--theme-input-border);
+    color: var(--theme-text);
+}
+[data-theme="dark"] .modal-gen-btn-cancelar {
+    background: transparent;
+    border-color: var(--theme-border);
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .modal-gen-btn-cancelar:hover {
+    color: var(--theme-text);
+    border-color: var(--theme-border-solid);
 }

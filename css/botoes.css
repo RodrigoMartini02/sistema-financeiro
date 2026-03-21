@@ -846,3 +846,55 @@
         font-size: 14px;
     }
 }
+
+/* ================================================================
+   DARK MODE OVERRIDES — BOTÕES
+   ================================================================ */
+
+/* Botões outline — visibilidade no dark */
+[data-theme="dark"] .btn-outline {
+    color: #818cf8;
+    border-color: #818cf8;
+}
+[data-theme="dark"] .btn-outline:hover:not(:disabled) {
+    background-color: #818cf8;
+    color: #fff;
+}
+
+[data-theme="dark"] .btn-outline-secondary {
+    color: var(--theme-text-muted);
+    border-color: var(--theme-border-solid);
+}
+[data-theme="dark"] .btn-outline-secondary:hover:not(:disabled) {
+    background-color: var(--theme-border-solid);
+    color: #fff;
+}
+
+/* Botão aba — fundo claro no dark */
+[data-theme="dark"] .btn-aba {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .btn-aba:hover:not(:disabled) {
+    color: var(--primary-color);
+    background-color: var(--theme-table-hover);
+}
+
+/* Botões de anexo — contorno */
+[data-theme="dark"] .btn-remover-anexo,
+[data-theme="dark"] .btn-download-anexo {
+    border-color: var(--theme-border);
+    color: var(--theme-text-muted);
+}
+
+/* Dropdown items */
+[data-theme="dark"] .dropdown-item {
+    color: var(--theme-text);
+}
+[data-theme="dark"] .dropdown-item:hover:not(:disabled) {
+    background-color: var(--theme-table-hover);
+    color: var(--primary-color);
+}
+[data-theme="dark"] .dropdown-item-danger:hover:not(:disabled) {
+    background-color: rgba(220, 53, 69, 0.12);
+    color: #f87171;
+}

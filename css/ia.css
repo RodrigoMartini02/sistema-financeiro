@@ -1303,3 +1303,214 @@ body:has(.ia-container) {
     .ia-form-group--sm { flex: none; }
     .ia-modal { border-radius: 10px; }
 }
+
+/* ================================================================
+   DARK MODE OVERRIDES — IA
+   ================================================================ */
+
+/* Painel flutuante */
+[data-theme="dark"] .ai-chat-panel {
+    background: var(--theme-surface-solid);
+    border-color: var(--theme-border);
+}
+
+/* Bolha do usuário no dark — preservar contraste */
+[data-theme="dark"] .ai-msg--user .ai-msg-bub {
+    background: #1a3a2a;
+    color: #d1fae5;
+}
+
+/* File preview */
+[data-theme="dark"] .ai-file-preview {
+    background: rgba(29, 78, 216, 0.12);
+    border-color: rgba(96, 165, 250, 0.3);
+    color: #93c5fd;
+}
+
+/* Chips de boas-vindas no painel */
+[data-theme="dark"] .ai-welcome-chip:hover {
+    background: rgba(67, 97, 238, 0.12);
+}
+
+/* Badge status IA */
+[data-theme="dark"] #ia-badge-status.ativo   { background: rgba(16,185,129,0.15); color: #4ade80; }
+[data-theme="dark"] #ia-badge-status.gen     { background: rgba(99,102,241,0.15); color: #a5b4fc; }
+[data-theme="dark"] #ia-badge-status.heurist { background: rgba(99,102,241,0.15); color: #a5b4fc; }
+[data-theme="dark"] #ia-badge-status.erro    { background: rgba(244,63,94,0.15);  color: #f87171; }
+
+/* Ícone de botão na barra */
+[data-theme="dark"] .ai-icon-btn {
+    border-color: var(--theme-border);
+    color: var(--theme-text-muted);
+}
+
+/* Config IA */
+[data-theme="dark"] .ia-provider-select {
+    background: var(--theme-input-bg);
+    border-color: var(--theme-input-border);
+    color: var(--theme-text);
+}
+[data-theme="dark"] .ia-api-key-input {
+    background: var(--theme-input-bg);
+    border-color: var(--theme-input-border);
+    color: var(--theme-text);
+}
+[data-theme="dark"] .config-card-sm {
+    background: var(--theme-surface-2);
+}
+
+/* Página IA — sidebar */
+[data-theme="dark"] .ia-sidebar {
+    background: var(--theme-surface-solid);
+    border-right-color: var(--theme-border);
+}
+[data-theme="dark"] .ia-sidebar-header {
+    border-bottom-color: var(--theme-border);
+}
+[data-theme="dark"] .ia-btn-voltar {
+    border-color: var(--theme-border);
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .ia-acao-btn {
+    color: var(--theme-text);
+}
+[data-theme="dark"] .ia-acao-btn:hover {
+    background: var(--theme-table-hover);
+    color: var(--primary-color);
+}
+[data-theme="dark"] .ia-recorrencias-panel {
+    border-top-color: var(--theme-border);
+}
+[data-theme="dark"] .ia-exemplos {
+    border-top-color: var(--theme-border);
+}
+[data-theme="dark"] .ia-exemplo-item {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .ia-exemplo-item:hover {
+    background: var(--theme-table-hover);
+    border-color: var(--theme-border);
+    color: var(--primary-color);
+}
+[data-theme="dark"] .ia-btn-detectar:hover {
+    background: var(--theme-table-hover);
+}
+
+/* Página IA — main/header */
+[data-theme="dark"] .ia-main {
+    background: var(--theme-bg);
+}
+[data-theme="dark"] .ia-header {
+    background: var(--theme-surface-solid);
+    border-bottom-color: var(--theme-border);
+}
+[data-theme="dark"] .ia-header h1 {
+    color: var(--theme-text);
+}
+[data-theme="dark"] .ia-btn-icon {
+    border-color: var(--theme-border);
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .ia-btn-icon:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background: rgba(67, 97, 238, 0.08);
+}
+
+/* Página IA — chat area */
+[data-theme="dark"] .ia-chat-area {
+    background: var(--theme-bg);
+}
+
+/* Página IA — welcome */
+[data-theme="dark"] .ia-welcome h2 {
+    color: var(--theme-text);
+}
+[data-theme="dark"] .ia-welcome-chips span {
+    background: var(--theme-surface-solid);
+    border-color: var(--theme-border);
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .ia-welcome-chips span:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background: rgba(67, 97, 238, 0.08);
+}
+
+/* Página IA — input area */
+[data-theme="dark"] .ia-input-area {
+    background: var(--theme-surface-solid);
+    border-top-color: var(--theme-border);
+}
+[data-theme="dark"] .ia-input-bar {
+    background: var(--theme-surface-2);
+    border-color: var(--theme-border);
+}
+[data-theme="dark"] .ia-text-input {
+    color: var(--theme-text);
+}
+[data-theme="dark"] .ia-boleto-field {
+    background: var(--theme-input-bg);
+    border-color: var(--theme-input-border);
+    color: var(--theme-text);
+}
+[data-theme="dark"] .ia-file-preview {
+    background: rgba(29, 78, 216, 0.12);
+    border-color: rgba(96, 165, 250, 0.3);
+    color: #93c5fd;
+}
+
+/* Página IA — botão ghost */
+[data-theme="dark"] .ia-btn-ghost {
+    border-color: var(--theme-border);
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .ia-btn-ghost:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+/* Página IA — modais */
+[data-theme="dark"] .ia-modal {
+    background: var(--theme-modal-bg);
+}
+[data-theme="dark"] .ia-modal-header {
+    border-bottom-color: var(--theme-border);
+}
+[data-theme="dark"] .ia-modal-header h3 {
+    color: var(--theme-text);
+}
+[data-theme="dark"] .ia-modal-header > button {
+    color: var(--theme-text-faint);
+}
+[data-theme="dark"] .ia-modal-header > button:hover {
+    color: var(--theme-text);
+}
+[data-theme="dark"] .ia-modal-footer {
+    border-top-color: var(--theme-border);
+}
+[data-theme="dark"] .ia-form-group label {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .ia-form-group input,
+[data-theme="dark"] .ia-form-group select {
+    background: var(--theme-input-bg);
+    border-color: var(--theme-input-border);
+    color: var(--theme-text);
+}
+
+/* Aprendizado hint */
+[data-theme="dark"] .ia-aprendizado-hint {
+    background: rgba(245, 158, 11, 0.08);
+    border-color: rgba(245, 158, 11, 0.2);
+    color: #fcd34d;
+}
+[data-theme="dark"] .ia-aprendizado-hint i { color: #fbbf24; }
+
+/* Recorrência item */
+[data-theme="dark"] .ia-recorrencia-item {
+    background: var(--theme-surface-2);
+}
+[data-theme="dark"] .ia-recorrencia-item small {
+    color: var(--theme-text-faint);
+}

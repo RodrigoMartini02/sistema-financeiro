@@ -438,3 +438,58 @@
         padding: 10px 12px;
     }
 }
+
+/* ================================================================
+   DARK MODE OVERRIDES — NOTIFICAÇÕES
+   ================================================================ */
+
+/* Painel tab hover */
+[data-theme="dark"] .painel-tab:hover {
+    background: var(--theme-surface-2);
+    color: var(--theme-text-muted);
+}
+
+/* Cards de notificação */
+[data-theme="dark"] .notif-card {
+    border-bottom-color: var(--theme-border);
+}
+[data-theme="dark"] .notif-card:hover {
+    background: var(--theme-table-hover);
+}
+[data-theme="dark"] .notif-card-titulo {
+    color: var(--theme-text);
+}
+[data-theme="dark"] .notif-card-msg {
+    color: var(--theme-text-muted);
+}
+
+/* Cards de notícias */
+[data-theme="dark"] .noticia-card {
+    border-bottom-color: var(--theme-border);
+}
+[data-theme="dark"] .noticia-card:hover {
+    background: var(--theme-table-hover);
+}
+[data-theme="dark"] .noticia-titulo {
+    color: var(--theme-text);
+}
+
+/* Toast */
+[data-theme="dark"] .toast {
+    background: var(--theme-surface-solid);
+    border-top-color: var(--theme-border);
+    border-right-color: var(--theme-border);
+    border-bottom-color: var(--theme-border);
+}
+[data-theme="dark"] .toast-title {
+    color: var(--theme-text);
+}
+[data-theme="dark"] .toast-message {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .toast-close {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .toast-close:hover {
+    color: var(--theme-text);
+}

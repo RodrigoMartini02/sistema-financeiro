@@ -812,3 +812,171 @@
         font-size: 1.1rem;
     }
 }
+
+/* ================================================================
+   DARK MODE OVERRIDES — RELATÓRIOS
+   ================================================================ */
+
+/* Barra de checkboxes */
+[data-theme="dark"] .rel-checkboxes-barra {
+    background: var(--theme-surface-2);
+    border-color: var(--theme-border);
+}
+[data-theme="dark"] .rel-check-label {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .rel-check-sep {
+    background: var(--theme-border);
+}
+
+/* Resumo de filtros */
+[data-theme="dark"] .filtros-resumo {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .filtros-resumo-label {
+    color: #60a5fa;
+}
+
+/* Seções de resultado */
+[data-theme="dark"] .resultado-secao {
+    background: var(--theme-surface-solid);
+    box-shadow: var(--theme-shadow-sm);
+}
+[data-theme="dark"] .secao-header {
+    border-bottom-color: var(--theme-border);
+}
+[data-theme="dark"] .secao-header h3 {
+    color: var(--theme-text);
+}
+
+/* Cards de resumo */
+[data-theme="dark"] .resumo-card {
+    background: var(--theme-surface-solid);
+    border-color: var(--theme-border);
+}
+[data-theme="dark"] .card-header {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .card-valor {
+    color: var(--theme-text);
+}
+[data-theme="dark"] .resumo-card.receitas .card-valor { color: #4ade80; }
+[data-theme="dark"] .resumo-card.despesas .card-valor { color: #f87171; }
+[data-theme="dark"] .resumo-card.saldo   .card-valor { color: #60a5fa; }
+[data-theme="dark"] .resumo-card.juros   .card-valor { color: #fb923c; }
+[data-theme="dark"] .card-info {
+    color: var(--theme-text-muted);
+}
+
+/* Cards de gastos reais */
+[data-theme="dark"] .gasto-real-card {
+    background: var(--theme-surface-solid);
+    border-color: var(--theme-border);
+}
+
+/* Tabela de relatório */
+[data-theme="dark"] .tabela-responsiva {
+    border-color: var(--theme-border);
+}
+[data-theme="dark"] .relatorio-tabela {
+    background: var(--theme-surface-solid);
+}
+[data-theme="dark"] .relatorio-tabela th {
+    background-color: var(--theme-surface-2);
+    color: var(--theme-text-muted);
+    border-bottom-color: var(--theme-border);
+}
+[data-theme="dark"] .relatorio-tabela td {
+    border-bottom-color: var(--theme-border);
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .relatorio-tabela tbody tr:hover {
+    background-color: var(--theme-table-hover);
+}
+
+/* Badges da tabela de relatório */
+[data-theme="dark"] .badge-tipo.receita {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #4ade80;
+}
+[data-theme="dark"] .badge-tipo.despesa {
+    background-color: rgba(244, 63, 94, 0.1);
+    color: #f87171;
+}
+[data-theme="dark"] .badge-status.receita,
+[data-theme="dark"] .badge-status.quitada {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #4ade80;
+}
+[data-theme="dark"] .badge-status.pendente {
+    background-color: rgba(245, 158, 11, 0.1);
+    color: #fbbf24;
+}
+[data-theme="dark"] .badge-status.atrasada {
+    background-color: rgba(244, 63, 94, 0.1);
+    color: #f87171;
+}
+[data-theme="dark"] .badge-status.em-dia {
+    background-color: rgba(23, 162, 184, 0.1);
+    color: #22d3ee;
+}
+
+/* Informações e contagem */
+[data-theme="dark"] .transacoes-info {
+    background-color: var(--theme-surface-2);
+    border-left-color: #60a5fa;
+}
+[data-theme="dark"] #transacoes-count-info {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] #periodo-relatorio-info {
+    background-color: var(--theme-surface-2);
+    border-left-color: #60a5fa;
+    color: var(--theme-text-muted);
+}
+
+/* Paginação */
+[data-theme="dark"] .paginacao-container {
+    border-top-color: var(--theme-border);
+}
+[data-theme="dark"] .paginacao-info {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .btn-paginacao,
+[data-theme="dark"] .numero-pagina {
+    background-color: var(--theme-surface-solid);
+    border-color: var(--theme-border);
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .btn-paginacao:hover:not(:disabled) {
+    background-color: #2563eb;
+    border-color: #2563eb;
+    color: white;
+}
+[data-theme="dark"] .numero-pagina:hover {
+    background-color: var(--theme-table-hover);
+}
+[data-theme="dark"] .numero-pagina.ativo {
+    background-color: #2563eb;
+    border-color: #2563eb;
+    color: white;
+}
+
+/* Linha selecionada */
+[data-theme="dark"] .transacao-row.selecionada {
+    background-color: rgba(37, 99, 235, 0.12) !important;
+}
+
+/* Estado vazio */
+[data-theme="dark"] .sem-dados {
+    background-color: var(--theme-surface-2);
+    border-color: var(--theme-border);
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .sem-dados-icon { color: var(--theme-text-faint); }
+[data-theme="dark"] .sem-dados h4   { color: var(--theme-text-muted); }
+
+/* Loading */
+[data-theme="dark"] #relatorios-loading {
+    background: rgba(8, 12, 20, 0.85);
+}

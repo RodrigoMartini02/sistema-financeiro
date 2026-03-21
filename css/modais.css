@@ -1101,3 +1101,180 @@
     justify-content: center;
 }
 
+/* ================================================================
+   DARK MODE OVERRIDES — MODAIS
+   ================================================================ */
+
+/* Modais padronizados (usuario, categoria, cartão, senha) */
+[data-theme="dark"] #modal-adicionar-usuario .modal-content,
+[data-theme="dark"] #modal-editar-usuario .modal-content,
+[data-theme="dark"] #modal-editar-categoria .modal-content,
+[data-theme="dark"] #modal-editar-cartao .modal-content,
+[data-theme="dark"] #modal-alterar-senha .modal-content {
+    background: var(--theme-modal-bg) !important;
+}
+
+[data-theme="dark"] #modal-adicionar-usuario .modal-body,
+[data-theme="dark"] #modal-editar-usuario .modal-body,
+[data-theme="dark"] #modal-editar-categoria .modal-body,
+[data-theme="dark"] #modal-editar-cartao .modal-body,
+[data-theme="dark"] #modal-alterar-senha .modal-body {
+    background: var(--theme-modal-bg) !important;
+}
+
+[data-theme="dark"] #modal-adicionar-usuario .modal-body label,
+[data-theme="dark"] #modal-editar-usuario .modal-body label,
+[data-theme="dark"] #modal-editar-categoria .modal-body label,
+[data-theme="dark"] #modal-editar-cartao .modal-body label,
+[data-theme="dark"] #modal-alterar-senha .modal-body label {
+    color: var(--theme-text-muted);
+}
+
+[data-theme="dark"] #modal-adicionar-usuario .modal-body .form-input,
+[data-theme="dark"] #modal-adicionar-usuario .modal-body .form-control,
+[data-theme="dark"] #modal-editar-usuario .modal-body .form-input,
+[data-theme="dark"] #modal-editar-usuario .modal-body .form-control,
+[data-theme="dark"] #modal-editar-categoria .modal-body .form-input,
+[data-theme="dark"] #modal-editar-categoria .modal-body .form-control,
+[data-theme="dark"] #modal-editar-cartao .modal-body .form-input,
+[data-theme="dark"] #modal-editar-cartao .modal-body .form-control,
+[data-theme="dark"] #modal-alterar-senha .modal-body .form-input,
+[data-theme="dark"] #modal-alterar-senha .modal-body .form-control {
+    background: var(--theme-input-bg) !important;
+    border-color: var(--theme-input-border);
+    color: var(--theme-text);
+}
+
+[data-theme="dark"] #modal-adicionar-usuario .modal-body .field-help,
+[data-theme="dark"] #modal-editar-usuario .modal-body .field-help,
+[data-theme="dark"] #modal-editar-categoria .modal-body .field-help,
+[data-theme="dark"] #modal-editar-cartao .modal-body .field-help,
+[data-theme="dark"] #modal-alterar-senha .modal-body .field-help {
+    color: var(--theme-text-faint);
+}
+
+[data-theme="dark"] #modal-adicionar-usuario .modal-footer,
+[data-theme="dark"] #modal-editar-usuario .modal-footer,
+[data-theme="dark"] #modal-editar-categoria .modal-footer,
+[data-theme="dark"] #modal-editar-cartao .modal-footer,
+[data-theme="dark"] #modal-alterar-senha .modal-footer {
+    background: var(--theme-surface-2) !important;
+    border-top-color: var(--theme-border);
+}
+
+/* Checkbox container no modal de cartão */
+[data-theme="dark"] #modal-editar-cartao .form-group-checkbox > label {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] #modal-editar-cartao .checkbox-container,
+[data-theme="dark"] .checkbox-container {
+    background: var(--theme-surface-2);
+    border-color: var(--theme-border);
+}
+[data-theme="dark"] #modal-editar-cartao .checkbox-container:hover,
+[data-theme="dark"] .checkbox-container:hover {
+    border-color: var(--primary-color);
+    background: rgba(67, 97, 238, 0.08);
+}
+
+/* Reservas modal */
+[data-theme="dark"] .reservas-totalizador .totalizador-item {
+    background: var(--theme-surface-2);
+    border-color: var(--theme-border);
+}
+[data-theme="dark"] .reservas-totalizador .totalizador-item.disponivel {
+    background: rgba(16, 185, 129, 0.08);
+    border-color: rgba(16, 185, 129, 0.2);
+}
+[data-theme="dark"] .reservas-totalizador .totalizador-label {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .reservas-totalizador .totalizador-valor {
+    color: var(--theme-text);
+}
+[data-theme="dark"] .reservas-totalizador .totalizador-item.disponivel .totalizador-valor {
+    color: #4ade80;
+}
+
+/* Nova reserva form */
+[data-theme="dark"] .nova-reserva-form {
+    background: var(--theme-surface-2);
+    border-color: var(--theme-border);
+}
+[data-theme="dark"] .nova-reserva-form h4 {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .nova-reserva-form .form-group label {
+    color: var(--theme-text-faint);
+}
+
+/* Linhas de reserva */
+[data-theme="dark"] .reserva-linha {
+    background: var(--theme-surface-solid);
+    border-color: var(--theme-border);
+}
+[data-theme="dark"] .reserva-linha .reserva-nome {
+    color: var(--theme-text);
+}
+[data-theme="dark"] .reserva-linha .reserva-saldo {
+    color: #4ade80;
+}
+[data-theme="dark"] .reserva-linha .reserva-data {
+    color: var(--theme-text-faint);
+}
+
+/* Botões de reserva */
+[data-theme="dark"] .btn-confirmar-mov {
+    background: rgba(16, 185, 129, 0.1);
+    color: #4ade80;
+}
+[data-theme="dark"] .btn-confirmar-mov:hover {
+    background: #16a34a;
+    color: white;
+}
+[data-theme="dark"] .btn-excluir-reserva {
+    background: rgba(220, 38, 38, 0.1);
+    color: #f87171;
+}
+[data-theme="dark"] .btn-excluir-reserva:hover {
+    background: #dc2626;
+    color: white;
+}
+
+/* Nova reserva inline */
+[data-theme="dark"] .nova-reserva-inline {
+    background: var(--theme-surface-2);
+    border-color: var(--theme-border);
+}
+
+/* Histórico geral */
+[data-theme="dark"] .historico-geral-container {
+    border-top-color: var(--theme-border);
+}
+[data-theme="dark"] .historico-geral-container h4 {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .historico-geral-lista {
+    background: var(--theme-surface-solid);
+    border-color: var(--theme-border);
+}
+[data-theme="dark"] .historico-linha {
+    border-bottom-color: var(--theme-border);
+}
+[data-theme="dark"] .historico-linha.entrada {
+    background: rgba(16, 185, 129, 0.05);
+}
+[data-theme="dark"] .historico-linha.saida {
+    background: rgba(244, 63, 94, 0.05);
+}
+[data-theme="dark"] .historico-linha .hist-nome {
+    color: var(--theme-text-muted);
+}
+
+/* Categoria inline input */
+[data-theme="dark"] .nova-categoria-inline input {
+    background: var(--theme-input-bg);
+    border-color: var(--theme-input-border);
+    color: var(--theme-text);
+}
+

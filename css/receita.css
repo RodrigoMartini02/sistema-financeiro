@@ -439,3 +439,76 @@
         gap: 6px;
     }
 }
+
+/* ================================================================
+   DARK MODE OVERRIDES — RECEITA
+   ================================================================ */
+
+/* Inputs do modal de receita */
+[data-theme="dark"] #modal-nova-receita .modal-body input[type="text"],
+[data-theme="dark"] #modal-nova-receita .modal-body input[type="number"],
+[data-theme="dark"] #modal-nova-receita .modal-body input[type="date"],
+[data-theme="dark"] #modal-nova-receita .modal-body select {
+    background: var(--theme-input-bg);
+    border-color: var(--theme-input-border);
+    color: var(--theme-text);
+}
+[data-theme="dark"] #modal-nova-receita .modal-body label {
+    color: var(--theme-text-muted);
+}
+
+/* Lista de anexos */
+[data-theme="dark"] .lista-anexos-container {
+    background: var(--theme-surface-2);
+    border-color: var(--theme-border);
+}
+[data-theme="dark"] .anexo-item {
+    background: var(--theme-surface-solid);
+    border-color: var(--theme-border);
+}
+[data-theme="dark"] .anexo-download-item {
+    background: var(--theme-surface-solid);
+    border-color: var(--theme-border);
+}
+[data-theme="dark"] .anexo-download-item:hover {
+    background: var(--theme-table-hover);
+    border-color: var(--theme-border-solid);
+}
+
+/* Opções de replicação */
+[data-theme="dark"] #opcoes-replicacao-detalhes {
+    background: var(--theme-surface-2);
+    border-color: var(--theme-border);
+}
+[data-theme="dark"] .opcao-replicacao label {
+    color: var(--theme-text-muted);
+}
+
+/* Resumo dos cartões */
+[data-theme="dark"] .limites-cartoes-container {
+    background: var(--theme-surface-solid);
+    border-color: var(--theme-border);
+}
+[data-theme="dark"] .limites-cartoes-container h3 {
+    color: var(--theme-text);
+    border-bottom-color: var(--theme-border);
+}
+[data-theme="dark"] .cartao-limite-item {
+    background: var(--theme-surface-2);
+    border-color: var(--theme-border);
+}
+[data-theme="dark"] .cartao-limite-item:hover {
+    background: var(--theme-table-hover);
+    box-shadow: var(--theme-shadow-sm);
+}
+[data-theme="dark"] .cartao-nome {
+    color: var(--theme-text);
+}
+[data-theme="dark"] .cartao-percentual,
+[data-theme="dark"] .disponivel-texto {
+    color: var(--theme-text-faint);
+}
+[data-theme="dark"] .separador,
+[data-theme="dark"] .valor-limite {
+    color: var(--theme-text-faint);
+}

@@ -984,6 +984,302 @@ select.campo-invalido {
 }
 
 /* ================================================================
+   DARK MODE OVERRIDES — DESPESA
+   ================================================================ */
+
+/* Linhas da tabela de despesas com fundo colorido */
+[data-theme="dark"] .tabela-despesas tbody tr.despesa-atrasada {
+    background-color: rgba(244, 63, 94, 0.08);
+}
+[data-theme="dark"] .tabela-despesas tbody tr.tipo-receita {
+    background-color: rgba(16, 185, 129, 0.06);
+}
+[data-theme="dark"] .tabela-despesas tbody tr.tipo-receita .col-valor {
+    color: #4ade80;
+}
+[data-theme="dark"] .tabela-despesas tbody tr.tipo-reserva {
+    background-color: rgba(245, 158, 11, 0.06);
+}
+[data-theme="dark"] .tabela-despesas tbody tr.tipo-reserva .col-valor {
+    color: #fbbf24;
+}
+
+/* Badges de status da tabela */
+[data-theme="dark"] .badge-em-dia   { color: #4ade80; }
+[data-theme="dark"] .badge-atrasada { color: #f87171; }
+[data-theme="dark"] .badge-quitada  { color: var(--theme-text-faint); }
+[data-theme="dark"] .badge-pendente { color: #fbbf24; }
+
+/* Valor original riscado e juros */
+[data-theme="dark"] .valor-original { color: var(--theme-text-faint); }
+[data-theme="dark"] .valor-juros    { color: #f87171; }
+
+/* Barra de ações e filtros */
+[data-theme="dark"] .tab-actions {
+    background: var(--theme-surface-2);
+}
+[data-theme="dark"] .filtro-contador {
+    color: var(--theme-text-muted);
+}
+
+/* Campo inválido */
+[data-theme="dark"] .campo-invalido,
+[data-theme="dark"] input.campo-invalido,
+[data-theme="dark"] select.campo-invalido {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+}
+
+/* Footer do modal de lançamento */
+[data-theme="dark"] .modal-lancamento-footer {
+    background: var(--theme-surface-2);
+    border-top-color: var(--theme-border);
+}
+
+/* Botão Nova Categoria */
+[data-theme="dark"] #btn-nova-categoria-lancamento {
+    background: transparent;
+    color: #818cf8;
+    border-color: #818cf8;
+}
+[data-theme="dark"] #btn-nova-categoria-lancamento:hover {
+    background: rgba(129, 140, 248, 0.1);
+    color: #a5b4fc;
+}
+
+/* Cards de despesa */
+[data-theme="dark"] .despesa-card {
+    background: var(--theme-surface-solid);
+    border-color: var(--theme-border);
+    box-shadow: var(--theme-shadow-sm);
+}
+[data-theme="dark"] .despesa-card:first-child {
+    background: var(--theme-surface-2);
+    border-color: rgba(99, 149, 255, 0.2);
+}
+[data-theme="dark"] .despesa-card.card-error {
+    border-color: rgba(248, 113, 113, 0.4);
+    background: rgba(248, 113, 113, 0.05);
+}
+
+/* Labels de seção */
+[data-theme="dark"] .card-section-label {
+    color: var(--theme-text-muted);
+}
+
+/* Inputs e selects nos cards */
+[data-theme="dark"] .card-descricao,
+[data-theme="dark"] .card-categoria {
+    background: var(--theme-input-bg) !important;
+    border-color: var(--theme-input-border);
+    color: var(--theme-text);
+}
+[data-theme="dark"] .card-field input,
+[data-theme="dark"] .card-field select {
+    background: var(--theme-input-bg);
+    border-color: var(--theme-input-border);
+    color: var(--theme-text);
+}
+[data-theme="dark"] .card-field label {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .card-field input.campo-invalido,
+[data-theme="dark"] .card-field select.campo-invalido,
+[data-theme="dark"] .card-categoria.campo-invalido {
+    background: rgba(239, 68, 68, 0.1) !important;
+    border-color: #f87171 !important;
+}
+
+/* Botões de pagamento */
+[data-theme="dark"] .pgto-btn {
+    background: var(--theme-surface-2);
+    border-color: var(--theme-border);
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .pgto-btn:hover {
+    border-color: var(--theme-border-solid);
+    background: var(--theme-table-hover);
+}
+[data-theme="dark"] .pgto-item {
+    background: var(--theme-surface-solid);
+    border-color: var(--theme-border);
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .pgto-item:hover {
+    background: var(--theme-table-hover);
+    border-color: #818cf8;
+}
+[data-theme="dark"] .pgto-item.pgto-ativo {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: #818cf8;
+    color: #c4b5fd;
+}
+[data-theme="dark"] .pgto-grupo-titulo {
+    color: var(--theme-text-faint);
+}
+[data-theme="dark"] .card-pgto-separador {
+    background: var(--theme-border);
+}
+[data-theme="dark"] .card-pgto-credito-lista.campo-invalido {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: rgba(248, 113, 113, 0.4);
+}
+
+/* Flags do card */
+[data-theme="dark"] .card-flag {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .card-replicar-options select {
+    background: var(--theme-input-bg);
+    border-color: var(--theme-input-border);
+    color: var(--theme-text);
+}
+
+/* Botão remover card */
+[data-theme="dark"] .card-delete-btn {
+    background: var(--theme-surface-solid);
+    border-color: rgba(248, 113, 113, 0.3);
+    color: #f87171;
+}
+[data-theme="dark"] .card-delete-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: #f87171;
+}
+
+/* Botão de favorito */
+[data-theme="dark"] .card-fav-btn {
+    color: var(--theme-text-faint);
+}
+
+/* Botão de anexos */
+[data-theme="dark"] .card-anexos-btn {
+    background: var(--theme-surface-2);
+    border-color: var(--theme-border);
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .card-anexos-btn:hover {
+    border-color: #818cf8;
+    color: #a5b4fc;
+    background: rgba(99, 102, 241, 0.08);
+}
+[data-theme="dark"] .card-anexo-item {
+    background: var(--theme-surface-2);
+    border-color: var(--theme-border);
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .card-anexo-item button {
+    color: var(--theme-text-faint);
+}
+
+/* Info parcelas */
+[data-theme="dark"] .card-info-parcela {
+    background: rgba(16, 185, 129, 0.08);
+    border-color: rgba(16, 185, 129, 0.2);
+    color: #6ee7b7;
+}
+
+/* Nova categoria inline */
+[data-theme="dark"] .nova-cat-input {
+    background: var(--theme-input-bg);
+    border-color: var(--theme-input-border);
+    color: var(--theme-text);
+}
+
+/* Upload */
+[data-theme="dark"] .upload-drop-area {
+    background: var(--theme-surface-2);
+    border-color: var(--theme-border);
+}
+[data-theme="dark"] .upload-drop-area:hover {
+    border-color: #60a5fa;
+    background: rgba(59, 130, 246, 0.06);
+}
+[data-theme="dark"] .upload-drop-area.drag-over {
+    border-color: #4ade80;
+    background: rgba(16, 185, 129, 0.06);
+}
+[data-theme="dark"] .upload-icon { color: var(--theme-text-muted); }
+[data-theme="dark"] .upload-drop-area p { color: var(--theme-text-muted); }
+[data-theme="dark"] .upload-drop-area small { color: var(--theme-text-faint); }
+
+/* Arquivos carregados */
+[data-theme="dark"] .arquivos-carregados {
+    background: var(--theme-surface-2);
+    border-color: var(--theme-border);
+}
+[data-theme="dark"] .arquivos-carregados h4 { color: var(--theme-text-muted); }
+[data-theme="dark"] .arquivo-item {
+    background: var(--theme-surface-solid);
+    border-color: var(--theme-border);
+}
+[data-theme="dark"] .arquivo-nome { color: var(--theme-text-muted); }
+[data-theme="dark"] .arquivo-tamanho { color: var(--theme-text-faint); }
+
+/* Anexos visualização */
+[data-theme="dark"] .anexos-info {
+    background: var(--theme-surface-2);
+}
+[data-theme="dark"] .anexos-info strong { color: var(--theme-text-muted); }
+[data-theme="dark"] .anexo-visualizacao-item {
+    background: var(--theme-surface-solid);
+    border-color: var(--theme-border);
+}
+[data-theme="dark"] .anexo-nome { color: var(--theme-text-muted); }
+[data-theme="dark"] .anexo-tamanho,
+[data-theme="dark"] .anexo-data { color: var(--theme-text-faint); }
+
+/* Pagamento em lote */
+[data-theme="dark"] #lote-contagem-despesas { color: var(--theme-text-muted); }
+[data-theme="dark"] .info-container {
+    background: rgba(66, 153, 225, 0.08);
+    border-left-color: #60a5fa;
+}
+[data-theme="dark"] .info-container p { color: var(--theme-text-muted); }
+[data-theme="dark"] .info-texto { color: var(--theme-text-faint); }
+[data-theme="dark"] .form-group label { color: var(--theme-text-muted); }
+[data-theme="dark"] #data-pagamento-lote {
+    background: var(--theme-input-bg);
+    border-color: var(--theme-input-border);
+    color: var(--theme-text);
+}
+[data-theme="dark"] .opcoes-pagamento-lote button {
+    background: var(--theme-surface-solid);
+    border-color: var(--theme-border);
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .opcoes-pagamento-lote button:hover {
+    border-color: #818cf8;
+    background: var(--theme-table-hover);
+}
+
+/* Modal pagar despesa compacto */
+[data-theme="dark"] .info-despesa-container-compact {
+    background: var(--theme-surface-2);
+    border-left-color: #60a5fa;
+}
+[data-theme="dark"] .info-despesa-container-compact .info-row {
+    border-bottom-color: var(--theme-border);
+}
+[data-theme="dark"] .info-despesa-container-compact .info-label { color: var(--theme-text-muted); }
+[data-theme="dark"] .info-despesa-container-compact .info-valor { color: var(--theme-text); }
+
+/* Diferença info */
+[data-theme="dark"] .diferenca-info.economia {
+    background: rgba(34, 197, 94, 0.1);
+    color: #4ade80;
+    border-left-color: #22c55e;
+}
+[data-theme="dark"] .diferenca-info.juros {
+    background: rgba(239, 68, 68, 0.1);
+    color: #f87171;
+    border-left-color: #ef4444;
+}
+[data-theme="dark"] .diferenca-info.neutro {
+    background: var(--theme-surface-2);
+    color: var(--theme-text-muted);
+    border-left-color: var(--theme-border-solid);
+}
+
+/* ================================================================
    UPLOAD DE ARQUIVOS
    ================================================================ */
 
