@@ -457,6 +457,33 @@
             <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Quanto cada objetivo já foi atingido">Progresso por Objetivo</h3></div><canvas id="tema-metas-progresso"></canvas></div>
             <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Estimativa de meses para concluir cada objetivo">Projeção de Conclusão</h3></div><canvas id="tema-metas-projecao"></canvas></div>
             <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Evolução do percentual atingido nos últimos meses">Evolução % Mensal</h3></div><canvas id="tema-metas-historico"></canvas></div>
+            <div class="tema-chart-card tema-metas-projecao-card">
+                <div class="chart-header">
+                    <h3 data-tooltip="Simulação de crescimento com juros compostos baseado na taxa Selic atual">Projeção de Crescimento</h3>
+                </div>
+                <!-- Controles de simulação -->
+                <div class="projecao-controles">
+                    <div class="projecao-input-group">
+                        <label>Aporte mensal</label>
+                        <input type="number" id="proj-aporte" value="500" min="1" step="50" class="projecao-input">
+                    </div>
+                    <div class="projecao-input-group">
+                        <label>Período (anos)</label>
+                        <input type="number" id="proj-anos" value="10" min="1" max="50" step="1" class="projecao-input">
+                    </div>
+                    <div class="projecao-input-group">
+                        <label>Taxa mensal (%)</label>
+                        <input type="number" id="proj-taxa" value="1.17" min="0" step="0.01" class="projecao-input">
+                        <span id="proj-taxa-label" class="projecao-taxa-badge">Selic atual</span>
+                    </div>
+                    <button onclick="simularProjecao()" class="btn-simular">
+                        <i class="fas fa-chart-line"></i> Simular
+                    </button>
+                </div>
+                <div style="position:relative; height:260px">
+                    <canvas id="tema-metas-crescimento"></canvas>
+                </div>
+            </div>
           </div>
         </div>
     </section>
@@ -1821,8 +1848,8 @@
                         <button id="btn-pagar-lote-toolbar" class="btn btn-secondary btn-sm" disabled title="Pagar em Lote">
                             <i class="fas fa-check-circle"></i> Lote
                         </button>
-                        <button id="btn-cofre-detalhe-mes" class="btn btn-cofre-mes btn-sm" onclick="abrirCofre()" title="Metas e Reservas">
-                            <i class="fas fa-bullseye"></i> Metas
+                        <button id="btn-cofre-detalhe-mes" class="btn btn-cofre-mes btn-sm" onclick="abrirCofre()" title="Reservas">
+                            <i class="fas fa-piggy-bank"></i> Reservas
                         </button>
                         <span class="toolbar-divider"></span>
                     </div>
@@ -2075,67 +2102,35 @@
     </div>
 </div>
 
-<!-- Modal Reservas / Metas (Cofre) -->
+<!-- Modal Reservas (Cofre) -->
 <div id="modal-reservar-valor" class="modal">
     <div class="modal-content modal-reservas">
         <div class="modal-header">
-            <h2><i class="fas fa-bullseye"></i> Metas</h2>
+            <h2><i class="fas fa-piggy-bank"></i> Reservas</h2>
             <button type="button" class="close" title="Fechar">&times;</button>
         </div>
-        <!-- Abas -->
-        <div class="metas-tabs">
-            <button class="metas-tab active" data-tab-metas="reservas" onclick="switchMetasTab('reservas', this)">
-                <i class="fas fa-piggy-bank"></i> Reservas
-            </button>
-            <button class="metas-tab" data-tab-metas="objetivos" onclick="switchMetasTab('objetivos', this)">
-                <i class="fas fa-trophy"></i> Objetivos
-            </button>
-        </div>
         <div class="modal-body">
-            <!-- ABA: RESERVAS -->
-            <div id="metas-tab-reservas" class="metas-tab-content active">
-                <!-- Formulário de criação (TOPO) -->
-                <div class="nova-reserva-inline">
-                    <input type="text" id="input-descricao-reserva" class="form-control" placeholder="Nome da reserva" maxlength="50">
-                    <input type="number" id="input-valor-reserva" class="form-control" placeholder="Valor" step="0.01" min="0.01">
-                    <button type="button" id="btn-adicionar-reserva" class="btn btn-success" title="Criar reserva">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                </div>
-
-                <!-- Lista de Reservas -->
-                <div class="reservas-lista-simples" id="lista-reservas">
-                    <!-- Reservas serão inseridas aqui -->
-                </div>
-
-                <!-- Histórico Geral -->
-                <div class="historico-geral-container" id="historico-geral-container">
-                    <h4><i class="fas fa-history"></i> Histórico</h4>
-                    <div class="historico-geral-lista" id="historico-geral-reservas">
-                        <div class="historico-vazio">Nenhuma movimentação</div>
-                    </div>
-                    <div id="historico-sentinel" style="height:1px"></div>
-                </div>
+            <!-- Formulário inline no topo -->
+            <div class="nova-reserva-inline">
+                <input type="text" id="input-descricao-reserva" class="form-control" placeholder="Nome da reserva" maxlength="50">
+                <input type="number" id="input-valor-reserva" class="form-control" placeholder="Valor inicial (R$)" step="0.01" min="0">
+                <button type="button" id="btn-adicionar-reserva" class="btn btn-success" title="Criar reserva">
+                    <i class="fas fa-plus"></i>
+                </button>
             </div>
 
-            <!-- ABA: OBJETIVOS -->
-            <div id="metas-tab-objetivos" class="metas-tab-content" style="display:none">
-                <!-- Formulário inline (igual reservas) -->
-                <div class="nova-reserva-inline nova-objetivo-inline">
-                    <input type="text" id="obj-nome" class="form-control" placeholder="Nome do objetivo" maxlength="80">
-                    <input type="number" id="obj-valor-meta" class="form-control" placeholder="Valor meta (R$)" step="0.01" min="0.01">
-                    <input type="number" id="obj-valor-inicial" class="form-control" placeholder="Valor inicial (R$)" step="0.01" min="0">
-                    <input type="date" id="obj-data-alvo" class="form-control" title="Data alvo (opcional)">
-                    <button type="button" class="btn btn-success" onclick="salvarNovoObjetivo()" title="Cadastrar objetivo">
-                        <i class="fas fa-plus"></i>
-                    </button>
+            <!-- Lista de Reservas -->
+            <div class="reservas-lista-simples" id="lista-reservas">
+                <!-- Cards renderizados dinamicamente -->
+            </div>
+
+            <!-- Histórico Geral -->
+            <div class="historico-geral-container" id="historico-geral-container">
+                <h4><i class="fas fa-history"></i> Histórico</h4>
+                <div class="historico-geral-lista" id="historico-geral-reservas">
+                    <div class="historico-vazio">Nenhuma movimentação</div>
                 </div>
-                <div id="lista-objetivos" class="lista-objetivos-container">
-                    <div class="objetivos-vazio">
-                        <i class="fas fa-trophy" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:8px"></i>
-                        Crie sua primeira Meta
-                    </div>
-                </div>
+                <div id="historico-sentinel" style="height:1px"></div>
             </div>
         </div>
         <div class="modal-footer modal-footer-cofre">

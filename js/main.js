@@ -3115,13 +3115,7 @@ function _abrirModalCofreInterno(tab) {
     // Sincronizar checkbox ao abrir
     const chk = document.getElementById('chk-desabilitar-senha-cofre');
     if (chk) chk.checked = localStorage.getItem('cofre_senha_desabilitada') === 'true';
-    // Abrir aba específica se solicitado
-    if (tab && typeof window.switchMetasTab === 'function') {
-        setTimeout(function() {
-            const btn = document.querySelector(`.metas-tab[data-tab-metas="${tab}"]`);
-            window.switchMetasTab(tab, btn);
-        }, 100);
-    }
+    // (abas removidas — modal unificado de Reservas)
 }
 
 window.abrirCofre = abrirCofre;

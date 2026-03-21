@@ -1389,12 +1389,6 @@ async function abrirModalReservarValor() {
     // Renderizar lista de reservas no modal
     renderizarListaReservasModal();
 
-    // Garantir que a aba "Reservas" esteja ativa ao abrir
-    const btnTabReservas = document.querySelector('.metas-tab[data-tab-metas="reservas"]');
-    if (typeof switchMetasTab === 'function') {
-        switchMetasTab('reservas', btnTabReservas);
-    }
-
     // Abrir modal
     const modal = document.getElementById('modal-reservar-valor');
     if (modal) {
@@ -1403,7 +1397,17 @@ async function abrirModalReservarValor() {
 }
 
 /**
- * Renderiza lista de reservas com campo para adicionar/remover valor
+ * Calcula o valor atual de uma reserva a partir do cache de movimentações
+ */
+function _calcularValorAtualReserva(reservaId) {
+    const movs = window.movimentacoesReservasCache || [];
+    return movs
+        .filter(m => m.reserva_id === reservaId)
+        .reduce((acc, m) => m.tipo === 'entrada' ? acc + parseFloat(m.valor) : acc - parseFloat(m.valor), 0);
+}
+
+/**
+ * Renderiza lista de reservas com cards modernos e unificados
  */
 async function renderizarListaReservasModal() {
     const lista = document.getElementById('lista-reservas');
@@ -1422,40 +1426,109 @@ async function renderizarListaReservasModal() {
         (a.observacoes || '').localeCompare(b.observacoes || '')
     );
 
+    const hoje = new Date();
+
     reservasOrdenadas.forEach(reserva => {
-        const item = document.createElement('div');
-        item.className = 'reserva-linha';
-        item.innerHTML = `
-            <span class="reserva-nome">${reserva.observacoes || 'Reserva'}</span>
-            <span class="reserva-saldo">${window.formatarMoeda(reserva.valor)}</span>
-            <input type="number" class="form-control reserva-input-valor" data-id="${reserva.id}" placeholder="+/- valor" step="0.01">
-            <button class="btn btn-sm btn-confirmar-mov" data-id="${reserva.id}" title="Confirmar">
-                <i class="fas fa-check"></i>
-            </button>
-            <button class="btn btn-sm btn-excluir-reserva" data-id="${reserva.id}" title="Excluir">
-                <i class="fas fa-trash"></i>
-            </button>
+        const temMeta = reserva.tipo_reserva === 'objetivo' && parseFloat(reserva.objetivo_valor) > 0;
+        const valorAtual = _calcularValorAtualReserva(reserva.id);
+        const valorMeta = parseFloat(reserva.objetivo_valor) || 0;
+
+        // Calcular progresso
+        let metaHtml = '';
+        if (temMeta) {
+            const pct = valorMeta > 0 ? Math.min((valorAtual / valorMeta) * 100, 100) : 0;
+            const corClasse = pct >= 75 ? 'verde' : pct >= 40 ? 'amarelo' : 'vermelho';
+
+            let diasHtml = '';
+            if (reserva.data_objetivo) {
+                const dataAlvo = new Date(reserva.data_objetivo + 'T00:00:00');
+                const diffDias = Math.ceil((dataAlvo - hoje) / (1000 * 60 * 60 * 24));
+                const diasClasse = diffDias > 60 ? 'verde' : diffDias > 0 ? 'laranja' : 'vermelho';
+                const diasTexto = diffDias > 0
+                    ? `${diffDias} dias restantes`
+                    : 'Prazo vencido';
+                diasHtml = `<div class="reserva-meta-dias ${diasClasse}"><i class="fas fa-calendar-alt"></i> ${diasTexto}</div>`;
+            }
+
+            metaHtml = `
+                <div class="reserva-meta-info">
+                    <div class="reserva-meta-bar-track">
+                        <div class="reserva-meta-bar-fill ${corClasse}" style="width:${pct.toFixed(1)}%"></div>
+                    </div>
+                    <div class="reserva-meta-texto">
+                        <span class="reserva-meta-pct ${corClasse}">${pct.toFixed(1)}%</span>
+                        <span>${window.formatarMoeda(valorAtual)} / ${window.formatarMoeda(valorMeta)}</span>
+                    </div>
+                    ${diasHtml}
+                </div>`;
+        }
+
+        const btnMetaAtivo = temMeta ? 'ativo' : '';
+        const valorExibir = valorAtual !== 0 ? valorAtual : parseFloat(reserva.valor) || 0;
+
+        // Painel inline de meta
+        const painelMetaHtml = `
+            <div class="reserva-meta-painel" id="meta-painel-${reserva.id}" style="display:none">
+                <div class="reserva-meta-painel-inputs">
+                    <input type="number" id="meta-valor-${reserva.id}" placeholder="Valor meta (R$)" step="0.01" min="0"
+                        value="${temMeta ? valorMeta : ''}">
+                    <input type="date" id="meta-data-${reserva.id}"
+                        value="${reserva.data_objetivo ? reserva.data_objetivo.split('T')[0] : ''}">
+                </div>
+                <div class="reserva-meta-painel-acoes">
+                    <button class="btn btn-sm btn-success" onclick="salvarMetaReserva(${reserva.id}, parseFloat(document.getElementById('meta-valor-${reserva.id}').value)||0, document.getElementById('meta-data-${reserva.id}').value)">
+                        <i class="fas fa-check"></i> Salvar Meta
+                    </button>
+                    ${temMeta ? `<button class="btn btn-sm btn-secondary" onclick="salvarMetaReserva(${reserva.id}, 0, null)"><i class="fas fa-times"></i> Remover Meta</button>` : ''}
+                    <button class="btn btn-sm btn-outline" onclick="togglePainelMeta(${reserva.id})">Cancelar</button>
+                </div>
+            </div>`;
+
+        const card = document.createElement('div');
+        card.className = `reserva-card${temMeta ? ' tem-meta' : ''}`;
+        card.innerHTML = `
+            <div class="reserva-card-top">
+                <div class="reserva-card-info">
+                    <div class="reserva-card-nome"><i class="fas fa-piggy-bank" style="opacity:0.5;margin-right:6px;font-size:12px"></i>${reserva.observacoes || 'Reserva'}</div>
+                    <div class="reserva-card-valor">${window.formatarMoeda(valorExibir)} guardado</div>
+                </div>
+                <div class="reserva-card-acoes">
+                    <button class="reserva-btn reserva-btn-entrada" title="Adicionar valor"><i class="fas fa-plus"></i></button>
+                    <button class="reserva-btn reserva-btn-saida" title="Retirar valor"><i class="fas fa-minus"></i></button>
+                    <button class="reserva-btn reserva-btn-meta ${btnMetaAtivo}" title="Definir/editar meta" onclick="togglePainelMeta(${reserva.id})"><i class="fas fa-bullseye"></i></button>
+                    <button class="reserva-btn reserva-btn-excluir" title="Excluir reserva"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+            ${metaHtml}
+            ${painelMetaHtml}
         `;
 
-        // Enter no input confirma
-        const input = item.querySelector('.reserva-input-valor');
-        input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                movimentarReservaSimples(reserva.id, input.value);
+        // Botão entrada — prompt
+        card.querySelector('.reserva-btn-entrada').addEventListener('click', () => {
+            const v = prompt(`Adicionar valor à reserva "${reserva.observacoes || 'Reserva'}":\nDigite o valor positivo:`);
+            if (v !== null && v.trim() !== '') {
+                const num = parseFloat(v.replace(',', '.'));
+                if (!isNaN(num) && num > 0) movimentarReservaSimples(reserva.id, num);
+                else (window.mostrarToast || alert)('Valor inválido', 'warning');
             }
         });
 
-        // Botão confirmar
-        item.querySelector('.btn-confirmar-mov').addEventListener('click', () => {
-            movimentarReservaSimples(reserva.id, input.value);
+        // Botão saída — prompt
+        card.querySelector('.reserva-btn-saida').addEventListener('click', () => {
+            const v = prompt(`Retirar valor da reserva "${reserva.observacoes || 'Reserva'}":\nDigite o valor a retirar:`);
+            if (v !== null && v.trim() !== '') {
+                const num = parseFloat(v.replace(',', '.'));
+                if (!isNaN(num) && num > 0) movimentarReservaSimples(reserva.id, -num);
+                else (window.mostrarToast || alert)('Valor inválido', 'warning');
+            }
         });
 
         // Botão excluir
-        item.querySelector('.btn-excluir-reserva').addEventListener('click', () => {
+        card.querySelector('.reserva-btn-excluir').addEventListener('click', () => {
             excluirReserva(reserva.id);
         });
 
-        lista.appendChild(item);
+        lista.appendChild(card);
     });
 
     // Renderizar histórico geral
@@ -1792,56 +1865,19 @@ window.carregarReservasAPI = carregarReservasAPI;
 window.calcularTotalReservas = calcularTotalReservas;
 
 // ================================================================
-// SISTEMA DE METAS / OBJETIVOS
+// SISTEMA DE METAS / OBJETIVOS — funções de suporte
 // ================================================================
 
 /**
- * Troca de aba no modal de Metas
+ * switchMetasTab — mantido como stub para compatibilidade com main.js
  */
 function switchMetasTab(tabName, btnEl) {
-    document.querySelectorAll('.metas-tab').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.metas-tab-content').forEach(t => { t.style.display = 'none'; t.classList.remove('active'); });
-    if (btnEl) btnEl.classList.add('active');
-    const tabEl = document.getElementById('metas-tab-' + tabName);
-    if (tabEl) { tabEl.style.display = ''; tabEl.classList.add('active'); }
-    if (tabName === 'objetivos') {
-        renderizarListaObjetivos();
-    }
+    // As abas foram removidas; função mantida para não quebrar referências externas
 }
 window.switchMetasTab = switchMetasTab;
 
 /**
- * Cria novo objetivo — POST /api/reservas com tipo_reserva='objetivo'
- */
-async function criarObjetivo(dados) {
-    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-    if (!token) throw new Error('Token ausente');
-    const mes = window.mesAberto !== undefined ? window.mesAberto : new Date().getMonth();
-    const ano = window.anoAberto !== undefined ? window.anoAberto : new Date().getFullYear();
-    const response = await fetch(`${API_URL_RESERVAS}/reservas`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-            valor: dados.valorInicial || 0,
-            mes: mes,
-            ano: ano,
-            data: `${ano}-${String(mes + 1).padStart(2, '0')}-15`,
-            observacoes: dados.nome,
-            tipo_reserva: 'objetivo',
-            objetivo_valor: dados.objetivoValor,
-            data_objetivo: dados.dataObjetivo || null
-        })
-    });
-    if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.message || 'Erro ao criar objetivo');
-    }
-    return await response.json();
-}
-window.criarObjetivo = criarObjetivo;
-
-/**
- * Carrega objetivos — GET /api/reservas/objetivos
+ * Carrega objetivos (reservas com tipo_reserva='objetivo') — ainda usada no dashboard
  */
 async function carregarObjetivos() {
     const token = sessionStorage.getItem('token') || localStorage.getItem('token');
@@ -1860,7 +1896,7 @@ async function carregarObjetivos() {
 window.carregarObjetivos = carregarObjetivos;
 
 /**
- * Marca objetivo como atingido — PUT /api/reservas/:id
+ * Marca objetivo como atingido — mantido por precaução
  */
 async function marcarObjetivoAtingido(id) {
     const token = sessionStorage.getItem('token') || localStorage.getItem('token');
@@ -1872,7 +1908,6 @@ async function marcarObjetivoAtingido(id) {
             body: JSON.stringify({ objetivo_atingido: true })
         });
         if (response.ok) {
-            await renderizarListaObjetivos();
             window.mostrarMensagemSucesso ? window.mostrarMensagemSucesso('Objetivo marcado como atingido!') : null;
         }
     } catch (e) {
@@ -1882,110 +1917,42 @@ async function marcarObjetivoAtingido(id) {
 window.marcarObjetivoAtingido = marcarObjetivoAtingido;
 
 /**
- * Renderiza lista de objetivos com barra de progresso
+ * Toggle do painel inline de definir/editar meta em um card de reserva
  */
-async function renderizarListaObjetivos() {
-    const container = document.getElementById('lista-objetivos');
-    if (!container) return;
-    container.innerHTML = '<div style="text-align:center;padding:16px;color:#94a3b8;font-size:13px">Carregando...</div>';
-
-    const objetivos = await carregarObjetivos();
-    if (objetivos.length === 0) {
-        container.innerHTML = '<div class="objetivos-vazio"><i class="fas fa-trophy" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:8px"></i>Crie sua primeira Meta</div>';
-        return;
-    }
-
-    const hoje = new Date();
-    container.innerHTML = objetivos.map(function(obj) {
-        const progresso = parseFloat(obj.progresso) || 0;
-        const valorAtual = parseFloat(obj.valor) || 0;
-        const valorMeta = parseFloat(obj.objetivo_valor) || 0;
-        const atingido = obj.objetivo_atingido;
-        const barColor = atingido ? '#10b981' : (progresso >= 75 ? '#10b981' : progresso >= 40 ? '#f59e0b' : '#6366f1');
-
-        let diasRestantesHtml = '';
-        if (obj.data_objetivo && !atingido) {
-            const dataAlvo = new Date(obj.data_objetivo);
-            const diffMs = dataAlvo - hoje;
-            const diffDias = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-            if (diffDias > 0) {
-                diasRestantesHtml = `<span class="obj-dias-restantes"><i class="fas fa-calendar-alt"></i> ${diffDias} dias restantes</span>`;
-            } else if (diffDias <= 0) {
-                diasRestantesHtml = `<span class="obj-dias-restantes obj-prazo-vencido"><i class="fas fa-exclamation-triangle"></i> Prazo vencido</span>`;
-            }
-        }
-
-        return `<div class="objetivo-card ${atingido ? 'objetivo-atingido' : ''}">
-            <div class="objetivo-card-top">
-                <div class="objetivo-nome-wrap">
-                    <span class="objetivo-nome">${obj.observacoes || 'Objetivo'}</span>
-                    ${atingido ? '<span class="obj-badge-atingido"><i class="fas fa-check"></i> Atingido</span>' : ''}
-                    ${diasRestantesHtml}
-                </div>
-                ${!atingido ? `<button class="btn btn-sm btn-success obj-btn-atingido" onclick="marcarObjetivoAtingido(${obj.id})" title="Marcar como atingido"><i class="fas fa-check"></i></button>` : ''}
-            </div>
-            <div class="objetivo-progress-wrap">
-                <div class="objetivo-progress-bar-track">
-                    <div class="objetivo-progress-bar-fill" style="width:${Math.min(progresso, 100)}%;background:${barColor}"></div>
-                </div>
-                <div class="objetivo-valores">
-                    <span style="color:${barColor};font-weight:700">${progresso.toFixed(1)}%</span>
-                    <span style="color:#94a3b8;font-size:12px">${window.formatarMoeda ? window.formatarMoeda(valorAtual) : 'R$ '+valorAtual.toFixed(2)} / ${window.formatarMoeda ? window.formatarMoeda(valorMeta) : 'R$ '+valorMeta.toFixed(2)}</span>
-                </div>
-            </div>
-        </div>`;
-    }).join('');
+function togglePainelMeta(reservaId) {
+    const painel = document.getElementById(`meta-painel-${reservaId}`);
+    if (!painel) return;
+    painel.style.display = painel.style.display === 'none' ? 'block' : 'none';
 }
-window.renderizarListaObjetivos = renderizarListaObjetivos;
+window.togglePainelMeta = togglePainelMeta;
 
 /**
- * Abre modal de criação de objetivo
+ * Salva (ou remove) a meta de uma reserva via PUT /api/reservas/:id
  */
-function abrirModalCriarObjetivo() {
-    document.getElementById('obj-nome').value = '';
-    document.getElementById('obj-valor-meta').value = '';
-    document.getElementById('obj-data-alvo').value = '';
-    const modal = document.getElementById('modal-criar-objetivo');
-    if (modal) modal.style.display = 'flex';
-}
-window.abrirModalCriarObjetivo = abrirModalCriarObjetivo;
-
-function fecharModalCriarObjetivo() {
-    const modal = document.getElementById('modal-criar-objetivo');
-    if (modal) modal.style.display = 'none';
-}
-window.fecharModalCriarObjetivo = fecharModalCriarObjetivo;
-
-/**
- * Salva novo objetivo
- */
-async function salvarNovoObjetivo() {
-    const nome = (document.getElementById('obj-nome')?.value || '').trim();
-    const valorMeta = parseFloat(document.getElementById('obj-valor-meta')?.value);
-    const valorInicial = parseFloat(document.getElementById('obj-valor-inicial')?.value) || 0;
-    const dataAlvo = document.getElementById('obj-data-alvo')?.value || null;
-
-    if (!nome) {
-        (window.mostrarToast || alert)('Informe o nome do objetivo', 'warning');
-        return;
-    }
-    if (isNaN(valorMeta) || valorMeta <= 0) {
-        (window.mostrarToast || alert)('Informe um valor meta válido', 'warning');
-        return;
-    }
-
+async function salvarMetaReserva(reservaId, valorMeta, dataAlvo) {
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+    const body = valorMeta > 0
+        ? { tipo_reserva: 'objetivo', objetivo_valor: valorMeta, data_objetivo: dataAlvo || null }
+        : { tipo_reserva: 'normal', objetivo_valor: null, data_objetivo: null };
     try {
-        await criarObjetivo({ nome, objetivoValor: valorMeta, valorInicial, dataObjetivo: dataAlvo });
-        // Limpar campos
-        document.getElementById('obj-nome').value = '';
-        document.getElementById('obj-valor-meta').value = '';
-        document.getElementById('obj-valor-inicial').value = '';
-        document.getElementById('obj-data-alvo').value = '';
-        await renderizarListaObjetivos();
-        window.mostrarMensagemSucesso ? window.mostrarMensagemSucesso('Objetivo criado com sucesso!') : null;
+        const resp = await fetch(`${API_URL_RESERVAS}/reservas/${reservaId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(body)
+        });
+        if (resp.ok) {
+            await carregarReservasAPI();
+            renderizarListaReservasModal();
+            const msg = valorMeta > 0 ? 'Meta definida!' : 'Meta removida!';
+            window.mostrarMensagemSucesso ? window.mostrarMensagemSucesso(msg) : null;
+        } else {
+            const err = await resp.json();
+            (window.mostrarToast || alert)(err.message || 'Erro ao salvar meta', 'error');
+        }
     } catch (e) {
-        (window.mostrarToast || alert)(e.message || 'Erro ao criar objetivo', 'error');
+        console.error('Erro ao salvar meta:', e);
+        (window.mostrarToast || alert)('Erro ao salvar meta', 'error');
     }
 }
-window.salvarNovoObjetivo = salvarNovoObjetivo;
+window.salvarMetaReserva = salvarMetaReserva;
 

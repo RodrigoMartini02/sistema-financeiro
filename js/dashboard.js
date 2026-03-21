@@ -2569,7 +2569,183 @@ async function renderizarTemaMetas() {
             })
         });
     })();
+
+    // ── Gráfico 4: Projeção de Crescimento com Selic ──────────────
+    (async function() {
+        try {
+            const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+            const baseUrl = window.API_URL || '';
+            const resp = await fetch(`${baseUrl}/api/financeiro/selic`, {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                const inputTaxa = document.getElementById('proj-taxa');
+                const badge = document.getElementById('proj-taxa-label');
+                if (inputTaxa && data.taxa_mensal) {
+                    inputTaxa.value = data.taxa_mensal.toFixed(2);
+                    if (badge) badge.textContent = `Selic: ${data.taxa_anual.toFixed(2)}% a.a.`;
+                }
+            }
+        } catch(e) { /* mantém valor padrão */ }
+        window.simularProjecao();
+    })();
 }
+
+// ── Função global: simularProjecao ───────────────────────────────
+window.simularProjecao = function simularProjecao() {
+    const aporte = parseFloat(document.getElementById('proj-aporte')?.value) || 500;
+    const anos   = parseInt(document.getElementById('proj-anos')?.value)    || 10;
+    const taxa   = parseFloat(document.getElementById('proj-taxa')?.value)  || 1.17;
+
+    const totalMeses = anos * 12;
+    const semJuros      = [];
+    const comSelic      = [];
+    const comSelicMais2 = [];
+
+    // taxa+2% ao ano → em mensal: adicionar 2/12 pontos percentuais
+    const taxaPlus = taxa + (2 / 12);
+
+    let acumSelic = 0;
+    let acumPlus  = 0;
+
+    for (let i = 0; i < totalMeses; i++) {
+        semJuros.push(aporte * (i + 1));
+        acumSelic = acumSelic * (1 + taxa / 100) + aporte;
+        acumPlus  = acumPlus  * (1 + taxaPlus / 100) + aporte;
+        comSelic.push(acumSelic);
+        comSelicMais2.push(acumPlus);
+    }
+
+    // Labels: apenas o rótulo do mês de janeiro de cada ano (Jan/26, Jan/27…)
+    const hoje = new Date();
+    const anoBase = hoje.getFullYear();
+    const mesBase = hoje.getMonth(); // 0-based
+    const labels = [];
+    for (let i = 0; i < totalMeses; i++) {
+        const m = (mesBase + i) % 12;
+        const a = anoBase + Math.floor((mesBase + i) / 12);
+        if (m === 0 || i === 0) {
+            labels.push(`Jan/${String(a).slice(-2)}`);
+        } else {
+            labels.push('');
+        }
+    }
+
+    // Formatar eixo Y de forma legível
+    function fmtYAxis(v) {
+        if (v >= 1_000_000) return 'R$ ' + (v / 1_000_000).toFixed(1).replace('.', ',') + 'M';
+        if (v >= 1_000)     return 'R$ ' + (v / 1_000).toFixed(0) + 'k';
+        return 'R$ ' + v.toFixed(0);
+    }
+
+    // Destruir chart anterior se existir
+    if (window.chartProjecaoCrescimento) {
+        window.chartProjecaoCrescimento.destroy();
+        window.chartProjecaoCrescimento = null;
+    }
+
+    const canvas = document.getElementById('tema-metas-crescimento');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+
+    // Gradientes
+    const gradCinza  = ctx.createLinearGradient(0, 0, 0, 260);
+    gradCinza.addColorStop(0, 'rgba(148,163,184,0.25)');
+    gradCinza.addColorStop(1, 'rgba(148,163,184,0.02)');
+
+    const gradVerde  = ctx.createLinearGradient(0, 0, 0, 260);
+    gradVerde.addColorStop(0, 'rgba(16,185,129,0.25)');
+    gradVerde.addColorStop(1, 'rgba(16,185,129,0.02)');
+
+    const gradAzul   = ctx.createLinearGradient(0, 0, 0, 260);
+    gradAzul.addColorStop(0, 'rgba(99,102,241,0.25)');
+    gradAzul.addColorStop(1, 'rgba(99,102,241,0.02)');
+
+    window.chartProjecaoCrescimento = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Sem rendimento',
+                    data: semJuros,
+                    borderColor: '#94a3b8',
+                    backgroundColor: gradCinza,
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 4
+                },
+                {
+                    label: 'Com Selic',
+                    data: comSelic,
+                    borderColor: '#10b981',
+                    backgroundColor: gradVerde,
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 4
+                },
+                {
+                    label: 'Com Selic+2%',
+                    data: comSelicMais2,
+                    borderColor: '#6366f1',
+                    backgroundColor: gradAzul,
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 12 }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            const v = ctx.parsed.y;
+                            const fmt = v >= 1_000_000
+                                ? 'R$ ' + (v / 1_000_000).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + 'M'
+                                : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                            return ` ${ctx.dataset.label}: ${fmt}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        color: '#94a3b8',
+                        font: { size: 10 },
+                        maxRotation: 0,
+                        autoSkip: false
+                    },
+                    grid: { color: 'rgba(255,255,255,0.04)' }
+                },
+                y: {
+                    ticks: {
+                        color: '#94a3b8',
+                        font: { size: 10 },
+                        callback: function(v) { return fmtYAxis(v); }
+                    },
+                    grid: { color: 'rgba(255,255,255,0.04)' }
+                }
+            }
+        }
+    });
+};
 
 // Inicializa o dashboard temático junto ao evento sistemaFinanceiroReady
 window.addEventListener('sistemaFinanceiroReady', function() {

@@ -661,79 +661,6 @@
     flex-shrink: 0;
 }
 
-.reserva-linha {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    background: var(--white);
-    border: 1px solid var(--gray-200);
-    border-radius: 6px;
-    margin-bottom: 8px;
-}
-
-.reserva-linha .reserva-nome {
-    flex: 1;
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--gray-800);
-}
-
-.reserva-linha .reserva-saldo {
-    font-size: 15px;
-    font-weight: 700;
-    color: #2e7d32;
-    min-width: 100px;
-    text-align: right;
-}
-
-.reserva-linha .reserva-data {
-    font-size: 12px;
-    color: var(--gray-500);
-    min-width: 80px;
-    text-align: center;
-}
-
-.reserva-linha .reserva-input-valor {
-    width: 100px;
-    height: 32px;
-    font-size: 13px;
-    padding: 0 8px;
-    text-align: right;
-}
-
-.reserva-linha .btn-sm {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    border: none;
-    cursor: pointer;
-}
-
-.btn-confirmar-mov {
-    background: #e8f5e9;
-    color: #2e7d32;
-}
-
-.btn-confirmar-mov:hover {
-    background: #2e7d32;
-    color: white;
-}
-
-.btn-excluir-reserva {
-    background: #fee2e2;
-    color: #dc2626;
-}
-
-.btn-excluir-reserva:hover {
-    background: #dc2626;
-    color: white;
-}
-
 .reserva-vazia {
     padding: 20px;
     text-align: center;
@@ -1206,39 +1133,6 @@
 }
 [data-theme="dark"] .nova-reserva-form .form-group label {
     color: var(--theme-text-faint);
-}
-
-/* Linhas de reserva */
-[data-theme="dark"] .reserva-linha {
-    background: var(--theme-surface-solid);
-    border-color: var(--theme-border);
-}
-[data-theme="dark"] .reserva-linha .reserva-nome {
-    color: var(--theme-text);
-}
-[data-theme="dark"] .reserva-linha .reserva-saldo {
-    color: #4ade80;
-}
-[data-theme="dark"] .reserva-linha .reserva-data {
-    color: var(--theme-text-faint);
-}
-
-/* Botões de reserva */
-[data-theme="dark"] .btn-confirmar-mov {
-    background: rgba(16, 185, 129, 0.1);
-    color: #4ade80;
-}
-[data-theme="dark"] .btn-confirmar-mov:hover {
-    background: #16a34a;
-    color: white;
-}
-[data-theme="dark"] .btn-excluir-reserva {
-    background: rgba(220, 38, 38, 0.1);
-    color: #f87171;
-}
-[data-theme="dark"] .btn-excluir-reserva:hover {
-    background: #dc2626;
-    color: white;
 }
 
 /* Nova reserva inline */

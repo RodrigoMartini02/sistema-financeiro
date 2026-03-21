@@ -882,186 +882,161 @@
 }
 
 /* ================================================================
-   METAS — Abas no modal de Cofre/Metas
+   RESERVAS — Cards unificados no modal de Cofre/Reservas
    ================================================================ */
 
-.metas-tabs {
-    display: flex;
-    gap: 4px;
-    padding: 8px 16px 0;
-    border-bottom: 1px solid var(--theme-border, rgba(255,255,255,0.08));
-    background: var(--theme-surface, #1e2230);
-}
-
-.metas-tab {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 18px;
-    border: none;
-    border-bottom: 2px solid transparent;
-    background: transparent;
-    color: #94a3b8;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: color 0.15s, border-color 0.15s;
-    font-family: inherit;
-    border-radius: 6px 6px 0 0;
-}
-
-.metas-tab.active {
-    color: #6366f1;
-    border-bottom-color: #6366f1;
-    background: rgba(99,102,241,0.07);
-}
-
-.metas-tab:hover:not(.active) {
-    color: var(--theme-text, #f1f5f9);
+/* Card de reserva moderno */
+.reserva-card {
     background: rgba(255,255,255,0.04);
-}
-
-.metas-tab-content {
-    display: block;
-}
-
-/* Objetivos */
-.objetivos-header-action {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 12px;
-}
-
-.lista-objetivos-container {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    max-height: 420px;
-    overflow-y: auto;
-    padding-right: 4px;
-}
-
-.objetivos-vazio {
-    text-align: center;
-    padding: 32px 16px;
-    color: #94a3b8;
-    font-size: 14px;
-}
-
-.objetivo-card {
-    background: var(--theme-surface-2, rgba(255,255,255,0.04));
-    border: 1px solid var(--theme-border, rgba(255,255,255,0.08));
+    border: 1px solid rgba(255,255,255,0.08);
     border-radius: 12px;
     padding: 14px 16px;
-    transition: transform 0.15s;
-}
-
-.objetivo-card:hover {
-    transform: translateY(-1px);
-}
-
-.objetivo-card.objetivo-atingido {
-    opacity: 0.65;
-    border-color: rgba(16,185,129,0.3);
-}
-
-.objetivo-card-top {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
     margin-bottom: 10px;
+    transition: border-color 0.2s;
+}
+.reserva-card:hover {
+    border-color: rgba(99,102,241,0.35);
+}
+.reserva-card.tem-meta {
+    border-left: 3px solid #6366f1;
+}
+.reserva-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 8px;
 }
-
-.objetivo-nome-wrap {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
+.reserva-card-info {
+    flex: 1;
+    min-width: 0;
 }
-
-.objetivo-nome {
+.reserva-card-nome {
     font-size: 14px;
     font-weight: 600;
-    color: var(--theme-text, #f1f5f9);
-}
-
-.obj-badge-atingido {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 11px;
-    color: #10b981;
-    background: rgba(16,185,129,0.12);
-    border-radius: 100px;
-    padding: 2px 8px;
-    width: fit-content;
-}
-
-.obj-dias-restantes {
-    font-size: 11px;
-    color: #f59e0b;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.obj-prazo-vencido {
-    color: #f43f5e;
-}
-
-.obj-btn-atingido {
-    flex-shrink: 0;
-    padding: 4px 8px;
-    font-size: 11px;
-}
-
-.objetivo-progress-wrap {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.objetivo-progress-bar-track {
-    height: 8px;
-    background: rgba(255,255,255,0.07);
-    border-radius: 100px;
+    color: #e2e8f0;
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
 }
+.reserva-card-valor {
+    font-size: 13px;
+    color: #10b981;
+    font-weight: 500;
+    margin-top: 2px;
+}
+.reserva-card-acoes {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+.reserva-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    transition: all 0.15s;
+}
+.reserva-btn-entrada { background: rgba(16,185,129,0.15); color: #10b981; }
+.reserva-btn-entrada:hover { background: rgba(16,185,129,0.3); }
+.reserva-btn-saida { background: rgba(244,63,94,0.15); color: #f43f5e; }
+.reserva-btn-saida:hover { background: rgba(244,63,94,0.3); }
+.reserva-btn-meta { background: rgba(99,102,241,0.15); color: #94a3b8; }
+.reserva-btn-meta:hover { background: rgba(99,102,241,0.3); color: #6366f1; }
+.reserva-btn-meta.ativo { color: #6366f1; background: rgba(99,102,241,0.25); }
+.reserva-btn-excluir { background: rgba(244,63,94,0.1); color: #64748b; }
+.reserva-btn-excluir:hover { background: rgba(244,63,94,0.25); color: #f43f5e; }
 
-.objetivo-progress-bar-fill {
+/* Barra de progresso da meta */
+.reserva-meta-info {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+}
+.reserva-meta-bar-track {
+    height: 6px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 99px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+.reserva-meta-bar-fill {
     height: 100%;
-    border-radius: 100px;
-    transition: width 0.5s ease;
+    border-radius: 99px;
+    transition: width 0.4s ease;
 }
-
-.objetivo-valores {
+.reserva-meta-bar-fill.verde { background: linear-gradient(90deg, #10b981, #34d399); }
+.reserva-meta-bar-fill.amarelo { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.reserva-meta-bar-fill.vermelho { background: linear-gradient(90deg, #f43f5e, #fb7185); }
+.reserva-meta-texto {
     display: flex;
     justify-content: space-between;
+    font-size: 12px;
+    color: #94a3b8;
+}
+.reserva-meta-pct { font-weight: 700; }
+.reserva-meta-pct.verde { color: #10b981; }
+.reserva-meta-pct.amarelo { color: #f59e0b; }
+.reserva-meta-pct.vermelho { color: #f43f5e; }
+.reserva-meta-dias {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 4px;
+    display: flex;
     align-items: center;
+    gap: 4px;
+}
+.reserva-meta-dias.verde { color: #10b981; }
+.reserva-meta-dias.laranja { color: #f59e0b; }
+.reserva-meta-dias.vermelho { color: #f43f5e; }
+
+/* Painel inline de definir meta */
+.reserva-meta-painel {
+    margin-top: 10px;
+    padding: 12px;
+    background: rgba(99,102,241,0.06);
+    border: 1px solid rgba(99,102,241,0.2);
+    border-radius: 8px;
+    display: none;
+}
+.reserva-meta-painel-inputs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+.reserva-meta-painel-inputs input {
+    flex: 1;
+    min-width: 120px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.05);
+    color: #e2e8f0;
+    font-size: 13px;
+}
+.reserva-meta-painel-acoes {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
-/* Light mode overrides for metas */
-[data-theme="light"] .metas-tabs {
-    background: #f8faff;
-    border-bottom-color: rgba(99,102,241,0.14);
+/* Light mode overrides */
+[data-theme="light"] .reserva-card {
+    background: #fff;
+    border-color: rgba(99,102,241,0.12);
 }
-
-[data-theme="light"] .metas-tab {
-    color: #64748b;
+[data-theme="light"] .reserva-card.tem-meta {
+    border-left-color: #6366f1;
 }
-
-[data-theme="light"] .objetivo-card {
-    background: #f8faff;
-    border-color: rgba(99,102,241,0.14);
-}
-
-[data-theme="light"] .objetivo-nome {
-    color: #1e293b;
-}
-
-[data-theme="light"] .objetivo-progress-bar-track {
-    background: rgba(0,0,0,0.07);
-}
+[data-theme="light"] .reserva-card-nome { color: #1e293b; }
+[data-theme="light"] .reserva-meta-bar-track { background: rgba(0,0,0,0.07); }
+[data-theme="light"] .reserva-meta-painel { background: rgba(99,102,241,0.04); }
+[data-theme="light"] .reserva-meta-painel-inputs input { background: #f8faff; color: #1e293b; border-color: #e2e8f0; }
 
 /* Botão ativo do tema Metas */
 [data-tema="metas"].active { background: linear-gradient(135deg, #4f46e5, #06b6d4); box-shadow: 0 2px 14px rgba(6,182,212,0.45); }
@@ -1088,4 +1063,68 @@
 .obj-sem-dados p {
     margin: 0;
     line-height: 1.6;
+}
+
+/* ── Projeção de Crescimento (4º card em Metas) ─────────────────── */
+#tema-metas .tema-charts-grid .tema-chart-card:nth-child(4) {
+    grid-column: 1 / -1;
+    height: auto;
+}
+
+.projecao-controles {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    padding: 12px 0;
+}
+
+.projecao-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.projecao-input-group label {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.projecao-input {
+    width: 110px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.05);
+    color: #e2e8f0;
+    font-size: 13px;
+}
+
+.projecao-taxa-badge {
+    font-size: 10px;
+    color: #10b981;
+    background: rgba(16,185,129,0.1);
+    padding: 2px 6px;
+    border-radius: 10px;
+}
+
+.btn-simular {
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.btn-simular:hover {
+    opacity: 0.85;
+}
+
+[data-theme="light"] .projecao-input {
+    border-color: rgba(99,102,241,0.2);
+    background: rgba(99,102,241,0.04);
+    color: #1e293b;
 }

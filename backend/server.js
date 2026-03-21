@@ -83,6 +83,7 @@ const planosRoutes = require('./routes/planos');
 const paypalRoutes = require('./routes/paypal');
 const aiRoutes = require('./routes/aiRoutes');
 const avaliacoesRoutes = require('./routes/avaliacoes');
+const financeiroRoutes = require('./routes/financeiro');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', usuariosRoutes);
@@ -97,6 +98,7 @@ app.use('/api/planos', planosRoutes);
 app.use('/api/paypal', paypalRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/avaliacoes', avaliacoesRoutes);
+app.use('/api/financeiro', financeiroRoutes);
 
 app.use((req, res) => {
     res.status(404).json({
