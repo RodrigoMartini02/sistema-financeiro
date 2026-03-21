@@ -80,6 +80,7 @@ const mesesRoutes = require('./routes/meses');
 const reservasRoutes = require('./routes/reservas');
 const anosRoutes = require('./routes/anos');
 const planosRoutes = require('./routes/planos');
+const paypalRoutes = require('./routes/paypal');
 const aiRoutes = require('./routes/aiRoutes');
 const avaliacoesRoutes = require('./routes/avaliacoes');
 
@@ -93,6 +94,7 @@ app.use('/api/meses', mesesRoutes);
 app.use('/api/reservas', reservasRoutes);
 app.use('/api/anos', anosRoutes);
 app.use('/api/planos', planosRoutes);
+app.use('/api/paypal', paypalRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/avaliacoes', avaliacoesRoutes);
 

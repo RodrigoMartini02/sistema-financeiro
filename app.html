@@ -3207,13 +3207,16 @@
                 </button>
             </div>
 
-            <!-- Tabs: Cartão / PIX -->
+            <!-- Tabs: Cartão / PIX / PayPal -->
             <div class="pgmt-tabs">
                 <button class="pgmt-tab pgmt-tab-ativo" id="pgmt-tab-cartao" onclick="selecionarMetodo('cartao')">
                     <i class="fas fa-credit-card"></i> Cartão
                 </button>
                 <button class="pgmt-tab" id="pgmt-tab-pix" onclick="selecionarMetodo('pix')">
                     <i class="fas fa-qrcode"></i> PIX
+                </button>
+                <button class="pgmt-tab" id="pgmt-tab-paypal" onclick="selecionarMetodo('paypal')">
+                    <i class="fab fa-paypal"></i> PayPal
                 </button>
             </div>
 
@@ -3259,6 +3262,16 @@
                         </span>
                     </div>
                 </label>
+            </div>
+
+            <!-- Form: PayPal -->
+            <div id="pgmt-form-paypal" style="display:none">
+                <div class="pgmt-paypal-info">
+                    <i class="fab fa-paypal"></i>
+                    <p>Clique no botão abaixo para pagar com sua conta PayPal de forma segura.</p>
+                </div>
+                <div id="pgmt-paypal-btn-container"></div>
+                <p id="pgmt-paypal-status" class="pgmt-paypal-status"></p>
             </div>
 
             <!-- Form: PIX -->

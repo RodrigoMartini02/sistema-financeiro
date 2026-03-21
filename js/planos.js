@@ -272,26 +272,32 @@ window.voltarParaPlanos = function () {
 window.selecionarMetodo = function (metodo) {
     metodoSelecionado = metodo;
 
-    const tabCartao = document.getElementById('pgmt-tab-cartao');
-    const tabPix    = document.getElementById('pgmt-tab-pix');
+    const tabCartao  = document.getElementById('pgmt-tab-cartao');
+    const tabPix     = document.getElementById('pgmt-tab-pix');
+    const tabPayPal  = document.getElementById('pgmt-tab-paypal');
     const formCartao = document.getElementById('pgmt-form-cartao');
     const formPix    = document.getElementById('pgmt-form-pix');
+    const formPayPal = document.getElementById('pgmt-form-paypal');
     const btnAssinar = document.getElementById('pgmt-btn-assinar');
+
+    // Reset todas as abas e forms
+    [tabCartao, tabPix, tabPayPal].forEach(t => t && t.classList.remove('pgmt-tab-ativo'));
+    [formCartao, formPix, formPayPal].forEach(f => f && (f.style.display = 'none'));
+    esconderPixDisplay();
 
     if (metodo === 'cartao') {
         tabCartao.classList.add('pgmt-tab-ativo');
-        tabPix.classList.remove('pgmt-tab-ativo');
         formCartao.style.display = 'block';
-        formPix.style.display = 'none';
         btnAssinar.style.display = 'flex';
-        esconderPixDisplay();
+    } else if (metodo === 'paypal') {
+        tabPayPal && tabPayPal.classList.add('pgmt-tab-ativo');
+        formPayPal.style.display = 'block';
+        btnAssinar.style.display = 'none'; // PayPal tem botão próprio
+        inicializarPayPal();
     } else {
         tabPix.classList.add('pgmt-tab-ativo');
-        tabCartao.classList.remove('pgmt-tab-ativo');
-        formCartao.style.display = 'none';
         formPix.style.display = 'block';
         btnAssinar.style.display = 'flex';
-        esconderPixDisplay();
     }
 
     atualizarTextoBotao();
@@ -724,3 +730,109 @@ window.confirmarCancelamento = async function () {
 function mostrarErro(msg) {
     (window.mostrarToast || alert)(msg, 'error');
 }
+
+// ================================================================
+// PAYPAL — inicialização e renderização do botão
+// ================================================================
+
+let paypalBotoesRenderizados = false;
+
+async function inicializarPayPal() {
+    const container = document.getElementById('pgmt-paypal-btn-container');
+    const status    = document.getElementById('pgmt-paypal-status');
+    if (!container) return;
+
+    // Evita renderizar múltiplas vezes
+    if (paypalBotoesRenderizados) return;
+
+    container.innerHTML = '<div class="pgmt-paypal-loading"><i class="fas fa-spinner fa-spin"></i> Carregando PayPal...</div>';
+
+    try {
+        // Busca client_id do backend
+        const token = sessionStorage.getItem('token');
+        const cfgRes = await fetch(`${API_URL_PLANOS}/paypal/config`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const cfg = await cfgRes.json();
+
+        if (!cfg.success || !cfg.clientId) {
+            container.innerHTML = '<p class="pgmt-paypal-erro">PayPal indisponível no momento.</p>';
+            return;
+        }
+
+        // Carrega SDK PayPal dinamicamente
+        await carregarScriptPayPal(cfg.clientId);
+
+        container.innerHTML = '';
+        if (status) status.textContent = '';
+
+        paypal.Buttons({
+            style: { layout: 'vertical', color: 'blue', shape: 'rect', label: 'pay' },
+
+            createOrder: async function () {
+                const res = await fetch(`${API_URL_PLANOS}/paypal/create-order`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tipo: planoSelecionado })
+                });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.message || 'Erro ao criar ordem');
+                return data.orderID;
+            },
+
+            onApprove: async function (data) {
+                if (status) status.textContent = 'Confirmando pagamento...';
+                try {
+                    const res = await fetch(`${API_URL_PLANOS}/paypal/capture-order`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ orderID: data.orderID, tipo: planoSelecionado })
+                    });
+                    const result = await res.json();
+                    if (result.success) {
+                        fecharModalPlanos();
+                        setTimeout(() => window.verificarStatusPlano?.(), 1000);
+                        (window.mostrarToast || alert)('Pagamento confirmado! Plano ativado.', 'success');
+                    } else {
+                        if (status) status.textContent = result.message || 'Erro ao confirmar pagamento.';
+                    }
+                } catch (e) {
+                    if (status) status.textContent = 'Erro ao confirmar pagamento.';
+                }
+            },
+
+            onError: function (err) {
+                console.error('[PayPal] erro:', err);
+                if (status) status.textContent = 'Ocorreu um erro no pagamento. Tente novamente.';
+            },
+
+            onCancel: function () {
+                if (status) status.textContent = 'Pagamento cancelado.';
+            }
+        }).render('#pgmt-paypal-btn-container');
+
+        paypalBotoesRenderizados = true;
+
+    } catch (error) {
+        console.error('[PayPal] inicialização:', error);
+        container.innerHTML = '<p class="pgmt-paypal-erro">Erro ao carregar PayPal. Tente outro método.</p>';
+    }
+}
+
+function carregarScriptPayPal(clientId) {
+    return new Promise((resolve, reject) => {
+        if (window.paypal) return resolve(); // já carregado
+        const script = document.createElement('script');
+        script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=BRL&locale=pt_BR`;
+        script.onload  = resolve;
+        script.onerror = () => reject(new Error('Falha ao carregar SDK PayPal'));
+        document.head.appendChild(script);
+    });
+}
+
+// Reset ao trocar de plano
+const _irParaPagamentoOriginal = window.irParaPagamento;
+window.irParaPagamento = function(tipo) {
+    paypalBotoesRenderizados = false;
+    _irParaPagamentoOriginal(tipo);
+};

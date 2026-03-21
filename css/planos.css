@@ -476,6 +476,51 @@
    Seção PIX
    ---------------------------------------------------------------- */
 
+/* ── PayPal ──────────────────────────────────────────────────── */
+.pgmt-paypal-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 0 16px;
+    color: #94a3b8;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.pgmt-paypal-info i {
+    font-size: 22px;
+    color: #009cde;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.pgmt-paypal-loading {
+    text-align: center;
+    padding: 20px 0;
+    color: #64748b;
+    font-size: 13px;
+}
+
+.pgmt-paypal-status {
+    text-align: center;
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 8px;
+    min-height: 18px;
+}
+
+.pgmt-paypal-erro {
+    text-align: center;
+    color: #f43f5e;
+    font-size: 13px;
+    padding: 16px 0;
+}
+
+#pgmt-paypal-btn-container {
+    min-height: 48px;
+}
+
+/* ── PIX ─────────────────────────────────────────────────────── */
 .pgmt-pix-aviso {
     color: #94a3b8;
     font-size: 13px;
