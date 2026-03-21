@@ -1432,65 +1432,43 @@ async function renderizarListaReservasModal() {
         const temMeta = reserva.tipo_reserva === 'objetivo' && parseFloat(reserva.objetivo_valor) > 0;
         const valorAtual = _calcularValorAtualReserva(reserva.id);
         const valorMeta = parseFloat(reserva.objetivo_valor) || 0;
+        const valorExibir = valorAtual !== 0 ? valorAtual : parseFloat(reserva.valor) || 0;
 
-        // Calcular progresso
+        // Barra de progresso da meta
         let metaHtml = '';
         if (temMeta) {
             const pct = valorMeta > 0 ? Math.min((valorAtual / valorMeta) * 100, 100) : 0;
-            const corClasse = pct >= 75 ? 'verde' : pct >= 40 ? 'amarelo' : 'vermelho';
-
+            const cor = pct >= 75 ? 'verde' : pct >= 40 ? 'amarelo' : 'vermelho';
             let diasHtml = '';
             if (reserva.data_objetivo) {
                 const dataAlvo = new Date(reserva.data_objetivo + 'T00:00:00');
                 const diffDias = Math.ceil((dataAlvo - hoje) / (1000 * 60 * 60 * 24));
-                const diasClasse = diffDias > 60 ? 'verde' : diffDias > 0 ? 'laranja' : 'vermelho';
-                const diasTexto = diffDias > 0
-                    ? `${diffDias} dias restantes`
-                    : 'Prazo vencido';
-                diasHtml = `<div class="reserva-meta-dias ${diasClasse}"><i class="fas fa-calendar-alt"></i> ${diasTexto}</div>`;
+                const diasCor = diffDias > 60 ? 'verde' : diffDias > 0 ? 'laranja' : 'vermelho';
+                diasHtml = `<span class="reserva-meta-dias ${diasCor}"><i class="fas fa-calendar-alt"></i> ${diffDias > 0 ? diffDias + ' dias restantes' : 'Prazo vencido'}</span>`;
             }
-
             metaHtml = `
                 <div class="reserva-meta-info">
-                    <div class="reserva-meta-bar-track">
-                        <div class="reserva-meta-bar-fill ${corClasse}" style="width:${pct.toFixed(1)}%"></div>
-                    </div>
+                    <div class="reserva-meta-bar-track"><div class="reserva-meta-bar-fill ${cor}" style="width:${pct.toFixed(1)}%"></div></div>
                     <div class="reserva-meta-texto">
-                        <span class="reserva-meta-pct ${corClasse}">${pct.toFixed(1)}%</span>
+                        <span class="reserva-meta-pct ${cor}">${pct.toFixed(1)}%</span>
                         <span>${window.formatarMoeda(valorAtual)} / ${window.formatarMoeda(valorMeta)}</span>
+                        ${diasHtml}
                     </div>
-                    ${diasHtml}
                 </div>`;
         }
 
-        const btnMetaAtivo = temMeta ? 'ativo' : '';
-        const valorExibir = valorAtual !== 0 ? valorAtual : parseFloat(reserva.valor) || 0;
-
-        // Painel inline de movimentação
-        const painelMovHtml = `
-            <div class="reserva-mov-painel" id="mov-painel-${reserva.id}" style="display:none">
-                <div class="reserva-mov-painel-inputs">
-                    <input type="number" id="mov-valor-${reserva.id}" class="form-control" placeholder="Valor (positivo = entrada, negativo = saída)" step="0.01">
-                    <button class="btn btn-sm btn-success" onclick="confirmarMovimentacao(${reserva.id})"><i class="fas fa-check"></i> Confirmar</button>
-                    <button class="btn btn-sm btn-secondary" onclick="togglePainelMov(${reserva.id})">Cancelar</button>
-                </div>
-            </div>`;
-
-        // Painel inline de meta
+        // Painel de meta (oculto por padrão)
         const painelMetaHtml = `
             <div class="reserva-meta-painel" id="meta-painel-${reserva.id}" style="display:none">
                 <div class="reserva-meta-painel-inputs">
-                    <input type="number" id="meta-valor-${reserva.id}" placeholder="Valor meta (R$)" step="0.01" min="0"
-                        value="${temMeta ? valorMeta : ''}">
-                    <input type="date" id="meta-data-${reserva.id}"
-                        value="${reserva.data_objetivo ? reserva.data_objetivo.split('T')[0] : ''}">
+                    <input type="number" id="meta-valor-${reserva.id}" placeholder="Valor meta (R$)" step="0.01" min="0" value="${temMeta ? valorMeta : ''}">
+                    <input type="date" id="meta-data-${reserva.id}" value="${reserva.data_objetivo ? reserva.data_objetivo.split('T')[0] : ''}">
                 </div>
                 <div class="reserva-meta-painel-acoes">
                     <button class="btn btn-sm btn-success" onclick="salvarMetaReserva(${reserva.id}, parseFloat(document.getElementById('meta-valor-${reserva.id}').value)||0, document.getElementById('meta-data-${reserva.id}').value)">
-                        <i class="fas fa-check"></i> Salvar Meta
+                        <i class="fas fa-check"></i> Salvar
                     </button>
-                    ${temMeta ? `<button class="btn btn-sm btn-secondary" onclick="salvarMetaReserva(${reserva.id}, 0, null)"><i class="fas fa-times"></i> Remover Meta</button>` : ''}
-                    <button class="btn btn-sm btn-outline" onclick="togglePainelMeta(${reserva.id})">Cancelar</button>
+                    ${temMeta ? `<button class="btn btn-sm btn-secondary" onclick="salvarMetaReserva(${reserva.id}, 0, null)"><i class="fas fa-times"></i> Remover</button>` : ''}
                 </div>
             </div>`;
 
@@ -1500,38 +1478,27 @@ async function renderizarListaReservasModal() {
         card.innerHTML = `
             <div class="reserva-card-top">
                 <div class="reserva-card-info">
-                    <div class="reserva-card-nome"><i class="fas fa-piggy-bank" style="opacity:0.5;margin-right:6px;font-size:12px"></i>${reserva.observacoes || 'Reserva'}</div>
+                    <div class="reserva-card-nome"><i class="fas fa-piggy-bank" style="opacity:0.4;margin-right:6px;font-size:11px"></i>${reserva.observacoes || 'Reserva'}</div>
                     <div class="reserva-card-valor">${window.formatarMoeda(valorExibir)} guardado</div>
                 </div>
                 <div class="reserva-card-acoes">
-                    <button class="reserva-btn reserva-btn-entrada" title="Adicionar valor"><i class="fas fa-plus"></i></button>
-                    <button class="reserva-btn reserva-btn-saida" title="Retirar valor"><i class="fas fa-minus"></i></button>
-                    <button class="reserva-btn reserva-btn-meta ${btnMetaAtivo}" title="Definir/editar meta" onclick="togglePainelMeta(${reserva.id})"><i class="fas fa-bullseye"></i></button>
+                    <button class="reserva-btn reserva-btn-meta${temMeta ? ' ativo' : ''}" title="${temMeta ? 'Editar meta' : 'Definir meta'}"><i class="fas fa-bullseye"></i></button>
                     <button class="reserva-btn reserva-btn-excluir" title="Excluir reserva"><i class="fas fa-trash"></i></button>
                 </div>
             </div>
+            <div class="reserva-mov-inline">
+                <input type="number" id="mov-valor-${reserva.id}" placeholder="+ adicionar  /  − retirar" step="0.01">
+                <button class="reserva-btn-mover">Mover</button>
+            </div>
             ${metaHtml}
-            ${painelMovHtml}
             ${painelMetaHtml}
         `;
 
-        // Botão entrada — abre painel inline com valor positivo
-        card.querySelector('.reserva-btn-entrada').addEventListener('click', () => {
-            const input = document.getElementById(`mov-valor-${reserva.id}`);
-            if (input) { input.placeholder = 'Valor a adicionar (R$)'; input.min = '0'; input.dataset.tipo = 'entrada'; }
-            togglePainelMov(reserva.id);
-        });
-
-        // Botão saída — abre painel inline com valor positivo (será negado)
-        card.querySelector('.reserva-btn-saida').addEventListener('click', () => {
-            const input = document.getElementById(`mov-valor-${reserva.id}`);
-            if (input) { input.placeholder = 'Valor a retirar (R$)'; input.min = '0'; input.dataset.tipo = 'saida'; }
-            togglePainelMov(reserva.id);
-        });
-
-        // Botão excluir
-        card.querySelector('.reserva-btn-excluir').addEventListener('click', () => {
-            excluirReserva(reserva.id);
+        card.querySelector('.reserva-btn-meta').addEventListener('click', () => togglePainelMeta(reserva.id));
+        card.querySelector('.reserva-btn-excluir').addEventListener('click', () => excluirReserva(reserva.id));
+        card.querySelector('.reserva-btn-mover').addEventListener('click', () => moverReserva(reserva.id));
+        card.querySelector(`#mov-valor-${reserva.id}`).addEventListener('keydown', e => {
+            if (e.key === 'Enter') moverReserva(reserva.id);
         });
 
         lista.appendChild(card);
@@ -1922,35 +1889,18 @@ async function marcarObjetivoAtingido(id) {
 }
 window.marcarObjetivoAtingido = marcarObjetivoAtingido;
 
-/**
- * Toggle do painel inline de definir/editar meta em um card de reserva
- */
-function togglePainelMov(reservaId) {
-    const painel = document.getElementById(`mov-painel-${reservaId}`);
-    if (!painel) return;
-    const abrir = painel.style.display === 'none';
-    painel.style.display = abrir ? 'block' : 'none';
-    if (abrir) {
-        const input = document.getElementById(`mov-valor-${reservaId}`);
-        if (input) { input.value = ''; input.focus(); }
-    }
-}
-window.togglePainelMov = togglePainelMov;
-
-async function confirmarMovimentacao(reservaId) {
+async function moverReserva(reservaId) {
     const input = document.getElementById(`mov-valor-${reservaId}`);
     if (!input) return;
-    const num = parseFloat(input.value.replace(',', '.'));
-    if (isNaN(num) || num <= 0) {
-        (window.mostrarToast || alert)('Digite um valor válido', 'warning');
+    const valor = parseFloat(input.value.replace(',', '.'));
+    if (isNaN(valor) || valor === 0) {
+        (window.mostrarToast || alert)('Digite um valor (positivo para adicionar, negativo para retirar)', 'warning');
         return;
     }
-    const tipo = input.dataset.tipo;
-    const valor = tipo === 'saida' ? -num : num;
+    input.value = '';
     await movimentarReservaSimples(reservaId, valor);
-    togglePainelMov(reservaId);
 }
-window.confirmarMovimentacao = confirmarMovimentacao;
+window.moverReserva = moverReserva;
 
 function togglePainelMeta(reservaId) {
     const painel = document.getElementById(`meta-painel-${reservaId}`);

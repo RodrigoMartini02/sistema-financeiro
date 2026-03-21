@@ -2359,20 +2359,29 @@ async function renderizarTemaMetas() {
     if (elProx)   elProx.textContent   = '…';
     if (elMedia)  elMedia.textContent  = '…';
 
-    let objetivos = [];
-    try {
-        if (typeof window.carregarObjetivos === 'function') {
-            objetivos = await window.carregarObjetivos();
-        } else {
-            const baseUrl = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
-            const res = await fetch(baseUrl + '/reservas/objetivos', {
-                headers: { 'Authorization': 'Bearer ' + (sessionStorage.getItem('token') || localStorage.getItem('token')) }
-            });
-            const data = await res.json();
-            objetivos = data.success ? data.data : [];
-        }
-    } catch(e) {
-        objetivos = [];
+    // Usa cache local já carregado — evita fetch extra que pode falhar
+    const calcValorAtual = function(reservaId) {
+        const movs = window.movimentacoesReservasCache || [];
+        return movs.filter(m => m.reserva_id === reservaId)
+            .reduce((acc, m) => m.tipo === 'entrada' ? acc + parseFloat(m.valor) : acc - parseFloat(m.valor), 0);
+    };
+
+    let objetivos = (window.reservasCache || [])
+        .filter(r => r.tipo_reserva === 'objetivo' && parseFloat(r.objetivo_valor) > 0)
+        .map(r => {
+            const valorAtual = calcValorAtual(r.id) || parseFloat(r.valor) || 0;
+            const progresso = parseFloat(r.objetivo_valor) > 0
+                ? Math.min((valorAtual / parseFloat(r.objetivo_valor)) * 100, 100)
+                : 0;
+            return { ...r, valorAtual, progresso: parseFloat(progresso.toFixed(1)) };
+        });
+
+    // Fallback: se cache vazio, tenta API
+    if (objetivos.length === 0 && typeof window.carregarObjetivos === 'function') {
+        try {
+            const data = await window.carregarObjetivos();
+            objetivos = data.map(r => ({ ...r, valorAtual: parseFloat(r.valor) || 0, progresso: parseFloat(r.progresso) || 0 }));
+        } catch(e) { objetivos = []; }
     }
 
     const ativos = objetivos.filter(o => !o.objetivo_atingido);
@@ -2416,7 +2425,7 @@ async function renderizarTemaMetas() {
         const labels  = ativos.map(o => o.observacoes || ('Objetivo ' + o.id));
         const valores = ativos.map(o => Math.min(parseFloat(o.progresso || 0), 100));
         const cores   = valores.map(v => v >= 75 ? '#10b981' : v >= 40 ? '#f59e0b' : '#f43f5e');
-        const valAtual = ativos.map(o => parseFloat(o.valor || 0));
+        const valAtual = ativos.map(o => parseFloat(o.valorAtual ?? o.valor ?? 0));
         const valMeta  = ativos.map(o => parseFloat(o.objetivo_valor || 0));
 
         criarChart('tema-metas-progresso', {
@@ -2468,7 +2477,7 @@ async function renderizarTemaMetas() {
             const totalMeses = movs.length || 1;
             const totalDepositos = movs.reduce((s, v) => s + parseFloat(v || 0), 0);
             const ritmoPorMes = totalDepositos / totalMeses;
-            const faltante = Math.max(0, parseFloat(obj.objetivo_valor || 0) - parseFloat(obj.valor || 0));
+            const faltante = Math.max(0, parseFloat(obj.objetivo_valor || 0) - parseFloat(obj.valorAtual ?? obj.valor ?? 0));
             const meses = ritmoPorMes > 0 ? Math.ceil(faltante / ritmoPorMes) : null;
 
             labelsProj.push(nome);
@@ -2570,8 +2579,32 @@ async function renderizarTemaMetas() {
         });
     })();
 
-    // ── Gráfico 4: Projeção de Crescimento com Selic ──────────────
+    // ── Gráfico 4: Projeção de Crescimento baseada na média real ──
     (async function() {
+        // 1. Calcular média mensal real de entradas em reservas
+        const movs = window.movimentacoesReservasCache || [];
+        const entradas = movs.filter(m => m.tipo === 'entrada');
+        let mediaReal = 0;
+        if (entradas.length > 0) {
+            // Agrupar por mes/ano para calcular média mensal
+            const porMes = {};
+            entradas.forEach(function(m) {
+                const d = new Date(m.data_hora || m.created_at || Date.now());
+                const chave = `${d.getFullYear()}-${d.getMonth()}`;
+                porMes[chave] = (porMes[chave] || 0) + parseFloat(m.valor || 0);
+            });
+            const mesesComMovimento = Object.values(porMes);
+            mediaReal = mesesComMovimento.reduce((s, v) => s + v, 0) / mesesComMovimento.length;
+        }
+
+        // Atualizar badge e input oculto com a média
+        const mediaBadge = document.getElementById('proj-media-badge');
+        const projAporte = document.getElementById('proj-aporte');
+        const fmt = window.formatarMoeda || (v => 'R$ ' + parseFloat(v).toLocaleString('pt-BR', {minimumFractionDigits:2}));
+        if (mediaBadge) mediaBadge.textContent = mediaReal > 0 ? fmt(mediaReal) + '/mês' : 'Sem histórico';
+        if (projAporte) projAporte.value = mediaReal > 0 ? mediaReal.toFixed(2) : 500;
+
+        // 2. Buscar Selic da API (informativo)
         try {
             const token = sessionStorage.getItem('token') || localStorage.getItem('token');
             const baseUrl = window.API_URL || '';
@@ -2584,17 +2617,25 @@ async function renderizarTemaMetas() {
                 const badge = document.getElementById('proj-taxa-label');
                 if (inputTaxa && data.taxa_mensal) {
                     inputTaxa.value = data.taxa_mensal.toFixed(2);
-                    if (badge) badge.textContent = `Selic: ${data.taxa_anual.toFixed(2)}% a.a.`;
+                }
+                if (badge && data.taxa_anual) {
+                    badge.textContent = `${data.taxa_anual.toFixed(2)}% a.a.`;
                 }
             }
-        } catch(e) { /* mantém valor padrão */ }
+        } catch(e) {
+            const badge = document.getElementById('proj-taxa-label');
+            if (badge) badge.textContent = '14,75% a.a.';
+        }
+
         window.simularProjecao();
     })();
 }
 
 // ── Função global: simularProjecao ───────────────────────────────
 window.simularProjecao = function simularProjecao() {
-    const aporte = parseFloat(document.getElementById('proj-aporte')?.value) || 500;
+    // Aporte vem da média real calculada no render (input hidden)
+    const aporte = parseFloat(document.getElementById('proj-aporte')?.value) || 0;
+    if (aporte <= 0) return; // sem histórico, não renderiza
     const anos   = parseInt(document.getElementById('proj-anos')?.value)    || 10;
     const taxa   = parseFloat(document.getElementById('proj-taxa')?.value)  || 1.17;
 
