@@ -2406,191 +2406,357 @@ async function renderizarTemaMetas() {
         }
     }
 
+    // Usa overlay em vez de substituir innerHTML (preserva os <canvas>)
+    const setEmptyOverlay = function(canvasId, show) {
+        const el = document.getElementById(canvasId);
+        if (!el) return;
+        const card = el.closest('.tema-chart-card');
+        if (!card) return;
+        let overlay = card.querySelector('.obj-sem-dados-overlay');
+        if (show) {
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.className = 'obj-sem-dados obj-sem-dados-overlay';
+                overlay.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:2;background:inherit;border-radius:inherit';
+                overlay.innerHTML = '<i class="fas fa-bullseye" style="font-size:2rem;opacity:0.3;margin-bottom:8px"></i><p style="margin:0;font-size:13px;text-align:center">Nenhum objetivo cadastrado.<br>Crie em <strong>Metas ↗</strong></p>';
+                card.style.position = 'relative';
+                card.appendChild(overlay);
+            }
+            el.style.display = 'none';
+        } else {
+            if (overlay) overlay.remove();
+            el.style.display = '';
+        }
+    };
+
     if (ativos.length === 0) {
-        ['tema-metas-progresso', 'tema-metas-projecao', 'tema-metas-historico'].forEach(function(id) {
-            const el = document.getElementById(id);
-            if (!el) return;
-            const card = el.closest('.tema-chart-card');
-            if (card) card.innerHTML = '<div class="obj-sem-dados"><i class="fas fa-bullseye" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:8px"></i><p>Nenhum objetivo cadastrado.<br>Crie em <strong>Metas ↗</strong></p></div>';
-        });
+        ['tema-metas-progresso', 'tema-metas-projecao', 'tema-metas-historico'].forEach(id => setEmptyOverlay(id, true));
         return;
     }
+    ['tema-metas-progresso', 'tema-metas-projecao', 'tema-metas-historico'].forEach(id => setEmptyOverlay(id, false));
 
-    // ── Gráfico 1: Progresso por Objetivo (barras horizontais) ────
+    // ── Gráfico 1: Progresso por Objetivo (barras horizontais premium) ────
     (function() {
-        const labels  = ativos.map(o => o.observacoes || ('Objetivo ' + o.id));
-        const valores = ativos.map(o => Math.min(parseFloat(o.progresso || 0), 100));
-        const cores   = valores.map(v => v >= 75 ? '#10b981' : v >= 40 ? '#f59e0b' : '#f43f5e');
+        const labels   = ativos.map(o => o.observacoes || ('Objetivo ' + o.id));
+        const valores  = ativos.map(o => Math.min(parseFloat(o.progresso || 0), 100));
         const valAtual = ativos.map(o => parseFloat(o.valorAtual ?? o.valor ?? 0));
         const valMeta  = ativos.map(o => parseFloat(o.objetivo_valor || 0));
+
+        // Gradiente por faixa de progresso: verde ≥75, amarelo ≥40, vermelho <40
+        const corProgresso = function(v) {
+            if (v >= 75) return '#10b981';
+            if (v >= 40) return '#f59e0b';
+            return '#f43f5e';
+        };
+
+        const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+        const trackColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)';
+        const labelColor = isDark ? '#cbd5e1' : '#334155';
 
         criarChart('tema-metas-progresso', {
             type: 'bar',
             data: {
                 labels: labels,
-                datasets: [{
-                    label: 'Progresso (%)',
-                    data: valores,
-                    backgroundColor: cores,
-                    borderRadius: { topLeft: 0, topRight: 6, bottomLeft: 0, bottomRight: 6 },
-                    borderSkipped: false,
-                    barPercentage: 0.7
-                }]
+                datasets: [
+                    // Dataset de fundo (track cinza até 100%)
+                    {
+                        label: '_track',
+                        data: valores.map(() => 100),
+                        backgroundColor: trackColor,
+                        borderRadius: 6,
+                        borderSkipped: false,
+                        barPercentage: 0.55,
+                        categoryPercentage: 1,
+                        order: 2
+                    },
+                    // Dataset de progresso com cor por desempenho
+                    {
+                        label: 'Progresso',
+                        data: valores,
+                        backgroundColor: valores.map(corProgresso),
+                        borderRadius: 6,
+                        borderSkipped: false,
+                        barPercentage: 0.55,
+                        categoryPercentage: 1,
+                        order: 1
+                    }
+                ]
             },
-            options: Object.assign({}, opcoesBarraH(), {
-                scales: Object.assign({}, opcoesBarraH().scales, {
-                    x: Object.assign({}, opcoesBarraH().scales.x, {
-                        min: 0,
-                        max: 100,
-                        ticks: { color: '#94a3b8', font: { size: 10 }, callback: function(v) { return v + '%'; } }
-                    })
-                }),
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 600 },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
+                        filter: function(item) { return item.datasetIndex === 1; },
                         callbacks: {
+                            title: function(items) { return labels[items[0].dataIndex]; },
                             label: function(ctx) {
                                 const i = ctx.dataIndex;
-                                const fmt = window.formatarMoeda || (v => 'R$ ' + parseFloat(v).toLocaleString('pt-BR', {minimumFractionDigits:2}));
-                                return labels[i] + ': ' + valores[i].toFixed(1) + '% (' + fmt(valAtual[i]) + ' / ' + fmt(valMeta[i]) + ')';
+                                return [
+                                    '  Progresso: ' + valores[i].toFixed(1) + '%',
+                                    '  Atual: ' + fmtR(valAtual[i]),
+                                    '  Meta:  ' + fmtR(valMeta[i])
+                                ];
                             }
                         }
                     }
+                },
+                scales: {
+                    x: {
+                        min: 0,
+                        max: 100,
+                        stacked: false,
+                        ticks: { color: '#94a3b8', font: { size: 10 }, callback: function(v) { return v + '%'; } },
+                        grid: { color: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)' }
+                    },
+                    y: {
+                        stacked: false,
+                        ticks: { color: labelColor, font: { size: 11 } },
+                        grid: { display: false }
+                    }
                 }
-            })
+            }
         });
     })();
 
-    // ── Gráfico 2: Projeção de Conclusão (meses restantes) ────────
+    // ── Gráfico 2: Necessidade Mensal para Atingir Meta ────────────
     (function() {
-        const labelsProj  = [];
-        const mesesRest   = [];
-        const coresProj   = [];
+        const hoje = new Date();
+        const labelsProj = [];
+        const valoresBarra = [];
+        const coresProj = [];
+        const tooltipExtra = []; // { temData, faltante, necessidadeMes, dataFmt }
 
         ativos.forEach(function(obj) {
             const nome = obj.observacoes || ('Objetivo ' + obj.id);
-            const movs = Array.isArray(obj.meses_movimentacoes) ? obj.meses_movimentacoes : [];
-            const totalMeses = movs.length || 1;
-            const totalDepositos = movs.reduce((s, v) => s + parseFloat(v || 0), 0);
-            const ritmoPorMes = totalDepositos / totalMeses;
             const faltante = Math.max(0, parseFloat(obj.objetivo_valor || 0) - parseFloat(obj.valorAtual ?? obj.valor ?? 0));
-            const meses = ritmoPorMes > 0 ? Math.ceil(faltante / ritmoPorMes) : null;
 
             labelsProj.push(nome);
-            mesesRest.push(meses !== null ? meses : 0);
-            coresProj.push(meses === null ? '#94a3b8' : meses <= 6 ? '#10b981' : meses <= 12 ? '#f59e0b' : '#f43f5e');
+
+            if (obj.data_objetivo) {
+                const dataAlvo = new Date(obj.data_objetivo);
+                // Meses restantes (arredondado para cima, mínimo 1)
+                const diffMs = dataAlvo - hoje;
+                const mesesRestantes = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24 * 30.44)));
+                const necessidadeMes = faltante > 0 ? faltante / mesesRestantes : 0;
+
+                // Cor: verde se meses>=6, amarelo se 1-5 meses, cinza se já atingido
+                const cor = faltante <= 0 ? '#10b981'
+                    : mesesRestantes <= 3 ? '#f43f5e'
+                    : mesesRestantes <= 6 ? '#f59e0b'
+                    : '#10b981';
+
+                valoresBarra.push(necessidadeMes);
+                coresProj.push(cor);
+
+                const dataFmt = dataAlvo.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
+                tooltipExtra.push({ temData: true, faltante, necessidadeMes, dataFmt, mesesRestantes });
+            } else {
+                // Sem data: mostra o valor faltante como referência, cor vermelho (sem prazo)
+                valoresBarra.push(faltante);
+                coresProj.push('#f43f5e');
+                tooltipExtra.push({ temData: false, faltante });
+            }
         });
+
+        const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+        const labelColor = isDark ? '#cbd5e1' : '#334155';
 
         criarChart('tema-metas-projecao', {
             type: 'bar',
             data: {
                 labels: labelsProj,
                 datasets: [{
-                    label: 'Meses restantes',
-                    data: mesesRest,
+                    label: 'Necessidade Mensal',
+                    data: valoresBarra,
                     backgroundColor: coresProj,
-                    borderRadius: { topLeft: 0, topRight: 6, bottomLeft: 0, bottomRight: 6 },
+                    borderRadius: 6,
                     borderSkipped: false,
-                    barPercentage: 0.7
+                    barPercentage: 0.6,
+                    categoryPercentage: 0.9
                 }]
             },
-            options: Object.assign({}, opcoesBarraH(), {
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 600 },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
                         callbacks: {
+                            title: function(items) { return labelsProj[items[0].dataIndex]; },
                             label: function(ctx) {
-                                const v = ctx.parsed.x;
-                                if (v === 0) return ' Sem movimentações';
-                                return ' ' + v + ' meses restantes';
-                            }
-                        }
-                    }
-                },
-                scales: Object.assign({}, opcoesBarraH().scales, {
-                    x: Object.assign({}, opcoesBarraH().scales.x, {
-                        ticks: { color: '#94a3b8', font: { size: 10 }, callback: function(v) { return v + ' meses'; } }
-                    })
-                })
-            })
-        });
-    })();
-
-    // ── Gráfico 3: Evolução % Mensal (linhas múltiplas) ───────────
-    (function() {
-        // Descobrir últimos 6 meses com dados
-        const hoje = new Date();
-        const mesesLabels = [];
-        for (let i = 5; i >= 0; i--) {
-            const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
-            mesesLabels.push(d.toLocaleString('pt-BR', { month: 'short', year: '2-digit' }));
-        }
-
-        const datasets = ativos.map(function(obj, idx) {
-            const nome = obj.observacoes || ('Objetivo ' + obj.id);
-            const cor = CORES[idx % CORES.length];
-            // Sem dados históricos por mês via API simplificada — usar progresso atual como placeholder
-            const progAtual = Math.min(parseFloat(obj.progresso || 0), 100);
-            // Gera linha fictícia crescente baseada no progresso atual
-            const dados = Array.from({ length: 6 }, function(_, i) {
-                const frac = (i + 1) / 6;
-                return Math.min(progAtual * frac, progAtual);
-            });
-            return {
-                label: nome,
-                data: dados,
-                borderColor: cor,
-                backgroundColor: cor + '22',
-                borderWidth: 2,
-                fill: false,
-                tension: 0.4,
-                pointRadius: 3
-            };
-        });
-
-        criarChart('tema-metas-historico', {
-            type: 'line',
-            data: { labels: mesesLabels, datasets: datasets },
-            options: opcoesEscuras({
-                plugins: {
-                    legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } },
-                    tooltip: {
-                        callbacks: {
-                            label: function(ctx) {
-                                return ' ' + ctx.dataset.label + ': ' + parseFloat(ctx.parsed.y).toFixed(1) + '%';
+                                const i = ctx.dataIndex;
+                                const info = tooltipExtra[i];
+                                if (info.faltante <= 0) return '  Meta atingida!';
+                                if (info.temData) {
+                                    return [
+                                        '  Guardar: ' + fmtR(info.necessidadeMes) + '/mês',
+                                        '  Até: ' + info.dataFmt + ' (' + info.mesesRestantes + ' meses)',
+                                        '  Faltam: ' + fmtR(info.faltante)
+                                    ];
+                                }
+                                return [
+                                    '  Faltam: ' + fmtR(info.faltante),
+                                    '  Sem data definida'
+                                ];
                             }
                         }
                     }
                 },
                 scales: {
-                    x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                    x: {
+                        ticks: {
+                            color: '#94a3b8',
+                            font: { size: 10 },
+                            callback: function(v) {
+                                if (v >= 1000) return 'R$' + (v / 1000).toFixed(0) + 'k';
+                                return 'R$' + v.toFixed(0);
+                            }
+                        },
+                        grid: { color: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)' }
+                    },
                     y: {
-                        min: 0,
-                        max: 100,
-                        ticks: { color: '#94a3b8', font: { size: 11 }, callback: function(v) { return v + '%'; } },
-                        grid: { color: 'rgba(255,255,255,0.04)' }
+                        ticks: { color: labelColor, font: { size: 11 } },
+                        grid: { display: false }
                     }
                 }
-            })
+            }
+        });
+    })();
+
+    // ── Gráfico 3: Distribuição dos Objetivos (pizza/donut) ───────
+    (function() {
+        const totalGeral = ativos.reduce(function(s, o) { return s + parseFloat(o.valorAtual ?? o.valor ?? 0); }, 0);
+
+        // Caso especial: apenas 1 objetivo → donut com % atingido vs restante
+        if (ativos.length === 1) {
+            const obj = ativos[0];
+            const prog = Math.min(parseFloat(obj.progresso || 0), 100);
+            const nome = obj.observacoes || ('Objetivo ' + obj.id);
+            const cor = prog >= 75 ? '#10b981' : prog >= 40 ? '#f59e0b' : '#f43f5e';
+
+            criarChart('tema-metas-historico', {
+                type: 'doughnut',
+                data: {
+                    labels: [nome, 'Restante'],
+                    datasets: [{
+                        data: [prog, Math.max(0, 100 - prog)],
+                        backgroundColor: [cor, 'rgba(148,163,184,0.18)'],
+                        borderColor: ['transparent', 'transparent'],
+                        borderWidth: 0,
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    radius: '80%',
+                    animation: { animateRotate: true, animateScale: true, duration: 700 },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 12, padding: 12 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    if (ctx.dataIndex === 0) {
+                                        return [
+                                            '  ' + nome,
+                                            '  Progresso: ' + prog.toFixed(1) + '%',
+                                            '  Atual: ' + fmtR(obj.valorAtual ?? obj.valor ?? 0),
+                                            '  Meta:  ' + fmtR(obj.objetivo_valor || 0)
+                                        ];
+                                    }
+                                    return '  Faltam: ' + fmtR(Math.max(0, parseFloat(obj.objetivo_valor || 0) - parseFloat(obj.valorAtual ?? obj.valor ?? 0)));
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            return;
+        }
+
+        // Múltiplos objetivos → pizza com fatia = valorAtual de cada objetivo
+        const labelsHist  = ativos.map(o => o.observacoes || ('Objetivo ' + o.id));
+        const valoresHist = ativos.map(o => Math.max(0, parseFloat(o.valorAtual ?? o.valor ?? 0)));
+        const coresPizza  = ativos.map(function(_, idx) { return CORES[idx % CORES.length]; });
+
+        // Legenda customizada: nome + % do total
+        const gerarLabelPizza = function(idx) {
+            const pct = totalGeral > 0 ? ((valoresHist[idx] / totalGeral) * 100).toFixed(1) : '0.0';
+            return labelsHist[idx] + ' (' + pct + '%)';
+        };
+        const labelsLegenda = ativos.map(function(_, idx) { return gerarLabelPizza(idx); });
+
+        criarChart('tema-metas-historico', {
+            type: 'pie',
+            data: {
+                labels: labelsLegenda,
+                datasets: [{
+                    data: valoresHist,
+                    backgroundColor: coresPizza,
+                    borderColor: 'transparent',
+                    borderWidth: 0,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                radius: '80%',
+                animation: { animateRotate: true, animateScale: true, duration: 700 },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom',
+                        labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 12, padding: 10 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: function(items) { return labelsHist[items[0].dataIndex]; },
+                            label: function(ctx) {
+                                const i = ctx.dataIndex;
+                                const pct = totalGeral > 0 ? ((valoresHist[i] / totalGeral) * 100).toFixed(1) : '0.0';
+                                return [
+                                    '  Guardado: ' + fmtR(valoresHist[i]),
+                                    '  % do total: ' + pct + '%',
+                                    '  Meta: ' + fmtR(ativos[i].objetivo_valor || 0)
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
         });
     })();
 
     // ── Gráfico 4: Projeção de Crescimento baseada na média real ──
     (async function() {
-        // 1. Calcular média mensal real de entradas em reservas
+        // 1. Calcular média mensal líquida (entradas − saídas por mês)
         const movs = window.movimentacoesReservasCache || [];
-        const entradas = movs.filter(m => m.tipo === 'entrada');
         let mediaReal = 0;
-        if (entradas.length > 0) {
-            // Agrupar por mes/ano para calcular média mensal
+        if (movs.length > 0) {
             const porMes = {};
-            entradas.forEach(function(m) {
+            movs.forEach(function(m) {
                 const d = new Date(m.data_hora || m.created_at || Date.now());
-                const chave = `${d.getFullYear()}-${d.getMonth()}`;
-                porMes[chave] = (porMes[chave] || 0) + parseFloat(m.valor || 0);
+                const chave = `${d.getFullYear()}-${String(d.getMonth()).padStart(2,'0')}`;
+                const val = parseFloat(m.valor || 0);
+                porMes[chave] = (porMes[chave] || 0) + (m.tipo === 'entrada' ? val : -val);
             });
-            const mesesComMovimento = Object.values(porMes);
-            mediaReal = mesesComMovimento.reduce((s, v) => s + v, 0) / mesesComMovimento.length;
+            // Considerar apenas meses com saldo líquido positivo para a projeção
+            const mesesPositivos = Object.values(porMes).filter(v => v > 0);
+            if (mesesPositivos.length > 0) {
+                mediaReal = mesesPositivos.reduce((s, v) => s + v, 0) / mesesPositivos.length;
+            }
         }
 
         // Atualizar badge e input oculto com a média
