@@ -364,108 +364,182 @@
 
        
 
-        <div class="dashboard-grid">
+        <!-- Canvases ocultos para compatibilidade com gráficos antigos -->
+        <div style="display:none">
+            <canvas id="tendencia-chart"></canvas>
+            <canvas id="balanco-chart"></canvas>
+            <canvas id="receitas-despesas-chart"></canvas>
+            <canvas id="categorias-barras-chart"></canvas>
+            <canvas id="categorias-mensais-chart"></canvas>
+            <canvas id="media-categorias-chart"></canvas>
+            <canvas id="forma-pagamento-chart"></canvas>
+            <canvas id="cartoes-usados-chart"></canvas>
+            <canvas id="juros-economias-chart"></canvas>
+            <canvas id="parcelamentos-chart"></canvas>
+        </div>
 
-            <div class="dashboard-card chart-accent-violet">
-                <h3>
-                    <span class="chart-label"><i class="fas fa-chart-line chart-icon"></i> TENDÊNCIA ANUAL</span>
-                    <button class="btn-zoom" data-chart="tendenciaChart"><i class="fas fa-expand-alt"></i></button>
-                </h3>
-                <div class="chart-container">
-                    <canvas id="tendencia-chart"></canvas>
-                </div>
-            </div>
+        <!-- KPIs FIXOS NO TOPO (4 cards sempre visíveis) -->
+        <div class="dash-kpis-fixos">
+          <div class="dash-kpi-card" id="kpi-saldo-atual">
+            <span class="kpi-label">Saldo Disponível</span>
+            <span class="kpi-valor" id="kpi-saldo-valor">R$ 0,00</span>
+            <span class="kpi-trend" id="kpi-saldo-trend"></span>
+          </div>
+          <div class="dash-kpi-card" id="kpi-receitas-mes">
+            <span class="kpi-label">Receitas do Mês</span>
+            <span class="kpi-valor" id="kpi-receitas-valor">R$ 0,00</span>
+          </div>
+          <div class="dash-kpi-card" id="kpi-despesas-mes">
+            <span class="kpi-label">Despesas do Mês</span>
+            <span class="kpi-valor" id="kpi-despesas-valor">R$ 0,00</span>
+          </div>
+          <div class="dash-kpi-card" id="kpi-economia-mes">
+            <span class="kpi-label">Resultado do Mês</span>
+            <span class="kpi-valor" id="kpi-economia-valor">R$ 0,00</span>
+          </div>
+        </div>
 
-            <div class="dashboard-card chart-accent-blue">
-                <h3>
-                    <span class="chart-label"><i class="fas fa-chart-area chart-icon"></i> BALANÇO</span>
-                    <button class="btn-zoom" data-chart="balancoChart"><i class="fas fa-expand-alt"></i></button>
-                </h3>
-                <div class="chart-container">
-                    <canvas id="balanco-chart"></canvas>
-                </div>
-            </div>
+        <!-- FILTRO DE PERÍODO GLOBAL -->
+        <div class="dash-filtro-periodo">
+          <div class="filtro-periodo-toggle">
+            <button class="periodo-btn active" data-periodo="ano">Ano Atual</button>
+            <button class="periodo-btn" data-periodo="todos">Todos os Anos</button>
+          </div>
+          <select id="dash-filtro-ano" class="dash-select"></select>
+          <select id="dash-filtro-mes" class="dash-select">
+            <option value="">Todos os meses</option>
+            <option value="0">Janeiro</option><option value="1">Fevereiro</option>
+            <option value="2">Março</option><option value="3">Abril</option>
+            <option value="4">Maio</option><option value="5">Junho</option>
+            <option value="6">Julho</option><option value="7">Agosto</option>
+            <option value="8">Setembro</option><option value="9">Outubro</option>
+            <option value="10">Novembro</option><option value="11">Dezembro</option>
+          </select>
+        </div>
 
-            <div class="dashboard-card chart-accent-emerald">
-                <h3>
-                    <span class="chart-label"><i class="fas fa-exchange-alt chart-icon"></i> ENTRADAS E SAÍDAS</span>
-                    <button class="btn-zoom" data-chart="receitasDespesasChart"><i class="fas fa-expand-alt"></i></button>
-                </h3>
-                <div class="chart-container">
-                    <canvas id="receitas-despesas-chart"></canvas>
-                </div>
-            </div>
+        <!-- BOTÕES TEMÁTICOS -->
+        <div class="dash-temas-nav">
+          <button class="tema-btn active" data-tema="saude">
+            <i class="fas fa-heartbeat"></i><span>Saúde Financeira</span>
+          </button>
+          <button class="tema-btn" data-tema="fluxo">
+            <i class="fas fa-exchange-alt"></i><span>Fluxo de Caixa</span>
+          </button>
+          <button class="tema-btn" data-tema="categorias">
+            <i class="fas fa-tags"></i><span>Onde Vai o Dinheiro</span>
+          </button>
+          <button class="tema-btn" data-tema="pagamento">
+            <i class="fas fa-credit-card"></i><span>Pagamento</span>
+          </button>
+          <button class="tema-btn" data-tema="divida">
+            <i class="fas fa-chart-line"></i><span>Endividamento</span>
+          </button>
+          <button class="tema-btn" data-tema="anual">
+            <i class="fas fa-trophy"></i><span>Desempenho Anual</span>
+          </button>
+          <button class="tema-btn" data-tema="analise">
+            <i class="fas fa-microscope"></i><span>Análise Detalhada</span>
+          </button>
+        </div>
 
-            <div class="dashboard-card chart-accent-amber">
-                <h3>
-                    <span class="chart-label"><i class="fas fa-tags chart-icon"></i> CATEGORIAS ANUAIS</span>
-                    <button class="btn-zoom" data-chart="categoriasBarrasChart"><i class="fas fa-expand-alt"></i></button>
-                </h3>
-                <div class="chart-container">
-                    <canvas id="categorias-barras-chart"></canvas>
-                </div>
-            </div>
+        <!-- VIEWS TEMÁTICAS -->
 
-            <div class="dashboard-card chart-accent-cyan">
-                <h3>
-                    <span class="chart-label"><i class="fas fa-calendar-alt chart-icon"></i> CATEGORIAS MENSAIS</span>
-                    <button class="btn-zoom" data-chart="categoriasEmpilhadasChart"><i class="fas fa-expand-alt"></i></button>
-                </h3>
-                <div class="chart-container">
-                    <canvas id="categorias-mensais-chart"></canvas>
-                </div>
-            </div>
+        <!-- TEMA: SAÚDE FINANCEIRA -->
+        <div class="tema-view active" id="tema-saude">
+          <div class="tema-kpis">
+            <div class="tema-kpi"><span class="tk-label">Saldo Atual</span><span class="tk-valor" id="tk-saude-saldo">R$ 0,00</span></div>
+            <div class="tema-kpi"><span class="tk-label">Variação do Mês</span><span class="tk-valor" id="tk-saude-variacao">0%</span></div>
+            <div class="tema-kpi"><span class="tk-label">Saúde Geral</span><span class="tk-valor" id="tk-saude-score">--</span></div>
+          </div>
+          <div class="tema-charts-grid grid-2-1">
+            <div class="tema-chart-card"><div class="chart-header"><h3>Balanço Mensal</h3><p>Receitas, Despesas e Saldo por mês</p></div><canvas id="tema-saude-balanco"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3>Saldo Progressivo</h3><p>Evolução do saldo acumulado</p></div><canvas id="tema-saude-progressivo"></canvas></div>
+            <div class="tema-chart-card tema-chart-full"><div class="chart-header"><h3>Entradas vs Saídas</h3><p>Comparativo mensal detalhado</p></div><canvas id="tema-saude-entradas"></canvas></div>
+          </div>
+        </div>
 
-             <div class="dashboard-card chart-accent-teal">
-                <h3>
-                    <span class="chart-label"><i class="fas fa-chart-bar chart-icon"></i> MÉDIA ANUAL</span>
-                    <button class="btn-zoom" data-chart="mediaCategoriasChart"><i class="fas fa-expand-alt"></i></button>
-                </h3>
-                <div class="chart-container">
-                    <canvas id="media-categorias-chart"></canvas>
-                </div>
-            </div>
+        <!-- TEMA: FLUXO DE CAIXA -->
+        <div class="tema-view" id="tema-fluxo">
+          <div class="tema-kpis">
+            <div class="tema-kpi"><span class="tk-label">Total Receitas</span><span class="tk-valor" id="tk-fluxo-receitas">R$ 0,00</span></div>
+            <div class="tema-kpi"><span class="tk-label">Total Despesas</span><span class="tk-valor" id="tk-fluxo-despesas">R$ 0,00</span></div>
+            <div class="tema-kpi"><span class="tk-label">Resultado</span><span class="tk-valor" id="tk-fluxo-resultado">R$ 0,00</span></div>
+          </div>
+          <div class="tema-charts-grid grid-3">
+            <div class="tema-chart-card"><div class="chart-header"><h3>Entradas e Saídas</h3><p>Receitas vs Despesas por mês</p></div><canvas id="tema-fluxo-entradas"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3>Fluxo Acumulado</h3><p>Receitas e despesas acumuladas</p></div><canvas id="tema-fluxo-acumulado"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3>Cobertura</h3><p>% Receita cobrindo Despesa</p></div><canvas id="tema-fluxo-cobertura"></canvas></div>
+          </div>
+        </div>
 
-            <div class="dashboard-card chart-accent-indigo">
-                <h3>
-                    <span class="chart-label"><i class="fas fa-credit-card chart-icon"></i> FORMAS DE PAGAMENTO</span>
-                    <button class="btn-zoom" data-chart="formaPagamentoChart"><i class="fas fa-expand-alt"></i></button>
-                </h3>
-                <div class="chart-container">
-                    <canvas id="forma-pagamento-chart"></canvas>
-                </div>
-            </div>
+        <!-- TEMA: ONDE VAI O DINHEIRO -->
+        <div class="tema-view" id="tema-categorias">
+          <div class="tema-kpis">
+            <div class="tema-kpi"><span class="tk-label">Maior Gasto</span><span class="tk-valor" id="tk-cat-maior">--</span></div>
+            <div class="tema-kpi"><span class="tk-label">% do Total</span><span class="tk-valor" id="tk-cat-pct">0%</span></div>
+            <div class="tema-kpi"><span class="tk-label">Categorias Ativas</span><span class="tk-valor" id="tk-cat-count">0</span></div>
+          </div>
+          <div class="tema-charts-grid grid-2-1">
+            <div class="tema-chart-card"><div class="chart-header"><h3>Despesas por Categoria</h3><p>Total anual por categoria</p></div><canvas id="tema-cat-anual"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3>Top 5 ao Longo do Tempo</h3><p>Evolução mensal das maiores categorias</p></div><canvas id="tema-cat-evolucao"></canvas></div>
+            <div class="tema-chart-card tema-chart-full"><div class="chart-header"><h3>Média Mensal por Categoria</h3><p>Quanto você gasta em média por mês</p></div><canvas id="tema-cat-media"></canvas></div>
+          </div>
+        </div>
 
-            <div class="dashboard-card chart-accent-pink">
-                <h3>
-                    <span class="chart-label"><i class="fas fa-wallet chart-icon"></i> USO DE CARTÕES</span>
-                    <button class="btn-zoom" data-chart="chartDistribuicaoCartoes"><i class="fas fa-expand-alt"></i></button>
-                </h3>
-                <div class="chart-container">
-                    <canvas id="cartoes-usados-chart"></canvas>
-                </div>
-            </div>
+        <!-- TEMA: PAGAMENTO -->
+        <div class="tema-view" id="tema-pagamento">
+          <div class="tema-kpis">
+            <div class="tema-kpi"><span class="tk-label">Gasto em Crédito</span><span class="tk-valor" id="tk-pgto-credito">R$ 0,00</span></div>
+            <div class="tema-kpi"><span class="tk-label">Gasto em Débito/PIX</span><span class="tk-valor" id="tk-pgto-debito">R$ 0,00</span></div>
+            <div class="tema-kpi"><span class="tk-label">% Crédito</span><span class="tk-valor" id="tk-pgto-pct">0%</span></div>
+          </div>
+          <div class="tema-charts-grid grid-3">
+            <div class="tema-chart-card"><div class="chart-header"><h3>Formas de Pagamento</h3><p>Distribuição geral</p></div><canvas id="tema-pgto-formas"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3>Uso de Cartões</h3><p>Distribuição entre cartões</p></div><canvas id="tema-pgto-cartoes"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3>Forma por Mês</h3><p>Como você pagou ao longo do ano</p></div><canvas id="tema-pgto-mensal"></canvas></div>
+          </div>
+        </div>
 
-            <div class="dashboard-card chart-accent-orange">
-                <h3>
-                    <span class="chart-label"><i class="fas fa-balance-scale chart-icon"></i> JUROS × ECONOMIAS</span>
-                    <button class="btn-zoom" data-chart="jurosEconomiasChart"><i class="fas fa-expand-alt"></i></button>
-                </h3>
-                <div class="chart-container">
-                    <canvas id="juros-economias-chart"></canvas>
-                </div>
-            </div>
+        <!-- TEMA: ENDIVIDAMENTO -->
+        <div class="tema-view" id="tema-divida">
+          <div class="tema-kpis">
+            <div class="tema-kpi"><span class="tk-label">Juros Pagos</span><span class="tk-valor" id="tk-divida-juros">R$ 0,00</span></div>
+            <div class="tema-kpi"><span class="tk-label">Em Parcelamentos</span><span class="tk-valor" id="tk-divida-parcelas">R$ 0,00</span></div>
+            <div class="tema-kpi"><span class="tk-label">Economias</span><span class="tk-valor" id="tk-divida-economias">R$ 0,00</span></div>
+          </div>
+          <div class="tema-charts-grid grid-3">
+            <div class="tema-chart-card"><div class="chart-header"><h3>Juros × Economias</h3><p>Balanço entre custo e economia</p></div><canvas id="tema-divida-juros"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3>Parcelamentos Ativos</h3><p>Valor parcelado por mês</p></div><canvas id="tema-divida-parcelas"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3>Custo Acumulado</h3><p>Juros acumulados ao longo do ano</p></div><canvas id="tema-divida-custo"></canvas></div>
+          </div>
+        </div>
 
-            <div class="dashboard-card chart-accent-orange">
-                <h3>
-                    <span class="chart-label"><i class="fas fa-layer-group chart-icon"></i> PARCELAMENTOS</span>
-                    <button class="btn-zoom" data-chart="parcelamentosChart"><i class="fas fa-expand-alt"></i></button>
-                </h3>
-                <div class="chart-container">
-                    <canvas id="parcelamentos-chart"></canvas>
-                </div>
-            </div>
- 
+        <!-- TEMA: DESEMPENHO ANUAL -->
+        <div class="tema-view" id="tema-anual">
+          <div class="tema-kpis">
+            <div class="tema-kpi"><span class="tk-label">Melhor Mês</span><span class="tk-valor" id="tk-anual-melhor">--</span></div>
+            <div class="tema-kpi"><span class="tk-label">Pior Mês</span><span class="tk-valor" id="tk-anual-pior">--</span></div>
+            <div class="tema-kpi"><span class="tk-label">Tendência</span><span class="tk-valor" id="tk-anual-trend">--</span></div>
+          </div>
+          <div class="tema-charts-grid grid-2-1">
+            <div class="tema-chart-card"><div class="chart-header"><h3>Tendência Anual</h3><p>Evolução do saldo ao longo dos meses</p></div><canvas id="tema-anual-tendencia"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3>Comparação Anual</h3><p>Este ano vs ano anterior</p></div><canvas id="tema-anual-comparacao"></canvas></div>
+            <div class="tema-chart-card tema-chart-full"><div class="chart-header"><h3>Ranking de Meses</h3><p>Meses ordenados por melhor saldo</p></div><canvas id="tema-anual-ranking"></canvas></div>
+          </div>
+        </div>
+
+        <!-- TEMA: ANÁLISE DETALHADA -->
+        <div class="tema-view" id="tema-analise">
+          <div class="tema-kpis">
+            <div class="tema-kpi"><span class="tk-label">Gasto Médio/Mês</span><span class="tk-valor" id="tk-analise-media">R$ 0,00</span></div>
+            <div class="tema-kpi"><span class="tk-label">Mês Típico</span><span class="tk-valor" id="tk-analise-tipico">--</span></div>
+            <div class="tema-kpi"><span class="tk-label">Variação Máxima</span><span class="tk-valor" id="tk-analise-variacao">R$ 0,00</span></div>
+          </div>
+          <div class="tema-charts-grid grid-3">
+            <div class="tema-chart-card"><div class="chart-header"><h3>Média por Categoria</h3><p>Gasto médio mensal por categoria</p></div><canvas id="tema-analise-media"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3>Categorias Mensais</h3><p>Distribuição mensal empilhada</p></div><canvas id="tema-analise-mensal"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3>Balanço por Anos</h3><p>Receitas vs despesas por ano</p></div><canvas id="tema-analise-anos"></canvas></div>
+          </div>
         </div>
     </section>
 

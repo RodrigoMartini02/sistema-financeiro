@@ -1894,3 +1894,616 @@ window.filtrarFormaPagamento = function() {
 window.carregarDadosDashboard = carregarDadosDashboard;
 window.filtrarBalanco = filtrarBalanco;
 window.filtrarBalancoPeriodo = filtrarBalanco;
+
+// ================================================================
+// DASHBOARD TEMÁTICO — Sistema de Views por Tema
+// ================================================================
+
+function inicializarDashboardTematico() {
+    // Navegação entre temas
+    document.querySelectorAll('.tema-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const tema = this.dataset.tema;
+            // Desativa todos
+            document.querySelectorAll('.tema-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tema-view').forEach(v => v.classList.remove('active'));
+            // Ativa o selecionado
+            this.classList.add('active');
+            const view = document.getElementById('tema-' + tema);
+            if (view) view.classList.add('active');
+            // Renderiza gráficos do tema
+            renderizarTemaPorNome(tema);
+        });
+    });
+
+    // Filtro de período
+    const btnAno = document.querySelector('.periodo-btn[data-periodo="ano"]');
+    const btnTodos = document.querySelector('.periodo-btn[data-periodo="todos"]');
+    if (btnAno) btnAno.addEventListener('click', function() {
+        document.querySelectorAll('.periodo-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        atualizarDashboardTematico();
+    });
+    if (btnTodos) btnTodos.addEventListener('click', function() {
+        document.querySelectorAll('.periodo-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        atualizarDashboardTematico();
+    });
+
+    const filtroAno = document.getElementById('dash-filtro-ano');
+    const filtroMes = document.getElementById('dash-filtro-mes');
+    if (filtroAno) filtroAno.addEventListener('change', atualizarDashboardTematico);
+    if (filtroMes) filtroMes.addEventListener('change', atualizarDashboardTematico);
+
+    // Popula anos no filtro
+    popularFiltroAnos();
+
+    // Renderiza tema inicial (saude)
+    atualizarDashboardTematico();
+    atualizarKpisFixos();
+}
+
+function popularFiltroAnos() {
+    const filtroAno = document.getElementById('dash-filtro-ano');
+    if (!filtroAno || !window.dadosFinanceiros) return;
+    const anos = [...new Set([
+        ...(window.dadosFinanceiros.despesas || []).map(d => d.ano),
+        ...(window.dadosFinanceiros.receitas || []).map(r => r.ano)
+    ])].sort((a, b) => b - a);
+    const anoAtual = new Date().getFullYear();
+    filtroAno.innerHTML = anos.map(a =>
+        `<option value="${a}" ${a === anoAtual ? 'selected' : ''}>${a}</option>`
+    ).join('');
+}
+
+function obterFiltroAtivo() {
+    const filtroAno = document.getElementById('dash-filtro-ano');
+    const filtroMes = document.getElementById('dash-filtro-mes');
+    const periodoTodos = document.querySelector('.periodo-btn[data-periodo="todos"]')?.classList.contains('active');
+    return {
+        ano: filtroAno ? parseInt(filtroAno.value) : new Date().getFullYear(),
+        mes: filtroMes && filtroMes.value !== '' ? parseInt(filtroMes.value) : null,
+        todos: !!periodoTodos
+    };
+}
+
+function obterDadosFiltrados() {
+    const filtro = obterFiltroAtivo();
+    const df = window.dadosFinanceiros || {};
+    let despesas = df.despesas || [];
+    let receitas = df.receitas || [];
+
+    if (!filtro.todos) {
+        despesas = despesas.filter(d => d.ano === filtro.ano);
+        receitas = receitas.filter(r => r.ano === filtro.ano);
+    }
+    if (filtro.mes !== null) {
+        despesas = despesas.filter(d => d.mes === filtro.mes);
+        receitas = receitas.filter(r => r.mes === filtro.mes);
+    }
+    return { despesas, receitas, filtro };
+}
+
+function atualizarKpisFixos() {
+    const { despesas, receitas, filtro } = obterDadosFiltrados();
+    const mesAtual = new Date().getMonth();
+    const anoAtual = new Date().getFullYear();
+    const despMes = despesas.filter(d => d.mes === mesAtual && d.ano === anoAtual);
+    const recMes = receitas.filter(r => r.mes === mesAtual && r.ano === anoAtual);
+    const totalRecMes = recMes.reduce((s, r) => s + parseFloat(r.valor || 0), 0);
+    const totalDespMes = despMes.reduce((s, d) => s + parseFloat(d.valor || d.valor_pago || 0), 0);
+    const resultado = totalRecMes - totalDespMes;
+
+    const fmt = v => 'R$ ' + Math.abs(v).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+
+    const elRec = document.getElementById('kpi-receitas-valor');
+    const elDesp = document.getElementById('kpi-despesas-valor');
+    const elEco = document.getElementById('kpi-economia-valor');
+    if (elRec) elRec.textContent = fmt(totalRecMes);
+    if (elDesp) { elDesp.textContent = fmt(totalDespMes); elDesp.style.color = '#ef4444'; }
+    if (elEco) {
+        elEco.textContent = (resultado >= 0 ? '+' : '-') + fmt(resultado);
+        elEco.style.color = resultado >= 0 ? '#10b981' : '#ef4444';
+    }
+
+    // Saldo disponível (usa função existente se disponível)
+    const elSaldo = document.getElementById('kpi-saldo-valor');
+    if (elSaldo && window.dadosFinanceiros) {
+        const saldoEl = document.getElementById('dashboard-saldo-atual');
+        if (saldoEl) elSaldo.textContent = saldoEl.textContent;
+    }
+}
+
+function atualizarDashboardTematico() {
+    const temaAtivo = document.querySelector('.tema-btn.active')?.dataset.tema || 'saude';
+    atualizarKpisFixos();
+    renderizarTemaPorNome(temaAtivo);
+}
+
+function renderizarTemaPorNome(tema) {
+    const mapa = {
+        'saude':      renderizarTemaSaude,
+        'fluxo':      renderizarTemaFluxo,
+        'categorias': renderizarTemaCategorias,
+        'pagamento':  renderizarTemaPagamento,
+        'divida':     renderizarTemaDivida,
+        'anual':      renderizarTemaAnual,
+        'analise':    renderizarTemaAnalise,
+    };
+    if (mapa[tema]) mapa[tema]();
+}
+
+// ── HELPERS ──────────────────────────────────────────────────────
+
+const MESES_LABELS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+function agruparPorMes(itens, campo) {
+    const totais = new Array(12).fill(0);
+    itens.forEach(function(item) {
+        const m = item.mes;
+        if (m >= 0 && m <= 11) totais[m] += parseFloat(item[campo] || item.valor || 0);
+    });
+    return totais;
+}
+
+function destruirCanvas(id) {
+    const el = document.getElementById(id);
+    if (!el) return null;
+    if (el._chartInstance) { el._chartInstance.destroy(); el._chartInstance = null; }
+    return el;
+}
+
+function criarChart(id, config) {
+    const el = destruirCanvas(id);
+    if (!el) return null;
+    const chart = new Chart(el, config);
+    el._chartInstance = chart;
+    return chart;
+}
+
+const CORES = ['#667eea','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#ec4899','#14b8a6','#84cc16'];
+
+function fmtR(v) { return 'R$ ' + parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2}); }
+
+// ── TEMA: SAÚDE FINANCEIRA ────────────────────────────────────────
+function renderizarTemaSaude() {
+    const { despesas, receitas } = obterDadosFiltrados();
+    const recPorMes = agruparPorMes(receitas, 'valor');
+    const despPorMes = agruparPorMes(despesas, 'valor');
+    const saldoPorMes = recPorMes.map((r, i) => r - despPorMes[i]);
+    const saldoAcum = [];
+    saldoPorMes.reduce((acc, v, i) => { saldoAcum[i] = acc + v; return saldoAcum[i]; }, 0);
+
+    // KPIs
+    const totalRec = receitas.reduce((s,r)=>s+parseFloat(r.valor||0),0);
+    const totalDesp = despesas.reduce((s,d)=>s+parseFloat(d.valor||0),0);
+    const saldo = totalRec - totalDesp;
+    const score = totalDesp > 0 ? Math.min(100, Math.round((totalRec/totalDesp)*50)) : 100;
+    const el1 = document.getElementById('tk-saude-saldo');
+    const el2 = document.getElementById('tk-saude-variacao');
+    const el3 = document.getElementById('tk-saude-score');
+    if (el1) { el1.textContent = fmtR(saldo); el1.style.color = saldo>=0?'#10b981':'#ef4444'; }
+    if (el2) el2.textContent = totalRec > 0 ? ((saldo/totalRec*100).toFixed(1)+'%') : '0%';
+    if (el3) el3.textContent = score + '/100';
+
+    // Gráfico 1: Balanço Mensal
+    criarChart('tema-saude-balanco', {
+        type: 'bar',
+        data: {
+            labels: MESES_LABELS,
+            datasets: [
+                { label: 'Receitas', data: recPorMes, backgroundColor: '#10b981aa', borderColor: '#10b981', borderWidth: 1, borderRadius: {topLeft:4,topRight:4,bottomLeft:0,bottomRight:0} },
+                { label: 'Despesas', data: despPorMes, backgroundColor: '#ef4444aa', borderColor: '#ef4444', borderWidth: 1, borderRadius: {topLeft:4,topRight:4,bottomLeft:0,bottomRight:0} }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
+    });
+
+    // Gráfico 2: Saldo Progressivo
+    criarChart('tema-saude-progressivo', {
+        type: 'line',
+        data: {
+            labels: MESES_LABELS,
+            datasets: [{
+                label: 'Saldo Acumulado',
+                data: saldoAcum,
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102,126,234,0.1)',
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: saldoAcum.map(v => v >= 0 ? '#10b981' : '#ef4444'),
+                pointRadius: 4
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: false } } }
+    });
+
+    // Gráfico 3: Entradas vs Saídas (full)
+    criarChart('tema-saude-entradas', {
+        type: 'bar',
+        data: {
+            labels: MESES_LABELS,
+            datasets: [
+                { label: 'Receitas', data: recPorMes, backgroundColor: '#10b981', borderRadius: {topLeft:4,topRight:4,bottomLeft:0,bottomRight:0} },
+                { label: 'Despesas', data: despPorMes.map(v => -v), backgroundColor: '#ef4444', borderRadius: {topLeft:4,topRight:4,bottomLeft:0,bottomRight:0} }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true, stacked: false } } }
+    });
+}
+
+// ── TEMA: FLUXO DE CAIXA ─────────────────────────────────────────
+function renderizarTemaFluxo() {
+    const { despesas, receitas } = obterDadosFiltrados();
+    const recPorMes = agruparPorMes(receitas, 'valor');
+    const despPorMes = agruparPorMes(despesas, 'valor');
+
+    const totalRec = receitas.reduce((s,r)=>s+parseFloat(r.valor||0),0);
+    const totalDesp = despesas.reduce((s,d)=>s+parseFloat(d.valor||0),0);
+    const resultado = totalRec - totalDesp;
+
+    const el1 = document.getElementById('tk-fluxo-receitas');
+    const el2 = document.getElementById('tk-fluxo-despesas');
+    const el3 = document.getElementById('tk-fluxo-resultado');
+    if (el1) el1.textContent = fmtR(totalRec);
+    if (el2) { el2.textContent = fmtR(totalDesp); el2.style.color = '#ef4444'; }
+    if (el3) { el3.textContent = fmtR(resultado); el3.style.color = resultado>=0?'#10b981':'#ef4444'; }
+
+    // Gráfico 1: Entradas e Saídas
+    criarChart('tema-fluxo-entradas', {
+        type: 'bar',
+        data: {
+            labels: MESES_LABELS,
+            datasets: [
+                { label: 'Receitas', data: recPorMes, backgroundColor: '#10b981', borderRadius: {topLeft:4,topRight:4,bottomLeft:0,bottomRight:0} },
+                { label: 'Despesas', data: despPorMes, backgroundColor: '#ef4444', borderRadius: {topLeft:4,topRight:4,bottomLeft:0,bottomRight:0} }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } }
+    });
+
+    // Gráfico 2: Fluxo Acumulado
+    const recAcum = [], despAcum = [];
+    recPorMes.reduce((a,v,i)=>{recAcum[i]=a+v;return recAcum[i];},0);
+    despPorMes.reduce((a,v,i)=>{despAcum[i]=a+v;return despAcum[i];},0);
+    criarChart('tema-fluxo-acumulado', {
+        type: 'line',
+        data: {
+            labels: MESES_LABELS,
+            datasets: [
+                { label: 'Receitas Acum.', data: recAcum, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.08)', fill: true, tension: 0.3 },
+                { label: 'Despesas Acum.', data: despAcum, borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.08)', fill: true, tension: 0.3 }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } }
+    });
+
+    // Gráfico 3: Cobertura (%)
+    const cobertura = recPorMes.map((r,i) => despPorMes[i] > 0 ? Math.round((r/despPorMes[i])*100) : 0);
+    criarChart('tema-fluxo-cobertura', {
+        type: 'bar',
+        data: {
+            labels: MESES_LABELS,
+            datasets: [{
+                label: '% Cobertura',
+                data: cobertura,
+                backgroundColor: cobertura.map(v => v>=100?'#10b981':'#f59e0b'),
+                borderRadius: {topLeft:4,topRight:4,bottomLeft:0,bottomRight:0}
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 200 } } }
+    });
+}
+
+// ── TEMA: CATEGORIAS ─────────────────────────────────────────────
+function renderizarTemaCategorias() {
+    const { despesas } = obterDadosFiltrados();
+    const df = window.dadosFinanceiros || {};
+    const categorias = df.categorias || [];
+
+    // Agrupa por categoria
+    const porCat = {};
+    despesas.forEach(function(d) {
+        const catId = d.categoria_id;
+        const catObj = categorias.find(c => c.id === catId);
+        const nome = catObj ? catObj.nome : (d.categoria || 'Outros');
+        porCat[nome] = (porCat[nome] || 0) + parseFloat(d.valor || 0);
+    });
+    const catOrdenadas = Object.entries(porCat).sort((a,b)=>b[1]-a[1]);
+    const top5 = catOrdenadas.slice(0,5);
+    const total = catOrdenadas.reduce((s,[,v])=>s+v,0);
+
+    const el1 = document.getElementById('tk-cat-maior');
+    const el2 = document.getElementById('tk-cat-pct');
+    const el3 = document.getElementById('tk-cat-count');
+    if (el1) el1.textContent = top5[0] ? top5[0][0] : '--';
+    if (el2) el2.textContent = top5[0] && total > 0 ? ((top5[0][1]/total*100).toFixed(1)+'%') : '0%';
+    if (el3) el3.textContent = catOrdenadas.length;
+
+    // Gráfico 1: Barras por Categoria
+    criarChart('tema-cat-anual', {
+        type: 'bar',
+        data: {
+            labels: catOrdenadas.slice(0,8).map(([n])=>n),
+            datasets: [{ label: 'Total', data: catOrdenadas.slice(0,8).map(([,v])=>v), backgroundColor: CORES, borderRadius: {topLeft:4,topRight:4,bottomLeft:0,bottomRight:0} }]
+        },
+        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+
+    // Gráfico 2: Evolução Top 5 por mês
+    const top5nomes = top5.map(([n])=>n);
+    const datasets = top5nomes.map((nome, i) => {
+        const porMes = new Array(12).fill(0);
+        despesas.forEach(function(d) {
+            const catObj = categorias.find(c => c.id === d.categoria_id);
+            const catNome = catObj ? catObj.nome : (d.categoria || 'Outros');
+            if (catNome === nome && d.mes >= 0 && d.mes <= 11) {
+                porMes[d.mes] += parseFloat(d.valor || 0);
+            }
+        });
+        return { label: nome, data: porMes, backgroundColor: CORES[i]+'88', borderColor: CORES[i], borderWidth: 2, fill: false, tension: 0.3 };
+    });
+    criarChart('tema-cat-evolucao', {
+        type: 'line',
+        data: { labels: MESES_LABELS, datasets },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } }
+    });
+
+    // Gráfico 3: Média mensal por categoria
+    const mediaCat = catOrdenadas.slice(0,8).map(([nome, total]) => ({ nome, media: total/12 }));
+    criarChart('tema-cat-media', {
+        type: 'bar',
+        data: {
+            labels: mediaCat.map(c=>c.nome),
+            datasets: [{ label: 'Média/Mês', data: mediaCat.map(c=>c.media), backgroundColor: CORES, borderRadius: {topLeft:4,topRight:4,bottomLeft:0,bottomRight:0} }]
+        },
+        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+}
+
+// ── TEMA: PAGAMENTO ──────────────────────────────────────────────
+function renderizarTemaPagamento() {
+    const { despesas } = obterDadosFiltrados();
+    const df = window.dadosFinanceiros || {};
+    const cartoes = df.cartoes || [];
+
+    // Agrupa por forma de pagamento
+    const porForma = {};
+    despesas.forEach(function(d) {
+        const f = (d.forma_pagamento || 'outros').toLowerCase();
+        porForma[f] = (porForma[f] || 0) + parseFloat(d.valor || 0);
+    });
+
+    const totalCredito = (porForma['credito'] || 0) + (porForma['cartao_credito'] || 0);
+    const totalDebito = (porForma['debito'] || 0) + (porForma['cartao_debito'] || 0) + (porForma['pix'] || 0) + (porForma['dinheiro'] || 0);
+    const totalGeral = totalCredito + totalDebito;
+
+    const el1 = document.getElementById('tk-pgto-credito');
+    const el2 = document.getElementById('tk-pgto-debito');
+    const el3 = document.getElementById('tk-pgto-pct');
+    if (el1) el1.textContent = fmtR(totalCredito);
+    if (el2) el2.textContent = fmtR(totalDebito);
+    if (el3) el3.textContent = totalGeral > 0 ? ((totalCredito/totalGeral*100).toFixed(1)+'%') : '0%';
+
+    // Gráfico 1: Doughnut Formas
+    const formasLabels = Object.keys(porForma);
+    const formasData = Object.values(porForma);
+    criarChart('tema-pgto-formas', {
+        type: 'doughnut',
+        data: { labels: formasLabels, datasets: [{ data: formasData, backgroundColor: CORES }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    });
+
+    // Gráfico 2: Doughnut Cartões
+    const porCartao = {};
+    despesas.filter(d => ['credito','cartao_credito'].includes((d.forma_pagamento||'').toLowerCase())).forEach(function(d) {
+        const cartaoObj = cartoes.find(c => c.id === d.cartao_id);
+        const nome = cartaoObj ? cartaoObj.nome : 'Outros';
+        porCartao[nome] = (porCartao[nome] || 0) + parseFloat(d.valor || 0);
+    });
+    criarChart('tema-pgto-cartoes', {
+        type: 'doughnut',
+        data: { labels: Object.keys(porCartao), datasets: [{ data: Object.values(porCartao), backgroundColor: CORES }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    });
+
+    // Gráfico 3: Forma por mês (barras empilhadas)
+    const formasUnicas = [...new Set(despesas.map(d => d.forma_pagamento || 'outros'))].slice(0,5);
+    const datasetsForma = formasUnicas.map((forma, i) => {
+        const porMes = new Array(12).fill(0);
+        despesas.filter(d=>(d.forma_pagamento||'outros')===forma).forEach(d => {
+            if (d.mes>=0&&d.mes<=11) porMes[d.mes]+=parseFloat(d.valor||0);
+        });
+        return { label: forma, data: porMes, backgroundColor: CORES[i], stack: 'stack' };
+    });
+    criarChart('tema-pgto-mensal', {
+        type: 'bar',
+        data: { labels: MESES_LABELS, datasets: datasetsForma },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { x: { stacked: true }, y: { stacked: true } } }
+    });
+}
+
+// ── TEMA: ENDIVIDAMENTO ──────────────────────────────────────────
+function renderizarTemaDivida() {
+    const { despesas } = obterDadosFiltrados();
+    const parceladas = despesas.filter(d => d.parcelas > 1 || d.parcelado);
+    const juros = despesas.reduce((s,d)=>s+parseFloat(d.juros||0),0);
+    const economias = despesas.reduce((s,d)=>s+parseFloat(d.economias||d.desconto||0),0);
+    const totalParc = parceladas.reduce((s,d)=>s+parseFloat(d.valor||0),0);
+
+    const el1 = document.getElementById('tk-divida-juros');
+    const el2 = document.getElementById('tk-divida-parcelas');
+    const el3 = document.getElementById('tk-divida-economias');
+    if (el1) el1.textContent = fmtR(juros);
+    if (el2) el2.textContent = fmtR(totalParc);
+    if (el3) el3.textContent = fmtR(economias);
+
+    const jurosPorMes = agruparPorMes(despesas.map(d=>({...d,valor:d.juros||0})),'valor');
+    criarChart('tema-divida-juros', {
+        type: 'bar',
+        data: {
+            labels: MESES_LABELS,
+            datasets: [
+                { label: 'Juros', data: jurosPorMes, backgroundColor: '#ef4444', borderRadius: {topLeft:4,topRight:4,bottomLeft:0,bottomRight:0} },
+                { label: 'Economias', data: new Array(12).fill(economias/12), backgroundColor: '#10b981', borderRadius: {topLeft:4,topRight:4,bottomLeft:0,bottomRight:0} }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } }
+    });
+
+    const parcPorMes = agruparPorMes(parceladas, 'valor');
+    criarChart('tema-divida-parcelas', {
+        type: 'bar',
+        data: { labels: MESES_LABELS, datasets: [{ label: 'Parcelamentos', data: parcPorMes, backgroundColor: '#f59e0b', borderRadius: {topLeft:4,topRight:4,bottomLeft:0,bottomRight:0} }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+
+    const jurosCum = [];
+    jurosPorMes.reduce((a,v,i)=>{jurosCum[i]=a+v;return jurosCum[i];},0);
+    criarChart('tema-divida-custo', {
+        type: 'line',
+        data: { labels: MESES_LABELS, datasets: [{ label: 'Juros Acumulados', data: jurosCum, borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', fill: true, tension: 0.4 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+}
+
+// ── TEMA: DESEMPENHO ANUAL ───────────────────────────────────────
+function renderizarTemaAnual() {
+    const { despesas, receitas, filtro } = obterDadosFiltrados();
+    const recPorMes = agruparPorMes(receitas, 'valor');
+    const despPorMes = agruparPorMes(despesas, 'valor');
+    const saldoPorMes = recPorMes.map((r,i)=>r-despPorMes[i]);
+
+    const melhorIdx = saldoPorMes.indexOf(Math.max(...saldoPorMes));
+    const piorIdx = saldoPorMes.indexOf(Math.min(...saldoPorMes));
+    const total = saldoPorMes.reduce((s,v)=>s+v,0);
+
+    const el1 = document.getElementById('tk-anual-melhor');
+    const el2 = document.getElementById('tk-anual-pior');
+    const el3 = document.getElementById('tk-anual-trend');
+    if (el1) el1.textContent = MESES_LABELS[melhorIdx] || '--';
+    if (el2) el2.textContent = MESES_LABELS[piorIdx] || '--';
+    if (el3) { el3.textContent = total>=0?'↑ Positivo':'↓ Negativo'; el3.style.color = total>=0?'#10b981':'#ef4444'; }
+
+    // Gráfico 1: Tendência
+    criarChart('tema-anual-tendencia', {
+        type: 'line',
+        data: {
+            labels: MESES_LABELS,
+            datasets: [{ label: 'Saldo', data: saldoPorMes, borderColor: '#667eea', backgroundColor: 'rgba(102,126,234,0.1)', fill: true, tension: 0.4, pointBackgroundColor: saldoPorMes.map(v=>v>=0?'#10b981':'#ef4444'), pointRadius: 5 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+
+    // Gráfico 2: Comparação com ano anterior
+    const anoAnt = filtro.ano - 1;
+    const df = window.dadosFinanceiros || {};
+    const despAnt = (df.despesas||[]).filter(d=>d.ano===anoAnt);
+    const recAnt = (df.receitas||[]).filter(r=>r.ano===anoAnt);
+    const recAntMes = agruparPorMes(recAnt,'valor');
+    const despAntMes = agruparPorMes(despAnt,'valor');
+    const saldoAnt = recAntMes.map((r,i)=>r-despAntMes[i]);
+    criarChart('tema-anual-comparacao', {
+        type: 'bar',
+        data: {
+            labels: MESES_LABELS,
+            datasets: [
+                { label: filtro.ano.toString(), data: saldoPorMes, backgroundColor: '#667eea', borderRadius: {topLeft:4,topRight:4,bottomLeft:0,bottomRight:0} },
+                { label: anoAnt.toString(), data: saldoAnt, backgroundColor: '#94a3b8', borderRadius: {topLeft:4,topRight:4,bottomLeft:0,bottomRight:0} }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } }
+    });
+
+    // Gráfico 3: Ranking de meses
+    const ranking = saldoPorMes.map((v,i)=>({mes:MESES_LABELS[i],val:v})).sort((a,b)=>b.val-a.val);
+    criarChart('tema-anual-ranking', {
+        type: 'bar',
+        data: {
+            labels: ranking.map(r=>r.mes),
+            datasets: [{ label: 'Saldo', data: ranking.map(r=>r.val), backgroundColor: ranking.map(r=>r.val>=0?'#10b981':'#ef4444'), borderRadius: {topLeft:4,topRight:4,bottomLeft:0,bottomRight:0} }]
+        },
+        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+}
+
+// ── TEMA: ANÁLISE DETALHADA ──────────────────────────────────────
+function renderizarTemaAnalise() {
+    const { despesas, receitas } = obterDadosFiltrados();
+    const df = window.dadosFinanceiros || {};
+    const categorias = df.categorias || [];
+
+    const despPorMes = agruparPorMes(despesas,'valor');
+    const mediaMensal = despPorMes.filter(v=>v>0).reduce((s,v,_,a)=>s+v/a.length,0);
+    const max = Math.max(...despPorMes);
+    const min = Math.min(...despPorMes.filter(v=>v>0));
+
+    const el1 = document.getElementById('tk-analise-media');
+    const el2 = document.getElementById('tk-analise-tipico');
+    const el3 = document.getElementById('tk-analise-variacao');
+    if (el1) el1.textContent = fmtR(mediaMensal);
+    if (el2) el2.textContent = MESES_LABELS[despPorMes.indexOf(despPorMes.slice().sort((a,b)=>Math.abs(a-mediaMensal)-Math.abs(b-mediaMensal))[0])] || '--';
+    if (el3) el3.textContent = fmtR(max - (min||0));
+
+    // Gráfico 1: Média por categoria
+    const porCat = {};
+    despesas.forEach(function(d) {
+        const catObj = categorias.find(c=>c.id===d.categoria_id);
+        const nome = catObj?catObj.nome:(d.categoria||'Outros');
+        porCat[nome] = (porCat[nome]||0)+parseFloat(d.valor||0);
+    });
+    const catArr = Object.entries(porCat).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    criarChart('tema-analise-media', {
+        type: 'bar',
+        data: {
+            labels: catArr.map(([n])=>n),
+            datasets: [{ label: 'Média/Mês', data: catArr.map(([,v])=>v/12), backgroundColor: CORES, borderRadius: {topLeft:4,topRight:4,bottomLeft:0,bottomRight:0} }]
+        },
+        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+
+    // Gráfico 2: Categorias mensais empilhadas
+    const top5nomes = catArr.slice(0,5).map(([n])=>n);
+    const datasets = top5nomes.map((nome,i)=>{
+        const porMes = new Array(12).fill(0);
+        despesas.forEach(function(d){
+            const catObj = categorias.find(c=>c.id===d.categoria_id);
+            const catNome = catObj?catObj.nome:(d.categoria||'Outros');
+            if(catNome===nome&&d.mes>=0&&d.mes<=11) porMes[d.mes]+=parseFloat(d.valor||0);
+        });
+        return { label: nome, data: porMes, backgroundColor: CORES[i], stack: 'stack' };
+    });
+    criarChart('tema-analise-mensal', {
+        type: 'bar',
+        data: { labels: MESES_LABELS, datasets },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { x: { stacked: true }, y: { stacked: true } } }
+    });
+
+    // Gráfico 3: Balanço por anos
+    const df2 = window.dadosFinanceiros || {};
+    const todosAnos = [...new Set([...(df2.despesas||[]).map(d=>d.ano),...(df2.receitas||[]).map(r=>r.ano)])].sort();
+    const recAnos = todosAnos.map(a=>(df2.receitas||[]).filter(r=>r.ano===a).reduce((s,r)=>s+parseFloat(r.valor||0),0));
+    const despAnos = todosAnos.map(a=>(df2.despesas||[]).filter(d=>d.ano===a).reduce((s,d)=>s+parseFloat(d.valor||0),0));
+    criarChart('tema-analise-anos', {
+        type: 'bar',
+        data: {
+            labels: todosAnos,
+            datasets: [
+                { label: 'Receitas', data: recAnos, backgroundColor: '#10b981', borderRadius: {topLeft:4,topRight:4,bottomLeft:0,bottomRight:0} },
+                { label: 'Despesas', data: despAnos, backgroundColor: '#ef4444', borderRadius: {topLeft:4,topRight:4,bottomLeft:0,bottomRight:0} }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } }
+    });
+}
+
+// Inicializa o dashboard temático junto ao evento sistemaFinanceiroReady
+window.addEventListener('sistemaFinanceiroReady', function() {
+    const dashboardSection = document.getElementById('dashboard-section');
+    if (dashboardSection) {
+        inicializarDashboardTematico();
+    }
+});
+
+window.inicializarDashboardTematico = inicializarDashboardTematico;
+window.atualizarDashboardTematico = atualizarDashboardTematico;
