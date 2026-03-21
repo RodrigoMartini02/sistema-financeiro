@@ -278,39 +278,50 @@
        <div class="content-area">
     <section class="dashboard-section active" id="dashboard-section">
 
-        <!-- Barra de filtro de período -->
-        <div class="dashboard-filtros-bar">
-            <div class="filtro-periodo-toggle">
-                <button class="filtro-toggle-btn active" id="btn-periodo-atual">
-                    <i class="fas fa-calendar"></i> Ano Atual
-                </button>
-                <button class="filtro-toggle-btn" id="btn-periodo-todos">
-                    <i class="fas fa-layer-group"></i> Todos os Anos
-                </button>
-            </div>
-            <div class="filtro-bar-sep"></div>
-            <div class="filtro-selects">
-                <select class="filtro-select" id="global-tipo-filter">
-                    <option value="ambos">Todos os Tipos</option>
-                    <option value="receitas">Receitas</option>
-                    <option value="despesas">Despesas</option>
-                </select>
-                <select class="filtro-select" id="global-categoria-filter">
-                    <option value="">Todas as Categorias</option>
-                </select>
-                <select class="filtro-select" id="global-pagamento-filter">
-                    <option value="todas">Todas as Formas de Pag.</option>
-                    <option value="debito">Débito</option>
-                    <option value="credito">Crédito</option>
-                    <option value="pix">Pix</option>
-                    <option value="dinheiro">Dinheiro</option>
-                </select>
-            </div>
-            <button id="btn-limpar-filtros-dash" class="btn btn-secondary btn-sm" title="Limpar Filtros">
-                <i class="fas fa-eraser"></i>
+        <!-- LINHA 1: Botões temáticos + filtros -->
+        <div class="dash-nav-bar">
+          <div class="dash-temas-nav">
+            <button class="tema-btn active" data-tema="saude">
+              <i class="fas fa-heartbeat"></i><span>Saúde Financeira</span>
             </button>
+            <button class="tema-btn" data-tema="fluxo">
+              <i class="fas fa-exchange-alt"></i><span>Fluxo de Caixa</span>
+            </button>
+            <button class="tema-btn" data-tema="categorias">
+              <i class="fas fa-tags"></i><span>Onde Vai o Dinheiro</span>
+            </button>
+            <button class="tema-btn" data-tema="pagamento">
+              <i class="fas fa-credit-card"></i><span>Pagamento</span>
+            </button>
+            <button class="tema-btn" data-tema="divida">
+              <i class="fas fa-chart-line"></i><span>Endividamento</span>
+            </button>
+            <button class="tema-btn" data-tema="anual">
+              <i class="fas fa-trophy"></i><span>Desempenho Anual</span>
+            </button>
+            <button class="tema-btn" data-tema="analise">
+              <i class="fas fa-microscope"></i><span>Análise Detalhada</span>
+            </button>
+          </div>
+          <div class="dash-filtros-inline">
+            <div class="filtro-periodo-toggle">
+              <button class="periodo-btn active" data-periodo="ano">Ano Atual</button>
+              <button class="periodo-btn" data-periodo="todos">Todos os Anos</button>
+            </div>
+            <select id="dash-filtro-ano" class="dash-select"></select>
+            <select id="dash-filtro-mes" class="dash-select">
+              <option value="">Todos os meses</option>
+              <option value="0">Janeiro</option><option value="1">Fevereiro</option>
+              <option value="2">Março</option><option value="3">Abril</option>
+              <option value="4">Maio</option><option value="5">Junho</option>
+              <option value="6">Julho</option><option value="7">Agosto</option>
+              <option value="8">Setembro</option><option value="9">Outubro</option>
+              <option value="10">Novembro</option><option value="11">Dezembro</option>
+            </select>
+          </div>
         </div>
 
+        <!-- LINHA 2: Resumo cards -->
         <div class="resumo-cards">
             <div class="card card-receitas">
                 <div class="card-header">
@@ -318,7 +329,7 @@
                     <span>RECEITAS</span>
                 </div>
                 <div class="card-value" id="dashboard-total-receitas">R$ 0,00</div>
-                <div class="card-footer">Receitas do ano</div>
+                <div class="card-footer">Receitas do período</div>
             </div>
             <div class="card card-despesas">
                 <div class="card-header">
@@ -326,7 +337,7 @@
                     <span>DESPESAS</span>
                 </div>
                 <div class="card-value" id="dashboard-total-despesas">R$ 0,00</div>
-                <div class="card-footer">Despesas do ano</div>
+                <div class="card-footer">Despesas do período</div>
             </div>
             <div class="card card-saldo">
                 <div class="card-header">
@@ -350,7 +361,7 @@
                     <span>JUROS</span>
                 </div>
                 <div class="card-value" id="dashboard-total-juros">R$ 0,00</div>
-                <div class="card-footer">Juros pagos no ano</div>
+                <div class="card-footer">Juros pagos no período</div>
             </div>
             <div class="card card-economias">
                 <div class="card-header">
@@ -358,67 +369,8 @@
                     <span>ECONOMIAS</span>
                 </div>
                 <div class="card-value" id="dashboard-total-economias">R$ 0,00</div>
-                <div class="card-footer">Valor economizado no ano</div>
+                <div class="card-footer">Valor economizado no período</div>
             </div>
-        </div>
-
-       
-
-        <!-- Canvases ocultos para compatibilidade com gráficos antigos -->
-        <div style="display:none">
-            <canvas id="tendencia-chart"></canvas>
-            <canvas id="balanco-chart"></canvas>
-            <canvas id="receitas-despesas-chart"></canvas>
-            <canvas id="categorias-barras-chart"></canvas>
-            <canvas id="categorias-mensais-chart"></canvas>
-            <canvas id="media-categorias-chart"></canvas>
-            <canvas id="forma-pagamento-chart"></canvas>
-            <canvas id="cartoes-usados-chart"></canvas>
-            <canvas id="juros-economias-chart"></canvas>
-            <canvas id="parcelamentos-chart"></canvas>
-        </div>
-
-        <!-- FILTRO DE PERÍODO GLOBAL -->
-        <div class="dash-filtro-periodo">
-          <div class="filtro-periodo-toggle">
-            <button class="periodo-btn active" data-periodo="ano">Ano Atual</button>
-            <button class="periodo-btn" data-periodo="todos">Todos os Anos</button>
-          </div>
-          <select id="dash-filtro-ano" class="dash-select"></select>
-          <select id="dash-filtro-mes" class="dash-select">
-            <option value="">Todos os meses</option>
-            <option value="0">Janeiro</option><option value="1">Fevereiro</option>
-            <option value="2">Março</option><option value="3">Abril</option>
-            <option value="4">Maio</option><option value="5">Junho</option>
-            <option value="6">Julho</option><option value="7">Agosto</option>
-            <option value="8">Setembro</option><option value="9">Outubro</option>
-            <option value="10">Novembro</option><option value="11">Dezembro</option>
-          </select>
-        </div>
-
-        <!-- BOTÕES TEMÁTICOS -->
-        <div class="dash-temas-nav">
-          <button class="tema-btn active" data-tema="saude">
-            <i class="fas fa-heartbeat"></i><span>Saúde Financeira</span>
-          </button>
-          <button class="tema-btn" data-tema="fluxo">
-            <i class="fas fa-exchange-alt"></i><span>Fluxo de Caixa</span>
-          </button>
-          <button class="tema-btn" data-tema="categorias">
-            <i class="fas fa-tags"></i><span>Onde Vai o Dinheiro</span>
-          </button>
-          <button class="tema-btn" data-tema="pagamento">
-            <i class="fas fa-credit-card"></i><span>Pagamento</span>
-          </button>
-          <button class="tema-btn" data-tema="divida">
-            <i class="fas fa-chart-line"></i><span>Endividamento</span>
-          </button>
-          <button class="tema-btn" data-tema="anual">
-            <i class="fas fa-trophy"></i><span>Desempenho Anual</span>
-          </button>
-          <button class="tema-btn" data-tema="analise">
-            <i class="fas fa-microscope"></i><span>Análise Detalhada</span>
-          </button>
         </div>
 
         <!-- VIEWS TEMÁTICAS -->

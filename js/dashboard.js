@@ -94,15 +94,11 @@ function configurarObservadores() {
 
     document.getElementById('btn-ano-anterior')?.addEventListener('click', function() {
         window.anoDashboard = null;
-        limparGraficos();
-        resetarFiltros();
         setTimeout(() => carregarDadosDashboard(window.anoAtual), 100);
     });
 
     document.getElementById('btn-proximo-ano')?.addEventListener('click', function() {
         window.anoDashboard = null;
-        limparGraficos();
-        resetarFiltros();
         setTimeout(() => carregarDadosDashboard(window.anoAtual), 100);
     });
 }
@@ -114,36 +110,13 @@ function configurarObservadores() {
 
 window.anoDashboard = null; // null = usa window.anoAtual
 
-let _filtrosGlobaisInicializados = false;
-
-function inicializarPeriodFilter() {
-    if (_filtrosGlobaisInicializados) return;
-    _filtrosGlobaisInicializados = true;
-
-    document.getElementById('btn-periodo-atual')?.addEventListener('click', () => aplicarFiltroPeriodo('atual'));
-    document.getElementById('btn-periodo-todos')?.addEventListener('click', () => aplicarFiltroPeriodo('todos'));
-
-    document.getElementById('global-tipo-filter')?.addEventListener('change', _reaplicarFiltrosGlobais);
-    document.getElementById('global-categoria-filter')?.addEventListener('change', _reaplicarFiltrosGlobais);
-    document.getElementById('global-pagamento-filter')?.addEventListener('change', _reaplicarFiltrosGlobais);
-
-    document.getElementById('btn-limpar-filtros-dash')?.addEventListener('click', () => {
-        const elTipo  = document.getElementById('global-tipo-filter');
-        const elCat   = document.getElementById('global-categoria-filter');
-        const elPgto  = document.getElementById('global-pagamento-filter');
-        if (elTipo)  elTipo.value  = 'ambos';
-        if (elCat)   elCat.value   = '';
-        if (elPgto)  elPgto.value  = 'todas';
-        aplicarFiltroPeriodo('atual');
-    });
-}
-
 function obterFiltrosGlobais() {
+    // Mantido para compatibilidade com funções legadas de gráfico ainda referenciadas
     return {
-        tipo:           document.getElementById('global-tipo-filter')?.value       || 'ambos',
-        categoria:      document.getElementById('global-categoria-filter')?.value  || '',
-        formaPagamento: document.getElementById('global-pagamento-filter')?.value  || 'todas',
-        status: 'todos'
+        tipo:           'ambos',
+        categoria:      '',
+        formaPagamento: 'todas',
+        status:         'todos'
     };
 }
 
@@ -154,122 +127,13 @@ function _anoGraficosAtual() {
     return window.anoAtual;
 }
 
-function _reaplicarFiltrosGlobais() {
-    const todos = window.anoDashboard === 'todos';
-    const ano = todos ? 'todos' : _anoGraficosAtual();
-    const filtros = obterFiltrosGlobais();
-    limparGraficos();
-    criarGraficoBalanco(null);
-    criarGraficoTendenciaAnualComFiltros(window.dadosFinanceiros, ano, filtros);
-    if (todos) {
-        criarGraficoReceitasDespesasComFiltros(_processarEntradasSaidasAgregadas(filtros), filtros);
-    } else {
-        const dadosProcessados = processarDadosReais(window.dadosFinanceiros, ano);
-        criarGraficoReceitasDespesasComFiltros(dadosProcessados.dadosMensais, filtros);
-    }
-    criarGraficoBarrasCategoriasComFiltros(window.dadosFinanceiros, ano, filtros);
-    criarGraficoCategoriasMensaisComFiltros(window.dadosFinanceiros, ano, filtros);
-    criarGraficoJurosEconomias(todos ? 'todos' : _anoGraficosAtual());
-    criarGraficoParcelamentosComFiltros(window.dadosFinanceiros, ano, filtros);
-    criarGraficoFormaPagamentoComFiltros(window.dadosFinanceiros, ano, filtros);
-    renderDistribuicaoCartoes(window.dadosFinanceiros, ano, filtros);
-    renderizarGraficoMediaCategorias(ano);
-}
-
-function _processarEntradasSaidasAgregadas(filtros) {
-    const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-    const receitas = Array(12).fill(0);
-    const despesas = Array(12).fill(0);
-    const dados = window.dadosFinanceiros || {};
-    Object.keys(dados).map(Number).forEach(anoN => {
-        const anoData = dados[anoN];
-        if (!anoData?.meses) return;
-        for (let m = 0; m < 12; m++) {
-            const mes = anoData.meses[m];
-            if (!mes) continue;
-            receitas[m] += (mes.receitas || []).reduce((s, r) => {
-                if (r.saldoAnterior || r.descricao?.includes('Saldo Anterior') || r.automatica) return s;
-                return s + (r.valor || 0);
-            }, 0);
-            const despFilt = aplicarFiltrosDespesas(mes.despesas || [], filtros);
-            despesas[m] += window.calcularTotalDespesas ? window.calcularTotalDespesas(despFilt) : 0;
-        }
-    });
-    return { labels: nomesMeses, receitas, despesas };
-}
-
-function aplicarFiltroPeriodo(valor) {
-    window.anoDashboard = valor === 'todos' ? 'todos' : null;
-
-    // Atualizar estado visual dos botões
-    document.getElementById('btn-periodo-atual')?.classList.toggle('active', valor !== 'todos');
-    document.getElementById('btn-periodo-todos')?.classList.toggle('active', valor === 'todos');
-
-    // Atualizar cards de resumo
-    if (typeof window.carregarDadosDashboardLocal === 'function') {
-        window.carregarDadosDashboardLocal(window.anoDashboard ?? window.anoAtual);
-    }
-
-    // Atualizar rótulo dos cards
-    _atualizarRodapeCards(valor);
-
-    // Recarregar gráficos com filtros atuais
-    _reaplicarFiltrosGlobais();
-}
-
-function _atualizarRodapeCards(valor) {
-    const label = valor === 'todos' ? 'Todos os anos' : `Ano ${window.anoAtual}`;
-    const mapeamento = {
-        'dashboard-total-receitas': 'Receitas — ' + label,
-        'dashboard-total-despesas': 'Despesas — ' + label,
-        'dashboard-saldo-anual': 'Saldo — ' + label,
-        'dashboard-total-juros': 'Juros — ' + label,
-        'dashboard-total-economias': 'Economias — ' + label,
-    };
-    document.querySelectorAll('.resumo-cards .card').forEach(card => {
-        const valueEl = card.querySelector('.card-value');
-        const footerEl = card.querySelector('.card-footer');
-        if (!valueEl || !footerEl) return;
-        const id = valueEl.id;
-        if (mapeamento[id]) footerEl.textContent = mapeamento[id];
-    });
-}
-
-function resetarFiltros() {
-    // Resetar filtros globais
-    const tipoFilter = document.getElementById('global-tipo-filter');
-    const catFilter  = document.getElementById('global-categoria-filter');
-    const pagFilter  = document.getElementById('global-pagamento-filter');
-    if (tipoFilter) tipoFilter.value = 'ambos';
-    if (catFilter)  catFilter.value  = '';
-    if (pagFilter)  pagFilter.value  = 'todas';
-
-    // Resetar período para ano atual
-    window.anoDashboard = null;
-    document.getElementById('btn-periodo-atual')?.classList.add('active');
-    document.getElementById('btn-periodo-todos')?.classList.remove('active');
-
-}
-
-function limparGraficos() {
-    [
-        'balancoChart',
-        'tendenciaChart',
-        'receitasDespesasChart',
-        'categoriasBarrasChart',
-        'categoriasEmpilhadasChart',
-        'jurosEconomiasChart',
-        'parcelamentosChart',
-        'formaPagamentoChart',
-        'chartDistribuicaoCartoes',
-        'mediaCategoriasChart'
-    ].forEach(nome => {
-        if (window[nome]) {
-            window[nome].destroy();
-            window[nome] = null;
-        }
-    });
-}
+// Dead code — mantidas vazias para não quebrar referências externas
+function inicializarPeriodFilter() {}
+function aplicarFiltroPeriodo(valor) {}
+function resetarFiltros() {}
+function limparGraficos() {}
+function _reaplicarFiltrosGlobais() {}
+function _atualizarRodapeCards(valor) {}
 
 
 
@@ -359,27 +223,18 @@ async function carregarDadosDashboard(ano) {
             await window.carregarReservasAPI();
         }
 
-        const dadosProcessados = processarDadosReais(window.dadosFinanceiros, ano);
-
         // Cards são atualizados pelo main.js (carregarDadosDashboardLocal) - fonte única de verdade
         if (typeof window.carregarDadosDashboardLocal === 'function') {
             window.carregarDadosDashboardLocal(window.anoDashboard ?? ano);
         }
-        preencherSelectCategorias();
-        inicializarPeriodFilter();
 
-        const filtros = obterFiltrosGlobais();
+        // Atualizar KPIs dos resumo-cards com dados do filtro temático
+        atualizarKpisFixos();
 
-        criarGraficoBalanco(dadosProcessados.dadosMensais);
-        criarGraficoTendenciaAnualComFiltros(window.dadosFinanceiros, ano, filtros);
-        criarGraficoReceitasDespesasComFiltros(dadosProcessados.dadosMensais, filtros);
-        criarGraficoBarrasCategoriasComFiltros(window.dadosFinanceiros, ano, filtros);
-        criarGraficoCategoriasMensaisComFiltros(window.dadosFinanceiros, ano, filtros);
-        criarGraficoJurosEconomias(ano);
-        criarGraficoParcelamentosComFiltros(window.dadosFinanceiros, ano, filtros);
-        criarGraficoFormaPagamentoComFiltros(window.dadosFinanceiros, ano, filtros);
-        renderDistribuicaoCartoes(window.dadosFinanceiros, ano, filtros);
-        renderizarGraficoMediaCategorias(ano);
+        // Acionar o sistema temático
+        if (typeof atualizarDashboardTematico === 'function') {
+            atualizarDashboardTematico();
+        }
     } finally {
         _dashboardCarregando = false;
     }
@@ -2001,7 +1856,66 @@ function obterDadosFiltrados() {
 }
 
 function atualizarKpisFixos() {
-    // Sem bloco fixo de KPIs — os KPIs são internos a cada tema
+    const { despesas, receitas, filtro } = obterDadosFiltrados();
+
+    const totalReceitas = receitas.reduce(function(s, r) { return s + parseFloat(r.valor || 0); }, 0);
+    const totalDespesas = despesas.reduce(function(s, d) { return s + parseFloat(d.valor || 0); }, 0);
+    const saldoAnual    = totalReceitas - totalDespesas;
+    const totalJuros    = despesas.reduce(function(s, d) { return s + parseFloat(d.juros || 0); }, 0);
+    const totalEconomias = despesas.reduce(function(s, d) { return s + parseFloat(d.economias || d.desconto || 0); }, 0);
+
+    // Saldo atual: calculado via main.js se disponível, senão usa saldoAnual
+    let saldoAtual = saldoAnual;
+    if (typeof window.calcularSaldoAtual === 'function') {
+        saldoAtual = window.calcularSaldoAtual();
+    }
+
+    const fmt = function(v) {
+        return typeof window.formatarMoeda === 'function'
+            ? window.formatarMoeda(v)
+            : 'R$ ' + parseFloat(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    };
+
+    const elReceitas  = document.getElementById('dashboard-total-receitas');
+    const elDespesas  = document.getElementById('dashboard-total-despesas');
+    const elSaldoAno  = document.getElementById('dashboard-saldo-anual');
+    const elSaldoAtual = document.getElementById('dashboard-saldo-atual');
+    const elJuros     = document.getElementById('dashboard-total-juros');
+    const elEconomias = document.getElementById('dashboard-total-economias');
+
+    if (elReceitas)  elReceitas.textContent  = fmt(totalReceitas);
+    if (elDespesas)  elDespesas.textContent  = fmt(totalDespesas);
+    if (elSaldoAno)  {
+        elSaldoAno.textContent = fmt(saldoAnual);
+        elSaldoAno.classList.toggle('saldo-negativo', saldoAnual < 0);
+    }
+    if (elSaldoAtual) {
+        elSaldoAtual.textContent = fmt(saldoAtual);
+        elSaldoAtual.classList.toggle('saldo-negativo', saldoAtual < 0);
+    }
+    if (elJuros)     elJuros.textContent     = fmt(totalJuros);
+    if (elEconomias) elEconomias.textContent = fmt(totalEconomias);
+
+    // Atualizar rodapé dos cards com rótulo do período
+    const label = filtro.todos
+        ? 'Todos os anos'
+        : (filtro.mes !== null
+            ? ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][filtro.mes] + ' ' + filtro.ano
+            : 'Ano ' + filtro.ano);
+    const rodapes = {
+        'dashboard-total-receitas':  'Receitas — ' + label,
+        'dashboard-total-despesas':  'Despesas — ' + label,
+        'dashboard-saldo-anual':     'Saldo — ' + label,
+        'dashboard-total-juros':     'Juros — ' + label,
+        'dashboard-total-economias': 'Economias — ' + label,
+    };
+    document.querySelectorAll('.resumo-cards .card').forEach(function(card) {
+        const valueEl  = card.querySelector('.card-value');
+        const footerEl = card.querySelector('.card-footer');
+        if (!valueEl || !footerEl) return;
+        const rodape = rodapes[valueEl.id];
+        if (rodape) footerEl.textContent = rodape;
+    });
 }
 
 function atualizarDashboardTematico() {
