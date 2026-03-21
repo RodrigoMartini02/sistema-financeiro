@@ -7,6 +7,39 @@ const { query } = require('../config/database');
 const { CATEGORIAS_KEYWORDS, inferirCategoria } = require('../utils/expenseNormalizer');
 
 /**
+ * Extrai regras de categoria de um texto de carta/instruções.
+ * Detecta padrões como: "Palavras como 'X', 'Y' devem ser classificadas como categoria NomeCategoria"
+ */
+function extrairRegrasCategoriaDoTexto(texto) {
+    if (!texto) return [];
+    const regras = [];
+    const patterns = [
+        /palavras?\s+como\s+([\s\S]+?)\s+deve[nm]?\s+ser\s+classificad[ao]s?\s+como\s+categor[ií]a\s+([\w\sÀ-ÿ]+?)(?:\.|,|$|\n)/gi,
+        /classifique\s+([\s\S]+?)\s+como\s+(?:categor[ií]a\s+)?([\w\sÀ-ÿ]+?)(?:\.|,|$|\n)/gi,
+        /([\s\S]+?)\s+s[ãa]o\s+(?:da\s+)?categor[ií]a\s+([\w\sÀ-ÿ]+?)(?:\.|,|$|\n)/gi,
+        /([\s\S]+?)\s+deve[nm]?\s+ser\s+(?:da\s+)?categor[ií]a\s+([\w\sÀ-ÿ]+?)(?:\.|,|$|\n)/gi,
+    ];
+    for (const pattern of patterns) {
+        let m;
+        while ((m = pattern.exec(texto)) !== null) {
+            const palavrasRaw = m[1];
+            const categoria = m[2].trim().replace(/\s+/g, ' ');
+            const palavras = [];
+            const quotedMatches = [...palavrasRaw.matchAll(/['"""''`]([^'"""''`]+)['"""''`]/g)];
+            for (const qm of quotedMatches) palavras.push(qm[1].toLowerCase().trim());
+            if (palavras.length === 0) {
+                for (const p of palavrasRaw.split(/,|\s+e\s+/i)) {
+                    const limpo = p.replace(/['"""''`]/g, '').trim().toLowerCase();
+                    if (limpo.length > 1) palavras.push(limpo);
+                }
+            }
+            if (palavras.length > 0 && categoria.length > 1) regras.push({ palavras, categoria });
+        }
+    }
+    return regras;
+}
+
+/**
  * Busca o aprendizado de categorias do usuário no banco
  */
 async function buscarAprendizado(usuarioId) {
@@ -49,7 +82,7 @@ async function salvarAprendizado(usuarioId, texto, categoria) {
  * @param {string[]} categoriasDisponiveis - Categorias cadastradas pelo usuário
  * @returns {string} Categoria sugerida
  */
-async function classificarCategoria(descricao, usuarioId, categoriasDisponiveis = []) {
+async function classificarCategoria(descricao, usuarioId, categoriasDisponiveis = [], instrucoesTexto = '') {
     if (!descricao) return 'Outros';
     const lower = descricao.toLowerCase();
 
@@ -69,7 +102,17 @@ async function classificarCategoria(descricao, usuarioId, categoriasDisponiveis 
         }
     }
 
-    // 2. Heurísticas por keywords
+    // 2. Regras da carta de serviços / instruções personalizadas
+    if (instrucoesTexto) {
+        const regras = extrairRegrasCategoriaDoTexto(instrucoesTexto);
+        for (const regra of regras) {
+            if (regra.palavras.some(p => lower.includes(p))) {
+                return regra.categoria;
+            }
+        }
+    }
+
+    // 3. Heurísticas por keywords
     const categoriaHeuristica = inferirCategoria(descricao);
 
     // 3. Se a categoria inferida existe nas disponíveis, usa ela

@@ -7,6 +7,35 @@
 const { normalizarDespesa, normalizarValor, normalizarFormaPagamento,
     normalizarData, inferirCategoria } = require('../utils/expenseNormalizer');
 
+function extrairRegrasCategoriaParaGen(texto) {
+    if (!texto) return [];
+    const regras = [];
+    const patterns = [
+        /palavras?\s+como\s+([\s\S]+?)\s+deve[nm]?\s+ser\s+classificad[ao]s?\s+como\s+categor[ií]a\s+([\w\sÀ-ÿ]+?)(?:\.|,|$|\n)/gi,
+        /classifique\s+([\s\S]+?)\s+como\s+(?:categor[ií]a\s+)?([\w\sÀ-ÿ]+?)(?:\.|,|$|\n)/gi,
+        /([\s\S]+?)\s+s[ãa]o\s+(?:da\s+)?categor[ií]a\s+([\w\sÀ-ÿ]+?)(?:\.|,|$|\n)/gi,
+        /([\s\S]+?)\s+deve[nm]?\s+ser\s+(?:da\s+)?categor[ií]a\s+([\w\sÀ-ÿ]+?)(?:\.|,|$|\n)/gi,
+    ];
+    for (const pattern of patterns) {
+        let m;
+        while ((m = pattern.exec(texto)) !== null) {
+            const palavrasRaw = m[1];
+            const categoria = m[2].trim().replace(/\s+/g, ' ');
+            const palavras = [];
+            const quotedMatches = [...palavrasRaw.matchAll(/['"""''`]([^'"""''`]+)['"""''`]/g)];
+            for (const qm of quotedMatches) palavras.push(qm[1].toLowerCase().trim());
+            if (palavras.length === 0) {
+                for (const p of palavrasRaw.split(/,|\s+e\s+/i)) {
+                    const limpo = p.replace(/['"""''`]/g, '').trim().toLowerCase();
+                    if (limpo.length > 1) palavras.push(limpo);
+                }
+            }
+            if (palavras.length > 0 && categoria.length > 1) regras.push({ palavras, categoria });
+        }
+    }
+    return regras;
+}
+
 // Lazy-load OpenAI (só inicializa se a chave existir)
 let openaiClient = null;
 function getOpenAI() {
@@ -149,7 +178,7 @@ const BANCOS_CONHECIDOS = [
     'picpay', 'pagbank', 'will bank', 'xp', 'rico', 'clear'
 ];
 
-function parsearComGen(texto) {
+function parsearComGen(texto, cartaBase = '', instrucoesUsuario = '') {
     const lower = texto.toLowerCase();
     const result = {
         descricao: null,
@@ -281,7 +310,11 @@ function parsearComGen(texto) {
     }
 
     // ── Inferir CATEGORIA ──────────────────────────────────
-    result.categoria = inferirCategoria(result.descricao || texto);
+    const textoInstrucoes = [cartaBase, instrucoesUsuario].filter(Boolean).join('\n\n');
+    const regrasCartas = extrairRegrasCategoriaParaGen(textoInstrucoes);
+    const descLower = (result.descricao || texto).toLowerCase();
+    const regaEncontrada = regrasCartas.find(r => r.palavras.some(p => descLower.includes(p)));
+    result.categoria = regaEncontrada ? regaEncontrada.categoria : inferirCategoria(result.descricao || texto);
 
     return result;
 }
@@ -351,7 +384,7 @@ async function parsearDespesa(texto, contextoConversa = [], forcarHeuristica = f
             }
         } catch (err) {
             console.warn(`⚠️ ${providerConfig.provider} falhou, usando Gen:`, err.message);
-            dados = parsearComGen(texto);
+            dados = parsearComGen(texto, cartaBase, instrucoesUsuario);
         }
     } else if (!forcarHeuristica && getOpenAI()) {
         // fallback para chave env do servidor
@@ -360,10 +393,10 @@ async function parsearDespesa(texto, contextoConversa = [], forcarHeuristica = f
             metodo = 'openai';
         } catch (err) {
             console.warn('⚠️ OpenAI falhou, usando Gen:', err.message);
-            dados = parsearComGen(texto);
+            dados = parsearComGen(texto, cartaBase, instrucoesUsuario);
         }
     } else {
-        dados = parsearComGen(texto);
+        dados = parsearComGen(texto, cartaBase, instrucoesUsuario);
     }
 
     const normalizado = normalizarDespesa(dados);

@@ -353,8 +353,9 @@ async function chat(req, res) {
         const nomesCategorias = categorias.map(c => c.nome);
 
         if (!despesa.categoria || despesa.categoria === 'Outros') {
+            const instrucoesClassif = [cartaBase, instrucoesUsuario].filter(Boolean).join('\n\n');
             despesa.categoria = await classificarCategoria(
-                despesa.descricao, usuarioId, nomesCategorias
+                despesa.descricao, usuarioId, nomesCategorias, instrucoesClassif
             );
         }
 

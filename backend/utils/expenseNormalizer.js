@@ -25,7 +25,9 @@ const FORMAS_PAGAMENTO_MAP = {
 const CATEGORIAS_KEYWORDS = {
     'Alimentação': ['mercado', 'supermercado', 'restaurante', 'lanche', 'ifood', 'rappi', 'uber eats',
         'padaria', 'açougue', 'pizza', 'hamburguer', 'almoço', 'jantar', 'cafe', 'café',
-        'sushi', 'comida', 'refeição', 'delivery', 'hortifruti', 'feira'],
+        'sushi', 'comida', 'refeição', 'delivery', 'hortifruti', 'feira',
+        'hiper', 'atacadão', 'atacadao', 'assaí', 'assai', 'carrefour',
+        'pao de acucar', 'pão de açúcar', "sam's club", 'sams club', 'makro', 'condor', 'bistek'],
     'Transporte': ['uber', '99', 'combustivel', 'combustível', 'gasolina', 'etanol', 'alcool', 'álcool',
         'ônibus', 'metro', 'metrô', 'taxi', 'táxi', 'passagem', 'transporte', 'estacionamento',
         'pedágio', 'pedagio', 'carro', 'moto', 'bicicleta', 'patinete', 'trem'],
