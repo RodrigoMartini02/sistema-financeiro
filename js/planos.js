@@ -241,7 +241,7 @@ window.irParaPagamento = function (tipo) {
     planoSelecionado = tipo;
 
     const nomes  = { mensal: 'Mensal', anual: 'Anual' };
-    const precos = { mensal: 'R$ 79,90/mês', anual: 'R$ 639,90/ano' };
+    const precos = { mensal: 'R$ 11,99/mês', anual: 'R$ 119,99/ano' };
 
     const resumoEl = document.getElementById('pgmt-pag-resumo');
     if (resumoEl) resumoEl.textContent = `${nomes[tipo]} · ${precos[tipo]}`;
