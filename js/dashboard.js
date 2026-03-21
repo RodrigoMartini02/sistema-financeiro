@@ -2434,40 +2434,18 @@ function renderizarTemaPagamento() {
     if (el2) { el2.textContent = fmtR(totalDebito); el2.style.color = '#06b6d4'; }
     if (el3) el3.textContent = totalGeral > 0 ? ((totalCredito/totalGeral*100).toFixed(1)+'%') : '0%';
 
-    // Gráfico 1: Barras horizontais — formas de pagamento
-    const formasLabels = Object.keys(porForma).map(f => f.charAt(0).toUpperCase() + f.slice(1));
+    // Gráfico 1: Pizza — formas de pagamento
+    const formasLabels = Object.keys(porForma);
     const formasData = Object.values(porForma);
     if (formasLabels.length > 0) {
-        const _totalFormas = formasData.reduce((a, b) => a + b, 0);
         criarChart('tema-pgto-formas', {
-            type: 'bar',
-            data: {
-                labels: formasLabels,
-                datasets: [{
-                    data: formasData,
-                    backgroundColor: CORES.slice(0, formasLabels.length),
-                    borderRadius: { topRight: 8, bottomRight: 8 },
-                    borderSkipped: false
-                }]
-            },
-            options: Object.assign({}, opcoesBarraH(), {
-                animation: { duration: 700, easing: 'easeOutQuart', delay: function(ctx) { return ctx.dataIndex * 60; } },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: function(ctx) {
-                                const pct = _totalFormas > 0 ? ((ctx.raw / _totalFormas) * 100).toFixed(1) : 0;
-                                return ' ' + fmtR(ctx.raw) + ' (' + pct + '%)';
-                            }
-                        }
-                    }
-                }
-            })
+            type: 'pie',
+            data: { labels: formasLabels, datasets: [{ data: formasData, backgroundColor: CORES, borderWidth: 0, hoverOffset: 18 }] },
+            options: opcoesDonut()
         });
     }
 
-    // Gráfico 2: Barras horizontais — cartões de crédito
+    // Gráfico 2: Pizza — cartões
     const porCartao = {};
     despesas.filter(d => ['credito','cartao_credito','cartão de crédito','cartao de credito'].includes((d.formaPagamento||d.forma_pagamento||'').toLowerCase())).forEach(function(d) {
         const cartaoObj = cartoes.find(c => c.id === d.cartao_id);
@@ -2475,34 +2453,10 @@ function renderizarTemaPagamento() {
         porCartao[nome] = (porCartao[nome] || 0) + parseFloat(d.valor || 0);
     });
     if (Object.keys(porCartao).length > 0) {
-        const cartaoLabels = Object.keys(porCartao);
-        const cartaoData = Object.values(porCartao);
-        const _totalCartoes = cartaoData.reduce((a, b) => a + b, 0);
         criarChart('tema-pgto-cartoes', {
-            type: 'bar',
-            data: {
-                labels: cartaoLabels,
-                datasets: [{
-                    data: cartaoData,
-                    backgroundColor: CORES.slice(0, cartaoLabels.length),
-                    borderRadius: { topRight: 8, bottomRight: 8 },
-                    borderSkipped: false
-                }]
-            },
-            options: Object.assign({}, opcoesBarraH(), {
-                animation: { duration: 700, easing: 'easeOutQuart', delay: function(ctx) { return ctx.dataIndex * 60; } },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: function(ctx) {
-                                const pct = _totalCartoes > 0 ? ((ctx.raw / _totalCartoes) * 100).toFixed(1) : 0;
-                                return ' ' + fmtR(ctx.raw) + ' (' + pct + '%)';
-                            }
-                        }
-                    }
-                }
-            })
+            type: 'pie',
+            data: { labels: Object.keys(porCartao), datasets: [{ data: Object.values(porCartao), backgroundColor: CORES, borderWidth: 0, hoverOffset: 18 }] },
+            options: opcoesDonut()
         });
     }
 
