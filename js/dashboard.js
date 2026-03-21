@@ -1392,6 +1392,11 @@ function inicializarDashboardTematico() {
     document.querySelectorAll('.tema-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
             const tema = this.dataset.tema;
+            // Cancelar animação liquid fill ao trocar de aba
+            if (window._liquidFillAnimFrame) {
+                cancelAnimationFrame(window._liquidFillAnimFrame);
+                window._liquidFillAnimFrame = null;
+            }
             // Desativa todos
             document.querySelectorAll('.tema-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.tema-view').forEach(v => v.classList.remove('active'));
@@ -2349,8 +2354,6 @@ function renderizarTemaAnalise() {
 
 // ── TEMA: METAS / OBJETIVOS ──────────────────────────────────────
 async function renderizarTemaMetas() {
-    const MSG_SEM_DADOS = '<div class="obj-sem-dados"><i class="fas fa-bullseye"></i><p>Nenhum objetivo cadastrado.<br>Crie em <strong>Metas ↗</strong></p></div>';
-
     // KPI placeholders enquanto carrega
     const elTotal  = document.getElementById('tk-metas-total');
     const elProx   = document.getElementById('tk-metas-proximo');
@@ -2370,7 +2373,9 @@ async function renderizarTemaMetas() {
             .reduce((acc, m) => m.tipo === 'entrada' ? acc + parseFloat(m.valor) : acc - parseFloat(m.valor), 0);
     };
 
-    let objetivos = (window.reservasCache || [])
+    const todasReservas = (window.reservasCache || []);
+    const reservasSimples = todasReservas.filter(r => r.tipo_reserva !== 'objetivo');
+    let objetivos = todasReservas
         .filter(r => r.tipo_reserva === 'objetivo' && parseFloat(r.objetivo_valor) > 0)
         .map(r => {
             const valorAtual = calcValorAtual(r.id) || parseFloat(r.valor) || 0;
@@ -2382,8 +2387,13 @@ async function renderizarTemaMetas() {
 
     const ativos = objetivos.filter(o => !o.objetivo_atingido);
 
-    // KPIs
-    if (elTotal)  { elTotal.textContent  = ativos.length; elTotal.style.color = '#6366f1'; }
+    // ── KPIs atualizados ────────────────────────────────────────
+    if (elTotal) {
+        const nObj = ativos.length;
+        const nRes = reservasSimples.length;
+        elTotal.innerHTML = nObj + ' obj' + (nObj !== 1 ? 's' : '') + ' + ' + nRes + ' res.';
+        elTotal.style.color = '#6366f1';
+    }
     if (elProx) {
         if (ativos.length > 0) {
             const maisProximo = [...ativos].sort((a, b) => parseFloat(b.progresso || 0) - parseFloat(a.progresso || 0))[0];
@@ -2396,18 +2406,16 @@ async function renderizarTemaMetas() {
         }
     }
     if (elMedia) {
-        if (ativos.length > 0) {
-            const mediaProgresso = ativos.reduce((s, o) => s + parseFloat(o.progresso || 0), 0) / ativos.length;
-            elMedia.textContent = mediaProgresso.toFixed(1) + '%';
-            elMedia.style.color = mediaProgresso >= 75 ? '#10b981' : mediaProgresso >= 40 ? '#f59e0b' : '#f43f5e';
-        } else {
-            elMedia.textContent = '0%';
-            elMedia.style.color = '#94a3b8';
-        }
+        // Total guardado em TODAS as reservas (simples + objetivos)
+        const totalGuardado = todasReservas.reduce(function(s, r) {
+            return s + Math.max(0, calcValorAtual(r.id) || parseFloat(r.valor) || 0);
+        }, 0);
+        elMedia.textContent = fmtR(totalGuardado);
+        elMedia.style.color = '#10b981';
     }
 
     // Usa overlay em vez de substituir innerHTML (preserva os <canvas>)
-    const setEmptyOverlay = function(canvasId, show) {
+    const setEmptyOverlay = function(canvasId, show, msg) {
         const el = document.getElementById(canvasId);
         if (!el) return;
         const card = el.closest('.tema-chart-card');
@@ -2418,7 +2426,7 @@ async function renderizarTemaMetas() {
                 overlay = document.createElement('div');
                 overlay.className = 'obj-sem-dados obj-sem-dados-overlay';
                 overlay.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:2;background:inherit;border-radius:inherit';
-                overlay.innerHTML = '<i class="fas fa-bullseye" style="font-size:2rem;opacity:0.3;margin-bottom:8px"></i><p style="margin:0;font-size:13px;text-align:center">Nenhum objetivo cadastrado.<br>Crie em <strong>Metas ↗</strong></p>';
+                overlay.innerHTML = '<i class="fas fa-bullseye" style="font-size:2rem;opacity:0.3;margin-bottom:8px"></i><p style="margin:0;font-size:13px;text-align:center">' + (msg || 'Nenhum dado disponível.') + '</p>';
                 card.style.position = 'relative';
                 card.appendChild(overlay);
             }
@@ -2429,181 +2437,239 @@ async function renderizarTemaMetas() {
         }
     };
 
-    if (ativos.length === 0) {
-        ['tema-metas-progresso', 'tema-metas-projecao', 'tema-metas-historico'].forEach(id => setEmptyOverlay(id, true));
-        return;
-    }
-    ['tema-metas-progresso', 'tema-metas-projecao', 'tema-metas-historico'].forEach(id => setEmptyOverlay(id, false));
-
-    // ── Gráfico 1: Progresso por Objetivo (barras horizontais premium) ────
+    // ── Gráfico 1: Liquid Fill — Progresso por Objetivo ──────────
     (function() {
-        const labels   = ativos.map(o => o.observacoes || ('Objetivo ' + o.id));
-        const valores  = ativos.map(o => Math.min(parseFloat(o.progresso || 0), 100));
-        const valAtual = ativos.map(o => parseFloat(o.valorAtual ?? o.valor ?? 0));
-        const valMeta  = ativos.map(o => parseFloat(o.objetivo_valor || 0));
+        const canvas = document.getElementById('tema-metas-progresso');
+        if (!canvas) return;
 
-        // Gradiente por faixa de progresso: verde ≥75, amarelo ≥40, vermelho <40
-        const corProgresso = function(v) {
-            if (v >= 75) return '#10b981';
-            if (v >= 40) return '#f59e0b';
+        // Cancelar animação anterior se existir
+        if (window._liquidFillAnimFrame) {
+            cancelAnimationFrame(window._liquidFillAnimFrame);
+            window._liquidFillAnimFrame = null;
+        }
+
+        if (ativos.length === 0) {
+            setEmptyOverlay('tema-metas-progresso', true, 'Nenhum objetivo cadastrado.<br>Crie em <strong>Metas ↗</strong>');
+            return;
+        }
+        setEmptyOverlay('tema-metas-progresso', false);
+
+        const card = canvas.closest('.tema-chart-card');
+        if (!card) return;
+
+        // Remover container antigo se existir
+        const antigo = card.querySelector('.liquid-fill-container');
+        if (antigo) antigo.remove();
+        canvas.style.display = 'none';
+
+        // Criar container de liquid fills
+        const container = document.createElement('div');
+        container.className = 'liquid-fill-container';
+        card.appendChild(container);
+
+        // Garantir position relative no card
+        card.style.position = 'relative';
+
+        const corPorPct = function(p) {
+            if (p >= 75) return '#10b981';
+            if (p >= 40) return '#f59e0b';
             return '#f43f5e';
         };
 
-        const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-        const trackColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)';
-        const labelColor = isDark ? '#cbd5e1' : '#334155';
+        // Criar um canvas liquid fill por objetivo (máximo 6 para não poluir)
+        const objetivosExibir = ativos.slice(0, 6);
+        const canvases = [];
 
-        criarChart('tema-metas-progresso', {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [
-                    // Dataset de fundo (track cinza até 100%)
-                    {
-                        label: '_track',
-                        data: valores.map(() => 100),
-                        backgroundColor: trackColor,
-                        borderRadius: 6,
-                        borderSkipped: false,
-                        barPercentage: 0.55,
-                        categoryPercentage: 1,
-                        order: 2
-                    },
-                    // Dataset de progresso com cor por desempenho
-                    {
-                        label: 'Progresso',
-                        data: valores,
-                        backgroundColor: valores.map(corProgresso),
-                        borderRadius: 6,
-                        borderSkipped: false,
-                        barPercentage: 0.55,
-                        categoryPercentage: 1,
-                        order: 1
-                    }
-                ]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: { duration: 600 },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        filter: function(item) { return item.datasetIndex === 1; },
-                        callbacks: {
-                            title: function(items) { return labels[items[0].dataIndex]; },
-                            label: function(ctx) {
-                                const i = ctx.dataIndex;
-                                return [
-                                    '  Progresso: ' + valores[i].toFixed(1) + '%',
-                                    '  Atual: ' + fmtR(valAtual[i]),
-                                    '  Meta:  ' + fmtR(valMeta[i])
-                                ];
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: {
-                        min: 0,
-                        max: 100,
-                        stacked: false,
-                        ticks: { color: '#94a3b8', font: { size: 10 }, callback: function(v) { return v + '%'; } },
-                        grid: { color: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)' }
-                    },
-                    y: {
-                        stacked: false,
-                        ticks: { color: labelColor, font: { size: 11 } },
-                        grid: { display: false }
-                    }
-                }
-            }
+        objetivosExibir.forEach(function(obj, idx) {
+            const item = document.createElement('div');
+            item.className = 'liquid-fill-item';
+
+            const c = document.createElement('canvas');
+            c.width = 160;
+            c.height = 160;
+            c.className = 'liquid-fill-canvas';
+            item.appendChild(c);
+
+            const lbl = document.createElement('div');
+            lbl.className = 'liquid-fill-label';
+            lbl.textContent = obj.observacoes || ('Objetivo ' + obj.id);
+            item.appendChild(lbl);
+
+            const sub = document.createElement('div');
+            sub.className = 'liquid-fill-sub';
+            sub.textContent = fmtR(obj.valorAtual) + ' / ' + fmtR(obj.objetivo_valor);
+            item.appendChild(sub);
+
+            container.appendChild(item);
+            canvases.push({ canvas: c, pct: obj.progresso, cor: corPorPct(obj.progresso), label: obj.observacoes || ('Obj ' + (idx+1)) });
         });
+
+        // Fases independentes por canvas
+        const fases = canvases.map(() => Math.random() * Math.PI * 2);
+
+        function frame() {
+            canvases.forEach(function(item, i) {
+                fases[i] += 0.04;
+                const ctx = item.canvas.getContext('2d');
+                const W = item.canvas.width;
+                const H = item.canvas.height;
+                const cx = W / 2, cy = H / 2;
+                const r = Math.min(W, H) * 0.42;
+                const pct = Math.max(0, Math.min(100, item.pct));
+
+                ctx.clearRect(0, 0, W, H);
+
+                // Fundo do círculo (track)
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(148,163,184,0.10)';
+                ctx.fill();
+
+                const fillY = cy + r - (pct / 100) * 2 * r;
+                const amplitude = 6 * (1 - pct / 100);
+
+                // Clip ao círculo
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.clip();
+
+                // Onda traseira (mais clara)
+                ctx.beginPath();
+                ctx.moveTo(cx - r, fillY + amplitude);
+                for (let x = cx - r; x <= cx + r; x++) {
+                    const wave = Math.sin((x - cx) * 0.05 + fases[i] - 0.8) * amplitude;
+                    ctx.lineTo(x, fillY + wave + amplitude * 0.4);
+                }
+                ctx.lineTo(cx + r, H);
+                ctx.lineTo(cx - r, H);
+                ctx.closePath();
+                ctx.fillStyle = item.cor + '55';
+                ctx.fill();
+
+                // Onda frontal (mais intensa)
+                ctx.beginPath();
+                ctx.moveTo(cx - r, fillY);
+                for (let x = cx - r; x <= cx + r; x++) {
+                    const wave = Math.sin((x - cx) * 0.05 + fases[i]) * amplitude;
+                    ctx.lineTo(x, fillY + wave);
+                }
+                ctx.lineTo(cx + r, H);
+                ctx.lineTo(cx - r, H);
+                ctx.closePath();
+                ctx.fillStyle = item.cor + 'CC';
+                ctx.fill();
+
+                ctx.restore();
+
+                // Borda do círculo
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.strokeStyle = item.cor;
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+
+                // Texto %
+                ctx.fillStyle = pct > 52 ? '#fff' : item.cor;
+                ctx.font = 'bold ' + Math.round(r * 0.38) + 'px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(Math.round(pct) + '%', cx, cy);
+            });
+
+            window._liquidFillAnimFrame = requestAnimationFrame(frame);
+        }
+        frame();
     })();
 
-    // ── Gráfico 2: Necessidade Mensal para Atingir Meta ────────────
+    // ── Gráfico 2: Evolução real das reservas no tempo ────────────
     (function() {
-        const hoje = new Date();
-        const labelsProj = [];
-        const valoresBarra = [];
-        const coresProj = [];
-        const tooltipExtra = []; // { temData, faltante, necessidadeMes, dataFmt }
+        const movs = window.movimentacoesReservasCache || [];
 
-        ativos.forEach(function(obj) {
-            const nome = obj.observacoes || ('Objetivo ' + obj.id);
-            const faltante = Math.max(0, parseFloat(obj.objetivo_valor || 0) - parseFloat(obj.valorAtual ?? obj.valor ?? 0));
+        if (movs.length === 0) {
+            setEmptyOverlay('tema-metas-projecao', true, 'Sem movimentações de reservas registradas.');
+            return;
+        }
+        setEmptyOverlay('tema-metas-projecao', false);
 
-            labelsProj.push(nome);
+        // Agrupar movimentações por mês/ano, calcular saldo acumulado
+        const porMes = {};
+        movs.forEach(function(m) {
+            const d = new Date(m.data_hora || m.created_at || Date.now());
+            if (isNaN(d.getTime())) return;
+            // Chave sortável: YYYY-MM
+            const chave = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+            const val = parseFloat(m.valor || 0);
+            porMes[chave] = (porMes[chave] || 0) + (m.tipo === 'entrada' ? val : -val);
+        });
 
-            if (obj.data_objetivo) {
-                const dataAlvo = new Date(obj.data_objetivo);
-                // Meses restantes (arredondado para cima, mínimo 1)
-                const diffMs = dataAlvo - hoje;
-                const mesesRestantes = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24 * 30.44)));
-                const necessidadeMes = faltante > 0 ? faltante / mesesRestantes : 0;
+        // Ordenar meses
+        const chavesOrdenadas = Object.keys(porMes).sort();
 
-                // Cor: verde se meses>=6, amarelo se 1-5 meses, cinza se já atingido
-                const cor = faltante <= 0 ? '#10b981'
-                    : mesesRestantes <= 3 ? '#f43f5e'
-                    : mesesRestantes <= 6 ? '#f59e0b'
-                    : '#10b981';
+        // Calcular acumulado
+        let acum = 0;
+        const labelsEvo = [];
+        const valoresAcum = [];
+        const variacoes = [];
 
-                valoresBarra.push(necessidadeMes);
-                coresProj.push(cor);
-
-                const dataFmt = dataAlvo.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
-                tooltipExtra.push({ temData: true, faltante, necessidadeMes, dataFmt, mesesRestantes });
-            } else {
-                // Sem data: mostra o valor faltante como referência, cor vermelho (sem prazo)
-                valoresBarra.push(faltante);
-                coresProj.push('#f43f5e');
-                tooltipExtra.push({ temData: false, faltante });
-            }
+        chavesOrdenadas.forEach(function(chave) {
+            const anterior = acum;
+            acum += porMes[chave];
+            const partes = chave.split('-');
+            const ano = parseInt(partes[0]);
+            const mes = parseInt(partes[1]) - 1;
+            const nomesMes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+            labelsEvo.push(nomesMes[mes] + '/' + String(ano).slice(-2));
+            valoresAcum.push(Math.max(0, acum));
+            variacoes.push(porMes[chave]);
         });
 
         const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-        const labelColor = isDark ? '#cbd5e1' : '#334155';
+        const canvasEl = document.getElementById('tema-metas-projecao');
+        if (!canvasEl) return;
+        const ctx2 = canvasEl.getContext('2d');
+        const gradVerde = ctx2.createLinearGradient(0, 0, 0, 260);
+        gradVerde.addColorStop(0, 'rgba(16,185,129,0.35)');
+        gradVerde.addColorStop(1, 'rgba(16,185,129,0.02)');
 
         criarChart('tema-metas-projecao', {
-            type: 'bar',
+            type: 'line',
             data: {
-                labels: labelsProj,
+                labels: labelsEvo,
                 datasets: [{
-                    label: 'Necessidade Mensal',
-                    data: valoresBarra,
-                    backgroundColor: coresProj,
-                    borderRadius: 6,
-                    borderSkipped: false,
-                    barPercentage: 0.6,
-                    categoryPercentage: 0.9
+                    label: 'Total acumulado',
+                    data: valoresAcum,
+                    borderColor: '#10b981',
+                    backgroundColor: gradVerde,
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: labelsEvo.length <= 12 ? 4 : 2,
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: '#10b981',
+                    pointBorderColor: isDark ? '#1e293b' : '#fff',
+                    pointBorderWidth: 2
                 }]
             },
             options: {
-                indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
-                animation: { duration: 600 },
+                animation: { duration: 700 },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
                         callbacks: {
-                            title: function(items) { return labelsProj[items[0].dataIndex]; },
+                            title: function(items) { return labelsEvo[items[0].dataIndex]; },
                             label: function(ctx) {
                                 const i = ctx.dataIndex;
-                                const info = tooltipExtra[i];
-                                if (info.faltante <= 0) return '  Meta atingida!';
-                                if (info.temData) {
-                                    return [
-                                        '  Guardar: ' + fmtR(info.necessidadeMes) + '/mês',
-                                        '  Até: ' + info.dataFmt + ' (' + info.mesesRestantes + ' meses)',
-                                        '  Faltam: ' + fmtR(info.faltante)
-                                    ];
+                                const var_ = variacoes[i];
+                                const linhas = ['  Total: ' + fmtR(valoresAcum[i])];
+                                if (var_ >= 0) {
+                                    linhas.push('  Entrada: +' + fmtR(var_));
+                                } else {
+                                    linhas.push('  Saída: ' + fmtR(var_));
                                 }
-                                return [
-                                    '  Faltam: ' + fmtR(info.faltante),
-                                    '  Sem data definida'
-                                ];
+                                return linhas;
                             }
                         }
                     }
@@ -2613,97 +2679,66 @@ async function renderizarTemaMetas() {
                         ticks: {
                             color: '#94a3b8',
                             font: { size: 10 },
+                            maxRotation: 45,
+                            maxTicksLimit: 12
+                        },
+                        grid: { color: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)' }
+                    },
+                    y: {
+                        ticks: {
+                            color: '#94a3b8',
+                            font: { size: 10 },
                             callback: function(v) {
+                                if (v >= 1000000) return 'R$' + (v / 1000000).toFixed(1) + 'M';
                                 if (v >= 1000) return 'R$' + (v / 1000).toFixed(0) + 'k';
                                 return 'R$' + v.toFixed(0);
                             }
                         },
                         grid: { color: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)' }
-                    },
-                    y: {
-                        ticks: { color: labelColor, font: { size: 11 } },
-                        grid: { display: false }
                     }
                 }
             }
         });
     })();
 
-    // ── Gráfico 3: Distribuição dos Objetivos (pizza/donut) ───────
+    // ── Gráfico 3: Distribuição entre todas as reservas (pizza) ───
     (function() {
-        const totalGeral = ativos.reduce(function(s, o) { return s + parseFloat(o.valorAtual ?? o.valor ?? 0); }, 0);
+        const todasComValor = todasReservas.map(function(r) {
+            const val = Math.max(0, calcValorAtual(r.id) || parseFloat(r.valor) || 0);
+            return { ...r, valorAtual: val };
+        }).filter(r => r.valorAtual > 0);
 
-        // Caso especial: apenas 1 objetivo → donut com % atingido vs restante
-        if (ativos.length === 1) {
-            const obj = ativos[0];
-            const prog = Math.min(parseFloat(obj.progresso || 0), 100);
-            const nome = obj.observacoes || ('Objetivo ' + obj.id);
-            const cor = prog >= 75 ? '#10b981' : prog >= 40 ? '#f59e0b' : '#f43f5e';
-
-            criarChart('tema-metas-historico', {
-                type: 'doughnut',
-                data: {
-                    labels: [nome, 'Restante'],
-                    datasets: [{
-                        data: [prog, Math.max(0, 100 - prog)],
-                        backgroundColor: [cor, 'rgba(148,163,184,0.18)'],
-                        borderColor: ['transparent', 'transparent'],
-                        borderWidth: 0,
-                        hoverOffset: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '65%',
-                    radius: '80%',
-                    animation: { animateRotate: true, animateScale: true, duration: 700 },
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'bottom',
-                            labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 12, padding: 12 }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(ctx) {
-                                    if (ctx.dataIndex === 0) {
-                                        return [
-                                            '  ' + nome,
-                                            '  Progresso: ' + prog.toFixed(1) + '%',
-                                            '  Atual: ' + fmtR(obj.valorAtual ?? obj.valor ?? 0),
-                                            '  Meta:  ' + fmtR(obj.objetivo_valor || 0)
-                                        ];
-                                    }
-                                    return '  Faltam: ' + fmtR(Math.max(0, parseFloat(obj.objetivo_valor || 0) - parseFloat(obj.valorAtual ?? obj.valor ?? 0)));
-                                }
-                            }
-                        }
-                    }
-                }
-            });
+        if (todasComValor.length === 0) {
+            setEmptyOverlay('tema-metas-historico', true, 'Nenhuma reserva com saldo positivo.');
             return;
         }
+        setEmptyOverlay('tema-metas-historico', false);
 
-        // Múltiplos objetivos → pizza com fatia = valorAtual de cada objetivo
-        const labelsHist  = ativos.map(o => o.observacoes || ('Objetivo ' + o.id));
-        const valoresHist = ativos.map(o => Math.max(0, parseFloat(o.valorAtual ?? o.valor ?? 0)));
-        const coresPizza  = ativos.map(function(_, idx) { return CORES[idx % CORES.length]; });
+        const totalGeral = todasComValor.reduce((s, r) => s + r.valorAtual, 0);
 
-        // Legenda customizada: nome + % do total
-        const gerarLabelPizza = function(idx) {
-            const pct = totalGeral > 0 ? ((valoresHist[idx] / totalGeral) * 100).toFixed(1) : '0.0';
-            return labelsHist[idx] + ' (' + pct + '%)';
-        };
-        const labelsLegenda = ativos.map(function(_, idx) { return gerarLabelPizza(idx); });
+        const labelsHist = todasComValor.map(r => r.observacoes || ('Reserva ' + r.id));
+
+        // Cores: objetivos em paleta indigo/roxo, reservas simples em azul/ciano
+        const CORES_OBJ = ['#6366f1','#8b5cf6','#a855f7','#c084fc','#e879f9','#d946ef'];
+        const CORES_RES = ['#06b6d4','#0ea5e9','#3b82f6','#38bdf8','#7dd3fc','#60a5fa'];
+        let idxObj = 0, idxRes = 0;
+        const coresDist = todasComValor.map(function(r) {
+            if (r.tipo_reserva === 'objetivo') return CORES_OBJ[idxObj++ % CORES_OBJ.length];
+            return CORES_RES[idxRes++ % CORES_RES.length];
+        });
+
+        const labelsLegenda = todasComValor.map(function(r, i) {
+            const pct = totalGeral > 0 ? ((r.valorAtual / totalGeral) * 100).toFixed(1) : '0.0';
+            return labelsHist[i] + ' (' + pct + '%)';
+        });
 
         criarChart('tema-metas-historico', {
             type: 'pie',
             data: {
                 labels: labelsLegenda,
                 datasets: [{
-                    data: valoresHist,
-                    backgroundColor: coresPizza,
+                    data: todasComValor.map(r => r.valorAtual),
+                    backgroundColor: coresDist,
                     borderColor: 'transparent',
                     borderWidth: 0,
                     hoverOffset: 10
@@ -2712,7 +2747,7 @@ async function renderizarTemaMetas() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                radius: '80%',
+                radius: '75%',
                 animation: { animateRotate: true, animateScale: true, duration: 700 },
                 plugins: {
                     legend: {
@@ -2725,12 +2760,18 @@ async function renderizarTemaMetas() {
                             title: function(items) { return labelsHist[items[0].dataIndex]; },
                             label: function(ctx) {
                                 const i = ctx.dataIndex;
-                                const pct = totalGeral > 0 ? ((valoresHist[i] / totalGeral) * 100).toFixed(1) : '0.0';
-                                return [
-                                    '  Guardado: ' + fmtR(valoresHist[i]),
-                                    '  % do total: ' + pct + '%',
-                                    '  Meta: ' + fmtR(ativos[i].objetivo_valor || 0)
+                                const r = todasComValor[i];
+                                const pct = totalGeral > 0 ? ((r.valorAtual / totalGeral) * 100).toFixed(1) : '0.0';
+                                const tipo = r.tipo_reserva === 'objetivo' ? 'Objetivo' : 'Reserva';
+                                const linhas = [
+                                    '  Tipo: ' + tipo,
+                                    '  Guardado: ' + fmtR(r.valorAtual),
+                                    '  % do total: ' + pct + '%'
                                 ];
+                                if (r.tipo_reserva === 'objetivo' && r.objetivo_valor) {
+                                    linhas.push('  Meta: ' + fmtR(r.objetivo_valor));
+                                }
+                                return linhas;
                             }
                         }
                     }

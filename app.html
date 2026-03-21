@@ -449,14 +449,14 @@
         <!-- TEMA: METAS -->
         <div class="tema-view" id="tema-metas">
           <div class="tema-kpis" style="grid-template-columns: repeat(3, 1fr)">
-            <div class="tema-kpi"><span class="tk-label">Total de Objetivos Ativos</span><span class="tk-valor" id="tk-metas-total">--</span></div>
+            <div class="tema-kpi"><span class="tk-label">Objetivos + Reservas</span><span class="tk-valor" id="tk-metas-total">--</span></div>
             <div class="tema-kpi"><span class="tk-label">Objetivo mais próximo</span><span class="tk-valor" id="tk-metas-proximo" style="font-size:14px">--</span></div>
-            <div class="tema-kpi"><span class="tk-label">% médio de progresso</span><span class="tk-valor" id="tk-metas-media">--</span></div>
+            <div class="tema-kpi"><span class="tk-label">Total guardado (reservas)</span><span class="tk-valor" id="tk-metas-media">--</span></div>
           </div>
           <div class="tema-charts-grid">
-            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Quanto cada objetivo já foi atingido">Progresso por Objetivo</h3></div><canvas id="tema-metas-progresso"></canvas></div>
-            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Estimativa de meses para concluir cada objetivo">Projeção de Conclusão</h3></div><canvas id="tema-metas-projecao"></canvas></div>
-            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Evolução do percentual atingido nos últimos meses">Evolução % Mensal</h3></div><canvas id="tema-metas-historico"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Progresso visual de cada objetivo — enchendo como água">Progresso por Objetivo</h3></div><canvas id="tema-metas-progresso"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Evolução real do total acumulado em todas as reservas mês a mês">Evolução das Reservas</h3></div><canvas id="tema-metas-projecao"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Distribuição do saldo atual entre todas as reservas e objetivos">Distribuição das Reservas</h3></div><canvas id="tema-metas-historico"></canvas></div>
             <div class="tema-chart-card tema-metas-projecao-card">
                 <div class="proj-header">
                     <div class="proj-header-title">
