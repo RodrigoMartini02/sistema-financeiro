@@ -2434,18 +2434,40 @@ function renderizarTemaPagamento() {
     if (el2) { el2.textContent = fmtR(totalDebito); el2.style.color = '#06b6d4'; }
     if (el3) el3.textContent = totalGeral > 0 ? ((totalCredito/totalGeral*100).toFixed(1)+'%') : '0%';
 
-    // Gráfico 1: Pizza — formas de pagamento
-    const formasLabels = Object.keys(porForma);
+    // Gráfico 1: Barras horizontais — formas de pagamento
+    const formasLabels = Object.keys(porForma).map(f => f.charAt(0).toUpperCase() + f.slice(1));
     const formasData = Object.values(porForma);
     if (formasLabels.length > 0) {
+        const _totalFormas = formasData.reduce((a, b) => a + b, 0);
         criarChart('tema-pgto-formas', {
-            type: 'pie',
-            data: { labels: formasLabels, datasets: [{ data: formasData, backgroundColor: CORES, borderWidth: 0, hoverOffset: 18 }] },
-            options: opcoesDonut()
+            type: 'bar',
+            data: {
+                labels: formasLabels,
+                datasets: [{
+                    data: formasData,
+                    backgroundColor: CORES.slice(0, formasLabels.length),
+                    borderRadius: { topRight: 8, bottomRight: 8 },
+                    borderSkipped: false
+                }]
+            },
+            options: Object.assign({}, opcoesBarraH(), {
+                animation: { duration: 700, easing: 'easeOutQuart', delay: function(ctx) { return ctx.dataIndex * 60; } },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                const pct = _totalFormas > 0 ? ((ctx.raw / _totalFormas) * 100).toFixed(1) : 0;
+                                return ' ' + fmtR(ctx.raw) + ' (' + pct + '%)';
+                            }
+                        }
+                    }
+                }
+            })
         });
     }
 
-    // Gráfico 2: Pizza — cartões
+    // Gráfico 2: Barras horizontais — cartões de crédito
     const porCartao = {};
     despesas.filter(d => ['credito','cartao_credito','cartão de crédito','cartao de credito'].includes((d.formaPagamento||d.forma_pagamento||'').toLowerCase())).forEach(function(d) {
         const cartaoObj = cartoes.find(c => c.id === d.cartao_id);
@@ -2453,26 +2475,78 @@ function renderizarTemaPagamento() {
         porCartao[nome] = (porCartao[nome] || 0) + parseFloat(d.valor || 0);
     });
     if (Object.keys(porCartao).length > 0) {
+        const cartaoLabels = Object.keys(porCartao);
+        const cartaoData = Object.values(porCartao);
+        const _totalCartoes = cartaoData.reduce((a, b) => a + b, 0);
         criarChart('tema-pgto-cartoes', {
-            type: 'pie',
-            data: { labels: Object.keys(porCartao), datasets: [{ data: Object.values(porCartao), backgroundColor: CORES, borderWidth: 0, hoverOffset: 18 }] },
-            options: opcoesDonut()
+            type: 'bar',
+            data: {
+                labels: cartaoLabels,
+                datasets: [{
+                    data: cartaoData,
+                    backgroundColor: CORES.slice(0, cartaoLabels.length),
+                    borderRadius: { topRight: 8, bottomRight: 8 },
+                    borderSkipped: false
+                }]
+            },
+            options: Object.assign({}, opcoesBarraH(), {
+                animation: { duration: 700, easing: 'easeOutQuart', delay: function(ctx) { return ctx.dataIndex * 60; } },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                const pct = _totalCartoes > 0 ? ((ctx.raw / _totalCartoes) * 100).toFixed(1) : 0;
+                                return ' ' + fmtR(ctx.raw) + ' (' + pct + '%)';
+                            }
+                        }
+                    }
+                }
+            })
         });
     }
 
-    // Gráfico 3: Barras empilhadas — forma por mês
+    // Gráfico 3: Barras empilhadas 100% — proporção de forma por mês
     const formasUnicas = [...new Set(despesas.map(d => (d.formaPagamento || d.forma_pagamento || 'outros').toLowerCase()))];
-    const datasetsForma = formasUnicas.map((forma, i) => {
+    const dadosBrutosForma = formasUnicas.map((forma, i) => {
         const porMes = new Array(12).fill(0);
         despesas.filter(d=>(d.formaPagamento||d.forma_pagamento||'outros').toLowerCase()===forma).forEach(d => {
             if (d.mes>=0&&d.mes<=11) porMes[d.mes]+=parseFloat(d.valor||0);
         });
-        return { label: forma, data: porMes, backgroundColor: CORES[i], stack: 'stack', borderRadius: 2 };
+        return { forma, porMes, cor: CORES[i % CORES.length] };
     });
+    const totaisMensaisForma = new Array(12).fill(0).map((_, m) => dadosBrutosForma.reduce((s, d) => s + d.porMes[m], 0));
+    const datasetsForma = dadosBrutosForma.map(({ forma, porMes, cor }) => ({
+        label: forma.charAt(0).toUpperCase() + forma.slice(1),
+        data: porMes.map((v, m) => totaisMensaisForma[m] > 0 ? parseFloat(((v / totaisMensaisForma[m]) * 100).toFixed(1)) : 0),
+        backgroundColor: cor,
+        stack: 'stack',
+        borderRadius: 2,
+        _valorBruto: porMes
+    }));
     criarChart('tema-pgto-mensal', {
         type: 'bar',
         data: { labels: MESES_LABELS, datasets: datasetsForma },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } } }, scales: { x: { stacked: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { stacked: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            const bruto = ctx.dataset._valorBruto?.[ctx.dataIndex] ?? null;
+                            const pct = ctx.raw.toFixed(1) + '%';
+                            return bruto !== null ? ' ' + ctx.dataset.label + ': ' + fmtR(bruto) + ' (' + pct + ')' : ' ' + ctx.dataset.label + ': ' + pct;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { stacked: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                y: { stacked: true, max: 100, ticks: { color: '#94a3b8', font: { size: 11 }, callback: function(v) { return v + '%'; } }, grid: { color: 'rgba(255,255,255,0.04)' } }
+            }
+        }
     });
 }
 
@@ -2647,12 +2721,39 @@ function renderizarTemaAnual() {
     }
     const saldoAnt = recAntMes.map((r,i)=>r-despAntMes[i]);
     criarChart('tema-anual-comparacao', {
-        type: 'bar',
+        type: 'line',
         data: {
             labels: MESES_LABELS,
             datasets: [
-                { label: filtro.ano.toString(), data: saldoPorMes, backgroundColor: '#6366f1', borderRadius: 4, _gradColors: ['#6366f1', '#a5b4fc'] },
-                { label: anoAnt.toString(), data: saldoAnt, backgroundColor: '#475569', borderRadius: 4, _gradColors: ['#475569', '#94a3b8'] }
+                {
+                    label: filtro.ano.toString(),
+                    data: saldoPorMes,
+                    borderColor: '#6366f1',
+                    backgroundColor: criarGradiente('tema-anual-comparacao', '#6366f1', 0.22, 0.01),
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#6366f1',
+                    pointBorderColor: '#0f172a',
+                    pointBorderWidth: 2,
+                    borderWidth: 2.5,
+                    _glowColor: '#6366f1',
+                    _glowBlur: 8
+                },
+                {
+                    label: anoAnt.toString(),
+                    data: saldoAnt,
+                    borderColor: '#94a3b8',
+                    backgroundColor: 'transparent',
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#94a3b8',
+                    pointBorderColor: '#0f172a',
+                    pointBorderWidth: 2,
+                    borderWidth: 2,
+                    borderDash: [5, 4]
+                }
             ]
         },
         options: opcoesEscuras({
@@ -2660,8 +2761,11 @@ function renderizarTemaAnual() {
                 legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } },
                 tooltip: { enabled: false, external: tooltipExternoHandler }
             },
-            animation: { duration: 900, easing: 'easeOutQuart', delay: function(ctx) { return ctx.dataIndex * 55; } },
-            scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } }
+            animation: { duration: 900, easing: 'easeOutQuart' },
+            scales: {
+                x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                y: { ticks: { color: '#94a3b8', font: { size: 11 }, callback: function(v) { return window.formatarMoedaCompacta ? window.formatarMoedaCompacta(v) : v; } }, grid: { color: 'rgba(255,255,255,0.04)' } }
+            }
         })
     });
 
