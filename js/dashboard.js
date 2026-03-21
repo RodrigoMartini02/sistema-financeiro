@@ -1856,66 +1856,7 @@ function obterDadosFiltrados() {
 }
 
 function atualizarKpisFixos() {
-    const { despesas, receitas, filtro } = obterDadosFiltrados();
-
-    const totalReceitas = receitas.reduce(function(s, r) { return s + parseFloat(r.valor || 0); }, 0);
-    const totalDespesas = despesas.reduce(function(s, d) { return s + parseFloat(d.valor || 0); }, 0);
-    const saldoAnual    = totalReceitas - totalDespesas;
-    const totalJuros    = despesas.reduce(function(s, d) { return s + parseFloat(d.juros || 0); }, 0);
-    const totalEconomias = despesas.reduce(function(s, d) { return s + parseFloat(d.economias || d.desconto || 0); }, 0);
-
-    // Saldo atual: calculado via main.js se disponível, senão usa saldoAnual
-    let saldoAtual = saldoAnual;
-    if (typeof window.calcularSaldoAtual === 'function') {
-        saldoAtual = window.calcularSaldoAtual();
-    }
-
-    const fmt = function(v) {
-        return typeof window.formatarMoeda === 'function'
-            ? window.formatarMoeda(v)
-            : 'R$ ' + parseFloat(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-    };
-
-    const elReceitas  = document.getElementById('dashboard-total-receitas');
-    const elDespesas  = document.getElementById('dashboard-total-despesas');
-    const elSaldoAno  = document.getElementById('dashboard-saldo-anual');
-    const elSaldoAtual = document.getElementById('dashboard-saldo-atual');
-    const elJuros     = document.getElementById('dashboard-total-juros');
-    const elEconomias = document.getElementById('dashboard-total-economias');
-
-    if (elReceitas)  elReceitas.textContent  = fmt(totalReceitas);
-    if (elDespesas)  elDespesas.textContent  = fmt(totalDespesas);
-    if (elSaldoAno)  {
-        elSaldoAno.textContent = fmt(saldoAnual);
-        elSaldoAno.classList.toggle('saldo-negativo', saldoAnual < 0);
-    }
-    if (elSaldoAtual) {
-        elSaldoAtual.textContent = fmt(saldoAtual);
-        elSaldoAtual.classList.toggle('saldo-negativo', saldoAtual < 0);
-    }
-    if (elJuros)     elJuros.textContent     = fmt(totalJuros);
-    if (elEconomias) elEconomias.textContent = fmt(totalEconomias);
-
-    // Atualizar rodapé dos cards com rótulo do período
-    const label = filtro.todos
-        ? 'Todos os anos'
-        : (filtro.mes !== null
-            ? ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][filtro.mes] + ' ' + filtro.ano
-            : 'Ano ' + filtro.ano);
-    const rodapes = {
-        'dashboard-total-receitas':  'Receitas — ' + label,
-        'dashboard-total-despesas':  'Despesas — ' + label,
-        'dashboard-saldo-anual':     'Saldo — ' + label,
-        'dashboard-total-juros':     'Juros — ' + label,
-        'dashboard-total-economias': 'Economias — ' + label,
-    };
-    document.querySelectorAll('.resumo-cards .card').forEach(function(card) {
-        const valueEl  = card.querySelector('.card-value');
-        const footerEl = card.querySelector('.card-footer');
-        if (!valueEl || !footerEl) return;
-        const rodape = rodapes[valueEl.id];
-        if (rodape) footerEl.textContent = rodape;
-    });
+    // Stub — resumo-cards removidos do dashboard. Dados exibidos nos KPIs dos temas.
 }
 
 function atualizarDashboardTematico() {
@@ -2201,18 +2142,17 @@ function renderizarTemaCategorias() {
 // ── TEMA: PAGAMENTO ──────────────────────────────────────────────
 function renderizarTemaPagamento() {
     const { despesas } = obterDadosFiltrados();
-    const df = window.dadosFinanceiros || {};
-    const cartoes = df.cartoes || [];
+    const cartoes = window.cartoesUsuario || [];
 
     // Agrupa por forma de pagamento
     const porForma = {};
     despesas.forEach(function(d) {
-        const f = (d.forma_pagamento || 'outros').toLowerCase();
+        const f = (d.formaPagamento || d.forma_pagamento || 'outros').toLowerCase();
         porForma[f] = (porForma[f] || 0) + parseFloat(d.valor || 0);
     });
 
-    const totalCredito = (porForma['credito'] || 0) + (porForma['cartao_credito'] || 0);
-    const totalDebito = (porForma['debito'] || 0) + (porForma['cartao_debito'] || 0) + (porForma['pix'] || 0) + (porForma['dinheiro'] || 0);
+    const totalCredito = (porForma['credito'] || 0) + (porForma['cartao_credito'] || 0) + (porForma['cartão de crédito'] || 0) + (porForma['cartao de credito'] || 0);
+    const totalDebito = (porForma['debito'] || 0) + (porForma['débito'] || 0) + (porForma['cartao_debito'] || 0) + (porForma['pix'] || 0) + (porForma['dinheiro'] || 0);
     const totalGeral = totalCredito + totalDebito;
 
     const el1 = document.getElementById('tk-pgto-credito');
@@ -2235,7 +2175,7 @@ function renderizarTemaPagamento() {
 
     // Gráfico 2: Donut — cartões
     const porCartao = {};
-    despesas.filter(d => ['credito','cartao_credito'].includes((d.forma_pagamento||'').toLowerCase())).forEach(function(d) {
+    despesas.filter(d => ['credito','cartao_credito','cartão de crédito','cartao de credito'].includes((d.formaPagamento||d.forma_pagamento||'').toLowerCase())).forEach(function(d) {
         const cartaoObj = cartoes.find(c => c.id === d.cartao_id);
         const nome = cartaoObj ? cartaoObj.nome : 'Outros';
         porCartao[nome] = (porCartao[nome] || 0) + parseFloat(d.valor || 0);
@@ -2249,10 +2189,10 @@ function renderizarTemaPagamento() {
     }
 
     // Gráfico 3: Barras empilhadas — forma por mês
-    const formasUnicas = [...new Set(despesas.map(d => d.forma_pagamento || 'outros'))].slice(0,5);
+    const formasUnicas = [...new Set(despesas.map(d => (d.formaPagamento || d.forma_pagamento || 'outros').toLowerCase()))].slice(0,5);
     const datasetsForma = formasUnicas.map((forma, i) => {
         const porMes = new Array(12).fill(0);
-        despesas.filter(d=>(d.forma_pagamento||'outros')===forma).forEach(d => {
+        despesas.filter(d=>(d.formaPagamento||d.forma_pagamento||'outros').toLowerCase()===forma).forEach(d => {
             if (d.mes>=0&&d.mes<=11) porMes[d.mes]+=parseFloat(d.valor||0);
         });
         return { label: forma, data: porMes, backgroundColor: CORES[i], stack: 'stack', borderRadius: 2 };
@@ -2374,11 +2314,24 @@ function renderizarTemaAnual() {
 
     // Gráfico 3: Barras horizontais ordenadas — ranking de meses
     const ranking = saldoPorMes.map((v,i)=>({mes:MESES_LABELS[i],val:v})).sort((a,b)=>b.val-a.val);
+    const maxAbs = Math.max(...ranking.map(r => Math.abs(r.val)), 1);
     criarChart('tema-anual-ranking', {
         type: 'bar',
         data: {
             labels: ranking.map(r=>r.mes),
-            datasets: [{ label: 'Saldo', data: ranking.map(r=>r.val), backgroundColor: ranking.map(r=>r.val>=0?'#10b981':'#f43f5e'), borderRadius: 4, barThickness: 14 }]
+            datasets: [{
+                label: 'Saldo',
+                data: ranking.map(r=>r.val),
+                backgroundColor: ranking.map(function(r) {
+                    const intensity = Math.abs(r.val) / maxAbs;
+                    const alpha = 0.3 + intensity * 0.7;
+                    return r.val >= 0
+                        ? 'rgba(16, 185, 129, ' + alpha + ')'
+                        : 'rgba(244, 63, 94, ' + alpha + ')';
+                }),
+                borderRadius: 4,
+                barThickness: 18
+            }]
         },
         options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { display: false } } } }
     });
