@@ -344,7 +344,7 @@
 .chart-header h3 {
     font-size: 11px;
     font-weight: 700;
-    color: var(--dash-text-muted);
+    color: #cbd5e1;
     margin: 0 0 3px 0;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -352,17 +352,18 @@
 
 .chart-header p {
     font-size: 11px;
-    color: #64748b;
+    color: #94a3b8;
     margin: 0;
 }
 
 .tema-chart-card canvas {
     flex: 1;
-    max-height: 220px;
+    min-height: 0;
+    max-height: none;
 }
 
 .tema-chart-full canvas {
-    max-height: 200px;
+    max-height: none;
 }
 
 /* ---- Responsivo ------------------------------------------------- */
@@ -457,7 +458,9 @@
 }
 #tema-fluxo .tema-charts-grid .tema-chart-card:nth-child(3) {
     grid-column: 2;
-    height: 220px;
+    aspect-ratio: 1 / 1;
+    min-height: 220px;
+    max-height: 340px;
 }
 
 /* ONDE VAI O DINHEIRO: Donut 1/3 (principal alto) + Evolução 2/3 + faixa full */
@@ -469,18 +472,20 @@
 }
 #tema-categorias .tema-charts-grid .tema-chart-card:nth-child(1) {
     grid-column: 1;
-    height: 340px;
+    aspect-ratio: 1 / 1;
+    min-height: 300px;
+    max-height: 440px;
 }
 #tema-categorias .tema-charts-grid .tema-chart-card:nth-child(2) {
     grid-column: 2;
-    height: 340px;
+    height: 380px;
 }
 #tema-categorias .tema-charts-grid .tema-chart-card:nth-child(3) {
     grid-column: 1 / -1;
-    height: 220px;
+    height: 240px;
 }
 
-/* PAGAMENTO: Forma por Mês full (principal) + Donut formas 1/2 + Donut cartões 1/2 */
+/* PAGAMENTO: 2 donuts quadrados lado a lado (topo) + barras empilhadas full (baixo) */
 #tema-pagamento .tema-charts-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -489,15 +494,19 @@
 }
 #tema-pagamento .tema-charts-grid .tema-chart-card:nth-child(1) {
     grid-column: 1;
-    height: 240px;
+    aspect-ratio: 1 / 1;
+    min-height: 300px;
+    max-height: 420px;
 }
 #tema-pagamento .tema-charts-grid .tema-chart-card:nth-child(2) {
     grid-column: 2;
-    height: 240px;
+    aspect-ratio: 1 / 1;
+    min-height: 300px;
+    max-height: 420px;
 }
 #tema-pagamento .tema-charts-grid .tema-chart-card:nth-child(3) {
     grid-column: 1 / -1;
-    height: 260px;
+    height: 280px;
 }
 
 /* ENDIVIDAMENTO: Parcelamentos full (principal) + Juros×Econ 1/2 + Custo 1/2 */
@@ -601,14 +610,14 @@
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.8px;
-    color: #64748b;
-    font-weight: 500;
+    color: #94a3b8;
+    font-weight: 600;
 }
 
 .tk-valor {
     font-size: 22px;
     font-weight: 700;
-    color: #e2e8f0;
+    color: #f1f5f9;
     line-height: 1;
 }
 
@@ -684,4 +693,63 @@
     .tema-btn span { display: none; }
     .dash-select { max-width: 100px; }
     .dash-nav-bar { flex-wrap: wrap; gap: 8px; }
+}
+
+/* ================================================================
+   LIGHT MODE — Dashboard overrides
+   ================================================================ */
+
+[data-theme="light"] .tema-chart-card {
+    background: #ffffff;
+    border-color: rgba(99, 149, 255, 0.18);
+    box-shadow: 0 2px 12px rgba(99, 149, 255, 0.08);
+}
+
+[data-theme="light"] .tema-kpi {
+    background: #ffffff;
+    border-color: rgba(99, 149, 255, 0.18);
+    box-shadow: 0 2px 8px rgba(99, 149, 255, 0.06);
+}
+
+[data-theme="light"] .tk-label {
+    color: #64748b;
+}
+
+[data-theme="light"] .tk-valor {
+    color: #1e293b;
+}
+
+[data-theme="light"] .chart-header h3 {
+    color: #475569;
+}
+
+[data-theme="light"] .chart-header p {
+    color: #94a3b8;
+}
+
+[data-theme="light"] #dashboard-section {
+    background: #f0f4ff;
+}
+
+[data-theme="light"] .dash-nav-bar {
+    background: transparent;
+}
+
+[data-theme="light"] .filtro-periodo-toggle {
+    background: #e8eeff;
+}
+
+[data-theme="light"] .periodo-btn {
+    color: #475569;
+}
+
+[data-theme="light"] .periodo-btn.active {
+    background: #6366f1;
+    color: #fff;
+}
+
+[data-theme="light"] .dash-select {
+    background: #ffffff;
+    border-color: rgba(99, 149, 255, 0.25);
+    color: #1e293b;
 }

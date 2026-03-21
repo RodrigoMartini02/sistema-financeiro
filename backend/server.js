@@ -65,7 +65,7 @@ app.get('/version', (req, res) => {
     res.json({
         success: true,
         version: packageJson.version,
-        timestamp: new Date().toISOString()
+        timestamp: packageJson.releaseDate
     });
 });
 

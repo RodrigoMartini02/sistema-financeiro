@@ -1,6 +1,7 @@
 {
   "name": "sistema-financeiro-backend",
-  "version": "1.0.3",
+  "version": "1.1.0",
+  "releaseDate": "2026-03-21",
   "description": "Backend do Sistema de Controle Financeiro com PostgreSQL",
   "main": "server.js",
   "scripts": {

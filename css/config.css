@@ -1358,3 +1358,71 @@
 [data-theme="dark"] .log-table tbody tr:hover {
     background: #1e293b;
 }
+
+/* ================================================================ */
+/* DARK MODE — Cartões de Crédito (tabela + form)                   */
+/* ================================================================ */
+
+/* Tabela cartões */
+[data-theme="dark"] .tabela-cartoes {
+    background: #111827;
+}
+[data-theme="dark"] .tabela-cartoes tbody tr {
+    border-bottom-color: rgba(99, 149, 255, 0.08);
+}
+[data-theme="dark"] .tabela-cartoes tbody tr:nth-child(even) {
+    background: #0d1525;
+}
+[data-theme="dark"] .tabela-cartoes tbody tr:hover {
+    background: #1e293b;
+}
+[data-theme="dark"] .tabela-cartoes td {
+    color: var(--theme-text-muted);
+    border-right-color: rgba(99, 149, 255, 0.06);
+}
+[data-theme="dark"] .tabela-cartoes .cartao-id,
+[data-theme="dark"] .tabela-cartoes .cartao-digitos {
+    color: var(--theme-text-faint);
+}
+[data-theme="dark"] .tabela-cartoes .cartao-banco {
+    color: var(--theme-text);
+}
+[data-theme="dark"] .tabela-cartoes .badge-status.ativo {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border-color: rgba(16, 185, 129, 0.3);
+}
+[data-theme="dark"] .tabela-cartoes .badge-status.inativo {
+    background: rgba(244, 63, 94, 0.15);
+    color: #fb7185;
+    border-color: rgba(244, 63, 94, 0.3);
+}
+
+/* Form adicionar cartão */
+[data-theme="dark"] .form-add-cartao {
+    background: #0d1525;
+    border-color: rgba(99, 149, 255, 0.15);
+}
+[data-theme="dark"] .form-add-cartao h4 {
+    border-bottom-color: rgba(99, 149, 255, 0.1);
+}
+[data-theme="dark"] .form-add-cartao label {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .form-add-cartao input[type="text"],
+[data-theme="dark"] .form-add-cartao input[type="number"] {
+    background: #111827;
+    border-color: rgba(99, 149, 255, 0.2);
+    color: var(--theme-text);
+}
+
+/* Info list (seção Dicas) */
+[data-theme="dark"] .info-item {
+    border-bottom-color: rgba(99, 149, 255, 0.08);
+}
+[data-theme="dark"] .info-label {
+    color: var(--theme-text);
+}
+[data-theme="dark"] .info-value {
+    color: var(--theme-text-muted);
+}
