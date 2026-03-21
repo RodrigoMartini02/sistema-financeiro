@@ -1,14 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+
+  <!-- Página principal — landing page -->
   <url>
     <loc>https://fin-gerence.com.br/</loc>
-    <lastmod>2026-03-10</lastmod>
+    <lastmod>2026-03-20</lastmod>
+    <changefreq>weekly</changefreq>
     <priority>1.00</priority>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://fin-gerence.com.br/"/>
   </url>
-  
+
+  <!-- Termos e Privacidade -->
   <url>
     <loc>https://fin-gerence.com.br/termoPrivacidade.html</loc>
-    <lastmod>2026-03-10</lastmod>
-    <priority>0.80</priority>
+    <lastmod>2026-03-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.40</priority>
   </url>
+
 </urlset>

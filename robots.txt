@@ -1,18 +1,16 @@
-# Direcionado a todos os robôs
 User-agent: *
-
-# O que eles PODEM indexar (Páginas públicas)
 Allow: /
 Allow: /index.html
 Allow: /termoPrivacidade.html
 Allow: /css/
 Allow: /icons/
+Allow: /manifest.json
+Allow: /sitemap.xml
 
-# O que eles NÃO DEVEM indexar (Pastas de código/sistema)
 Disallow: /js/
+Disallow: /app.html
 Disallow: /node_modules/
-Disallow: /private/
-Disallow: /config/
+Disallow: /backend/
+Disallow: /.env
 
-# Onde está o seu mapa do site
 Sitemap: https://fin-gerence.com.br/sitemap.xml

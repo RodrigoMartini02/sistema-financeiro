@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Fin-Gerence - Controle Financeiro",
-  "short_name": "Fin-Gerence",
-  "description": "Controle financeiro pessoal — receitas, despesas, reservas e cartões",
+  "name": "FinGerence — Controle Financeiro com IA",
+  "short_name": "FinGerence",
+  "description": "Controle financeiro para autônomos e MEIs. Registre gastos por IA, controle cartões e parcelas.",
   "start_url": "./index.html?source=pwa",
   "scope": "./",
   "display": "standalone",
@@ -10,7 +10,8 @@
   "background_color": "#0f172a",
   "theme_color": "#6366f1",
   "lang": "pt-BR",
-  "categories": ["finance", "productivity"],
+  "categories": ["finance", "productivity", "business"],
+  "screenshots": [],
   "icons": [
     {
       "src": "icons/financeiro.png",
@@ -33,16 +34,16 @@
   ],
   "shortcuts": [
     {
-      "name": "Abrir App",
-      "short_name": "App",
-      "description": "Acessar o painel principal",
+      "name": "Painel Principal",
+      "short_name": "Painel",
+      "description": "Acessar o painel de controle financeiro",
       "url": "./app.html?source=shortcut",
       "icons": [{ "src": "icons/financeiro.png", "sizes": "192x192" }]
     },
     {
       "name": "Assistente IA",
-      "short_name": "Gen IA",
-      "description": "Conversar com a assistente financeira",
+      "short_name": "IA Gen",
+      "description": "Registrar gastos por conversa com IA",
       "url": "./ia.html?source=shortcut",
       "icons": [{ "src": "icons/financeiro.png", "sizes": "192x192" }]
     }
