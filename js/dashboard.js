@@ -1313,7 +1313,7 @@ function criarGraficoFormaPagamentoComFiltros(dadosFinanceiros, ano, filtros) {
     
     if (valores.some(v => v > 0)) {
         window.formaPagamentoChart = new Chart(ctx, {
-            type: 'doughnut',
+            type: 'pie',
             data: {
                 labels: ['PIX', 'Débito', 'Dinheiro', 'Crédito'],
                 datasets: [{
@@ -1334,7 +1334,7 @@ function criarGraficoFormaPagamentoComFiltros(dadosFinanceiros, ano, filtros) {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                cutout: '65%',
+                radius: '75%',
                 plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -1556,7 +1556,7 @@ function renderDistribuicaoCartoes(dadosFinanceiros, ano, filtros = {}) {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                cutout: '65%',
+                radius: '75%',
                 plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -2004,7 +2004,7 @@ function opcoesDonut() {
     return {
         responsive: true,
         maintainAspectRatio: false,
-        cutout: '55%',
+        radius: '75%',
         animation: { animateRotate: true, animateScale: true, duration: 600 },
         plugins: {
             legend: { display: false },
@@ -2255,9 +2255,9 @@ function renderizarTemaFluxo() {
         });
     })();
 
-    // Gráfico 3: Donut — receita vs despesa total
+    // Gráfico 3: Pizza — receita vs despesa total
     criarChart('tema-fluxo-cobertura', {
-        type: 'doughnut',
+        type: 'pie',
         data: {
             labels: ['Receitas', 'Despesas'],
             datasets: [{ data: [totalRec, totalDesp], backgroundColor: ['#10b981', '#f43f5e'], borderWidth: 0, hoverOffset: 18 }]
@@ -2291,11 +2291,11 @@ function renderizarTemaCategorias() {
     if (el2) { el2.textContent = top5[0] && total > 0 ? ((top5[0][1]/total*100).toFixed(1)+'%') : '0%'; el2.style.color = '#f59e0b'; }
     if (el3) el3.textContent = catOrdenadas.length;
 
-    // Gráfico 1: DONUT grande — todas as categorias
+    // Gráfico 1: Pizza — todas as categorias
     if (catOrdenadas.length > 0) {
         const cores = catOrdenadas.map((_,i) => CORES[i % CORES.length]);
         criarChart('tema-cat-anual', {
-            type: 'doughnut',
+            type: 'pie',
             data: {
                 labels: catOrdenadas.map(([n])=>n),
                 datasets: [{ data: catOrdenadas.map(([,v])=>v), backgroundColor: cores, borderWidth: 0, hoverOffset: 18 }]
@@ -2358,18 +2358,18 @@ function renderizarTemaPagamento() {
     if (el2) { el2.textContent = fmtR(totalDebito); el2.style.color = '#06b6d4'; }
     if (el3) el3.textContent = totalGeral > 0 ? ((totalCredito/totalGeral*100).toFixed(1)+'%') : '0%';
 
-    // Gráfico 1: Donut — formas de pagamento
+    // Gráfico 1: Pizza — formas de pagamento
     const formasLabels = Object.keys(porForma);
     const formasData = Object.values(porForma);
     if (formasLabels.length > 0) {
         criarChart('tema-pgto-formas', {
-            type: 'doughnut',
+            type: 'pie',
             data: { labels: formasLabels, datasets: [{ data: formasData, backgroundColor: CORES, borderWidth: 0, hoverOffset: 18 }] },
             options: opcoesDonut()
         });
     }
 
-    // Gráfico 2: Donut — cartões
+    // Gráfico 2: Pizza — cartões
     const porCartao = {};
     despesas.filter(d => ['credito','cartao_credito','cartão de crédito','cartao de credito'].includes((d.formaPagamento||d.forma_pagamento||'').toLowerCase())).forEach(function(d) {
         const cartaoObj = cartoes.find(c => c.id === d.cartao_id);
@@ -2378,7 +2378,7 @@ function renderizarTemaPagamento() {
     });
     if (Object.keys(porCartao).length > 0) {
         criarChart('tema-pgto-cartoes', {
-            type: 'doughnut',
+            type: 'pie',
             data: { labels: Object.keys(porCartao), datasets: [{ data: Object.values(porCartao), backgroundColor: CORES, borderWidth: 0, hoverOffset: 18 }] },
             options: opcoesDonut()
         });
@@ -2658,7 +2658,7 @@ function renderizarTemaAnalise() {
     });
 
     // Gráfico 2: Barras empilhadas — todas as categorias por mês (sem legenda)
-    const datasetsEmpilhado = catArr.map(([nome],i)=>{
+    const datasetsEmpilhado = catArrPeso.map(([nome],i)=>{
         const porMes = new Array(12).fill(0);
         despesas.forEach(function(d){
             const catObj = categorias.find(c=>c.id===d.categoria_id);
