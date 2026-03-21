@@ -2129,8 +2129,15 @@ function desenharTreemap(canvasId, dados) {
     canvas.height = H;
     const ctx = canvas.getContext('2d');
 
-    const total = dados.reduce(function(s, d) { return s + Math.abs(d.value); }, 0);
-    if (total === 0) return;
+    const totalReal = dados.reduce(function(s, d) { return s + Math.abs(d.value); }, 0);
+    if (totalReal === 0) return;
+
+    // Normalização sqrt — reduz domínio de categorias grandes, dá mais espaço às pequenas
+    const dadosNorm = dados.map(function(d) {
+        return Object.assign({}, d, { realValue: d.value, value: Math.sqrt(Math.abs(d.value)) });
+    });
+    const total = dadosNorm.reduce(function(s, d) { return s + d.value; }, 0);
+    const dados_ = dadosNorm; // alias para uso interno
 
     ctx.clearRect(0, 0, W, H);
 
@@ -2225,7 +2232,7 @@ function desenharTreemap(canvasId, dados) {
                     }
                     ctx.clip();
 
-                    const pct = ((item.value / total) * 100).toFixed(1);
+                    const pct = ((item.realValue / totalReal) * 100).toFixed(1);
                     ctx.fillStyle = 'rgba(255,255,255,0.95)';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
@@ -2256,7 +2263,7 @@ function desenharTreemap(canvasId, dados) {
         }
     }
 
-    const sorted = [...dados].sort(function(a, b) { return b.value - a.value; });
+    const sorted = [...dados_].sort(function(a, b) { return b.value - a.value; });
     squarify(sorted, 0, 0, W, H);
 
     // Hover interativo
@@ -2271,13 +2278,13 @@ function desenharTreemap(canvasId, dados) {
         });
         const el = criarOuObterTooltipEl();
         if (hit) {
-            const pct = ((hit.value / total) * 100).toFixed(1);
+            const pct = ((hit.realValue / totalReal) * 100).toFixed(1);
             el.style.opacity = '1';
             el.style.left = (e.clientX + 14) + 'px';
             el.style.top  = (e.clientY - 10) + 'px';
             el.innerHTML = '<div style="font-weight:700;margin-bottom:6px;color:#a5b4fc;font-size:11px;text-transform:uppercase;letter-spacing:0.6px">' + hit.label + '</div>' +
                 '<div style="display:flex;gap:7px;align-items:center"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + hit.color + ';flex-shrink:0"></span>' +
-                fmtR(hit.value) + ' (' + pct + '%)</div>';
+                fmtR(hit.realValue) + ' (' + pct + '%)</div>';
             canvas.style.cursor = 'crosshair';
         } else {
             el.style.opacity = '0';
@@ -2888,11 +2895,14 @@ async function renderizarTemaMetas() {
         }
     }
     if (elMedia) {
-        // Total guardado em TODAS as reservas (simples + objetivos)
-        const totalGuardado = todasReservas.reduce(function(s, r) {
-            return s + Math.max(0, calcValorAtual(r.id) || parseFloat(r.valor) || 0);
-        }, 0);
-        elMedia.textContent = fmtR(totalGuardado);
+        // Média de progresso dos objetivos ativos
+        if (ativos.length > 0) {
+            const mediaProgresso = ativos.reduce((s, o) => s + parseFloat(o.progresso || 0), 0) / ativos.length;
+            elMedia.textContent = mediaProgresso.toFixed(1) + '% concluído (média)';
+        } else {
+            const nRes = reservasSimples.length;
+            elMedia.textContent = nRes + ' reserva' + (nRes !== 1 ? 's' : '') + ' ativa' + (nRes !== 1 ? 's' : '');
+        }
         elMedia.style.color = '#10b981';
     }
 
@@ -3249,11 +3259,12 @@ async function renderizarTemaMetas() {
                                 const tipo = r.tipo_reserva === 'objetivo' ? 'Objetivo' : 'Reserva';
                                 const linhas = [
                                     '  Tipo: ' + tipo,
-                                    '  Guardado: ' + fmtR(r.valorAtual),
                                     '  % do total: ' + pct + '%'
                                 ];
                                 if (r.tipo_reserva === 'objetivo' && r.objetivo_valor) {
-                                    linhas.push('  Meta: ' + fmtR(r.objetivo_valor));
+                                    const progObj = parseFloat(r.objetivo_valor) > 0
+                                        ? ((r.valorAtual / parseFloat(r.objetivo_valor)) * 100).toFixed(1) : '0.0';
+                                    linhas.push('  Progresso: ' + progObj + '% da meta');
                                 }
                                 return linhas;
                             }
