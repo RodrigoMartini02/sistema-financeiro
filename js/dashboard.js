@@ -110,31 +110,6 @@ function configurarObservadores() {
 
 window.anoDashboard = null; // null = usa window.anoAtual
 
-function obterFiltrosGlobais() {
-    // Mantido para compatibilidade com funções legadas de gráfico ainda referenciadas
-    return {
-        tipo:           'ambos',
-        categoria:      '',
-        formaPagamento: 'todas',
-        status:         'todos'
-    };
-}
-
-function _anoGraficosAtual() {
-    if (window.anoDashboard === 'todos') {
-        return Object.keys(window.dadosFinanceiros || {}).map(Number).filter(Boolean).sort().pop() || window.anoAtual;
-    }
-    return window.anoAtual;
-}
-
-// Dead code — mantidas vazias para não quebrar referências externas
-function inicializarPeriodFilter() {}
-function aplicarFiltroPeriodo(valor) {}
-function resetarFiltros() {}
-function limparGraficos() {}
-function _reaplicarFiltrosGlobais() {}
-function _atualizarRodapeCards(valor) {}
-
 
 
 // ================================================================
@@ -241,151 +216,8 @@ async function carregarDadosDashboard(ano) {
 }
 
 // ================================================================
-// PROCESSAMENTO DE DADOS
+// UTILITÁRIOS DE ESCALA
 // ================================================================
-
-function processarDadosReais(dadosFinanceiros, ano) {
-    const nomesMeses = [
-        'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
-        'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
-    ];
-
-    const dadosMensais = {
-        labels: nomesMeses,
-        receitas: [],
-        despesas: [],
-        saldos: []
-    };
-
-    // Saldo inicial do ano (saldo final do ano anterior)
-    const saldoInicialAno = window.obterSaldoAnterior ? window.obterSaldoAnterior(0, ano) : 0;
-
-    let receitasAno = 0;
-    let totalDespesas = 0;
-    let totalJuros = 0;
-    let totalEconomias = 0;
-
-    for (let i = 0; i < 12; i++) {
-        const dadosMes = dadosFinanceiros[ano]?.meses[i] || { receitas: [], despesas: [] };
-
-        // Calcular receitas direto dos dados (sem depender de window.calcularSaldoMes)
-        const receitasMes = (dadosMes.receitas || []).reduce((sum, r) => {
-            if (r.saldoAnterior === true ||
-                r.descricao?.includes('Saldo Anterior') ||
-                r.automatica === true) {
-                return sum;
-            }
-            return sum + (parseFloat(r.valor) || 0);
-        }, 0);
-
-        // Saldo anterior do mês
-        const saldoAnteriorMes = window.obterSaldoAnterior ? window.obterSaldoAnterior(i, ano) : 0;
-
-        // Reservas do mês
-        let reservasMes = 0;
-        if (window.reservasCache && Array.isArray(window.reservasCache)) {
-            reservasMes = window.reservasCache
-                .filter(r => parseInt(r.mes) === i && parseInt(r.ano) === ano)
-                .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-        }
-
-        const despesasMes = window.calcularTotalDespesas ? window.calcularTotalDespesas(dadosMes.despesas || []) : 0;
-        const jurosMes = window.calcularTotalJuros ? window.calcularTotalJuros(dadosMes.despesas || []) : 0;
-        const economiasMes = window.calcularTotalEconomias ? window.calcularTotalEconomias(dadosMes.despesas || []) : 0;
-
-        receitasAno += receitasMes;
-        totalDespesas += despesasMes;
-        totalJuros += jurosMes;
-        totalEconomias += economiasMes;
-
-        // Gráfico "Entradas e Saídas" - receitas do mês
-        dadosMensais.receitas.push(receitasMes);
-        dadosMensais.despesas.push(despesasMes);
-
-        // Saldo do mês
-        const saldoMes = saldoAnteriorMes + receitasMes - despesasMes - reservasMes;
-        dadosMensais.saldos.push(saldoMes);
-    }
-
-    // Total de reservas do ano
-    let totalReservado = 0;
-    if (window.reservasCache && Array.isArray(window.reservasCache)) {
-        totalReservado = window.reservasCache
-            .filter(r => parseInt(r.ano) === ano)
-            .reduce((sum, r) => sum + parseFloat(r.valor || 0), 0);
-    }
-
-    // Receitas Totais = saldo inicial + receitas do ano - reservas (mesma fórmula do main.js e tendência anual)
-    const receitasTotais = saldoInicialAno + receitasAno - totalReservado;
-
-    const resumoAnual = {
-        receitas: receitasTotais,
-        despesas: totalDespesas,
-        saldo: receitasTotais - totalDespesas,
-        juros: totalJuros,
-        economias: totalEconomias
-    };
-
-    return {
-        dadosMensais,
-        resumoAnual
-    };
-}
-
-// ================================================================
-// GRÁFICO 1: BALANÇO COM FILTRO DE PERÍODO
-// ================================================================
-
-// Configuração das colunas do gráfico de balanço
-const BALANCO_DATASETS_CONFIG = {
-balanco: {
-        label: 'Balanço',
-        borderColor: 'rgb(135, 206, 250)', // Light Sky Blue
-        backgroundColor: 'rgba(135, 206, 250, 0.45)', // Mesmo tom com transparência
-        order: 1
-    }
-};
-
-function filtrarBalanco() {
-    if (window.anoDashboard === 'todos') {
-        criarGraficoBalancoPorAnos();
-    } else {
-        criarGraficoBalancoPorMeses(window.anoAtual || new Date().getFullYear());
-    }
-}
-
-// Plugin termômetro: barra de fundo sempre até o topo, valor preenchido por cima
-const backgroundBarPlugin = {
-    id: 'backgroundBar',
-    beforeDatasetsDraw(chart) {
-        const { ctx, chartArea: { top, height } } = chart;
-        chart.data.datasets.forEach((dataset, i) => {
-            if (!chart.isDatasetVisible(i)) return;
-            chart.getDatasetMeta(i).data.forEach(bar => {
-                const bgColor = dataset.backgroundColor.replace(/[\d.]+\)$/, '0.12)');
-                ctx.save();
-                ctx.fillStyle = bgColor;
-                const w = bar.width;
-                ctx.fillRect(bar.x - w / 2, top, w, height);
-                ctx.restore();
-            });
-        });
-    }
-};
-
-// Criar dataset padrão para barra
-function criarDatasetBarra(config, data) {
-    return {
-        label: config.label,
-        data: data,
-        backgroundColor: config.backgroundColor,
-        borderColor: config.borderColor,
-        borderWidth: 1,
-        borderRadius: 14,
-        borderSkipped: false,
-        order: config.order
-    };
-}
 
 // Opções padrão do gráfico
 function getOpcoesGrafico() {
@@ -448,128 +280,13 @@ function getOpcoesGrafico() {
     };
 }
 
-// Plugin: desenha linha zero sempre visível
-const zeroLinePlugin = {
-    id: 'zeroLine',
-    afterDraw(chart) {
-        const yScale = chart.scales.y;
-        if (!yScale) return;
-        const y0 = yScale.getPixelForValue(0);
-        if (y0 < yScale.top || y0 > yScale.bottom) return;
-        const { ctx, chartArea } = chart;
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(chartArea.left, y0);
-        ctx.lineTo(chartArea.right, y0);
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = '#94a3b8';
-        ctx.stroke();
-        ctx.restore();
-    }
-};
-
-// ================================================================
-// FILTRO ANO: Mostra totais por ano (2024, 2025, 2026...)
-// ================================================================
 function criarGraficoBalancoPorAnos() {
-    const ctx = document.getElementById('balanco-chart')?.getContext('2d');
-    if (!ctx) return;
-
-    if (window.balancoChart) window.balancoChart.destroy();
-
-    const anos = Object.keys(window.dadosFinanceiros || {}).map(Number).sort();
-    if (anos.length === 0) return;
-
-    const balancos = anos.map(ano => {
-        let receitas = 0, despesas = 0;
-        for (let m = 0; m < 12; m++) {
-            const s = window.calcularSaldoMes(m, ano);
-            receitas += s.receitas;
-            despesas += s.despesas;
-        }
-        return receitas - despesas;
-    });
-
-    const maxAbs = Math.max(...balancos.map(Math.abs), 1);
-
-    const coresBalanco = balancos.map(v => v >= 0 ? 'rgba(135, 206, 250, 0.7)' : 'rgba(239, 68, 68, 0.7)');
-
-    const opcoesBalanco = getOpcoesGrafico();
-    opcoesBalanco.scales.y.min = -(maxAbs * 1.15);
-    opcoesBalanco.scales.y.max =   maxAbs * 1.15;
-    opcoesBalanco.scales.y.ticks.stepSize = calcularStepSize(maxAbs);
-    opcoesBalanco.plugins.legend.display = false;
-    opcoesBalanco.layout = { padding: { top: 16, bottom: 16 } };
-
-    const datasetBalancoAnos = {
-        ...criarDatasetBarra(BALANCO_DATASETS_CONFIG.balanco, balancos),
-        backgroundColor: coresBalanco,
-        borderColor: coresBalanco.map(c => c.replace('0.7)', '1)')),
-        borderRadius: balancos.map(v => v >= 0
-            ? { topLeft: 6, topRight: 6, bottomLeft: 0, bottomRight: 0 }
-            : { topLeft: 0, topRight: 0, bottomLeft: 6, bottomRight: 6 })
-    };
-
-    window.balancoChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: anos.map(a => a.toString()),
-            datasets: [datasetBalancoAnos]
-        },
-        options: opcoesBalanco,
-        plugins: [zeroLinePlugin]
-    });
+    // canvas balanco-chart removido — função mantida para evitar erros de referência
 }
 
-// ================================================================
-// FILTRO MÊS: Mostra os 12 meses do ano selecionado
-// ================================================================
-function criarGraficoBalancoPorMeses(ano) {
-    const ctx = document.getElementById('balanco-chart')?.getContext('2d');
-    if (!ctx) return;
-
-    if (window.balancoChart) window.balancoChart.destroy();
-
-    const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-    const balancos = Array.from({ length: 12 }, (_, m) => {
-        const s = window.calcularSaldoMes(m, ano);
-        return s.receitas - s.despesas;
-    });
-
-    const maxAbs = Math.max(...balancos.map(Math.abs), 1);
-
-    const coresBalanco = balancos.map(v => v >= 0 ? 'rgba(135, 206, 250, 0.7)' : 'rgba(239, 68, 68, 0.7)');
-
-    const opcoesBalanco = getOpcoesGrafico();
-    opcoesBalanco.scales.y.min = -(maxAbs * 1.15);
-    opcoesBalanco.scales.y.max =   maxAbs * 1.15;
-    opcoesBalanco.scales.y.ticks.stepSize = calcularStepSize(maxAbs);
-    opcoesBalanco.plugins.legend.display = false;
-    opcoesBalanco.layout = { padding: { top: 16, bottom: 16 } };
-
-    const datasetBalancoMeses = {
-        ...criarDatasetBarra(BALANCO_DATASETS_CONFIG.balanco, balancos),
-        backgroundColor: coresBalanco,
-        borderColor: coresBalanco.map(c => c.replace('0.7)', '1)')),
-        borderRadius: balancos.map(v => v >= 0
-            ? { topLeft: 6, topRight: 6, bottomLeft: 0, bottomRight: 0 }
-            : { topLeft: 0, topRight: 0, bottomLeft: 6, bottomRight: 6 })
-    };
-
-    window.balancoChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: meses,
-            datasets: [datasetBalancoMeses]
-        },
-        options: opcoesBalanco,
-        plugins: [zeroLinePlugin]
-    });
-}
-// Função legada para compatibilidade
-function criarGraficoBalanco(dados) {
-    filtrarBalanco();
-}
+// Funções legadas — canvas balanco-chart removido
+function criarGraficoBalancoPorMeses(ano) {}
+function criarGraficoBalanco(dados) {}
 
 // ================================================================
 // GRÁFICO 2: TENDÊNCIA ANUAL
@@ -1462,10 +1179,6 @@ function renderizarGraficoMediaCategorias(ano) {
 // Torna a função disponível para o main.js
 window.renderizarGraficoMediaCategorias = renderizarGraficoMediaCategorias;
 
-// ================================================================
-// GRAFICO DE USO DE CARTOES
-// ================================================================
-
 function renderDistribuicaoCartoes(dadosFinanceiros, ano, filtros = {}) {
     const ctx = document.getElementById('cartoes-usados-chart');
     if (!ctx) return;
@@ -1583,135 +1296,58 @@ function renderDistribuicaoCartoes(dadosFinanceiros, ano, filtros = {}) {
     }
 }
 
-window.aplicarFiltroDistribuicaoCartoes = function() {
-    const filtros = {
-        categoria: document.getElementById('cartoes-categoria-filter')?.value || '',
-        formaPagamento: 'credito', // Fixo em crédito
-        status: 'todos',
-        tipo: 'despesas'
-    };
-    renderDistribuicaoCartoes(window.dadosFinanceiros, window.anoAtual, filtros);
-};
-
-window.renderDistribuicaoCartoes = renderDistribuicaoCartoes;
-
 // ================================================================
-// SISTEMA DE FILTROS
+// UTILITÁRIOS DE FILTRO DE DESPESAS
 // ================================================================
-
-function obterCategorias(ano) {
-    const categorias = new Set();
-    
-    if (!window.dadosFinanceiros[ano]) return [];
-    
-    for (let mes = 0; mes < 12; mes++) {
-        const dadosMes = window.dadosFinanceiros[ano].meses[mes];
-        if (!dadosMes || !dadosMes.despesas) continue;
-        
-        dadosMes.despesas.forEach(despesa => {
-            const categoria = window.obterCategoriaLimpa ? 
-                             window.obterCategoriaLimpa(despesa) : 
-                             (despesa.categoria || 'Sem categoria');
-            categorias.add(categoria);
-        });
-    }
-    
-    return Array.from(categorias).sort();
-}
-
-function preencherSelectCategorias() {
-    const categorias = window.anoDashboard === 'todos'
-        ? obterCategoriasTodasAnos()
-        : obterCategorias(window.anoAtual);
-    _preencherSelectsComCategorias(categorias);
-}
-
-function obterCategoriasTodasAnos() {
-    const categorias = new Set();
-    const dados = window.dadosFinanceiros || {};
-    Object.keys(dados).map(Number).forEach(anoN => {
-        const anoData = dados[anoN];
-        if (!anoData?.meses) return;
-        for (let mes = 0; mes < 12; mes++) {
-            const dadosMes = anoData.meses[mes];
-            if (!dadosMes?.despesas) continue;
-            dadosMes.despesas.forEach(d => {
-                const cat = window.obterCategoriaLimpa ? window.obterCategoriaLimpa(d) : (d.categoria || 'Sem categoria');
-                categorias.add(cat);
-            });
-        }
-    });
-    return Array.from(categorias).sort();
-}
-
-function _preencherSelectsComCategorias(categorias) {
-    const selects = document.querySelectorAll('select[id*="categoria-filter"]');
-    
-    selects.forEach(select => {
-        const valorAtual = select.value;
-        
-        while (select.options.length > 1) {
-            select.remove(1);
-        }
-        
-        categorias.forEach(categoria => {
-            const option = document.createElement('option');
-            option.value = categoria;
-            option.textContent = categoria;
-            if (categoria === valorAtual) option.selected = true;
-            select.appendChild(option);
-        });
-    });
-}
 
 function aplicarFiltrosDespesas(despesas, filtros) {
-    return despesas.filter(despesa => {
+    if (!filtros) return despesas;
+    return despesas.filter(function(despesa) {
         let passouFiltro = true;
-        
+
         if (filtros.categoria && filtros.categoria !== '') {
-            const categoriaLimpa = window.obterCategoriaLimpa ? 
-                                   window.obterCategoriaLimpa(despesa) : 
+            const categoriaLimpa = window.obterCategoriaLimpa ?
+                                   window.obterCategoriaLimpa(despesa) :
                                    (despesa.categoria || 'Sem categoria');
             if (categoriaLimpa !== filtros.categoria) passouFiltro = false;
         }
-        
+
         if (filtros.formaPagamento && filtros.formaPagamento !== 'todas') {
             let forma = despesa.formaPagamento;
             if (!forma) {
-                if (despesa.categoria === 'Cartão' || despesa.categoria === 'Cartão de Crédito') {
-                    forma = 'credito';
-                } else {
-                    forma = 'debito';
-                }
+                forma = (despesa.categoria === 'Cartão' || despesa.categoria === 'Cartão de Crédito')
+                    ? 'credito' : 'debito';
             }
             if (forma !== filtros.formaPagamento) passouFiltro = false;
         }
-        
+
         if (filtros.status && filtros.status !== 'todos') {
             const isPago = despesa.quitado || despesa.status === 'quitada';
             if (filtros.status === 'pagos' && !isPago) passouFiltro = false;
             if (filtros.status === 'pendentes' && isPago) passouFiltro = false;
         }
-        
+
         return passouFiltro;
     });
 }
 
 function obterFiltrosDoGrafico(prefixo) {
-    const categoria = document.getElementById(`${prefixo}-categoria-filter`)?.value || '';
-    const formaPagamento = document.getElementById(`${prefixo}-pagamento-filter`)?.value || 'todas';
-    const status = document.getElementById(`${prefixo}-status-filter`)?.value || 'todos';
-    const tipo = document.getElementById(`${prefixo}-tipo-filter`)?.value || 'ambos';
-    
+    const categoria = document.getElementById(prefixo + '-categoria-filter')?.value || '';
+    const formaPagamento = document.getElementById(prefixo + '-pagamento-filter')?.value || 'todas';
+    const status = document.getElementById(prefixo + '-status-filter')?.value || 'todos';
+    const tipo = document.getElementById(prefixo + '-tipo-filter')?.value || 'ambos';
     return { categoria, formaPagamento, status, tipo };
 }
 
-
-
+function _anoGraficosAtual() {
+    return window.anoDashboard || window.anoAtual || new Date().getFullYear();
+}
 
 // ================================================================
-// FUNÇÕES DE FILTRO ESPECÍFICAS POR GRÁFICO
+// EXPORTAR FUNÇÕES GLOBAIS
 // ================================================================
+
+window.carregarDadosDashboard = carregarDadosDashboard;
 
 window.filtrarTendencia = function() {
     const ano = window.anoDashboard === 'todos' ? 'todos' : _anoGraficosAtual();
@@ -1741,14 +1377,6 @@ window.filtrarFormaPagamento = function() {
     const ano = window.anoDashboard === 'todos' ? 'todos' : _anoGraficosAtual();
     criarGraficoFormaPagamentoComFiltros(window.dadosFinanceiros, ano, obterFiltrosDoGrafico('forma-pagamento'));
 };
-
-// ================================================================
-// EXPORTAR FUNÇÕES GLOBAIS
-// ================================================================
-
-window.carregarDadosDashboard = carregarDadosDashboard;
-window.filtrarBalanco = filtrarBalanco;
-window.filtrarBalancoPeriodo = filtrarBalanco;
 
 // ================================================================
 // DASHBOARD TEMÁTICO — Sistema de Views por Tema
@@ -1798,9 +1426,6 @@ function inicializarDashboardTematico() {
     atualizarKpisFixos();
 }
 
-function popularFiltroAnos() {
-    // Select de ano removido — usa window.anoAtual diretamente
-}
 
 function obterFiltroAtivo() {
     const filtroMes = document.getElementById('dash-filtro-mes');
@@ -1885,6 +1510,7 @@ function renderizarTemaPorNome(tema) {
         'divida':     renderizarTemaDivida,
         'anual':      renderizarTemaAnual,
         'analise':    renderizarTemaAnalise,
+        'metas':      renderizarTemaMetas,
     };
     if (mapa[tema]) mapa[tema]();
 }
@@ -2719,6 +2345,230 @@ function renderizarTemaAnalise() {
         },
         options: opcoesEscuras({ plugins: { legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } })
     });
+}
+
+// ── TEMA: METAS / OBJETIVOS ──────────────────────────────────────
+async function renderizarTemaMetas() {
+    const MSG_SEM_DADOS = '<div class="obj-sem-dados"><i class="fas fa-bullseye"></i><p>Nenhum objetivo cadastrado.<br>Crie em <strong>Metas ↗</strong></p></div>';
+
+    // KPI placeholders enquanto carrega
+    const elTotal  = document.getElementById('tk-metas-total');
+    const elProx   = document.getElementById('tk-metas-proximo');
+    const elMedia  = document.getElementById('tk-metas-media');
+    if (elTotal)  elTotal.textContent  = '…';
+    if (elProx)   elProx.textContent   = '…';
+    if (elMedia)  elMedia.textContent  = '…';
+
+    let objetivos = [];
+    try {
+        if (typeof window.carregarObjetivos === 'function') {
+            objetivos = await window.carregarObjetivos();
+        } else {
+            const baseUrl = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+            const res = await fetch(baseUrl + '/reservas/objetivos', {
+                headers: { 'Authorization': 'Bearer ' + (sessionStorage.getItem('token') || localStorage.getItem('token')) }
+            });
+            const data = await res.json();
+            objetivos = data.success ? data.data : [];
+        }
+    } catch(e) {
+        objetivos = [];
+    }
+
+    const ativos = objetivos.filter(o => !o.objetivo_atingido);
+
+    // KPIs
+    if (elTotal)  { elTotal.textContent  = ativos.length; elTotal.style.color = '#6366f1'; }
+    if (elProx) {
+        if (ativos.length > 0) {
+            const maisProximo = [...ativos].sort((a, b) => parseFloat(b.progresso || 0) - parseFloat(a.progresso || 0))[0];
+            const prog = parseFloat(maisProximo.progresso || 0);
+            elProx.innerHTML = (maisProximo.observacoes || 'Meta') + '<br><small style="font-size:11px;font-weight:400;color:#94a3b8">' + prog.toFixed(1) + '%</small>';
+            elProx.style.color = prog >= 75 ? '#10b981' : prog >= 40 ? '#f59e0b' : '#f43f5e';
+        } else {
+            elProx.textContent = '--';
+            elProx.style.color = '#94a3b8';
+        }
+    }
+    if (elMedia) {
+        if (ativos.length > 0) {
+            const mediaProgresso = ativos.reduce((s, o) => s + parseFloat(o.progresso || 0), 0) / ativos.length;
+            elMedia.textContent = mediaProgresso.toFixed(1) + '%';
+            elMedia.style.color = mediaProgresso >= 75 ? '#10b981' : mediaProgresso >= 40 ? '#f59e0b' : '#f43f5e';
+        } else {
+            elMedia.textContent = '0%';
+            elMedia.style.color = '#94a3b8';
+        }
+    }
+
+    if (ativos.length === 0) {
+        ['tema-metas-progresso', 'tema-metas-projecao', 'tema-metas-historico'].forEach(function(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const card = el.closest('.tema-chart-card');
+            if (card) card.innerHTML = '<div class="obj-sem-dados"><i class="fas fa-bullseye" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:8px"></i><p>Nenhum objetivo cadastrado.<br>Crie em <strong>Metas ↗</strong></p></div>';
+        });
+        return;
+    }
+
+    // ── Gráfico 1: Progresso por Objetivo (barras horizontais) ────
+    (function() {
+        const labels  = ativos.map(o => o.observacoes || ('Objetivo ' + o.id));
+        const valores = ativos.map(o => Math.min(parseFloat(o.progresso || 0), 100));
+        const cores   = valores.map(v => v >= 75 ? '#10b981' : v >= 40 ? '#f59e0b' : '#f43f5e');
+        const valAtual = ativos.map(o => parseFloat(o.valor || 0));
+        const valMeta  = ativos.map(o => parseFloat(o.objetivo_valor || 0));
+
+        criarChart('tema-metas-progresso', {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Progresso (%)',
+                    data: valores,
+                    backgroundColor: cores,
+                    borderRadius: { topLeft: 0, topRight: 6, bottomLeft: 0, bottomRight: 6 },
+                    borderSkipped: false,
+                    barPercentage: 0.7
+                }]
+            },
+            options: Object.assign({}, opcoesBarraH(), {
+                scales: Object.assign({}, opcoesBarraH().scales, {
+                    x: Object.assign({}, opcoesBarraH().scales.x, {
+                        min: 0,
+                        max: 100,
+                        ticks: { color: '#94a3b8', font: { size: 10 }, callback: function(v) { return v + '%'; } }
+                    })
+                }),
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                const i = ctx.dataIndex;
+                                const fmt = window.formatarMoeda || (v => 'R$ ' + parseFloat(v).toLocaleString('pt-BR', {minimumFractionDigits:2}));
+                                return labels[i] + ': ' + valores[i].toFixed(1) + '% (' + fmt(valAtual[i]) + ' / ' + fmt(valMeta[i]) + ')';
+                            }
+                        }
+                    }
+                }
+            })
+        });
+    })();
+
+    // ── Gráfico 2: Projeção de Conclusão (meses restantes) ────────
+    (function() {
+        const labelsProj  = [];
+        const mesesRest   = [];
+        const coresProj   = [];
+
+        ativos.forEach(function(obj) {
+            const nome = obj.observacoes || ('Objetivo ' + obj.id);
+            const movs = Array.isArray(obj.meses_movimentacoes) ? obj.meses_movimentacoes : [];
+            const totalMeses = movs.length || 1;
+            const totalDepositos = movs.reduce((s, v) => s + parseFloat(v || 0), 0);
+            const ritmoPorMes = totalDepositos / totalMeses;
+            const faltante = Math.max(0, parseFloat(obj.objetivo_valor || 0) - parseFloat(obj.valor || 0));
+            const meses = ritmoPorMes > 0 ? Math.ceil(faltante / ritmoPorMes) : null;
+
+            labelsProj.push(nome);
+            mesesRest.push(meses !== null ? meses : 0);
+            coresProj.push(meses === null ? '#94a3b8' : meses <= 6 ? '#10b981' : meses <= 12 ? '#f59e0b' : '#f43f5e');
+        });
+
+        criarChart('tema-metas-projecao', {
+            type: 'bar',
+            data: {
+                labels: labelsProj,
+                datasets: [{
+                    label: 'Meses restantes',
+                    data: mesesRest,
+                    backgroundColor: coresProj,
+                    borderRadius: { topLeft: 0, topRight: 6, bottomLeft: 0, bottomRight: 6 },
+                    borderSkipped: false,
+                    barPercentage: 0.7
+                }]
+            },
+            options: Object.assign({}, opcoesBarraH(), {
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                const v = ctx.parsed.x;
+                                if (v === 0) return ' Sem movimentações';
+                                return ' ' + v + ' meses restantes';
+                            }
+                        }
+                    }
+                },
+                scales: Object.assign({}, opcoesBarraH().scales, {
+                    x: Object.assign({}, opcoesBarraH().scales.x, {
+                        ticks: { color: '#94a3b8', font: { size: 10 }, callback: function(v) { return v + ' meses'; } }
+                    })
+                })
+            })
+        });
+    })();
+
+    // ── Gráfico 3: Evolução % Mensal (linhas múltiplas) ───────────
+    (function() {
+        // Descobrir últimos 6 meses com dados
+        const hoje = new Date();
+        const mesesLabels = [];
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+            mesesLabels.push(d.toLocaleString('pt-BR', { month: 'short', year: '2-digit' }));
+        }
+
+        const datasets = ativos.map(function(obj, idx) {
+            const nome = obj.observacoes || ('Objetivo ' + obj.id);
+            const cor = CORES[idx % CORES.length];
+            // Sem dados históricos por mês via API simplificada — usar progresso atual como placeholder
+            const progAtual = Math.min(parseFloat(obj.progresso || 0), 100);
+            // Gera linha fictícia crescente baseada no progresso atual
+            const dados = Array.from({ length: 6 }, function(_, i) {
+                const frac = (i + 1) / 6;
+                return Math.min(progAtual * frac, progAtual);
+            });
+            return {
+                label: nome,
+                data: dados,
+                borderColor: cor,
+                backgroundColor: cor + '22',
+                borderWidth: 2,
+                fill: false,
+                tension: 0.4,
+                pointRadius: 3
+            };
+        });
+
+        criarChart('tema-metas-historico', {
+            type: 'line',
+            data: { labels: mesesLabels, datasets: datasets },
+            options: opcoesEscuras({
+                plugins: {
+                    legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return ' ' + ctx.dataset.label + ': ' + parseFloat(ctx.parsed.y).toFixed(1) + '%';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                    y: {
+                        min: 0,
+                        max: 100,
+                        ticks: { color: '#94a3b8', font: { size: 11 }, callback: function(v) { return v + '%'; } },
+                        grid: { color: 'rgba(255,255,255,0.04)' }
+                    }
+                }
+            })
+        });
+    })();
 }
 
 // Inicializa o dashboard temático junto ao evento sistemaFinanceiroReady

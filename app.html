@@ -322,6 +322,9 @@
             <button class="tema-btn" data-tema="analise">
               <i class="fas fa-microscope"></i><span>Análise Detalhada</span>
             </button>
+            <button class="tema-btn" data-tema="metas">
+              <i class="fas fa-bullseye"></i><span>Metas</span>
+            </button>
           </div>
           <div class="dash-filtros-inline">
             <div class="filtro-periodo-toggle">
@@ -441,6 +444,19 @@
             <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Quanto cada categoria representa no total anual">Peso das Categorias</h3></div><canvas id="tema-analise-media"></canvas></div>
             <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Receitas vs despesas por ano">Balanço por Anos</h3></div><canvas id="tema-analise-anos"></canvas></div>
             <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Distribuição mensal empilhada">Categorias Mensais</h3></div><canvas id="tema-analise-mensal"></canvas></div>
+          </div>
+        </div>
+        <!-- TEMA: METAS -->
+        <div class="tema-view" id="tema-metas">
+          <div class="tema-kpis" style="grid-template-columns: repeat(3, 1fr)">
+            <div class="tema-kpi"><span class="tk-label">Total de Objetivos Ativos</span><span class="tk-valor" id="tk-metas-total">--</span></div>
+            <div class="tema-kpi"><span class="tk-label">Objetivo mais próximo</span><span class="tk-valor" id="tk-metas-proximo" style="font-size:14px">--</span></div>
+            <div class="tema-kpi"><span class="tk-label">% médio de progresso</span><span class="tk-valor" id="tk-metas-media">--</span></div>
+          </div>
+          <div class="tema-charts-grid">
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Quanto cada objetivo já foi atingido">Progresso por Objetivo</h3></div><canvas id="tema-metas-progresso"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Estimativa de meses para concluir cada objetivo">Projeção de Conclusão</h3></div><canvas id="tema-metas-projecao"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Evolução do percentual atingido nos últimos meses">Evolução % Mensal</h3></div><canvas id="tema-metas-historico"></canvas></div>
           </div>
         </div>
     </section>
@@ -2147,10 +2163,6 @@
             <div class="form-group">
                 <label>Data Alvo <span style="font-size:11px;color:#94a3b8">(opcional)</span></label>
                 <input type="date" id="obj-data-alvo" class="form-control">
-            </div>
-            <div class="form-group">
-                <label>Valor Inicial (R$) <span style="font-size:11px;color:#94a3b8">(opcional)</span></label>
-                <input type="number" id="obj-valor-inicial" class="form-control" placeholder="0,00" step="0.01" min="0">
             </div>
         </div>
         <div class="modal-footer">

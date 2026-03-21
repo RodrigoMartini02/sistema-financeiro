@@ -67,7 +67,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
 // POST - Criar nova reserva
 router.post('/', authMiddleware, [
-    body('valor').isFloat({ min: 0.01 }).withMessage('Valor deve ser maior que zero'),
+    body('valor').isFloat({ min: 0 }).withMessage('Valor deve ser maior ou igual a zero'),
     body('mes').isInt({ min: 0, max: 11 }).withMessage('Mês inválido'),
     body('ano').isInt({ min: 2000 }).withMessage('Ano inválido'),
     body('data').isISO8601().withMessage('Data inválida')
@@ -83,6 +83,14 @@ router.post('/', authMiddleware, [
 
         const { valor, mes, ano, data, observacoes, tipo_reserva, objetivo_valor, objetivo_atingido, data_objetivo } = req.body;
         const valorNumerico = parseFloat(valor);
+
+        // Reservas normais devem ter valor > 0; objetivos começam com valor = 0
+        if (tipo_reserva !== 'objetivo' && valorNumerico < 0.01) {
+            return res.status(400).json({
+                success: false,
+                message: 'Valor deve ser maior que zero para reservas normais'
+            });
+        }
 
         // Verificar se o mês está fechado
         const mesFechado = await verificarMesFechado(req.usuario.id, mes, ano);
@@ -131,7 +139,7 @@ router.post('/', authMiddleware, [
 
         const saldoAtual = parseFloat(saldoResult.rows[0].saldo_disponivel) || 0;
 
-        if (saldoAtual < valorNumerico) {
+        if (tipo_reserva !== 'objetivo' && saldoAtual < valorNumerico) {
             return res.status(400).json({
                 success: false,
                 message: `Saldo insuficiente para reserva. Disponível: R$ ${saldoAtual.toFixed(2)}`,
@@ -150,13 +158,14 @@ router.post('/', authMiddleware, [
             [req.usuario.id, valorNumerico, mes, ano, data, observacoes || null, tipoReserva, objValor, false, dataObj]
         );
 
-        // Registrar movimentação inicial de entrada
-        // Usa a data da reserva para garantir que seja contabilizada no mês correto
-        await query(
-            `INSERT INTO movimentacoes_reservas (reserva_id, tipo, valor, observacoes, data_hora)
-             VALUES ($1, 'entrada', $2, 'Criação da reserva', $3)`,
-            [result.rows[0].id, valorNumerico, data]
-        );
+        // Registrar movimentação inicial de entrada apenas se valor > 0
+        if (valorNumerico > 0) {
+            await query(
+                `INSERT INTO movimentacoes_reservas (reserva_id, tipo, valor, observacoes, data_hora)
+                 VALUES ($1, 'entrada', $2, 'Criação da reserva', $3)`,
+                [result.rows[0].id, valorNumerico, data]
+            );
+        }
 
         res.status(201).json({
             success: true,

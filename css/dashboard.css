@@ -632,6 +632,16 @@
     height: 280px;
 }
 
+/* METAS: 3 cards em linha de 1/3 cada */
+#tema-metas .tema-charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+}
+#tema-metas .tema-charts-grid .tema-chart-card:nth-child(1) { height: 280px; }
+#tema-metas .tema-charts-grid .tema-chart-card:nth-child(2) { height: 280px; }
+#tema-metas .tema-charts-grid .tema-chart-card:nth-child(3) { height: 280px; }
+
 /* Garantir que canvas preencha o card em altura controlada */
 #tema-saude .tema-charts-grid .tema-chart-card canvas,
 #tema-fluxo .tema-charts-grid .tema-chart-card canvas,
@@ -639,7 +649,8 @@
 #tema-pagamento .tema-charts-grid .tema-chart-card canvas,
 #tema-divida .tema-charts-grid .tema-chart-card canvas,
 #tema-anual .tema-charts-grid .tema-chart-card canvas,
-#tema-analise .tema-charts-grid .tema-chart-card canvas {
+#tema-analise .tema-charts-grid .tema-chart-card canvas,
+#tema-metas .tema-charts-grid .tema-chart-card canvas {
     flex: 1;
     min-height: 0;
     max-height: 100%;
@@ -762,7 +773,8 @@
     #tema-pagamento .tema-charts-grid,
     #tema-divida .tema-charts-grid,
     #tema-anual .tema-charts-grid,
-    #tema-analise .tema-charts-grid {
+    #tema-analise .tema-charts-grid,
+    #tema-metas .tema-charts-grid {
         grid-template-columns: 1fr !important;
     }
 
@@ -772,7 +784,8 @@
     #tema-pagamento .tema-charts-grid .tema-chart-card,
     #tema-divida .tema-charts-grid .tema-chart-card,
     #tema-anual .tema-charts-grid .tema-chart-card,
-    #tema-analise .tema-charts-grid .tema-chart-card {
+    #tema-analise .tema-charts-grid .tema-chart-card,
+    #tema-metas .tema-charts-grid .tema-chart-card {
         grid-column: 1 !important;
         grid-row: auto !important;
         height: 300px !important;
@@ -1048,4 +1061,31 @@
 
 [data-theme="light"] .objetivo-progress-bar-track {
     background: rgba(0,0,0,0.07);
+}
+
+/* Botão ativo do tema Metas */
+[data-tema="metas"].active { background: linear-gradient(135deg, #4f46e5, #06b6d4); box-shadow: 0 2px 14px rgba(6,182,212,0.45); }
+
+/* Mensagem "sem objetivos" dentro dos cards do tema Metas */
+.obj-sem-dados {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 200px;
+    color: var(--dash-text-muted, #94a3b8);
+    font-size: 13px;
+    text-align: center;
+    gap: 8px;
+}
+
+.obj-sem-dados i {
+    font-size: 2rem;
+    opacity: 0.3;
+}
+
+.obj-sem-dados p {
+    margin: 0;
+    line-height: 1.6;
 }
