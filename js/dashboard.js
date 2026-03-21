@@ -1911,6 +1911,20 @@ const CORES = [
 
 function fmtR(v) { return 'R$ ' + parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2}); }
 
+// Ajusta dinamicamente a altura do card de barra horizontal conforme número de itens
+function ajustarAlturaCardBarra(canvasId, numItens) {
+    const el = document.getElementById(canvasId);
+    if (!el) return;
+    const card = el.closest('.tema-chart-card');
+    if (!card) return;
+    const headerH = card.querySelector('.chart-header')?.offsetHeight || 56;
+    const alturaPorItem = 34; // px por barra
+    const padding = headerH + 48;
+    const minAltura = 240;
+    const calc = numItens * alturaPorItem + padding;
+    card.style.height = Math.max(minAltura, calc) + 'px';
+}
+
 function criarGradiente(canvasId, corHex, alpha1, alpha2) {
     const el = document.getElementById(canvasId);
     if (!el) return corHex;
@@ -1919,6 +1933,39 @@ function criarGradiente(canvasId, corHex, alpha1, alpha2) {
     grad.addColorStop(0, corHex + Math.round(alpha1 * 255).toString(16).padStart(2,'0'));
     grad.addColorStop(1, corHex + Math.round(alpha2 * 255).toString(16).padStart(2,'0'));
     return grad;
+}
+
+function opcoesBarraH() {
+    const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+    const tickColor = isDark ? '#94a3b8' : '#64748b';
+    const labelColor = isDark ? '#cbd5e1' : '#334155';
+    const gridColor = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)';
+    return {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 500 },
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: function(ctx) {
+                        return ' R$ ' + parseFloat(ctx.parsed.x || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                    }
+                }
+            }
+        },
+        scales: {
+            x: {
+                ticks: { color: tickColor, font: { size: 10 }, callback: function(v) { return 'R$' + (v >= 1000 ? (v/1000).toFixed(1)+'k' : v); } },
+                grid: { color: gridColor }
+            },
+            y: {
+                ticks: { color: labelColor, font: { size: 11 } },
+                grid: { display: false }
+            }
+        }
+    };
 }
 
 function opcoesEscuras(extra) {
@@ -2146,13 +2193,14 @@ function renderizarTemaCategorias() {
 
     // Gráfico 3: Barras horizontais — média por categoria (todas)
     const mediaCat = catOrdenadas.map(([nome, tot]) => ({ nome, media: tot/12 }));
+    ajustarAlturaCardBarra('tema-cat-media', mediaCat.length);
     criarChart('tema-cat-media', {
         type: 'bar',
         data: {
             labels: mediaCat.map(c=>c.nome),
             datasets: [{ label: 'Média/Mês', data: mediaCat.map(c=>c.media), backgroundColor: mediaCat.map((_,i)=>CORES[i%CORES.length]), borderRadius: 4, barThickness: Math.max(8, Math.min(18, Math.floor(200/mediaCat.length))) }]
         },
-        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { display: false } } } }
+        options: opcoesBarraH()
     });
 }
 
@@ -2398,13 +2446,14 @@ function renderizarTemaAnalise() {
         porCat[nome] = (porCat[nome]||0)+parseFloat(d.valor||0);
     });
     const catArr = Object.entries(porCat).sort((a,b)=>b[1]-a[1]); // todas as categorias
+    ajustarAlturaCardBarra('tema-analise-media', catArr.length);
     criarChart('tema-analise-media', {
         type: 'bar',
         data: {
             labels: catArr.map(([n])=>n),
             datasets: [{ label: 'Média/Mês', data: catArr.map(([,v])=>v/12), backgroundColor: catArr.map((_,i)=>CORES[i%CORES.length]), borderRadius: 4, barThickness: Math.max(8, Math.min(18, Math.floor(200/catArr.length))) }]
         },
-        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { display: false } } } }
+        options: opcoesBarraH()
     });
 
     // Gráfico 2: Barras empilhadas — top 5 categorias mensais (top 5 é intencional — linha fica ilegível com mais)

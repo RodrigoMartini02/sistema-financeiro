@@ -275,13 +275,13 @@
 }
 
 /* Gradiente por tema no botão ativo */
-[data-tema="saude"].active    { background: linear-gradient(135deg, #059669, #10b981); }
-[data-tema="fluxo"].active    { background: linear-gradient(135deg, #2563eb, #6366f1); }
-[data-tema="categorias"].active { background: linear-gradient(135deg, #d97706, #f59e0b); }
-[data-tema="pagamento"].active  { background: linear-gradient(135deg, #4f46e5, #a855f7); }
-[data-tema="divida"].active     { background: linear-gradient(135deg, #dc2626, #f43f5e); }
-[data-tema="anual"].active      { background: linear-gradient(135deg, #0891b2, #06b6d4); }
-[data-tema="analise"].active    { background: linear-gradient(135deg, #7c3aed, #a855f7); }
+[data-tema="saude"].active    { background: linear-gradient(135deg, #059669, #10b981); box-shadow: 0 2px 14px rgba(16,185,129,0.45); }
+[data-tema="fluxo"].active    { background: linear-gradient(135deg, #2563eb, #6366f1); box-shadow: 0 2px 14px rgba(99,102,241,0.45); }
+[data-tema="categorias"].active { background: linear-gradient(135deg, #d97706, #f59e0b); box-shadow: 0 2px 14px rgba(245,158,11,0.45); }
+[data-tema="pagamento"].active  { background: linear-gradient(135deg, #4f46e5, #a855f7); box-shadow: 0 2px 14px rgba(168,85,247,0.45); }
+[data-tema="divida"].active     { background: linear-gradient(135deg, #dc2626, #f43f5e); box-shadow: 0 2px 14px rgba(244,63,94,0.45); }
+[data-tema="anual"].active      { background: linear-gradient(135deg, #0891b2, #06b6d4); box-shadow: 0 2px 14px rgba(6,182,212,0.45); }
+[data-tema="analise"].active    { background: linear-gradient(135deg, #7c3aed, #a855f7); box-shadow: 0 2px 14px rgba(168,85,247,0.45); }
 
 /* ---- Views Temáticas ------------------------------------------- */
 .tema-view {
@@ -333,6 +333,22 @@
     box-shadow: 0 4px 24px rgba(0, 0, 80, 0.25);
     overflow: hidden;
     position: relative;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tema-chart-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 36px rgba(0, 0, 100, 0.35);
+}
+
+/* Linha de acento no topo do card */
+.tema-chart-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 20%; right: 20%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(99,102,241,0.6), transparent);
+    border-radius: 0 0 4px 4px;
 }
 
 .tema-chart-full {
@@ -344,17 +360,18 @@
 }
 
 .chart-header h3 {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
-    color: #cbd5e1;
-    margin: 0 0 3px 0;
+    color: #94a3b8;
+    margin: 0 0 2px 0;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
 }
 
 .chart-header p {
-    font-size: 11px;
-    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 600;
+    color: #e2e8f0;
     margin: 0;
 }
 
@@ -394,6 +411,8 @@
     overflow-x: hidden;
     box-sizing: border-box;
     background: var(--dash-bg);
+    background-image: radial-gradient(circle at 1px 1px, rgba(99,102,241,0.06) 1px, transparent 0);
+    background-size: 28px 28px;
     border-radius: 12px;
     padding: 16px;
     margin: -16px;
@@ -480,7 +499,7 @@
 }
 #tema-categorias .tema-charts-grid .tema-chart-card:nth-child(3) {
     grid-column: 1 / -1;
-    height: 240px;
+    min-height: 240px; /* JS ajusta para o número real de categorias */
 }
 
 /* PAGAMENTO: 2 donuts lado a lado (topo) + barras empilhadas full (baixo) */
@@ -551,7 +570,7 @@
 }
 #tema-analise .tema-charts-grid .tema-chart-card:nth-child(1) {
     grid-column: 1;
-    height: 280px;
+    min-height: 280px; /* JS ajusta para o número real de categorias */
 }
 #tema-analise .tema-charts-grid .tema-chart-card:nth-child(2) {
     grid-column: 2;
@@ -574,6 +593,13 @@
     min-height: 0;
     max-height: 100%;
     width: 100% !important;
+}
+
+/* Cards de barra horizontal: canvas sem max-height para crescer com o card */
+#tema-categorias .tema-charts-grid .tema-chart-card:nth-child(3) canvas,
+#tema-analise .tema-charts-grid .tema-chart-card:nth-child(1) canvas {
+    max-height: none;
+    flex: 1;
 }
 
 /* Cards de donut — layout flex com canvas esticado */
@@ -627,10 +653,20 @@
 }
 
 .tk-valor {
-    font-size: 22px;
-    font-weight: 700;
+    font-size: 20px;
+    font-weight: 800;
     color: #f1f5f9;
-    line-height: 1;
+    line-height: 1.1;
+    letter-spacing: -0.5px;
+}
+
+.tema-kpi {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tema-kpi:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(0, 0, 60, 0.3);
 }
 
 /* ================================================================
@@ -713,14 +749,27 @@
 
 [data-theme="light"] .tema-chart-card {
     background: #ffffff;
-    border-color: rgba(99, 149, 255, 0.18);
-    box-shadow: 0 2px 12px rgba(99, 149, 255, 0.08);
+    border-color: rgba(99, 102, 241, 0.14);
+    box-shadow: 0 2px 16px rgba(99, 102, 241, 0.07);
+}
+
+[data-theme="light"] .tema-chart-card::before {
+    background: linear-gradient(90deg, transparent, rgba(99,102,241,0.3), transparent);
+}
+
+[data-theme="light"] .tema-chart-card:hover {
+    box-shadow: 0 6px 28px rgba(99, 102, 241, 0.15);
 }
 
 [data-theme="light"] .tema-kpi {
     background: #ffffff;
-    border-color: rgba(99, 149, 255, 0.18);
-    box-shadow: 0 2px 8px rgba(99, 149, 255, 0.06);
+    border-color: rgba(99, 102, 241, 0.14);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.06);
+}
+
+[data-theme="light"] #dashboard-section {
+    background-image: radial-gradient(circle at 1px 1px, rgba(99,102,241,0.08) 1px, transparent 0);
+    background-size: 28px 28px;
 }
 
 [data-theme="light"] .tk-label {
@@ -732,11 +781,15 @@
 }
 
 [data-theme="light"] .chart-header h3 {
-    color: #475569;
+    color: #94a3b8;
 }
 
 [data-theme="light"] .chart-header p {
-    color: #94a3b8;
+    color: #334155;
+}
+
+[data-theme="light"] .tk-valor {
+    color: #1e293b;
 }
 
 [data-theme="light"] #dashboard-section {
