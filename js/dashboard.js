@@ -1896,7 +1896,18 @@ function criarChart(id, config) {
     return chart;
 }
 
-const CORES = ['#6366f1','#10b981','#f59e0b','#f43f5e','#a855f7','#06b6d4','#f97316','#ec4899','#14b8a6','#84cc16'];
+const CORES = [
+    '#6366f1', // índigo
+    '#10b981', // esmeralda
+    '#f59e0b', // âmbar
+    '#06b6d4', // ciano
+    '#a855f7', // roxo
+    '#f43f5e', // rosa
+    '#14b8a6', // teal
+    '#fb923c', // laranja
+    '#84cc16', // lima
+    '#3b82f6', // azul
+];
 
 function fmtR(v) { return 'R$ ' + parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2}); }
 
@@ -1927,6 +1938,26 @@ function opcoesEscurasSemEixos(extraPlugins) {
         responsive: true,
         maintainAspectRatio: false,
         plugins: Object.assign({ legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 12, padding: 12 } } }, extraPlugins || {})
+    };
+}
+
+function opcoesDonut() {
+    return {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '72%',
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: function(ctx) {
+                        const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
+                        const pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+                        return ` ${ctx.label}: R$ ${ctx.parsed.toLocaleString('pt-BR', {minimumFractionDigits:2})} (${pct}%)`;
+                    }
+                }
+            }
+        }
     };
 }
 
@@ -2053,7 +2084,7 @@ function renderizarTemaFluxo() {
             labels: ['Receitas', 'Despesas'],
             datasets: [{ data: [totalRec, totalDesp], backgroundColor: ['#10b981', '#f43f5e'], borderWidth: 0, hoverOffset: 6 }]
         },
-        options: opcoesEscurasSemEixos()
+        options: opcoesDonut()
     });
 }
 
@@ -2091,7 +2122,7 @@ function renderizarTemaCategorias() {
                 labels: top8.map(([n])=>n),
                 datasets: [{ data: top8.map(([,v])=>v), backgroundColor: CORES, borderWidth: 0, hoverOffset: 8 }]
             },
-            options: opcoesEscurasSemEixos()
+            options: opcoesDonut()
         });
     }
 
@@ -2156,7 +2187,7 @@ function renderizarTemaPagamento() {
         criarChart('tema-pgto-formas', {
             type: 'doughnut',
             data: { labels: formasLabels, datasets: [{ data: formasData, backgroundColor: CORES, borderWidth: 0, hoverOffset: 6 }] },
-            options: opcoesEscurasSemEixos()
+            options: opcoesDonut()
         });
     }
 
@@ -2171,7 +2202,7 @@ function renderizarTemaPagamento() {
         criarChart('tema-pgto-cartoes', {
             type: 'doughnut',
             data: { labels: Object.keys(porCartao), datasets: [{ data: Object.values(porCartao), backgroundColor: CORES, borderWidth: 0, hoverOffset: 6 }] },
-            options: opcoesEscurasSemEixos()
+            options: opcoesDonut()
         });
     }
 

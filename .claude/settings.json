@@ -4,7 +4,9 @@
       "Bash(\"c:/Users/rodri/Music/sistema financas/css/config.css\":*)",
       "Bash(for f:*)",
       "Bash(echo \"=== $f ===\")",
-      "Read(//c/Users/rodri/Music/sistema financas/css/**)"
+      "Read(//c/Users/rodri/Music/sistema financas/css/**)",
+      "Bash(grep -v '^>[[:space:]]*<$')",
+      "Read(//c/Users/rodri/Music/sistema financas/**)"
     ]
   }
 }
