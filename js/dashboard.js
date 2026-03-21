@@ -1945,7 +1945,7 @@ function opcoesDonut() {
     return {
         responsive: true,
         maintainAspectRatio: false,
-        cutout: '72%',
+        cutout: '55%',
         plugins: {
             legend: { display: false },
             tooltip: {
