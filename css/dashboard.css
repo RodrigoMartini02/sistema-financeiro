@@ -460,7 +460,7 @@
 }
 #tema-saude .tema-charts-grid .tema-chart-card:nth-child(3) {
     grid-column: 1 / -1;
-    height: 280px;
+    height: 300px;
 }
 
 /* FLUXO DE CAIXA: faixa full (principal) + Acumulado 1/2 + Donut 1/2 */

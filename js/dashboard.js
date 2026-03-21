@@ -2051,17 +2051,39 @@ function renderizarTemaSaude() {
         options: opcoesEscuras({ plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: false, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } })
     });
 
-    // Gráfico 3: Entradas vs Saídas — todos os 12 meses
+    // Gráfico 3: Entradas vs Saídas — apenas meses com dados
+    const mesesComDados = MESES_LABELS.reduce((acc, label, i) => {
+        if (recPorMes[i] > 0 || despPorMes[i] > 0) acc.push(i);
+        return acc;
+    }, []);
+    const labelsEntradas = mesesComDados.map(i => MESES_LABELS[i]);
+    const recFiltrado   = mesesComDados.map(i => recPorMes[i]);
+    const despFiltrado  = mesesComDados.map(i => despPorMes[i]);
+    const numMeses = Math.max(labelsEntradas.length, 1);
+    const espessura = Math.max(5, Math.min(12, Math.floor(180 / numMeses)));
+
     criarChart('tema-saude-entradas', {
         type: 'bar',
         data: {
-            labels: MESES_LABELS,
+            labels: labelsEntradas,
             datasets: [
-                { label: 'Receitas', data: recPorMes, backgroundColor: '#10b981', borderRadius: 4, barThickness: 14 },
-                { label: 'Despesas', data: despPorMes, backgroundColor: '#f43f5e', borderRadius: 4, barThickness: 14 }
+                { label: 'Receitas', data: recFiltrado, backgroundColor: 'rgba(16,185,129,0.85)', borderRadius: 6, borderSkipped: false, barThickness: espessura },
+                { label: 'Despesas', data: despFiltrado, backgroundColor: 'rgba(244,63,94,0.80)', borderRadius: 6, borderSkipped: false, barThickness: espessura }
             ]
         },
-        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { display: false } } } }
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top', align: 'end', labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 10, boxHeight: 10, borderRadius: 3, useBorderRadius: true, padding: 16 } },
+                tooltip: { callbacks: { label: function(ctx) { return ' R$ ' + parseFloat(ctx.parsed.x||0).toLocaleString('pt-BR',{minimumFractionDigits:2}); } } }
+            },
+            scales: {
+                x: { ticks: { color: '#64748b', font: { size: 10 }, callback: function(v) { return v >= 1000 ? 'R$'+(v/1000).toFixed(0)+'k' : 'R$'+v; } }, grid: { color: 'rgba(255,255,255,0.03)' }, border: { display: false } },
+                y: { ticks: { color: '#cbd5e1', font: { size: 11, weight: '500' } }, grid: { display: false }, border: { display: false } }
+            }
+        }
     });
 }
 
