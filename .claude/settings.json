@@ -6,7 +6,8 @@
       "Bash(echo \"=== $f ===\")",
       "Read(//c/Users/rodri/Music/sistema financas/css/**)",
       "Bash(grep -v '^>[[:space:]]*<$')",
-      "Read(//c/Users/rodri/Music/sistema financas/**)"
+      "Read(//c/Users/rodri/Music/sistema financas/**)",
+      "WebFetch(domain:www.npmjs.com)"
     ]
   }
 }
