@@ -87,7 +87,7 @@ router.post('/assinar', authMiddleware, async (req, res) => {
         return res.status(400).json({ success: false, message: 'Tipo de plano invalido' });
     }
 
-    const valor = tipo === 'mensal' ? 11.99 : 119.99;
+    const valor = tipo === 'mensal' ? 39.99 : 422.28;
 
     try {
         const preference = new Preference(client);
@@ -143,7 +143,7 @@ router.post('/pix', authMiddleware, async (req, res) => {
         return res.status(400).json({ success: false, message: 'Tipo de plano invalido' });
     }
 
-    const valor = tipo === 'mensal' ? 11.99 : 119.99;
+    const valor = tipo === 'mensal' ? 39.99 : 422.28;
 
     try {
         const usuarioResult = await query(
@@ -208,7 +208,7 @@ router.post('/webhook', async (req, res) => {
             if (pdt.status === 'approved') {
                 const usuarioId = pdt.external_reference;
                 let tipoPlano = 'mensal';
-                if (parseFloat(pdt.transaction_amount) >= 100) tipoPlano = 'anual';
+                if (parseFloat(pdt.transaction_amount) >= 200) tipoPlano = 'anual';
 
                 const diasAdicionais = tipoPlano === 'anual' ? 365 : 30;
                 const expiracao = new Date();
@@ -234,7 +234,7 @@ router.post('/webhook', async (req, res) => {
             if (sub.status === 'authorized') {
                 // Assinatura ativa ou renovada — mantém plano ativo sem data de expiração
                 let tipoPlano = 'mensal';
-                if (parseFloat(sub.auto_recurring?.transaction_amount) >= 100) tipoPlano = 'anual';
+                if (parseFloat(sub.auto_recurring?.transaction_amount) >= 200) tipoPlano = 'anual';
 
                 await query(
                     `UPDATE usuarios SET plano_status = 'ativo', plano_tipo = $1, plano_expiracao = NULL, preapproval_id = $2
@@ -299,7 +299,7 @@ router.post('/pagar-cartao', authMiddleware, async (req, res) => {
         return res.status(400).json({ success: false, message: 'Token do cartao ausente. Verifique os dados e tente novamente.' });
     }
 
-    const valor = tipo === 'mensal' ? 11.99 : 119.99;
+    const valor = tipo === 'mensal' ? 39.99 : 422.28;
     const parcelas = parseInt(installments) || 1;
 
     try {
@@ -375,7 +375,7 @@ router.post('/assinar-recorrente', authMiddleware, async (req, res) => {
         return res.status(400).json({ success: false, message: 'Token do cartao ausente.' });
     }
 
-    const valor     = tipo === 'mensal' ? 11.99 : 119.99;
+    const valor     = tipo === 'mensal' ? 39.99 : 422.28;
     const frequencia = tipo === 'mensal' ? 1 : 12; // mensal=1 mês, anual=12 meses
 
     try {
@@ -468,7 +468,7 @@ router.get('/cancelar/preview', authMiddleware, async (req, res) => {
         const agora = new Date();
         const mesesUsados = Math.floor((agora - inicio) / (1000 * 60 * 60 * 24 * 30.44));
         const mesesRestantes = Math.max(0, 12 - mesesUsados);
-        const VALOR_ANUAL = 119.99;
+        const VALOR_ANUAL = 422.28;
         const TAXA_DESPESAS = 0.15;
 
         const valorBruto = (mesesRestantes / 12) * VALOR_ANUAL;
@@ -527,7 +527,7 @@ router.post('/cancelar', authMiddleware, async (req, res) => {
             const mesesRestantes = Math.max(0, 12 - mesesUsados);
 
             if (mesesRestantes > 0) {
-                const VALOR_ANUAL = 119.99;
+                const VALOR_ANUAL = 422.28;
                 const TAXA_DESPESAS = 0.15;
                 const valorBruto = (mesesRestantes / 12) * VALOR_ANUAL;
                 const reembolso = parseFloat((valorBruto * (1 - TAXA_DESPESAS)).toFixed(2));
