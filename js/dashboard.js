@@ -2016,16 +2016,14 @@ function renderizarTemaSaude() {
         options: opcoesEscuras({ plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: false, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } })
     });
 
-    // Gráfico 3: Entradas vs Saídas — barras horizontais (6 meses mais recentes com dados)
-    const mesesComDados = MESES_LABELS.map((l, i) => ({ l, rec: recPorMes[i], desp: despPorMes[i], idx: i }))
-        .filter(m => m.rec > 0 || m.desp > 0).slice(-6);
+    // Gráfico 3: Entradas vs Saídas — todos os 12 meses
     criarChart('tema-saude-entradas', {
         type: 'bar',
         data: {
-            labels: mesesComDados.map(m => m.l),
+            labels: MESES_LABELS,
             datasets: [
-                { label: 'Receitas', data: mesesComDados.map(m => m.rec), backgroundColor: '#10b981', borderRadius: 4, barThickness: 14 },
-                { label: 'Despesas', data: mesesComDados.map(m => m.desp), backgroundColor: '#f43f5e', borderRadius: 4, barThickness: 14 }
+                { label: 'Receitas', data: recPorMes, backgroundColor: '#10b981', borderRadius: 4, barThickness: 14 },
+                { label: 'Despesas', data: despPorMes, backgroundColor: '#f43f5e', borderRadius: 4, barThickness: 14 }
             ]
         },
         options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { display: false } } } }
@@ -2114,14 +2112,14 @@ function renderizarTemaCategorias() {
     if (el2) { el2.textContent = top5[0] && total > 0 ? ((top5[0][1]/total*100).toFixed(1)+'%') : '0%'; el2.style.color = '#f59e0b'; }
     if (el3) el3.textContent = catOrdenadas.length;
 
-    // Gráfico 1: DONUT grande — categorias
+    // Gráfico 1: DONUT grande — todas as categorias
     if (catOrdenadas.length > 0) {
-        const top8 = catOrdenadas.slice(0,8);
+        const cores = catOrdenadas.map((_,i) => CORES[i % CORES.length]);
         criarChart('tema-cat-anual', {
             type: 'doughnut',
             data: {
-                labels: top8.map(([n])=>n),
-                datasets: [{ data: top8.map(([,v])=>v), backgroundColor: CORES, borderWidth: 0, hoverOffset: 18 }]
+                labels: catOrdenadas.map(([n])=>n),
+                datasets: [{ data: catOrdenadas.map(([,v])=>v), backgroundColor: cores, borderWidth: 0, hoverOffset: 18 }]
             },
             options: opcoesDonut()
         });
@@ -2146,13 +2144,13 @@ function renderizarTemaCategorias() {
         options: opcoesEscuras({ plugins: { legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } })
     });
 
-    // Gráfico 3: Barras horizontais — média por categoria
-    const mediaCat = catOrdenadas.slice(0,8).map(([nome, tot]) => ({ nome, media: tot/12 }));
+    // Gráfico 3: Barras horizontais — média por categoria (todas)
+    const mediaCat = catOrdenadas.map(([nome, tot]) => ({ nome, media: tot/12 }));
     criarChart('tema-cat-media', {
         type: 'bar',
         data: {
             labels: mediaCat.map(c=>c.nome),
-            datasets: [{ label: 'Média/Mês', data: mediaCat.map(c=>c.media), backgroundColor: CORES, borderRadius: 4, barThickness: 14 }]
+            datasets: [{ label: 'Média/Mês', data: mediaCat.map(c=>c.media), backgroundColor: mediaCat.map((_,i)=>CORES[i%CORES.length]), borderRadius: 4, barThickness: Math.max(8, Math.min(18, Math.floor(200/mediaCat.length))) }]
         },
         options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { display: false } } } }
     });
@@ -2208,7 +2206,7 @@ function renderizarTemaPagamento() {
     }
 
     // Gráfico 3: Barras empilhadas — forma por mês
-    const formasUnicas = [...new Set(despesas.map(d => (d.formaPagamento || d.forma_pagamento || 'outros').toLowerCase()))].slice(0,5);
+    const formasUnicas = [...new Set(despesas.map(d => (d.formaPagamento || d.forma_pagamento || 'outros').toLowerCase()))];
     const datasetsForma = formasUnicas.map((forma, i) => {
         const porMes = new Array(12).fill(0);
         despesas.filter(d=>(d.formaPagamento||d.forma_pagamento||'outros').toLowerCase()===forma).forEach(d => {
@@ -2399,17 +2397,17 @@ function renderizarTemaAnalise() {
         const nome = catObj?catObj.nome:(d.categoria||'Outros');
         porCat[nome] = (porCat[nome]||0)+parseFloat(d.valor||0);
     });
-    const catArr = Object.entries(porCat).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    const catArr = Object.entries(porCat).sort((a,b)=>b[1]-a[1]); // todas as categorias
     criarChart('tema-analise-media', {
         type: 'bar',
         data: {
             labels: catArr.map(([n])=>n),
-            datasets: [{ label: 'Média/Mês', data: catArr.map(([,v])=>v/12), backgroundColor: CORES, borderRadius: 4, barThickness: 14 }]
+            datasets: [{ label: 'Média/Mês', data: catArr.map(([,v])=>v/12), backgroundColor: catArr.map((_,i)=>CORES[i%CORES.length]), borderRadius: 4, barThickness: Math.max(8, Math.min(18, Math.floor(200/catArr.length))) }]
         },
         options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { display: false } } } }
     });
 
-    // Gráfico 2: Barras empilhadas — categorias mensais
+    // Gráfico 2: Barras empilhadas — top 5 categorias mensais (top 5 é intencional — linha fica ilegível com mais)
     const top5nomes = catArr.slice(0,5).map(([n])=>n);
     const datasets = top5nomes.map((nome,i)=>{
         const porMes = new Array(12).fill(0);
