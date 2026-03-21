@@ -458,27 +458,36 @@
             <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Estimativa de meses para concluir cada objetivo">Projeção de Conclusão</h3></div><canvas id="tema-metas-projecao"></canvas></div>
             <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Evolução do percentual atingido nos últimos meses">Evolução % Mensal</h3></div><canvas id="tema-metas-historico"></canvas></div>
             <div class="tema-chart-card tema-metas-projecao-card">
-                <div class="chart-header">
-                    <h3 data-tooltip="Simulação de crescimento com juros compostos baseado na taxa Selic atual">Projeção de Crescimento</h3>
+                <div class="proj-header">
+                    <div class="proj-header-title">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Projeção de Crescimento</span>
+                    </div>
+                    <div class="proj-chips">
+                        <div class="proj-chip">
+                            <span class="proj-chip-label">Aporte médio</span>
+                            <span id="proj-media-badge" class="proj-chip-value">calculando…</span>
+                        </div>
+                        <div class="proj-chip proj-chip-selic">
+                            <span class="proj-chip-label">Selic</span>
+                            <span id="proj-taxa-label" class="proj-chip-value">…</span>
+                        </div>
+                        <div class="proj-chip proj-chip-periodo">
+                            <span class="proj-chip-label">Período</span>
+                            <span class="proj-chip-value"><span id="proj-anos-label">10</span> anos</span>
+                        </div>
+                    </div>
                 </div>
-                <!-- Controles de simulação -->
-                <div class="projecao-controles">
-                    <div class="projecao-info-group">
-                        <span class="projecao-info-label">Média mensal em reservas</span>
-                        <span id="proj-media-badge" class="projecao-taxa-badge">calculando…</span>
-                    </div>
-                    <div class="projecao-input-group">
-                        <label>Período (anos)</label>
-                        <input type="number" id="proj-anos" value="10" min="1" max="50" step="1" class="projecao-input" onchange="simularProjecao()">
-                    </div>
-                    <div class="projecao-info-group">
-                        <span class="projecao-info-label">Taxa Selic</span>
-                        <span id="proj-taxa-label" class="projecao-taxa-badge">carregando…</span>
-                    </div>
-                    <input type="hidden" id="proj-taxa" value="1.17">
-                    <input type="hidden" id="proj-aporte" value="500">
+                <!-- Slider de período -->
+                <div class="proj-slider-row">
+                    <span class="proj-slider-min">1a</span>
+                    <input type="range" id="proj-anos" min="1" max="50" value="10" step="1" class="proj-slider"
+                           oninput="document.getElementById('proj-anos-label').textContent=this.value; simularProjecao()">
+                    <span class="proj-slider-max">50a</span>
                 </div>
-                <div style="position:relative; height:260px">
+                <input type="hidden" id="proj-taxa" value="1.17">
+                <input type="hidden" id="proj-aporte" value="500">
+                <div style="position:relative; height:240px; margin-top:8px">
                     <canvas id="tema-metas-crescimento"></canvas>
                 </div>
             </div>

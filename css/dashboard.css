@@ -1275,57 +1275,106 @@
     height: auto;
 }
 
-.projecao-controles {
+/* ── Projeção de Crescimento — novo design ─────────────────────── */
+.proj-header {
     display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 12px;
-    align-items: flex-end;
     flex-wrap: wrap;
-    padding: 12px 0;
+    margin-bottom: 10px;
 }
-
-.projecao-input-group {
+.proj-header-title {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.projecao-input-group label {
-    font-size: 11px;
-    color: #94a3b8;
-}
-
-.projecao-input {
-    width: 110px;
-    padding: 6px 8px;
-    border-radius: 6px;
-    border: 1px solid rgba(255,255,255,0.1);
-    background: rgba(255,255,255,0.05);
-    color: #e2e8f0;
+    align-items: center;
+    gap: 8px;
     font-size: 13px;
-}
-
-.projecao-taxa-badge {
-    font-size: 11px;
-    color: #10b981;
-    background: rgba(16,185,129,0.1);
-    padding: 3px 8px;
-    border-radius: 10px;
     font-weight: 600;
+    color: #e2e8f0;
 }
+.proj-header-title i { color: #6366f1; font-size: 14px; }
 
-.projecao-info-group {
+.proj-chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.proj-chip {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    align-items: center;
+    padding: 5px 12px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    min-width: 90px;
+    gap: 1px;
+}
+.proj-chip-selic  { border-color: rgba(16,185,129,0.25); background: rgba(16,185,129,0.06); }
+.proj-chip-periodo{ border-color: rgba(99,102,241,0.25); background: rgba(99,102,241,0.06); }
+.proj-chip-label {
+    font-size: 10px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.proj-chip-value {
+    font-size: 12px;
+    font-weight: 700;
+    color: #e2e8f0;
+}
+.proj-chip-selic  .proj-chip-value { color: #10b981; }
+.proj-chip-periodo .proj-chip-value { color: #a5b4fc; }
+
+/* Slider de período */
+.proj-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+.proj-slider-min, .proj-slider-max {
+    font-size: 10px;
+    color: #475569;
+    white-space: nowrap;
+    width: 22px;
+    text-align: center;
+}
+.proj-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 99px;
+    background: linear-gradient(90deg, #6366f1 var(--prog, 18%), rgba(255,255,255,0.1) var(--prog, 18%));
+    outline: none;
+    cursor: pointer;
+}
+.proj-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.25);
+    cursor: pointer;
+    transition: box-shadow 0.15s;
+}
+.proj-slider::-webkit-slider-thumb:hover { box-shadow: 0 0 0 5px rgba(99,102,241,0.3); }
+.proj-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #6366f1;
+    border: none;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.25);
+    cursor: pointer;
 }
 
-.projecao-info-label {
-    font-size: 11px;
-    color: #94a3b8;
-}
-
-[data-theme="light"] .projecao-input {
-    border-color: rgba(99,102,241,0.2);
-    background: rgba(99,102,241,0.04);
-    color: #1e293b;
-}
+/* Light mode */
+[data-theme="light"] .proj-header-title { color: #1e293b; }
+[data-theme="light"] .proj-chip { background: #f8faff; border-color: rgba(148,163,184,0.2); }
+[data-theme="light"] .proj-chip-selic  { background: rgba(16,185,129,0.05); }
+[data-theme="light"] .proj-chip-periodo{ background: rgba(99,102,241,0.05); }
+[data-theme="light"] .proj-chip-value  { color: #1e293b; }
+[data-theme="light"] .proj-slider { background: linear-gradient(90deg, #6366f1 var(--prog,18%), #e2e8f0 var(--prog,18%)); }

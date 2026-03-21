@@ -2770,7 +2770,7 @@ async function renderizarTemaMetas() {
         try {
             const token = sessionStorage.getItem('token') || localStorage.getItem('token');
             const baseUrl = window.API_URL || '';
-            const resp = await fetch(`${baseUrl}/api/financeiro/selic`, {
+            const resp = await fetch(`${baseUrl}/financeiro/selic`, {
                 headers: token ? { 'Authorization': `Bearer ${token}` } : {}
             });
             if (resp.ok) {
@@ -2795,11 +2795,17 @@ async function renderizarTemaMetas() {
 
 // ── Função global: simularProjecao ───────────────────────────────
 window.simularProjecao = function simularProjecao() {
-    // Aporte vem da média real calculada no render (input hidden)
     const aporte = parseFloat(document.getElementById('proj-aporte')?.value) || 0;
-    if (aporte <= 0) return; // sem histórico, não renderiza
-    const anos   = parseInt(document.getElementById('proj-anos')?.value)    || 10;
+    if (aporte <= 0) return;
+    const slider = document.getElementById('proj-anos');
+    const anos   = parseInt(slider?.value) || 10;
     const taxa   = parseFloat(document.getElementById('proj-taxa')?.value)  || 1.17;
+
+    // Atualizar gradiente do slider dinamicamente
+    if (slider) {
+        const pct = ((anos - 1) / 49 * 100).toFixed(1) + '%';
+        slider.style.setProperty('--prog', pct);
+    }
 
     const totalMeses = anos * 12;
     const semJuros      = [];
