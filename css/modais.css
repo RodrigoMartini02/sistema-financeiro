@@ -25,14 +25,14 @@
 
 .modal-content {
     position: relative;
-    background-color: var(--card-bg);
+    background-color: var(--theme-modal-bg);
     margin: var(--space-md) auto;
-    box-shadow: var(--shadow-xl);
+    box-shadow: var(--theme-shadow);
     width: 98%;
     max-width: 1000px;
     border-radius: 8px;
     animation: slideIn var(--transition-base);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--theme-border);
     overflow: hidden;
 }
 
@@ -99,8 +99,8 @@
     justify-content: flex-end;
     gap: 10px;
     padding: var(--space-md) var(--space-md);
-    border-top: 1px solid var(--gray-200);
-    background-color: var(--gray-50);
+    border-top: 1px solid var(--theme-border);
+    background-color: var(--theme-surface-2);
     border-radius: 0 0 8px 8px;
 }
 
@@ -177,13 +177,13 @@
 
 #modal-exclusao-receita .modal-body,
 #modal-confirmacao-exclusao-despesa .modal-body {
-    background: #ffffff;
+    background: var(--theme-modal-bg);
     padding: 24px;
 }
 
 #modal-exclusao-receita .modal-body p,
 #modal-confirmacao-exclusao-despesa .modal-body p {
-    color: #333;
+    color: var(--theme-text);
     font-size: 15px;
     margin: 0;
     text-align: center;
@@ -196,7 +196,7 @@
     flex-direction: column;
     gap: 10px;
     padding: 16px 24px;
-    background: #ffffff;
+    background: var(--theme-modal-bg);
     border-top: none;
     border-radius: 0 0 8px 8px !important;
 }

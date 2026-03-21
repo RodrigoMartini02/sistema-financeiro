@@ -3,7 +3,7 @@
 // Sistema de Controle Financeiro
 // ================================================================
 
-const CACHE_VERSION = 'v29';
+const CACHE_VERSION = 'v30';
 const CACHE_STATIC  = `sf-static-${CACHE_VERSION}`;
 
 // Assets estáticos que serão cacheados no install
@@ -32,6 +32,7 @@ const STATIC_ASSETS = [
     '/css/planos.css',
     '/css/ia.css',
     // JS principais
+    '/js/theme.js',
     '/js/utils.js',
     '/js/loading.js',
     '/js/login.js',

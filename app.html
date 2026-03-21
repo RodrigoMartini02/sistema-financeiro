@@ -20,6 +20,9 @@
     <link rel="icon" type="image/png" href="icons/financeiro.png?v=1">
 
 
+    <!-- TEMA: carregado antes de tudo para evitar flash -->
+    <script src="js/theme.js"></script>
+
     <!-- VERIFICAÇÃO DE AUTENTICAÇÃO (ANTES DE TUDO) -->
     <script>
         (function() {
@@ -205,6 +208,9 @@
                     </button>
                 </div>
                 <div class="header-separator"></div>
+                <button class="header-icon-btn" id="btn-toggle-theme" title="Alternar Tema">
+                    <i class="fas fa-moon" id="theme-icon"></i>
+                </button>
                  <div class="notification-wrapper">
                     <button class="header-icon-btn" id="notification-bell" type="button" aria-label="Notificações">
                         <i class="fas fa-bell"></i>
@@ -308,7 +314,6 @@
               <button class="periodo-btn active" data-periodo="ano">Ano Atual</button>
               <button class="periodo-btn" data-periodo="todos">Todos os Anos</button>
             </div>
-            <select id="dash-filtro-ano" class="dash-select"></select>
             <select id="dash-filtro-mes" class="dash-select">
               <option value="">Todos os meses</option>
               <option value="0">Janeiro</option><option value="1">Fevereiro</option>

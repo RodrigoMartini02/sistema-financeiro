@@ -8,9 +8,9 @@
    ================================================================ */
 
 .tabela-despesas-container {
-    border: 1px solid #e9ecef;
+    border: 1px solid var(--theme-border);
     border-radius: 8px;
-    background: white;
+    background: var(--theme-card-bg);
     position: relative;
     width: 100%;
 }
@@ -50,19 +50,19 @@
 
 /* Corpo da tabela */
 .tabela-despesas tbody tr {
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid var(--theme-border);
     transition: background-color 0.2s ease;
 }
 
 .tabela-despesas tbody tr:hover {
-    background-color: #f8f9fa;
+    background-color: var(--theme-table-hover);
 }
 
 .tabela-despesas tbody td {
     padding: 4px 6px;
     font-size: 10px;
-    color: #495057;
-    border-right: 1px solid #e9ecef;
+    color: var(--theme-text);
+    border-right: 1px solid var(--theme-border);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

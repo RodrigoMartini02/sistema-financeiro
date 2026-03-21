@@ -8,10 +8,10 @@
     position: sticky;
     top: 0;
     z-index: 50;
-    background: var(--white, #fff);
+    background: var(--theme-bg);
     padding-bottom: 8px;
     margin-bottom: 12px;
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid var(--theme-border);
 }
 
 /* Barra principal: selects + datas inline + botões */
@@ -35,7 +35,7 @@
 .rel-filtro-item label {
     font-size: 0.7rem;
     font-weight: 600;
-    color: #6c757d;
+    color: var(--theme-text-muted);
     white-space: nowrap;
     line-height: 1;
 }
@@ -61,7 +61,7 @@
 .rel-datas-inline label {
     font-size: 0.7rem;
     font-weight: 600;
-    color: #6c757d;
+    color: var(--theme-text-muted);
     white-space: nowrap;
     line-height: 32px;
 }

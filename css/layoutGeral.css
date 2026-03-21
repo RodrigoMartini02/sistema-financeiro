@@ -100,6 +100,59 @@
 }
 
 /* ================================================================
+   TEMA — DARK / LIGHT MODE
+   ================================================================ */
+
+:root {
+    /* TEMA — Dark (padrão) */
+    --theme-bg:            #080c14;
+    --theme-bg-2:          #0d1525;
+    --theme-surface:       rgba(13, 25, 48, 0.85);
+    --theme-surface-solid: #0f1929;
+    --theme-surface-2:     rgba(20, 36, 66, 0.9);
+    --theme-border:        rgba(99, 149, 255, 0.12);
+    --theme-border-solid:  #1e3a5f;
+    --theme-text:          #e2e8f0;
+    --theme-text-muted:    #94a3b8;
+    --theme-text-faint:    #64748b;
+    --theme-input-bg:      #0f1929;
+    --theme-input-border:  rgba(99, 149, 255, 0.2);
+    --theme-shadow:        0 4px 24px rgba(0, 0, 80, 0.3);
+    --theme-shadow-sm:     0 2px 8px rgba(0, 0, 60, 0.2);
+    --theme-header-bg:     #0a0f1e;
+    --theme-sidebar-bg:    #080c14;
+    --theme-card-bg:       rgba(13, 25, 48, 0.85);
+    --theme-table-stripe:  rgba(99, 149, 255, 0.04);
+    --theme-table-hover:   rgba(99, 149, 255, 0.08);
+    --theme-modal-bg:      #0d1525;
+    --theme-scrollbar:     #1e3a5f;
+}
+
+[data-theme="light"] {
+    --theme-bg:            #f0f4ff;
+    --theme-bg-2:          #e8eeff;
+    --theme-surface:       rgba(255, 255, 255, 0.9);
+    --theme-surface-solid: #ffffff;
+    --theme-surface-2:     rgba(240, 244, 255, 0.95);
+    --theme-border:        rgba(99, 149, 255, 0.2);
+    --theme-border-solid:  #c7d7ff;
+    --theme-text:          #1e293b;
+    --theme-text-muted:    #475569;
+    --theme-text-faint:    #94a3b8;
+    --theme-input-bg:      #ffffff;
+    --theme-input-border:  rgba(99, 149, 255, 0.3);
+    --theme-shadow:        0 4px 24px rgba(99, 149, 255, 0.15);
+    --theme-shadow-sm:     0 2px 8px rgba(99, 149, 255, 0.1);
+    --theme-header-bg:     #ffffff;
+    --theme-sidebar-bg:    #f8faff;
+    --theme-card-bg:       rgba(255, 255, 255, 0.9);
+    --theme-table-stripe:  rgba(99, 149, 255, 0.03);
+    --theme-table-hover:   rgba(99, 149, 255, 0.06);
+    --theme-modal-bg:      #ffffff;
+    --theme-scrollbar:     #c7d7ff;
+}
+
+/* ================================================================
    PWA / MOBILE — SAFE AREA & TOUCH ENHANCEMENTS
    ================================================================ */
 
@@ -174,8 +227,8 @@ body {
     font-size: var(--font-size-base);
     font-weight: var(--font-weight-normal);
     line-height: var(--line-height-base);
-    color: var(--text-color);
-    background-color: var(--bg-color);
+    color: var(--theme-text);
+    background-color: var(--theme-bg);
     transition: background-color var(--transition-base), color var(--transition-base);
 }
 
@@ -277,16 +330,16 @@ textarea {
 }
 
 ::-webkit-scrollbar-track {
-    background: var(--gray-100);
+    background: var(--theme-surface);
 }
 
 ::-webkit-scrollbar-thumb {
-    background: var(--gray-300);
+    background: var(--theme-scrollbar);
     transition: background var(--transition-base);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: var(--gray-400);
+    background: var(--theme-border-solid);
 }
 
 /* ================================================================
@@ -392,7 +445,7 @@ textarea:focus {
 
 .sidebar {
     width: var(--sidebar-width);
-    background-color: #2c3e50;
+    background-color: var(--theme-sidebar-bg);
     height: 100vh;
     flex-shrink: 0;
     z-index: var(--z-fixed);
@@ -805,8 +858,8 @@ textarea:focus {
 
 .main-header {
     height: 69px;
-    background-color: var(--white);
-    border-bottom: 1px solid var(--gray-200);
+    background-color: var(--theme-header-bg);
+    border-bottom: 1px solid var(--theme-border);
     padding: 0 24px;
     display: flex;
     align-items: center;
@@ -828,7 +881,7 @@ textarea:focus {
 .header-separator {
     width: 1px;
     height: 36px;
-    background: var(--gray-300);
+    background: var(--theme-border);
     flex-shrink: 0;
     margin: 0 6px;
 }
@@ -865,7 +918,7 @@ textarea:focus {
     cursor: pointer;
     padding: 0;
     font-size: 18px;
-    color: var(--gray-600);
+    color: var(--theme-text-muted);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -876,7 +929,7 @@ textarea:focus {
 
 .header-icon-btn:hover {
     color: var(--primary-color);
-    background: var(--gray-100);
+    background: var(--theme-surface);
 }
 
 .header-icon-btn:focus,
@@ -911,9 +964,9 @@ textarea:focus {
     top: 100%;
     left: 0;
     margin-top: 4px;
-    background: white;
-    border: 1px solid var(--gray-300);
-    box-shadow: var(--shadow-lg);
+    background: var(--theme-modal-bg);
+    border: 1px solid var(--theme-border);
+    box-shadow: var(--theme-shadow);
     min-width: 120px;
     max-height: 300px;
     overflow-y: auto;
@@ -933,12 +986,12 @@ textarea:focus {
     cursor: pointer;
     transition: background 0.2s ease;
     font-size: 13px;
-    color: #64748b;
+    color: var(--theme-text-muted);
 }
 
 .dropdown-anos-lista button:hover {
-    background: var(--gray-100);
-    color: #1e293b;
+    background: var(--theme-table-hover);
+    color: var(--theme-text);
 }
 
 .dropdown-anos-lista button.active {
@@ -958,9 +1011,9 @@ textarea:focus {
     top: 100%;
     right: 0;
     margin-top: 8px;
-    background: white;
-    border: 1px solid var(--gray-300);
-    box-shadow: var(--shadow-lg);
+    background: var(--theme-modal-bg);
+    border: 1px solid var(--theme-border);
+    box-shadow: var(--theme-shadow);
     min-width: 200px;
     z-index: var(--z-dropdown);
     overflow: hidden;
@@ -975,6 +1028,7 @@ textarea:focus {
     padding: 12px 16px;
     border: none;
     background: none;
+    color: var(--theme-text);
     text-align: left;
     cursor: pointer;
     transition: background 0.2s ease;
@@ -985,7 +1039,7 @@ textarea:focus {
 }
 
 .dropdown-item:hover {
-    background: var(--gray-100);
+    background: var(--theme-table-hover);
 }
 
 .dropdown-item-danger:hover {
@@ -1011,11 +1065,11 @@ textarea:focus {
     align-items: center;
     gap: 10px;
     padding: 0 16px;
-    background-color: var(--gray-50);
+    background-color: var(--theme-surface);
     border-radius: 8px;
     font-size: 13px;
     font-weight: 600;
-    color: var(--gray-600);
+    color: var(--theme-text-muted);
     white-space: nowrap;
 }
 
@@ -1096,7 +1150,7 @@ textarea:focus {
 .mes-card {
     /* Fluid base: shrinks on narrow viewports, caps at 14 px on wide ones */
     font-size: clamp(10px, 1vw, 14px);
-    background: #ffffff;
+    background: var(--theme-card-bg);
     border-radius: 0.6em;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     overflow: hidden;
@@ -1105,7 +1159,7 @@ textarea:focus {
     display: flex;
     flex-direction: column;
     /* No fixed min-height — let content determine height so nothing clips */
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--theme-border);
 }
 
 .mes-card:hover {
@@ -1160,7 +1214,7 @@ textarea:focus {
     min-width: 0;
     padding: 0.5em 0.7em;
     text-align: center;
-    background: #f8fafc;
+    background: var(--theme-surface-2);
     border-radius: 0.7em;
     border: none;
 }
@@ -1190,7 +1244,7 @@ textarea:focus {
 /* --- LABELS E VALORES --- */
 .mes-label {
     font-size: 0.65em;       /* ~8-9 px at default base */
-    color: #94a3b8;
+    color: var(--theme-text-muted);
     margin-bottom: 0.25em;
     text-transform: uppercase;
     font-weight: 700;
@@ -1262,13 +1316,13 @@ textarea:focus {
 }
 
 .btn-reabrir {
-    background: #f1f5f9;
-    color: #64748b;
+    background: var(--theme-surface-2);
+    color: var(--theme-text-muted);
 }
 
 .btn-reabrir:hover {
-    background: #e2e8f0;
-    color: #1e293b;
+    background: var(--theme-table-hover);
+    color: var(--theme-text);
 }
 
 /* --- SCROLLBAR --- */

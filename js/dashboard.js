@@ -1790,13 +1790,8 @@ function inicializarDashboardTematico() {
         atualizarDashboardTematico();
     });
 
-    const filtroAno = document.getElementById('dash-filtro-ano');
     const filtroMes = document.getElementById('dash-filtro-mes');
-    if (filtroAno) filtroAno.addEventListener('change', atualizarDashboardTematico);
     if (filtroMes) filtroMes.addEventListener('change', atualizarDashboardTematico);
-
-    // Popula anos no filtro
-    popularFiltroAnos();
 
     // Renderiza tema inicial (saude)
     atualizarDashboardTematico();
@@ -1804,22 +1799,14 @@ function inicializarDashboardTematico() {
 }
 
 function popularFiltroAnos() {
-    const filtroAno = document.getElementById('dash-filtro-ano');
-    if (!filtroAno || !window.dadosFinanceiros) return;
-    const df = window.dadosFinanceiros;
-    const anos = Object.keys(df).map(Number).filter(Boolean).sort((a, b) => b - a);
-    const anoAtual = new Date().getFullYear();
-    filtroAno.innerHTML = anos.map(a =>
-        `<option value="${a}" ${a === anoAtual ? 'selected' : ''}>${a}</option>`
-    ).join('');
+    // Select de ano removido — usa window.anoAtual diretamente
 }
 
 function obterFiltroAtivo() {
-    const filtroAno = document.getElementById('dash-filtro-ano');
     const filtroMes = document.getElementById('dash-filtro-mes');
     const periodoTodos = document.querySelector('.periodo-btn[data-periodo="todos"]')?.classList.contains('active');
     return {
-        ano: filtroAno ? parseInt(filtroAno.value) : new Date().getFullYear(),
+        ano: window.anoAtual || new Date().getFullYear(),
         mes: filtroMes && filtroMes.value !== '' ? parseInt(filtroMes.value) : null,
         todos: !!periodoTodos
     };

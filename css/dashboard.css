@@ -128,7 +128,7 @@
 }
 
 .modal-zoom-content {
-    background-color: #ffffff;
+    background-color: var(--theme-modal-bg);
     width: 95%;
     max-width: 1200px;
     height: 85vh;
@@ -147,10 +147,10 @@
     width: 40px;
     height: 40px;
     font-size: 1.5rem;
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
+    background: var(--theme-surface-2);
+    border: 1px solid var(--theme-border);
     border-radius: 6px;
-    color: #333;
+    color: var(--theme-text);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -196,12 +196,12 @@
 
 /* ---- Variáveis de cor ----------------------------------------- */
 :root {
-    --dash-bg:         #080c14;
-    --dash-surface:    rgba(13, 25, 48, 0.85);
-    --dash-surface-2:  rgba(20, 36, 66, 0.9);
-    --dash-border:     rgba(99, 149, 255, 0.12);
-    --dash-text:       #e2e8f0;
-    --dash-text-muted: #94a3b8;
+    --dash-bg:         var(--theme-bg);
+    --dash-surface:    var(--theme-surface);
+    --dash-surface-2:  var(--theme-surface-2);
+    --dash-border:     var(--theme-border);
+    --dash-text:       var(--theme-text);
+    --dash-text-muted: var(--theme-text-muted);
     --dash-green:      #10b981;
     --dash-red:        #f43f5e;
     --dash-blue:       #6366f1;

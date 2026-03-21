@@ -7,10 +7,10 @@
 /* ================================================================ */
 .config-tabs {
     display: flex;
-    border-bottom: 2px solid var(--gray-300);
+    border-bottom: 2px solid var(--theme-border);
     margin-bottom: 0;
     gap: 8px;
-    background: var(--gray-100);
+    background: var(--theme-surface);
     padding: 8px 8px 0 8px;
     position: sticky;
     top: 0;
@@ -38,7 +38,7 @@
 }
 
 .config-tab-btn.active {
-    background: #fff;
+    background: var(--theme-surface-solid);
     color: var(--primary-color);
     font-weight: 600;
     border-bottom-color: var(--primary-color);
@@ -50,7 +50,7 @@
 }
 
 .config-tab-content {
-    background: #fff;
+    background: var(--theme-bg);
     padding: 16px;
 }
 
