@@ -3097,23 +3097,31 @@ document.addEventListener('DOMContentLoaded', iniciarAtualizacaoCotacoes);
 // COFRE — ACESSO COM SENHA
 // ================================================================
 
-function abrirCofre() {
+function abrirCofre(tab) {
+    const abrirInterno = () => _abrirModalCofreInterno(tab);
     if (localStorage.getItem('cofre_senha_desabilitada') === 'true') {
-        _abrirModalCofreInterno();
+        abrirInterno();
     } else if (typeof window.mostrarLockScreenParaVerificacao === 'function') {
-        window.mostrarLockScreenParaVerificacao(_abrirModalCofreInterno);
+        window.mostrarLockScreenParaVerificacao(abrirInterno);
     } else {
-        _abrirModalCofreInterno();
+        abrirInterno();
     }
 }
 
-function _abrirModalCofreInterno() {
+function _abrirModalCofreInterno(tab) {
     if (typeof window.abrirModalReservarValor === 'function') {
         window.abrirModalReservarValor();
     }
     // Sincronizar checkbox ao abrir
     const chk = document.getElementById('chk-desabilitar-senha-cofre');
     if (chk) chk.checked = localStorage.getItem('cofre_senha_desabilitada') === 'true';
+    // Abrir aba específica se solicitado
+    if (tab && typeof window.switchMetasTab === 'function') {
+        setTimeout(function() {
+            const btn = document.querySelector(`.metas-tab[data-tab-metas="${tab}"]`);
+            window.switchMetasTab(tab, btn);
+        }, 100);
+    }
 }
 
 window.abrirCofre = abrirCofre;

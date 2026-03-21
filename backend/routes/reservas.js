@@ -81,7 +81,7 @@ router.post('/', authMiddleware, [
             });
         }
 
-        const { valor, mes, ano, data, observacoes } = req.body;
+        const { valor, mes, ano, data, observacoes, tipo_reserva, objetivo_valor, objetivo_atingido, data_objetivo } = req.body;
         const valorNumerico = parseFloat(valor);
 
         // Verificar se o mês está fechado
@@ -140,11 +140,14 @@ router.post('/', authMiddleware, [
         }
 
         // Criar a reserva
+        const tipoReserva = tipo_reserva || 'normal';
+        const objValor = objetivo_valor ? parseFloat(objetivo_valor) : null;
+        const dataObj = data_objetivo || null;
         const result = await query(
-            `INSERT INTO reservas (usuario_id, valor, mes, ano, data, observacoes)
-             VALUES ($1, $2, $3, $4, $5, $6)
+            `INSERT INTO reservas (usuario_id, valor, mes, ano, data, observacoes, tipo_reserva, objetivo_valor, objetivo_atingido, data_objetivo)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
              RETURNING *`,
-            [req.usuario.id, valorNumerico, mes, ano, data, observacoes || null]
+            [req.usuario.id, valorNumerico, mes, ano, data, observacoes || null, tipoReserva, objValor, false, dataObj]
         );
 
         // Registrar movimentação inicial de entrada
@@ -170,9 +173,9 @@ router.post('/', authMiddleware, [
     }
 });
 
-// PUT - Atualizar nome da reserva (valor só pode ser alterado via movimentação)
+// PUT - Atualizar reserva (nome + campos de objetivo)
 router.put('/:id', authMiddleware, [
-    body('observacoes').notEmpty().withMessage('Nome da reserva é obrigatório')
+    body('observacoes').optional().isString()
 ], async (req, res) => {
     try {
         const errors = validationResult(req);
@@ -184,14 +187,28 @@ router.put('/:id', authMiddleware, [
         }
 
         const { id } = req.params;
-        const { observacoes } = req.body;
+        const { observacoes, tipo_reserva, objetivo_valor, objetivo_atingido, data_objetivo } = req.body;
+
+        // Build dynamic update
+        const setClauses = [];
+        const params = [];
+        let paramIdx = 1;
+
+        if (observacoes !== undefined) { setClauses.push(`observacoes = $${paramIdx++}`); params.push(observacoes); }
+        if (tipo_reserva !== undefined) { setClauses.push(`tipo_reserva = $${paramIdx++}`); params.push(tipo_reserva); }
+        if (objetivo_valor !== undefined) { setClauses.push(`objetivo_valor = $${paramIdx++}`); params.push(objetivo_valor !== null ? parseFloat(objetivo_valor) : null); }
+        if (objetivo_atingido !== undefined) { setClauses.push(`objetivo_atingido = $${paramIdx++}`); params.push(!!objetivo_atingido); }
+        if (data_objetivo !== undefined) { setClauses.push(`data_objetivo = $${paramIdx++}`); params.push(data_objetivo || null); }
+
+        if (setClauses.length === 0) {
+            return res.status(400).json({ success: false, message: 'Nenhum campo para atualizar' });
+        }
+
+        params.push(id, req.usuario.id);
 
         const result = await query(
-            `UPDATE reservas
-             SET observacoes = $1
-             WHERE id = $2 AND usuario_id = $3
-             RETURNING *`,
-            [observacoes, id, req.usuario.id]
+            `UPDATE reservas SET ${setClauses.join(', ')} WHERE id = $${paramIdx++} AND usuario_id = $${paramIdx} RETURNING *`,
+            params
         );
 
         if (result.rows.length === 0) {
@@ -269,6 +286,24 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 // ================================================================
 // ROTAS ADICIONAIS PARA RELATÓRIOS
 // ================================================================
+
+// GET - Buscar somente objetivos (tipo_reserva='objetivo') com campo progresso calculado
+router.get('/objetivos', authMiddleware, async (req, res) => {
+    try {
+        const result = await query(
+            `SELECT *,
+                CASE WHEN objetivo_valor > 0 THEN ROUND((valor / objetivo_valor * 100)::numeric, 1) ELSE 0 END AS progresso
+             FROM reservas
+             WHERE usuario_id = $1 AND tipo_reserva = 'objetivo'
+             ORDER BY objetivo_atingido ASC, data_objetivo ASC NULLS LAST, id DESC`,
+            [req.usuario.id]
+        );
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Erro ao buscar objetivos:', error);
+        res.status(500).json({ success: false, message: 'Erro ao buscar objetivos' });
+    }
+});
 
 // GET - Total de reservas por ano
 router.get('/total/:ano', authMiddleware, async (req, res) => {

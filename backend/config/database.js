@@ -58,6 +58,13 @@ const executarMigracoes = async () => {
         `);
         console.log('✅ Coluna anexos verificada em receitas');
 
+        // Adicionar colunas de objetivos/metas na tabela reservas
+        await pool.query(`ALTER TABLE reservas ADD COLUMN IF NOT EXISTS tipo_reserva VARCHAR(50) DEFAULT 'normal'`);
+        await pool.query(`ALTER TABLE reservas ADD COLUMN IF NOT EXISTS objetivo_valor DECIMAL(12,2)`);
+        await pool.query(`ALTER TABLE reservas ADD COLUMN IF NOT EXISTS objetivo_atingido BOOLEAN DEFAULT FALSE`);
+        await pool.query(`ALTER TABLE reservas ADD COLUMN IF NOT EXISTS data_objetivo DATE`);
+        console.log('✅ Colunas de metas/objetivos verificadas em reservas');
+
         // Criar índices de performance (IF NOT EXISTS para idempotência)
         await Promise.all([
             pool.query(`CREATE INDEX IF NOT EXISTS idx_despesas_usuario_mes_ano ON despesas (usuario_id, mes, ano)`),

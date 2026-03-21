@@ -331,7 +331,7 @@
     display: flex;
     flex-direction: column;
     box-shadow: 0 4px 24px rgba(0, 0, 80, 0.25);
-    overflow: hidden;
+    overflow: visible;
     position: relative;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -407,7 +407,7 @@
     opacity: 0;
     transform: translateY(4px);
     transition: opacity 0.18s ease, transform 0.18s ease;
-    z-index: 100;
+    z-index: 9999;
     letter-spacing: 0;
     text-transform: none;
 }
@@ -422,6 +422,12 @@
     min-height: 0;
     max-height: 100%;
     width: 100% !important;
+}
+
+/* Ensure chart header tooltip is visible above sibling cards */
+.chart-header {
+    position: relative;
+    z-index: 1;
 }
 
 .tema-chart-full canvas {
@@ -478,7 +484,7 @@
 
 .tema-chart-card {
     min-width: 0;
-    overflow: hidden;
+    overflow: visible;
 }
 
 /* ================================================================
@@ -860,4 +866,186 @@
     background: #ffffff;
     border-color: rgba(99, 149, 255, 0.25);
     color: #1e293b;
+}
+
+/* ================================================================
+   METAS — Abas no modal de Cofre/Metas
+   ================================================================ */
+
+.metas-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 8px 16px 0;
+    border-bottom: 1px solid var(--theme-border, rgba(255,255,255,0.08));
+    background: var(--theme-surface, #1e2230);
+}
+
+.metas-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+    font-family: inherit;
+    border-radius: 6px 6px 0 0;
+}
+
+.metas-tab.active {
+    color: #6366f1;
+    border-bottom-color: #6366f1;
+    background: rgba(99,102,241,0.07);
+}
+
+.metas-tab:hover:not(.active) {
+    color: var(--theme-text, #f1f5f9);
+    background: rgba(255,255,255,0.04);
+}
+
+.metas-tab-content {
+    display: block;
+}
+
+/* Objetivos */
+.objetivos-header-action {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 12px;
+}
+
+.lista-objetivos-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 420px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.objetivos-vazio {
+    text-align: center;
+    padding: 32px 16px;
+    color: #94a3b8;
+    font-size: 14px;
+}
+
+.objetivo-card {
+    background: var(--theme-surface-2, rgba(255,255,255,0.04));
+    border: 1px solid var(--theme-border, rgba(255,255,255,0.08));
+    border-radius: 12px;
+    padding: 14px 16px;
+    transition: transform 0.15s;
+}
+
+.objetivo-card:hover {
+    transform: translateY(-1px);
+}
+
+.objetivo-card.objetivo-atingido {
+    opacity: 0.65;
+    border-color: rgba(16,185,129,0.3);
+}
+
+.objetivo-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    gap: 8px;
+}
+
+.objetivo-nome-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.objetivo-nome {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--theme-text, #f1f5f9);
+}
+
+.obj-badge-atingido {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: #10b981;
+    background: rgba(16,185,129,0.12);
+    border-radius: 100px;
+    padding: 2px 8px;
+    width: fit-content;
+}
+
+.obj-dias-restantes {
+    font-size: 11px;
+    color: #f59e0b;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.obj-prazo-vencido {
+    color: #f43f5e;
+}
+
+.obj-btn-atingido {
+    flex-shrink: 0;
+    padding: 4px 8px;
+    font-size: 11px;
+}
+
+.objetivo-progress-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.objetivo-progress-bar-track {
+    height: 8px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 100px;
+    overflow: hidden;
+}
+
+.objetivo-progress-bar-fill {
+    height: 100%;
+    border-radius: 100px;
+    transition: width 0.5s ease;
+}
+
+.objetivo-valores {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Light mode overrides for metas */
+[data-theme="light"] .metas-tabs {
+    background: #f8faff;
+    border-bottom-color: rgba(99,102,241,0.14);
+}
+
+[data-theme="light"] .metas-tab {
+    color: #64748b;
+}
+
+[data-theme="light"] .objetivo-card {
+    background: #f8faff;
+    border-color: rgba(99,102,241,0.14);
+}
+
+[data-theme="light"] .objetivo-nome {
+    color: #1e293b;
+}
+
+[data-theme="light"] .objetivo-progress-bar-track {
+    background: rgba(0,0,0,0.07);
 }

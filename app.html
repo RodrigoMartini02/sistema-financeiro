@@ -344,14 +344,18 @@
 
         <!-- TEMA: SAÚDE FINANCEIRA -->
         <div class="tema-view active" id="tema-saude">
-          <div class="tema-kpis">
+          <div class="tema-kpis" style="grid-template-columns: repeat(4, 1fr)">
             <div class="tema-kpi"><span class="tk-label">Saldo Atual</span><span class="tk-valor" id="tk-saude-saldo">R$ 0,00</span></div>
             <div class="tema-kpi"><span class="tk-label">Variação do Mês</span><span class="tk-valor" id="tk-saude-variacao">0%</span></div>
             <div class="tema-kpi"><span class="tk-label">Saúde Geral</span><span class="tk-valor" id="tk-saude-score">--</span></div>
+            <div class="tema-kpi tema-kpi-objetivos" style="cursor:pointer" onclick="abrirCofre('objetivos')" title="Ver Metas">
+              <span class="tk-label">Metas Ativas</span>
+              <span class="tk-valor" id="tk-saude-objetivos" style="font-size:14px">Carregando...</span>
+            </div>
           </div>
           <div class="tema-charts-grid">
             <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Receitas, Despesas e Saldo por mês">Balanço Mensal</h3></div><canvas id="tema-saude-balanco"></canvas></div>
-            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Comparativo mensal detalhado">Entradas vs Saídas</h3></div><canvas id="tema-saude-entradas"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Como seu dinheiro entrou e saiu este mês">Fluxo do Mês</h3></div><canvas id="tema-saude-entradas"></canvas></div>
             <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Evolução do saldo acumulado">Saldo Progressivo</h3></div><canvas id="tema-saude-progressivo"></canvas></div>
           </div>
         </div>
@@ -365,7 +369,7 @@
           </div>
           <div class="tema-charts-grid">
             <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Receitas vs Despesas por mês">Entradas e Saídas</h3></div><canvas id="tema-fluxo-entradas"></canvas></div>
-            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Receitas e despesas acumuladas">Fluxo Acumulado</h3></div><canvas id="tema-fluxo-acumulado"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="% da receita que sobrou cada mês">Taxa de Poupança</h3></div><canvas id="tema-fluxo-acumulado"></canvas></div>
             <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="% Receita cobrindo Despesa">Cobertura</h3></div><canvas id="tema-fluxo-cobertura"></canvas></div>
           </div>
         </div>
@@ -420,7 +424,7 @@
             <div class="tema-kpi"><span class="tk-label">Tendência</span><span class="tk-valor" id="tk-anual-trend">--</span></div>
           </div>
           <div class="tema-charts-grid">
-            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Evolução do saldo ao longo dos meses">Tendência Anual</h3></div><canvas id="tema-anual-tendencia"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Meses com maior concentração de despesas">Intensidade de Gastos</h3></div><canvas id="tema-anual-tendencia"></canvas></div>
             <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Este ano vs ano anterior">Comparação Anual</h3></div><canvas id="tema-anual-comparacao"></canvas></div>
             <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Meses ordenados por melhor saldo">Ranking de Meses</h3></div><canvas id="tema-anual-ranking"></canvas></div>
           </div>
@@ -434,7 +438,7 @@
             <div class="tema-kpi"><span class="tk-label">Variação Máxima</span><span class="tk-valor" id="tk-analise-variacao">R$ 0,00</span></div>
           </div>
           <div class="tema-charts-grid">
-            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Gasto médio mensal por categoria">Média por Categoria</h3></div><canvas id="tema-analise-media"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Quanto cada categoria representa no total anual">Peso das Categorias</h3></div><canvas id="tema-analise-media"></canvas></div>
             <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Receitas vs despesas por ano">Balanço por Anos</h3></div><canvas id="tema-analise-anos"></canvas></div>
             <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Distribuição mensal empilhada">Categorias Mensais</h3></div><canvas id="tema-analise-mensal"></canvas></div>
           </div>
@@ -1801,8 +1805,8 @@
                         <button id="btn-pagar-lote-toolbar" class="btn btn-secondary btn-sm" disabled title="Pagar em Lote">
                             <i class="fas fa-check-circle"></i> Lote
                         </button>
-                        <button id="btn-cofre-detalhe-mes" class="btn btn-cofre-mes btn-sm" onclick="abrirCofre()" title="Cofre">
-                            <i class="fas fa-piggy-bank"></i> Cofre
+                        <button id="btn-cofre-detalhe-mes" class="btn btn-cofre-mes btn-sm" onclick="abrirCofre()" title="Metas e Reservas">
+                            <i class="fas fa-bullseye"></i> Metas
                         </button>
                         <span class="toolbar-divider"></span>
                     </div>
@@ -2055,35 +2059,62 @@
     </div>
 </div>
 
-<!-- Modal Reservas (Cofre) -->
+<!-- Modal Reservas / Metas (Cofre) -->
 <div id="modal-reservar-valor" class="modal">
     <div class="modal-content modal-reservas">
         <div class="modal-header">
-            <h2><i class="fas fa-piggy-bank"></i> Cofre</h2>
+            <h2><i class="fas fa-bullseye"></i> Metas</h2>
             <button type="button" class="close" title="Fechar">&times;</button>
         </div>
+        <!-- Abas -->
+        <div class="metas-tabs">
+            <button class="metas-tab active" data-tab-metas="reservas" onclick="switchMetasTab('reservas', this)">
+                <i class="fas fa-piggy-bank"></i> Reservas
+            </button>
+            <button class="metas-tab" data-tab-metas="objetivos" onclick="switchMetasTab('objetivos', this)">
+                <i class="fas fa-trophy"></i> Objetivos
+            </button>
+        </div>
         <div class="modal-body">
-            <!-- Formulário de criação (TOPO) -->
-            <div class="nova-reserva-inline">
-                <input type="text" id="input-descricao-reserva" class="form-control" placeholder="Nome da reserva" maxlength="50">
-                <input type="number" id="input-valor-reserva" class="form-control" placeholder="Valor" step="0.01" min="0.01">
-                <button type="button" id="btn-adicionar-reserva" class="btn btn-success" title="Criar reserva">
-                    <i class="fas fa-plus"></i>
-                </button>
-            </div>
-
-            <!-- Lista de Reservas (ABAIXO do formulário) -->
-            <div class="reservas-lista-simples" id="lista-reservas">
-                <!-- Reservas serão inseridas aqui -->
-            </div>
-
-            <!-- Histórico Geral -->
-            <div class="historico-geral-container" id="historico-geral-container">
-                <h4><i class="fas fa-history"></i> Histórico</h4>
-                <div class="historico-geral-lista" id="historico-geral-reservas">
-                    <div class="historico-vazio">Nenhuma movimentação</div>
+            <!-- ABA: RESERVAS -->
+            <div id="metas-tab-reservas" class="metas-tab-content active">
+                <!-- Formulário de criação (TOPO) -->
+                <div class="nova-reserva-inline">
+                    <input type="text" id="input-descricao-reserva" class="form-control" placeholder="Nome da reserva" maxlength="50">
+                    <input type="number" id="input-valor-reserva" class="form-control" placeholder="Valor" step="0.01" min="0.01">
+                    <button type="button" id="btn-adicionar-reserva" class="btn btn-success" title="Criar reserva">
+                        <i class="fas fa-plus"></i>
+                    </button>
                 </div>
-                <div id="historico-sentinel" style="height:1px"></div>
+
+                <!-- Lista de Reservas -->
+                <div class="reservas-lista-simples" id="lista-reservas">
+                    <!-- Reservas serão inseridas aqui -->
+                </div>
+
+                <!-- Histórico Geral -->
+                <div class="historico-geral-container" id="historico-geral-container">
+                    <h4><i class="fas fa-history"></i> Histórico</h4>
+                    <div class="historico-geral-lista" id="historico-geral-reservas">
+                        <div class="historico-vazio">Nenhuma movimentação</div>
+                    </div>
+                    <div id="historico-sentinel" style="height:1px"></div>
+                </div>
+            </div>
+
+            <!-- ABA: OBJETIVOS -->
+            <div id="metas-tab-objetivos" class="metas-tab-content" style="display:none">
+                <div class="objetivos-header-action">
+                    <button class="btn btn-primary btn-sm" onclick="abrirModalCriarObjetivo()">
+                        <i class="fas fa-plus"></i> Novo Objetivo
+                    </button>
+                </div>
+                <div id="lista-objetivos" class="lista-objetivos-container">
+                    <div class="objetivos-vazio">
+                        <i class="fas fa-trophy" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:8px"></i>
+                        Crie sua primeira Meta
+                    </div>
+                </div>
             </div>
         </div>
         <div class="modal-footer modal-footer-cofre">
@@ -2093,6 +2124,40 @@
                     Não pedir senha novamente
                 </label>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Criar Objetivo -->
+<div id="modal-criar-objetivo" class="modal">
+    <div class="modal-content" style="max-width:420px">
+        <div class="modal-header">
+            <h2><i class="fas fa-trophy"></i> Novo Objetivo</h2>
+            <button type="button" class="close" onclick="fecharModalCriarObjetivo()" title="Fechar">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Nome do Objetivo</label>
+                <input type="text" id="obj-nome" class="form-control" placeholder="Ex: Viagem, Carro novo..." maxlength="80">
+            </div>
+            <div class="form-group">
+                <label>Valor Meta (R$)</label>
+                <input type="number" id="obj-valor-meta" class="form-control" placeholder="0,00" step="0.01" min="0.01">
+            </div>
+            <div class="form-group">
+                <label>Data Alvo <span style="font-size:11px;color:#94a3b8">(opcional)</span></label>
+                <input type="date" id="obj-data-alvo" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Valor Inicial (R$) <span style="font-size:11px;color:#94a3b8">(opcional)</span></label>
+                <input type="number" id="obj-valor-inicial" class="form-control" placeholder="0,00" step="0.01" min="0">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="fecharModalCriarObjetivo()">Cancelar</button>
+            <button type="button" class="btn btn-primary" onclick="salvarNovoObjetivo()">
+                <i class="fas fa-check"></i> Criar Objetivo
+            </button>
         </div>
     </div>
 </div>

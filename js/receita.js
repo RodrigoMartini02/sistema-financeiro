@@ -1389,6 +1389,12 @@ async function abrirModalReservarValor() {
     // Renderizar lista de reservas no modal
     renderizarListaReservasModal();
 
+    // Garantir que a aba "Reservas" esteja ativa ao abrir
+    const btnTabReservas = document.querySelector('.metas-tab[data-tab-metas="reservas"]');
+    if (typeof switchMetasTab === 'function') {
+        switchMetasTab('reservas', btnTabReservas);
+    }
+
     // Abrir modal
     const modal = document.getElementById('modal-reservar-valor');
     if (modal) {
@@ -1784,4 +1790,199 @@ window.atualizarCardReservasIntegrado = atualizarCardReservasIntegrado;
 window.abrirModalReservarValor = abrirModalReservarValor;
 window.carregarReservasAPI = carregarReservasAPI;
 window.calcularTotalReservas = calcularTotalReservas;
+
+// ================================================================
+// SISTEMA DE METAS / OBJETIVOS
+// ================================================================
+
+/**
+ * Troca de aba no modal de Metas
+ */
+function switchMetasTab(tabName, btnEl) {
+    document.querySelectorAll('.metas-tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.metas-tab-content').forEach(t => { t.style.display = 'none'; t.classList.remove('active'); });
+    if (btnEl) btnEl.classList.add('active');
+    const tabEl = document.getElementById('metas-tab-' + tabName);
+    if (tabEl) { tabEl.style.display = ''; tabEl.classList.add('active'); }
+    if (tabName === 'objetivos') {
+        renderizarListaObjetivos();
+    }
+}
+window.switchMetasTab = switchMetasTab;
+
+/**
+ * Cria novo objetivo — POST /api/reservas com tipo_reserva='objetivo'
+ */
+async function criarObjetivo(dados) {
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+    if (!token) throw new Error('Token ausente');
+    const mes = window.mesAberto !== undefined ? window.mesAberto : new Date().getMonth();
+    const ano = window.anoAberto !== undefined ? window.anoAberto : new Date().getFullYear();
+    const response = await fetch(`${API_URL_RESERVAS}/reservas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+            valor: dados.valorInicial || 0.01,
+            mes: mes,
+            ano: ano,
+            data: `${ano}-${String(mes + 1).padStart(2, '0')}-15`,
+            observacoes: dados.nome,
+            tipo_reserva: 'objetivo',
+            objetivo_valor: dados.objetivoValor,
+            data_objetivo: dados.dataObjetivo || null
+        })
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.message || 'Erro ao criar objetivo');
+    }
+    return await response.json();
+}
+window.criarObjetivo = criarObjetivo;
+
+/**
+ * Carrega objetivos — GET /api/reservas/objetivos
+ */
+async function carregarObjetivos() {
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+    if (!token) return [];
+    try {
+        const response = await fetch(`${API_URL_RESERVAS}/reservas/objetivos`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) return [];
+        const data = await response.json();
+        return data.data || [];
+    } catch {
+        return [];
+    }
+}
+window.carregarObjetivos = carregarObjetivos;
+
+/**
+ * Marca objetivo como atingido — PUT /api/reservas/:id
+ */
+async function marcarObjetivoAtingido(id) {
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+    if (!token) return;
+    try {
+        const response = await fetch(`${API_URL_RESERVAS}/reservas/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ objetivo_atingido: true })
+        });
+        if (response.ok) {
+            await renderizarListaObjetivos();
+            window.mostrarMensagemSucesso ? window.mostrarMensagemSucesso('Objetivo marcado como atingido!') : null;
+        }
+    } catch (e) {
+        console.error('Erro ao marcar objetivo:', e);
+    }
+}
+window.marcarObjetivoAtingido = marcarObjetivoAtingido;
+
+/**
+ * Renderiza lista de objetivos com barra de progresso
+ */
+async function renderizarListaObjetivos() {
+    const container = document.getElementById('lista-objetivos');
+    if (!container) return;
+    container.innerHTML = '<div style="text-align:center;padding:16px;color:#94a3b8;font-size:13px">Carregando...</div>';
+
+    const objetivos = await carregarObjetivos();
+    if (objetivos.length === 0) {
+        container.innerHTML = '<div class="objetivos-vazio"><i class="fas fa-trophy" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:8px"></i>Crie sua primeira Meta</div>';
+        return;
+    }
+
+    const hoje = new Date();
+    container.innerHTML = objetivos.map(function(obj) {
+        const progresso = parseFloat(obj.progresso) || 0;
+        const valorAtual = parseFloat(obj.valor) || 0;
+        const valorMeta = parseFloat(obj.objetivo_valor) || 0;
+        const atingido = obj.objetivo_atingido;
+        const barColor = atingido ? '#10b981' : (progresso >= 75 ? '#10b981' : progresso >= 40 ? '#f59e0b' : '#6366f1');
+
+        let diasRestantesHtml = '';
+        if (obj.data_objetivo && !atingido) {
+            const dataAlvo = new Date(obj.data_objetivo);
+            const diffMs = dataAlvo - hoje;
+            const diffDias = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+            if (diffDias > 0) {
+                diasRestantesHtml = `<span class="obj-dias-restantes"><i class="fas fa-calendar-alt"></i> ${diffDias} dias restantes</span>`;
+            } else if (diffDias <= 0) {
+                diasRestantesHtml = `<span class="obj-dias-restantes obj-prazo-vencido"><i class="fas fa-exclamation-triangle"></i> Prazo vencido</span>`;
+            }
+        }
+
+        return `<div class="objetivo-card ${atingido ? 'objetivo-atingido' : ''}">
+            <div class="objetivo-card-top">
+                <div class="objetivo-nome-wrap">
+                    <span class="objetivo-nome">${obj.observacoes || 'Objetivo'}</span>
+                    ${atingido ? '<span class="obj-badge-atingido"><i class="fas fa-check"></i> Atingido</span>' : ''}
+                    ${diasRestantesHtml}
+                </div>
+                ${!atingido ? `<button class="btn btn-sm btn-success obj-btn-atingido" onclick="marcarObjetivoAtingido(${obj.id})" title="Marcar como atingido"><i class="fas fa-check"></i></button>` : ''}
+            </div>
+            <div class="objetivo-progress-wrap">
+                <div class="objetivo-progress-bar-track">
+                    <div class="objetivo-progress-bar-fill" style="width:${Math.min(progresso, 100)}%;background:${barColor}"></div>
+                </div>
+                <div class="objetivo-valores">
+                    <span style="color:${barColor};font-weight:700">${progresso.toFixed(1)}%</span>
+                    <span style="color:#94a3b8;font-size:12px">${window.formatarMoeda ? window.formatarMoeda(valorAtual) : 'R$ '+valorAtual.toFixed(2)} / ${window.formatarMoeda ? window.formatarMoeda(valorMeta) : 'R$ '+valorMeta.toFixed(2)}</span>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+window.renderizarListaObjetivos = renderizarListaObjetivos;
+
+/**
+ * Abre modal de criação de objetivo
+ */
+function abrirModalCriarObjetivo() {
+    document.getElementById('obj-nome').value = '';
+    document.getElementById('obj-valor-meta').value = '';
+    document.getElementById('obj-data-alvo').value = '';
+    document.getElementById('obj-valor-inicial').value = '';
+    const modal = document.getElementById('modal-criar-objetivo');
+    if (modal) modal.style.display = 'flex';
+}
+window.abrirModalCriarObjetivo = abrirModalCriarObjetivo;
+
+function fecharModalCriarObjetivo() {
+    const modal = document.getElementById('modal-criar-objetivo');
+    if (modal) modal.style.display = 'none';
+}
+window.fecharModalCriarObjetivo = fecharModalCriarObjetivo;
+
+/**
+ * Salva novo objetivo
+ */
+async function salvarNovoObjetivo() {
+    const nome = (document.getElementById('obj-nome')?.value || '').trim();
+    const valorMeta = parseFloat(document.getElementById('obj-valor-meta')?.value);
+    const dataAlvo = document.getElementById('obj-data-alvo')?.value || null;
+    const valorInicial = parseFloat(document.getElementById('obj-valor-inicial')?.value) || 0;
+
+    if (!nome) {
+        (window.mostrarToast || alert)('Informe o nome do objetivo', 'warning');
+        return;
+    }
+    if (isNaN(valorMeta) || valorMeta <= 0) {
+        (window.mostrarToast || alert)('Informe um valor meta válido', 'warning');
+        return;
+    }
+
+    try {
+        await criarObjetivo({ nome, objetivoValor: valorMeta, dataObjetivo: dataAlvo, valorInicial: valorInicial > 0 ? valorInicial : 0.01 });
+        fecharModalCriarObjetivo();
+        await renderizarListaObjetivos();
+        window.mostrarMensagemSucesso ? window.mostrarMensagemSucesso('Objetivo criado com sucesso!') : null;
+    } catch (e) {
+        (window.mostrarToast || alert)(e.message || 'Erro ao criar objetivo', 'error');
+    }
+}
+window.salvarNovoObjetivo = salvarNovoObjetivo;
 

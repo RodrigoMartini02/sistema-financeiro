@@ -1843,7 +1843,31 @@ function obterDadosFiltrados() {
 }
 
 function atualizarKpisFixos() {
-    // Stub — resumo-cards removidos do dashboard. Dados exibidos nos KPIs dos temas.
+    // Atualizar KPI de Metas/Objetivos no tema Saúde
+    const elObj = document.getElementById('tk-saude-objetivos');
+    if (!elObj) return;
+    if (typeof window.carregarObjetivos !== 'function') {
+        elObj.textContent = 'Crie sua primeira Meta';
+        elObj.style.color = '#94a3b8';
+        return;
+    }
+    window.carregarObjetivos().then(function(objetivos) {
+        const ativos = objetivos.filter(o => !o.objetivo_atingido);
+        if (ativos.length === 0) {
+            elObj.textContent = 'Crie sua primeira Meta';
+            elObj.style.color = '#94a3b8';
+            elObj.style.fontSize = '13px';
+            return;
+        }
+        // Encontrar o mais próximo de ser atingido
+        const maisProximo = ativos.sort((a, b) => parseFloat(b.progresso) - parseFloat(a.progresso))[0];
+        const progresso = parseFloat(maisProximo.progresso) || 0;
+        elObj.innerHTML = ativos.length + ' ativo' + (ativos.length > 1 ? 's' : '') +
+            '<br><small style="font-size:11px;font-weight:400;color:#94a3b8">' +
+            (maisProximo.observacoes || 'Meta') + ': ' + progresso.toFixed(1) + '%</small>';
+        elObj.style.color = progresso >= 75 ? '#10b981' : '#f59e0b';
+        elObj.style.fontSize = '16px';
+    });
 }
 
 function atualizarDashboardTematico() {
@@ -2051,40 +2075,100 @@ function renderizarTemaSaude() {
         options: opcoesEscuras({ plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: false, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } })
     });
 
-    // Gráfico 3: Entradas vs Saídas — apenas meses com dados
-    const mesesComDados = MESES_LABELS.reduce((acc, label, i) => {
-        if (recPorMes[i] > 0 || despPorMes[i] > 0) acc.push(i);
-        return acc;
-    }, []);
-    const labelsEntradas = mesesComDados.map(i => MESES_LABELS[i]);
-    const recFiltrado   = mesesComDados.map(i => recPorMes[i]);
-    const despFiltrado  = mesesComDados.map(i => despPorMes[i]);
-    const numMeses = Math.max(labelsEntradas.length, 1);
-    const espessura = Math.max(5, Math.min(12, Math.floor(180 / numMeses)));
+    // Gráfico 3: Fluxo do Mês — waterfall: saldo inicial → receitas (sobe) → categorias (desce) → saldo final
+    (function() {
+        const filtro = obterFiltroAtivo();
+        const df = window.dadosFinanceiros || {};
+        const ano = filtro.ano;
+        const mes = filtro.mes !== null ? filtro.mes : (window.mesAtual !== undefined ? window.mesAtual : new Date().getMonth());
+        const dadosMes = df[ano]?.meses?.[mes] || {};
+        const saldoAnterior = window.obterSaldoAnterior ? window.obterSaldoAnterior(mes, ano) : 0;
 
-    criarChart('tema-saude-entradas', {
-        type: 'bar',
-        data: {
-            labels: labelsEntradas,
-            datasets: [
-                { label: 'Receitas', data: recFiltrado, backgroundColor: 'rgba(16,185,129,0.85)', borderRadius: 6, borderSkipped: false, barThickness: espessura },
-                { label: 'Despesas', data: despFiltrado, backgroundColor: 'rgba(244,63,94,0.80)', borderRadius: 6, borderSkipped: false, barThickness: espessura }
-            ]
-        },
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'top', align: 'end', labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 10, boxHeight: 10, borderRadius: 3, useBorderRadius: true, padding: 16 } },
-                tooltip: { callbacks: { label: function(ctx) { return ' R$ ' + parseFloat(ctx.parsed.x||0).toLocaleString('pt-BR',{minimumFractionDigits:2}); } } }
+        // Agrupar despesas por categoria
+        const porCat = {};
+        (dadosMes.despesas || []).forEach(function(d) {
+            const catObj = (df.categorias || []).find(c => c.id === d.categoria_id);
+            const nome = catObj ? catObj.nome : (d.categoria || 'Outros');
+            const valor = window.obterValorRealDespesa ? window.obterValorRealDespesa(d) : parseFloat(d.valor || 0);
+            if (!isNaN(valor) && valor > 0) porCat[nome] = (porCat[nome] || 0) + valor;
+        });
+
+        // Receitas do mês
+        const receitasMes = (dadosMes.receitas || []).reduce(function(s, r) {
+            if (r.saldoAnterior || r.automatica || (r.descricao && r.descricao.includes('Saldo Anterior'))) return s;
+            return s + parseFloat(r.valor || 0);
+        }, 0);
+
+        // Construir labels e dados de waterfall
+        const wfLabels = ['Saldo Inicial', 'Receitas'];
+        const catEntradas = Object.keys(porCat).sort((a, b) => porCat[b] - porCat[a]);
+        catEntradas.forEach(c => wfLabels.push(c));
+        wfLabels.push('Saldo Final');
+
+        // Para waterfall com barras flutuantes: [base, valor]
+        // Saldo inicial: barra de 0 até saldoAnterior
+        // Receitas: barra de saldoAnterior até saldoAnterior+receitas
+        // Cada categoria: desce
+        // Saldo final: barra de 0 até saldoFinal
+        const wfData = [];
+        const wfColors = [];
+        let acum = saldoAnterior;
+
+        // Saldo inicial
+        wfData.push({ x: wfLabels[0], y: [0, saldoAnterior] });
+        wfColors.push('#6366f1');
+
+        // Receitas
+        const novoAcum = acum + receitasMes;
+        wfData.push({ x: 'Receitas', y: [acum, novoAcum] });
+        wfColors.push('#10b981');
+        acum = novoAcum;
+
+        // Categorias de despesa (cada uma desce)
+        catEntradas.forEach(function(cat) {
+            const anterior = acum;
+            acum = acum - porCat[cat];
+            wfData.push({ x: cat, y: [acum, anterior] });
+            wfColors.push('#f43f5e');
+        });
+
+        // Saldo final
+        wfData.push({ x: 'Saldo Final', y: [0, acum] });
+        wfColors.push(acum >= 0 ? '#10b981' : '#f43f5e');
+
+        criarChart('tema-saude-entradas', {
+            type: 'bar',
+            data: {
+                labels: wfLabels,
+                datasets: [{
+                    label: 'Fluxo',
+                    data: wfData.map(d => d.y[1] - d.y[0]),
+                    backgroundColor: wfColors,
+                    borderRadius: 4,
+                    borderSkipped: false
+                }]
             },
-            scales: {
-                x: { ticks: { color: '#64748b', font: { size: 10 }, callback: function(v) { return v >= 1000 ? 'R$'+(v/1000).toFixed(0)+'k' : 'R$'+v; } }, grid: { color: 'rgba(255,255,255,0.03)' }, border: { display: false } },
-                y: { ticks: { color: '#cbd5e1', font: { size: 11, weight: '500' } }, grid: { display: false }, border: { display: false } }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                const v = ctx.parsed.y;
+                                return ' ' + fmtR(Math.abs(v));
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { ticks: { color: '#94a3b8', font: { size: 10 }, maxRotation: 35 }, grid: { display: false }, border: { display: false } },
+                    y: { ticks: { color: '#94a3b8', font: { size: 10 }, callback: function(v) { return v >= 1000 ? 'R$'+(v/1000).toFixed(0)+'k' : 'R$'+v; } }, grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false } }
+                }
             }
-        }
-    });
+        });
+    })();
 }
 
 // ── TEMA: FLUXO DE CAIXA ─────────────────────────────────────────
@@ -2117,21 +2201,59 @@ function renderizarTemaFluxo() {
         options: opcoesEscuras({ plugins: { legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } })
     });
 
-    // Gráfico 2: Line suave dupla — acumulado
-    const recAcum = [], despAcum = [];
-    recPorMes.reduce((a,v,i)=>{recAcum[i]=a+v;return recAcum[i];},0);
-    despPorMes.reduce((a,v,i)=>{despAcum[i]=a+v;return despAcum[i];},0);
-    criarChart('tema-fluxo-acumulado', {
-        type: 'line',
-        data: {
-            labels: MESES_LABELS,
-            datasets: [
-                { label: 'Receitas Acum.', data: recAcum, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.06)', fill: false, tension: 0.4, pointRadius: 0, borderWidth: 2 },
-                { label: 'Despesas Acum.', data: despAcum, borderColor: '#f43f5e', backgroundColor: 'rgba(244,63,94,0.06)', fill: false, tension: 0.4, pointRadius: 0, borderWidth: 2 }
-            ]
-        },
-        options: opcoesEscuras({ plugins: { legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } })
-    });
+    // Gráfico 2: Taxa de Poupança — ((receita - despesa) / receita) * 100 por mês, filtra meses sem dados
+    (function() {
+        const mesesValidos = MESES_LABELS.reduce(function(acc, label, i) {
+            if (recPorMes[i] > 0 || despPorMes[i] > 0) acc.push(i);
+            return acc;
+        }, []);
+        const labelsTaxa = mesesValidos.map(i => MESES_LABELS[i]);
+        const taxas = mesesValidos.map(function(i) {
+            const rec = recPorMes[i];
+            const desp = despPorMes[i];
+            if (rec <= 0) return 0;
+            return ((rec - desp) / rec) * 100;
+        });
+        const coresTaxa = taxas.map(v => v >= 0 ? 'rgba(16,185,129,0.75)' : 'rgba(244,63,94,0.75)');
+        const borderTaxa = taxas.map(v => v >= 0 ? '#10b981' : '#f43f5e');
+        criarChart('tema-fluxo-acumulado', {
+            type: 'line',
+            data: {
+                labels: labelsTaxa,
+                datasets: [{
+                    label: 'Taxa de Poupança (%)',
+                    data: taxas,
+                    borderColor: function(ctx) {
+                        return taxas[ctx.dataIndex] >= 0 ? '#10b981' : '#f43f5e';
+                    },
+                    backgroundColor: criarGradiente('tema-fluxo-acumulado', '#10b981', 0.35, 0.03),
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: borderTaxa,
+                    borderWidth: 2,
+                    segment: {
+                        borderColor: function(ctx) {
+                            return ctx.p0.parsed.y >= 0 && ctx.p1.parsed.y >= 0 ? '#10b981' : '#f43f5e';
+                        }
+                    }
+                }]
+            },
+            options: opcoesEscuras({
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: function(ctx) { return ' ' + parseFloat(ctx.parsed.y).toFixed(1) + '%'; } } }
+                },
+                scales: {
+                    x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                    y: {
+                        ticks: { color: '#94a3b8', font: { size: 11 }, callback: function(v) { return v.toFixed(0) + '%'; } },
+                        grid: { color: 'rgba(255,255,255,0.04)' }
+                    }
+                }
+            })
+        });
+    })();
 
     // Gráfico 3: Donut — receita vs despesa total
     criarChart('tema-fluxo-cobertura', {
@@ -2361,15 +2483,57 @@ function renderizarTemaAnual() {
     if (el2) { el2.textContent = MESES_LABELS[piorIdx] || '--'; el2.style.color = '#f43f5e'; }
     if (el3) { el3.textContent = total>=0?'↑ Positivo':'↓ Negativo'; el3.style.color = total>=0?'#10b981':'#f43f5e'; }
 
-    // Gráfico 1: Área suave — tendência de saldo
-    criarChart('tema-anual-tendencia', {
-        type: 'line',
-        data: {
-            labels: MESES_LABELS,
-            datasets: [{ label: 'Saldo', data: saldoPorMes, borderColor: '#6366f1', backgroundColor: criarGradiente('tema-anual-tendencia','#6366f1',0.35,0.02), fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2 }]
-        },
-        options: opcoesEscuras({ plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } })
-    });
+    // Gráfico 1: Intensidade de Gastos — heatmap via barras horizontais com gradiente verde→vermelho
+    (function() {
+        const maxDesp = Math.max(...despPorMes, 1);
+        function interpolarCor(valor, maximo) {
+            // verde (#10b981) → amarelo (#f59e0b) → vermelho (#f43f5e)
+            const t = Math.min(valor / maximo, 1);
+            if (t < 0.5) {
+                const f = t * 2;
+                return 'rgba(' + Math.round(16 + f * (245 - 16)) + ',' + Math.round(185 + f * (158 - 185)) + ',' + Math.round(129 + f * (11 - 129)) + ',0.85)';
+            } else {
+                const f = (t - 0.5) * 2;
+                return 'rgba(' + Math.round(245 + f * (244 - 245)) + ',' + Math.round(158 + f * (63 - 158)) + ',' + Math.round(11 + f * (94 - 11)) + ',0.85)';
+            }
+        }
+        const coresHeat = despPorMes.map(v => interpolarCor(v, maxDesp));
+        criarChart('tema-anual-tendencia', {
+            type: 'bar',
+            data: {
+                labels: MESES_LABELS,
+                datasets: [{
+                    label: 'Despesas',
+                    data: despPorMes,
+                    backgroundColor: coresHeat,
+                    borderRadius: { topLeft: 0, topRight: 6, bottomLeft: 0, bottomRight: 6 },
+                    borderSkipped: false,
+                    barThickness: 14
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                const v = ctx.parsed.x;
+                                const pct = maxDesp > 0 ? ((v / maxDesp) * 100).toFixed(1) : '0';
+                                return ' ' + fmtR(v) + ' (' + pct + '% do maior mês)';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { ticks: { color: '#94a3b8', font: { size: 10 }, callback: function(v) { return v >= 1000 ? 'R$'+(v/1000).toFixed(0)+'k' : 'R$'+v; } }, grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false } },
+                    y: { ticks: { color: '#cbd5e1', font: { size: 11 } }, grid: { display: false }, border: { display: false } }
+                }
+            }
+        });
+    })();
 
     // Gráfico 2: Barras agrupadas — comparação anos (usa obterDadosFiltrados com ano anterior)
     const anoAnt = filtro.ano - 1;
@@ -2447,21 +2611,50 @@ function renderizarTemaAnalise() {
     if (el2) el2.textContent = MESES_LABELS[despPorMes.indexOf(despPorMes.slice().sort((a,b)=>Math.abs(a-mediaMensal)-Math.abs(b-mediaMensal))[0])] || '--';
     if (el3) el3.textContent = fmtR(max - minPositivo);
 
-    // Gráfico 1: Barras horizontais — média por categoria
+    // Gráfico 1: Peso das Categorias — barras horizontais com valor total anual ordenado por peso
     const porCat = {};
-    despesas.forEach(function(d) {
-        const catObj = categorias.find(c=>c.id===d.categoria_id);
-        const nome = catObj?catObj.nome:(d.categoria||'Outros');
-        porCat[nome] = (porCat[nome]||0)+parseFloat(d.valor||0);
+    // Usar todos os anos disponíveis da estrutura dadosFinanceiros para calcular total anual
+    const todosAnosAnalise = Object.keys(df).map(Number).filter(Boolean);
+    todosAnosAnalise.forEach(function(anoN) {
+        const mesesAno = df[anoN]?.meses || [];
+        for (let m = 0; m < 12; m++) {
+            (mesesAno[m]?.despesas || []).forEach(function(d) {
+                const catObj = categorias.find(c => c.id === d.categoria_id);
+                const nome = catObj ? catObj.nome : (d.categoria || 'Outros');
+                const valor = window.obterValorRealDespesa ? window.obterValorRealDespesa(d) : parseFloat(d.valor || 0);
+                if (!isNaN(valor) && valor > 0) porCat[nome] = (porCat[nome] || 0) + valor;
+            });
+        }
     });
-    const catArr = Object.entries(porCat).sort((a,b)=>b[1]-a[1]); // todas as categorias
+    const catArrPeso = Object.entries(porCat).sort((a, b) => b[1] - a[1]);
+    const totalAnualPeso = catArrPeso.reduce((s, [, v]) => s + v, 0);
+    const maxPeso = catArrPeso.length > 0 ? catArrPeso[0][1] : 1;
     criarChart('tema-analise-media', {
         type: 'bar',
         data: {
-            labels: catArr.map(([n])=>n),
-            datasets: [{ label: 'Média/Mês', data: catArr.map(([,v])=>v/12), backgroundColor: catArr.map((_,i)=>CORES[i%CORES.length]), borderRadius: 4 }]
+            labels: catArrPeso.map(([n]) => n),
+            datasets: [{
+                label: 'Total Anual',
+                data: catArrPeso.map(([, v]) => v),
+                backgroundColor: catArrPeso.map((_, i) => CORES[i % CORES.length]),
+                borderRadius: { topLeft: 0, topRight: 6, bottomLeft: 0, bottomRight: 6 },
+                borderSkipped: false,
+                barPercentage: 0.9
+            }]
         },
-        options: opcoesBarraH()
+        options: Object.assign({}, opcoesBarraH(), {
+            plugins: Object.assign({}, opcoesBarraH().plugins, {
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            const v = ctx.parsed.x;
+                            const pct = totalAnualPeso > 0 ? ((v / totalAnualPeso) * 100).toFixed(1) : '0';
+                            return ' ' + fmtR(v) + ' (' + pct + '% do total)';
+                        }
+                    }
+                }
+            })
+        })
     });
 
     // Gráfico 2: Barras empilhadas — todas as categorias por mês (sem legenda)
