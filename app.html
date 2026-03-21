@@ -2108,13 +2108,29 @@
             <button type="button" class="close" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
-            <!-- Formulário inline no topo -->
-            <div class="nova-reserva-inline">
-                <input type="text" id="input-descricao-reserva" class="form-control" placeholder="Nome da reserva" maxlength="50">
-                <input type="number" id="input-valor-reserva" class="form-control" placeholder="Valor inicial (R$)" step="0.01" min="0">
-                <button type="button" id="btn-adicionar-reserva" class="btn btn-success" title="Criar reserva">
-                    <i class="fas fa-plus"></i>
-                </button>
+            <!-- Formulário: Nova Reserva -->
+            <div class="nova-reserva-grupo">
+                <div class="nova-reserva-grupo-label"><i class="fas fa-piggy-bank"></i> Nova Reserva</div>
+                <div class="nova-reserva-inline">
+                    <input type="text" id="input-descricao-reserva" class="form-control" placeholder="Nome da reserva" maxlength="50">
+                    <input type="number" id="input-valor-reserva" class="form-control" placeholder="Valor inicial (R$)" step="0.01" min="0.01">
+                    <button type="button" id="btn-adicionar-reserva" class="btn-add-reserva" title="Criar reserva">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Formulário: Novo Objetivo -->
+            <div class="nova-reserva-grupo nova-objetivo-grupo">
+                <div class="nova-reserva-grupo-label"><i class="fas fa-bullseye"></i> Novo Objetivo</div>
+                <div class="nova-reserva-inline">
+                    <input type="text" id="input-descricao-objetivo" class="form-control" placeholder="Ex: Comprar carro" maxlength="50">
+                    <input type="number" id="input-valor-objetivo" class="form-control" placeholder="Valor meta (R$)" step="0.01" min="0.01">
+                    <input type="date" id="input-data-objetivo" class="form-control" title="Data alvo (opcional)">
+                    <button type="button" id="btn-adicionar-objetivo" class="btn-add-objetivo" title="Criar objetivo">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
             </div>
 
             <!-- Lista de Reservas -->

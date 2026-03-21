@@ -1421,14 +1421,22 @@ async function renderizarListaReservasModal() {
         return;
     }
 
-    // Ordenar por nome
-    const reservasOrdenadas = [...window.reservasCache].sort((a, b) =>
-        (a.observacoes || '').localeCompare(b.observacoes || '')
-    );
-
     const hoje = new Date();
 
-    reservasOrdenadas.forEach(reserva => {
+    // Separar reservas simples de objetivos
+    const simples   = [...window.reservasCache].filter(r => r.tipo_reserva !== 'objetivo').sort((a,b) => (a.observacoes||'').localeCompare(b.observacoes||''));
+    const objetivos = [...window.reservasCache].filter(r => r.tipo_reserva === 'objetivo').sort((a,b) => (a.observacoes||'').localeCompare(b.observacoes||''));
+
+    const renderGrupo = (grupo, secaoLabel) => {
+        if (grupo.length === 0) return;
+        const sec = document.createElement('div');
+        sec.className = 'reserva-secao-label';
+        sec.textContent = secaoLabel;
+        lista.appendChild(sec);
+        grupo.forEach(reserva => renderCard(reserva));
+    };
+
+    const renderCard = (reserva) => {
         const temMeta = reserva.tipo_reserva === 'objetivo' && parseFloat(reserva.objetivo_valor) > 0;
         const valorAtual = _calcularValorAtualReserva(reserva.id);
         const valorMeta = parseFloat(reserva.objetivo_valor) || 0;
@@ -1507,7 +1515,10 @@ async function renderizarListaReservasModal() {
         });
 
         lista.appendChild(card);
-    });
+    }; // fim renderCard
+
+    renderGrupo(simples, 'Reservas');
+    renderGrupo(objetivos, 'Objetivos');
 
     // Renderizar histórico geral
     await renderizarHistoricoGeral();
@@ -1761,6 +1772,55 @@ async function processarAdicionarReserva() {
 }
 
 /**
+ * Cria novo objetivo (reserva com tipo_reserva='objetivo', saldo inicial 0)
+ */
+async function processarAdicionarObjetivo() {
+    const descricao = document.getElementById('input-descricao-objetivo')?.value.trim();
+    const valorMeta = parseFloat(document.getElementById('input-valor-objetivo')?.value);
+    const dataAlvo  = document.getElementById('input-data-objetivo')?.value || null;
+
+    if (!descricao) { (window.mostrarToast || alert)('Informe o nome do objetivo', 'warning'); return; }
+    if (isNaN(valorMeta) || valorMeta <= 0) { (window.mostrarToast || alert)('Informe o valor meta', 'warning'); return; }
+
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+    if (!token) { (window.mostrarToast || alert)('Sessão expirada', 'error'); return; }
+
+    const mes = window.mesAberto;
+    const ano = window.anoAberto;
+
+    try {
+        const response = await fetch(`${API_URL_RESERVAS}/reservas`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({
+                valor: 0,
+                mes, ano,
+                data: `${ano}-${String(mes + 1).padStart(2, '0')}-15`,
+                observacoes: descricao,
+                tipo_reserva: 'objetivo',
+                objetivo_valor: valorMeta,
+                data_objetivo: dataAlvo || null
+            })
+        });
+
+        if (response.ok) {
+            document.getElementById('input-descricao-objetivo').value = '';
+            document.getElementById('input-valor-objetivo').value = '';
+            document.getElementById('input-data-objetivo').value = '';
+            await carregarReservasAPI();
+            await atualizarModalReservas();
+            atualizarCardReservasIntegrado();
+            window.mostrarMensagemSucesso ? window.mostrarMensagemSucesso('Objetivo criado!') : null;
+        } else {
+            const err = await response.json();
+            (window.mostrarToast || alert)(err.message || 'Erro ao criar objetivo', 'error');
+        }
+    } catch(e) {
+        (window.mostrarToast || alert)('Erro ao criar objetivo', 'error');
+    }
+}
+
+/**
  * Atualiza valores do modal de reservas
  */
 async function atualizarModalReservas() {
@@ -1822,9 +1882,10 @@ function inicializarEventosReservasIntegradas() {
     }
 
     const btnAdicionar = document.getElementById('btn-adicionar-reserva');
-    if (btnAdicionar) {
-        btnAdicionar.addEventListener('click', processarAdicionarReserva);
-    }
+    if (btnAdicionar) btnAdicionar.addEventListener('click', processarAdicionarReserva);
+
+    const btnAdicionarObj = document.getElementById('btn-adicionar-objetivo');
+    if (btnAdicionarObj) btnAdicionarObj.addEventListener('click', processarAdicionarObjetivo);
 
     carregarReservasAPI();
 }

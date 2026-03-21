@@ -2359,7 +2359,11 @@ async function renderizarTemaMetas() {
     if (elProx)   elProx.textContent   = '…';
     if (elMedia)  elMedia.textContent  = '…';
 
-    // Usa cache local já carregado — evita fetch extra que pode falhar
+    // Garantir que o cache de reservas está carregado
+    if ((!window.reservasCache || window.reservasCache.length === 0) && typeof window.carregarReservasAPI === 'function') {
+        try { await window.carregarReservasAPI(); } catch(e) {}
+    }
+
     const calcValorAtual = function(reservaId) {
         const movs = window.movimentacoesReservasCache || [];
         return movs.filter(m => m.reserva_id === reservaId)
@@ -2375,14 +2379,6 @@ async function renderizarTemaMetas() {
                 : 0;
             return { ...r, valorAtual, progresso: parseFloat(progresso.toFixed(1)) };
         });
-
-    // Fallback: se cache vazio, tenta API
-    if (objetivos.length === 0 && typeof window.carregarObjetivos === 'function') {
-        try {
-            const data = await window.carregarObjetivos();
-            objetivos = data.map(r => ({ ...r, valorAtual: parseFloat(r.valor) || 0, progresso: parseFloat(r.progresso) || 0 }));
-        } catch(e) { objetivos = []; }
-    }
 
     const ativos = objetivos.filter(o => !o.objetivo_atingido);
 
