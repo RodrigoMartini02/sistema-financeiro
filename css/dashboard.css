@@ -885,26 +885,36 @@
    RESERVAS — Cards unificados no modal de Cofre/Reservas
    ================================================================ */
 
-/* Card de reserva moderno */
+/* ── Card principal ─────────────────────────────────────────────── */
 .reserva-card {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 12px;
-    padding: 14px 16px;
-    margin-bottom: 10px;
-    transition: border-color 0.2s;
+    background: rgba(255,255,255,0.035);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 14px;
+    padding: 14px 16px 12px;
+    margin-bottom: 8px;
+    transition: box-shadow 0.2s, border-color 0.2s, transform 0.15s;
+    position: relative;
 }
 .reserva-card:hover {
-    border-color: rgba(99,102,241,0.35);
+    border-color: rgba(99,102,241,0.28);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    transform: translateY(-1px);
 }
+
+/* Borda esquerda colorida por progresso quando tem meta */
 .reserva-card.tem-meta {
-    border-left: 3px solid #6366f1;
+    border-left: 3px solid #6366f1; /* fallback — sobrescrito via JS se necessário */
 }
+.reserva-card.tem-meta.meta-verde  { border-left-color: #10b981; }
+.reserva-card.tem-meta.meta-amarelo { border-left-color: #f59e0b; }
+.reserva-card.tem-meta.meta-vermelho { border-left-color: #f43f5e; }
+
+/* ── Linha do topo: nome + valor + botões ───────────────────────── */
 .reserva-card-top {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
-    gap: 8px;
+    gap: 10px;
 }
 .reserva-card-info {
     flex: 1;
@@ -917,160 +927,320 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: 1.3;
 }
 .reserva-card-valor {
-    font-size: 13px;
-    color: #10b981;
-    font-weight: 500;
+    font-size: 18px;
+    font-weight: 700;
+    color: #34d399;
+    letter-spacing: -0.3px;
     margin-top: 2px;
+    line-height: 1.2;
 }
+.reserva-card-valor-label {
+    font-size: 11px;
+    color: #475569;
+    font-weight: 400;
+    margin-left: 3px;
+    letter-spacing: 0;
+}
+
+/* ── Botões de ação — discretos, visíveis no hover do card ─────── */
 .reserva-card-acoes {
     display: flex;
-    gap: 6px;
+    gap: 5px;
     flex-shrink: 0;
+    opacity: 0.4;
+    transition: opacity 0.2s;
+    margin-top: 1px;
 }
+.reserva-card:hover .reserva-card-acoes { opacity: 1; }
+
 .reserva-btn {
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
-    border: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    border: 1px solid transparent;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 13px;
+    font-size: 12px;
     transition: all 0.15s;
+    background: transparent;
 }
-.reserva-btn-meta { background: rgba(99,102,241,0.15); color: #94a3b8; }
-.reserva-btn-meta:hover { background: rgba(99,102,241,0.3); color: #6366f1; }
-.reserva-btn-meta.ativo { color: #6366f1; background: rgba(99,102,241,0.25); }
-.reserva-btn-excluir { background: rgba(244,63,94,0.1); color: #64748b; }
-.reserva-btn-excluir:hover { background: rgba(244,63,94,0.25); color: #f43f5e; }
+.reserva-btn-meta {
+    color: #64748b;
+    border-color: rgba(99,102,241,0.15);
+    background: rgba(99,102,241,0.08);
+}
+.reserva-btn-meta:hover {
+    background: rgba(99,102,241,0.22);
+    border-color: rgba(99,102,241,0.4);
+    color: #a5b4fc;
+}
+.reserva-btn-meta.ativo {
+    background: rgba(99,102,241,0.2);
+    border-color: rgba(99,102,241,0.5);
+    color: #818cf8;
+}
+.reserva-btn-excluir {
+    color: #64748b;
+    border-color: rgba(244,63,94,0.12);
+    background: rgba(244,63,94,0.06);
+}
+.reserva-btn-excluir:hover {
+    background: rgba(244,63,94,0.18);
+    border-color: rgba(244,63,94,0.4);
+    color: #fb7185;
+}
 
-/* Input inline de movimentação */
+/* ── Input "Mover" — integrado visualmente ─────────────────────── */
 .reserva-mov-inline {
     display: flex;
-    gap: 8px;
     align-items: center;
     margin-top: 10px;
+    border-radius: 9px;
+    border: 1px solid rgba(255,255,255,0.09);
+    background: rgba(255,255,255,0.04);
+    overflow: hidden;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.reserva-mov-inline:focus-within {
+    border-color: rgba(99,102,241,0.45);
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
 }
 .reserva-mov-inline input {
     flex: 1;
-    padding: 7px 10px;
-    border-radius: 8px;
-    border: 1px solid rgba(255,255,255,0.1);
-    background: rgba(255,255,255,0.05);
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
     color: #e2e8f0;
     font-size: 13px;
     outline: none;
-    transition: border-color 0.15s;
+    min-width: 0;
 }
-.reserva-mov-inline input:focus { border-color: rgba(99,102,241,0.5); }
-.reserva-mov-inline input::placeholder { color: #475569; font-size: 12px; }
+.reserva-mov-inline input::placeholder {
+    color: #334155;
+    font-size: 12px;
+}
 .reserva-btn-mover {
-    padding: 7px 14px;
-    border-radius: 8px;
+    padding: 7px 13px;
     border: none;
-    background: rgba(99,102,241,0.2);
+    border-left: 1px solid rgba(255,255,255,0.08);
+    background: rgba(99,102,241,0.14);
     color: #a5b4fc;
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
-    transition: background 0.15s;
+    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;
+    letter-spacing: 0.2px;
 }
-.reserva-btn-mover:hover { background: rgba(99,102,241,0.4); color: #fff; }
-[data-theme="light"] .reserva-mov-inline input { background: #f8faff; color: #1e293b; border-color: #e2e8f0; }
-[data-theme="light"] .reserva-mov-inline input:focus { border-color: #6366f1; }
-[data-theme="light"] .reserva-btn-mover { background: rgba(99,102,241,0.1); color: #6366f1; }
+.reserva-btn-mover:hover {
+    background: rgba(99,102,241,0.32);
+    color: #fff;
+}
 
-/* Barra de progresso da meta */
+/* ── Barra de progresso da meta ─────────────────────────────────── */
 .reserva-meta-info {
-    margin-top: 10px;
+    margin-top: 11px;
     padding-top: 10px;
-    border-top: 1px solid rgba(255,255,255,0.06);
+    border-top: 1px solid rgba(255,255,255,0.05);
+}
+.reserva-meta-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
 }
 .reserva-meta-bar-track {
-    height: 6px;
-    background: rgba(255,255,255,0.08);
+    flex: 1;
+    height: 8px;
+    background: rgba(255,255,255,0.07);
     border-radius: 99px;
     overflow: hidden;
-    margin-bottom: 6px;
 }
 .reserva-meta-bar-fill {
     height: 100%;
     border-radius: 99px;
-    transition: width 0.4s ease;
+    transition: width 0.45s cubic-bezier(0.4,0,0.2,1);
 }
-.reserva-meta-bar-fill.verde { background: linear-gradient(90deg, #10b981, #34d399); }
-.reserva-meta-bar-fill.amarelo { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
-.reserva-meta-bar-fill.vermelho { background: linear-gradient(90deg, #f43f5e, #fb7185); }
+.reserva-meta-bar-fill.verde   { background: linear-gradient(90deg, #059669, #34d399); }
+.reserva-meta-bar-fill.amarelo { background: linear-gradient(90deg, #d97706, #fbbf24); }
+.reserva-meta-bar-fill.vermelho{ background: linear-gradient(90deg, #e11d48, #fb7185); }
+
+.reserva-meta-pct {
+    font-size: 12px;
+    font-weight: 700;
+    min-width: 36px;
+    text-align: right;
+    flex-shrink: 0;
+}
+.reserva-meta-pct.verde   { color: #34d399; }
+.reserva-meta-pct.amarelo { color: #fbbf24; }
+.reserva-meta-pct.vermelho{ color: #fb7185; }
+
 .reserva-meta-texto {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: #94a3b8;
-    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 11.5px;
+    color: #475569;
 }
-.reserva-meta-pct { font-weight: 700; }
-.reserva-meta-pct.verde { color: #10b981; }
-.reserva-meta-pct.amarelo { color: #f59e0b; }
-.reserva-meta-pct.vermelho { color: #f43f5e; }
-.reserva-meta-texto > span:nth-child(2) { flex: 1; }
+.reserva-meta-valores { flex: 1; }
 .reserva-meta-dias {
-    font-size: 11px;
-    color: #94a3b8;
     display: inline-flex;
     align-items: center;
     gap: 4px;
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.05);
+    flex-shrink: 0;
 }
-.reserva-meta-dias.verde { color: #10b981; }
-.reserva-meta-dias.laranja { color: #f59e0b; }
-.reserva-meta-dias.vermelho { color: #f43f5e; }
+.reserva-meta-dias.verde   { color: #34d399; background: rgba(52,211,153,0.08); }
+.reserva-meta-dias.laranja { color: #fbbf24; background: rgba(251,191,36,0.08); }
+.reserva-meta-dias.vermelho{ color: #fb7185; background: rgba(251,113,133,0.08); }
 
-/* Painel de meta (oculto por padrão) */
+/* ── Painel de meta (oculto por padrão) ─────────────────────────── */
 .reserva-meta-painel {
     margin-top: 10px;
     padding: 10px 12px;
-    background: rgba(99,102,241,0.06);
-    border: 1px solid rgba(99,102,241,0.2);
-    border-radius: 8px;
+    background: rgba(99,102,241,0.05);
+    border: 1px solid rgba(99,102,241,0.18);
+    border-radius: 10px;
     display: none;
+    animation: reservaPainelIn 0.15s ease;
+}
+@keyframes reservaPainelIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 .reserva-meta-painel-inputs {
     display: flex;
     gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 8px;
+    margin-bottom: 9px;
 }
 .reserva-meta-painel-inputs input {
     flex: 1;
-    min-width: 120px;
-    padding: 6px 10px;
-    border-radius: 6px;
-    border: 1px solid rgba(255,255,255,0.1);
-    background: rgba(255,255,255,0.05);
+    min-width: 0;
+    padding: 7px 10px;
+    border-radius: 7px;
+    border: 1px solid rgba(99,102,241,0.2);
+    background: rgba(99,102,241,0.06);
     color: #e2e8f0;
-    font-size: 13px;
+    font-size: 12.5px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+.reserva-meta-painel-inputs input:focus {
+    border-color: rgba(99,102,241,0.5);
 }
 .reserva-meta-painel-acoes {
     display: flex;
-    gap: 8px;
+    gap: 6px;
 }
 
-/* Light mode overrides */
+/* ── Light mode ─────────────────────────────────────────────────── */
 [data-theme="light"] .reserva-card {
-    background: #fff;
-    border-color: rgba(99,102,241,0.12);
+    background: #ffffff;
+    border-color: rgba(148,163,184,0.2);
+    box-shadow: 0 1px 6px rgba(15,23,42,0.06);
 }
-[data-theme="light"] .reserva-card.tem-meta {
-    border-left-color: #6366f1;
+[data-theme="light"] .reserva-card:hover {
+    border-color: rgba(99,102,241,0.3);
+    box-shadow: 0 4px 18px rgba(99,102,241,0.1);
+    transform: translateY(-1px);
 }
-[data-theme="light"] .reserva-card-nome { color: #1e293b; }
+[data-theme="light"] .reserva-card.tem-meta          { border-left-color: #6366f1; }
+[data-theme="light"] .reserva-card.tem-meta.meta-verde   { border-left-color: #059669; }
+[data-theme="light"] .reserva-card.tem-meta.meta-amarelo { border-left-color: #d97706; }
+[data-theme="light"] .reserva-card.tem-meta.meta-vermelho{ border-left-color: #e11d48; }
+
+[data-theme="light"] .reserva-card-nome  { color: #1e293b; }
+[data-theme="light"] .reserva-card-valor { color: #059669; }
+[data-theme="light"] .reserva-card-valor-label { color: #94a3b8; }
+
+[data-theme="light"] .reserva-card-acoes { opacity: 0.5; }
+[data-theme="light"] .reserva-card:hover .reserva-card-acoes { opacity: 1; }
+
+[data-theme="light"] .reserva-btn-meta {
+    border-color: rgba(99,102,241,0.2);
+    background: rgba(99,102,241,0.06);
+    color: #6366f1;
+}
+[data-theme="light"] .reserva-btn-meta:hover {
+    background: rgba(99,102,241,0.14);
+}
+[data-theme="light"] .reserva-btn-meta.ativo {
+    background: rgba(99,102,241,0.12);
+    color: #4f46e5;
+}
+[data-theme="light"] .reserva-btn-excluir {
+    border-color: rgba(244,63,94,0.15);
+    background: rgba(244,63,94,0.05);
+    color: #94a3b8;
+}
+[data-theme="light"] .reserva-btn-excluir:hover {
+    background: rgba(244,63,94,0.12);
+    color: #e11d48;
+}
+
+[data-theme="light"] .reserva-mov-inline {
+    background: #f8faff;
+    border-color: #e2e8f0;
+}
+[data-theme="light"] .reserva-mov-inline:focus-within {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+}
+[data-theme="light"] .reserva-mov-inline input {
+    color: #1e293b;
+}
+[data-theme="light"] .reserva-mov-inline input::placeholder { color: #94a3b8; }
+[data-theme="light"] .reserva-btn-mover {
+    border-left-color: #e2e8f0;
+    background: rgba(99,102,241,0.08);
+    color: #6366f1;
+}
+[data-theme="light"] .reserva-btn-mover:hover {
+    background: rgba(99,102,241,0.18);
+    color: #4f46e5;
+}
+
+[data-theme="light"] .reserva-meta-info {
+    border-top-color: rgba(0,0,0,0.06);
+}
 [data-theme="light"] .reserva-meta-bar-track { background: rgba(0,0,0,0.07); }
-[data-theme="light"] .reserva-meta-painel { background: rgba(99,102,241,0.04); }
-[data-theme="light"] .reserva-meta-painel-inputs input { background: #f8faff; color: #1e293b; border-color: #e2e8f0; }
+[data-theme="light"] .reserva-meta-pct.verde   { color: #059669; }
+[data-theme="light"] .reserva-meta-pct.amarelo { color: #d97706; }
+[data-theme="light"] .reserva-meta-pct.vermelho{ color: #e11d48; }
+[data-theme="light"] .reserva-meta-bar-fill.verde   { background: linear-gradient(90deg,#059669,#10b981); }
+[data-theme="light"] .reserva-meta-bar-fill.amarelo { background: linear-gradient(90deg,#d97706,#f59e0b); }
+[data-theme="light"] .reserva-meta-bar-fill.vermelho{ background: linear-gradient(90deg,#e11d48,#f43f5e); }
+[data-theme="light"] .reserva-meta-texto { color: #64748b; }
+[data-theme="light"] .reserva-meta-dias {
+    background: rgba(0,0,0,0.04);
+    color: #64748b;
+}
+[data-theme="light"] .reserva-meta-dias.verde   { color: #059669; background: rgba(5,150,105,0.07); }
+[data-theme="light"] .reserva-meta-dias.laranja { color: #d97706; background: rgba(217,119,6,0.07); }
+[data-theme="light"] .reserva-meta-dias.vermelho{ color: #e11d48; background: rgba(225,29,72,0.07); }
+
+[data-theme="light"] .reserva-meta-painel {
+    background: rgba(99,102,241,0.03);
+    border-color: rgba(99,102,241,0.14);
+}
+[data-theme="light"] .reserva-meta-painel-inputs input {
+    background: #f8faff;
+    color: #1e293b;
+    border-color: rgba(99,102,241,0.2);
+}
+[data-theme="light"] .reserva-meta-painel-inputs input:focus {
+    border-color: #6366f1;
+}
 
 /* Botão ativo do tema Metas */
 [data-tema="metas"].active { background: linear-gradient(135deg, #4f46e5, #06b6d4); box-shadow: 0 2px 14px rgba(6,182,212,0.45); }

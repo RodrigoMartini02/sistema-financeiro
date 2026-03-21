@@ -1436,9 +1436,11 @@ async function renderizarListaReservasModal() {
 
         // Barra de progresso da meta
         let metaHtml = '';
+        let metaCor = '';
         if (temMeta) {
             const pct = valorMeta > 0 ? Math.min((valorAtual / valorMeta) * 100, 100) : 0;
             const cor = pct >= 75 ? 'verde' : pct >= 40 ? 'amarelo' : 'vermelho';
+            metaCor = cor;
             let diasHtml = '';
             if (reserva.data_objetivo) {
                 const dataAlvo = new Date(reserva.data_objetivo + 'T00:00:00');
@@ -1448,10 +1450,12 @@ async function renderizarListaReservasModal() {
             }
             metaHtml = `
                 <div class="reserva-meta-info">
-                    <div class="reserva-meta-bar-track"><div class="reserva-meta-bar-fill ${cor}" style="width:${pct.toFixed(1)}%"></div></div>
+                    <div class="reserva-meta-bar-row">
+                        <div class="reserva-meta-bar-track"><div class="reserva-meta-bar-fill ${cor}" style="width:${pct.toFixed(1)}%"></div></div>
+                        <span class="reserva-meta-pct ${cor}">${pct.toFixed(0)}%</span>
+                    </div>
                     <div class="reserva-meta-texto">
-                        <span class="reserva-meta-pct ${cor}">${pct.toFixed(1)}%</span>
-                        <span>${window.formatarMoeda(valorAtual)} / ${window.formatarMoeda(valorMeta)}</span>
+                        <span class="reserva-meta-valores">${window.formatarMoeda(valorAtual)} <span style="opacity:0.45">/</span> ${window.formatarMoeda(valorMeta)}</span>
                         ${diasHtml}
                     </div>
                 </div>`;
@@ -1461,7 +1465,7 @@ async function renderizarListaReservasModal() {
         const painelMetaHtml = `
             <div class="reserva-meta-painel" id="meta-painel-${reserva.id}" style="display:none">
                 <div class="reserva-meta-painel-inputs">
-                    <input type="number" id="meta-valor-${reserva.id}" placeholder="Valor meta (R$)" step="0.01" min="0" value="${temMeta ? valorMeta : ''}">
+                    <input type="number" id="meta-valor-${reserva.id}" placeholder="Valor da meta (R$)" step="0.01" min="0" value="${temMeta ? valorMeta : ''}">
                     <input type="date" id="meta-data-${reserva.id}" value="${reserva.data_objetivo ? reserva.data_objetivo.split('T')[0] : ''}">
                 </div>
                 <div class="reserva-meta-painel-acoes">
@@ -1473,13 +1477,14 @@ async function renderizarListaReservasModal() {
             </div>`;
 
         const card = document.createElement('div');
-        card.className = `reserva-card${temMeta ? ' tem-meta' : ''}`;
+        const metaClass = temMeta ? ` tem-meta meta-${metaCor}` : '';
+        card.className = `reserva-card${metaClass}`;
         card.dataset.reservaId = reserva.id;
         card.innerHTML = `
             <div class="reserva-card-top">
                 <div class="reserva-card-info">
-                    <div class="reserva-card-nome"><i class="fas fa-piggy-bank" style="opacity:0.4;margin-right:6px;font-size:11px"></i>${reserva.observacoes || 'Reserva'}</div>
-                    <div class="reserva-card-valor">${window.formatarMoeda(valorExibir)} guardado</div>
+                    <div class="reserva-card-nome">${reserva.observacoes || 'Reserva'}</div>
+                    <div class="reserva-card-valor">${window.formatarMoeda(valorExibir)}<span class="reserva-card-valor-label">guardado</span></div>
                 </div>
                 <div class="reserva-card-acoes">
                     <button class="reserva-btn reserva-btn-meta${temMeta ? ' ativo' : ''}" title="${temMeta ? 'Editar meta' : 'Definir meta'}"><i class="fas fa-bullseye"></i></button>
@@ -1487,7 +1492,7 @@ async function renderizarListaReservasModal() {
                 </div>
             </div>
             <div class="reserva-mov-inline">
-                <input type="number" id="mov-valor-${reserva.id}" placeholder="+ adicionar  /  − retirar" step="0.01">
+                <input type="number" id="mov-valor-${reserva.id}" placeholder="+ adicionar  ·  − retirar" step="0.01">
                 <button class="reserva-btn-mover">Mover</button>
             </div>
             ${metaHtml}

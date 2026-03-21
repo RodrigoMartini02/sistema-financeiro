@@ -534,210 +534,184 @@
    MODAL DE RESERVAS
    ================================================================ */
 
+/* ================================================================
+   MODAL RESERVAS — Layout e estrutura
+   ================================================================ */
+
 #modal-reservar-valor .modal-content,
 .modal-reservas {
-    max-width: 500px;
-    width: 95%;
+    max-width: 520px;
+    width: 96%;
     height: auto;
-    max-height: 90vh;
+    max-height: 92vh;
     display: flex;
     flex-direction: column;
+    border-radius: 16px;
+    overflow: hidden;
+    padding: 0;
+}
+
+/* Header com gradiente indigo-roxo */
+#modal-reservar-valor .modal-header {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    border-radius: 0;
+    padding: 18px 22px;
+}
+#modal-reservar-valor .modal-header h2 {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+#modal-reservar-valor .modal-header h2 i {
+    font-size: 15px;
+    opacity: 0.85;
 }
 
 #modal-reservar-valor .modal-body,
 .modal-reservas .modal-body {
-    padding: 16px 20px;
+    padding: 18px 18px 14px;
     flex: 1;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    gap: 0;
 }
 
-/* Totalizador */
-.reservas-totalizador {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 16px;
-    flex-shrink: 0;
-}
-
-.reservas-totalizador .totalizador-item {
-    flex: 1;
-    background: var(--gray-100);
-    padding: 12px;
-    text-align: center;
-    border: 1px solid var(--gray-300);
-    border-radius: 6px;
-}
-
-.reservas-totalizador .totalizador-item.disponivel {
-    background: #e8f5e9;
-    border-color: #81c784;
-}
-
-.reservas-totalizador .totalizador-label {
-    display: block;
-    font-size: 11px;
-    color: var(--gray-600);
-    text-transform: uppercase;
-    margin-bottom: 4px;
-}
-
-.reservas-totalizador .totalizador-valor {
-    display: block;
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--gray-800);
-}
-
-.reservas-totalizador .totalizador-item.disponivel .totalizador-valor {
-    color: #2e7d32;
-}
-
-/* Formulário nova reserva */
-.nova-reserva-form {
-    background: var(--gray-50);
-    padding: 12px;
-    margin-bottom: 16px;
-    border: 1px solid var(--gray-200);
-    border-radius: 8px;
-}
-
-.nova-reserva-form h4 {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--gray-700);
-    margin: 0 0 10px 0;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.nova-reserva-form h4 i {
-    color: var(--success);
-}
-
-.nova-reserva-form .form-row {
-    display: flex;
-    gap: 10px;
-    align-items: flex-end;
-}
-
-.nova-reserva-form .form-group {
-    flex: 1;
-    margin-bottom: 0;
-}
-
-.nova-reserva-form .form-group-valor {
-    max-width: 120px;
-}
-
-.nova-reserva-form .form-group label {
-    font-size: 11px;
-    margin-bottom: 4px;
-    display: block;
-    color: var(--gray-600);
-}
-
-.nova-reserva-form .form-control {
-    height: 36px;
-    font-size: 13px;
-    padding: 0 10px;
-}
-
-.btn-add-reserva {
-    height: 36px;
-    width: 36px;
-    min-width: 36px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* Lista de reservas simplificada */
-.reservas-lista-simples {
-    margin-bottom: 16px;
-    flex-shrink: 0;
-}
-
-.reserva-vazia {
-    padding: 20px;
-    text-align: center;
-    color: var(--gray-500);
-    font-size: 13px;
-}
-
-/* Nova reserva inline */
+/* ── Formulário nova reserva (topo) ─────────────────────────────── */
 .nova-reserva-inline {
     display: flex;
-    gap: 8px;
-    padding: 12px;
-    background: var(--gray-50);
-    border: 1px solid var(--gray-200);
-    border-radius: 8px;
-    margin-bottom: 16px;
+    gap: 7px;
+    align-items: center;
+    padding: 11px 13px;
+    background: rgba(99,102,241,0.06);
+    border: 1px solid rgba(99,102,241,0.15);
+    border-radius: 11px;
+    margin-bottom: 14px;
     flex-shrink: 0;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.nova-reserva-inline:focus-within {
+    border-color: rgba(99,102,241,0.35);
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.08);
 }
 
 .nova-reserva-inline input[type="text"] {
     flex: 1;
-    height: 36px;
+    height: 34px;
     font-size: 13px;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    color: inherit;
+    padding: 0 10px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+.nova-reserva-inline input[type="text"]:focus {
+    border-color: rgba(99,102,241,0.4);
 }
 
 .nova-reserva-inline input[type="number"] {
-    width: 100px;
-    height: 36px;
+    width: 110px;
+    height: 34px;
     font-size: 13px;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    color: inherit;
+    padding: 0 10px;
     text-align: right;
+    outline: none;
+    transition: border-color 0.15s;
+}
+.nova-reserva-inline input[type="number"]:focus {
+    border-color: rgba(99,102,241,0.4);
 }
 
 .nova-reserva-inline .btn {
-    height: 36px;
-    width: 36px;
+    height: 34px;
+    width: 34px;
+    min-width: 34px;
     padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
+    border-radius: 8px;
+    flex-shrink: 0;
+    font-size: 14px;
 }
 
-/* Histórico geral */
+/* ── Lista de reservas ──────────────────────────────────────────── */
+.reservas-lista-simples {
+    margin-bottom: 14px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.reserva-vazia {
+    padding: 28px 20px;
+    text-align: center;
+    color: var(--gray-400, #94a3b8);
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+.reserva-vazia::before {
+    content: "\f4d3"; /* fa-piggy-bank unicode */
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    font-size: 28px;
+    opacity: 0.2;
+    display: block;
+}
+
+/* ── Histórico geral ────────────────────────────────────────────── */
 .historico-geral-container {
-    border-top: 1px solid var(--gray-200);
-    padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    padding-top: 14px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    flex: 1;
 }
 
 .historico-geral-container:not(.collapsed) {
     flex: 1;
-    min-height: 200px;
+    min-height: 180px;
 }
 
 .historico-geral-container h4 {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
-    color: var(--gray-700);
-    margin: 0 0 10px 0;
+    color: var(--gray-500, #64748b);
+    margin: 0 0 8px 0;
     display: flex;
     align-items: center;
     gap: 6px;
     flex-shrink: 0;
     cursor: pointer;
     user-select: none;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .historico-geral-container h4 i {
-    color: var(--primary-color);
+    color: #6366f1;
+    opacity: 0.7;
 }
 
 .historico-geral-container h4 .seta-historico {
     margin-left: auto;
-    color: var(--gray-400);
+    color: var(--gray-400, #94a3b8);
     font-size: 11px;
     transition: transform 0.2s ease;
+    opacity: 0.6;
 }
 
 .historico-geral-container:not(.collapsed) h4 .seta-historico {
@@ -751,72 +725,172 @@
 .historico-geral-lista {
     flex: 1;
     overflow-y: auto;
-    border: 1px solid var(--gray-200);
-    border-radius: 6px;
-    background: var(--white);
-    min-height: 150px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.07);
+    background: rgba(255,255,255,0.02);
+    min-height: 140px;
 }
 
 .historico-geral-lista .historico-vazio {
-    padding: 12px;
+    padding: 20px;
     text-align: center;
-    color: var(--gray-500);
+    color: var(--gray-500, #64748b);
     font-size: 12px;
+    opacity: 0.6;
 }
 
+/* Linhas do histórico */
 .historico-linha {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr auto auto;
     align-items: center;
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--gray-100);
+    gap: 10px;
+    padding: 7px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
     font-size: 12px;
+    transition: background 0.1s;
 }
-
-.historico-linha:last-child {
-    border-bottom: none;
-}
+.historico-linha:last-child { border-bottom: none; }
+.historico-linha:hover { background: rgba(255,255,255,0.03); }
 
 .historico-linha.entrada {
-    background: #f0fdf4;
+    border-left: 2px solid rgba(52,211,153,0.4);
 }
-
 .historico-linha.saida {
-    background: #fef2f2;
+    border-left: 2px solid rgba(251,113,133,0.4);
 }
 
 .historico-linha .hist-nome {
-    flex: 1;
     font-weight: 500;
-    color: var(--gray-700);
+    color: #cbd5e1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .historico-linha .hist-valor {
-    font-weight: 600;
-    min-width: 90px;
-    text-align: right;
-    margin-right: 12px;
+    font-weight: 700;
+    font-size: 12.5px;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
 }
-
-.historico-linha .hist-valor.positivo {
-    color: #16a34a;
-}
-
-.historico-linha .hist-valor.negativo {
-    color: #dc2626;
-}
+.historico-linha .hist-valor.positivo { color: #34d399; }
+.historico-linha .hist-valor.negativo { color: #fb7185; }
 
 .historico-linha .hist-data {
-    color: var(--gray-500);
-    font-size: 11px;
-    min-width: 110px;
+    color: #475569;
+    font-size: 10.5px;
+    white-space: nowrap;
     text-align: right;
 }
 
 .historico-vazio {
     text-align: center;
-    color: var(--gray-400);
+    color: var(--gray-400, #94a3b8);
     font-size: 12px;
     padding: 20px;
+    opacity: 0.6;
+}
+
+/* ── Formulário clássico nova-reserva-form (não-inline) ─────────── */
+.nova-reserva-form {
+    background: rgba(99,102,241,0.05);
+    padding: 12px;
+    margin-bottom: 14px;
+    border: 1px solid rgba(99,102,241,0.14);
+    border-radius: 10px;
+}
+
+.nova-reserva-form h4 {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    margin: 0 0 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.nova-reserva-form h4 i { color: #6366f1; }
+
+.nova-reserva-form .form-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+}
+
+.nova-reserva-form .form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.nova-reserva-form .form-group-valor { max-width: 120px; }
+
+.nova-reserva-form .form-group label {
+    font-size: 11px;
+    margin-bottom: 4px;
+    display: block;
+    color: #64748b;
+}
+
+.nova-reserva-form .form-control {
+    height: 34px;
+    font-size: 13px;
+    padding: 0 10px;
+}
+
+.btn-add-reserva {
+    height: 34px;
+    width: 34px;
+    min-width: 34px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ── Totalizador ────────────────────────────────────────────────── */
+.reservas-totalizador {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+    flex-shrink: 0;
+}
+
+.reservas-totalizador .totalizador-item {
+    flex: 1;
+    background: rgba(255,255,255,0.04);
+    padding: 10px 12px;
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+}
+
+.reservas-totalizador .totalizador-item.disponivel {
+    background: rgba(52,211,153,0.06);
+    border-color: rgba(52,211,153,0.2);
+}
+
+.reservas-totalizador .totalizador-label {
+    display: block;
+    font-size: 10px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 4px;
+}
+
+.reservas-totalizador .totalizador-valor {
+    display: block;
+    font-size: 17px;
+    font-weight: 700;
+    color: #e2e8f0;
+}
+
+.reservas-totalizador .totalizador-item.disponivel .totalizador-valor {
+    color: #34d399;
 }
 
 /* ================================================================
@@ -1105,64 +1179,132 @@
 }
 
 /* Reservas modal */
+/* ── Dark mode: Totalizador ─────────────────────────────────────── */
 [data-theme="dark"] .reservas-totalizador .totalizador-item {
-    background: var(--theme-surface-2);
-    border-color: var(--theme-border);
+    background: rgba(255,255,255,0.03);
+    border-color: rgba(255,255,255,0.07);
 }
 [data-theme="dark"] .reservas-totalizador .totalizador-item.disponivel {
-    background: rgba(16, 185, 129, 0.08);
-    border-color: rgba(16, 185, 129, 0.2);
+    background: rgba(52, 211, 153, 0.06);
+    border-color: rgba(52, 211, 153, 0.18);
 }
-[data-theme="dark"] .reservas-totalizador .totalizador-label {
-    color: var(--theme-text-muted);
-}
-[data-theme="dark"] .reservas-totalizador .totalizador-valor {
-    color: var(--theme-text);
-}
-[data-theme="dark"] .reservas-totalizador .totalizador-item.disponivel .totalizador-valor {
-    color: #4ade80;
-}
+[data-theme="dark"] .reservas-totalizador .totalizador-label { color: #475569; }
+[data-theme="dark"] .reservas-totalizador .totalizador-valor { color: #e2e8f0; }
+[data-theme="dark"] .reservas-totalizador .totalizador-item.disponivel .totalizador-valor { color: #34d399; }
 
-/* Nova reserva form */
+/* ── Dark mode: Nova reserva form ───────────────────────────────── */
 [data-theme="dark"] .nova-reserva-form {
-    background: var(--theme-surface-2);
-    border-color: var(--theme-border);
+    background: rgba(99,102,241,0.05);
+    border-color: rgba(99,102,241,0.14);
 }
-[data-theme="dark"] .nova-reserva-form h4 {
-    color: var(--theme-text-muted);
-}
-[data-theme="dark"] .nova-reserva-form .form-group label {
-    color: var(--theme-text-faint);
-}
+[data-theme="dark"] .nova-reserva-form h4 { color: #475569; }
+[data-theme="dark"] .nova-reserva-form .form-group label { color: #475569; }
 
-/* Nova reserva inline */
+/* ── Dark mode: Nova reserva inline ─────────────────────────────── */
 [data-theme="dark"] .nova-reserva-inline {
-    background: var(--theme-surface-2);
-    border-color: var(--theme-border);
+    background: rgba(99,102,241,0.05);
+    border-color: rgba(99,102,241,0.14);
+}
+[data-theme="dark"] .nova-reserva-inline input[type="text"],
+[data-theme="dark"] .nova-reserva-inline input[type="number"] {
+    border-color: rgba(255,255,255,0.08);
+    color: #e2e8f0;
+}
+[data-theme="dark"] .nova-reserva-inline input[type="text"]::placeholder,
+[data-theme="dark"] .nova-reserva-inline input[type="number"]::placeholder {
+    color: #334155;
+}
+[data-theme="dark"] .nova-reserva-inline input[type="text"]:focus,
+[data-theme="dark"] .nova-reserva-inline input[type="number"]:focus {
+    border-color: rgba(99,102,241,0.4);
 }
 
-/* Histórico geral */
+/* ── Dark mode: Histórico geral ─────────────────────────────────── */
 [data-theme="dark"] .historico-geral-container {
-    border-top-color: var(--theme-border);
+    border-top-color: rgba(255,255,255,0.07);
 }
-[data-theme="dark"] .historico-geral-container h4 {
-    color: var(--theme-text-muted);
-}
+[data-theme="dark"] .historico-geral-container h4 { color: #475569; }
 [data-theme="dark"] .historico-geral-lista {
-    background: var(--theme-surface-solid);
-    border-color: var(--theme-border);
+    background: rgba(255,255,255,0.015);
+    border-color: rgba(255,255,255,0.06);
 }
 [data-theme="dark"] .historico-linha {
-    border-bottom-color: var(--theme-border);
+    border-bottom-color: rgba(255,255,255,0.04);
 }
-[data-theme="dark"] .historico-linha.entrada {
-    background: rgba(16, 185, 129, 0.05);
+[data-theme="dark"] .historico-linha:hover { background: rgba(255,255,255,0.03); }
+[data-theme="dark"] .historico-linha.entrada { border-left-color: rgba(52,211,153,0.35); }
+[data-theme="dark"] .historico-linha.saida   { border-left-color: rgba(251,113,133,0.35); }
+[data-theme="dark"] .historico-linha .hist-nome { color: #94a3b8; }
+
+/* ── Light mode: modal reservas ─────────────────────────────────── */
+[data-theme="light"] #modal-reservar-valor .modal-content {
+    background: #f8faff;
 }
-[data-theme="dark"] .historico-linha.saida {
-    background: rgba(244, 63, 94, 0.05);
+[data-theme="light"] #modal-reservar-valor .modal-body {
+    background: #f8faff;
 }
-[data-theme="dark"] .historico-linha .hist-nome {
-    color: var(--theme-text-muted);
+[data-theme="light"] .nova-reserva-inline {
+    background: rgba(99,102,241,0.04);
+    border-color: rgba(99,102,241,0.14);
+}
+[data-theme="light"] .nova-reserva-inline:focus-within {
+    border-color: rgba(99,102,241,0.3);
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.07);
+}
+[data-theme="light"] .nova-reserva-inline input[type="text"],
+[data-theme="light"] .nova-reserva-inline input[type="number"] {
+    border-color: rgba(99,102,241,0.15);
+    background: rgba(255,255,255,0.7);
+    color: #1e293b;
+}
+[data-theme="light"] .nova-reserva-inline input[type="text"]::placeholder,
+[data-theme="light"] .nova-reserva-inline input[type="number"]::placeholder {
+    color: #94a3b8;
+}
+[data-theme="light"] .nova-reserva-inline input:focus {
+    border-color: #6366f1;
+    background: #fff;
+}
+[data-theme="light"] .historico-geral-container { border-top-color: rgba(0,0,0,0.07); }
+[data-theme="light"] .historico-geral-container h4 { color: #94a3b8; }
+[data-theme="light"] .historico-geral-lista {
+    background: #fff;
+    border-color: rgba(0,0,0,0.08);
+}
+[data-theme="light"] .historico-linha { border-bottom-color: rgba(0,0,0,0.04); }
+[data-theme="light"] .historico-linha:hover { background: rgba(99,102,241,0.02); }
+[data-theme="light"] .historico-linha.entrada { border-left-color: rgba(5,150,105,0.35); }
+[data-theme="light"] .historico-linha.saida   { border-left-color: rgba(225,29,72,0.3); }
+[data-theme="light"] .historico-linha .hist-nome { color: #334155; }
+[data-theme="light"] .historico-linha .hist-valor.positivo { color: #059669; }
+[data-theme="light"] .historico-linha .hist-valor.negativo { color: #e11d48; }
+[data-theme="light"] .historico-linha .hist-data { color: #94a3b8; }
+[data-theme="light"] .nova-reserva-form {
+    background: rgba(99,102,241,0.03);
+    border-color: rgba(99,102,241,0.12);
+}
+[data-theme="light"] .reservas-totalizador .totalizador-item {
+    background: #f1f5f9;
+    border-color: rgba(0,0,0,0.07);
+}
+[data-theme="light"] .reservas-totalizador .totalizador-item.disponivel {
+    background: rgba(5,150,105,0.06);
+    border-color: rgba(5,150,105,0.18);
+}
+[data-theme="light"] .reservas-totalizador .totalizador-label { color: #94a3b8; }
+[data-theme="light"] .reservas-totalizador .totalizador-valor { color: #1e293b; }
+[data-theme="light"] .reservas-totalizador .totalizador-item.disponivel .totalizador-valor { color: #059669; }
+
+/* ── Dark mode: Modal Reservas — fundo do content e body ─────────── */
+[data-theme="dark"] #modal-reservar-valor .modal-content {
+    background: #0d1117;
+}
+[data-theme="dark"] #modal-reservar-valor .modal-body {
+    background: #0d1117;
+}
+[data-theme="dark"] #modal-reservar-valor .modal-footer {
+    background: #080c14;
+    border-top-color: rgba(255,255,255,0.06);
 }
 
 /* Categoria inline input */
