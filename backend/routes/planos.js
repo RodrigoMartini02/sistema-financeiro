@@ -103,7 +103,7 @@ router.post('/assinar', authMiddleware, async (req, res) => {
         const body = {
             items: [{
                 id: tipo,
-                title: `Sistema Financeiro - Plano ${tipo.toUpperCase()}`,
+                title: `FinGerence - Plano ${tipo === 'anual' ? 'Premium' : 'Plus'}`,
                 unit_price: valor,
                 quantity: 1,
                 currency_id: 'BRL'
@@ -160,7 +160,7 @@ router.post('/pix', authMiddleware, async (req, res) => {
                 transaction_amount: valor,
                 payment_method_id: 'pix',
                 payer: { email: usuario.email },
-                description: `Sistema Financeiro - Plano ${tipo.charAt(0).toUpperCase() + tipo.slice(1)}`,
+                description: `FinGerence - Plano ${tipo === 'anual' ? 'Premium' : 'Plus'}`,
                 external_reference: req.usuario.id.toString(),
                 notification_url: `${BACKEND_URL}/api/planos/webhook`,
                 date_of_expiration: expiracao
@@ -322,7 +322,7 @@ router.post('/pagar-cartao', authMiddleware, async (req, res) => {
                         ? { type: 'CPF', number: req.body.cpf.replace(/\D/g, '') }
                         : undefined
                 },
-                description: `Sistema Financeiro - Plano ${tipo.charAt(0).toUpperCase() + tipo.slice(1)}`,
+                description: `FinGerence - Plano ${tipo === 'anual' ? 'Premium' : 'Plus'}`,
                 external_reference: req.usuario.id.toString(),
                 notification_url: `${BACKEND_URL}/api/planos/webhook`
             }
@@ -404,7 +404,7 @@ router.post('/assinar-recorrente', authMiddleware, async (req, res) => {
 
         const result = await preApproval.create({
             body: {
-                reason: `Sistema Financeiro - Plano ${tipo === 'mensal' ? 'Mensal' : 'Anual'}`,
+                reason: `FinGerence - Plano ${tipo === 'mensal' ? 'Plus' : 'Premium'}`,
                 external_reference: req.usuario.id.toString(),
                 payer_email: usuario.email,
                 card_token_id: card_token,
@@ -629,7 +629,7 @@ async function enviarEmailCobranca({ email, nome, diasRestantes, linkRenovacao, 
                     to_name: nome,
                     assunto,
                     dias_restantes: diasRestantes,
-                    tipo_plano: tipoPlano || 'mensal',
+                    tipo_plano: tipoPlano === 'anual' ? 'Premium' : tipoPlano === 'mensal' ? 'Plus' : 'Grátis',
                     link_renovacao: linkRenovacao || FRONTEND_URL,
                     sistema_nome: 'Sistema de Controle Financeiro'
                 }
@@ -649,6 +649,31 @@ async function enviarEmailCobranca({ email, nome, diasRestantes, linkRenovacao, 
         return false;
     }
 }
+
+// ================================================================
+// ROTA TEMPORÁRIA DE TESTE — remover após validar
+// GET /api/planos/teste-email-cobranca
+// ================================================================
+router.get('/teste-email-cobranca', authMiddleware, async (req, res) => {
+    try {
+        const r = await query('SELECT nome, email, plano_status, plano_tipo FROM usuarios WHERE id = $1', [req.usuario.id]);
+        const usuario = r.rows[0];
+        if (!usuario) return res.status(404).json({ success: false, message: 'Usuário não encontrado.' });
+
+        const tipoPlano = usuario.plano_tipo === 'anual' ? 'Plano Premium' : usuario.plano_tipo === 'mensal' ? 'Plano Plus' : 'Plano Grátis';
+        const ok = await enviarEmailCobranca({
+            email: usuario.email,
+            nome: usuario.nome,
+            diasRestantes: 3,
+            tipoPlano,
+            linkRenovacao: `${FRONTEND_URL}/app.html?planos=1`
+        });
+
+        res.json({ success: ok, message: ok ? `Email enviado para ${usuario.email}` : 'Falha ao enviar — verifique as variáveis de ambiente.' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
 
 module.exports = router;
 module.exports.enviarEmailCobranca = enviarEmailCobranca;

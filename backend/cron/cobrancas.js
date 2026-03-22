@@ -38,8 +38,8 @@ async function executarVerificacaoCobrancas() {
                     email: usuario.email,
                     nome: usuario.nome,
                     diasRestantes,
-                    tipoPlano: usuario.plano_tipo,
-                    linkRenovacao: FRONTEND_URL
+                    tipoPlano: usuario.plano_tipo === 'anual' ? 'Premium' : 'Plus',
+                    linkRenovacao: `${FRONTEND_URL}/app.html?planos=1`
                 });
             }
         }
@@ -61,8 +61,8 @@ async function executarVerificacaoCobrancas() {
                     email: usuario.email,
                     nome: usuario.nome,
                     diasRestantes,
-                    tipoPlano: 'trial',
-                    linkRenovacao: FRONTEND_URL
+                    tipoPlano: 'Grátis',
+                    linkRenovacao: `${FRONTEND_URL}/app.html?planos=1`
                 });
             }
         }

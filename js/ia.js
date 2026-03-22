@@ -1,5 +1,5 @@
 // ================================================================
-// GEN — IA Financeira Fin-Gerence
+// GEN — IA Financeira FinGerence
 // Funciona como painel flutuante (outras páginas) e página completa (ia.html)
 // Exposto como window.IA
 // ================================================================
@@ -139,7 +139,7 @@ window.IA = (function () {
 
         apiGet('/config').then(function (cfg) {
             var provider = (cfg && cfg.provider) || 'gen';
-            var nome     = (cfg && cfg.nome)     || 'Gen ativa — IA interna Fin-Gerence';
+            var nome     = (cfg && cfg.nome)     || 'Gen ativa — IA interna FinGerence';
             var isGen    = provider === 'gen';
 
             _setStatus(nome, true);
@@ -1406,7 +1406,7 @@ window.IA = (function () {
         claude:  'Chave começa com <code>sk-ant-</code>. Obtenha em console.anthropic.com'
     };
     var LABELS_PROVIDER = {
-        gen:    'Gen ativa — IA interna Fin-Gerence',
+        gen:    'Gen ativa — IA interna FinGerence',
         openai: 'OpenAI ativa — GPT-4o mini',
         gemini: 'Google Gemini ativo — Gemini 2.0 Flash',
         claude: 'Anthropic Claude ativo — Claude Haiku'
@@ -1495,6 +1495,7 @@ window.IA = (function () {
         if (!estado.modoPagina) {
             // FAB: NÃO registra addEventListener aqui — aplicarVisibilidadeIA() controla
             // o onclick do FAB exclusivamente para evitar disparo duplo no plano gratuito.
+            document.getElementById('ai-btn-fechar-panel')?.addEventListener('click', fechar);
             document.getElementById('ai-btn-nova-conversa')?.addEventListener('click', limparConversa);
 
             // Boleto

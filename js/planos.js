@@ -128,7 +128,7 @@ function atualizarSidebarPlano(plano) {
         if (fillEl) fillEl.style.width = `${progresso}%`;
 
         trialBanner.style.display = 'flex';
-        if (btnLabel) btnLabel.textContent = 'Plano Pro';
+        if (btnLabel) btnLabel.textContent = 'Assinar Plus ou Premium';
         btnUpgrade.style.cssText = '';
         btnUpgrade.style.display = 'flex';
 
@@ -139,7 +139,7 @@ function atualizarSidebarPlano(plano) {
     } else if (plano.status === 'ativo') {
         const tipo = plano.plano_tipo;
         if (btnLabel) {
-            btnLabel.textContent = tipo === 'anual' ? 'Plano Pro Anual' : tipo === 'master' ? 'Plano Pro' : 'Plano Pro Mensal';
+            btnLabel.textContent = tipo === 'anual' ? 'Plano Premium' : tipo === 'master' ? 'Master' : 'Plano Plus';
         }
         btnUpgrade.style.cssText = '';
         btnUpgrade.style.display = 'flex';
@@ -240,7 +240,7 @@ function atualizarBannerCartaoContexto() {
 window.irParaPagamento = function (tipo) {
     planoSelecionado = tipo;
 
-    const nomes  = { mensal: 'Mensal', anual: 'Anual' };
+    const nomes  = { mensal: 'Plus', anual: 'Premium' };
     const precos = { mensal: 'R$ 39,99/mês', anual: 'R$ 422,28/ano' };
 
     const resumoEl = document.getElementById('pgmt-pag-resumo');
@@ -570,6 +570,13 @@ window.verificarPagamentoPix = async function () {
 // ================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Abre modal de planos automaticamente se vier do link do email
+    if (new URLSearchParams(window.location.search).get('planos') === '1') {
+        setTimeout(() => {
+            if (typeof window.abrirModalPlanos === 'function') window.abrirModalPlanos();
+        }, 1000);
+    }
+
     const numInput = document.getElementById('pgmt-card-number');
     const expInput = document.getElementById('pgmt-card-expiry');
     const cvvInput = document.getElementById('pgmt-card-cvv');
@@ -633,7 +640,7 @@ async function abrirGerenciarPlano(plano) {
     document.getElementById('pgmt-tela-gerenciar').style.display = 'block';
 
     // Preenche info do plano
-    const nomePlano = plano.plano_tipo === 'anual' ? 'Plano Anual' : 'Plano Mensal';
+    const nomePlano = plano.plano_tipo === 'anual' ? 'Plano Premium' : 'Plano Plus';
     const renovacao = plano.plano_tipo === 'anual'
         ? 'Cancelamento com reembolso proporcional'
         : 'Cancelamento sem reembolso';
