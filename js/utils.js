@@ -46,6 +46,7 @@ function isAuthenticated() {
  */
 function redirecionarParaLogin() {
     if (!window.location.pathname.includes('index.html')) {
+        sessionStorage.setItem('redirectAfterLogin', window.location.href);
         window.location.href = 'index.html';
     }
 }

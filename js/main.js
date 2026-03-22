@@ -879,10 +879,12 @@ function setupSistemaBloqueio() {
         clearTimeout(inactivityTimer);
         bloquearModal();
         
-        if (passwordInput) {
-            passwordInput.value = '';
-            setTimeout(() => passwordInput.focus(), 100);
+        const documentoInput = document.getElementById('lock-screen-documento');
+        if (documentoInput) {
+            documentoInput.value = '';
+            setTimeout(() => documentoInput.focus(), 100);
         }
+        if (passwordInput) passwordInput.value = '';
     };
 
     const unlockSystem = () => {
@@ -934,34 +936,40 @@ function setupSistemaBloqueio() {
     const handleUnlockAttempt = async (event) => {
         event.preventDefault();
 
+        const documentoInput = document.getElementById('lock-screen-documento');
+        const enteredDocumento = documentoInput?.value?.trim();
         const enteredPassword = passwordInput?.value;
-        if (!enteredPassword) {
-            (window.mostrarToast || alert)('Por favor, digite sua senha.', 'warning');
+
+        if (!enteredDocumento || !enteredPassword) {
+            (window.mostrarToast || alert)('Preencha o CPF/CNPJ e a senha.', 'warning');
             return;
         }
 
         try {
-            const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-
-            if (!token) {
-                (window.mostrarToast || alert)('Sessão expirada. Faça login novamente.', 'error');
-                sessionStorage.setItem('redirectAfterLogin', window.location.href);
-                window.location.href = 'index.html';
-                return;
-            }
-
-            const response = await fetch(`${API_URL}/auth/verify-password`, {
+            const response = await fetch(`${API_URL}/auth/login`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ senha: enteredPassword })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ documento: enteredDocumento, senha: enteredPassword })
             });
 
             const resultado = await response.json();
 
             if (resultado.success) {
+                // Salva o novo token
+                sessionStorage.setItem('token', resultado.token);
+                if (resultado.usuario) {
+                    sessionStorage.setItem('usuarioAtual', resultado.usuario.documento || resultado.usuario.email);
+                    sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify(resultado.usuario));
+                }
+
+                // Verifica se há redirect pendente (ex: link do e-mail ?planos=1)
+                const redirect = sessionStorage.getItem('redirectAfterLogin');
+                if (redirect) {
+                    sessionStorage.removeItem('redirectAfterLogin');
+                    window.location.href = redirect;
+                    return;
+                }
+
                 if (window._lockScreenSuccessCallback) {
                     const cb = window._lockScreenSuccessCallback;
                     window._lockScreenSuccessCallback = null;
@@ -975,12 +983,14 @@ function setupSistemaBloqueio() {
                     modalContent.classList.add('shake-animation');
                     setTimeout(() => modalContent.classList.remove('shake-animation'), 500);
                 }
+                documentoInput.value = '';
                 passwordInput.value = '';
-                passwordInput.focus();
+                documentoInput.focus();
+                (window.mostrarToast || alert)(resultado.message || 'CPF/CNPJ ou senha incorretos.', 'error');
             }
         } catch (error) {
-            console.error('Erro ao verificar senha:', error);
-            (window.mostrarToast || alert)('Erro ao verificar senha. Tente novamente.', 'error');
+            console.error('Erro ao autenticar:', error);
+            (window.mostrarToast || alert)('Erro ao autenticar. Tente novamente.', 'error');
         }
     };
 

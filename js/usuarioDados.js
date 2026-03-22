@@ -82,6 +82,7 @@ class UsuarioDataManager {
     redirecionarParaLogin() {
         const pathname = window.location.pathname;
         if (!pathname.includes('index.html') && pathname.length > 1) {
+            sessionStorage.setItem('redirectAfterLogin', window.location.href);
             window.location.href = 'index.html';
         }
     }
