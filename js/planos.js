@@ -572,9 +572,14 @@ window.verificarPagamentoPix = async function () {
 document.addEventListener('DOMContentLoaded', () => {
     // Abre modal de planos automaticamente se vier do link do email
     if (new URLSearchParams(window.location.search).get('planos') === '1') {
-        setTimeout(() => {
-            if (typeof window.abrirModalPlanos === 'function') window.abrirModalPlanos();
-        }, 1000);
+        const tentarAbrirModal = (tentativas = 0) => {
+            if (typeof window.abrirModalPlanos === 'function') {
+                window.abrirModalPlanos();
+            } else if (tentativas < 10) {
+                setTimeout(() => tentarAbrirModal(tentativas + 1), 500);
+            }
+        };
+        setTimeout(() => tentarAbrirModal(), 1000);
     }
 
     const numInput = document.getElementById('pgmt-card-number');

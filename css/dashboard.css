@@ -537,20 +537,20 @@
 /* ONDE VAI O DINHEIRO: Treemap 2/3 (amplo) + Top5 1/3 + Média full */
 #tema-categorias .tema-charts-grid {
     display: grid;
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 20px;
 }
 #tema-categorias .tema-charts-grid .tema-chart-card:nth-child(1) {
-    grid-column: 1;
-    height: 400px;
+    grid-column: 1 / -1;
+    height: 480px;
 }
 #tema-categorias .tema-charts-grid .tema-chart-card:nth-child(2) {
-    grid-column: 2;
-    height: 400px;
+    grid-column: 1;
+    height: 380px;
 }
 #tema-categorias .tema-charts-grid .tema-chart-card:nth-child(3) {
-    grid-column: 1 / -1;
-    height: 320px;
+    grid-column: 2;
+    height: 380px;
 }
 
 /* PAGAMENTO: 2 donuts lado a lado (topo) + barras empilhadas full (baixo) */
