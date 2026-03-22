@@ -629,7 +629,7 @@ async function enviarEmailCobranca({ email, nome, diasRestantes, linkRenovacao, 
                     to_name: nome,
                     assunto,
                     dias_restantes: diasRestantes,
-                    tipo_plano: tipoPlano === 'anual' ? 'Premium' : tipoPlano === 'mensal' ? 'Plus' : 'Grátis',
+                    tipo_plano: tipoPlano,
                     link_renovacao: linkRenovacao || FRONTEND_URL,
                     sistema_nome: 'Sistema de Controle Financeiro'
                 }
