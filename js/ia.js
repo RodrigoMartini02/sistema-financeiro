@@ -22,6 +22,20 @@
 // ── MÓDULO ───────────────────────────────────────────────────────
 window.IA = (function () {
 
+    var MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+    // Helper: retorna true para qualquer variante de pagamento com cartão de crédito
+    function _eCredito(fp) { return fp === 'cartao_credito' || fp === 'credito'; }
+
+    // Helper: calcula parcelas a partir de um objeto despesa
+    function _calcParcelas(d) {
+        var totalParcelas = parseInt(d.parcelas) || 1;
+        var parcelado     = totalParcelas > 1;
+        var valorTotal    = parseFloat(d.valor) || 0;
+        var valorParcela  = parcelado ? valorTotal / totalParcelas : valorTotal;
+        return { totalParcelas: totalParcelas, parcelado: parcelado, valorTotal: valorTotal, valorParcela: valorParcela };
+    }
+
     var estado = {
         enviando: false,
         gravandoVoz: false,
@@ -29,11 +43,12 @@ window.IA = (function () {
         despesaPendente: null,
         receitaPendente: null,
         arquivoPendente: null,
-        contexto: null,
         modoPagina: false, // true quando em ia.html
         aguardandoCampo: null,   // campo sendo coletado ('descricao', 'valor', 'forma_pagamento', 'vencimento', 'data_receita')
         dadosParciais:   null,   // objeto despesa/receita em construção
         tipoColeta:      null,   // 'despesa' ou 'receita'
+        // campo_revisao: campo especial onde o usuário escolhe qual campo quer editar
+        // ao receber o texto, a fila é resetada para [texto] e _proximoCampo() reprocessa
         filaCampos:      []      // fila de campos ainda a coletar
     };
 
@@ -88,8 +103,7 @@ window.IA = (function () {
     }
 
     // ── PAINEL FLUTUANTE ──────────────────────────────────────────
-    function abrir(contexto) {
-        estado.contexto = contexto || null;
+    function abrir() {
         var panel = document.getElementById('ai-chat-panel');
         if (!panel) return;
         panel.style.display = 'flex';
@@ -165,7 +179,15 @@ window.IA = (function () {
                     _setStatus('iniciando... aguarde', false);
                     setTimeout(function () { inicializar(tentativa + 1); }, tentativa * 10000);
                 } else {
-                    _setStatus('servidor offline', false);
+                    _setStatus('servidor offline — clique para tentar novamente', false);
+                    // Permite retry manual ao clicar no status
+                    var txt = document.getElementById('ia-status-text');
+                    if (txt) txt.style.cursor = 'pointer';
+                    if (txt) txt.onclick = function () {
+                        txt.onclick = null;
+                        txt.style.cursor = '';
+                        inicializar(1);
+                    };
                 }
             });
         });
@@ -293,13 +315,10 @@ window.IA = (function () {
     }
 
     function addComDespesa(texto, d) {
-        var totalParcelas = parseInt(d.parcelas) || 1;
-        var parcelado     = totalParcelas > 1;
-        var valorTotal    = parseFloat(d.valor) || 0;
-        var valorParcela  = parcelado ? valorTotal / totalParcelas : valorTotal;
+        var pc = _calcParcelas(d);
+        var totalParcelas = pc.totalParcelas, parcelado = pc.parcelado, valorTotal = pc.valorTotal, valorParcela = pc.valorParcela;
         var dataVenc      = d.vencimento || '';
         var dataCompra    = d.data || '';
-        var meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
         var mesLabel = '', mesRegistro = '';
         if (dataVenc) {
             var pv = dataVenc.split('-');
@@ -311,7 +330,7 @@ window.IA = (function () {
         }
         var semValor   = valorTotal <= 0;
         var nomeCartao = d.nome_cartao || d.cartao_nome || (d.cartao_id ? 'Cartão #' + d.cartao_id : '');
-        var isCredito  = d.forma_pagamento === 'credito' || d.forma_pagamento === 'cartao_credito';
+        var isCredito  = _eCredito(d.forma_pagamento);
 
         var c = _cloneTmpl('template-ia-card-despesa');
         if (!c) return; // template obrigatório
@@ -363,7 +382,7 @@ window.IA = (function () {
         }
 
         var elStatusD = c.querySelector('.dc-status-despesa');
-        var _isCredito = d.forma_pagamento === 'cartao_credito';
+        var _isCredito = _eCredito(d.forma_pagamento);
         var _statusLabel, _statusCls;
         if (d.ja_pago && !_isCredito) {
             _statusLabel = 'Paga';     _statusCls = 'ai-dc-pago';
@@ -465,10 +484,8 @@ window.IA = (function () {
         }
 
         // ── Monta payload idêntico ao do modal manual ────────────
-        var totalParcelas = parseInt(d.parcelas) || 1;
-        var parcelado     = totalParcelas > 1;
-        var valorTotal    = parseFloat(d.valor) || 0;
-        var valorParcela  = parcelado ? valorTotal / totalParcelas : valorTotal;
+        var pc2 = _calcParcelas(d);
+        var totalParcelas = pc2.totalParcelas, parcelado = pc2.parcelado, valorTotal = pc2.valorTotal, valorParcela = pc2.valorParcela;
 
         // Data de vencimento: vem do campo d.vencimento (extraído pela IA/boleto).
         // Data de compra: vem de d.data (data da compra/emissão). São campos distintos.
@@ -527,8 +544,7 @@ window.IA = (function () {
             removeTyping(tidD);
             if (res && res.success) {
                 var sufixo = parcelado ? ' (' + totalParcelas + 'x de ' + fmtV(valorParcela) + ')' : '';
-                var meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-                addGen('✔ "' + d.descricao + '"' + sufixo + ' salva em ' + (meses[mes] || '') + '/' + ano + '.');
+                addGen('✔ "' + d.descricao + '"' + sufixo + ' salva em ' + (MESES[mes] || '') + '/' + ano + '.');
                 if (window.usuarioDataManager && typeof window.usuarioDataManager.limparCache === 'function') {
                     window.usuarioDataManager.limparCache();
                 }
@@ -537,9 +553,8 @@ window.IA = (function () {
                     window.dadosFinanceiros = {};
                 }
                 // Atualiza a tabela do mês correto (o mês do vencimento, não o mês aberto)
+                // Não modifica window.mesAberto/anoAberto para não interferir com o contexto atual do usuário
                 if (typeof window.renderizarDetalhesDoMes === 'function') {
-                    window.mesAberto = mes;
-                    window.anoAberto = ano;
                     window.renderizarDetalhesDoMes(mes, ano);
                 }
                 if (typeof window.carregarDadosDashboard === 'function') {
@@ -615,8 +630,7 @@ window.IA = (function () {
         apiMainPost('/receitas', payload).then(function (res) {
             removeTyping(tidR);
             if (res && res.success) {
-                var meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-                addGen('✔ Receita "' + r.descricao + '" salva em ' + (meses[mes] || '') + '/' + ano + '.');
+                addGen('✔ Receita "' + r.descricao + '" salva em ' + (MESES[mes] || '') + '/' + ano + '.');
                 if (window.usuarioDataManager && typeof window.usuarioDataManager.limparCache === 'function') {
                     window.usuarioDataManager.limparCache();
                 }
@@ -683,7 +697,7 @@ window.IA = (function () {
             }
         }
         // Se crédito e nenhum cartão foi resolvido, pergunta qual cartão
-        var isCredito = d.forma_pagamento === 'cartao_credito' || d.forma_pagamento === 'credito';
+        var isCredito = _eCredito(d.forma_pagamento);
         if (isCredito && !d.cartao_id && !_resolverCartaoPorNome(d.nome_cartao)) {
             falta.push('cartao_id');
         }
@@ -781,7 +795,7 @@ window.IA = (function () {
         }
 
         if (campo === 'status_despesa') {
-            var _isCreditoStatus = estado.dadosParciais && estado.dadosParciais.forma_pagamento === 'cartao_credito';
+            var _isCreditoStatus = estado.dadosParciais && _eCredito(estado.dadosParciais.forma_pagamento);
             var btnsStatus =
                 '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="em_dia"   data-opcao-label="Em Dia">Em Dia</button>' +
                 '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="pendente" data-opcao-label="Pendente">Pendente</button>' +
@@ -954,7 +968,7 @@ window.IA = (function () {
         if (/transfer[eê]ncia|ted|doc\b/.test(s)) return 'transferencia';
         if (/boleto/.test(s)) return 'boleto';
         if (/cart[aã]o|card/.test(s)) return 'cartao_credito';
-        return 'dinheiro';
+        return null; // desconhecido — não assume silenciosamente
     }
 
     function _normData(str) {
@@ -969,7 +983,11 @@ window.IA = (function () {
             var y = m[3] ? (m[3].length === 2 ? '20'+m[3] : m[3]) : String(hoje.getFullYear());
             return y + '-' + pad(parseInt(m[2])) + '-' + pad(parseInt(m[1]));
         }
-        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+            var anoData = parseInt(s.substring(0, 4));
+            if (anoData > hoje.getFullYear() + 5) return null; // data implausível (> 5 anos no futuro)
+            return s;
+        }
         var dm = s.match(/^(?:dia\s+)?(\d{1,2})$/);
         if (dm) return hoje.getFullYear() + '-' + pad(hoje.getMonth()+1) + '-' + pad(parseInt(dm[1]));
         return null;
@@ -1060,7 +1078,7 @@ window.IA = (function () {
         }
 
         var parcelado    = totalParcelas > 1;
-        var valorParcela = parcelado ? valorTotal / totalParcelas : valorTotal;
+        var valorParcela = parcelado ? (valorTotal / totalParcelas) : valorTotal;
         var dataVencimento = vencimento || dataCompra;
 
         // mes/ano derivados do vencimento (sem new Date para evitar bug UTC)
@@ -1474,7 +1492,6 @@ window.IA = (function () {
         if (!estado.modoPagina) {
             // FAB: NÃO registra addEventListener aqui — aplicarVisibilidadeIA() controla
             // o onclick do FAB exclusivamente para evitar disparo duplo no plano gratuito.
-            document.getElementById('ai-btn-fechar-panel')?.addEventListener('click', fechar);
             document.getElementById('ai-btn-nova-conversa')?.addEventListener('click', limparConversa);
 
             // Boleto
@@ -1616,13 +1633,14 @@ function salvarInstrucoesGen() {
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
         body: JSON.stringify({ conteudo: conteudo })
     }).then(function (r) { return r.json(); }).then(function (res) {
+        var _t = window.mostrarToast || window.mostrarNotificacao || function(){};
         if (res && res.success) {
             fecharModalInstrucoesGen();
-            mostrarToast('Instruções salvas com sucesso!', 'success');
+            _t('Instruções salvas com sucesso!', 'success');
         } else {
-            mostrarToast('Erro ao salvar: ' + (res.erro || 'tente novamente'), 'error');
+            _t('Erro ao salvar: ' + (res.erro || 'tente novamente'), 'error');
         }
-    }).catch(function () { mostrarToast('Erro de conexão ao salvar instruções.', 'error'); });
+    }).catch(function () { (window.mostrarToast || window.mostrarNotificacao || function(){})('Erro de conexão ao salvar instruções.', 'error'); });
 }
 
 // ── CARTA DE SERVIÇOS ─────────────────────────────────────────────
@@ -1685,7 +1703,7 @@ function salvarCartaInstrucao() {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-magic"></i> Revisar com IA'; }
         if (res.success) {
             fecharModalCartaInstrucao();
-            mostrarToast('Carta atualizada com sucesso!', 'success');
+            (window.mostrarToast || window.mostrarNotificacao || function(){})('Carta atualizada com sucesso!', 'success');
             // Recarrega a carta na aba
             var container = document.getElementById('carta-servicos-content');
             if (container && res.conteudo) {

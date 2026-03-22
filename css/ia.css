@@ -1,6 +1,10 @@
 /* ================================================================
    FIN GERENCE — GEN IA
-   Estilos: painel flutuante (.ai-*) + página ia.html (.ia-*)
+   Convenção de prefixos:
+     .ai-*  → painel flutuante (app.html / index.html)
+     .ia-*  → página completa (ia.html)
+   Estilos similares coexistem intencionalmente com valores
+   ligeiramente diferentes para cada contexto (ex: padding, border-radius).
    ================================================================ */
 
 /* ── TOGGLE ATIVAR/DESATIVAR IA ──────────────────────────────── */
@@ -1143,6 +1147,25 @@ body:has(.ia-container) {
     gap: 4px;
 }
 .ia-form-group--sm { flex: 0 0 110px; }
+.ia-form-group--checkbox { justify-content: center; }
+.ia-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-color, #1a1a2e);
+    text-transform: none;
+    letter-spacing: 0;
+    padding: 8px 0;
+}
+.ia-checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary-color, #6366f1);
+    cursor: pointer;
+}
 
 .ia-form-group label {
     font-size: 12px;
@@ -1217,7 +1240,7 @@ body:has(.ia-container) {
 @media (max-width: 768px) {
     /* Página ia.html */
     .ia-sidebar { display: none; }
-    .ia-sidebar.aberta {
+    .ia-sidebar.ia-sidebar--open {
         display: flex;
         position: fixed;
         inset: 0;
