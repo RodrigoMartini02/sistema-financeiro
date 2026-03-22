@@ -3,7 +3,7 @@
 // ================================================================
 
 const { query } = require('../config/database');
-const { parsearDespesa, parsearReceita, responderPerguntaFinanceira, detectarIntencao } = require('../services/aiParser');
+const { parsearDespesa, parsearReceita, responderPerguntaFinanceira, detectarIntencaoComIA } = require('../services/aiParser');
 const { classificarCategoria, salvarAprendizado } = require('../services/categoryAI');
 const { processarArquivo } = require('../services/ocrService');
 const { analisarDocumentoComIA } = require('../services/visionService');
@@ -47,11 +47,6 @@ async function buscarConfigIA(usuarioId) {
     } catch {
         return { provider: null, apiKey: null, apiKeys: {}, instrucoesGen: '' };
     }
-}
-
-// Alias público para uso externo (ex: aiRoutes)
-async function buscarConfigIAPublic(usuarioId) {
-    return buscarConfigIA(usuarioId);
 }
 
 // ── HELPER: Busca carta de serviços do usuário master no banco ────
@@ -289,7 +284,7 @@ async function chat(req, res) {
         }
 
         // ── Detecta intenção ────────────────────────────────────
-        const intencao = detectarIntencao(mensagem);
+        const intencao = await detectarIntencaoComIA(mensagem, sessao.historico, providerConfig);
 
         if (intencao === 'saudacao') {
             resposta = 'Olá! Sou a Gen, sua IA financeira do Fin-Gerence. Posso ajudá-lo a:\n\n• Cadastrar despesas (ex: "paguei 150 de mercado no pix")\n• Cadastrar receitas (ex: "recebi salário 3500 hoje")\n• Responder perguntas (ex: "quanto gastei esse mês")\n• Interpretar boletos, PIX e documentos\n\nComo posso ajudar?';
@@ -309,7 +304,7 @@ async function chat(req, res) {
 
         if (intencao === 'analise') {
             const resumo = await buscarResumoFinanceiro(usuarioId, mes_atual, ano_atual);
-            resposta = await responderPerguntaFinanceira(mensagem, resumo, sessao.historico.slice(-6), providerConfig, ctxSistema, cartaBase);
+            resposta = await responderPerguntaFinanceira(mensagem, resumo, sessao.historico.slice(-6), providerConfig, ctxSistema, cartaBase, instrucoesUsuario);
             sessao.historico.push({ role: 'assistant', content: resposta });
             return res.json({ success: true, resposta, acao: 'analise', dados: resumo });
         }
@@ -413,12 +408,14 @@ async function interpretarDespesa(req, res) {
 
         const providerCfg = await buscarConfigIA(usuarioId);
         const instrucoesGen = providerCfg.instrucoesGen || '';
-        const { dados, metodo } = await parsearDespesa(texto, [], false, providerCfg, '', '', instrucoesGen);
+        const cartaServicos = await buscarCartaServicos();
+        const { dados, metodo } = await parsearDespesa(texto, [], false, providerCfg, '', cartaServicos, instrucoesGen);
 
         // Busca categorias e aplica classificação
         const categorias = await buscarCategorias(usuarioId);
         const nomesCategorias = categorias.map(c => c.nome);
-        dados.categoria = await classificarCategoria(dados.descricao, usuarioId, nomesCategorias);
+        const instrucoesClassif = [cartaServicos, instrucoesGen].filter(Boolean).join('\n\n');
+        dados.categoria = await classificarCategoria(dados.descricao, usuarioId, nomesCategorias, instrucoesClassif);
 
         const categoriaObj = categorias.find(c =>
             c.nome.toLowerCase() === dados.categoria.toLowerCase()
@@ -617,14 +614,22 @@ async function analisarFinancas(req, res) {
 
         const sessao = obterSessao(usuarioId);
         const providerConfig = await buscarConfigIA(usuarioId);
-        const cartaAnalise = await buscarCartaServicos();
-        const ctxSistemaAnalise = await buscarContextoSistema(
-            usuarioId,
-            mes !== undefined ? parseInt(mes) : null,
-            ano !== undefined ? parseInt(ano) : null
-        );
+        const instrucoesUsuario = providerConfig.instrucoesGen || '';
+
+        // Usa cache de sessão igual ao chat(), com fallback para busca direta
+        const agora = Date.now();
+        if (!sessao.contextoSistema || agora > sessao.contextoSistema.expira) {
+            const mAnal = mes !== undefined ? parseInt(mes) : null;
+            const aAnal = ano !== undefined ? parseInt(ano) : null;
+            const texto = await buscarContextoSistema(usuarioId, mAnal, aAnal);
+            const carta = await buscarCartaServicos();
+            sessao.contextoSistema = { texto, carta, expira: agora + 5 * 60 * 1000 };
+        }
+        const ctxSistemaAnalise = sessao.contextoSistema.texto;
+        const cartaAnalise = sessao.contextoSistema.carta;
+
         const resposta = await responderPerguntaFinanceira(
-            pergunta, resumo, sessao.historico.slice(-4), providerConfig, ctxSistemaAnalise, cartaAnalise
+            pergunta, resumo, sessao.historico.slice(-4), providerConfig, ctxSistemaAnalise, cartaAnalise, instrucoesUsuario
         );
 
         return res.json({
@@ -846,6 +851,7 @@ module.exports = {
     salvarConfigChave,
     obterConfigIA,
     status,
-    buscarConfigIAPublic,
+    buscarConfigIA,
+    buscarCartaServicos,
     invalidarCacheCartaSessoes,
 };

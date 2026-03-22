@@ -9,7 +9,8 @@
       "Read(//c/Users/rodri/Music/sistema financas/**)",
       "WebFetch(domain:www.npmjs.com)",
       "Bash(netstat -ano)",
-      "Bash(taskkill /PID 22540 /F)"
+      "Bash(taskkill /PID 22540 /F)",
+      "Bash(echo \"Função: $func\")"
     ]
   }
 }

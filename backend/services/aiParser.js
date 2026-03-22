@@ -352,7 +352,82 @@ function detectarIntencao(texto) {
         return 'saudacao';
     }
 
-    return 'despesa'; // padrão
+    return 'analise'; // padrão seguro: consultar em vez de cadastrar errado
+}
+
+// ── DETECTAR INTENÇÃO COM IA EXTERNA (fallback para regex) ────────
+const INTENCOES_VALIDAS = ['despesa', 'receita', 'analise', 'saudacao', 'listar'];
+
+const PROMPT_INTENCAO = `Classifique a intenção da mensagem do usuário em UMA dessas categorias:
+- despesa: quer registrar um gasto, compra ou pagamento
+- receita: quer registrar um recebimento, salário, renda ou entrada de dinheiro
+- analise: faz uma pergunta sobre seus dados financeiros (saldo, total, histórico, resumo, lista)
+- saudacao: está cumprimentando ou pedindo ajuda geral
+- listar: quer ver ou listar registros existentes
+
+Responda APENAS com uma dessas palavras, sem mais nada.`;
+
+async function detectarIntencaoComIA(texto, historico, providerConfig) {
+    const provider = providerConfig?.provider;
+
+    if (provider && provider !== 'gen') {
+        try {
+            let resultado = null;
+
+            if (provider === 'openai') {
+                const OpenAI = require('openai');
+                const openai = new OpenAI({ apiKey: providerConfig.apiKey });
+                const r = await openai.chat.completions.create({
+                    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+                    messages: [
+                        { role: 'system', content: PROMPT_INTENCAO },
+                        { role: 'user', content: texto }
+                    ],
+                    temperature: 0,
+                    max_tokens: 10
+                });
+                resultado = r.choices[0].message.content.trim().toLowerCase();
+
+            } else if (provider === 'gemini') {
+                const fetch = require('node-fetch');
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${providerConfig.apiKey}`;
+                const r = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ role: 'user', parts: [{ text: `${PROMPT_INTENCAO}\n\nMensagem: ${texto}` }] }],
+                        generationConfig: { temperature: 0, maxOutputTokens: 10 }
+                    })
+                });
+                if (!r.ok) throw new Error('Gemini HTTP ' + r.status);
+                const data = await r.json();
+                resultado = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toLowerCase();
+
+            } else if (provider === 'claude') {
+                const Anthropic = require('@anthropic-ai/sdk');
+                const client = new Anthropic({ apiKey: providerConfig.apiKey });
+                const r = await client.messages.create({
+                    model: 'claude-haiku-4-5-20251001',
+                    max_tokens: 10,
+                    system: PROMPT_INTENCAO,
+                    messages: [{ role: 'user', content: texto }]
+                });
+                resultado = r.content[0]?.text?.trim().toLowerCase();
+            }
+
+            // Normaliza e valida
+            if (resultado) {
+                const normalizado = resultado.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                const match = INTENCOES_VALIDAS.find(i => normalizado.includes(i));
+                if (match) return match;
+            }
+        } catch (err) {
+            console.warn('⚠️ detectarIntencaoComIA falhou, usando regex:', err.message);
+        }
+    }
+
+    // Fallback: regex
+    return detectarIntencao(texto);
 }
 
 // ── FUNÇÃO PRINCIPAL ─────────────────────────────────────────────
@@ -411,11 +486,14 @@ async function parsearDespesa(texto, contextoConversa = [], forcarHeuristica = f
  * @param {Array} historico
  * @param {{ provider: string, apiKey: string }} providerConfig
  */
-async function responderPerguntaFinanceira(pergunta, dadosFinanceiros, historico = [], providerConfig = null, ctxSistema = '', cartaBase = '') {
+async function responderPerguntaFinanceira(pergunta, dadosFinanceiros, historico = [], providerConfig = null, ctxSistema = '', cartaBase = '', instrucoesUsuario = '') {
     const hoje = new Date().toISOString().split('T')[0];
     const resumo = JSON.stringify(dadosFinanceiros, null, 2).substring(0, 2000);
     const ctxExtra = ctxSistema ? `\nContexto adicional do sistema:\n${ctxSistema}\n` : '';
-    const systemMsg = `Você é um assistente financeiro pessoal. Responda de forma clara, concisa e em português brasileiro.\nData de hoje: ${hoje}\n${ctxExtra}\nDados financeiros do usuário:\n${resumo}\n\nResponda em no máximo 3 frases. Use R$ para valores monetários. Seja direto.${cartaBase ? '\n\n---\nInstruções de comportamento:\n' + cartaBase : ''}`;
+    const instrucoesPrio = instrucoesUsuario
+        ? `\n\n=== INSTRUÇÕES PERSONALIZADAS DO USUÁRIO (PRIORIDADE MÁXIMA) ===\n${instrucoesUsuario}\n=== FIM ===`
+        : '';
+    const systemMsg = `Você é um assistente financeiro pessoal. Responda de forma clara, concisa e em português brasileiro.\nData de hoje: ${hoje}\n${ctxExtra}\nDados financeiros do usuário:\n${resumo}\n\nResponda em no máximo 3 frases. Use R$ para valores monetários. Seja direto.${cartaBase ? '\n\n---\nInstruções de comportamento:\n' + cartaBase : ''}${instrucoesPrio}`;
 
     const provider = providerConfig?.provider;
     const apiKey   = providerConfig?.apiKey;
@@ -635,6 +713,18 @@ async function parsearReceita(texto, contextoConversa = [], providerConfig = nul
                     temperature: 0.1, max_tokens: 300, response_format: { type: 'json_object' }
                 });
                 dados = JSON.parse(response.choices[0].message.content);
+            } else if (providerConfig.provider === 'claude') {
+                const Anthropic = require('@anthropic-ai/sdk');
+                const client = new Anthropic({ apiKey: providerConfig.apiKey });
+                const response = await client.messages.create({
+                    model: 'claude-haiku-4-5-20251001',
+                    max_tokens: 300,
+                    system: systemFull + '\n\nResponda APENAS com JSON válido.',
+                    messages: [...contextoConversa.slice(-4), { role: 'user', content: texto }]
+                });
+                const content = response.content[0]?.text;
+                const match = content?.match(/\{[\s\S]*\}/);
+                if (match) dados = JSON.parse(match[0]);
             }
 
             if (dados) return dados;
@@ -674,6 +764,6 @@ module.exports = {
     parsearReceita,
     responderPerguntaFinanceira,
     detectarIntencao,
-    parsearComGen,
+    detectarIntencaoComIA,
     revisarCarta,
 };

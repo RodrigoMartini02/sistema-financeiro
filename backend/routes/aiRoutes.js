@@ -5,7 +5,6 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const fs   = require('fs');
 const path = require('path');
 const { authMiddleware } = require('../middleware/auth');
 const ctrl = require('../controllers/aiController');
@@ -109,13 +108,7 @@ router.post('/instrucoes', authMiddleware, async (req, res) => {
 // Carta de Serviços global — leitura para todos
 router.get('/carta', authMiddleware, async (req, res) => {
     try {
-        const r = await query(`SELECT dados_financeiros FROM usuarios WHERE tipo = 'master' LIMIT 1`);
-        let conteudo = r.rows[0]?.dados_financeiros?.carta_servicos || '';
-        // Fallback para arquivo se ainda não migrado
-        if (!conteudo) {
-            const CARTA_PATH = path.join(__dirname, '../../docs/gen-instrucoes.md');
-            conteudo = fs.existsSync(CARTA_PATH) ? fs.readFileSync(CARTA_PATH, 'utf8') : '';
-        }
+        const conteudo = await ctrl.buscarCartaServicos();
         res.json({ conteudo });
     } catch (e) {
         res.status(500).json({ erro: 'Erro ao ler carta' });
@@ -132,16 +125,11 @@ router.post('/carta', authMiddleware, async (req, res) => {
         const { instrucao } = req.body;
         if (!instrucao || !instrucao.trim()) return res.status(400).json({ erro: 'Instrução vazia' });
 
-        // Lê carta atual do banco (com fallback para arquivo)
-        const cartaR = await query(`SELECT dados_financeiros FROM usuarios WHERE tipo = 'master' LIMIT 1`);
-        let cartaAtual = cartaR.rows[0]?.dados_financeiros?.carta_servicos || '';
-        if (!cartaAtual) {
-            const CARTA_PATH = path.join(__dirname, '../../docs/gen-instrucoes.md');
-            cartaAtual = fs.existsSync(CARTA_PATH) ? fs.readFileSync(CARTA_PATH, 'utf8') : '';
-        }
+        // Lê carta atual (com fallback para arquivo via helper do controller)
+        const cartaAtual = await ctrl.buscarCartaServicos();
 
         // Usa IA para mesclar a instrução na carta
-        const providerConfig = await ctrl.buscarConfigIAPublic(req.usuario.id);
+        const providerConfig = await ctrl.buscarConfigIA(req.usuario.id);
         const cartaAtualizada = await revisarCarta(cartaAtual, instrucao.trim(), providerConfig);
 
         // Salva no banco no usuário master
@@ -150,7 +138,7 @@ router.post('/carta', authMiddleware, async (req, res) => {
             [cartaAtualizada]
         );
         // Invalida cache de sessão de todos os usuários ativos
-        if (typeof ctrl.invalidarCacheCartaSessoes === 'function') ctrl.invalidarCacheCartaSessoes();
+        ctrl.invalidarCacheCartaSessoes();
         res.json({ success: true, conteudo: cartaAtualizada });
     } catch (e) {
         console.error('Erro ao revisar carta:', e);
