@@ -12,7 +12,8 @@
       "Bash(taskkill /PID 22540 /F)",
       "Bash(echo \"Função: $func\")",
       "Bash(python3 -c \":*)",
-      "Bash(node -e \":*)"
+      "Bash(node -e \":*)",
+      "Bash(node -e \"require\\(''''./backend/routes/auth.js''''\\)\")"
     ]
   }
 }
