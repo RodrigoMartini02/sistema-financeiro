@@ -328,7 +328,6 @@ router.post('/forgot-password', [
         // Send email — log failure but don't expose it to the client
         try {
             await enviarEmailRecuperacaoEmailJS(emailNorm, usuario.nome, codigo);
-            console.log('[Recovery] Email enviado para:', emailNorm);
         } catch (emailErr) {
             console.error('[Recovery] Falha ao enviar email:', emailErr.message);
         }

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { query } = require('../config/database');
-const { authMiddleware, authOptional } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 
 // ================================================================
 // GET /api/avaliacoes — Buscar avaliações aprovadas (público)

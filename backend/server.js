@@ -3,7 +3,6 @@ const cors = require('cors');
 require('dotenv').config();
 
 const { testarConexao, executarMigracoes } = require('./config/database');
-const { rateLimiter } = require('./middleware/validation');
 
 const app = express();
 const PORT = process.env.PORT || 3010;
@@ -40,8 +39,6 @@ app.use((req, res, next) => {
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-
-// app.use(rateLimiter()); // Desativado temporariamente
 
 if (process.env.NODE_ENV !== 'production') {
     app.use((req, res, next) => {
