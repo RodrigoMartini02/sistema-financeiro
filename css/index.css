@@ -755,10 +755,10 @@ form .btn-primary:hover {
 }
 
 .hero-title {
-    font-size: clamp(2.2rem, 4.5vw, 3.8rem);
+    font-size: clamp(1.6rem, 3vw, 2.6rem);
     font-weight: 900;
     color: #fff;
-    line-height: 1.12;
+    line-height: 1.15;
     margin-bottom: 20px;
     letter-spacing: -0.03em;
 }
@@ -769,6 +769,7 @@ form .btn-primary:hover {
     -webkit-text-fill-color: transparent;
     background-clip: text;
     display: inline-block;
+    font-size: clamp(1.3rem, 2.4vw, 2.1rem);
 }
 
 .hero-desc {
