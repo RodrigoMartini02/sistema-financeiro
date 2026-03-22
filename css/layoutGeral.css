@@ -1522,6 +1522,7 @@ textarea:focus {
     pointer-events: none;
 }
 
+#lock-screen-documento,
 #lock-screen-password {
     width: 100%;
     padding: 13px 16px 13px 38px;
@@ -1532,9 +1533,9 @@ textarea:focus {
     color: #f1f5f9;
     box-sizing: border-box;
     transition: border-color 0.2s, box-shadow 0.2s;
-    letter-spacing: 2px;
 }
 
+#lock-screen-documento:focus,
 #lock-screen-password:focus {
     outline: none;
     border-color: #667eea;
@@ -1542,6 +1543,7 @@ textarea:focus {
     background: rgba(255,255,255,0.09);
 }
 
+#lock-screen-documento::placeholder,
 #lock-screen-password::placeholder {
     color: rgba(255,255,255,0.25);
     letter-spacing: 0;

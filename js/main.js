@@ -955,11 +955,19 @@ function setupSistemaBloqueio() {
             const resultado = await response.json();
 
             if (resultado.success) {
-                // Salva o novo token
-                sessionStorage.setItem('token', resultado.token);
-                if (resultado.usuario) {
-                    sessionStorage.setItem('usuarioAtual', resultado.usuario.documento || resultado.usuario.email);
-                    sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify(resultado.usuario));
+                const token = resultado.data?.token || resultado.token;
+                const usuario = resultado.data?.usuario || resultado.usuario || resultado.user;
+                const docLimpo = enteredDocumento.replace(/[^\d]+/g, '');
+                sessionStorage.setItem('token', token);
+                sessionStorage.setItem('usuarioAtual', docLimpo);
+                if (usuario) {
+                    sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify({
+                        id: usuario.id,
+                        nome: usuario.nome || usuario.name,
+                        documento: docLimpo,
+                        email: usuario.email,
+                        tipo: usuario.tipo
+                    }));
                 }
 
                 // Verifica se há redirect pendente (ex: link do e-mail ?planos=1)
