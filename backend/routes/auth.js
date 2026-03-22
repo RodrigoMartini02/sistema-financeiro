@@ -39,7 +39,8 @@ async function enviarEmailRecuperacaoEmailJS(email, nome, codigo) {
                 to_name: nome,
                 codigo_recuperacao: codigo,
                 validade: '15 minutos',
-                sistema_nome: 'Sistema de Controle Financeiro'
+                sistema_nome: 'FinGerence',
+                assunto: '[FinGerence] Codigo de Recuperacao de Senha'
             }
         })
     });

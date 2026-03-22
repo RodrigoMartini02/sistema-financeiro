@@ -46,6 +46,12 @@ const executarMigracoes = async () => {
     try {
         console.log('🔄 Verificando migrações pendentes...');
 
+        // Garantir coluna dados_financeiros na tabela usuarios (JSONB)
+        await pool.query(`
+            ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS dados_financeiros JSONB DEFAULT '{}'::jsonb
+        `);
+        console.log('✅ Coluna dados_financeiros verificada em usuarios');
+
         // Adicionar coluna anexos na tabela despesas
         await pool.query(`
             ALTER TABLE despesas ADD COLUMN IF NOT EXISTS anexos JSONB DEFAULT NULL
