@@ -791,7 +791,7 @@ async function inicializarPayPal() {
                     const result = await res.json();
                     if (result.success) {
                         fecharModalPlanos();
-                        setTimeout(() => window.verificarStatusPlano?.(), 1000);
+                        setTimeout(() => carregarStatusPlano(), 1000);
                         (window.mostrarToast || alert)('Pagamento confirmado! Plano ativado.', 'success');
                     } else {
                         if (status) status.textContent = result.message || 'Erro ao confirmar pagamento.';

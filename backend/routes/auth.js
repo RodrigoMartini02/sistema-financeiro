@@ -12,70 +12,102 @@ const { validate, validarDocumento, authRateLimiter } = require('../middleware/v
 const { authMiddleware } = require('../middleware/auth');
 
 // ================================================================
+// HELPER: Enviar email de recuperação via EmailJS
+// ================================================================
+async function enviarEmailRecuperacaoEmailJS(email, nome, codigo) {
+    const serviceId = process.env.EMAILJS_SERVICE_ID;
+    const templateId = process.env.EMAILJS_TEMPLATE_ID;
+    const userId = process.env.EMAILJS_USER_ID;
+
+    if (!serviceId || !templateId || !userId) {
+        throw new Error('Serviço de email não configurado');
+    }
+
+    const fetchFn = typeof fetch !== 'undefined' ? fetch : require('node-fetch');
+    const response = await fetchFn('https://api.emailjs.com/api/v1.0/email/send', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Origin': 'https://sistema-financeiro-kxed.onrender.com'
+        },
+        body: JSON.stringify({
+            service_id: serviceId,
+            template_id: templateId,
+            user_id: userId,
+            template_params: {
+                to_email: email,
+                to_name: nome,
+                codigo_recuperacao: codigo,
+                validade: '15 minutos',
+                sistema_nome: 'Sistema de Controle Financeiro'
+            }
+        })
+    });
+
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error('Erro ao enviar email: ' + text);
+    }
+}
+
+// ================================================================
 // POST /api/auth/login - Login do usuário
 // ================================================================
 router.post('/login', [
-    authRateLimiter(), // Rate limiting para prevenir brute force
+    authRateLimiter(),
     body('documento').notEmpty().withMessage('Documento é obrigatório'),
     body('senha').notEmpty().withMessage('Senha é obrigatória'),
     validate
 ], async (req, res) => {
     try {
         const { documento, senha } = req.body;
-        
-        // Limpar documento
         const docLimpo = documento.replace(/[^\d]+/g, '');
-        
-        // Buscar usuário
+
         const result = await query(
             'SELECT * FROM usuarios WHERE documento = $1',
             [docLimpo]
         );
-        
+
         if (result.rows.length === 0) {
             return res.status(401).json({
                 success: false,
                 message: 'Documento ou senha incorretos'
             });
         }
-        
+
         const usuario = result.rows[0];
-        
-        // Verificar se está bloqueado
+
         if (usuario.status === 'bloqueado') {
             return res.status(403).json({
                 success: false,
                 message: 'Conta bloqueada. Entre em contato com o suporte.'
             });
         }
-        
-        // Verificar senha
+
         const senhaValida = await bcrypt.compare(senha, usuario.senha);
-        
+
         if (!senhaValida) {
             return res.status(401).json({
                 success: false,
                 message: 'Documento ou senha incorretos'
             });
         }
-        
-        // Gerar token JWT
+
         const token = jwt.sign(
-            { 
-                id: usuario.id, 
+            {
+                id: usuario.id,
                 documento: usuario.documento,
-                tipo: usuario.tipo 
+                tipo: usuario.tipo
             },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
         );
-        
-        // Atualizar última atualização
+
         await query(
             'UPDATE usuarios SET data_atualizacao = CURRENT_TIMESTAMP WHERE id = $1',
             [usuario.id]
         );
-        
+
         res.json({
             success: true,
             message: 'Login realizado com sucesso',
@@ -91,7 +123,7 @@ router.post('/login', [
                 }
             }
         });
-        
+
     } catch (error) {
         console.error('Erro no login:', error);
         res.status(500).json({
@@ -109,16 +141,13 @@ router.post('/register', [
     body('email').isEmail().withMessage('Email inválido'),
     body('documento').notEmpty().withMessage('Documento é obrigatório')
         .custom(validarDocumento).withMessage('CPF/CNPJ inválido'),
-    body('senha').isLength({ min: 6 }).withMessage('Senha deve ter no mínimo 6 caracteres'),
+    body('senha').isLength({ min: 8 }).withMessage('Senha deve ter no mínimo 8 caracteres'),
     validate
 ], async (req, res) => {
     try {
         const { nome, email, documento, senha, tipo, google_id } = req.body;
-
-        // Limpar documento
         const docLimpo = documento.replace(/[^\d]+/g, '');
 
-        // Verificar se já existe
         const existe = await query(
             'SELECT id FROM usuarios WHERE email = $1 OR documento = $2',
             [email.toLowerCase(), docLimpo]
@@ -131,30 +160,34 @@ router.post('/register', [
             });
         }
 
-        // Hash da senha
         const senhaHash = await bcrypt.hash(senha, 10);
 
-        // Inserir usuário (com google_id se veio do fluxo Google)
         const result = await query(
             `INSERT INTO usuarios (nome, email, documento, senha, tipo, status, google_id)
              VALUES ($1, $2, $3, $4, $5, $6, $7)
              RETURNING id, nome, email, documento, tipo, status`,
             [nome, email.toLowerCase(), docLimpo, senhaHash, tipo || 'padrao', 'ativo', google_id || null]
         );
-        
+
         const novoUsuario = result.rows[0];
-        
-        // Criar categorias padrão
+
         await query('SELECT criar_categorias_padrao($1)', [novoUsuario.id]);
-        
+
+        const token = jwt.sign(
+            { id: novoUsuario.id, documento: novoUsuario.documento, tipo: novoUsuario.tipo },
+            process.env.JWT_SECRET,
+            { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+        );
+
         res.status(201).json({
             success: true,
             message: 'Usuário cadastrado com sucesso',
             data: {
+                token,
                 usuario: novoUsuario
             }
         });
-        
+
     } catch (error) {
         console.error('Erro no cadastro:', error);
         res.status(500).json({
@@ -173,21 +206,21 @@ router.get('/verify', authMiddleware, async (req, res) => {
             'SELECT id, nome, email, documento, tipo, status FROM usuarios WHERE id = $1',
             [req.usuario.id]
         );
-        
+
         if (result.rows.length === 0) {
             return res.status(404).json({
                 success: false,
                 message: 'Usuário não encontrado'
             });
         }
-        
+
         res.json({
             success: true,
             data: {
                 usuario: result.rows[0]
             }
         });
-        
+
     } catch (error) {
         console.error('Erro ao verificar token:', error);
         res.status(500).json({
@@ -197,7 +230,6 @@ router.get('/verify', authMiddleware, async (req, res) => {
     }
 });
 
-
 router.post('/logout', authMiddleware, (req, res) => {
     res.json({
         success: true,
@@ -206,7 +238,7 @@ router.post('/logout', authMiddleware, (req, res) => {
 });
 
 // ================================================================
-// POST /api/auth/verify-password - Verificar senha (para desbloqueio de tela)
+// POST /api/auth/verify-password - Verificar senha (desbloqueio de tela)
 // ================================================================
 router.post('/verify-password', [
     authMiddleware,
@@ -217,7 +249,6 @@ router.post('/verify-password', [
         const { senha } = req.body;
         const usuarioId = req.usuario.id;
 
-        // Buscar senha do usuário no banco
         const result = await query(
             'SELECT senha FROM usuarios WHERE id = $1',
             [usuarioId]
@@ -230,7 +261,6 @@ router.post('/verify-password', [
             });
         }
 
-        // Verificar senha usando bcrypt
         const senhaValida = await bcrypt.compare(senha, result.rows[0].senha);
 
         if (!senhaValida) {
@@ -254,35 +284,56 @@ router.post('/verify-password', [
     }
 });
 
-
-
+// ================================================================
+// POST /api/auth/forgot-password - Solicitar recuperação de senha
+// Gera código server-side, armazena no banco e envia email.
+// Sempre retorna 200 para evitar enumeração de usuários.
+// ================================================================
 router.post('/forgot-password', [
     body('email').isEmail().withMessage('Email inválido'),
     validate
 ], async (req, res) => {
+    const MSG_GENERICA = 'Se este email estiver cadastrado, você receberá um código de recuperação em breve.';
     try {
         const { email } = req.body;
+        const emailNorm = email.toLowerCase();
 
         const result = await query(
-            'SELECT id, nome, email FROM usuarios WHERE email = $1',
-            [email.toLowerCase()]
+            'SELECT id, nome FROM usuarios WHERE email = $1',
+            [emailNorm]
         );
 
+        // Always return 200 — don't reveal whether email exists
         if (result.rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'E-mail não encontrado'
-            });
+            return res.json({ success: true, message: MSG_GENERICA });
         }
 
-        res.json({
-            success: true,
-            message: 'E-mail validado com sucesso',
-            data: {
-                nome: result.rows[0].nome,
-                email: result.rows[0].email
-            }
-        });
+        const usuario = result.rows[0];
+        const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiracao = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+        // Store code in DB (overwrites any previous code)
+        await query(
+            `UPDATE usuarios
+             SET dados_financeiros = COALESCE(dados_financeiros, '{}'::jsonb) ||
+                 jsonb_build_object(
+                     'recovery_code', $1::text,
+                     'recovery_code_expiry', $2::text,
+                     'recovery_attempts', 0
+                 )
+             WHERE id = $3`,
+            [codigo, expiracao, usuario.id]
+        );
+
+        // Send email — log failure but don't expose it to the client
+        try {
+            await enviarEmailRecuperacaoEmailJS(emailNorm, usuario.nome, codigo);
+            console.log('[Recovery] Email enviado para:', emailNorm);
+        } catch (emailErr) {
+            console.error('[Recovery] Falha ao enviar email:', emailErr.message);
+        }
+
+        res.json({ success: true, message: MSG_GENERICA });
     } catch (error) {
         console.error('Erro na recuperação:', error);
         res.status(500).json({ success: false, message: 'Erro no servidor' });
@@ -290,104 +341,128 @@ router.post('/forgot-password', [
 });
 
 // ================================================================
-// POST /api/auth/send-recovery-email - Enviar email de recuperação (seguro)
+// POST /api/auth/verify-recovery-code - Validar código de recuperação
 // ================================================================
-router.post('/send-recovery-email', [
+router.post('/verify-recovery-code', [
     body('email').isEmail().withMessage('Email inválido'),
     body('codigo').notEmpty().withMessage('Código é obrigatório'),
-    body('nome').notEmpty().withMessage('Nome é obrigatório'),
     validate
 ], async (req, res) => {
+    const MSG_INVALIDO = 'Código incorreto ou expirado';
     try {
-        const { email, codigo, nome } = req.body;
+        const { email, codigo } = req.body;
+        const emailNorm = email.toLowerCase();
 
-        const serviceId = process.env.EMAILJS_SERVICE_ID;
-        const templateId = process.env.EMAILJS_TEMPLATE_ID;
-        const userId = process.env.EMAILJS_USER_ID;
+        const result = await query(
+            'SELECT id, dados_financeiros FROM usuarios WHERE email = $1',
+            [emailNorm]
+        );
 
-        console.log('[EmailJS] Vars configuradas:', { serviceId: !!serviceId, templateId: !!templateId, userId: !!userId });
-
-        if (!serviceId || !templateId || !userId) {
-            console.error('[EmailJS] Credenciais não configuradas no ambiente');
-            return res.status(500).json({
-                success: false,
-                message: 'Serviço de email não configurado'
-            });
+        if (result.rows.length === 0) {
+            return res.status(400).json({ success: false, message: MSG_INVALIDO });
         }
 
-        // Usar fetch nativo (Node 18+) ou node-fetch como fallback
-        const fetchFn = typeof fetch !== 'undefined' ? fetch : require('node-fetch');
+        const usuario = result.rows[0];
+        const df = usuario.dados_financeiros || {};
+        const storedCode = df.recovery_code;
+        const expiry = df.recovery_code_expiry;
+        const attempts = df.recovery_attempts || 0;
 
-        const response = await fetchFn('https://api.emailjs.com/api/v1.0/email/send', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Origin': 'https://sistema-financeiro-kxed.onrender.com'
-            },
-            body: JSON.stringify({
-                service_id: serviceId,
-                template_id: templateId,
-                user_id: userId,
-                template_params: {
-                    to_email: email,
-                    to_name: nome,
-                    codigo_recuperacao: codigo,
-                    validade: '15 minutos',
-                    sistema_nome: 'Sistema de Controle Financeiro'
-                }
-            })
-        });
-
-        if (response.ok) {
-            console.log('[EmailJS] Email enviado com sucesso para:', email);
-            res.json({
-                success: true,
-                message: 'Email enviado com sucesso'
-            });
-        } else {
-            const errorText = await response.text();
-            console.error('[EmailJS] Erro na resposta:', response.status, errorText);
-            res.status(500).json({
-                success: false,
-                message: 'Erro ao enviar email: ' + errorText
-            });
+        if (!storedCode || !expiry) {
+            return res.status(400).json({ success: false, message: 'Código não encontrado. Solicite um novo.' });
         }
+
+        if (new Date() > new Date(expiry)) {
+            return res.status(400).json({ success: false, message: 'Código expirado. Solicite um novo.' });
+        }
+
+        if (attempts >= 3) {
+            return res.status(400).json({ success: false, message: 'Muitas tentativas. Solicite um novo código.' });
+        }
+
+        if (storedCode !== codigo) {
+            await query(
+                `UPDATE usuarios
+                 SET dados_financeiros = COALESCE(dados_financeiros, '{}'::jsonb) ||
+                     jsonb_build_object('recovery_attempts', $1)
+                 WHERE id = $2`,
+                [attempts + 1, usuario.id]
+            );
+            return res.status(400).json({ success: false, message: MSG_INVALIDO });
+        }
+
+        res.json({ success: true, message: 'Código válido' });
     } catch (error) {
-        console.error('[EmailJS] Erro catch:', error.message);
-        res.status(500).json({
-            success: false,
-            message: 'Erro ao enviar email: ' + error.message
-        });
+        console.error('Erro ao verificar código:', error);
+        res.status(500).json({ success: false, message: 'Erro no servidor' });
     }
 });
 
-
+// ================================================================
+// POST /api/auth/reset-password - Redefinir senha com código validado
+// ================================================================
 router.post('/reset-password', [
     body('email').isEmail().withMessage('Email inválido'),
-    body('novaSenha').isLength({ min: 6 }).withMessage('Mínimo 6 caracteres'),
+    body('novaSenha').isLength({ min: 8 }).withMessage('Mínimo 8 caracteres'),
+    body('codigo').notEmpty().withMessage('Código é obrigatório'),
     validate
 ], async (req, res) => {
     try {
-        const { email, novaSenha } = req.body;
-        const senhaHash = await bcrypt.hash(novaSenha, 10);
+        const { email, novaSenha, codigo } = req.body;
+        const emailNorm = email.toLowerCase();
 
         const result = await query(
-            'UPDATE usuarios SET senha = $1, data_atualizacao = CURRENT_TIMESTAMP WHERE email = $2 RETURNING id',
-            [senhaHash, email.toLowerCase()]
+            'SELECT id, dados_financeiros FROM usuarios WHERE email = $1',
+            [emailNorm]
         );
 
-        if (result.rowCount === 0) {
+        if (result.rows.length === 0) {
             return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
         }
 
-        res.json({ success: true, message: 'Senha alterada com sucesso no banco!' });
+        const usuario = result.rows[0];
+        const df = usuario.dados_financeiros || {};
+        const storedCode = df.recovery_code;
+        const expiry = df.recovery_code_expiry;
+        const attempts = df.recovery_attempts || 0;
+
+        if (!storedCode || !expiry) {
+            return res.status(400).json({ success: false, message: 'Código não encontrado. Solicite um novo.' });
+        }
+
+        if (new Date() > new Date(expiry)) {
+            return res.status(400).json({ success: false, message: 'Código expirado. Solicite um novo.' });
+        }
+
+        if (attempts >= 3) {
+            return res.status(400).json({ success: false, message: 'Muitas tentativas. Solicite um novo código.' });
+        }
+
+        if (storedCode !== codigo) {
+            return res.status(400).json({ success: false, message: 'Código inválido' });
+        }
+
+        const senhaHash = await bcrypt.hash(novaSenha, 10);
+
+        // Update password and clear recovery fields
+        await query(
+            `UPDATE usuarios
+             SET senha = $1,
+                 data_atualizacao = CURRENT_TIMESTAMP,
+                 dados_financeiros = dados_financeiros
+                     - 'recovery_code'
+                     - 'recovery_code_expiry'
+                     - 'recovery_attempts'
+             WHERE id = $2`,
+            [senhaHash, usuario.id]
+        );
+
+        res.json({ success: true, message: 'Senha alterada com sucesso!' });
     } catch (error) {
         console.error('Erro ao resetar senha:', error);
         res.status(500).json({ success: false, message: 'Erro ao atualizar senha' });
     }
 });
-
-
 
 // ================================================================
 // POST /api/auth/google - Login com Google OAuth
@@ -400,7 +475,6 @@ router.post('/google', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Código de autorização não fornecido' });
         }
 
-        // 1. Trocar o código por tokens no Google
         const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -420,7 +494,6 @@ router.post('/google', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Erro ao autenticar com Google: ' + (tokenData.error_description || tokenData.error) });
         }
 
-        // 2. Buscar informações do usuário com o access_token
         const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
             headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
         });
@@ -431,35 +504,29 @@ router.post('/google', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Não foi possível obter email do Google' });
         }
 
-        // 3. Verificar se já existe usuário com este email
         let result = await query('SELECT * FROM usuarios WHERE email = $1', [googleUser.email]);
-        let usuario;
 
-        if (result.rows.length > 0) {
-            // Usuário existe - login direto
-            usuario = result.rows[0];
-
-            if (usuario.status !== 'ativo') {
-                return res.status(403).json({ success: false, message: 'Conta desativada. Entre em contato com o suporte.' });
-            }
-
-            // Salvar google_id se ainda não tem
-            if (!usuario.google_id) {
-                await query('UPDATE usuarios SET google_id = $1 WHERE id = $2', [googleUser.id, usuario.id]);
-            }
-        } else {
-            // Usuário não existe - Google login não pode criar conta nova
+        if (result.rows.length === 0) {
             return res.status(403).json({
                 success: false,
                 message: 'Email não cadastrado no sistema.'
             });
         }
 
-        // 4. Gerar JWT do sistema
+        const usuario = result.rows[0];
+
+        if (usuario.status !== 'ativo') {
+            return res.status(403).json({ success: false, message: 'Conta desativada. Entre em contato com o suporte.' });
+        }
+
+        if (!usuario.google_id) {
+            await query('UPDATE usuarios SET google_id = $1 WHERE id = $2', [googleUser.id, usuario.id]);
+        }
+
         const token = jwt.sign(
             { id: usuario.id, email: usuario.email, tipo: usuario.tipo },
             process.env.JWT_SECRET,
-            { expiresIn: '24h' }
+            { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
         );
 
         res.json({
@@ -483,5 +550,3 @@ router.post('/google', async (req, res) => {
 });
 
 module.exports = router;
-
-

@@ -44,7 +44,6 @@ class UsuarioDataManager {
             this.executarMigracoes();
             this.inicializado = true;
 
-            // 🔥 CARREGAR DADOS DA API E SINCRONIZAR COM window.dadosFinanceiros
             await this.sincronizarComSistemaPrincipal();
         } catch (error) {
 
@@ -482,8 +481,6 @@ class UsuarioDataManager {
     
     async sincronizarComSistemaPrincipal() {
         try {
-            // 🔥 BUSCAR DADOS DA API PRIMEIRO (não do localStorage)
-
             const dadosAPI = await this.getDadosFinanceirosAPI();
 
             if (window.dadosFinanceiros && typeof window.dadosFinanceiros === 'object' && Object.keys(window.dadosFinanceiros).length > 0) {
@@ -581,7 +578,6 @@ class UsuarioDataManager {
             if (response.ok) {
                 const resultado = await response.json();
 
-                // ✅ CORRIGIDO: Atualizar ID local com o ID retornado pelo backend
                 if (!ehEdicao && resultado.data && resultado.data.id) {
                     receita.id = resultado.data.id;
 
@@ -832,12 +828,9 @@ class UsuarioDataManager {
             if (id !== null && id !== '') {
                 const index = parseInt(id);
                 if (dados[ano].meses[mes].receitas[index]) {
-                    // ✅ CORRIGIDO: Não gera mais ID temporário
                     dados[ano].meses[mes].receitas[index] = receita;
                 }
             } else {
-                // ✅ CORRIGIDO: Não gera mais ID temporário
-                // O ID virá do backend após o POST
                 dados[ano].meses[mes].receitas.push(receita);
             }
 
@@ -1023,9 +1016,6 @@ class UsuarioDataManager {
                         if (anoData && anoData.meses) {
                             anoData.meses.forEach(mes => {
                                 if (mes) {
-                                    // ✅ CORRIGIDO: Removida migração de IDs temporários
-                                    // Os IDs agora sempre vêm do backend - não gera mais IDs localmente
-
                                     if (mes.fechado === undefined) {
                                         mes.fechado = false;
                                         necessitaAtualizacao = true;

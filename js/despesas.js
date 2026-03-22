@@ -1,9 +1,6 @@
 // ================================================================
-// SISTEMA DE DESPESAS - PARTE 1/3
-// ESTRUTURA, CONSTANTES, INICIALIZAÇÃO E RENDERIZAÇÃO
+// SISTEMA DE DESPESAS
 // ================================================================
-
-let processandoDespesa = false;
 
 // ================================================================
 // INFINITE SCROLL — variáveis de módulo
@@ -13,38 +10,8 @@ let _despesasOffset = 0;
 let _despesasObserver = null;
 
 const ERROS = {
-    DESPESA_NAO_ENCONTRADA: 'A despesa solicitada não foi encontrada',
-    ESTRUTURA_DADOS_INVALIDA: 'A estrutura de dados do mês/ano é inválida',
     MODAL_NAO_ENCONTRADO: 'Modal não encontrado'
 };
-
-// ================================================================
-// VALIDAÇÃO DE CAMPOS
-// ================================================================
-
-function marcarCampoInvalido(campo) {
-    if (campo) {
-        campo.classList.add('campo-invalido');
-        campo.addEventListener('input', function removerErro() {
-            campo.classList.remove('campo-invalido');
-            campo.removeEventListener('input', removerErro);
-        }, { once: true });
-    }
-}
-
-function limparErrosValidacao() {
-    document.querySelectorAll('.campo-invalido').forEach(el => {
-        el.classList.remove('campo-invalido');
-    });
-}
-
-// Limpar erro de pagamento ao selecionar
-document.addEventListener('change', function(e) {
-    if (e.target.name === 'forma-pagamento') {
-        const paymentMethods = document.querySelector('.payment-methods');
-        if (paymentMethods) paymentMethods.classList.remove('campo-invalido');
-    }
-});
 
 // ================================================================
 // FUNÇÕES DE REPLICAÇÃO DE DESPESAS
@@ -461,30 +428,6 @@ function preencherCelulasGridReceita(clone, receita, fechado) {
     }
 }
 
-function sincronizarIndicesDespesas() {
-  const linhasDespesas = document.querySelectorAll('tr.despesa-row');
-  
-  linhasDespesas.forEach((linha, novoIndex) => {
-      linha.setAttribute('data-index', novoIndex);
-      
-      const botoes = linha.querySelectorAll('[data-index]');
-      botoes.forEach(botao => {
-          botao.setAttribute('data-index', novoIndex);
-      });
-      
-      const checkbox = linha.querySelector('.despesa-checkbox');
-      if (checkbox) {
-          checkbox.setAttribute('data-index', novoIndex);
-      }
-      
-      // Sincronizar botões de anexos
-      const btnAnexos = linha.querySelector('.btn-anexos');
-      if (btnAnexos) {
-          btnAnexos.setAttribute('data-index', novoIndex);
-      }
-  });
-}
-
 function preencherCelulasGrid(clone, despesa, index, fechado, mes, ano) {
    preencherCelulaCheckbox(clone, despesa, index, fechado);
    preencherCelulaNumero(clone, despesa);
@@ -563,30 +506,6 @@ function preencherCelulaFormaPagamento(clone, despesa) {
     }
 }
 
-function preencherCelulaCartao(clone, despesa) {
-    const celulaCartao = clone.querySelector('.col-cartao');
-    if (!celulaCartao) return;
-
-    // Se não for crédito, deixar vazio
-    const formaPag = (despesa.formaPagamento || '').toLowerCase();
-    if (formaPag !== 'credito' && formaPag !== 'crédito' && !formaPag.includes('cred')) {
-        celulaCartao.textContent = '-';
-        return;
-    }
-
-    // Buscar nome do cartão pelo cartao_id
-    const cartaoId = despesa.cartao_id || despesa.cartaoId;
-    if (cartaoId && window.cartoesUsuario) {
-        const cartao = window.cartoesUsuario.find(c => c.id === cartaoId);
-        if (cartao) {
-            celulaCartao.textContent = cartao.nome;
-            celulaCartao.title = cartao.nome; // Tooltip para nomes longos
-            return;
-        }
-    }
-
-    celulaCartao.textContent = '-';
-}
 
 function preencherCelulaValor(clone, despesa) {
     const celulaValor = clone.querySelector('.col-valor');
@@ -819,32 +738,6 @@ function encontrarDespesaPorIndice(index, despesas) {
     return { despesa: despesa, indice: index };
 }
 
-function criarObjetoDespesa(dados) {
-   return {
-       id: dados.id || null,  // Apenas usa ID se já existir (edição)
-       descricao: dados.descricao || '',
-       categoria: dados.categoria || '',
-       formaPagamento: dados.formaPagamento || null,
-       cartao_id: dados.cartao_id || dados.numeroCartao || null,
-       valor: parseFloat(dados.valor) || 0,
-       valorOriginal: dados.valorOriginal !== undefined ? parseFloat(dados.valorOriginal) : null,
-       valorTotalComJuros: dados.valorTotalComJuros !== undefined ? parseFloat(dados.valorTotalComJuros) : null,
-       valorPago: dados.valorPago !== undefined ? parseFloat(dados.valorPago) : null,
-       dataCompra: dados.dataCompra || new Date().toISOString().split('T')[0],
-       dataVencimento: dados.dataVencimento || new Date().toISOString().split('T')[0],
-       parcelado: !!dados.parcelado,
-       parcela: dados.parcela || null,
-       totalParcelas: dados.parcelado ? parseInt(dados.totalParcelas) || null : null,
-       metadados: dados.metadados || null,
-       quitado: !!dados.quitado,
-       status: dados.status || 'em_dia',
-       recorrente: !!dados.recorrente,
-       idGrupoParcelamento: dados.idGrupoParcelamento || null,
-       dataCriacao: dados.dataCriacao || new Date().toISOString(),
-       anexos: dados.anexos || []
-   };
-}
-
 function atualizarStatusDespesas(despesas) {
     if (!Array.isArray(despesas)) return;
 
@@ -963,7 +856,6 @@ function atualizarBotaoLote() {
     }
 }
 
-// FUNÇÃO: preencherCelulaAnexos()
 function preencherCelulaAnexos(clone, despesa, index, fechado) {
    const celulaAnexos = clone.querySelector('.col-anexos');
    if (!celulaAnexos) return;
@@ -1019,35 +911,6 @@ function preencherCelulaAnexos(clone, despesa, index, fechado) {
            celulaAnexos.innerHTML = '';
            celulaAnexos.appendChild(wrapper);
        }
-   }
-}
-
-// REMOVIDO: Event listeners duplicados - já configurados em js/anexos.js
-function configurarEventosFormularioAnexosDespesa() {
-    // Listeners de anexo são configurados globalmente pelo sistemaAnexos
-}
-
-function inicializarSistemaAnexosDespesas() {
-   configurarEventosFormularioAnexosDespesa();
-   
-   const observer = new MutationObserver((mutations) => {
-       mutations.forEach((mutation) => {
-           if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-               const listaDespesas = document.getElementById('lista-despesas');
-               if (listaDespesas && mutation.target === listaDespesas) {
-                   setTimeout(() => {
-                       if (typeof atualizarTodosContadoresAnexosDespesas === 'function') {
-                           atualizarTodosContadoresAnexosDespesas();
-                       }
-                   }, 100);
-               }
-           }
-       });
-   });
-   
-   const listaDespesas = document.getElementById('lista-despesas');
-   if (listaDespesas) {
-       observer.observe(listaDespesas, { childList: true, subtree: true });
    }
 }
 
@@ -1746,10 +1609,6 @@ function configurarEventosModalLancamento() {
 }
 
 // ================================================================
-// SALVAMENTO DE DESPESAS
-// ================================================================
-
-// ================================================================
 // SALVAMENTO DE DESPESAS VIA API
 // ================================================================
 
@@ -2010,92 +1869,6 @@ async function abrirModalVisualizarAnexosDespesaPorId(despesaId) {
     await abrirModalVisualizarAnexosDespesa(indice);
 }
 
-function validarGrupoParcelamento(idGrupo, despesaOriginal) {
-    if (!idGrupo || !despesaOriginal) return { valido: false, erro: 'Parâmetros inválidos' };
-    
-    const parcelas = [];
-    const anoBase = despesaOriginal.ano || new Date().getFullYear();
-    
-    for (let ano = anoBase; ano <= anoBase + 3; ano++) {
-        if (!dadosFinanceiros[ano]) continue;
-        
-        for (let mes = 0; mes < 12; mes++) {
-            if (!dadosFinanceiros[ano].meses[mes]?.despesas) continue;
-            
-            dadosFinanceiros[ano].meses[mes].despesas.forEach((despesa, index) => {
-                if (despesa.idGrupoParcelamento === idGrupo && 
-                    despesa.descricao === despesaOriginal.descricao) {
-                    parcelas.push({
-                        despesa,
-                        index,
-                        mes,
-                        ano,
-                        parcela: despesa.parcela
-                    });
-                }
-            });
-        }
-    }
-    
-    const totalEsperado = parseInt(despesaOriginal.totalParcelas) || 1;
-    const encontradas = parcelas.length;
-    
-    return {
-        valido: encontradas === totalEsperado,
-        encontradas,
-        esperadas: totalEsperado,
-        parcelas: parcelas.sort((a, b) => {
-            const [numA] = a.parcela.split('/').map(Number);
-            const [numB] = b.parcela.split('/').map(Number);
-            return numA - numB;
-        }),
-        erro: encontradas !== totalEsperado ? `Esperadas ${totalEsperado}, encontradas ${encontradas}` : null
-    };
-}
-
-function sincronizarParcelasGrupo(idGrupo, despesaReferencia) {
-    if (!idGrupo || !despesaReferencia) return false;
-    
-    const validacao = validarGrupoParcelamento(idGrupo, despesaReferencia);
-    
-    if (!validacao.valido) {
-
-        return false;
-    }
-    
-    validacao.parcelas.forEach((item, sequencia) => {
-        const { despesa } = item;
-        const numeroParcelaCorreto = `${sequencia + 1}/${despesaReferencia.totalParcelas}`;
-        
-        if (despesa.parcela !== numeroParcelaCorreto) {
-            despesa.parcela = numeroParcelaCorreto;
-        }
-    });
-    
-    return true;
-}
-
-function contarParcelasGrupo(idGrupo, descricao) {
-    if (!idGrupo) return 0;
-    
-    let contador = 0;
-    const anoAtual = new Date().getFullYear();
-    
-    for (let ano = anoAtual; ano <= anoAtual + 3; ano++) {
-        if (!dadosFinanceiros[ano]) continue;
-        
-        for (let mes = 0; mes < 12; mes++) {
-            if (!dadosFinanceiros[ano].meses[mes]?.despesas) continue;
-            
-            contador += dadosFinanceiros[ano].meses[mes].despesas.filter(d => 
-                d.idGrupoParcelamento === idGrupo && 
-                (!descricao || d.descricao === descricao)
-            ).length;
-        }
-    }
-    
-    return contador;
-}
 
 async function excluirApenasParcela(index, mes, ano) {
     try {
@@ -2213,24 +1986,12 @@ async function excluirParcelaEFuturas(index, mes, ano) {
 
 
 // ================================================================
-// FUNÇÕES GLOBAIS PARA O HTML
-// ================================================================
-
-
-
-// ================================================================
 // INICIALIZAÇÃO AUTOMÁTICA
 // ================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    inicializarSistemaAnexosDespesas();
     configurarEventosModalLancamento();
 });
-
-// ================================================================
-// SISTEMA DE DESPESAS - PARTE 2/4
-// EXCLUSÕES E MOVIMENTAÇÕES DE DESPESAS
-// ================================================================
 
 // ================================================================
 // EXCLUSÃO DE DESPESAS
@@ -3246,26 +3007,17 @@ async function _processarPagamentoDespesa(index, mes, ano, valorPago = null, qui
             }
         }
         
-        // NOVA FUNCIONALIDADE: Unificar anexos de cadastro com comprovantes
         if (window.sistemaAnexos) {
             const comprovantes = window.sistemaAnexos.obterAnexosParaSalvar('comprovante');
             if (comprovantes.length > 0) {
-
-                
-                // Inicializar array de anexos se não existir
                 if (!despesa.anexos) {
                     despesa.anexos = [];
                 }
-                
-                // Marcar comprovantes como tal e adicionar aos anexos principais
                 comprovantes.forEach(comprovante => {
                     comprovante.tipoAnexo = 'comprovante';
                     comprovante.dataPagamento = despesa.dataPagamento;
                     comprovante.descricaoTipo = 'Comprovante de Pagamento';
-
                 });
-                
-                // Adicionar comprovantes aos anexos principais
                 despesa.anexos.push(...comprovantes);
 
             }
@@ -3347,11 +3099,6 @@ async function processarParcelasFuturas(despesa, anoAtual, mesAtual) {
         }
     }
 }
-
-// ================================================================
-// SISTEMA DE DESPESAS - PARTE 3/4
-// PAGAMENTO EM LOTE E SISTEMA DE FILTROS
-// ================================================================
 
 // ================================================================
 // PAGAMENTO EM LOTE
@@ -3708,68 +3455,6 @@ function obterCategoriasDoMes(mes, ano) {
     return Array.from(categorias).sort();
 }
 
-function verificarCategoriaDespesa(linha, categoria) {
-    const despesaId = linha.getAttribute('data-despesa-id');
-    if (!despesaId) return false;
-
-    const { despesa } = encontrarDespesaPorId(despesaId, mesAberto, anoAberto);
-    if (!despesa) return false;
-
-    const categoriaLimpa = obterCategoriaLimpa(despesa);
-    return categoriaLimpa === categoria;
-}
-
-function verificarFormaPagamentoDespesa(linha, formaPagamento) {
-    const despesaId = linha.getAttribute('data-despesa-id');
-    if (!despesaId) return false;
-
-    const { despesa } = encontrarDespesaPorId(despesaId, mesAberto, anoAberto);
-    if (!despesa) return false;
-
-    // Filtro por cartão específico: credito_ID
-    if (formaPagamento.startsWith('credito_')) {
-        const cartaoIdFiltro = formaPagamento.replace('credito_', '');
-        const formaPag = (despesa.formaPagamento || '').toLowerCase();
-        const cartaoId = String(despesa.cartao_id || despesa.cartaoId || '');
-        return (formaPag === 'credito' || formaPag === 'crédito' || formaPag.includes('cred')) && cartaoId === cartaoIdFiltro;
-    }
-
-    if (despesa.formaPagamento) {
-        return despesa.formaPagamento === formaPagamento;
-    } else {
-        if (despesa.categoria === 'Cartão' || despesa.categoria === 'Cartão de Crédito') {
-            return formaPagamento === 'credito';
-        } else {
-            return formaPagamento === 'debito';
-        }
-    }
-}
-
-function verificarStatusDespesa(linha, status) {
-    const despesaId = linha.getAttribute('data-despesa-id');
-    if (!despesaId) return false;
-
-    const { despesa } = encontrarDespesaPorId(despesaId, mesAberto, anoAberto);
-    if (!despesa) return false;
-
-    let statusDespesa = '';
-    if (despesa.quitado === true) {
-        statusDespesa = 'paga';
-    } else if (despesa.status === 'atrasada') {
-        statusDespesa = 'atrasada';
-    } else {
-        statusDespesa = 'em_dia';
-    }
-
-    if (status === 'pendentes') {
-        return statusDespesa === 'em_dia' || statusDespesa === 'atrasada';
-    } else if (status === 'pagas') {
-        return despesa.quitado === true;
-    } else {
-        return statusDespesa === status;
-    }
-}
-
 function obterDespesaDaLinha(linha) {
     const despesaId = linha.getAttribute('data-despesa-id');
     if (!despesaId) return null;
@@ -3958,25 +3643,8 @@ function calcularValorDespesaLinha(linha) {
     return 0;
 }
 
-function limparSelect(select) {
-    while (select.firstChild) {
-        select.removeChild(select.firstChild);
-    }
-}
-
-function adicionarOpcaoSelect(select, value, text) {
-    const option = document.createElement('option');
-    option.value = value;
-    option.textContent = text;
-    select.appendChild(option);
-}
-
 // ================================================================
 // FUNÇÕES DE CÁLCULO E TOTALIZAÇÕES
-// ================================================================
-
-// ================================================================
-// FUNÇÕES AUXILIARES CENTRALIZADAS
 // ================================================================
 
 /**
@@ -4143,11 +3811,6 @@ function calcularTotalEconomias(despesas) {
     }, 0);
 }
 
-// REMOVIDO: Configuração duplicada - já feita pelo sistemaAnexos
-function configurarBotaoComprovanteSimples() {
-    // Botão já configurado globalmente pelo sistemaAnexos
-}
-
 function calcularLimiteDisponivelCartao(cartaoId, mes, ano) {
     if (!cartaoId || !window.cartoesUsuario) return null;
 
@@ -4309,8 +3972,6 @@ window.inicializarTabelaDespesasGrid = inicializarTabelaDespesasGrid;
 window.criarLinhaDespesaGrid = criarLinhaDespesaGrid;
 window.encontrarDespesaPorIndice = encontrarDespesaPorIndice;
 window.preencherCelulaAnexos = preencherCelulaAnexos;
-window.configurarEventosFormularioAnexosDespesa = configurarEventosFormularioAnexosDespesa;
-window.inicializarSistemaAnexosDespesas = inicializarSistemaAnexosDespesas;
 
 // Função para selecionar/deselecionar todas as despesas (chamada pelo HTML)
 function toggleTodasDespesas(checkbox) {
@@ -4321,8 +3982,6 @@ function toggleTodasDespesas(checkbox) {
     atualizarBotaoLote();
 }
 window.toggleTodasDespesas = toggleTodasDespesas;
-
-document.addEventListener('DOMContentLoaded', configurarBotaoComprovanteSimples);
 
 // ================================================================
 // REDIMENSIONAMENTO DE COLUNAS - VERSÃO PARA TABLE

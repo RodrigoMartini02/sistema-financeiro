@@ -127,8 +127,6 @@ function exportarVariaveisGlobais() {
     window.atualizarResumoAnual = atualizarResumoAnual;
     window.atualizarLimitesCartoes = atualizarLimitesCartoes;
     window.calcularLimiteCartao = calcularLimiteCartao;
-    window.carregarCartoesDoServidor = carregarCartoesDoUsuario;
-
     // Funções de fechamento de mês
     window.fecharMes = fecharMes;
     window.reabrirMes = reabrirMes;
@@ -136,8 +134,6 @@ function exportarVariaveisGlobais() {
     window.removerReceitaSaldoAnterior = removerReceitaSaldoAnterior;
     window.verificarFechamentoAutomatico = verificarFechamentoAutomatico;
 
-    
-    
     if (typeof window.calcularTotalDespesas !== 'function') {
         window.calcularTotalDespesas = function(despesas, apenasPagas = false) {
             if (!Array.isArray(despesas)) return 0;
@@ -173,10 +169,6 @@ function exportarVariaveisGlobais() {
         mostrarNotificacao(mensagem, 'erro');
     };
 }
-
-// ================================================================
-// SISTEMA DE NOTIFICAÇÕES
-// ================================================================
 
 // ================================================================
 // SISTEMA DE TOAST NOTIFICATIONS - GLOBAL
@@ -1804,9 +1796,6 @@ function configurarBotoesModal() {
 
 
 
-
-
-
 function configurarBotao(id, callback) {
     const botao = document.getElementById(id);
     if (botao && callback) {
@@ -2874,41 +2863,6 @@ window.mostrarToast = mostrarToast;
 window.fecharToast = fecharToast;
 window.mostrarNotificacao = mostrarNotificacao;
 
-// ================================================================
-// EVENT LISTENERS NATIVOS - SUBSTITUINDO ONCLICK INLINE
-// ================================================================
-function configurarEventListeners() {
-    // Fechar modais com X
-    document.querySelectorAll('.close[data-modal]').forEach(closeBtn => {
-        closeBtn.addEventListener('click', function() {
-            const modalId = this.getAttribute('data-modal');
-            fecharModal(modalId);
-        });
-    });
-
-    // Botões de excluir receita
-    const btnExcluirAtual = document.getElementById('btn-excluir-atual');
-    const btnExcluirTodas = document.getElementById('btn-excluir-todas');
-
-    if (btnExcluirAtual) {
-        btnExcluirAtual.addEventListener('click', excluirAtual);
-    }
-
-    if (btnExcluirTodas) {
-        btnExcluirTodas.addEventListener('click', excluirTodas);
-    }
-
-    // Botões de nova despesa (podem existir múltiplos)
-    document.querySelectorAll('#btn-nova-despesa').forEach(btn => {
-        btn.addEventListener('click', abrirModalNovaDespesa);
-    });
-
-}
-
-
-
-
-
 // --- CONFIGURAÇÃO NEWSDATA.IO ---
 const NEWSDATA_API_KEY = 'pub_5cfccab63ba54e729b804382b4f3d0cb';
 let listaNoticias = [];
@@ -3030,9 +2984,6 @@ window.fecharPainelCentral = fecharPainelCentral;
 
 
 
-
-
-
 function iniciarAtualizacaoCotacoes() {
     const elemento = document.getElementById('cotacoes') || document.getElementById('cotacoes-compact');
     if (!elemento) return;
@@ -3090,7 +3041,6 @@ function iniciarAtualizacaoCotacoes() {
     setInterval(carregarCotacoesEmReal, INTERVALO_ATUALIZACAO);
 }
 
-// IMPORTANTE: Chame a função para ela começar a rodar!
 document.addEventListener('DOMContentLoaded', iniciarAtualizacaoCotacoes);
 
 // ================================================================
@@ -3133,6 +3083,3 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
-
-// Executar quando DOM estiver pronto
-document.addEventListener('DOMContentLoaded', configurarEventListeners);

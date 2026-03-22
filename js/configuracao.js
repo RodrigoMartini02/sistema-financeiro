@@ -2139,42 +2139,6 @@ async function exportarDados() {
     }
 }
 
-function converterParaCSV(dados) {
-    let csv = '';
-
-    // Cabeçalho
-    csv += 'Tipo,Ano,Mês,Data,Descrição,Categoria,Valor,FormaPagamento,Parcelas,Status,Observações\n';
-
-    // Processar dados financeiros
-    if (dados.dadosFinanceiros) {
-        Object.keys(dados.dadosFinanceiros).forEach(ano => {
-            const anoData = dados.dadosFinanceiros[ano];
-
-            // Receitas
-            if (anoData.receitas) {
-                anoData.receitas.forEach(receita => {
-                    csv += `Receita,${ano},${receita.mes || ''},${receita.data || ''},`;
-                    csv += `"${receita.descricao || ''}","${receita.categoria || ''}",`;
-                    csv += `${receita.valor || 0},"${receita.formaPagamento || ''}",`;
-                    csv += `${receita.parcelas || ''},"${receita.status || ''}","${receita.observacoes || ''}"\n`;
-                });
-            }
-
-            // Despesas
-            if (anoData.despesas) {
-                anoData.despesas.forEach(despesa => {
-                    csv += `Despesa,${ano},${despesa.mes || ''},${despesa.data || ''},`;
-                    csv += `"${despesa.descricao || ''}","${despesa.categoria || ''}",`;
-                    csv += `${despesa.valor || 0},"${despesa.formaPagamento || ''}",`;
-                    csv += `${despesa.parcelas || ''},"${despesa.status || ''}","${despesa.observacoes || ''}"\n`;
-                });
-            }
-        });
-    }
-
-    return csv;
-}
-
 async function importarDados() {
     const inputFile = document.createElement('input');
     inputFile.type = 'file';
@@ -2732,61 +2696,6 @@ async function importarDados() {
     inputFile.click();
 }
 
-function converterCSVParaJSON(csvText) {
-    const lines = csvText.split('\n');
-    const dados = { receitas: [], despesas: [] };
-
-    // Pular cabeçalho
-    for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-
-        // Parse CSV com suporte a aspas
-        const valores = [];
-        let valorAtual = '';
-        let dentroAspas = false;
-
-        for (let char of line) {
-            if (char === '"') {
-                dentroAspas = !dentroAspas;
-            } else if (char === ',' && !dentroAspas) {
-                valores.push(valorAtual);
-                valorAtual = '';
-            } else {
-                valorAtual += char;
-            }
-        }
-        valores.push(valorAtual);
-
-        if (valores.length < 11) continue;
-
-        // Limpar aspas duplas escapadas ("") -> (")
-        const limparValor = (val) => val.replace(/""/g, '"').trim();
-
-        const item = {
-            tipo: limparValor(valores[0]),
-            ano: parseInt(valores[1]) || new Date().getFullYear(),
-            mes: parseInt(valores[2]) || 0,
-            data: limparValor(valores[3]),
-            descricao: limparValor(valores[4]),
-            categoria: limparValor(valores[5]),
-            valor: parseFloat(valores[6]) || 0,
-            formaPagamento: limparValor(valores[7]),
-            parcelas: parseInt(valores[8]) || null,
-            status: limparValor(valores[9]) || 'Pago',
-            observacoes: limparValor(valores[10])
-        };
-
-        if (item.tipo === 'Receita') {
-            dados.receitas.push(item);
-        } else if (item.tipo === 'Despesa') {
-            dados.despesas.push(item);
-        }
-    }
-
-    return dados;
-}
-
 async function limparDados() {
     if (!confirm('Deseja apagar TUDO? (Dados, Categorias, Cartões e Notificações)')) return;
 
@@ -2835,25 +2744,6 @@ async function limparDados() {
         }
     } catch (error) {
         // Erro de conexão - silencioso
-    }
-}
-
-// Função de apoio para tentar a segunda rota caso a primeira falhe
-async function fazerChamadaGenerica(apiBase, usuarioId) {
-    const response = await fetch(`${apiBase}/limpar-dados`, {
-        method: 'DELETE',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
-        },
-        body: JSON.stringify({ usuarioId })
-    });
-    
-    if (response.ok) {
-        mostrarFeedback('Dados excluídos!', 'success');
-        window.location.reload();
-    } else {
-        mostrarFeedback('Erro Crítico: A rota de limpeza não existe no Backend. Verifique o código do servidor.', 'error');
     }
 }
 

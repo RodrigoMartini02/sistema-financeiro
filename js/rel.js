@@ -73,7 +73,6 @@ class SistemaRelatorios {
                 if (window.sistemaInicializado && window.dadosFinanceiros && Object.keys(window.dadosFinanceiros).length > 0 && typeof window.salvarDados === 'function') {
                     resolve(true);
                 } else if (tentativas >= maxTentativas) {
-                    console.warn('Sistema financeiro não foi carregado completamente');
                     resolve(false);
                 } else {
                     setTimeout(verificar, 100);
@@ -97,7 +96,6 @@ class SistemaRelatorios {
     configurarEventosSecao() {
         this.secaoAtiva = document.getElementById('relatorios-section');
         if (!this.secaoAtiva) {
-            console.warn('Seção de relatórios não encontrada');
             return;
         }
         
@@ -500,8 +498,6 @@ class SistemaRelatorios {
         return elemento ? elemento.value : valorDefault;
     }
 
-    // CONTINUAÇÃO DA PARTE 1 - FILTROS E PROCESSAMENTO DE DADOS
-    
     filtrarDados() {
         const { dataInicio, dataFim } = this.obterPeriodoSelecionado();
         let receitas = [];
@@ -1725,7 +1721,6 @@ window.sistemaRelatorios = sistemaRelatorios;
 window.TIPOS_RELATORIO = TIPOS_RELATORIO;
 window.PERIODOS = PERIODOS;
 window.CRITERIOS_DATA = CRITERIOS_DATA;
-window.RelatoriosTelaCheia = SistemaRelatorios;
 
 // ----------------------------------------------------------------
 // GERADOR DE PDF MELHORADO
@@ -2427,82 +2422,5 @@ if (window.SistemaRelatorios && window.SistemaRelatorios.prototype) {
     };
 }
 
-class CapturadorDadosInterface {
-    static capturarDadosCard(idElemento) {
-        const elemento = document.getElementById(idElemento);
-        if (!elemento) return { valor: 'N/A', visivel: false };
-        
-        return {
-            valor: elemento.textContent.trim(),
-            visivel: !elemento.closest('.hidden'),
-            classes: elemento.className
-        };
-    }
-    
-    static capturarDadosTabela(idTabela) {
-        const tabela = document.getElementById(idTabela);
-        if (!tabela) return { headers: [], rows: [], visivel: false };
-        
-        const headers = [];
-        const headerRow = tabela.querySelector('thead tr');
-        if (headerRow) {
-            headerRow.querySelectorAll('th').forEach(th => {
-                headers.push(th.textContent.trim());
-            });
-        }
-        
-        const rows = [];
-        const tbody = tabela.querySelector('tbody');
-        if (tbody) {
-            tbody.querySelectorAll('tr').forEach(tr => {
-                const row = [];
-                tr.querySelectorAll('td').forEach(td => {
-                    row.push(td.textContent.trim());
-                });
-                if (row.length > 0) {
-                    rows.push(row);
-                }
-            });
-        }
-        
-        return {
-            headers,
-            rows,
-            visivel: !tabela.closest('.hidden')
-        };
-    }
-    
-    static capturarSecoesVisiveis() {
-        const secoes = [
-            'resumo-executivo',
-            'comparativo-formas-pagamento',
-            'analise-gastos-reais',
-            'detalhamento-categorias',
-            'detalhamento-pagamento',
-            'lista-transacoes',
-            'detalhamento-parcelamentos'
-        ];
-        
-        const secoesVisiveis = [];
-        secoes.forEach(id => {
-            const elemento = document.getElementById(id);
-            if (elemento && !elemento.classList.contains('hidden')) {
-                secoesVisiveis.push(id);
-            }
-        });
-        
-        return secoesVisiveis;
-    }
-    
-    static capturarFiltrosAtivos() {
-        const resumoFiltros = document.getElementById('texto-filtros-resumo');
-        if (resumoFiltros) {
-            return resumoFiltros.innerHTML.replace(/<[^>]*>/g, ''); // Remove HTML tags
-        }
-        return 'Nenhum filtro específico aplicado';
-    }
-}
-
 // Exportações globais do módulo PDF
 window.GeradorPDFMelhorado = GeradorPDFMelhorado;
-window.CapturadorDadosInterface = CapturadorDadosInterface;

@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
 const API_URL = 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
 let elementos = {};
+let _recoveryCode = null; // Código de recuperação validado (usado em processarNovaSenha)
 
 // ================================================================
 // INICIALIZAÇÃO RÁPIDA - SEM AGUARDOS
@@ -37,17 +38,12 @@ function inicializarSistemaLoginRapido() {
         window.loginSistemaInicializado = true;
 
     } catch (error) {
-        configurarLoginMinimo();
+        console.error('[Login] Falha na inicialização:', error);
     }
 }
 
 
 function configurarSistemaCompleto() {
-    // Inicializar estrutura de dados se necessário
-    if (!localStorage.getItem('usuarios')) {
-        localStorage.setItem('usuarios', JSON.stringify([]));
-    }
-    
     // Configurar todos os eventos
     configurarEventListenersLogin();
     configurarEventListenersCadastro();
@@ -145,9 +141,6 @@ async function verificarRetornoGoogle() {
         sessionStorage.setItem('token', token);
         sessionStorage.setItem('usuarioAtual', usuario.documento || usuario.email);
         sessionStorage.setItem('dadosUsuarioLogado', dadosUsuarioGoogle);
-        localStorage.setItem('token', token);
-        localStorage.setItem('usuarioAtual', usuario.documento || usuario.email);
-        localStorage.setItem('dadosUsuarioLogado', dadosUsuarioGoogle);
 
         window.location.href = 'app.html';
     } catch (error) {
@@ -163,17 +156,9 @@ async function verificarRetornoGoogle() {
 }
 
 function carregarDependenciasBackground() {
-    // EmailJS agora é gerenciado pelo backend - não precisa carregar no frontend
-
-    // UsuarioDados se disponível
     if (window.usuarioDados && typeof window.usuarioDados.aguardarPronto === 'function') {
-        window.usuarioDados.aguardarPronto().then(() => {
-            // UsuarioDados integrado silenciosamente
-        });
+        window.usuarioDados.aguardarPronto().then(() => {});
     }
-
-    // Limpeza automática
-    verificarELimparDados();
 }
 
 // ================================================================
@@ -181,20 +166,6 @@ function carregarDependenciasBackground() {
 // ================================================================
 
 function configurarEventListenersLogin() {
-    // Login principal
-    if (elementos.loginForm) {
-        elementos.loginForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const documento = document.getElementById('documento')?.value?.trim();
-            const password = document.getElementById('password')?.value?.trim();
-            
-            if (documento && password) {
-                await processarLogin(documento, password, false);
-            }
-        });
-    }
-    
-    // Login modal
     if (elementos.modalLoginForm) {
         elementos.modalLoginForm.addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -232,17 +203,25 @@ function configurarEventListenersRecuperacao() {
                     return;
                 }
 
-                const validacao = verificarCodigoRecuperacao(email, codigoInput);
-
-                if (validacao.valido) {
+                try {
+                    const resp = await fetch(`${API_URL}/auth/verify-recovery-code`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, codigo: codigoInput })
+                    });
+                    const data = await resp.json();
+                    if (!resp.ok) {
+                        mostrarErroRecuperacao(data.message || 'Código incorreto ou expirado');
+                        return;
+                    }
+                    _recoveryCode = codigoInput;
                     if (document.getElementById('email-nova-senha')) {
                         document.getElementById('email-nova-senha').value = email;
                     }
-                    
                     if (elementos.recuperacaoModal) elementos.recuperacaoModal.style.display = 'none';
                     if (elementos.novaSenhaModal) elementos.novaSenhaModal.style.display = 'flex';
-                } else {
-                    mostrarErroRecuperacao(validacao.motivo || 'Código incorreto ou expirado');
+                } catch (err) {
+                    mostrarErroRecuperacao('Erro de conexão. Tente novamente.');
                 }
             } else {
                 await processarRecuperacaoSenha();
@@ -268,7 +247,6 @@ async function processarLogin(documento, password, isModal, tentativa = 1) {
 
     if (errorElement) errorElement.style.display = 'none';
 
-    // ✅ Mostrar loading screen com imagens
     if (typeof window.showLoadingScreen === 'function') {
         window.showLoadingScreen();
     }
@@ -300,8 +278,6 @@ async function processarLogin(documento, password, isModal, tentativa = 1) {
             throw new Error(data.message || 'Documento ou senha incorretos');
         }
 
-        // Salvar token JWT e dados do usuário
-        // API retorna: { success: true, data: { token, usuario: {...} } }
         const token = data.data?.token || data.token;
         const usuario = data.data?.usuario || data.user || data.usuario || data;
 
@@ -311,23 +287,14 @@ async function processarLogin(documento, password, isModal, tentativa = 1) {
             documento: docLimpo,
             email: usuario.email,
             tipo: usuario.tipo
-            // Senha removida por segurança - usar token JWT para autenticação
         });
         sessionStorage.setItem('token', token);
         sessionStorage.setItem('usuarioAtual', docLimpo);
         sessionStorage.setItem('dadosUsuarioLogado', dadosUsuario);
-        localStorage.setItem('token', token);
-        localStorage.setItem('usuarioAtual', docLimpo);
-        localStorage.setItem('dadosUsuarioLogado', dadosUsuario);
 
-        // Registrar tentativa em background
-        registrarTentativaBackground(documento, true);
-
-        // Redirecionamento
         window.location.href = 'app.html';
 
     } catch (error) {
-        // ✅ Esconder loading screen em caso de erro
         if (typeof window.hideLoadingScreen === 'function') {
             window.hideLoadingScreen();
         }
@@ -345,8 +312,6 @@ async function processarLogin(documento, password, isModal, tentativa = 1) {
         } else {
             mostrarErroLogin(errorElement, error.message || 'Erro no sistema. Tente novamente.');
         }
-
-        registrarTentativaBackground(documento, false);
 
         // Limpar senha apenas se falhou definitivamente
         if (error.name !== 'AbortError' || tentativa >= 2) {
@@ -384,8 +349,8 @@ async function processarFormularioCadastro() {
         return;
     }
     
-    if (password.length < 6) {
-        mostrarErroCadastro('A senha deve ter pelo menos 6 caracteres');
+    if (password.length < 8) {
+        mostrarErroCadastro('A senha deve ter pelo menos 8 caracteres');
         return;
     }
     
@@ -430,29 +395,24 @@ async function processarCadastro(nome, email, documento, password) {
     const docLimpo = documento.replace(/[^\d]+/g, '');
     const googleId = sessionStorage.getItem('googlePendingId') || null;
 
-    try {
-        const body = { nome, email, documento: docLimpo, senha: password };
-        if (googleId) body.google_id = googleId;
+    const body = { nome, email, documento: docLimpo, senha: password };
+    if (googleId) body.google_id = googleId;
 
-        const response = await fetch(`${API_URL}/auth/register`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(body)
-        });
+    const response = await fetch(`${API_URL}/auth/register`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+    });
 
-        const data = await response.json();
+    const data = await response.json();
 
-        if (!response.ok) {
-            throw new Error(data.message || 'Erro ao cadastrar usuário');
-        }
-
-        return { success: true, data: data.usuario };
-
-    } catch (error) {
-        throw error;
+    if (!response.ok) {
+        throw new Error(data.message || 'Erro ao cadastrar usuário');
     }
+
+    return { success: true, data: data.usuario };
 }
 
 
@@ -470,44 +430,34 @@ async function processarRecuperacaoSenha() {
         return;
     }
 
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        mostrarErroRecuperacao('Por favor, informe um email válido');
+        return;
+    }
+
     if (typeof window.showLoadingScreen === 'function') window.showLoadingScreen();
 
     try {
-        const response = await fetch(`${API_URL}/auth/forgot-password`, {
+        // Backend gera o código, salva no banco e envia o email
+        await fetch(`${API_URL}/auth/forgot-password`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: email })
+            body: JSON.stringify({ email })
         });
 
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.message || 'Email não encontrado');
+        // Sempre mostrar mensagem genérica (não revelar se email existe)
+        if (elementos.recuperacaoSuccessMessage) {
+            elementos.recuperacaoSuccessMessage.textContent = 'Se este email estiver cadastrado, você receberá um código em breve.';
+            elementos.recuperacaoSuccessMessage.style.display = 'block';
         }
 
-        const codigo = Math.floor(100000 + Math.random() * 900000).toString();
-
-        const envioEmail = await enviarEmailRecuperacao(email, codigo, data.data?.nome || 'Usuário');
-
-        if (envioEmail.success) {
-            salvarCodigoRecuperacao(email, codigo);
-
-            if (elementos.recuperacaoSuccessMessage) {
-                elementos.recuperacaoSuccessMessage.textContent = 'Email enviado! Verifique sua caixa de entrada.';
-                elementos.recuperacaoSuccessMessage.style.display = 'block';
-            }
-
-            const campoCodigoContainer = document.getElementById('campo-codigo-container');
-            if (campoCodigoContainer) {
-                campoCodigoContainer.style.display = 'block';
-            }
-        } else {
-            throw new Error('Erro ao enviar e-mail de recuperação');
+        const campoCodigoContainer = document.getElementById('campo-codigo-container');
+        if (campoCodigoContainer) {
+            campoCodigoContainer.style.display = 'block';
         }
 
     } catch (error) {
-        if (typeof window.hideLoadingScreen === 'function') window.hideLoadingScreen();
-        mostrarErroRecuperacao(error.message);
+        mostrarErroRecuperacao('Erro de conexão. Tente novamente.');
     } finally {
         if (typeof window.hideLoadingScreen === 'function') window.hideLoadingScreen();
     }
@@ -530,11 +480,16 @@ async function processarNovaSenha() {
         return;
     }
     
-    if (novaSenha.length < 6) {
-        mostrarErroNovaSenha('A senha deve ter pelo menos 6 caracteres');
+    if (novaSenha.length < 8) {
+        mostrarErroNovaSenha('A senha deve ter pelo menos 8 caracteres');
         return;
     }
-    
+
+    if (!_recoveryCode) {
+        mostrarErroNovaSenha('Sessão de recuperação inválida. Solicite um novo código.');
+        return;
+    }
+
     if (typeof window.showLoadingScreen === 'function') window.showLoadingScreen();
 
     try {
@@ -545,7 +500,8 @@ async function processarNovaSenha() {
             },
             body: JSON.stringify({
                 email: email,
-                novaSenha: novaSenha
+                novaSenha: novaSenha,
+                codigo: _recoveryCode
             })
         });
 
@@ -555,14 +511,15 @@ async function processarNovaSenha() {
             throw new Error(data.message || 'Erro ao atualizar senha no servidor');
         }
 
+        _recoveryCode = null;
+
         if (typeof window.hideLoadingScreen === 'function') window.hideLoadingScreen();
 
         if (elementos.novaSenhaSuccessMessage) {
-            elementos.novaSenhaSuccessMessage.textContent = 'Senha alterada com sucesso no banco!';
+            elementos.novaSenhaSuccessMessage.textContent = 'Senha alterada com sucesso!';
             elementos.novaSenhaSuccessMessage.style.display = 'block';
         }
 
-        // Fechar modal de nova senha após sucesso
         setTimeout(() => {
             if (elementos.novaSenhaModal) elementos.novaSenhaModal.style.display = 'none';
         }, 2000);
@@ -691,7 +648,7 @@ function inicializarModais() {
     });
 
     const mensagens = [
-        elementos.errorMessage, elementos.modalErrorMessage,
+        elementos.modalErrorMessage,
         elementos.cadastroErrorMessage, elementos.cadastroSuccessMessage,
         elementos.recuperacaoErrorMessage, elementos.recuperacaoSuccessMessage,
         elementos.novaSenhaErrorMessage, elementos.novaSenhaSuccessMessage
@@ -745,130 +702,6 @@ function obterElementosDOM() {
 }
 
 // ================================================================
-// SISTEMA DE SEGURANÇA OTIMIZADO
-// ================================================================
-
-function verificarBloqueio(documento) {
-    try {
-        const tentativas = JSON.parse(localStorage.getItem('tentativasLogin') || '{}');
-        const docLimpo = documento.replace(/[^\d]+/g, '');
-        const tentativasUsuario = tentativas[docLimpo] || [];
-        
-        const agora = Date.now();
-        const ultimaHora = agora - (60 * 60 * 1000);
-        
-        const falhasRecentes = tentativasUsuario.filter(t => 
-            !t.sucesso && t.timestamp > ultimaHora
-        ).length;
-        
-        return {
-            bloqueado: falhasRecentes >= 5,
-            tempoRestante: falhasRecentes >= 5 ? Math.ceil((agora - ultimaHora) / 60000) : 0
-        };
-    } catch {
-        return { bloqueado: false, tempoRestante: 0 };
-    }
-}
-
-function registrarTentativaBackground(documento, sucesso) {
-    // Execução em background para não atrasar login
-    setTimeout(() => {
-        try {
-            const tentativas = JSON.parse(localStorage.getItem('tentativasLogin') || '{}');
-            const docLimpo = documento.replace(/[^\d]+/g, '');
-            
-            if (!tentativas[docLimpo]) {
-                tentativas[docLimpo] = [];
-            }
-            
-            tentativas[docLimpo].push({
-                timestamp: Date.now(),
-                sucesso
-            });
-            
-            // Manter apenas 5 últimas
-            tentativas[docLimpo] = tentativas[docLimpo].slice(-5);
-            localStorage.setItem('tentativasLogin', JSON.stringify(tentativas));
-        } catch (error) {
-            // Erro ao registrar tentativa - silencioso
-        }
-    }, 0);
-}
-
-// ================================================================
-// FUNÇÕES DE RECUPERAÇÃO DE SENHA
-// ================================================================
-
-
-function salvarCodigoRecuperacao(email, codigo) {
-    const codigosRecuperacao = JSON.parse(localStorage.getItem('codigosRecuperacao') || '{}');
-    codigosRecuperacao[email] = {
-        codigo: codigo,
-        expiracao: Date.now() + (15 * 60 * 1000),
-        tentativas: 0
-    };
-    localStorage.setItem('codigosRecuperacao', JSON.stringify(codigosRecuperacao));
-}
-
-function verificarCodigoRecuperacao(email, codigoInformado) {
-    const codigosRecuperacao = JSON.parse(localStorage.getItem('codigosRecuperacao') || '{}');
-    const dadosCodigo = codigosRecuperacao[email];
-    
-    if (!dadosCodigo) {
-        return { valido: false, motivo: 'Código não encontrado' };
-    }
-    
-    if (Date.now() > dadosCodigo.expiracao) {
-        delete codigosRecuperacao[email];
-        localStorage.setItem('codigosRecuperacao', JSON.stringify(codigosRecuperacao));
-        return { valido: false, motivo: 'Código expirado' };
-    }
-    
-    if (dadosCodigo.tentativas >= 3) {
-        return { valido: false, motivo: 'Muitas tentativas' };
-    }
-    
-    if (dadosCodigo.codigo !== codigoInformado) {
-        dadosCodigo.tentativas++;
-        localStorage.setItem('codigosRecuperacao', JSON.stringify(codigosRecuperacao));
-        return { valido: false, motivo: 'Código incorreto' };
-    }
-    
-    delete codigosRecuperacao[email];
-    localStorage.setItem('codigosRecuperacao', JSON.stringify(codigosRecuperacao));
-    
-    return { valido: true };
-}
-
-async function enviarEmailRecuperacao(email, codigo, nomeUsuario = 'Usuário') {
-    try {
-        // Enviar email via backend (credenciais seguras no servidor)
-        const response = await fetch(`${API_URL}/auth/send-recovery-email`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                email: email,
-                codigo: codigo,
-                nome: nomeUsuario
-            })
-        });
-
-        const data = await response.json();
-
-        if (response.ok && data.success) {
-            return { success: true };
-        } else {
-            throw new Error(data.message || 'Erro ao enviar email');
-        }
-
-    } catch (error) {
-        return { success: false, message: 'Erro ao enviar e-mail: ' + error.message };
-    }
-}
-
-// ================================================================
 // FUNÇÕES DE MENSAGENS
 // ================================================================
 
@@ -915,107 +748,14 @@ function testLocalStorage() {
 }
 
 
-function verificarELimparDados() {
-    try {
-        const agora = Date.now();
-        
-        // Limpar códigos de recuperação expirados
-        const codigosRecuperacao = JSON.parse(localStorage.getItem('codigosRecuperacao') || '{}');
-        let alterou = false;
-        
-        Object.keys(codigosRecuperacao).forEach(email => {
-            if (codigosRecuperacao[email].expiracao < agora) {
-                delete codigosRecuperacao[email];
-                alterou = true;
-            }
-        });
-        
-        if (alterou) {
-            localStorage.setItem('codigosRecuperacao', JSON.stringify(codigosRecuperacao));
-        }
-        
-        // Limpar tentativas antigas
-        const tentativas = JSON.parse(localStorage.getItem('tentativasLogin') || '{}');
-        alterou = false;
-        
-        Object.keys(tentativas).forEach(doc => {
-            const tentativasValidas = tentativas[doc].filter(t => 
-                agora - t.timestamp < 24 * 60 * 60 * 1000
-            );
-            
-            if (tentativasValidas.length !== tentativas[doc].length) {
-                tentativas[doc] = tentativasValidas;
-                alterou = true;
-            }
-            
-            if (tentativas[doc].length === 0) {
-                delete tentativas[doc];
-                alterou = true;
-            }
-        });
-        
-        if (alterou) {
-            localStorage.setItem('tentativasLogin', JSON.stringify(tentativas));
-        }
-
-    } catch (error) {
-        // Erro na limpeza - silencioso
-    }
-}
-
-function configurarLoginMinimo() {
-    // Fallback básico caso tudo falhe
-    try {
-        const modalLoginForm = document.getElementById('modal-login-form');
-        if (modalLoginForm) {
-            modalLoginForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const doc = document.getElementById('modal-documento')?.value;
-                const pass = document.getElementById('modal-password')?.value;
-                if (doc && pass) processarLoginMinimo(doc, pass);
-            });
-        }
-    } catch (error) {
-        // Falha total - silencioso
-    }
-}
-
-function processarLoginMinimo(documento, password) {
-    try {
-        const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
-        const docLimpo = documento.replace(/[^\d]+/g, '');
-        const usuario = usuarios.find(u => 
-            u.documento && 
-            u.documento.replace(/[^\d]+/g, '') === docLimpo && 
-            u.password === password
-        );
-        
-        if (usuario) {
-            const dadosOffline = JSON.stringify(usuario);
-            sessionStorage.setItem('usuarioAtual', docLimpo);
-            sessionStorage.setItem('dadosUsuarioLogado', dadosOffline);
-            localStorage.setItem('usuarioAtual', docLimpo);
-            localStorage.setItem('dadosUsuarioLogado', dadosOffline);
-            window.location.href = 'app.html';
-        } else {
-            (window.mostrarToast || alert)('Login inválido', 'error');
-        }
-    } catch (error) {
-        (window.mostrarToast || alert)('Erro no sistema', 'error');
-    }
-}
 
 // ================================================================
-// FUNÇÕES GLOBAIS EXPORTADAS
-// ================================================================
-
-// ================================================================
-// CONFIGURAR TOGGLE DE SENHA - EVENT LISTENERS NATIVOS
+// CONFIGURAR TOGGLE DE SENHA
 // ================================================================
 function calcularForcaSenha(senha) {
     let pontos = 0;
-    if (senha.length >= 6) pontos++;
     if (senha.length >= 8) pontos++;
+    if (senha.length >= 12) pontos++;
     if (/[A-Z]/.test(senha)) pontos++;
     if (/[0-9]/.test(senha)) pontos++;
     if (/[^A-Za-z0-9]/.test(senha)) pontos++;
@@ -1034,7 +774,7 @@ function atualizarBarraForca(input) {
     if (!senha) {
         fill.style.width = '0%';
         fill.style.background = '';
-        text.textContent = 'Minimo de 6 caracteres';
+        text.textContent = 'Mínimo de 8 caracteres';
         text.style.color = '';
         return;
     }

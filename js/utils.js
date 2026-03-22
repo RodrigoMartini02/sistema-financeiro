@@ -56,6 +56,9 @@ function redirecionarParaLogin() {
 function logout() {
     removeToken();
     sessionStorage.clear();
+    localStorage.removeItem('token');
+    localStorage.removeItem('usuarioAtual');
+    localStorage.removeItem('dadosUsuarioLogado');
     redirecionarParaLogin();
 }
 

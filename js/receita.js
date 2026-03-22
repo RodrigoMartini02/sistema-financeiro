@@ -647,8 +647,6 @@ async function excluirReceitaLocal(opcao, index, mes, ano, descricaoReceita) {
                 throw new Error(`Erro ao excluir receita: ${response.status}`);
             }
 
-            const data = await response.json();
-
             // Registrar log da exclusão
             if (window.logManager) {
                 window.logManager.registrar({
@@ -1906,14 +1904,6 @@ window.calcularTotalReservas = calcularTotalReservas;
 // ================================================================
 // SISTEMA DE METAS / OBJETIVOS — funções de suporte
 // ================================================================
-
-/**
- * switchMetasTab — mantido como stub para compatibilidade com main.js
- */
-function switchMetasTab(tabName, btnEl) {
-    // As abas foram removidas; função mantida para não quebrar referências externas
-}
-window.switchMetasTab = switchMetasTab;
 
 /**
  * Carrega objetivos (reservas com tipo_reserva='objetivo') — ainda usada no dashboard

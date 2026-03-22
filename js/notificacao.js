@@ -778,10 +778,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Backup de inicialização se o DOMContentLoaded já passou
-if (document.readyState === 'loading') {
-    // DOM ainda carregando, event listener já foi configurado
-} else {
-    // DOM já carregado
+if (document.readyState !== 'loading') {
     setTimeout(() => {
         inicializarSistemaNotificacoes();
     }, 100);
@@ -791,11 +788,8 @@ if (document.readyState === 'loading') {
 // INTEGRAÇÃO COM SISTEMAS EXISTENTES
 // ================================================================
 
-// Se window.addEventListener estiver disponível, aguardar evento customizado
-if (typeof window.addEventListener === 'function') {
-    window.addEventListener('sistemaFinanceiroReady', function() {
-        if (!sistemaNotificacoes) {
-            inicializarSistemaNotificacoes();
-        }
-    });
-}
+window.addEventListener('sistemaFinanceiroReady', function() {
+    if (!sistemaNotificacoes) {
+        inicializarSistemaNotificacoes();
+    }
+});

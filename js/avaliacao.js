@@ -342,7 +342,7 @@ if (document.readyState === 'loading') {
             sucessoEl.style.display = 'block';
             document.getElementById('btn-enviar-avaliacao').style.display = 'none';
             document.getElementById('btn-dispensar-avaliacao').style.display = 'none';
-            setTimeout(fecharModal, 2500);
+            setTimeout(fecharToastAvaliacao, 2500);
 
         } catch (error) {
             erroEl.textContent = error.message || 'Erro ao enviar avaliação. Tente novamente.';
@@ -360,12 +360,7 @@ if (document.readyState === 'loading') {
     }
 
     function dispensarAvaliacao() {
-        // Chave user-specific: não bloqueia outros usuários no mesmo browser
         localStorage.setItem(chaveDispensado(), Date.now().toString());
-        fecharToastAvaliacao();
-    }
-
-    function fecharModal() {
         fecharToastAvaliacao();
     }
 

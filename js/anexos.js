@@ -298,8 +298,6 @@ if (!window.sistemaAnexos) {
 window.abrirSeletorArquivos = function(tipo) {
     if (window.sistemaAnexos) {
         window.sistemaAnexos.abrirSeletorArquivos(tipo);
-    } else {
-
     }
 };
 
@@ -339,7 +337,6 @@ function abrirModalVisualizarAnexosDespesa(index) {
         }
         
     } catch (error) {
-
         (window.mostrarToast || alert)('Erro ao carregar anexos da despesa', 'error');
     }
 }
@@ -470,7 +467,6 @@ function baixarAnexoDespesa(anexo, nomeArquivo) {
         setTimeout(() => URL.revokeObjectURL(url), 100);
         
     } catch (error) {
-
         (window.mostrarToast || alert)('Erro ao baixar anexo. Verifique se o arquivo está íntegro.', 'error');
     }
 }
@@ -663,7 +659,6 @@ function abrirModalVisualizarAnexosReceita(index) {
         }
         
     } catch (error) {
-
         (window.mostrarToast || alert)('Erro ao carregar anexos da receita', 'error');
     }
 }
@@ -689,7 +684,6 @@ function preencherModalAnexosReceita(descricaoReceita, anexos) {
     });
 }
 
-// Função para criar item de download - VERSÃO CORRIGIDA
 function criarItemAnexoParaDownload(anexo, indice) {
     const div = document.createElement('div');
     div.className = 'anexo-download-item';
@@ -708,13 +702,12 @@ function criarItemAnexoParaDownload(anexo, indice) {
     
     const btnDownload = div.querySelector('.btn-download-anexo');
     btnDownload.addEventListener('click', () => {
-        baixarAnexoReceita(anexo, nomeArquivo); // MUDANÇA AQUI
+        baixarAnexoReceita(anexo, nomeArquivo);
     });
     
     return div;
 }
 
-// Função para baixar anexo - ADICIONAR ESTA FUNÇÃO
 function baixarAnexoReceita(anexo, nomeArquivo) {
     try {
         if (!anexo || !anexo.dados) {
@@ -748,13 +741,9 @@ function baixarAnexoReceita(anexo, nomeArquivo) {
         setTimeout(() => URL.revokeObjectURL(url), 100);
         
     } catch (error) {
-
         (window.mostrarToast || alert)('Erro ao baixar anexo. Verifique se o arquivo está íntegro.', 'error');
     }
 }
-
-// Exportar função global
-window.abrirModalVisualizarAnexosReceita = abrirModalVisualizarAnexosReceita;
 
 // ================================================================
 // EXPORTAR FUNÇÕES GLOBAIS

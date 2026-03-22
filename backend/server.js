@@ -8,9 +8,20 @@ const { rateLimiter } = require('./middleware/validation');
 const app = express();
 const PORT = process.env.PORT || 3010;
 
-// CORS - permitir todas as origens por enquanto (ajustar em produção se necessário)
+// CORS - permitir apenas origens conhecidas
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+    : ['https://sistema-financeiro-kxed.onrender.com', 'http://localhost:3000', 'http://127.0.0.1:3000'];
+
 app.use(cors({
-    origin: true,
+    origin: (origin, callback) => {
+        // Permitir requests sem origin (Postman, server-to-server, etc.)
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error(`CORS: origem não permitida — ${origin}`));
+        }
+    },
     credentials: true
 }));
 
