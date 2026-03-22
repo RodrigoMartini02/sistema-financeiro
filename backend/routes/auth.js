@@ -28,7 +28,7 @@ async function enviarEmailRecuperacaoEmailJS(email, nome, codigo) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Origin': 'https://sistema-financeiro-kxed.onrender.com'
+            'Origin': process.env.FRONTEND_URL || 'https://fin-gerence.com.br'
         },
         body: JSON.stringify({
             service_id: serviceId,
