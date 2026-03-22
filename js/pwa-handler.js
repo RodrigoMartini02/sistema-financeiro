@@ -9,6 +9,7 @@
         // Detecção de ambiente
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+        const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth <= 768;
 
         // FUNÇÃO PARA ABRIR (Usa setProperty para vencer o !important do CSS se necessário)
         const openPwaModal = (type) => {
@@ -52,19 +53,17 @@
             }
         };
 
-        // Escutador Android (Chrome/Edge)
+        // Escutador Android (Chrome/Edge) — somente mobile
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            // Só mostra se não estiver instalado e não tiver visto nesta sessão
-            if (!isStandalone && !sessionStorage.getItem('pwa_banner_viewed')) {
+            if (isMobile && !isStandalone && !sessionStorage.getItem('pwa_banner_viewed')) {
                 openPwaModal('android');
             }
         });
 
-        // Escutador iOS (Safari)
-        if (isIOS && !isStandalone && !sessionStorage.getItem('pwa_banner_viewed')) {
-            // No iOS, aguardamos 5s para não assustar o usuário assim que ele entra
+        // Escutador iOS (Safari) — somente mobile
+        if (isMobile && isIOS && !isStandalone && !sessionStorage.getItem('pwa_banner_viewed')) {
             setTimeout(() => openPwaModal('ios'), 5000);
         }
 
