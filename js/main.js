@@ -879,12 +879,10 @@ function setupSistemaBloqueio() {
         clearTimeout(inactivityTimer);
         bloquearModal();
         
-        const documentoInput = document.getElementById('lock-screen-documento');
-        if (documentoInput) {
-            documentoInput.value = '';
-            setTimeout(() => documentoInput.focus(), 100);
+        if (passwordInput) {
+            passwordInput.value = '';
+            setTimeout(() => passwordInput.focus(), 100);
         }
-        if (passwordInput) passwordInput.value = '';
     };
 
     const unlockSystem = () => {
@@ -936,48 +934,27 @@ function setupSistemaBloqueio() {
     const handleUnlockAttempt = async (event) => {
         event.preventDefault();
 
-        const documentoInput = document.getElementById('lock-screen-documento');
-        const enteredDocumento = documentoInput?.value?.trim();
         const enteredPassword = passwordInput?.value;
 
-        if (!enteredDocumento || !enteredPassword) {
-            (window.mostrarToast || alert)('Preencha o CPF/CNPJ e a senha.', 'warning');
+        if (!enteredPassword) {
+            (window.mostrarToast || alert)('Digite sua senha.', 'warning');
             return;
         }
 
         try {
-            const response = await fetch(`${API_URL}/auth/login`, {
+            const token = sessionStorage.getItem('token');
+            const response = await fetch(`${API_URL}/auth/verify-password`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ documento: enteredDocumento, senha: enteredPassword })
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ senha: enteredPassword })
             });
 
             const resultado = await response.json();
 
             if (resultado.success) {
-                const token = resultado.data?.token || resultado.token;
-                const usuario = resultado.data?.usuario || resultado.usuario || resultado.user;
-                const docLimpo = enteredDocumento.replace(/[^\d]+/g, '');
-                sessionStorage.setItem('token', token);
-                sessionStorage.setItem('usuarioAtual', docLimpo);
-                if (usuario) {
-                    sessionStorage.setItem('dadosUsuarioLogado', JSON.stringify({
-                        id: usuario.id,
-                        nome: usuario.nome || usuario.name,
-                        documento: docLimpo,
-                        email: usuario.email,
-                        tipo: usuario.tipo
-                    }));
-                }
-
-                // Verifica se há redirect pendente (ex: link do e-mail ?planos=1)
-                const redirect = sessionStorage.getItem('redirectAfterLogin');
-                if (redirect) {
-                    sessionStorage.removeItem('redirectAfterLogin');
-                    window.location.href = redirect;
-                    return;
-                }
-
                 if (window._lockScreenSuccessCallback) {
                     const cb = window._lockScreenSuccessCallback;
                     window._lockScreenSuccessCallback = null;
@@ -991,14 +968,13 @@ function setupSistemaBloqueio() {
                     modalContent.classList.add('shake-animation');
                     setTimeout(() => modalContent.classList.remove('shake-animation'), 500);
                 }
-                documentoInput.value = '';
                 passwordInput.value = '';
-                documentoInput.focus();
-                (window.mostrarToast || alert)(resultado.message || 'CPF/CNPJ ou senha incorretos.', 'error');
+                passwordInput.focus();
+                (window.mostrarToast || alert)(resultado.message || 'Senha incorreta.', 'error');
             }
         } catch (error) {
-            console.error('Erro ao autenticar:', error);
-            (window.mostrarToast || alert)('Erro ao autenticar. Tente novamente.', 'error');
+            console.error('Erro ao verificar senha:', error);
+            (window.mostrarToast || alert)('Erro ao verificar senha. Tente novamente.', 'error');
         }
     };
 
