@@ -324,10 +324,19 @@ function parsearComGen(texto, cartaBase = '', instrucoesUsuario = '') {
 function detectarIntencao(texto) {
     const lower = texto.toLowerCase();
 
+    // Encerrar conversa
+    if (/^(?:tchau|até\s+mais|ate\s+mais|até\s+logo|ate\s+logo|flw|valeu\s+tchau|obrigad\w*\s+tchau|encerr\w*|pode\s+fechar|sair|bye)/i.test(lower)) {
+        return 'encerrar';
+    }
+
     // Análise financeira / pergunta
     if (/quanto\s+(?:gastei|gast|tenho|sobrou|fica)/i.test(lower) ||
         /(?:meu\s+)?saldo/i.test(lower) ||
-        /resumo|relatório|relatorio|analise|análise/i.test(lower)) {
+        /resumo|relatório|relatorio|analise|análise/i.test(lower) ||
+        /(?:maior|menor|principal|top|destaque|mais\s+(?:caro|gasto))\s+(?:gasto|despesa|categoria)/i.test(lower) ||
+        /(?:gasto|despesa|categoria)\s+(?:com\s+)?(?:maior|menor|destaque)/i.test(lower) ||
+        /onde\s+(?:gastei|gasto)|quanto\s+gastei\s+em|qual\s+(?:a\s+)?categoria/i.test(lower) ||
+        /em\s+aberto|receitas?\s+do\s+m[eê]s|total\s+(?:de\s+)?(?:despesas?|receitas?)/i.test(lower)) {
         return 'analise';
     }
 
@@ -356,14 +365,15 @@ function detectarIntencao(texto) {
 }
 
 // ── DETECTAR INTENÇÃO COM IA EXTERNA (fallback para regex) ────────
-const INTENCOES_VALIDAS = ['despesa', 'receita', 'analise', 'saudacao', 'listar'];
+const INTENCOES_VALIDAS = ['despesa', 'receita', 'analise', 'saudacao', 'listar', 'encerrar'];
 
 const PROMPT_INTENCAO = `Classifique a intenção da mensagem do usuário em UMA dessas categorias:
 - despesa: quer registrar um gasto, compra ou pagamento
 - receita: quer registrar um recebimento, salário, renda ou entrada de dinheiro
-- analise: faz uma pergunta sobre seus dados financeiros (saldo, total, histórico, resumo, lista)
+- analise: faz uma pergunta sobre seus dados financeiros. Exemplos: saldo, total gasto, histórico, resumo, lista, maior gasto, menor gasto, qual categoria gastou mais, onde gastei mais, destaque do mês, quanto gastei em [categoria], comparação de gastos, despesas em aberto, receitas do mês
 - saudacao: está cumprimentando ou pedindo ajuda geral
 - listar: quer ver ou listar registros existentes
+- encerrar: quer encerrar, fechar ou sair da conversa. Exemplos: tchau, até mais, obrigado tchau, encerrar, até logo, flw, valeu tchau, pode fechar, encerra aí
 
 Responda APENAS com uma dessas palavras, sem mais nada.`;
 
@@ -546,32 +556,73 @@ async function responderPerguntaFinanceira(pergunta, dadosFinanceiros, historico
 
 function gerarRespostaSimples(pergunta, dados) {
     const lower = pergunta.toLowerCase();
+    const MESES_NOMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const fmt = v => `R$ ${Number(v).toFixed(2).replace('.', ',')}`;
+    const nomeMes = dados?.mes !== undefined ? MESES_NOMES[dados.mes] : null;
 
     if (!dados) return 'Não consegui acessar seus dados financeiros no momento.';
 
-    if (lower.includes('saldo')) {
+    const cats = dados.porCategoria || [];
+
+    // ── Saldo ────────────────────────────────────────────────────
+    if (/saldo|sobrou|disponível|disponivel|quanto\s+tenho/.test(lower)) {
         const saldo = dados.saldo ?? dados.saldoFinal ?? 0;
-        return `Seu saldo atual é R$ ${Number(saldo).toFixed(2).replace('.', ',')}.`;
+        const situacao = saldo >= 0 ? 'positivo' : 'negativo';
+        return `Seu saldo ${nomeMes ? `de ${nomeMes}` : 'atual'} está ${situacao}: ${fmt(saldo)}.`;
     }
 
-    if (lower.includes('despesa') || lower.includes('gast')) {
-        const total = dados.totalDespesas ?? dados.despesas?.reduce((s, d) => s + (d.valor || 0), 0) ?? 0;
-        const pago = dados.totalDespesasPago ?? null;
-        const aberto = dados.totalDespesasEmAberto ?? null;
-        if (pago !== null && aberto !== null) {
-            const mes = dados.mes !== undefined ? ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][dados.mes] : null;
-            const prefixo = mes ? `Suas despesas de ${mes}` : 'Suas despesas';
-            return `${prefixo} totalizam R$ ${Number(total).toFixed(2).replace('.', ',')} — sendo R$ ${Number(pago).toFixed(2).replace('.', ',')} já pagas e R$ ${Number(aberto).toFixed(2).replace('.', ',')} em aberto.`;
-        }
-        return `Suas despesas totalizam R$ ${Number(total).toFixed(2).replace('.', ',')}.`;
+    // ── Maior categoria / destaque ───────────────────────────────
+    if (/(?:maior|principal|top|destaque|mais\s+(?:cara?|gast))\s+categoria|categoria\s+(?:com\s+)?(?:maior|mais|destaque)|onde\s+(?:mais\s+)?gast/i.test(lower)) {
+        if (cats.length === 0) return 'Não há despesas registradas neste mês.';
+        const top = cats[0];
+        return `A categoria com maior gasto${nomeMes ? ` em ${nomeMes}` : ''} é **${top.categoria}** com ${fmt(top.total)}.`;
     }
 
-    if (lower.includes('receita') || lower.includes('ganho') || lower.includes('entrad')) {
-        const total = dados.totalReceitas ?? dados.receitas?.reduce((s, r) => s + (r.valor || 0), 0) ?? 0;
-        return `Suas receitas totalizam R$ ${Number(total).toFixed(2).replace('.', ',')}.`;
+    // ── Ranking de categorias ────────────────────────────────────
+    if (/ranking|categorias|distribui|por\s+categoria|breakdown/.test(lower)) {
+        if (cats.length === 0) return 'Não há despesas registradas neste mês.';
+        const lista = cats.map((c, i) => `${i + 1}. ${c.categoria}: ${fmt(c.total)}`).join('\n');
+        return `Gastos por categoria${nomeMes ? ` em ${nomeMes}` : ''}:\n${lista}`;
     }
 
-    return 'Não entendi sua pergunta. Pode reformular?';
+    // ── Gasto em categoria específica ────────────────────────────
+    if (/quanto\s+gastei\s+(?:com|em|no|na)|gasto\s+(?:com|em|no|na)/.test(lower)) {
+        const match = cats.find(c => lower.includes(c.categoria.toLowerCase()));
+        if (match) return `Você gastou ${fmt(match.total)} em **${match.categoria}**${nomeMes ? ` em ${nomeMes}` : ''}.`;
+        const termos = lower.replace(/quanto\s+gastei\s+(?:com|em|no|na)?/g, '').trim();
+        return `Não encontrei a categoria "${termos}" nos seus gastos deste mês.`;
+    }
+
+    // ── Em aberto ────────────────────────────────────────────────
+    if (/aberto|pendente|falta\s+pagar|não\s+pag/.test(lower)) {
+        return `Você tem ${fmt(dados.totalDespesasEmAberto ?? 0)} em despesas em aberto${nomeMes ? ` em ${nomeMes}` : ''}.`;
+    }
+
+    // ── Resumo geral ─────────────────────────────────────────────
+    if (/resumo|balanço|balanco|situação|situacao|como\s+(?:estão|estao|est[aá])\s+(?:minhas|as)\s+finanças/.test(lower)) {
+        const top = cats[0];
+        const saldo = dados.saldo ?? 0;
+        let texto = `Resumo${nomeMes ? ` de ${nomeMes}` : ''}:\n`;
+        texto += `• Receitas: ${fmt(dados.totalReceitas ?? 0)}\n`;
+        texto += `• Despesas: ${fmt(dados.totalDespesas ?? 0)} (${fmt(dados.totalDespesasPago ?? 0)} pagas, ${fmt(dados.totalDespesasEmAberto ?? 0)} em aberto)\n`;
+        texto += `• Saldo: ${fmt(saldo)}`;
+        if (top) texto += `\n• Maior gasto: ${top.categoria} (${fmt(top.total)})`;
+        return texto;
+    }
+
+    // ── Despesas totais ──────────────────────────────────────────
+    if (/despesa|gast/.test(lower)) {
+        const prefixo = nomeMes ? `Suas despesas de ${nomeMes}` : 'Suas despesas';
+        return `${prefixo} totalizam ${fmt(dados.totalDespesas ?? 0)} — sendo ${fmt(dados.totalDespesasPago ?? 0)} já pagas e ${fmt(dados.totalDespesasEmAberto ?? 0)} em aberto.`;
+    }
+
+    // ── Receitas ─────────────────────────────────────────────────
+    if (/receita|ganho|entrad|receb/.test(lower)) {
+        return `Suas receitas${nomeMes ? ` de ${nomeMes}` : ''} totalizam ${fmt(dados.totalReceitas ?? 0)}.`;
+    }
+
+    // ── Fallback: mensagem amigável para vincular IA externa ─────
+    return `Não consegui responder essa pergunta com a análise interna.\n\nPara perguntas mais elaboradas, vincule uma IA externa — é rápido:\n1. Acesse **Configurações → IA**\n2. Escolha um provedor: **Gemini** (Google, gratuito), **ChatGPT** (OpenAI) ou **Claude** (Anthropic)\n3. Cole sua chave de API e salve\n\nCom isso, a Gen responde qualquer pergunta sobre seus dados! 🚀`;
 }
 
 // ── REVISAR / ATUALIZAR CARTA DE SERVIÇOS COM IA ─────────────────

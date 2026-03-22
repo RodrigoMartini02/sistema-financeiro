@@ -292,6 +292,11 @@ async function chat(req, res) {
             return res.json({ success: true, resposta, acao: 'saudacao' });
         }
 
+        if (intencao === 'encerrar') {
+            limparSessao(usuarioId);
+            return res.json({ success: true, resposta: 'Até mais! Se precisar de algo, é só chamar. 👋', acao: 'encerrar' });
+        }
+
         if (intencao === 'receita') {
             const dadosReceita = await parsearReceita(mensagem, sessao.historico, providerConfig, ctxSistema, cartaBase, instrucoesUsuario);
             const hoje = new Date().toISOString().split('T')[0];

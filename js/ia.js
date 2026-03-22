@@ -250,6 +250,9 @@ window.IA = (function () {
                 _iniciarColetaCampos(res.despesa, 'despesa');
             } else if (res.acao === 'confirmar_receita' && res.receita) {
                 _iniciarColetaCampos(res.receita, 'receita');
+            } else if (res.acao === 'encerrar') {
+                addGen(res.resposta || 'Até mais!');
+                setTimeout(fechar, 1500);
             } else {
                 addGen(res.resposta || '...');
             }
