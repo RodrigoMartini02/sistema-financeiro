@@ -651,8 +651,8 @@ async function enviarEmailCobranca({ email, nome, diasRestantes, linkRenovacao, 
 }
 
 // ================================================================
-// ROTA TEMPORÁRIA DE TESTE — remover após validar
-// GET /api/planos/teste-email-cobranca
+// ROTAS TEMPORÁRIAS DE TESTE — remover após validar
+// GET /api/planos/teste-email-cobranca?tipo=trial|pago&dias=N
 // ================================================================
 router.get('/teste-email-cobranca', authMiddleware, async (req, res) => {
     try {
@@ -660,16 +660,25 @@ router.get('/teste-email-cobranca', authMiddleware, async (req, res) => {
         const usuario = r.rows[0];
         if (!usuario) return res.status(404).json({ success: false, message: 'Usuário não encontrado.' });
 
-        const tipoPlano = usuario.plano_tipo === 'anual' ? 'Plano Premium' : usuario.plano_tipo === 'mensal' ? 'Plano Plus' : 'Plano Grátis';
+        const tipo = req.query.tipo || 'trial';
+        const dias = parseInt(req.query.dias) || 3;
+
+        let tipoPlano;
+        if (tipo === 'pago') {
+            tipoPlano = usuario.plano_tipo === 'anual' ? 'Premium' : 'Plus';
+        } else {
+            tipoPlano = 'Grátis';
+        }
+
         const ok = await enviarEmailCobranca({
             email: usuario.email,
             nome: usuario.nome,
-            diasRestantes: 3,
+            diasRestantes: dias,
             tipoPlano,
             linkRenovacao: `${FRONTEND_URL}/app.html?planos=1`
         });
 
-        res.json({ success: ok, message: ok ? `Email enviado para ${usuario.email}` : 'Falha ao enviar — verifique as variáveis de ambiente.' });
+        res.json({ success: ok, message: ok ? `Email enviado para ${usuario.email} (${tipoPlano}, ${dias} dias)` : 'Falha ao enviar — verifique as variáveis de ambiente.' });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }

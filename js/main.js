@@ -945,6 +945,7 @@ function setupSistemaBloqueio() {
 
             if (!token) {
                 (window.mostrarToast || alert)('Sessão expirada. Faça login novamente.', 'error');
+                sessionStorage.setItem('redirectAfterLogin', window.location.href);
                 window.location.href = 'index.html';
                 return;
             }
