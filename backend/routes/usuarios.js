@@ -66,7 +66,25 @@ router.get('/current', authMiddleware, async (req, res) => {
 // ================================================================
 router.put('/current', authMiddleware, async (req, res) => {
     try {
-        const { nome, email, pais, estado, cidade } = req.body;
+        const { nome, email, pais, estado, cidade, dados_financeiros_merge } = req.body;
+
+        // Se vier dados_financeiros_merge, fazer merge no JSONB existente
+        if (dados_financeiros_merge) {
+            await query(
+                `UPDATE usuarios
+                 SET dados_financeiros = COALESCE(dados_financeiros, '{}'::jsonb) || $1::jsonb
+                 WHERE id = $2`,
+                [JSON.stringify(dados_financeiros_merge), req.usuario.id]
+            );
+
+            // Se só veio o merge, retornar sucesso sem alterar outros campos
+            if (!nome && !email) {
+                return res.json({
+                    success: true,
+                    message: 'Dados atualizados com sucesso'
+                });
+            }
+        }
 
         const result = await query(
             `UPDATE usuarios
@@ -75,13 +93,13 @@ router.put('/current', authMiddleware, async (req, res) => {
              RETURNING id, nome, email, documento, tipo, status, pais, estado, cidade`,
             [nome, email, pais || null, estado || null, cidade || null, req.usuario.id]
         );
-        
+
         res.json({
             success: true,
             message: 'Dados atualizados com sucesso',
             data: result.rows[0]
         });
-        
+
     } catch (error) {
         console.error('Erro ao atualizar usuário:', error);
         res.status(500).json({

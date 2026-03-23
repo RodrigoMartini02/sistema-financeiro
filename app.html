@@ -148,6 +148,10 @@
             </div>
         </div>
         <ul class="sidebar-nav">
+
+            <!-- GRUPO: FINANCEIRO -->
+            <li class="nav-group-label">Financeiro</li>
+
             <li class="nav-item">
                 <a href="#" class="nav-link active" data-section="dashboard" data-label="Dashboard">
                     <span class="nav-icon"><i class="fas fa-chart-line"></i></span>
@@ -167,19 +171,71 @@
                 </a>
             </li>
 
-            <li class="nav-item nav-item-master" id="nav-item-fornecedor" style="display:none;">
-                <a href="#" class="nav-link" data-section="fornecedor" data-label="Painel do Fornecedor">
-                    <span class="nav-icon"><i class="fas fa-store"></i></span>
-                    <span class="nav-text">Painel</span>
+            <!-- GRUPO: CONFIGURAÇÕES -->
+            <li class="nav-group-label">Configurações</li>
+
+            <li class="nav-item">
+                <a href="#" class="nav-link" data-section="config" data-tab="cartoes" data-label="Cartões">
+                    <span class="nav-icon"><i class="fas fa-credit-card"></i></span>
+                    <span class="nav-text">Cartões</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link" data-section="config" data-tab="categorias" data-label="Categorias">
+                    <span class="nav-icon"><i class="fas fa-tags"></i></span>
+                    <span class="nav-text">Categorias</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link" data-section="config" data-tab="empresas" data-label="Empresas">
+                    <span class="nav-icon"><i class="fas fa-building"></i></span>
+                    <span class="nav-text">Empresas</span>
                 </a>
             </li>
 
-            <li class="nav-item">
-                <a href="#" class="nav-link" data-section="config" data-label="Configurações">
-                    <span class="nav-icon"><i class="fas fa-user-cog"></i></span>
-                    <span class="nav-text">Configurações</span>
-                </a>
+            <!-- GRUPO: ADMIN (colapsável, oculto por padrão para não-admin) -->
+            <li class="nav-group-collapsible" id="nav-group-admin" style="display:none;">
+                <button class="nav-group-toggle" id="btn-toggle-admin">
+                    <span class="nav-group-toggle-left">
+                        <i class="fas fa-shield-alt nav-group-icon"></i>
+                        <span class="nav-group-title">Admin</span>
+                    </span>
+                    <i class="fas fa-chevron-down nav-group-chevron" id="chevron-admin"></i>
+                </button>
+                <ul class="nav-sublist" id="sublist-admin">
+                    <li class="nav-item nav-subitem">
+                        <a href="#" class="nav-link" data-section="config" data-tab="usuarios" data-label="Usuários">
+                            <span class="nav-icon"><i class="fas fa-users"></i></span>
+                            <span class="nav-text">Usuários</span>
+                        </a>
+                    </li>
+                    <li class="nav-item nav-subitem">
+                        <a href="#" class="nav-link" data-section="config" data-tab="espaco-admin" data-label="Espaço Admin">
+                            <span class="nav-icon"><i class="fas fa-shield-alt"></i></span>
+                            <span class="nav-text">Espaço Admin</span>
+                        </a>
+                    </li>
+                    <li class="nav-item nav-subitem">
+                        <a href="#" class="nav-link" data-section="config" data-tab="logs" data-label="Logs">
+                            <span class="nav-icon"><i class="fas fa-list-alt"></i></span>
+                            <span class="nav-text">Logs</span>
+                        </a>
+                    </li>
+                    <li class="nav-item nav-subitem">
+                        <a href="#" class="nav-link" data-section="config" data-tab="ia-global" data-label="IA Global">
+                            <span class="nav-icon"><i class="fas fa-robot"></i></span>
+                            <span class="nav-text">IA Global</span>
+                        </a>
+                    </li>
+                    <li class="nav-item nav-subitem nav-item-master" id="nav-item-fornecedor" style="display:none;">
+                        <a href="#" class="nav-link" data-section="fornecedor" data-label="Painel">
+                            <span class="nav-icon"><i class="fas fa-store"></i></span>
+                            <span class="nav-text">Painel</span>
+                        </a>
+                    </li>
+                </ul>
             </li>
+
         </ul>
 
         <div id="plano-sidebar-container">
@@ -1041,21 +1097,24 @@
         </button>
          <button class="config-tab-btn" data-tab="categorias">
             <i class="fas fa-tags"></i> Gerenciar Categorias
-        </button>        
+        </button>
         <button class="config-tab-btn" data-tab="logs">
             <i class="fas fa-history"></i> Logs do Sistema
         </button>
-        <button class="config-tab-btn" data-tab="sistema">
-            <i class="fas fa-cogs"></i> Sistema
+        <button class="config-tab-btn" data-tab="espaco-admin" id="espaco-admin-tab-btn" style="display:none;">
+            <i class="fas fa-shield-alt"></i> Espaço Admin
         </button>
-        <button class="config-tab-btn" data-tab="assistente-ia">
+        <button class="config-tab-btn" data-tab="assistente-ia" style="display:none;">
             <i class="fas fa-robot"></i> Assistente IA
         </button>
-        <button class="config-tab-btn" data-tab="carta-servicos">
+        <button class="config-tab-btn" data-tab="carta-servicos" style="display:none;">
             <i class="fas fa-scroll"></i> Carta de Serviços
         </button>
         <button class="config-tab-btn" data-tab="empresas" id="empresas-tab-btn">
             <i class="fas fa-building"></i> Empresas
+        </button>
+        <button class="config-tab-btn" data-tab="ia-global" style="display:none;" id="ia-global-tab-btn">
+            <i class="fas fa-robot"></i> IA Global
         </button>
     </div>
     
@@ -1112,43 +1171,140 @@
         <!-- ============================================== -->
         <!-- ABA: CONFIGURAÇÕES DO SISTEMA -->
         <!-- ============================================== -->
-        <div id="sistema-tab" class="config-tab-pane">
-                <div class="form-group">
-                    <h4><i class="fas fa-download"></i> Backup e Restauração</h4>
-                    <div class="btn-group">
-                        <button id="btn-exportar-dados" class="btn btn-primary">
-                            <i class="fas fa-download"></i> Exportar Todos os Dados
+        <div id="espaco-admin-tab" class="config-tab-pane">
+
+            <!-- PERMISSÕES DO SISTEMA -->
+            <div class="config-card" style="margin-bottom:16px;">
+                <div class="config-card-header" style="margin-bottom:16px;">
+                    <h3><i class="fas fa-lock"></i> Permissões do Sistema</h3>
+                    <p style="color:var(--text-secondary);font-size:0.85rem;margin-top:4px;">Ative ou desative funcionalidades para todos os usuários</p>
+                </div>
+                <div class="permissoes-lista">
+                    <div class="permissao-item">
+                        <div class="permissao-info">
+                            <span class="permissao-nome"><i class="fas fa-robot"></i> Assistente IA</span>
+                            <span class="permissao-desc">Permite que usuários usem o assistente de IA</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="perm-ia-ativo" data-perm="ia_ativo">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="permissao-item">
+                        <div class="permissao-info">
+                            <span class="permissao-nome"><i class="fas fa-chart-bar"></i> Relatórios</span>
+                            <span class="permissao-desc">Permite acesso à seção de relatórios</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="perm-relatorios" data-perm="relatorios_ativo" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="permissao-item">
+                        <div class="permissao-info">
+                            <span class="permissao-nome"><i class="fas fa-building"></i> Cadastro de Empresas</span>
+                            <span class="permissao-desc">Permite que usuários cadastrem perfis de empresa (PJ)</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="perm-empresas" data-perm="empresas_ativo" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="permissao-item">
+                        <div class="permissao-info">
+                            <span class="permissao-nome"><i class="fas fa-file-import"></i> Importar / Exportar</span>
+                            <span class="permissao-desc">Permite que usuários importem e exportem dados</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="perm-import-export" data-perm="import_export_ativo" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="permissao-item">
+                        <div class="permissao-info">
+                            <span class="permissao-nome"><i class="fas fa-trash-alt"></i> Limpar Dados</span>
+                            <span class="permissao-desc">Permite que usuários apaguem todos os seus dados</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="perm-limpar-dados" data-perm="limpar_dados_ativo" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div style="margin-top:20px;display:flex;justify-content:flex-end;">
+                    <button id="btn-salvar-permissoes" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Salvar Permissões
+                    </button>
+                </div>
+            </div>
+
+            <!-- BACKUP E RESTAURAÇÃO -->
+            <div class="config-card" style="margin-bottom:16px;">
+                <div class="config-card-header" style="margin-bottom:16px;">
+                    <h3><i class="fas fa-database"></i> Backup e Restauração</h3>
+                </div>
+                <div class="permissoes-lista">
+                    <div class="permissao-item">
+                        <div class="permissao-info">
+                            <span class="permissao-nome"><i class="fas fa-download"></i> Exportar Todos os Dados</span>
+                            <span class="permissao-desc">Baixa um arquivo JSON com todas as receitas, despesas, categorias e cartões</span>
+                        </div>
+                        <button id="btn-exportar-dados" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-download"></i> Exportar
                         </button>
-                        <button id="btn-exportar-mes-a-mes" class="btn btn-primary">
-                            <i class="fas fa-calendar-alt"></i> Exportar Mês a Mês
+                    </div>
+                    <div class="permissao-item">
+                        <div class="permissao-info">
+                            <span class="permissao-nome"><i class="fas fa-calendar-alt"></i> Exportar Mês a Mês</span>
+                            <span class="permissao-desc">Baixa arquivos separados por mês com os dados financeiros</span>
+                        </div>
+                        <button id="btn-exportar-mes-a-mes" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-download"></i> Exportar
                         </button>
-                        <button id="btn-importar-dados" class="btn btn-primary">
-                            <i class="fas fa-upload"></i> Importar Dados
+                    </div>
+                    <div class="permissao-item">
+                        <div class="permissao-info">
+                            <span class="permissao-nome"><i class="fas fa-upload"></i> Importar Dados</span>
+                            <span class="permissao-desc">Carrega um arquivo JSON e importa os dados para o sistema</span>
+                        </div>
+                        <button id="btn-importar-dados" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-upload"></i> Importar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LIMPEZA -->
+            <div class="config-card">
+                <div class="config-card-header" style="margin-bottom:16px;">
+                    <h3><i class="fas fa-trash-alt"></i> Limpeza de Dados</h3>
+                </div>
+                <div class="permissoes-lista">
+                    <div class="permissao-item">
+                        <div class="permissao-info">
+                            <span class="permissao-nome"><i class="fas fa-trash"></i> Limpar Todos os Dados</span>
+                            <span class="permissao-desc">⚠️ Apaga permanentemente todas as receitas, despesas, categorias e cartões. Ação irreversível.</span>
+                        </div>
+                        <button id="btn-limpar-dados" class="btn btn-danger btn-sm">
+                            <i class="fas fa-trash"></i> Limpar
                         </button>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <h4><i class="fas fa-trash-alt"></i> Limpeza de Dados</h4>
-                    <button id="btn-limpar-dados" class="btn btn-danger">
-                        <i class="fas fa-trash"></i> Limpar Todos os Dados
-                    </button>
-                    <p class="texto-alerta">⚠️ Atenção: Esta ação é irreversível!</p>
-                </div>
-            
-
-            <!-- Status de operações do sistema -->
-            <div id="sistema-status" class="config-card hidden">
-                <h3><i class="fas fa-info-circle"></i> Status da Operação</h3>
-                <div class="status-container">
-                    <div id="status-message" class="status-message"></div>
-                    <div id="status-progress" class="status-progress hidden">
-                        <div class="progress-bar">
-                            <div class="progress-fill"></div>
+                <!-- Status de operações (mantido para feedback de importação/exportação) -->
+                <div id="sistema-status" class="config-card hidden" style="margin-top:16px;">
+                    <h3><i class="fas fa-info-circle"></i> Status da Operação</h3>
+                    <div class="status-container">
+                        <div id="status-message" class="status-message"></div>
+                        <div id="status-progress" class="status-progress hidden">
+                            <div class="progress-bar">
+                                <div class="progress-fill"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
+
         </div>
         
         <!-- ============================================== -->
@@ -1510,6 +1666,83 @@
                     <p>Nenhum log encontrado</p>
                     <small>As ações realizadas no sistema aparecerão aqui</small>
                 </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- ABA: IA GLOBAL (unifica assistente-ia + carta-servicos) -->
+        <!-- ============================================== -->
+        <div id="ia-global-tab" class="config-tab-pane">
+            <div class="config-card">
+                <h3><i class="fas fa-robot"></i> Assistente IA — FIN GERENCE AI</h3>
+                <p class="ia-config-desc">Configure e use o assistente inteligente para cadastrar despesas por texto ou voz, interpretar documentos e analisar seus gastos.</p>
+
+                <div id="ia-status-config-global" class="ia-status-config">
+                    <span class="badge ia-badge-status" id="ia-badge-status-global">Verificando...</span>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fas fa-robot"></i> Provedor de IA</label>
+                    <p class="ia-provider-desc">
+                        Opcional. Sem provedor externo o assistente usa a <strong>Gen</strong> (IA interna). Com uma chave própria, a interpretação de texto fica ainda mais precisa.
+                    </p>
+                    <select id="ia-provider-select-global" class="ia-provider-select">
+                        <option value="gen">Gen — IA interna FinGerence (sem chave)</option>
+                        <option value="openai">OpenAI — GPT-4o mini</option>
+                        <option value="gemini">Google — Gemini 2.0 Flash</option>
+                        <option value="claude">Anthropic — Claude Haiku</option>
+                    </select>
+                    <div id="ia-key-row-global" class="ia-key-row">
+                        <div class="ia-key-input-row">
+                            <input type="password" id="ia-api-key-input-global" placeholder="Cole sua chave de API aqui..." class="ia-api-key-input">
+                            <button id="ia-btn-salvar-chave-global" class="btn btn-primary ia-btn-salvar-chave">
+                                <i class="fas fa-save"></i> Salvar
+                            </button>
+                        </div>
+                        <p id="ia-key-hint-global" class="ia-key-hint"></p>
+                    </div>
+                </div>
+
+                <hr class="config-sep">
+
+                <h4 class="ia-howto-title"><i class="fas fa-lightbulb"></i> Como usar</h4>
+                <div class="ia-howto-grid">
+                    <div class="config-card config-card-sm">
+                        <strong>💬 Chat por texto</strong><br>
+                        <small>Clique no ícone <i class="fas fa-robot"></i> no modal de Despesas ou no botão flutuante e escreva:</small><br>
+                        <code class="ia-code-example">"paguei 120 de internet da vivo no cartão vence dia 15"</code>
+                    </div>
+                    <div class="config-card config-card-sm">
+                        <strong>🎙️ Voz</strong><br>
+                        <small>Clique no microfone no chat e fale a despesa normalmente.</small>
+                    </div>
+                    <div class="config-card config-card-sm">
+                        <strong>📄 Documentos (boleto, NF, comprovante PIX)</strong><br>
+                        <small>Clique no clipe <i class="fas fa-paperclip"></i> e envie a imagem ou PDF.</small>
+                    </div>
+                    <div class="config-card config-card-sm">
+                        <strong>📊 Análise financeira</strong><br>
+                        <code class="ia-code-example">"quanto gastei em alimentação esse mês?"</code>
+                    </div>
+                </div>
+            </div>
+
+            <div class="config-card carta-servicos-card" style="margin-top:20px;">
+                <div class="carta-header">
+                    <div>
+                        <h3><i class="fas fa-scroll"></i> Carta de Serviços — Gen IA</h3>
+                        <p class="carta-desc">Regras e comportamentos globais da assistente. Visível para todos, editável apenas pelo master.</p>
+                    </div>
+                    <div id="carta-master-actions-global" class="carta-master-actions">
+                        <button class="btn btn-primary btn-sm" id="btn-carta-nova-instrucao-global" onclick="abrirModalCartaInstrucao()">
+                            <i class="fas fa-plus"></i> Nova instrução
+                        </button>
+                    </div>
+                </div>
+                <hr class="config-sep">
+                <div id="carta-servicos-content-global" class="carta-markdown-body">
+                    <div class="carta-loading"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
+                </div>
+            </div>
         </div>
 
     </div>

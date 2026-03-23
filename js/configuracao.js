@@ -1198,6 +1198,15 @@ function ajustarVisibilidadeElementos() {
         }
     }
 
+    // Botão IA Global — visível para admin/master
+    const tabIaGlobal = document.getElementById('ia-global-tab-btn');
+    const isAdminOrMaster = tipoUsuarioAtual === 'admin' || tipoUsuarioAtual === 'master';
+    if (tabIaGlobal) tabIaGlobal.style.display = isAdminOrMaster ? '' : 'none';
+
+    // Botão Espaço Admin — visível apenas para master
+    const tabEspacoAdmin = document.getElementById('espaco-admin-tab-btn');
+    if (tabEspacoAdmin) tabEspacoAdmin.style.display = tipoUsuarioAtual === 'master' ? '' : 'none';
+
     // Botão "Novo Usuário" - Visível para MASTER e ADMINISTRADOR
     const btnAdicionarUsuario = document.getElementById('btn-adicionar-usuario');
     if (btnAdicionarUsuario) {
@@ -2861,47 +2870,119 @@ async function limparDados() {
 // ================================================================
 // SISTEMA DE ABAS E NAVEGAÇÃO
 // ================================================================
+// ================================================================
+// PERMISSÕES DO SISTEMA
+// ================================================================
+async function carregarPermissoes() {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+    try {
+        const res = await fetch(`${API_URL}/usuarios/current`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        const perms = (data.data && data.data.dados_financeiros) ? data.data.dados_financeiros : {};
+
+        // Preencher toggles
+        document.querySelectorAll('[data-perm]').forEach(input => {
+            const chave = input.getAttribute('data-perm');
+            // Default true para tudo exceto ia_ativo
+            const defaultVal = chave === 'ia_ativo' ? false : true;
+            input.checked = perms[chave] !== undefined ? perms[chave] : defaultVal;
+        });
+    } catch (e) {
+        console.error('Erro ao carregar permissões:', e);
+    }
+}
+
+async function salvarPermissoes() {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
+    const perms = {};
+    document.querySelectorAll('[data-perm]').forEach(input => {
+        perms[input.getAttribute('data-perm')] = input.checked;
+    });
+
+    try {
+        const res = await fetch(`${API_URL}/usuarios/current`, {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dados_financeiros_merge: perms })
+        });
+        const data = await res.json();
+        if (data.success) {
+            mostrarFeedback('Permissões salvas com sucesso!', 'success');
+        } else {
+            mostrarFeedback(data.message || 'Erro ao salvar', 'error');
+        }
+    } catch (e) {
+        mostrarFeedback('Erro ao salvar permissões', 'error');
+    }
+}
+
+function onAbaAtivada(tabName) {
+    if (tabName === 'categorias') {
+        setTimeout(() => atualizarListaCategorias(), 100);
+    } else if (tabName === 'cartoes') {
+        setTimeout(() => { renderizarListaCartoes(); popularSelectPerfilCartao(); }, 100);
+    } else if (tabName === 'usuarios') {
+        setTimeout(() => filtrarUsuarios(), 100);
+    } else if (tabName === 'logs') {
+        setTimeout(() => {
+            if (typeof window.renderizarLogs === 'function') {
+                window.renderizarLogs();
+            }
+        }, 100);
+    } else if (tabName === 'carta-servicos') {
+        if (typeof carregarCartaServicos === 'function') carregarCartaServicos();
+        var u = JSON.parse(sessionStorage.getItem('dadosUsuarioLogado') || '{}');
+        var masterActions = document.getElementById('carta-master-actions');
+        if (masterActions) masterActions.style.display = (u.tipo === 'master') ? 'block' : 'none';
+    } else if (tabName === 'ia-global') {
+        if (typeof carregarCartaServicos === 'function') carregarCartaServicos();
+        var u2 = JSON.parse(sessionStorage.getItem('dadosUsuarioLogado') || '{}');
+        var masterActionsGlobal = document.getElementById('carta-master-actions-global');
+        if (masterActionsGlobal) masterActionsGlobal.style.display = (u2.tipo === 'master') ? 'block' : 'none';
+        // Sincronizar conteúdo da carta para o container da aba ia-global
+        var contentOrig = document.getElementById('carta-servicos-content');
+        var contentGlobal = document.getElementById('carta-servicos-content-global');
+        if (contentOrig && contentGlobal && contentOrig.innerHTML && !contentGlobal.innerHTML.includes('carta-markdown')) {
+            contentGlobal.innerHTML = contentOrig.innerHTML;
+        }
+    } else if (tabName === 'empresas') {
+        setTimeout(() => carregarEmpresas(), 100);
+    } else if (tabName === 'espaco-admin') {
+        carregarPermissoes();
+    }
+}
+
+function ativarConfigTab(tabName) {
+    // Desativar todas as abas
+    document.querySelectorAll('.config-tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.config-tab-pane').forEach(p => p.classList.remove('active'));
+
+    // Ativar a aba alvo
+    const btn = document.querySelector(`.config-tab-btn[data-tab="${tabName}"]`);
+    const pane = document.getElementById(`${tabName}-tab`);
+    if (btn) btn.classList.add('active');
+    if (pane) pane.classList.add('active');
+
+    // Disparar lógica específica da aba
+    onAbaAtivada(tabName);
+}
+window.ativarConfigTab = ativarConfigTab;
+
 function setupConfigTabs() {
     const tabButtons = document.querySelectorAll('.config-tab-btn');
     const tabPanes = document.querySelectorAll('.config-tab-pane');
-    
+
     if (!tabButtons.length) return;
-    
+
     tabButtons.forEach(button => {
         button.addEventListener('click', function() {
-            tabButtons.forEach(btn => btn.classList.remove('active'));
-            this.classList.add('active');
-            
             const targetTab = this.getAttribute('data-tab');
-            
-            tabPanes.forEach(pane => pane.classList.remove('active'));
-            
-            const targetPane = document.getElementById(`${targetTab}-tab`);
-            if (targetPane) {
-                targetPane.classList.add('active');
-                
-                if (targetTab === 'categorias') {
-                    setTimeout(() => atualizarListaCategorias(), 100);
-                } else if (targetTab === 'cartoes') {
-                    setTimeout(() => { renderizarListaCartoes(); popularSelectPerfilCartao(); }, 100);
-                } else if (targetTab === 'usuarios') {
-                    setTimeout(() => filtrarUsuarios(), 100);
-                } else if (targetTab === 'logs') {
-                    setTimeout(() => {
-                        if (typeof window.renderizarLogs === 'function') {
-                            window.renderizarLogs();
-                        }
-                    }, 100);
-                } else if (targetTab === 'carta-servicos') {
-                    if (typeof carregarCartaServicos === 'function') carregarCartaServicos();
-                    // Show master actions if user is master
-                    var u = JSON.parse(sessionStorage.getItem('dadosUsuarioLogado') || '{}');
-                    var masterActions = document.getElementById('carta-master-actions');
-                    if (masterActions) masterActions.style.display = (u.tipo === 'master') ? 'block' : 'none';
-                } else if (targetTab === 'empresas') {
-                    setTimeout(() => carregarEmpresas(), 100);
-                }
-            }
+            ativarConfigTab(targetTab);
         });
     });
 }
@@ -3112,6 +3193,10 @@ function setupEventListeners() {
     if (btnCancelarEmpresa) btnCancelarEmpresa.addEventListener('click', () => {
         document.getElementById('modal-empresa').style.display = 'none';
     });
+
+    // Permissões
+    const btnSalvarPermissoes = document.getElementById('btn-salvar-permissoes');
+    if (btnSalvarPermissoes) btnSalvarPermissoes.addEventListener('click', salvarPermissoes);
 }
 
 async function inicializarConfiguracoes() {

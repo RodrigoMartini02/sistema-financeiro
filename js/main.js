@@ -532,6 +532,21 @@ function setupNavigation() {
 
     // Nav links: no mobile fecha sidebar; no desktop mantém estado
     const navLinks = document.querySelectorAll('.nav-link');
+
+    // Colapsar/expandir grupo Admin
+    const btnToggleAdmin = document.getElementById('btn-toggle-admin');
+    const sublistAdmin = document.getElementById('sublist-admin');
+    const chevronAdmin = document.getElementById('chevron-admin');
+    let adminExpanded = false;
+
+    if (btnToggleAdmin) {
+        btnToggleAdmin.addEventListener('click', () => {
+            adminExpanded = !adminExpanded;
+            sublistAdmin.classList.toggle('expanded', adminExpanded);
+            chevronAdmin.style.transform = adminExpanded ? 'rotate(180deg)' : 'rotate(0deg)';
+        });
+    }
+
     navLinks.forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
@@ -540,27 +555,42 @@ function setupNavigation() {
             navLinks.forEach(l => l.classList.remove('active'));
             link.classList.add('active');
 
+            // Se o link clicado for um subitem de admin, expandir o grupo
+            if (link.closest('#sublist-admin') && !adminExpanded) {
+                adminExpanded = true;
+                if (sublistAdmin) sublistAdmin.classList.add('expanded');
+                if (chevronAdmin) chevronAdmin.style.transform = 'rotate(180deg)';
+            }
+
             document.querySelectorAll('section[id$="-section"]').forEach(section => {
                 section.classList.remove('active');
             });
 
-            const sectionId = link.getAttribute('data-section') + '-section';
+            const secao = link.getAttribute('data-section');
+            const tab = link.getAttribute('data-tab');
+            const sectionId = secao + '-section';
             const section = document.getElementById(sectionId);
             if (section) {
                 section.classList.add('active');
-                onSecaoAtivada(link.getAttribute('data-section'));
+
+                // Se tem data-tab, ativar a aba correspondente em config
+                if (tab && typeof window.ativarConfigTab === 'function') {
+                    window.ativarConfigTab(tab);
+                }
+
+                onSecaoAtivada(secao, tab);
             }
         });
     });
 }
 
-function onSecaoAtivada(secao) {
+function onSecaoAtivada(secao, tab) {
     switch (secao) {
            case 'dashboard':
-                setTimeout(async () => {                    
-                    await carregarDadosDashboard(anoAtual); 
-                    atualizarResumoAnual(anoAtual); 
-                                        
+                setTimeout(async () => {
+                    await carregarDadosDashboard(anoAtual);
+                    atualizarResumoAnual(anoAtual);
+
                     if (typeof window.renderizarGraficoMediaCategorias === 'function') {
                         window.renderizarGraficoMediaCategorias();
                     }
@@ -591,6 +621,10 @@ function onSecaoAtivada(secao) {
 
         case 'fornecedor':
             if (typeof carregarDadosFornecedor === 'function') carregarDadosFornecedor();
+            break;
+
+        case 'config':
+            // Lógica específica por aba já é tratada em ativarConfigTab (configuracao.js)
             break;
 
     }
@@ -2749,6 +2783,12 @@ function exibirNomeUsuario() {
             const nomeSidebar = document.getElementById('nome-usuario-sidebar');
             if (nomeSidebar) {
                 nomeSidebar.textContent = `${primeiroNome} - ${tipoTexto}`;
+            }
+
+            // Mostrar grupo admin para admin/master
+            const navGroupAdmin = document.getElementById('nav-group-admin');
+            if (navGroupAdmin) {
+                navGroupAdmin.style.display = (tipoUsuario === 'admin' || tipoUsuario === 'master') ? '' : 'none';
             }
 
             // Mostrar painel do fornecedor apenas para master
