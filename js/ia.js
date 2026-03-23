@@ -548,20 +548,19 @@ window.IA = (function () {
             if (res && res.success) {
                 var sufixo = parcelado ? ' (' + totalParcelas + 'x de ' + fmtV(valorParcela) + ')' : '';
                 addGen('✔ "' + d.descricao + '"' + sufixo + ' salva em ' + (MESES[mes] || '') + '/' + ano + '.');
-                if (window.usuarioDataManager && typeof window.usuarioDataManager.limparCache === 'function') {
-                    window.usuarioDataManager.limparCache();
-                }
-                // Limpa o cache global para forçar recarga da API com a nova despesa
-                if (window.dadosFinanceiros) {
-                    window.dadosFinanceiros = {};
-                }
-                // Atualiza a tabela do mês correto (o mês do vencimento, não o mês aberto)
-                // Não modifica window.mesAberto/anoAberto para não interferir com o contexto atual do usuário
-                if (typeof window.renderizarDetalhesDoMes === 'function') {
-                    window.renderizarDetalhesDoMes(mes, ano);
-                }
-                if (typeof window.carregarDadosDashboard === 'function') {
-                    window.carregarDadosDashboard(ano);
+                // Recarrega só as despesas do mês afetado e re-renderiza a tabela
+                var _refreshMes = function() {
+                    if (typeof window.renderizarDetalhesDoMes === 'function') {
+                        window.renderizarDetalhesDoMes(mes, ano);
+                    }
+                    if (typeof window.carregarDadosDashboard === 'function') {
+                        window.carregarDadosDashboard(ano);
+                    }
+                };
+                if (typeof window.recarregarDespesasDoMes === 'function') {
+                    window.recarregarDespesasDoMes(mes, ano).then(_refreshMes).catch(_refreshMes);
+                } else {
+                    _refreshMes();
                 }
             } else {
                 addGen('Erro ao cadastrar: ' + ((res && res.message) || (res && res.errors && res.errors[0] && res.errors[0].msg) || 'tente novamente.'));

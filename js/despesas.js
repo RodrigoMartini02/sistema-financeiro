@@ -3972,6 +3972,7 @@ window.inicializarTabelaDespesasGrid = inicializarTabelaDespesasGrid;
 window.criarLinhaDespesaGrid = criarLinhaDespesaGrid;
 window.encontrarDespesaPorIndice = encontrarDespesaPorIndice;
 window.preencherCelulaAnexos = preencherCelulaAnexos;
+window.recarregarDespesasDoMes = recarregarDespesasDoMes;
 
 // Função para selecionar/deselecionar todas as despesas (chamada pelo HTML)
 function toggleTodasDespesas(checkbox) {
