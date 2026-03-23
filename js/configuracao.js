@@ -1189,23 +1189,6 @@ function obterTipoUsuarioAtual() {
 }
 
 function ajustarVisibilidadeElementos() {
-    const tabUsuarios = document.querySelector('.config-tab-btn[data-tab="usuarios"]');
-    if (tabUsuarios) {
-        if (tipoUsuarioAtual === 'admin' || tipoUsuarioAtual === 'master') {
-            tabUsuarios.classList.remove('hidden');
-        } else {
-            tabUsuarios.classList.add('hidden');
-        }
-    }
-
-    // Botão IA Global — visível para admin/master
-    const tabIaGlobal = document.getElementById('ia-global-tab-btn');
-    const isAdminOrMaster = tipoUsuarioAtual === 'admin' || tipoUsuarioAtual === 'master';
-    if (tabIaGlobal) tabIaGlobal.style.display = isAdminOrMaster ? '' : 'none';
-
-    // Botão Espaço Admin — visível apenas para master
-    const tabEspacoAdmin = document.getElementById('espaco-admin-tab-btn');
-    if (tabEspacoAdmin) tabEspacoAdmin.style.display = tipoUsuarioAtual === 'master' ? '' : 'none';
 
     // Botão "Novo Usuário" - Visível para MASTER e ADMINISTRADOR
     const btnAdicionarUsuario = document.getElementById('btn-adicionar-usuario');
@@ -2958,33 +2941,15 @@ function onAbaAtivada(tabName) {
 }
 
 function ativarConfigTab(tabName) {
-    // Desativar todas as abas
-    document.querySelectorAll('.config-tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.config-tab-pane').forEach(p => p.classList.remove('active'));
-
-    // Ativar a aba alvo
-    const btn = document.querySelector(`.config-tab-btn[data-tab="${tabName}"]`);
     const pane = document.getElementById(`${tabName}-tab`);
-    if (btn) btn.classList.add('active');
     if (pane) pane.classList.add('active');
-
-    // Disparar lógica específica da aba
     onAbaAtivada(tabName);
 }
 window.ativarConfigTab = ativarConfigTab;
 
 function setupConfigTabs() {
-    const tabButtons = document.querySelectorAll('.config-tab-btn');
-    const tabPanes = document.querySelectorAll('.config-tab-pane');
-
-    if (!tabButtons.length) return;
-
-    tabButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const targetTab = this.getAttribute('data-tab');
-            ativarConfigTab(targetTab);
-        });
-    });
+    // Navegação via sidebar — sem botões de aba
 }
 
 // ================================================================
@@ -3381,11 +3346,9 @@ async function excluirEmpresa(id, nome) {
 }
 
 window.abrirConfiguracoesEmpresas = function() {
-    // Navegar para a seção de configurações e abrir a aba Empresas
     const navConfig = document.querySelector('[data-section="config"]');
     if (navConfig) navConfig.click();
-    const btnEmpresasTab = document.querySelector('.config-tab-btn[data-tab="empresas"]');
-    if (btnEmpresasTab) btnEmpresasTab.click();
+    ativarConfigTab('empresas');
 };
 
 window.carregarEmpresas = carregarEmpresas;

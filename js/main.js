@@ -496,10 +496,12 @@ function setupNavigation() {
 
     const isMobile = () => window.innerWidth <= 768;
 
-    // Desktop inicia com sidebar recolhida (strip de ícones)
+    // Desktop inicia com sidebar expandida
     // Mobile inicia com sidebar escondida (overlay model)
-    sidebar?.classList.add('collapsed');
-    mainContent?.classList.add('sidebar-collapsed');
+    if (isMobile()) {
+        sidebar?.classList.add('collapsed');
+        mainContent?.classList.add('sidebar-collapsed');
+    }
 
     function abrirSidebar() {
         sidebar?.classList.remove('collapsed');
