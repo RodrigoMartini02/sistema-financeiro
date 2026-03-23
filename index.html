@@ -109,6 +109,59 @@
           "publisher": { "@id": "https://fingerence.com.br/#organization" },
           "inLanguage": "pt-BR"
         },
+        {
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "O FinGerence é gratuito?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Sim, o FinGerence é gratuito para começar. Crie sua conta sem cartão de crédito e comece a controlar suas finanças hoje mesmo."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Como funciona a IA do FinGerence?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "A Gen, nossa IA financeira, entende português natural. Você fala ou digita 'paguei 50 reais no mercado' e ela registra automaticamente na categoria e mês corretos, sem formulários."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Posso usar o FinGerence no celular?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Sim. O FinGerence funciona diretamente no navegador do celular — Android ou iPhone — e pode ser salvo na tela inicial como um aplicativo, sem precisar baixar nada da loja."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "O FinGerence serve para MEI e autônomos?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Sim, o FinGerence foi desenvolvido especialmente para autônomos, freelancers e MEIs que precisam controlar finanças com renda variável de forma simples e rápida."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Meus dados financeiros ficam seguros?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Sim. Seus dados são armazenados com criptografia e nunca são compartilhados com terceiros. Você é o único que acessa suas informações."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Preciso conectar minha conta bancária?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Não. O FinGerence não acessa sua conta bancária. Você registra os gastos manualmente — por voz, texto ou foto — mantendo total controle e privacidade."
+              }
+            }
+          ]
+        }
       ]
     }
     </script>
@@ -613,6 +666,81 @@
 </section>
 
 
+<!-- ================================================================
+     FAQ SECTION
+     ================================================================ -->
+<section class="faq-section" id="faq">
+    <div class="section-container">
+        <div class="section-header">
+            <span class="section-badge">Dúvidas Frequentes</span>
+            <h2 class="section-title">Perguntas que todo mundo faz antes de começar</h2>
+            <p class="section-desc">Respostas diretas, sem enrolação</p>
+        </div>
+
+        <div class="faq-grid">
+            <div class="faq-item">
+                <div class="faq-question">
+                    <span>O FinGerence é gratuito?</span>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    Sim, o FinGerence é gratuito para começar. Crie sua conta sem cartão de crédito e comece a controlar suas finanças hoje mesmo.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <span>Como funciona a IA do FinGerence?</span>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    A Gen, nossa IA financeira, entende português natural. Você fala ou digita "paguei 50 reais no mercado" e ela registra automaticamente na categoria e mês corretos, sem formulários.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <span>Posso usar o FinGerence no celular?</span>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    Sim. O FinGerence funciona diretamente no navegador do celular — Android ou iPhone — e pode ser salvo na tela inicial como um aplicativo, sem precisar baixar nada da loja.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <span>O FinGerence serve para MEI e autônomos?</span>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    Sim, o FinGerence foi desenvolvido especialmente para autônomos, freelancers e MEIs que precisam controlar finanças com renda variável de forma simples e rápida.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <span>Meus dados financeiros ficam seguros?</span>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    Sim. Seus dados são armazenados com criptografia e nunca são compartilhados com terceiros. Você é o único que acessa suas informações.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <span>Preciso conectar minha conta bancária?</span>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    Não. O FinGerence não acessa sua conta bancária. Você registra os gastos manualmente — por voz, texto ou foto — mantendo total controle e privacidade.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
 <!-- FOOTER CTA -->
 <section class="footer-cta-section">
     <div class="footer-cta-container">
@@ -948,6 +1076,17 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 
+<script>
+// FAQ Accordion
+document.querySelectorAll('.faq-question').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const item = btn.parentElement;
+        const isOpen = item.classList.contains('open');
+        document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
+        if (!isOpen) item.classList.add('open');
+    });
+});
+</script>
 
 </body>
 </html>
