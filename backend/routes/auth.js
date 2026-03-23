@@ -146,7 +146,7 @@ router.post('/register', [
     validate
 ], async (req, res) => {
     try {
-        const { nome, email, documento, senha, tipo, google_id } = req.body;
+        const { nome, email, documento, senha, tipo, google_id, pais, estado, cidade } = req.body;
         const docLimpo = documento.replace(/[^\d]+/g, '');
 
         const existe = await query(
@@ -164,10 +164,10 @@ router.post('/register', [
         const senhaHash = await bcrypt.hash(senha, 10);
 
         const result = await query(
-            `INSERT INTO usuarios (nome, email, documento, senha, tipo, status, google_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `INSERT INTO usuarios (nome, email, documento, senha, tipo, status, google_id, pais, estado, cidade)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
              RETURNING id, nome, email, documento, tipo, status`,
-            [nome, email.toLowerCase(), docLimpo, senhaHash, tipo || 'padrao', 'ativo', google_id || null]
+            [nome, email.toLowerCase(), docLimpo, senhaHash, tipo || 'padrao', 'ativo', google_id || null, pais || null, estado || null, cidade || null]
         );
 
         const novoUsuario = result.rows[0];

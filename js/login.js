@@ -338,13 +338,21 @@ async function processarFormularioCadastro() {
     const documento = document.getElementById('cadastro-documento')?.value?.trim();
     const password = document.getElementById('cadastro-password')?.value?.trim();
     const confirmPassword = document.getElementById('cadastro-confirm-password')?.value?.trim();
+    const pais = document.getElementById('cadastro-pais')?.value?.trim();
+    const estado = document.getElementById('cadastro-estado')?.value?.trim();
+    const cidade = document.getElementById('cadastro-cidade')?.value?.trim();
     // Limpar mensagens
     if (elementos.cadastroErrorMessage) elementos.cadastroErrorMessage.style.display = 'none';
     if (elementos.cadastroSuccessMessage) elementos.cadastroSuccessMessage.style.display = 'none';
-    
+
     // Validações
     if (!nome || !email || !documento || !password) {
         mostrarErroCadastro('Todos os campos são obrigatórios');
+        return;
+    }
+
+    if (!pais || !estado || !cidade) {
+        mostrarErroCadastro('País, estado e cidade são obrigatórios');
         return;
     }
     
@@ -366,7 +374,7 @@ async function processarFormularioCadastro() {
     if (typeof window.showLoadingScreen === 'function') window.showLoadingScreen();
 
     try {
-        await processarCadastro(nome, email, documento, password);
+        await processarCadastro(nome, email, documento, password, pais, estado, cidade);
 
         if (typeof window.hideLoadingScreen === 'function') window.hideLoadingScreen();
 
@@ -395,12 +403,15 @@ async function processarFormularioCadastro() {
     }
 }
 
-async function processarCadastro(nome, email, documento, password) {
+async function processarCadastro(nome, email, documento, password, pais, estado, cidade) {
     const docLimpo = documento.replace(/[^\d]+/g, '');
     const googleId = sessionStorage.getItem('googlePendingId') || null;
 
     const body = { nome, email, documento: docLimpo, senha: password };
     if (googleId) body.google_id = googleId;
+    if (pais) body.pais = pais;
+    if (estado) body.estado = estado;
+    if (cidade) body.cidade = cidade;
 
     const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',

@@ -1227,6 +1227,35 @@
                 </div>
 
 
+            <!-- Card de Distribuição Geográfica -->
+            <div class="config-card" id="card-mapa-usuarios">
+                <div class="config-card-header">
+                    <h3><i class="fas fa-map-marked-alt"></i> Distribuição Geográfica</h3>
+                    <button id="btn-atualizar-mapa" class="btn btn-sm btn-secondary" onclick="carregarMapaUsuarios()">
+                        <i class="fas fa-sync-alt"></i> Atualizar
+                    </button>
+                </div>
+                <div id="mapa-usuarios-content">
+                    <div id="mapa-por-pais" class="mapa-lista"></div>
+                    <div id="mapa-detalhado" class="mapa-tabela-wrapper">
+                        <table class="tabela-mapa">
+                            <thead>
+                                <tr>
+                                    <th>País</th>
+                                    <th>Estado</th>
+                                    <th>Cidade</th>
+                                    <th>Total</th>
+                                    <th>Ativos</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mapa-tabela-body">
+                                <tr><td colspan="5" style="text-align:center;color:var(--text-secondary)">Carregando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <!-- Card de Informações de Segurança -->
             <div class="config-card info-card">
                 <h3><i class="fas fa-shield-alt"></i> Segurança</h3>

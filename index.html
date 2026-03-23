@@ -899,6 +899,20 @@
                 <small class="field-hint">Usado apenas para identificar sua conta de forma única</small>
             </div>
             <div class="form-group">
+                <label for="cadastro-pais"><i class="fas fa-globe"></i> País</label>
+                <input type="text" id="cadastro-pais" name="pais" placeholder="Ex: Brasil" autocomplete="country-name" required>
+            </div>
+            <div class="form-row" style="display:flex;gap:12px;">
+                <div class="form-group" style="flex:1;">
+                    <label for="cadastro-estado"><i class="fas fa-map-marker-alt"></i> Estado</label>
+                    <input type="text" id="cadastro-estado" name="estado" placeholder="Ex: São Paulo" autocomplete="address-level1" required>
+                </div>
+                <div class="form-group" style="flex:1;">
+                    <label for="cadastro-cidade"><i class="fas fa-city"></i> Cidade</label>
+                    <input type="text" id="cadastro-cidade" name="cidade" placeholder="Ex: Campinas" autocomplete="address-level2" required>
+                </div>
+            </div>
+            <div class="form-group">
                 <label for="cadastro-password"><i class="fas fa-lock"></i> Senha</label>
                 <div class="password-input">
                     <input type="password" id="cadastro-password" name="password" required minlength="6" placeholder="Digite sua senha" autocomplete="new-password">

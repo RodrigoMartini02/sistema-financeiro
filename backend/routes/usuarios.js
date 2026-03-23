@@ -36,7 +36,7 @@ const isAdminOrMaster = (req, res, next) => {
 router.get('/current', authMiddleware, async (req, res) => {
     try {
         const result = await query(
-            'SELECT id, nome, email, documento, tipo, status, foto, data_cadastro FROM usuarios WHERE id = $1',
+            'SELECT id, nome, email, documento, tipo, status, foto, pais, estado, cidade, data_cadastro FROM usuarios WHERE id = $1',
             [req.usuario.id]
         );
         
@@ -66,14 +66,14 @@ router.get('/current', authMiddleware, async (req, res) => {
 // ================================================================
 router.put('/current', authMiddleware, async (req, res) => {
     try {
-        const { nome, email } = req.body;
-        
+        const { nome, email, pais, estado, cidade } = req.body;
+
         const result = await query(
-            `UPDATE usuarios 
-             SET nome = $1, email = $2, data_atualizacao = CURRENT_TIMESTAMP 
-             WHERE id = $3 
-             RETURNING id, nome, email, documento, tipo, status`,
-            [nome, email, req.usuario.id]
+            `UPDATE usuarios
+             SET nome = $1, email = $2, pais = $3, estado = $4, cidade = $5, data_atualizacao = CURRENT_TIMESTAMP
+             WHERE id = $6
+             RETURNING id, nome, email, documento, tipo, status, pais, estado, cidade`,
+            [nome, email, pais || null, estado || null, cidade || null, req.usuario.id]
         );
         
         res.json({
@@ -727,6 +727,52 @@ router.get('/stats/geral', authMiddleware, isMaster, async (req, res) => {
 
     } catch (error) {
         console.error('Erro ao buscar estatísticas:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro interno do servidor',
+            error: error.message
+        });
+    }
+});
+
+// ================================================================
+// GET /api/usuarios/stats/mapa - Distribuição geográfica de usuários (Master)
+// ================================================================
+router.get('/stats/mapa', authMiddleware, isMaster, async (req, res) => {
+    try {
+        const result = await query(`
+            SELECT
+                COALESCE(pais, 'Não informado') as pais,
+                COALESCE(estado, 'Não informado') as estado,
+                COALESCE(cidade, 'Não informado') as cidade,
+                COUNT(*) as total,
+                COUNT(CASE WHEN status = 'ativo' THEN 1 END) as ativos
+            FROM usuarios
+            WHERE tipo = 'padrao' OR tipo = 'admin'
+            GROUP BY pais, estado, cidade
+            ORDER BY total DESC
+        `);
+
+        const porPais = await query(`
+            SELECT
+                COALESCE(pais, 'Não informado') as pais,
+                COUNT(*) as total
+            FROM usuarios
+            WHERE tipo = 'padrao' OR tipo = 'admin'
+            GROUP BY pais
+            ORDER BY total DESC
+        `);
+
+        res.json({
+            success: true,
+            data: {
+                detalhado: result.rows,
+                por_pais: porPais.rows
+            }
+        });
+
+    } catch (error) {
+        console.error('Erro ao buscar mapa de usuários:', error);
         res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',

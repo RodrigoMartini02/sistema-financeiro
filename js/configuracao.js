@@ -1167,6 +1167,52 @@ function ajustarVisibilidadeElementos() {
     }
 }
 
+async function carregarMapaUsuarios() {
+    const tbody = document.getElementById('mapa-tabela-body');
+    const porPaisDiv = document.getElementById('mapa-por-pais');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-secondary)">Carregando...</td></tr>';
+
+    try {
+        const token = localStorage.getItem('token');
+        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+        const response = await fetch(`${API_URL}/usuarios/stats/mapa`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+
+        if (!data.success) throw new Error(data.message);
+
+        // Resumo por país
+        if (porPaisDiv && data.data.por_pais.length > 0) {
+            porPaisDiv.innerHTML = data.data.por_pais.map(p =>
+                `<span class="mapa-pais-badge"><i class="fas fa-globe"></i> ${p.pais} <strong>${p.total}</strong></span>`
+            ).join('');
+        }
+
+        // Tabela detalhada
+        if (data.data.detalhado.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-secondary)">Nenhum dado de localização registrado</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = data.data.detalhado.map(row => `
+            <tr>
+                <td>${row.pais}</td>
+                <td>${row.estado}</td>
+                <td>${row.cidade}</td>
+                <td><strong>${row.total}</strong></td>
+                <td>${row.ativos}</td>
+            </tr>
+        `).join('');
+
+    } catch (error) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--danger)">Erro ao carregar dados</td></tr>`;
+        console.error('Erro ao carregar mapa de usuários:', error);
+    }
+}
+
 async function filtrarUsuarios() {
     const searchInput = document.getElementById('usuario-search');
     const filterSelect = document.getElementById('filter-user-type');
@@ -3006,6 +3052,7 @@ async function inicializarConfiguracoes() {
 
     // Carregar dados da aba inicial (Usuários) sem precisar clicar
     filtrarUsuarios();
+    carregarMapaUsuarios();
 }
 
 document.addEventListener('DOMContentLoaded', function() {

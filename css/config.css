@@ -1426,3 +1426,79 @@
 [data-theme="dark"] .info-value {
     color: var(--theme-text-muted);
 }
+
+/* ================================================================
+   MAPA DE DISTRIBUIÇÃO GEOGRÁFICA
+   ================================================================ */
+#card-mapa-usuarios .config-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+#card-mapa-usuarios .config-card-header h3 {
+    margin-bottom: 0;
+}
+
+.mapa-lista {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.mapa-pais-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--primary-light, rgba(99, 149, 255, 0.1));
+    color: var(--primary, #6395ff);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 0.85rem;
+}
+
+.mapa-pais-badge strong {
+    background: var(--primary, #6395ff);
+    color: #fff;
+    border-radius: 10px;
+    padding: 0 7px;
+    font-size: 0.8rem;
+}
+
+.mapa-tabela-wrapper {
+    overflow-x: auto;
+}
+
+.tabela-mapa {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.tabela-mapa th {
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 2px solid var(--border-color, #e5e7eb);
+    color: var(--text-secondary, #6b7280);
+    font-weight: 600;
+}
+
+.tabela-mapa td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.tabela-mapa tr:last-child td {
+    border-bottom: none;
+}
+
+[data-theme="dark"] .mapa-pais-badge {
+    background: rgba(99, 149, 255, 0.15);
+}
+
+[data-theme="dark"] .tabela-mapa th,
+[data-theme="dark"] .tabela-mapa td {
+    border-color: rgba(99, 149, 255, 0.1);
+}

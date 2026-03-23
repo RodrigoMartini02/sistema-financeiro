@@ -71,6 +71,12 @@ const executarMigracoes = async () => {
         await pool.query(`ALTER TABLE reservas ADD COLUMN IF NOT EXISTS data_objetivo DATE`);
         console.log('✅ Colunas de metas/objetivos verificadas em reservas');
 
+        // Adicionar colunas de localização na tabela usuarios
+        await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS pais VARCHAR(100) DEFAULT NULL`);
+        await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS estado VARCHAR(100) DEFAULT NULL`);
+        await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cidade VARCHAR(100) DEFAULT NULL`);
+        console.log('✅ Colunas de localização verificadas em usuarios');
+
         // Criar índices de performance (IF NOT EXISTS para idempotência)
         await Promise.all([
             pool.query(`CREATE INDEX IF NOT EXISTS idx_despesas_usuario_mes_ano ON despesas (usuario_id, mes, ano)`),
