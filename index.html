@@ -48,6 +48,107 @@
     <link rel="stylesheet" href="css/index.css">
     <link rel="stylesheet" href="css/pwa.css">
     <link rel="stylesheet" href="css/avaliacao.css">
+
+    <!-- Schema.org JSON-LD — Rich Results Google -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://fingerence.com.br/#app",
+          "name": "FinGerence",
+          "url": "https://fingerence.com.br/",
+          "description": "App de controle financeiro com IA para autônomos, freelancers e MEIs. Registre gastos por conversa, controle cartões, parcelas e reservas.",
+          "applicationCategory": "FinanceApplication",
+          "operatingSystem": "Web, Android, iOS",
+          "inLanguage": "pt-BR",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "BRL",
+            "description": "Grátis para começar"
+          },
+          "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "4.9",
+            "reviewCount": "27",
+            "bestRating": "5",
+            "worstRating": "1"
+          },
+          "featureList": [
+            "Registro de gastos por conversa com IA",
+            "Leitura de boletos e QR Code PIX por câmera",
+            "Controle de cartões de crédito e limites",
+            "Alertas de vencimento de contas",
+            "Reservas e metas financeiras",
+            "Controle de parcelas e assinaturas",
+            "Relatórios por categoria"
+          ],
+          "screenshot": "https://fingerence.com.br/icons/financeiro.png",
+          "image": "https://fingerence.com.br/icons/financeiro.png"
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://fingerence.com.br/#organization",
+          "name": "FinGerence",
+          "url": "https://fingerence.com.br/",
+          "logo": "https://fingerence.com.br/icons/financeiro.png",
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "contactType": "customer support",
+            "availableLanguage": "Portuguese",
+            "url": "https://wa.me/5549999554856"
+          }
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://fingerence.com.br/#website",
+          "url": "https://fingerence.com.br/",
+          "name": "FinGerence",
+          "publisher": { "@id": "https://fingerence.com.br/#organization" },
+          "inLanguage": "pt-BR"
+        },
+        {
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "O FinGerence é gratuito?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Sim, o FinGerence é gratuito para começar. Crie sua conta sem cartão de crédito e comece a controlar suas finanças hoje mesmo."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Como funciona a IA do FinGerence?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "A Gen, nossa IA financeira, entende português natural. Você fala ou digita 'paguei 50 reais no mercado' e ela registra automaticamente na categoria e mês corretos, sem formulários."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Posso usar o FinGerence no celular?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Sim. O FinGerence funciona diretamente no navegador do celular — Android ou iPhone — e pode ser salvo na tela inicial como um aplicativo, sem precisar baixar nada da loja."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "O FinGerence serve para MEI e autônomos?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Sim, o FinGerence foi desenvolvido especialmente para autônomos, freelancers e MEIs que precisam controlar finanças com renda variável de forma simples e rápida."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
 </head>
 <body>
 
@@ -73,7 +174,7 @@
             <a href="#ia-showcase">Inteligência IA</a>
             <a href="#como-funciona">Como Funciona</a>
             <a href="#avaliacoes">Avaliações</a>
-            <a href="#hero-login">Entrar</a>
+            <a href="#hero-section">Entrar</a>
         </div>
     </div>
 </nav>

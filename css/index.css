@@ -670,6 +670,11 @@ form .btn-primary:hover {
     }
 }
 
+/* Compensar nav fixo em todas as âncoras da landing */
+#hero-section, #features, #ia-showcase, #avaliacoes, #como-funciona {
+    scroll-margin-top: 70px;
+}
+
 /* ================================================================
    LANDING PAGE — NAVBAR
    ================================================================ */
