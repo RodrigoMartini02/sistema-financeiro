@@ -13,7 +13,10 @@
       "Bash(echo \"Função: $func\")",
       "Bash(python3 -c \":*)",
       "Bash(node -e \":*)",
-      "Bash(node -e \"require\\(''''./backend/routes/auth.js''''\\)\")"
+      "Bash(node -e \"require\\(''''./backend/routes/auth.js''''\\)\")",
+      "Read(//c/Users/rodri/AppData/Roaming/Code/User/**)",
+      "Bash(code --list-extensions)",
+      "Read(//c/Users/rodri/.vscode/extensions/**)"
     ]
   }
 }
