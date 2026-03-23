@@ -213,14 +213,15 @@
 
 @media (max-width: 1199px) and (min-width: 769px) {
     /* Tablets: scale moderado */
-    .app-container {
+    .page-app .app-container {
         transform-origin: top left;
         transform: scale(var(--app-scale, 0.85));
         width: calc(100vw / var(--app-scale, 0.85));
         height: calc(100vh / var(--app-scale, 0.85));
     }
 
-    html, body {
+    .page-app,
+    .page-app html {
         overflow: hidden;
     }
 }
@@ -232,17 +233,16 @@
      * Exemplo: tela de 390px → scale = 390/1200 ≈ 0.325
      * O JS em pwa-scale.js pode sobrescrever --app-scale dinamicamente.
      */
-    .app-container {
+    .page-app .app-container {
         transform-origin: top left;
         transform: scale(var(--app-scale, 0.325));
         width: calc(100vw / var(--app-scale, 0.325));
         height: calc(100vh / var(--app-scale, 0.325));
-        /* overflow pode ocorrer antes do scale — esconder no wrapper */
     }
 
-    html, body {
+    /* Overflow hidden SOMENTE no app, nunca no index/login */
+    .page-app {
         overflow: hidden;
-        /* Garante que não apareça scrollbar horizontal pelo conteúdo escalonado */
         max-width: 100vw;
     }
 }
@@ -820,8 +820,8 @@
    ================================================================ */
 
 @media (max-width: 768px) {
-    /* Evitar que conteúdo escalonado cause scrollbar horizontal */
-    html {
+    /* Evitar que conteúdo escalonado cause scrollbar horizontal (somente no app) */
+    .page-app {
         overflow-x: hidden !important;
     }
 
