@@ -90,8 +90,11 @@
 
 .modal-body {
     padding: var(--space-md);
-    max-height: calc(100vh - 150px);
+    /* dvh respeita a altura real da viewport em mobile (sem barra do browser);
+       fallback para vh em browsers antigos */
+    max-height: calc(100dvh - 150px);
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .modal-footer {

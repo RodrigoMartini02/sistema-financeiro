@@ -289,9 +289,9 @@
     }
 
     .modal-body {
-        max-height: calc(100dvh - 180px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
+        /* max-height sobrescrito pela seção MODAL BASE — SAFE AREA abaixo */
     }
 
     /* --- Modais pequenos (sm/md) ocupam mais da tela --- */
@@ -476,5 +476,233 @@
     ::-webkit-scrollbar {
         width: 4px;
         height: 4px;
+    }
+}
+
+/* ================================================================
+   MODAIS DE RECEITA E DESPESA — FORMULÁRIOS MOBILE-FRIENDLY
+   Os modais de receita/despesa têm grids de campos (form-row-grid,
+   form-row-inline) que precisam virar coluna única em mobile.
+   ================================================================ */
+
+@media (max-width: 768px) {
+    /* Grid de campos (valor + data, etc.) → coluna única */
+    .form-row-grid,
+    .form-row-inline,
+    .form-row {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+    }
+
+    /* Todos os campos do grid ocupam 100% */
+    .form-row-grid .form-group,
+    .form-row-inline .form-group,
+    .form-row .form-group,
+    .form-group.campo-valor,
+    .form-group.campo-data {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    /* Inputs, selects e textareas dentro de modais: anti-zoom iOS + toque mínimo */
+    .modal-body input[type="text"],
+    .modal-body input[type="number"],
+    .modal-body input[type="date"],
+    .modal-body input[type="email"],
+    .modal-body input[type="password"],
+    .modal-body input[type="tel"],
+    .modal-body input[type="search"],
+    .modal-body select,
+    .modal-body textarea {
+        font-size: 16px !important;
+        min-height: 44px !important;
+        padding: 10px 12px !important;
+        border-radius: 8px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        -webkit-appearance: none;
+        appearance: none;
+    }
+
+    /* Checkbox inline (replicar/parcelar): empilhar em mobile */
+    .checkboxes-inline {
+        flex-wrap: wrap !important;
+        gap: 10px !important;
+    }
+
+    .checkbox-inline {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 15px !important;
+    }
+
+    /* Container descrição + botão de anexos */
+    .descricao-anexos-container {
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+
+    .descricao-anexos-container .btn-anexar {
+        width: 100% !important;
+        min-height: 44px !important;
+        justify-content: center !important;
+    }
+
+    /* Linha de opções inline de categorias/cartões */
+    .form-group-flex,
+    .form-inline {
+        flex-direction: column !important;
+        gap: 10px !important;
+    }
+
+    /* Tags de categoria: permitir scroll horizontal em mobile */
+    .categorias-container,
+    .tags-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 4px;
+    }
+
+    /* Seletor de categoria inline */
+    .categoria-select-inline {
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+    }
+}
+
+/* ================================================================
+   INDEX.HTML (LOGIN) — SAFE AREA para barra de status iOS
+   A página de login já é responsiva mas precisa respeitar notch.
+   ================================================================ */
+
+@supports (padding: env(safe-area-inset-top)) {
+    /* Navbar da landing */
+    .landing-nav {
+        padding-top: env(safe-area-inset-top, 0px);
+    }
+
+    /* Hero section no mobile: garantir que não fique atrás do notch */
+    @media (max-width: 768px) {
+        .hero-section {
+            padding-top: calc(env(safe-area-inset-top, 0px) + 60px);
+        }
+
+        /* Botão flutuante / CTA que pode estar na área do home indicator */
+        .btn-hero-cta,
+        .btn-mobile-login {
+            margin-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+        }
+    }
+}
+
+/* ================================================================
+   APP.HTML — SAFE AREA na barra inferior (home indicator iPhone X+)
+   Garante que o footer da sidebar e os modais não fiquem cortados.
+   ================================================================ */
+
+@supports (padding: env(safe-area-inset-bottom)) {
+    @media (max-width: 768px) {
+        /* Sidebar footer não fica atrás do home indicator */
+        .sidebar-footer {
+            padding-bottom: calc(var(--space-md) + env(safe-area-inset-bottom, 0px)) !important;
+        }
+
+        /* Content area bottom padding para não ficar atrás do home bar */
+        .content-area {
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+    }
+}
+
+/* ================================================================
+   MODAL BASE — SAFE AREA
+   O .modal-body base usa 100vh sem env(); corrigir para dvh + safe-area
+   ================================================================ */
+
+@media (max-width: 768px) {
+    .modal-body {
+        max-height: calc(100dvh - 200px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    /* Modal de detalhes do mês (grande) */
+    #modal-detalhes-mes .modal-body {
+        max-height: calc(90dvh - 120px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    /* Modal de confirmação posicionado no centro vertical real */
+    #modal-exclusao-receita .modal-content,
+    #modal-confirmacao-exclusao-despesa .modal-content {
+        margin: max(5dvh, calc(env(safe-area-inset-top, 0px) + 20px)) auto !important;
+    }
+}
+
+/* ================================================================
+   MODAL RECEITA — CORREÇÕES MOBILE ESPECÍFICAS
+   O receita.css usa font-size:14px e 100vh; corrigir aqui com !important
+   para garantir anti-zoom iOS (mín. 16px) e altura real (dvh).
+   ================================================================ */
+
+@media (max-width: 768px) {
+    /* Anti-zoom iOS: font-size mínimo 16px em todos os inputs do modal receita */
+    #modal-nova-receita .modal-body input[type="text"],
+    #modal-nova-receita .modal-body input[type="number"],
+    #modal-nova-receita .modal-body input[type="date"],
+    #modal-nova-receita .modal-body select {
+        font-size: 16px !important;
+        min-height: 44px !important;
+    }
+
+    /* dvh em vez de 100vh para respeitar barra do browser */
+    #modal-nova-receita .modal-content {
+        min-height: 100dvh !important;
+    }
+
+    #modal-nova-receita .modal-body {
+        max-height: calc(100dvh - 110px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    /* Modal lancamento despesas */
+    .modal-lancamento .modal-body {
+        max-height: calc(100dvh - 110px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    /* Inputs do modal de despesa: anti-zoom iOS */
+    .modal-lancamento input[type="text"],
+    .modal-lancamento input[type="number"],
+    .modal-lancamento input[type="date"],
+    .modal-lancamento select,
+    .modal-lancamento textarea {
+        font-size: 16px !important;
+        min-height: 44px !important;
+    }
+}
+
+/* ================================================================
+   TOUCH: ESTADOS ATIVOS — feedback visual imediato no toque
+   (substitui :hover que não funciona em touch)
+   ================================================================ */
+
+@media (hover: none) and (pointer: coarse) {
+    /* Botões: feedback de toque via :active */
+    .btn:active,
+    button:active,
+    [role="button"]:active {
+        opacity: 0.75;
+        transform: scale(0.97);
+        transition: transform 0.1s ease, opacity 0.1s ease;
+    }
+
+    /* Nav links na sidebar */
+    .nav-link:active {
+        background-color: rgba(255, 255, 255, 0.15) !important;
+    }
+
+    /* Remover efeito hover translateY em botões (causa jitter em touch) */
+    .btn:hover:not(:disabled) {
+        transform: none;
+        box-shadow: none;
     }
 }
