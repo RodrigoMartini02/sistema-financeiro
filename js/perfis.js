@@ -81,6 +81,21 @@ function atualizarSwitcherUI(nome, tipo) {
     if (iconeEl) {
         iconeEl.className = `fas ${tipo === 'empresa' ? 'fa-building' : 'fa-user'}`;
     }
+    // Mostrar/ocultar aba empresa no dashboard
+    const btnTemaEmpresa = document.querySelector('.tema-btn-empresa');
+    if (btnTemaEmpresa) {
+        if (tipo === 'empresa') {
+            btnTemaEmpresa.style.display = '';
+        } else {
+            btnTemaEmpresa.style.display = 'none';
+            // Se o tema empresa estava ativo, voltar para saude
+            const temaAtivo = document.querySelector('.tema-btn.active');
+            if (temaAtivo && temaAtivo.dataset.tema === 'empresa') {
+                const temaSaude = document.querySelector('.tema-btn[data-tema="saude"]');
+                if (temaSaude) temaSaude.click();
+            }
+        }
+    }
 }
 
 function configurarEventosSwitcher() {

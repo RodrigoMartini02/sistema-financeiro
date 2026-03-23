@@ -9,7 +9,7 @@ const { authMiddleware } = require('../middleware/auth');
 router.get('/', authMiddleware, async (req, res) => {
     try {
         const result = await query(
-            `SELECT id, usuario_id, tipo, nome, documento, ativo, data_criacao
+            `SELECT id, usuario_id, tipo, nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, ativo, data_criacao
              FROM perfis
              WHERE usuario_id = $1 AND ativo = true
              ORDER BY tipo ASC, id ASC`,
@@ -35,7 +35,7 @@ router.get('/', authMiddleware, async (req, res) => {
 // ================================================================
 router.post('/', authMiddleware, async (req, res) => {
     try {
-        const { nome, documento } = req.body;
+        const { nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial } = req.body;
 
         if (!nome || nome.trim() === '') {
             return res.status(400).json({
@@ -54,10 +54,10 @@ router.post('/', authMiddleware, async (req, res) => {
         }
 
         const result = await query(
-            `INSERT INTO perfis (usuario_id, tipo, nome, documento)
-             VALUES ($1, 'empresa', $2, $3)
+            `INSERT INTO perfis (usuario_id, tipo, nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial)
+             VALUES ($1, 'empresa', $2, $3, $4, $5, $6, $7)
              RETURNING *`,
-            [req.usuario.id, nome.trim(), cnpjLimpo]
+            [req.usuario.id, nome.trim(), cnpjLimpo, razao_social || null, nome_fantasia || null, atividade || null, aporte_inicial || null]
         );
 
         res.status(201).json({
@@ -81,7 +81,7 @@ router.post('/', authMiddleware, async (req, res) => {
 router.put('/:id', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
-        const { nome, documento } = req.body;
+        const { nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial } = req.body;
 
         if (!nome || nome.trim() === '') {
             return res.status(400).json({
@@ -119,10 +119,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
         }
 
         const result = await query(
-            `UPDATE perfis SET nome = $1, documento = $2
-             WHERE id = $3 AND usuario_id = $4
+            `UPDATE perfis SET nome = $1, documento = $2, razao_social = $3, nome_fantasia = $4, atividade = $5, aporte_inicial = $6
+             WHERE id = $7 AND usuario_id = $8
              RETURNING *`,
-            [nome.trim(), cnpjLimpo, id, req.usuario.id]
+            [nome.trim(), cnpjLimpo, razao_social || null, nome_fantasia || null, atividade || null, aporte_inicial || null, id, req.usuario.id]
         );
 
         res.json({

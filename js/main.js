@@ -589,6 +589,10 @@ function onSecaoAtivada(secao) {
             }
             break;
 
+        case 'fornecedor':
+            if (typeof carregarDadosFornecedor === 'function') carregarDadosFornecedor();
+            break;
+
     }
 }
 
@@ -2671,8 +2675,18 @@ function notificarSistemaReady() {
 // ================================================================
 window.recarregarDadosApp = async function() {
     try {
+        if (window.usuarioDataManager && typeof window.usuarioDataManager.limparCache === 'function') {
+            window.usuarioDataManager.limparCache();
+        }
+        await carregarDadosLocais();
         await carregarDadosDashboard(anoAtual);
         await renderizarMeses(anoAtual, false);
+        if (window.mesAberto !== null && window.anoAberto !== null &&
+            typeof window.renderizarDetalhesDoMes === 'function') {
+            await window.renderizarDetalhesDoMes(window.mesAberto, window.anoAberto);
+        }
+        const secaoAtiva = document.querySelector('.nav-link.active')?.dataset.section;
+        if (secaoAtiva) onSecaoAtivada(secaoAtiva);
     } catch (error) {
         console.error('Erro ao recarregar dados do app:', error);
     }
@@ -2735,6 +2749,12 @@ function exibirNomeUsuario() {
             const nomeSidebar = document.getElementById('nome-usuario-sidebar');
             if (nomeSidebar) {
                 nomeSidebar.textContent = `${primeiroNome} - ${tipoTexto}`;
+            }
+
+            // Mostrar painel do fornecedor apenas para master
+            const navFornecedor = document.getElementById('nav-item-fornecedor');
+            if (navFornecedor) {
+                navFornecedor.style.display = tipoUsuario === 'master' ? '' : 'none';
             }
 
             // Carregar foto de perfil

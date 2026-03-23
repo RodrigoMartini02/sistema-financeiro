@@ -32,7 +32,8 @@ router.get('/', authMiddleware, async (req, res) => {
 
         const { perfil_id } = req.query;
         if (perfil_id) {
-            whereClause += ` AND r.perfil_id = $${++paramCount}`;
+            paramCount++;
+            whereClause += ` AND (r.perfil_id = $${paramCount} OR (r.perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis WHERE id = $${paramCount} AND tipo = 'pessoal')))`;
             params.push(parseInt(perfil_id));
         }
 
@@ -107,17 +108,19 @@ router.post('/', authMiddleware, [
 router.put('/:id', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
-        const { descricao, valor, data_recebimento, observacoes, anexos } = req.body;
+        const { descricao, valor, data_recebimento, observacoes, anexos, perfil_id } = req.body;
 
         // Converter anexos para JSON se existirem
         const anexosJson = anexos && Array.isArray(anexos) && anexos.length > 0 ? JSON.stringify(anexos) : null;
 
         const result = await query(
             `UPDATE receitas
-             SET descricao = $1, valor = $2, data_recebimento = $3, observacoes = $4, anexos = $5
-             WHERE id = $6 AND usuario_id = $7
+             SET descricao = $1, valor = $2, data_recebimento = $3, observacoes = $4, anexos = $5,
+                 perfil_id = COALESCE($6, perfil_id)
+             WHERE id = $7 AND usuario_id = $8
              RETURNING *`,
-            [descricao, parseFloat(valor), data_recebimento, observacoes, anexosJson, id, req.usuario.id]
+            [descricao, parseFloat(valor), data_recebimento, observacoes, anexosJson,
+             perfil_id ? parseInt(perfil_id) : null, id, req.usuario.id]
         );
         
         if (result.rows.length === 0) {

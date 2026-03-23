@@ -201,7 +201,7 @@ router.get('/', authMiddleware, isAdminOrMaster, async (req, res) => {
 // ================================================================
 router.post('/', authMiddleware, isMaster, async (req, res) => {
     try {
-        const { nome, email, documento, senha, tipo = 'admin', status = 'ativo' } = req.body;
+        const { nome, email, documento, senha, tipo = 'admin', status = 'ativo', pais, estado, cidade } = req.body;
         
         // Validações
         if (!nome || !email || !documento || !senha) {
@@ -250,10 +250,10 @@ router.post('/', authMiddleware, isMaster, async (req, res) => {
 
         // Criar usuário
         const result = await query(
-            `INSERT INTO usuarios (nome, email, documento, senha, tipo, status)
-             VALUES ($1, $2, $3, $4, $5, $6)
-             RETURNING id, nome, email, documento, tipo, status, data_cadastro`,
-            [nome, email, documento, senhaHash, tipo, status]
+            `INSERT INTO usuarios (nome, email, documento, senha, tipo, status, pais, estado, cidade)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+             RETURNING id, nome, email, documento, tipo, status, pais, estado, cidade, data_cadastro`,
+            [nome, email, documento, senhaHash, tipo, status, pais || null, estado || null, cidade || null]
         );
         
         res.status(201).json({
@@ -329,7 +329,7 @@ router.get('/:id', authMiddleware, isAdminOrMaster, async (req, res) => {
 router.put('/:id', authMiddleware, isAdminOrMaster, async (req, res) => {
     try {
         const userId = parseInt(req.params.id);
-        const { nome, email, senha, tipo, status } = req.body;
+        const { nome, email, senha, tipo, status, pais, estado, cidade } = req.body;
         
         if (isNaN(userId)) {
             return res.status(400).json({
@@ -431,14 +431,32 @@ router.put('/:id', authMiddleware, isAdminOrMaster, async (req, res) => {
             updates.push(`status = $${paramCount}`);
             params.push(status);
         }
-        
+
+        if (pais !== undefined) {
+            paramCount++;
+            updates.push(`pais = $${paramCount}`);
+            params.push(pais || null);
+        }
+
+        if (estado !== undefined) {
+            paramCount++;
+            updates.push(`estado = $${paramCount}`);
+            params.push(estado || null);
+        }
+
+        if (cidade !== undefined) {
+            paramCount++;
+            updates.push(`cidade = $${paramCount}`);
+            params.push(cidade || null);
+        }
+
         if (updates.length === 0) {
             return res.status(400).json({
                 success: false,
                 message: 'Nenhum campo para atualizar'
             });
         }
-        
+
         paramCount++;
         updates.push(`data_atualizacao = CURRENT_TIMESTAMP`);
         params.push(userId);

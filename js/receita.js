@@ -661,7 +661,11 @@ async function excluirReceitaLocal(opcao, index, mes, ano, descricaoReceita) {
 
         } else if (opcao === 'todas') {
             // Buscar todas as receitas com essa descrição e excluir
-            const response = await fetch(`${API_URL}/receitas?ano=${ano}`, {
+            const perfilId = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
+            const urlTodasReceitas = perfilId
+                ? `${API_URL}/receitas?ano=${ano}&perfil_id=${perfilId}`
+                : `${API_URL}/receitas?ano=${ano}`;
+            const response = await fetch(urlTodasReceitas, {
                 headers: {
                     'Authorization': `Bearer ${getToken()}`
                 }

@@ -49,7 +49,8 @@ router.get('/', authMiddleware, async (req, res) => {
 
         const { perfil_id } = req.query;
         if (perfil_id) {
-            whereClause += ` AND d.perfil_id = $${++paramCount}`;
+            paramCount++;
+            whereClause += ` AND (d.perfil_id = $${paramCount} OR (d.perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis WHERE id = $${paramCount} AND tipo = 'pessoal')))`;
             params.push(parseInt(perfil_id));
         }
 
@@ -246,8 +247,8 @@ async function criarParcelasFuturas(usuarioId, despesaBase, totalParcelas) {
              SET grupo_parcelamento_id = $1,
                  descricao = $2,
                  parcela_atual = 1
-             WHERE id = $1`,
-            [despesaBase.id, despesaBase.descricao + ` (1/${totalParcelas})`]
+             WHERE id = $3`,
+            [despesaBase.id, despesaBase.descricao + ` (1/${totalParcelas})`, despesaBase.id]
         );
 
     } catch (error) {
@@ -265,7 +266,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
             descricao, valor, data_vencimento, data_compra, data_pagamento,
             categoria_id, cartao_id, forma_pagamento, observacoes, pago,
             total_parcelas, parcela_atual, valor_original, valor_total_com_juros, valor_pago, anexos,
-            mes, ano, parcelado, recorrente
+            mes, ano, parcelado, recorrente, perfil_id
         } = req.body;
 
         const numeroParcelas = total_parcelas || null;
@@ -283,8 +284,9 @@ router.put('/:id', authMiddleware, async (req, res) => {
                  numero_parcelas = $11, parcela_atual = $12,
                  valor_original = $13, valor_total_com_juros = $14, valor_pago = $15, anexos = $16,
                  mes = COALESCE($17, mes), ano = COALESCE($18, ano), parcelado = COALESCE($19, parcelado),
-                 recorrente = COALESCE($20, recorrente)
-             WHERE id = $21 AND usuario_id = $22
+                 recorrente = COALESCE($20, recorrente),
+                 perfil_id = COALESCE($21, perfil_id)
+             WHERE id = $22 AND usuario_id = $23
              RETURNING *`,
             [
                 descricao, parseFloat(valor), data_vencimento, data_compra,
@@ -296,6 +298,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
                 anexosJson,
                 mes !== undefined ? mes : null, ano !== undefined ? ano : null, parcelado !== undefined ? parcelado : null,
                 recorrente !== undefined ? recorrente : null,
+                perfil_id ? parseInt(perfil_id) : null,
                 id, req.usuario.id
             ]
         );

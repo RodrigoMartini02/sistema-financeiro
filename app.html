@@ -167,6 +167,13 @@
                 </a>
             </li>
 
+            <li class="nav-item nav-item-master" id="nav-item-fornecedor" style="display:none;">
+                <a href="#" class="nav-link" data-section="fornecedor" data-label="Painel do Fornecedor">
+                    <span class="nav-icon"><i class="fas fa-store"></i></span>
+                    <span class="nav-text">Painel</span>
+                </a>
+            </li>
+
             <li class="nav-item">
                 <a href="#" class="nav-link" data-section="config" data-label="Configurações">
                     <span class="nav-icon"><i class="fas fa-user-cog"></i></span>
@@ -371,6 +378,10 @@
             <button class="tema-btn" data-tema="metas">
               <i class="fas fa-bullseye"></i><span>Metas</span>
             </button>
+            <button class="tema-btn tema-btn-empresa" data-tema="empresa">
+                <i class="fas fa-building"></i>
+                <span>Empresa</span>
+            </button>
           </div>
           <div class="dash-filtros-inline">
             <div class="filtro-periodo-toggle">
@@ -538,6 +549,47 @@
                 </div>
             </div>
           </div>
+        </div>
+        <!-- TEMA: EMPRESA -->
+        <div class="tema-view" id="tema-empresa" style="display:none;">
+            <div class="tema-kpis">
+                <div class="tema-kpi">
+                    <span class="tk-label">Faturamento do Ano</span>
+                    <span class="tk-valor" id="tk-empresa-faturamento">R$ 0,00</span>
+                </div>
+                <div class="tema-kpi">
+                    <span class="tk-label">Resultado Líquido</span>
+                    <span class="tk-valor" id="tk-empresa-resultado">R$ 0,00</span>
+                </div>
+                <div class="tema-kpi">
+                    <span class="tk-label">Aporte Inicial</span>
+                    <span class="tk-valor" id="tk-empresa-aporte">R$ 0,00</span>
+                </div>
+                <div class="tema-kpi">
+                    <span class="tk-label">Saldo Atual</span>
+                    <span class="tk-valor" id="tk-empresa-saldo">R$ 0,00</span>
+                </div>
+            </div>
+            <div class="tema-charts-grid">
+                <div class="tema-chart-card">
+                    <div class="tema-chart-titulo">Faturamento vs Despesas</div>
+                    <div class="tema-chart-wrapper">
+                        <canvas id="tema-empresa-faturamento-chart"></canvas>
+                    </div>
+                </div>
+                <div class="tema-chart-card">
+                    <div class="tema-chart-titulo">Resultado Acumulado</div>
+                    <div class="tema-chart-wrapper">
+                        <canvas id="tema-empresa-acumulado-chart"></canvas>
+                    </div>
+                </div>
+                <div class="tema-chart-card">
+                    <div class="tema-chart-titulo">Comparativo PF × PJ</div>
+                    <div class="tema-chart-wrapper">
+                        <canvas id="tema-empresa-comparativo-chart"></canvas>
+                    </div>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -1192,9 +1244,24 @@
                         <i class="fas fa-plus"></i> Nova Empresa
                     </button>
                 </div>
-                <div id="lista-empresas">
-                    <p style="color:var(--text-secondary);text-align:center;">Nenhuma empresa cadastrada</p>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Razão Social</th>
+                                <th>Nome Fantasia</th>
+                                <th>CNPJ</th>
+                                <th>Atividade</th>
+                                <th>Aporte Inicial</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lista-empresas"></tbody>
+                    </table>
                 </div>
+                <p id="no-empresas-message" class="hidden" style="color:var(--text-secondary);text-align:center;padding:20px;">
+                    Nenhuma empresa cadastrada
+                </p>
             </div>
         </div>
 
@@ -1445,6 +1512,100 @@
     </div>
 </section>
 
+<section id="fornecedor-section" class="section-content" style="display:none;">
+    <div class="fornecedor-dashboard">
+
+        <!-- Header -->
+        <div class="fornecedor-header">
+            <h2><i class="fas fa-store"></i> Painel do Fornecedor</h2>
+            <button id="btn-atualizar-fornecedor" class="btn btn-sm btn-secondary">
+                <i class="fas fa-sync-alt"></i> Atualizar
+            </button>
+        </div>
+
+        <!-- KPIs -->
+        <div class="fornecedor-kpis">
+            <div class="fornecedor-kpi-card">
+                <div class="fkpi-icon"><i class="fas fa-users"></i></div>
+                <div class="fkpi-info">
+                    <span class="fkpi-valor" id="fkpi-total">-</span>
+                    <span class="fkpi-label">Total de Usuários</span>
+                </div>
+            </div>
+            <div class="fornecedor-kpi-card fkpi-green">
+                <div class="fkpi-icon"><i class="fas fa-user-check"></i></div>
+                <div class="fkpi-info">
+                    <span class="fkpi-valor" id="fkpi-ativos">-</span>
+                    <span class="fkpi-label">Usuários Ativos</span>
+                </div>
+            </div>
+            <div class="fornecedor-kpi-card fkpi-yellow">
+                <div class="fkpi-icon"><i class="fas fa-user-clock"></i></div>
+                <div class="fkpi-info">
+                    <span class="fkpi-valor" id="fkpi-inativos">-</span>
+                    <span class="fkpi-label">Inativos</span>
+                </div>
+            </div>
+            <div class="fornecedor-kpi-card fkpi-red">
+                <div class="fkpi-icon"><i class="fas fa-user-slash"></i></div>
+                <div class="fkpi-info">
+                    <span class="fkpi-valor" id="fkpi-bloqueados">-</span>
+                    <span class="fkpi-label">Bloqueados</span>
+                </div>
+            </div>
+            <div class="fornecedor-kpi-card fkpi-blue">
+                <div class="fkpi-icon"><i class="fas fa-globe"></i></div>
+                <div class="fkpi-info">
+                    <span class="fkpi-valor" id="fkpi-paises">-</span>
+                    <span class="fkpi-label">Países</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráficos -->
+        <div class="fornecedor-charts">
+            <div class="fornecedor-chart-card">
+                <h3>Usuários por País</h3>
+                <div class="fornecedor-chart-wrapper">
+                    <canvas id="chart-usuarios-pais"></canvas>
+                </div>
+            </div>
+            <div class="fornecedor-chart-card">
+                <h3>Distribuição por Status</h3>
+                <div class="fornecedor-chart-wrapper">
+                    <canvas id="chart-usuarios-status"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabela geográfica -->
+        <div class="fornecedor-tabela-card">
+            <div class="fornecedor-tabela-header">
+                <h3><i class="fas fa-map-marker-alt"></i> Distribuição Geográfica</h3>
+                <input type="text" id="fornecedor-busca" placeholder="Filtrar por cidade, estado ou país..." class="fornecedor-busca-input">
+            </div>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>País</th>
+                            <th>Estado</th>
+                            <th>Cidade</th>
+                            <th>Total</th>
+                            <th>Ativos</th>
+                            <th>% Ativos</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-geo-body">
+                        <tr><td colspan="6" style="text-align:center;color:var(--text-secondary)">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</section>
+
 </div> <!-- /.content-area -->
 
 
@@ -1587,6 +1748,19 @@
                 </div>
 
                 <div class="form-group">
+                    <label for="novo-usuario-pais">País <span class="required">*</span></label>
+                    <input type="text" id="novo-usuario-pais" class="form-input" required maxlength="100" placeholder="Ex: Brasil">
+                </div>
+                <div class="form-group">
+                    <label for="novo-usuario-estado">Estado <span class="required">*</span></label>
+                    <input type="text" id="novo-usuario-estado" class="form-input" required maxlength="100" placeholder="Ex: São Paulo">
+                </div>
+                <div class="form-group">
+                    <label for="novo-usuario-cidade">Cidade <span class="required">*</span></label>
+                    <input type="text" id="novo-usuario-cidade" class="form-input" required maxlength="100" placeholder="Ex: São Paulo">
+                </div>
+
+                <div class="form-group">
                     <label for="novo-usuario-senha">Senha <span class="required">*</span></label>
                     <input type="password" id="novo-usuario-senha" class="form-input" required minlength="6">
                     <small class="field-help">Mínimo 6 caracteres</small>
@@ -1656,6 +1830,19 @@
                         <option value="inativo">Inativo</option>
                         <option value="bloqueado">Bloqueado</option>
                     </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="editar-usuario-pais">País <span class="required">*</span></label>
+                    <input type="text" id="editar-usuario-pais" class="form-input" required maxlength="100" placeholder="Ex: Brasil">
+                </div>
+                <div class="form-group">
+                    <label for="editar-usuario-estado">Estado <span class="required">*</span></label>
+                    <input type="text" id="editar-usuario-estado" class="form-input" required maxlength="100" placeholder="Ex: São Paulo">
+                </div>
+                <div class="form-group">
+                    <label for="editar-usuario-cidade">Cidade <span class="required">*</span></label>
+                    <input type="text" id="editar-usuario-cidade" class="form-input" required maxlength="100" placeholder="Ex: São Paulo">
                 </div>
 
                 <div class="form-group">
@@ -1820,6 +2007,26 @@
                     <i class="fas fa-trash"></i>
                 </button>
                 <span class="texto-sem-permissao hidden">Sem permissão</span>
+            </div>
+        </td>
+    </tr>
+</template>
+
+<template id="template-linha-empresa">
+    <tr class="empresa-row">
+        <td class="empresa-razao-social"></td>
+        <td class="empresa-nome-fantasia"></td>
+        <td class="empresa-cnpj"></td>
+        <td class="empresa-atividade"></td>
+        <td class="empresa-aporte-inicial"></td>
+        <td class="acoes-empresa">
+            <div class="acoes-grupo">
+                <button class="btn btn-sm btn-editar-empresa" title="Editar empresa">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-excluir-empresa" title="Arquivar empresa">
+                    <i class="fas fa-trash"></i>
+                </button>
             </div>
         </td>
     </tr>
@@ -3523,6 +3730,7 @@
 <script src="js/planos.js"></script>
 <script src="js/avaliacao.js"></script>
 <script src="js/pwa-scale.js"></script>
+<script src="js/fornecedor.js"></script>
 
 <!-- ================================================================
      TOAST DE AVALIAÇÃO DO SISTEMA
@@ -3578,24 +3786,44 @@
 
 <!-- Modal: Cadastro/Edição de Empresa -->
 <div id="modal-empresa" class="modal" style="display:none;">
-    <div class="modal-content modal-small">
+    <div class="modal-content modal-md">
         <div class="modal-header">
-            <h3 id="modal-empresa-titulo">Nova Empresa</h3>
-            <button class="modal-close" id="btn-fechar-modal-empresa">&times;</button>
+            <h2 id="modal-empresa-titulo">Nova Empresa</h2>
+            <button type="button" class="close" id="btn-fechar-modal-empresa" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
-            <input type="hidden" id="empresa-id">
-            <div class="form-group">
-                <label>Nome da Empresa</label>
-                <input type="text" id="empresa-nome" placeholder="Ex: Minha Empresa Ltda" maxlength="100">
-            </div>
-            <div class="form-group">
-                <label>CNPJ</label>
-                <input type="text" id="empresa-cnpj" placeholder="00.000.000/0000-00" maxlength="18">
-            </div>
+            <form id="form-empresa">
+                <input type="hidden" id="empresa-id">
+
+                <div class="form-group">
+                    <label for="empresa-razao-social">Razão Social <span class="required">*</span></label>
+                    <input type="text" id="empresa-razao-social" class="form-input" required maxlength="150" placeholder="Ex: Empresa Ltda">
+                </div>
+
+                <div class="form-group">
+                    <label for="empresa-nome-fantasia">Nome Fantasia</label>
+                    <input type="text" id="empresa-nome-fantasia" class="form-input" maxlength="150" placeholder="Ex: Minha Empresa">
+                </div>
+
+                <div class="form-group">
+                    <label for="empresa-cnpj">CNPJ <span class="required">*</span></label>
+                    <input type="text" id="empresa-cnpj" class="form-input" required maxlength="18" placeholder="00.000.000/0000-00">
+                </div>
+
+                <div class="form-group">
+                    <label for="empresa-atividade">Ramo de Atividade</label>
+                    <input type="text" id="empresa-atividade" class="form-input" maxlength="200" placeholder="Ex: Comércio varejista">
+                </div>
+
+                <div class="form-group">
+                    <label for="empresa-aporte-inicial">Aporte Inicial (R$)</label>
+                    <input type="number" id="empresa-aporte-inicial" class="form-input" min="0" step="0.01" placeholder="0,00">
+                </div>
+            </form>
         </div>
         <div class="modal-footer">
-            <button id="btn-salvar-empresa" class="btn btn-primary">Salvar</button>
+            <button type="button" class="btn btn-secondary" id="btn-cancelar-empresa">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="btn-salvar-empresa">Salvar</button>
         </div>
     </div>
 </div>

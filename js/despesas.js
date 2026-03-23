@@ -1736,8 +1736,10 @@ async function atualizarTodasParcelasGrupo(formData, despesaEmEdicao, valorParce
 
         // Buscar no ano anterior, atual e próximos 3 anos (para cobrir parcelamentos longos)
         // Ano anterior é necessário caso a primeira parcela esteja em ano diferente da parcela editada
+        const perfilId = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
         for (let ano = formData.ano - 1; ano <= formData.ano + 3; ano++) {
-            const response = await fetch(`${API_URL}/despesas?ano=${ano}`, {
+            const urlDespesasGrupo = `${API_URL}/despesas?ano=${ano}` + (perfilId ? `&perfil_id=${perfilId}` : '');
+            const response = await fetch(urlDespesasGrupo, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
@@ -1794,7 +1796,8 @@ async function atualizarTodasParcelasGrupo(formData, despesaEmEdicao, valorParce
                 total_parcelas: totalParcelasAtual,
                 parcela_atual: parcelaNum,
                 parcelado: true,
-                recorrente: formData.recorrente || false  // Incluir campo recorrente
+                recorrente: formData.recorrente || false,  // Incluir campo recorrente
+                ...(perfilId && { perfil_id: perfilId })
             };
 
             const updateResponse = await fetch(`${API_URL}/despesas/${parcela.id}`, {

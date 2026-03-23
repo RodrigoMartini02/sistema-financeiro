@@ -1519,7 +1519,10 @@ function preencherDadosUsuario(usuario) {
         'editar-usuario-nome': usuario.nome || '',
         'editar-usuario-email': usuario.email || '',
         'editar-usuario-documento': usuario.documento || '',
-        'editar-usuario-status': usuario.status || 'ativo'
+        'editar-usuario-status': usuario.status || 'ativo',
+        'editar-usuario-pais': usuario.pais || '',
+        'editar-usuario-estado': usuario.estado || '',
+        'editar-usuario-cidade': usuario.cidade || ''
     };
 
     Object.entries(campos).forEach(([id, valor]) => {
@@ -1674,6 +1677,10 @@ async function salvarEdicaoUsuario(isNovo = false) {
                     return;
                 }
 
+                const paisNovo = document.getElementById('novo-usuario-pais')?.value.trim() || null;
+                const estadoNovo = document.getElementById('novo-usuario-estado')?.value.trim() || null;
+                const cidadeNovo = document.getElementById('novo-usuario-cidade')?.value.trim() || null;
+
                 response = await fetch(`${API_URL}/usuarios`, {
                     method: 'POST',
                     headers: {
@@ -1686,7 +1693,10 @@ async function salvarEdicaoUsuario(isNovo = false) {
                         documento: identificador,
                         senha,
                         tipo: tipoUsuarioAtual === 'master' ? tipo : 'padrao',
-                        status
+                        status,
+                        pais: paisNovo,
+                        estado: estadoNovo,
+                        cidade: cidadeNovo
                     })
                 });
             } else {
@@ -1694,7 +1704,10 @@ async function salvarEdicaoUsuario(isNovo = false) {
                 const updateData = {
                     nome,
                     email,
-                    status
+                    status,
+                    pais: document.getElementById('editar-usuario-pais')?.value.trim() || null,
+                    estado: document.getElementById('editar-usuario-estado')?.value.trim() || null,
+                    cidade: document.getElementById('editar-usuario-cidade')?.value.trim() || null
                 };
 
                 if (tipoUsuarioAtual === 'master') {
@@ -3042,6 +3055,11 @@ function setupEventListeners() {
     if (btnFecharModalEmpresa) btnFecharModalEmpresa.addEventListener('click', () => {
         document.getElementById('modal-empresa').style.display = 'none';
     });
+
+    const btnCancelarEmpresa = document.getElementById('btn-cancelar-empresa');
+    if (btnCancelarEmpresa) btnCancelarEmpresa.addEventListener('click', () => {
+        document.getElementById('modal-empresa').style.display = 'none';
+    });
 }
 
 async function inicializarConfiguracoes() {
@@ -3094,27 +3112,37 @@ async function carregarEmpresas() {
 
 function renderizarEmpresas(empresas) {
     const lista = document.getElementById('lista-empresas');
+    const noMsg = document.getElementById('no-empresas-message');
     if (!lista) return;
+    lista.innerHTML = '';
     if (empresas.length === 0) {
-        lista.innerHTML = '<p style="color:var(--text-secondary);text-align:center;">Nenhuma empresa cadastrada</p>';
+        if (noMsg) noMsg.classList.remove('hidden');
         return;
     }
-    lista.innerHTML = empresas.map(e => `
-        <div class="empresa-item">
-            <div class="empresa-info">
-                <strong>${e.nome}</strong>
-                <span class="empresa-cnpj">${formatarCNPJ(e.documento || '')}</span>
-            </div>
-            <div class="empresa-acoes">
-                <button class="btn btn-sm btn-secondary" onclick="abrirModalEditarEmpresa(${e.id}, '${e.nome.replace(/'/g, "\\'")}', '${e.documento || ''}')">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn btn-sm btn-danger" onclick="excluirEmpresa(${e.id}, '${e.nome.replace(/'/g, "\\'")}')">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        </div>
-    `).join('');
+    if (noMsg) noMsg.classList.add('hidden');
+
+    empresas.forEach((e, index) => {
+        const template = document.getElementById('template-linha-empresa');
+        if (!template) return;
+        const linha = template.content.cloneNode(true);
+        linha.querySelector('.empresa-razao-social').textContent = e.razao_social || e.nome || '-';
+        linha.querySelector('.empresa-nome-fantasia').textContent = e.nome_fantasia || '-';
+        linha.querySelector('.empresa-cnpj').textContent = formatarCNPJ(e.documento || '');
+        linha.querySelector('.empresa-atividade').textContent = e.atividade || '-';
+        linha.querySelector('.empresa-aporte-inicial').textContent = e.aporte_inicial
+            ? `R$ ${parseFloat(e.aporte_inicial).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+            : '-';
+
+        const btnEditar = linha.querySelector('.btn-editar-empresa');
+        const btnExcluir = linha.querySelector('.btn-excluir-empresa');
+        btnEditar.setAttribute('data-index', index);
+        btnExcluir.setAttribute('data-index', index);
+
+        btnEditar.addEventListener('click', () => abrirModalEditarEmpresa(e));
+        btnExcluir.addEventListener('click', () => excluirEmpresa(e.id, e.razao_social || e.nome));
+
+        lista.appendChild(linha);
+    });
 }
 
 function formatarCNPJ(cnpj) {
@@ -3125,26 +3153,35 @@ function formatarCNPJ(cnpj) {
 
 function abrirModalNovaEmpresa() {
     document.getElementById('empresa-id').value = '';
-    document.getElementById('empresa-nome').value = '';
+    document.getElementById('empresa-razao-social').value = '';
+    document.getElementById('empresa-nome-fantasia').value = '';
     document.getElementById('empresa-cnpj').value = '';
+    document.getElementById('empresa-atividade').value = '';
+    document.getElementById('empresa-aporte-inicial').value = '';
     document.getElementById('modal-empresa-titulo').textContent = 'Nova Empresa';
     document.getElementById('modal-empresa').style.display = 'flex';
 }
 
-function abrirModalEditarEmpresa(id, nome, cnpj) {
-    document.getElementById('empresa-id').value = id;
-    document.getElementById('empresa-nome').value = nome;
-    document.getElementById('empresa-cnpj').value = formatarCNPJ(cnpj);
+function abrirModalEditarEmpresa(empresa) {
+    document.getElementById('empresa-id').value = empresa.id;
+    document.getElementById('empresa-razao-social').value = empresa.razao_social || empresa.nome || '';
+    document.getElementById('empresa-nome-fantasia').value = empresa.nome_fantasia || '';
+    document.getElementById('empresa-cnpj').value = formatarCNPJ(empresa.documento || '');
+    document.getElementById('empresa-atividade').value = empresa.atividade || '';
+    document.getElementById('empresa-aporte-inicial').value = empresa.aporte_inicial || '';
     document.getElementById('modal-empresa-titulo').textContent = 'Editar Empresa';
     document.getElementById('modal-empresa').style.display = 'flex';
 }
 
 async function salvarEmpresa() {
     const id = document.getElementById('empresa-id').value;
-    const nome = document.getElementById('empresa-nome').value.trim();
+    const razaoSocial = document.getElementById('empresa-razao-social').value.trim();
+    const nomeFantasia = document.getElementById('empresa-nome-fantasia').value.trim();
     const cnpj = document.getElementById('empresa-cnpj').value.replace(/\D/g, '');
+    const atividade = document.getElementById('empresa-atividade').value.trim();
+    const aporteInicial = document.getElementById('empresa-aporte-inicial').value;
 
-    if (!nome) { mostrarToast('Nome é obrigatório', 'error'); return; }
+    if (!razaoSocial) { mostrarToast('Razão Social é obrigatória', 'error'); return; }
     if (!cnpj || cnpj.length !== 14) { mostrarToast('CNPJ inválido', 'error'); return; }
 
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
@@ -3156,7 +3193,15 @@ async function salvarEmpresa() {
         const res = await fetch(url, {
             method,
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nome, documento: cnpj, tipo: 'empresa' })
+            body: JSON.stringify({
+                nome: nomeFantasia || razaoSocial,
+                razao_social: razaoSocial,
+                nome_fantasia: nomeFantasia || null,
+                documento: cnpj,
+                tipo: 'empresa',
+                atividade: atividade || null,
+                aporte_inicial: aporteInicial ? parseFloat(aporteInicial) : null
+            })
         });
         const data = await res.json();
         if (!data.success) throw new Error(data.message);
@@ -3192,10 +3237,8 @@ window.abrirConfiguracoesEmpresas = function() {
     // Navegar para a seção de configurações e abrir a aba Empresas
     const navConfig = document.querySelector('[data-section="config"]');
     if (navConfig) navConfig.click();
-    setTimeout(() => {
-        const btnEmpresasTab = document.querySelector('.config-tab-btn[data-tab="empresas"]');
-        if (btnEmpresasTab) btnEmpresasTab.click();
-    }, 200);
+    const btnEmpresasTab = document.querySelector('.config-tab-btn[data-tab="empresas"]');
+    if (btnEmpresasTab) btnEmpresasTab.click();
 };
 
 window.carregarEmpresas = carregarEmpresas;

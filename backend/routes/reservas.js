@@ -305,13 +305,20 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 // GET - Buscar somente objetivos (tipo_reserva='objetivo') com campo progresso calculado
 router.get('/objetivos', authMiddleware, async (req, res) => {
     try {
+        const { perfil_id } = req.query;
+        const params = [req.usuario.id];
+        let perfilFilter = '';
+        if (perfil_id) {
+            perfilFilter = ` AND (perfil_id = $2 OR perfil_id IS NULL)`;
+            params.push(parseInt(perfil_id));
+        }
         const result = await query(
             `SELECT *,
                 CASE WHEN objetivo_valor > 0 THEN ROUND((valor / objetivo_valor * 100)::numeric, 1) ELSE 0 END AS progresso
              FROM reservas
-             WHERE usuario_id = $1 AND tipo_reserva = 'objetivo'
+             WHERE usuario_id = $1 AND tipo_reserva = 'objetivo'${perfilFilter}
              ORDER BY objetivo_atingido ASC, data_objetivo ASC NULLS LAST, id DESC`,
-            [req.usuario.id]
+            params
         );
         res.json({ success: true, data: result.rows });
     } catch (error) {

@@ -147,16 +147,26 @@ router.get('/:ano/:mes/saldo', authMiddleware, async (req, res) => {
         const mesAnterior = mesInt === 0 ? 11 : mesInt - 1;
         const anoAnterior = mesInt === 0 ? anoInt - 1 : anoInt;
 
-        const perfilFilter = perfil_id ? ` AND (perfil_id = ${parseInt(perfil_id)} OR perfil_id IS NULL)` : '';
+        const perfilIdInt = perfil_id ? parseInt(perfil_id) : null;
+        const receitasParams = [req.usuario.id, anoInt, mesInt];
+        const despesasParams = [req.usuario.id, anoInt, mesInt];
+        let perfilFilterReceitas = '';
+        let perfilFilterDespesas = '';
+        if (perfilIdInt) {
+            perfilFilterReceitas = ` AND (perfil_id = $4 OR (perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis WHERE id = $4 AND tipo = 'pessoal')))`;
+            receitasParams.push(perfilIdInt);
+            perfilFilterDespesas = ` AND (perfil_id = $4 OR (perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis WHERE id = $4 AND tipo = 'pessoal')))`;
+            despesasParams.push(perfilIdInt);
+        }
 
         const [receitas, despesas, saldoAnterior] = await Promise.all([
             query(
-                `SELECT COALESCE(SUM(valor), 0) as total FROM receitas WHERE usuario_id = $1 AND ano = $2 AND mes = $3${perfilFilter}`,
-                [req.usuario.id, anoInt, mesInt]
+                `SELECT COALESCE(SUM(valor), 0) as total FROM receitas WHERE usuario_id = $1 AND ano = $2 AND mes = $3${perfilFilterReceitas}`,
+                receitasParams
             ),
             query(
-                `SELECT COALESCE(SUM(valor), 0) as total FROM despesas WHERE usuario_id = $1 AND ano = $2 AND mes = $3${perfilFilter}`,
-                [req.usuario.id, anoInt, mesInt]
+                `SELECT COALESCE(SUM(valor), 0) as total FROM despesas WHERE usuario_id = $1 AND ano = $2 AND mes = $3${perfilFilterDespesas}`,
+                despesasParams
             ),
             query(
                 `SELECT COALESCE(saldo_final, 0) as saldo FROM meses WHERE usuario_id = $1 AND ano = $2 AND mes = $3`,

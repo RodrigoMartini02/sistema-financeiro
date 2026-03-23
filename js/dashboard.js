@@ -652,6 +652,13 @@ function inicializarDashboardTematico() {
     const filtroMes = document.getElementById('dash-filtro-mes');
     if (filtroMes) filtroMes.addEventListener('change', atualizarDashboardTematico);
 
+    // Esconder botão empresa por padrão se perfil não for empresa
+    const tipoPerfilAtivo = localStorage.getItem('perfilAtivoTipo') || 'pessoal';
+    const btnTemaEmpresa = document.querySelector('.tema-btn-empresa');
+    if (btnTemaEmpresa && tipoPerfilAtivo !== 'empresa') {
+        btnTemaEmpresa.style.display = 'none';
+    }
+
     // Renderiza tema inicial (saude)
     atualizarDashboardTematico();
     atualizarKpisFixos();
@@ -742,6 +749,7 @@ function renderizarTemaPorNome(tema) {
         'anual':      renderizarTemaAnual,
         'analise':    renderizarTemaAnalise,
         'metas':      renderizarTemaMetas,
+        'empresa':    renderizarTemaEmpresa,
     };
     if (mapa[tema]) mapa[tema]();
 }
@@ -2640,6 +2648,303 @@ window.simularProjecao = function simularProjecao() {
         }
     });
 };
+
+// ── TEMA: EMPRESA ─────────────────────────────────────────────────
+async function renderizarTemaEmpresa() {
+    const anoAtual = window.anoAtual || new Date().getFullYear();
+    const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
+    // Obter perfil ativo (empresa)
+    const perfilIdEmpresa = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
+
+    // Obter perfil pessoal (para comparativo) — buscar da API
+    let perfilIdPessoal = null;
+    let aporteInicial = 0;
+
+    try {
+        const resPerfis = await fetch(`${API_URL}/perfis`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const dataPerfis = await resPerfis.json();
+        if (dataPerfis.success) {
+            const pessoal = dataPerfis.data.find(p => p.tipo === 'pessoal');
+            const empresa = dataPerfis.data.find(p => p.id === perfilIdEmpresa);
+            if (pessoal) perfilIdPessoal = pessoal.id;
+            if (empresa && empresa.aporte_inicial) aporteInicial = parseFloat(empresa.aporte_inicial);
+        }
+    } catch (e) {
+        console.error('Erro ao buscar perfis:', e);
+    }
+
+    // Buscar receitas e despesas da empresa por mês
+    const receitasEmpresa = new Array(12).fill(0);
+    const despesasEmpresa = new Array(12).fill(0);
+    const receitasPessoal = new Array(12).fill(0);
+    const despesasPessoal = new Array(12).fill(0);
+
+    // Usar dados já carregados em window.dadosFinanceiros se disponíveis
+    const dadosAno = window.dadosFinanceiros && window.dadosFinanceiros[anoAtual];
+
+    if (dadosAno && dadosAno.meses) {
+        for (let m = 0; m < 12; m++) {
+            const mesDados = dadosAno.meses[m];
+            if (!mesDados) continue;
+
+            if (mesDados.receitas) {
+                mesDados.receitas.forEach(r => {
+                    if (!perfilIdEmpresa || r.perfil_id === perfilIdEmpresa) {
+                        receitasEmpresa[m] += parseFloat(r.valor || 0);
+                    }
+                    if (!perfilIdPessoal || r.perfil_id === perfilIdPessoal || r.perfil_id === null) {
+                        receitasPessoal[m] += parseFloat(r.valor || 0);
+                    }
+                });
+            }
+            if (mesDados.despesas) {
+                mesDados.despesas.forEach(d => {
+                    if (!perfilIdEmpresa || d.perfil_id === perfilIdEmpresa) {
+                        despesasEmpresa[m] += parseFloat(d.valor || 0);
+                    }
+                    if (!perfilIdPessoal || d.perfil_id === perfilIdPessoal || d.perfil_id === null) {
+                        despesasPessoal[m] += parseFloat(d.valor || 0);
+                    }
+                });
+            }
+        }
+    } else {
+        // Buscar da API — uma requisição por endpoint (ano todo de uma vez)
+        try {
+            const [resReceitas, resDespesas] = await Promise.all([
+                fetch(`${API_URL}/receitas?ano=${anoAtual}&perfil_id=${perfilIdEmpresa}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }),
+                fetch(`${API_URL}/despesas?ano=${anoAtual}&perfil_id=${perfilIdEmpresa}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+            ]);
+            const [dReceitas, dDespesas] = await Promise.all([resReceitas.json(), resDespesas.json()]);
+            if (dReceitas.success) {
+                dReceitas.data.forEach(r => { receitasEmpresa[parseInt(r.mes)] += parseFloat(r.valor || 0); });
+            }
+            if (dDespesas.success) {
+                dDespesas.data.forEach(d => { despesasEmpresa[parseInt(d.mes)] += parseFloat(d.valor || 0); });
+            }
+        } catch (e) { console.error('Erro ao buscar dados empresa:', e); }
+
+        if (perfilIdPessoal) {
+            try {
+                const [resReceitasP, resDespesasP] = await Promise.all([
+                    fetch(`${API_URL}/receitas?ano=${anoAtual}&perfil_id=${perfilIdPessoal}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    }),
+                    fetch(`${API_URL}/despesas?ano=${anoAtual}&perfil_id=${perfilIdPessoal}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    })
+                ]);
+                const [dReceitasP, dDespesasP] = await Promise.all([resReceitasP.json(), resDespesasP.json()]);
+                if (dReceitasP.success) {
+                    dReceitasP.data.forEach(r => { receitasPessoal[parseInt(r.mes)] += parseFloat(r.valor || 0); });
+                }
+                if (dDespesasP.success) {
+                    dDespesasP.data.forEach(d => { despesasPessoal[parseInt(d.mes)] += parseFloat(d.valor || 0); });
+                }
+            } catch (e) { console.error('Erro ao buscar dados pessoal:', e); }
+        }
+    }
+
+    // Calcular KPIs
+    const faturamentoTotal = receitasEmpresa.reduce((a, b) => a + b, 0);
+    const despesasTotal = despesasEmpresa.reduce((a, b) => a + b, 0);
+    const resultadoLiquido = faturamentoTotal - despesasTotal;
+
+    // Resultado acumulado mês a mês (partindo do aporte inicial)
+    const resultadoAcumulado = [];
+    let acumulado = aporteInicial;
+    for (let m = 0; m < 12; m++) {
+        acumulado += receitasEmpresa[m] - despesasEmpresa[m];
+        resultadoAcumulado.push(acumulado);
+    }
+    const saldoAtual = resultadoAcumulado[new Date().getMonth()] || resultadoAcumulado.find(v => v !== aporteInicial) || aporteInicial;
+
+    // Atualizar KPIs
+    const fmt = v => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const setKpi = (id, val, negativeRed) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = fmt(val);
+        if (negativeRed) el.style.color = val < 0 ? 'var(--danger, #e74c3c)' : 'var(--success, #2ecc71)';
+    };
+    setKpi('tk-empresa-faturamento', faturamentoTotal);
+    setKpi('tk-empresa-resultado', resultadoLiquido, true);
+    setKpi('tk-empresa-aporte', aporteInicial);
+    setKpi('tk-empresa-saldo', saldoAtual, true);
+
+    // GRÁFICO 1: Faturamento vs Despesas por mês (barras agrupadas)
+    criarChart('tema-empresa-faturamento-chart', {
+        type: 'bar',
+        data: {
+            labels: meses,
+            datasets: [
+                {
+                    label: 'Faturamento',
+                    data: receitasEmpresa,
+                    backgroundColor: 'rgba(46, 204, 113, 0.7)',
+                    borderColor: 'rgba(46, 204, 113, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4
+                },
+                {
+                    label: 'Despesas',
+                    data: despesasEmpresa,
+                    backgroundColor: 'rgba(231, 76, 60, 0.7)',
+                    borderColor: 'rgba(231, 76, 60, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top', labels: { color: 'var(--text-primary, #fff)' } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
+                    }
+                }
+            },
+            scales: {
+                x: { ticks: { color: 'var(--text-secondary, #aaa)' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                y: {
+                    ticks: {
+                        color: 'var(--text-secondary, #aaa)',
+                        callback: v => 'R$ ' + v.toLocaleString('pt-BR')
+                    },
+                    grid: { color: 'rgba(255,255,255,0.05)' }
+                }
+            }
+        }
+    });
+
+    // GRÁFICO 2: Resultado acumulado (linha, partindo do aporte inicial)
+    criarChart('tema-empresa-acumulado-chart', {
+        type: 'line',
+        data: {
+            labels: meses,
+            datasets: [
+                {
+                    label: 'Saldo Acumulado',
+                    data: resultadoAcumulado,
+                    borderColor: 'rgba(52, 152, 219, 1)',
+                    backgroundColor: 'rgba(52, 152, 219, 0.15)',
+                    borderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    fill: true,
+                    tension: 0.4
+                },
+                {
+                    label: 'Aporte Inicial',
+                    data: new Array(12).fill(aporteInicial),
+                    borderColor: 'rgba(243, 156, 18, 0.6)',
+                    borderWidth: 1,
+                    borderDash: [6, 3],
+                    pointRadius: 0,
+                    fill: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top', labels: { color: 'var(--text-primary, #fff)' } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
+                    }
+                }
+            },
+            scales: {
+                x: { ticks: { color: 'var(--text-secondary, #aaa)' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                y: {
+                    ticks: {
+                        color: 'var(--text-secondary, #aaa)',
+                        callback: v => 'R$ ' + v.toLocaleString('pt-BR')
+                    },
+                    grid: { color: 'rgba(255,255,255,0.05)' }
+                }
+            }
+        }
+    });
+
+    // GRÁFICO 3: Comparativo PF × PJ (receitas e despesas lado a lado)
+    criarChart('tema-empresa-comparativo-chart', {
+        type: 'bar',
+        data: {
+            labels: meses,
+            datasets: [
+                {
+                    label: 'Receitas PJ',
+                    data: receitasEmpresa,
+                    backgroundColor: 'rgba(46, 204, 113, 0.8)',
+                    borderRadius: 3,
+                    stack: 'empresa'
+                },
+                {
+                    label: 'Despesas PJ',
+                    data: despesasEmpresa.map(v => -v),
+                    backgroundColor: 'rgba(231, 76, 60, 0.8)',
+                    borderRadius: 3,
+                    stack: 'empresa'
+                },
+                {
+                    label: 'Receitas PF',
+                    data: receitasPessoal,
+                    backgroundColor: 'rgba(46, 204, 113, 0.35)',
+                    borderRadius: 3,
+                    stack: 'pessoal'
+                },
+                {
+                    label: 'Despesas PF',
+                    data: despesasPessoal.map(v => -v),
+                    backgroundColor: 'rgba(231, 76, 60, 0.35)',
+                    borderRadius: 3,
+                    stack: 'pessoal'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top', labels: { color: 'var(--text-primary, #fff)' } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => {
+                            const val = Math.abs(ctx.parsed.y);
+                            return ` ${ctx.dataset.label}: ${val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { ticks: { color: 'var(--text-secondary, #aaa)' }, grid: { color: 'rgba(255,255,255,0.05)' }, stacked: true },
+                y: {
+                    stacked: true,
+                    ticks: {
+                        color: 'var(--text-secondary, #aaa)',
+                        callback: v => 'R$ ' + Math.abs(v).toLocaleString('pt-BR')
+                    },
+                    grid: { color: 'rgba(255,255,255,0.05)' }
+                }
+            }
+        }
+    });
+}
 
 // Inicializa o dashboard temático junto ao evento sistemaFinanceiroReady
 window.addEventListener('sistemaFinanceiroReady', function() {

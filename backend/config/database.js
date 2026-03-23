@@ -132,6 +132,13 @@ const executarMigracoes = async () => {
         `);
         console.log('✅ Perfis pessoais padrão criados para usuários existentes');
 
+        // Expandir campos da tabela perfis (empresa)
+        await pool.query(`ALTER TABLE perfis ADD COLUMN IF NOT EXISTS razao_social VARCHAR(150) DEFAULT NULL`);
+        await pool.query(`ALTER TABLE perfis ADD COLUMN IF NOT EXISTS nome_fantasia VARCHAR(150) DEFAULT NULL`);
+        await pool.query(`ALTER TABLE perfis ADD COLUMN IF NOT EXISTS atividade VARCHAR(200) DEFAULT NULL`);
+        await pool.query(`ALTER TABLE perfis ADD COLUMN IF NOT EXISTS aporte_inicial DECIMAL(12,2) DEFAULT NULL`);
+        console.log('✅ Colunas expandidas de empresa verificadas em perfis');
+
         console.log('✅ Migrações concluídas');
         return true;
     } catch (error) {

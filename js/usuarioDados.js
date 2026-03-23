@@ -185,20 +185,22 @@ class UsuarioDataManager {
             const token = sessionStorage.getItem('token') || '';
 
             // ✅ BUSCAR RECEITAS, DESPESAS E STATUS DOS MESES DAS TABELAS SEPARADAS
+            const perfilId = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
+            const perfilQuery = perfilId ? `?perfil_id=${perfilId}` : '';
             const [receitasResponse, despesasResponse, mesesResponse] = await Promise.all([
-                fetch(`${API_URL_DADOS}/receitas`, {
+                fetch(`${API_URL_DADOS}/receitas${perfilQuery}`, {
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     }
                 }),
-                fetch(`${API_URL_DADOS}/despesas`, {
+                fetch(`${API_URL_DADOS}/despesas${perfilQuery}`, {
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     }
                 }),
-                fetch(`${API_URL_DADOS}/meses`, {
+                fetch(`${API_URL_DADOS}/meses${perfilQuery}`, {
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
@@ -543,7 +545,7 @@ class UsuarioDataManager {
             const ehEdicao = id !== null && id !== '' && id !== undefined;
 
             // Preparar dados para API
-            const perfilIdReceita = window.getPerfilAtivo?.() || null;
+            const perfilIdReceita = (typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null);
             const dadosReceita = {
                 descricao: receita.descricao,
                 valor: parseFloat(receita.valor),
@@ -552,7 +554,7 @@ class UsuarioDataManager {
                 ano: parseInt(ano),
                 observacoes: receita.observacoes || '',
                 anexos: receita.anexos || [],
-                ...(perfilIdReceita && { perfil_id: perfilIdReceita })
+                perfil_id: perfilIdReceita
             };
 
             let response;
