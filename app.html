@@ -287,6 +287,22 @@
                     </div>
                 </div>
                
+                <!-- Switcher de Perfil PF/PJ -->
+                <div id="perfil-switcher" class="perfil-switcher">
+                    <button id="btn-perfil-atual" class="btn-perfil-atual" title="Trocar Perfil">
+                        <i class="fas fa-user" id="perfil-icone"></i>
+                        <span id="perfil-nome-atual">Pessoal</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div id="perfil-dropdown" class="perfil-dropdown hidden">
+                        <div id="lista-perfis-dropdown"></div>
+                        <hr class="perfil-separator">
+                        <button id="btn-gerenciar-empresas" class="perfil-dropdown-item perfil-gerenciar">
+                            <i class="fas fa-cog"></i> Gerenciar Empresas
+                        </button>
+                    </div>
+                </div>
+
                 <button class="header-icon-btn" id="logout-btn" title="Sair">
                     <i class="fas fa-sign-out-alt"></i>
                 </button>
@@ -986,6 +1002,9 @@
         <button class="config-tab-btn" data-tab="carta-servicos">
             <i class="fas fa-scroll"></i> Carta de Serviços
         </button>
+        <button class="config-tab-btn" data-tab="empresas" id="empresas-tab-btn">
+            <i class="fas fa-building"></i> Empresas
+        </button>
     </div>
     
     <div class="config-tab-content">
@@ -1158,6 +1177,23 @@
                 <hr class="config-sep">
                 <div id="carta-servicos-content" class="carta-markdown-body">
                     <div class="carta-loading"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- ABA: EMPRESAS (PF/PJ) -->
+        <!-- ============================================== -->
+        <div id="empresas-tab" class="config-tab-pane">
+            <div class="config-card">
+                <div class="config-card-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                    <h3><i class="fas fa-building"></i> Minhas Empresas</h3>
+                    <button id="btn-nova-empresa" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus"></i> Nova Empresa
+                    </button>
+                </div>
+                <div id="lista-empresas">
+                    <p style="color:var(--text-secondary);text-align:center;">Nenhuma empresa cadastrada</p>
                 </div>
             </div>
         </div>
@@ -3208,6 +3244,7 @@
 <script src="js/usuarioDados.js"></script>
 <script src="js/main.js"></script>
 <script src="js/logs.js"></script>
+<script src="js/perfis.js"></script>
 <script src="js/configuracao.js"></script>
 <script src="js/receita.js"></script>
 <script src="js/despesas.js"></script>
@@ -3535,6 +3572,30 @@
         <div class="modal-gen-footer">
             <button onclick="fecharModalInstrucoesGen()" class="modal-gen-btn-cancelar">Cancelar</button>
             <button onclick="salvarInstrucoesGen()" class="modal-gen-btn-salvar">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Cadastro/Edição de Empresa -->
+<div id="modal-empresa" class="modal" style="display:none;">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h3 id="modal-empresa-titulo">Nova Empresa</h3>
+            <button class="modal-close" id="btn-fechar-modal-empresa">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="empresa-id">
+            <div class="form-group">
+                <label>Nome da Empresa</label>
+                <input type="text" id="empresa-nome" placeholder="Ex: Minha Empresa Ltda" maxlength="100">
+            </div>
+            <div class="form-group">
+                <label>CNPJ</label>
+                <input type="text" id="empresa-cnpj" placeholder="00.000.000/0000-00" maxlength="18">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button id="btn-salvar-empresa" class="btn btn-primary">Salvar</button>
         </div>
     </div>
 </div>

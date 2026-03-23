@@ -33,17 +33,23 @@ async function verificarMesFechado(usuarioId, mes, ano) {
 // GET - Buscar reservas por mês/ano ou todas
 router.get('/', authMiddleware, async (req, res) => {
     try {
-        const { mes, ano } = req.query;
-        
+        const { mes, ano, perfil_id } = req.query;
+
         let whereClause = 'WHERE usuario_id = $1';
         let params = [req.usuario.id];
-        
+        let paramCount = 1;
+
         if (mes !== undefined && ano !== undefined) {
-            whereClause += ' AND mes = $2 AND ano = $3';
+            whereClause += ` AND mes = $${++paramCount} AND ano = $${++paramCount}`;
             params.push(parseInt(mes), parseInt(ano));
         } else if (ano !== undefined) {
-            whereClause += ' AND ano = $2';
+            whereClause += ` AND ano = $${++paramCount}`;
             params.push(parseInt(ano));
+        }
+
+        if (perfil_id) {
+            whereClause += ` AND perfil_id = $${++paramCount}`;
+            params.push(parseInt(perfil_id));
         }
         
         const result = await query(

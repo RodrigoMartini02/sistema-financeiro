@@ -30,6 +30,12 @@ router.get('/', authMiddleware, async (req, res) => {
             paramCount += 2;
         }
 
+        const { perfil_id } = req.query;
+        if (perfil_id) {
+            whereClause += ` AND r.perfil_id = $${++paramCount}`;
+            params.push(parseInt(perfil_id));
+        }
+
         const result = await query(
             `SELECT r.*
              FROM receitas r
@@ -69,16 +75,16 @@ router.post('/', authMiddleware, [
             });
         }
 
-        const { descricao, valor, data_recebimento, mes, ano, observacoes, anexos } = req.body;
+        const { descricao, valor, data_recebimento, mes, ano, observacoes, anexos, perfil_id } = req.body;
 
         // Converter anexos para JSON se existirem
         const anexosJson = anexos && Array.isArray(anexos) && anexos.length > 0 ? JSON.stringify(anexos) : null;
 
         const result = await query(
-            `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, observacoes, anexos)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, observacoes, anexos, perfil_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
              RETURNING *`,
-            [req.usuario.id, descricao, parseFloat(valor), data_recebimento, mes, ano, observacoes || null, anexosJson]
+            [req.usuario.id, descricao, parseFloat(valor), data_recebimento, mes, ano, observacoes || null, anexosJson, perfil_id ? parseInt(perfil_id) : null]
         );
 
         res.status(201).json({

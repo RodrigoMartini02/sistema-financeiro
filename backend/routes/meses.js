@@ -8,12 +8,21 @@ const { authMiddleware } = require('../middleware/auth');
 // ================================================================
 router.get('/', authMiddleware, async (req, res) => {
     try {
+        const { perfil_id } = req.query;
+        let whereClause = 'WHERE usuario_id = $1';
+        const params = [req.usuario.id];
+
+        if (perfil_id) {
+            whereClause += ' AND perfil_id = $2';
+            params.push(parseInt(perfil_id));
+        }
+
         const result = await query(
             `SELECT ano, mes, fechado, saldo_final, data_fechamento
              FROM meses
-             WHERE usuario_id = $1
+             ${whereClause}
              ORDER BY ano DESC, mes DESC`,
-            [req.usuario.id]
+            params
         );
 
         res.json({

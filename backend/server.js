@@ -92,6 +92,7 @@ const paypalRoutes = require('./routes/paypal');
 const aiRoutes = require('./routes/aiRoutes');
 const avaliacoesRoutes = require('./routes/avaliacoes');
 const financeiroRoutes = require('./routes/financeiro');
+const perfisRoutes = require('./routes/perfis');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', usuariosRoutes);
@@ -107,6 +108,7 @@ app.use('/api/paypal', paypalRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/avaliacoes', avaliacoesRoutes);
 app.use('/api/financeiro', financeiroRoutes);
+app.use('/api/perfis', perfisRoutes);
 
 app.use((req, res) => {
     res.status(404).json({

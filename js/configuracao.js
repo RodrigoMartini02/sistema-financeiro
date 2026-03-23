@@ -2833,6 +2833,8 @@ function setupConfigTabs() {
                     var u = JSON.parse(sessionStorage.getItem('dadosUsuarioLogado') || '{}');
                     var masterActions = document.getElementById('carta-master-actions');
                     if (masterActions) masterActions.style.display = (u.tipo === 'master') ? 'block' : 'none';
+                } else if (targetTab === 'empresas') {
+                    setTimeout(() => carregarEmpresas(), 100);
                 }
             }
         });
@@ -3028,6 +3030,18 @@ function setupEventListeners() {
     if (btnLimparDados) {
         btnLimparDados.addEventListener('click', limparDados);
     }
+
+    // Empresa Modal
+    const btnNovaEmpresa = document.getElementById('btn-nova-empresa');
+    if (btnNovaEmpresa) btnNovaEmpresa.addEventListener('click', abrirModalNovaEmpresa);
+
+    const btnSalvarEmpresa = document.getElementById('btn-salvar-empresa');
+    if (btnSalvarEmpresa) btnSalvarEmpresa.addEventListener('click', salvarEmpresa);
+
+    const btnFecharModalEmpresa = document.getElementById('btn-fechar-modal-empresa');
+    if (btnFecharModalEmpresa) btnFecharModalEmpresa.addEventListener('click', () => {
+        document.getElementById('modal-empresa').style.display = 'none';
+    });
 }
 
 async function inicializarConfiguracoes() {
@@ -3058,6 +3072,139 @@ async function inicializarConfiguracoes() {
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(inicializarConfiguracoes, 1000);
 });
+
+// ================================================================
+// GERENCIAMENTO DE EMPRESAS (PF/PJ)
+// ================================================================
+
+async function carregarEmpresas() {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+    try {
+        const res = await fetch(`${API_URL}/perfis`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        const empresas = (data.data || []).filter(p => p.tipo === 'empresa');
+        renderizarEmpresas(empresas);
+    } catch (e) {
+        console.error('Erro ao carregar empresas:', e);
+    }
+}
+
+function renderizarEmpresas(empresas) {
+    const lista = document.getElementById('lista-empresas');
+    if (!lista) return;
+    if (empresas.length === 0) {
+        lista.innerHTML = '<p style="color:var(--text-secondary);text-align:center;">Nenhuma empresa cadastrada</p>';
+        return;
+    }
+    lista.innerHTML = empresas.map(e => `
+        <div class="empresa-item">
+            <div class="empresa-info">
+                <strong>${e.nome}</strong>
+                <span class="empresa-cnpj">${formatarCNPJ(e.documento || '')}</span>
+            </div>
+            <div class="empresa-acoes">
+                <button class="btn btn-sm btn-secondary" onclick="abrirModalEditarEmpresa(${e.id}, '${e.nome.replace(/'/g, "\\'")}', '${e.documento || ''}')">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="excluirEmpresa(${e.id}, '${e.nome.replace(/'/g, "\\'")}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function formatarCNPJ(cnpj) {
+    const d = (cnpj || '').replace(/\D/g, '');
+    if (d.length !== 14) return cnpj;
+    return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+}
+
+function abrirModalNovaEmpresa() {
+    document.getElementById('empresa-id').value = '';
+    document.getElementById('empresa-nome').value = '';
+    document.getElementById('empresa-cnpj').value = '';
+    document.getElementById('modal-empresa-titulo').textContent = 'Nova Empresa';
+    document.getElementById('modal-empresa').style.display = 'flex';
+}
+
+function abrirModalEditarEmpresa(id, nome, cnpj) {
+    document.getElementById('empresa-id').value = id;
+    document.getElementById('empresa-nome').value = nome;
+    document.getElementById('empresa-cnpj').value = formatarCNPJ(cnpj);
+    document.getElementById('modal-empresa-titulo').textContent = 'Editar Empresa';
+    document.getElementById('modal-empresa').style.display = 'flex';
+}
+
+async function salvarEmpresa() {
+    const id = document.getElementById('empresa-id').value;
+    const nome = document.getElementById('empresa-nome').value.trim();
+    const cnpj = document.getElementById('empresa-cnpj').value.replace(/\D/g, '');
+
+    if (!nome) { mostrarToast('Nome é obrigatório', 'error'); return; }
+    if (!cnpj || cnpj.length !== 14) { mostrarToast('CNPJ inválido', 'error'); return; }
+
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `${API_URL}/perfis/${id}` : `${API_URL}/perfis`;
+
+    try {
+        const res = await fetch(url, {
+            method,
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nome, documento: cnpj, tipo: 'empresa' })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
+        mostrarToast(id ? 'Empresa atualizada!' : 'Empresa criada!', 'success');
+        document.getElementById('modal-empresa').style.display = 'none';
+        carregarEmpresas();
+        if (typeof window.inicializarPerfis === 'function') window.inicializarPerfis();
+    } catch (e) {
+        mostrarToast(e.message || 'Erro ao salvar empresa', 'error');
+    }
+}
+
+async function excluirEmpresa(id, nome) {
+    if (!confirm(`Arquivar empresa "${nome}"? Os dados financeiros serão preservados.`)) return;
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+    try {
+        const res = await fetch(`${API_URL}/perfis/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
+        mostrarToast('Empresa arquivada', 'success');
+        carregarEmpresas();
+        if (typeof window.inicializarPerfis === 'function') window.inicializarPerfis();
+    } catch (e) {
+        mostrarToast(e.message || 'Erro ao excluir empresa', 'error');
+    }
+}
+
+window.abrirConfiguracoesEmpresas = function() {
+    // Navegar para a seção de configurações e abrir a aba Empresas
+    const navConfig = document.querySelector('[data-section="config"]');
+    if (navConfig) navConfig.click();
+    setTimeout(() => {
+        const btnEmpresasTab = document.querySelector('.config-tab-btn[data-tab="empresas"]');
+        if (btnEmpresasTab) btnEmpresasTab.click();
+    }, 200);
+};
+
+window.carregarEmpresas = carregarEmpresas;
+window.renderizarEmpresas = renderizarEmpresas;
+window.formatarCNPJ = formatarCNPJ;
+window.abrirModalNovaEmpresa = abrirModalNovaEmpresa;
+window.abrirModalEditarEmpresa = abrirModalEditarEmpresa;
+window.salvarEmpresa = salvarEmpresa;
+window.excluirEmpresa = excluirEmpresa;
 
 
 
