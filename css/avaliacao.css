@@ -3,30 +3,34 @@
    ================================================================ */
 
 .reviews-section {
-    padding: 100px 0;
-    background-color: #ffffff;
+    padding: 80px 0;
+    background: #f8fafc;
     font-family: 'Inter', sans-serif;
 }
 
 .reviews-story-wrapper {
     display: flex;
-    align-items: center;
-    gap: 80px;
+    align-items: stretch;
+    gap: 48px;
     flex-wrap: wrap;
 }
 
 /* TEXTO FIXO (ESQUERDA) */
 .reviews-fixed-content {
     flex: 1;
-    min-width: 300px;
+    min-width: 280px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .story-title {
-    font-size: 2.8rem;
-    color: var(--text-color);
+    font-size: 2.2rem;
+    color: var(--text-color, #0f172a);
     font-weight: 800;
-    line-height: 1.1;
-    margin-bottom: 10px;
+    line-height: 1.15;
+    margin-bottom: 24px;
+    letter-spacing: -0.03em;
 }
 
 .text-blue { color: #6366f1; }
@@ -37,12 +41,52 @@
     line-height: 1.6;
 }
 
-/* BREAKDOWN DE ESTRELAS */
-.rating-breakdown {
-    margin-top: 12px;
+/* SCORE PRINCIPAL */
+.reviews-summary {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+    padding: 16px 20px;
+    background: #fff;
+    border: 1px solid #e8eaef;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+}
+
+.summary-score {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    align-items: center;
+    gap: 2px;
+}
+
+#average-rating {
+    font-size: 2.4rem;
+    font-weight: 900;
+    color: var(--text-color, #0f172a);
+    letter-spacing: -0.04em;
+    line-height: 1;
+}
+
+.summary-stars {
+    color: #fbbf24;
+    font-size: 1rem;
+    letter-spacing: 2px;
+}
+
+.summary-text {
+    color: var(--text-secondary, #64748b);
+    font-size: 0.88rem;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+/* BREAKDOWN DE ESTRELAS */
+.rating-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .rating-bar-row {
@@ -52,7 +96,7 @@
 }
 
 .rating-bar-label {
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     font-weight: 600;
     color: var(--text-secondary, #64748b);
     width: 22px;
@@ -62,7 +106,7 @@
 
 .rating-bar-track {
     flex: 1;
-    height: 6px;
+    height: 7px;
     background: #e2e8f0;
     border-radius: 10px;
     overflow: hidden;
@@ -87,30 +131,56 @@
 
 /* CARD AZUL (DIREITA) */
 .reviews-story-card {
-    flex: 1.5;
+    flex: 1.6;
     min-width: 340px;
-    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
     border-radius: 24px;
-    padding: 40px 44px;
-    box-shadow: 0 20px 40px rgba(99, 102, 241, 0.25);
+    padding: 32px 36px;
+    box-shadow: 0 24px 56px rgba(99, 102, 241, 0.3);
     position: relative;
-    min-height: 340px;
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
+    overflow: hidden;
+}
+
+/* Glow decorativo no canto */
+.reviews-story-card::after {
+    content: '';
+    position: absolute;
+    top: -60px;
+    right: -60px;
+    width: 220px;
+    height: 220px;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+/* Aspas decorativas */
+.reviews-story-card::before {
+    content: '"';
+    position: absolute;
+    top: 20px;
+    right: 32px;
+    font-size: 120px;
+    font-weight: 900;
+    color: rgba(255,255,255,0.06);
+    line-height: 1;
+    pointer-events: none;
+    font-family: Georgia, serif;
 }
 
 /* BARRAS DE PROGRESSO (CONECTADO AO JS) */
 .story-progress-container {
     display: flex;
-    gap: 8px;
-    margin-bottom: 30px;
+    gap: 6px;
+    margin-bottom: 28px;
 }
 
 .story-progress-bar {
     flex: 1;
-    height: 4px;
-    background: rgba(255, 255, 255, 0.25);
+    height: 3px;
+    background: rgba(255, 255, 255, 0.2);
     border-radius: 10px;
     overflow: hidden;
 }
@@ -119,14 +189,13 @@
     height: 100%;
     width: 0%;
     background: #ffffff;
-    /* A transição é controlada pelo JS, por isso não colocamos aqui */
 }
 
 /* ESTRELAS AMARELAS (CONECTADO AO JS) */
 #stars-container {
-    color: #fbbf24; /* COR AMARELA FIXA */
-    font-size: 1.3rem;
-    margin-bottom: 20px;
+    color: #fbbf24;
+    font-size: 1.1rem;
+    margin-bottom: 16px;
     letter-spacing: 3px;
     display: block;
 }
@@ -134,12 +203,12 @@
 /* TEXTO DO DEPOIMENTO (CONECTADO AO JS) */
 #review-text {
     color: #ffffff;
-    font-size: 1.5rem;
+    font-size: 1.3rem;
     font-weight: 600;
-    line-height: 1.4;
-    margin: 0 0 25px 0;
-    min-height: 100px;
-    transition: opacity 0.3s ease; /* Para o efeito de fade do JS */
+    line-height: 1.5;
+    margin: 0 0 0 0;
+    flex: 1;
+    transition: opacity 0.3s ease;
 }
 
 /* RODAPÉ DO CARD */
@@ -147,56 +216,26 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-top: auto;
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255,255,255,0.12);
 }
 
-.author-dash { color: rgba(255, 255, 255, 0.6); font-weight: bold; }
+.author-dash { color: rgba(255, 255, 255, 0.5); font-weight: bold; }
 
 #review-author {
-    color: #ffffff;
-    font-size: 1rem;
+    color: rgba(255,255,255,0.9);
+    font-size: 0.88rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
 }
 
 /* RESPONSIVIDADE */
 @media (max-width: 992px) {
-    .reviews-story-wrapper { flex-direction: column; text-align: center; }
-    .story-title { font-size: 2.2rem; }
-    .reviews-story-card { width: 100%; padding: 30px; }
-}
-
-
-.reviews-summary {
-    margin-top: 16px;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 10px;
-}
-
-.summary-score {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-#average-rating {
-    font-size: 2rem;
-    font-weight: 800;
-    color: var(--text-color);
-}
-
-.summary-stars {
-    color: #fbbf24;
-    font-size: 1.2rem;
-}
-
-.summary-text {
-    color: var(--text-light);
-    font-size: 0.9rem;
-    font-weight: 500;
+    .reviews-story-wrapper { flex-direction: column; }
+    .story-title { font-size: 1.9rem; }
+    .reviews-story-card { width: 100%; padding: 28px 28px; }
 }
 
 /* ================================================================
