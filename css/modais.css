@@ -75,6 +75,8 @@
     border-radius: 8px 8px 0 0;
     cursor: grab;
     user-select: none;
+    /* touch-action: auto permite scroll vertical ao arrastar o header em mobile */
+    touch-action: auto;
 }
 
 .modal-header.dragging {
