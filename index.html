@@ -358,17 +358,6 @@
     </div>
 </section>
 
-<!-- MID-PAGE CTA -->
-<section class="midcta-section">
-    <div class="midcta-container">
-        <p class="midcta-text">Pronto para parar de perder dinheiro por falta de controle?</p>
-        <button class="btn-midcta" onclick="document.getElementById('modal-abrir-cadastro').click()">
-            Criar minha conta grátis em 1 minuto
-        </button>
-        <span class="midcta-sub">Sem cartão de crédito. Sem pegadinha.</span>
-    </div>
-</section>
-
 <!-- ================================================================
      IA SHOWCASE SECTION
      ================================================================ -->
@@ -380,58 +369,69 @@
             <p class="section-desc">A Gen entende português do jeito que você fala. Sem formulário, sem complicação, sem erro.</p>
         </div>
 
-        <div class="ia-cards-grid">
-            <div class="ia-card ia-card-main">
-                <div class="ia-card-icon">
-                    <i class="fas fa-comments"></i>
+        <div class="ia-bento">
+
+            <!-- MAIN: Chat demo — full width -->
+            <div class="ia-bento-card ia-bento-main">
+                <div class="ia-bento-main-content">
+                    <div class="bento-icon ia-icon-main"><i class="fas fa-robot"></i></div>
+                    <h3>A Gen fala português do jeito que você fala</h3>
+                    <p>Sem formulário, sem categoria pra escolher. Ela entende o contexto, registra no lugar certo e confirma em segundos.</p>
+                    <div class="ia-ask-examples">
+                        <span class="ia-ask-pill"><i class="fas fa-comment"></i> "Quanto gastei de alimentação esse mês?"</span>
+                        <span class="ia-ask-pill"><i class="fas fa-comment"></i> "Consigo guardar 500 reais esse mês?"</span>
+                    </div>
                 </div>
-                <h3>Conversa natural, resultado imediato</h3>
-                <p>Fale como você falaria com um amigo. A Gen entende o contexto, escolhe a categoria certa e registra no mês certo — sem você tocar em um formulário.</p>
-                <div class="ia-demo-bubble">
-                    <span class="ia-user-msg"><i class="fas fa-user-circle"></i> "Paguei 320 reais de luz hoje"</span>
-                    <span class="ia-bot-msg"><i class="fas fa-robot"></i> Feito! Gasto de R$ 320,00 em <strong>Contas de Casa</strong> registrada para março. Seu saldo disponível agora é R$ 1.480,00.</span>
+                <div class="ia-bento-main-chat">
+                    <div class="ia-chat-header">
+                        <div class="ia-chat-avatar"><i class="fas fa-robot"></i></div>
+                        <div>
+                            <div class="ia-chat-name">Gen</div>
+                            <div class="ia-chat-status">● Online agora</div>
+                        </div>
+                    </div>
+                    <div class="ia-chat-msgs">
+                        <div class="ia-chat-msg ia-chat-msg-user">Paguei 320 de conta de luz hoje</div>
+                        <div class="ia-chat-msg ia-chat-msg-bot">Registrado! ✅ R$ 320 em <strong>Contas de Casa</strong> · março. Saldo: <strong>R$ 1.480</strong></div>
+                        <div class="ia-chat-msg ia-chat-msg-user">Parcelei um tênis em 3x de 120</div>
+                        <div class="ia-chat-msg ia-chat-msg-bot">Feito! Parcelas de R$ 120 nos próximos 3 meses. Vou te lembrar antes de cada vencimento 👍</div>
+                    </div>
                 </div>
             </div>
 
-            <div class="ia-card">
-                <div class="ia-card-icon ia-icon-scan">
-                    <i class="fas fa-barcode"></i>
-                </div>
+            <!-- Boleto -->
+            <div class="ia-bento-card">
+                <div class="bento-icon ia-cap-scan"><i class="fas fa-barcode"></i></div>
                 <h3>Boleto? Só apontar a câmera</h3>
-                <p>Chegou um boleto em papel ou no e-mail? Aponte a câmera, a Gen lê o código, identifica o valor e o vencimento — sem digitar nada.</p>
+                <p>A Gen lê o código, identifica valor e vencimento. Nada para digitar.</p>
             </div>
 
-            <div class="ia-card">
-                <div class="ia-card-icon ia-icon-ocr">
-                    <i class="fas fa-file-image"></i>
-                </div>
+            <!-- Nota fiscal -->
+            <div class="ia-bento-card ia-bento-accent">
+                <div class="bento-icon ia-cap-ocr"><i class="fas fa-file-image"></i></div>
                 <h3>Foto da nota fiscal — registrado na hora</h3>
-                <p>Tirou foto do cupom fiscal ou do comprovante? A Gen lê a imagem e registra os itens automaticamente. Em segundos, sem digitar nada.</p>
+                <p>Fotografou o cupom? A Gen lê e registra os itens automaticamente.</p>
             </div>
 
-            <div class="ia-card">
-                <div class="ia-card-icon ia-icon-pix">
-                    <i class="fas fa-qrcode"></i>
-                </div>
+            <!-- QR Code PIX -->
+            <div class="ia-bento-card">
+                <div class="bento-icon ia-cap-pix"><i class="fas fa-qrcode"></i></div>
                 <h3>QR Code PIX reconhecido na hora</h3>
-                <p>Escaneie o QR Code de qualquer PIX — pago ou recebido — e o lançamento entra automaticamente no mês certo.</p>
+                <p>Escaneie qualquer PIX — pago ou recebido — e entra no mês certo.</p>
             </div>
 
-            <div class="ia-card">
-                <div class="ia-card-icon ia-icon-analise">
-                    <i class="fas fa-chart-line"></i>
-                </div>
-                <h3>Pergunte e receba respostas de verdade</h3>
-                <p>Pergunte <em>"Quanto gastei com alimentação esse mês?"</em> ou <em>"Consigo guardar R$ 500 esse mês?"</em> — e a Gen responde com seus dados reais.</p>
-            </div>
-
-            <div class="ia-card">
-                <div class="ia-card-icon ia-icon-provider">
-                    <i class="fas fa-plug"></i>
-                </div>
+            <!-- Escolha da IA -->
+            <div class="ia-bento-card ia-bento-providers">
+                <div class="bento-icon ia-cap-plug"><i class="fas fa-plug"></i></div>
                 <h3>Você escolhe qual IA usar</h3>
-                <p>Use a IA do FinGerence ou conecte a que você já conhece — <strong>ChatGPT</strong>, <strong>Gemini</strong> ou <strong>Claude</strong>. Você escolhe.</p>
+                <p>Use a Gen ou conecte a IA que você já usa.</p>
+                <div class="ia-provider-badges">
+                    <span class="ia-provider-badge">ChatGPT</span>
+                    <span class="ia-provider-badge">Gemini</span>
+                    <span class="ia-provider-badge">Claude</span>
+                </div>
             </div>
+
         </div>
     </div>
 </section>
@@ -510,33 +510,35 @@
             <p class="section-desc">Começar é mais fácil do que você imagina — e leva menos de 2 minutos</p>
         </div>
 
-        <div class="how-steps">
-            <div class="how-step">
-                <div class="step-number">01</div>
-                <div class="step-content">
-                    <h3>Crie sua conta grátis agora</h3>
-                    <p>Sem cartão de crédito, sem complicação. Nome, e-mail, senha — e você já está dentro.</p>
-                </div>
-            </div>
-            <div class="how-arrow"><i class="fas fa-arrow-right"></i></div>
+        <div class="how-cards">
 
-            <div class="how-step">
-                <div class="step-number">02</div>
-                <div class="step-content">
-                    <h3>Adicione seus cartões e contas</h3>
-                    <p>Informe seus cartões e contas. Dois minutinhos e o FinGerence já sabe tudo o que você tem.</p>
-                </div>
+            <div class="how-card how-card-light">
+                <div class="how-card-icon how-icon-1"><i class="fas fa-user-plus"></i></div>
+                <div class="how-card-num">01</div>
+                <h3>Crie sua conta grátis agora</h3>
+                <p>Sem cartão de crédito. Nome, e-mail e pronto — menos de 1 minuto e você já está dentro.</p>
             </div>
-            <div class="how-arrow"><i class="fas fa-arrow-right"></i></div>
 
-            <div class="how-step">
-                <div class="step-number">03</div>
-                <div class="step-content">
-                    <h3>Comece a conversar com a Gen</h3>
-                    <p>Fale com a Gen, aponte a câmera para boletos e veja exatamente para onde seu dinheiro vai. Simples assim.</p>
-                </div>
+            <div class="how-connector"><i class="fas fa-arrow-right"></i></div>
+
+            <div class="how-card how-card-featured">
+                <div class="how-card-icon how-icon-2"><i class="fas fa-credit-card"></i></div>
+                <div class="how-card-num">02</div>
+                <h3>Adicione seus cartões e contas</h3>
+                <p>Dois minutinhos e o FinGerence já conhece tudo que você tem — cartões, limites e vencimentos.</p>
             </div>
+
+            <div class="how-connector"><i class="fas fa-arrow-right"></i></div>
+
+            <div class="how-card how-card-light">
+                <div class="how-card-icon how-icon-3"><i class="fas fa-comments"></i></div>
+                <div class="how-card-num">03</div>
+                <h3>Comece a conversar com a Gen</h3>
+                <p>Fale, fotografe boletos e veja exatamente para onde seu dinheiro vai. Simples assim.</p>
+            </div>
+
         </div>
+
         <div class="how-cta">
             <button class="btn-hero-cta" onclick="document.getElementById('modal-abrir-cadastro').click()">
                 🚀 Quero começar agora — é grátis
