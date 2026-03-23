@@ -1734,12 +1734,11 @@ async function processarAdicionarReserva() {
             },
             body: JSON.stringify({
                 valor: valor,
-                mes: mes,    // Mês atual aberto
-                ano: ano,    // Ano atual aberto
-                // Usar data do mês/ano aberto, não a data atual do sistema
-                // Isso garante que a movimentação seja contabilizada no mês correto
+                mes: mes,
+                ano: ano,
                 data: `${ano}-${String(mes + 1).padStart(2, '0')}-15`,
-                observacoes: descricao
+                observacoes: descricao,
+                perfil_id: typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null
             })
         });
 
@@ -1801,7 +1800,8 @@ async function processarAdicionarObjetivo() {
                 observacoes: descricao,
                 tipo_reserva: 'objetivo',
                 objetivo_valor: valorMeta,
-                data_objetivo: dataAlvo || null
+                data_objetivo: dataAlvo || null,
+                perfil_id: typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null
             })
         });
 

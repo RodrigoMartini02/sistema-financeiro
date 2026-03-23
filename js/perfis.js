@@ -4,6 +4,8 @@
 
 const PERFIL_KEY = 'perfilAtivoId';
 
+let _perfisCarregados = [];
+
 function getPerfilAtivo() {
     return parseInt(localStorage.getItem(PERFIL_KEY)) || null;
 }
@@ -12,7 +14,8 @@ function setPerfilAtivo(perfilId, nome, tipo) {
     localStorage.setItem(PERFIL_KEY, perfilId);
     localStorage.setItem('perfilAtivoNome', nome);
     localStorage.setItem('perfilAtivoTipo', tipo);
-    atualizarSwitcherUI(nome, tipo);
+    atualizarSwitcherUI(tipo);
+    atualizarVisibilidadeTemaEmpresa(tipo);
 }
 
 async function carregarPerfis() {
@@ -32,6 +35,7 @@ async function carregarPerfis() {
 
 async function inicializarPerfis() {
     const perfis = await carregarPerfis();
+    _perfisCarregados = perfis;
     if (!perfis.length) return;
 
     // Garantir que há um perfil ativo salvo válido
@@ -39,100 +43,71 @@ async function inicializarPerfis() {
     if (!perfilAtivoId || !perfis.find(p => p.id === perfilAtivoId)) {
         const pessoal = perfis.find(p => p.tipo === 'pessoal') || perfis[0];
         setPerfilAtivo(pessoal.id, pessoal.nome, pessoal.tipo);
-        perfilAtivoId = pessoal.id;
     }
 
-    renderizarDropdownPerfis(perfis, perfilAtivoId);
-    configurarEventosSwitcher();
+    // Restaurar UI
+    const tipo = localStorage.getItem('perfilAtivoTipo') || 'pessoal';
+    atualizarSwitcherUI(tipo);
+    atualizarVisibilidadeTemaEmpresa(tipo);
+
+    configurarEventosSwitcher(perfis);
 }
 
-function renderizarDropdownPerfis(perfis, perfilAtivoId) {
-    const lista = document.getElementById('lista-perfis-dropdown');
-    if (!lista) return;
+function configurarEventosSwitcher(perfis) {
+    const btnPF = document.getElementById('btn-perfil-pf');
+    const btnPJ = document.getElementById('btn-perfil-pj');
 
-    lista.innerHTML = perfis.map(p => `
-        <button class="perfil-dropdown-item ${p.id === perfilAtivoId ? 'ativo' : ''}"
-                data-perfil-id="${p.id}" data-perfil-nome="${p.nome}" data-perfil-tipo="${p.tipo}">
-            <i class="fas ${p.tipo === 'empresa' ? 'fa-building' : 'fa-user'}"></i>
-            ${p.nome}
-            ${p.id === perfilAtivoId ? '<i class="fas fa-check perfil-check"></i>' : ''}
-        </button>
-    `).join('');
+    const perfilPessoal = perfis.find(p => p.tipo === 'pessoal');
+    const perfilEmpresa  = perfis.find(p => p.tipo === 'empresa' && p.ativo !== false);
 
-    lista.querySelectorAll('.perfil-dropdown-item[data-perfil-id]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const id = parseInt(btn.dataset.perfilId);
-            const nome = btn.dataset.perfilNome;
-            const tipo = btn.dataset.perfilTipo;
-            setPerfilAtivo(id, nome, tipo);
-            fecharDropdownPerfil();
-            // Recarregar dados do app com novo perfil
-            if (typeof window.recarregarDadosApp === 'function') {
-                window.recarregarDadosApp();
-            }
+    if (btnPF) {
+        btnPJ?.classList.toggle('disabled', !perfilEmpresa);
+
+        btnPF.addEventListener('click', () => {
+            if (!perfilPessoal) return;
+            setPerfilAtivo(perfilPessoal.id, perfilPessoal.nome, perfilPessoal.tipo);
+            if (typeof window.recarregarDadosApp === 'function') window.recarregarDadosApp();
         });
-    });
+    }
+
+    if (btnPJ) {
+        btnPJ.addEventListener('click', () => {
+            if (!perfilEmpresa) return;
+            setPerfilAtivo(perfilEmpresa.id, perfilEmpresa.nome, perfilEmpresa.tipo);
+            if (typeof window.recarregarDadosApp === 'function') window.recarregarDadosApp();
+        });
+    }
 }
 
-function atualizarSwitcherUI(nome, tipo) {
-    const nomeEl = document.getElementById('perfil-nome-atual');
-    const iconeEl = document.getElementById('perfil-icone');
-    if (nomeEl) nomeEl.textContent = nome;
-    if (iconeEl) {
-        iconeEl.className = `fas ${tipo === 'empresa' ? 'fa-building' : 'fa-user'}`;
+function atualizarSwitcherUI(tipo) {
+    const btnPF = document.getElementById('btn-perfil-pf');
+    const btnPJ = document.getElementById('btn-perfil-pj');
+    if (!btnPF || !btnPJ) return;
+
+    if (tipo === 'empresa') {
+        btnPF.classList.remove('ativo');
+        btnPJ.classList.add('ativo');
+    } else {
+        btnPF.classList.add('ativo');
+        btnPJ.classList.remove('ativo');
     }
-    // Mostrar/ocultar aba empresa no dashboard
+}
+
+function atualizarVisibilidadeTemaEmpresa(tipo) {
     const btnTemaEmpresa = document.querySelector('.tema-btn-empresa');
-    if (btnTemaEmpresa) {
-        if (tipo === 'empresa') {
-            btnTemaEmpresa.style.display = '';
-        } else {
-            btnTemaEmpresa.style.display = 'none';
-            // Se o tema empresa estava ativo, voltar para saude
-            const temaAtivo = document.querySelector('.tema-btn.active');
-            if (temaAtivo && temaAtivo.dataset.tema === 'empresa') {
-                const temaSaude = document.querySelector('.tema-btn[data-tema="saude"]');
-                if (temaSaude) temaSaude.click();
-            }
+    if (!btnTemaEmpresa) return;
+    if (tipo === 'empresa') {
+        btnTemaEmpresa.style.display = '';
+    } else {
+        btnTemaEmpresa.style.display = 'none';
+        const temaAtivo = document.querySelector('.tema-btn.active');
+        if (temaAtivo && temaAtivo.dataset.tema === 'empresa') {
+            document.querySelector('.tema-btn[data-tema="saude"]')?.click();
         }
     }
-}
-
-function configurarEventosSwitcher() {
-    const btn = document.getElementById('btn-perfil-atual');
-    const dropdown = document.getElementById('perfil-dropdown');
-    const btnGerenciar = document.getElementById('btn-gerenciar-empresas');
-
-    if (btn) {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            dropdown?.classList.toggle('hidden');
-        });
-    }
-
-    document.addEventListener('click', () => fecharDropdownPerfil());
-
-    if (btnGerenciar) {
-        btnGerenciar.addEventListener('click', () => {
-            fecharDropdownPerfil();
-            if (typeof window.abrirConfiguracoesEmpresas === 'function') {
-                window.abrirConfiguracoesEmpresas();
-            }
-        });
-    }
-
-    // Restaurar UI do perfil salvo
-    const nome = localStorage.getItem('perfilAtivoNome') || 'Pessoal';
-    const tipo = localStorage.getItem('perfilAtivoTipo') || 'pessoal';
-    atualizarSwitcherUI(nome, tipo);
-}
-
-function fecharDropdownPerfil() {
-    document.getElementById('perfil-dropdown')?.classList.add('hidden');
 }
 
 window.getPerfilAtivo = getPerfilAtivo;
 window.setPerfilAtivo = setPerfilAtivo;
 window.inicializarPerfis = inicializarPerfis;
 window.carregarPerfis = carregarPerfis;
-window.fecharDropdownPerfil = fecharDropdownPerfil;

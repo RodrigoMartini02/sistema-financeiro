@@ -1494,82 +1494,40 @@
 /* ================================================================ */
 /* PERFIL SWITCHER PF/PJ */
 /* ================================================================ */
-.perfil-switcher {
-    position: relative;
+.perfil-switcher-toggle {
     display: inline-flex;
     align-items: center;
-}
-
-.btn-perfil-atual {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
     background: var(--theme-surface);
     border: 1px solid var(--theme-border);
     border-radius: 8px;
-    color: var(--theme-text);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.2s, border-color 0.2s;
-    white-space: nowrap;
+    overflow: hidden;
 }
 
-.btn-perfil-atual:hover {
-    background: var(--theme-surface-hover, rgba(0,0,0,0.05));
-    border-color: var(--primary-color);
-}
-
-.perfil-dropdown {
-    position: absolute;
-    top: calc(100% + 6px);
-    right: 0;
-    min-width: 180px;
-    background: var(--theme-surface);
-    border: 1px solid var(--theme-border);
-    border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-    z-index: 9999;
-    padding: 6px 0;
-}
-
-.perfil-dropdown.hidden {
-    display: none;
-}
-
-.perfil-dropdown-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 10px 14px;
-    background: none;
+.perfil-toggle-btn {
+    padding: 5px 13px;
+    background: transparent;
     border: none;
-    color: var(--theme-text);
-    font-size: 13px;
-    cursor: pointer;
-    text-align: left;
-    transition: background 0.15s;
-}
-
-.perfil-dropdown-item:hover {
-    background: var(--theme-surface-hover, rgba(0,0,0,0.05));
-}
-
-.perfil-dropdown-item.ativo {
-    color: var(--primary-color);
-    font-weight: 600;
-}
-
-.perfil-check {
-    margin-left: auto;
-    color: var(--primary-color);
-}
-
-.perfil-gerenciar {
     color: var(--gray-500);
     font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: background 0.2s, color 0.2s;
+}
+
+.perfil-toggle-btn:hover:not(.ativo):not(.disabled) {
+    background: var(--theme-surface-hover, rgba(0,0,0,0.05));
+    color: var(--theme-text);
+}
+
+.perfil-toggle-btn.ativo {
+    background: var(--primary-color);
+    color: #fff;
+}
+
+.perfil-toggle-btn.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
 .perfil-separator {

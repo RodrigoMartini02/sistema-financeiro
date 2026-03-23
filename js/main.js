@@ -2447,6 +2447,7 @@ async function fecharMes(mes, ano) {
 
     try {
         const token = sessionStorage.getItem('token');
+        const perfilIdMes = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
         const response = await fetch(`${API_URL}/meses/${ano}/${mes}/fechar`, {
             method: 'POST',
             headers: {
@@ -2454,7 +2455,8 @@ async function fecharMes(mes, ano) {
                 'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
-                saldo_final: saldo.saldoFinal
+                saldo_final: saldo.saldoFinal,
+                perfil_id: perfilIdMes
             })
         });
 
@@ -2507,12 +2509,14 @@ async function reabrirMes(mes, ano) {
 
     try {
         const token = sessionStorage.getItem('token');
+        const perfilIdReabrir = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
         const response = await fetch(`${API_URL}/meses/${ano}/${mes}/reabrir`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
-            }
+            },
+            body: JSON.stringify({ perfil_id: perfilIdReabrir })
         });
 
         if (!response.ok) {
@@ -2714,6 +2718,9 @@ window.recarregarDadosApp = async function() {
         if (window.usuarioDataManager && typeof window.usuarioDataManager.limparCache === 'function') {
             window.usuarioDataManager.limparCache();
         }
+        // Forçar busca na API ignorando window.dadosFinanceiros em cache
+        window.dadosFinanceiros = null;
+        dadosFinanceiros = null;
         await carregarDadosLocais();
         await carregarDadosDashboard(anoAtual);
         await renderizarMeses(anoAtual, false);

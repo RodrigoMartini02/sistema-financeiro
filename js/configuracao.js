@@ -1351,6 +1351,9 @@ function criarLinhaUsuario(usuario, index) {
     linha.querySelector('.usuario-nome').textContent = usuario.nome || '-';
     linha.querySelector('.usuario-documento').textContent = usuario.documento || '-';
     linha.querySelector('.usuario-email').textContent = usuario.email || '-';
+    linha.querySelector('.usuario-pais').textContent = usuario.pais || '-';
+    linha.querySelector('.usuario-estado').textContent = usuario.estado || '-';
+    linha.querySelector('.usuario-cidade').textContent = usuario.cidade || '-';
 
     const tipoBadge = linha.querySelector('.tipo-badge');
     tipoBadge.textContent = tipo === 'padrao' ? 'Padrão' : tipo === 'admin' ? 'Admin' : 'Master';

@@ -87,7 +87,7 @@ router.post('/', authMiddleware, [
             });
         }
 
-        const { valor, mes, ano, data, observacoes, tipo_reserva, objetivo_valor, objetivo_atingido, data_objetivo } = req.body;
+        const { valor, mes, ano, data, observacoes, tipo_reserva, objetivo_valor, objetivo_atingido, data_objetivo, perfil_id } = req.body;
         const valorNumerico = parseFloat(valor);
 
         // Reservas normais devem ter valor > 0; objetivos começam com valor = 0
@@ -157,11 +157,12 @@ router.post('/', authMiddleware, [
         const tipoReserva = tipo_reserva || 'normal';
         const objValor = objetivo_valor ? parseFloat(objetivo_valor) : null;
         const dataObj = data_objetivo || null;
+        const perfilIdReserva = perfil_id ? parseInt(perfil_id) : null;
         const result = await query(
-            `INSERT INTO reservas (usuario_id, valor, mes, ano, data, observacoes, tipo_reserva, objetivo_valor, objetivo_atingido, data_objetivo)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            `INSERT INTO reservas (usuario_id, valor, mes, ano, data, observacoes, tipo_reserva, objetivo_valor, objetivo_atingido, data_objetivo, perfil_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
              RETURNING *`,
-            [req.usuario.id, valorNumerico, mes, ano, data, observacoes || null, tipoReserva, objValor, false, dataObj]
+            [req.usuario.id, valorNumerico, mes, ano, data, observacoes || null, tipoReserva, objValor, false, dataObj, perfilIdReserva]
         );
 
         // Registrar movimentação inicial de entrada apenas se valor > 0

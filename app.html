@@ -351,19 +351,9 @@
                 </div>
                
                 <!-- Switcher de Perfil PF/PJ -->
-                <div id="perfil-switcher" class="perfil-switcher">
-                    <button id="btn-perfil-atual" class="btn-perfil-atual" title="Trocar Perfil">
-                        <i class="fas fa-user" id="perfil-icone"></i>
-                        <span id="perfil-nome-atual">Pessoal</span>
-                        <i class="fas fa-chevron-down"></i>
-                    </button>
-                    <div id="perfil-dropdown" class="perfil-dropdown hidden">
-                        <div id="lista-perfis-dropdown"></div>
-                        <hr class="perfil-separator">
-                        <button id="btn-gerenciar-empresas" class="perfil-dropdown-item perfil-gerenciar">
-                            <i class="fas fa-cog"></i> Gerenciar Empresas
-                        </button>
-                    </div>
+                <div id="perfil-switcher" class="perfil-switcher-toggle">
+                    <button id="btn-perfil-pf" class="perfil-toggle-btn ativo" title="Pessoal (PF)">PF</button>
+                    <button id="btn-perfil-pj" class="perfil-toggle-btn" title="Empresa (PJ)">PJ</button>
                 </div>
 
                 <button class="header-icon-btn" id="logout-btn" title="Sair">
@@ -1435,6 +1425,9 @@
                                 <th>Nome</th>
                                 <th>Documento</th>
                                 <th>E-mail</th>
+                                <th>País</th>
+                                <th>Estado</th>
+                                <th>Cidade</th>
                                 <th>Tipo</th>
                                 <th>Status</th>
                                 <th>Ações</th>
@@ -1444,7 +1437,7 @@
                             <!-- Preenchido dinamicamente via template -->
                         </tbody>
                         <tbody>
-                            <tr id="usuarios-sentinel" style="height:1px"><td colspan="6"></td></tr>
+                            <tr id="usuarios-sentinel" style="height:1px"><td colspan="9"></td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1456,36 +1449,7 @@
                 </div>
 
 
-            <!-- Card de Distribuição Geográfica -->
-            <div class="config-card" id="card-mapa-usuarios">
-                <div class="config-card-header">
-                    <h3><i class="fas fa-map-marked-alt"></i> Distribuição Geográfica</h3>
-                    <button id="btn-atualizar-mapa" class="btn btn-sm btn-secondary" onclick="carregarMapaUsuarios()">
-                        <i class="fas fa-sync-alt"></i> Atualizar
-                    </button>
-                </div>
-                <div id="mapa-usuarios-content">
-                    <div id="mapa-por-pais" class="mapa-lista"></div>
-                    <div id="mapa-detalhado" class="mapa-tabela-wrapper">
-                        <table class="tabela-mapa">
-                            <thead>
-                                <tr>
-                                    <th>País</th>
-                                    <th>Estado</th>
-                                    <th>Cidade</th>
-                                    <th>Total</th>
-                                    <th>Ativos</th>
-                                </tr>
-                            </thead>
-                            <tbody id="mapa-tabela-body">
-                                <tr><td colspan="5" style="text-align:center;color:var(--text-secondary)">Carregando...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Card de Informações de Segurança -->
+<!-- Card de Informações de Segurança -->
             <div class="config-card info-card">
                 <h3><i class="fas fa-shield-alt"></i> Segurança</h3>
                 <p>O gerenciamento de usuários permite controlar quem tem acesso ao sistema e quais ações cada usuário pode realizar.</p>
@@ -2157,6 +2121,9 @@
         <td class="usuario-nome"></td>
         <td class="usuario-documento"></td>
         <td class="usuario-email"></td>
+        <td class="usuario-pais"></td>
+        <td class="usuario-estado"></td>
+        <td class="usuario-cidade"></td>
         <td class="usuario-tipo">
             <span class="tipo-badge"></span>
         </td>

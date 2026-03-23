@@ -77,23 +77,41 @@ router.get('/:ano/:mes', authMiddleware, async (req, res) => {
 router.post('/:ano/:mes/fechar', authMiddleware, async (req, res) => {
     try {
         const { ano, mes } = req.params;
-        const { saldo_final } = req.body;
-        
-        const result = await query(
-            `INSERT INTO meses (usuario_id, ano, mes, fechado, saldo_final, saldo_anterior)
-             VALUES ($1, $2, $3, true, $4, 0)
-             ON CONFLICT (usuario_id, ano, mes)
-             DO UPDATE SET fechado = true, saldo_final = $4
-             RETURNING *`,
-            [req.usuario.id, parseInt(ano), parseInt(mes), parseFloat(saldo_final)]
+        const { saldo_final, perfil_id } = req.body;
+        const perfilId = perfil_id ? parseInt(perfil_id) : null;
+        const anoInt = parseInt(ano);
+        const mesInt = parseInt(mes);
+        const saldoFinal = parseFloat(saldo_final);
+
+        // Verificar se já existe registro para este perfil
+        const existing = await query(
+            `SELECT id FROM meses WHERE usuario_id = $1 AND ano = $2 AND mes = $3 AND perfil_id IS NOT DISTINCT FROM $4`,
+            [req.usuario.id, anoInt, mesInt, perfilId]
         );
-        
+
+        let result;
+        if (existing.rows.length > 0) {
+            result = await query(
+                `UPDATE meses SET fechado = true, saldo_final = $1
+                 WHERE usuario_id = $2 AND ano = $3 AND mes = $4 AND perfil_id IS NOT DISTINCT FROM $5
+                 RETURNING *`,
+                [saldoFinal, req.usuario.id, anoInt, mesInt, perfilId]
+            );
+        } else {
+            result = await query(
+                `INSERT INTO meses (usuario_id, ano, mes, fechado, saldo_final, saldo_anterior, perfil_id)
+                 VALUES ($1, $2, $3, true, $4, 0, $5)
+                 RETURNING *`,
+                [req.usuario.id, anoInt, mesInt, saldoFinal, perfilId]
+            );
+        }
+
         res.json({
             success: true,
             message: 'Mês fechado com sucesso',
             data: result.rows[0]
         });
-        
+
     } catch (error) {
         console.error('Erro ao fechar mês:', error);
         res.status(500).json({
@@ -106,28 +124,29 @@ router.post('/:ano/:mes/fechar', authMiddleware, async (req, res) => {
 router.post('/:ano/:mes/reabrir', authMiddleware, async (req, res) => {
     try {
         const { ano, mes } = req.params;
-        
+        const { perfil_id } = req.body;
+        const perfilId = perfil_id ? parseInt(perfil_id) : null;
+
         const result = await query(
-            `UPDATE meses 
-             SET fechado = false
-             WHERE usuario_id = $1 AND ano = $2 AND mes = $3
+            `UPDATE meses SET fechado = false
+             WHERE usuario_id = $1 AND ano = $2 AND mes = $3 AND perfil_id IS NOT DISTINCT FROM $4
              RETURNING *`,
-            [req.usuario.id, parseInt(ano), parseInt(mes)]
+            [req.usuario.id, parseInt(ano), parseInt(mes), perfilId]
         );
-        
+
         if (result.rows.length === 0) {
             return res.status(404).json({
                 success: false,
                 message: 'Mês não encontrado'
             });
         }
-        
+
         res.json({
             success: true,
             message: 'Mês reaberto com sucesso',
             data: result.rows[0]
         });
-        
+
     } catch (error) {
         console.error('Erro ao reabrir mês:', error);
         res.status(500).json({

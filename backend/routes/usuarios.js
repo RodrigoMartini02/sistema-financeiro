@@ -183,8 +183,8 @@ router.get('/', authMiddleware, isAdminOrMaster, async (req, res) => {
         // Buscar usuários
         params.push(parseInt(limit), offset);
         const usersQuery = `
-            SELECT id, nome, email, documento, tipo, status, data_cadastro, data_atualizacao
-            FROM usuarios 
+            SELECT id, nome, email, documento, tipo, status, pais, estado, cidade, data_cadastro, data_atualizacao
+            FROM usuarios
             ${whereClause}
             ORDER BY nome ASC
             LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
@@ -305,7 +305,7 @@ router.get('/:id', authMiddleware, isAdminOrMaster, async (req, res) => {
         }
         
         const result = await query(
-            'SELECT id, nome, email, documento, tipo, status, data_cadastro, data_atualizacao FROM usuarios WHERE id = $1',
+            'SELECT id, nome, email, documento, tipo, status, pais, estado, cidade, data_cadastro, data_atualizacao FROM usuarios WHERE id = $1',
             [userId]
         );
         
