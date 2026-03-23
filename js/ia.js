@@ -325,11 +325,11 @@ window.IA = (function () {
         var mesLabel = '', mesRegistro = '';
         if (dataVenc) {
             var pv = dataVenc.split('-');
-            mesLabel    = ' → ' + (meses[parseInt(pv[1])-1] || '') + '/' + pv[0];
-            mesRegistro = (meses[parseInt(pv[1])-1] || '') + '/' + pv[0];
+            mesLabel    = ' → ' + (MESES[parseInt(pv[1])-1] || '') + '/' + pv[0];
+            mesRegistro = (MESES[parseInt(pv[1])-1] || '') + '/' + pv[0];
         } else if (dataCompra) {
             var pc = dataCompra.split('-');
-            mesRegistro = (meses[parseInt(pc[1])-1] || '') + '/' + pc[0];
+            mesRegistro = (MESES[parseInt(pc[1])-1] || '') + '/' + pc[0];
         }
         var semValor   = valorTotal <= 0;
         var nomeCartao = d.nome_cartao || d.cartao_nome || (d.cartao_id ? 'Cartão #' + d.cartao_id : '');

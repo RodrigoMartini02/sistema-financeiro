@@ -42,14 +42,7 @@
                 deferredPrompt = null;
                 window.fecharModalPwa();
                 
-                // Feedback discreto
-                if (outcome === 'accepted') {
-                    const toast = document.createElement('div');
-                    toast.className = 'pwa-toast';
-                    toast.innerText = "Instalação iniciada...";
-                    document.body.appendChild(toast);
-                    setTimeout(() => toast.remove(), 3000);
-                }
+                // Chrome já mostra seu próprio status de instalação — não exibir toast duplicado
             }
         };
 

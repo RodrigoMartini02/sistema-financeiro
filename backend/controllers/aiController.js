@@ -325,7 +325,7 @@ async function chat(req, res) {
         let despesa = parsedResult.dados;
 
         // Mescla com despesa parcial da sessão
-        if (sessao.despesaParcial) {
+        if (despesa && sessao.despesaParcial) {
             for (const [k, v] of Object.entries(sessao.despesaParcial)) {
                 if (v !== null && v !== undefined) {
                     despesa[k] = despesa[k] ?? v;

@@ -3351,12 +3351,56 @@ form .btn-primary:hover {
         min-height: unset;
         padding: 90px 0 50px;
     }
+
+    /* section-container: usado em TODAS as seções */
+    .section-container {
+        padding: 0 1.5rem;
+    }
+
+    /* pain-content: seção de dores/problemas */
+    .pain-content {
+        padding: 0 1.5rem;
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+
+    /* Stats strip */
+    .stats-strip {
+        padding: 36px 1.5rem;
+    }
+
+    /* Footer */
+    .footer-container {
+        padding: 0 1.5rem 36px;
+        flex-direction: column;
+        gap: 2rem;
+    }
 }
 
 @media (max-width: 600px) {
     /* Navbar ainda mais compacta */
     .nav-container {
         padding: 0 1rem;
+    }
+
+    /* section-container ainda mais estreito */
+    .section-container {
+        padding: 0 1rem;
+    }
+
+    /* pain-content */
+    .pain-content {
+        padding: 0 1rem;
+    }
+
+    /* Stats strip */
+    .stats-strip {
+        padding: 28px 1rem;
+    }
+
+    /* Footer */
+    .footer-container {
+        padding: 0 1rem 28px;
     }
 
     /* Hero features list: texto alinhado à esquerda para não parecer estranho centralizado */
@@ -3374,13 +3418,15 @@ form .btn-primary:hover {
         text-align: center;
     }
 
-    /* Seções com padding excessivo */
+    /* Seções com padding vertical excessivo */
     .features-section,
     .ia-section,
     .como-funciona-section,
     .avaliacoes-section,
-    .stats-section {
-        padding: 60px 1rem !important;
+    .stats-section,
+    .pain-section {
+        padding-top: 60px !important;
+        padding-bottom: 60px !important;
     }
 
     /* Footer CTA */

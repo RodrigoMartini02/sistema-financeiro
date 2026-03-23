@@ -212,17 +212,17 @@
 }
 
 @media (max-width: 1199px) and (min-width: 769px) {
-    /* Tablets: scale moderado */
+    /* Tablets/landscape phone: scale calculado via pwa-scale.js */
     .page-app .app-container {
         transform-origin: top left;
-        transform: scale(var(--app-scale, 0.85));
-        width: calc(100vw / var(--app-scale, 0.85));
-        height: calc(100vh / var(--app-scale, 0.85));
+        transform: scale(var(--app-scale, 0.667));
+        width: calc(100vw / var(--app-scale, 0.667));
+        height: calc(100vh / var(--app-scale, 0.667));
     }
 
-    .page-app,
-    .page-app html {
+    .page-app {
         overflow: hidden;
+        max-width: 100vw;
     }
 }
 

@@ -347,7 +347,8 @@ function detectarIntencao(texto) {
 
     // Despesa
     if (/(?:paguei|gastei|comprei|adicionei|adicione|lançar|lancei|registre?|cobr)/i.test(lower) ||
-        /R\$|reais|\d+,\d{2}/.test(lower)) {
+        /R\$|reais|\b\d+(?:,\d{1,2})?\b/.test(lower) ||
+        /(?:mercado|supermercado|farmácia|farmacia|restaurante|posto|loja|academia|uber|ifood|netflix|spotify|luz|água|agua|internet|aluguel|condomínio|condominio)/i.test(lower)) {
         return 'despesa';
     }
 
