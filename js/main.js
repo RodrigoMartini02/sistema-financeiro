@@ -1569,7 +1569,11 @@ function atualizarBotoesNavegacaoMes(mes, ano) {
 
 async function buscarReceitasAPI(mes, ano) {
     try {
-        const response = await fetch(`${API_URL}/receitas?mes=${mes}&ano=${ano}`, {
+        const perfilId = window.getPerfilAtivo?.() || null;
+        const urlReceitas = perfilId
+            ? `${API_URL}/receitas?mes=${mes}&ano=${ano}&perfil_id=${perfilId}`
+            : `${API_URL}/receitas?mes=${mes}&ano=${ano}`;
+        const response = await fetch(urlReceitas, {
             headers: {
                 'Authorization': `Bearer ${getToken()}`
             }
@@ -1607,7 +1611,11 @@ async function buscarReceitasAPI(mes, ano) {
 
 async function buscarDespesasAPI(mes, ano) {
     try {
-        const response = await fetch(`${API_URL}/despesas?mes=${mes}&ano=${ano}`, {
+        const perfilId = window.getPerfilAtivo?.() || null;
+        const urlDespesas = perfilId
+            ? `${API_URL}/despesas?mes=${mes}&ano=${ano}&perfil_id=${perfilId}`
+            : `${API_URL}/despesas?mes=${mes}&ano=${ano}`;
+        const response = await fetch(urlDespesas, {
             headers: {
                 'Authorization': `Bearer ${getToken()}`
             }
@@ -2657,6 +2665,18 @@ function notificarSistemaReady() {
         window.verificarEDispararAvaliacao();
     }
 }
+
+// ================================================================
+// RECARREGAR DADOS DO APP (usado pelo switcher PF/PJ)
+// ================================================================
+window.recarregarDadosApp = async function() {
+    try {
+        await carregarDadosDashboard(anoAtual);
+        await renderizarMeses(anoAtual, false);
+    } catch (error) {
+        console.error('Erro ao recarregar dados do app:', error);
+    }
+};
 
 // ================================================================
 // FUNÇÕES UTILITÁRIAS

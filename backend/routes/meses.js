@@ -140,19 +140,22 @@ router.post('/:ano/:mes/reabrir', authMiddleware, async (req, res) => {
 router.get('/:ano/:mes/saldo', authMiddleware, async (req, res) => {
     try {
         const { ano, mes } = req.params;
-        
+        const { perfil_id } = req.query;
+
         const mesInt = parseInt(mes);
         const anoInt = parseInt(ano);
         const mesAnterior = mesInt === 0 ? 11 : mesInt - 1;
         const anoAnterior = mesInt === 0 ? anoInt - 1 : anoInt;
 
+        const perfilFilter = perfil_id ? ` AND (perfil_id = ${parseInt(perfil_id)} OR perfil_id IS NULL)` : '';
+
         const [receitas, despesas, saldoAnterior] = await Promise.all([
             query(
-                `SELECT COALESCE(SUM(valor), 0) as total FROM receitas WHERE usuario_id = $1 AND ano = $2 AND mes = $3`,
+                `SELECT COALESCE(SUM(valor), 0) as total FROM receitas WHERE usuario_id = $1 AND ano = $2 AND mes = $3${perfilFilter}`,
                 [req.usuario.id, anoInt, mesInt]
             ),
             query(
-                `SELECT COALESCE(SUM(valor), 0) as total FROM despesas WHERE usuario_id = $1 AND ano = $2 AND mes = $3`,
+                `SELECT COALESCE(SUM(valor), 0) as total FROM despesas WHERE usuario_id = $1 AND ano = $2 AND mes = $3${perfilFilter}`,
                 [req.usuario.id, anoInt, mesInt]
             ),
             query(

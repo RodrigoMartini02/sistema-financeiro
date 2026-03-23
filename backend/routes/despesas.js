@@ -200,7 +200,7 @@ async function criarParcelasFuturas(usuarioId, despesaBase, totalParcelas) {
             const proximaDataVencimento = `${proximoAnoCalc}-${proximoMesCalc}-${proximoDiaCalc}`;
 
             const placeholders = [];
-            for (let p = 0; p < 17; p++) {
+            for (let p = 0; p < 18; p++) {
                 placeholders.push(`$${paramIndex++}`);
             }
             values.push(`(${placeholders.join(', ')})`);
@@ -222,7 +222,8 @@ async function criarParcelasFuturas(usuarioId, despesaBase, totalParcelas) {
                 despesaBase.observacoes,
                 false,
                 despesaBase.id,
-                despesaBase.recorrente || false
+                despesaBase.recorrente || false,
+                despesaBase.perfil_id || null
             );
         }
 
@@ -233,7 +234,7 @@ async function criarParcelasFuturas(usuarioId, despesaBase, totalParcelas) {
                     usuario_id, descricao, valor, data_vencimento, data_compra,
                     mes, ano, categoria_id, cartao_id, forma_pagamento,
                     parcelado, numero_parcelas, parcela_atual, observacoes, pago,
-                    grupo_parcelamento_id, recorrente
+                    grupo_parcelamento_id, recorrente, perfil_id
                 ) VALUES ${values.join(', ')}`,
                 params
             );

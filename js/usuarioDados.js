@@ -543,6 +543,7 @@ class UsuarioDataManager {
             const ehEdicao = id !== null && id !== '' && id !== undefined;
 
             // Preparar dados para API
+            const perfilIdReceita = window.getPerfilAtivo?.() || null;
             const dadosReceita = {
                 descricao: receita.descricao,
                 valor: parseFloat(receita.valor),
@@ -550,7 +551,8 @@ class UsuarioDataManager {
                 mes: parseInt(mes),
                 ano: parseInt(ano),
                 observacoes: receita.observacoes || '',
-                anexos: receita.anexos || []
+                anexos: receita.anexos || [],
+                ...(perfilIdReceita && { perfil_id: perfilIdReceita })
             };
 
             let response;
@@ -670,6 +672,7 @@ class UsuarioDataManager {
             }
 
             // Preparar dados para API
+            const perfilIdDespesa = window.getPerfilAtivo?.() || null;
             const dadosDespesa = {
                 descricao: despesa.descricao,
                 valor: parseFloat(despesa.valor),
@@ -690,7 +693,8 @@ class UsuarioDataManager {
                 valor_total_com_juros: despesa.valorTotalComJuros ? parseFloat(despesa.valorTotalComJuros) : null,
                 valor_pago: despesa.valorPago ? parseFloat(despesa.valorPago) : null,
                 anexos: despesa.anexos || [],
-                recorrente: despesa.recorrente || false
+                recorrente: despesa.recorrente || false,
+                ...(perfilIdDespesa && { perfil_id: perfilIdDespesa })
             };
 
             let response;
