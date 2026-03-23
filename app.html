@@ -597,7 +597,7 @@
           </div>
         </div>
         <!-- TEMA: EMPRESA -->
-        <div class="tema-view" id="tema-empresa" style="display:none;">
+        <div class="tema-view" id="tema-empresa">
             <div class="tema-kpis">
                 <div class="tema-kpi">
                     <span class="tk-label">Faturamento do Ano</span>
@@ -1134,121 +1134,115 @@
         <div id="espaco-admin-tab" class="config-tab-pane">
 
             <!-- PERMISSÕES DO SISTEMA -->
-            <div class="config-card" style="margin-bottom:16px;">
-                <div class="config-card-header" style="margin-bottom:16px;">
-                    <h3><i class="fas fa-lock"></i> Permissões do Sistema</h3>
-                    <p style="color:var(--text-secondary);font-size:0.85rem;margin-top:4px;">Ative ou desative funcionalidades para todos os usuários</p>
+            <div class="admin-section-card">
+                <div class="admin-section-header">
+                    <span><i class="fas fa-lock"></i> Permissões do Sistema</span>
+                    <span class="admin-section-sub">Ative ou desative funcionalidades para todos os usuários</span>
                 </div>
-                <div class="permissoes-lista">
-                    <div class="permissao-item">
-                        <div class="permissao-info">
-                            <span class="permissao-nome"><i class="fas fa-robot"></i> Assistente IA</span>
-                            <span class="permissao-desc">Permite que usuários usem o assistente de IA</span>
-                        </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="perm-ia-ativo" data-perm="ia_ativo">
-                            <span class="toggle-slider"></span>
-                        </label>
+                <div class="admin-row">
+                    <div class="admin-row-info">
+                        <span class="admin-row-nome"><i class="fas fa-robot"></i> Assistente IA</span>
+                        <span class="admin-row-desc">Permite que usuários usem o assistente de IA</span>
                     </div>
-                    <div class="permissao-item">
-                        <div class="permissao-info">
-                            <span class="permissao-nome"><i class="fas fa-chart-bar"></i> Relatórios</span>
-                            <span class="permissao-desc">Permite acesso à seção de relatórios</span>
-                        </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="perm-relatorios" data-perm="relatorios_ativo" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="permissao-item">
-                        <div class="permissao-info">
-                            <span class="permissao-nome"><i class="fas fa-building"></i> Cadastro de Empresas</span>
-                            <span class="permissao-desc">Permite que usuários cadastrem perfis de empresa (PJ)</span>
-                        </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="perm-empresas" data-perm="empresas_ativo" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="permissao-item">
-                        <div class="permissao-info">
-                            <span class="permissao-nome"><i class="fas fa-file-import"></i> Importar / Exportar</span>
-                            <span class="permissao-desc">Permite que usuários importem e exportem dados</span>
-                        </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="perm-import-export" data-perm="import_export_ativo" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="permissao-item">
-                        <div class="permissao-info">
-                            <span class="permissao-nome"><i class="fas fa-trash-alt"></i> Limpar Dados</span>
-                            <span class="permissao-desc">Permite que usuários apaguem todos os seus dados</span>
-                        </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="perm-limpar-dados" data-perm="limpar_dados_ativo" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="perm-ia-ativo" data-perm="ia_ativo">
+                        <span class="toggle-slider"></span>
+                    </label>
                 </div>
-                <div style="margin-top:20px;display:flex;justify-content:flex-end;">
-                    <button id="btn-salvar-permissoes" class="btn btn-primary">
+                <div class="admin-row">
+                    <div class="admin-row-info">
+                        <span class="admin-row-nome"><i class="fas fa-chart-bar"></i> Relatórios</span>
+                        <span class="admin-row-desc">Permite acesso à seção de relatórios</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="perm-relatorios" data-perm="relatorios_ativo" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="admin-row">
+                    <div class="admin-row-info">
+                        <span class="admin-row-nome"><i class="fas fa-building"></i> Cadastro de Empresas</span>
+                        <span class="admin-row-desc">Permite que usuários cadastrem perfis de empresa (PJ)</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="perm-empresas" data-perm="empresas_ativo" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="admin-row">
+                    <div class="admin-row-info">
+                        <span class="admin-row-nome"><i class="fas fa-file-import"></i> Importar / Exportar</span>
+                        <span class="admin-row-desc">Permite que usuários importem e exportem dados</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="perm-import-export" data-perm="import_export_ativo" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="admin-row">
+                    <div class="admin-row-info">
+                        <span class="admin-row-nome"><i class="fas fa-trash-alt"></i> Limpar Dados</span>
+                        <span class="admin-row-desc">Permite que usuários apaguem todos os seus dados</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="perm-limpar-dados" data-perm="limpar_dados_ativo" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="admin-section-footer">
+                    <button id="btn-salvar-permissoes" class="btn btn-primary btn-sm">
                         <i class="fas fa-save"></i> Salvar Permissões
                     </button>
                 </div>
             </div>
 
             <!-- BACKUP E RESTAURAÇÃO -->
-            <div class="config-card" style="margin-bottom:16px;">
-                <div class="config-card-header" style="margin-bottom:16px;">
-                    <h3><i class="fas fa-database"></i> Backup e Restauração</h3>
+            <div class="admin-section-card">
+                <div class="admin-section-header">
+                    <span><i class="fas fa-database"></i> Backup e Restauração</span>
                 </div>
-                <div class="permissoes-lista">
-                    <div class="permissao-item">
-                        <div class="permissao-info">
-                            <span class="permissao-nome"><i class="fas fa-download"></i> Exportar Todos os Dados</span>
-                            <span class="permissao-desc">Baixa um arquivo JSON com todas as receitas, despesas, categorias e cartões</span>
-                        </div>
-                        <button id="btn-exportar-dados" class="btn btn-secondary btn-sm">
-                            <i class="fas fa-download"></i> Exportar
-                        </button>
+                <div class="admin-row">
+                    <div class="admin-row-info">
+                        <span class="admin-row-nome"><i class="fas fa-download"></i> Exportar Todos os Dados</span>
+                        <span class="admin-row-desc">Baixa um arquivo JSON com todas as receitas, despesas, categorias e cartões</span>
                     </div>
-                    <div class="permissao-item">
-                        <div class="permissao-info">
-                            <span class="permissao-nome"><i class="fas fa-calendar-alt"></i> Exportar Mês a Mês</span>
-                            <span class="permissao-desc">Baixa arquivos separados por mês com os dados financeiros</span>
-                        </div>
-                        <button id="btn-exportar-mes-a-mes" class="btn btn-secondary btn-sm">
-                            <i class="fas fa-download"></i> Exportar
-                        </button>
+                    <button id="btn-exportar-dados" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-download"></i> Exportar
+                    </button>
+                </div>
+                <div class="admin-row">
+                    <div class="admin-row-info">
+                        <span class="admin-row-nome"><i class="fas fa-calendar-alt"></i> Exportar Mês a Mês</span>
+                        <span class="admin-row-desc">Baixa arquivos separados por mês com os dados financeiros</span>
                     </div>
-                    <div class="permissao-item">
-                        <div class="permissao-info">
-                            <span class="permissao-nome"><i class="fas fa-upload"></i> Importar Dados</span>
-                            <span class="permissao-desc">Carrega um arquivo JSON e importa os dados para o sistema</span>
-                        </div>
-                        <button id="btn-importar-dados" class="btn btn-secondary btn-sm">
-                            <i class="fas fa-upload"></i> Importar
-                        </button>
+                    <button id="btn-exportar-mes-a-mes" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-download"></i> Exportar
+                    </button>
+                </div>
+                <div class="admin-row">
+                    <div class="admin-row-info">
+                        <span class="admin-row-nome"><i class="fas fa-upload"></i> Importar Dados</span>
+                        <span class="admin-row-desc">Carrega um arquivo JSON e importa os dados para o sistema</span>
                     </div>
+                    <button id="btn-importar-dados" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-upload"></i> Importar
+                    </button>
                 </div>
             </div>
 
             <!-- LIMPEZA -->
-            <div class="config-card">
-                <div class="config-card-header" style="margin-bottom:16px;">
-                    <h3><i class="fas fa-trash-alt"></i> Limpeza de Dados</h3>
+            <div class="admin-section-card">
+                <div class="admin-section-header admin-section-header--danger">
+                    <span><i class="fas fa-trash-alt"></i> Limpeza de Dados</span>
                 </div>
-                <div class="permissoes-lista">
-                    <div class="permissao-item">
-                        <div class="permissao-info">
-                            <span class="permissao-nome"><i class="fas fa-trash"></i> Limpar Todos os Dados</span>
-                            <span class="permissao-desc">⚠️ Apaga permanentemente todas as receitas, despesas, categorias e cartões. Ação irreversível.</span>
-                        </div>
-                        <button id="btn-limpar-dados" class="btn btn-danger btn-sm">
-                            <i class="fas fa-trash"></i> Limpar
-                        </button>
+                <div class="admin-row">
+                    <div class="admin-row-info">
+                        <span class="admin-row-nome"><i class="fas fa-trash"></i> Limpar Todos os Dados</span>
+                        <span class="admin-row-desc">Apaga permanentemente todas as receitas, despesas, categorias e cartões. Ação irreversível.</span>
                     </div>
+                    <button id="btn-limpar-dados" class="btn btn-danger btn-sm">
+                        <i class="fas fa-trash"></i> Limpar
+                    </button>
                 </div>
 
                 <!-- Status de operações (mantido para feedback de importação/exportação) -->
@@ -1271,56 +1265,66 @@
         <!-- ABA: ASSISTENTE IA -->
         <!-- ============================================== -->
         <div id="assistente-ia-tab" class="config-tab-pane">
-            <div class="config-card">
-                <h3><i class="fas fa-robot"></i> Assistente IA — FIN GERENCE AI</h3>
-                <p class="ia-config-desc">Configure e use o assistente inteligente para cadastrar despesas por texto ou voz, interpretar documentos e analisar seus gastos.</p>
-
-                <div id="ia-status-config" class="ia-status-config">
-                    <span class="badge ia-badge-status" id="ia-badge-status">Verificando...</span>
+            <div class="admin-section-card">
+                <div class="admin-section-header">
+                    <span><i class="fas fa-robot"></i> Assistente IA — FIN GERENCE AI</span>
+                    <span class="admin-section-sub">Configure o provedor de IA para cadastro por texto, voz e documentos</span>
                 </div>
-
-                <div class="form-group">
-                    <label><i class="fas fa-robot"></i> Provedor de IA</label>
-                    <p class="ia-provider-desc">
-                        Opcional. Sem provedor externo o assistente usa a <strong>Gen</strong> (IA interna). Com uma chave própria, a interpretação de texto fica ainda mais precisa.
-                    </p>
-                    <select id="ia-provider-select" class="ia-provider-select">
+                <div class="admin-row">
+                    <div class="admin-row-info">
+                        <span class="admin-row-nome"><i class="fas fa-circle-notch"></i> Status</span>
+                        <span class="badge ia-badge-status" id="ia-badge-status">Verificando...</span>
+                    </div>
+                </div>
+                <div class="admin-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
+                    <div class="admin-row-info">
+                        <span class="admin-row-nome"><i class="fas fa-plug"></i> Provedor de IA</span>
+                        <span class="admin-row-desc">Opcional. Sem provedor externo o assistente usa a <strong>Gen</strong> (IA interna).</span>
+                    </div>
+                    <select id="ia-provider-select" class="ia-provider-select" style="width:100%;max-width:420px;">
                         <option value="gen">Gen — IA interna FinGerence (sem chave)</option>
                         <option value="openai">OpenAI — GPT-4o mini</option>
                         <option value="gemini">Google — Gemini 2.0 Flash</option>
                         <option value="claude">Anthropic — Claude Haiku</option>
                     </select>
-                    <div id="ia-key-row" class="ia-key-row">
+                    <div id="ia-key-row" class="ia-key-row" style="width:100%;max-width:420px;">
                         <div class="ia-key-input-row">
                             <input type="password" id="ia-api-key-input" placeholder="Cole sua chave de API aqui..." class="ia-api-key-input">
-                            <button id="ia-btn-salvar-chave" class="btn btn-primary ia-btn-salvar-chave">
+                            <button id="ia-btn-salvar-chave" class="btn btn-primary btn-sm ia-btn-salvar-chave">
                                 <i class="fas fa-save"></i> Salvar
                             </button>
                         </div>
                         <p id="ia-key-hint" class="ia-key-hint"></p>
                     </div>
                 </div>
+            </div>
 
-                <hr class="config-sep">
-
-                <h4 class="ia-howto-title"><i class="fas fa-lightbulb"></i> Como usar</h4>
-                <div class="ia-howto-grid">
-                    <div class="config-card config-card-sm">
-                        <strong>💬 Chat por texto</strong><br>
-                        <small>Clique no ícone <i class="fas fa-robot"></i> no modal de Despesas ou no botão flutuante e escreva:</small><br>
-                        <code class="ia-code-example">"paguei 120 de internet da vivo no cartão vence dia 15"</code>
+            <div class="admin-section-card">
+                <div class="admin-section-header">
+                    <span><i class="fas fa-lightbulb"></i> Como usar</span>
+                </div>
+                <div class="admin-row">
+                    <div class="admin-row-info">
+                        <span class="admin-row-nome">💬 Chat por texto</span>
+                        <span class="admin-row-desc">Clique no ícone <i class="fas fa-robot"></i> no modal de Despesas ou no botão flutuante e escreva: <code class="ia-code-example">"paguei 120 de internet da vivo no cartão vence dia 15"</code></span>
                     </div>
-                    <div class="config-card config-card-sm">
-                        <strong>🎙️ Voz</strong><br>
-                        <small>Clique no microfone no chat e fale a despesa normalmente.</small>
+                </div>
+                <div class="admin-row">
+                    <div class="admin-row-info">
+                        <span class="admin-row-nome">🎙️ Voz</span>
+                        <span class="admin-row-desc">Clique no microfone no chat e fale a despesa normalmente.</span>
                     </div>
-                    <div class="config-card config-card-sm">
-                        <strong>📄 Documentos (boleto, NF, comprovante PIX)</strong><br>
-                        <small>Clique no clipe <i class="fas fa-paperclip"></i> e envie a imagem ou PDF.</small>
+                </div>
+                <div class="admin-row">
+                    <div class="admin-row-info">
+                        <span class="admin-row-nome">📄 Documentos (boleto, NF, comprovante PIX)</span>
+                        <span class="admin-row-desc">Clique no clipe <i class="fas fa-paperclip"></i> e envie a imagem ou PDF.</span>
                     </div>
-                    <div class="config-card config-card-sm">
-                        <strong>📊 Análise financeira</strong><br>
-                        <code class="ia-code-example">"quanto gastei em alimentação esse mês?"</code>
+                </div>
+                <div class="admin-row">
+                    <div class="admin-row-info">
+                        <span class="admin-row-nome">📊 Análise financeira</span>
+                        <span class="admin-row-desc"><code class="ia-code-example">"quanto gastei em alimentação esse mês?"</code></span>
                     </div>
                 </div>
             </div>
@@ -1361,7 +1365,7 @@
                     </button>
                 </div>
                 <div class="table-responsive">
-                    <table class="table">
+                    <table class="tabela-empresas">
                         <thead>
                             <tr>
                                 <th>Razão Social</th>
@@ -1484,6 +1488,7 @@
                     <tr>
                         <th>ID</th>
                         <th>Banco</th>
+                        <th>Perfil</th>
                         <th>Validade</th>
                         <th>Fechamento</th>
                         <th>Vencimento</th>
@@ -1606,75 +1611,84 @@
         <!-- ABA: IA GLOBAL (unifica assistente-ia + carta-servicos) -->
         <!-- ============================================== -->
         <div id="ia-global-tab" class="config-tab-pane">
-            <div class="config-card">
-                <h3><i class="fas fa-robot"></i> Assistente IA — FIN GERENCE AI</h3>
-                <p class="ia-config-desc">Configure e use o assistente inteligente para cadastrar despesas por texto ou voz, interpretar documentos e analisar seus gastos.</p>
-
-                <div id="ia-status-config-global" class="ia-status-config">
-                    <span class="badge ia-badge-status" id="ia-badge-status-global">Verificando...</span>
+            <div class="admin-section-card">
+                <div class="admin-section-header">
+                    <span><i class="fas fa-robot"></i> Assistente IA — FIN GERENCE AI</span>
+                    <span class="admin-section-sub">Configure o provedor de IA para cadastro por texto, voz e documentos</span>
                 </div>
-
-                <div class="form-group">
-                    <label><i class="fas fa-robot"></i> Provedor de IA</label>
-                    <p class="ia-provider-desc">
-                        Opcional. Sem provedor externo o assistente usa a <strong>Gen</strong> (IA interna). Com uma chave própria, a interpretação de texto fica ainda mais precisa.
-                    </p>
-                    <select id="ia-provider-select-global" class="ia-provider-select">
+                <div class="admin-row">
+                    <div class="admin-row-info">
+                        <span class="admin-row-nome"><i class="fas fa-circle-notch"></i> Status</span>
+                        <span class="badge ia-badge-status" id="ia-badge-status-global">Verificando...</span>
+                    </div>
+                </div>
+                <div class="admin-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
+                    <div class="admin-row-info">
+                        <span class="admin-row-nome"><i class="fas fa-plug"></i> Provedor de IA</span>
+                        <span class="admin-row-desc">Opcional. Sem provedor externo o assistente usa a <strong>Gen</strong> (IA interna).</span>
+                    </div>
+                    <select id="ia-provider-select-global" class="ia-provider-select" style="width:100%;max-width:420px;">
                         <option value="gen">Gen — IA interna FinGerence (sem chave)</option>
                         <option value="openai">OpenAI — GPT-4o mini</option>
                         <option value="gemini">Google — Gemini 2.0 Flash</option>
                         <option value="claude">Anthropic — Claude Haiku</option>
                     </select>
-                    <div id="ia-key-row-global" class="ia-key-row">
+                    <div id="ia-key-row-global" class="ia-key-row" style="width:100%;max-width:420px;">
                         <div class="ia-key-input-row">
                             <input type="password" id="ia-api-key-input-global" placeholder="Cole sua chave de API aqui..." class="ia-api-key-input">
-                            <button id="ia-btn-salvar-chave-global" class="btn btn-primary ia-btn-salvar-chave">
+                            <button id="ia-btn-salvar-chave-global" class="btn btn-primary btn-sm ia-btn-salvar-chave">
                                 <i class="fas fa-save"></i> Salvar
                             </button>
                         </div>
                         <p id="ia-key-hint-global" class="ia-key-hint"></p>
                     </div>
                 </div>
+            </div>
 
-                <hr class="config-sep">
-
-                <h4 class="ia-howto-title"><i class="fas fa-lightbulb"></i> Como usar</h4>
-                <div class="ia-howto-grid">
-                    <div class="config-card config-card-sm">
-                        <strong>💬 Chat por texto</strong><br>
-                        <small>Clique no ícone <i class="fas fa-robot"></i> no modal de Despesas ou no botão flutuante e escreva:</small><br>
-                        <code class="ia-code-example">"paguei 120 de internet da vivo no cartão vence dia 15"</code>
+            <div class="admin-section-card">
+                <div class="admin-section-header">
+                    <span><i class="fas fa-lightbulb"></i> Como usar</span>
+                </div>
+                <div class="admin-row">
+                    <div class="admin-row-info">
+                        <span class="admin-row-nome">💬 Chat por texto</span>
+                        <span class="admin-row-desc">Clique no ícone <i class="fas fa-robot"></i> no modal de Despesas ou no botão flutuante e escreva: <code class="ia-code-example">"paguei 120 de internet da vivo no cartão vence dia 15"</code></span>
                     </div>
-                    <div class="config-card config-card-sm">
-                        <strong>🎙️ Voz</strong><br>
-                        <small>Clique no microfone no chat e fale a despesa normalmente.</small>
+                </div>
+                <div class="admin-row">
+                    <div class="admin-row-info">
+                        <span class="admin-row-nome">🎙️ Voz</span>
+                        <span class="admin-row-desc">Clique no microfone no chat e fale a despesa normalmente.</span>
                     </div>
-                    <div class="config-card config-card-sm">
-                        <strong>📄 Documentos (boleto, NF, comprovante PIX)</strong><br>
-                        <small>Clique no clipe <i class="fas fa-paperclip"></i> e envie a imagem ou PDF.</small>
+                </div>
+                <div class="admin-row">
+                    <div class="admin-row-info">
+                        <span class="admin-row-nome">📄 Documentos (boleto, NF, comprovante PIX)</span>
+                        <span class="admin-row-desc">Clique no clipe <i class="fas fa-paperclip"></i> e envie a imagem ou PDF.</span>
                     </div>
-                    <div class="config-card config-card-sm">
-                        <strong>📊 Análise financeira</strong><br>
-                        <code class="ia-code-example">"quanto gastei em alimentação esse mês?"</code>
+                </div>
+                <div class="admin-row">
+                    <div class="admin-row-info">
+                        <span class="admin-row-nome">📊 Análise financeira</span>
+                        <span class="admin-row-desc"><code class="ia-code-example">"quanto gastei em alimentação esse mês?"</code></span>
                     </div>
                 </div>
             </div>
 
-            <div class="config-card carta-servicos-card" style="margin-top:20px;">
-                <div class="carta-header">
-                    <div>
-                        <h3><i class="fas fa-scroll"></i> Carta de Serviços — Gen IA</h3>
-                        <p class="carta-desc">Regras e comportamentos globais da assistente. Visível para todos, editável apenas pelo master.</p>
-                    </div>
+            <div class="admin-section-card">
+                <div class="admin-section-header" style="flex-direction:row;justify-content:space-between;align-items:center;">
+                    <span><i class="fas fa-scroll"></i> Carta de Serviços — Gen IA</span>
                     <div id="carta-master-actions-global" class="carta-master-actions">
                         <button class="btn btn-primary btn-sm" id="btn-carta-nova-instrucao-global" onclick="abrirModalCartaInstrucao()">
                             <i class="fas fa-plus"></i> Nova instrução
                         </button>
                     </div>
                 </div>
-                <hr class="config-sep">
-                <div id="carta-servicos-content-global" class="carta-markdown-body">
-                    <div class="carta-loading"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
+                <div style="padding:12px;">
+                    <p class="admin-row-desc" style="margin-bottom:10px;">Regras e comportamentos globais da assistente. Visível para todos, editável apenas pelo master.</p>
+                    <div id="carta-servicos-content-global" class="carta-markdown-body">
+                        <div class="carta-loading"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1682,7 +1696,7 @@
     </div>
 </section>
 
-<section id="fornecedor-section" class="section-content" style="display:none;">
+<section id="fornecedor-section" class="fornecedor-section">
     <div class="fornecedor-dashboard">
 
         <!-- Header -->
@@ -3363,6 +3377,7 @@
     <tr>
         <td><span class="cartao-id"></span></td>
         <td><span class="cartao-banco"></span></td>
+        <td><span class="cartao-perfil"></span></td>
         <td><span class="cartao-validade"></span></td>
         <td><span class="cartao-fechamento"></span></td>
         <td><span class="cartao-vencimento"></span></td>

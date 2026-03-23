@@ -736,18 +736,12 @@ async function renderizarListaCartoes() {
         const clone = tmplCartao.content.cloneNode(true);
 
         clone.querySelector('.cartao-id').textContent = '#' + cartao.id;
+        clone.querySelector('.cartao-banco').textContent = cartao.banco || cartao.nome || '';
 
-        // Exibir nome do banco com badge de perfil caso exista
         const nomePerfil = cartao.perfil_id
             ? (perfisMap[cartao.perfil_id] || 'Perfil')
             : 'Pessoal';
-        const spanBanco = clone.querySelector('.cartao-banco');
-        spanBanco.textContent = cartao.banco || cartao.nome || '';
-        const perfilBadgeEl = document.createElement('span');
-        perfilBadgeEl.className = 'cartao-perfil-badge';
-        perfilBadgeEl.textContent = nomePerfil;
-        perfilBadgeEl.style.cssText = 'margin-left:6px;font-size:11px;background:var(--primary,#3b82f6);color:#fff;border-radius:4px;padding:1px 6px;vertical-align:middle;';
-        spanBanco.appendChild(perfilBadgeEl);
+        clone.querySelector('.cartao-perfil').textContent = nomePerfil;
 
         clone.querySelector('.cartao-validade').textContent = cartao.validade || '-';
         clone.querySelector('.cartao-fechamento').textContent = cartao.dia_fechamento ? `Dia ${cartao.dia_fechamento}` : '-';

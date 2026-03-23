@@ -3,6 +3,122 @@
 /* ================================================================ */
 
 /* ================================================================ */
+/* ESPAÇO ADMIN — cards padronizados */
+/* ================================================================ */
+.admin-section-card {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.admin-section-header {
+    background: #667eea;
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.admin-section-header > span:first-child {
+    font-weight: 600;
+    font-size: 11px;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.admin-section-header--danger {
+    background: #e74c3c;
+}
+
+.admin-section-sub {
+    font-size: 10px;
+    color: rgba(255,255,255,0.75);
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.admin-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid #e9ecef;
+    transition: background 0.15s;
+}
+
+.admin-row:last-of-type {
+    border-bottom: none;
+}
+
+.admin-row:hover {
+    background: #f8f9fa;
+}
+
+.admin-row-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.admin-row-nome {
+    font-size: 12px;
+    font-weight: 500;
+    color: #495057;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.admin-row-nome i {
+    color: #667eea;
+    width: 14px;
+    text-align: center;
+}
+
+.admin-row-desc {
+    font-size: 10px;
+    color: #6c757d;
+}
+
+.admin-section-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 10px 12px;
+    border-top: 1px solid #e9ecef;
+    background: #f8f9fa;
+}
+
+/* Dark theme */
+[data-theme="dark"] .admin-section-card {
+    background: var(--theme-surface-solid);
+}
+[data-theme="dark"] .admin-row {
+    border-bottom-color: var(--theme-border);
+}
+[data-theme="dark"] .admin-row:hover {
+    background: var(--theme-surface-2);
+}
+[data-theme="dark"] .admin-row-nome {
+    color: var(--theme-text);
+}
+[data-theme="dark"] .admin-row-desc {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .admin-section-footer {
+    background: var(--theme-surface-2);
+    border-top-color: var(--theme-border);
+}
+
+/* ================================================================ */
 /* ABAS DE CONFIGURAÇÃO */
 /* ================================================================ */
 .config-tab-btn {
@@ -243,6 +359,54 @@
 }
 
 .tabela-usuarios td:last-child {
+    border-right: none;
+}
+
+/* ================================================================ */
+/* TABELA DE EMPRESAS */
+/* ================================================================ */
+.tabela-empresas {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+}
+
+.tabela-empresas thead {
+    background: #667eea;
+}
+
+.tabela-empresas th {
+    padding: 6px 8px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 10px;
+    color: #fff;
+    border-bottom: none;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-right: 1px solid rgba(255,255,255,0.2);
+}
+
+.tabela-empresas th:first-child { border-top-left-radius: 7px; }
+.tabela-empresas th:last-child  { border-right: none; border-top-right-radius: 7px; }
+
+.tabela-empresas tbody tr {
+    border-bottom: 1px solid var(--gray-300);
+    transition: background-color 0.2s ease;
+}
+
+.tabela-empresas tbody tr:hover {
+    background: var(--gray-100);
+}
+
+.tabela-empresas td {
+    padding: 4px 8px;
+    font-size: 10px;
+    color: #495057;
+    border-right: 1px solid #e9ecef;
+}
+
+.tabela-empresas td:last-child {
     border-right: none;
 }
 
@@ -675,6 +839,8 @@
 
     .tabela-usuarios th,
     .tabela-usuarios td,
+    .tabela-empresas th,
+    .tabela-empresas td,
     .tabela-categorias th,
     .tabela-categorias td {
         padding: 8px 12px;

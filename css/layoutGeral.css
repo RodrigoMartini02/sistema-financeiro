@@ -1128,7 +1128,8 @@ textarea:focus {
 .dashboard-section.active,
 .meses-section.active,
 .relatorios-section.active,
-.config-section.active {
+.config-section.active,
+.fornecedor-section.active {
     display: block;
     flex: 1;
     overflow-y: auto;
