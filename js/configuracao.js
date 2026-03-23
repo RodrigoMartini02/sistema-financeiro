@@ -536,7 +536,8 @@ async function criarCartaoAPI(cartao) {
                 dia_vencimento: cartao.dia_vencimento,
                 limite: cartao.limite,
                 ativo: cartao.ativo !== false,
-                validade: cartao.validade || null
+                validade: cartao.validade || null,
+                perfil_id: cartao.perfil_id ? parseInt(cartao.perfil_id) : null
             })
         });
 
@@ -680,9 +681,34 @@ async function _persistirFavorito(categoriaId, forma, cartaoId) {
 
 
 /**
+ * Popular o select de perfil no formulário de adição de cartão
+ */
+async function popularSelectPerfilCartao() {
+    const select = document.getElementById('novo-cartao-perfil');
+    if (!select) return;
+
+    const perfis = typeof window.carregarPerfis === 'function'
+        ? await window.carregarPerfis()
+        : [];
+
+    if (!perfis.length) {
+        select.innerHTML = '<option value="">Pessoal (padrão)</option>';
+        return;
+    }
+
+    select.innerHTML = perfis.map(p =>
+        `<option value="${p.id}">${p.tipo === 'empresa' ? '🏢' : '👤'} ${p.nome}</option>`
+    ).join('');
+
+    // Pré-selecionar o perfil ativo
+    const perfilAtivo = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
+    if (perfilAtivo) select.value = perfilAtivo;
+}
+
+/**
  * Renderiza a lista de cartões na tabela de configurações
  */
-function renderizarListaCartoes() {
+async function renderizarListaCartoes() {
     const listaCartoes = document.getElementById('lista-cartoes');
     if (!listaCartoes) return;
 
@@ -694,12 +720,35 @@ function renderizarListaCartoes() {
         return;
     }
 
+    // Construir mapa de perfis para exibição no card
+    const perfisMap = {};
+    try {
+        if (typeof window.carregarPerfis === 'function') {
+            const perfis = await window.carregarPerfis();
+            perfis.forEach(p => { perfisMap[p.id] = p.nome; });
+        }
+    } catch (e) {
+        // Silenciosamente ignorar erro ao carregar perfis
+    }
+
     const tmplCartao = document.getElementById('template-linha-cartao');
     cartoesUsuario.forEach(cartao => {
         const clone = tmplCartao.content.cloneNode(true);
 
         clone.querySelector('.cartao-id').textContent = '#' + cartao.id;
-        clone.querySelector('.cartao-banco').textContent = cartao.banco || cartao.nome || '';
+
+        // Exibir nome do banco com badge de perfil caso exista
+        const nomePerfil = cartao.perfil_id
+            ? (perfisMap[cartao.perfil_id] || 'Perfil')
+            : 'Pessoal';
+        const spanBanco = clone.querySelector('.cartao-banco');
+        spanBanco.textContent = cartao.banco || cartao.nome || '';
+        const perfilBadgeEl = document.createElement('span');
+        perfilBadgeEl.className = 'cartao-perfil-badge';
+        perfilBadgeEl.textContent = nomePerfil;
+        perfilBadgeEl.style.cssText = 'margin-left:6px;font-size:11px;background:var(--primary,#3b82f6);color:#fff;border-radius:4px;padding:1px 6px;vertical-align:middle;';
+        spanBanco.appendChild(perfilBadgeEl);
+
         clone.querySelector('.cartao-validade').textContent = cartao.validade || '-';
         clone.querySelector('.cartao-fechamento').textContent = cartao.dia_fechamento ? `Dia ${cartao.dia_fechamento}` : '-';
         clone.querySelector('.cartao-vencimento').textContent = cartao.dia_vencimento ? `Dia ${cartao.dia_vencimento}` : '-';
@@ -765,6 +814,7 @@ async function adicionarCartao() {
     const diaVencimento = parseInt(inputVencimento.value) || 0;
     const limite = parseFloat(inputLimite.value) || 0;
     const validade = inputValidade ? inputValidade.value.trim() : '';
+    const perfilId = document.getElementById('novo-cartao-perfil')?.value || null;
 
     // Validações
     if (!banco) {
@@ -799,7 +849,8 @@ async function adicionarCartao() {
         dia_vencimento: diaVencimento,
         limite: limite,
         ativo: true,
-        validade: validade || null
+        validade: validade || null,
+        perfil_id: perfilId ? parseInt(perfilId) : null
     };
 
     mostrarStatusCartoes('Salvando cartão...', 'info');
@@ -818,7 +869,8 @@ async function adicionarCartao() {
             limite: limite,
             ativo: true,
             validade: validade || null,
-            numero_cartao: cartaoCriado.numero_cartao || cartoesUsuario.length + 1
+            numero_cartao: cartaoCriado.numero_cartao || cartoesUsuario.length + 1,
+            perfil_id: perfilId ? parseInt(perfilId) : null
         };
 
         cartoesUsuario.push(cartaoComId);
@@ -2831,7 +2883,7 @@ function setupConfigTabs() {
                 if (targetTab === 'categorias') {
                     setTimeout(() => atualizarListaCategorias(), 100);
                 } else if (targetTab === 'cartoes') {
-                    setTimeout(() => renderizarListaCartoes(), 100);
+                    setTimeout(() => { renderizarListaCartoes(); popularSelectPerfilCartao(); }, 100);
                 } else if (targetTab === 'usuarios') {
                     setTimeout(() => filtrarUsuarios(), 100);
                 } else if (targetTab === 'logs') {
@@ -3203,8 +3255,18 @@ async function salvarEmpresa() {
                 aporte_inicial: aporteInicial ? parseFloat(aporteInicial) : null
             })
         });
-        const data = await res.json();
-        if (!data.success) throw new Error(data.message);
+
+        let data;
+        try {
+            data = await res.json();
+        } catch (e) {
+            throw new Error('Resposta inválida do servidor');
+        }
+
+        if (!res.ok || !data.success) {
+            throw new Error(data.message || `Erro ${res.status}`);
+        }
+
         mostrarToast(id ? 'Empresa atualizada!' : 'Empresa criada!', 'success');
         document.getElementById('modal-empresa').style.display = 'none';
         carregarEmpresas();

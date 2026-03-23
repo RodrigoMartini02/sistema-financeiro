@@ -1380,6 +1380,9 @@
             <input type="number" id="novo-cartao-fechamento" placeholder="Dia Fechamento" min="1" max="31">
             <input type="number" id="novo-cartao-vencimento" placeholder="Dia Vencimento" min="1" max="31">
             <input type="number" id="novo-cartao-limite" placeholder="Limite (R$)" step="0.01" min="0">
+            <select id="novo-cartao-perfil" class="form-control" title="Vínculo do cartão">
+                <option value="">Carregando perfis...</option>
+            </select>
             <button id="btn-adicionar-cartao" class="btn btn-primary">
                 <i class="fas fa-plus"></i> Adicionar Cartão
             </button>
@@ -1553,53 +1556,15 @@
                     <span class="fkpi-label">Bloqueados</span>
                 </div>
             </div>
-            <div class="fornecedor-kpi-card fkpi-blue">
-                <div class="fkpi-icon"><i class="fas fa-globe"></i></div>
-                <div class="fkpi-info">
-                    <span class="fkpi-valor" id="fkpi-paises">-</span>
-                    <span class="fkpi-label">Países</span>
-                </div>
-            </div>
         </div>
 
         <!-- Gráficos -->
         <div class="fornecedor-charts">
             <div class="fornecedor-chart-card">
-                <h3>Usuários por País</h3>
-                <div class="fornecedor-chart-wrapper">
-                    <canvas id="chart-usuarios-pais"></canvas>
-                </div>
-            </div>
-            <div class="fornecedor-chart-card">
                 <h3>Distribuição por Status</h3>
                 <div class="fornecedor-chart-wrapper">
                     <canvas id="chart-usuarios-status"></canvas>
                 </div>
-            </div>
-        </div>
-
-        <!-- Tabela geográfica -->
-        <div class="fornecedor-tabela-card">
-            <div class="fornecedor-tabela-header">
-                <h3><i class="fas fa-map-marker-alt"></i> Distribuição Geográfica</h3>
-                <input type="text" id="fornecedor-busca" placeholder="Filtrar por cidade, estado ou país..." class="fornecedor-busca-input">
-            </div>
-            <div class="table-responsive">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>País</th>
-                            <th>Estado</th>
-                            <th>Cidade</th>
-                            <th>Total</th>
-                            <th>Ativos</th>
-                            <th>% Ativos</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabela-geo-body">
-                        <tr><td colspan="6" style="text-align:center;color:var(--text-secondary)">Carregando...</td></tr>
-                    </tbody>
-                </table>
             </div>
         </div>
 
