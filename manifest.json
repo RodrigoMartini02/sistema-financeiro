@@ -4,14 +4,13 @@
   "short_name": "FinGerence",
   "description": "Controle financeiro para autônomos e MEIs. Registre gastos por IA, controle cartões e parcelas.",
   "start_url": "./index.html?source=pwa",
-  "scope": "./",
+  "scope": "/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#0f172a",
   "theme_color": "#6366f1",
   "lang": "pt-BR",
   "categories": ["finance", "productivity", "business"],
-  "screenshots": [],
   "icons": [
     {
       "src": "icons/financeiro.png",
@@ -23,13 +22,7 @@
       "src": "icons/financeiro.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icons/financeiro.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     }
   ],
   "shortcuts": [

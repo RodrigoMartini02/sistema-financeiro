@@ -28,14 +28,43 @@
     <meta name="theme-color" content="#6366f1">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="FinGerence">
-    <link rel="apple-touch-icon" href="icons/financeiro.png">
-    <link rel="icon" type="image/png" href="icons/financeiro.png?v=1">
+    <meta name="msapplication-TileColor" content="#6366f1">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/financeiro.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/financeiro.png">
+    <link rel="shortcut icon" href="icons/financeiro.png">
 
 
     <!-- TEMA: carregado antes de tudo para evitar flash -->
     <script src="js/theme.js"></script>
+
+    <!-- MOBILE SCALE: define --app-scale proporcionalmente à viewport.
+         Executado antes do render para evitar flash de layout não escalonado. -->
+    <script>
+    (function() {
+        var DESIGN_WIDTH = 1200; // largura de referência do layout
+        function applyScale() {
+            var vw = window.innerWidth;
+            if (vw >= 1200) {
+                document.documentElement.style.setProperty('--app-scale', '1');
+                return;
+            }
+            // Tablets (769–1199): scale suave
+            // Mobile (< 769): scale total para caber na tela
+            var scale = Math.round((vw / DESIGN_WIDTH) * 1000) / 1000;
+            // Mínimo de 0.28 para não ficar ilegível
+            scale = Math.max(scale, 0.28);
+            document.documentElement.style.setProperty('--app-scale', String(scale));
+        }
+        applyScale();
+        window.addEventListener('resize', applyScale);
+        // Re-aplicar após orientação mudar (iOS)
+        window.addEventListener('orientationchange', function() {
+            setTimeout(applyScale, 100);
+        });
+    })();
+    </script>
 
     <!-- VERIFICAÇÃO DE AUTENTICAÇÃO (ANTES DE TUDO) -->
     <script>
@@ -73,6 +102,7 @@
     <link rel="stylesheet" href="css/planos.css">
     <link rel="stylesheet" href="css/ia.css">
     <link rel="stylesheet" href="css/avaliacao.css">
+    <link rel="stylesheet" href="css/pwa.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
