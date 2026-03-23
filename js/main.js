@@ -738,6 +738,17 @@ function setupModais() {
 
 
 function setupToolbarButtons() {
+    // Botão Nova Despesa no header principal
+    const btnNovaDespesa = document.getElementById('btn-nova-despesa');
+    if (btnNovaDespesa) {
+        btnNovaDespesa.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (typeof window.abrirModalNovaDespesa === 'function') {
+                window.abrirModalNovaDespesa();
+            }
+        });
+    }
+
     // Botão Nova Despesa na toolbar
     const btnNovaDespesaToolbar = document.getElementById('btn-nova-despesa-toolbar');
     if (btnNovaDespesaToolbar) {
