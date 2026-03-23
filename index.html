@@ -189,10 +189,35 @@
     </div>
 </section>
 
-
+<!-- ================================================================
+     STATS STRIP
+     ================================================================ -->
+<section class="stats-strip">
+    <div class="stats-container">
+        <div class="stat-item">
+            <span class="stat-number">5s</span>
+            <span class="stat-label">para registrar qualquer gasto</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+            <span class="stat-number">4.9<small>★</small></span>
+            <span class="stat-label">avaliação média de usuários</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+            <span class="stat-number">100%</span>
+            <span class="stat-label">no celular, sempre disponível</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+            <span class="stat-number">Grátis</span>
+            <span class="stat-label">para começar agora mesmo</span>
+        </div>
+    </div>
+</section>
 
 <!-- ================================================================
-     FEATURES SECTION
+     FEATURES SECTION — Bento Grid
      ================================================================ -->
 <section class="features-section" id="features">
     <div class="section-container">
@@ -202,70 +227,133 @@
             <p class="section-desc">Do registro ao controle — simples, rápido e sem aprender nada novo</p>
         </div>
 
-        <div class="features-grid">
-            <div class="feature-card">
-                <div class="feature-icon icon-receitas">
-                    <i class="fas fa-receipt"></i>
+        <div class="features-bento">
+
+            <!-- WIDE: Registro rápido — com demo de chat -->
+            <div class="feature-bento-card card-dark-indigo wide">
+                <div class="bento-content">
+                    <div class="bento-icon"><i class="fas fa-bolt"></i></div>
+                    <h3>Registre qualquer gasto em 5 segundos</h3>
+                    <p>Sem planilha, sem formulário. Fala, digita ou fotografa — anota na hora, no lugar certo, sem esforço.</p>
                 </div>
-                <h3>Registre qualquer gasto em 5 segundos</h3>
-                <p>Sem planilha, sem formulário, sem esquecimento. Fala, digita ou fotografa — o FinGerence anota tudo na hora.</p>
+                <div class="bento-visual">
+                    <div class="bento-chat-demo">
+                        <div class="bento-msg bento-msg-user"><i class="fas fa-user-circle"></i> Paguei 320 no mercado</div>
+                        <div class="bento-msg bento-msg-bot"><i class="fas fa-robot"></i> Feito! Saldo disponível: <strong>R$ 1.480</strong></div>
+                        <div class="bento-msg bento-msg-user"><i class="fas fa-user-circle"></i> Parcelei o tênis em 3x de 120</div>
+                        <div class="bento-msg bento-msg-bot"><i class="fas fa-robot"></i> Parcelas registradas. Lembrarei nos próximos 3 meses.</div>
+                    </div>
+                </div>
             </div>
 
-            <div class="feature-card">
-                <div class="feature-icon icon-cartoes">
-                    <i class="fas fa-credit-card"></i>
+            <!-- Cartões -->
+            <div class="feature-bento-card card-dark-green">
+                <div class="bento-icon"><i class="fas fa-credit-card"></i></div>
+                <h3>Nunca mais susto com o cartão no fim do mês</h3>
+                <p>Limite disponível, fechamento e vencimento de cada cartão — visível antes do problema chegar.</p>
+                <div class="bento-stat">
+                    <span class="bento-stat-number">0</span>
+                    <span class="bento-stat-label">sustos inesperados</span>
                 </div>
-                <h3>Nunca mais se surpreender com o cartão no fim do mês</h3>
-                <p>Veja o limite disponível, a data de fechamento e o vencimento de cada cartão — antes do susto bater.</p>
             </div>
 
-            <div class="feature-card">
-                <div class="feature-icon icon-relatorios">
-                    <i class="fas fa-chart-bar"></i>
+            <!-- Notificações -->
+            <div class="feature-bento-card card-light">
+                <div class="bento-icon bento-icon-red"><i class="fas fa-bell"></i></div>
+                <h3>Zero boletos esquecidos, zero multas</h3>
+                <p>O lembrete chega antes do vencimento. Você paga em dia, sem juros, sem stress.</p>
+                <div class="bento-tags">
+                    <span class="bento-tag">📄 Boleto</span>
+                    <span class="bento-tag">💳 Cartão</span>
+                    <span class="bento-tag">🏠 Aluguel</span>
                 </div>
-                <h3>Finalmente entenda para onde seu dinheiro vai</h3>
-                <p>Visualize em segundos onde você gasta mais — e descubra onde dá pra economizar sem sofrimento.</p>
             </div>
 
-            <div class="feature-card">
-                <div class="feature-icon icon-notificacoes">
-                    <i class="fas fa-bell"></i>
+            <!-- Reservas -->
+            <div class="feature-bento-card card-light">
+                <div class="bento-icon bento-icon-purple"><i class="fas fa-piggy-bank"></i></div>
+                <h3>Aquela meta que você adia todo mês — aqui ela acontece</h3>
+                <p>Crie reservas com nome e objetivo. Acompanhe o progresso crescer a cada mês.</p>
+                <div class="bento-progress-demo">
+                    <div class="bento-progress-label"><span>Viagem 🏖️</span><span>R$ 1.200 / R$ 3.000</span></div>
+                    <div class="bento-progress-bar"><div class="bento-progress-fill" style="width:40%"></div></div>
+                    <div class="bento-progress-label" style="margin-top:10px"><span>Emergência 🛡️</span><span>R$ 4.800 / R$ 6.000</span></div>
+                    <div class="bento-progress-bar"><div class="bento-progress-fill bento-progress-fill-green" style="width:80%"></div></div>
                 </div>
-                <h3>Zero boletos esquecidos, zero multas, zero juros</h3>
-                <p>Receba alertas antes do vencimento de cada conta. O lembrete chega antes do problema.</p>
             </div>
 
-            <div class="feature-card">
-                <div class="feature-icon icon-reservas">
-                    <i class="fas fa-piggy-bank"></i>
-                </div>
-                <h3>Aquela meta que você adia todo mês? Aqui ela acontece</h3>
-                <p>Crie uma reserva com nome e objetivo — viagem, emergência, conquista. Acompanhe o progresso crescer todo mês.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon icon-parcelas">
-                    <i class="fas fa-layer-group"></i>
-                </div>
+            <!-- Parcelas -->
+            <div class="feature-bento-card card-dark-slate">
+                <div class="bento-icon"><i class="fas fa-layer-group"></i></div>
                 <h3>Parcelas e assinaturas no controle, para sempre</h3>
                 <p>Comprou parcelado? O FinGerence já sabe o que vai sair nos próximos meses. Sem surpresa no orçamento.</p>
+                <div class="bento-pill-row">
+                    <span class="bento-pill">Netflix · mar</span>
+                    <span class="bento-pill">Tênis 2/3 · abr</span>
+                    <span class="bento-pill">Academia · mai</span>
+                </div>
             </div>
 
-            <div class="feature-card">
-                <div class="feature-icon icon-usuarios">
-                    <i class="fas fa-users"></i>
+            <!-- WIDE: Relatórios — com mini gráfico -->
+            <div class="feature-bento-card card-dark-amber wide">
+                <div class="bento-content">
+                    <div class="bento-icon"><i class="fas fa-chart-bar"></i></div>
+                    <h3>Finalmente entenda para onde seu dinheiro vai</h3>
+                    <p>Visualize em segundos onde você gasta mais — e descubra onde dá pra economizar sem sofrimento.</p>
                 </div>
+                <div class="bento-visual bento-visual-chart">
+                    <div class="mini-bar-chart">
+                        <div class="mini-bar" style="--h:62%">
+                            <div class="mini-bar-fill"></div>
+                            <span>Alimentação</span>
+                        </div>
+                        <div class="mini-bar" style="--h:38%">
+                            <div class="mini-bar-fill"></div>
+                            <span>Transporte</span>
+                        </div>
+                        <div class="mini-bar" style="--h:84%">
+                            <div class="mini-bar-fill"></div>
+                            <span>Casa</span>
+                        </div>
+                        <div class="mini-bar" style="--h:28%">
+                            <div class="mini-bar-fill"></div>
+                            <span>Lazer</span>
+                        </div>
+                        <div class="mini-bar" style="--h:50%">
+                            <div class="mini-bar-fill"></div>
+                            <span>Saúde</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Família -->
+            <div class="feature-bento-card card-light">
+                <div class="bento-icon bento-icon-orange"><i class="fas fa-users"></i></div>
                 <h3>Toda a família organizada em um só lugar</h3>
-                <p>Cada membro com seu próprio perfil. O dinheiro da casa fica visível pra todo mundo — sem segredo, sem susto.</p>
+                <p>Cada membro com seu próprio perfil. O dinheiro da casa visível para todo mundo — sem segredo, sem susto.</p>
+                <div class="bento-avatars">
+                    <span class="bento-avatar">👤</span>
+                    <span class="bento-avatar">👤</span>
+                    <span class="bento-avatar bento-avatar-add"><i class="fas fa-plus"></i></span>
+                </div>
             </div>
 
-            <div class="feature-card">
-                <div class="feature-icon icon-pwa">
-                    <i class="fas fa-mobile-alt"></i>
+            <!-- FULL WIDTH: No celular -->
+            <div class="feature-bento-card card-dark-full full">
+                <div class="bento-content">
+                    <div class="bento-icon"><i class="fas fa-mobile-alt"></i></div>
+                    <h3>No seu celular, do jeito que você prefere — Android ou iPhone</h3>
+                    <p>Salve o FinGerence na tela do celular com um toque e acesse quando quiser, até sem internet.</p>
                 </div>
-                <h3>No seu celular, sempre que precisar</h3>
-                <p>Salve o FinGerence na tela do celular com um toque — Android ou iPhone — e acesse quando quiser.</p>
+                <div class="bento-device-row">
+                    <span class="device-badge"><i class="fab fa-android"></i> Android</span>
+                    <span class="device-badge"><i class="fab fa-apple"></i> iPhone</span>
+                    <span class="device-badge"><i class="fas fa-wifi"></i> Funciona offline</span>
+                    <span class="device-badge"><i class="fas fa-download"></i> Sem baixar nada</span>
+                </div>
             </div>
+
         </div>
     </div>
 </section>
