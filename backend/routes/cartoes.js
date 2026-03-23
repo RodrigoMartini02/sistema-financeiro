@@ -19,7 +19,7 @@ async function obterProximoNumero(usuarioId) {
 
 router.get('/', authMiddleware, async (req, res) => {
     try {
-        const { usuario_id } = req.query;
+        const { usuario_id, perfil_id } = req.query;
 
         // ✅ MASTER pode ver cartões de qualquer usuário
         let targetUserId;
@@ -27,6 +27,14 @@ router.get('/', authMiddleware, async (req, res) => {
             targetUserId = parseInt(usuario_id);
         } else {
             targetUserId = req.usuario.id;
+        }
+
+        let whereClause = 'WHERE c.usuario_id = $1';
+        const params = [targetUserId];
+
+        if (perfil_id) {
+            whereClause += ' AND c.perfil_id = $2';
+            params.push(parseInt(perfil_id));
         }
 
         const queryText = `
@@ -40,16 +48,17 @@ router.get('/', authMiddleware, async (req, res) => {
                 c.ativo,
                 c.numero_cartao,
                 c.validade,
+                c.perfil_id,
                 c.data_criacao,
                 c.data_atualizacao,
                 u.nome as usuario_nome
             FROM cartoes c
             LEFT JOIN usuarios u ON c.usuario_id = u.id
-            WHERE c.usuario_id = $1
+            ${whereClause}
             ORDER BY c.numero_cartao ASC NULLS LAST, c.id ASC
         `;
 
-        const result = await query(queryText, [targetUserId]);
+        const result = await query(queryText, params);
 
         res.json({
             success: true,
@@ -230,7 +239,7 @@ router.put('/', authMiddleware, async (req, res) => {
 
 router.post('/', authMiddleware, async (req, res) => {
     try {
-        const { nome, limite, dia_fechamento, dia_vencimento, cor, validade } = req.body;
+        const { nome, limite, dia_fechamento, dia_vencimento, cor, validade, perfil_id } = req.body;
 
         if (!nome || nome.trim() === '') {
             return res.status(400).json({
@@ -290,9 +299,9 @@ router.post('/', authMiddleware, async (req, res) => {
         const proximoNumero = await obterProximoNumero(req.usuario.id);
 
         const queryText = `
-            INSERT INTO cartoes (usuario_id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao, validade)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            RETURNING id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao, validade, data_criacao, data_atualizacao
+            INSERT INTO cartoes (usuario_id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao, validade, perfil_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            RETURNING id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao, validade, perfil_id, data_criacao, data_atualizacao
         `;
 
         const values = [
@@ -304,7 +313,8 @@ router.post('/', authMiddleware, async (req, res) => {
             cor || '#3498db',
             true,
             proximoNumero,
-            validade || null
+            validade || null,
+            perfil_id ? parseInt(perfil_id) : null
         ];
         
         const result = await query(queryText, values);
@@ -328,7 +338,7 @@ router.post('/', authMiddleware, async (req, res) => {
 router.put('/:id', authMiddleware, async (req, res) => {
     try {
         const cartaoId = parseInt(req.params.id);
-        const { nome, limite, dia_fechamento, dia_vencimento, cor, ativo, validade } = req.body;
+        const { nome, limite, dia_fechamento, dia_vencimento, cor, ativo, validade, perfil_id } = req.body;
         
         if (isNaN(cartaoId)) {
             return res.status(400).json({
@@ -389,9 +399,9 @@ router.put('/:id', authMiddleware, async (req, res) => {
         const queryText = `
             UPDATE cartoes
             SET nome = $1, limite = $2, dia_fechamento = $3, dia_vencimento = $4, cor = $5, ativo = $6,
-                validade = $7, data_atualizacao = CURRENT_TIMESTAMP
-            WHERE id = $8 AND usuario_id = $9
-            RETURNING id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, validade, data_criacao, data_atualizacao
+                validade = $7, perfil_id = $8, data_atualizacao = CURRENT_TIMESTAMP
+            WHERE id = $9 AND usuario_id = $10
+            RETURNING id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, validade, perfil_id, data_criacao, data_atualizacao
         `;
 
         const values = [
@@ -402,6 +412,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
             cor || '#3498db',
             ativo !== undefined ? ativo : true,
             validade || null,
+            perfil_id ? parseInt(perfil_id) : null,
             cartaoId,
             req.usuario.id
         ];

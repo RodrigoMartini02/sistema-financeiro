@@ -61,6 +61,11 @@ async function iniciarSistema() {
     }
 
     notificarSistemaReady();
+
+    // Inicializar switcher de perfis PF/PJ
+    if (typeof window.inicializarPerfis === 'function') {
+        window.inicializarPerfis();
+    }
 }
 
 // ================================================================

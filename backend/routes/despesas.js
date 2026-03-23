@@ -47,6 +47,12 @@ router.get('/', authMiddleware, async (req, res) => {
             paramCount += 2;
         }
 
+        const { perfil_id } = req.query;
+        if (perfil_id) {
+            whereClause += ` AND d.perfil_id = $${++paramCount}`;
+            params.push(parseInt(perfil_id));
+        }
+
         // BUSCAR COM JOIN para pegar nome da categoria
         const result = await query(
             `SELECT
@@ -97,7 +103,8 @@ router.post('/', authMiddleware, [
             descricao, valor, data_vencimento, data_compra, data_pagamento,
             mes, ano, categoria_id, cartao_id, forma_pagamento,
             parcelado, total_parcelas, parcela_atual, observacoes, pago,
-            valor_original, valor_total_com_juros, valor_pago, anexos, recorrente
+            valor_original, valor_total_com_juros, valor_pago, anexos, recorrente,
+            perfil_id
         } = req.body;
 
         const numeroParcelas = total_parcelas || null;
@@ -124,8 +131,8 @@ router.post('/', authMiddleware, [
                 usuario_id, descricao, valor, data_vencimento, data_compra, data_pagamento,
                 mes, ano, categoria_id, cartao_id, forma_pagamento,
                 parcelado, numero_parcelas, parcela_atual, observacoes, pago,
-                valor_original, valor_total_com_juros, valor_pago, numero, anexos, recorrente
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+                valor_original, valor_total_com_juros, valor_pago, numero, anexos, recorrente, perfil_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
             RETURNING *`,
             [
                 req.usuario.id, descricao, parseFloat(valor), data_vencimento,
@@ -138,7 +145,8 @@ router.post('/', authMiddleware, [
                 valor_pago ? parseFloat(valor_pago) : null,
                 proximoNumero,
                 anexosJson,
-                recorrente || false
+                recorrente || false,
+                perfil_id ? parseInt(perfil_id) : null
             ]
         );
 

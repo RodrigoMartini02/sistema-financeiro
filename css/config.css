@@ -1426,3 +1426,121 @@
 [data-theme="dark"] .info-value {
     color: var(--theme-text-muted);
 }
+
+/* ================================================================ */
+/* PERFIL SWITCHER PF/PJ */
+/* ================================================================ */
+.perfil-switcher {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.btn-perfil-atual {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: var(--theme-surface);
+    border: 1px solid var(--theme-border);
+    border-radius: 8px;
+    color: var(--theme-text);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+    white-space: nowrap;
+}
+
+.btn-perfil-atual:hover {
+    background: var(--theme-surface-hover, rgba(0,0,0,0.05));
+    border-color: var(--primary-color);
+}
+
+.perfil-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 180px;
+    background: var(--theme-surface);
+    border: 1px solid var(--theme-border);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    z-index: 9999;
+    padding: 6px 0;
+}
+
+.perfil-dropdown.hidden {
+    display: none;
+}
+
+.perfil-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 14px;
+    background: none;
+    border: none;
+    color: var(--theme-text);
+    font-size: 13px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s;
+}
+
+.perfil-dropdown-item:hover {
+    background: var(--theme-surface-hover, rgba(0,0,0,0.05));
+}
+
+.perfil-dropdown-item.ativo {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.perfil-check {
+    margin-left: auto;
+    color: var(--primary-color);
+}
+
+.perfil-gerenciar {
+    color: var(--gray-500);
+    font-size: 12px;
+}
+
+.perfil-separator {
+    border: none;
+    border-top: 1px solid var(--theme-border);
+    margin: 4px 0;
+}
+
+/* ================================================================ */
+/* LISTA DE EMPRESAS */
+/* ================================================================ */
+.empresa-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border: 1px solid var(--theme-border);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: var(--theme-surface);
+}
+
+.empresa-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.empresa-cnpj {
+    font-size: 12px;
+    color: var(--gray-500);
+}
+
+.empresa-acoes {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}

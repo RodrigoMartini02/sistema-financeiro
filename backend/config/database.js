@@ -81,6 +81,51 @@ const executarMigracoes = async () => {
         ]);
         console.log('✅ Índices de performance verificados');
 
+        // ================================================================
+        // ECOSSISTEMA PF/PJ — PERFIS
+        // ================================================================
+
+        // Criar tabela perfis
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS perfis (
+                id SERIAL PRIMARY KEY,
+                usuario_id INT REFERENCES usuarios(id) ON DELETE CASCADE,
+                tipo VARCHAR(10) NOT NULL DEFAULT 'pessoal',
+                nome VARCHAR(100) NOT NULL,
+                documento VARCHAR(20) DEFAULT NULL,
+                ativo BOOLEAN DEFAULT true,
+                data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        console.log('✅ Tabela perfis verificada/criada');
+
+        // Adicionar perfil_id nas tabelas financeiras
+        await pool.query(`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS perfil_id INT REFERENCES perfis(id)`);
+        await pool.query(`ALTER TABLE receitas ADD COLUMN IF NOT EXISTS perfil_id INT REFERENCES perfis(id)`);
+        await pool.query(`ALTER TABLE meses ADD COLUMN IF NOT EXISTS perfil_id INT REFERENCES perfis(id)`);
+        await pool.query(`ALTER TABLE reservas ADD COLUMN IF NOT EXISTS perfil_id INT REFERENCES perfis(id)`);
+        await pool.query(`ALTER TABLE movimentacoes_reservas ADD COLUMN IF NOT EXISTS perfil_id INT REFERENCES perfis(id)`);
+        await pool.query(`ALTER TABLE cartoes ADD COLUMN IF NOT EXISTS perfil_id INT REFERENCES perfis(id)`);
+        console.log('✅ Coluna perfil_id verificada nas tabelas financeiras');
+
+        // Índices para perfis
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_perfis_usuario ON perfis(usuario_id)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_despesas_perfil ON despesas(perfil_id)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_receitas_perfil ON receitas(perfil_id)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_meses_perfil ON meses(perfil_id)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_reservas_perfil ON reservas(perfil_id)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_cartoes_perfil ON cartoes(perfil_id)`);
+        console.log('✅ Índices de perfis verificados');
+
+        // Criar perfil pessoal padrão para usuários que ainda não têm um
+        await pool.query(`
+            INSERT INTO perfis (usuario_id, tipo, nome)
+            SELECT id, 'pessoal', 'Pessoal'
+            FROM usuarios
+            WHERE id NOT IN (SELECT usuario_id FROM perfis WHERE tipo = 'pessoal')
+        `);
+        console.log('✅ Perfis pessoais padrão criados para usuários existentes');
+
         console.log('✅ Migrações concluídas');
         return true;
     } catch (error) {
