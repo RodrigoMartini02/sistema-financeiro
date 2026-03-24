@@ -210,6 +210,9 @@ function renderizarGlobo(mapa) {
 
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
+    const w = container.clientWidth  || 700;
+    const h = container.clientHeight || 500;
+
     _globe = Globe()(container)
         .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
         .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
@@ -221,8 +224,17 @@ function renderizarGlobo(mapa) {
         .pointColor('color')
         .pointRadius(0.5)
         .pointLabel('label')
-        .width(container.clientWidth || 700)
-        .height(420);
+        .width(w)
+        .height(h);
+
+    // Redimensionar globo quando a janela mudar de tamanho
+    const resizeGlobe = () => {
+        if (_globe && container.clientWidth > 0) {
+            _globe.width(container.clientWidth).height(container.clientHeight);
+        }
+    };
+    window.removeEventListener('resize', resizeGlobe);
+    window.addEventListener('resize', resizeGlobe);
 
     // Auto-rotação
     _globe.controls().autoRotate = true;

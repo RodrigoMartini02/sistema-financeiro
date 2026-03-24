@@ -1759,67 +1759,106 @@
    DASHBOARD DO FORNECEDOR
    ================================================================ */
 
+/* ================================================================ */
+/* PAINEL DO FORNECEDOR — layout full-screen sem scroll             */
+/* ================================================================ */
+
+.fornecedor-section {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
 .fornecedor-dashboard {
-    padding: 16px;
-    max-width: 1200px;
-    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 14px 20px 10px;
+    gap: 12px;
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 .fornecedor-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 24px;
+    flex-shrink: 0;
 }
 
 .fornecedor-header h2 {
-    font-size: 1.4rem;
+    font-size: 1.2rem;
     color: var(--text-primary);
     display: flex;
     align-items: center;
     gap: 10px;
+    margin: 0;
 }
 
+/* KPIs — linha única com 9 cards */
 .fornecedor-kpis {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 12px;
-    margin-bottom: 24px;
-}
-
-.fornecedor-kpi-card {
-    background: var(--card-bg, #1e2329);
-    border-radius: 12px;
-    padding: 16px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    border: 1px solid var(--border-color, rgba(255,255,255,0.08));
-}
-
-.fkpi-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 10px;
-    background: rgba(52,152,219,0.15);
-    color: #3498db;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.1rem;
+    grid-template-columns: repeat(9, 1fr);
+    gap: 10px;
     flex-shrink: 0;
 }
 
-.fkpi-green .fkpi-icon  { background: rgba(46,204,113,0.15);  color: #2ecc71; }
-.fkpi-yellow .fkpi-icon { background: rgba(243,156,18,0.15);  color: #f39c12; }
-.fkpi-red .fkpi-icon    { background: rgba(231,76,60,0.15);   color: #e74c3c; }
-.fkpi-blue .fkpi-icon   { background: rgba(52,152,219,0.15);  color: #3498db; }
-.fkpi-purple .fkpi-icon { background: rgba(139,92,246,0.15);  color: #8b5cf6; }
-.fkpi-danger .fkpi-icon { background: rgba(231,76,60,0.15);   color: #e74c3c; }
+.fornecedor-kpi-card {
+    background: var(--card-bg, #fff);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid var(--border-color, rgba(0,0,0,0.07));
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.fornecedor-kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px;
+    height: 100%;
+    background: var(--fkpi-accent, #3498db);
+    border-radius: 0 2px 2px 0;
+}
+
+.fornecedor-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+
+.fkpi-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: var(--fkpi-bg, rgba(52,152,219,0.12));
+    color: var(--fkpi-accent, #3498db);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.fkpi-green  { --fkpi-accent: #10b981; --fkpi-bg: rgba(16,185,129,0.12); }
+.fkpi-yellow { --fkpi-accent: #f59e0b; --fkpi-bg: rgba(245,158,11,0.12); }
+.fkpi-red    { --fkpi-accent: #ef4444; --fkpi-bg: rgba(239,68,68,0.12); }
+.fkpi-blue   { --fkpi-accent: #3b82f6; --fkpi-bg: rgba(59,130,246,0.12); }
+.fkpi-purple { --fkpi-accent: #8b5cf6; --fkpi-bg: rgba(139,92,246,0.12); }
+.fkpi-indigo { --fkpi-accent: #6366f1; --fkpi-bg: rgba(99,102,241,0.12); }
+.fkpi-violet { --fkpi-accent: #a855f7; --fkpi-bg: rgba(168,85,247,0.12); }
+.fkpi-cyan   { --fkpi-accent: #06b6d4; --fkpi-bg: rgba(6,182,212,0.12); }
+.fkpi-danger { --fkpi-accent: #f43f5e; --fkpi-bg: rgba(244,63,94,0.12); }
 
 .fkpi-valor {
     display: block;
-    font-size: 1.6rem;
+    font-size: 1.5rem;
     font-weight: 700;
     color: var(--text-primary);
     line-height: 1;
@@ -1827,56 +1866,97 @@
 
 .fkpi-label {
     display: block;
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     color: var(--text-secondary);
-    margin-top: 4px;
+    margin-top: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.fornecedor-charts {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 24px;
+/* Área principal: gráficos (esq) + globo (dir) */
+.fornecedor-main {
+    display: flex;
+    gap: 12px;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Coluna esquerda: 2 gráficos empilhados */
+.fornecedor-charts-col {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 320px;
+    flex-shrink: 0;
 }
 
 .fornecedor-chart-card {
-    background: var(--card-bg, #1e2329);
+    background: var(--card-bg, #fff);
     border-radius: 12px;
-    padding: 20px;
-    border: 1px solid var(--border-color, rgba(255,255,255,0.08));
+    padding: 14px 16px;
+    border: 1px solid var(--border-color, rgba(0,0,0,0.07));
+    box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .fornecedor-chart-card h3 {
-    font-size: 0.95rem;
+    font-size: 0.82rem;
     color: var(--text-secondary);
-    margin-bottom: 16px;
-    font-weight: 500;
+    margin: 0 0 10px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
 }
 
 .fornecedor-chart-wrapper {
-    height: 260px;
+    flex: 1;
     position: relative;
+    min-height: 0;
 }
 
-/* Globo 3D */
+/* Coluna direita: globo ocupa todo espaço restante */
+.fornecedor-globe-col {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
 .fornecedor-globe-section {
-    background: var(--card-bg, #1e2329);
+    background: var(--card-bg, #fff);
     border-radius: 12px;
-    padding: 20px;
-    border: 1px solid var(--border-color, rgba(255,255,255,0.08));
-    margin-bottom: 24px;
+    padding: 14px 16px;
+    border: 1px solid var(--border-color, rgba(0,0,0,0.07));
+    box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .fornecedor-globe-section h3 {
-    font-size: 0.95rem;
+    font-size: 0.82rem;
     color: var(--text-secondary);
-    margin-bottom: 12px;
-    font-weight: 500;
+    margin: 0 0 8px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
 }
 
 #fornecedor-globe-container {
     width: 100%;
-    height: 420px;
+    flex: 1;
+    min-height: 0;
     border-radius: 8px;
     overflow: hidden;
 }

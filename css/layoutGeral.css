@@ -1091,12 +1091,20 @@ textarea:focus {
 .dashboard-section.active,
 .meses-section.active,
 .relatorios-section.active,
-.config-section.active,
-.fornecedor-section.active {
+.config-section.active {
     display: block;
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
+    min-height: 0;
+}
+
+/* Fornecedor usa flex sem scroll para caber tudo na tela */
+.fornecedor-section.active {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
     min-height: 0;
 }
 
