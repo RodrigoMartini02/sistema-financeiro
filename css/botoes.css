@@ -2,6 +2,22 @@
    SISTEMA DE BOTÕES PADRONIZADO
    ================================================================ */
 
+.btn-geoloc {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border: 1px dashed var(--primary-color, #667eea);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--primary-color, #667eea);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+.btn-geoloc:hover:not(:disabled) { background: rgba(102,126,234,0.08); }
+.btn-geoloc:disabled { opacity: 0.6; cursor: not-allowed; }
+
 /* ================================================================
    BOTÃO BASE
    ================================================================ */

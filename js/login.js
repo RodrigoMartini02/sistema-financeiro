@@ -373,8 +373,12 @@ async function processarFormularioCadastro() {
 
     if (typeof window.showLoadingScreen === 'function') window.showLoadingScreen();
 
+    const latitude  = document.getElementById('cadastro-latitude')?.value  || null;
+    const longitude = document.getElementById('cadastro-longitude')?.value || null;
+
     try {
         const body = { nome, email, documento: docLimpo, senha: password, pais, estado, cidade };
+        if (latitude && longitude) { body.latitude = parseFloat(latitude); body.longitude = parseFloat(longitude); }
 
         const response = await fetch(`${API_URL}/auth/register`, {
             method: 'POST',
@@ -702,6 +706,29 @@ function mostrarErroLogin(errorElement, mensagem) {
         errorElement.textContent = mensagem;
         errorElement.style.display = 'block';
     }
+}
+
+function capturarLocalizacaoCadastro() {
+    const btn    = document.getElementById('btn-geolocalizacao');
+    const status = document.getElementById('geoloc-status');
+    if (!navigator.geolocation) {
+        if (status) { status.style.display = 'block'; status.style.color = '#e74c3c'; status.textContent = 'Geolocalização não suportada neste dispositivo.'; }
+        return;
+    }
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Obtendo localização...'; }
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            document.getElementById('cadastro-latitude').value  = pos.coords.latitude;
+            document.getElementById('cadastro-longitude').value = pos.coords.longitude;
+            if (btn) { btn.innerHTML = '<i class="fas fa-check"></i> Localização capturada!'; btn.style.color = '#2ecc71'; }
+            if (status) { status.style.display = 'block'; status.style.color = '#2ecc71'; status.textContent = `Lat: ${pos.coords.latitude.toFixed(4)}, Lng: ${pos.coords.longitude.toFixed(4)}`; }
+        },
+        () => {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-location-arrow"></i> Usar minha localização exata (opcional)'; }
+            if (status) { status.style.display = 'block'; status.style.color = '#e74c3c'; status.textContent = 'Permissão negada. Localização não será salva.'; }
+        },
+        { timeout: 10000 }
+    );
 }
 
 function mostrarErroCadastro(mensagem) {

@@ -173,23 +173,37 @@ function renderizarGlobo(mapa) {
     const container = document.getElementById('fornecedor-globe-container');
     if (!container || typeof Globe === 'undefined') return;
 
-    // Mapear países para pontos com coordenadas
-    const pontos = (mapa.por_pais || [])
+    // Pontos exatos (usuários com lat/lng real)
+    const pontosExatos = (mapa.pontos_exatos || []).map(u => ({
+        lat:   parseFloat(u.latitude),
+        lng:   parseFloat(u.longitude),
+        size:  0.25,
+        color: '#a78bfa',
+        label: `${u.nome} — ${u.cidade || u.pais || ''}`
+    }));
+
+    // Fallback: países sem ponto exato (agrupados)
+    const paisesComPonto = new Set(
+        (mapa.pontos_exatos || []).map(u => (u.pais || '').toLowerCase().trim())
+    );
+    const pontosPais = (mapa.por_pais || [])
+        .filter(p => !paisesComPonto.has((p.pais || '').toLowerCase().trim()))
         .map(p => {
             const coords = obterCoords(p.pais);
             if (!coords) return null;
             return {
-                lat: coords[0],
-                lng: coords[1],
-                size: Math.max(0.3, Math.log2(parseInt(p.total) + 1) * 0.15),
-                color: '#a78bfa',
+                lat:   coords[0],
+                lng:   coords[1],
+                size:  Math.max(0.2, Math.log2(parseInt(p.total) + 1) * 0.12),
+                color: '#60a5fa',
                 label: `${p.pais}: ${p.total} usuário(s)`
             };
         })
         .filter(Boolean);
 
+    const pontos = [...pontosExatos, ...pontosPais];
+
     if (_globe) {
-        // Atualizar dados se já existe
         _globe.pointsData(pontos);
         return;
     }

@@ -911,6 +911,12 @@
                     <input type="text" id="cadastro-cidade" name="cidade" placeholder="Ex: Campinas" autocomplete="address-level2" required>
                 </div>
             </div>
+            <input type="hidden" id="cadastro-latitude" name="latitude">
+            <input type="hidden" id="cadastro-longitude" name="longitude">
+            <button type="button" id="btn-geolocalizacao" class="btn-geoloc" onclick="capturarLocalizacaoCadastro()">
+                <i class="fas fa-location-arrow"></i> Usar minha localização exata (opcional)
+            </button>
+            <small id="geoloc-status" style="display:none;font-size:0.8rem;color:var(--success-color,#2ecc71);margin-top:4px;display:block;"></small>
             <div class="form-group">
                 <label for="cadastro-password"><i class="fas fa-lock"></i> Senha</label>
                 <div class="password-input">

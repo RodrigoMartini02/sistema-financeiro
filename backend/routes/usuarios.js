@@ -782,17 +782,11 @@ router.get('/stats/geral', authMiddleware, isMaster, async (req, res) => {
 // ================================================================
 router.get('/stats/mapa', authMiddleware, isMaster, async (req, res) => {
     try {
-        const result = await query(`
-            SELECT
-                COALESCE(pais, 'Não informado') as pais,
-                COALESCE(estado, 'Não informado') as estado,
-                COALESCE(cidade, 'Não informado') as cidade,
-                COUNT(*) as total,
-                COUNT(CASE WHEN status = 'ativo' THEN 1 END) as ativos
+        const pontosExatos = await query(`
+            SELECT nome, latitude, longitude, pais, cidade
             FROM usuarios
-            WHERE tipo = 'padrao' OR tipo = 'admin'
-            GROUP BY pais, estado, cidade
-            ORDER BY total DESC
+            WHERE (tipo = 'padrao' OR tipo = 'admin')
+            AND latitude IS NOT NULL AND longitude IS NOT NULL
         `);
 
         const porPais = await query(`
@@ -808,7 +802,7 @@ router.get('/stats/mapa', authMiddleware, isMaster, async (req, res) => {
         res.json({
             success: true,
             data: {
-                detalhado: result.rows,
+                pontos_exatos: pontosExatos.rows,
                 por_pais: porPais.rows
             }
         });
@@ -1393,7 +1387,7 @@ router.get('/me', authMiddleware, async (req, res) => {
 // ================================================================
 router.put('/me', authMiddleware, async (req, res) => {
     try {
-        const { nome, email, pais, estado, cidade, senha_atual, nova_senha } = req.body;
+        const { nome, email, pais, estado, cidade, senha_atual, nova_senha, latitude, longitude } = req.body;
 
         if (!nome || nome.trim() === '') {
             return res.status(400).json({ success: false, message: 'Nome é obrigatório' });
@@ -1428,13 +1422,16 @@ router.put('/me', authMiddleware, async (req, res) => {
             }
         }
 
+        const lat = latitude != null ? parseFloat(latitude) : null;
+        const lng = longitude != null ? parseFloat(longitude) : null;
+
         const updateQuery = senhaHash
-            ? `UPDATE usuarios SET nome = $1, email = $2, pais = $3, estado = $4, cidade = $5, senha = $6, data_atualizacao = CURRENT_TIMESTAMP WHERE id = $7 RETURNING id, nome, email, pais, estado, cidade`
-            : `UPDATE usuarios SET nome = $1, email = $2, pais = $3, estado = $4, cidade = $5, data_atualizacao = CURRENT_TIMESTAMP WHERE id = $6 RETURNING id, nome, email, pais, estado, cidade`;
+            ? `UPDATE usuarios SET nome = $1, email = $2, pais = $3, estado = $4, cidade = $5, senha = $6, latitude = $7, longitude = $8, data_atualizacao = CURRENT_TIMESTAMP WHERE id = $9 RETURNING id, nome, email, pais, estado, cidade, latitude, longitude`
+            : `UPDATE usuarios SET nome = $1, email = $2, pais = $3, estado = $4, cidade = $5, latitude = $6, longitude = $7, data_atualizacao = CURRENT_TIMESTAMP WHERE id = $8 RETURNING id, nome, email, pais, estado, cidade, latitude, longitude`;
 
         const params = senhaHash
-            ? [nome.trim(), (email || current.rows[0].email).toLowerCase(), pais || null, estado || null, cidade || null, senhaHash, req.usuario.id]
-            : [nome.trim(), (email || current.rows[0].email).toLowerCase(), pais || null, estado || null, cidade || null, req.usuario.id];
+            ? [nome.trim(), (email || current.rows[0].email).toLowerCase(), pais || null, estado || null, cidade || null, senhaHash, lat, lng, req.usuario.id]
+            : [nome.trim(), (email || current.rows[0].email).toLowerCase(), pais || null, estado || null, cidade || null, lat, lng, req.usuario.id];
 
         const result = await query(updateQuery, params);
 

@@ -146,7 +146,7 @@ router.post('/register', [
     validate
 ], async (req, res) => {
     try {
-        const { nome, email, documento, senha, tipo, google_id, pais, estado, cidade } = req.body;
+        const { nome, email, documento, senha, tipo, google_id, pais, estado, cidade, latitude, longitude } = req.body;
         const docLimpo = documento.replace(/[^\d]+/g, '');
 
         // Apenas CPF (11 dígitos) permitido no cadastro público
@@ -172,10 +172,10 @@ router.post('/register', [
         const senhaHash = await bcrypt.hash(senha, 10);
 
         const result = await query(
-            `INSERT INTO usuarios (nome, email, documento, senha, tipo, status, google_id, pais, estado, cidade)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            `INSERT INTO usuarios (nome, email, documento, senha, tipo, status, google_id, pais, estado, cidade, latitude, longitude)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
              RETURNING id, nome, email, documento, tipo, status`,
-            [nome, email.toLowerCase(), docLimpo, senhaHash, tipo || 'padrao', 'ativo', google_id || null, pais || null, estado || null, cidade || null]
+            [nome, email.toLowerCase(), docLimpo, senhaHash, tipo || 'padrao', 'ativo', google_id || null, pais || null, estado || null, cidade || null, latitude || null, longitude || null]
         );
 
         const novoUsuario = result.rows[0];

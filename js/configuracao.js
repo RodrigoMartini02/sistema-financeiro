@@ -3422,12 +3422,16 @@ function setupMinhaConta() {
         formPerfil.addEventListener('submit', async (e) => {
             e.preventDefault();
             const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            const lat = document.getElementById('mc-latitude')?.value;
+            const lng = document.getElementById('mc-longitude')?.value;
             const body = {
-                nome:    document.getElementById('mc-nome')?.value?.trim(),
-                email:   document.getElementById('mc-email')?.value?.trim(),
-                pais:    document.getElementById('mc-pais')?.value?.trim(),
-                estado:  document.getElementById('mc-estado')?.value?.trim(),
-                cidade:  document.getElementById('mc-cidade')?.value?.trim()
+                nome:      document.getElementById('mc-nome')?.value?.trim(),
+                email:     document.getElementById('mc-email')?.value?.trim(),
+                pais:      document.getElementById('mc-pais')?.value?.trim(),
+                estado:    document.getElementById('mc-estado')?.value?.trim(),
+                cidade:    document.getElementById('mc-cidade')?.value?.trim(),
+                latitude:  lat ? parseFloat(lat) : undefined,
+                longitude: lng ? parseFloat(lng) : undefined
             };
             try {
                 const res = await fetch(`${API_URL_MC}/usuarios/me`, {
@@ -3479,6 +3483,29 @@ function setupMinhaConta() {
             cancelarConta(senha);
         });
     }
+}
+
+function capturarLocalizacaoMinhaConta() {
+    const btn    = document.getElementById('btn-mc-geoloc');
+    const status = document.getElementById('mc-geoloc-status');
+    if (!navigator.geolocation) {
+        if (status) { status.style.color = '#e74c3c'; status.textContent = 'Geolocalização não suportada.'; }
+        return;
+    }
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Obtendo localização...'; }
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            document.getElementById('mc-latitude').value  = pos.coords.latitude;
+            document.getElementById('mc-longitude').value = pos.coords.longitude;
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i> Localização capturada'; btn.style.color = '#2ecc71'; }
+            if (status) { status.style.color = '#2ecc71'; status.textContent = `Lat: ${pos.coords.latitude.toFixed(4)}, Lng: ${pos.coords.longitude.toFixed(4)} — salve o formulário para confirmar`; }
+        },
+        () => {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-location-arrow"></i> Atualizar minha localização'; }
+            if (status) { status.style.color = '#e74c3c'; status.textContent = 'Permissão negada.'; }
+        },
+        { timeout: 10000 }
+    );
 }
 
 async function cancelarConta(senha) {

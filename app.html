@@ -1076,6 +1076,14 @@
                             <input type="text" id="mc-cidade" class="form-input" placeholder="Ex: Campinas">
                         </div>
                     </div>
+                    <input type="hidden" id="mc-latitude">
+                    <input type="hidden" id="mc-longitude">
+                    <div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                        <button type="button" id="btn-mc-geoloc" class="btn-geoloc" onclick="capturarLocalizacaoMinhaConta()">
+                            <i class="fas fa-location-arrow"></i> Atualizar minha localização
+                        </button>
+                        <small id="mc-geoloc-status" style="font-size:0.8rem;color:var(--text-secondary);"></small>
+                    </div>
                     <button type="submit" class="btn btn-primary" style="margin-top:12px;">
                         <i class="fas fa-save"></i> Salvar Alterações
                     </button>
