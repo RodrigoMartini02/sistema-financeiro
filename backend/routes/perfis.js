@@ -9,7 +9,7 @@ const { authMiddleware } = require('../middleware/auth');
 router.get('/', authMiddleware, async (req, res) => {
     try {
         const result = await query(
-            `SELECT id, usuario_id, tipo, nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, ativo, data_criacao
+            `SELECT id, usuario_id, tipo, nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, latitude, longitude, ativo, data_criacao
              FROM perfis
              WHERE usuario_id = $1 AND ativo = true
              ORDER BY tipo ASC, id ASC`,
@@ -87,7 +87,7 @@ router.post('/', authMiddleware, async (req, res) => {
 router.put('/:id', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
-        const { nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial } = req.body;
+        const { nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, latitude, longitude } = req.body;
 
         if (!nome || nome.trim() === '') {
             return res.status(400).json({
@@ -124,11 +124,14 @@ router.put('/:id', authMiddleware, async (req, res) => {
             });
         }
 
+        const lat = latitude != null ? parseFloat(latitude) : null;
+        const lng = longitude != null ? parseFloat(longitude) : null;
+
         const result = await query(
-            `UPDATE perfis SET nome = $1, documento = $2, razao_social = $3, nome_fantasia = $4, atividade = $5, aporte_inicial = $6
-             WHERE id = $7 AND usuario_id = $8
+            `UPDATE perfis SET nome = $1, documento = $2, razao_social = $3, nome_fantasia = $4, atividade = $5, aporte_inicial = $6, latitude = $7, longitude = $8
+             WHERE id = $9 AND usuario_id = $10
              RETURNING *`,
-            [nome.trim(), cnpjLimpo, razao_social || null, nome_fantasia || null, atividade || null, aporte_inicial || null, id, req.usuario.id]
+            [nome.trim(), cnpjLimpo, razao_social || null, nome_fantasia || null, atividade || null, aporte_inicial || null, lat, lng, id, req.usuario.id]
         );
 
         res.json({
@@ -188,6 +191,36 @@ router.delete('/:id', authMiddleware, async (req, res) => {
             success: false,
             message: 'Erro ao arquivar empresa'
         });
+    }
+});
+
+// ================================================================
+// PATCH /:id/localizacao — atualizar apenas lat/lng de um perfil
+// ================================================================
+router.patch('/:id/localizacao', authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { latitude, longitude } = req.body;
+
+        if (latitude == null || longitude == null) {
+            return res.status(400).json({ success: false, message: 'Latitude e longitude são obrigatórios' });
+        }
+
+        const result = await query(
+            `UPDATE perfis SET latitude = $1, longitude = $2
+             WHERE id = $3 AND usuario_id = $4
+             RETURNING id, latitude, longitude`,
+            [parseFloat(latitude), parseFloat(longitude), id, req.usuario.id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Perfil não encontrado' });
+        }
+
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Erro ao atualizar localização do perfil:', error);
+        res.status(500).json({ success: false, message: 'Erro ao atualizar localização' });
     }
 });
 

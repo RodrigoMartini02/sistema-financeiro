@@ -347,7 +347,7 @@ router.get('/:id', authMiddleware, isAdminOrMaster, async (req, res) => {
 router.put('/:id', authMiddleware, isAdminOrMaster, async (req, res) => {
     try {
         const userId = parseInt(req.params.id);
-        const { nome, email, senha, tipo, status, pais, estado, cidade } = req.body;
+        const { nome, email, senha, tipo, status, pais, estado, cidade, latitude, longitude } = req.body;
         
         if (isNaN(userId)) {
             return res.status(400).json({
@@ -466,6 +466,18 @@ router.put('/:id', authMiddleware, isAdminOrMaster, async (req, res) => {
             paramCount++;
             updates.push(`cidade = $${paramCount}`);
             params.push(cidade || null);
+        }
+
+        if (latitude !== undefined) {
+            paramCount++;
+            updates.push(`latitude = $${paramCount}`);
+            params.push(latitude != null ? parseFloat(latitude) : null);
+        }
+
+        if (longitude !== undefined) {
+            paramCount++;
+            updates.push(`longitude = $${paramCount}`);
+            params.push(longitude != null ? parseFloat(longitude) : null);
         }
 
         if (updates.length === 0) {

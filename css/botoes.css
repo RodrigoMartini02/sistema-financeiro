@@ -211,6 +211,20 @@
     border-color: #b91c1c;
 }
 
+/* Botão de localização — usuários e empresas */
+.btn-localizar-usuario,
+.btn-localizar-empresa {
+    background-color: #0ea5e9;
+    color: #ffffff;
+    border-color: #0ea5e9;
+}
+
+.btn-localizar-usuario:hover:not(:disabled),
+.btn-localizar-empresa:hover:not(:disabled) {
+    background-color: #0284c7;
+    border-color: #0369a1;
+}
+
 /* Botão toggle categoria — desativar (categoria ativa, data-ativo="1") */
 .btn-toggle-categoria[data-ativo="1"] {
     background-color: #6b7280;

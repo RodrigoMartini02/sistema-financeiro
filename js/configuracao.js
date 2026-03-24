@@ -1348,6 +1348,8 @@ function criarLinhaUsuario(usuario, index) {
     linha.querySelector('.usuario-pais').textContent = usuario.pais || '-';
     linha.querySelector('.usuario-estado').textContent = usuario.estado || '-';
     linha.querySelector('.usuario-cidade').textContent = usuario.cidade || '-';
+    linha.querySelector('.usuario-lat').textContent = usuario.latitude != null ? parseFloat(usuario.latitude).toFixed(4) : '-';
+    linha.querySelector('.usuario-lng').textContent = usuario.longitude != null ? parseFloat(usuario.longitude).toFixed(4) : '-';
 
     const tipoBadge = linha.querySelector('.tipo-badge');
     tipoBadge.textContent = tipo === 'padrao' ? 'Padrão' : tipo === 'admin' ? 'Admin' : 'Master';
@@ -1360,11 +1362,16 @@ function criarLinhaUsuario(usuario, index) {
     const btnEditar = linha.querySelector('.btn-editar-usuario');
     const btnBloquear = linha.querySelector('.btn-bloquear-usuario');
     const btnExcluir = linha.querySelector('.btn-excluir-usuario');
+    const btnLocalizar = linha.querySelector('.btn-localizar-usuario');
     const textoSemPermissao = linha.querySelector('.texto-sem-permissao');
 
     btnEditar.setAttribute('data-index', index);
     btnBloquear.setAttribute('data-index', index);
     btnExcluir.setAttribute('data-index', index);
+
+    btnLocalizar.addEventListener('click', function() {
+        capturarLocalizacaoUsuario(usuario.id, btnLocalizar, linha.querySelector('tr') || btnLocalizar.closest('tr'));
+    });
 
     if (status === 'bloqueado') {
         btnBloquear.title = 'Desbloquear usuário';
@@ -1382,8 +1389,10 @@ function criarLinhaUsuario(usuario, index) {
 
     if (podeEditar) {
         btnEditar.classList.remove('hidden');
+        btnLocalizar.classList.remove('hidden');
     } else {
         btnEditar.classList.add('hidden');
+        btnLocalizar.classList.add('hidden');
     }
 
     if (podeBloquear) {
@@ -3232,14 +3241,20 @@ function renderizarEmpresas(empresas) {
         linha.querySelector('.empresa-aporte-inicial').textContent = e.aporte_inicial
             ? `R$ ${parseFloat(e.aporte_inicial).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
             : '-';
+        linha.querySelector('.empresa-lat').textContent = e.latitude != null ? parseFloat(e.latitude).toFixed(4) : '-';
+        linha.querySelector('.empresa-lng').textContent = e.longitude != null ? parseFloat(e.longitude).toFixed(4) : '-';
 
         const btnEditar = linha.querySelector('.btn-editar-empresa');
         const btnExcluir = linha.querySelector('.btn-excluir-empresa');
+        const btnLocalizar = linha.querySelector('.btn-localizar-empresa');
         btnEditar.setAttribute('data-index', index);
         btnExcluir.setAttribute('data-index', index);
 
         btnEditar.addEventListener('click', () => abrirModalEditarEmpresa(e));
         btnExcluir.addEventListener('click', () => excluirEmpresa(e.id, e.razao_social || e.nome));
+        btnLocalizar.addEventListener('click', function() {
+            capturarLocalizacaoEmpresa(e.id, btnLocalizar, btnLocalizar.closest('tr'));
+        });
 
         lista.appendChild(linha);
     });
@@ -3356,6 +3371,103 @@ window.abrirModalNovaEmpresa = abrirModalNovaEmpresa;
 window.abrirModalEditarEmpresa = abrirModalEditarEmpresa;
 window.salvarEmpresa = salvarEmpresa;
 window.excluirEmpresa = excluirEmpresa;
+
+// ================================================================
+// CAPTURA DE LOCALIZAÇÃO — USUÁRIO (admin)
+// ================================================================
+function capturarLocalizacaoUsuario(id, btn, trEl) {
+    if (!navigator.geolocation) {
+        mostrarToast('Geolocalização não suportada neste dispositivo', 'error');
+        return;
+    }
+    const iconeOriginal = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+    navigator.geolocation.getCurrentPosition(async function(pos) {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+        try {
+            const res = await fetch(`${API_URL}/usuarios/${id}`, {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ latitude: lat, longitude: lng })
+            });
+            const data = await res.json();
+            if (data.success) {
+                if (trEl) {
+                    const tdLat = trEl.querySelector('.usuario-lat');
+                    const tdLng = trEl.querySelector('.usuario-lng');
+                    if (tdLat) tdLat.textContent = lat.toFixed(4);
+                    if (tdLng) tdLng.textContent = lng.toFixed(4);
+                }
+                mostrarToast('Localização atualizada!', 'success');
+            } else {
+                mostrarToast(data.message || 'Erro ao salvar localização', 'error');
+            }
+        } catch (e) {
+            mostrarToast('Erro ao salvar localização', 'error');
+        }
+        btn.disabled = false;
+        btn.innerHTML = iconeOriginal;
+    }, function() {
+        mostrarToast('Não foi possível obter localização', 'error');
+        btn.disabled = false;
+        btn.innerHTML = iconeOriginal;
+    });
+}
+
+// ================================================================
+// CAPTURA DE LOCALIZAÇÃO — EMPRESA (perfil)
+// ================================================================
+function capturarLocalizacaoEmpresa(id, btn, trEl) {
+    if (!navigator.geolocation) {
+        mostrarToast('Geolocalização não suportada neste dispositivo', 'error');
+        return;
+    }
+    const iconeOriginal = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+    navigator.geolocation.getCurrentPosition(async function(pos) {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+        try {
+            const res = await fetch(`${API_URL}/perfis/${id}/localizacao`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ latitude: lat, longitude: lng })
+            });
+            const data = await res.json();
+            if (data.success) {
+                if (trEl) {
+                    const tdLat = trEl.querySelector('.empresa-lat');
+                    const tdLng = trEl.querySelector('.empresa-lng');
+                    if (tdLat) tdLat.textContent = lat.toFixed(4);
+                    if (tdLng) tdLng.textContent = lng.toFixed(4);
+                }
+                mostrarToast('Localização da empresa atualizada!', 'success');
+            } else {
+                mostrarToast(data.message || 'Erro ao salvar localização', 'error');
+            }
+        } catch (e) {
+            mostrarToast('Erro ao salvar localização', 'error');
+        }
+        btn.disabled = false;
+        btn.innerHTML = iconeOriginal;
+    }, function() {
+        mostrarToast('Não foi possível obter localização', 'error');
+        btn.disabled = false;
+        btn.innerHTML = iconeOriginal;
+    });
+}
+
+window.capturarLocalizacaoUsuario = capturarLocalizacaoUsuario;
+window.capturarLocalizacaoEmpresa = capturarLocalizacaoEmpresa;
 
 
 
