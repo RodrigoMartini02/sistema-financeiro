@@ -282,6 +282,8 @@
 [data-tema="divida"].active     { background: linear-gradient(135deg, #dc2626, #f43f5e); box-shadow: 0 2px 14px rgba(244,63,94,0.45); }
 [data-tema="anual"].active      { background: linear-gradient(135deg, #0891b2, #06b6d4); box-shadow: 0 2px 14px rgba(6,182,212,0.45); }
 [data-tema="analise"].active    { background: linear-gradient(135deg, #7c3aed, #a855f7); box-shadow: 0 2px 14px rgba(168,85,247,0.45); }
+[data-tema="metas"].active      { background: linear-gradient(135deg, #f59e0b, #ef4444); box-shadow: 0 2px 14px rgba(245,158,11,0.45); }
+[data-tema="empresa"].active    { background: linear-gradient(135deg, #0f766e, #0891b2); box-shadow: 0 2px 14px rgba(8,145,178,0.45); }
 
 /* ---- Views Temáticas ------------------------------------------- */
 .tema-view {

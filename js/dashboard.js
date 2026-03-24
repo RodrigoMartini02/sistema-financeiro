@@ -2656,10 +2656,8 @@ async function renderizarTemaEmpresa() {
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
-    // Obter perfil ativo (empresa)
-    const perfilIdEmpresa = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
-
-    // Obter perfil pessoal (para comparativo) — buscar da API
+    // Obter perfis (empresa e pessoal) da API
+    let perfilIdEmpresa = null;
     let perfilIdPessoal = null;
     let aporteInicial = 0;
 
@@ -2670,9 +2668,12 @@ async function renderizarTemaEmpresa() {
         const dataPerfis = await resPerfis.json();
         if (dataPerfis.success) {
             const pessoal = dataPerfis.data.find(p => p.tipo === 'pessoal');
-            const empresa = dataPerfis.data.find(p => p.id === perfilIdEmpresa);
+            const empresa = dataPerfis.data.find(p => p.tipo === 'empresa');
             if (pessoal) perfilIdPessoal = pessoal.id;
-            if (empresa && empresa.aporte_inicial) aporteInicial = parseFloat(empresa.aporte_inicial);
+            if (empresa) {
+                perfilIdEmpresa = empresa.id;
+                if (empresa.aporte_inicial) aporteInicial = parseFloat(empresa.aporte_inicial);
+            }
         }
     } catch (e) {
         console.error('Erro ao buscar perfis:', e);
@@ -2684,37 +2685,8 @@ async function renderizarTemaEmpresa() {
     const receitasPessoal = new Array(12).fill(0);
     const despesasPessoal = new Array(12).fill(0);
 
-    // Usar dados já carregados em window.dadosFinanceiros se disponíveis
-    const dadosAno = window.dadosFinanceiros && window.dadosFinanceiros[anoAtual];
-
-    if (dadosAno && dadosAno.meses) {
-        for (let m = 0; m < 12; m++) {
-            const mesDados = dadosAno.meses[m];
-            if (!mesDados) continue;
-
-            if (mesDados.receitas) {
-                mesDados.receitas.forEach(r => {
-                    if (!perfilIdEmpresa || r.perfil_id === perfilIdEmpresa) {
-                        receitasEmpresa[m] += parseFloat(r.valor || 0);
-                    }
-                    if (!perfilIdPessoal || r.perfil_id === perfilIdPessoal || r.perfil_id === null) {
-                        receitasPessoal[m] += parseFloat(r.valor || 0);
-                    }
-                });
-            }
-            if (mesDados.despesas) {
-                mesDados.despesas.forEach(d => {
-                    if (!perfilIdEmpresa || d.perfil_id === perfilIdEmpresa) {
-                        despesasEmpresa[m] += parseFloat(d.valor || 0);
-                    }
-                    if (!perfilIdPessoal || d.perfil_id === perfilIdPessoal || d.perfil_id === null) {
-                        despesasPessoal[m] += parseFloat(d.valor || 0);
-                    }
-                });
-            }
-        }
-    } else {
-        // Buscar da API — uma requisição por endpoint (ano todo de uma vez)
+    // Sempre buscar da API para garantir dados de ambos os perfis (empresa e pessoal)
+    if (perfilIdEmpresa) {
         try {
             const [resReceitas, resDespesas] = await Promise.all([
                 fetch(`${API_URL}/receitas?ano=${anoAtual}&perfil_id=${perfilIdEmpresa}`, {
@@ -2732,26 +2704,26 @@ async function renderizarTemaEmpresa() {
                 dDespesas.data.forEach(d => { despesasEmpresa[parseInt(d.mes)] += parseFloat(d.valor || 0); });
             }
         } catch (e) { console.error('Erro ao buscar dados empresa:', e); }
+    }
 
-        if (perfilIdPessoal) {
-            try {
-                const [resReceitasP, resDespesasP] = await Promise.all([
-                    fetch(`${API_URL}/receitas?ano=${anoAtual}&perfil_id=${perfilIdPessoal}`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    }),
-                    fetch(`${API_URL}/despesas?ano=${anoAtual}&perfil_id=${perfilIdPessoal}`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    })
-                ]);
-                const [dReceitasP, dDespesasP] = await Promise.all([resReceitasP.json(), resDespesasP.json()]);
-                if (dReceitasP.success) {
-                    dReceitasP.data.forEach(r => { receitasPessoal[parseInt(r.mes)] += parseFloat(r.valor || 0); });
-                }
-                if (dDespesasP.success) {
-                    dDespesasP.data.forEach(d => { despesasPessoal[parseInt(d.mes)] += parseFloat(d.valor || 0); });
-                }
-            } catch (e) { console.error('Erro ao buscar dados pessoal:', e); }
-        }
+    if (perfilIdPessoal) {
+        try {
+            const [resReceitasP, resDespesasP] = await Promise.all([
+                fetch(`${API_URL}/receitas?ano=${anoAtual}&perfil_id=${perfilIdPessoal}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }),
+                fetch(`${API_URL}/despesas?ano=${anoAtual}&perfil_id=${perfilIdPessoal}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+            ]);
+            const [dReceitasP, dDespesasP] = await Promise.all([resReceitasP.json(), resDespesasP.json()]);
+            if (dReceitasP.success) {
+                dReceitasP.data.forEach(r => { receitasPessoal[parseInt(r.mes)] += parseFloat(r.valor || 0); });
+            }
+            if (dDespesasP.success) {
+                dDespesasP.data.forEach(d => { despesasPessoal[parseInt(d.mes)] += parseFloat(d.valor || 0); });
+            }
+        } catch (e) { console.error('Erro ao buscar dados pessoal:', e); }
     }
 
     // Calcular KPIs
