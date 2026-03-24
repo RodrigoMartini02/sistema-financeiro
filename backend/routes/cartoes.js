@@ -269,15 +269,16 @@ router.post('/', authMiddleware, async (req, res) => {
             });
         }
         
+        const perfilIdInt = perfil_id ? parseInt(perfil_id) : null;
         const contarCartoes = await query(
-            'SELECT COUNT(*) as total FROM cartoes WHERE usuario_id = $1',
-            [req.usuario.id]
+            'SELECT COUNT(*) as total FROM cartoes WHERE usuario_id = $1 AND perfil_id IS NOT DISTINCT FROM $2',
+            [req.usuario.id, perfilIdInt]
         );
-        
+
         if (parseInt(contarCartoes.rows[0].total) >= 3) {
             return res.status(400).json({
                 success: false,
-                message: 'Máximo de 3 cartões permitidos por usuário'
+                message: 'Máximo de 3 cartões permitidos por perfil'
             });
         }
         
@@ -314,7 +315,7 @@ router.post('/', authMiddleware, async (req, res) => {
             true,
             proximoNumero,
             validade || null,
-            perfil_id ? parseInt(perfil_id) : null
+            perfilIdInt
         ];
         
         const result = await query(queryText, values);

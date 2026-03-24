@@ -518,7 +518,7 @@ function migrarCartoesSeNecessario(cartoes) {
  * Cria um novo cartão via API POST
  */
 async function criarCartaoAPI(cartao) {
-    const token = sessionStorage.getItem('token');
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
     if (!token) return null;
 
     try {
@@ -560,7 +560,7 @@ async function criarCartaoAPI(cartao) {
  * Atualiza um cartão existente via API PUT
  */
 async function atualizarCartaoAPI(id, cartao) {
-    const token = sessionStorage.getItem('token');
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
     if (!token) return false;
 
     try {
