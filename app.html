@@ -1045,74 +1045,56 @@
         <!-- ============================================== -->
         <div id="minha-conta-tab" class="config-tab-pane">
 
-            <!-- Dados Pessoais -->
+            <!-- Meus Dados — tabela igual a de usuários -->
             <div class="config-card">
-                <h3><i class="fas fa-user-edit"></i> Dados Pessoais</h3>
-                <hr class="config-sep">
-                <form id="form-minha-conta">
-                    <div class="mc-form-grid">
-                        <div class="form-group">
-                            <label>Nome</label>
-                            <input type="text" id="mc-nome" class="form-input" required>
-                        </div>
-                        <div class="form-group">
-                            <label>E-mail</label>
-                            <input type="email" id="mc-email" class="form-input" required>
-                        </div>
-                        <div class="form-group">
-                            <label>CPF</label>
-                            <input type="text" id="mc-documento" class="form-input" readonly style="opacity:0.6;cursor:not-allowed;">
-                        </div>
-                        <div class="form-group">
-                            <label>País</label>
-                            <input type="text" id="mc-pais" class="form-input" placeholder="Ex: Brasil">
-                        </div>
-                        <div class="form-group">
-                            <label>Estado</label>
-                            <input type="text" id="mc-estado" class="form-input" placeholder="Ex: São Paulo">
-                        </div>
-                        <div class="form-group">
-                            <label>Cidade</label>
-                            <input type="text" id="mc-cidade" class="form-input" placeholder="Ex: Campinas">
-                        </div>
-                    </div>
-                    <input type="hidden" id="mc-latitude">
-                    <input type="hidden" id="mc-longitude">
-                    <div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-                        <button type="button" id="btn-mc-geoloc" class="btn-geoloc" onclick="capturarLocalizacaoMinhaConta()">
-                            <i class="fas fa-location-arrow"></i> Atualizar minha localização
-                        </button>
-                        <small id="mc-geoloc-status" style="font-size:0.8rem;color:var(--text-secondary);"></small>
-                    </div>
-                    <button type="submit" class="btn btn-primary" style="margin-top:12px;">
-                        <i class="fas fa-save"></i> Salvar Alterações
+                <div class="config-card-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                    <h3 style="margin:0;"><i class="fas fa-user"></i> Meus Dados</h3>
+                    <button class="btn btn-primary btn-sm" onclick="abrirModalEditarMinhaConta()">
+                        <i class="fas fa-edit"></i> Editar Dados
                     </button>
-                </form>
-            </div>
-
-            <!-- Alterar Senha -->
-            <div class="config-card">
-                <h3><i class="fas fa-lock"></i> Alterar Senha</h3>
-                <hr class="config-sep">
-                <form id="form-alterar-senha">
-                    <div class="mc-form-grid">
-                        <div class="form-group">
-                            <label>Senha Atual</label>
-                            <input type="password" id="mc-senha-atual" class="form-input" placeholder="Digite sua senha atual">
-                        </div>
-                        <div class="form-group">
-                            <label>Nova Senha</label>
-                            <input type="password" id="mc-nova-senha" class="form-input" placeholder="Mínimo 8 caracteres">
-                        </div>
-                        <div class="form-group">
-                            <label>Confirmar Nova Senha</label>
-                            <input type="password" id="mc-confirmar-senha" class="form-input" placeholder="Repita a nova senha">
-                        </div>
-                    </div>
-                    <button type="submit" class="btn btn-primary" style="margin-top:12px;">
-                        <i class="fas fa-key"></i> Alterar Senha
-                    </button>
-                </form>
+                </div>
+                <div class="table-responsive">
+                    <table class="tabela-usuarios">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>E-mail</th>
+                                <th>CPF</th>
+                                <th>País</th>
+                                <th>Estado</th>
+                                <th>Cidade</th>
+                                <th>Lat</th>
+                                <th>Long</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-minha-conta-body">
+                            <tr id="minha-conta-row">
+                                <td id="mc-td-nome">-</td>
+                                <td id="mc-td-email">-</td>
+                                <td id="mc-td-documento">-</td>
+                                <td id="mc-td-pais">-</td>
+                                <td id="mc-td-estado">-</td>
+                                <td id="mc-td-cidade">-</td>
+                                <td id="mc-td-lat">-</td>
+                                <td id="mc-td-lng">-</td>
+                                <td>
+                                    <div class="acoes-grupo">
+                                        <button class="btn btn-sm btn-editar-usuario" onclick="abrirModalEditarMinhaConta()" title="Editar dados">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-localizar-usuario" id="btn-mc-geoloc-tabela" title="Capturar localização atual">
+                                            <i class="fas fa-map-marker-alt"></i>
+                                        </button>
+                                        <button class="btn btn-sm" style="background:#6366f1;color:#fff;border-color:#6366f1;" onclick="abrirModalAlterarSenha()" title="Alterar senha">
+                                            <i class="fas fa-key"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- Minhas Empresas -->
@@ -4083,6 +4065,82 @@
         <div class="modal-footer">
             <button type="button" class="btn btn-secondary" id="btn-cancelar-empresa">Cancelar</button>
             <button type="button" class="btn btn-primary" id="btn-salvar-empresa">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Editar Minha Conta -->
+<div id="modal-editar-minha-conta" class="modal" style="display:none;">
+    <div class="modal-content modal-md">
+        <div class="modal-header">
+            <h2><i class="fas fa-user-edit"></i> Editar Dados Pessoais</h2>
+            <button type="button" class="close" onclick="document.getElementById('modal-editar-minha-conta').style.display='none'">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="form-minha-conta">
+                <div class="mc-form-grid">
+                    <div class="form-group">
+                        <label>Nome <span class="required">*</span></label>
+                        <input type="text" id="mc-nome" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label>E-mail <span class="required">*</span></label>
+                        <input type="email" id="mc-email" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label>CPF</label>
+                        <input type="text" id="mc-documento" class="form-input" readonly style="opacity:0.6;cursor:not-allowed;">
+                    </div>
+                    <div class="form-group">
+                        <label>País</label>
+                        <input type="text" id="mc-pais" class="form-input" placeholder="Ex: Brasil">
+                    </div>
+                    <div class="form-group">
+                        <label>Estado</label>
+                        <input type="text" id="mc-estado" class="form-input" placeholder="Ex: São Paulo">
+                    </div>
+                    <div class="form-group">
+                        <label>Cidade</label>
+                        <input type="text" id="mc-cidade" class="form-input" placeholder="Ex: Campinas">
+                    </div>
+                </div>
+                <input type="hidden" id="mc-latitude">
+                <input type="hidden" id="mc-longitude">
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-editar-minha-conta').style.display='none'">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="btn-salvar-minha-conta"><i class="fas fa-save"></i> Salvar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Alterar Senha -->
+<div id="modal-alterar-senha" class="modal" style="display:none;">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h2><i class="fas fa-lock"></i> Alterar Senha</h2>
+            <button type="button" class="close" onclick="document.getElementById('modal-alterar-senha').style.display='none'">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="form-alterar-senha">
+                <div class="form-group">
+                    <label>Senha Atual</label>
+                    <input type="password" id="mc-senha-atual" class="form-input" placeholder="Digite sua senha atual">
+                </div>
+                <div class="form-group">
+                    <label>Nova Senha</label>
+                    <input type="password" id="mc-nova-senha" class="form-input" placeholder="Mínimo 8 caracteres">
+                </div>
+                <div class="form-group">
+                    <label>Confirmar Nova Senha</label>
+                    <input type="password" id="mc-confirmar-senha" class="form-input" placeholder="Repita a nova senha">
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-alterar-senha').style.display='none'">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="btn-confirmar-alterar-senha"><i class="fas fa-key"></i> Alterar Senha</button>
         </div>
     </div>
 </div>

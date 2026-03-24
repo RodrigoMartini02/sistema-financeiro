@@ -3507,6 +3507,8 @@ window.validarValidade = validarValidade;
 // ================================================================
 const API_URL_MC = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
+let _minhaConta = null;
+
 async function carregarMinhaConta() {
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     try {
@@ -3515,24 +3517,63 @@ async function carregarMinhaConta() {
         });
         const data = await res.json();
         if (!data.success) return;
-        const u = data.data;
-        const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
-        set('mc-nome', u.nome);
-        set('mc-email', u.email);
-        set('mc-documento', u.documento);
-        set('mc-pais', u.pais);
-        set('mc-estado', u.estado);
-        set('mc-cidade', u.cidade);
+        _minhaConta = data.data;
+        _renderizarMinhaConta(_minhaConta);
     } catch (e) {
         console.error('Erro ao carregar minha conta:', e);
     }
 }
 
+function _renderizarMinhaConta(u) {
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v || '-'; };
+    set('mc-td-nome', u.nome);
+    set('mc-td-email', u.email);
+    set('mc-td-documento', u.documento);
+    set('mc-td-pais', u.pais);
+    set('mc-td-estado', u.estado);
+    set('mc-td-cidade', u.cidade);
+    set('mc-td-lat', u.latitude  != null ? parseFloat(u.latitude).toFixed(4)  : '-');
+    set('mc-td-lng', u.longitude != null ? parseFloat(u.longitude).toFixed(4) : '-');
+
+    // Botão de localização na linha
+    const btnLoc = document.getElementById('btn-mc-geoloc-tabela');
+    if (btnLoc) {
+        btnLoc.onclick = null;
+        btnLoc.addEventListener('click', function() {
+            capturarLocalizacaoMinhaConta(btnLoc);
+        });
+    }
+}
+
+function abrirModalEditarMinhaConta() {
+    if (!_minhaConta) return;
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+    set('mc-nome', _minhaConta.nome);
+    set('mc-email', _minhaConta.email);
+    set('mc-documento', _minhaConta.documento);
+    set('mc-pais', _minhaConta.pais);
+    set('mc-estado', _minhaConta.estado);
+    set('mc-cidade', _minhaConta.cidade);
+    const lat = document.getElementById('mc-latitude');
+    const lng = document.getElementById('mc-longitude');
+    if (lat) lat.value = _minhaConta.latitude || '';
+    if (lng) lng.value = _minhaConta.longitude || '';
+    document.getElementById('modal-editar-minha-conta').style.display = 'flex';
+}
+
+function abrirModalAlterarSenha() {
+    document.getElementById('form-alterar-senha')?.reset();
+    document.getElementById('modal-alterar-senha').style.display = 'flex';
+}
+
+window.abrirModalEditarMinhaConta = abrirModalEditarMinhaConta;
+window.abrirModalAlterarSenha = abrirModalAlterarSenha;
+
 function setupMinhaConta() {
-    const formPerfil = document.getElementById('form-minha-conta');
-    if (formPerfil) {
-        formPerfil.addEventListener('submit', async (e) => {
-            e.preventDefault();
+    // Botão salvar dados pessoais (modal)
+    const btnSalvar = document.getElementById('btn-salvar-minha-conta');
+    if (btnSalvar) {
+        btnSalvar.addEventListener('click', async () => {
             const token = localStorage.getItem('token') || sessionStorage.getItem('token');
             const lat = document.getElementById('mc-latitude')?.value;
             const lng = document.getElementById('mc-longitude')?.value;
@@ -3553,20 +3594,24 @@ function setupMinhaConta() {
                 });
                 const data = await res.json();
                 mostrarFeedback(data.message || (data.success ? 'Perfil atualizado!' : 'Erro ao salvar'), data.success ? 'success' : 'error');
+                if (data.success) {
+                    document.getElementById('modal-editar-minha-conta').style.display = 'none';
+                    carregarMinhaConta();
+                }
             } catch (e) {
                 mostrarFeedback('Erro de conexão', 'error');
             }
         });
     }
 
-    const formSenha = document.getElementById('form-alterar-senha');
-    if (formSenha) {
-        formSenha.addEventListener('submit', async (e) => {
-            e.preventDefault();
+    // Botão confirmar alterar senha (modal)
+    const btnConfirmarSenha = document.getElementById('btn-confirmar-alterar-senha');
+    if (btnConfirmarSenha) {
+        btnConfirmarSenha.addEventListener('click', async () => {
             const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-            const senhaAtual  = document.getElementById('mc-senha-atual')?.value?.trim();
-            const novaSenha   = document.getElementById('mc-nova-senha')?.value?.trim();
-            const confirmar   = document.getElementById('mc-confirmar-senha')?.value?.trim();
+            const senhaAtual = document.getElementById('mc-senha-atual')?.value?.trim();
+            const novaSenha  = document.getElementById('mc-nova-senha')?.value?.trim();
+            const confirmar  = document.getElementById('mc-confirmar-senha')?.value?.trim();
             if (novaSenha !== confirmar) {
                 mostrarFeedback('As senhas não coincidem', 'error');
                 return;
@@ -3575,11 +3620,14 @@ function setupMinhaConta() {
                 const res = await fetch(`${API_URL_MC}/usuarios/me`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ nome: document.getElementById('mc-nome')?.value?.trim(), senha_atual: senhaAtual, nova_senha: novaSenha })
+                    body: JSON.stringify({ nome: _minhaConta?.nome, senha_atual: senhaAtual, nova_senha: novaSenha })
                 });
                 const data = await res.json();
                 mostrarFeedback(data.message || (data.success ? 'Senha alterada!' : 'Erro'), data.success ? 'success' : 'error');
-                if (data.success) formSenha.reset();
+                if (data.success) {
+                    document.getElementById('modal-alterar-senha').style.display = 'none';
+                    document.getElementById('form-alterar-senha')?.reset();
+                }
             } catch (e) {
                 mostrarFeedback('Erro de conexão', 'error');
             }
@@ -3597,24 +3645,41 @@ function setupMinhaConta() {
     }
 }
 
-function capturarLocalizacaoMinhaConta() {
-    const btn    = document.getElementById('btn-mc-geoloc');
-    const status = document.getElementById('mc-geoloc-status');
+function capturarLocalizacaoMinhaConta(btnEl) {
     if (!navigator.geolocation) {
-        if (status) { status.style.color = '#e74c3c'; status.textContent = 'Geolocalização não suportada.'; }
+        mostrarToast('Geolocalização não suportada', 'error');
         return;
     }
-    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Obtendo localização...'; }
+    const btn = btnEl || document.getElementById('btn-mc-geoloc-tabela');
+    const iconeOriginal = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+
     navigator.geolocation.getCurrentPosition(
-        (pos) => {
-            document.getElementById('mc-latitude').value  = pos.coords.latitude;
-            document.getElementById('mc-longitude').value = pos.coords.longitude;
-            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i> Localização capturada'; btn.style.color = '#2ecc71'; }
-            if (status) { status.style.color = '#2ecc71'; status.textContent = `Lat: ${pos.coords.latitude.toFixed(4)}, Lng: ${pos.coords.longitude.toFixed(4)} — salve o formulário para confirmar`; }
+        async (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            try {
+                const res = await fetch(`${API_URL_MC}/usuarios/me`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ nome: _minhaConta?.nome, latitude: lat, longitude: lng })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (_minhaConta) { _minhaConta.latitude = lat; _minhaConta.longitude = lng; }
+                    const tdLat = document.getElementById('mc-td-lat');
+                    const tdLng = document.getElementById('mc-td-lng');
+                    if (tdLat) tdLat.textContent = lat.toFixed(4);
+                    if (tdLng) tdLng.textContent = lng.toFixed(4);
+                    mostrarToast('Localização atualizada!', 'success');
+                }
+            } catch (e) { mostrarToast('Erro ao salvar localização', 'error'); }
+            if (btn) { btn.disabled = false; btn.innerHTML = iconeOriginal; }
         },
         () => {
-            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-location-arrow"></i> Atualizar minha localização'; }
-            if (status) { status.style.color = '#e74c3c'; status.textContent = 'Permissão negada.'; }
+            mostrarToast('Permissão de localização negada', 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = iconeOriginal; }
         },
         { timeout: 10000 }
     );

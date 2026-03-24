@@ -1763,13 +1763,6 @@
 /* PAINEL DO FORNECEDOR — layout full-screen sem scroll             */
 /* ================================================================ */
 
-.fornecedor-section {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow: hidden;
-}
-
 .fornecedor-dashboard {
     display: flex;
     flex-direction: column;
