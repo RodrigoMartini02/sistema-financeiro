@@ -2031,15 +2031,26 @@
         </div>
         <div class="modal-body">
             <form id="form-alterar-senha">
-                <div class="mc-form-grid">
-                    <input type="password" id="senha-atual-modal" class="form-control" placeholder="Senha Atual" required>
-                    <input type="password" id="senha-nova-modal" class="form-control" placeholder="Nova Senha (mín. 6 caracteres)" required minlength="6">
-                    <input type="password" id="senha-confirmar-modal" class="form-control" placeholder="Confirmar Nova Senha" required minlength="6">
+                <div class="form-group">
+                    <label for="senha-atual-modal">Senha Atual</label>
+                    <input type="password" id="senha-atual-modal" class="form-control" placeholder="Digite sua senha atual" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="senha-nova-modal">Nova Senha</label>
+                    <input type="password" id="senha-nova-modal" class="form-control" placeholder="Digite a nova senha" required minlength="6">
+                </div>
+
+                <div class="form-group">
+                    <label for="senha-confirmar-modal">Confirmar Nova Senha</label>
+                    <input type="password" id="senha-confirmar-modal" class="form-control" placeholder="Digite novamente a nova senha" required minlength="6">
                 </div>
             </form>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-action="cancelar">Cancelar</button>
+            <button type="button" class="btn btn-secondary" data-action="cancelar">
+                Cancelar
+            </button>
             <button type="submit" form="form-alterar-senha" class="btn btn-primary">Salvar</button>
         </div>
     </div>
@@ -2196,9 +2207,13 @@
         </div>
         <div class="modal-body">
             <form id="form-novo-ano" onsubmit="criarNovoAno(event)">
-                <div class="mc-form-grid">
-                    <input type="number" id="ano" min="2000" max="2100" required placeholder="Ano *">
-                    <input type="number" id="receita-mensal" min="0" step="0.01" placeholder="Receita Mensal Padrão (R$)">
+                <div class="form-group">
+                    <label for="ano">Ano:</label>
+                    <input type="number" id="ano" min="2000" max="2100" required>
+                </div>
+                <div class="form-group">
+                    <label for="receita-mensal">Receita Mensal Padrão:</label>
+                    <input type="number" id="receita-mensal" min="0" step="0.01" placeholder="0.00">
                 </div>
             </form>
         </div>
@@ -2399,10 +2414,13 @@
             <form id="form-nova-receita">
                 <input type="hidden" id="receita-id">
                 
-                <div class="descricao-anexos-container">
-                    <input type="text" id="receita-descricao" placeholder="Descrição *" required>
-                    <button type="button" id="btn-anexar-receita" class="btn btn-anexar">
-                        <i class="fas fa-paperclip"></i>Anexos</button>
+                <div class="form-group form-group-full">
+                    <label for="receita-descricao">Descrição:</label>
+                    <div class="descricao-anexos-container">
+                        <input type="text" id="receita-descricao" placeholder="Descrição" required>
+                        <button type="button" id="btn-anexar-receita" class="btn btn-anexar">
+                            <i class="fas fa-paperclip"></i>Anexos</button>
+                    </div>
                 </div>
                 
                 <div id="lista-anexos-receita" class="lista-anexos-container">
@@ -2410,15 +2428,23 @@
                 </div>
                 
                 <div class="form-row-grid">
-                    <input type="number" id="receita-valor" min="0.01" step="0.01" placeholder="Valor (R$) *" required>
-                    <div>
+                    <div class="form-group campo-valor">
+                        <label for="receita-valor">Valor:</label>
+                        <input type="number" id="receita-valor" min="0.01" step="0.01" placeholder="0,00" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="receita-data">Data de Registro:</label>
                         <input type="date" id="receita-data" required>
                         <span id="receita-mes-indicador" class="data-mes-indicador"></span>
                     </div>
                 </div>
-
+                
                 <div id="opcoes-parcelamento-receita" class="hidden">
-                    <input type="number" id="receita-parcelas" min="2" max="36" value="2" placeholder="Número de Parcelas">
+                    <div class="form-group">
+                        <label for="receita-parcelas">Número de Parcelas:</label>
+                        <input type="number" id="receita-parcelas" min="2" max="36" value="2" placeholder="Número de Parcelas">
+                    </div>
                 </div>
                 
                 <div class="checkboxes-inline">
@@ -2794,9 +2820,15 @@
 
           <form id="form-pagamento-individual">
               <div class="form-row-inline">
-                  <input type="number" id="valor-pago-individual" class="form-control" step="0.01" min="0" placeholder="Valor Pago (R$)" oninput="calcularDiferencaPagamento()">
-                  <button type="button" id="btn-anexar-comprovante" class="btn btn-anexar">
-                      <i class="fas fa-paperclip"></i>Comprovante</button>
+                  <div class="form-group form-group-flex">
+                      <label for="valor-pago-individual">Valor Pago:</label>
+                      <input type="number" id="valor-pago-individual" class="form-control" step="0.01" min="0" oninput="calcularDiferencaPagamento()">
+                  </div>
+                  <div class="form-group form-group-comprovante">
+                      <label>&nbsp;</label>
+                      <button type="button" id="btn-anexar-comprovante" class="btn btn-anexar">
+                          <i class="fas fa-paperclip"></i>Comprovante</button>
+                  </div>
               </div>
 
               <div id="diferenca-pagamento-info" class="diferenca-info hidden">
@@ -2807,14 +2839,19 @@
                   <!-- Comprovantes serão inseridos aqui -->
               </div>
 
-              <input type="date" id="data-pagamento-individual" class="form-control">
-
-              <div class="checkbox-row">
-                  <input type="checkbox" id="despesa-quitado-individual">
-                  <label for="despesa-quitado-individual">Despesa Quitada</label>
+              <div class="form-group">
+                <label for="data-pagamento-individual">Data do Pagamento:</label>
+                <input type="date" id="data-pagamento-individual" class="form-control">
               </div>
-              <div id="info-parcelas-futuras" class="info-texto hidden">
-                  Quando marcado, todas as parcelas futuras serão marcadas como pagas e seus valores zerados.
+
+              <div class="form-group">
+                  <div class="checkbox-row">
+                      <input type="checkbox" id="despesa-quitado-individual">
+                      <label for="despesa-quitado-individual">Despesa Quitada</label>
+                  </div>
+                  <div id="info-parcelas-futuras" class="info-texto hidden">
+                      Quando marcado, todas as parcelas futuras serão marcadas como pagas e seus valores zerados.
+                  </div>
               </div>
           </form>
       </div>
@@ -2843,7 +2880,10 @@
                <p id="lote-contagem-despesas">Você está prestes a pagar despesas em lote.</p>
                <p class="info-texto">O pagamento em lote afeta apenas as despesas do mês atual.</p>
            </div>
-           <input type="date" id="data-pagamento-lote" class="form-control">
+           <div class="form-group">
+                <label for="data-pagamento-lote">Data do Pagamento (para todas):</label>
+                <input type="date" id="data-pagamento-lote" class="form-control">
+            </div>
        </div>
        <div class="modal-footer">
            <button type="button" class="btn btn-secondary close">
