@@ -103,9 +103,8 @@
     display: flex;
     justify-content: flex-end;
     gap: 10px;
-    padding: var(--space-md) var(--space-md);
+    padding: 12px 16px;
     border-top: 1px solid var(--theme-border);
-    background-color: var(--theme-surface-2);
     border-radius: 0 0 8px 8px;
 }
 

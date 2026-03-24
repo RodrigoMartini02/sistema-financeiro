@@ -75,6 +75,8 @@ const executarMigracoes = async () => {
         await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS pais VARCHAR(100) DEFAULT NULL`);
         await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS estado VARCHAR(100) DEFAULT NULL`);
         await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cidade VARCHAR(100) DEFAULT NULL`);
+        await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS latitude DECIMAL(10,7) DEFAULT NULL`);
+        await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS longitude DECIMAL(10,7) DEFAULT NULL`);
         console.log('✅ Colunas de localização verificadas em usuarios');
 
         // Criar índices de performance (IF NOT EXISTS para idempotência)

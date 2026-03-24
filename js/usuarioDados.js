@@ -128,7 +128,7 @@ class UsuarioDataManager {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
+                    'Authorization': `Bearer ${sessionStorage.getItem('token') || localStorage.getItem('token') || ''}`
                 },
                 body: JSON.stringify(dadosAtualizados)
             });
@@ -182,7 +182,7 @@ class UsuarioDataManager {
         }
 
         try {
-            const token = sessionStorage.getItem('token') || '';
+            const token = sessionStorage.getItem('token') || localStorage.getItem('token') || '';
 
             // ✅ BUSCAR RECEITAS, DESPESAS E STATUS DOS MESES DAS TABELAS SEPARADAS
             const perfilId = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
@@ -404,7 +404,7 @@ class UsuarioDataManager {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
+                    'Authorization': `Bearer ${sessionStorage.getItem('token') || localStorage.getItem('token') || ''}`
                 },
                 body: JSON.stringify({ dadosFinanceiros })
             });
@@ -541,7 +541,7 @@ class UsuarioDataManager {
                 return false;
             }
 
-            const token = sessionStorage.getItem('token');
+            const token = sessionStorage.getItem('token') || localStorage.getItem('token');
             const ehEdicao = id !== null && id !== '' && id !== undefined;
 
             // Preparar dados para API
@@ -637,7 +637,7 @@ class UsuarioDataManager {
                 return false;
             }
 
-            const token = sessionStorage.getItem('token');
+            const token = sessionStorage.getItem('token') || localStorage.getItem('token');
             const ehEdicao = id !== null && id !== '' && id !== undefined;
 
             // ✅ BUSCAR CATEGORIA_ID SE FORNECIDO NOME DA CATEGORIA
@@ -1057,7 +1057,7 @@ class UsuarioDataManager {
 
     async carregarCategorias() {
         try {
-            const token = sessionStorage.getItem('token') || '';
+            const token = sessionStorage.getItem('token') || localStorage.getItem('token') || '';
             const response = await fetch(`${API_URL_DADOS}/categorias`, {
                 headers: {
                     'Content-Type': 'application/json',
@@ -1078,7 +1078,7 @@ class UsuarioDataManager {
 
     async carregarCartoes() {
         try {
-            const token = sessionStorage.getItem('token') || '';
+            const token = sessionStorage.getItem('token') || localStorage.getItem('token') || '';
             const response = await fetch(`${API_URL_DADOS}/cartoes`, {
                 headers: {
                     'Content-Type': 'application/json',

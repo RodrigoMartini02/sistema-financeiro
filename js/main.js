@@ -2420,7 +2420,7 @@ async function fecharMes(mes, ano) {
     }
 
     try {
-        const token = sessionStorage.getItem('token');
+        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
         const perfilIdMes = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
         const response = await fetch(`${API_URL}/meses/${ano}/${mes}/fechar`, {
             method: 'POST',
@@ -2482,7 +2482,7 @@ async function reabrirMes(mes, ano) {
     }
 
     try {
-        const token = sessionStorage.getItem('token');
+        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
         const perfilIdReabrir = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
         const response = await fetch(`${API_URL}/meses/${ano}/${mes}/reabrir`, {
             method: 'POST',

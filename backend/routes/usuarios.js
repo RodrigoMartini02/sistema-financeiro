@@ -36,7 +36,7 @@ const isAdminOrMaster = (req, res, next) => {
 router.get('/current', authMiddleware, async (req, res) => {
     try {
         const result = await query(
-            'SELECT id, nome, email, documento, tipo, status, foto, pais, estado, cidade, data_cadastro FROM usuarios WHERE id = $1',
+            'SELECT id, nome, email, documento, tipo, status, foto, pais, estado, cidade, latitude, longitude, data_cadastro FROM usuarios WHERE id = $1',
             [req.usuario.id]
         );
         
@@ -183,7 +183,7 @@ router.get('/', authMiddleware, isAdminOrMaster, async (req, res) => {
         // Buscar usuários
         params.push(parseInt(limit), offset);
         const usersQuery = `
-            SELECT id, nome, email, documento, tipo, status, pais, estado, cidade, data_cadastro, data_atualizacao
+            SELECT id, nome, email, documento, tipo, status, pais, estado, cidade, latitude, longitude, data_cadastro, data_atualizacao
             FROM usuarios
             ${whereClause}
             ORDER BY nome ASC
@@ -305,7 +305,7 @@ router.get('/:id', authMiddleware, isAdminOrMaster, async (req, res) => {
         }
         
         const result = await query(
-            'SELECT id, nome, email, documento, tipo, status, pais, estado, cidade, data_cadastro, data_atualizacao FROM usuarios WHERE id = $1',
+            'SELECT id, nome, email, documento, tipo, status, pais, estado, cidade, latitude, longitude, data_cadastro, data_atualizacao FROM usuarios WHERE id = $1',
             [userId]
         );
         
@@ -1393,7 +1393,7 @@ router.delete('/:id/limpar-dados', authMiddleware, async (req, res) => {
 router.get('/me', authMiddleware, async (req, res) => {
     try {
         const result = await query(
-            'SELECT id, nome, email, documento, pais, estado, cidade, tipo, status, plano_status, plano_tipo, plano_expiracao, data_cadastro FROM usuarios WHERE id = $1',
+            'SELECT id, nome, email, documento, pais, estado, cidade, latitude, longitude, tipo, status, plano_status, plano_tipo, plano_expiracao, data_cadastro FROM usuarios WHERE id = $1',
             [req.usuario.id]
         );
         if (result.rows.length === 0) {

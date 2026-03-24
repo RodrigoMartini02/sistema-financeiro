@@ -13,7 +13,7 @@ router.get('/', authMiddleware, async (req, res) => {
         const params = [req.usuario.id];
 
         if (perfil_id) {
-            whereClause += ' AND perfil_id = $2';
+            whereClause += ' AND (perfil_id = $2 OR perfil_id IS NULL)';
             params.push(parseInt(perfil_id));
         }
 
@@ -83,28 +83,16 @@ router.post('/:ano/:mes/fechar', authMiddleware, async (req, res) => {
         const mesInt = parseInt(mes);
         const saldoFinal = parseFloat(saldo_final);
 
-        // Verificar se já existe registro para este perfil
-        const existing = await query(
-            `SELECT id FROM meses WHERE usuario_id = $1 AND ano = $2 AND mes = $3 AND perfil_id IS NOT DISTINCT FROM $4`,
-            [req.usuario.id, anoInt, mesInt, perfilId]
+        // UPSERT — cobre tanto rows antigos (perfil_id NULL) quanto novos
+        const result = await query(
+            `INSERT INTO meses (usuario_id, ano, mes, fechado, saldo_final, saldo_anterior, perfil_id)
+             VALUES ($1, $2, $3, true, $4, 0, $5)
+             ON CONFLICT (usuario_id, ano, mes)
+             DO UPDATE SET fechado = true, saldo_final = EXCLUDED.saldo_final,
+                           perfil_id = COALESCE(meses.perfil_id, EXCLUDED.perfil_id)
+             RETURNING *`,
+            [req.usuario.id, anoInt, mesInt, saldoFinal, perfilId]
         );
-
-        let result;
-        if (existing.rows.length > 0) {
-            result = await query(
-                `UPDATE meses SET fechado = true, saldo_final = $1
-                 WHERE usuario_id = $2 AND ano = $3 AND mes = $4 AND perfil_id IS NOT DISTINCT FROM $5
-                 RETURNING *`,
-                [saldoFinal, req.usuario.id, anoInt, mesInt, perfilId]
-            );
-        } else {
-            result = await query(
-                `INSERT INTO meses (usuario_id, ano, mes, fechado, saldo_final, saldo_anterior, perfil_id)
-                 VALUES ($1, $2, $3, true, $4, 0, $5)
-                 RETURNING *`,
-                [req.usuario.id, anoInt, mesInt, saldoFinal, perfilId]
-            );
-        }
 
         res.json({
             success: true,
@@ -127,9 +115,11 @@ router.post('/:ano/:mes/reabrir', authMiddleware, async (req, res) => {
         const { perfil_id } = req.body;
         const perfilId = perfil_id ? parseInt(perfil_id) : null;
 
+        // Reabre qualquer row do mês (NULL ou perfil_id específico)
         const result = await query(
             `UPDATE meses SET fechado = false
-             WHERE usuario_id = $1 AND ano = $2 AND mes = $3 AND perfil_id IS NOT DISTINCT FROM $4
+             WHERE usuario_id = $1 AND ano = $2 AND mes = $3
+             AND (perfil_id IS NOT DISTINCT FROM $4 OR perfil_id IS NULL)
              RETURNING *`,
             [req.usuario.id, parseInt(ano), parseInt(mes), perfilId]
         );

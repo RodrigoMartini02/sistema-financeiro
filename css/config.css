@@ -168,65 +168,121 @@
 }
 
 /* ================================================================ */
-/* CARDS DE CONFIGURAÇÃO */
+/* CARDS DE CONFIGURAÇÃO — alinhados ao estilo admin-section-card */
 /* ================================================================ */
 .config-card {
-    background: transparent;
-    padding: 0;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
     margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    padding: 0;
 }
 
-.config-card h3 {
-    margin: 0 0 16px 0;
-    color: var(--config-dark);
+/* Header via h3 direto no card */
+.config-card > h3:first-child {
+    background: #667eea;
+    margin: 0;
+    padding: 8px 12px;
+    color: #fff;
+    font-size: 11px;
     font-weight: 600;
-    font-size: 18px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 7px;
+    border-radius: 0;
+    line-height: 1.4;
 }
 
-.config-card h3 i {
-    color: var(--primary-color);
-    font-size: 20px;
+.config-card > h3:first-child i {
+    color: #fff;
+    font-size: 12px;
+    width: 14px;
+    text-align: center;
+}
+
+/* Header via .config-card-header (pode conter h3 + botão) */
+.config-card-header {
+    background: #667eea;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 0 !important;
+}
+
+.config-card-header h3 {
+    margin: 0 !important;
+    background: transparent !important;
+    color: #fff !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    line-height: 1.4;
+}
+
+.config-card-header h3 i {
+    color: #fff !important;
+    font-size: 12px !important;
+    width: 14px;
+    text-align: center;
 }
 
 .config-card h4 {
-    margin: 16px 0 12px 0;
+    margin: 0;
+    padding: 6px 12px;
     color: var(--config-dark);
     font-weight: 600;
-    font-size: 15px;
+    font-size: 12px;
     display: flex;
     align-items: center;
     gap: 8px;
+    border-bottom: 1px solid #e9ecef;
+    background: #f8f9fa;
 }
 
 .config-card h4 i {
-    color: var(--gray-500);
-    font-size: 16px;
+    color: #667eea;
+    font-size: 13px;
 }
 
-.config-card p {
+.config-card > p {
     color: var(--gray-500);
-    margin-bottom: 16px;
+    margin: 0;
+    padding: 10px 12px 0;
     line-height: 1.6;
-    font-size: 14px;
+    font-size: 13px;
 }
+
+.config-card > p:last-child { padding-bottom: 12px; }
 
 .config-card.info-card {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border-left: 4px solid var(--info);
-    padding: 16px;
+    background: #fff;
+}
+
+.config-card.info-card > h3:first-child {
+    background: linear-gradient(135deg, #0ea5e9, #6366f1);
 }
 
 .config-card ul {
-    margin: 12px 0;
-    padding-left: 24px;
+    margin: 0;
+    padding: 10px 12px 12px 30px;
     color: var(--gray-500);
+    font-size: 13px;
 }
 
 .config-card ul li {
-    margin-bottom: 8px;
+    margin-bottom: 7px;
     line-height: 1.5;
 }
 
@@ -315,6 +371,13 @@
     border: 1px solid var(--gray-300);
     border-radius: 8px;
     margin-bottom: 16px;
+}
+
+/* Dentro de um card já tem borda/radius — não duplicar */
+.config-card > .table-responsive {
+    border: none;
+    border-radius: 0;
+    margin-bottom: 0;
 }
 
 .tabela-usuarios {
@@ -1350,8 +1413,12 @@
 
 .config-sep {
     border: none;
-    border-top: 1px solid var(--border-color);
-    margin: 20px 0;
+    border-top: 1px solid var(--border-color, #e9ecef);
+    margin: 0;
+}
+
+.config-card > .config-sep {
+    margin: 0 12px;
 }
 
 .config-sep-sm {
@@ -1962,7 +2029,12 @@
 }
 
 .config-card--danger {
-    border-left: 3px solid #e74c3c;
+    border-left: none;
+}
+
+.config-card--danger > h3:first-child,
+.config-card--danger .config-card-header {
+    background: #e74c3c;
 }
 
 .config-danger-row {
@@ -1970,6 +2042,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 16px;
+    padding: 12px;
 }
 
 .config-danger-row p {
@@ -2026,4 +2099,160 @@
     .fornecedor-busca-input {
         width: 100%;
     }
+}
+
+/* ================================================================ */
+/* TAB-CARD-HEADER — cabeçalho azul para abas sem config-card     */
+/* ================================================================ */
+.tab-card-header {
+    background: #667eea;
+    padding: 8px 12px;
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.tab-card-header > span {
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.tab-card-header > span i { color: #fff; font-size: 12px; }
+
+/* ================================================================ */
+/* ABA USUÁRIOS — visual de card sem wrapper HTML extra            */
+/* ================================================================ */
+.user-management-controls {
+    background: #fff;
+    border-radius: 0;
+    padding: 10px 12px;
+    box-shadow: none;
+    border-bottom: 1px solid #e9ecef;
+    margin-bottom: 0;
+}
+
+#usuarios-tab > .table-responsive {
+    border-radius: 0 0 8px 8px;
+    border: none;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+    margin-bottom: 16px;
+}
+
+#usuarios-tab > .pagination-controls {
+    background: #f8f9fa;
+    border-radius: 0 0 8px 8px;
+    margin-top: -16px;
+    padding: 8px 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+    border-top: 1px solid #e9ecef;
+    margin-bottom: 16px;
+}
+
+/* ================================================================ */
+/* ABA CATEGORIAS — visual de card sem wrapper HTML extra          */
+/* ================================================================ */
+.form-add-categoria {
+    background: #fff;
+    border-radius: 0;
+    padding: 10px 12px;
+    margin-bottom: 0;
+    border-bottom: 1px solid #e9ecef;
+    gap: 8px;
+}
+
+.form-add-categoria input {
+    padding: 7px 10px;
+    border: 1px solid var(--gray-300);
+    border-radius: 6px;
+    font-size: 12px;
+    transition: border-color 0.2s;
+}
+
+#categorias-tab > .table-responsive {
+    border-radius: 0 0 8px 8px;
+    border: none;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+    margin-bottom: 16px;
+}
+
+/* ================================================================ */
+/* CARTA DE SERVIÇOS — config-card com header especial            */
+/* ================================================================ */
+.config-card.carta-servicos-card > .carta-header {
+    background: #667eea;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0;
+}
+
+.config-card.carta-servicos-card > .carta-header h3 {
+    background: transparent !important;
+    color: #fff !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.config-card.carta-servicos-card > .carta-header h3 i { color: #fff !important; }
+
+.carta-desc {
+    font-size: 10px;
+    color: rgba(255,255,255,0.75);
+    margin: 2px 0 0;
+    font-weight: 400;
+}
+
+.config-card.carta-servicos-card .carta-markdown-body {
+    padding: 12px;
+}
+
+/* ================================================================ */
+/* DARK THEME — config-card e headers                              */
+/* ================================================================ */
+[data-theme="dark"] .config-card {
+    background: var(--theme-surface-solid);
+}
+
+[data-theme="dark"] .config-card > h3:first-child,
+[data-theme="dark"] .config-card-header {
+    background: rgba(102,126,234,0.85);
+}
+
+[data-theme="dark"] .tab-card-header {
+    background: rgba(102,126,234,0.85);
+}
+
+[data-theme="dark"] .user-management-controls,
+[data-theme="dark"] .form-add-categoria {
+    background: var(--theme-surface-solid);
+    border-bottom-color: var(--theme-border);
+}
+
+[data-theme="dark"] #usuarios-tab > .table-responsive,
+[data-theme="dark"] #categorias-tab > .table-responsive,
+[data-theme="dark"] #usuarios-tab > .pagination-controls {
+    background: var(--theme-surface-solid);
+    border-color: var(--theme-border);
+}
+
+[data-theme="dark"] .user-management-controls::before,
+[data-theme="dark"] .form-add-categoria::before {
+    color: #a5b4fc;
 }
