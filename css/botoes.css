@@ -163,7 +163,8 @@
 
 .btn-editar,
 .btn-editar-categoria,
-.btn-editar-cartao {
+.btn-editar-cartao,
+.btn-editar-empresa {
     background-color: #f97316;
     color: #ffffff;
     border-color: #f97316;
@@ -171,14 +172,16 @@
 
 .btn-editar:hover:not(:disabled),
 .btn-editar-categoria:hover:not(:disabled),
-.btn-editar-cartao:hover:not(:disabled) {
+.btn-editar-cartao:hover:not(:disabled),
+.btn-editar-empresa:hover:not(:disabled) {
     background-color: #ea580c;
     border-color: #c2410c;
 }
 
 .btn-excluir,
 .btn-remover-categoria,
-.btn-excluir-cartao {
+.btn-excluir-cartao,
+.btn-excluir-empresa {
     background-color: #ef4444;
     color: #ffffff;
     border-color: #ef4444;
@@ -186,7 +189,8 @@
 
 .btn-excluir:hover:not(:disabled),
 .btn-remover-categoria:hover:not(:disabled),
-.btn-excluir-cartao:hover:not(:disabled) {
+.btn-excluir-cartao:hover:not(:disabled),
+.btn-excluir-empresa:hover:not(:disabled) {
     background-color: #dc2626;
     border-color: #b91c1c;
 }

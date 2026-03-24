@@ -44,7 +44,6 @@ async function iniciarSistema() {
     configurarInterface();
     exibirNomeUsuario();
     inicializarFotoPerfil();
-    await carregarVersaoSistema(); // Carregar versão do backend
 
     if (!dadosFinanceiros[anoAtual]) {
         abrirModalNovoAno();
@@ -68,31 +67,6 @@ async function iniciarSistema() {
     }
 }
 
-// ================================================================
-// CARREGAR VERSÃO DO SISTEMA
-// ================================================================
-async function carregarVersaoSistema() {
-    try {
-        const response = await fetch('https://sistema-financeiro-backend-o199.onrender.com/version');
-        if (response.ok) {
-            const data = await response.json();
-            const versionElement = document.getElementById('system-version');
-            const dateElement = document.getElementById('system-update-date');
-
-            if (versionElement && data.version) {
-                versionElement.textContent = data.version;
-            }
-
-            if (dateElement && data.timestamp) {
-                const date = new Date(data.timestamp);
-                const formattedDate = date.toLocaleDateString('pt-BR');
-                dateElement.textContent = formattedDate;
-            }
-        }
-    } catch (error) {
-        console.warn('Não foi possível carregar versão do sistema:', error);
-    }
-}
 
 function verificarAcessoUsuario() {
     const usuarioAtual = sessionStorage.getItem('usuarioAtual');

@@ -175,6 +175,12 @@
             <li class="nav-group-label">Configurações</li>
 
             <li class="nav-item">
+                <a href="#" class="nav-link" data-section="config" data-tab="minha-conta" data-label="Minha Conta">
+                    <span class="nav-icon"><i class="fas fa-user-circle"></i></span>
+                    <span class="nav-text">Minha Conta</span>
+                </a>
+            </li>
+            <li class="nav-item">
                 <a href="#" class="nav-link" data-section="config" data-tab="cartoes" data-label="Cartões">
                     <span class="nav-icon"><i class="fas fa-credit-card"></i></span>
                     <span class="nav-text">Cartões</span>
@@ -258,19 +264,6 @@
             <button id="btn-upgrade" style="display:none" onclick="abrirModalPlanos()">
                 <span id="btn-upgrade-label">Assinar agora</span>
             </button>
-        </div>
-
-        <div class="sidebar-footer">
-            <div class="system-info">
-                <div class="info-row">
-                    <i class="fas fa-code-branch"></i>
-                    <span>v<span id="system-version">1.0.0</span></span>
-                </div>
-                <div class="info-row info-secondary">
-                    <i class="fas fa-calendar"></i>
-                    <span id="system-update-date">03/01/2026</span>
-                </div>
-            </div>
         </div>
     </nav>
 
@@ -598,44 +591,17 @@
         </div>
         <!-- TEMA: EMPRESA -->
         <div class="tema-view" id="tema-empresa">
-            <div class="tema-kpis">
-                <div class="tema-kpi">
-                    <span class="tk-label">Faturamento do Ano</span>
-                    <span class="tk-valor" id="tk-empresa-faturamento">R$ 0,00</span>
-                </div>
-                <div class="tema-kpi">
-                    <span class="tk-label">Resultado Líquido</span>
-                    <span class="tk-valor" id="tk-empresa-resultado">R$ 0,00</span>
-                </div>
-                <div class="tema-kpi">
-                    <span class="tk-label">Aporte Inicial</span>
-                    <span class="tk-valor" id="tk-empresa-aporte">R$ 0,00</span>
-                </div>
-                <div class="tema-kpi">
-                    <span class="tk-label">Saldo Atual</span>
-                    <span class="tk-valor" id="tk-empresa-saldo">R$ 0,00</span>
-                </div>
-            </div>
-            <div class="tema-charts-grid">
-                <div class="tema-chart-card">
-                    <div class="tema-chart-titulo">Faturamento vs Despesas</div>
-                    <div class="tema-chart-wrapper">
-                        <canvas id="tema-empresa-faturamento-chart"></canvas>
-                    </div>
-                </div>
-                <div class="tema-chart-card">
-                    <div class="tema-chart-titulo">Resultado Acumulado</div>
-                    <div class="tema-chart-wrapper">
-                        <canvas id="tema-empresa-acumulado-chart"></canvas>
-                    </div>
-                </div>
-                <div class="tema-chart-card">
-                    <div class="tema-chart-titulo">Comparativo PF × PJ</div>
-                    <div class="tema-chart-wrapper">
-                        <canvas id="tema-empresa-comparativo-chart"></canvas>
-                    </div>
-                </div>
-            </div>
+          <div class="tema-kpis">
+            <div class="tema-kpi"><span class="tk-label">Faturamento do Ano</span><span class="tk-valor" id="tk-empresa-faturamento">R$ 0,00</span></div>
+            <div class="tema-kpi"><span class="tk-label">Resultado Líquido</span><span class="tk-valor" id="tk-empresa-resultado">R$ 0,00</span></div>
+            <div class="tema-kpi"><span class="tk-label">Aporte Inicial</span><span class="tk-valor" id="tk-empresa-aporte">R$ 0,00</span></div>
+            <div class="tema-kpi"><span class="tk-label">Saldo Atual</span><span class="tk-valor" id="tk-empresa-saldo">R$ 0,00</span></div>
+          </div>
+          <div class="tema-charts-grid">
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Receitas e despesas mensais da empresa">Faturamento vs Despesas</h3></div><canvas id="tema-empresa-faturamento-chart"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Evolução do saldo acumulado desde o aporte inicial">Resultado Acumulado</h3></div><canvas id="tema-empresa-acumulado-chart"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Receitas e despesas PF e PJ lado a lado por mês">Comparativo PF × PJ</h3></div><canvas id="tema-empresa-comparativo-chart"></canvas></div>
+          </div>
         </div>
     </section>
 
@@ -1081,6 +1047,96 @@
     <div class="config-tab-content">
 
         <!-- ============================================== -->
+        <!-- ABA: MINHA CONTA -->
+        <!-- ============================================== -->
+        <div id="minha-conta-tab" class="config-tab-pane">
+            <div class="minha-conta-container">
+
+                <div class="admin-section-card">
+                    <div class="admin-section-header">
+                        <i class="fas fa-user-edit"></i> <span>Dados Pessoais</span>
+                    </div>
+                    <div style="padding:16px;">
+                        <form id="form-minha-conta">
+                            <div class="minha-conta-grid">
+                                <div class="form-group">
+                                    <label>Nome</label>
+                                    <input type="text" id="mc-nome" class="form-input" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>E-mail</label>
+                                    <input type="email" id="mc-email" class="form-input" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>CPF</label>
+                                    <input type="text" id="mc-documento" class="form-input" readonly style="opacity:0.6;cursor:not-allowed;">
+                                </div>
+                                <div class="form-group">
+                                    <label>País</label>
+                                    <input type="text" id="mc-pais" class="form-input" placeholder="Ex: Brasil">
+                                </div>
+                                <div class="form-group">
+                                    <label>Estado</label>
+                                    <input type="text" id="mc-estado" class="form-input" placeholder="Ex: São Paulo">
+                                </div>
+                                <div class="form-group">
+                                    <label>Cidade</label>
+                                    <input type="text" id="mc-cidade" class="form-input" placeholder="Ex: Campinas">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary" style="margin-top:12px;">
+                                <i class="fas fa-save"></i> Salvar Alterações
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="admin-section-card" style="margin-top:16px;">
+                    <div class="admin-section-header">
+                        <i class="fas fa-lock"></i> <span>Alterar Senha</span>
+                    </div>
+                    <div style="padding:16px;">
+                        <form id="form-alterar-senha">
+                            <div class="minha-conta-grid">
+                                <div class="form-group">
+                                    <label>Senha Atual</label>
+                                    <input type="password" id="mc-senha-atual" class="form-input" placeholder="Digite sua senha atual">
+                                </div>
+                                <div class="form-group">
+                                    <label>Nova Senha</label>
+                                    <input type="password" id="mc-nova-senha" class="form-input" placeholder="Mínimo 8 caracteres">
+                                </div>
+                                <div class="form-group">
+                                    <label>Confirmar Nova Senha</label>
+                                    <input type="password" id="mc-confirmar-senha" class="form-input" placeholder="Repita a nova senha">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary" style="margin-top:12px;">
+                                <i class="fas fa-key"></i> Alterar Senha
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="admin-section-card admin-section-card--danger" style="margin-top:16px;">
+                    <div class="admin-section-header admin-section-header--danger">
+                        <i class="fas fa-exclamation-triangle"></i> <span>Zona de Perigo</span>
+                    </div>
+                    <div class="admin-row">
+                        <div>
+                            <strong>Cancelar Conta</strong>
+                            <p style="margin:4px 0 0;font-size:0.85rem;color:#666;">Esta ação é irreversível. Todos os seus dados serão desativados.</p>
+                        </div>
+                        <button id="btn-cancelar-conta" class="btn btn-danger btn-sm">
+                            <i class="fas fa-times-circle"></i> Cancelar Conta
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ============================================== -->
         <!-- ABA: GERENCIAMENTO DE CATEGORIAS -->
         <!-- ============================================== -->
         <div id="categorias-tab" class="config-tab-pane">
@@ -1408,13 +1464,6 @@
                     </div>
                     
                     <div class="user-controls-right">
-                        <div id="ia-toggle-container" class="ia-toggle-container">
-                            <label class="ia-toggle-switch" title="Ativar / Desativar Assistente IA">
-                                <input type="checkbox" id="ia-toggle-ativo">
-                                <span class="ia-toggle-slider"></span>
-                            </label>
-                            <span class="ia-toggle-label">Assistente IA</span>
-                        </div>
                         <button id="btn-adicionar-usuario" class="btn btn-primary">
                             <i class="fas fa-user-plus"></i> Novo Usuário
                         </button>
@@ -1707,7 +1756,7 @@
             </button>
         </div>
 
-        <!-- KPIs -->
+        <!-- KPIs - Status -->
         <div class="fornecedor-kpis">
             <div class="fornecedor-kpi-card">
                 <div class="fkpi-icon"><i class="fas fa-users"></i></div>
@@ -1739,6 +1788,38 @@
             </div>
         </div>
 
+        <!-- KPIs - Planos -->
+        <div class="fornecedor-kpis">
+            <div class="fornecedor-kpi-card fkpi-purple">
+                <div class="fkpi-icon"><i class="fas fa-crown"></i></div>
+                <div class="fkpi-info">
+                    <span class="fkpi-valor" id="fkpi-pagantes">-</span>
+                    <span class="fkpi-label">Pagantes</span>
+                </div>
+            </div>
+            <div class="fornecedor-kpi-card fkpi-blue">
+                <div class="fkpi-icon"><i class="fas fa-calendar-day"></i></div>
+                <div class="fkpi-info">
+                    <span class="fkpi-valor" id="fkpi-mensal">-</span>
+                    <span class="fkpi-label">Plano Mensal</span>
+                </div>
+            </div>
+            <div class="fornecedor-kpi-card fkpi-blue">
+                <div class="fkpi-icon"><i class="fas fa-calendar-check"></i></div>
+                <div class="fkpi-info">
+                    <span class="fkpi-valor" id="fkpi-anual">-</span>
+                    <span class="fkpi-label">Plano Anual</span>
+                </div>
+            </div>
+            <div class="fornecedor-kpi-card">
+                <div class="fkpi-icon"><i class="fas fa-hourglass-half"></i></div>
+                <div class="fkpi-info">
+                    <span class="fkpi-valor" id="fkpi-trial">-</span>
+                    <span class="fkpi-label">Trial</span>
+                </div>
+            </div>
+        </div>
+
         <!-- Gráficos -->
         <div class="fornecedor-charts">
             <div class="fornecedor-chart-card">
@@ -1747,6 +1828,18 @@
                     <canvas id="chart-usuarios-status"></canvas>
                 </div>
             </div>
+            <div class="fornecedor-chart-card">
+                <h3>Distribuição por Plano</h3>
+                <div class="fornecedor-chart-wrapper">
+                    <canvas id="chart-usuarios-plano"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Globo 3D -->
+        <div class="fornecedor-globe-section">
+            <h3><i class="fas fa-globe-americas"></i> Usuários no Mundo</h3>
+            <div id="fornecedor-globe-container"></div>
         </div>
 
     </div>
@@ -3593,6 +3686,7 @@
 
 <!-- Bibliotecas externas -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/globe.gl"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 

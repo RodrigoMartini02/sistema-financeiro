@@ -35,22 +35,35 @@ router.get('/', authMiddleware, async (req, res) => {
 // ================================================================
 router.post('/', authMiddleware, async (req, res) => {
     try {
-        const { nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial } = req.body;
+        const { tipo, nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial } = req.body;
 
         if (!nome || nome.trim() === '') {
-            return res.status(400).json({
-                success: false,
-                message: 'Nome é obrigatório'
-            });
+            return res.status(400).json({ success: false, message: 'Nome é obrigatório' });
         }
 
-        // CNPJ obrigatório para empresa — deve ter 14 dígitos após limpar formatação
+        // Perfil pessoal — simples, sem CNPJ
+        if (!tipo || tipo === 'pessoal') {
+            // Garantir que já não existe perfil pessoal para este usuário
+            const existe = await query(
+                `SELECT id FROM perfis WHERE usuario_id = $1 AND tipo = 'pessoal'`,
+                [req.usuario.id]
+            );
+            if (existe.rows.length > 0) {
+                return res.status(400).json({ success: false, message: 'Perfil pessoal já existe' });
+            }
+            const result = await query(
+                `INSERT INTO perfis (usuario_id, tipo, nome, ativo)
+                 VALUES ($1, 'pessoal', $2, true)
+                 RETURNING *`,
+                [req.usuario.id, nome.trim()]
+            );
+            return res.status(201).json({ success: true, message: 'Perfil pessoal criado', data: result.rows[0] });
+        }
+
+        // Perfil empresa — exige CNPJ
         const cnpjLimpo = (documento || '').replace(/\D/g, '');
         if (cnpjLimpo.length !== 14) {
-            return res.status(400).json({
-                success: false,
-                message: 'CNPJ inválido. Informe os 14 dígitos.'
-            });
+            return res.status(400).json({ success: false, message: 'CNPJ inválido. Informe os 14 dígitos.' });
         }
 
         const result = await query(
@@ -60,18 +73,11 @@ router.post('/', authMiddleware, async (req, res) => {
             [req.usuario.id, nome.trim(), cnpjLimpo, razao_social || null, nome_fantasia || null, atividade || null, aporte_inicial || null]
         );
 
-        res.status(201).json({
-            success: true,
-            message: 'Empresa criada com sucesso',
-            data: result.rows[0]
-        });
+        res.status(201).json({ success: true, message: 'Empresa criada com sucesso', data: result.rows[0] });
 
     } catch (error) {
-        console.error('Erro ao criar empresa:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Erro ao criar empresa'
-        });
+        console.error('Erro ao criar perfil:', error);
+        res.status(500).json({ success: false, message: 'Erro ao criar perfil' });
     }
 });
 

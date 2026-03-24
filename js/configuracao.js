@@ -2934,6 +2934,8 @@ function onAbaAtivada(tabName) {
         setTimeout(() => carregarEmpresas(), 100);
     } else if (tabName === 'espaco-admin') {
         carregarPermissoes();
+    } else if (tabName === 'minha-conta') {
+        setTimeout(() => carregarMinhaConta(), 100);
     }
 }
 
@@ -3184,6 +3186,7 @@ async function inicializarConfiguracoes() {
     // Carregar dados da aba inicial (Usuários) sem precisar clicar
     filtrarUsuarios();
     carregarMapaUsuarios();
+    setupMinhaConta();
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -3388,6 +3391,121 @@ window.formatarDocumento = formatarDocumento;
 window.formatarValidade = formatarValidade;
 window.validarDocumento = validarDocumento;
 window.validarValidade = validarValidade;
+
+// ================================================================
+// MINHA CONTA — edição de perfil e cancelamento
+// ================================================================
+const API_URL_MC = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
+async function carregarMinhaConta() {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    try {
+        const res = await fetch(`${API_URL_MC}/usuarios/me`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!data.success) return;
+        const u = data.data;
+        const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+        set('mc-nome', u.nome);
+        set('mc-email', u.email);
+        set('mc-documento', u.documento);
+        set('mc-pais', u.pais);
+        set('mc-estado', u.estado);
+        set('mc-cidade', u.cidade);
+    } catch (e) {
+        console.error('Erro ao carregar minha conta:', e);
+    }
+}
+
+function setupMinhaConta() {
+    const formPerfil = document.getElementById('form-minha-conta');
+    if (formPerfil) {
+        formPerfil.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            const body = {
+                nome:    document.getElementById('mc-nome')?.value?.trim(),
+                email:   document.getElementById('mc-email')?.value?.trim(),
+                pais:    document.getElementById('mc-pais')?.value?.trim(),
+                estado:  document.getElementById('mc-estado')?.value?.trim(),
+                cidade:  document.getElementById('mc-cidade')?.value?.trim()
+            };
+            try {
+                const res = await fetch(`${API_URL_MC}/usuarios/me`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                mostrarFeedback(data.message || (data.success ? 'Perfil atualizado!' : 'Erro ao salvar'), data.success ? 'success' : 'error');
+            } catch (e) {
+                mostrarFeedback('Erro de conexão', 'error');
+            }
+        });
+    }
+
+    const formSenha = document.getElementById('form-alterar-senha');
+    if (formSenha) {
+        formSenha.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            const senhaAtual  = document.getElementById('mc-senha-atual')?.value?.trim();
+            const novaSenha   = document.getElementById('mc-nova-senha')?.value?.trim();
+            const confirmar   = document.getElementById('mc-confirmar-senha')?.value?.trim();
+            if (novaSenha !== confirmar) {
+                mostrarFeedback('As senhas não coincidem', 'error');
+                return;
+            }
+            try {
+                const res = await fetch(`${API_URL_MC}/usuarios/me`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ nome: document.getElementById('mc-nome')?.value?.trim(), senha_atual: senhaAtual, nova_senha: novaSenha })
+                });
+                const data = await res.json();
+                mostrarFeedback(data.message || (data.success ? 'Senha alterada!' : 'Erro'), data.success ? 'success' : 'error');
+                if (data.success) formSenha.reset();
+            } catch (e) {
+                mostrarFeedback('Erro de conexão', 'error');
+            }
+        });
+    }
+
+    const btnCancelar = document.getElementById('btn-cancelar-conta');
+    if (btnCancelar) {
+        btnCancelar.addEventListener('click', () => {
+            const senha = prompt('Para confirmar o cancelamento da conta, digite sua senha:');
+            if (!senha) return;
+            if (!confirm('Tem certeza? Esta ação é irreversível e sua conta será desativada.')) return;
+            cancelarConta(senha);
+        });
+    }
+}
+
+async function cancelarConta(senha) {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    try {
+        const res = await fetch(`${API_URL_MC}/usuarios/me/cancelar`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ senha })
+        });
+        const data = await res.json();
+        if (data.success) {
+            mostrarFeedback('Conta cancelada. Você será desconectado.', 'success');
+            setTimeout(() => {
+                sessionStorage.clear();
+                localStorage.removeItem('token');
+                window.location.href = 'index.html';
+            }, 2500);
+        } else {
+            mostrarFeedback(data.message || 'Erro ao cancelar conta', 'error');
+        }
+    } catch (e) {
+        mostrarFeedback('Erro de conexão', 'error');
+    }
+}
 
 window.mostrarFeedback = mostrarFeedback;
 window.inicializarConfiguracoes = inicializarConfiguracoes;

@@ -34,7 +34,24 @@ async function carregarPerfis() {
 }
 
 async function inicializarPerfis() {
-    const perfis = await carregarPerfis();
+    let perfis = await carregarPerfis();
+
+    // Segurança: se usuário não tem perfil (conta antiga), criar pessoal
+    if (!perfis.length) {
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+        try {
+            await fetch(`${API_URL}/perfis`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ tipo: 'pessoal', nome: 'Pessoal' })
+            });
+            perfis = await carregarPerfis();
+        } catch (e) {
+            console.error('Erro ao criar perfil padrão:', e);
+        }
+    }
+
     _perfisCarregados = perfis;
     if (!perfis.length) return;
 

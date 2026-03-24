@@ -149,6 +149,14 @@ router.post('/register', [
         const { nome, email, documento, senha, tipo, google_id, pais, estado, cidade } = req.body;
         const docLimpo = documento.replace(/[^\d]+/g, '');
 
+        // Apenas CPF (11 dígitos) permitido no cadastro público
+        if (docLimpo.length !== 11) {
+            return res.status(400).json({
+                success: false,
+                message: 'Apenas CPF é permitido no cadastro. Para cadastrar uma empresa (PJ), entre em contato com o administrador.'
+            });
+        }
+
         const existe = await query(
             'SELECT id FROM usuarios WHERE email = $1 OR documento = $2',
             [email.toLowerCase(), docLimpo]
@@ -173,6 +181,13 @@ router.post('/register', [
         const novoUsuario = result.rows[0];
 
         await query('SELECT criar_categorias_padrao($1)', [novoUsuario.id]);
+
+        // Criar perfil pessoal padrão
+        await query(
+            `INSERT INTO perfis (usuario_id, tipo, nome, ativo)
+             VALUES ($1, 'pessoal', 'Pessoal', true)`,
+            [novoUsuario.id]
+        );
 
         const token = jwt.sign(
             { id: novoUsuario.id, documento: novoUsuario.documento, tipo: novoUsuario.tipo },

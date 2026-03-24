@@ -341,11 +341,10 @@ async function processarFormularioCadastro() {
     const pais = document.getElementById('cadastro-pais')?.value?.trim();
     const estado = document.getElementById('cadastro-estado')?.value?.trim();
     const cidade = document.getElementById('cadastro-cidade')?.value?.trim();
-    // Limpar mensagens
+
     if (elementos.cadastroErrorMessage) elementos.cadastroErrorMessage.style.display = 'none';
     if (elementos.cadastroSuccessMessage) elementos.cadastroSuccessMessage.style.display = 'none';
 
-    // Validações
     if (!nome || !email || !documento || !password) {
         mostrarErroCadastro('Todos os campos são obrigatórios');
         return;
@@ -355,81 +354,59 @@ async function processarFormularioCadastro() {
         mostrarErroCadastro('País, estado e cidade são obrigatórios');
         return;
     }
-    
+
     if (password !== confirmPassword) {
         mostrarErroCadastro('As senhas não coincidem');
         return;
     }
-    
+
     if (password.length < 8) {
         mostrarErroCadastro('A senha deve ter pelo menos 8 caracteres');
         return;
     }
-    
-    if (!validarDocumento(documento)) {
-        mostrarErroCadastro('CPF/CNPJ inválido');
+
+    const docLimpo = documento.replace(/[^\d]+/g, '');
+    if (docLimpo.length !== 11) {
+        mostrarErroCadastro('Informe um CPF válido (11 dígitos)');
         return;
     }
-    
+
     if (typeof window.showLoadingScreen === 'function') window.showLoadingScreen();
 
     try {
-        await processarCadastro(nome, email, documento, password, pais, estado, cidade);
+        const body = { nome, email, documento: docLimpo, senha: password, pais, estado, cidade };
+
+        const response = await fetch(`${API_URL}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        const data = await response.json();
 
         if (typeof window.hideLoadingScreen === 'function') window.hideLoadingScreen();
 
+        if (!response.ok) {
+            mostrarErroCadastro(data.message || 'Erro ao criar conta.');
+            return;
+        }
+
         if (elementos.cadastroSuccessMessage) {
-            elementos.cadastroSuccessMessage.textContent = 'Cadastro realizado com sucesso!';
+            elementos.cadastroSuccessMessage.textContent = 'Cadastro realizado com sucesso! Você já pode fazer login.';
             elementos.cadastroSuccessMessage.style.display = 'block';
         }
 
-        // Limpar estado Google pendente e desbloquear campos
-        sessionStorage.removeItem('googlePendingId');
-        const campoNome = document.getElementById('cadastro-nome');
-        const campoEmail = document.getElementById('cadastro-email');
-        if (campoNome) campoNome.readOnly = false;
-        if (campoEmail) campoEmail.readOnly = false;
-
         if (elementos.formCadastro) elementos.formCadastro.reset();
 
-        // Fechar modal de cadastro após sucesso
         setTimeout(() => {
             if (elementos.cadastroModal) elementos.cadastroModal.style.display = 'none';
         }, 2000);
 
     } catch (error) {
         if (typeof window.hideLoadingScreen === 'function') window.hideLoadingScreen();
-        mostrarErroCadastro(error.message || 'Erro ao criar conta.');
+        mostrarErroCadastro('Erro de conexão. Tente novamente.');
     }
 }
-
-async function processarCadastro(nome, email, documento, password, pais, estado, cidade) {
-    const docLimpo = documento.replace(/[^\d]+/g, '');
-    const googleId = sessionStorage.getItem('googlePendingId') || null;
-
-    const body = { nome, email, documento: docLimpo, senha: password };
-    if (googleId) body.google_id = googleId;
-    if (pais) body.pais = pais;
-    if (estado) body.estado = estado;
-    if (cidade) body.cidade = cidade;
-
-    const response = await fetch(`${API_URL}/auth/register`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(body)
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-        throw new Error(data.message || 'Erro ao cadastrar usuário');
-    }
-
-    return { success: true, data: data.usuario };
-}
-
 
 // ================================================================
 // RECUPERAÇÃO DE SENHA
@@ -558,7 +535,7 @@ function configurarNavegacaoModais() {
         });
     }
 
-    // Cadastro -> Login (fechar modal de cadastro)
+    // Cadastro -> Login
     if (elementos.cadastroAbrirLoginBtn) {
         elementos.cadastroAbrirLoginBtn.addEventListener('click', (e) => {
             e.preventDefault();

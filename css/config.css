@@ -368,7 +368,7 @@
 .tabela-empresas {
     width: 100%;
     border-collapse: collapse;
-    background: #fff;
+    background: var(--card-bg, #fff);
 }
 
 .tabela-empresas thead {
@@ -391,19 +391,19 @@
 .tabela-empresas th:last-child  { border-right: none; border-top-right-radius: 7px; }
 
 .tabela-empresas tbody tr {
-    border-bottom: 1px solid var(--gray-300);
+    border-bottom: 1px solid var(--border-color, #e9ecef);
     transition: background-color 0.2s ease;
 }
 
 .tabela-empresas tbody tr:hover {
-    background: var(--gray-100);
+    background: var(--table-hover, rgba(102,126,234,0.06));
 }
 
 .tabela-empresas td {
     padding: 4px 8px;
     font-size: 10px;
-    color: #495057;
-    border-right: 1px solid #e9ecef;
+    color: var(--text-primary, #495057);
+    border-right: 1px solid var(--border-color, #e9ecef);
 }
 
 .tabela-empresas td:last-child {
@@ -1491,6 +1491,28 @@
     border-right-color: rgba(99, 149, 255, 0.06);
 }
 
+/* Tabela empresas */
+[data-theme="dark"] .tabela-empresas {
+    background: #111827;
+}
+
+[data-theme="dark"] .tabela-empresas tbody tr {
+    border-bottom-color: rgba(99, 149, 255, 0.08);
+}
+
+[data-theme="dark"] .tabela-empresas tbody tr:nth-child(even) {
+    background: #0d1525;
+}
+
+[data-theme="dark"] .tabela-empresas tbody tr:hover {
+    background: #1e293b;
+}
+
+[data-theme="dark"] .tabela-empresas td {
+    color: var(--theme-text-muted);
+    border-right-color: rgba(99, 149, 255, 0.06);
+}
+
 /* Tabela logs (se existir) */
 [data-theme="dark"] .tabela-logs,
 [data-theme="dark"] .log-table {
@@ -1788,10 +1810,11 @@
     flex-shrink: 0;
 }
 
-.fkpi-green .fkpi-icon { background: rgba(46,204,113,0.15); color: #2ecc71; }
-.fkpi-yellow .fkpi-icon { background: rgba(243,156,18,0.15); color: #f39c12; }
-.fkpi-red .fkpi-icon { background: rgba(231,76,60,0.15); color: #e74c3c; }
-.fkpi-blue .fkpi-icon { background: rgba(52,152,219,0.15); color: #3498db; }
+.fkpi-green .fkpi-icon  { background: rgba(46,204,113,0.15);  color: #2ecc71; }
+.fkpi-yellow .fkpi-icon { background: rgba(243,156,18,0.15);  color: #f39c12; }
+.fkpi-red .fkpi-icon    { background: rgba(231,76,60,0.15);   color: #e74c3c; }
+.fkpi-blue .fkpi-icon   { background: rgba(52,152,219,0.15);  color: #3498db; }
+.fkpi-purple .fkpi-icon { background: rgba(139,92,246,0.15);  color: #8b5cf6; }
 
 .fkpi-valor {
     display: block;
@@ -1832,6 +1855,45 @@
 .fornecedor-chart-wrapper {
     height: 260px;
     position: relative;
+}
+
+/* Globo 3D */
+.fornecedor-globe-section {
+    background: var(--card-bg, #1e2329);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid var(--border-color, rgba(255,255,255,0.08));
+    margin-bottom: 24px;
+}
+
+.fornecedor-globe-section h3 {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    font-weight: 500;
+}
+
+#fornecedor-globe-container {
+    width: 100%;
+    height: 420px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Minha Conta */
+.minha-conta-container {
+    max-width: 900px;
+    padding: 16px;
+}
+
+.minha-conta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+}
+
+.admin-section-card--danger {
+    border: 1px solid rgba(231,76,60,0.3);
 }
 
 .fornecedor-tabela-card {

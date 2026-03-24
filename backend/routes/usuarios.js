@@ -752,7 +752,12 @@ router.get('/stats/geral', authMiddleware, isMaster, async (req, res) => {
                 COUNT(CASE WHEN status = 'bloqueado' THEN 1 END) as usuarios_bloqueados,
                 COUNT(CASE WHEN tipo = 'padrao' THEN 1 END) as usuarios_padrao,
                 COUNT(CASE WHEN tipo = 'admin' THEN 1 END) as usuarios_admin,
-                COUNT(CASE WHEN tipo = 'master' THEN 1 END) as usuarios_master
+                COUNT(CASE WHEN tipo = 'master' THEN 1 END) as usuarios_master,
+                COUNT(CASE WHEN plano_status = 'ativo' AND tipo != 'master' THEN 1 END) as usuarios_pagantes,
+                COUNT(CASE WHEN (plano_status = 'trial' OR plano_status IS NULL) AND tipo != 'master' THEN 1 END) as usuarios_trial,
+                COUNT(CASE WHEN plano_status = 'expirado' AND tipo != 'master' THEN 1 END) as usuarios_expirados,
+                COUNT(CASE WHEN plano_status = 'ativo' AND plano_tipo = 'mensal' THEN 1 END) as usuarios_mensal,
+                COUNT(CASE WHEN plano_status = 'ativo' AND plano_tipo = 'anual' THEN 1 END) as usuarios_anual
             FROM usuarios
         `);
 
@@ -1362,5 +1367,117 @@ router.delete('/:id/limpar-dados', authMiddleware, async (req, res) => {
 });
 
 
+
+// ================================================================
+// GET /api/usuarios/me — Dados do próprio usuário logado
+// ================================================================
+router.get('/me', authMiddleware, async (req, res) => {
+    try {
+        const result = await query(
+            'SELECT id, nome, email, documento, pais, estado, cidade, tipo, status, plano_status, plano_tipo, plano_expiracao, data_cadastro FROM usuarios WHERE id = $1',
+            [req.usuario.id]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
+        }
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Erro ao buscar perfil:', error);
+        res.status(500).json({ success: false, message: 'Erro ao buscar perfil' });
+    }
+});
+
+// ================================================================
+// PUT /api/usuarios/me — Atualizar dados do próprio usuário
+// ================================================================
+router.put('/me', authMiddleware, async (req, res) => {
+    try {
+        const { nome, email, pais, estado, cidade, senha_atual, nova_senha } = req.body;
+
+        if (!nome || nome.trim() === '') {
+            return res.status(400).json({ success: false, message: 'Nome é obrigatório' });
+        }
+
+        const current = await query('SELECT senha, email FROM usuarios WHERE id = $1', [req.usuario.id]);
+        if (current.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
+        }
+
+        // Se quer trocar senha, valida a atual
+        let senhaHash = null;
+        if (nova_senha) {
+            if (!senha_atual) {
+                return res.status(400).json({ success: false, message: 'Informe a senha atual para alterar a senha' });
+            }
+            const senhaValida = await bcrypt.compare(senha_atual, current.rows[0].senha);
+            if (!senhaValida) {
+                return res.status(400).json({ success: false, message: 'Senha atual incorreta' });
+            }
+            if (nova_senha.length < 8) {
+                return res.status(400).json({ success: false, message: 'Nova senha deve ter pelo menos 8 caracteres' });
+            }
+            senhaHash = await bcrypt.hash(nova_senha, 10);
+        }
+
+        // Verificar email duplicado (se mudou)
+        if (email && email.toLowerCase() !== current.rows[0].email) {
+            const emailExiste = await query('SELECT id FROM usuarios WHERE email = $1 AND id != $2', [email.toLowerCase(), req.usuario.id]);
+            if (emailExiste.rows.length > 0) {
+                return res.status(400).json({ success: false, message: 'Este email já está em uso' });
+            }
+        }
+
+        const updateQuery = senhaHash
+            ? `UPDATE usuarios SET nome = $1, email = $2, pais = $3, estado = $4, cidade = $5, senha = $6, data_atualizacao = CURRENT_TIMESTAMP WHERE id = $7 RETURNING id, nome, email, pais, estado, cidade`
+            : `UPDATE usuarios SET nome = $1, email = $2, pais = $3, estado = $4, cidade = $5, data_atualizacao = CURRENT_TIMESTAMP WHERE id = $6 RETURNING id, nome, email, pais, estado, cidade`;
+
+        const params = senhaHash
+            ? [nome.trim(), (email || current.rows[0].email).toLowerCase(), pais || null, estado || null, cidade || null, senhaHash, req.usuario.id]
+            : [nome.trim(), (email || current.rows[0].email).toLowerCase(), pais || null, estado || null, cidade || null, req.usuario.id];
+
+        const result = await query(updateQuery, params);
+
+        res.json({ success: true, message: 'Perfil atualizado com sucesso', data: result.rows[0] });
+    } catch (error) {
+        console.error('Erro ao atualizar perfil:', error);
+        res.status(500).json({ success: false, message: 'Erro ao atualizar perfil' });
+    }
+});
+
+// ================================================================
+// DELETE /api/usuarios/me/cancelar — Cancelar a própria conta
+// ================================================================
+router.delete('/me/cancelar', authMiddleware, async (req, res) => {
+    try {
+        const { senha } = req.body;
+        if (!senha) {
+            return res.status(400).json({ success: false, message: 'Informe sua senha para confirmar o cancelamento' });
+        }
+
+        const result = await query('SELECT senha, tipo FROM usuarios WHERE id = $1', [req.usuario.id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
+        }
+
+        if (result.rows[0].tipo === 'master') {
+            return res.status(403).json({ success: false, message: 'Conta master não pode ser cancelada por este fluxo' });
+        }
+
+        const senhaValida = await bcrypt.compare(senha, result.rows[0].senha);
+        if (!senhaValida) {
+            return res.status(400).json({ success: false, message: 'Senha incorreta' });
+        }
+
+        await query(
+            `UPDATE usuarios SET status = 'cancelado', plano_status = 'expirado', data_atualizacao = CURRENT_TIMESTAMP WHERE id = $1`,
+            [req.usuario.id]
+        );
+
+        res.json({ success: true, message: 'Conta cancelada com sucesso' });
+    } catch (error) {
+        console.error('Erro ao cancelar conta:', error);
+        res.status(500).json({ success: false, message: 'Erro ao cancelar conta' });
+    }
+});
 
 module.exports = router;
