@@ -48,7 +48,8 @@ function renderizarFornecedorDashboard({ geral, mapa }) {
     setEl('fkpi-pagantes',  geral.usuarios_pagantes || 0);
     setEl('fkpi-mensal',    geral.usuarios_mensal   || 0);
     setEl('fkpi-anual',     geral.usuarios_anual    || 0);
-    setEl('fkpi-trial',     geral.usuarios_trial    || 0);
+    setEl('fkpi-trial',      geral.usuarios_trial      || 0);
+    setEl('fkpi-cancelados', geral.usuarios_cancelados || 0);
 
     renderizarChartStatus(geral);
     renderizarChartPlano(geral);

@@ -1815,6 +1815,7 @@
 .fkpi-red .fkpi-icon    { background: rgba(231,76,60,0.15);   color: #e74c3c; }
 .fkpi-blue .fkpi-icon   { background: rgba(52,152,219,0.15);  color: #3498db; }
 .fkpi-purple .fkpi-icon { background: rgba(139,92,246,0.15);  color: #8b5cf6; }
+.fkpi-danger .fkpi-icon { background: rgba(231,76,60,0.15);   color: #e74c3c; }
 
 .fkpi-valor {
     display: block;
@@ -1881,19 +1882,27 @@
 }
 
 /* Minha Conta */
-.minha-conta-container {
-    max-width: 900px;
-    padding: 16px;
-}
-
-.minha-conta-grid {
+.mc-form-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 12px;
 }
 
-.admin-section-card--danger {
-    border: 1px solid rgba(231,76,60,0.3);
+.config-card--danger {
+    border-left: 3px solid #e74c3c;
+}
+
+.config-danger-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.config-danger-row p {
+    margin: 4px 0 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
 }
 
 .fornecedor-tabela-card {

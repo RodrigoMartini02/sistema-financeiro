@@ -757,7 +757,8 @@ router.get('/stats/geral', authMiddleware, isMaster, async (req, res) => {
                 COUNT(CASE WHEN (plano_status = 'trial' OR plano_status IS NULL) AND tipo != 'master' THEN 1 END) as usuarios_trial,
                 COUNT(CASE WHEN plano_status = 'expirado' AND tipo != 'master' THEN 1 END) as usuarios_expirados,
                 COUNT(CASE WHEN plano_status = 'ativo' AND plano_tipo = 'mensal' THEN 1 END) as usuarios_mensal,
-                COUNT(CASE WHEN plano_status = 'ativo' AND plano_tipo = 'anual' THEN 1 END) as usuarios_anual
+                COUNT(CASE WHEN plano_status = 'ativo' AND plano_tipo = 'anual' THEN 1 END) as usuarios_anual,
+                COUNT(CASE WHEN status = 'cancelado' THEN 1 END) as usuarios_cancelados
             FROM usuarios
         `);
 

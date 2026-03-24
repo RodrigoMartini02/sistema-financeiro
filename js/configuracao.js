@@ -2930,12 +2930,10 @@ function onAbaAtivada(tabName) {
         if (contentOrig && contentGlobal && contentOrig.innerHTML && !contentGlobal.innerHTML.includes('carta-markdown')) {
             contentGlobal.innerHTML = contentOrig.innerHTML;
         }
-    } else if (tabName === 'empresas') {
-        setTimeout(() => carregarEmpresas(), 100);
     } else if (tabName === 'espaco-admin') {
         carregarPermissoes();
     } else if (tabName === 'minha-conta') {
-        setTimeout(() => carregarMinhaConta(), 100);
+        setTimeout(() => { carregarMinhaConta(); carregarEmpresas(); }, 100);
     }
 }
 
