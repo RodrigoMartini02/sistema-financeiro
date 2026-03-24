@@ -260,25 +260,14 @@
                 </div>
 
                 <form id="modal-login-form">
-                    <div class="form-group">
-                        <label for="modal-documento">
-                            <i class="fas fa-id-card"></i> CPF/CNPJ
-                        </label>
-                        <input type="text" id="modal-documento" name="documento" required
-                               placeholder="Digite seu CPF ou CNPJ" autocomplete="username">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="modal-password">
-                            <i class="fas fa-lock"></i> Senha
-                        </label>
-                        <div class="password-input">
-                            <input type="password" id="modal-password" name="password" required
-                                   placeholder="Digite sua senha" autocomplete="current-password">
-                            <button type="button" class="password-toggle" data-target="modal-password">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                        </div>
+                    <input type="text" id="modal-documento" name="documento" required
+                           placeholder="CPF ou CNPJ" autocomplete="username">
+                    <div class="password-input">
+                        <input type="password" id="modal-password" name="password" required
+                               placeholder="Senha" autocomplete="current-password">
+                        <button type="button" class="password-toggle" data-target="modal-password">
+                            <i class="fas fa-eye"></i>
+                        </button>
                     </div>
 
                     <button type="submit" class="btn btn-primary">
@@ -804,19 +793,11 @@
             <span>E-mail de recuperação enviado! Verifique sua caixa de entrada e spam.</span>
         </div>
         <form id="form-recuperacao-senha">
-            <div class="form-group">
-                <label for="recuperacao-email">
-                    <i class="fas fa-envelope"></i> E-mail cadastrado
-                </label>
-                <input type="email" id="recuperacao-email" name="email" required
-                       placeholder="Digite seu e-mail" autocomplete="email">
-            </div>
-            <div id="campo-codigo-container" class="form-group" style="display: none;">
-                <label for="codigo-recuperacao">
-                    <i class="fas fa-shield-alt"></i> Código de verificação
-                </label>
+            <input type="email" id="recuperacao-email" name="email" required
+                   placeholder="E-mail cadastrado" autocomplete="email">
+            <div id="campo-codigo-container" style="display: none;">
                 <input type="text" id="codigo-recuperacao" name="codigo"
-                       placeholder="Digite o código recebido por email" maxlength="6">
+                       placeholder="Código de verificação recebido por e-mail" maxlength="6">
                 <small>Verifique sua caixa de entrada e spam</small>
             </div>
             <button type="submit" class="btn btn-primary">
@@ -843,29 +824,23 @@
         </div>
         <form id="form-nova-senha">
             <input type="hidden" id="email-nova-senha" name="email">
-            <div class="form-group">
-                <label for="nova-senha"><i class="fas fa-key"></i> Nova senha</label>
-                <div class="password-input">
-                    <input type="password" id="nova-senha" name="password" required minlength="6"
-                           placeholder="Digite sua nova senha" autocomplete="new-password">
-                    <button type="button" class="password-toggle" data-target="nova-senha">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                </div>
-                <div class="password-strength">
-                    <div class="strength-bar"><div class="strength-fill"></div></div>
-                    <small class="strength-text">Mínimo de 6 caracteres</small>
-                </div>
+            <div class="password-input">
+                <input type="password" id="nova-senha" name="password" required minlength="6"
+                       placeholder="Nova senha (mín. 6 caracteres)" autocomplete="new-password">
+                <button type="button" class="password-toggle" data-target="nova-senha">
+                    <i class="fas fa-eye"></i>
+                </button>
             </div>
-            <div class="form-group">
-                <label for="confirmar-nova-senha"><i class="fas fa-key"></i> Confirme a nova senha</label>
-                <div class="password-input">
-                    <input type="password" id="confirmar-nova-senha" name="confirm-password" required
-                           placeholder="Confirme sua nova senha" autocomplete="new-password">
-                    <button type="button" class="password-toggle" data-target="confirmar-nova-senha">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                </div>
+            <div class="password-strength">
+                <div class="strength-bar"><div class="strength-fill"></div></div>
+                <small class="strength-text">Mínimo de 6 caracteres</small>
+            </div>
+            <div class="password-input">
+                <input type="password" id="confirmar-nova-senha" name="confirm-password" required
+                       placeholder="Confirme a nova senha" autocomplete="new-password">
+                <button type="button" class="password-toggle" data-target="confirmar-nova-senha">
+                    <i class="fas fa-eye"></i>
+                </button>
             </div>
             <button type="submit" class="btn btn-primary"><span>Salvar Nova Senha</span></button>
         </form>
@@ -885,31 +860,13 @@
             <span>Cadastro realizado com sucesso! Você já pode fazer login.</span>
         </div>
         <form id="form-cadastro">
-            <div class="form-group">
-                <label for="cadastro-nome"><i class="fas fa-user"></i> Nome completo</label>
-                <input type="text" id="cadastro-nome" name="nome" required placeholder="Digite seu nome completo" autocomplete="name">
-            </div>
-            <div class="form-group">
-                <label for="cadastro-email"><i class="fas fa-envelope"></i> E-mail</label>
-                <input type="email" id="cadastro-email" name="email" required placeholder="Digite seu e-mail" autocomplete="email">
-            </div>
-            <div class="form-group">
-                <label for="cadastro-documento"><i class="fas fa-id-card"></i> CPF</label>
-                <input type="text" id="cadastro-documento" name="documento" required placeholder="Digite seu CPF" autocomplete="off">
-            </div>
-            <div class="form-group">
-                <label for="cadastro-pais"><i class="fas fa-globe"></i> País</label>
-                <input type="text" id="cadastro-pais" name="pais" placeholder="Ex: Brasil" autocomplete="country-name" required>
-            </div>
+            <input type="text" id="cadastro-nome" name="nome" required placeholder="Nome completo *" autocomplete="name">
+            <input type="email" id="cadastro-email" name="email" required placeholder="E-mail *" autocomplete="email">
+            <input type="text" id="cadastro-documento" name="documento" required placeholder="CPF *" autocomplete="off">
+            <input type="text" id="cadastro-pais" name="pais" placeholder="País * (Ex: Brasil)" autocomplete="country-name" required>
             <div class="form-row" style="display:flex;gap:12px;">
-                <div class="form-group" style="flex:1;">
-                    <label for="cadastro-estado"><i class="fas fa-map-marker-alt"></i> Estado</label>
-                    <input type="text" id="cadastro-estado" name="estado" placeholder="Ex: São Paulo" autocomplete="address-level1" required>
-                </div>
-                <div class="form-group" style="flex:1;">
-                    <label for="cadastro-cidade"><i class="fas fa-city"></i> Cidade</label>
-                    <input type="text" id="cadastro-cidade" name="cidade" placeholder="Ex: Campinas" autocomplete="address-level2" required>
-                </div>
+                <input type="text" id="cadastro-estado" name="estado" placeholder="Estado * (Ex: São Paulo)" autocomplete="address-level1" required style="flex:1;">
+                <input type="text" id="cadastro-cidade" name="cidade" placeholder="Cidade * (Ex: Campinas)" autocomplete="address-level2" required style="flex:1;">
             </div>
             <input type="hidden" id="cadastro-latitude" name="latitude">
             <input type="hidden" id="cadastro-longitude" name="longitude">
@@ -917,27 +874,21 @@
                 <i class="fas fa-location-arrow"></i> Usar minha localização exata (opcional)
             </button>
             <small id="geoloc-status" style="display:none;font-size:0.8rem;color:var(--success-color,#2ecc71);margin-top:4px;display:block;"></small>
-            <div class="form-group">
-                <label for="cadastro-password"><i class="fas fa-lock"></i> Senha</label>
-                <div class="password-input">
-                    <input type="password" id="cadastro-password" name="password" required minlength="8" placeholder="Mínimo 8 caracteres" autocomplete="new-password">
-                    <button type="button" class="password-toggle" data-target="cadastro-password">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                </div>
-                <div class="password-strength">
-                    <div class="strength-bar"><div class="strength-fill"></div></div>
-                    <small class="strength-text">Mínimo de 8 caracteres</small>
-                </div>
+            <div class="password-input">
+                <input type="password" id="cadastro-password" name="password" required minlength="8" placeholder="Senha * (mín. 8 caracteres)" autocomplete="new-password">
+                <button type="button" class="password-toggle" data-target="cadastro-password">
+                    <i class="fas fa-eye"></i>
+                </button>
             </div>
-            <div class="form-group">
-                <label for="cadastro-confirm-password"><i class="fas fa-lock"></i> Confirme a senha</label>
-                <div class="password-input">
-                    <input type="password" id="cadastro-confirm-password" name="confirm-password" required placeholder="Confirme sua senha" autocomplete="new-password">
-                    <button type="button" class="password-toggle" data-target="cadastro-confirm-password">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                </div>
+            <div class="password-strength">
+                <div class="strength-bar"><div class="strength-fill"></div></div>
+                <small class="strength-text">Mínimo de 8 caracteres</small>
+            </div>
+            <div class="password-input">
+                <input type="password" id="cadastro-confirm-password" name="confirm-password" required placeholder="Confirme a senha *" autocomplete="new-password">
+                <button type="button" class="password-toggle" data-target="cadastro-confirm-password">
+                    <i class="fas fa-eye"></i>
+                </button>
             </div>
             <button type="submit" class="btn btn-primary"><span>Criar Conta</span></button>
             <div class="login-footer">
