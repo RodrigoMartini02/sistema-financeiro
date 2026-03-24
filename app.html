@@ -1850,29 +1850,19 @@
         <div class="modal-body">
             <form id="form-editar-categoria">
                 <input type="hidden" id="categoria-edit-id">
-
-                <div class="form-group">
-                    <label for="categoria-edit-nome">
-                        <i class="fas fa-tag"></i> Nome da Categoria: <span class="required">*</span>
-                    </label>
-                    <input type="text" id="categoria-edit-nome" class="form-input" required maxlength="50">
-                </div>
+                <input type="text" id="categoria-edit-nome" class="form-input" required maxlength="50" placeholder="Nome da Categoria *">
             </form>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-action="cancelar">
-                Cancelar
-            </button>
-            <button type="submit" form="form-editar-categoria" class="btn btn-primary">
-                Salvar
-            </button>
+            <button type="button" class="btn btn-secondary" data-action="cancelar">Cancelar</button>
+            <button type="submit" form="form-editar-categoria" class="btn btn-primary">Salvar</button>
         </div>
     </div>
 </div>
 
 <!-- Modal: Editar Cartão -->
 <div id="modal-editar-cartao" class="modal">
-    <div class="modal-content modal-md">
+    <div class="modal-content modal-sm">
         <div class="modal-header">
             <h2><i class="fas fa-credit-card"></i> Editar Cartão</h2>
             <button type="button" class="close" title="Fechar">&times;</button>
@@ -1880,60 +1870,19 @@
         <div class="modal-body">
             <form id="form-editar-cartao">
                 <input type="hidden" id="cartao-edit-id">
-
-                <div class="form-row-cartao">
-                    <div class="form-group flex-grow">
-                        <label for="cartao-edit-banco">
-                            <i class="fas fa-university"></i> Nome do Banco <span class="required">*</span>
-                        </label>
-                        <input type="text" id="cartao-edit-banco" class="form-input" required maxlength="50" placeholder="Ex: Nubank, Itaú, etc.">
-                    </div>
-                    <div class="form-group form-group-checkbox">
-                        <label>Ativo</label>
-                        <div class="checkbox-container">
-                            <input type="checkbox" id="cartao-edit-ativo">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="form-row-cartao">
-                    <div class="form-group flex-grow">
-                        <label for="cartao-edit-validade">
-                            <i class="fas fa-calendar-alt"></i> Validade (MM/AAAA)
-                        </label>
-                        <input type="text" id="cartao-edit-validade" class="form-input" maxlength="7" inputmode="numeric" placeholder="MM/AAAA" oninput="formatarValidadeCartao(this)">
-                    </div>
-                </div>
-
-                <div class="form-row-cartao">
-                    <div class="form-group">
-                        <label for="cartao-edit-fechamento">
-                            <i class="fas fa-calendar-alt"></i> Dia Fechamento <span class="required">*</span>
-                        </label>
-                        <input type="number" id="cartao-edit-fechamento" class="form-input" min="1" max="31" required placeholder="1-31">
-                    </div>
-                    <div class="form-group">
-                        <label for="cartao-edit-vencimento">
-                            <i class="fas fa-calendar-check"></i> Dia Vencimento <span class="required">*</span>
-                        </label>
-                        <input type="number" id="cartao-edit-vencimento" class="form-input" min="1" max="31" required placeholder="1-31">
-                    </div>
-                    <div class="form-group">
-                        <label for="cartao-edit-limite">
-                            <i class="fas fa-dollar-sign"></i> Limite (R$) <span class="required">*</span>
-                        </label>
-                        <input type="number" id="cartao-edit-limite" class="form-input" step="0.01" min="0" required placeholder="0,00">
-                    </div>
+                <div class="mc-form-grid">
+                    <input type="text" id="cartao-edit-banco" class="form-input" required maxlength="50" placeholder="Nome do Banco *">
+                    <input type="text" id="cartao-edit-validade" class="form-input" maxlength="7" inputmode="numeric" placeholder="Validade MM/AAAA" oninput="formatarValidadeCartao(this)">
+                    <input type="number" id="cartao-edit-fechamento" class="form-input" min="1" max="31" required placeholder="Dia Fechamento *">
+                    <input type="number" id="cartao-edit-vencimento" class="form-input" min="1" max="31" required placeholder="Dia Vencimento *">
+                    <input type="number" id="cartao-edit-limite" class="form-input" step="0.01" min="0" required placeholder="Limite (R$) *">
+                    <label class="form-check-label"><input type="checkbox" id="cartao-edit-ativo"> Ativo</label>
                 </div>
             </form>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-action="cancelar">
-                Cancelar
-            </button>
-            <button type="submit" form="form-editar-cartao" class="btn btn-primary">
-                Salvar
-            </button>
+            <button type="button" class="btn btn-secondary" data-action="cancelar">Cancelar</button>
+            <button type="submit" form="form-editar-cartao" class="btn btn-primary">Salvar</button>
         </div>
     </div>
 </div>
@@ -1941,63 +1890,28 @@
 
 <!-- Modal: Adicionar Usuário -->
 <div id="modal-adicionar-usuario" class="modal">
-    <div class="modal-content modal-md">
+    <div class="modal-content modal-sm">
         <div class="modal-header">
             <h2>Novo Usuário</h2>
             <button type="button" class="close" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
             <form id="form-adicionar-usuario">
-                <div class="form-group">
-                    <label for="novo-usuario-nome">Nome <span class="required">*</span></label>
-                    <input type="text" id="novo-usuario-nome" class="form-input" required maxlength="100">
-                </div>
-
-                <div class="form-group">
-                    <label for="novo-usuario-email">E-mail <span class="required">*</span></label>
-                    <input type="email" id="novo-usuario-email" class="form-input" required maxlength="100">
-                </div>
-
-                <div class="form-group">
-                    <label for="novo-usuario-documento">Documento (CPF/CNPJ) <span class="required">*</span></label>
-                    <input type="text" id="novo-usuario-documento" class="form-input" required maxlength="18">
-                    <small class="field-help">Digite apenas números</small>
-                </div>
-
-                <div class="form-group">
-                    <label for="novo-usuario-tipo">Tipo de Usuário</label>
+                <div class="mc-form-grid">
+                    <input type="text" id="novo-usuario-nome" class="form-input" required maxlength="100" placeholder="Nome *">
+                    <input type="email" id="novo-usuario-email" class="form-input" required maxlength="100" placeholder="E-mail *">
+                    <input type="text" id="novo-usuario-documento" class="form-input" required maxlength="18" placeholder="CPF/CNPJ * (só números)">
                     <select id="novo-usuario-tipo" class="form-control">
-                        <option value="padrao">Usuário Padrão</option>
+                        <option value="padrao" selected>Usuário Padrão</option>
                         <option value="admin">Administrador</option>
                         <option value="master">Master</option>
                     </select>
+                    <input type="text" id="novo-usuario-pais" class="form-input" required maxlength="100" placeholder="País * (Ex: Brasil)">
+                    <input type="text" id="novo-usuario-estado" class="form-input" required maxlength="100" placeholder="Estado * (Ex: São Paulo)">
+                    <input type="text" id="novo-usuario-cidade" class="form-input" required maxlength="100" placeholder="Cidade *">
+                    <input type="password" id="novo-usuario-senha" class="form-input" required minlength="6" placeholder="Senha * (mín. 6 caracteres)">
+                    <input type="password" id="novo-usuario-confirmar-senha" class="form-input" required minlength="6" placeholder="Confirmar Senha *">
                 </div>
-
-                <div class="form-group">
-                    <label for="novo-usuario-pais">País <span class="required">*</span></label>
-                    <input type="text" id="novo-usuario-pais" class="form-input" required maxlength="100" placeholder="Ex: Brasil">
-                </div>
-                <div class="form-group">
-                    <label for="novo-usuario-estado">Estado <span class="required">*</span></label>
-                    <input type="text" id="novo-usuario-estado" class="form-input" required maxlength="100" placeholder="Ex: São Paulo">
-                </div>
-                <div class="form-group">
-                    <label for="novo-usuario-cidade">Cidade <span class="required">*</span></label>
-                    <input type="text" id="novo-usuario-cidade" class="form-input" required maxlength="100" placeholder="Ex: São Paulo">
-                </div>
-
-                <div class="form-group">
-                    <label for="novo-usuario-senha">Senha <span class="required">*</span></label>
-                    <input type="password" id="novo-usuario-senha" class="form-input" required minlength="6">
-                    <small class="field-help">Mínimo 6 caracteres</small>
-                </div>
-
-                <div class="form-group">
-                    <label for="novo-usuario-confirmar-senha">Confirmar Senha <span class="required">*</span></label>
-                    <input type="password" id="novo-usuario-confirmar-senha" class="form-input" required minlength="6">
-                </div>
-
-                <!-- Status de validação -->
                 <div id="validacao-status" class="validation-feedback hidden">
                     <div class="validation-message">
                         <i class="validation-icon"></i>
@@ -2015,7 +1929,7 @@
 
 <!-- Modal: Editar Usuário -->
 <div id="modal-editar-usuario" class="modal">
-    <div class="modal-content modal-md">
+    <div class="modal-content modal-sm">
         <div class="modal-header">
             <h2 id="editar-usuario-titulo">Editar Usuário</h2>
             <button type="button" class="close" title="Fechar">&times;</button>
@@ -2023,66 +1937,28 @@
         <div class="modal-body">
             <form id="form-editar-usuario">
                 <input type="hidden" id="editar-usuario-id">
-
-                <div class="form-group">
-                    <label for="editar-usuario-nome">Nome <span class="required">*</span></label>
-                    <input type="text" id="editar-usuario-nome" class="form-input" required maxlength="100">
-                </div>
-
-                <div class="form-group">
-                    <label for="editar-usuario-email">E-mail <span class="required">*</span></label>
-                    <input type="email" id="editar-usuario-email" class="form-input" required maxlength="100">
-                </div>
-
-                <div class="form-group">
-                    <label for="editar-usuario-documento">Documento (CPF/CNPJ) <span class="required">*</span></label>
-                    <input type="text" id="editar-usuario-documento" class="form-input" required maxlength="18" disabled>
-                    <small class="field-help">O documento não pode ser alterado após o cadastro</small>
-                </div>
-
-                <div id="form-group-tipo" class="form-group">
-                    <label for="editar-usuario-tipo">Tipo de Usuário</label>
-                    <select id="editar-usuario-tipo" class="form-control">
-                        <option value="padrao">Usuário Padrão</option>
-                        <option value="admin">Administrador</option>
-                        <option value="master">Master</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="editar-usuario-status">Status</label>
+                <div class="mc-form-grid">
+                    <input type="text" id="editar-usuario-nome" class="form-input" required maxlength="100" placeholder="Nome *">
+                    <input type="email" id="editar-usuario-email" class="form-input" required maxlength="100" placeholder="E-mail *">
+                    <input type="text" id="editar-usuario-documento" class="form-input" required maxlength="18" disabled placeholder="CPF/CNPJ" title="O documento não pode ser alterado">
+                    <div id="form-group-tipo">
+                        <select id="editar-usuario-tipo" class="form-control">
+                            <option value="padrao">Usuário Padrão</option>
+                            <option value="admin">Administrador</option>
+                            <option value="master">Master</option>
+                        </select>
+                    </div>
                     <select id="editar-usuario-status" class="form-control">
                         <option value="ativo">Ativo</option>
                         <option value="inativo">Inativo</option>
                         <option value="bloqueado">Bloqueado</option>
                     </select>
+                    <input type="text" id="editar-usuario-pais" class="form-input" required maxlength="100" placeholder="País *">
+                    <input type="text" id="editar-usuario-estado" class="form-input" required maxlength="100" placeholder="Estado *">
+                    <input type="text" id="editar-usuario-cidade" class="form-input" required maxlength="100" placeholder="Cidade *">
+                    <input type="password" id="editar-usuario-senha" class="form-input" minlength="6" placeholder="Nova Senha (em branco = manter)">
+                    <input type="password" id="editar-usuario-confirmar-senha" class="form-input" placeholder="Confirmar Nova Senha">
                 </div>
-
-                <div class="form-group">
-                    <label for="editar-usuario-pais">País <span class="required">*</span></label>
-                    <input type="text" id="editar-usuario-pais" class="form-input" required maxlength="100" placeholder="Ex: Brasil">
-                </div>
-                <div class="form-group">
-                    <label for="editar-usuario-estado">Estado <span class="required">*</span></label>
-                    <input type="text" id="editar-usuario-estado" class="form-input" required maxlength="100" placeholder="Ex: São Paulo">
-                </div>
-                <div class="form-group">
-                    <label for="editar-usuario-cidade">Cidade <span class="required">*</span></label>
-                    <input type="text" id="editar-usuario-cidade" class="form-input" required maxlength="100" placeholder="Ex: São Paulo">
-                </div>
-
-                <div class="form-group">
-                    <label for="editar-usuario-senha">Nova Senha</label>
-                    <input type="password" id="editar-usuario-senha" class="form-input" placeholder="Deixe em branco para manter a atual" minlength="6">
-                    <small class="field-help">Mínimo 6 caracteres</small>
-                </div>
-
-                <div class="form-group">
-                    <label for="editar-usuario-confirmar-senha">Confirmar Nova Senha</label>
-                    <input type="password" id="editar-usuario-confirmar-senha" class="form-input" placeholder="Confirme a nova senha">
-                </div>
-
-                <!-- Mensagem de permissão -->
                 <div id="permissao-message" class="alert-message hidden">
                     <i class="fas fa-exclamation-triangle"></i>
                     <span>Você só pode editar usuários do tipo Padrão</span>
@@ -4040,26 +3916,11 @@
             <form id="form-empresa">
                 <input type="hidden" id="empresa-id">
                 <div class="mc-form-grid">
-                    <div class="form-group">
-                        <label for="empresa-razao-social">Razão Social <span class="required">*</span></label>
-                        <input type="text" id="empresa-razao-social" class="form-input" required maxlength="150" placeholder="Ex: Empresa Ltda">
-                    </div>
-                    <div class="form-group">
-                        <label for="empresa-nome-fantasia">Nome Fantasia</label>
-                        <input type="text" id="empresa-nome-fantasia" class="form-input" maxlength="150" placeholder="Ex: Minha Empresa">
-                    </div>
-                    <div class="form-group">
-                        <label for="empresa-cnpj">CNPJ <span class="required">*</span></label>
-                        <input type="text" id="empresa-cnpj" class="form-input" required maxlength="18" placeholder="00.000.000/0000-00">
-                    </div>
-                    <div class="form-group">
-                        <label for="empresa-atividade">Ramo de Atividade</label>
-                        <input type="text" id="empresa-atividade" class="form-input" maxlength="200" placeholder="Ex: Comércio varejista">
-                    </div>
-                    <div class="form-group">
-                        <label for="empresa-aporte-inicial">Aporte Inicial (R$)</label>
-                        <input type="number" id="empresa-aporte-inicial" class="form-input" min="0" step="0.01" placeholder="0,00">
-                    </div>
+                    <input type="text" id="empresa-razao-social" class="form-input" required maxlength="150" placeholder="Razão Social *">
+                    <input type="text" id="empresa-nome-fantasia" class="form-input" maxlength="150" placeholder="Nome Fantasia">
+                    <input type="text" id="empresa-cnpj" class="form-input" required maxlength="18" placeholder="CNPJ * (00.000.000/0000-00)">
+                    <input type="text" id="empresa-atividade" class="form-input" maxlength="200" placeholder="Ramo de Atividade">
+                    <input type="number" id="empresa-aporte-inicial" class="form-input" min="0" step="0.01" placeholder="Aporte Inicial (R$)">
                 </div>
             </form>
         </div>
@@ -4080,48 +3941,21 @@
         <div class="modal-body">
             <form id="form-minha-conta">
                 <div class="mc-form-grid">
-                    <div class="form-group">
-                        <label>Nome <span class="required">*</span></label>
-                        <input type="text" id="mc-nome" class="form-input" required>
-                    </div>
-                    <div class="form-group">
-                        <label>E-mail <span class="required">*</span></label>
-                        <input type="email" id="mc-email" class="form-input" required>
-                    </div>
-                    <div class="form-group">
-                        <label>CPF</label>
-                        <input type="text" id="mc-documento" class="form-input" readonly style="opacity:0.6;cursor:not-allowed;">
-                    </div>
-                    <div class="form-group">
-                        <label>País</label>
-                        <input type="text" id="mc-pais" class="form-input" placeholder="Ex: Brasil">
-                    </div>
-                    <div class="form-group">
-                        <label>Estado</label>
-                        <input type="text" id="mc-estado" class="form-input" placeholder="Ex: São Paulo">
-                    </div>
-                    <div class="form-group">
-                        <label>Cidade</label>
-                        <input type="text" id="mc-cidade" class="form-input" placeholder="Ex: Campinas">
-                    </div>
+                    <input type="text" id="mc-nome" class="form-input" required placeholder="Nome *">
+                    <input type="email" id="mc-email" class="form-input" required placeholder="E-mail *">
+                    <input type="text" id="mc-documento" class="form-input" readonly placeholder="CPF" style="opacity:0.6;cursor:not-allowed;">
+                    <input type="text" id="mc-pais" class="form-input" placeholder="País">
+                    <input type="text" id="mc-estado" class="form-input" placeholder="Estado">
+                    <input type="text" id="mc-cidade" class="form-input" placeholder="Cidade">
                 </div>
                 <input type="hidden" id="mc-latitude">
                 <input type="hidden" id="mc-longitude">
-                <hr style="margin:16px 0;border-color:var(--border-color);">
-                <p style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:10px;"><i class="fas fa-lock"></i> Alterar Senha — deixe em branco para não alterar</p>
+                <hr style="margin:12px 0;border-color:var(--border-color);">
+                <p style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:8px;"><i class="fas fa-lock"></i> Alterar Senha — deixe em branco para não alterar</p>
                 <div class="mc-form-grid">
-                    <div class="form-group">
-                        <label>Senha Atual</label>
-                        <input type="password" id="mc-senha-atual" class="form-input" placeholder="Digite sua senha atual">
-                    </div>
-                    <div class="form-group">
-                        <label>Nova Senha</label>
-                        <input type="password" id="mc-nova-senha" class="form-input" placeholder="Mínimo 8 caracteres">
-                    </div>
-                    <div class="form-group">
-                        <label>Confirmar Nova Senha</label>
-                        <input type="password" id="mc-confirmar-senha" class="form-input" placeholder="Repita a nova senha">
-                    </div>
+                    <input type="password" id="mc-senha-atual" class="form-input" placeholder="Senha Atual">
+                    <input type="password" id="mc-nova-senha" class="form-input" placeholder="Nova Senha (mín. 8 caracteres)">
+                    <input type="password" id="mc-confirmar-senha" class="form-input" placeholder="Confirmar Nova Senha">
                 </div>
             </form>
         </div>

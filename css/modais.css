@@ -390,7 +390,11 @@
 #modal-editar-cartao .modal-body .form-input,
 #modal-editar-cartao .modal-body .form-control,
 #modal-alterar-senha .modal-body .form-input,
-#modal-alterar-senha .modal-body .form-control {
+#modal-alterar-senha .modal-body .form-control,
+#modal-empresa .modal-body .form-input,
+#modal-empresa .modal-body .form-control,
+#modal-editar-minha-conta .modal-body .form-input,
+#modal-editar-minha-conta .modal-body .form-control {
     background: #ffffff !important;
     border: 1px solid #ced4da;
     padding: 10px 12px;
@@ -398,6 +402,17 @@
     width: 100%;
     font-size: 14px;
     box-sizing: border-box;
+}
+
+/* Checkbox inline dentro do mc-form-grid */
+.mc-form-grid .form-check-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--text-primary, #495057);
+    padding: 10px 4px;
+    cursor: pointer;
 }
 
 #modal-adicionar-usuario .modal-body .field-help,
