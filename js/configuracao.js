@@ -3510,6 +3510,14 @@ const API_URL_MC = window.API_URL || 'https://sistema-financeiro-backend-o199.on
 let _minhaConta = null;
 
 async function carregarMinhaConta() {
+    // População imediata com dados já disponíveis em memória
+    const usuarioLocal = window.usuarioDataManager?.getUsuarioAtual();
+    if (usuarioLocal) {
+        _minhaConta = usuarioLocal;
+        _renderizarMinhaConta(usuarioLocal);
+    }
+
+    // Confirmar com API para dados mais atualizados (lat/lng etc)
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     try {
         const res = await fetch(`${API_URL_MC}/usuarios/me`, {
@@ -3546,18 +3554,26 @@ function _renderizarMinhaConta(u) {
 }
 
 function abrirModalEditarMinhaConta() {
-    if (!_minhaConta) return;
+    // Usar dados em memória, fallback para usuarioDataManager
+    const u = _minhaConta || window.usuarioDataManager?.getUsuarioAtual();
+    if (!u) { mostrarToast('Dados do usuário não disponíveis', 'error'); return; }
+    if (!_minhaConta) _minhaConta = u;
+
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
-    set('mc-nome', _minhaConta.nome);
-    set('mc-email', _minhaConta.email);
-    set('mc-documento', _minhaConta.documento);
-    set('mc-pais', _minhaConta.pais);
-    set('mc-estado', _minhaConta.estado);
-    set('mc-cidade', _minhaConta.cidade);
+    set('mc-nome', u.nome);
+    set('mc-email', u.email);
+    set('mc-documento', u.documento);
+    set('mc-pais', u.pais);
+    set('mc-estado', u.estado);
+    set('mc-cidade', u.cidade);
     const lat = document.getElementById('mc-latitude');
     const lng = document.getElementById('mc-longitude');
-    if (lat) lat.value = _minhaConta.latitude || '';
-    if (lng) lng.value = _minhaConta.longitude || '';
+    if (lat) lat.value = u.latitude || '';
+    if (lng) lng.value = u.longitude || '';
+    // Limpar campos de senha
+    ['mc-senha-atual', 'mc-nova-senha', 'mc-confirmar-senha'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.value = '';
+    });
     document.getElementById('modal-editar-minha-conta').style.display = 'flex';
 }
 
@@ -3570,13 +3586,29 @@ window.abrirModalEditarMinhaConta = abrirModalEditarMinhaConta;
 window.abrirModalAlterarSenha = abrirModalAlterarSenha;
 
 function setupMinhaConta() {
-    // Botão salvar dados pessoais (modal)
+    // Botão salvar dados pessoais + senha opcional (modal unificado)
     const btnSalvar = document.getElementById('btn-salvar-minha-conta');
     if (btnSalvar) {
         btnSalvar.addEventListener('click', async () => {
             const token = localStorage.getItem('token') || sessionStorage.getItem('token');
             const lat = document.getElementById('mc-latitude')?.value;
             const lng = document.getElementById('mc-longitude')?.value;
+            const senhaAtual = document.getElementById('mc-senha-atual')?.value?.trim();
+            const novaSenha  = document.getElementById('mc-nova-senha')?.value?.trim();
+            const confirmar  = document.getElementById('mc-confirmar-senha')?.value?.trim();
+
+            // Validar senha se preenchida
+            if (novaSenha) {
+                if (novaSenha !== confirmar) {
+                    mostrarFeedback('As senhas não coincidem', 'error');
+                    return;
+                }
+                if (!senhaAtual) {
+                    mostrarFeedback('Informe a senha atual para alterar', 'error');
+                    return;
+                }
+            }
+
             const body = {
                 nome:      document.getElementById('mc-nome')?.value?.trim(),
                 email:     document.getElementById('mc-email')?.value?.trim(),
@@ -3586,6 +3618,11 @@ function setupMinhaConta() {
                 latitude:  lat ? parseFloat(lat) : undefined,
                 longitude: lng ? parseFloat(lng) : undefined
             };
+            if (novaSenha) {
+                body.senha_atual = senhaAtual;
+                body.nova_senha  = novaSenha;
+            }
+
             try {
                 const res = await fetch(`${API_URL_MC}/usuarios/me`, {
                     method: 'PUT',
@@ -3593,40 +3630,10 @@ function setupMinhaConta() {
                     body: JSON.stringify(body)
                 });
                 const data = await res.json();
-                mostrarFeedback(data.message || (data.success ? 'Perfil atualizado!' : 'Erro ao salvar'), data.success ? 'success' : 'error');
+                mostrarFeedback(data.message || (data.success ? 'Dados atualizados!' : 'Erro ao salvar'), data.success ? 'success' : 'error');
                 if (data.success) {
                     document.getElementById('modal-editar-minha-conta').style.display = 'none';
                     carregarMinhaConta();
-                }
-            } catch (e) {
-                mostrarFeedback('Erro de conexão', 'error');
-            }
-        });
-    }
-
-    // Botão confirmar alterar senha (modal)
-    const btnConfirmarSenha = document.getElementById('btn-confirmar-alterar-senha');
-    if (btnConfirmarSenha) {
-        btnConfirmarSenha.addEventListener('click', async () => {
-            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-            const senhaAtual = document.getElementById('mc-senha-atual')?.value?.trim();
-            const novaSenha  = document.getElementById('mc-nova-senha')?.value?.trim();
-            const confirmar  = document.getElementById('mc-confirmar-senha')?.value?.trim();
-            if (novaSenha !== confirmar) {
-                mostrarFeedback('As senhas não coincidem', 'error');
-                return;
-            }
-            try {
-                const res = await fetch(`${API_URL_MC}/usuarios/me`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ nome: _minhaConta?.nome, senha_atual: senhaAtual, nova_senha: novaSenha })
-                });
-                const data = await res.json();
-                mostrarFeedback(data.message || (data.success ? 'Senha alterada!' : 'Erro'), data.success ? 'success' : 'error');
-                if (data.success) {
-                    document.getElementById('modal-alterar-senha').style.display = 'none';
-                    document.getElementById('form-alterar-senha')?.reset();
                 }
             } catch (e) {
                 mostrarFeedback('Erro de conexão', 'error');

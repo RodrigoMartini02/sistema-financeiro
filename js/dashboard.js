@@ -652,13 +652,6 @@ function inicializarDashboardTematico() {
     const filtroMes = document.getElementById('dash-filtro-mes');
     if (filtroMes) filtroMes.addEventListener('change', atualizarDashboardTematico);
 
-    // Esconder botão empresa por padrão se perfil não for empresa
-    const tipoPerfilAtivo = localStorage.getItem('perfilAtivoTipo') || 'pessoal';
-    const btnTemaEmpresa = document.querySelector('.tema-btn-empresa');
-    if (btnTemaEmpresa && tipoPerfilAtivo !== 'empresa') {
-        btnTemaEmpresa.style.display = 'none';
-    }
-
     // Renderiza tema inicial (saude)
     atualizarDashboardTematico();
     atualizarKpisFixos();
