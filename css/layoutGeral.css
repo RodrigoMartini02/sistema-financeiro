@@ -84,7 +84,7 @@
     --transition-slow: 0.5s ease;
     
     /* LAYOUT DIMENSIONS */
-    --sidebar-width: 180px;
+    --sidebar-width: 220px;
     --sidebar-collapsed-width: 52px;
     --header-height: 80px;
     
@@ -629,42 +629,6 @@ textarea:focus {
     font-size: var(--font-size-sm);
 }
 
-/* ================================================================
-   SIDEBAR FOOTER - INFORMAÇÕES DO SISTEMA
-   ================================================================ */
-
-.sidebar-footer {
-    padding: var(--space-md);
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(0, 0, 0, 0.2);
-}
-
-.system-info {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.info-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 12px;
-    font-weight: 500;
-}
-
-.info-row i {
-    width: 16px;
-    font-size: 11px;
-    opacity: 0.8;
-}
-
-.info-row.info-secondary {
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 11px;
-    font-weight: 400;
-}
 
 /* ================================================================
    SIDEBAR — MODELO ÍCONE/EXPANDIDA
@@ -742,7 +706,6 @@ textarea:focus {
 /* ── Estado recolhido: esconde textos, centraliza ícones ───────── */
 .sidebar.collapsed .sidebar-title,
 .sidebar.collapsed .user-profile-sidebar,
-.sidebar.collapsed .sidebar-footer,
 .sidebar.collapsed #plano-sidebar-container {
     display: none;
 }
@@ -822,7 +785,6 @@ textarea:focus {
     /* Mostra textos no mobile mesmo quando tecnicamente "collapsed" */
     .sidebar .sidebar-title,
     .sidebar .user-profile-sidebar,
-    .sidebar .sidebar-footer,
     .sidebar #plano-sidebar-container,
     .sidebar .nav-text {
         display: revert;
@@ -1111,7 +1073,8 @@ textarea:focus {
 .dashboard-section,
 .meses-section,
 .relatorios-section,
-.config-section {
+.config-section,
+.fornecedor-section {
     display: none;
     animation: fadeIn var(--transition-base);
 }
@@ -1133,6 +1096,15 @@ textarea:focus {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
+    min-height: 0;
+}
+
+/* Fornecedor usa flex sem scroll para caber tudo na tela */
+.fornecedor-section.active {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
     min-height: 0;
 }
 
@@ -3284,22 +3256,6 @@ table tr:hover {
     }
 }
 
-/* ── Mobile (≤480px): padding reduzido nas seções ──────────────── */
-@media (max-width: 480px) {
-    .dashboard-section {
-        padding: 10px;
-    }
-
-    .relatorios-section {
-        padding: 10px;
-    }
-
-    /* Impede scroll horizontal causado por conteúdo mais largo que a tela */
-    .content-area {
-        overflow-x: hidden;
-    }
-}
-
 /* Monitores grandes (1920px+) */
 @media (min-width: 1920px) {
     .modal-content {
@@ -4477,4 +4433,191 @@ table tr:hover {
 [data-theme="dark"] .modal-gen-btn-cancelar:hover {
     color: var(--theme-text);
     border-color: var(--theme-border-solid);
+}
+
+/* ================================================================
+   SIDEBAR — GRUPOS E SUBITENS
+   ================================================================ */
+
+.nav-group-label {
+    padding: 18px 16px 6px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.35);
+    user-select: none;
+}
+
+.sidebar.collapsed .nav-group-label {
+    display: none;
+}
+
+.nav-group-collapsible {
+    list-style: none;
+}
+
+.nav-group-toggle {
+    width: calc(100% - 16px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.8);
+    border-radius: 8px;
+    margin: 2px 8px;
+    transition: background 0.2s;
+}
+
+.nav-group-toggle:hover {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+}
+
+.nav-group-toggle-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.nav-group-icon {
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.5);
+    width: 18px;
+    text-align: center;
+}
+
+.nav-group-title {
+    font-size: 0.88rem;
+    font-weight: 500;
+}
+
+.sidebar.collapsed .nav-group-title,
+.sidebar.collapsed .nav-group-chevron {
+    display: none;
+}
+
+.nav-group-chevron {
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.4);
+    transition: transform 0.25s ease;
+}
+
+.nav-sublist {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.nav-sublist.expanded {
+    max-height: 500px;
+}
+
+.nav-subitem .nav-link {
+    padding-left: 42px;
+    font-size: 0.85rem;
+}
+
+.nav-subitem .nav-icon {
+    font-size: 0.8rem;
+}
+
+.sidebar.collapsed .nav-subitem .nav-link {
+    padding-left: 12px;
+}
+
+/* ================================================================
+   PERMISSÕES
+   ================================================================ */
+
+.permissoes-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.permissao-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.06));
+}
+
+.permissao-item:last-child {
+    border-bottom: none;
+}
+
+.permissao-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.permissao-nome {
+    font-size: 0.9rem;
+    color: var(--text-color);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.permissao-nome i {
+    color: var(--primary-color, #3498db);
+    width: 16px;
+}
+
+.permissao-desc {
+    font-size: 0.78rem;
+    color: var(--gray-500);
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--gray-300, rgba(0,0,0,0.2));
+    border-radius: 24px;
+    transition: 0.25s;
+}
+
+.toggle-slider:before {
+    content: '';
+    position: absolute;
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: 0.25s;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+    background: var(--primary-color, #3498db);
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+    transform: translateX(20px);
 }

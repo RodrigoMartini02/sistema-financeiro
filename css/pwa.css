@@ -193,7 +193,63 @@
 }
 
 /* ================================================================
+   MOBILE SCALING — App Principal (app.html)
+   Estratégia: CSS transform scale para encolher layout desktop
+   em telas pequenas, mantendo toda a estrutura intacta.
+   ================================================================ */
+
+/*
+ * Referência: o layout foi desenhado para ~1200px de largura.
+ * Em telas menores aplicamos scale proporcional para que o conteúdo
+ * caiba sem quebrar o layout. O body/html passam a ter overflow
+ * visível apenas quando o scale está ativo.
+ */
+
+/* Variável de fallback para o scale — sobrescrita via JS se necessário */
+:root {
+    --app-scale: 1;
+    --app-scale-origin: top left;
+}
+
+@media (max-width: 1199px) and (min-width: 769px) {
+    /* Tablets/landscape phone: scale calculado via pwa-scale.js */
+    .page-app .app-container {
+        transform-origin: top left;
+        transform: scale(var(--app-scale, 0.667));
+        width: calc(100vw / var(--app-scale, 0.667));
+        height: calc(100vh / var(--app-scale, 0.667));
+    }
+
+    .page-app {
+        overflow: hidden;
+        max-width: 100vw;
+    }
+}
+
+@media (max-width: 768px) {
+    /*
+     * Mobile: o layout encolhe via transform scale.
+     * A largura de referência é 1200px; o scale é proporcional à viewport.
+     * Exemplo: tela de 390px → scale = 390/1200 ≈ 0.325
+     * O JS em pwa-scale.js pode sobrescrever --app-scale dinamicamente.
+     */
+    .page-app .app-container {
+        transform-origin: top left;
+        transform: scale(var(--app-scale, 0.325));
+        width: calc(100vw / var(--app-scale, 0.325));
+        height: calc(100vh / var(--app-scale, 0.325));
+    }
+
+    /* Overflow hidden SOMENTE no app, nunca no index/login */
+    .page-app {
+        overflow: hidden;
+        max-width: 100vw;
+    }
+}
+
+/* ================================================================
    SAFE AREA — iPhone X+ (notch, home bar)
+   Aplicadas ao wrapper externo que não é afetado pelo scale
    ================================================================ */
 
 /* O body recebe o padding de safe-area para que o .app-container
@@ -216,8 +272,11 @@
 
 @media (max-width: 768px) {
     /*
-     * Os modais de cadastro são renderizados fora do .app-container
-     * (position:fixed) — garantimos aqui tamanho adequado ao toque.
+     * Os modais de cadastro devem ser mobile-friendly (não escalonados),
+     * pois são acionados pelo usuário e precisam de inputs acessíveis.
+     * Eles são renderizados fora do .app-container (position:fixed)
+     * então NÃO são afetados pelo scale.
+     * Garantimos aqui que inputs tenham tamanho adequado ao toque.
      */
 
     /* --- Base de todos os modais em mobile --- */
