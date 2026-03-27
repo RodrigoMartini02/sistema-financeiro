@@ -1445,10 +1445,8 @@ function criarLinhaUsuario(usuario, index) {
 
     if (podeEditar) {
         btnEditar.classList.remove('hidden');
-        btnLocalizar.classList.remove('hidden');
     } else {
         btnEditar.classList.add('hidden');
-        btnLocalizar.classList.add('hidden');
     }
 
     if (podeBloquear) {
