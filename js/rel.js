@@ -149,15 +149,13 @@ class SistemaRelatorios {
             }
         });
         
-        // Checkboxes de opções
-        ['incluir-transferencias', 'agrupar-parcelamentos', 'mostrar-projecoes'].forEach(id => {
-            const checkbox = document.getElementById(id);
-            if (checkbox) {
-                checkbox.addEventListener('change', () => {
-                    this.atualizarResumoFiltros();
-                });
-            }
-        });
+        // Checkbox de opção: incluir transferências
+        const checkboxTransferencias = document.getElementById('incluir-transferencias');
+        if (checkboxTransferencias) {
+            checkboxTransferencias.addEventListener('change', () => {
+                this.atualizarResumoFiltros();
+            });
+        }
     }
     
     configurarEventosFiltrosInline() {
@@ -198,14 +196,11 @@ class SistemaRelatorios {
     atualizarInterfaceParaTipo(tipo) {
         // Ajustar interface baseado no tipo de relatório selecionado
         const checkboxTransferencias = document.getElementById('incluir-transferencias');
-        const checkboxParcelamentos = document.getElementById('agrupar-parcelamentos');
-        
+
         if (tipo === TIPOS_RELATORIO.APENAS_RECEITAS) {
             if (checkboxTransferencias) checkboxTransferencias.disabled = true;
-            if (checkboxParcelamentos) checkboxParcelamentos.disabled = true;
         } else {
             if (checkboxTransferencias) checkboxTransferencias.disabled = false;
-            if (checkboxParcelamentos) checkboxParcelamentos.disabled = false;
         }
     }
     
@@ -421,13 +416,8 @@ class SistemaRelatorios {
         }
         
         // Opções especiais
-        const opcoes = [];
-        if (document.getElementById('incluir-transferencias')?.checked) opcoes.push('Transferências');
-        if (document.getElementById('agrupar-parcelamentos')?.checked) opcoes.push('Agrupar Parcelamentos');
-        if (document.getElementById('mostrar-projecoes')?.checked) opcoes.push('Projeções');
-        
-        if (opcoes.length > 0) {
-            filtros.push(`<strong>Opções:</strong> ${opcoes.join(', ')}`);
+        if (document.getElementById('incluir-transferencias')?.checked) {
+            filtros.push(`<strong>Opções:</strong> Transferências`);
         }
         
         return filtros;
@@ -486,9 +476,7 @@ class SistemaRelatorios {
             
             // Opções especiais
             opcoes: {
-                incluirTransferencias: document.getElementById('incluir-transferencias')?.checked || false,
-                agruparParcelamentos: document.getElementById('agrupar-parcelamentos')?.checked || false,
-                mostrarProjecoes: document.getElementById('mostrar-projecoes')?.checked || false
+                incluirTransferencias: document.getElementById('incluir-transferencias')?.checked || false
             }
         };
     }
@@ -566,27 +554,49 @@ class SistemaRelatorios {
         if (receita.saldoAnterior || receita.descricao?.includes('Saldo Anterior')) {
             return false;
         }
-        
+
         // Filtro de transferências
         if (!this.filtrosAtuais.opcoes?.incluirTransferencias && receita.transferencia) {
             return false;
         }
-        
+
+        // Filtro por data individual da receita
+        const dataStr = receita.data;
+        if (dataStr) {
+            const { dataInicio, dataFim } = this.obterPeriodoSelecionado();
+            const partes = dataStr.split('T')[0].split('-');
+            const dataReceita = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+            const inicioDia = new Date(dataInicio.getFullYear(), dataInicio.getMonth(), dataInicio.getDate());
+            const fimDia = new Date(dataFim.getFullYear(), dataFim.getMonth(), dataFim.getDate());
+            if (dataReceita < inicioDia || dataReceita > fimDia) return false;
+        }
+
         return true;
     }
-    
+
     filtrarDespesa(despesa) {
         // Excluir transferências se não incluídas
         if (!this.filtrosAtuais.opcoes?.incluirTransferencias && despesa.transferencia) {
             return false;
         }
-        
+
+        // Filtro por data individual da despesa
+        const dataStr = this.obterDataDespesa(despesa);
+        if (dataStr) {
+            const { dataInicio, dataFim } = this.obterPeriodoSelecionado();
+            const partes = dataStr.split('T')[0].split('-');
+            const dataDespesa = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+            const inicioDia = new Date(dataInicio.getFullYear(), dataInicio.getMonth(), dataInicio.getDate());
+            const fimDia = new Date(dataFim.getFullYear(), dataFim.getMonth(), dataFim.getDate());
+            if (dataDespesa < inicioDia || dataDespesa > fimDia) return false;
+        }
+
         // Filtro por categoria
         if (this.filtrosAtuais.categoria !== 'todas') {
             const categoria = this.obterCategoriaDespesa(despesa);
             if (categoria !== this.filtrosAtuais.categoria) return false;
         }
-        
+
         // Filtro por forma de pagamento
         if (!this.filtrosAtuais.formasPagamento?.todas) {
             const forma = this.obterFormaPagamentoDespesa(despesa);
@@ -598,13 +608,13 @@ class SistemaRelatorios {
             );
             if (!formaPermitida) return false;
         }
-        
+
         // Filtro por status
         if (this.filtrosAtuais.status !== 'todos') {
             const status = this.obterStatusDespesa(despesa);
             if (status !== this.filtrosAtuais.status) return false;
         }
-        
+
         return true;
     }
     
@@ -970,17 +980,25 @@ class SistemaRelatorios {
         const tbody = document.getElementById('tabela-transacoes-body');
         const info = document.getElementById('transacoes-count-info');
         if (!secao || !tbody) return;
-        
+
         // Ordenar transações
         transacoes = this.ordenarTransacoes(transacoes);
-        
+
+        const MAX_LINHAS = 500;
+        const totalOriginal = transacoes.length;
+        const transacoesExibidas = transacoes.slice(0, MAX_LINHAS);
+
         if (info) {
-            info.textContent = `Mostrando ${transacoes.length} transações`;
+            if (totalOriginal > MAX_LINHAS) {
+                info.textContent = `Mostrando ${MAX_LINHAS} de ${totalOriginal} transações (limite atingido — refine os filtros para ver menos resultados)`;
+            } else {
+                info.textContent = `Mostrando ${totalOriginal} transações`;
+            }
         }
-        
+
         const tmplTr = document.getElementById('template-linha-transacao-relatorio');
         tbody.innerHTML = '';
-        transacoes.forEach(transacao => {
+        transacoesExibidas.forEach(transacao => {
             const data = new Date(transacao.data).toLocaleDateString('pt-BR');
             const tipo = transacao.tipo === 'receita' ? 'Receita' : 'Despesa';
             const categoria = this.obterCategoriaTransacao(transacao);
@@ -1275,11 +1293,8 @@ class SistemaRelatorios {
             todasCheckbox.dispatchEvent(new Event('change'));
         }
         
-        const opcoesCheckboxes = ['incluir-transferencias', 'agrupar-parcelamentos', 'mostrar-projecoes'];
-        opcoesCheckboxes.forEach(id => {
-            const checkbox = document.getElementById(id);
-            if (checkbox) checkbox.checked = false;
-        });
+        const checkboxIncluirTransferencias = document.getElementById('incluir-transferencias');
+        if (checkboxIncluirTransferencias) checkboxIncluirTransferencias.checked = false;
         
         // Esconder todas as seções
         this.esconderTodasSecoes();
@@ -2349,13 +2364,8 @@ class GeradorPDFMelhorado {
         }
         
         // Opções especiais
-        const opcoes = [];
-        if (this.sistema.filtrosAtuais.opcoes?.incluirTransferencias) opcoes.push('Transferências');
-        if (this.sistema.filtrosAtuais.opcoes?.agruparParcelamentos) opcoes.push('Agrupar Parcelamentos');
-        if (this.sistema.filtrosAtuais.opcoes?.mostrarProjecoes) opcoes.push('Projeções');
-        
-        if (opcoes.length > 0) {
-            filtros.push(`Opções: ${opcoes.join(', ')}`);
+        if (this.sistema.filtrosAtuais.opcoes?.incluirTransferencias) {
+            filtros.push('Opções: Transferências');
         }
         
         return filtros.length > 0 ? filtros.join(' | ') : 'Filtros padrão aplicados';
