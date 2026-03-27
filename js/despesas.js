@@ -3579,8 +3579,6 @@ function atualizarContadoresFiltro() {
    const filtroCategoria = document.getElementById('filtro-categoria-toolbar')?.value || 'todas';
    const filtroFormaPagamento = document.getElementById('filtro-forma-pagamento-toolbar')?.value || 'todas';
    const filtroStatus = document.getElementById('filtro-status-toolbar')?.value || 'todas';
-   const semFiltros = filtroTipo === 'todos' && filtroCategoria === 'todas' &&
-                      filtroFormaPagamento === 'todas' && filtroStatus === 'todas';
 
    let valorTotalDespesas = 0;
    let countDespesas = 0;
@@ -3588,19 +3586,58 @@ function atualizarContadoresFiltro() {
        ? _despesasBuffer.filter(i => i.tipo !== 'receita' && i.tipo !== 'reserva').length
        : document.querySelectorAll('tr.despesa-row[data-tipo="despesa"]').length;
 
-   if (semFiltros && _despesasBuffer.length > 0) {
-       // Calcular total diretamente do buffer (inclui itens ainda não renderizados)
+   if (_despesasBuffer.length > 0) {
+       // Sempre calcular do buffer completo, aplicando filtros nos dados diretamente
        _despesasBuffer.forEach(item => {
-           if (item.tipo === 'receita' || item.tipo === 'reserva') return;
-           const formaPag = (item.formaPagamento || item.forma_pagamento || '').toLowerCase();
-           const eCredito = formaPag === 'credito' || formaPag === 'crédito' ||
-                            formaPag === 'cred-merpago' || formaPag === 'créd-merpago';
-           if (item.recorrente && eCredito) return;
-           valorTotalDespesas += obterValorRealDespesa(item);
-           countDespesas++;
+           if (item.tipo === 'reserva') return;
+
+           // Filtro tipo
+           if (filtroTipo !== 'todos') {
+               if (filtroTipo === 'receita' && item.tipo !== 'receita') return;
+               if (filtroTipo === 'despesa' && item.tipo === 'receita') return;
+           }
+
+           // Filtros só para despesas
+           if (item.tipo !== 'receita') {
+               // Filtro categoria
+               if (filtroCategoria !== 'todas') {
+                   const cat = (item.categoria || '').toLowerCase();
+                   if (cat !== filtroCategoria.toLowerCase()) return;
+               }
+
+               // Filtro forma de pagamento
+               if (filtroFormaPagamento !== 'todas') {
+                   if (filtroFormaPagamento.startsWith('credito_')) {
+                       const cartaoIdFiltro = filtroFormaPagamento.replace('credito_', '');
+                       const formaPag = (item.formaPagamento || item.forma_pagamento || '').toLowerCase();
+                       if (!formaPag.includes('cred') || String(item.cartao_id) !== String(cartaoIdFiltro)) return;
+                   } else {
+                       const formaPag = (item.formaPagamento || item.forma_pagamento || '').toLowerCase();
+                       if (formaPag !== filtroFormaPagamento.toLowerCase()) return;
+                   }
+               }
+
+               // Filtro status
+               if (filtroStatus !== 'todas') {
+                   const status = item.status || '';
+                   if (filtroStatus === 'pagas' && status !== 'quitada') return;
+                   if (filtroStatus === 'pendentes' && status === 'quitada') return;
+                   if (filtroStatus === 'em_dia' && status !== 'em_dia') return;
+                   if (filtroStatus === 'atrasada' && status !== 'atrasada') return;
+               }
+
+               // Recorrente crédito não entra no total
+               const formaPag = (item.formaPagamento || item.forma_pagamento || '').toLowerCase();
+               const eCredito = formaPag === 'credito' || formaPag === 'crédito' ||
+                                formaPag === 'cred-merpago' || formaPag === 'créd-merpago';
+               if (item.recorrente && eCredito) { countDespesas++; return; }
+
+               valorTotalDespesas += obterValorRealDespesa(item);
+               countDespesas++;
+           }
        });
    } else {
-       // Com filtros ativos: somar apenas linhas visíveis no DOM
+       // Fallback: buffer vazio, usar DOM
        const linhasVisiveis = document.querySelectorAll('tr.despesa-row:not([style*="display: none"])');
        linhasVisiveis.forEach(linha => {
            if (linha.getAttribute('data-tipo') === 'despesa') {

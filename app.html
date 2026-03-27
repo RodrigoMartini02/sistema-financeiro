@@ -39,33 +39,6 @@
     <!-- TEMA: carregado antes de tudo para evitar flash -->
     <script src="js/theme.js"></script>
 
-    <!-- MOBILE SCALE: define --app-scale proporcionalmente à viewport.
-         Executado antes do render para evitar flash de layout não escalonado. -->
-    <script>
-    (function() {
-        var DESIGN_WIDTH = 1200; // largura de referência do layout
-        function applyScale() {
-            var vw = window.innerWidth;
-            if (vw >= 1200) {
-                document.documentElement.style.setProperty('--app-scale', '1');
-                return;
-            }
-            // Tablets (769–1199): scale suave
-            // Mobile (< 769): scale total para caber na tela
-            var scale = Math.round((vw / DESIGN_WIDTH) * 1000) / 1000;
-            // Mínimo de 0.28 para não ficar ilegível
-            scale = Math.max(scale, 0.28);
-            document.documentElement.style.setProperty('--app-scale', String(scale));
-        }
-        applyScale();
-        window.addEventListener('resize', applyScale);
-        // Re-aplicar após orientação mudar (iOS)
-        window.addEventListener('orientationchange', function() {
-            setTimeout(applyScale, 100);
-        });
-    })();
-    </script>
-
     <!-- VERIFICAÇÃO DE AUTENTICAÇÃO (ANTES DE TUDO) -->
     <script>
         (function() {
@@ -148,10 +121,6 @@
             </div>
         </div>
         <ul class="sidebar-nav">
-
-            <!-- GRUPO: FINANCEIRO -->
-            <li class="nav-group-label">Financeiro</li>
-
             <li class="nav-item">
                 <a href="#" class="nav-link active" data-section="dashboard" data-label="Dashboard">
                     <span class="nav-icon"><i class="fas fa-chart-line"></i></span>
@@ -171,71 +140,12 @@
                 </a>
             </li>
 
-            <!-- GRUPO: CONFIGURAÇÕES -->
-            <li class="nav-group-label">Configurações</li>
-
             <li class="nav-item">
-                <a href="#" class="nav-link" data-section="config" data-tab="minha-conta" data-label="Minha Conta">
-                    <span class="nav-icon"><i class="fas fa-user-circle"></i></span>
-                    <span class="nav-text">Minha Conta</span>
+                <a href="#" class="nav-link" data-section="config" data-label="Configurações">
+                    <span class="nav-icon"><i class="fas fa-user-cog"></i></span>
+                    <span class="nav-text">Configurações</span>
                 </a>
             </li>
-            <li class="nav-item">
-                <a href="#" class="nav-link" data-section="config" data-tab="cartoes" data-label="Cartões">
-                    <span class="nav-icon"><i class="fas fa-credit-card"></i></span>
-                    <span class="nav-text">Cartões</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="#" class="nav-link" data-section="config" data-tab="categorias" data-label="Categorias">
-                    <span class="nav-icon"><i class="fas fa-tags"></i></span>
-                    <span class="nav-text">Categorias</span>
-                </a>
-            </li>
-
-            <!-- GRUPO: ADMIN (colapsável, oculto por padrão para não-admin) -->
-            <li class="nav-group-collapsible" id="nav-group-admin" style="display:none;">
-                <button class="nav-group-toggle" id="btn-toggle-admin">
-                    <span class="nav-group-toggle-left">
-                        <i class="fas fa-shield-alt nav-group-icon"></i>
-                        <span class="nav-group-title">Admin</span>
-                    </span>
-                    <i class="fas fa-chevron-down nav-group-chevron" id="chevron-admin"></i>
-                </button>
-                <ul class="nav-sublist" id="sublist-admin">
-                    <li class="nav-item nav-subitem">
-                        <a href="#" class="nav-link" data-section="config" data-tab="usuarios" data-label="Usuários">
-                            <span class="nav-icon"><i class="fas fa-users"></i></span>
-                            <span class="nav-text">Usuários</span>
-                        </a>
-                    </li>
-                    <li class="nav-item nav-subitem">
-                        <a href="#" class="nav-link" data-section="config" data-tab="espaco-admin" data-label="Espaço Admin">
-                            <span class="nav-icon"><i class="fas fa-shield-alt"></i></span>
-                            <span class="nav-text">Espaço Admin</span>
-                        </a>
-                    </li>
-                    <li class="nav-item nav-subitem">
-                        <a href="#" class="nav-link" data-section="config" data-tab="logs" data-label="Logs">
-                            <span class="nav-icon"><i class="fas fa-list-alt"></i></span>
-                            <span class="nav-text">Logs</span>
-                        </a>
-                    </li>
-                    <li class="nav-item nav-subitem">
-                        <a href="#" class="nav-link" data-section="config" data-tab="ia-global" data-label="IA Global">
-                            <span class="nav-icon"><i class="fas fa-robot"></i></span>
-                            <span class="nav-text">IA Global</span>
-                        </a>
-                    </li>
-                    <li class="nav-item nav-subitem nav-item-master" id="nav-item-fornecedor" style="display:none;">
-                        <a href="#" class="nav-link" data-section="fornecedor" data-label="Painel">
-                            <span class="nav-icon"><i class="fas fa-store"></i></span>
-                            <span class="nav-text">Painel</span>
-                        </a>
-                    </li>
-                </ul>
-            </li>
-
         </ul>
 
         <div id="plano-sidebar-container">
@@ -258,6 +168,19 @@
             <button id="btn-upgrade" style="display:none" onclick="abrirModalPlanos()">
                 <span id="btn-upgrade-label">Assinar agora</span>
             </button>
+        </div>
+
+        <div class="sidebar-footer">
+            <div class="system-info">
+                <div class="info-row">
+                    <i class="fas fa-code-branch"></i>
+                    <span>v<span id="system-version">1.0.0</span></span>
+                </div>
+                <div class="info-row info-secondary">
+                    <i class="fas fa-calendar"></i>
+                    <span id="system-update-date">03/01/2026</span>
+                </div>
+            </div>
         </div>
     </nav>
 
@@ -337,12 +260,6 @@
                     </div>
                 </div>
                
-                <!-- Switcher de Perfil PF/PJ -->
-                <div id="perfil-switcher" class="perfil-switcher-toggle">
-                    <button id="btn-perfil-pf" class="perfil-toggle-btn ativo" title="Pessoal (PF)">PF</button>
-                    <button id="btn-perfil-pj" class="perfil-toggle-btn" title="Empresa (PJ)">PJ</button>
-                </div>
-
                 <button class="header-icon-btn" id="logout-btn" title="Sair">
                     <i class="fas fa-sign-out-alt"></i>
                 </button>
@@ -410,10 +327,6 @@
             </button>
             <button class="tema-btn" data-tema="metas">
               <i class="fas fa-bullseye"></i><span>Metas</span>
-            </button>
-            <button class="tema-btn tema-btn-empresa" data-tema="empresa">
-                <i class="fas fa-building"></i>
-                <span>Empresa</span>
             </button>
           </div>
           <div class="dash-filtros-inline">
@@ -581,20 +494,6 @@
                     <canvas id="tema-metas-crescimento"></canvas>
                 </div>
             </div>
-          </div>
-        </div>
-        <!-- TEMA: EMPRESA -->
-        <div class="tema-view" id="tema-empresa">
-          <div class="tema-kpis">
-            <div class="tema-kpi"><span class="tk-label">Faturamento do Ano</span><span class="tk-valor" id="tk-empresa-faturamento">R$ 0,00</span></div>
-            <div class="tema-kpi"><span class="tk-label">Resultado Líquido</span><span class="tk-valor" id="tk-empresa-resultado">R$ 0,00</span></div>
-            <div class="tema-kpi"><span class="tk-label">Aporte Inicial</span><span class="tk-valor" id="tk-empresa-aporte">R$ 0,00</span></div>
-            <div class="tema-kpi"><span class="tk-label">Saldo Atual</span><span class="tk-valor" id="tk-empresa-saldo">R$ 0,00</span></div>
-          </div>
-          <div class="tema-charts-grid">
-            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Receitas e despesas mensais da empresa">Faturamento vs Despesas</h3></div><canvas id="tema-empresa-faturamento-chart"></canvas></div>
-            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Evolução do saldo acumulado desde o aporte inicial">Resultado Acumulado</h3></div><canvas id="tema-empresa-acumulado-chart"></canvas></div>
-            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Receitas e despesas PF e PJ lado a lado por mês">Comparativo PF × PJ</h3></div><canvas id="tema-empresa-comparativo-chart"></canvas></div>
           </div>
         </div>
     </section>
@@ -1038,100 +937,36 @@
 <!-- ================================================== -->
 <section class="config-section" id="config-section">
        
+    <div class="config-tabs">
+       <button class="config-tab-btn active" data-tab="usuarios">
+            <i class="fas fa-users"></i> Usuários
+        </button>
+         <button class="config-tab-btn" data-tab="cartoes">
+            <i class="fas fa-credit-card"></i> Cartões de Crédito
+        </button>
+         <button class="config-tab-btn" data-tab="categorias">
+            <i class="fas fa-tags"></i> Gerenciar Categorias
+        </button>        
+        <button class="config-tab-btn" data-tab="logs">
+            <i class="fas fa-history"></i> Logs do Sistema
+        </button>
+        <button class="config-tab-btn" data-tab="sistema">
+            <i class="fas fa-cogs"></i> Sistema
+        </button>
+        <button class="config-tab-btn" data-tab="assistente-ia">
+            <i class="fas fa-robot"></i> Assistente IA
+        </button>
+        <button class="config-tab-btn" data-tab="carta-servicos">
+            <i class="fas fa-scroll"></i> Carta de Serviços
+        </button>
+    </div>
+    
     <div class="config-tab-content">
-
-        <!-- ============================================== -->
-        <!-- ABA: MINHA CONTA -->
-        <!-- ============================================== -->
-        <div id="minha-conta-tab" class="config-tab-pane">
-
-            <!-- Meus Dados — tabela igual a de usuários -->
-            <div class="config-card">
-                <div class="config-card-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                    <h3 style="margin:0;"><i class="fas fa-user"></i> Meus Dados</h3>
-                </div>
-                <div class="table-responsive">
-                    <table class="tabela-usuarios">
-                        <thead>
-                            <tr>
-                                <th>Nome</th>
-                                <th>E-mail</th>
-                                <th>CPF</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabela-minha-conta-body">
-                            <tr id="minha-conta-row">
-                                <td id="mc-td-nome">-</td>
-                                <td id="mc-td-email">-</td>
-                                <td id="mc-td-documento">-</td>
-                                <td>
-                                    <div class="acoes-grupo">
-                                        <button class="btn btn-sm btn-editar-usuario" onclick="abrirModalEditarMinhaConta()" title="Editar dados">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Minhas Empresas -->
-            <div class="config-card">
-                <div class="config-card-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                    <h3 style="margin:0;"><i class="fas fa-building"></i> Minhas Empresas</h3>
-                    <button id="btn-nova-empresa" class="btn btn-primary btn-sm">
-                        <i class="fas fa-plus"></i> Nova Empresa
-                    </button>
-                </div>
-                <div class="table-responsive">
-                    <table class="tabela-empresas">
-                        <thead>
-                            <tr>
-                                <th>Razão Social</th>
-                                <th>Nome Fantasia</th>
-                                <th>CNPJ</th>
-                                <th>Atividade</th>
-                                <th>Aporte Inicial</th>
-                                <th>Lat</th>
-                                <th>Long</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="lista-empresas"></tbody>
-                    </table>
-                </div>
-                <p id="no-empresas-message" class="hidden" style="color:var(--text-secondary);text-align:center;padding:20px;">
-                    Nenhuma empresa cadastrada
-                </p>
-            </div>
-
-            <!-- Zona de Perigo -->
-            <div class="config-card config-card--danger">
-                <h3><i class="fas fa-exclamation-triangle"></i> Zona de Perigo</h3>
-                <hr class="config-sep">
-                <div class="config-danger-row">
-                    <div>
-                        <strong>Cancelar Conta</strong>
-                        <p style="margin:4px 0 0;font-size:0.85rem;color:var(--text-secondary);">Esta ação é irreversível. Todos os seus dados serão desativados.</p>
-                    </div>
-                    <button id="btn-cancelar-conta" class="btn btn-danger btn-sm">
-                        <i class="fas fa-times-circle"></i> Cancelar Conta
-                    </button>
-                </div>
-            </div>
-
-        </div>
 
         <!-- ============================================== -->
         <!-- ABA: GERENCIAMENTO DE CATEGORIAS -->
         <!-- ============================================== -->
         <div id="categorias-tab" class="config-tab-pane">
-                <div class="tab-card-header">
-                    <span><i class="fas fa-tags"></i> Categorias</span>
-                </div>
                 <div class="form-add-categoria">
                     <input type="text" id="nova-categoria-nome" placeholder="Nome da categoria" maxlength="50">
                     <button id="btn-adicionar-categoria" class="btn btn-primary">
@@ -1179,210 +1014,99 @@
         <!-- ============================================== -->
         <!-- ABA: CONFIGURAÇÕES DO SISTEMA -->
         <!-- ============================================== -->
-        <div id="espaco-admin-tab" class="config-tab-pane">
-
-            <!-- PERMISSÕES DO SISTEMA -->
-            <div class="admin-section-card">
-                <div class="admin-section-header">
-                    <span><i class="fas fa-lock"></i> Permissões do Sistema</span>
-                    <span class="admin-section-sub">Ative ou desative funcionalidades para todos os usuários</span>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-robot"></i> Assistente IA</span>
-                        <span class="admin-row-desc">Permite que usuários usem o assistente de IA</span>
+        <div id="sistema-tab" class="config-tab-pane">
+                <div class="form-group">
+                    <h4><i class="fas fa-download"></i> Backup e Restauração</h4>
+                    <div class="btn-group">
+                        <button id="btn-exportar-dados" class="btn btn-primary">
+                            <i class="fas fa-download"></i> Exportar Todos os Dados
+                        </button>
+                        <button id="btn-exportar-mes-a-mes" class="btn btn-primary">
+                            <i class="fas fa-calendar-alt"></i> Exportar Mês a Mês
+                        </button>
+                        <button id="btn-importar-dados" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> Importar Dados
+                        </button>
                     </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="perm-ia-ativo" data-perm="ia_ativo">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-chart-bar"></i> Relatórios</span>
-                        <span class="admin-row-desc">Permite acesso à seção de relatórios</span>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="perm-relatorios" data-perm="relatorios_ativo" checked>
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-building"></i> Cadastro de Empresas</span>
-                        <span class="admin-row-desc">Permite que usuários cadastrem perfis de empresa (PJ)</span>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="perm-empresas" data-perm="empresas_ativo" checked>
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-file-import"></i> Importar / Exportar</span>
-                        <span class="admin-row-desc">Permite que usuários importem e exportem dados</span>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="perm-import-export" data-perm="import_export_ativo" checked>
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-trash-alt"></i> Limpar Dados</span>
-                        <span class="admin-row-desc">Permite que usuários apaguem todos os seus dados</span>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="perm-limpar-dados" data-perm="limpar_dados_ativo" checked>
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <div class="admin-section-footer">
-                    <button id="btn-salvar-permissoes" class="btn btn-primary btn-sm">
-                        <i class="fas fa-save"></i> Salvar Permissões
-                    </button>
-                </div>
-            </div>
-
-            <!-- BACKUP E RESTAURAÇÃO -->
-            <div class="admin-section-card">
-                <div class="admin-section-header">
-                    <span><i class="fas fa-database"></i> Backup e Restauração</span>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-download"></i> Exportar Todos os Dados</span>
-                        <span class="admin-row-desc">Baixa um arquivo JSON com todas as receitas, despesas, categorias e cartões</span>
-                    </div>
-                    <button id="btn-exportar-dados" class="btn btn-secondary btn-sm">
-                        <i class="fas fa-download"></i> Exportar
-                    </button>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-calendar-alt"></i> Exportar Mês a Mês</span>
-                        <span class="admin-row-desc">Baixa arquivos separados por mês com os dados financeiros</span>
-                    </div>
-                    <button id="btn-exportar-mes-a-mes" class="btn btn-secondary btn-sm">
-                        <i class="fas fa-download"></i> Exportar
-                    </button>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-upload"></i> Importar Dados</span>
-                        <span class="admin-row-desc">Carrega um arquivo JSON e importa os dados para o sistema</span>
-                    </div>
-                    <button id="btn-importar-dados" class="btn btn-secondary btn-sm">
-                        <i class="fas fa-upload"></i> Importar
-                    </button>
-                </div>
-            </div>
-
-            <!-- LIMPEZA -->
-            <div class="admin-section-card">
-                <div class="admin-section-header admin-section-header--danger">
-                    <span><i class="fas fa-trash-alt"></i> Limpeza de Dados</span>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-trash"></i> Limpar Todos os Dados</span>
-                        <span class="admin-row-desc">Apaga permanentemente todas as receitas, despesas, categorias e cartões. Ação irreversível.</span>
-                    </div>
-                    <button id="btn-limpar-dados" class="btn btn-danger btn-sm">
-                        <i class="fas fa-trash"></i> Limpar
-                    </button>
                 </div>
 
-                <!-- Status de operações (mantido para feedback de importação/exportação) -->
-                <div id="sistema-status" class="config-card hidden" style="margin-top:16px;">
-                    <h3><i class="fas fa-info-circle"></i> Status da Operação</h3>
-                    <div class="status-container">
-                        <div id="status-message" class="status-message"></div>
-                        <div id="status-progress" class="status-progress hidden">
-                            <div class="progress-bar">
-                                <div class="progress-fill"></div>
-                            </div>
+                <div class="form-group">
+                    <h4><i class="fas fa-trash-alt"></i> Limpeza de Dados</h4>
+                    <button id="btn-limpar-dados" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Limpar Todos os Dados
+                    </button>
+                    <p class="texto-alerta">⚠️ Atenção: Esta ação é irreversível!</p>
+                </div>
+            
+
+            <!-- Status de operações do sistema -->
+            <div id="sistema-status" class="config-card hidden">
+                <h3><i class="fas fa-info-circle"></i> Status da Operação</h3>
+                <div class="status-container">
+                    <div id="status-message" class="status-message"></div>
+                    <div id="status-progress" class="status-progress hidden">
+                        <div class="progress-bar">
+                            <div class="progress-fill"></div>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <!-- MAPA DE USUÁRIOS -->
-            <div class="admin-section-card">
-                <div class="admin-section-header">
-                    <span><i class="fas fa-map-marked-alt"></i> Mapa de Usuários</span>
-                    <span class="admin-section-sub">Localização geográfica dos usuários cadastrados</span>
-                </div>
-                <div id="mapa-por-pais" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;"></div>
-                <div id="mapa-interativo" style="height:400px;border-radius:8px;overflow:hidden;"></div>
-            </div>
-
         </div>
-
+        
         <!-- ============================================== -->
         <!-- ABA: ASSISTENTE IA -->
         <!-- ============================================== -->
         <div id="assistente-ia-tab" class="config-tab-pane">
-            <div class="admin-section-card">
-                <div class="admin-section-header">
-                    <span><i class="fas fa-robot"></i> Assistente IA — FIN GERENCE AI</span>
-                    <span class="admin-section-sub">Configure o provedor de IA para cadastro por texto, voz e documentos</span>
+            <div class="config-card">
+                <h3><i class="fas fa-robot"></i> Assistente IA — FIN GERENCE AI</h3>
+                <p class="ia-config-desc">Configure e use o assistente inteligente para cadastrar despesas por texto ou voz, interpretar documentos e analisar seus gastos.</p>
+
+                <div id="ia-status-config" class="ia-status-config">
+                    <span class="badge ia-badge-status" id="ia-badge-status">Verificando...</span>
                 </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-circle-notch"></i> Status</span>
-                        <span class="badge ia-badge-status" id="ia-badge-status">Verificando...</span>
-                    </div>
-                </div>
-                <div class="admin-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-plug"></i> Provedor de IA</span>
-                        <span class="admin-row-desc">Opcional. Sem provedor externo o assistente usa a <strong>Gen</strong> (IA interna).</span>
-                    </div>
-                    <select id="ia-provider-select" class="ia-provider-select" style="width:100%;max-width:420px;">
+
+                <div class="form-group">
+                    <label><i class="fas fa-robot"></i> Provedor de IA</label>
+                    <p class="ia-provider-desc">
+                        Opcional. Sem provedor externo o assistente usa a <strong>Gen</strong> (IA interna). Com uma chave própria, a interpretação de texto fica ainda mais precisa.
+                    </p>
+                    <select id="ia-provider-select" class="ia-provider-select">
                         <option value="gen">Gen — IA interna FinGerence (sem chave)</option>
                         <option value="openai">OpenAI — GPT-4o mini</option>
                         <option value="gemini">Google — Gemini 2.0 Flash</option>
                         <option value="claude">Anthropic — Claude Haiku</option>
                     </select>
-                    <div id="ia-key-row" class="ia-key-row" style="width:100%;max-width:420px;">
+                    <div id="ia-key-row" class="ia-key-row">
                         <div class="ia-key-input-row">
                             <input type="password" id="ia-api-key-input" placeholder="Cole sua chave de API aqui..." class="ia-api-key-input">
-                            <button id="ia-btn-salvar-chave" class="btn btn-primary btn-sm ia-btn-salvar-chave">
+                            <button id="ia-btn-salvar-chave" class="btn btn-primary ia-btn-salvar-chave">
                                 <i class="fas fa-save"></i> Salvar
                             </button>
                         </div>
                         <p id="ia-key-hint" class="ia-key-hint"></p>
                     </div>
                 </div>
-            </div>
 
-            <div class="admin-section-card">
-                <div class="admin-section-header">
-                    <span><i class="fas fa-lightbulb"></i> Como usar</span>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome">💬 Chat por texto</span>
-                        <span class="admin-row-desc">Clique no ícone <i class="fas fa-robot"></i> no modal de Despesas ou no botão flutuante e escreva: <code class="ia-code-example">"paguei 120 de internet da vivo no cartão vence dia 15"</code></span>
+                <hr class="config-sep">
+
+                <h4 class="ia-howto-title"><i class="fas fa-lightbulb"></i> Como usar</h4>
+                <div class="ia-howto-grid">
+                    <div class="config-card config-card-sm">
+                        <strong>💬 Chat por texto</strong><br>
+                        <small>Clique no ícone <i class="fas fa-robot"></i> no modal de Despesas ou no botão flutuante e escreva:</small><br>
+                        <code class="ia-code-example">"paguei 120 de internet da vivo no cartão vence dia 15"</code>
                     </div>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome">🎙️ Voz</span>
-                        <span class="admin-row-desc">Clique no microfone no chat e fale a despesa normalmente.</span>
+                    <div class="config-card config-card-sm">
+                        <strong>🎙️ Voz</strong><br>
+                        <small>Clique no microfone no chat e fale a despesa normalmente.</small>
                     </div>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome">📄 Documentos (boleto, NF, comprovante PIX)</span>
-                        <span class="admin-row-desc">Clique no clipe <i class="fas fa-paperclip"></i> e envie a imagem ou PDF.</span>
+                    <div class="config-card config-card-sm">
+                        <strong>📄 Documentos (boleto, NF, comprovante PIX)</strong><br>
+                        <small>Clique no clipe <i class="fas fa-paperclip"></i> e envie a imagem ou PDF.</small>
                     </div>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome">📊 Análise financeira</span>
-                        <span class="admin-row-desc"><code class="ia-code-example">"quanto gastei em alimentação esse mês?"</code></span>
+                    <div class="config-card config-card-sm">
+                        <strong>📊 Análise financeira</strong><br>
+                        <code class="ia-code-example">"quanto gastei em alimentação esse mês?"</code>
                     </div>
                 </div>
             </div>
@@ -1411,14 +1135,10 @@
             </div>
         </div>
 
-
         <!-- ============================================== -->
         <!-- ABA: GERENCIAMENTO DE USUÁRIOS INTEGRADA -->
         <!-- ============================================== -->
         <div id="usuarios-tab" class="config-tab-pane active">
-                <div class="tab-card-header">
-                    <span><i class="fas fa-users"></i> Usuários</span>
-                </div>
                 <!-- Controles de Usuários Integrados -->
                 <div class="user-management-controls">
                     <div class="search-container">
@@ -1438,6 +1158,13 @@
                     </div>
                     
                     <div class="user-controls-right">
+                        <div id="ia-toggle-container" class="ia-toggle-container">
+                            <label class="ia-toggle-switch" title="Ativar / Desativar Assistente IA">
+                                <input type="checkbox" id="ia-toggle-ativo">
+                                <span class="ia-toggle-slider"></span>
+                            </label>
+                            <span class="ia-toggle-label">Assistente IA</span>
+                        </div>
                         <button id="btn-adicionar-usuario" class="btn btn-primary">
                             <i class="fas fa-user-plus"></i> Novo Usuário
                         </button>
@@ -1452,11 +1179,6 @@
                                 <th>Nome</th>
                                 <th>Documento</th>
                                 <th>E-mail</th>
-                                <th>País</th>
-                                <th>Estado</th>
-                                <th>Cidade</th>
-                                <th>Lat</th>
-                                <th>Long</th>
                                 <th>Tipo</th>
                                 <th>Status</th>
                                 <th>Ações</th>
@@ -1466,7 +1188,7 @@
                             <!-- Preenchido dinamicamente via template -->
                         </tbody>
                         <tbody>
-                            <tr id="usuarios-sentinel" style="height:1px"><td colspan="11"></td></tr>
+                            <tr id="usuarios-sentinel" style="height:1px"><td colspan="6"></td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1478,7 +1200,7 @@
                 </div>
 
 
-<!-- Card de Informações de Segurança -->
+            <!-- Card de Informações de Segurança -->
             <div class="config-card info-card">
                 <h3><i class="fas fa-shield-alt"></i> Segurança</h3>
                 <p>O gerenciamento de usuários permite controlar quem tem acesso ao sistema e quais ações cada usuário pode realizar.</p>
@@ -1499,9 +1221,6 @@
             <input type="number" id="novo-cartao-fechamento" placeholder="Dia Fechamento" min="1" max="31">
             <input type="number" id="novo-cartao-vencimento" placeholder="Dia Vencimento" min="1" max="31">
             <input type="number" id="novo-cartao-limite" placeholder="Limite (R$)" step="0.01" min="0">
-            <select id="novo-cartao-perfil" class="form-control" title="Vínculo do cartão">
-                <option value="">Carregando perfis...</option>
-            </select>
             <button id="btn-adicionar-cartao" class="btn btn-primary">
                 <i class="fas fa-plus"></i> Adicionar Cartão
             </button>
@@ -1513,7 +1232,6 @@
                     <tr>
                         <th>ID</th>
                         <th>Banco</th>
-                        <th>Perfil</th>
                         <th>Validade</th>
                         <th>Fechamento</th>
                         <th>Vencimento</th>
@@ -1632,200 +1350,6 @@
                 </div>
         </div>
 
-        <!-- ============================================== -->
-        <!-- ABA: IA GLOBAL (unifica assistente-ia + carta-servicos) -->
-        <!-- ============================================== -->
-        <div id="ia-global-tab" class="config-tab-pane">
-            <div class="admin-section-card">
-                <div class="admin-section-header">
-                    <span><i class="fas fa-robot"></i> Assistente IA — FIN GERENCE AI</span>
-                    <span class="admin-section-sub">Configure o provedor de IA para cadastro por texto, voz e documentos</span>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-circle-notch"></i> Status</span>
-                        <span class="badge ia-badge-status" id="ia-badge-status-global">Verificando...</span>
-                    </div>
-                </div>
-                <div class="admin-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-plug"></i> Provedor de IA</span>
-                        <span class="admin-row-desc">Opcional. Sem provedor externo o assistente usa a <strong>Gen</strong> (IA interna).</span>
-                    </div>
-                    <select id="ia-provider-select-global" class="ia-provider-select" style="width:100%;max-width:420px;">
-                        <option value="gen">Gen — IA interna FinGerence (sem chave)</option>
-                        <option value="openai">OpenAI — GPT-4o mini</option>
-                        <option value="gemini">Google — Gemini 2.0 Flash</option>
-                        <option value="claude">Anthropic — Claude Haiku</option>
-                    </select>
-                    <div id="ia-key-row-global" class="ia-key-row" style="width:100%;max-width:420px;">
-                        <div class="ia-key-input-row">
-                            <input type="password" id="ia-api-key-input-global" placeholder="Cole sua chave de API aqui..." class="ia-api-key-input">
-                            <button id="ia-btn-salvar-chave-global" class="btn btn-primary btn-sm ia-btn-salvar-chave">
-                                <i class="fas fa-save"></i> Salvar
-                            </button>
-                        </div>
-                        <p id="ia-key-hint-global" class="ia-key-hint"></p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="admin-section-card">
-                <div class="admin-section-header">
-                    <span><i class="fas fa-lightbulb"></i> Como usar</span>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome">💬 Chat por texto</span>
-                        <span class="admin-row-desc">Clique no ícone <i class="fas fa-robot"></i> no modal de Despesas ou no botão flutuante e escreva: <code class="ia-code-example">"paguei 120 de internet da vivo no cartão vence dia 15"</code></span>
-                    </div>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome">🎙️ Voz</span>
-                        <span class="admin-row-desc">Clique no microfone no chat e fale a despesa normalmente.</span>
-                    </div>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome">📄 Documentos (boleto, NF, comprovante PIX)</span>
-                        <span class="admin-row-desc">Clique no clipe <i class="fas fa-paperclip"></i> e envie a imagem ou PDF.</span>
-                    </div>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome">📊 Análise financeira</span>
-                        <span class="admin-row-desc"><code class="ia-code-example">"quanto gastei em alimentação esse mês?"</code></span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="admin-section-card">
-                <div class="admin-section-header" style="flex-direction:row;justify-content:space-between;align-items:center;">
-                    <span><i class="fas fa-scroll"></i> Carta de Serviços — Gen IA</span>
-                    <div id="carta-master-actions-global" class="carta-master-actions">
-                        <button class="btn btn-primary btn-sm" id="btn-carta-nova-instrucao-global" onclick="abrirModalCartaInstrucao()">
-                            <i class="fas fa-plus"></i> Nova instrução
-                        </button>
-                    </div>
-                </div>
-                <div style="padding:12px;">
-                    <p class="admin-row-desc" style="margin-bottom:10px;">Regras e comportamentos globais da assistente. Visível para todos, editável apenas pelo master.</p>
-                    <div id="carta-servicos-content-global" class="carta-markdown-body">
-                        <div class="carta-loading"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-    </div>
-</section>
-
-<section id="fornecedor-section" class="fornecedor-section">
-    <div class="fornecedor-dashboard">
-
-        <!-- Header -->
-        <div class="fornecedor-header">
-            <h2><i class="fas fa-store"></i> Painel do Fornecedor</h2>
-            <button id="btn-atualizar-fornecedor" class="btn btn-sm btn-secondary">
-                <i class="fas fa-sync-alt"></i> Atualizar
-            </button>
-        </div>
-
-        <!-- KPIs — tudo numa linha -->
-        <div class="fornecedor-kpis">
-            <div class="fornecedor-kpi-card fkpi-blue">
-                <div class="fkpi-icon"><i class="fas fa-users"></i></div>
-                <div class="fkpi-info">
-                    <span class="fkpi-valor" id="fkpi-total">-</span>
-                    <span class="fkpi-label">Total</span>
-                </div>
-            </div>
-            <div class="fornecedor-kpi-card fkpi-green">
-                <div class="fkpi-icon"><i class="fas fa-user-check"></i></div>
-                <div class="fkpi-info">
-                    <span class="fkpi-valor" id="fkpi-ativos">-</span>
-                    <span class="fkpi-label">Ativos</span>
-                </div>
-            </div>
-            <div class="fornecedor-kpi-card fkpi-yellow">
-                <div class="fkpi-icon"><i class="fas fa-user-clock"></i></div>
-                <div class="fkpi-info">
-                    <span class="fkpi-valor" id="fkpi-inativos">-</span>
-                    <span class="fkpi-label">Inativos</span>
-                </div>
-            </div>
-            <div class="fornecedor-kpi-card fkpi-red">
-                <div class="fkpi-icon"><i class="fas fa-user-slash"></i></div>
-                <div class="fkpi-info">
-                    <span class="fkpi-valor" id="fkpi-bloqueados">-</span>
-                    <span class="fkpi-label">Bloqueados</span>
-                </div>
-            </div>
-            <div class="fornecedor-kpi-card fkpi-purple">
-                <div class="fkpi-icon"><i class="fas fa-crown"></i></div>
-                <div class="fkpi-info">
-                    <span class="fkpi-valor" id="fkpi-pagantes">-</span>
-                    <span class="fkpi-label">Pagantes</span>
-                </div>
-            </div>
-            <div class="fornecedor-kpi-card fkpi-indigo">
-                <div class="fkpi-icon"><i class="fas fa-calendar-day"></i></div>
-                <div class="fkpi-info">
-                    <span class="fkpi-valor" id="fkpi-mensal">-</span>
-                    <span class="fkpi-label">Mensal</span>
-                </div>
-            </div>
-            <div class="fornecedor-kpi-card fkpi-violet">
-                <div class="fkpi-icon"><i class="fas fa-calendar-check"></i></div>
-                <div class="fkpi-info">
-                    <span class="fkpi-valor" id="fkpi-anual">-</span>
-                    <span class="fkpi-label">Anual</span>
-                </div>
-            </div>
-            <div class="fornecedor-kpi-card fkpi-cyan">
-                <div class="fkpi-icon"><i class="fas fa-hourglass-half"></i></div>
-                <div class="fkpi-info">
-                    <span class="fkpi-valor" id="fkpi-trial">-</span>
-                    <span class="fkpi-label">Trial</span>
-                </div>
-            </div>
-            <div class="fornecedor-kpi-card fkpi-danger">
-                <div class="fkpi-icon"><i class="fas fa-user-times"></i></div>
-                <div class="fkpi-info">
-                    <span class="fkpi-valor" id="fkpi-cancelados">-</span>
-                    <span class="fkpi-label">Cancelados</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Conteúdo principal: gráficos + globo lado a lado -->
-        <div class="fornecedor-main">
-            <!-- Coluna esquerda: dois gráficos empilhados -->
-            <div class="fornecedor-charts-col">
-                <div class="fornecedor-chart-card">
-                    <h3><i class="fas fa-circle-notch"></i> Status</h3>
-                    <div class="fornecedor-chart-wrapper">
-                        <canvas id="chart-usuarios-status"></canvas>
-                    </div>
-                </div>
-                <div class="fornecedor-chart-card">
-                    <h3><i class="fas fa-layer-group"></i> Planos</h3>
-                    <div class="fornecedor-chart-wrapper">
-                        <canvas id="chart-usuarios-plano"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Coluna direita: globo ocupa todo o espaço restante -->
-            <div class="fornecedor-globe-col">
-                <div class="fornecedor-globe-section">
-                    <h3><i class="fas fa-globe-americas"></i> Usuários no Mundo</h3>
-                    <div id="fornecedor-globe-container"></div>
-                </div>
-            </div>
-        </div>
-
     </div>
 </section>
 
@@ -1847,19 +1371,29 @@
         <div class="modal-body">
             <form id="form-editar-categoria">
                 <input type="hidden" id="categoria-edit-id">
-                <input type="text" id="categoria-edit-nome" class="form-input" required maxlength="50" placeholder="Nome da Categoria *">
+
+                <div class="form-group">
+                    <label for="categoria-edit-nome">
+                        <i class="fas fa-tag"></i> Nome da Categoria: <span class="required">*</span>
+                    </label>
+                    <input type="text" id="categoria-edit-nome" class="form-input" required maxlength="50">
+                </div>
             </form>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-action="cancelar">Cancelar</button>
-            <button type="submit" form="form-editar-categoria" class="btn btn-primary">Salvar</button>
+            <button type="button" class="btn btn-secondary" data-action="cancelar">
+                Cancelar
+            </button>
+            <button type="submit" form="form-editar-categoria" class="btn btn-primary">
+                Salvar
+            </button>
         </div>
     </div>
 </div>
 
 <!-- Modal: Editar Cartão -->
 <div id="modal-editar-cartao" class="modal">
-    <div class="modal-content modal-sm">
+    <div class="modal-content modal-md">
         <div class="modal-header">
             <h2><i class="fas fa-credit-card"></i> Editar Cartão</h2>
             <button type="button" class="close" title="Fechar">&times;</button>
@@ -1867,19 +1401,60 @@
         <div class="modal-body">
             <form id="form-editar-cartao">
                 <input type="hidden" id="cartao-edit-id">
-                <div class="mc-form-grid">
-                    <input type="text" id="cartao-edit-banco" class="form-input" required maxlength="50" placeholder="Nome do Banco *">
-                    <input type="text" id="cartao-edit-validade" class="form-input" maxlength="7" inputmode="numeric" placeholder="Validade MM/AAAA" oninput="formatarValidadeCartao(this)">
-                    <input type="number" id="cartao-edit-fechamento" class="form-input" min="1" max="31" required placeholder="Dia Fechamento *">
-                    <input type="number" id="cartao-edit-vencimento" class="form-input" min="1" max="31" required placeholder="Dia Vencimento *">
-                    <input type="number" id="cartao-edit-limite" class="form-input" step="0.01" min="0" required placeholder="Limite (R$) *">
-                    <label class="form-check-label"><input type="checkbox" id="cartao-edit-ativo"> Ativo</label>
+
+                <div class="form-row-cartao">
+                    <div class="form-group flex-grow">
+                        <label for="cartao-edit-banco">
+                            <i class="fas fa-university"></i> Nome do Banco <span class="required">*</span>
+                        </label>
+                        <input type="text" id="cartao-edit-banco" class="form-input" required maxlength="50" placeholder="Ex: Nubank, Itaú, etc.">
+                    </div>
+                    <div class="form-group form-group-checkbox">
+                        <label>Ativo</label>
+                        <div class="checkbox-container">
+                            <input type="checkbox" id="cartao-edit-ativo">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-row-cartao">
+                    <div class="form-group flex-grow">
+                        <label for="cartao-edit-validade">
+                            <i class="fas fa-calendar-alt"></i> Validade (MM/AAAA)
+                        </label>
+                        <input type="text" id="cartao-edit-validade" class="form-input" maxlength="7" inputmode="numeric" placeholder="MM/AAAA" oninput="formatarValidadeCartao(this)">
+                    </div>
+                </div>
+
+                <div class="form-row-cartao">
+                    <div class="form-group">
+                        <label for="cartao-edit-fechamento">
+                            <i class="fas fa-calendar-alt"></i> Dia Fechamento <span class="required">*</span>
+                        </label>
+                        <input type="number" id="cartao-edit-fechamento" class="form-input" min="1" max="31" required placeholder="1-31">
+                    </div>
+                    <div class="form-group">
+                        <label for="cartao-edit-vencimento">
+                            <i class="fas fa-calendar-check"></i> Dia Vencimento <span class="required">*</span>
+                        </label>
+                        <input type="number" id="cartao-edit-vencimento" class="form-input" min="1" max="31" required placeholder="1-31">
+                    </div>
+                    <div class="form-group">
+                        <label for="cartao-edit-limite">
+                            <i class="fas fa-dollar-sign"></i> Limite (R$) <span class="required">*</span>
+                        </label>
+                        <input type="number" id="cartao-edit-limite" class="form-input" step="0.01" min="0" required placeholder="0,00">
+                    </div>
                 </div>
             </form>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-action="cancelar">Cancelar</button>
-            <button type="submit" form="form-editar-cartao" class="btn btn-primary">Salvar</button>
+            <button type="button" class="btn btn-secondary" data-action="cancelar">
+                Cancelar
+            </button>
+            <button type="submit" form="form-editar-cartao" class="btn btn-primary">
+                Salvar
+            </button>
         </div>
     </div>
 </div>
@@ -1887,28 +1462,50 @@
 
 <!-- Modal: Adicionar Usuário -->
 <div id="modal-adicionar-usuario" class="modal">
-    <div class="modal-content modal-sm">
+    <div class="modal-content modal-md">
         <div class="modal-header">
             <h2>Novo Usuário</h2>
             <button type="button" class="close" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
             <form id="form-adicionar-usuario">
-                <div class="mc-form-grid">
-                    <input type="text" id="novo-usuario-nome" class="form-input" required maxlength="100" placeholder="Nome *">
-                    <input type="email" id="novo-usuario-email" class="form-input" required maxlength="100" placeholder="E-mail *">
-                    <input type="text" id="novo-usuario-documento" class="form-input" required maxlength="18" placeholder="CPF/CNPJ * (só números)">
+                <div class="form-group">
+                    <label for="novo-usuario-nome">Nome <span class="required">*</span></label>
+                    <input type="text" id="novo-usuario-nome" class="form-input" required maxlength="100">
+                </div>
+
+                <div class="form-group">
+                    <label for="novo-usuario-email">E-mail <span class="required">*</span></label>
+                    <input type="email" id="novo-usuario-email" class="form-input" required maxlength="100">
+                </div>
+
+                <div class="form-group">
+                    <label for="novo-usuario-documento">Documento (CPF/CNPJ) <span class="required">*</span></label>
+                    <input type="text" id="novo-usuario-documento" class="form-input" required maxlength="18">
+                    <small class="field-help">Digite apenas números</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="novo-usuario-tipo">Tipo de Usuário</label>
                     <select id="novo-usuario-tipo" class="form-control">
-                        <option value="padrao" selected>Usuário Padrão</option>
+                        <option value="padrao">Usuário Padrão</option>
                         <option value="admin">Administrador</option>
                         <option value="master">Master</option>
                     </select>
-                    <input type="text" id="novo-usuario-pais" class="form-input" required maxlength="100" placeholder="País * (Ex: Brasil)">
-                    <input type="text" id="novo-usuario-estado" class="form-input" required maxlength="100" placeholder="Estado * (Ex: São Paulo)">
-                    <input type="text" id="novo-usuario-cidade" class="form-input" required maxlength="100" placeholder="Cidade *">
-                    <input type="password" id="novo-usuario-senha" class="form-input" required minlength="6" placeholder="Senha * (mín. 6 caracteres)">
-                    <input type="password" id="novo-usuario-confirmar-senha" class="form-input" required minlength="6" placeholder="Confirmar Senha *">
                 </div>
+
+                <div class="form-group">
+                    <label for="novo-usuario-senha">Senha <span class="required">*</span></label>
+                    <input type="password" id="novo-usuario-senha" class="form-input" required minlength="6">
+                    <small class="field-help">Mínimo 6 caracteres</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="novo-usuario-confirmar-senha">Confirmar Senha <span class="required">*</span></label>
+                    <input type="password" id="novo-usuario-confirmar-senha" class="form-input" required minlength="6">
+                </div>
+
+                <!-- Status de validação -->
                 <div id="validacao-status" class="validation-feedback hidden">
                     <div class="validation-message">
                         <i class="validation-icon"></i>
@@ -1926,7 +1523,7 @@
 
 <!-- Modal: Editar Usuário -->
 <div id="modal-editar-usuario" class="modal">
-    <div class="modal-content modal-sm">
+    <div class="modal-content modal-md">
         <div class="modal-header">
             <h2 id="editar-usuario-titulo">Editar Usuário</h2>
             <button type="button" class="close" title="Fechar">&times;</button>
@@ -1934,28 +1531,53 @@
         <div class="modal-body">
             <form id="form-editar-usuario">
                 <input type="hidden" id="editar-usuario-id">
-                <div class="mc-form-grid">
-                    <input type="text" id="editar-usuario-nome" class="form-input" required maxlength="100" placeholder="Nome *">
-                    <input type="email" id="editar-usuario-email" class="form-input" required maxlength="100" placeholder="E-mail *">
-                    <input type="text" id="editar-usuario-documento" class="form-input" required maxlength="18" disabled placeholder="CPF/CNPJ" title="O documento não pode ser alterado">
-                    <div id="form-group-tipo">
-                        <select id="editar-usuario-tipo" class="form-control">
-                            <option value="padrao">Usuário Padrão</option>
-                            <option value="admin">Administrador</option>
-                            <option value="master">Master</option>
-                        </select>
-                    </div>
+
+                <div class="form-group">
+                    <label for="editar-usuario-nome">Nome <span class="required">*</span></label>
+                    <input type="text" id="editar-usuario-nome" class="form-input" required maxlength="100">
+                </div>
+
+                <div class="form-group">
+                    <label for="editar-usuario-email">E-mail <span class="required">*</span></label>
+                    <input type="email" id="editar-usuario-email" class="form-input" required maxlength="100">
+                </div>
+
+                <div class="form-group">
+                    <label for="editar-usuario-documento">Documento (CPF/CNPJ) <span class="required">*</span></label>
+                    <input type="text" id="editar-usuario-documento" class="form-input" required maxlength="18" disabled>
+                    <small class="field-help">O documento não pode ser alterado após o cadastro</small>
+                </div>
+
+                <div id="form-group-tipo" class="form-group">
+                    <label for="editar-usuario-tipo">Tipo de Usuário</label>
+                    <select id="editar-usuario-tipo" class="form-control">
+                        <option value="padrao">Usuário Padrão</option>
+                        <option value="admin">Administrador</option>
+                        <option value="master">Master</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="editar-usuario-status">Status</label>
                     <select id="editar-usuario-status" class="form-control">
                         <option value="ativo">Ativo</option>
                         <option value="inativo">Inativo</option>
                         <option value="bloqueado">Bloqueado</option>
                     </select>
-                    <input type="text" id="editar-usuario-pais" class="form-input" required maxlength="100" placeholder="País *">
-                    <input type="text" id="editar-usuario-estado" class="form-input" required maxlength="100" placeholder="Estado *">
-                    <input type="text" id="editar-usuario-cidade" class="form-input" required maxlength="100" placeholder="Cidade *">
-                    <input type="password" id="editar-usuario-senha" class="form-input" minlength="6" placeholder="Nova Senha (em branco = manter)">
-                    <input type="password" id="editar-usuario-confirmar-senha" class="form-input" placeholder="Confirmar Nova Senha">
                 </div>
+
+                <div class="form-group">
+                    <label for="editar-usuario-senha">Nova Senha</label>
+                    <input type="password" id="editar-usuario-senha" class="form-input" placeholder="Deixe em branco para manter a atual" minlength="6">
+                    <small class="field-help">Mínimo 6 caracteres</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="editar-usuario-confirmar-senha">Confirmar Nova Senha</label>
+                    <input type="password" id="editar-usuario-confirmar-senha" class="form-input" placeholder="Confirme a nova senha">
+                </div>
+
+                <!-- Mensagem de permissão -->
                 <div id="permissao-message" class="alert-message hidden">
                     <i class="fas fa-exclamation-triangle"></i>
                     <span>Você só pode editar usuários do tipo Padrão</span>
@@ -2088,11 +1710,6 @@
         <td class="usuario-nome"></td>
         <td class="usuario-documento"></td>
         <td class="usuario-email"></td>
-        <td class="usuario-pais"></td>
-        <td class="usuario-estado"></td>
-        <td class="usuario-cidade"></td>
-        <td class="usuario-lat"></td>
-        <td class="usuario-lng"></td>
         <td class="usuario-tipo">
             <span class="tipo-badge"></span>
         </td>
@@ -2110,35 +1727,7 @@
                 <button class="btn btn-sm btn-excluir-usuario" data-index="" title="Excluir usuário">
                     <i class="fas fa-trash"></i>
                 </button>
-                <button class="btn btn-sm btn-localizar-usuario" title="Capturar localização atual">
-                    <i class="fas fa-map-marker-alt"></i>
-                </button>
                 <span class="texto-sem-permissao hidden">Sem permissão</span>
-            </div>
-        </td>
-    </tr>
-</template>
-
-<template id="template-linha-empresa">
-    <tr class="empresa-row">
-        <td class="empresa-razao-social"></td>
-        <td class="empresa-nome-fantasia"></td>
-        <td class="empresa-cnpj"></td>
-        <td class="empresa-atividade"></td>
-        <td class="empresa-aporte-inicial"></td>
-        <td class="empresa-lat"></td>
-        <td class="empresa-lng"></td>
-        <td class="acoes-empresa">
-            <div class="acoes-grupo">
-                <button class="btn btn-sm btn-editar-empresa" title="Editar empresa">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn btn-sm btn-excluir-empresa" title="Arquivar empresa">
-                    <i class="fas fa-trash"></i>
-                </button>
-                <button class="btn btn-sm btn-localizar-empresa" title="Capturar localização atual">
-                    <i class="fas fa-map-marker-alt"></i>
-                </button>
             </div>
         </td>
     </tr>
@@ -3340,7 +2929,6 @@
     <tr>
         <td><span class="cartao-id"></span></td>
         <td><span class="cartao-banco"></span></td>
-        <td><span class="cartao-perfil"></span></td>
         <td><span class="cartao-validade"></span></td>
         <td><span class="cartao-fechamento"></span></td>
         <td><span class="cartao-vencimento"></span></td>
@@ -3556,11 +3144,6 @@
 
 <!-- Bibliotecas externas -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
@@ -3569,7 +3152,6 @@
 <script src="js/usuarioDados.js"></script>
 <script src="js/main.js"></script>
 <script src="js/logs.js"></script>
-<script src="js/perfis.js"></script>
 <script src="js/configuracao.js"></script>
 <script src="js/receita.js"></script>
 <script src="js/despesas.js"></script>
@@ -3848,7 +3430,6 @@
 <script src="js/planos.js"></script>
 <script src="js/avaliacao.js"></script>
 <script src="js/pwa-scale.js"></script>
-<script src="js/fornecedor.js"></script>
 
 <!-- ================================================================
      TOAST DE AVALIAÇÃO DO SISTEMA
@@ -3898,62 +3479,6 @@
         <div class="modal-gen-footer">
             <button onclick="fecharModalInstrucoesGen()" class="modal-gen-btn-cancelar">Cancelar</button>
             <button onclick="salvarInstrucoesGen()" class="modal-gen-btn-salvar">Salvar</button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal: Cadastro/Edição de Empresa -->
-<div id="modal-empresa" class="modal" style="display:none;">
-    <div class="modal-content modal-sm">
-        <div class="modal-header">
-            <h2 id="modal-empresa-titulo">Nova Empresa</h2>
-            <button type="button" class="close" id="btn-fechar-modal-empresa" title="Fechar">&times;</button>
-        </div>
-        <div class="modal-body">
-            <form id="form-empresa">
-                <input type="hidden" id="empresa-id">
-                <div class="mc-form-grid">
-                    <input type="text" id="empresa-razao-social" class="form-input" required maxlength="150" placeholder="Razão Social *">
-                    <input type="text" id="empresa-nome-fantasia" class="form-input" maxlength="150" placeholder="Nome Fantasia">
-                    <input type="text" id="empresa-cnpj" class="form-input" required maxlength="18" placeholder="CNPJ * (00.000.000/0000-00)">
-                    <input type="text" id="empresa-atividade" class="form-input" maxlength="200" placeholder="Ramo de Atividade">
-                    <input type="number" id="empresa-aporte-inicial" class="form-input" min="0" step="0.01" placeholder="Aporte Inicial (R$)">
-                </div>
-            </form>
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" id="btn-cancelar-empresa">Cancelar</button>
-            <button type="button" class="btn btn-primary" id="btn-salvar-empresa">Salvar</button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal: Editar Minha Conta -->
-<div id="modal-editar-minha-conta" class="modal" style="display:none;">
-    <div class="modal-content modal-md">
-        <div class="modal-header">
-            <h2><i class="fas fa-user-edit"></i> Editar Dados Pessoais</h2>
-            <button type="button" class="close" onclick="document.getElementById('modal-editar-minha-conta').style.display='none'">&times;</button>
-        </div>
-        <div class="modal-body">
-            <form id="form-minha-conta">
-                <div class="mc-form-grid">
-                    <input type="text" id="mc-nome" class="form-input" required placeholder="Nome *">
-                    <input type="email" id="mc-email" class="form-input" required placeholder="E-mail *">
-                    <input type="text" id="mc-documento" class="form-input" readonly placeholder="CPF" style="opacity:0.6;cursor:not-allowed;">
-                </div>
-                <hr style="margin:12px 0;border-color:var(--border-color);">
-                <p style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:8px;"><i class="fas fa-lock"></i> Alterar Senha — deixe em branco para não alterar</p>
-                <div class="mc-form-grid">
-                    <input type="password" id="mc-senha-atual" class="form-input" placeholder="Senha Atual">
-                    <input type="password" id="mc-nova-senha" class="form-input" placeholder="Nova Senha (mín. 8 caracteres)">
-                    <input type="password" id="mc-confirmar-senha" class="form-input" placeholder="Confirmar Nova Senha">
-                </div>
-            </form>
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-editar-minha-conta').style.display='none'">Cancelar</button>
-            <button type="button" class="btn btn-primary" id="btn-salvar-minha-conta"><i class="fas fa-save"></i> Salvar</button>
         </div>
     </div>
 </div>

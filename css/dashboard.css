@@ -282,8 +282,6 @@
 [data-tema="divida"].active     { background: linear-gradient(135deg, #dc2626, #f43f5e); box-shadow: 0 2px 14px rgba(244,63,94,0.45); }
 [data-tema="anual"].active      { background: linear-gradient(135deg, #0891b2, #06b6d4); box-shadow: 0 2px 14px rgba(6,182,212,0.45); }
 [data-tema="analise"].active    { background: linear-gradient(135deg, #7c3aed, #a855f7); box-shadow: 0 2px 14px rgba(168,85,247,0.45); }
-[data-tema="metas"].active      { background: linear-gradient(135deg, #f59e0b, #ef4444); box-shadow: 0 2px 14px rgba(245,158,11,0.45); }
-[data-tema="empresa"].active    { background: linear-gradient(135deg, #0f766e, #0891b2); box-shadow: 0 2px 14px rgba(8,145,178,0.45); }
 
 /* ---- Views Temáticas ------------------------------------------- */
 .tema-view {
@@ -647,20 +645,6 @@
 #tema-metas .tema-charts-grid .tema-chart-card:nth-child(2) { height: 280px; }
 #tema-metas .tema-charts-grid .tema-chart-card:nth-child(3) { height: 280px; }
 
-/* EMPRESA — grid 2 colunas + comparativo full width */
-#tema-empresa .tema-kpis {
-    grid-template-columns: repeat(4, 1fr);
-}
-#tema-empresa .tema-charts-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto;
-    gap: 20px;
-}
-#tema-empresa .tema-charts-grid .tema-chart-card:nth-child(1) { grid-column: 1; height: 320px; }
-#tema-empresa .tema-charts-grid .tema-chart-card:nth-child(2) { grid-column: 2; height: 320px; }
-#tema-empresa .tema-charts-grid .tema-chart-card:nth-child(3) { grid-column: 1 / -1; height: 280px; }
-
 /* Garantir que canvas preencha o card em altura controlada */
 #tema-saude .tema-charts-grid .tema-chart-card canvas,
 #tema-fluxo .tema-charts-grid .tema-chart-card canvas,
@@ -669,8 +653,7 @@
 #tema-divida .tema-charts-grid .tema-chart-card canvas,
 #tema-anual .tema-charts-grid .tema-chart-card canvas,
 #tema-analise .tema-charts-grid .tema-chart-card canvas,
-#tema-metas .tema-charts-grid .tema-chart-card canvas,
-#tema-empresa .tema-charts-grid .tema-chart-card canvas {
+#tema-metas .tema-charts-grid .tema-chart-card canvas {
     flex: 1;
     min-height: 0;
     max-height: 100%;
@@ -792,8 +775,7 @@
     #tema-divida .tema-charts-grid,
     #tema-anual .tema-charts-grid,
     #tema-analise .tema-charts-grid,
-    #tema-metas .tema-charts-grid,
-    #tema-empresa .tema-charts-grid {
+    #tema-metas .tema-charts-grid {
         grid-template-columns: 1fr !important;
     }
 
@@ -804,8 +786,7 @@
     #tema-divida .tema-charts-grid .tema-chart-card,
     #tema-anual .tema-charts-grid .tema-chart-card,
     #tema-analise .tema-charts-grid .tema-chart-card,
-    #tema-metas .tema-charts-grid .tema-chart-card,
-    #tema-empresa .tema-charts-grid .tema-chart-card {
+    #tema-metas .tema-charts-grid .tema-chart-card {
         grid-column: 1 !important;
         grid-row: auto !important;
         height: 300px !important;
@@ -820,6 +801,65 @@
     .tema-btn span { display: none; }
     .dash-select { max-width: 100px; }
     .dash-nav-bar { flex-wrap: wrap; gap: 8px; }
+
+    /* KPIs: 2 colunas em mobile */
+    .tema-kpis {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    /* KPI cards: padding reduzido */
+    .tema-kpi {
+        padding: 10px 12px;
+    }
+
+    .tk-valor {
+        font-size: 16px;
+    }
+
+    /* Cards de gráfico: altura adaptável em mobile */
+    #tema-saude .tema-charts-grid .tema-chart-card,
+    #tema-fluxo .tema-charts-grid .tema-chart-card,
+    #tema-categorias .tema-charts-grid .tema-chart-card,
+    #tema-pagamento .tema-charts-grid .tema-chart-card,
+    #tema-divida .tema-charts-grid .tema-chart-card,
+    #tema-anual .tema-charts-grid .tema-chart-card,
+    #tema-analise .tema-charts-grid .tema-chart-card,
+    #tema-metas .tema-charts-grid .tema-chart-card {
+        height: 260px !important;
+    }
+
+    /* Dashboard section: sem padding lateral excessivo */
+    #dashboard-section {
+        padding: 10px;
+        border-radius: 8px;
+    }
+}
+
+@media (max-width: 480px) {
+    /* KPIs: 1 coluna em telas muito pequenas */
+    .tema-kpis {
+        grid-template-columns: 1fr;
+    }
+
+    /* Botões de tema: apenas ícone, sem texto (já sem span acima) */
+    .tema-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+
+    /* Cards de gráfico: altura menor em telas pequenas */
+    #tema-saude .tema-charts-grid .tema-chart-card,
+    #tema-fluxo .tema-charts-grid .tema-chart-card,
+    #tema-categorias .tema-charts-grid .tema-chart-card,
+    #tema-pagamento .tema-charts-grid .tema-chart-card,
+    #tema-divida .tema-charts-grid .tema-chart-card,
+    #tema-anual .tema-charts-grid .tema-chart-card,
+    #tema-analise .tema-charts-grid .tema-chart-card,
+    #tema-metas .tema-charts-grid .tema-chart-card {
+        height: 220px !important;
+    }
 }
 
 /* ================================================================

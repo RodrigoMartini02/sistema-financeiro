@@ -367,11 +367,11 @@
         max-width: 100% !important;
         margin: 0 !important;
         border-radius: 0 !important;
-        min-height: 100vh;
+        min-height: 100dvh;
     }
 
     #modal-nova-receita .modal-body {
-        max-height: calc(100vh - 110px);
+        max-height: calc(100dvh - 110px);
         padding: 14px 16px;
     }
 

@@ -21,7 +21,12 @@
       "Bash(dd if=C:/Users/rodri/.claude/projects/c--Users-rodri-Music-sistema-financas/19542853-2c08-425a-9c78-55abb49e6a5c.jsonl bs=1 skip=15000000 count=3000000)",
       "Bash(dd if=C:/Users/rodri/.claude/projects/c--Users-rodri-Music-sistema-financas/19542853-2c08-425a-9c78-55abb49e6a5c.jsonl bs=1 skip=16000000 count=3000000)",
       "Bash(dd if=C:/Users/rodri/.claude/projects/c--Users-rodri-Music-sistema-financas/19542853-2c08-425a-9c78-55abb49e6a5c.jsonl bs=1 skip=17000000 count=1000000)",
-      "Bash(dd if=C:/Users/rodri/.claude/projects/c--Users-rodri-Music-sistema-financas/19542853-2c08-425a-9c78-55abb49e6a5c.jsonl bs=1 skip=17500000 count=500000)"
+      "Bash(dd if=C:/Users/rodri/.claude/projects/c--Users-rodri-Music-sistema-financas/19542853-2c08-425a-9c78-55abb49e6a5c.jsonl bs=1 skip=17500000 count=500000)",
+      "Bash(WORKTREE=\"c:/Users/rodri/Music/sistema financas/.claude/worktrees/agent-a7608668\")",
+      "Bash(MAIN=\"c:/Users/rodri/Music/sistema financas\")",
+      "Bash(__NEW_LINE_c6a71fdd528fba41__ for:*)",
+      "Bash(cp \"$WORKTREE/$f\" \"$MAIN/$f\")",
+      "Bash(echo \"Copiado: $f\")"
     ]
   }
 }

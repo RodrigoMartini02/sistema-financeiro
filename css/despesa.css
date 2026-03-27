@@ -890,7 +890,7 @@ select.campo-invalido {
     }
 
     .modal-lancamento .modal-body {
-        max-height: calc(100vh - 110px);
+        max-height: calc(100dvh - 110px);
         padding: 12px 14px;
     }
 
