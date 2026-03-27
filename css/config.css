@@ -3,6 +3,21 @@
 /* ================================================================ */
 
 /* ================================================================ */
+/* ABAS DE CONFIGURAÇÃO */
+/* ================================================================ */
+.config-tabs {
+    display: flex;
+    border-bottom: 2px solid var(--theme-border);
+    margin-bottom: 0;
+    gap: 8px;
+    background: var(--theme-surface);
+    padding: 8px 8px 0 8px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+/* ================================================================ */
 /* ESPAÇO ADMIN — cards padronizados */
 /* ================================================================ */
 .admin-section-card {
