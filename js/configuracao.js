@@ -1422,7 +1422,7 @@ function criarLinhaUsuario(usuario, index) {
 
     const btnEditar = linha.querySelector('.btn-editar-usuario');
     const btnBloquear = linha.querySelector('.btn-bloquear-usuario');
-    const btnExcluir = linha.querySelector('.btn-excluir-usuario');
+    const btnExcluir = linha.querySelector('.btn-excluir-usuario');
     const textoSemPermissao = linha.querySelector('.texto-sem-permissao');
 
     btnEditar.setAttribute('data-index', index);
@@ -3301,7 +3301,7 @@ function renderizarEmpresas(empresas) {
         linha.querySelector('.empresa-lng').textContent = e.longitude != null ? parseFloat(e.longitude).toFixed(4) : '-';
 
         const btnEditar = linha.querySelector('.btn-editar-empresa');
-        const btnExcluir = linha.querySelector('.btn-excluir-empresa');
+        const btnExcluir = linha.querySelector('.btn-excluir-empresa');
         btnEditar.setAttribute('data-index', index);
         btnExcluir.setAttribute('data-index', index);
 
@@ -3427,6 +3427,7 @@ window.excluirEmpresa = excluirEmpresa;
 // ================================================================
 // CAPTURA DE LOCALIZAÇÃO — USUÁRIO (admin)
 // ================================================================
+
 
 
 
