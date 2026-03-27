@@ -1950,9 +1950,7 @@
                         <option value="inativo">Inativo</option>
                         <option value="bloqueado">Bloqueado</option>
                     </select>
-                    <input type="text" id="editar-usuario-pais" class="form-input" required maxlength="100" placeholder="País *">
-                    <input type="text" id="editar-usuario-estado" class="form-input" required maxlength="100" placeholder="Estado *">
-                    <input type="text" id="editar-usuario-cidade" class="form-input" required maxlength="100" placeholder="Cidade *">
+
                     <input type="password" id="editar-usuario-senha" class="form-input" minlength="6" placeholder="Nova Senha (em branco = manter)">
                     <input type="password" id="editar-usuario-confirmar-senha" class="form-input" placeholder="Confirmar Nova Senha">
                 </div>
@@ -3930,19 +3928,15 @@
             <button type="button" class="close" onclick="document.getElementById('modal-editar-minha-conta').style.display='none'">&times;</button>
         </div>
         <div class="modal-body">
-            <form id="form-minha-conta">
-                <div class="mc-form-grid">
-                    <input type="text" id="mc-nome" class="form-input" required placeholder="Nome *">
-                    <input type="email" id="mc-email" class="form-input" required placeholder="E-mail *">
-                    <input type="text" id="mc-documento" class="form-input" readonly placeholder="CPF" style="opacity:0.6;cursor:not-allowed;">
-                </div>
-                <hr style="margin:12px 0;border-color:var(--border-color);">
-                <p style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:8px;"><i class="fas fa-lock"></i> Alterar Senha — deixe em branco para não alterar</p>
-                <div class="mc-form-grid">
-                    <input type="password" id="mc-senha-atual" class="form-input" placeholder="Senha Atual">
-                    <input type="password" id="mc-nova-senha" class="form-input" placeholder="Nova Senha (mín. 8 caracteres)">
-                    <input type="password" id="mc-confirmar-senha" class="form-input" placeholder="Confirmar Nova Senha">
-                </div>
+            <form id="form-minha-conta" style="display:flex;flex-direction:column;gap:10px;">
+                <input type="text" id="mc-nome" class="form-input" required placeholder="Nome *">
+                <input type="email" id="mc-email" class="form-input" required placeholder="E-mail *">
+                <input type="text" id="mc-documento" class="form-input" readonly placeholder="CPF" style="opacity:0.6;cursor:not-allowed;">
+                <hr style="margin:4px 0;border-color:var(--border-color);">
+                <p style="font-size:0.75rem;color:var(--text-secondary);margin:0;"><i class="fas fa-lock"></i> Alterar Senha — deixe em branco para não alterar</p>
+                <input type="password" id="mc-senha-atual" class="form-input" placeholder="Senha Atual">
+                <input type="password" id="mc-nova-senha" class="form-input" placeholder="Nova Senha (mín. 8 caracteres)">
+                <input type="password" id="mc-confirmar-senha" class="form-input" placeholder="Confirmar Nova Senha">
             </form>
         </div>
         <div class="modal-footer">

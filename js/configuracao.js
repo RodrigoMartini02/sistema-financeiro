@@ -1623,10 +1623,7 @@ function preencherDadosUsuario(usuario) {
         'editar-usuario-nome': usuario.nome || '',
         'editar-usuario-email': usuario.email || '',
         'editar-usuario-documento': usuario.documento || '',
-        'editar-usuario-status': usuario.status || 'ativo',
-        'editar-usuario-pais': usuario.pais || '',
-        'editar-usuario-estado': usuario.estado || '',
-        'editar-usuario-cidade': usuario.cidade || ''
+        'editar-usuario-status': usuario.status || 'ativo'
     };
 
     Object.entries(campos).forEach(([id, valor]) => {
@@ -1809,9 +1806,6 @@ async function salvarEdicaoUsuario(isNovo = false) {
                     nome,
                     email,
                     status,
-                    pais: document.getElementById('editar-usuario-pais')?.value.trim() || null,
-                    estado: document.getElementById('editar-usuario-estado')?.value.trim() || null,
-                    cidade: document.getElementById('editar-usuario-cidade')?.value.trim() || null
                 };
 
                 if (tipoUsuarioAtual === 'master') {
