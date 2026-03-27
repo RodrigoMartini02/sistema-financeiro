@@ -3574,22 +3574,40 @@ function compararDatas(dataA, dataB) {
 }
 
 function atualizarContadoresFiltro() {
-   const linhasVisiveis = document.querySelectorAll('tr.despesa-row:not([style*="display: none"])');
-   const totalLinhas = document.querySelectorAll('tr.despesa-row').length;
+   const filtroTipo = document.getElementById('filtro-tipo-toolbar')?.value || 'todos';
+   const filtroCategoria = document.getElementById('filtro-categoria-toolbar')?.value || 'todas';
+   const filtroFormaPagamento = document.getElementById('filtro-forma-pagamento-toolbar')?.value || 'todas';
+   const filtroStatus = document.getElementById('filtro-status-toolbar')?.value || 'todas';
+   const semFiltros = filtroTipo === 'todos' && filtroCategoria === 'todas' &&
+                      filtroFormaPagamento === 'todas' && filtroStatus === 'todas';
 
-   // Somar apenas linhas de despesa visíveis (excluir receitas do total de despesas)
    let valorTotalDespesas = 0;
    let countDespesas = 0;
    let totalDespesasGeral = _despesasBuffer.length > 0
        ? _despesasBuffer.filter(i => i.tipo !== 'receita' && i.tipo !== 'reserva').length
        : document.querySelectorAll('tr.despesa-row[data-tipo="despesa"]').length;
 
-   linhasVisiveis.forEach(linha => {
-       if (linha.getAttribute('data-tipo') === 'despesa') {
-           valorTotalDespesas += calcularValorDespesaLinha(linha);
+   if (semFiltros && _despesasBuffer.length > 0) {
+       // Calcular total diretamente do buffer (inclui itens ainda não renderizados)
+       _despesasBuffer.forEach(item => {
+           if (item.tipo === 'receita' || item.tipo === 'reserva') return;
+           const formaPag = (item.formaPagamento || item.forma_pagamento || '').toLowerCase();
+           const eCredito = formaPag === 'credito' || formaPag === 'crédito' ||
+                            formaPag === 'cred-merpago' || formaPag === 'créd-merpago';
+           if (item.recorrente && eCredito) return;
+           valorTotalDespesas += obterValorRealDespesa(item);
            countDespesas++;
-       }
-   });
+       });
+   } else {
+       // Com filtros ativos: somar apenas linhas visíveis no DOM
+       const linhasVisiveis = document.querySelectorAll('tr.despesa-row:not([style*="display: none"])');
+       linhasVisiveis.forEach(linha => {
+           if (linha.getAttribute('data-tipo') === 'despesa') {
+               valorTotalDespesas += calcularValorDespesaLinha(linha);
+               countDespesas++;
+           }
+       });
+   }
 
    // Atualizar contador antigo (se existir)
    const contadorFiltro = document.getElementById('contador-filtro');
