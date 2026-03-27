@@ -1377,7 +1377,8 @@ async function salvarTodasDespesas() {
             card.querySelector('.card-success').classList.remove('hidden');
             cardAnexosStore.delete(card.dataset.cardId);
             if (window.logManager) {
-                window.logManager.registrar({ modulo: 'Despesas', acao: ehEdicao ? 'Editado' : 'Criado', categoria: formData.categoria_id || '-', descricao: formData.descricao, valor: formData.valor, detalhes: `${ehEdicao ? 'Editou' : 'Criou'} despesa em ${formData.mes + 1}/${formData.ano}` });
+                const nomeCategoria = card.querySelector('.card-categoria option:checked')?.textContent?.trim() || '-';
+                window.logManager.registrar({ modulo: 'Despesas', acao: ehEdicao ? 'Editado' : 'Criado', categoria: nomeCategoria, descricao: formData.descricao, valor: formData.valor, detalhes: `${ehEdicao ? 'Editou' : 'Criou'} despesa em ${formData.mes + 1}/${formData.ano}` });
             }
         } else {
             erroCount++;

@@ -1203,17 +1203,29 @@ function ajustarVisibilidadeElementos() {
             btnLimparTodosLogs.classList.add('hidden');
         }
     }
+
+    // Ocultar colunas de localização e tipo na tabela de usuários para usuários não-admin
+    const isAdminOrMaster = podeEditarUsuario({ tipo: 'padrao' }); // admin/master podem editar padrão
+    if (!isAdminOrMaster) {
+        // Ocultar cabeçalhos: País(3), Estado(4), Cidade(5), Lat(6), Long(7), Tipo(8) — índices 0-based
+        const adminColIndices = [3, 4, 5, 6, 7, 8];
+        const tabelaUsuarios = document.querySelector('.tabela-usuarios');
+        if (tabelaUsuarios) {
+            const ths = tabelaUsuarios.querySelectorAll('thead th');
+            adminColIndices.forEach(i => { if (ths[i]) ths[i].style.display = 'none'; });
+        }
+    }
 }
 
-async function carregarMapaUsuarios() {
-    const tbody = document.getElementById('mapa-tabela-body');
-    const porPaisDiv = document.getElementById('mapa-por-pais');
-    if (!tbody) return;
+let _mapaLeaflet = null;
 
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-secondary)">Carregando...</td></tr>';
+async function carregarMapaUsuarios() {
+    const mapaDiv = document.getElementById('mapa-interativo');
+    const porPaisDiv = document.getElementById('mapa-por-pais');
+    if (!mapaDiv) return;
 
     try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
         const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
         const response = await fetch(`${API_URL}/usuarios/stats/mapa`, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -1223,30 +1235,64 @@ async function carregarMapaUsuarios() {
         if (!data.success) throw new Error(data.message);
 
         // Resumo por país
-        if (porPaisDiv && data.data.por_pais.length > 0) {
+        if (porPaisDiv && data.data.por_pais && data.data.por_pais.length > 0) {
             porPaisDiv.innerHTML = data.data.por_pais.map(p =>
                 `<span class="mapa-pais-badge"><i class="fas fa-globe"></i> ${p.pais} <strong>${p.total}</strong></span>`
             ).join('');
         }
 
-        // Tabela detalhada
-        if (data.data.detalhado.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-secondary)">Nenhum dado de localização registrado</td></tr>';
+        // Inicializar mapa Leaflet
+        if (typeof L === 'undefined') return;
+
+        if (_mapaLeaflet) {
+            _mapaLeaflet.remove();
+            _mapaLeaflet = null;
+        }
+
+        _mapaLeaflet = L.map('mapa-interativo').setView([0, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 18
+        }).addTo(_mapaLeaflet);
+
+        const pontos = data.data.pontos_exatos || [];
+        const empresas = data.data.empresas || [];
+
+        if (pontos.length === 0 && empresas.length === 0) {
+            mapaDiv.insertAdjacentHTML('afterend', '<p style="text-align:center;color:var(--text-secondary);margin-top:8px;">Nenhum dado de localização registrado ainda.</p>');
             return;
         }
 
-        tbody.innerHTML = data.data.detalhado.map(row => `
-            <tr>
-                <td>${row.pais}</td>
-                <td>${row.estado}</td>
-                <td>${row.cidade}</td>
-                <td><strong>${row.total}</strong></td>
-                <td>${row.ativos}</td>
-            </tr>
-        `).join('');
+        const cluster = (typeof L.markerClusterGroup === 'function')
+            ? L.markerClusterGroup()
+            : L.layerGroup();
+
+        pontos.forEach(function(u) {
+            if (u.latitude == null || u.longitude == null) return;
+            const marker = L.marker([parseFloat(u.latitude), parseFloat(u.longitude)]);
+            marker.bindPopup(`<strong>${u.nome || 'Usuário'}</strong><br>${u.cidade || ''}`);
+            cluster.addLayer(marker);
+        });
+
+        empresas.forEach(function(e) {
+            if (e.latitude == null || e.longitude == null) return;
+            const marker = L.marker([parseFloat(e.latitude), parseFloat(e.longitude)], {
+                icon: L.divIcon({ className: 'empresa-marker', html: '<i class="fas fa-building" style="color:#e67e22;font-size:18px;"></i>', iconSize: [20, 20] })
+            });
+            marker.bindPopup(`<strong>${e.nome || 'Empresa'}</strong><br>${e.atividade || ''}`);
+            cluster.addLayer(marker);
+        });
+
+        _mapaLeaflet.addLayer(cluster);
+
+        // Ajustar zoom para englobar todos os pontos
+        const allLayers = [];
+        cluster.eachLayer(function(l) { allLayers.push(l.getLatLng()); });
+        if (allLayers.length > 0) {
+            _mapaLeaflet.fitBounds(L.latLngBounds(allLayers), { padding: [40, 40], maxZoom: 10 });
+        }
 
     } catch (error) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--danger)">Erro ao carregar dados</td></tr>`;
         console.error('Erro ao carregar mapa de usuários:', error);
     }
 }
@@ -1345,15 +1391,30 @@ function criarLinhaUsuario(usuario, index) {
     linha.querySelector('.usuario-nome').textContent = usuario.nome || '-';
     linha.querySelector('.usuario-documento').textContent = usuario.documento || '-';
     linha.querySelector('.usuario-email').textContent = usuario.email || '-';
-    linha.querySelector('.usuario-pais').textContent = usuario.pais || '-';
-    linha.querySelector('.usuario-estado').textContent = usuario.estado || '-';
-    linha.querySelector('.usuario-cidade').textContent = usuario.cidade || '-';
-    linha.querySelector('.usuario-lat').textContent = usuario.latitude != null ? parseFloat(usuario.latitude).toFixed(4) : '-';
-    linha.querySelector('.usuario-lng').textContent = usuario.longitude != null ? parseFloat(usuario.longitude).toFixed(4) : '-';
+
+    const isAdminOrMaster = podeEditarUsuario({ tipo: 'padrao' });
+    const tdPais = linha.querySelector('.usuario-pais');
+    const tdEstado = linha.querySelector('.usuario-estado');
+    const tdCidade = linha.querySelector('.usuario-cidade');
+    const tdLat = linha.querySelector('.usuario-lat');
+    const tdLng = linha.querySelector('.usuario-lng');
+    const tdTipo = linha.querySelector('.usuario-tipo');
+
+    if (isAdminOrMaster) {
+        if (tdPais) tdPais.textContent = usuario.pais || '-';
+        if (tdEstado) tdEstado.textContent = usuario.estado || '-';
+        if (tdCidade) tdCidade.textContent = usuario.cidade || '-';
+        if (tdLat) tdLat.textContent = usuario.latitude != null ? parseFloat(usuario.latitude).toFixed(4) : '-';
+        if (tdLng) tdLng.textContent = usuario.longitude != null ? parseFloat(usuario.longitude).toFixed(4) : '-';
+    } else {
+        [tdPais, tdEstado, tdCidade, tdLat, tdLng, tdTipo].forEach(td => { if (td) td.style.display = 'none'; });
+    }
 
     const tipoBadge = linha.querySelector('.tipo-badge');
-    tipoBadge.textContent = tipo === 'padrao' ? 'Padrão' : tipo === 'admin' ? 'Admin' : 'Master';
-    tipoBadge.className = `tipo-badge tipo-${tipo}`;
+    if (tipoBadge) {
+        tipoBadge.textContent = tipo === 'padrao' ? 'Padrão' : tipo === 'admin' ? 'Admin' : 'Master';
+        tipoBadge.className = `tipo-badge tipo-${tipo}`;
+    }
 
     const statusBadge = linha.querySelector('.status-badge');
     statusBadge.textContent = status === 'ativo' ? 'Ativo' : status === 'inativo' ? 'Inativo' : 'Bloqueado';
@@ -3537,20 +3598,6 @@ function _renderizarMinhaConta(u) {
     set('mc-td-nome', u.nome);
     set('mc-td-email', u.email);
     set('mc-td-documento', u.documento);
-    set('mc-td-pais', u.pais);
-    set('mc-td-estado', u.estado);
-    set('mc-td-cidade', u.cidade);
-    set('mc-td-lat', u.latitude  != null ? parseFloat(u.latitude).toFixed(4)  : '-');
-    set('mc-td-lng', u.longitude != null ? parseFloat(u.longitude).toFixed(4) : '-');
-
-    // Botão de localização na linha
-    const btnLoc = document.getElementById('btn-mc-geoloc-tabela');
-    if (btnLoc) {
-        btnLoc.onclick = null;
-        btnLoc.addEventListener('click', function() {
-            capturarLocalizacaoMinhaConta(btnLoc);
-        });
-    }
 }
 
 function abrirModalEditarMinhaConta() {
@@ -3563,13 +3610,6 @@ function abrirModalEditarMinhaConta() {
     set('mc-nome', u.nome);
     set('mc-email', u.email);
     set('mc-documento', u.documento);
-    set('mc-pais', u.pais);
-    set('mc-estado', u.estado);
-    set('mc-cidade', u.cidade);
-    const lat = document.getElementById('mc-latitude');
-    const lng = document.getElementById('mc-longitude');
-    if (lat) lat.value = u.latitude || '';
-    if (lng) lng.value = u.longitude || '';
     // Limpar campos de senha
     ['mc-senha-atual', 'mc-nova-senha', 'mc-confirmar-senha'].forEach(id => {
         const el = document.getElementById(id); if (el) el.value = '';
@@ -3591,8 +3631,6 @@ function setupMinhaConta() {
     if (btnSalvar) {
         btnSalvar.addEventListener('click', async () => {
             const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-            const lat = document.getElementById('mc-latitude')?.value;
-            const lng = document.getElementById('mc-longitude')?.value;
             const senhaAtual = document.getElementById('mc-senha-atual')?.value?.trim();
             const novaSenha  = document.getElementById('mc-nova-senha')?.value?.trim();
             const confirmar  = document.getElementById('mc-confirmar-senha')?.value?.trim();
@@ -3610,13 +3648,8 @@ function setupMinhaConta() {
             }
 
             const body = {
-                nome:      document.getElementById('mc-nome')?.value?.trim(),
-                email:     document.getElementById('mc-email')?.value?.trim(),
-                pais:      document.getElementById('mc-pais')?.value?.trim(),
-                estado:    document.getElementById('mc-estado')?.value?.trim(),
-                cidade:    document.getElementById('mc-cidade')?.value?.trim(),
-                latitude:  lat ? parseFloat(lat) : undefined,
-                longitude: lng ? parseFloat(lng) : undefined
+                nome:  document.getElementById('mc-nome')?.value?.trim(),
+                email: document.getElementById('mc-email')?.value?.trim()
             };
             if (novaSenha) {
                 body.senha_atual = senhaAtual;
@@ -3650,46 +3683,6 @@ function setupMinhaConta() {
             cancelarConta(senha);
         });
     }
-}
-
-function capturarLocalizacaoMinhaConta(btnEl) {
-    if (!navigator.geolocation) {
-        mostrarToast('Geolocalização não suportada', 'error');
-        return;
-    }
-    const btn = btnEl || document.getElementById('btn-mc-geoloc-tabela');
-    const iconeOriginal = btn ? btn.innerHTML : '';
-    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
-
-    navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-            const lat = pos.coords.latitude;
-            const lng = pos.coords.longitude;
-            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-            try {
-                const res = await fetch(`${API_URL_MC}/usuarios/me`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ nome: _minhaConta?.nome, latitude: lat, longitude: lng })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    if (_minhaConta) { _minhaConta.latitude = lat; _minhaConta.longitude = lng; }
-                    const tdLat = document.getElementById('mc-td-lat');
-                    const tdLng = document.getElementById('mc-td-lng');
-                    if (tdLat) tdLat.textContent = lat.toFixed(4);
-                    if (tdLng) tdLng.textContent = lng.toFixed(4);
-                    mostrarToast('Localização atualizada!', 'success');
-                }
-            } catch (e) { mostrarToast('Erro ao salvar localização', 'error'); }
-            if (btn) { btn.disabled = false; btn.innerHTML = iconeOriginal; }
-        },
-        () => {
-            mostrarToast('Permissão de localização negada', 'error');
-            if (btn) { btn.disabled = false; btn.innerHTML = iconeOriginal; }
-        },
-        { timeout: 10000 }
-    );
 }
 
 async function cancelarConta(senha) {

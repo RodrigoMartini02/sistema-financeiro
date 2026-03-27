@@ -2231,15 +2231,24 @@ function calcularSaldoMes(mes, ano) {
             return sum + (r.valor || 0);
         }, 0);
 
-        const _mesFuturo = (ano > anoAtual) || (ano === anoAtual && mes > mesAtual);
         const obterValor = window.obterValorRealDespesa || (d => parseFloat(d.valor || 0));
+
+        const _hoje = new Date();
+        _hoje.setHours(0, 0, 0, 0);
 
         const despesas = (dadosMes.despesas || []).reduce((sum, d) => {
             if (d.quitacaoAntecipada === true) return sum;
+            if (d.pago) return sum + obterValor(d);
+            if (dadosMes.fechado === true) return sum + obterValor(d);
             const ehRecorrente = d.recorrente === true || d.recorrente === 'true' || d.recorrente === 1 || d.recorrente === '1';
             const ehParcelado = d.parcelado || d.parcela || d.idGrupoParcelamento;
-            if (!d.pago && !(ehRecorrente && !ehParcelado && !_mesFuturo)) return sum;
-            return sum + obterValor(d);
+            if (ehRecorrente && !ehParcelado) {
+                if (!d.dataVencimento) return sum;
+                const partes = d.dataVencimento.split('-');
+                const vencimento = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+                return vencimento <= _hoje ? sum + obterValor(d) : sum;
+            }
+            return sum;
         }, 0);
 
         const despesasTotal = (dadosMes.despesas || []).reduce((sum, d) => {
@@ -2291,22 +2300,8 @@ function obterSaldoAnterior(mes, ano) {
     // Se o mês anterior NÃO está fechado, calcular dinamicamente
     // Isso evita retornar 0 e perder todo o histórico de receitas/despesas
     if (dadosMesAnterior) {
-        const saldoAnteriorAnterior = obterSaldoAnterior(mesAnterior, anoAnterior);
-
-        const receitas = (dadosMesAnterior.receitas || []).reduce((sum, r) => {
-            if (r.saldoAnterior === true ||
-                r.descricao?.includes('Saldo Anterior') ||
-                r.automatica === true) {
-                return sum;
-            }
-            return sum + (r.valor || 0);
-        }, 0);
-
-        const despesas = typeof window.calcularTotalDespesas === 'function' ?
-            window.calcularTotalDespesas(dadosMesAnterior.despesas || []) :
-            (dadosMesAnterior.despesas || []).reduce((sum, d) => sum + (window.obterValorRealDespesa ? window.obterValorRealDespesa(d) : (d.valor || 0)), 0);
-
-        return saldoAnteriorAnterior + receitas - despesas;
+        // Delegar a calcularSaldoMes para aplicar a mesma lógica de recorrência/vencimento
+        return calcularSaldoMes(mesAnterior, anoAnterior).saldoFinal;
     }
 
     return 0;

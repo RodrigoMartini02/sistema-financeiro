@@ -338,20 +338,12 @@ async function processarFormularioCadastro() {
     const documento = document.getElementById('cadastro-documento')?.value?.trim();
     const password = document.getElementById('cadastro-password')?.value?.trim();
     const confirmPassword = document.getElementById('cadastro-confirm-password')?.value?.trim();
-    const pais = document.getElementById('cadastro-pais')?.value?.trim();
-    const estado = document.getElementById('cadastro-estado')?.value?.trim();
-    const cidade = document.getElementById('cadastro-cidade')?.value?.trim();
 
     if (elementos.cadastroErrorMessage) elementos.cadastroErrorMessage.style.display = 'none';
     if (elementos.cadastroSuccessMessage) elementos.cadastroSuccessMessage.style.display = 'none';
 
     if (!nome || !email || !documento || !password) {
         mostrarErroCadastro('Todos os campos são obrigatórios');
-        return;
-    }
-
-    if (!pais || !estado || !cidade) {
-        mostrarErroCadastro('País, estado e cidade são obrigatórios');
         return;
     }
 
@@ -373,12 +365,8 @@ async function processarFormularioCadastro() {
 
     if (typeof window.showLoadingScreen === 'function') window.showLoadingScreen();
 
-    const latitude  = document.getElementById('cadastro-latitude')?.value  || null;
-    const longitude = document.getElementById('cadastro-longitude')?.value || null;
-
     try {
-        const body = { nome, email, documento: docLimpo, senha: password, pais, estado, cidade };
-        if (latitude && longitude) { body.latitude = parseFloat(latitude); body.longitude = parseFloat(longitude); }
+        const body = { nome, email, documento: docLimpo, senha: password };
 
         const response = await fetch(`${API_URL}/auth/register`, {
             method: 'POST',
@@ -393,6 +381,21 @@ async function processarFormularioCadastro() {
         if (!response.ok) {
             mostrarErroCadastro(data.message || 'Erro ao criar conta.');
             return;
+        }
+
+        // Capturar localização silenciosamente em background e atualizar via API
+        const userId = data.data?.usuario?.id || data.usuario?.id;
+        const regToken = data.data?.token || data.token;
+        if (userId && regToken && navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(async function(pos) {
+                try {
+                    await fetch(`${API_URL}/usuarios/${userId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${regToken}` },
+                        body: JSON.stringify({ latitude: pos.coords.latitude, longitude: pos.coords.longitude })
+                    });
+                } catch (_) { /* silencioso */ }
+            }, function() { /* permissão negada — ignorar */ }, { timeout: 10000 });
         }
 
         if (elementos.cadastroSuccessMessage) {
@@ -708,28 +711,6 @@ function mostrarErroLogin(errorElement, mensagem) {
     }
 }
 
-function capturarLocalizacaoCadastro() {
-    const btn    = document.getElementById('btn-geolocalizacao');
-    const status = document.getElementById('geoloc-status');
-    if (!navigator.geolocation) {
-        if (status) { status.style.display = 'block'; status.style.color = '#e74c3c'; status.textContent = 'Geolocalização não suportada neste dispositivo.'; }
-        return;
-    }
-    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Obtendo localização...'; }
-    navigator.geolocation.getCurrentPosition(
-        (pos) => {
-            document.getElementById('cadastro-latitude').value  = pos.coords.latitude;
-            document.getElementById('cadastro-longitude').value = pos.coords.longitude;
-            if (btn) { btn.innerHTML = '<i class="fas fa-check"></i> Localização capturada!'; btn.style.color = '#2ecc71'; }
-            if (status) { status.style.display = 'block'; status.style.color = '#2ecc71'; status.textContent = `Lat: ${pos.coords.latitude.toFixed(4)}, Lng: ${pos.coords.longitude.toFixed(4)}`; }
-        },
-        () => {
-            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-location-arrow"></i> Usar minha localização exata (opcional)'; }
-            if (status) { status.style.display = 'block'; status.style.color = '#e74c3c'; status.textContent = 'Permissão negada. Localização não será salva.'; }
-        },
-        { timeout: 10000 }
-    );
-}
 
 function mostrarErroCadastro(mensagem) {
     if (elementos.cadastroErrorMessage) {
