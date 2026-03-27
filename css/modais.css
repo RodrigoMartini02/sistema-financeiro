@@ -341,7 +341,8 @@
 #modal-editar-usuario .modal-header h2,
 #modal-editar-categoria .modal-header h2,
 #modal-editar-cartao .modal-header h2,
-#modal-alterar-senha .modal-header h2 {
+#modal-alterar-senha .modal-header h2,
+#modal-novo-ano .modal-header h2 {
     margin: 0;
     font-size: 18px;
     font-weight: 500;
@@ -354,7 +355,8 @@
 #modal-editar-usuario .modal-body,
 #modal-editar-categoria .modal-body,
 #modal-editar-cartao .modal-body,
-#modal-alterar-senha .modal-body {
+#modal-alterar-senha .modal-body,
+#modal-novo-ano .modal-body {
     background: #ffffff !important;
     padding: 24px;
     max-height: 60vh;
@@ -365,7 +367,8 @@
 #modal-editar-usuario .modal-body .form-group,
 #modal-editar-categoria .modal-body .form-group,
 #modal-editar-cartao .modal-body .form-group,
-#modal-alterar-senha .modal-body .form-group {
+#modal-alterar-senha .modal-body .form-group,
+#modal-novo-ano .modal-body .form-group {
     background: transparent;
     margin-bottom: 16px;
 }
@@ -374,7 +377,8 @@
 #modal-editar-usuario .modal-body label,
 #modal-editar-categoria .modal-body label,
 #modal-editar-cartao .modal-body label,
-#modal-alterar-senha .modal-body label {
+#modal-alterar-senha .modal-body label,
+#modal-novo-ano .modal-body label {
     display: block;
     margin-bottom: 6px;
     font-weight: 500;
@@ -391,7 +395,9 @@
 #modal-editar-cartao .modal-body .form-input,
 #modal-editar-cartao .modal-body .form-control,
 #modal-alterar-senha .modal-body .form-input,
-#modal-alterar-senha .modal-body .form-control {
+#modal-alterar-senha .modal-body .form-control,
+#modal-novo-ano .modal-body .form-input,
+#modal-novo-ano .modal-body .form-control {
     background: #ffffff !important;
     border: 1px solid #ced4da;
     padding: 10px 12px;
@@ -1185,12 +1191,15 @@
    DARK MODE OVERRIDES — MODAIS
    ================================================================ */
 
-/* Modais padronizados (usuario, categoria, cartão, senha) */
+/* Modais padronizados (usuario, categoria, cartão, senha, empresa, minha-conta) */
 [data-theme="dark"] #modal-adicionar-usuario .modal-content,
 [data-theme="dark"] #modal-editar-usuario .modal-content,
 [data-theme="dark"] #modal-editar-categoria .modal-content,
 [data-theme="dark"] #modal-editar-cartao .modal-content,
-[data-theme="dark"] #modal-alterar-senha .modal-content {
+[data-theme="dark"] #modal-alterar-senha .modal-content,
+[data-theme="dark"] #modal-empresa .modal-content,
+[data-theme="dark"] #modal-editar-minha-conta .modal-content,
+[data-theme="dark"] #modal-novo-ano .modal-content {
     background: var(--theme-modal-bg) !important;
 }
 
@@ -1198,7 +1207,10 @@
 [data-theme="dark"] #modal-editar-usuario .modal-body,
 [data-theme="dark"] #modal-editar-categoria .modal-body,
 [data-theme="dark"] #modal-editar-cartao .modal-body,
-[data-theme="dark"] #modal-alterar-senha .modal-body {
+[data-theme="dark"] #modal-alterar-senha .modal-body,
+[data-theme="dark"] #modal-empresa .modal-body,
+[data-theme="dark"] #modal-editar-minha-conta .modal-body,
+[data-theme="dark"] #modal-novo-ano .modal-body {
     background: var(--theme-modal-bg) !important;
 }
 
@@ -1206,7 +1218,8 @@
 [data-theme="dark"] #modal-editar-usuario .modal-body label,
 [data-theme="dark"] #modal-editar-categoria .modal-body label,
 [data-theme="dark"] #modal-editar-cartao .modal-body label,
-[data-theme="dark"] #modal-alterar-senha .modal-body label {
+[data-theme="dark"] #modal-alterar-senha .modal-body label,
+[data-theme="dark"] #modal-novo-ano .modal-body label {
     color: var(--theme-text-muted);
 }
 
@@ -1219,7 +1232,9 @@
 [data-theme="dark"] #modal-editar-cartao .modal-body .form-input,
 [data-theme="dark"] #modal-editar-cartao .modal-body .form-control,
 [data-theme="dark"] #modal-alterar-senha .modal-body .form-input,
-[data-theme="dark"] #modal-alterar-senha .modal-body .form-control {
+[data-theme="dark"] #modal-alterar-senha .modal-body .form-control,
+[data-theme="dark"] #modal-novo-ano .modal-body .form-input,
+[data-theme="dark"] #modal-novo-ano .modal-body .form-control {
     background: var(--theme-input-bg) !important;
     border-color: var(--theme-input-border);
     color: var(--theme-text);
@@ -1391,5 +1406,102 @@
     background: var(--theme-input-bg);
     border-color: var(--theme-input-border);
     color: var(--theme-text);
+}
+
+/* ================================================================ */
+/* FORM-LABEL — label padronizado com ícone para modais             */
+/* ================================================================ */
+.form-label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    font-size: 13px;
+    color: #555;
+}
+
+.form-label i {
+    margin-right: 4px;
+    color: var(--primary-color, #4361ee);
+    font-size: 12px;
+}
+
+/* form-input aplicado a selects fica consistente com inputs */
+select.form-input {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+    cursor: pointer;
+}
+
+/* Estilos dos modais empresa e minha-conta */
+#modal-empresa .modal-body .form-input,
+#modal-editar-minha-conta .modal-body .form-input {
+    background: #ffffff;
+    border: 1px solid #ced4da;
+    padding: 10px 12px;
+    border-radius: 8px;
+    width: 100%;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+#modal-empresa .modal-body label,
+#modal-editar-minha-conta .modal-body label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #333;
+    font-size: 14px;
+}
+
+#modal-empresa .modal-body .form-group,
+#modal-editar-minha-conta .modal-body .form-group {
+    margin-bottom: 14px;
+}
+
+#modal-empresa .modal-footer,
+#modal-editar-minha-conta .modal-footer {
+    background: #f8f9fa !important;
+    border-top: 1px solid #e9ecef;
+    padding: 16px 24px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    border-radius: 0 0 8px 8px !important;
+}
+
+/* Dark mode: empresa e minha-conta */
+[data-theme="dark"] #modal-empresa .modal-body,
+[data-theme="dark"] #modal-editar-minha-conta .modal-body {
+    background: var(--theme-modal-bg) !important;
+}
+
+[data-theme="dark"] #modal-empresa .modal-body label,
+[data-theme="dark"] #modal-editar-minha-conta .modal-body label {
+    color: var(--theme-text-muted);
+}
+
+[data-theme="dark"] #modal-empresa .modal-body .form-input,
+[data-theme="dark"] #modal-editar-minha-conta .modal-body .form-input {
+    background: var(--theme-input-bg) !important;
+    border-color: var(--theme-input-border);
+    color: var(--theme-text);
+}
+
+[data-theme="dark"] #modal-empresa .modal-footer,
+[data-theme="dark"] #modal-editar-minha-conta .modal-footer {
+    background: var(--theme-surface-2) !important;
+    border-top-color: var(--theme-border);
+}
+
+[data-theme="dark"] .form-label {
+    color: var(--theme-text-muted, #8892a4);
+}
+
+[data-theme="dark"] select.form-input {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239ca3af' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
 }
 

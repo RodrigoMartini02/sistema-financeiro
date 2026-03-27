@@ -1847,7 +1847,10 @@
         <div class="modal-body">
             <form id="form-editar-categoria">
                 <input type="hidden" id="categoria-edit-id">
-                <input type="text" id="categoria-edit-nome" class="form-input" required maxlength="50" placeholder="Nome da Categoria *">
+                <div class="form-group">
+                    <label class="form-label" for="categoria-edit-nome"><i class="fas fa-tag"></i> Nome da Categoria</label>
+                    <input type="text" id="categoria-edit-nome" class="form-input" required maxlength="50" placeholder="Ex: Alimentação">
+                </div>
             </form>
         </div>
         <div class="modal-footer">
@@ -1867,13 +1870,28 @@
         <div class="modal-body">
             <form id="form-editar-cartao">
                 <input type="hidden" id="cartao-edit-id">
-                <div class="mc-form-grid">
-                    <input type="text" id="cartao-edit-banco" class="form-input" required maxlength="50" placeholder="Nome do Banco *">
-                    <input type="text" id="cartao-edit-validade" class="form-input" maxlength="7" inputmode="numeric" placeholder="Validade MM/AAAA" oninput="formatarValidadeCartao(this)">
-                    <input type="number" id="cartao-edit-fechamento" class="form-input" min="1" max="31" required placeholder="Dia Fechamento *">
-                    <input type="number" id="cartao-edit-vencimento" class="form-input" min="1" max="31" required placeholder="Dia Vencimento *">
-                    <input type="number" id="cartao-edit-limite" class="form-input" step="0.01" min="0" required placeholder="Limite (R$) *">
-                    <label class="form-check-label"><input type="checkbox" id="cartao-edit-ativo"> Ativo</label>
+                <div class="form-group">
+                    <label class="form-label" for="cartao-edit-banco"><i class="fas fa-university"></i> Nome do Banco</label>
+                    <input type="text" id="cartao-edit-banco" class="form-input" required maxlength="50" placeholder="Ex: Nubank, Itaú, Bradesco">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="cartao-edit-validade"><i class="fas fa-calendar-alt"></i> Validade</label>
+                    <input type="text" id="cartao-edit-validade" class="form-input" maxlength="7" inputmode="numeric" placeholder="MM/AAAA" oninput="formatarValidadeCartao(this)">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="cartao-edit-fechamento"><i class="fas fa-calendar-times"></i> Dia de Fechamento</label>
+                    <input type="number" id="cartao-edit-fechamento" class="form-input" min="1" max="31" required placeholder="Ex: 25">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="cartao-edit-vencimento"><i class="fas fa-calendar-check"></i> Dia de Vencimento</label>
+                    <input type="number" id="cartao-edit-vencimento" class="form-input" min="1" max="31" required placeholder="Ex: 5">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="cartao-edit-limite"><i class="fas fa-dollar-sign"></i> Limite (R$)</label>
+                    <input type="number" id="cartao-edit-limite" class="form-input" step="0.01" min="0" required placeholder="Ex: 2000.00">
+                </div>
+                <div class="form-group">
+                    <label class="form-label form-check-label"><input type="checkbox" id="cartao-edit-ativo"> Cartão Ativo</label>
                 </div>
             </form>
         </div>
@@ -1889,25 +1907,38 @@
 <div id="modal-adicionar-usuario" class="modal">
     <div class="modal-content modal-sm">
         <div class="modal-header">
-            <h2>Novo Usuário</h2>
+            <h2><i class="fas fa-user-plus"></i> Novo Usuário</h2>
             <button type="button" class="close" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
             <form id="form-adicionar-usuario">
-                <div class="mc-form-grid">
-                    <input type="text" id="novo-usuario-nome" class="form-input" required maxlength="100" placeholder="Nome *">
-                    <input type="email" id="novo-usuario-email" class="form-input" required maxlength="100" placeholder="E-mail *">
-                    <input type="text" id="novo-usuario-documento" class="form-input" required maxlength="18" placeholder="CPF/CNPJ * (só números)">
-                    <select id="novo-usuario-tipo" class="form-control">
+                <div class="form-group">
+                    <label class="form-label" for="novo-usuario-nome"><i class="fas fa-user"></i> Nome</label>
+                    <input type="text" id="novo-usuario-nome" class="form-input" required maxlength="100" placeholder="Nome completo *">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="novo-usuario-email"><i class="fas fa-envelope"></i> E-mail</label>
+                    <input type="email" id="novo-usuario-email" class="form-input" required maxlength="100" placeholder="email@exemplo.com *">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="novo-usuario-documento"><i class="fas fa-id-card"></i> CPF/CNPJ</label>
+                    <input type="text" id="novo-usuario-documento" class="form-input" required maxlength="18" placeholder="Somente números *">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="novo-usuario-tipo"><i class="fas fa-user-tag"></i> Tipo de Usuário</label>
+                    <select id="novo-usuario-tipo" class="form-input">
                         <option value="padrao" selected>Usuário Padrão</option>
                         <option value="admin">Administrador</option>
                         <option value="master">Master</option>
                     </select>
-                    <input type="text" id="novo-usuario-pais" class="form-input" required maxlength="100" placeholder="País * (Ex: Brasil)">
-                    <input type="text" id="novo-usuario-estado" class="form-input" required maxlength="100" placeholder="Estado * (Ex: São Paulo)">
-                    <input type="text" id="novo-usuario-cidade" class="form-input" required maxlength="100" placeholder="Cidade *">
-                    <input type="password" id="novo-usuario-senha" class="form-input" required minlength="6" placeholder="Senha * (mín. 6 caracteres)">
-                    <input type="password" id="novo-usuario-confirmar-senha" class="form-input" required minlength="6" placeholder="Confirmar Senha *">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="novo-usuario-senha"><i class="fas fa-lock"></i> Senha</label>
+                    <input type="password" id="novo-usuario-senha" class="form-input" required minlength="6" placeholder="Mínimo 6 caracteres *">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="novo-usuario-confirmar-senha"><i class="fas fa-lock"></i> Confirmar Senha</label>
+                    <input type="password" id="novo-usuario-confirmar-senha" class="form-input" required minlength="6" placeholder="Repita a senha *">
                 </div>
                 <div id="validacao-status" class="validation-feedback hidden">
                     <div class="validation-message">
@@ -1934,25 +1965,41 @@
         <div class="modal-body">
             <form id="form-editar-usuario">
                 <input type="hidden" id="editar-usuario-id">
-                <div class="mc-form-grid">
-                    <input type="text" id="editar-usuario-nome" class="form-input" required maxlength="100" placeholder="Nome *">
-                    <input type="email" id="editar-usuario-email" class="form-input" required maxlength="100" placeholder="E-mail *">
+                <div class="form-group">
+                    <label class="form-label" for="editar-usuario-nome"><i class="fas fa-user"></i> Nome</label>
+                    <input type="text" id="editar-usuario-nome" class="form-input" required maxlength="100" placeholder="Nome completo *">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="editar-usuario-email"><i class="fas fa-envelope"></i> E-mail</label>
+                    <input type="email" id="editar-usuario-email" class="form-input" required maxlength="100" placeholder="email@exemplo.com *">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="editar-usuario-documento"><i class="fas fa-id-card"></i> CPF/CNPJ</label>
                     <input type="text" id="editar-usuario-documento" class="form-input" required maxlength="18" disabled placeholder="CPF/CNPJ" title="O documento não pode ser alterado">
-                    <div id="form-group-tipo">
-                        <select id="editar-usuario-tipo" class="form-control">
-                            <option value="padrao">Usuário Padrão</option>
-                            <option value="admin">Administrador</option>
-                            <option value="master">Master</option>
-                        </select>
-                    </div>
-                    <select id="editar-usuario-status" class="form-control">
+                </div>
+                <div id="form-group-tipo" class="form-group">
+                    <label class="form-label" for="editar-usuario-tipo"><i class="fas fa-user-tag"></i> Tipo de Usuário</label>
+                    <select id="editar-usuario-tipo" class="form-input">
+                        <option value="padrao">Usuário Padrão</option>
+                        <option value="admin">Administrador</option>
+                        <option value="master">Master</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="editar-usuario-status"><i class="fas fa-toggle-on"></i> Status</label>
+                    <select id="editar-usuario-status" class="form-input">
                         <option value="ativo">Ativo</option>
                         <option value="inativo">Inativo</option>
                         <option value="bloqueado">Bloqueado</option>
                     </select>
-
-                    <input type="password" id="editar-usuario-senha" class="form-input" minlength="6" placeholder="Nova Senha (em branco = manter)">
-                    <input type="password" id="editar-usuario-confirmar-senha" class="form-input" placeholder="Confirmar Nova Senha">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="editar-usuario-senha"><i class="fas fa-lock"></i> Nova Senha</label>
+                    <input type="password" id="editar-usuario-senha" class="form-input" minlength="6" placeholder="Em branco para manter a senha atual">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="editar-usuario-confirmar-senha"><i class="fas fa-lock"></i> Confirmar Nova Senha</label>
+                    <input type="password" id="editar-usuario-confirmar-senha" class="form-input" placeholder="Repita a nova senha">
                 </div>
                 <div id="permissao-message" class="alert-message hidden">
                     <i class="fas fa-exclamation-triangle"></i>
@@ -2027,18 +2074,16 @@
         <div class="modal-body">
             <form id="form-alterar-senha">
                 <div class="form-group">
-                    <label for="senha-atual-modal">Senha Atual</label>
-                    <input type="password" id="senha-atual-modal" class="form-control" placeholder="Digite sua senha atual" required>
+                    <label class="form-label" for="senha-atual-modal"><i class="fas fa-lock"></i> Senha Atual</label>
+                    <input type="password" id="senha-atual-modal" class="form-input" placeholder="Digite sua senha atual" required>
                 </div>
-
                 <div class="form-group">
-                    <label for="senha-nova-modal">Nova Senha</label>
-                    <input type="password" id="senha-nova-modal" class="form-control" placeholder="Digite a nova senha" required minlength="6">
+                    <label class="form-label" for="senha-nova-modal"><i class="fas fa-key"></i> Nova Senha</label>
+                    <input type="password" id="senha-nova-modal" class="form-input" placeholder="Mínimo 6 caracteres" required minlength="6">
                 </div>
-
                 <div class="form-group">
-                    <label for="senha-confirmar-modal">Confirmar Nova Senha</label>
-                    <input type="password" id="senha-confirmar-modal" class="form-control" placeholder="Digite novamente a nova senha" required minlength="6">
+                    <label class="form-label" for="senha-confirmar-modal"><i class="fas fa-key"></i> Confirmar Nova Senha</label>
+                    <input type="password" id="senha-confirmar-modal" class="form-input" placeholder="Repita a nova senha" required minlength="6">
                 </div>
             </form>
         </div>
@@ -2191,18 +2236,18 @@
 <div id="modal-novo-ano" class="modal">
     <div class="modal-content modal-sm">
         <div class="modal-header">
-            <h2>Criar Novo Ano Financeiro</h2>
+            <h2><i class="fas fa-calendar-plus"></i> Criar Novo Ano Financeiro</h2>
             <button type="button" class="close" data-modal="modal-novo-ano" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
             <form id="form-novo-ano" onsubmit="criarNovoAno(event)">
                 <div class="form-group">
-                    <label for="ano">Ano:</label>
-                    <input type="number" id="ano" min="2000" max="2100" required>
+                    <label class="form-label" for="ano"><i class="fas fa-calendar-alt"></i> Ano</label>
+                    <input type="number" id="ano" class="form-input" min="2000" max="2100" required placeholder="Ex: 2026">
                 </div>
                 <div class="form-group">
-                    <label for="receita-mensal">Receita Mensal Padrão:</label>
-                    <input type="number" id="receita-mensal" min="0" step="0.01" placeholder="0.00">
+                    <label class="form-label" for="receita-mensal"><i class="fas fa-dollar-sign"></i> Receita Mensal Padrão</label>
+                    <input type="number" id="receita-mensal" class="form-input" min="0" step="0.01" placeholder="0.00">
                 </div>
             </form>
         </div>
@@ -3904,12 +3949,25 @@
         <div class="modal-body">
             <form id="form-empresa">
                 <input type="hidden" id="empresa-id">
-                <div class="mc-form-grid">
-                    <input type="text" id="empresa-razao-social" class="form-input" required maxlength="150" placeholder="Razão Social *">
-                    <input type="text" id="empresa-nome-fantasia" class="form-input" maxlength="150" placeholder="Nome Fantasia">
-                    <input type="text" id="empresa-cnpj" class="form-input" required maxlength="18" placeholder="CNPJ * (00.000.000/0000-00)">
-                    <input type="text" id="empresa-atividade" class="form-input" maxlength="200" placeholder="Ramo de Atividade">
-                    <input type="number" id="empresa-aporte-inicial" class="form-input" min="0" step="0.01" placeholder="Aporte Inicial (R$)">
+                <div class="form-group">
+                    <label class="form-label" for="empresa-razao-social"><i class="fas fa-building"></i> Razão Social</label>
+                    <input type="text" id="empresa-razao-social" class="form-input" required maxlength="150" placeholder="Nome jurídico da empresa *">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="empresa-nome-fantasia"><i class="fas fa-store"></i> Nome Fantasia</label>
+                    <input type="text" id="empresa-nome-fantasia" class="form-input" maxlength="150" placeholder="Nome comercial (opcional)">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="empresa-cnpj"><i class="fas fa-id-badge"></i> CNPJ</label>
+                    <input type="text" id="empresa-cnpj" class="form-input" required maxlength="18" placeholder="00.000.000/0000-00 *">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="empresa-atividade"><i class="fas fa-briefcase"></i> Ramo de Atividade</label>
+                    <input type="text" id="empresa-atividade" class="form-input" maxlength="200" placeholder="Ex: Comércio, Serviços, Tecnologia">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="empresa-aporte-inicial"><i class="fas fa-hand-holding-usd"></i> Aporte Inicial (R$)</label>
+                    <input type="number" id="empresa-aporte-inicial" class="form-input" min="0" step="0.01" placeholder="Ex: 5000.00">
                 </div>
             </form>
         </div>
@@ -3928,15 +3986,33 @@
             <button type="button" class="close" onclick="document.getElementById('modal-editar-minha-conta').style.display='none'">&times;</button>
         </div>
         <div class="modal-body">
-            <form id="form-minha-conta" style="display:flex;flex-direction:column;gap:10px;">
-                <input type="text" id="mc-nome" class="form-input" required placeholder="Nome *">
-                <input type="email" id="mc-email" class="form-input" required placeholder="E-mail *">
-                <input type="text" id="mc-documento" class="form-input" readonly placeholder="CPF" style="opacity:0.6;cursor:not-allowed;">
-                <hr style="margin:4px 0;border-color:var(--border-color);">
-                <p style="font-size:0.75rem;color:var(--text-secondary);margin:0;"><i class="fas fa-lock"></i> Alterar Senha — deixe em branco para não alterar</p>
-                <input type="password" id="mc-senha-atual" class="form-input" placeholder="Senha Atual">
-                <input type="password" id="mc-nova-senha" class="form-input" placeholder="Nova Senha (mín. 8 caracteres)">
-                <input type="password" id="mc-confirmar-senha" class="form-input" placeholder="Confirmar Nova Senha">
+            <form id="form-minha-conta">
+                <div class="form-group">
+                    <label class="form-label" for="mc-nome"><i class="fas fa-user"></i> Nome</label>
+                    <input type="text" id="mc-nome" class="form-input" required placeholder="Seu nome completo *">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="mc-email"><i class="fas fa-envelope"></i> E-mail</label>
+                    <input type="email" id="mc-email" class="form-input" required placeholder="Seu e-mail *">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="mc-documento"><i class="fas fa-id-card"></i> CPF</label>
+                    <input type="text" id="mc-documento" class="form-input" readonly placeholder="CPF" style="opacity:0.6;cursor:not-allowed;">
+                </div>
+                <hr style="margin:8px 0;border-color:var(--border-color);">
+                <p style="font-size:0.75rem;color:var(--text-secondary);margin:0 0 8px 0;"><i class="fas fa-lock"></i> Alterar Senha — deixe em branco para não alterar</p>
+                <div class="form-group">
+                    <label class="form-label" for="mc-senha-atual"><i class="fas fa-lock"></i> Senha Atual</label>
+                    <input type="password" id="mc-senha-atual" class="form-input" placeholder="Digite sua senha atual">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="mc-nova-senha"><i class="fas fa-key"></i> Nova Senha</label>
+                    <input type="password" id="mc-nova-senha" class="form-input" placeholder="Mínimo 8 caracteres">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="mc-confirmar-senha"><i class="fas fa-key"></i> Confirmar Nova Senha</label>
+                    <input type="password" id="mc-confirmar-senha" class="form-input" placeholder="Repita a nova senha">
+                </div>
             </form>
         </div>
         <div class="modal-footer">
