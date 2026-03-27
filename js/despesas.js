@@ -255,6 +255,9 @@ function _renderProximoLote() {
         }
         sentinel.style.display = 'none';
     }
+
+    // Reaplicar filtros ativos às novas linhas renderizadas
+    aplicarFiltrosToolbarDespesas();
 }
 
 function renderizarDespesas(itens, mes, ano, fechado) {
@@ -3577,7 +3580,9 @@ function atualizarContadoresFiltro() {
    // Somar apenas linhas de despesa visíveis (excluir receitas do total de despesas)
    let valorTotalDespesas = 0;
    let countDespesas = 0;
-   let totalDespesasGeral = document.querySelectorAll('tr.despesa-row[data-tipo="despesa"]').length;
+   let totalDespesasGeral = _despesasBuffer.length > 0
+       ? _despesasBuffer.filter(i => i.tipo !== 'receita' && i.tipo !== 'reserva').length
+       : document.querySelectorAll('tr.despesa-row[data-tipo="despesa"]').length;
 
    linhasVisiveis.forEach(linha => {
        if (linha.getAttribute('data-tipo') === 'despesa') {
