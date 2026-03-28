@@ -33,7 +33,7 @@ router.get('/', authMiddleware, async (req, res) => {
         const params = [targetUserId];
 
         if (perfil_id) {
-            whereClause += ' AND c.perfil_id = $2';
+            whereClause += ` AND (c.perfil_id = $2 OR (c.perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis p WHERE p.id = $2 AND p.tipo = 'pessoal' AND p.usuario_id = $1)))`;
             params.push(parseInt(perfil_id));
         }
 
