@@ -1219,6 +1219,8 @@
 [data-theme="dark"] #modal-editar-categoria .modal-body label,
 [data-theme="dark"] #modal-editar-cartao .modal-body label,
 [data-theme="dark"] #modal-alterar-senha .modal-body label,
+[data-theme="dark"] #modal-empresa .modal-body label,
+[data-theme="dark"] #modal-editar-minha-conta .modal-body label,
 [data-theme="dark"] #modal-novo-ano .modal-body label {
     color: var(--theme-text-muted);
 }
@@ -1233,6 +1235,10 @@
 [data-theme="dark"] #modal-editar-cartao .modal-body .form-control,
 [data-theme="dark"] #modal-alterar-senha .modal-body .form-input,
 [data-theme="dark"] #modal-alterar-senha .modal-body .form-control,
+[data-theme="dark"] #modal-empresa .modal-body .form-input,
+[data-theme="dark"] #modal-empresa .modal-body .form-control,
+[data-theme="dark"] #modal-editar-minha-conta .modal-body .form-input,
+[data-theme="dark"] #modal-editar-minha-conta .modal-body .form-control,
 [data-theme="dark"] #modal-novo-ano .modal-body .form-input,
 [data-theme="dark"] #modal-novo-ano .modal-body .form-control {
     background: var(--theme-input-bg) !important;
@@ -1244,7 +1250,9 @@
 [data-theme="dark"] #modal-editar-usuario .modal-body .field-help,
 [data-theme="dark"] #modal-editar-categoria .modal-body .field-help,
 [data-theme="dark"] #modal-editar-cartao .modal-body .field-help,
-[data-theme="dark"] #modal-alterar-senha .modal-body .field-help {
+[data-theme="dark"] #modal-alterar-senha .modal-body .field-help,
+[data-theme="dark"] #modal-empresa .modal-body .field-help,
+[data-theme="dark"] #modal-editar-minha-conta .modal-body .field-help {
     color: var(--theme-text-faint);
 }
 
@@ -1252,7 +1260,9 @@
 [data-theme="dark"] #modal-editar-usuario .modal-footer,
 [data-theme="dark"] #modal-editar-categoria .modal-footer,
 [data-theme="dark"] #modal-editar-cartao .modal-footer,
-[data-theme="dark"] #modal-alterar-senha .modal-footer {
+[data-theme="dark"] #modal-alterar-senha .modal-footer,
+[data-theme="dark"] #modal-empresa .modal-footer,
+[data-theme="dark"] #modal-editar-minha-conta .modal-footer {
     background: var(--theme-surface-2) !important;
     border-top-color: var(--theme-border);
 }
@@ -1436,65 +1446,10 @@ select.form-input {
     cursor: pointer;
 }
 
-/* Estilos dos modais empresa e minha-conta */
-#modal-empresa .modal-body .form-input,
-#modal-editar-minha-conta .modal-body .form-input {
-    background: #ffffff;
-    border: 1px solid #ced4da;
-    padding: 10px 12px;
-    border-radius: 8px;
-    width: 100%;
-    font-size: 14px;
-    box-sizing: border-box;
-}
-
-#modal-empresa .modal-body label,
-#modal-editar-minha-conta .modal-body label {
-    display: block;
-    margin-bottom: 6px;
-    font-weight: 500;
-    color: #333;
-    font-size: 14px;
-}
-
-#modal-empresa .modal-body .form-group,
-#modal-editar-minha-conta .modal-body .form-group {
-    margin-bottom: 14px;
-}
-
-#modal-empresa .modal-footer,
-#modal-editar-minha-conta .modal-footer {
-    background: #f8f9fa !important;
-    border-top: 1px solid #e9ecef;
-    padding: 16px 24px;
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    border-radius: 0 0 8px 8px !important;
-}
-
-/* Dark mode: empresa e minha-conta */
-[data-theme="dark"] #modal-empresa .modal-body,
-[data-theme="dark"] #modal-editar-minha-conta .modal-body {
-    background: var(--theme-modal-bg) !important;
-}
-
-[data-theme="dark"] #modal-empresa .modal-body label,
-[data-theme="dark"] #modal-editar-minha-conta .modal-body label {
-    color: var(--theme-text-muted);
-}
-
-[data-theme="dark"] #modal-empresa .modal-body .form-input,
-[data-theme="dark"] #modal-editar-minha-conta .modal-body .form-input {
-    background: var(--theme-input-bg) !important;
-    border-color: var(--theme-input-border);
-    color: var(--theme-text);
-}
-
-[data-theme="dark"] #modal-empresa .modal-footer,
-[data-theme="dark"] #modal-editar-minha-conta .modal-footer {
-    background: var(--theme-surface-2) !important;
-    border-top-color: var(--theme-border);
+/* Remove margem inferior do último form-group dentro do modal-body para evitar espaço extra antes do footer */
+.modal-body .form-group:last-child,
+.modal-body form .form-group:last-child {
+    margin-bottom: 0;
 }
 
 [data-theme="dark"] .form-label {

@@ -1207,8 +1207,8 @@ function ajustarVisibilidadeElementos() {
     // Ocultar colunas de localização e tipo na tabela de usuários para usuários não-admin
     const isAdminOrMaster = podeEditarUsuario({ tipo: 'padrao' }); // admin/master podem editar padrão
     if (!isAdminOrMaster) {
-        // Ocultar cabeçalhos: País(3), Estado(4), Cidade(5), Lat(6), Long(7), Tipo(8) — índices 0-based
-        const adminColIndices = [3, 4, 5, 6, 7, 8];
+        // Ocultar cabeçalhos: País(3), Estado(4), Cidade(5), Tipo(6) — índices 0-based
+        const adminColIndices = [3, 4, 5, 6];
         const tabelaUsuarios = document.querySelector('.tabela-usuarios');
         if (tabelaUsuarios) {
             const ths = tabelaUsuarios.querySelectorAll('thead th');
@@ -1396,18 +1396,14 @@ function criarLinhaUsuario(usuario, index) {
     const tdPais = linha.querySelector('.usuario-pais');
     const tdEstado = linha.querySelector('.usuario-estado');
     const tdCidade = linha.querySelector('.usuario-cidade');
-    const tdLat = linha.querySelector('.usuario-lat');
-    const tdLng = linha.querySelector('.usuario-lng');
     const tdTipo = linha.querySelector('.usuario-tipo');
 
     if (isAdminOrMaster) {
         if (tdPais) tdPais.textContent = usuario.pais || '-';
         if (tdEstado) tdEstado.textContent = usuario.estado || '-';
         if (tdCidade) tdCidade.textContent = usuario.cidade || '-';
-        if (tdLat) tdLat.textContent = usuario.latitude != null ? parseFloat(usuario.latitude).toFixed(4) : '-';
-        if (tdLng) tdLng.textContent = usuario.longitude != null ? parseFloat(usuario.longitude).toFixed(4) : '-';
     } else {
-        [tdPais, tdEstado, tdCidade, tdLat, tdLng, tdTipo].forEach(td => { if (td) td.style.display = 'none'; });
+        [tdPais, tdEstado, tdCidade, tdTipo].forEach(td => { if (td) td.style.display = 'none'; });
     }
 
     const tipoBadge = linha.querySelector('.tipo-badge');
@@ -3289,8 +3285,6 @@ function renderizarEmpresas(empresas) {
         linha.querySelector('.empresa-aporte-inicial').textContent = e.aporte_inicial
             ? `R$ ${parseFloat(e.aporte_inicial).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
             : '-';
-        linha.querySelector('.empresa-lat').textContent = e.latitude != null ? parseFloat(e.latitude).toFixed(4) : '-';
-        linha.querySelector('.empresa-lng').textContent = e.longitude != null ? parseFloat(e.longitude).toFixed(4) : '-';
 
         const btnEditar = linha.querySelector('.btn-editar-empresa');
         const btnExcluir = linha.querySelector('.btn-excluir-empresa');
