@@ -2832,53 +2832,6 @@ async function limparDados() {
 // ================================================================
 // PERMISSÕES DO SISTEMA
 // ================================================================
-async function carregarPermissoes() {
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
-    try {
-        const res = await fetch(`${API_URL}/usuarios/current`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
-        const perms = (data.data && data.data.dados_financeiros) ? data.data.dados_financeiros : {};
-
-        // Preencher toggles
-        document.querySelectorAll('[data-perm]').forEach(input => {
-            const chave = input.getAttribute('data-perm');
-            // Default true para tudo exceto ia_ativo
-            const defaultVal = chave === 'ia_ativo' ? false : true;
-            input.checked = perms[chave] !== undefined ? perms[chave] : defaultVal;
-        });
-    } catch (e) {
-        console.error('Erro ao carregar permissões:', e);
-    }
-}
-
-async function salvarPermissoes() {
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
-
-    const perms = {};
-    document.querySelectorAll('[data-perm]').forEach(input => {
-        perms[input.getAttribute('data-perm')] = input.checked;
-    });
-
-    try {
-        const res = await fetch(`${API_URL}/usuarios/current`, {
-            method: 'PUT',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dados_financeiros_merge: perms })
-        });
-        const data = await res.json();
-        if (data.success) {
-            mostrarFeedback('Permissões salvas com sucesso!', 'success');
-        } else {
-            mostrarFeedback(data.message || 'Erro ao salvar', 'error');
-        }
-    } catch (e) {
-        mostrarFeedback('Erro ao salvar permissões', 'error');
-    }
-}
 
 function onAbaAtivada(tabName) {
     if (tabName === 'categorias') {
@@ -2909,8 +2862,6 @@ function onAbaAtivada(tabName) {
         if (contentOrig && contentGlobal && contentOrig.innerHTML && !contentGlobal.innerHTML.includes('carta-markdown')) {
             contentGlobal.innerHTML = contentOrig.innerHTML;
         }
-    } else if (tabName === 'espaco-admin') {
-        carregarPermissoes();
     } else if (tabName === 'minha-conta') {
         setTimeout(() => { carregarMinhaConta(); carregarEmpresas(); }, 100);
     } else if (tabName === 'assistente-ia') {
@@ -3140,9 +3091,6 @@ function setupEventListeners() {
         document.getElementById('modal-empresa').style.display = 'none';
     });
 
-    // Permissões
-    const btnSalvarPermissoes = document.getElementById('btn-salvar-permissoes');
-    if (btnSalvarPermissoes) btnSalvarPermissoes.addEventListener('click', salvarPermissoes);
 }
 
 async function inicializarConfiguracoes() {

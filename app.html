@@ -205,6 +205,18 @@
                             <span class="nav-text">Configurar IA</span>
                         </a>
                     </li>
+                    <li class="nav-item nav-subitem">
+                        <a href="#" class="nav-link" data-section="config" data-tab="backup" data-label="Backup e Restauração">
+                            <span class="nav-icon"><i class="fas fa-database"></i></span>
+                            <span class="nav-text">Backup e Restauração</span>
+                        </a>
+                    </li>
+                    <li class="nav-item nav-subitem">
+                        <a href="#" class="nav-link" data-section="config" data-tab="limpar-dados" data-label="Limpar Dados">
+                            <span class="nav-icon"><i class="fas fa-trash-alt"></i></span>
+                            <span class="nav-text">Limpar Dados</span>
+                        </a>
+                    </li>
                 </ul>
             </li>
 
@@ -225,21 +237,15 @@
                         </a>
                     </li>
                     <li class="nav-item nav-subitem">
-                        <a href="#" class="nav-link" data-section="config" data-tab="espaco-admin" data-label="Espaço Admin">
-                            <span class="nav-icon"><i class="fas fa-shield-alt"></i></span>
-                            <span class="nav-text">Espaço Admin</span>
-                        </a>
-                    </li>
-                    <li class="nav-item nav-subitem">
                         <a href="#" class="nav-link" data-section="config" data-tab="logs" data-label="Logs">
                             <span class="nav-icon"><i class="fas fa-list-alt"></i></span>
                             <span class="nav-text">Logs</span>
                         </a>
                     </li>
                     <li class="nav-item nav-subitem">
-                        <a href="#" class="nav-link" data-section="config" data-tab="ia-global" data-label="IA Global">
-                            <span class="nav-icon"><i class="fas fa-robot"></i></span>
-                            <span class="nav-text">IA Global</span>
+                        <a href="#" class="nav-link" data-section="config" data-tab="ia-global" data-label="Carta de Serviços">
+                            <span class="nav-icon"><i class="fas fa-scroll"></i></span>
+                            <span class="nav-text">Carta de Serviços</span>
                         </a>
                     </li>
                     <li class="nav-item nav-subitem nav-item-master" id="nav-item-fornecedor" style="display:none;">
@@ -1190,75 +1196,14 @@
         <!-- ============================================== -->
         <!-- ABA: CONFIGURAÇÕES DO SISTEMA -->
         <!-- ============================================== -->
-        <div id="espaco-admin-tab" class="config-tab-pane">
-
-            <!-- PERMISSÕES DO SISTEMA -->
-            <div class="admin-section-card">
-                <div class="admin-section-header">
-                    <span><i class="fas fa-lock"></i> Permissões do Sistema</span>
-                    <span class="admin-section-sub">Ative ou desative funcionalidades para todos os usuários</span>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-robot"></i> Assistente IA</span>
-                        <span class="admin-row-desc">Permite que usuários usem o assistente de IA</span>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="perm-ia-ativo" data-perm="ia_ativo">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-chart-bar"></i> Relatórios</span>
-                        <span class="admin-row-desc">Permite acesso à seção de relatórios</span>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="perm-relatorios" data-perm="relatorios_ativo" checked>
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-building"></i> Cadastro de Empresas</span>
-                        <span class="admin-row-desc">Permite que usuários cadastrem perfis de empresa (PJ)</span>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="perm-empresas" data-perm="empresas_ativo" checked>
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-file-import"></i> Importar / Exportar</span>
-                        <span class="admin-row-desc">Permite que usuários importem e exportem dados</span>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="perm-import-export" data-perm="import_export_ativo" checked>
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-trash-alt"></i> Limpar Dados</span>
-                        <span class="admin-row-desc">Permite que usuários apaguem todos os seus dados</span>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="perm-limpar-dados" data-perm="limpar_dados_ativo" checked>
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <div class="admin-section-footer">
-                    <button id="btn-salvar-permissoes" class="btn btn-primary btn-sm">
-                        <i class="fas fa-save"></i> Salvar Permissões
-                    </button>
-                </div>
-            </div>
-
-            <!-- BACKUP E RESTAURAÇÃO -->
+        <!-- ============================================== -->
+        <!-- ABA: BACKUP E RESTAURAÇÃO -->
+        <!-- ============================================== -->
+        <div id="backup-tab" class="config-tab-pane">
             <div class="admin-section-card">
                 <div class="admin-section-header">
                     <span><i class="fas fa-database"></i> Backup e Restauração</span>
+                    <span class="admin-section-sub">Exporte ou importe seus dados financeiros</span>
                 </div>
                 <div class="admin-row">
                     <div class="admin-row-info">
@@ -1287,24 +1232,6 @@
                         <i class="fas fa-upload"></i> Importar
                     </button>
                 </div>
-            </div>
-
-            <!-- LIMPEZA -->
-            <div class="admin-section-card">
-                <div class="admin-section-header admin-section-header--danger">
-                    <span><i class="fas fa-trash-alt"></i> Limpeza de Dados</span>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-trash"></i> Limpar Todos os Dados</span>
-                        <span class="admin-row-desc">Apaga permanentemente todas as receitas, despesas, categorias e cartões. Ação irreversível.</span>
-                    </div>
-                    <button id="btn-limpar-dados" class="btn btn-danger btn-sm">
-                        <i class="fas fa-trash"></i> Limpar
-                    </button>
-                </div>
-
-                <!-- Status de operações (mantido para feedback de importação/exportação) -->
                 <div id="sistema-status" class="config-card hidden mt-16">
                     <h3><i class="fas fa-info-circle"></i> Status da Operação</h3>
                     <div class="status-container">
@@ -1317,8 +1244,27 @@
                     </div>
                 </div>
             </div>
+        </div>
 
-
+        <!-- ============================================== -->
+        <!-- ABA: LIMPAR DADOS -->
+        <!-- ============================================== -->
+        <div id="limpar-dados-tab" class="config-tab-pane">
+            <div class="admin-section-card">
+                <div class="admin-section-header admin-section-header--danger">
+                    <span><i class="fas fa-trash-alt"></i> Limpeza de Dados</span>
+                    <span class="admin-section-sub">Apaga permanentemente os seus dados financeiros. Ação irreversível.</span>
+                </div>
+                <div class="admin-row">
+                    <div class="admin-row-info">
+                        <span class="admin-row-nome"><i class="fas fa-trash"></i> Limpar Todos os Dados</span>
+                        <span class="admin-row-desc">Apaga permanentemente todas as receitas, despesas, categorias e cartões do seu perfil.</span>
+                    </div>
+                    <button id="btn-limpar-dados" class="btn btn-danger btn-sm">
+                        <i class="fas fa-trash"></i> Limpar
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- ============================================== -->
@@ -1637,72 +1583,11 @@
         <!-- ============================================== -->
         <div id="ia-global-tab" class="config-tab-pane">
             <div class="admin-section-card">
-                <div class="admin-section-header">
-                    <span><i class="fas fa-robot"></i> Assistente IA — FIN GERENCE AI</span>
-                    <span class="admin-section-sub">Configure o provedor de IA para cadastro por texto, voz e documentos</span>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-circle-notch"></i> Status</span>
-                        <span class="badge ia-badge-status" id="ia-badge-status-global">Verificando...</span>
-                    </div>
-                </div>
-                <div class="admin-row admin-row-column">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-plug"></i> Provedor de IA</span>
-                        <span class="admin-row-desc">Opcional. Sem provedor externo o assistente usa a <strong>Gen</strong> (IA interna).</span>
-                    </div>
-                    <select id="ia-provider-select-global" class="ia-provider-select input-full-420">
-                        <option value="gen">Gen — IA interna FinGerence (sem chave)</option>
-                        <option value="openai">OpenAI — GPT-4o mini</option>
-                        <option value="gemini">Google — Gemini 2.0 Flash</option>
-                        <option value="claude">Anthropic — Claude Haiku</option>
-                    </select>
-                    <div id="ia-key-row-global" class="ia-key-row input-full-420">
-                        <div class="ia-key-input-row">
-                            <input type="password" id="ia-api-key-input-global" placeholder="Cole sua chave de API aqui..." class="ia-api-key-input">
-                            <button id="ia-btn-salvar-chave-global" class="btn btn-primary btn-sm ia-btn-salvar-chave">
-                                <i class="fas fa-save"></i> Salvar
-                            </button>
-                        </div>
-                        <p id="ia-key-hint-global" class="ia-key-hint"></p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="admin-section-card">
-                <div class="admin-section-header">
-                    <span><i class="fas fa-lightbulb"></i> Como usar</span>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome">💬 Chat por texto</span>
-                        <span class="admin-row-desc">Clique no ícone <i class="fas fa-robot"></i> no modal de Despesas ou no botão flutuante e escreva: <code class="ia-code-example">"paguei 120 de internet da vivo no cartão vence dia 15"</code></span>
-                    </div>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome">🎙️ Voz</span>
-                        <span class="admin-row-desc">Clique no microfone no chat e fale a despesa normalmente.</span>
-                    </div>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome">📄 Documentos (boleto, NF, comprovante PIX)</span>
-                        <span class="admin-row-desc">Clique no clipe <i class="fas fa-paperclip"></i> e envie a imagem ou PDF.</span>
-                    </div>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome">📊 Análise financeira</span>
-                        <span class="admin-row-desc"><code class="ia-code-example">"quanto gastei em alimentação esse mês?"</code></span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="admin-section-card">
                 <div class="admin-section-header admin-section-header-row">
-                    <span><i class="fas fa-scroll"></i> Carta de Serviços — Gen IA</span>
+                    <div>
+                        <span><i class="fas fa-scroll"></i> Carta de Serviços</span>
+                        <span class="admin-section-sub">Regras e comportamentos globais da Gen IA. Visível para todos, editável apenas pelo master.</span>
+                    </div>
                     <div id="carta-master-actions-global" class="carta-master-actions">
                         <button class="btn btn-primary btn-sm" id="btn-carta-nova-instrucao-global">
                             <i class="fas fa-plus"></i> Nova instrução
@@ -1710,7 +1595,6 @@
                     </div>
                 </div>
                 <div class="p-12">
-                    <p class="admin-row-desc mb-10">Regras e comportamentos globais da assistente. Visível para todos, editável apenas pelo master.</p>
                     <div id="carta-servicos-content-global" class="carta-markdown-body">
                         <div class="carta-loading"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
                     </div>

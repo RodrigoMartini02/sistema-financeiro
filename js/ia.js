@@ -157,10 +157,11 @@ window.IA = (function () {
             var sel = document.getElementById('ia-provider-select');
             if (sel) { sel.value = provider; _iaInitializando = true; sel.dispatchEvent(new Event('change')); _iaInitializando = false; }
 
-            // Se o provedor atual tem chave, mostra máscara
+            // Se o provedor atual tem chave, mostra preview (primeiros chars + bullets)
             if (!isGen && (cfg.tem_chave || hasKeys[provider])) {
                 var inp = document.getElementById('ia-api-key-input');
-                if (inp) inp.value = '••••••••';
+                var previews = (cfg && cfg.key_previews) || {};
+                if (inp) inp.value = previews[provider] || '••••••••';
             }
 
             _atualizarBadgeExterna(provider);

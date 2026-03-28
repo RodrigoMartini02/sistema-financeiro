@@ -817,7 +817,14 @@ async function obterConfigIA(req, res) {
         const nomes    = { gen: 'Gen (IA interna)', openai: 'OpenAI GPT-4o mini', gemini: 'Google Gemini 2.0 Flash', claude: 'Anthropic Claude Haiku' };
         // has_keys: mapa de quais provedores têm chave salva (sem expor as chaves)
         const has_keys = { openai: !!apiKeys.openai, gemini: !!apiKeys.gemini, claude: !!apiKeys.claude };
-        return res.json({ success: true, provider, nome: nomes[provider] || provider, tem_chave: !!config?.apiKey, has_keys });
+        // key_previews: primeiros 6 chars + "••••••••" para cada provedor com chave
+        const maskKey = (k) => k ? k.slice(0, 6) + '••••••••' : null;
+        const key_previews = {
+            openai: maskKey(apiKeys.openai),
+            gemini: maskKey(apiKeys.gemini),
+            claude: maskKey(apiKeys.claude)
+        };
+        return res.json({ success: true, provider, nome: nomes[provider] || provider, tem_chave: !!config?.apiKey, has_keys, key_previews });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Erro ao buscar configuração.' });
     }
