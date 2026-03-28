@@ -205,18 +205,6 @@
                             <span class="nav-text">Configurar IA</span>
                         </a>
                     </li>
-                    <li class="nav-item nav-subitem">
-                        <a href="#" class="nav-link" data-section="config" data-tab="backup" data-label="Backup e Restauração">
-                            <span class="nav-icon"><i class="fas fa-database"></i></span>
-                            <span class="nav-text">Backup e Restauração</span>
-                        </a>
-                    </li>
-                    <li class="nav-item nav-subitem">
-                        <a href="#" class="nav-link" data-section="config" data-tab="limpar-dados" data-label="Limpar Dados">
-                            <span class="nav-icon"><i class="fas fa-trash-alt"></i></span>
-                            <span class="nav-text">Limpar Dados</span>
-                        </a>
-                    </li>
                 </ul>
             </li>
 
@@ -1125,9 +1113,65 @@
                 </p>
             </div>
 
+            <!-- Backup e Restauração -->
+            <div class="config-card">
+                <h3><i class="fas fa-database"></i> Backup e Restauração</h3>
+                <hr class="config-sep">
+                <div class="config-danger-row">
+                    <div>
+                        <strong>Exportar Todos os Dados</strong>
+                        <p class="danger-zone-desc">Baixa um arquivo JSON com todas as receitas, despesas, categorias e cartões.</p>
+                    </div>
+                    <button id="btn-exportar-dados" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-download"></i> Exportar
+                    </button>
+                </div>
+                <hr class="config-sep">
+                <div class="config-danger-row">
+                    <div>
+                        <strong>Exportar Mês a Mês</strong>
+                        <p class="danger-zone-desc">Baixa arquivos separados por mês com os dados financeiros.</p>
+                    </div>
+                    <button id="btn-exportar-mes-a-mes" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-download"></i> Exportar
+                    </button>
+                </div>
+                <hr class="config-sep">
+                <div class="config-danger-row">
+                    <div>
+                        <strong>Importar Dados</strong>
+                        <p class="danger-zone-desc">Carrega um arquivo JSON e importa os dados para o sistema.</p>
+                    </div>
+                    <button id="btn-importar-dados" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-upload"></i> Importar
+                    </button>
+                </div>
+                <div id="sistema-status" class="config-card hidden mt-16">
+                    <h3><i class="fas fa-info-circle"></i> Status da Operação</h3>
+                    <div class="status-container">
+                        <div id="status-message" class="status-message"></div>
+                        <div id="status-progress" class="status-progress hidden">
+                            <div class="progress-bar">
+                                <div class="progress-fill"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Zona de Perigo -->
             <div class="config-card config-card--danger">
                 <h3><i class="fas fa-exclamation-triangle"></i> Zona de Perigo</h3>
+                <hr class="config-sep">
+                <div class="config-danger-row">
+                    <div>
+                        <strong>Limpar Todos os Dados</strong>
+                        <p class="danger-zone-desc">Apaga permanentemente todas as receitas, despesas, categorias e cartões. Ação irreversível.</p>
+                    </div>
+                    <button id="btn-limpar-dados" class="btn btn-danger btn-sm">
+                        <i class="fas fa-trash"></i> Limpar Dados
+                    </button>
+                </div>
                 <hr class="config-sep">
                 <div class="config-danger-row">
                     <div>
@@ -1197,76 +1241,6 @@
         <!-- ABA: CONFIGURAÇÕES DO SISTEMA -->
         <!-- ============================================== -->
         <!-- ============================================== -->
-        <!-- ABA: BACKUP E RESTAURAÇÃO -->
-        <!-- ============================================== -->
-        <div id="backup-tab" class="config-tab-pane">
-            <div class="admin-section-card">
-                <div class="admin-section-header">
-                    <span><i class="fas fa-database"></i> Backup e Restauração</span>
-                    <span class="admin-section-sub">Exporte ou importe seus dados financeiros</span>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-download"></i> Exportar Todos os Dados</span>
-                        <span class="admin-row-desc">Baixa um arquivo JSON com todas as receitas, despesas, categorias e cartões</span>
-                    </div>
-                    <button id="btn-exportar-dados" class="btn btn-secondary btn-sm">
-                        <i class="fas fa-download"></i> Exportar
-                    </button>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-calendar-alt"></i> Exportar Mês a Mês</span>
-                        <span class="admin-row-desc">Baixa arquivos separados por mês com os dados financeiros</span>
-                    </div>
-                    <button id="btn-exportar-mes-a-mes" class="btn btn-secondary btn-sm">
-                        <i class="fas fa-download"></i> Exportar
-                    </button>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-upload"></i> Importar Dados</span>
-                        <span class="admin-row-desc">Carrega um arquivo JSON e importa os dados para o sistema</span>
-                    </div>
-                    <button id="btn-importar-dados" class="btn btn-secondary btn-sm">
-                        <i class="fas fa-upload"></i> Importar
-                    </button>
-                </div>
-                <div id="sistema-status" class="config-card hidden mt-16">
-                    <h3><i class="fas fa-info-circle"></i> Status da Operação</h3>
-                    <div class="status-container">
-                        <div id="status-message" class="status-message"></div>
-                        <div id="status-progress" class="status-progress hidden">
-                            <div class="progress-bar">
-                                <div class="progress-fill"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ============================================== -->
-        <!-- ABA: LIMPAR DADOS -->
-        <!-- ============================================== -->
-        <div id="limpar-dados-tab" class="config-tab-pane">
-            <div class="admin-section-card">
-                <div class="admin-section-header admin-section-header--danger">
-                    <span><i class="fas fa-trash-alt"></i> Limpeza de Dados</span>
-                    <span class="admin-section-sub">Apaga permanentemente os seus dados financeiros. Ação irreversível.</span>
-                </div>
-                <div class="admin-row">
-                    <div class="admin-row-info">
-                        <span class="admin-row-nome"><i class="fas fa-trash"></i> Limpar Todos os Dados</span>
-                        <span class="admin-row-desc">Apaga permanentemente todas as receitas, despesas, categorias e cartões do seu perfil.</span>
-                    </div>
-                    <button id="btn-limpar-dados" class="btn btn-danger btn-sm">
-                        <i class="fas fa-trash"></i> Limpar
-                    </button>
-                </div>
-            </div>
-        </div>
-
         <!-- ============================================== -->
         <!-- ABA: ASSISTENTE IA -->
         <!-- ============================================== -->
