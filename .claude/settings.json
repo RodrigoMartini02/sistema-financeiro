@@ -33,7 +33,8 @@
       "Bash(then echo:*)",
       "Bash(grep -n \"\\\\.style\\\\.display = ''''block''''\" js/configuracao.js)",
       "Bash(grep -n \"\\\\.style\\\\.display = ''''block''''\" js/receita.js)",
-      "Bash(grep -n \"\\\\.style\\\\.display = ''''block''''\" js/dashboard.js)"
+      "Bash(grep -n \"\\\\.style\\\\.display = ''''block''''\" js/dashboard.js)",
+      "Bash(du -h js/*.js)"
     ],
     "additionalDirectories": [
       "\\tmp"

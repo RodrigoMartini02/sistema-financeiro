@@ -12,6 +12,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 const API_URL = 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
+function isMobileDevice() {
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
+}
+
 let elementos = {};
 let _recoveryCode = null; // Código de recuperação validado (usado em processarNovaSenha)
 
@@ -145,7 +149,7 @@ async function verificarRetornoGoogle() {
 
         const redirect = sessionStorage.getItem('redirectAfterLogin');
         sessionStorage.removeItem('redirectAfterLogin');
-        window.location.href = redirect || 'app.html';
+        window.location.href = redirect || (isMobileDevice() ? 'ia.html' : 'app.html');
     } catch (error) {
         if (typeof window.hideLoadingScreen === 'function') {
             window.hideLoadingScreen();
@@ -298,7 +302,7 @@ async function processarLogin(documento, password, isModal, tentativa = 1) {
 
         const redirect = sessionStorage.getItem('redirectAfterLogin');
         sessionStorage.removeItem('redirectAfterLogin');
-        window.location.href = redirect || 'app.html';
+        window.location.href = redirect || (isMobileDevice() ? 'ia.html' : 'app.html');
 
     } catch (error) {
         if (typeof window.hideLoadingScreen === 'function') {

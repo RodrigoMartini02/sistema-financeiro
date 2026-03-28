@@ -3,7 +3,7 @@
   "name": "FinGerence — Controle Financeiro com IA",
   "short_name": "FinGerence",
   "description": "Controle financeiro para autônomos e MEIs. Registre gastos por IA, controle cartões e parcelas.",
-  "start_url": "./index.html?source=pwa",
+  "start_url": "./ia.html?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",

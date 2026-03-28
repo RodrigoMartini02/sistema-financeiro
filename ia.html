@@ -24,6 +24,18 @@
 </head>
 <body>
 
+<!-- Auth check -->
+<script>
+(function() {
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+    const usuario = sessionStorage.getItem('usuarioAtual');
+    if (!token || !usuario) {
+        sessionStorage.setItem('redirectAfterLogin', window.location.href);
+        window.location.replace('index.html');
+    }
+})();
+</script>
+
 <!-- Loading -->
 <div id="loading-screen" class="loading-screen active">
     <div class="loading-spinner"></div>
