@@ -6,57 +6,7 @@
 
 
 /* ================================================================
-   2. CHART CONTAINERS & CANVAS
-   ================================================================ */
-
-.chart-container {
-    position: relative;
-    width: 100%;
-    flex: 1;
-    min-height: 180px;
-}
-
-.chart-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex: 1;
-}
-
-.chart-icon {
-    font-size: 14px;
-    flex-shrink: 0;
-}
-
-/* ================================================================
-   3. ACCENT COLORS — borda superior + ícone colorido
-   ================================================================ */
-
-.chart-accent-violet  { border-top-color: #7c3aed; }
-.chart-accent-emerald { border-top-color: #059669; }
-.chart-accent-amber   { border-top-color: #d97706; }
-.chart-accent-cyan    { border-top-color: #0891b2; }
-.chart-accent-indigo  { border-top-color: #4f46e5; }
-.chart-accent-pink    { border-top-color: #db2777; }
-.chart-accent-red     { border-top-color: #dc2626; }
-.chart-accent-orange  { border-top-color: #ea580c; }
-.chart-accent-teal    { border-top-color: #0d9488; }
-.chart-accent-blue    { border-top-color: #2563eb; }
-
-.chart-accent-violet  .chart-icon { color: #7c3aed; }
-.chart-accent-emerald .chart-icon { color: #059669; }
-.chart-accent-amber   .chart-icon { color: #d97706; }
-.chart-accent-cyan    .chart-icon { color: #0891b2; }
-.chart-accent-indigo  .chart-icon { color: #4f46e5; }
-.chart-accent-pink    .chart-icon { color: #db2777; }
-.chart-accent-red     .chart-icon { color: #dc2626; }
-.chart-accent-orange  .chart-icon { color: #ea580c; }
-.chart-accent-teal    .chart-icon { color: #0d9488; }
-.chart-accent-blue    .chart-icon { color: #2563eb; }
-
-
-/* ================================================================
-   4. BARRA DE NAVEGAÇÃO UNIFICADA
+   2. BARRA DE NAVEGAÇÃO UNIFICADA
    ================================================================ */
 
 .dash-nav-bar {
@@ -76,39 +26,7 @@
 }
 
 /* ================================================================
-   5. BOTÃO ZOOM NOS HEADERS DE GRÁFICO
-   ================================================================ */
-
-.btn-zoom {
-    background: transparent;
-    border: none;
-    border-radius: 6px;
-    color: #94a3b8;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 11px;
-    transition: all 0.15s;
-    flex-shrink: 0;
-    padding: 6px;
-    touch-action: manipulation;
-}
-
-.btn-zoom i {
-    pointer-events: none;
-}
-
-.btn-zoom:hover {
-    background: rgba(0,0,0,0.06);
-    color: #3b82f6;
-}
-
-
-/* ================================================================
-   6. MODAL ZOOM DE GRÁFICO
+   3. MODAL ZOOM DE GRÁFICO
    ================================================================ */
 
 .modal-zoom-container {
@@ -172,14 +90,10 @@
 
 
 /* ================================================================
-   7. RESPONSIVIDADE
+   4. RESPONSIVIDADE
    ================================================================ */
 
 @media (max-width: 768px) {
-    .chart-container {
-        min-height: 250px;
-    }
-
     .dash-nav-bar {
         flex-wrap: wrap;
         gap: 8px;
@@ -309,18 +223,6 @@
     gap: 14px;
 }
 
-.grid-3 {
-    grid-template-columns: repeat(3, 1fr);
-}
-
-.grid-2-1 {
-    grid-template-columns: 1.5fr 1fr;
-}
-
-.tema-chart-full {
-    grid-column: 1 / -1;
-}
-
 /* ---- Card de Gráfico ------------------------------------------- */
 .tema-chart-card {
     background: var(--dash-surface);
@@ -351,10 +253,6 @@
     height: 1px;
     background: linear-gradient(90deg, transparent, rgba(99,102,241,0.6), transparent);
     border-radius: 0 0 4px 4px;
-}
-
-.tema-chart-full {
-    min-height: 240px;
 }
 
 .chart-header {
@@ -432,20 +330,7 @@
     z-index: 1;
 }
 
-.tema-chart-full canvas {
-    max-height: none;
-}
-
-/* ---- Responsivo ------------------------------------------------- */
-@media (max-width: 1100px) {
-    .grid-3 { grid-template-columns: repeat(2, 1fr); }
-    .grid-3 .tema-chart-card:last-child { grid-column: 1 / -1; }
-    .grid-2-1 { grid-template-columns: 1fr; }
-}
-
 @media (max-width: 768px) {
-    .grid-2-1, .grid-3 { grid-template-columns: 1fr; }
-    .tema-chart-full { grid-column: auto; }
     .tema-kpis { grid-template-columns: 1fr 1fr; }
     .dash-temas-nav { border-radius: 12px; flex-wrap: nowrap; }
     .tema-btn { padding: 6px 12px; font-size: 11px; }

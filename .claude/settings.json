@@ -26,7 +26,11 @@
       "Bash(MAIN=\"c:/Users/rodri/Music/sistema financas\")",
       "Bash(__NEW_LINE_c6a71fdd528fba41__ for:*)",
       "Bash(cp \"$WORKTREE/$f\" \"$MAIN/$f\")",
-      "Bash(echo \"Copiado: $f\")"
+      "Bash(echo \"Copiado: $f\")",
+      "Bash(python3 -:*)"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
     ]
   }
 }

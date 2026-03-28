@@ -407,7 +407,6 @@
 }
 
 /* .col-checkbox — estilos em layoutGeral.css (SISTEMA UNIFICADO) */
-.col-tipo              { width: 80px; }
 .col-descricao         { min-width: 200px; }
 .col-categoria         { width: 120px; }
 .col-forma-pagamento   { width: 100px; }
@@ -415,8 +414,6 @@
 .col-parcela           { width: 80px; text-align: center; }
 .col-valor-pago        { width: 100px; text-align: right; }
 .col-status            { width: 90px; }
-.col-data-compra       { width: 100px; }
-.col-data-vencimento   { width: 100px; }
 .col-anexos            { width: 80px; text-align: center; }
 
 /* ----------------------------------------------------------------
@@ -498,100 +495,6 @@
     font-size: 0.9rem;
     font-weight: 500;
     color: #495057;
-}
-
-#periodo-relatorio-info {
-    font-size: 0.9rem;
-    color: #6c757d;
-    font-style: italic;
-    margin: 0 0 20px;
-    padding: 8px 12px;
-    background-color: #f8f9fa;
-    border-left: 3px solid #007bff;
-}
-
-/* ----------------------------------------------------------------
-   PAGINAÇÃO
-   ---------------------------------------------------------------- */
-
-.paginacao-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px 0;
-    border-top: 1px solid #dee2e6;
-    margin-top: 15px;
-}
-
-.paginacao-container.hidden {
-    display: none;
-}
-
-.paginacao-info {
-    font-size: 0.9rem;
-    color: #6c757d;
-}
-
-.paginacao-controles {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.btn-paginacao {
-    background-color: white;
-    border: 1px solid #dee2e6;
-    border-radius: 6px;
-    color: #6c757d;
-    padding: 8px 12px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 0.9rem;
-}
-
-.btn-paginacao:hover:not(:disabled) {
-    background-color: #007bff;
-    border-color: #007bff;
-    color: white;
-}
-
-.btn-paginacao:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-#paginacao-numeros {
-    display: flex;
-    gap: 4px;
-}
-
-.numero-pagina {
-    background-color: white;
-    border: 1px solid #dee2e6;
-    border-radius: 6px;
-    color: #6c757d;
-    padding: 8px 12px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 0.9rem;
-    min-width: 40px;
-    text-align: center;
-}
-
-.numero-pagina:hover {
-    background-color: #f8f9fa;
-}
-
-.numero-pagina.ativo {
-    background-color: #007bff;
-    border-color: #007bff;
-    color: white;
-}
-
-/* .transacao-checkbox — estilos em layoutGeral.css (SISTEMA UNIFICADO) */
-
-.transacao-row.selecionada {
-    background-color: #e3f2fd !important;
 }
 
 /* ----------------------------------------------------------------
@@ -928,43 +831,6 @@
 }
 [data-theme="dark"] #transacoes-count-info {
     color: var(--theme-text-muted);
-}
-[data-theme="dark"] #periodo-relatorio-info {
-    background-color: var(--theme-surface-2);
-    border-left-color: #60a5fa;
-    color: var(--theme-text-muted);
-}
-
-/* Paginação */
-[data-theme="dark"] .paginacao-container {
-    border-top-color: var(--theme-border);
-}
-[data-theme="dark"] .paginacao-info {
-    color: var(--theme-text-muted);
-}
-[data-theme="dark"] .btn-paginacao,
-[data-theme="dark"] .numero-pagina {
-    background-color: var(--theme-surface-solid);
-    border-color: var(--theme-border);
-    color: var(--theme-text-muted);
-}
-[data-theme="dark"] .btn-paginacao:hover:not(:disabled) {
-    background-color: #2563eb;
-    border-color: #2563eb;
-    color: white;
-}
-[data-theme="dark"] .numero-pagina:hover {
-    background-color: var(--theme-table-hover);
-}
-[data-theme="dark"] .numero-pagina.ativo {
-    background-color: #2563eb;
-    border-color: #2563eb;
-    color: white;
-}
-
-/* Linha selecionada */
-[data-theme="dark"] .transacao-row.selecionada {
-    background-color: rgba(37, 99, 235, 0.12) !important;
 }
 
 /* Estado vazio */
