@@ -69,14 +69,14 @@ async function inicializarPerfis() {
     popularSelectPerfil(perfis, perfilAtivoId);
     configurarEventoSelect(perfis);
 
-    const tipo = localStorage.getItem('perfilAtivoTipo') || 'pessoal';
-    atualizarVisibilidadeTemaEmpresa(tipo);
+    atualizarVisibilidadeTemaEmpresa();
 }
 
-function atualizarVisibilidadeTemaEmpresa(tipo) {
+function atualizarVisibilidadeTemaEmpresa() {
     const btnTemaEmpresa = document.querySelector('.tema-btn-empresa');
     if (!btnTemaEmpresa) return;
-    if (tipo === 'empresa') {
+    const temEmpresa = _perfisCarregados.some(p => p.tipo === 'empresa' && p.ativo !== false);
+    if (temEmpresa) {
         btnTemaEmpresa.style.display = '';
     } else {
         btnTemaEmpresa.style.display = 'none';
@@ -150,8 +150,7 @@ function _recarregarComFeedback(mensagem) {
 // P3.2 — Sincronizar troca de perfil entre abas do browser
 window.addEventListener('storage', (e) => {
     if (e.key === PERFIL_KEY && e.newValue && e.newValue !== e.oldValue) {
-        const tipo = localStorage.getItem('perfilAtivoTipo') || 'pessoal';
-        atualizarVisibilidadeTemaEmpresa(tipo);
+        atualizarVisibilidadeTemaEmpresa();
         const sel = document.getElementById('select-perfil-ativo');
         if (sel) sel.value = e.newValue;
         if (typeof window.recarregarDadosApp === 'function') window.recarregarDadosApp();
