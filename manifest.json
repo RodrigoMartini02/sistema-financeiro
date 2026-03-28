@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "FinGerence — Controle Financeiro com IA",
-  "short_name": "FinGerence",
+  "name": "e-conomia — Controle de Gastos com IA",
+  "short_name": "e-conomia",
   "description": "Controle financeiro para autônomos e MEIs. Registre gastos por IA, controle cartões e parcelas.",
   "start_url": "./ia.html?source=pwa",
   "scope": "/",
