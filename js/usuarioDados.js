@@ -187,26 +187,28 @@ class UsuarioDataManager {
             // ✅ BUSCAR RECEITAS, DESPESAS E STATUS DOS MESES DAS TABELAS SEPARADAS
             const perfilId = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
             const perfilQuery = perfilId ? `?perfil_id=${perfilId}` : '';
-            const [receitasResponse, despesasResponse, mesesResponse] = await Promise.all([
-                fetch(`${API_URL_DADOS}/receitas${perfilQuery}`, {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    }
-                }),
-                fetch(`${API_URL_DADOS}/despesas${perfilQuery}`, {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    }
-                }),
-                fetch(`${API_URL_DADOS}/meses${perfilQuery}`, {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    }
-                })
-            ]);
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+            const fetchComTimeout = (url) => fetch(url, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                signal: controller.signal
+            });
+
+            let receitasResponse, despesasResponse, mesesResponse;
+            try {
+                [receitasResponse, despesasResponse, mesesResponse] = await Promise.all([
+                    fetchComTimeout(`${API_URL_DADOS}/receitas${perfilQuery}`),
+                    fetchComTimeout(`${API_URL_DADOS}/despesas${perfilQuery}`),
+                    fetchComTimeout(`${API_URL_DADOS}/meses${perfilQuery}`)
+                ]);
+            } finally {
+                clearTimeout(timeoutId);
+            }
 
             const receitasData = await receitasResponse.json();
             const despesasData = await despesasResponse.json();
