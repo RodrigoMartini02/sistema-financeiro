@@ -302,6 +302,7 @@ router.post('/', authMiddleware, async (req, res) => {
         const queryText = `
             INSERT INTO cartoes (usuario_id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao, validade, perfil_id)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            ON CONFLICT (usuario_id, LOWER(nome), COALESCE(perfil_id, 0)) DO NOTHING
             RETURNING id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao, validade, perfil_id, data_criacao, data_atualizacao
         `;
 

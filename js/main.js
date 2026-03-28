@@ -2699,16 +2699,21 @@ window.recarregarDadosApp = async function() {
         dadosFinanceiros = null;
         window.reservasCache = null;
         window.movimentacoesReservasCache = null;
+        // Limpar mês aberto para evitar tentativa de renderizar mês de outro perfil
+        mesAberto = null;
+        anoAberto = null;
+        window.mesAberto = null;
+        window.anoAberto = null;
         await carregarDadosLocais();
+        // Fechar painel de detalhes do mês (mesAberto já foi limpo acima)
+        const painelDetalhes = document.getElementById('mes-detalhes');
+        if (painelDetalhes) painelDetalhes.classList.remove('ativo', 'visible');
+
         // carregarDadosDashboard e renderizarMeses são independentes — rodar em paralelo
         await Promise.all([
             carregarDadosDashboard(anoAtual),
-            renderizarMeses(anoAtual, false)
+            renderizarMeses(anoAtual, true)
         ]);
-        if (window.mesAberto !== null && window.anoAberto !== null &&
-            typeof window.renderizarDetalhesDoMes === 'function') {
-            await window.renderizarDetalhesDoMes(window.mesAberto, window.anoAberto);
-        }
         const secaoAtiva = document.querySelector('.nav-link.active')?.dataset.section;
         if (secaoAtiva) onSecaoAtivada(secaoAtiva);
     } catch (error) {
@@ -3104,7 +3109,11 @@ function iniciarAtualizacaoCotacoes() {
             // Incluir apenas USD, EUR e BTC (as mais relevantes)
             if (dados.USDBRL) cotacoes.push(formatarCompacto('USD', dados.USDBRL.bid));
             if (dados.EURBRL) cotacoes.push(formatarCompacto('EUR', dados.EURBRL.bid));
-            if (dados.BTCBRL) cotacoes.push(formatarCompacto('BTC', dados.BTCBRL.bid));
+            if (dados.BTCBRL && dados.USDBRL) {
+                const btcUsd = parseFloat(dados.BTCBRL.bid) / parseFloat(dados.USDBRL.bid);
+                const btcUsdFormatado = btcUsd.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                cotacoes.push(`<strong>BTC</strong> $${btcUsdFormatado}`);
+            }
 
             elemento.innerHTML = cotacoes.join(' <span style="margin: 0 6px; color: #ddd;">·</span> ');
 

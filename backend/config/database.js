@@ -143,6 +143,32 @@ const executarMigracoes = async () => {
         await pool.query(`ALTER TABLE perfis ADD COLUMN IF NOT EXISTS longitude DECIMAL(10,7) DEFAULT NULL`);
         console.log('✅ Colunas expandidas de empresa verificadas em perfis');
 
+        // Migrar constraint de meses para suportar estado por perfil
+        // Remove a constraint antiga (usuario_id, ano, mes) e cria índice único funcional
+        // usando COALESCE(perfil_id, 0) para tratar NULL como perfil "legado"
+        await pool.query(`ALTER TABLE meses DROP CONSTRAINT IF EXISTS meses_usuario_id_ano_mes_key`);
+        await pool.query(`
+            CREATE UNIQUE INDEX IF NOT EXISTS meses_usuario_ano_mes_perfil_unique
+            ON meses(usuario_id, ano, mes, COALESCE(perfil_id, 0))
+        `);
+        console.log('✅ Constraint de meses migrada para suporte a perfis');
+
+        // Limpar cartões duplicados — manter apenas o de menor id por (usuario_id, LOWER(nome), COALESCE(perfil_id,0))
+        await pool.query(`
+            DELETE FROM cartoes
+            WHERE id NOT IN (
+                SELECT MIN(id)
+                FROM cartoes
+                GROUP BY usuario_id, LOWER(nome), COALESCE(perfil_id, 0)
+            )
+        `);
+        // Criar índice único para evitar duplicatas futuras
+        await pool.query(`
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_cartoes_usuario_nome_perfil_unique
+            ON cartoes(usuario_id, LOWER(nome), COALESCE(perfil_id, 0))
+        `);
+        console.log('✅ Duplicatas de cartões removidas e constraint criada');;
+
         console.log('✅ Migrações concluídas');
         return true;
     } catch (error) {

@@ -50,7 +50,7 @@ window.IA = (function () {
         // campo_revisao: campo especial onde o usuário escolhe qual campo quer editar
         // ao receber o texto, a fila é resetada para [texto] e _proximoCampo() reprocessa
         filaCampos:      [],     // fila de campos ainda a coletar
-        perfilSelecionado: null  // { id, nome, tipo } — perfil ativo escolhido na abertura
+        aguardandoTrocaPerfil: false  // true quando exibiu botões de troca e aguarda clique
     };
 
     var _iaInitializando = false;
@@ -195,52 +195,63 @@ window.IA = (function () {
     }
 
     // ── BOAS-VINDAS ───────────────────────────────────────────────
-    function _boasVindasComPerfil() {
-        var chips = '<button class="ai-welcome-chip" data-chip>Hiper, 150 de mercado no pix</button>' +
-                    '<button class="ai-welcome-chip" data-chip> salário, caiu 3500 hoje</button>' +
-                    '<button class="ai-welcome-chip" data-chip>quanto gastei esse mês?</button>';
-        var perfilLabel = estado.perfilSelecionado
-            ? ' Analisando <b>' + estado.perfilSelecionado.nome + '</b>.'
-            : '';
-        addGen('Olá! Sou a Gen, sua IA financeira.' + perfilLabel + ' Posso cadastrar despesas, receitas, analisar gastos e ler documentos.<div class="ai-welcome-chips">' + chips + '</div>');
+    function _getPerfilAtualNome() {
+        return localStorage.getItem('perfilAtivoNome') || 'Pessoal';
+    }
+
+    function _getPerfilAtualTipo() {
+        return localStorage.getItem('perfilAtivoTipo') || 'pessoal';
     }
 
     function boasVindas() {
+        var nome  = _getPerfilAtualNome();
+        var tipo  = _getPerfilAtualTipo();
+        var icone = tipo === 'empresa' ? '🏢' : '👤';
+        var chips = '<button class="ai-welcome-chip" data-chip>Hiper, 150 de mercado no pix</button>' +
+                    '<button class="ai-welcome-chip" data-chip>salário, caiu 3500 hoje</button>' +
+                    '<button class="ai-welcome-chip" data-chip>quanto gastei esse mês?</button>';
+        addGen('Olá! Estou aqui para te ajudar com o perfil <b>' + icone + ' ' + nome + '</b>. Pode mandar!<div class="ai-welcome-chips">' + chips + '</div>');
+        setTimeout(function () {
+            addGen('Se quiser usar outro perfil, é só dizer <b>"trocar perfil"</b>.');
+        }, 600);
+    }
+
+    function _exibirBotoesTrocaPerfil() {
+        estado.aguardandoTrocaPerfil = true;
         fetch(apiURL() + '/perfis', { headers: hdrs() })
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 var perfis = (data && data.success && data.data) ? data.data.filter(function (p) { return p.ativo !== false; }) : [];
-
-                // Só 1 perfil (ou nenhum): vai direto para a conversa
                 if (perfis.length <= 1) {
-                    if (perfis.length === 1) {
-                        estado.perfilSelecionado = { id: perfis[0].id, nome: perfis[0].nome_fantasia || perfis[0].razao_social || perfis[0].nome, tipo: perfis[0].tipo };
-                        if (typeof window.setPerfilAtivo === 'function') window.setPerfilAtivo(perfis[0].id, estado.perfilSelecionado.nome, perfis[0].tipo);
-                    }
-                    _boasVindasComPerfil();
+                    estado.aguardandoTrocaPerfil = false;
+                    addGen('Você só tem um perfil cadastrado.');
                     return;
                 }
-
-                // Múltiplos perfis: exibe seleção
                 var btns = perfis.map(function (p) {
                     var icone = p.tipo === 'empresa' ? '🏢' : '👤';
                     var nome  = p.nome_fantasia || p.razao_social || p.nome;
                     return '<button class="ai-welcome-chip ai-chip-perfil" data-perfil-id="' + p.id + '" data-perfil-nome="' + nome + '" data-perfil-tipo="' + p.tipo + '">' + icone + ' ' + nome + '</button>';
                 }).join('');
-                addGen('Olá! Sou a Gen. Para qual perfil vamos trabalhar hoje?<div class="ai-welcome-chips">' + btns + '</div>');
+                addGen('Qual perfil você quer usar?<div class="ai-welcome-chips">' + btns + '</div>');
             })
             .catch(function () {
-                _boasVindasComPerfil();
+                estado.aguardandoTrocaPerfil = false;
+                addGen('Não consegui carregar os perfis. Tente novamente.');
             });
     }
 
     function _selecionarPerfil(id, nome, tipo) {
-        estado.perfilSelecionado = { id: id, nome: nome, tipo: tipo };
-        if (typeof window.setPerfilAtivo === 'function') window.setPerfilAtivo(id, nome, tipo);
+        estado.aguardandoTrocaPerfil = false;
         localStorage.setItem('perfilAtivoId', id);
         localStorage.setItem('perfilAtivoNome', nome);
         localStorage.setItem('perfilAtivoTipo', tipo);
-        _boasVindasComPerfil();
+        if (typeof window.setPerfilAtivo === 'function') window.setPerfilAtivo(id, nome, tipo);
+        var icone = tipo === 'empresa' ? '🏢' : '👤';
+        addGen('Pronto! Agora estou no perfil <b>' + icone + ' ' + nome + '</b>. Como posso ajudar?');
+    }
+
+    function _isTrocaPerfil(texto) {
+        return /troc|mud|outro perfil|mudar perfil|trocar perfil|não (quero|esse)|nao (quero|esse)/i.test(texto);
     }
 
     function limparConversa() {
@@ -281,12 +292,19 @@ window.IA = (function () {
         addUser(texto);
         var tid = addTyping();
 
+        // Interceptar intenção de troca de perfil antes de ir ao backend
+        if (_isTrocaPerfil(texto)) {
+            estado.enviando = false;
+            setBtnDisabled(false);
+            removeTyping(tid);
+            _exibirBotoesTrocaPerfil();
+            return;
+        }
+
         var _payload = { mensagem: texto };
         if (window.mesAberto !== undefined) _payload.mes_atual = window.mesAberto;
         if (window.anoAberto !== undefined) _payload.ano_atual = window.anoAberto;
-        // Prioriza perfil selecionado na conversa; fallback para o perfil ativo global
-        var _perfilId = (estado.perfilSelecionado && estado.perfilSelecionado.id) ||
-                        (typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null);
+        var _perfilId = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
         if (_perfilId) _payload.perfil_id = _perfilId;
         apiPost('/chat', _payload).then(function (res) {
             removeTyping(tid);
@@ -366,17 +384,8 @@ window.IA = (function () {
     function addComDespesa(texto, d) {
         var pc = _calcParcelas(d);
         var totalParcelas = pc.totalParcelas, parcelado = pc.parcelado, valorTotal = pc.valorTotal, valorParcela = pc.valorParcela;
-        var dataVenc      = d.vencimento || '';
-        var dataCompra    = d.data || '';
-        var mesLabel = '', mesRegistro = '';
-        if (dataVenc) {
-            var pv = dataVenc.split('-');
-            mesLabel    = ' → ' + (MESES[parseInt(pv[1])-1] || '') + '/' + pv[0];
-            mesRegistro = (MESES[parseInt(pv[1])-1] || '') + '/' + pv[0];
-        } else if (dataCompra) {
-            var pc = dataCompra.split('-');
-            mesRegistro = (MESES[parseInt(pc[1])-1] || '') + '/' + pc[0];
-        }
+        var dataVenc   = d.vencimento || '';
+        var dataCompra = d.data || '';
         var semValor   = valorTotal <= 0;
         var nomeCartao = d.nome_cartao || d.cartao_nome || (d.cartao_id ? 'Cartão #' + d.cartao_id : '');
         var isCredito  = _eCredito(d.forma_pagamento);
@@ -417,17 +426,7 @@ window.IA = (function () {
 
         if (dataVenc) {
             c.querySelector('.dc-row-vencimento').hidden = false;
-            var elVenc = c.querySelector('.dc-vencimento');
-            elVenc.textContent = fmtD(dataVenc);
-            var small = document.createElement('small');
-            small.className = 'ai-dc-mes';
-            small.textContent = mesLabel;
-            elVenc.appendChild(small);
-        }
-
-        if (mesRegistro) {
-            c.querySelector('.dc-row-mes').hidden = false;
-            c.querySelector('.dc-mes').textContent = mesRegistro;
+            c.querySelector('.dc-vencimento').textContent = fmtD(dataVenc);
         }
 
         var elStatusD = c.querySelector('.dc-status-despesa');
@@ -536,33 +535,22 @@ window.IA = (function () {
         var pc2 = _calcParcelas(d);
         var totalParcelas = pc2.totalParcelas, parcelado = pc2.parcelado, valorTotal = pc2.valorTotal, valorParcela = pc2.valorParcela;
 
-        // Data de vencimento: vem do campo d.vencimento (extraído pela IA/boleto).
-        // Data de compra: vem de d.data (data da compra/emissão). São campos distintos.
-        // Fallback só se ambos estiverem ausentes: usa dia 15 do mês aberto.
-        var _hoje = new Date();
-        var _pad  = function(n) { return String(n).padStart(2, '0'); };
-        var _fmtLocal = function(dt) { return dt.getFullYear() + '-' + _pad(dt.getMonth()+1) + '-' + _pad(dt.getDate()); };
-
-        var mesAb  = window.mesAberto;
-        var anoAb  = window.anoAberto;
-        var dataFallback = (mesAb !== undefined && mesAb !== null && anoAb)
-            ? anoAb + '-' + String(mesAb + 1).padStart(2, '0') + '-15'
-            : _fmtLocal(_hoje);
-
-        // vencimento: prioridade d.vencimento, depois d.data, depois fallback
-        var dataVencimento = d.vencimento || d.data || dataFallback;
-        // compra: prioridade d.data, depois d.vencimento (boleto), depois fallback
-        var dataCompra     = d.data || d.vencimento || dataFallback;
+        // Data de vencimento: definida pela IA ou coletada do usuário.
+        // Para pagamentos imediatos (PIX, débito, dinheiro), _camposFaltandoDespesa já seta hoje.
+        // Data de compra: data da compra/emissão (campo d.data).
+        var dataVencimento = d.vencimento || d.data || '';
+        var dataCompra     = d.data || d.vencimento || '';
 
         // mes/ano derivados do vencimento — split direto na string para evitar bug UTC
-        var partsVenc = dataVencimento.split('-');
+        var _refData = dataVencimento || dataCompra || _hoje();
+        var partsVenc = _refData.split('-');
         var mes = parseInt(partsVenc[1]) - 1;   // 0-based (0=Jan … 11=Dez)
         var ano = parseInt(partsVenc[0]);
 
-        // data_pagamento: se já pago, usa data_pagamento explícita ou hoje (não a data de compra)
+        // data_pagamento: se já pago, usa data_pagamento explícita ou hoje
         var dataPagamento = null;
         if (d.ja_pago) {
-            dataPagamento = d.data_pagamento || _fmtLocal(_hoje);
+            dataPagamento = d.data_pagamento || _hoje();
         }
 
         // Cartão: tenta por ID direto ou resolve pelo nome mencionado
@@ -585,8 +573,7 @@ window.IA = (function () {
             recorrente:            !!d.recorrente,
             categoria_id:          d.categoria_id || null,
             cartao_id:             cartaoId || null,
-            perfil_id:             (estado.perfilSelecionado && estado.perfilSelecionado.id) ||
-                                   (typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null)
+            perfil_id:             typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null
         };
 
         var tidD = addTyping();
@@ -1416,13 +1403,9 @@ window.IA = (function () {
     document.addEventListener('click', function (e) {
         var perfilEl = e.target.closest('[data-perfil-id]');
         if (perfilEl) {
-            var pid   = parseInt(perfilEl.dataset.perfilId);
-            var pnome = perfilEl.dataset.perfilNome;
-            var ptipo = perfilEl.dataset.perfilTipo;
-            // Desabilita todos os botões de perfil para evitar re-clique
             var msgPerfil = perfilEl.closest('.ai-msg');
             if (msgPerfil) msgPerfil.querySelectorAll('[data-perfil-id]').forEach(function(b) { b.disabled = true; b.style.opacity = '0.5'; });
-            _selecionarPerfil(pid, pnome, ptipo);
+            _selecionarPerfil(parseInt(perfilEl.dataset.perfilId), perfilEl.dataset.perfilNome, perfilEl.dataset.perfilTipo);
             return;
         }
 

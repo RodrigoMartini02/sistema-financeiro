@@ -3,7 +3,7 @@
 // Sistema de Controle Financeiro
 // ================================================================
 
-const CACHE_VERSION = 'v97';
+const CACHE_VERSION = 'v103';
 const CACHE_STATIC  = `sf-static-${CACHE_VERSION}`;
 
 // Assets estáticos que serão cacheados no install

@@ -1151,7 +1151,7 @@ router.get('/:id/cartoes', authMiddleware, async (req, res) => {
             });
         }
 
-        // Se tem cartões para migrar, inserir na tabela
+        // Se tem cartões para migrar, inserir na tabela (ON CONFLICT ignora duplicatas)
         const cartoesMigrados = [];
         for (let i = 0; i < cartoesParaMigrar.length; i++) {
             const cartao = cartoesParaMigrar[i];
@@ -1159,6 +1159,7 @@ router.get('/:id/cartoes', authMiddleware, async (req, res) => {
                 const insertResult = await query(
                     `INSERT INTO cartoes (usuario_id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo)
                      VALUES ($1, $2, $3, $4, $5, $6, $7)
+                     ON CONFLICT (usuario_id, LOWER(nome), COALESCE(perfil_id, 0)) DO NOTHING
                      RETURNING id, nome as banco, limite, dia_fechamento, dia_vencimento, cor, ativo`,
                     [
                         id,
