@@ -2646,329 +2646,174 @@ window.simularProjecao = function simularProjecao() {
 async function renderizarTemaEmpresa() {
     const anoAtual = window.anoAtual || new Date().getFullYear();
     const filtrarPorAno = anoAtual !== 'todos';
-    const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
-
-    // Obter perfis (empresa e pessoal) da API
-    let perfilIdEmpresa = null;
-    let perfilIdPessoal = null;
-    let aporteInicial = 0;
-
-    try {
-        const resPerfis = await fetch(`${API_URL}/perfis`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const dataPerfis = await resPerfis.json();
-        if (dataPerfis.success) {
-            const pessoal = dataPerfis.data.find(p => p.tipo === 'pessoal');
-            if (pessoal) perfilIdPessoal = pessoal.id;
-
-            // Usar empresa ativa selecionada pelo usuário; fallback para a primeira disponível
-            const perfilAtivoId = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
-            const perfilAtivoTipo = localStorage.getItem('perfilAtivoTipo');
-            let empresa = null;
-            if (perfilAtivoTipo === 'empresa' && perfilAtivoId) {
-                empresa = dataPerfis.data.find(p => p.id === perfilAtivoId && p.tipo === 'empresa');
-            }
-            if (!empresa) empresa = dataPerfis.data.find(p => p.tipo === 'empresa');
-
-            if (empresa) {
-                perfilIdEmpresa = empresa.id;
-                if (empresa.aporte_inicial) aporteInicial = parseFloat(empresa.aporte_inicial);
-
-                // P2.7 — exibir nome da empresa no header da aba
-                const nomeEmpresa = empresa.nome_fantasia || empresa.razao_social || empresa.nome;
-                const headerEl = document.getElementById('empresa-nome-header');
-                if (headerEl && nomeEmpresa) {
-                    headerEl.innerHTML = `<i class="fas fa-building"></i> <span>${nomeEmpresa}</span>`;
-                    headerEl.style.display = '';
-                }
-            }
-        }
-    } catch (e) {
-        console.error('Erro ao buscar perfis:', e);
-    }
-
-    // P2.3 — Sem empresa configurada: exibir mensagem amigável
-    const containerEmpresa = document.getElementById('tema-empresa');
-    const semEmpresaExistente = containerEmpresa?.querySelector('.empresa-sem-dados');
-    if (!perfilIdEmpresa) {
-        if (containerEmpresa) {
-            const kpis = containerEmpresa.querySelector('.tema-kpis');
-            const charts = containerEmpresa.querySelector('.tema-charts-grid');
-            if (kpis) kpis.style.display = 'none';
-            if (charts) charts.style.display = 'none';
-            if (!semEmpresaExistente) {
-                const msg = document.createElement('div');
-                msg.className = 'empresa-sem-dados';
-                msg.innerHTML = `
-                    <i class="fas fa-building" style="font-size:2rem;opacity:0.4;margin-bottom:12px;display:block;text-align:center"></i>
-                    <p style="text-align:center;opacity:0.7;margin-bottom:16px">Nenhuma empresa configurada.</p>
-                    <div style="text-align:center">
-                        <button class="btn-primary" onclick="document.querySelector('[data-secao=configuracoes]')?.click()">
-                            <i class="fas fa-plus"></i> Criar empresa
-                        </button>
-                    </div>`;
-                containerEmpresa.appendChild(msg);
-            }
-        }
-        return;
-    }
-
-    // Empresa encontrada: garantir que kpis/charts estão visíveis e mensagem removida
-    if (semEmpresaExistente) semEmpresaExistente.remove();
-    const kpisEl = containerEmpresa?.querySelector('.tema-kpis');
-    const chartsEl = containerEmpresa?.querySelector('.tema-charts-grid');
-    if (kpisEl) kpisEl.style.display = '';
-    if (chartsEl) chartsEl.style.display = '';
-
-    // Buscar receitas e despesas da empresa por mês
-    const receitasEmpresa = new Array(12).fill(0);
-    const despesasEmpresa = new Array(12).fill(0);
-    const receitasPessoal = new Array(12).fill(0);
-    const despesasPessoal = new Array(12).fill(0);
-
-    // Sempre buscar da API para garantir dados de ambos os perfis (empresa e pessoal)
-    // P2.4 — respeitar filtro de ano: se 'todos', omite o parâmetro ano na query
+    const fmt = v => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     const anoQuery = filtrarPorAno ? `&ano=${anoAtual}` : '';
 
-    if (perfilIdEmpresa) {
+    // Paleta de cores para cada perfil
+    const CORES = [
+        { bg: 'rgba(52,152,219,0.75)',  border: 'rgba(52,152,219,1)'  },
+        { bg: 'rgba(155,89,182,0.75)',  border: 'rgba(155,89,182,1)'  },
+        { bg: 'rgba(243,156,18,0.75)',  border: 'rgba(243,156,18,1)'  },
+        { bg: 'rgba(26,188,156,0.75)',  border: 'rgba(26,188,156,1)'  },
+        { bg: 'rgba(231,76,60,0.75)',   border: 'rgba(231,76,60,1)'   },
+    ];
+
+    // 1. Buscar todos os perfis ativos
+    let perfis = [];
+    try {
+        const res = await fetch(`${API_URL}/perfis`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const data = await res.json();
+        if (data.success) perfis = data.data.filter(p => p.ativo !== false);
+    } catch (e) { console.error('Erro ao buscar perfis:', e); }
+
+    if (!perfis.length) return;
+
+    // 2. Buscar receitas e despesas de cada perfil em paralelo
+    const dadosPorPerfil = await Promise.all(perfis.map(async (perfil, idx) => {
         try {
-            const [resReceitas, resDespesas] = await Promise.all([
-                fetch(`${API_URL}/receitas?perfil_id=${perfilIdEmpresa}${anoQuery}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                }),
-                fetch(`${API_URL}/despesas?perfil_id=${perfilIdEmpresa}${anoQuery}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                })
+            const [resR, resD] = await Promise.all([
+                fetch(`${API_URL}/receitas?perfil_id=${perfil.id}${anoQuery}`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                fetch(`${API_URL}/despesas?perfil_id=${perfil.id}${anoQuery}`, { headers: { 'Authorization': `Bearer ${token}` } })
             ]);
-            const [dReceitas, dDespesas] = await Promise.all([resReceitas.json(), resDespesas.json()]);
-            if (dReceitas.success) {
-                dReceitas.data.forEach(r => { receitasEmpresa[parseInt(r.mes)] += parseFloat(r.valor || 0); });
-            }
-            if (dDespesas.success) {
-                dDespesas.data.forEach(d => { despesasEmpresa[parseInt(d.mes)] += parseFloat(d.valor || 0); });
-            }
-        } catch (e) { console.error('Erro ao buscar dados empresa:', e); }
-    }
+            const [dR, dD] = await Promise.all([resR.json(), resD.json()]);
+            const totalReceitas = dR.success ? dR.data.reduce((s, r) => s + parseFloat(r.valor || 0), 0) : 0;
+            const totalDespesas = dD.success ? dD.data.reduce((s, d) => s + parseFloat(d.valor || 0), 0) : 0;
+            return {
+                nome: perfil.nome_fantasia || perfil.razao_social || perfil.nome || (perfil.tipo === 'pessoal' ? 'Pessoal' : 'Empresa'),
+                totalReceitas,
+                totalDespesas,
+                saldo: totalReceitas - totalDespesas,
+                cor: CORES[idx % CORES.length]
+            };
+        } catch {
+            return { nome: perfil.nome || 'Perfil', totalReceitas: 0, totalDespesas: 0, saldo: 0, cor: CORES[idx % CORES.length] };
+        }
+    }));
 
-    if (perfilIdPessoal) {
-        try {
-            const [resReceitasP, resDespesasP] = await Promise.all([
-                fetch(`${API_URL}/receitas?perfil_id=${perfilIdPessoal}${anoQuery}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                }),
-                fetch(`${API_URL}/despesas?perfil_id=${perfilIdPessoal}${anoQuery}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                })
-            ]);
-            const [dReceitasP, dDespesasP] = await Promise.all([resReceitasP.json(), resDespesasP.json()]);
-            if (dReceitasP.success) {
-                dReceitasP.data.forEach(r => { receitasPessoal[parseInt(r.mes)] += parseFloat(r.valor || 0); });
-            }
-            if (dDespesasP.success) {
-                dDespesasP.data.forEach(d => { despesasPessoal[parseInt(d.mes)] += parseFloat(d.valor || 0); });
-            }
-        } catch (e) { console.error('Erro ao buscar dados pessoal:', e); }
-    }
+    // 3. KPIs totais
+    const totalReceitas = dadosPorPerfil.reduce((s, p) => s + p.totalReceitas, 0);
+    const totalDespesas = dadosPorPerfil.reduce((s, p) => s + p.totalDespesas, 0);
+    const resultadoGeral = totalReceitas - totalDespesas;
+    const melhorPerfil = dadosPorPerfil.reduce((best, p) => p.saldo > best.saldo ? p : best, dadosPorPerfil[0]);
 
-    // Calcular KPIs
-    const faturamentoTotal = receitasEmpresa.reduce((a, b) => a + b, 0);
-    const despesasTotal = despesasEmpresa.reduce((a, b) => a + b, 0);
-    const resultadoLiquido = faturamentoTotal - despesasTotal;
-
-    // Resultado acumulado mês a mês (partindo do aporte inicial)
-    const resultadoAcumulado = [];
-    let acumulado = aporteInicial;
-    for (let m = 0; m < 12; m++) {
-        acumulado += receitasEmpresa[m] - despesasEmpresa[m];
-        resultadoAcumulado.push(acumulado);
-    }
-    // Se estamos visualizando o ano atual, usar o mês atual; 'todos' ou ano passado → dezembro
-    const mesReferencia = (filtrarPorAno && anoAtual === new Date().getFullYear()) ? new Date().getMonth() : 11;
-    const saldoAtual = resultadoAcumulado[mesReferencia] !== undefined ? resultadoAcumulado[mesReferencia] : aporteInicial;
-
-    // Atualizar KPIs
-    const fmt = v => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    const setKpi = (id, val, negativeRed) => {
+    const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    const setKpiColor = (id, val) => {
         const el = document.getElementById(id);
-        if (!el) return;
-        el.textContent = fmt(val);
-        if (negativeRed) el.style.color = val < 0 ? 'var(--danger, #e74c3c)' : 'var(--success, #2ecc71)';
+        if (el) el.style.color = val < 0 ? 'var(--danger, #e74c3c)' : 'var(--success, #2ecc71)';
     };
-    setKpi('tk-empresa-faturamento', faturamentoTotal);
-    setKpi('tk-empresa-resultado', resultadoLiquido, true);
-    setKpi('tk-empresa-aporte', aporteInicial);
-    setKpi('tk-empresa-saldo', saldoAtual, true);
+    setEl('tk-empresa-faturamento', fmt(totalReceitas));
+    setEl('tk-empresa-resultado', fmt(totalDespesas));
+    document.getElementById('tk-empresa-resultado')?.style.setProperty('color', 'var(--danger, #e74c3c)');
+    setEl('tk-empresa-aporte', fmt(resultadoGeral));
+    setKpiColor('tk-empresa-aporte', resultadoGeral);
+    setEl('tk-empresa-saldo', melhorPerfil?.nome || '—');
 
-    // GRÁFICO 1: Faturamento vs Despesas por mês (barras agrupadas)
+    const labels = dadosPorPerfil.map(p => p.nome);
+
+    // GRÁFICO 1: Receitas vs Despesas por perfil (barras agrupadas)
     criarChart('tema-empresa-faturamento-chart', {
         type: 'bar',
         data: {
-            labels: meses,
+            labels,
             datasets: [
                 {
-                    label: 'Faturamento',
-                    data: receitasEmpresa,
-                    backgroundColor: 'rgba(46, 204, 113, 0.7)',
-                    borderColor: 'rgba(46, 204, 113, 1)',
+                    label: 'Receitas',
+                    data: dadosPorPerfil.map(p => p.totalReceitas),
+                    backgroundColor: 'rgba(46,204,113,0.75)',
+                    borderColor: 'rgba(46,204,113,1)',
                     borderWidth: 1,
                     borderRadius: 4
                 },
                 {
                     label: 'Despesas',
-                    data: despesasEmpresa,
-                    backgroundColor: 'rgba(231, 76, 60, 0.7)',
-                    borderColor: 'rgba(231, 76, 60, 1)',
+                    data: dadosPorPerfil.map(p => p.totalDespesas),
+                    backgroundColor: 'rgba(231,76,60,0.75)',
+                    borderColor: 'rgba(231,76,60,1)',
                     borderWidth: 1,
                     borderRadius: 4
                 }
             ]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'top', labels: { color: 'var(--text-primary, #fff)' } },
-                tooltip: {
-                    callbacks: {
-                        label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
-                    }
-                }
+                legend: { position: 'top', labels: { color: 'var(--text-primary,#fff)' } },
+                tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)}` } }
             },
             scales: {
-                x: { ticks: { color: 'var(--text-secondary, #aaa)' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-                y: {
-                    ticks: {
-                        color: 'var(--text-secondary, #aaa)',
-                        callback: v => 'R$ ' + v.toLocaleString('pt-BR')
-                    },
-                    grid: { color: 'rgba(255,255,255,0.05)' }
-                }
+                x: { ticks: { color: 'var(--text-secondary,#aaa)' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                y: { ticks: { color: 'var(--text-secondary,#aaa)', callback: v => 'R$ ' + v.toLocaleString('pt-BR') }, grid: { color: 'rgba(255,255,255,0.05)' } }
             }
         }
     });
 
-    // GRÁFICO 2: Resultado acumulado (linha, partindo do aporte inicial)
-    // P3.4 — respeitar filtro de mês: cortar dados após o mês selecionado
-    const filtro = obterFiltroAtivo();
-    const mesCorte = (filtro.mes !== null && filtro.mes >= 0) ? filtro.mes : 11;
-    const mesesLabelsAcum = meses.slice(0, mesCorte + 1);
-    const resultadoAcumuladoFiltrado = resultadoAcumulado.slice(0, mesCorte + 1);
-    const aporteInicialLine = new Array(mesCorte + 1).fill(aporteInicial);
-
-    criarChart('tema-empresa-acumulado-chart', {
-        type: 'line',
-        data: {
-            labels: mesesLabelsAcum,
-            datasets: [
-                {
-                    label: 'Saldo Acumulado',
-                    data: resultadoAcumuladoFiltrado,
-                    borderColor: 'rgba(52, 152, 219, 1)',
-                    backgroundColor: 'rgba(52, 152, 219, 0.15)',
-                    borderWidth: 2,
-                    pointRadius: 4,
-                    pointHoverRadius: 6,
-                    fill: true,
-                    tension: 0.4
-                },
-                {
-                    label: 'Aporte Inicial',
-                    data: aporteInicialLine,
-                    borderColor: 'rgba(243, 156, 18, 0.6)',
-                    borderWidth: 1,
-                    borderDash: [6, 3],
-                    pointRadius: 0,
-                    fill: false
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'top', labels: { color: 'var(--text-primary, #fff)' } },
-                tooltip: {
-                    callbacks: {
-                        label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
-                    }
-                }
-            },
-            scales: {
-                x: { ticks: { color: 'var(--text-secondary, #aaa)' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-                y: {
-                    ticks: {
-                        color: 'var(--text-secondary, #aaa)',
-                        callback: v => 'R$ ' + v.toLocaleString('pt-BR')
-                    },
-                    grid: { color: 'rgba(255,255,255,0.05)' }
-                }
-            }
-        }
-    });
-
-    // GRÁFICO 3: Comparativo PF × PJ (barras agrupadas, todos os valores positivos)
-    criarChart('tema-empresa-comparativo-chart', {
+    // GRÁFICO 2: Saldo por perfil (barra simples, negativo = vermelho)
+    criarChart('tema-empresa-saldo-chart', {
         type: 'bar',
         data: {
-            labels: meses,
-            datasets: [
-                {
-                    label: 'Receitas PJ',
-                    data: receitasEmpresa,
-                    backgroundColor: 'rgba(46, 204, 113, 0.85)',
-                    borderColor: 'rgba(46, 204, 113, 1)',
-                    borderWidth: 1,
-                    borderRadius: 3
-                },
-                {
-                    label: 'Despesas PJ',
-                    data: despesasEmpresa,
-                    backgroundColor: 'rgba(231, 76, 60, 0.85)',
-                    borderColor: 'rgba(231, 76, 60, 1)',
-                    borderWidth: 1,
-                    borderRadius: 3
-                },
-                {
-                    label: 'Receitas PF',
-                    data: receitasPessoal,
-                    backgroundColor: 'rgba(46, 204, 113, 0.35)',
-                    borderColor: 'rgba(46, 204, 113, 0.6)',
-                    borderWidth: 1,
-                    borderRadius: 3
-                },
-                {
-                    label: 'Despesas PF',
-                    data: despesasPessoal,
-                    backgroundColor: 'rgba(231, 76, 60, 0.35)',
-                    borderColor: 'rgba(231, 76, 60, 0.6)',
-                    borderWidth: 1,
-                    borderRadius: 3
-                }
-            ]
+            labels,
+            datasets: [{
+                label: 'Saldo',
+                data: dadosPorPerfil.map(p => p.saldo),
+                backgroundColor: dadosPorPerfil.map(p => p.saldo >= 0 ? 'rgba(46,204,113,0.75)' : 'rgba(231,76,60,0.75)'),
+                borderColor: dadosPorPerfil.map(p => p.saldo >= 0 ? 'rgba(46,204,113,1)' : 'rgba(231,76,60,1)'),
+                borderWidth: 1,
+                borderRadius: 4
+            }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'top', labels: { color: 'var(--text-primary, #fff)' } },
-                tooltip: {
-                    callbacks: {
-                        label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
-                    }
-                }
+                legend: { display: false },
+                tooltip: { callbacks: { label: ctx => ` Saldo: ${fmt(ctx.parsed.y)}` } }
             },
             scales: {
-                x: { ticks: { color: 'var(--text-secondary, #aaa)' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-                y: {
-                    ticks: {
-                        color: 'var(--text-secondary, #aaa)',
-                        callback: v => 'R$ ' + v.toLocaleString('pt-BR')
-                    },
-                    grid: { color: 'rgba(255,255,255,0.05)' }
-                }
+                x: { ticks: { color: 'var(--text-secondary,#aaa)' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                y: { ticks: { color: 'var(--text-secondary,#aaa)', callback: v => 'R$ ' + v.toLocaleString('pt-BR') }, grid: { color: 'rgba(255,255,255,0.05)' } }
+            }
+        }
+    });
+
+    // GRÁFICO 3: Pizza receitas por perfil
+    criarChart('tema-empresa-pizza-receita-chart', {
+        type: 'doughnut',
+        data: {
+            labels,
+            datasets: [{
+                data: dadosPorPerfil.map(p => p.totalReceitas),
+                backgroundColor: dadosPorPerfil.map(p => p.cor.bg),
+                borderColor: dadosPorPerfil.map(p => p.cor.border),
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: 'var(--text-primary,#fff)', padding: 12 } },
+                tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${fmt(ctx.parsed)} (${totalReceitas > 0 ? ((ctx.parsed / totalReceitas) * 100).toFixed(1) : 0}%)` } }
+            }
+        }
+    });
+
+    // GRÁFICO 4: Pizza despesas por perfil
+    criarChart('tema-empresa-pizza-despesa-chart', {
+        type: 'doughnut',
+        data: {
+            labels,
+            datasets: [{
+                data: dadosPorPerfil.map(p => p.totalDespesas),
+                backgroundColor: dadosPorPerfil.map(p => p.cor.bg),
+                borderColor: dadosPorPerfil.map(p => p.cor.border),
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: 'var(--text-primary,#fff)', padding: 12 } },
+                tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${fmt(ctx.parsed)} (${totalDespesas > 0 ? ((ctx.parsed / totalDespesas) * 100).toFixed(1) : 0}%)` } }
             }
         }
     });

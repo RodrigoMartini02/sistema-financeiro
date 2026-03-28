@@ -252,10 +252,10 @@
             <div id="expirado-banner" style="display:none">
                 <i class="fas fa-exclamation-triangle"></i>
                 <span>Acesso expirado</span>
-                <button onclick="abrirModalPlanos()">Renovar</button>
+                <button id="btn-renovar-plano">Renovar</button>
             </div>
-            <button id="btn-instrucoes-gen" onclick="abrirModalInstrucoesGen()">Instruções da Gen</button>
-            <button id="btn-upgrade" style="display:none" onclick="abrirModalPlanos()">
+            <button id="btn-instrucoes-gen">Instruções da Gen</button>
+            <button id="btn-upgrade" style="display:none">
                 <span id="btn-upgrade-label">Assinar agora</span>
             </button>
         </div>
@@ -434,13 +434,13 @@
 
         <!-- TEMA: SAÚDE FINANCEIRA -->
         <div class="tema-view active" id="tema-saude">
-          <div class="tema-kpis" style="grid-template-columns: repeat(4, 1fr)">
+          <div class="tema-kpis tema-kpis-4col">
             <div class="tema-kpi"><span class="tk-label">Saldo Atual</span><span class="tk-valor" id="tk-saude-saldo">R$ 0,00</span></div>
             <div class="tema-kpi"><span class="tk-label">Variação do Mês</span><span class="tk-valor" id="tk-saude-variacao">0%</span></div>
             <div class="tema-kpi"><span class="tk-label">Saúde Geral</span><span class="tk-valor" id="tk-saude-score">--</span></div>
-            <div class="tema-kpi tema-kpi-objetivos" style="cursor:pointer" onclick="abrirCofre('objetivos')" title="Ver Metas">
+            <div class="tema-kpi tema-kpi-objetivos clickable" data-action="abrir-cofre" data-cofre="objetivos" title="Ver Metas">
               <span class="tk-label">Metas Ativas</span>
-              <span class="tk-valor" id="tk-saude-objetivos" style="font-size:14px">Carregando...</span>
+              <span class="tk-valor tk-valor-sm" id="tk-saude-objetivos">Carregando...</span>
             </div>
           </div>
           <div class="tema-charts-grid">
@@ -535,9 +535,9 @@
         </div>
         <!-- TEMA: METAS -->
         <div class="tema-view" id="tema-metas">
-          <div class="tema-kpis" style="grid-template-columns: repeat(3, 1fr)">
+          <div class="tema-kpis tema-kpis-3col">
             <div class="tema-kpi"><span class="tk-label">Objetivos + Reservas</span><span class="tk-valor" id="tk-metas-total">--</span></div>
-            <div class="tema-kpi"><span class="tk-label">Objetivo mais próximo</span><span class="tk-valor" id="tk-metas-proximo" style="font-size:14px">--</span></div>
+            <div class="tema-kpi"><span class="tk-label">Objetivo mais próximo</span><span class="tk-valor tk-valor-sm" id="tk-metas-proximo">--</span></div>
             <div class="tema-kpi"><span class="tk-label">Total guardado (reservas)</span><span class="tk-valor" id="tk-metas-media">--</span></div>
           </div>
           <div class="tema-charts-grid">
@@ -574,7 +574,7 @@
                 </div>
                 <input type="hidden" id="proj-taxa" value="1.17">
                 <input type="hidden" id="proj-aporte" value="500">
-                <div style="position:relative; height:240px; margin-top:8px">
+                <div class="chart-container-240">
                     <canvas id="tema-metas-crescimento"></canvas>
                 </div>
             </div>
@@ -582,17 +582,17 @@
         </div>
         <!-- TEMA: EMPRESA -->
         <div class="tema-view" id="tema-empresa">
-          <div id="empresa-nome-header" class="empresa-nome-header" style="display:none"></div>
           <div class="tema-kpis">
-            <div class="tema-kpi"><span class="tk-label">Faturamento do Ano</span><span class="tk-valor" id="tk-empresa-faturamento">R$ 0,00</span></div>
-            <div class="tema-kpi"><span class="tk-label">Resultado Líquido</span><span class="tk-valor" id="tk-empresa-resultado">R$ 0,00</span></div>
-            <div class="tema-kpi"><span class="tk-label">Aporte Inicial</span><span class="tk-valor" id="tk-empresa-aporte">R$ 0,00</span></div>
-            <div class="tema-kpi"><span class="tk-label">Saldo Atual</span><span class="tk-valor" id="tk-empresa-saldo">R$ 0,00</span></div>
+            <div class="tema-kpi"><span class="tk-label">Total Receitas</span><span class="tk-valor" id="tk-empresa-faturamento">R$ 0,00</span></div>
+            <div class="tema-kpi"><span class="tk-label">Total Despesas</span><span class="tk-valor" id="tk-empresa-resultado">R$ 0,00</span></div>
+            <div class="tema-kpi"><span class="tk-label">Resultado Geral</span><span class="tk-valor" id="tk-empresa-aporte">R$ 0,00</span></div>
+            <div class="tema-kpi"><span class="tk-label">Melhor Perfil</span><span class="tk-valor tk-valor-sm" id="tk-empresa-saldo">—</span></div>
           </div>
-          <div class="tema-charts-grid">
-            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Receitas e despesas mensais da empresa">Faturamento vs Despesas</h3></div><canvas id="tema-empresa-faturamento-chart"></canvas></div>
-            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Evolução do saldo acumulado desde o aporte inicial">Resultado Acumulado</h3></div><canvas id="tema-empresa-acumulado-chart"></canvas></div>
-            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Receitas e despesas PF e PJ lado a lado por mês">Comparativo PF × PJ</h3></div><canvas id="tema-empresa-comparativo-chart"></canvas></div>
+          <div class="tema-charts-grid tema-charts-grid-2x2">
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Receitas e despesas totais de cada perfil">Receitas vs Despesas por Perfil</h3></div><canvas id="tema-empresa-faturamento-chart"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Saldo líquido de cada perfil (receitas menos despesas)">Saldo por Perfil</h3></div><canvas id="tema-empresa-saldo-chart"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Participação de cada perfil no total de receitas">Receitas por Perfil</h3></div><canvas id="tema-empresa-pizza-receita-chart"></canvas></div>
+            <div class="tema-chart-card"><div class="chart-header"><h3 data-tooltip="Participação de cada perfil no total de despesas">Despesas por Perfil</h3></div><canvas id="tema-empresa-pizza-despesa-chart"></canvas></div>
           </div>
         </div>
     </section>
@@ -1045,8 +1045,8 @@
 
             <!-- Meus Dados — tabela igual a de usuários -->
             <div class="config-card">
-                <div class="config-card-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                    <h3 style="margin:0;"><i class="fas fa-user"></i> Meus Dados</h3>
+                <div class="config-card-header">
+                    <h3><i class="fas fa-user"></i> Meus Dados</h3>
                 </div>
                 <div class="table-responsive">
                     <table class="tabela-usuarios">
@@ -1065,7 +1065,7 @@
                                 <td id="mc-td-documento">-</td>
                                 <td>
                                     <div class="acoes-grupo">
-                                        <button class="btn btn-sm btn-editar-usuario" onclick="abrirModalEditarMinhaConta()" title="Editar dados">
+                                        <button class="btn btn-sm btn-editar-usuario" title="Editar dados">
                                             <i class="fas fa-edit"></i>
                                         </button>
                                     </div>
@@ -1078,8 +1078,8 @@
 
             <!-- Minhas Empresas -->
             <div class="config-card">
-                <div class="config-card-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                    <h3 style="margin:0;"><i class="fas fa-building"></i> Minhas Empresas</h3>
+                <div class="config-card-header">
+                    <h3><i class="fas fa-building"></i> Minhas Empresas</h3>
                     <button id="btn-nova-empresa" class="btn btn-primary btn-sm">
                         <i class="fas fa-plus"></i> Nova Empresa
                     </button>
@@ -1099,7 +1099,7 @@
                         <tbody id="lista-empresas"></tbody>
                     </table>
                 </div>
-                <p id="no-empresas-message" class="hidden" style="color:var(--text-secondary);text-align:center;padding:20px;">
+                <p id="no-empresas-message" class="hidden empty-state-text">
                     Nenhuma empresa cadastrada
                 </p>
             </div>
@@ -1111,7 +1111,7 @@
                 <div class="config-danger-row">
                     <div>
                         <strong>Cancelar Conta</strong>
-                        <p style="margin:4px 0 0;font-size:0.85rem;color:var(--text-secondary);">Esta ação é irreversível. Todos os seus dados serão desativados.</p>
+                        <p class="danger-zone-desc">Esta ação é irreversível. Todos os seus dados serão desativados.</p>
                     </div>
                     <button id="btn-cancelar-conta" class="btn btn-danger btn-sm">
                         <i class="fas fa-times-circle"></i> Cancelar Conta
@@ -1290,7 +1290,7 @@
                 </div>
 
                 <!-- Status de operações (mantido para feedback de importação/exportação) -->
-                <div id="sistema-status" class="config-card hidden" style="margin-top:16px;">
+                <div id="sistema-status" class="config-card hidden mt-16">
                     <h3><i class="fas fa-info-circle"></i> Status da Operação</h3>
                     <div class="status-container">
                         <div id="status-message" class="status-message"></div>
@@ -1321,18 +1321,18 @@
                         <span class="badge ia-badge-status" id="ia-badge-status">Verificando...</span>
                     </div>
                 </div>
-                <div class="admin-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
+                <div class="admin-row admin-row-column">
                     <div class="admin-row-info">
                         <span class="admin-row-nome"><i class="fas fa-plug"></i> Provedor de IA</span>
                         <span class="admin-row-desc">Opcional. Sem provedor externo o assistente usa a <strong>Gen</strong> (IA interna).</span>
                     </div>
-                    <select id="ia-provider-select" class="ia-provider-select" style="width:100%;max-width:420px;">
+                    <select id="ia-provider-select" class="ia-provider-select input-full-420">
                         <option value="gen">Gen — IA interna FinGerence (sem chave)</option>
                         <option value="openai">OpenAI — GPT-4o mini</option>
                         <option value="gemini">Google — Gemini 2.0 Flash</option>
                         <option value="claude">Anthropic — Claude Haiku</option>
                     </select>
-                    <div id="ia-key-row" class="ia-key-row" style="width:100%;max-width:420px;">
+                    <div id="ia-key-row" class="ia-key-row input-full-420">
                         <div class="ia-key-input-row">
                             <input type="password" id="ia-api-key-input" placeholder="Cole sua chave de API aqui..." class="ia-api-key-input">
                             <button id="ia-btn-salvar-chave" class="btn btn-primary btn-sm ia-btn-salvar-chave">
@@ -1386,7 +1386,7 @@
                         <p class="carta-desc">Regras e comportamentos globais da assistente. Visível para todos, editável apenas pelo master.</p>
                     </div>
                     <div id="carta-master-actions" class="carta-master-actions">
-                        <button class="btn btn-primary btn-sm" id="btn-carta-nova-instrucao" onclick="abrirModalCartaInstrucao()">
+                        <button class="btn btn-primary btn-sm" id="btn-carta-nova-instrucao">
                             <i class="fas fa-plus"></i> Nova instrução
                         </button>
                     </div>
@@ -1451,7 +1451,7 @@
                             <!-- Preenchido dinamicamente via template -->
                         </tbody>
                         <tbody>
-                            <tr id="usuarios-sentinel" style="height:1px"><td colspan="9"></td></tr>
+                            <tr id="usuarios-sentinel" class="sentinel-row"><td colspan="9"></td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1604,7 +1604,7 @@
                         </thead>
                         <tbody id="lista-logs">
                             <!-- Preenchido dinamicamente -->
-                            <tr id="logs-sentinel" style="height:1px"><td colspan="8"></td></tr>
+                            <tr id="logs-sentinel" class="sentinel-row"><td colspan="8"></td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1632,18 +1632,18 @@
                         <span class="badge ia-badge-status" id="ia-badge-status-global">Verificando...</span>
                     </div>
                 </div>
-                <div class="admin-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
+                <div class="admin-row admin-row-column">
                     <div class="admin-row-info">
                         <span class="admin-row-nome"><i class="fas fa-plug"></i> Provedor de IA</span>
                         <span class="admin-row-desc">Opcional. Sem provedor externo o assistente usa a <strong>Gen</strong> (IA interna).</span>
                     </div>
-                    <select id="ia-provider-select-global" class="ia-provider-select" style="width:100%;max-width:420px;">
+                    <select id="ia-provider-select-global" class="ia-provider-select input-full-420">
                         <option value="gen">Gen — IA interna FinGerence (sem chave)</option>
                         <option value="openai">OpenAI — GPT-4o mini</option>
                         <option value="gemini">Google — Gemini 2.0 Flash</option>
                         <option value="claude">Anthropic — Claude Haiku</option>
                     </select>
-                    <div id="ia-key-row-global" class="ia-key-row" style="width:100%;max-width:420px;">
+                    <div id="ia-key-row-global" class="ia-key-row input-full-420">
                         <div class="ia-key-input-row">
                             <input type="password" id="ia-api-key-input-global" placeholder="Cole sua chave de API aqui..." class="ia-api-key-input">
                             <button id="ia-btn-salvar-chave-global" class="btn btn-primary btn-sm ia-btn-salvar-chave">
@@ -1686,16 +1686,16 @@
             </div>
 
             <div class="admin-section-card">
-                <div class="admin-section-header" style="flex-direction:row;justify-content:space-between;align-items:center;">
+                <div class="admin-section-header admin-section-header-row">
                     <span><i class="fas fa-scroll"></i> Carta de Serviços — Gen IA</span>
                     <div id="carta-master-actions-global" class="carta-master-actions">
-                        <button class="btn btn-primary btn-sm" id="btn-carta-nova-instrucao-global" onclick="abrirModalCartaInstrucao()">
+                        <button class="btn btn-primary btn-sm" id="btn-carta-nova-instrucao-global">
                             <i class="fas fa-plus"></i> Nova instrução
                         </button>
                     </div>
                 </div>
-                <div style="padding:12px;">
-                    <p class="admin-row-desc" style="margin-bottom:10px;">Regras e comportamentos globais da assistente. Visível para todos, editável apenas pelo master.</p>
+                <div class="p-12">
+                    <p class="admin-row-desc mb-10">Regras e comportamentos globais da assistente. Visível para todos, editável apenas pelo master.</p>
                     <div id="carta-servicos-content-global" class="carta-markdown-body">
                         <div class="carta-loading"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
                     </div>
@@ -2287,7 +2287,7 @@
                         <button id="btn-pagar-lote-toolbar" class="btn btn-secondary btn-sm" disabled title="Pagar em Lote">
                             <i class="fas fa-check-circle"></i> Lote
                         </button>
-                        <button id="btn-cofre-detalhe-mes" class="btn btn-cofre-mes btn-sm" onclick="abrirCofre()" title="Reservas">
+                        <button id="btn-cofre-detalhe-mes" class="btn btn-cofre-mes btn-sm" title="Reservas">
                             <i class="fas fa-piggy-bank"></i> Reservas
                         </button>
                         <span class="toolbar-divider"></span>
@@ -2365,8 +2365,8 @@
                         </div>
                         <div class="cartao-barra-progresso">
                             <div class="barra-fundo barra-fundo-dupla">
-                                <div class="barra-preenchida status-ok" id="barra-rd-projetado" style="width:0%"></div>
-                                <div class="barra-preenchida barra-real status-ok" id="barra-rd-progresso" style="width:0%"></div>
+                                <div class="barra-preenchida status-ok barra-zero" id="barra-rd-projetado"></div>
+                                <div class="barra-preenchida barra-real status-ok barra-zero" id="barra-rd-progresso"></div>
                             </div>
                             <div class="cartao-percentual">
                                 <span class="percentual-texto" id="barra-rd-percentual">0% usado</span>
@@ -2585,7 +2585,7 @@
                 <div class="historico-geral-lista" id="historico-geral-reservas">
                     <div class="historico-vazio">Nenhuma movimentação</div>
                 </div>
-                <div id="historico-sentinel" style="height:1px"></div>
+                <div id="historico-sentinel" class="sentinel-row"></div>
             </div>
         </div>
         <div class="modal-footer modal-footer-cofre">
@@ -2682,7 +2682,7 @@
             </thead>
             <tbody id="lista-despesas">
                 <!-- Linhas serão inseridas aqui -->
-                <tr id="despesas-sentinel" style="height:1px"><td colspan="13"></td></tr>
+                <tr id="despesas-sentinel" class="sentinel-row"><td colspan="13"></td></tr>
             </tbody>
         </table>
     </div>
@@ -3559,6 +3559,16 @@
     </tr>
 </template>
 
+<!-- Estado vazio: lista de cartões (nenhum cadastrado) -->
+<template id="tpl-cartao-vazio">
+    <p style="text-align: center; color: #666; padding: 20px;">Nenhum cartão cadastrado</p>
+</template>
+
+<!-- Estado vazio: lista de cartões (nenhum ativo) -->
+<template id="tpl-cartao-sem-ativo">
+    <p style="text-align: center; color: #666; padding: 20px;">Nenhum cartão ativo</p>
+</template>
+
 <!-- Estado vazio: painel de notificações -->
 <template id="template-notif-vazio">
     <div class="notif-vazio">
@@ -3658,16 +3668,16 @@
         <div class="pgmt-bloqueio-icon"><i class="fas fa-lock"></i></div>
         <h2>Acesso bloqueado</h2>
         <p id="bloqueio-mensagem">Seu período de acesso expirou. Assine um plano para continuar.</p>
-        <button class="pgmt-bloqueio-btn" onclick="abrirModalPlanos()">
+        <button class="pgmt-bloqueio-btn" id="btn-desbloqueio-plano">
             Ver planos e assinar
         </button>
     </div>
 </div>
 
 <!-- Modal de Planos / Pagamento -->
-<div id="modal-planos" class="pgmt-overlay" style="display:none" onclick="fecharModalPlanosOverlay(event)">
+<div id="modal-planos" class="pgmt-overlay" style="display:none">
     <div class="pgmt-modal" id="pgmt-modal-box">
-        <button class="pgmt-close" id="modal-planos-close-btn" onclick="fecharModalPlanos()">
+        <button class="pgmt-close" id="modal-planos-close-btn">
             <i class="fas fa-times"></i>
         </button>
 
@@ -3678,7 +3688,7 @@
                 <p>Controle financeiro completo, sem limites</p>
             </div>
             <div class="pgmt-planos-lista">
-                <div class="pgmt-plano-row" onclick="irParaPagamento('mensal')">
+                <div class="pgmt-plano-row" data-plano="mensal">
                     <div class="pgmt-plano-info">
                         <span class="pgmt-plano-nome">Plus</span>
                         <span class="pgmt-plano-desc">Acesso completo · Cancele quando quiser</span>
@@ -3686,7 +3696,7 @@
                     <div class="pgmt-plano-preco">R$ 39,99<small>/mês</small></div>
                     <i class="fas fa-chevron-right pgmt-arrow"></i>
                 </div>
-                <div class="pgmt-plano-row pgmt-plano-popular" onclick="irParaPagamento('anual')">
+                <div class="pgmt-plano-row pgmt-plano-popular" data-plano="anual">
                     <span class="pgmt-popular-badge">Economize 12%</span>
                     <div class="pgmt-plano-info">
                         <span class="pgmt-plano-nome">Premium</span>
@@ -3702,7 +3712,7 @@
         <!-- TELA 2: Pagamento -->
         <div id="pgmt-tela-pagamento" style="display:none">
             <div class="pgmt-pag-header">
-                <button class="pgmt-voltar" onclick="voltarParaPlanos()">
+                <button class="pgmt-voltar" id="pgmt-btn-voltar-planos">
                     <i class="fas fa-chevron-left"></i> Voltar
                 </button>
                 <span class="pgmt-pag-resumo" id="pgmt-pag-resumo"></span>
@@ -3712,20 +3722,20 @@
             <div id="pgmt-banner-cartao-ctx" class="pgmt-banner-cartao-ctx" style="display:none">
                 <i class="fas fa-credit-card"></i>
                 <span>Pagando com: <strong id="pgmt-banner-cartao-nome"></strong></span>
-                <button onclick="contextoCartaoPlano=null;document.getElementById('pgmt-banner-cartao-ctx').style.display='none'" title="Remover referência">
+                <button id="pgmt-btn-remover-ctx" title="Remover referência">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
 
             <!-- Tabs: Cartão / PIX / PayPal -->
             <div class="pgmt-tabs">
-                <button class="pgmt-tab pgmt-tab-ativo" id="pgmt-tab-cartao" onclick="selecionarMetodo('cartao')">
+                <button class="pgmt-tab pgmt-tab-ativo" id="pgmt-tab-cartao">
                     <i class="fas fa-credit-card"></i> Cartão
                 </button>
-                <button class="pgmt-tab" id="pgmt-tab-pix" onclick="selecionarMetodo('pix')">
+                <button class="pgmt-tab" id="pgmt-tab-pix">
                     <i class="fas fa-qrcode"></i> PIX
                 </button>
-                <button class="pgmt-tab" id="pgmt-tab-paypal" onclick="selecionarMetodo('paypal')">
+                <button class="pgmt-tab" id="pgmt-tab-paypal">
                     <i class="fab fa-paypal"></i> PayPal
                 </button>
             </div>
@@ -3792,19 +3802,19 @@
                     </div>
                     <div class="pgmt-pix-codigo-row">
                         <input id="pgmt-pix-codigo" type="text" readonly class="pgmt-input">
-                        <button class="pgmt-btn-copiar" onclick="copiarPix()">
+                        <button class="pgmt-btn-copiar" id="pgmt-btn-copiar-pix">
                             <i class="fas fa-copy"></i> Copiar
                         </button>
                     </div>
                     <p class="pgmt-pix-validade" id="pgmt-pix-validade">PIX válido por 30:00</p>
-                    <button class="pgmt-btn-ja-paguei" onclick="verificarPagamentoPix()">
+                    <button class="pgmt-btn-ja-paguei" id="pgmt-btn-verificar-pix">
                         Clique aqui para confirmar pagamento
                     </button>
                 </div>
             </div>
 
             <div id="pgmt-acoes">
-                <button class="pgmt-btn-assinar" id="pgmt-btn-assinar" onclick="processarPagamento()">
+                <button class="pgmt-btn-assinar" id="pgmt-btn-assinar">
                     <i class="fas fa-lock"></i> Confirmar pagamento
                 </button>
                 <p class="pgmt-seguro"><i class="fas fa-lock"></i> Pagamento seguro e criptografado</p>
@@ -3814,7 +3824,7 @@
         <!-- TELA 3: Gerenciar / Cancelar plano -->
         <div id="pgmt-tela-gerenciar" style="display:none">
             <div class="pgmt-pag-header">
-                <button class="pgmt-voltar" onclick="fecharModalPlanos()">
+                <button class="pgmt-voltar" id="pgmt-btn-voltar-gerenciar">
                     <i class="fas fa-times"></i>
                 </button>
                 <h3>Gerenciar assinatura</h3>
@@ -3848,7 +3858,7 @@
             </div>
 
             <div class="pgmt-gerenciar-acoes">
-                <button class="pgmt-btn-cancelar-plano" id="pgmt-btn-cancelar-confirm" onclick="confirmarCancelamento()">
+                <button class="pgmt-btn-cancelar-plano" id="pgmt-btn-cancelar-confirm">
                     <i class="fas fa-times-circle"></i> Cancelar assinatura
                 </button>
                 <p class="pgmt-cancelar-aviso">O acesso será bloqueado imediatamente após o cancelamento.</p>
@@ -3914,8 +3924,8 @@
         <p class="modal-gen-desc">Suas instruções personalizadas para a Gen. O conteúdo abaixo substitui as instruções anteriores ao salvar.</p>
         <textarea id="instrucoes-gen-input" rows="6" placeholder="Ex: Sempre perguntar a categoria antes de confirmar uma despesa..." class="modal-gen-textarea"></textarea>
         <div class="modal-gen-footer">
-            <button onclick="fecharModalInstrucoesGen()" class="modal-gen-btn-cancelar">Cancelar</button>
-            <button onclick="salvarInstrucoesGen()" class="modal-gen-btn-salvar">Salvar</button>
+            <button id="btn-fechar-instrucoes-gen" class="modal-gen-btn-cancelar">Cancelar</button>
+            <button id="btn-salvar-instrucoes-gen" class="modal-gen-btn-salvar">Salvar</button>
         </div>
     </div>
 </div>
@@ -3960,11 +3970,11 @@
 </div>
 
 <!-- Modal: Editar Minha Conta -->
-<div id="modal-editar-minha-conta" class="modal" style="display:none;">
-    <div class="modal-content modal-md">
+<div id="modal-editar-minha-conta" class="modal">
+    <div class="modal-content modal-sm">
         <div class="modal-header">
             <h2><i class="fas fa-user-edit"></i> Editar Dados Pessoais</h2>
-            <button type="button" class="close" onclick="document.getElementById('modal-editar-minha-conta').style.display='none'">&times;</button>
+            <button type="button" class="close" data-action="cancelar" title="Fechar">&times;</button>
         </div>
         <div class="modal-body">
             <form id="form-minha-conta">
@@ -3978,10 +3988,10 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="mc-documento"><i class="fas fa-id-card"></i> CPF</label>
-                    <input type="text" id="mc-documento" class="form-input" readonly placeholder="CPF" style="opacity:0.6;cursor:not-allowed;">
+                    <input type="text" id="mc-documento" class="form-input input-readonly" readonly placeholder="CPF">
                 </div>
-                <hr style="margin:8px 0;border-color:var(--border-color);">
-                <p style="font-size:0.75rem;color:var(--text-secondary);margin:0 0 8px 0;"><i class="fas fa-lock"></i> Alterar Senha — deixe em branco para não alterar</p>
+                <hr class="section-divider">
+                <p class="section-hint"><i class="fas fa-lock"></i> Alterar Senha — deixe em branco para não alterar</p>
                 <div class="form-group">
                     <label class="form-label" for="mc-senha-atual"><i class="fas fa-lock"></i> Senha Atual</label>
                     <input type="password" id="mc-senha-atual" class="form-input" placeholder="Digite sua senha atual">
@@ -3997,7 +4007,7 @@
             </form>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-editar-minha-conta').style.display='none'">Cancelar</button>
+            <button type="button" class="btn btn-secondary" data-action="cancelar">Cancelar</button>
             <button type="button" class="btn btn-primary" id="btn-salvar-minha-conta"><i class="fas fa-save"></i> Salvar</button>
         </div>
     </div>
@@ -4013,8 +4023,8 @@
         <textarea id="carta-instrucao-input" rows="5" placeholder="Ex: Quando o usuário mencionar 'recorrente', sempre perguntar se tem data de fim ou é indefinida..." class="modal-gen-textarea"></textarea>
         <div class="modal-gen-footer modal-carta-footer">
             <span id="carta-instrucao-status" class="modal-carta-status"></span>
-            <button onclick="fecharModalCartaInstrucao()" class="modal-gen-btn-cancelar">Cancelar</button>
-            <button onclick="salvarCartaInstrucao()" id="btn-salvar-carta-instrucao" class="modal-gen-btn-salvar"><i class="fas fa-magic"></i> Revisar com IA</button>
+            <button id="btn-fechar-carta-instrucao" class="modal-gen-btn-cancelar">Cancelar</button>
+            <button id="btn-salvar-carta-instrucao" class="modal-gen-btn-salvar"><i class="fas fa-magic"></i> Revisar com IA</button>
         </div>
     </div>
 </div>

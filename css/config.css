@@ -2138,3 +2138,92 @@
 [data-theme="dark"] .form-add-categoria::before {
     color: #a5b4fc;
 }
+
+/* ================================================================
+   CLASSES UTILITÁRIAS — extraídas de estilos inline
+   ================================================================ */
+
+/* Grid layouts para tema-kpis */
+.tema-kpis-4col { grid-template-columns: repeat(4, 1fr); }
+.tema-kpis-3col { grid-template-columns: repeat(3, 1fr); }
+
+/* Cursor pointer */
+.clickable { cursor: pointer; }
+
+/* Valor menor em KPI */
+.tk-valor-sm { font-size: 14px; }
+
+/* Container de gráfico com altura fixa */
+.chart-container-240 {
+    position: relative;
+    height: 240px;
+    margin-top: 8px;
+}
+
+/* Parágrafo estado vazio */
+.empty-state-text {
+    color: var(--text-secondary);
+    text-align: center;
+    padding: 20px;
+}
+
+/* Descrição da zona de perigo */
+.danger-zone-desc {
+    margin: 4px 0 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* Margem top 16px */
+.mt-16 { margin-top: 16px; }
+
+/* Admin-row em coluna */
+.admin-row-column {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+/* Input / select com largura máxima 420px */
+.input-full-420 {
+    width: 100%;
+    max-width: 420px;
+}
+
+/* Linha sentinela para infinite scroll */
+.sentinel-row { height: 1px; }
+
+/* Header de seção com row e space-between */
+.admin-section-header-row {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Padding interno 12px */
+.p-12 { padding: 12px; }
+
+/* Margem inferior 10px */
+.mb-10 { margin-bottom: 10px; }
+
+/* Barra de progresso com valor zero (estado inicial) */
+.barra-zero { width: 0%; }
+
+/* Input somente leitura (readonly visual) */
+.input-readonly {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Divisor de seção em formulários */
+.section-divider {
+    margin: 8px 0;
+    border-color: var(--border-color);
+}
+
+/* Dica/hint de seção em formulários */
+.section-hint {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin: 0 0 8px 0;
+}

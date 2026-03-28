@@ -562,9 +562,10 @@
     grid-template-rows: auto auto;
     gap: 16px;
 }
-#tema-empresa .tema-charts-grid .tema-chart-card:nth-child(1) { grid-column: 1; height: 280px; }
-#tema-empresa .tema-charts-grid .tema-chart-card:nth-child(2) { grid-column: 2; height: 280px; }
-#tema-empresa .tema-charts-grid .tema-chart-card:nth-child(3) { grid-column: 1 / -1; height: 240px; }
+#tema-empresa .tema-charts-grid .tema-chart-card:nth-child(1) { height: 280px; }
+#tema-empresa .tema-charts-grid .tema-chart-card:nth-child(2) { height: 280px; }
+#tema-empresa .tema-charts-grid .tema-chart-card:nth-child(3) { height: 260px; }
+#tema-empresa .tema-charts-grid .tema-chart-card:nth-child(4) { height: 260px; }
 
 /* Garantir que canvas preencha o card em altura controlada */
 #tema-saude .tema-charts-grid .tema-chart-card canvas,

@@ -629,6 +629,37 @@ document.addEventListener('DOMContentLoaded', () => {
             e.target.value = v;
         });
     }
+
+    // ── Botões do modal de planos e overlay de bloqueio ──────────
+    document.getElementById('btn-renovar-plano')?.addEventListener('click', abrirModalPlanos);
+    document.getElementById('btn-upgrade')?.addEventListener('click', abrirModalPlanos);
+    document.getElementById('btn-desbloqueio-plano')?.addEventListener('click', abrirModalPlanos);
+
+    document.getElementById('modal-planos')?.addEventListener('click', fecharModalPlanosOverlay);
+    document.getElementById('modal-planos-close-btn')?.addEventListener('click', fecharModalPlanos);
+
+    // Seleção de plano via data-plano
+    document.querySelectorAll('.pgmt-plano-row[data-plano]').forEach((el) => {
+        el.addEventListener('click', () => irParaPagamento(el.dataset.plano));
+    });
+
+    document.getElementById('pgmt-btn-voltar-planos')?.addEventListener('click', voltarParaPlanos);
+
+    document.getElementById('pgmt-btn-remover-ctx')?.addEventListener('click', () => {
+        contextoCartaoPlano = null;
+        document.getElementById('pgmt-banner-cartao-ctx').style.display = 'none';
+    });
+
+    document.getElementById('pgmt-tab-cartao')?.addEventListener('click', () => selecionarMetodo('cartao'));
+    document.getElementById('pgmt-tab-pix')?.addEventListener('click', () => selecionarMetodo('pix'));
+    document.getElementById('pgmt-tab-paypal')?.addEventListener('click', () => selecionarMetodo('paypal'));
+
+    document.getElementById('pgmt-btn-copiar-pix')?.addEventListener('click', copiarPix);
+    document.getElementById('pgmt-btn-verificar-pix')?.addEventListener('click', verificarPagamentoPix);
+    document.getElementById('pgmt-btn-assinar')?.addEventListener('click', processarPagamento);
+
+    document.getElementById('pgmt-btn-voltar-gerenciar')?.addEventListener('click', fecharModalPlanos);
+    document.getElementById('pgmt-btn-cancelar-confirm')?.addEventListener('click', confirmarCancelamento);
 });
 
 // ================================================================

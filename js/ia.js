@@ -1515,6 +1515,19 @@ window.IA = (function () {
             setupProviderSelect();
             document.getElementById('ia-btn-salvar-chave')?.addEventListener('click', salvarChaveAPI);
 
+            // Botões da navbar / IA (app.html)
+            document.getElementById('btn-instrucoes-gen')?.addEventListener('click', abrirModalInstrucoesGen);
+            document.getElementById('btn-carta-nova-instrucao')?.addEventListener('click', abrirModalCartaInstrucao);
+            document.getElementById('btn-carta-nova-instrucao-global')?.addEventListener('click', abrirModalCartaInstrucao);
+
+            // Modais de instruções Gen
+            document.getElementById('btn-fechar-instrucoes-gen')?.addEventListener('click', fecharModalInstrucoesGen);
+            document.getElementById('btn-salvar-instrucoes-gen')?.addEventListener('click', salvarInstrucoesGen);
+
+            // Modal carta de instrução
+            document.getElementById('btn-fechar-carta-instrucao')?.addEventListener('click', fecharModalCartaInstrucao);
+            document.getElementById('btn-salvar-carta-instrucao')?.addEventListener('click', salvarCartaInstrucao);
+
             setTimeout(inicializar, 1500);
         }
 

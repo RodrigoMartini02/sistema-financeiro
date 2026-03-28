@@ -2047,7 +2047,7 @@ function atualizarLimitesCartoes(mes, ano) {
     const cartoes = window.cartoesUsuario || [];
 
     if (!Array.isArray(cartoes) || cartoes.length === 0) {
-        container.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Nenhum cartão cadastrado</p>';
+        container.appendChild(document.getElementById('tpl-cartao-vazio').content.cloneNode(true));
         return;
     }
 
@@ -2055,7 +2055,7 @@ function atualizarLimitesCartoes(mes, ano) {
     const cartoesAtivos = cartoes.filter(c => c.ativo);
 
     if (cartoesAtivos.length === 0) {
-        container.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Nenhum cartão ativo</p>';
+        container.appendChild(document.getElementById('tpl-cartao-sem-ativo').content.cloneNode(true));
         return;
     }
 
@@ -3158,4 +3158,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Botão Reservas na toolbar de detalhe do mês
+    document.getElementById('btn-cofre-detalhe-mes')?.addEventListener('click', () => abrirCofre());
+
+    // Event delegation para elementos com data-action="abrir-cofre"
+    document.addEventListener('click', function(e) {
+        const el = e.target.closest('[data-action="abrir-cofre"]');
+        if (el) abrirCofre(el.dataset.cofre || undefined);
+    });
 });

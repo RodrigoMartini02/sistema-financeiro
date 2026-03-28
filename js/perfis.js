@@ -14,7 +14,6 @@ function setPerfilAtivo(perfilId, nome, tipo) {
     localStorage.setItem(PERFIL_KEY, perfilId);
     localStorage.setItem('perfilAtivoNome', nome);
     localStorage.setItem('perfilAtivoTipo', tipo);
-    atualizarVisibilidadeTemaEmpresa(tipo);
     const sel = document.getElementById('select-perfil-ativo');
     if (sel) sel.value = perfilId;
 }
@@ -116,19 +115,6 @@ function configurarEventoSelect(perfis) {
     });
 }
 
-function atualizarVisibilidadeTemaEmpresa(tipo) {
-    const btnTemaEmpresa = document.querySelector('.tema-btn-empresa');
-    if (!btnTemaEmpresa) return;
-    if (tipo === 'empresa') {
-        btnTemaEmpresa.style.display = '';
-    } else {
-        btnTemaEmpresa.style.display = 'none';
-        const temaAtivo = document.querySelector('.tema-btn.active');
-        if (temaAtivo && temaAtivo.dataset.tema === 'empresa') {
-            document.querySelector('.tema-btn[data-tema="saude"]')?.click();
-        }
-    }
-}
 
 function _recarregarComFeedback(mensagem) {
     const sel = document.getElementById('select-perfil-ativo');

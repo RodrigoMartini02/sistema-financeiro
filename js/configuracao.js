@@ -3172,6 +3172,9 @@ async function inicializarConfiguracoes() {
 
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(inicializarConfiguracoes, 1000);
+
+    // Botão "Editar dados" da conta do próprio usuário logado (sem data-index)
+    document.querySelector('.btn-editar-usuario:not([data-index])')?.addEventListener('click', abrirModalEditarMinhaConta);
 });
 
 // ================================================================
@@ -3441,6 +3444,13 @@ window.abrirModalEditarMinhaConta = abrirModalEditarMinhaConta;
 window.abrirModalAlterarSenha = abrirModalAlterarSenha;
 
 function setupMinhaConta() {
+    // Botão fechar modal
+    document.querySelectorAll('#modal-editar-minha-conta .close, #modal-editar-minha-conta [data-action="cancelar"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.getElementById('modal-editar-minha-conta').style.display = 'none';
+        });
+    });
+
     // Botão salvar dados pessoais + senha opcional (modal unificado)
     const btnSalvar = document.getElementById('btn-salvar-minha-conta');
     if (btnSalvar) {
