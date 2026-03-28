@@ -1217,85 +1217,6 @@ function ajustarVisibilidadeElementos() {
     }
 }
 
-let _mapaLeaflet = null;
-
-async function carregarMapaUsuarios() {
-    const mapaDiv = document.getElementById('mapa-interativo');
-    const porPaisDiv = document.getElementById('mapa-por-pais');
-    if (!mapaDiv) return;
-
-    try {
-        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-        const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
-        const response = await fetch(`${API_URL}/usuarios/stats/mapa`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await response.json();
-
-        if (!data.success) throw new Error(data.message);
-
-        // Resumo por país
-        if (porPaisDiv && data.data.por_pais && data.data.por_pais.length > 0) {
-            porPaisDiv.innerHTML = data.data.por_pais.map(p =>
-                `<span class="mapa-pais-badge"><i class="fas fa-globe"></i> ${p.pais} <strong>${p.total}</strong></span>`
-            ).join('');
-        }
-
-        // Inicializar mapa Leaflet
-        if (typeof L === 'undefined') return;
-
-        if (_mapaLeaflet) {
-            _mapaLeaflet.remove();
-            _mapaLeaflet = null;
-        }
-
-        _mapaLeaflet = L.map('mapa-interativo').setView([0, 0], 2);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 18
-        }).addTo(_mapaLeaflet);
-
-        const pontos = data.data.pontos_exatos || [];
-        const empresas = data.data.empresas || [];
-
-        if (pontos.length === 0 && empresas.length === 0) {
-            mapaDiv.insertAdjacentHTML('afterend', '<p style="text-align:center;color:var(--text-secondary);margin-top:8px;">Nenhum dado de localização registrado ainda.</p>');
-            return;
-        }
-
-        const cluster = (typeof L.markerClusterGroup === 'function')
-            ? L.markerClusterGroup()
-            : L.layerGroup();
-
-        pontos.forEach(function(u) {
-            if (u.latitude == null || u.longitude == null) return;
-            const marker = L.marker([parseFloat(u.latitude), parseFloat(u.longitude)]);
-            marker.bindPopup(`<strong>${u.nome || 'Usuário'}</strong><br>${u.cidade || ''}`);
-            cluster.addLayer(marker);
-        });
-
-        empresas.forEach(function(e) {
-            if (e.latitude == null || e.longitude == null) return;
-            const marker = L.marker([parseFloat(e.latitude), parseFloat(e.longitude)], {
-                icon: L.divIcon({ className: 'empresa-marker', html: '<i class="fas fa-building" style="color:#e67e22;font-size:18px;"></i>', iconSize: [20, 20] })
-            });
-            marker.bindPopup(`<strong>${e.nome || 'Empresa'}</strong><br>${e.atividade || ''}`);
-            cluster.addLayer(marker);
-        });
-
-        _mapaLeaflet.addLayer(cluster);
-
-        // Ajustar zoom para englobar todos os pontos
-        const allLayers = [];
-        cluster.eachLayer(function(l) { allLayers.push(l.getLatLng()); });
-        if (allLayers.length > 0) {
-            _mapaLeaflet.fitBounds(L.latLngBounds(allLayers), { padding: [40, 40], maxZoom: 10 });
-        }
-
-    } catch (error) {
-        console.error('Erro ao carregar mapa de usuários:', error);
-    }
-}
 
 async function filtrarUsuarios() {
     const searchInput = document.getElementById('usuario-search');
@@ -3236,7 +3157,6 @@ async function inicializarConfiguracoes() {
 
     // Carregar dados da aba inicial (Usuários) sem precisar clicar
     filtrarUsuarios();
-    carregarMapaUsuarios();
     setupMinhaConta();
 }
 
