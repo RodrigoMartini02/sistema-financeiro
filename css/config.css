@@ -2120,9 +2120,15 @@
     background: var(--theme-surface-solid);
 }
 
-[data-theme="dark"] .config-card > h3:first-child,
-[data-theme="dark"] .config-card-header {
+[data-theme="dark"] .config-card:not(.config-card--danger) > h3:first-child,
+[data-theme="dark"] .config-card:not(.config-card--danger) .config-card-header {
     background: rgba(102,126,234,0.85);
+}
+
+[data-theme="dark"] .config-card--danger > h3:first-child,
+[data-theme="dark"] .config-card--danger .config-card-header,
+[data-theme="dark"] .admin-section-header--danger {
+    background: #e74c3c;
 }
 
 [data-theme="dark"] .tab-card-header {
