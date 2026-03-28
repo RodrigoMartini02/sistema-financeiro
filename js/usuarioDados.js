@@ -11,6 +11,7 @@ class UsuarioDataManager {
         this.usuarioAtualCache = null;
         this.timestampCache = null;
         this.timestampCacheUsuario = null;
+        this.perfilIdCache = null;
         this.inicializado = false;
 
         this.aguardarSistemaMainPronto();
@@ -165,8 +166,7 @@ class UsuarioDataManager {
         }
 
         if (window.dadosFinanceiros && typeof window.dadosFinanceiros === 'object' && Object.keys(window.dadosFinanceiros).length > 0) {
-            this.dadosCache = window.dadosFinanceiros;
-            this.timestampCache = Date.now();
+            this._setCache(window.dadosFinanceiros);
             return window.dadosFinanceiros;
         }
 
@@ -327,8 +327,7 @@ class UsuarioDataManager {
                 dadosFinanceiros[ano].meses[mes].dataFechamento = mesInfo.data_fechamento || null;
             });
 
-            this.dadosCache = dadosFinanceiros;
-            this.timestampCache = Date.now();
+            this._setCache(dadosFinanceiros);
 
             return dadosFinanceiros;
         } catch (error) {
@@ -357,8 +356,7 @@ class UsuarioDataManager {
                     localStorage.setItem('usuarios', JSON.stringify(usuarios));
                 }
                 
-                this.dadosCache = usuario.dadosFinanceiros;
-                this.timestampCache = Date.now();
+                this._setCache(usuario.dadosFinanceiros);
                 return usuario.dadosFinanceiros;
             }
             
@@ -383,8 +381,7 @@ class UsuarioDataManager {
 
         if (sucesso) {
 
-            this.dadosCache = dadosFinanceiros;
-            this.timestampCache = Date.now();
+            this._setCache(dadosFinanceiros);
         } else {
 
         }
@@ -417,8 +414,7 @@ class UsuarioDataManager {
                 throw new Error(data.message || 'Erro ao salvar dados financeiros');
             }
 
-            this.dadosCache = dadosFinanceiros;
-            this.timestampCache = Date.now();
+            this._setCache(dadosFinanceiros);
 
             return true;
         } catch (error) {
@@ -458,8 +454,7 @@ class UsuarioDataManager {
                     });
                     localStorage.setItem('usuarios', JSON.stringify(usuarios));
 
-                    this.dadosCache = dadosFinanceiros;
-                    this.timestampCache = Date.now();
+                    this._setCache(dadosFinanceiros);
                     return true;
                 }
                 return false;
@@ -470,8 +465,7 @@ class UsuarioDataManager {
             usuarios[index].ultimaAtualizacao = new Date().toISOString();
             localStorage.setItem('usuarios', JSON.stringify(usuarios));
 
-            this.dadosCache = dadosFinanceiros;
-            this.timestampCache = Date.now();
+            this._setCache(dadosFinanceiros);
             return true;
 
         } catch (error) {
@@ -977,7 +971,10 @@ class UsuarioDataManager {
     isCacheValido() {
         if (!this.timestampCache) return false;
         const CACHE_DURATION = 5 * 60 * 1000;
-        return (Date.now() - this.timestampCache) < CACHE_DURATION;
+        if ((Date.now() - this.timestampCache) >= CACHE_DURATION) return false;
+        // Invalida se o perfil ativo mudou desde que o cache foi gerado
+        const perfilAtual = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
+        return this.perfilIdCache === perfilAtual;
     }
 
     isCacheUsuarioValido() {
@@ -986,9 +983,16 @@ class UsuarioDataManager {
         return (Date.now() - this.timestampCacheUsuario) < CACHE_DURATION;
     }
 
+    _setCache(dados) {
+        this.dadosCache = dados;
+        this.timestampCache = Date.now();
+        this.perfilIdCache = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
+    }
+
     limparCache() {
         this.dadosCache = null;
         this.timestampCache = null;
+        this.perfilIdCache = null;
     }
 
     limparCacheUsuario() {
