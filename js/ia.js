@@ -49,7 +49,8 @@ window.IA = (function () {
         tipoColeta:      null,   // 'despesa' ou 'receita'
         // campo_revisao: campo especial onde o usuário escolhe qual campo quer editar
         // ao receber o texto, a fila é resetada para [texto] e _proximoCampo() reprocessa
-        filaCampos:      []      // fila de campos ainda a coletar
+        filaCampos:      [],     // fila de campos ainda a coletar
+        perfilSelecionado: null  // { id, nome, tipo } — perfil ativo escolhido na abertura
     };
 
     var _iaInitializando = false;
@@ -194,11 +195,52 @@ window.IA = (function () {
     }
 
     // ── BOAS-VINDAS ───────────────────────────────────────────────
-    function boasVindas() {
+    function _boasVindasComPerfil() {
         var chips = '<button class="ai-welcome-chip" data-chip>Hiper, 150 de mercado no pix</button>' +
                     '<button class="ai-welcome-chip" data-chip> salário, caiu 3500 hoje</button>' +
                     '<button class="ai-welcome-chip" data-chip>quanto gastei esse mês?</button>';
-        addGen('Olá! Sou a Gen, sua IA financeira. Posso cadastrar despesas, receitas, analisar gastos e ler documentos.<div class="ai-welcome-chips">' + chips + '</div>');
+        var perfilLabel = estado.perfilSelecionado
+            ? ' Analisando <b>' + estado.perfilSelecionado.nome + '</b>.'
+            : '';
+        addGen('Olá! Sou a Gen, sua IA financeira.' + perfilLabel + ' Posso cadastrar despesas, receitas, analisar gastos e ler documentos.<div class="ai-welcome-chips">' + chips + '</div>');
+    }
+
+    function boasVindas() {
+        fetch(apiURL() + '/perfis', { headers: hdrs() })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                var perfis = (data && data.success && data.data) ? data.data.filter(function (p) { return p.ativo !== false; }) : [];
+
+                // Só 1 perfil (ou nenhum): vai direto para a conversa
+                if (perfis.length <= 1) {
+                    if (perfis.length === 1) {
+                        estado.perfilSelecionado = { id: perfis[0].id, nome: perfis[0].nome_fantasia || perfis[0].razao_social || perfis[0].nome, tipo: perfis[0].tipo };
+                        if (typeof window.setPerfilAtivo === 'function') window.setPerfilAtivo(perfis[0].id, estado.perfilSelecionado.nome, perfis[0].tipo);
+                    }
+                    _boasVindasComPerfil();
+                    return;
+                }
+
+                // Múltiplos perfis: exibe seleção
+                var btns = perfis.map(function (p) {
+                    var icone = p.tipo === 'empresa' ? '🏢' : '👤';
+                    var nome  = p.nome_fantasia || p.razao_social || p.nome;
+                    return '<button class="ai-welcome-chip ai-chip-perfil" data-perfil-id="' + p.id + '" data-perfil-nome="' + nome + '" data-perfil-tipo="' + p.tipo + '">' + icone + ' ' + nome + '</button>';
+                }).join('');
+                addGen('Olá! Sou a Gen. Para qual perfil vamos trabalhar hoje?<div class="ai-welcome-chips">' + btns + '</div>');
+            })
+            .catch(function () {
+                _boasVindasComPerfil();
+            });
+    }
+
+    function _selecionarPerfil(id, nome, tipo) {
+        estado.perfilSelecionado = { id: id, nome: nome, tipo: tipo };
+        if (typeof window.setPerfilAtivo === 'function') window.setPerfilAtivo(id, nome, tipo);
+        localStorage.setItem('perfilAtivoId', id);
+        localStorage.setItem('perfilAtivoNome', nome);
+        localStorage.setItem('perfilAtivoTipo', tipo);
+        _boasVindasComPerfil();
     }
 
     function limparConversa() {
@@ -242,10 +284,10 @@ window.IA = (function () {
         var _payload = { mensagem: texto };
         if (window.mesAberto !== undefined) _payload.mes_atual = window.mesAberto;
         if (window.anoAberto !== undefined) _payload.ano_atual = window.anoAberto;
-        if (typeof window.getPerfilAtivo === 'function') {
-            var _pid = window.getPerfilAtivo();
-            if (_pid) _payload.perfil_id = _pid;
-        }
+        // Prioriza perfil selecionado na conversa; fallback para o perfil ativo global
+        var _perfilId = (estado.perfilSelecionado && estado.perfilSelecionado.id) ||
+                        (typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null);
+        if (_perfilId) _payload.perfil_id = _perfilId;
         apiPost('/chat', _payload).then(function (res) {
             removeTyping(tid);
             if (!res || !res.success) { addGen('Desculpe, ocorreu um erro. Tente novamente.'); return; }
@@ -542,7 +584,9 @@ window.IA = (function () {
             data_pagamento:        dataPagamento,
             recorrente:            !!d.recorrente,
             categoria_id:          d.categoria_id || null,
-            cartao_id:             cartaoId || null
+            cartao_id:             cartaoId || null,
+            perfil_id:             (estado.perfilSelecionado && estado.perfilSelecionado.id) ||
+                                   (typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null)
         };
 
         var tidD = addTyping();
@@ -628,7 +672,9 @@ window.IA = (function () {
             valor:             parseFloat(r.valor),
             data_recebimento:  dataReceita,
             mes:               mes,
-            ano:               ano
+            ano:               ano,
+            perfil_id:         (estado.perfilSelecionado && estado.perfilSelecionado.id) ||
+                               (typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null)
         };
 
         var tidR = addTyping();
@@ -1368,6 +1414,18 @@ window.IA = (function () {
 
     // ── DELEGAÇÃO GLOBAL DE EVENTOS ───────────────────────────────
     document.addEventListener('click', function (e) {
+        var perfilEl = e.target.closest('[data-perfil-id]');
+        if (perfilEl) {
+            var pid   = parseInt(perfilEl.dataset.perfilId);
+            var pnome = perfilEl.dataset.perfilNome;
+            var ptipo = perfilEl.dataset.perfilTipo;
+            // Desabilita todos os botões de perfil para evitar re-clique
+            var msgPerfil = perfilEl.closest('.ai-msg');
+            if (msgPerfil) msgPerfil.querySelectorAll('[data-perfil-id]').forEach(function(b) { b.disabled = true; b.style.opacity = '0.5'; });
+            _selecionarPerfil(pid, pnome, ptipo);
+            return;
+        }
+
         if (e.target.closest('[data-chip]')) { _chip(e.target.closest('[data-chip]')); return; }
 
         // Botões de opção rápida (forma de pagamento, cartão, etc.)
