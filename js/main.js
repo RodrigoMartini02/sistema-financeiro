@@ -516,6 +516,20 @@ function setupNavigation() {
     // Nav links: no mobile fecha sidebar; no desktop mantém estado
     const navLinks = document.querySelectorAll('.nav-link');
 
+    // Colapsar/expandir grupo Configurações
+    const btnToggleConfig = document.getElementById('btn-toggle-config');
+    const sublistConfig = document.getElementById('sublist-config');
+    const chevronConfig = document.getElementById('chevron-config');
+    let configExpanded = false;
+
+    if (btnToggleConfig) {
+        btnToggleConfig.addEventListener('click', () => {
+            configExpanded = !configExpanded;
+            sublistConfig.classList.toggle('expanded', configExpanded);
+            chevronConfig.style.transform = configExpanded ? 'rotate(180deg)' : 'rotate(0deg)';
+        });
+    }
+
     // Colapsar/expandir grupo Admin
     const btnToggleAdmin = document.getElementById('btn-toggle-admin');
     const sublistAdmin = document.getElementById('sublist-admin');
@@ -537,6 +551,13 @@ function setupNavigation() {
 
             navLinks.forEach(l => l.classList.remove('active'));
             link.classList.add('active');
+
+            // Se o link clicado for um subitem de config, expandir o grupo
+            if (link.closest('#sublist-config') && !configExpanded) {
+                configExpanded = true;
+                if (sublistConfig) sublistConfig.classList.add('expanded');
+                if (chevronConfig) chevronConfig.style.transform = 'rotate(180deg)';
+            }
 
             // Se o link clicado for um subitem de admin, expandir o grupo
             if (link.closest('#sublist-admin') && !adminExpanded) {

@@ -171,32 +171,41 @@
                 </a>
             </li>
 
-            <!-- GRUPO: CONFIGURAÇÕES -->
-            <li class="nav-group-label">Configurações</li>
-
-            <li class="nav-item">
-                <a href="#" class="nav-link" data-section="config" data-tab="minha-conta" data-label="Minha Conta">
-                    <span class="nav-icon"><i class="fas fa-user-circle"></i></span>
-                    <span class="nav-text">Minha Conta</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="#" class="nav-link" data-section="config" data-tab="cartoes" data-label="Cartões">
-                    <span class="nav-icon"><i class="fas fa-credit-card"></i></span>
-                    <span class="nav-text">Cartões</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="#" class="nav-link" data-section="config" data-tab="categorias" data-label="Categorias">
-                    <span class="nav-icon"><i class="fas fa-tags"></i></span>
-                    <span class="nav-text">Categorias</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="#" class="nav-link" data-section="config" data-tab="assistente-ia" data-label="Configurar IA">
-                    <span class="nav-icon"><i class="fas fa-robot"></i></span>
-                    <span class="nav-text">Configurar IA</span>
-                </a>
+            <!-- GRUPO: CONFIGURAÇÕES (colapsável) -->
+            <li class="nav-group-collapsible" id="nav-group-config">
+                <button class="nav-group-toggle" id="btn-toggle-config">
+                    <span class="nav-group-toggle-left">
+                        <i class="fas fa-cog nav-group-icon"></i>
+                        <span class="nav-group-title">Configurações</span>
+                    </span>
+                    <i class="fas fa-chevron-down nav-group-chevron" id="chevron-config"></i>
+                </button>
+                <ul class="nav-sublist" id="sublist-config">
+                    <li class="nav-item nav-subitem">
+                        <a href="#" class="nav-link" data-section="config" data-tab="minha-conta" data-label="Minha Conta">
+                            <span class="nav-icon"><i class="fas fa-user-circle"></i></span>
+                            <span class="nav-text">Minha Conta</span>
+                        </a>
+                    </li>
+                    <li class="nav-item nav-subitem">
+                        <a href="#" class="nav-link" data-section="config" data-tab="cartoes" data-label="Cartões">
+                            <span class="nav-icon"><i class="fas fa-credit-card"></i></span>
+                            <span class="nav-text">Cartões</span>
+                        </a>
+                    </li>
+                    <li class="nav-item nav-subitem">
+                        <a href="#" class="nav-link" data-section="config" data-tab="categorias" data-label="Categorias">
+                            <span class="nav-icon"><i class="fas fa-tags"></i></span>
+                            <span class="nav-text">Categorias</span>
+                        </a>
+                    </li>
+                    <li class="nav-item nav-subitem">
+                        <a href="#" class="nav-link" data-section="config" data-tab="assistente-ia" data-label="Configurar IA">
+                            <span class="nav-icon"><i class="fas fa-robot"></i></span>
+                            <span class="nav-text">Configurar IA</span>
+                        </a>
+                    </li>
+                </ul>
             </li>
 
             <!-- GRUPO: ADMIN (colapsável, oculto por padrão para não-admin) -->
