@@ -57,10 +57,15 @@ function atualizarBarraReceitasDespesas() {
     // Base disponível para despesas (sem reservas)
     const base = saldoAnterior + totalReceitas - reservasAcumuladas;
 
-    // Despesas realizadas (pagas) = barra sólida
-    const despesasPagas = despesas.filter(d => d.ja_pago).reduce((s, d) => s + (parseFloat(d.valor) || 0), 0);
-    // Despesas totais (projetadas) para calcular % exibida
-    const despesasTotal = despesas.reduce((s, d) => s + (parseFloat(d.valor) || 0), 0);
+    const isRecorrenteCredito = d => {
+        if (!d.recorrente) return false;
+        const fp = (d.formaPagamento || d.forma_pagamento || '').toLowerCase();
+        return fp === 'credito' || fp === 'crédito' || fp === 'cred-merpago' || fp === 'créd-merpago';
+    };
+    // Despesas realizadas (pagas) = barra sólida — exclui recorrentes crédito
+    const despesasPagas = despesas.filter(d => d.ja_pago && !isRecorrenteCredito(d)).reduce((s, d) => s + (parseFloat(d.valor) || 0), 0);
+    // Despesas totais (projetadas) para calcular % exibida — exclui recorrentes crédito
+    const despesasTotal = despesas.filter(d => !isRecorrenteCredito(d)).reduce((s, d) => s + (parseFloat(d.valor) || 0), 0);
 
     const percentualPago = base > 0 ? (despesasPagas / base) * 100 : 0;
     const percentualTotal = base > 0 ? (despesasTotal / base) * 100 : 0;

@@ -625,7 +625,7 @@ class SistemaRelatorios {
             case CRITERIOS_DATA.VENCIMENTO:
                 return despesa.dataVencimento || despesa.data;
             case CRITERIOS_DATA.PAGAMENTO:
-                return despesa.dataPagamento || despesa.data;
+                return despesa.dataPagamento || despesa.dataVencimento || despesa.data;
             case CRITERIOS_DATA.MISTA:
                 return despesa.dataPagamento || despesa.dataVencimento || despesa.dataCompra || despesa.data;
             default:

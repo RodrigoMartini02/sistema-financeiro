@@ -3626,12 +3626,6 @@ function atualizarContadoresFiltro() {
                    if (filtroStatus === 'atrasada' && status !== 'atrasada') return;
                }
 
-               // Recorrente crédito não entra no total
-               const formaPag = (item.formaPagamento || item.forma_pagamento || '').toLowerCase();
-               const eCredito = formaPag === 'credito' || formaPag === 'crédito' ||
-                                formaPag === 'cred-merpago' || formaPag === 'créd-merpago';
-               if (item.recorrente && eCredito) { countDespesas++; return; }
-
                valorTotalDespesas += obterValorRealDespesa(item);
                countDespesas++;
            }
@@ -3694,13 +3688,6 @@ function calcularValorDespesaLinha(linha) {
     const despesa = obterDespesaDaLinha(linha);
 
     if (despesa) {
-        // Recorrente em crédito não contabiliza no total da toolbar
-        if (despesa.recorrente) {
-            const formaPag = (despesa.formaPagamento || despesa.forma_pagamento || '').toLowerCase();
-            const eCredito = formaPag === 'credito' || formaPag === 'crédito' ||
-                             formaPag === 'cred-merpago' || formaPag === 'créd-merpago';
-            if (eCredito) return 0;
-        }
         return obterValorRealDespesa(despesa);
     }
 
