@@ -263,7 +263,7 @@ document.addEventListener('click', function(e) {
             const canvasZoom = document.getElementById('canvas-zoom-render');
             const ctx = canvasZoom.getContext('2d');
 
-            modal.style.display = 'flex';
+            modal.style.display = 'block';
 
             if (graficoZoomInstance) {
                 graficoZoomInstance.destroy();

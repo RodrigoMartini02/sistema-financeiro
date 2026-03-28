@@ -1394,7 +1394,7 @@ async function abrirModalReservarValor() {
     // Abrir modal
     const modal = document.getElementById('modal-reservar-valor');
     if (modal) {
-        modal.style.display = 'flex';
+        modal.style.display = 'block';
     }
 }
 

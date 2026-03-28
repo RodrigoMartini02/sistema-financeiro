@@ -292,7 +292,7 @@ async function editarCategoria(categoriaId) {
     if (modalEditar && nomeInput && idInput) {
         nomeInput.value = categoria.nome;
         idInput.value = categoria.id;
-        modalEditar.style.display = 'flex';
+        modalEditar.style.display = 'block';
     }
 }
 
@@ -1342,7 +1342,7 @@ function criarLinhaUsuario(usuario, index) {
 
     const btnEditar = linha.querySelector('.btn-editar-usuario');
     const btnBloquear = linha.querySelector('.btn-bloquear-usuario');
-    const btnExcluir = linha.querySelector('.btn-excluir-usuario');
+    const btnExcluir = linha.querySelector('.btn-excluir-usuario');
     const textoSemPermissao = linha.querySelector('.texto-sem-permissao');
 
     btnEditar.setAttribute('data-index', index);
@@ -1446,7 +1446,7 @@ function excluirUsuario(usuario) {
 
     const modal = document.getElementById('modal-confirmar-exclusao-usuario');
     if (modal) {
-        modal.style.display = 'flex';
+        modal.style.display = 'block';
         modal.setAttribute('data-usuario-id', usuario.id);
     }
 }
@@ -1498,7 +1498,7 @@ function abrirModalEditarUsuario(usuario, isNovo = false) {
         configurarDropdownTipos(isNovo);
     }
 
-    modal.style.display = 'flex';
+    modal.style.display = 'block';
 }
 
 /**
@@ -3217,7 +3217,7 @@ function renderizarEmpresas(empresas) {
             : '-';
 
         const btnEditar = linha.querySelector('.btn-editar-empresa');
-        const btnExcluir = linha.querySelector('.btn-excluir-empresa');
+        const btnExcluir = linha.querySelector('.btn-excluir-empresa');
         btnEditar.setAttribute('data-index', index);
         btnExcluir.setAttribute('data-index', index);
 
@@ -3242,7 +3242,7 @@ function abrirModalNovaEmpresa() {
     document.getElementById('empresa-atividade').value = '';
     document.getElementById('empresa-aporte-inicial').value = '';
     document.getElementById('modal-empresa-titulo').textContent = 'Nova Empresa';
-    document.getElementById('modal-empresa').style.display = 'flex';
+    document.getElementById('modal-empresa').style.display = 'block';
 }
 
 function abrirModalEditarEmpresa(empresa) {
@@ -3253,7 +3253,7 @@ function abrirModalEditarEmpresa(empresa) {
     document.getElementById('empresa-atividade').value = empresa.atividade || '';
     document.getElementById('empresa-aporte-inicial').value = empresa.aporte_inicial || '';
     document.getElementById('modal-empresa-titulo').textContent = 'Editar Empresa';
-    document.getElementById('modal-empresa').style.display = 'flex';
+    document.getElementById('modal-empresa').style.display = 'block';
 }
 
 async function salvarEmpresa() {
@@ -3429,12 +3429,12 @@ function abrirModalEditarMinhaConta() {
     ['mc-senha-atual', 'mc-nova-senha', 'mc-confirmar-senha'].forEach(id => {
         const el = document.getElementById(id); if (el) el.value = '';
     });
-    document.getElementById('modal-editar-minha-conta').style.display = 'flex';
+    document.getElementById('modal-editar-minha-conta').style.display = 'block';
 }
 
 function abrirModalAlterarSenha() {
     document.getElementById('form-alterar-senha')?.reset();
-    document.getElementById('modal-alterar-senha').style.display = 'flex';
+    document.getElementById('modal-alterar-senha').style.display = 'block';
 }
 
 window.abrirModalEditarMinhaConta = abrirModalEditarMinhaConta;
@@ -3553,7 +3553,7 @@ document.addEventListener('DOMContentLoaded', function() {
         btnAlterarSenhaMenu.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            modalAlterarSenha.style.display = 'flex';
+            modalAlterarSenha.style.display = 'block';
             modalAlterarSenha.classList.add('active');
             // Limpar campos quando abrir
             if (formAlterarSenha) {

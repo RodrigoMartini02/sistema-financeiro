@@ -30,7 +30,10 @@
       "Bash(python3 -:*)",
       "Bash(while read:*)",
       "Bash(do if:*)",
-      "Bash(then echo:*)"
+      "Bash(then echo:*)",
+      "Bash(grep -n \"\\\\.style\\\\.display = ''''block''''\" js/configuracao.js)",
+      "Bash(grep -n \"\\\\.style\\\\.display = ''''block''''\" js/receita.js)",
+      "Bash(grep -n \"\\\\.style\\\\.display = ''''block''''\" js/dashboard.js)"
     ],
     "additionalDirectories": [
       "\\tmp"
