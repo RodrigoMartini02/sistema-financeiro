@@ -27,7 +27,10 @@
       "Bash(__NEW_LINE_c6a71fdd528fba41__ for:*)",
       "Bash(cp \"$WORKTREE/$f\" \"$MAIN/$f\")",
       "Bash(echo \"Copiado: $f\")",
-      "Bash(python3 -:*)"
+      "Bash(python3 -:*)",
+      "Bash(while read:*)",
+      "Bash(do if:*)",
+      "Bash(then echo:*)"
     ],
     "additionalDirectories": [
       "\\tmp"

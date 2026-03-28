@@ -2908,6 +2908,11 @@ function onAbaAtivada(tabName) {
         carregarPermissoes();
     } else if (tabName === 'minha-conta') {
         setTimeout(() => { carregarMinhaConta(); carregarEmpresas(); }, 100);
+    } else if (tabName === 'assistente-ia') {
+        setTimeout(() => {
+            const sel = document.getElementById('ia-provider-select');
+            if (sel) sel.dispatchEvent(new Event('change'));
+        }, 100);
     }
 }
 
