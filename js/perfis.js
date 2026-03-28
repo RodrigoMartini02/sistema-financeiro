@@ -73,6 +73,20 @@ async function inicializarPerfis() {
     atualizarVisibilidadeTemaEmpresa(tipo);
 }
 
+function atualizarVisibilidadeTemaEmpresa(tipo) {
+    const btnTemaEmpresa = document.querySelector('.tema-btn-empresa');
+    if (!btnTemaEmpresa) return;
+    if (tipo === 'empresa') {
+        btnTemaEmpresa.style.display = '';
+    } else {
+        btnTemaEmpresa.style.display = 'none';
+        const temaAtivo = document.querySelector('.tema-btn.active');
+        if (temaAtivo && temaAtivo.dataset.tema === 'empresa') {
+            document.querySelector('.tema-btn[data-tema="saude"]')?.click();
+        }
+    }
+}
+
 function popularSelectPerfil(perfis, perfilAtivoId) {
     const sel = document.getElementById('select-perfil-ativo');
     if (!sel) return;

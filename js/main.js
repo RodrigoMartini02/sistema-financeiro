@@ -23,9 +23,14 @@ let timerSalvamento = null;
 // ================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
-    await iniciarSistema();
-    if (typeof window.hideLoadingScreen === 'function') {
-        window.hideLoadingScreen();
+    try {
+        await iniciarSistema();
+    } catch (error) {
+        console.error('Erro ao iniciar sistema:', error);
+    } finally {
+        if (typeof window.hideLoadingScreen === 'function') {
+            window.hideLoadingScreen();
+        }
     }
 });
 
