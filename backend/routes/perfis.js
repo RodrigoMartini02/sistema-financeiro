@@ -224,4 +224,47 @@ router.patch('/:id/localizacao', authMiddleware, async (req, res) => {
     }
 });
 
+// ================================================================
+// POST /perfis/migrar-orfaos — atribui registros sem perfil_id ao perfil pessoal do usuário
+// ================================================================
+router.post('/migrar-orfaos', authMiddleware, async (req, res) => {
+    try {
+        const usuarioId = req.usuario.id;
+
+        // Encontrar o perfil pessoal do usuário
+        const perfilRes = await query(
+            `SELECT id FROM perfis WHERE usuario_id = $1 AND tipo = 'pessoal' LIMIT 1`,
+            [usuarioId]
+        );
+
+        if (perfilRes.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Perfil pessoal não encontrado' });
+        }
+
+        const perfilPessoalId = perfilRes.rows[0].id;
+
+        // Migrar receitas, despesas, meses e reservas sem perfil_id
+        const [r1, r2, r3, r4] = await Promise.all([
+            query(`UPDATE receitas SET perfil_id = $1 WHERE usuario_id = $2 AND perfil_id IS NULL`, [perfilPessoalId, usuarioId]),
+            query(`UPDATE despesas SET perfil_id = $1 WHERE usuario_id = $2 AND perfil_id IS NULL`, [perfilPessoalId, usuarioId]),
+            query(`UPDATE meses SET perfil_id = $1 WHERE usuario_id = $2 AND perfil_id IS NULL`, [perfilPessoalId, usuarioId]),
+            query(`UPDATE reservas SET perfil_id = $1 WHERE usuario_id = $2 AND perfil_id IS NULL`, [perfilPessoalId, usuarioId])
+        ]);
+
+        res.json({
+            success: true,
+            message: 'Dados órfãos migrados para o perfil pessoal',
+            migrados: {
+                receitas: r1.rowCount,
+                despesas: r2.rowCount,
+                meses: r3.rowCount,
+                reservas: r4.rowCount
+            }
+        });
+    } catch (error) {
+        console.error('Erro ao migrar dados órfãos:', error);
+        res.status(500).json({ success: false, message: 'Erro ao migrar dados' });
+    }
+});
+
 module.exports = router;

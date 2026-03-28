@@ -341,6 +341,7 @@
                 <div id="perfil-switcher" class="perfil-switcher-toggle">
                     <button id="btn-perfil-pf" class="perfil-toggle-btn ativo" title="Pessoal (PF)">PF</button>
                     <button id="btn-perfil-pj" class="perfil-toggle-btn" title="Empresa (PJ)">PJ</button>
+                    <select id="select-empresa-ativa" class="perfil-empresa-select" style="display:none;" title="Selecionar empresa"></select>
                 </div>
 
                 <button class="header-icon-btn" id="logout-btn" title="Sair">
@@ -585,6 +586,7 @@
         </div>
         <!-- TEMA: EMPRESA -->
         <div class="tema-view" id="tema-empresa">
+          <div id="empresa-nome-header" class="empresa-nome-header" style="display:none"></div>
           <div class="tema-kpis">
             <div class="tema-kpi"><span class="tk-label">Faturamento do Ano</span><span class="tk-valor" id="tk-empresa-faturamento">R$ 0,00</span></div>
             <div class="tema-kpi"><span class="tk-label">Resultado Líquido</span><span class="tk-valor" id="tk-empresa-resultado">R$ 0,00</span></div>

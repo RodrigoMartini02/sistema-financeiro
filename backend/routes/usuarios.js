@@ -1079,12 +1079,21 @@ router.get('/:id/cartoes', authMiddleware, async (req, res) => {
         }
 
         // 1. Primeiro tentar buscar da TABELA cartoes
+        const { perfil_id } = req.query;
+        let cartoesWhere = 'WHERE c.usuario_id = $1';
+        const cartoesParams = [id];
+
+        if (perfil_id) {
+            cartoesWhere += ` AND (c.perfil_id = $2 OR (c.perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis p WHERE p.id = $2 AND p.tipo = 'pessoal' AND p.usuario_id = c.usuario_id)))`;
+            cartoesParams.push(parseInt(perfil_id));
+        }
+
         const resultTabela = await query(
-            `SELECT id, nome as banco, limite, dia_fechamento, dia_vencimento, cor, ativo
-             FROM cartoes
-             WHERE usuario_id = $1
-             ORDER BY id ASC`,
-            [id]
+            `SELECT c.id, c.nome as banco, c.limite, c.dia_fechamento, c.dia_vencimento, c.cor, c.ativo
+             FROM cartoes c
+             ${cartoesWhere}
+             ORDER BY c.id ASC`,
+            cartoesParams
         );
 
         // Se encontrou cartões na tabela, retornar eles

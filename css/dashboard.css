@@ -533,6 +533,26 @@
 #tema-metas .tema-charts-grid .tema-chart-card:nth-child(3) { height: 280px; }
 
 /* EMPRESA — grid 2 colunas + comparativo full width */
+.empresa-nome-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary-color);
+    opacity: 0.85;
+    margin-bottom: 12px;
+    padding: 6px 12px;
+    background: var(--theme-surface);
+    border: 1px solid var(--theme-border);
+    border-radius: 8px;
+    width: fit-content;
+}
+
+.empresa-sem-dados {
+    padding: 48px 24px;
+}
+
 #tema-empresa .tema-kpis {
     grid-template-columns: repeat(4, 1fr);
 }

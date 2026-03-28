@@ -61,9 +61,9 @@ async function iniciarSistema() {
 
     notificarSistemaReady();
 
-    // Inicializar switcher de perfis PF/PJ
+    // Inicializar switcher de perfis PF/PJ (await garante que perfis estão prontos antes de qualquer clique)
     if (typeof window.inicializarPerfis === 'function') {
-        window.inicializarPerfis();
+        await window.inicializarPerfis();
     }
 }
 
@@ -289,7 +289,9 @@ async function carregarCartoesDoUsuario() {
 
         const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
-        const response = await fetch(`${API_URL}/usuarios/${usuario.id}/cartoes`, {
+        const perfilIdMain = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
+        const perfilQueryMain = perfilIdMain ? `?perfil_id=${perfilIdMain}` : '';
+        const response = await fetch(`${API_URL}/usuarios/${usuario.id}/cartoes${perfilQueryMain}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -2687,12 +2689,17 @@ window.recarregarDadosApp = async function() {
         if (window.usuarioDataManager && typeof window.usuarioDataManager.limparCache === 'function') {
             window.usuarioDataManager.limparCache();
         }
-        // Forçar busca na API ignorando window.dadosFinanceiros em cache
+        // Forçar busca na API ignorando todos os caches
         window.dadosFinanceiros = null;
         dadosFinanceiros = null;
+        window.reservasCache = null;
+        window.movimentacoesReservasCache = null;
         await carregarDadosLocais();
-        await carregarDadosDashboard(anoAtual);
-        await renderizarMeses(anoAtual, false);
+        // carregarDadosDashboard e renderizarMeses são independentes — rodar em paralelo
+        await Promise.all([
+            carregarDadosDashboard(anoAtual),
+            renderizarMeses(anoAtual, false)
+        ]);
         if (window.mesAberto !== null && window.anoAberto !== null &&
             typeof window.renderizarDetalhesDoMes === 'function') {
             await window.renderizarDetalhesDoMes(window.mesAberto, window.anoAberto);

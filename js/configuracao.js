@@ -439,8 +439,10 @@ async function carregarCartoesLocal() {
     try {
         const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
-        // Buscar cartões da API
-        const response = await fetch(`${API_URL}/usuarios/${usuario.id}/cartoes`, {
+        // Buscar cartões da API filtrando pelo perfil ativo
+        const perfilIdCartoes = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
+        const perfilQueryCartoes = perfilIdCartoes ? `?perfil_id=${perfilIdCartoes}` : '';
+        const response = await fetch(`${API_URL}/usuarios/${usuario.id}/cartoes${perfilQueryCartoes}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -1906,8 +1908,10 @@ async function exportarDadosMesAMes() {
             mesesFechados = (mesesData.data || []).filter(m => m.fechado === true);
         }
 
-        // ✅ BUSCAR CARTÕES
-        const cartoesResponse = await fetch(`${API_URL}/cartoes`, {
+        // ✅ BUSCAR CARTÕES filtrando pelo perfil ativo
+        const _perfilIdCart = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
+        const _perfilQCart = _perfilIdCart ? `?perfil_id=${_perfilIdCart}` : '';
+        const cartoesResponse = await fetch(`${API_URL}/cartoes${_perfilQCart}`, {
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`

@@ -50,7 +50,7 @@ router.get('/', authMiddleware, async (req, res) => {
         const { perfil_id } = req.query;
         if (perfil_id) {
             paramCount++;
-            whereClause += ` AND (d.perfil_id = $${paramCount} OR (d.perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis WHERE id = $${paramCount} AND tipo = 'pessoal')))`;
+            whereClause += ` AND (d.perfil_id = $${paramCount} OR (d.perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis p WHERE p.id = $${paramCount} AND p.tipo = 'pessoal' AND p.usuario_id = d.usuario_id)))`;
             params.push(parseInt(perfil_id));
         }
 

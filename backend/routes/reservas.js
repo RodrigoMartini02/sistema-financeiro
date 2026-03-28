@@ -48,7 +48,7 @@ router.get('/', authMiddleware, async (req, res) => {
         }
 
         if (perfil_id) {
-            whereClause += ` AND perfil_id = $${++paramCount}`;
+            whereClause += ` AND (perfil_id = $${++paramCount} OR (perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis p WHERE p.id = $${paramCount} AND p.tipo = 'pessoal' AND p.usuario_id = $1)))`;
             params.push(parseInt(perfil_id));
         }
         
@@ -310,7 +310,7 @@ router.get('/objetivos', authMiddleware, async (req, res) => {
         const params = [req.usuario.id];
         let perfilFilter = '';
         if (perfil_id) {
-            perfilFilter = ` AND (perfil_id = $2 OR perfil_id IS NULL)`;
+            perfilFilter = ` AND (perfil_id = $2 OR (perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis p WHERE p.id = $2 AND p.tipo = 'pessoal' AND p.usuario_id = $1)))`;
             params.push(parseInt(perfil_id));
         }
         const result = await query(
