@@ -1612,6 +1612,11 @@ window.IA = (function () {
             });
 
             inicializar();
+
+            // Esconde o loader assim que a UI está pronta
+            if (typeof window.hideLoadingScreen === 'function') {
+                window.hideLoadingScreen();
+            }
         }
 
         // ── Ambos os contextos ───────────────────────────────────

@@ -2448,6 +2448,58 @@ form .btn-primary:hover {
     }
 }
 
+/* ================================================================
+   MOBILE LOGIN — exibe só o formulário, oculta landing page
+   ================================================================ */
+@media (max-width: 768px) {
+    /* Esconde todo conteúdo de marketing */
+    .hero-content,
+    .stats-strip,
+    #features,
+    #ia-showcase,
+    #avaliacoes,
+    #como-funciona,
+    .landing-footer {
+        display: none !important;
+    }
+
+    /* Hero vira container simples centralizado */
+    .hero-section {
+        min-height: 100dvh;
+        padding: 0 !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .hero-container {
+        display: flex !important;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem !important;
+        gap: 0 !important;
+        width: 100%;
+    }
+
+    /* Card de login ocupa toda a largura */
+    .hero-login {
+        width: 100%;
+        max-width: 420px;
+    }
+
+    .hero-login .login-card {
+        border-radius: 16px;
+        padding: 2rem 1.5rem;
+    }
+
+    /* Navbar simplificada — só logo */
+    .landing-nav .nav-links,
+    .landing-nav .nav-cta {
+        display: none !important;
+    }
+}
+
 @media (max-width: 600px) {
     /* Navbar ainda mais compacta */
     .nav-container {
