@@ -425,10 +425,11 @@ window.IA = (function () {
             c.querySelector('.dc-data-compra').textContent = fmtD(dataCompra);
         }
 
-        if (dataVenc) {
-            c.querySelector('.dc-row-vencimento').hidden = false;
-            c.querySelector('.dc-vencimento').textContent = fmtD(dataVenc);
-        }
+        // Vencimento sempre visível — fallback para data de compra se não informado
+        var vencDisplay = dataVenc || dataCompra;
+        c.querySelector('.dc-row-vencimento').hidden = false;
+        var elVenc = c.querySelector('.dc-vencimento');
+        elVenc.textContent = vencDisplay ? fmtD(vencDisplay) : '—';
 
         var elStatusD = c.querySelector('.dc-status-despesa');
         var _isCredito = _eCredito(d.forma_pagamento);
@@ -752,11 +753,13 @@ window.IA = (function () {
     }
 
     function _iniciarColetaCampos(despesa, tipo) {
-        estado.dadosParciais = Object.assign({}, despesa);
-        estado.tipoColeta    = tipo;
-        estado.filaCampos    = tipo === 'despesa'
+        // Validar ANTES de copiar — auto-sets (ex: vencimento PIX = hoje) devem estar no dadosParciais
+        var falta = tipo === 'despesa'
             ? _camposFaltandoDespesa(despesa)
             : _camposFaltandoReceita(despesa);
+        estado.dadosParciais = Object.assign({}, despesa);
+        estado.tipoColeta    = tipo;
+        estado.filaCampos    = falta;
 
         if (estado.filaCampos.length === 0) {
             // Nada faltando — exibe card direto
