@@ -3886,8 +3886,8 @@ function calcularLimiteDisponivelCartao(cartaoId, mes, ano) {
 
                 if (!eCreditoOuVariacao) return;
 
-                // Pular se recorrente ou já pago
-                if (despesa.recorrente || despesa.quitado || despesa.pago) {
+                // Pular se já pago
+                if (despesa.quitado || despesa.pago) {
                     return;
                 }
 
