@@ -242,6 +242,10 @@ window.IA = (function () {
         var _payload = { mensagem: texto };
         if (window.mesAberto !== undefined) _payload.mes_atual = window.mesAberto;
         if (window.anoAberto !== undefined) _payload.ano_atual = window.anoAberto;
+        if (typeof window.getPerfilAtivo === 'function') {
+            var _pid = window.getPerfilAtivo();
+            if (_pid) _payload.perfil_id = _pid;
+        }
         apiPost('/chat', _payload).then(function (res) {
             removeTyping(tid);
             if (!res || !res.success) { addGen('Desculpe, ocorreu um erro. Tente novamente.'); return; }
@@ -1577,6 +1581,12 @@ window.IA = (function () {
         _init();
     }
 
+    function notificarTrocaPerfil(nome, tipo) {
+        var icone = tipo === 'empresa' ? '🏢' : '👤';
+        var tipoLabel = tipo === 'empresa' ? 'empresa' : 'perfil pessoal';
+        addGen(icone + ' Perfil alterado! Agora estou analisando ' + (tipo === 'empresa' ? 'a empresa <b>' + nome + '</b>' : 'seu <b>perfil Pessoal</b>') + '. Como posso ajudar?');
+    }
+
     return {
         abrir, fechar, limpar: limparConversa, enviar: enviarMensagem,
         enviarAcaoRapida, preencherInput, handleKeyDown, autoResize, toggleSidebar,
@@ -1585,7 +1595,7 @@ window.IA = (function () {
         selecionarArquivo: processarArquivo, cancelarArquivo,
         abrirBoleto, fecharBoleto, processarBoleto, abrirUpload,
         toggleVoz, confirmarAprendizado, detectarRecorrencias,
-        salvarChaveAPI
+        salvarChaveAPI, notificarTrocaPerfil
     };
 }());
 

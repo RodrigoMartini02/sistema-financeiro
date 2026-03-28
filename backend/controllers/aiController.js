@@ -89,12 +89,15 @@ async function buscarCategorias(usuarioId) {
 }
 
 // ── HELPER: Busca cartões do usuário ─────────────────────────────
-async function buscarCartoes(usuarioId) {
+async function buscarCartoes(usuarioId, perfilId = null) {
     try {
-        const r = await query(
-            'SELECT id, nome FROM cartoes WHERE usuario_id = $1 AND ativo = true',
-            [usuarioId]
-        );
+        let sql = 'SELECT id, nome FROM cartoes WHERE usuario_id = $1 AND ativo = true';
+        const params = [usuarioId];
+        if (perfilId) {
+            sql += ` AND (perfil_id = $2 OR (perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis p WHERE p.id = $2 AND p.tipo = 'pessoal' AND p.usuario_id = $1)))`;
+            params.push(perfilId);
+        }
+        const r = await query(sql, params);
         return r.rows;
     } catch {
         return [];
@@ -154,48 +157,74 @@ async function buscarResumoFinanceiro(usuarioId, mes, ano) {
 // ── HELPER: Constrói contexto do sistema para enriquecer a IA ────
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
-async function buscarContextoSistema(usuarioId, mes, ano) {
+async function buscarContextoSistema(usuarioId, mes, ano, perfilId = null) {
     const hoje = new Date();
     const m = mes ?? hoje.getMonth();
     const a = ano ?? hoje.getFullYear();
 
+    // Filtro de perfil — mesmo padrão dos outros routes
+    const perfilFilter = perfilId
+        ? ` AND (d.perfil_id = $4 OR (d.perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis p WHERE p.id = $4 AND p.tipo = 'pessoal' AND p.usuario_id = d.usuario_id)))`
+        : '';
+    const perfilFilterReceitas = perfilId
+        ? ` AND (r.perfil_id = $4 OR (r.perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis p WHERE p.id = $4 AND p.tipo = 'pessoal' AND p.usuario_id = r.usuario_id)))`
+        : '';
+    const baseParams = perfilId ? [usuarioId, m, a, perfilId] : [usuarioId, m, a];
+
     try {
+        // Buscar nome do perfil ativo para incluir no contexto
+        let nomePerfilAtivo = 'Pessoal';
+        let tipoPerfilAtivo = 'pessoal';
+        if (perfilId) {
+            try {
+                const perfilRes = await query('SELECT nome, razao_social, nome_fantasia, tipo FROM perfis WHERE id = $1', [perfilId]);
+                if (perfilRes.rows.length > 0) {
+                    const p = perfilRes.rows[0];
+                    nomePerfilAtivo = p.nome_fantasia || p.razao_social || p.nome;
+                    tipoPerfilAtivo = p.tipo;
+                }
+            } catch { /* silencioso */ }
+        }
+
         const [categorias, cartoes, despesasMes, receitasMes, despesasRecentes] = await Promise.all([
             buscarCategorias(usuarioId),
-            buscarCartoes(usuarioId),
+            buscarCartoes(usuarioId, perfilId),
             query(
                 `SELECT SUM(COALESCE(valor_pago, valor)) as total,
                         (SELECT nome FROM categorias c WHERE c.id = d.categoria_id) as categoria
                  FROM despesas d
-                 WHERE usuario_id = $1 AND mes = $2 AND ano = $3
+                 WHERE d.usuario_id = $1 AND d.mes = $2 AND d.ano = $3
                    AND NOT (recorrente = true AND LOWER(forma_pagamento) IN ('credito', 'crédito', 'cred-merpago', 'créd-merpago'))
-                 GROUP BY categoria_id ORDER BY total DESC LIMIT 5`,
-                [usuarioId, m, a]
+                   ${perfilFilter}
+                 GROUP BY d.categoria_id ORDER BY total DESC LIMIT 5`,
+                baseParams
             ),
             query(
-                'SELECT SUM(valor) as total FROM receitas WHERE usuario_id = $1 AND mes = $2 AND ano = $3',
-                [usuarioId, m, a]
+                `SELECT SUM(r.valor) as total FROM receitas r
+                 WHERE r.usuario_id = $1 AND r.mes = $2 AND r.ano = $3${perfilFilterReceitas}`,
+                baseParams
             ),
             query(
-                `SELECT descricao, valor FROM despesas
-                 WHERE usuario_id = $1 AND mes = $2 AND ano = $3
-                 ORDER BY criado_em DESC LIMIT 8`,
-                [usuarioId, m, a]
+                `SELECT d.descricao, d.valor FROM despesas d
+                 WHERE d.usuario_id = $1 AND d.mes = $2 AND d.ano = $3${perfilFilter}
+                 ORDER BY d.criado_em DESC LIMIT 8`,
+                baseParams
             )
         ]);
 
         const totalDespesas = despesasMes.rows.reduce((s, r) => s + parseFloat(r.total || 0), 0);
         const totalReceitas = parseFloat(receitasMes.rows[0]?.total || 0);
 
-        // Buscar total pago e em aberto separadamente
         const despesasPagoCtx = await query(
-            'SELECT SUM(COALESCE(valor_pago, valor)) as pago FROM despesas WHERE usuario_id = $1 AND mes = $2 AND ano = $3 AND pago = true',
-            [usuarioId, m, a]
+            `SELECT SUM(COALESCE(valor_pago, valor)) as pago FROM despesas d
+             WHERE d.usuario_id = $1 AND d.mes = $2 AND d.ano = $3 AND d.pago = true${perfilFilter}`,
+            baseParams
         );
         const totalPagoCtx = parseFloat(despesasPagoCtx.rows[0]?.pago || 0);
         const totalEmAbertoCtx = Math.max(0, totalDespesas - totalPagoCtx);
 
         const linhas = [
+            `Perfil ativo: ${tipoPerfilAtivo === 'empresa' ? 'Empresa "' + nomePerfilAtivo + '"' : 'Pessoal'}`,
             `Período atual: ${MESES[m]}/${a}`,
             `Categorias cadastradas: ${categorias.map(c => c.nome).join(', ') || 'nenhuma'}`,
             `Cartões do usuário: ${cartoes.map(c => c.nome).join(', ') || 'nenhum'}`,
@@ -222,7 +251,7 @@ async function buscarContextoSistema(usuarioId, mes, ano) {
 async function chat(req, res) {
     try {
         const usuarioId = req.usuario.id;
-        const { mensagem, limpar_sessao, mes_atual, ano_atual } = req.body;
+        const { mensagem, limpar_sessao, mes_atual, ano_atual, perfil_id } = req.body;
 
         if (!mensagem?.trim()) {
             return res.status(400).json({ success: false, message: 'Mensagem não pode estar vazia.' });
@@ -233,10 +262,12 @@ async function chat(req, res) {
         const sessao = obterSessao(usuarioId);
         const providerConfig = await buscarConfigIA(usuarioId);
 
-        // ── Contexto do sistema (cache de 5 min) ────────────────
+        // ── Contexto do sistema (cache de 5 min, invalidado ao trocar perfil) ─
         const agora = Date.now();
-        if (!sessao.contextoSistema || agora > sessao.contextoSistema.expira) {
-            const texto = await buscarContextoSistema(usuarioId, mes_atual, ano_atual);
+        const perfilMudou = sessao.ultimoPerfilId !== (perfil_id || null);
+        if (perfilMudou) sessao.ultimoPerfilId = (perfil_id || null);
+        if (!sessao.contextoSistema || agora > sessao.contextoSistema.expira || perfilMudou) {
+            const texto = await buscarContextoSistema(usuarioId, mes_atual, ano_atual, perfil_id || null);
             const carta = await buscarCartaServicos();
             sessao.contextoSistema = { texto, carta, expira: agora + 5 * 60 * 1000 };
         }

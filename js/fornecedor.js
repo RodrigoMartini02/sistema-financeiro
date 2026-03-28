@@ -210,12 +210,9 @@ function renderizarGlobo(mapa) {
     // Grupos de marcadores com clustering
     const clusterUsuarios = typeof L.markerClusterGroup === 'function'
         ? L.markerClusterGroup({ maxClusterRadius: 40 }) : L.layerGroup();
-    const clusterEmpresas = typeof L.markerClusterGroup === 'function'
-        ? L.markerClusterGroup({ maxClusterRadius: 40 }) : L.layerGroup();
     const clusterPaises = L.layerGroup();
 
     const iconeUsuario = _criarIconeLeaflet('#a78bfa');
-    const iconeEmpresa = _criarIconeLeaflet('#fb923c');
     const iconePais    = _criarIconeLeaflet('#60a5fa');
 
     // Usuários com GPS exato — roxo
@@ -225,15 +222,6 @@ function renderizarGlobo(mapa) {
         L.marker([lat, lng], { icon: iconeUsuario })
             .bindPopup(`<b>👤 ${u.nome}</b><br>${u.cidade || ''}${u.cidade && u.pais ? ', ' : ''}${u.pais || ''}`)
             .addTo(clusterUsuarios);
-    });
-
-    // Empresas com GPS — laranja
-    (mapa.empresas || []).forEach(e => {
-        const lat = parseFloat(e.latitude), lng = parseFloat(e.longitude);
-        if (isNaN(lat) || isNaN(lng)) return;
-        L.marker([lat, lng], { icon: iconeEmpresa })
-            .bindPopup(`<b>🏢 ${e.nome}</b>${e.atividade ? '<br>' + e.atividade : ''}`)
-            .addTo(clusterEmpresas);
     });
 
     // Fallback: países sem GPS — azul (círculo proporcional)
@@ -252,13 +240,11 @@ function renderizarGlobo(mapa) {
     });
 
     clusterUsuarios.addTo(_globe);
-    clusterEmpresas.addTo(_globe);
     clusterPaises.addTo(_globe);
 
     // Controle de camadas de dados
     L.control.layers({}, {
         '👤 Usuários': clusterUsuarios,
-        '🏢 Empresas': clusterEmpresas,
         '🌍 Por País': clusterPaises
     }, { collapsed: false, position: 'bottomright' }).addTo(_globe);
 
@@ -269,7 +255,6 @@ function renderizarGlobo(mapa) {
         div.style.cssText = 'background:rgba(255,255,255,0.92);padding:8px 12px;border-radius:8px;font-size:12px;line-height:1.8;box-shadow:0 2px 8px rgba(0,0,0,0.15)';
         div.innerHTML = `
             <div><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#a78bfa;margin-right:6px;border:2px solid #fff;box-shadow:0 0 4px #a78bfa88"></span>Usuário (GPS)</div>
-            <div><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#fb923c;margin-right:6px;border:2px solid #fff;box-shadow:0 0 4px #fb923c88"></span>Empresa (GPS)</div>
             <div><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#60a5fa;margin-right:6px;border:2px solid #fff;box-shadow:0 0 4px #60a5fa88"></span>País (sem GPS)</div>
         `;
         return div;
@@ -278,8 +263,7 @@ function renderizarGlobo(mapa) {
 
     // Ajustar view
     const todosPontos = [
-        ...(mapa.pontos_exatos || []).map(u => [parseFloat(u.latitude), parseFloat(u.longitude)]),
-        ...(mapa.empresas || []).map(e => [parseFloat(e.latitude), parseFloat(e.longitude)])
+        ...(mapa.pontos_exatos || []).map(u => [parseFloat(u.latitude), parseFloat(u.longitude)])
     ].filter(p => !isNaN(p[0]) && !isNaN(p[1]));
 
     if (todosPontos.length > 0) {

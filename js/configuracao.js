@@ -580,7 +580,8 @@ async function atualizarCartaoAPI(id, cartao) {
                 dia_vencimento: cartao.dia_vencimento,
                 limite: cartao.limite,
                 ativo: cartao.ativo !== false,
-                validade: cartao.validade || null
+                validade: cartao.validade || null,
+                perfil_id: cartao.perfil_id ? parseInt(cartao.perfil_id) : null
             })
         });
 

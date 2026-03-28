@@ -14,10 +14,9 @@ function setPerfilAtivo(perfilId, nome, tipo) {
     localStorage.setItem(PERFIL_KEY, perfilId);
     localStorage.setItem('perfilAtivoNome', nome);
     localStorage.setItem('perfilAtivoTipo', tipo);
-    atualizarSwitcherUI(tipo);
     atualizarVisibilidadeTemaEmpresa(tipo);
-    const selectEmpresa = document.getElementById('select-empresa-ativa');
-    if (selectEmpresa && tipo === 'empresa') selectEmpresa.value = perfilId;
+    const sel = document.getElementById('select-perfil-ativo');
+    if (sel) sel.value = perfilId;
 }
 
 async function carregarPerfis() {
@@ -65,99 +64,56 @@ async function inicializarPerfis() {
     if (!perfilAtivoId || !perfis.find(p => p.id === perfilAtivoId)) {
         const pessoal = perfis.find(p => p.tipo === 'pessoal') || perfis[0];
         setPerfilAtivo(pessoal.id, pessoal.nome, pessoal.tipo);
+        perfilAtivoId = pessoal.id;
     }
 
-    // Restaurar UI
+    popularSelectPerfil(perfis, perfilAtivoId);
+    configurarEventoSelect(perfis);
+
     const tipo = localStorage.getItem('perfilAtivoTipo') || 'pessoal';
-    atualizarSwitcherUI(tipo);
     atualizarVisibilidadeTemaEmpresa(tipo);
-
-    configurarEventosSwitcher(perfis);
 }
 
-function popularSelectEmpresas(empresas) {
-    const select = document.getElementById('select-empresa-ativa');
-    if (!select) return;
-    select.innerHTML = empresas.map(e =>
-        `<option value="${e.id}">${e.nome_fantasia || e.razao_social || e.nome}</option>`
-    ).join('');
-}
+function popularSelectPerfil(perfis, perfilAtivoId) {
+    const sel = document.getElementById('select-perfil-ativo');
+    if (!sel) return;
 
-function configurarEventosSwitcher(perfis) {
-    const btnPF = document.getElementById('btn-perfil-pf');
-    const btnPJ = document.getElementById('btn-perfil-pj');
-    const selectEmpresa = document.getElementById('select-empresa-ativa');
+    const pessoal  = perfis.find(p => p.tipo === 'pessoal');
+    const empresas = perfis.filter(p => p.tipo === 'empresa' && p.ativo !== false);
 
-    const perfilPessoal  = perfis.find(p => p.tipo === 'pessoal');
-    const perfisEmpresa  = perfis.filter(p => p.tipo === 'empresa' && p.ativo !== false);
-    const primeiraEmpresa = perfisEmpresa[0];
+    let html = '';
 
-    if (btnPJ) btnPJ.classList.toggle('disabled', !primeiraEmpresa);
+    if (pessoal) {
+        html += `<option value="${pessoal.id}">👤 Pessoal (PF)</option>`;
+    }
 
-    if (btnPF) {
-        btnPF.addEventListener('click', () => {
-            if (!perfilPessoal) return;
-            if (localStorage.getItem('perfilAtivoTipo') === 'pessoal') return;
-            setPerfilAtivo(perfilPessoal.id, perfilPessoal.nome, perfilPessoal.tipo);
-            _recarregarComFeedback('Carregando perfil pessoal...');
+    if (empresas.length) {
+        html += `<optgroup label="Empresas (PJ)">`;
+        empresas.forEach(e => {
+            const nome = e.nome_fantasia || e.razao_social || e.nome;
+            html += `<option value="${e.id}">🏢 ${nome}</option>`;
         });
+        html += `</optgroup>`;
     }
 
-    if (btnPJ) {
-        btnPJ.addEventListener('click', () => {
-            if (!primeiraEmpresa) return;
-            if (localStorage.getItem('perfilAtivoTipo') === 'empresa') return;
-            setPerfilAtivo(primeiraEmpresa.id, primeiraEmpresa.nome, primeiraEmpresa.tipo);
-            _recarregarComFeedback(`Carregando ${primeiraEmpresa.nome_fantasia || primeiraEmpresa.nome}...`);
-        });
-    }
-
-    // Múltiplas empresas: popular select e registrar handler de troca
-    if (perfisEmpresa.length > 1) {
-        popularSelectEmpresas(perfisEmpresa);
-
-        if (selectEmpresa) {
-            selectEmpresa.addEventListener('change', () => {
-                const empresaSelecionada = perfisEmpresa.find(e => e.id === parseInt(selectEmpresa.value));
-                if (!empresaSelecionada) return;
-                setPerfilAtivo(empresaSelecionada.id, empresaSelecionada.nome, empresaSelecionada.tipo);
-                _recarregarComFeedback(`Carregando ${empresaSelecionada.nome_fantasia || empresaSelecionada.nome}...`);
-            });
-        }
-    }
-
-    // Sincronizar select com perfil ativo atual
-    const perfilAtivoId = getPerfilAtivo();
-    if (selectEmpresa && perfisEmpresa.find(e => e.id === perfilAtivoId)) {
-        selectEmpresa.value = perfilAtivoId;
-    }
+    sel.innerHTML = html;
+    sel.value = perfilAtivoId;
 }
 
-function atualizarSwitcherUI(tipo) {
-    const btnPF = document.getElementById('btn-perfil-pf');
-    const btnPJ = document.getElementById('btn-perfil-pj');
-    const selectEmpresa = document.getElementById('select-empresa-ativa');
-    if (!btnPF || !btnPJ) return;
+function configurarEventoSelect(perfis) {
+    const sel = document.getElementById('select-perfil-ativo');
+    if (!sel) return;
 
-    const nomeAtivo = localStorage.getItem('perfilAtivoNome') || '';
-
-    if (tipo === 'empresa') {
-        btnPF.classList.remove('ativo');
-        btnPF.title = 'Pessoal (PF)';
-        btnPJ.classList.add('ativo');
-        btnPJ.title = `Empresa ativa: ${nomeAtivo}`;
-        if (selectEmpresa && selectEmpresa.options.length > 1) {
-            selectEmpresa.style.display = '';
-            const perfilAtivoId = getPerfilAtivo();
-            if (perfilAtivoId) selectEmpresa.value = perfilAtivoId;
-        }
-    } else {
-        btnPF.classList.add('ativo');
-        btnPF.title = `Perfil ativo: ${nomeAtivo}`;
-        btnPJ.classList.remove('ativo');
-        btnPJ.title = 'Empresa (PJ)';
-        if (selectEmpresa) selectEmpresa.style.display = 'none';
-    }
+    sel.addEventListener('change', () => {
+        const id = parseInt(sel.value);
+        const perfil = perfis.find(p => p.id === id);
+        if (!perfil) return;
+        setPerfilAtivo(perfil.id, perfil.nome || perfil.nome_fantasia || perfil.razao_social, perfil.tipo);
+        const label = perfil.tipo === 'pessoal'
+            ? 'Carregando perfil pessoal...'
+            : `Carregando ${perfil.nome_fantasia || perfil.razao_social || perfil.nome}...`;
+        _recarregarComFeedback(label);
+    });
 }
 
 function atualizarVisibilidadeTemaEmpresa(tipo) {
@@ -175,12 +131,18 @@ function atualizarVisibilidadeTemaEmpresa(tipo) {
 }
 
 function _recarregarComFeedback(mensagem) {
-    const switcher = document.getElementById('perfil-switcher');
-    if (switcher) switcher.style.opacity = '0.5';
+    const sel = document.getElementById('select-perfil-ativo');
+    if (sel) sel.style.opacity = '0.5';
     if (typeof window.mostrarToast === 'function') window.mostrarToast(mensagem, 'info');
     if (typeof window.recarregarDadosApp === 'function') {
         window.recarregarDadosApp().finally(() => {
-            if (switcher) switcher.style.opacity = '';
+            if (sel) sel.style.opacity = '';
+            // Notificar IA sobre troca de perfil
+            if (window.IA && typeof window.IA.notificarTrocaPerfil === 'function') {
+                const nome = localStorage.getItem('perfilAtivoNome') || '';
+                const tipo = localStorage.getItem('perfilAtivoTipo') || 'pessoal';
+                window.IA.notificarTrocaPerfil(nome, tipo);
+            }
         });
     }
 }
@@ -188,10 +150,10 @@ function _recarregarComFeedback(mensagem) {
 // P3.2 — Sincronizar troca de perfil entre abas do browser
 window.addEventListener('storage', (e) => {
     if (e.key === PERFIL_KEY && e.newValue && e.newValue !== e.oldValue) {
-        // Outra aba trocou de perfil — recarregar silenciosamente
         const tipo = localStorage.getItem('perfilAtivoTipo') || 'pessoal';
-        atualizarSwitcherUI(tipo);
         atualizarVisibilidadeTemaEmpresa(tipo);
+        const sel = document.getElementById('select-perfil-ativo');
+        if (sel) sel.value = e.newValue;
         if (typeof window.recarregarDadosApp === 'function') window.recarregarDadosApp();
     }
 });

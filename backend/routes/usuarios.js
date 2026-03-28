@@ -811,23 +811,11 @@ router.get('/stats/mapa', authMiddleware, isMaster, async (req, res) => {
             ORDER BY total DESC
         `);
 
-        const empresas = await query(`
-            SELECT
-                COALESCE(razao_social, nome) as nome,
-                latitude, longitude,
-                atividade
-            FROM perfis
-            WHERE tipo = 'empresa'
-            AND ativo = true
-            AND latitude IS NOT NULL AND longitude IS NOT NULL
-        `);
-
         res.json({
             success: true,
             data: {
                 pontos_exatos: pontosExatos.rows,
-                por_pais: porPais.rows,
-                empresas: empresas.rows
+                por_pais: porPais.rows
             }
         });
 
