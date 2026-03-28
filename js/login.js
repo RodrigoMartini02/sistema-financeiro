@@ -141,6 +141,7 @@ async function verificarRetornoGoogle() {
         sessionStorage.setItem('token', token);
         sessionStorage.setItem('usuarioAtual', usuario.documento || usuario.email);
         sessionStorage.setItem('dadosUsuarioLogado', dadosUsuarioGoogle);
+        localStorage.removeItem('perfilAtivoId');
 
         const redirect = sessionStorage.getItem('redirectAfterLogin');
         sessionStorage.removeItem('redirectAfterLogin');
@@ -293,6 +294,7 @@ async function processarLogin(documento, password, isModal, tentativa = 1) {
         sessionStorage.setItem('token', token);
         sessionStorage.setItem('usuarioAtual', docLimpo);
         sessionStorage.setItem('dadosUsuarioLogado', dadosUsuario);
+        localStorage.removeItem('perfilAtivoId');
 
         const redirect = sessionStorage.getItem('redirectAfterLogin');
         sessionStorage.removeItem('redirectAfterLogin');
