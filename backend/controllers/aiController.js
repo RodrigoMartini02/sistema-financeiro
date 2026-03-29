@@ -106,15 +106,22 @@ async function buscarResumoFinanceiro(usuarioId, mes, ano) {
     const m = mes ?? hoje.getMonth();
     const a = ano ?? hoje.getFullYear();
 
+    // Filtro de exclusão: despesas recorrentes pagas no crédito não entram no total
+    // (são "invisíveis" para o saldo — o limite do cartão as absorve separadamente).
+    // O mesmo filtro deve ser aplicado tanto no total quanto no valor já pago, para
+    // que totalPago nunca seja maior que totalDespesas.
+    const EXCLUIR_RECORRENTE_CREDITO = `
+      NOT (d.recorrente = true AND LOWER(d.forma_pagamento) IN ('credito', 'crédito', 'cred-merpago', 'créd-merpago'))`;
+
     try {
         const [despesas, receitas, despesasPago] = await Promise.all([
             query(
                 `SELECT SUM(COALESCE(valor_pago, valor)) as total, categoria_id,
                         (SELECT nome FROM categorias c WHERE c.id = d.categoria_id) as categoria
                  FROM despesas d
-                 WHERE usuario_id = $1 AND mes = $2 AND ano = $3
-                   AND NOT (recorrente = true AND LOWER(forma_pagamento) IN ('credito', 'crédito', 'cred-merpago', 'créd-merpago'))
-                 GROUP BY categoria_id`,
+                 WHERE d.usuario_id = $1 AND d.mes = $2 AND d.ano = $3
+                   AND ${EXCLUIR_RECORRENTE_CREDITO}
+                 GROUP BY d.categoria_id`,
                 [usuarioId, m, a]
             ),
             query(
@@ -122,7 +129,11 @@ async function buscarResumoFinanceiro(usuarioId, mes, ano) {
                 [usuarioId, m, a]
             ),
             query(
-                'SELECT SUM(COALESCE(valor_pago, valor)) as pago FROM despesas WHERE usuario_id = $1 AND mes = $2 AND ano = $3 AND pago = true',
+                `SELECT SUM(COALESCE(valor_pago, valor)) as pago
+                 FROM despesas d
+                 WHERE d.usuario_id = $1 AND d.mes = $2 AND d.ano = $3
+                   AND d.pago = true
+                   AND ${EXCLUIR_RECORRENTE_CREDITO}`,
                 [usuarioId, m, a]
             )
         ]);
@@ -213,7 +224,9 @@ async function buscarContextoSistema(usuarioId, mes, ano, perfilId = null) {
 
         const despesasPagoCtx = await query(
             `SELECT SUM(COALESCE(valor_pago, valor)) as pago FROM despesas d
-             WHERE d.usuario_id = $1 AND d.mes = $2 AND d.ano = $3 AND d.pago = true${perfilFilter}`,
+             WHERE d.usuario_id = $1 AND d.mes = $2 AND d.ano = $3 AND d.pago = true
+               AND NOT (d.recorrente = true AND LOWER(d.forma_pagamento) IN ('credito', 'crédito', 'cred-merpago', 'créd-merpago'))
+               ${perfilFilter}`,
             baseParams
         );
         const totalPagoCtx = parseFloat(despesasPagoCtx.rows[0]?.pago || 0);

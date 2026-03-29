@@ -103,6 +103,11 @@ window.IA = (function () {
         }).then(function (r) { return r.json(); });
     }
 
+    function apiMainGet(path) {
+        return fetch(apiURL() + path, { headers: hdrs() })
+            .then(function (r) { return r.json(); });
+    }
+
     // ── PAINEL FLUTUANTE ──────────────────────────────────────────
     function abrir() {
         var panel = document.getElementById('ai-chat-panel');
@@ -173,7 +178,7 @@ window.IA = (function () {
             if (!window.cartoesUsuario || window.cartoesUsuario.length === 0) {
                 var perfilId = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
                 var perfilQuery = perfilId ? '?perfil_id=' + perfilId : '';
-                apiGet('/cartoes' + perfilQuery).then(function(res) {
+                apiMainGet('/cartoes' + perfilQuery).then(function(res) {
                     if (res && res.success && Array.isArray(res.data)) {
                         window.cartoesUsuario = res.data;
                     }
@@ -864,40 +869,42 @@ window.IA = (function () {
         }
 
         if (campo === 'cartao_id') {
-            function _mostrarChipsCartao() {
+            // Sempre busca cartões frescos da API para evitar dados desatualizados
+            var _perfilIdCartao = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
+            var _perfilQueryCartao = _perfilIdCartao ? '?perfil_id=' + _perfilIdCartao : '';
+            apiMainGet('/cartoes' + _perfilQueryCartao).then(function(res) {
+                if (res && res.success && Array.isArray(res.data)) {
+                    window.cartoesUsuario = res.data;
+                }
                 var cartoes = (window.cartoesUsuario || []).filter(function(c) { return c.ativo !== false; });
+                removeTyping(tid2);
                 if (cartoes.length === 0) {
-                    removeTyping(tid2);
-                    addGen('Qual cartão de crédito?');
-                } else if (cartoes.length === 1) {
-                    estado.dadosParciais.cartao_id = cartoes[0].id;
+                    addGen('Nenhum cartão cadastrado. Cadastre um cartão no sistema e tente novamente.');
+                    // Cancela a coleta deste campo e prossegue sem cartão
                     estado.filaCampos.shift();
                     estado.aguardandoCampo = null;
-                    removeTyping(tid2);
+                    _proximoCampo();
+                } else if (cartoes.length === 1) {
+                    estado.dadosParciais.cartao_id = cartoes[0].id;
+                    estado.dadosParciais.nome_cartao = cartoes[0].nome || cartoes[0].banco || 'Cartão';
+                    estado.filaCampos.shift();
+                    estado.aguardandoCampo = null;
                     _proximoCampo();
                 } else {
                     var btnsCartao = cartoes.map(function(c) {
                         var nome = c.nome || c.banco || 'Cartão';
-                        return '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="' + esc(nome) + '">' + esc(nome) + '</button>';
+                        return '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="' + esc(nome) + '" data-opcao-label="' + esc(nome) + '">' + esc(nome) + '</button>';
                     }).join('');
-                    removeTyping(tid2);
                     addGen('Qual cartão de crédito?<div class="ai-welcome-chips">' + btnsCartao + '</div>');
                 }
-            }
-
-            // Se cartões ainda não carregados, buscar da API antes de exibir chips
-            if (!window.cartoesUsuario || window.cartoesUsuario.length === 0) {
-                var perfilId = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
-                var perfilQuery = perfilId ? '?perfil_id=' + perfilId : '';
-                apiGet('/cartoes' + perfilQuery).then(function(res) {
-                    if (res && res.success && Array.isArray(res.data)) {
-                        window.cartoesUsuario = res.data;
-                    }
-                    _mostrarChipsCartao();
-                }).catch(function() { _mostrarChipsCartao(); });
-            } else {
-                setTimeout(_mostrarChipsCartao, 600);
-            }
+            }).catch(function() {
+                removeTyping(tid2);
+                addGen('Não foi possível carregar os cartões. Verifique sua conexão e tente novamente.');
+                // Cancela a coleta deste campo para não travar o fluxo
+                estado.filaCampos.shift();
+                estado.aguardandoCampo = null;
+                _proximoCampo();
+            });
             return;
         }
 
@@ -1525,8 +1532,9 @@ window.IA = (function () {
         if (e.target.closest('[data-chip]')) { _chip(e.target.closest('[data-chip]')); return; }
 
         // Botões de opção rápida (forma de pagamento, cartão, etc.)
+        // e chips de continuação (próxima ação após confirmar despesa/receita)
         var opcaoEl = e.target.closest('[data-opcao]');
-        if (opcaoEl && estado.aguardandoCampo) {
+        if (opcaoEl) {
             var opcaoVal   = opcaoEl.dataset.opcao;
             var opcaoLabel = opcaoEl.dataset.opcaoLabel || opcaoEl.textContent.trim();
             // Desabilita todos os botões da mesma mensagem para evitar re-clique
@@ -1534,8 +1542,14 @@ window.IA = (function () {
             if (msgContainer) {
                 msgContainer.querySelectorAll('[data-opcao]').forEach(function(b) { b.disabled = true; b.style.opacity = '0.5'; });
             }
-            addUser(opcaoLabel);
-            _processarCampoColetado(opcaoVal);
+            if (estado.aguardandoCampo) {
+                // Coleta de campos faltantes: processa localmente
+                addUser(opcaoLabel);
+                _processarCampoColetado(opcaoVal);
+            } else {
+                // Chip de continuação / próxima ação: envia como mensagem ao backend
+                enviarAcaoRapida(opcaoVal);
+            }
             return;
         }
 

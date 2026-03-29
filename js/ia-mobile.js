@@ -24,7 +24,6 @@
 
     // ── 1. SCROLL AUTOMÁTICO + BOTÃO ↓ ───────────────────────────
     var _deferredInstall = null;
-    var _scrollSuppressed = false;
 
     function scrollParaBaixo() {
         if (!chatArea) return;
@@ -104,7 +103,7 @@
         btnInstalar.addEventListener('click', function () {
             if (!_deferredInstall) return;
             _deferredInstall.prompt();
-            _deferredInstall.userChoice.then(function (result) {
+            _deferredInstall.userChoice.then(function () {
                 if (installBanner) installBanner.classList.remove('visible');
                 _deferredInstall = null;
             });
