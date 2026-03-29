@@ -520,8 +520,9 @@ async function seedCartaServicos() {
         const matchDB = cartaAtual.match(/^#\s*CARTA_VERSION:\s*(.+)$/m);
         const versaoDB = matchDB ? matchDB[1].trim() : '0.0';
 
-        // Atualizar apenas se versão do arquivo for diferente (maior ou nova)
-        if (cartaAtual && versaoArquivo === versaoDB) {
+        // Só aplica se a versão do arquivo for MAIOR que a do banco
+        // (nunca sobrescreve se versão já igual — preserva edições do sidebar)
+        if (cartaAtual && versaoDB >= versaoArquivo) {
             console.log(`ℹ️ Carta de Serviços já está na versão ${versaoDB} — sem atualização`);
             return;
         }
