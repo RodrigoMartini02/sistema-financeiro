@@ -454,23 +454,35 @@ router.post('/:id/movimentar', authMiddleware, [
 // IMPORTANTE: Esta rota deve vir ANTES de /:id/movimentacoes
 router.get('/movimentacoes/todas', authMiddleware, async (req, res) => {
     try {
-        const { limite = 20, offset = 0 } = req.query;
+        const { limite = 20, offset = 0, perfil_id } = req.query;
+
+        let perfilFilter = '';
+        const params = [req.usuario.id];
+        if (perfil_id) {
+            perfilFilter = ` AND (r.perfil_id = $2 OR (r.perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis p WHERE p.id = $2 AND p.tipo = 'pessoal' AND p.usuario_id = $1)))`;
+            params.push(parseInt(perfil_id));
+        }
+
+        const limiteParam = params.push(parseInt(limite)) && params.length;
+        const offsetParam = params.push(parseInt(offset)) && params.length;
 
         const result = await query(
             `SELECT mr.*, r.observacoes as nome_reserva
              FROM movimentacoes_reservas mr
              INNER JOIN reservas r ON mr.reserva_id = r.id
-             WHERE r.usuario_id = $1
+             WHERE r.usuario_id = $1${perfilFilter}
              ORDER BY mr.data_hora ASC
-             LIMIT $2 OFFSET $3`,
-            [req.usuario.id, parseInt(limite), parseInt(offset)]
+             LIMIT $${limiteParam} OFFSET $${offsetParam}`,
+            params
         );
 
+        const totalParams = [req.usuario.id];
+        if (perfil_id) totalParams.push(parseInt(perfil_id));
         const total = await query(
             `SELECT COUNT(*) FROM movimentacoes_reservas mr
              INNER JOIN reservas r ON mr.reserva_id = r.id
-             WHERE r.usuario_id = $1`,
-            [req.usuario.id]
+             WHERE r.usuario_id = $1${perfilFilter}`,
+            totalParams
         );
 
         res.json({

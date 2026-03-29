@@ -1030,11 +1030,13 @@ async function carregarReservasAPI() {
         if (!token) return [];
 
         // Carregar reservas e movimentações em paralelo
+        const perfilId = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
+        const perfilQuery = perfilId ? `?perfil_id=${perfilId}` : '';
         const [reservasResponse, movimentacoesResponse] = await Promise.all([
-            fetch(`${API_URL_RESERVAS}/reservas`, {
+            fetch(`${API_URL_RESERVAS}/reservas${perfilQuery}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             }),
-            fetch(`${API_URL_RESERVAS}/reservas/movimentacoes/todas?limite=1000`, {
+            fetch(`${API_URL_RESERVAS}/reservas/movimentacoes/todas?limite=1000${perfilId ? `&perfil_id=${perfilId}` : ''}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
         ]);

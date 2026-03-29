@@ -1401,7 +1401,7 @@ function criarCardMes(mes, ano) {
 
     // Saldo anterior disponível = saldo anterior - movimentações acumuladas até o mês anterior
     let movimentacoesAnteriores = 0;
-    if (mes > 0 || ano > Math.min(...Object.keys(dadosFinanceiros).map(Number))) {
+    if (mes > 0 || ano > Math.min(...Object.keys(dadosFinanceiros || {}).map(Number))) {
         const mesAnterior = mes === 0 ? 11 : mes - 1;
         const anoAnterior = mes === 0 ? ano - 1 : ano;
         if (typeof window.calcularTotalReservasAcumuladas === 'function') {
@@ -2270,7 +2270,9 @@ function calcularSaldoMes(mes, ano) {
             if (dadosMes.fechado === true) return sum + obterValor(d);
             const ehRecorrente = d.recorrente === true || d.recorrente === 'true' || d.recorrente === 1 || d.recorrente === '1';
             const ehParcelado = d.parcelado || d.parcela || d.idGrupoParcelamento;
-            if (ehRecorrente && !ehParcelado) {
+            // Parceladas confirmadas sempre contam (são compromissos futuros definidos)
+            if (ehParcelado) return sum + obterValor(d);
+            if (ehRecorrente) {
                 if (!d.dataVencimento) return sum;
                 const partes = d.dataVencimento.split('-');
                 const vencimento = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
@@ -2715,9 +2717,9 @@ window.recarregarDadosApp = async function() {
         if (window.usuarioDataManager && typeof window.usuarioDataManager.limparCache === 'function') {
             window.usuarioDataManager.limparCache();
         }
-        // Forçar busca na API ignorando todos os caches
-        window.dadosFinanceiros = null;
-        dadosFinanceiros = null;
+        // Forçar busca na API ignorando todos os caches (usa {} em vez de null para evitar crash em funções concorrentes)
+        window.dadosFinanceiros = {};
+        dadosFinanceiros = {};
         window.reservasCache = null;
         window.movimentacoesReservasCache = null;
         // Limpar mês aberto para evitar tentativa de renderizar mês de outro perfil
