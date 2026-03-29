@@ -157,6 +157,9 @@ window.IA = (function () {
             var sel = document.getElementById('ia-provider-select');
             if (sel) { sel.value = provider; _iaInitializando = true; sel.dispatchEvent(new Event('change')); _iaInitializando = false; }
 
+            // Notifica ia-mobile.js (e qualquer listener) que a IA terminou de inicializar
+            document.dispatchEvent(new CustomEvent('ia:pronto'));
+
             // Se o provedor atual tem chave, mostra preview (primeiros chars + bullets)
             if (!isGen && (cfg.tem_chave || hasKeys[provider])) {
                 var inp = document.getElementById('ia-api-key-input');
