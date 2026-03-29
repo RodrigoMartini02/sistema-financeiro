@@ -1,0 +1,568 @@
+/* ================================================================
+   IA-MOBILE.CSS — Layout exclusivo para ia-mobile.html
+   Chat-first, sem sidebar, teclado virtual compatível
+   ================================================================ */
+
+/* ── Reset de página ─────────────────────────────────────────── */
+body:has(.ia-container.im-page) {
+    margin: 0;
+    padding: 0;
+    background: var(--bg-color, #f0f2f5);
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    color: var(--text-color, #1a1a2e);
+    height: 100dvh;
+    overflow: hidden;
+}
+
+/* ── Container principal: coluna ─────────────────────────────── */
+.ia-container.im-page {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    overflow: hidden;
+}
+
+/* Esconde sidebar do desktop no contexto mobile */
+.ia-container.im-page .ia-sidebar,
+.ia-container.im-page .ia-btn-menu-mobile {
+    display: none !important;
+}
+
+/* ── Header mobile ───────────────────────────────────────────── */
+.im-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px;
+    height: 56px;
+    min-height: 56px;
+    background: var(--card-bg, #fff);
+    border-bottom: 1px solid var(--border-color, #e0e4ef);
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+.im-btn-icon {
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: none;
+    border-radius: 10px;
+    cursor: pointer;
+    color: var(--text-color, #1a1a2e);
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s;
+}
+.im-btn-icon:hover,
+.im-btn-icon:active {
+    background: var(--hover-bg, #f0f2f5);
+}
+
+.im-header-center {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.im-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--primary-color, #4361ee);
+    line-height: 1;
+}
+
+.im-header-status {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.im-header-status .ia-status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #94a3b8;
+    flex-shrink: 0;
+    transition: background 0.3s;
+}
+.im-header-status .ia-status-dot.connected { background: #22c55e; }
+.im-header-status .ia-status-dot.error { background: #ef4444; }
+
+.im-header-status .ia-status-text {
+    font-size: 11px;
+    color: var(--gray-500, #6c757d);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── Main (area central): flex-column, ocupa espaço restante ─── */
+.ia-container.im-page .ia-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--bg-color, #f0f2f5);
+}
+
+/* Ocultar header interno do ia.main (substitído pelo im-header) */
+.ia-container.im-page .ia-header {
+    display: none;
+}
+
+/* ── Chat area ───────────────────────────────────────────────── */
+.ia-container.im-page .ia-chat-area {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 16px 12px;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+/* ── Botão scroll para baixo ─────────────────────────────────── */
+.im-scroll-btn {
+    position: fixed;
+    bottom: 80px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--primary-color, #4361ee);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(67,97,238,0.4);
+    z-index: 50;
+    opacity: 0;
+    transform: translateY(8px) scale(0.9);
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+}
+.im-scroll-btn.visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+/* ── Banner de instalação PWA ────────────────────────────────── */
+.im-install-banner {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--card-bg, #fff);
+    border-top: 1px solid var(--border-color, #e0e4ef);
+    padding: 14px 16px env(safe-area-inset-bottom, 14px);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 300;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.12);
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.im-install-banner.visible {
+    transform: translateY(0);
+}
+.im-install-banner-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    object-fit: cover;
+}
+.im-install-banner-text {
+    flex: 1;
+    min-width: 0;
+}
+.im-install-banner-text strong {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-color, #1a1a2e);
+}
+.im-install-banner-text span {
+    font-size: 12px;
+    color: var(--gray-500, #6c757d);
+}
+.im-install-btn {
+    background: var(--primary-color, #4361ee);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 9px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+.im-install-dismiss {
+    background: none;
+    border: none;
+    color: var(--gray-500, #6c757d);
+    cursor: pointer;
+    font-size: 18px;
+    padding: 4px;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+[data-theme="dark"] .im-install-banner {
+    background: var(--card-bg, #1e293b);
+    border-color: var(--border-color, #334155);
+}
+[data-theme="dark"] .im-install-banner-text strong {
+    color: var(--text-color, #e2e8f0);
+}
+
+/* ── Input area ──────────────────────────────────────────────── */
+.ia-container.im-page .ia-input-area {
+    flex-shrink: 0;
+    padding: 8px 10px env(safe-area-inset-bottom, 8px);
+    background: var(--card-bg, #fff);
+    border-top: 1px solid var(--border-color, #e0e4ef);
+}
+
+.ia-container.im-page .ia-input-hint {
+    display: none;
+}
+
+/* ── BOTTOM SHEET ────────────────────────────────────────────── */
+.im-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+}
+.im-sheet-backdrop.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.im-bottom-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--card-bg, #fff);
+    border-radius: 20px 20px 0 0;
+    z-index: 201;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    max-height: 85dvh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 -4px 32px rgba(0,0,0,0.15);
+}
+.im-bottom-sheet.open {
+    transform: translateY(0);
+}
+
+.im-sheet-handle {
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border-color, #e0e4ef);
+    margin: 10px auto 6px;
+    flex-shrink: 0;
+}
+
+.im-sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 16px 12px;
+    flex-shrink: 0;
+}
+.im-sheet-header h3 {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-color, #1a1a2e);
+}
+.im-sheet-close {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: var(--hover-bg, #f0f2f5);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    color: var(--gray-500, #6c757d);
+}
+
+.im-sheet-body {
+    overflow-y: auto;
+    flex: 1;
+    padding: 0 16px env(safe-area-inset-bottom, 16px);
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Perfil */
+.im-sheet-profile {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-color, #e0e4ef);
+    margin-bottom: 12px;
+}
+.im-sheet-profile .im-user-nome {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-color, #1a1a2e);
+}
+.im-sheet-profile select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border-color, #e0e4ef);
+    border-radius: 8px;
+    background: var(--bg-color, #f0f2f5);
+    color: var(--text-color, #1a1a2e);
+    font-size: 13px;
+}
+
+/* Provider badge */
+.im-provider-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--bg-color, #f0f2f5);
+    font-size: 12px;
+    color: var(--gray-500, #6c757d);
+    margin-bottom: 12px;
+}
+.im-provider-badge i { font-size: 14px; color: var(--primary-color, #4361ee); }
+
+/* Seções */
+.im-sheet-section {
+    margin-bottom: 16px;
+}
+.im-sheet-section h4 {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gray-500, #6c757d);
+    margin: 0 0 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Actions no sheet reutilizam .ia-acao-btn e .ia-exemplo-item do ia.css */
+
+/* Configurar IA no sheet */
+.im-ia-config {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.im-ia-config .ia-badge-status {
+    align-self: flex-start;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.im-ia-config .ia-badge-status.gen   { background: #ede9fe; color: #7c3aed; }
+.im-ia-config .ia-badge-status.ativo { background: #dcfce7; color: #16a34a; }
+.im-ia-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray-500, #6c757d);
+    margin-bottom: 2px;
+}
+.im-ia-select {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--border-color, #e0e4ef);
+    border-radius: 8px;
+    background: var(--bg-color, #f0f2f5);
+    color: var(--text-color, #1a1a2e);
+    font-size: 13px;
+}
+.im-ia-key-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.im-ia-key-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.im-ia-key-input {
+    flex: 1;
+    padding: 9px 10px;
+    border: 1px solid var(--border-color, #e0e4ef);
+    border-radius: 8px;
+    background: var(--bg-color, #f0f2f5);
+    color: var(--text-color, #1a1a2e);
+    font-size: 13px;
+}
+.im-ia-save-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 8px;
+    background: var(--primary-color, #4361ee);
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.im-ia-key-hint {
+    font-size: 11px;
+    color: var(--gray-500, #6c757d);
+    margin: 0;
+    line-height: 1.4;
+}
+.im-ia-key-hint code {
+    background: var(--border-color, #e0e4ef);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 11px;
+}
+
+[data-theme="dark"] .im-ia-select,
+[data-theme="dark"] .im-ia-key-input {
+    background: var(--bg-color, #0f172a);
+    border-color: var(--border-color, #334155);
+    color: var(--text-color, #e2e8f0);
+}
+
+/* Separador */
+.im-sheet-divider {
+    height: 1px;
+    background: var(--border-color, #e0e4ef);
+    margin: 12px 0;
+}
+
+/* Botões de ação do sheet */
+.im-sheet-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 4px 0 8px;
+}
+.im-sheet-btn {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1px solid var(--border-color, #e0e4ef);
+    background: var(--card-bg, #fff);
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-color, #1a1a2e);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background 0.15s;
+}
+.im-sheet-btn:hover,
+.im-sheet-btn:active {
+    background: var(--hover-bg, #f0f2f5);
+}
+.im-sheet-btn--danger {
+    color: #ef4444;
+    border-color: #fecaca;
+}
+.im-sheet-btn--danger:hover {
+    background: #fef2f2;
+}
+.im-sheet-btn i {
+    font-size: 15px;
+    width: 18px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+/* ── Welcome mobile ──────────────────────────────────────────── */
+.ia-container.im-page .ia-welcome {
+    padding: 32px 16px 24px;
+    align-items: center;
+    text-align: center;
+}
+
+.ia-container.im-page .ia-welcome-icon {
+    width: 60px;
+    height: 60px;
+    font-size: 26px;
+}
+
+.ia-container.im-page .ia-welcome h2 {
+    font-size: 20px;
+}
+
+.ia-container.im-page .ia-welcome p {
+    font-size: 13px;
+    max-width: 280px;
+}
+
+.ia-container.im-page .ia-welcome-chips {
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.ia-container.im-page .ia-welcome-chips span {
+    white-space: normal;
+    text-align: center;
+    font-size: 13px;
+    padding: 8px 14px;
+}
+
+/* ── Dark theme ──────────────────────────────────────────────── */
+[data-theme="dark"] .im-header,
+[data-theme="dark"] .im-bottom-sheet {
+    background: var(--card-bg, #1e293b);
+    border-color: var(--border-color, #334155);
+}
+[data-theme="dark"] .im-btn-icon {
+    color: var(--text-color, #e2e8f0);
+}
+[data-theme="dark"] .im-sheet-close {
+    background: var(--hover-bg, #334155);
+    color: var(--gray-500, #94a3b8);
+}
+[data-theme="dark"] .im-sheet-profile select,
+[data-theme="dark"] .im-provider-badge {
+    background: var(--bg-color, #0f172a);
+    border-color: var(--border-color, #334155);
+    color: var(--text-color, #e2e8f0);
+}
+[data-theme="dark"] .im-sheet-btn {
+    background: var(--card-bg, #1e293b);
+    border-color: var(--border-color, #334155);
+    color: var(--text-color, #e2e8f0);
+}
+[data-theme="dark"] .im-sheet-btn:hover {
+    background: var(--hover-bg, #334155);
+}

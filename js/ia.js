@@ -166,6 +166,17 @@ window.IA = (function () {
 
             _atualizarBadgeExterna(provider);
 
+            // Carrega cartões se ainda não estiverem disponíveis (ia.html não carrega main.js)
+            if (!window.cartoesUsuario || window.cartoesUsuario.length === 0) {
+                var perfilId = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
+                var perfilQuery = perfilId ? '?perfil_id=' + perfilId : '';
+                apiGet('/cartoes' + perfilQuery).then(function(res) {
+                    if (res && res.success && Array.isArray(res.data)) {
+                        window.cartoesUsuario = res.data;
+                    }
+                }).catch(function() {});
+            }
+
         }).catch(function () {
             // /config falhou (novo endpoint ainda não deployado?) — tenta /status sem auth
             apiGet('/status').then(function (st) {
@@ -292,6 +303,15 @@ window.IA = (function () {
         setBtnDisabled(true);
         addUser(texto);
         var tid = addTyping();
+
+        // Interceptar intenção de encerrar conversa
+        if (/^encerrar$|^(encer|finaliz|tchau|obrigad|até|valeu|ok\s*obrigad)/i.test(texto.trim())) {
+            estado.enviando = false;
+            setBtnDisabled(false);
+            removeTyping(tid);
+            addGen('Até mais! Qualquer coisa é só chamar. 👋');
+            return;
+        }
 
         // Interceptar intenção de troca de perfil antes de ir ao backend
         if (_isTrocaPerfil(texto)) {
@@ -599,6 +619,13 @@ window.IA = (function () {
                 } else {
                     _refreshMes();
                 }
+                // Pergunta se quer continuar
+                setTimeout(function() {
+                    var chips = '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="cadastrar despesa" data-opcao-label="Cadastrar despesa">💸 Cadastrar despesa</button>' +
+                                '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="cadastrar receita" data-opcao-label="Cadastrar receita">💰 Cadastrar receita</button>' +
+                                '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="encerrar" data-opcao-label="Encerrar">✓ Encerrar</button>';
+                    addGen('Posso ajudar com mais alguma coisa?<div class="ai-welcome-chips">' + chips + '</div>');
+                }, 600);
             } else {
                 addGen('Erro ao cadastrar: ' + ((res && res.message) || (res && res.errors && res.errors[0] && res.errors[0].msg) || 'tente novamente.'));
             }
@@ -683,6 +710,13 @@ window.IA = (function () {
                 if (typeof window.carregarDadosDashboard === 'function') {
                     window.carregarDadosDashboard(ano);
                 }
+                // Pergunta se quer continuar
+                setTimeout(function() {
+                    var chips = '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="cadastrar despesa" data-opcao-label="Cadastrar despesa">💸 Cadastrar despesa</button>' +
+                                '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="cadastrar receita" data-opcao-label="Cadastrar receita">💰 Cadastrar receita</button>' +
+                                '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="encerrar" data-opcao-label="Encerrar">✓ Encerrar</button>';
+                    addGen('Posso ajudar com mais alguma coisa?<div class="ai-welcome-chips">' + chips + '</div>');
+                }, 600);
             } else {
                 addGen('Erro ao salvar: ' + ((res && res.message) || 'tente novamente.'));
             }
@@ -1433,6 +1467,15 @@ window.IA = (function () {
         var action = e.target.closest('[data-action]');
         if (action) {
             var a = action.dataset.action;
+            // Bloqueia todos os botões do card imediatamente para evitar duplo clique
+            var cardContainer = action.closest('.ai-msg');
+            if (cardContainer) {
+                cardContainer.querySelectorAll('[data-action]').forEach(function(b) {
+                    b.disabled = true;
+                    b.style.opacity = '0.5';
+                    b.style.pointerEvents = 'none';
+                });
+            }
             if (a === 'confirmar-despesa') confirmarDespesa();
             else if (a === 'editar-despesa')    editarDespesa();
             else if (a === 'cancelar-despesa')  cancelarDespesa();

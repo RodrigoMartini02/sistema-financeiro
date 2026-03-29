@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Gen — IA Financeira | e-conomia</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="e-conomia">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/financeiro.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/financeiro.png">
+    <link rel="shortcut icon" href="icons/financeiro.png">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/loading.css">
+    <link rel="stylesheet" href="css/ia.css">
+    <link rel="stylesheet" href="css/ia-mobile.css">
+</head>
+<body>
+
+<!-- Auth check -->
+<script>
+(function() {
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+    const usuario = sessionStorage.getItem('usuarioAtual');
+    if (!token || !usuario) {
+        sessionStorage.setItem('redirectAfterLogin', window.location.href);
+        window.location.replace('index.html');
+    }
+})();
+</script>
+
+<!-- Loading -->
+<div id="loading-screen" class="loading-screen active">
+    <div class="loading-spinner"></div>
+</div>
+<script src="js/loading.js"></script>
+
+<!-- ================================================================ -->
+<!-- CONTAINER PRINCIPAL — mobile layout -->
+<!-- ================================================================ -->
+<div class="ia-container im-page">
+
+    <!-- ── HEADER MOBILE ──────────────────────────────────────── -->
+    <header class="im-header">
+        <button id="btn-voltar-sistema" class="im-btn-icon" title="Voltar ao app">
+            <i class="fas fa-arrow-left"></i>
+        </button>
+
+        <div class="im-header-center">
+            <span class="im-title">Gen</span>
+            <div class="im-header-status">
+                <div class="ia-status-dot" id="ia-status-dot"></div>
+                <span class="ia-status-text" id="ia-status-text">Inicializando...</span>
+            </div>
+        </div>
+
+        <button id="im-btn-settings" class="im-btn-icon" title="Configurações">
+            <i class="fas fa-cog"></i>
+        </button>
+    </header>
+
+    <!-- ── MAIN (chat + input) ────────────────────────────────── -->
+    <main class="ia-main">
+        <!-- Header interno do ia.main (oculto via CSS, mas mantido para ia.js) -->
+        <header class="ia-header" style="display:none">
+            <div class="ia-header-info">
+                <div></div><div><h1>Gen</h1><span></span></div>
+            </div>
+            <div class="ia-header-actions">
+                <button class="ia-btn-icon" id="btn-nova-conversa" title="Nova conversa">
+                    <i class="fas fa-plus"></i><span>Nova conversa</span>
+                </button>
+                <button class="ia-btn-icon" id="btn-toggle-sidebar" title="Menu">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Área de mensagens -->
+        <div class="ia-chat-area" id="ia-chat-area">
+            <div class="ia-welcome">
+                <div class="ia-welcome-icon">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <h2>Olá! Sou a Gen</h2>
+                <p>Sua IA financeira do e-conomia. Posso cadastrar despesas e receitas, analisar seus gastos e interpretar documentos financeiros.</p>
+                <div class="ia-welcome-chips">
+                    <span data-preencher="paguei 150 de mercado no pix">💸 Cadastrar despesa</span>
+                    <span data-preencher="recebi salário 3500 hoje">💰 Cadastrar receita</span>
+                    <span data-preencher="quanto gastei esse mês">📊 Analisar gastos</span>
+                    <span id="chip-upload">📄 Enviar documento</span>
+                    <span id="chip-boleto">🏦 Ler boleto</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input de mensagem -->
+        <div class="ia-input-area">
+
+            <!-- Barra de digitação de boleto -->
+            <div class="ia-boleto-bar" id="ia-boleto-bar" style="display:none">
+                <input type="text" id="ia-boleto-input"
+                    placeholder="Cole a linha digitável do boleto..."
+                    class="ia-boleto-field">
+                <button class="ia-btn-primary" id="btn-processar-boleto-page">
+                    <i class="fas fa-barcode"></i> Ler
+                </button>
+                <button class="ia-btn-ghost" id="btn-fechar-boleto-page">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- Upload de arquivo (oculto) -->
+            <input type="file" id="ia-file-input"
+                accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+                style="display:none">
+
+            <!-- Preview de arquivo -->
+            <div class="ia-file-preview" id="ia-file-preview" style="display:none">
+                <i class="fas fa-file"></i>
+                <span id="ia-file-nome"></span>
+                <button id="btn-cancelar-arquivo-page"><i class="fas fa-times"></i></button>
+            </div>
+
+            <!-- Barra principal -->
+            <div class="ia-input-bar">
+                <button class="ia-btn-attach" id="btn-attach-file" title="Enviar arquivo">
+                    <i class="fas fa-paperclip"></i>
+                </button>
+                <textarea
+                    id="ia-texto-input"
+                    class="ia-text-input"
+                    placeholder="Digite sua despesa, receita ou pergunta..."
+                    rows="1"
+                ></textarea>
+                <button class="ia-btn-voice" id="ia-btn-voice" title="Usar voz">
+                    <i class="fas fa-microphone"></i>
+                </button>
+                <button class="ia-btn-send" id="ia-btn-send" title="Enviar">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+
+            <div class="ia-input-hint">
+                Pressione Enter para enviar, Shift+Enter para nova linha
+            </div>
+        </div>
+    </main>
+
+    <!-- Sidebar oculta: mantida para compatibilidade com ia.js -->
+    <aside class="ia-sidebar" style="display:none!important">
+        <div class="ia-acoes-rapidas">
+            <button class="ia-acao-btn" data-acao-rapida="quanto gastei este mês">
+                <i class="fas fa-chart-bar"></i><span>Resumo do mês</span>
+            </button>
+            <button class="ia-acao-btn" data-acao-rapida="mostrar despesas de alimentação">
+                <i class="fas fa-utensils"></i><span>Gasto em Alimentação</span>
+            </button>
+            <button class="ia-acao-btn" data-acao-rapida="qual meu saldo atual">
+                <i class="fas fa-wallet"></i><span>Meu saldo</span>
+            </button>
+            <button class="ia-acao-btn" id="btn-abrir-upload">
+                <i class="fas fa-file-upload"></i><span>Enviar documento</span>
+            </button>
+            <button class="ia-acao-btn" id="btn-abrir-boleto">
+                <i class="fas fa-barcode"></i><span>Ler boleto</span>
+            </button>
+        </div>
+        <div class="ia-recorrencias-panel">
+            <h4>Recorrentes
+                <button id="btn-detectar-recorrencias" class="ia-btn-detectar" title="Analisar">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </h4>
+            <div id="recorrencias-lista" class="ia-recorrencias-lista">
+                <p class="ia-hint">Clique em <i class="fas fa-sync-alt"></i> para analisar.</p>
+            </div>
+        </div>
+        <div class="ia-exemplos">
+            <div class="ia-exemplo-item" data-exemplo="paguei 120 de internet da vivo no cartão vence dia 15">
+                "paguei 120 de internet da vivo no cartão vence dia 15"
+            </div>
+            <div class="ia-exemplo-item" data-exemplo="netflix 55,90 debito">"netflix 55,90 débito"</div>
+            <div class="ia-exemplo-item" data-exemplo="200 de mercado pix">"200 de mercado pix"</div>
+            <div class="ia-exemplo-item" data-exemplo="recebi salário 3500 hoje">"recebi salário 3500 hoje"</div>
+            <div class="ia-exemplo-item" data-exemplo="quanto gastei em alimentação esse mês">
+                "quanto gastei em alimentação esse mês"
+            </div>
+        </div>
+    </aside>
+</div>
+
+<!-- ================================================================ -->
+<!-- MODAL: CONFIRMAR DESPESA -->
+<!-- ================================================================ -->
+<div class="ia-modal-overlay" id="modal-confirmar-despesa" style="display:none">
+    <div class="ia-modal">
+        <div class="ia-modal-header">
+            <h3><i class="fas fa-check-circle"></i> Confirmar Despesa</h3>
+            <button id="btn-fechar-modal-despesa"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="ia-modal-body">
+            <form id="form-despesa-ia">
+                <div class="ia-form-row">
+                    <div class="ia-form-group">
+                        <label>Descrição *</label>
+                        <input type="text" id="ia-campo-descricao" required placeholder="Descrição da despesa">
+                    </div>
+                    <div class="ia-form-group ia-form-group--sm">
+                        <label>Valor (R$) *</label>
+                        <input type="number" id="ia-campo-valor" required min="0.01" step="0.01" placeholder="0,00">
+                    </div>
+                </div>
+                <div class="ia-form-row">
+                    <div class="ia-form-group">
+                        <label>Categoria</label>
+                        <select id="ia-campo-categoria">
+                            <option value="">Selecione...</option>
+                        </select>
+                    </div>
+                    <div class="ia-form-group">
+                        <label>Forma de Pagamento *</label>
+                        <select id="ia-campo-forma-pagamento" required>
+                            <option value="dinheiro">Dinheiro</option>
+                            <option value="pix">PIX</option>
+                            <option value="cartao_credito">Cartão de Crédito</option>
+                            <option value="cartao_debito">Cartão de Débito</option>
+                            <option value="transferencia">Transferência</option>
+                            <option value="boleto">Boleto</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="ia-form-row" id="row-cartao" style="display:none">
+                    <div class="ia-form-group">
+                        <label>Cartão</label>
+                        <select id="ia-campo-cartao">
+                            <option value="">Selecione um cartão...</option>
+                        </select>
+                    </div>
+                    <div class="ia-form-group ia-form-group--sm">
+                        <label>Parcelas</label>
+                        <input type="number" id="ia-campo-parcelas" min="1" max="60" value="1">
+                    </div>
+                </div>
+                <div class="ia-form-row">
+                    <div class="ia-form-group">
+                        <label>Data da despesa *</label>
+                        <input type="date" id="ia-campo-data" required>
+                    </div>
+                    <div class="ia-form-group">
+                        <label>Vencimento</label>
+                        <input type="date" id="ia-campo-vencimento">
+                    </div>
+                </div>
+                <div class="ia-form-row">
+                    <div class="ia-form-group ia-form-group--checkbox">
+                        <label class="ia-checkbox-label">
+                            <input type="checkbox" id="ia-campo-ja-pago">
+                            <span>Já pago</span>
+                        </label>
+                    </div>
+                    <div class="ia-form-group ia-form-group--checkbox">
+                        <label class="ia-checkbox-label">
+                            <input type="checkbox" id="ia-campo-recorrente">
+                            <span>Recorrente</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="ia-aprendizado-hint" id="ia-aprendizado-hint" style="display:none">
+                    <i class="fas fa-brain"></i>
+                    <span>Deseja que a Gen aprenda a classificar "<strong id="ia-aprendizado-texto"></strong>" como esta categoria no futuro?</span>
+                    <button type="button" id="btn-confirmar-aprendizado">Sim, aprender</button>
+                </div>
+                <div class="ia-modal-footer">
+                    <button type="button" class="ia-btn-ghost" id="btn-cancelar-modal-despesa">Cancelar</button>
+                    <button type="submit" class="ia-btn-primary">
+                        <i class="fas fa-save"></i> Salvar Despesa
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- MODAL: RECORRÊNCIAS SUGERIDAS -->
+<!-- ================================================================ -->
+<div class="ia-modal-overlay" id="modal-recorrencias" style="display:none">
+    <div class="ia-modal ia-modal--wide">
+        <div class="ia-modal-header">
+            <h3><i class="fas fa-redo"></i> Despesas Recorrentes Detectadas</h3>
+            <button id="btn-fechar-modal-recorrencias"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="ia-modal-body">
+            <p class="ia-modal-desc">Detectei padrões no seu histórico. Deseja ativar as recorrências abaixo?</p>
+            <div id="recorrencias-modal-lista"></div>
+        </div>
+        <div class="ia-modal-footer">
+            <button class="ia-btn-ghost" id="btn-fechar-recorrencias">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Templates -->
+<template id="template-ia-msg-user">
+<div class="ai-msg ai-msg--user"><div class="ai-msg-bub"><span class="ia-msg-texto"></span><span class="ai-msg-time"></span></div></div>
+</template>
+<template id="template-ia-msg-gen">
+<div class="ai-msg ai-msg--ai"><div class="ai-msg-bub"><span class="ia-msg-conteudo"></span><span class="ai-msg-time"></span></div></div>
+</template>
+<template id="template-ia-typing">
+<div class="ai-msg ai-msg--ai"><div class="ai-msg-bub"><div class="ai-typing"><span></span><span></span><span></span></div></div></div>
+</template>
+<template id="template-ia-card-despesa">
+<div class="ai-msg ai-msg--ai"><div class="ai-msg-bub"><span class="ia-card-intro"></span><div class="ai-despesa-card">
+    <div class="ai-dc-row"><span class="ai-dc-label">Descrição</span><span class="ai-dc-val dc-descricao"></span></div>
+    <div class="ai-dc-row dc-row-valor"><span class="ai-dc-label">Valor</span><span class="ai-dc-valor dc-valor"></span></div>
+    <div class="ai-dc-row dc-row-valor-total" hidden><span class="ai-dc-label">Valor total</span><span class="ai-dc-valor dc-valor-total"></span></div>
+    <div class="ai-dc-row dc-row-parcelas"><span class="ai-dc-label">Parcelas</span><span class="ai-dc-val dc-parcelas"></span></div>
+    <div class="ai-dc-row"><span class="ai-dc-label">Forma de pagamento</span><span class="ai-dc-val dc-forma"></span></div>
+    <div class="ai-dc-row dc-row-cartao" hidden><span class="ai-dc-label">Cartão</span><span class="ai-dc-val dc-cartao"></span></div>
+    <div class="ai-dc-row"><span class="ai-dc-label">Categoria</span><span class="ai-dc-val dc-categoria"></span></div>
+    <div class="ai-dc-row dc-row-data-compra" hidden><span class="ai-dc-label">Data de compra</span><span class="ai-dc-val dc-data-compra"></span></div>
+    <div class="ai-dc-row dc-row-vencimento" hidden><span class="ai-dc-label">Vencimento</span><span class="ai-dc-val dc-vencimento"></span></div>
+    <div class="ai-dc-row"><span class="ai-dc-label">Status</span><span class="ai-dc-val dc-status-despesa"></span></div>
+    <div class="ai-dc-row dc-row-recorrente"><span class="ai-dc-label">Recorrente</span><span class="ai-dc-val dc-recorrente-val"></span></div>
+    <div class="ai-dc-row dc-row-replicar" hidden><span class="ai-dc-label">Replicar até</span><span class="ai-dc-val dc-replicar"></span></div>
+    <div class="ai-dc-row dc-row-anexos" hidden><span class="ai-dc-label">Anexos</span><span class="ai-dc-val dc-anexos-count"></span></div>
+</div><p class="ai-card-pergunta">Quer revisar algum dado antes de salvar?</p><div class="ai-msg-btns">
+    <button class="ai-msg-btn-ok" data-action="confirmar-despesa">Salvar</button>
+    <button class="ai-msg-btn-edit" data-action="editar-despesa">Revisar</button>
+    <button class="ai-msg-btn-danger" data-action="cancelar-despesa">Cancelar</button>
+</div><span class="ai-msg-time"></span></div></div>
+</template>
+<template id="template-ia-card-receita">
+<div class="ai-msg ai-msg--ai"><div class="ai-msg-bub"><span class="ia-card-intro"></span><div class="ai-despesa-card">
+    <div class="ai-dc-row"><span class="ai-dc-label">Descrição</span><span class="ai-dc-val dc-descricao"></span></div>
+    <div class="ai-dc-row"><span class="ai-dc-label">Valor</span><span class="ai-dc-valor dc-valor"></span></div>
+    <div class="ai-dc-row dc-row-data" hidden><span class="ai-dc-label">Data</span><span class="ai-dc-val dc-data"></span></div>
+</div><p class="ai-card-pergunta">Quer revisar algum dado antes de salvar?</p><div class="ai-msg-btns">
+    <button class="ai-msg-btn-ok" data-action="confirmar-receita">Salvar</button>
+    <button class="ai-msg-btn-edit" data-action="editar-receita">Revisar</button>
+    <button class="ai-msg-btn-danger" data-action="cancelar-receita">Cancelar</button>
+</div><span class="ai-msg-time"></span></div></div>
+</template>
+
+<!-- Botão scroll para baixo -->
+<button class="im-scroll-btn" id="im-scroll-btn" title="Ir para o final">
+    <i class="fas fa-chevron-down"></i>
+</button>
+
+<!-- Banner de instalação PWA -->
+<div class="im-install-banner" id="im-install-banner">
+    <img src="icons/financeiro.png" alt="e-conomia" class="im-install-banner-icon">
+    <div class="im-install-banner-text">
+        <strong>Instalar e-conomia</strong>
+        <span>Adicionar à tela inicial para acesso rápido</span>
+    </div>
+    <button class="im-install-btn" id="im-btn-instalar">Instalar</button>
+    <button class="im-install-dismiss" id="im-btn-dismiss-install" aria-label="Fechar">×</button>
+</div>
+
+<!-- ================================================================ -->
+<!-- BOTTOM SHEET — configurações e ações -->
+<!-- ================================================================ -->
+<div class="im-sheet-backdrop" id="im-sheet-backdrop"></div>
+
+<div class="im-bottom-sheet" id="im-bottom-sheet">
+    <div class="im-sheet-handle"></div>
+
+    <div class="im-sheet-header">
+        <h3>Menu</h3>
+        <button class="im-sheet-close" id="im-btn-close-sheet">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <div class="im-sheet-body">
+
+        <!-- Perfil -->
+        <div class="im-sheet-profile">
+            <span class="im-user-nome" id="im-user-nome">Carregando...</span>
+            <select id="select-perfil-ativo"></select>
+        </div>
+
+        <!-- Ações rápidas -->
+        <div class="im-sheet-section">
+            <h4>Ações Rápidas</h4>
+            <button class="ia-acao-btn" data-acao-rapida="cadastrar despesa">
+                <i class="fas fa-minus-circle"></i><span>Cadastrar despesa</span>
+            </button>
+            <button class="ia-acao-btn" data-acao-rapida="cadastrar receita">
+                <i class="fas fa-plus-circle"></i><span>Cadastrar receita</span>
+            </button>
+            <button class="ia-acao-btn" data-acao-rapida="qual meu saldo atual">
+                <i class="fas fa-wallet"></i><span>Consultar Saldo Atual</span>
+            </button>
+        </div>
+
+        <!-- Configurar IA -->
+        <div class="im-sheet-section">
+            <h4><i class="fas fa-robot"></i> Assistente IA</h4>
+            <div class="im-ia-config">
+                <span class="badge ia-badge-status" id="ia-badge-status">Verificando...</span>
+
+                <label class="im-ia-label">Provedor</label>
+                <select id="ia-provider-select" class="im-ia-select">
+                    <option value="gen">Gen — IA interna e-conomia</option>
+                    <option value="openai">OpenAI — GPT-4o mini</option>
+                    <option value="gemini">Google — Gemini 2.0 Flash</option>
+                    <option value="claude">Anthropic — Claude Haiku</option>
+                </select>
+
+                <div id="ia-key-row" class="im-ia-key-row" style="display:none">
+                    <label class="im-ia-label">Chave de API</label>
+                    <div class="im-ia-key-input-row">
+                        <input type="password" id="ia-api-key-input"
+                            placeholder="Cole sua chave de API aqui..."
+                            class="im-ia-key-input">
+                        <button id="ia-btn-salvar-chave" class="im-ia-save-btn">
+                            <i class="fas fa-save"></i>
+                        </button>
+                    </div>
+                    <p id="ia-key-hint" class="im-ia-key-hint"></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="im-sheet-divider"></div>
+
+        <!-- Ações principais -->
+        <div class="im-sheet-actions">
+            <button class="im-sheet-btn" id="im-btn-nova-conversa">
+                <i class="fas fa-plus"></i> Nova conversa
+            </button>
+            <button class="im-sheet-btn" id="im-btn-ir-app">
+                <i class="fas fa-th-large"></i> Ir para o App
+            </button>
+            <button class="im-sheet-btn im-sheet-btn--danger" id="im-btn-logout">
+                <i class="fas fa-sign-out-alt"></i> Sair da conta
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<!-- JS -->
+<script src="js/config.js"></script>
+<script src="js/perfis.js"></script>
+<script src="js/usuarioDados.js"></script>
+<script src="js/ia.js"></script>
+<script src="js/ia-mobile.js"></script>
+
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch((err) => {
+            console.warn('Service Worker registration failed:', err);
+        });
+    });
+}
+</script>
+
+</body>
+</html>

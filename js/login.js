@@ -149,7 +149,7 @@ async function verificarRetornoGoogle() {
 
         const redirect = sessionStorage.getItem('redirectAfterLogin');
         sessionStorage.removeItem('redirectAfterLogin');
-        window.location.href = redirect || (isMobileDevice() ? 'ia.html' : 'app.html');
+        window.location.href = redirect || (isMobileDevice() ? 'ia-mobile.html' : 'app.html');
     } catch (error) {
         if (typeof window.hideLoadingScreen === 'function') {
             window.hideLoadingScreen();
@@ -302,7 +302,7 @@ async function processarLogin(documento, password, isModal, tentativa = 1) {
 
         const redirect = sessionStorage.getItem('redirectAfterLogin');
         sessionStorage.removeItem('redirectAfterLogin');
-        window.location.href = redirect || (isMobileDevice() ? 'ia.html' : 'app.html');
+        window.location.href = redirect || (isMobileDevice() ? 'ia-mobile.html' : 'app.html');
 
     } catch (error) {
         if (typeof window.hideLoadingScreen === 'function') {
