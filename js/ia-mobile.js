@@ -273,33 +273,64 @@
         }
     })();
 
-    // ── Barcode/Paste: colar código de barras ────────────────────
+    // ── Barcode: abre campo dedicado acima do input ──────────────
     (function setupBarcodePaste() {
-        var btnBarcode = document.getElementById('btn-barcode-paste');
-        var textarea   = document.getElementById('ia-texto-input');
-        if (!btnBarcode || !textarea) return;
+        var btnBarcode  = document.getElementById('btn-barcode-paste');
+        var chipBoleto  = document.getElementById('chip-boleto');
+        var boletoBar   = document.getElementById('ia-boleto-bar');
+        var boletoInput = document.getElementById('ia-boleto-input');
+        var btnFechar   = document.getElementById('btn-fechar-boleto-page');
+        var btnProcessar = document.getElementById('btn-processar-boleto-page');
 
-        btnBarcode.addEventListener('click', function () {
-            if (navigator.clipboard && navigator.clipboard.readText) {
-                navigator.clipboard.readText().then(function (text) {
-                    if (text && text.trim()) {
-                        textarea.value = text.trim();
-                        textarea.focus();
-                        textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                    } else {
-                        textarea.focus();
-                        textarea.placeholder = 'Cole o código de barras aqui...';
-                        setTimeout(function () {
-                            textarea.placeholder = 'Digite sua despesa, receita ou pergunta...';
-                        }, 3000);
-                    }
-                }).catch(function () {
-                    textarea.focus();
-                });
-            } else {
-                textarea.focus();
+        function abrirBarraBoleto() {
+            if (!boletoBar) return;
+            boletoBar.style.display = 'flex';
+            if (boletoInput) {
+                boletoInput.value = '';
+                setTimeout(function () { boletoInput.focus(); }, 100);
             }
-        });
+        }
+
+        function fecharBarraBoleto() {
+            if (!boletoBar) return;
+            boletoBar.style.display = 'none';
+            if (boletoInput) boletoInput.value = '';
+        }
+
+        if (btnBarcode)  btnBarcode.addEventListener('click', abrirBarraBoleto);
+        if (chipBoleto)  chipBoleto.addEventListener('click', abrirBarraBoleto);
+        if (btnFechar)   btnFechar.addEventListener('click', fecharBarraBoleto);
+
+        // Ao pressionar Ler, só aceita se tiver dígitos suficientes (código de barras ≥ 30 chars numéricos)
+        if (btnProcessar && boletoInput) {
+            btnProcessar.addEventListener('click', function () {
+                var codigo = boletoInput.value.replace(/\s/g, '');
+                var apenasNumeros = codigo.replace(/\D/g, '');
+                if (apenasNumeros.length < 30) {
+                    boletoInput.style.borderColor = '#ef4444';
+                    boletoInput.placeholder = 'Código inválido — mínimo 30 dígitos';
+                    setTimeout(function () {
+                        boletoInput.style.borderColor = '';
+                        boletoInput.placeholder = 'Cole a linha digitável do boleto...';
+                    }, 2500);
+                    return;
+                }
+                // Válido: envia para o fluxo de boleto via textarea + send
+                var textarea = document.getElementById('ia-texto-input');
+                if (textarea) {
+                    textarea.value = codigo;
+                    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                    var send = document.getElementById('ia-btn-send');
+                    if (send) send.click();
+                }
+                fecharBarraBoleto();
+            });
+
+            // Enter no campo também aciona
+            boletoInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); btnProcessar.click(); }
+            });
+        }
     })();
 
     // Fechar app (botão X)

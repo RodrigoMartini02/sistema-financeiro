@@ -335,6 +335,39 @@ body:has(.ia-container.im-page) {
     color: var(--text-color, #e2e8f0);
 }
 
+/* ── Campo de boleto: faixa acima do input, integrada visualmente */
+.ia-container.im-page .ia-boleto-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--card-bg, #fff);
+    border-bottom: 1px solid var(--border-color, #e0e4ef);
+    margin-bottom: 0;
+    box-sizing: border-box;
+    width: 100%;
+}
+.ia-container.im-page .ia-boleto-field {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    font-family: monospace;
+    padding: 7px 10px;
+    border-radius: 8px;
+    background: var(--bg-color, #f0f2f5);
+    border: 1px solid var(--border-color, #e0e4ef);
+    color: var(--text-color, #1a1a2e);
+    outline: none;
+}
+.ia-container.im-page .ia-boleto-field:focus {
+    border-color: var(--primary-color, #4361ee);
+}
+[data-theme="dark"] .ia-container.im-page .ia-boleto-field {
+    background: var(--bg-color, #0f172a);
+    border-color: var(--border-color, #334155);
+    color: var(--text-color, #e2e8f0);
+}
+
 /* ── Input area ──────────────────────────────────────────────── */
 .ia-container.im-page .ia-input-area {
     flex-shrink: 0;
@@ -384,16 +417,16 @@ body:has(.ia-container.im-page) {
     background: #eff3ff;
 }
 
-/* Pill do input */
+/* Pill do input — padding vertical 3px: 3+3+32(botões) = 38px, igual aos botões laterais */
 .ia-container.im-page .ia-input-bar {
     flex: 1;
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     gap: 4px;
     background: var(--bg-color, #f0f2f5);
     border: 1px solid var(--border-color, #e0e4ef);
     border-radius: 22px;
-    padding: 6px 8px;
+    padding: 3px 8px;
     transition: border-color 0.2s, background 0.2s;
 }
 .ia-container.im-page .ia-input-bar:focus-within {
@@ -410,15 +443,15 @@ body:has(.ia-container.im-page) {
     border: none;
     background: transparent;
     outline: none;
-    font-size: 15px;
+    font-size: 14px;
     font-family: inherit;
     color: var(--text-color, #1a1a2e);
     resize: none;
-    min-height: 24px;
+    min-height: 20px;
     max-height: 120px;
     overflow-y: auto;
     line-height: 1.4;
-    padding: 2px 0;
+    padding: 0;
     align-self: center;
 }
 .ia-container.im-page .ia-text-input::placeholder {
@@ -429,20 +462,19 @@ body:has(.ia-container.im-page) {
 .ia-container.im-page .ia-btn-attach,
 .ia-container.im-page .ia-btn-voice {
     flex-shrink: 0;
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     border: none;
     background: transparent;
     color: var(--gray-400, #adb5bd);
-    font-size: 18px;
+    font-size: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: color 0.2s, background 0.2s;
-    align-self: flex-end;
-    margin-bottom: 1px;
+    align-self: center;
 }
 .ia-container.im-page .ia-btn-attach:hover,
 .ia-container.im-page .ia-btn-voice:hover { color: var(--primary-color, #4361ee); }
