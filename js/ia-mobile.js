@@ -207,7 +207,7 @@
                 if (typeof window.mostrarToast === 'function') window.mostrarToast('Informe a chave antes de salvar.', 'warning');
                 return;
             }
-            fetch(API_URL + '/config/chave', {
+            fetch(API_URL + '/ai/config/chave', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
                 body: JSON.stringify({ provider: provider, api_key: chave })
@@ -225,10 +225,11 @@
             });
         }
 
-        // Wire após ia.js carregar (ele popula os valores via inicializar())
-        setTimeout(function () {
+        // Wire assim que ia.js disparar 'ia:pronto', com fallback de 1.8s
+        function wireIAConfig() {
             var sel = document.getElementById('ia-provider-select');
-            if (sel) {
+            if (sel && !sel.dataset.mobileWired) {
+                sel.dataset.mobileWired = '1';
                 sel.addEventListener('change', function () {
                     atualizarUI();
                     var v = sel.value;
@@ -241,11 +242,49 @@
                         if (inp) inp.value = '';
                     }
                 });
-                atualizarUI(); // sincroniza display com valor já carregado pelo ia.js
+                atualizarUI();
             }
             var btnSalvar = document.getElementById('ia-btn-salvar-chave');
-            if (btnSalvar) btnSalvar.addEventListener('click', salvar);
-        }, 800);
+            if (btnSalvar && !btnSalvar.dataset.mobileWired) {
+                btnSalvar.dataset.mobileWired = '1';
+                btnSalvar.addEventListener('click', salvar);
+            }
+        }
+        document.addEventListener('ia:pronto', wireIAConfig, { once: true });
+        setTimeout(wireIAConfig, 1800); // fallback caso evento não dispare
+    })();
+
+    // ── Câmera: fotografar boleto/documento ──────────────────────
+    (function setupCamera() {
+        var cameraInput  = document.getElementById('ia-camera-input');
+        var fileInput    = document.getElementById('ia-file-input');
+        var btnCamera    = document.getElementById('btn-camera-mobile');
+        var chipCamera   = document.getElementById('chip-camera-boleto');
+
+        function dispararCamera() {
+            if (!cameraInput) return;
+            // Reutiliza o handler de arquivo existente do ia.js via evento change
+            cameraInput.value = '';
+            cameraInput.click();
+        }
+
+        // Quando câmera captura imagem, redireciona para o file-input do ia.js
+        if (cameraInput) {
+            cameraInput.addEventListener('change', function () {
+                if (!cameraInput.files || !cameraInput.files[0]) return;
+                // Dispara o mesmo fluxo que o btn-attach-file faz via ia.js
+                // copiando o arquivo para o input original
+                var dt = new DataTransfer();
+                dt.items.add(cameraInput.files[0]);
+                if (fileInput) {
+                    fileInput.files = dt.files;
+                    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            });
+        }
+
+        if (btnCamera) btnCamera.addEventListener('click', dispararCamera);
+        if (chipCamera) chipCamera.addEventListener('click', dispararCamera);
     })();
 
     // Nova conversa
@@ -313,6 +352,67 @@
             sheet.style.transform = '';
             if (delta > 80) fecharSheet();
         });
+    })();
+
+    // ── Modal de bloqueio PWA ─────────────────────────────────────
+    (function setupLockScreen() {
+        var overlay       = document.getElementById('lock-screen-overlay');
+        var modal         = document.getElementById('modal-lock-screen');
+        var form          = document.getElementById('form-lock-screen');
+        var passwordInput = document.getElementById('lock-screen-password');
+        var LOCK_KEY      = 'iaMobileUnlocked';
+        var API_BASE      = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
+        if (!overlay || !modal || !form) return;
+
+        function mostrarLock() {
+            overlay.classList.add('visible');
+            modal.classList.add('visible');
+            setTimeout(function () { if (passwordInput) passwordInput.focus(); }, 200);
+        }
+
+        function fecharLock() {
+            overlay.classList.remove('visible');
+            modal.classList.remove('visible');
+            sessionStorage.setItem(LOCK_KEY, '1');
+        }
+
+        function getToken() {
+            return sessionStorage.getItem('token') || localStorage.getItem('token');
+        }
+
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var senha = passwordInput ? passwordInput.value : '';
+            if (!senha) return;
+
+            var token = getToken();
+            fetch(API_BASE + '/auth/verify-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify({ senha: senha })
+            }).then(function (r) { return r.json(); }).then(function (res) {
+                if (res && res.success) {
+                    fecharLock();
+                } else {
+                    var card = document.querySelector('.lock-card');
+                    if (card) {
+                        card.classList.add('shake-animation');
+                        setTimeout(function () { card.classList.remove('shake-animation'); }, 500);
+                    }
+                    if (passwordInput) { passwordInput.value = ''; passwordInput.focus(); }
+                }
+            }).catch(function () {
+                // Sem conexão: liberar acesso para não bloquear offline
+                fecharLock();
+            });
+        });
+
+        // Mostrar lock ao abrir (se PWA standalone e não desbloqueado na sessão)
+        var isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+        if (isStandalone && sessionStorage.getItem(LOCK_KEY) !== '1') {
+            mostrarLock();
+        }
     })();
 
     // ── Inicializar ───────────────────────────────────────────────

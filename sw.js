@@ -3,7 +3,7 @@
 // Sistema de Controle Financeiro
 // ================================================================
 
-const CACHE_VERSION = 'v120';
+const CACHE_VERSION = 'v121';
 const CACHE_STATIC  = `sf-static-${CACHE_VERSION}`;
 
 // Assets estáticos que serão cacheados no install
@@ -73,7 +73,7 @@ self.addEventListener('install', (event) => {
     );
 });
 
-// ── Activate: limpa caches antigos ─────────────────────────────
+// ── Activate: limpa caches antigos e notifica clientes ─────────
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((keys) =>
@@ -83,7 +83,22 @@ self.addEventListener('activate', (event) => {
                     .map((key) => caches.delete(key))
             )
         ).then(() => self.clients.claim())
+          .then(() => {
+            // Notifica todas as abas/janelas que há nova versão
+            self.clients.matchAll({ includeUncontrolled: true }).then((clients) => {
+                clients.forEach((client) => {
+                    client.postMessage({ type: 'SW_UPDATED', version: CACHE_VERSION });
+                });
+            });
+        })
     );
+});
+
+// ── Mensagens do cliente (skip waiting manual) ─────────────────
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
 });
 
 // ── Fetch: estratégia por tipo de requisição ───────────────────

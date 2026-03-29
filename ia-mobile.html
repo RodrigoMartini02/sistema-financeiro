@@ -98,8 +98,9 @@
                     <span data-preencher="paguei 150 de mercado no pix">💸 Cadastrar despesa</span>
                     <span data-preencher="recebi salário 3500 hoje">💰 Cadastrar receita</span>
                     <span data-preencher="quanto gastei esse mês">📊 Analisar gastos</span>
+                    <span id="chip-camera-boleto">📷 Fotografar boleto</span>
+                    <span id="chip-boleto">🔢 Colar código de barras</span>
                     <span id="chip-upload">📄 Enviar documento</span>
-                    <span id="chip-boleto">🏦 Ler boleto</span>
                 </div>
             </div>
         </div>
@@ -124,6 +125,11 @@
             <input type="file" id="ia-file-input"
                 accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
                 style="display:none">
+            <!-- Input câmera (oculto) — abre câmera traseira direto -->
+            <input type="file" id="ia-camera-input"
+                accept="image/*"
+                capture="environment"
+                style="display:none">
 
             <!-- Preview de arquivo -->
             <div class="ia-file-preview" id="ia-file-preview" style="display:none">
@@ -134,6 +140,9 @@
 
             <!-- Barra principal -->
             <div class="ia-input-bar">
+                <button class="ia-btn-attach" id="btn-camera-mobile" title="Fotografar boleto ou documento">
+                    <i class="fas fa-camera"></i>
+                </button>
                 <button class="ia-btn-attach" id="btn-attach-file" title="Enviar arquivo">
                     <i class="fas fa-paperclip"></i>
                 </button>
@@ -464,12 +473,74 @@
 <script>
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch((err) => {
-            console.warn('Service Worker registration failed:', err);
+        navigator.serviceWorker.register('/sw.js').then((reg) => {
+            // Verifica atualização a cada 10 minutos (app pode ficar aberto por horas)
+            setInterval(() => reg.update(), 10 * 60 * 1000);
+
+            // Novo SW esperando → oferece atualização imediata
+            reg.addEventListener('updatefound', () => {
+                const newWorker = reg.installing;
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        mostrarBannerUpdate(() => newWorker.postMessage({ type: 'SKIP_WAITING' }));
+                    }
+                });
+            });
+        }).catch((err) => console.warn('SW registration failed:', err));
+
+        // SW já ativado em background → recarrega para pegar nova versão
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            window.location.reload();
+        });
+
+        // Mensagem do SW informando nova versão ativa
+        navigator.serviceWorker.addEventListener('message', (e) => {
+            if (e.data && e.data.type === 'SW_UPDATED') {
+                mostrarBannerUpdate(null);
+            }
         });
     });
 }
+
+function mostrarBannerUpdate(onUpdate) {
+    if (document.getElementById('sw-update-banner')) return;
+    var banner = document.createElement('div');
+    banner.id = 'sw-update-banner';
+    banner.innerHTML =
+        '<span>Nova versão disponível</span>' +
+        '<button id="sw-update-btn">Atualizar</button>' +
+        '<button id="sw-update-dismiss">✕</button>';
+    document.body.appendChild(banner);
+    document.getElementById('sw-update-btn').addEventListener('click', function () {
+        if (onUpdate) onUpdate();
+        else window.location.reload();
+    });
+    document.getElementById('sw-update-dismiss').addEventListener('click', function () {
+        banner.remove();
+    });
+}
 </script>
+
+<!-- ── MODAL DE BLOQUEIO (PWA) ─────────────────────────────── -->
+<div id="lock-screen-overlay" class="lock-screen-overlay"></div>
+<div id="modal-lock-screen" class="modal">
+    <div class="lock-card">
+        <div class="lock-icon-wrap">
+            <i class="fas fa-lock"></i>
+        </div>
+        <div class="lock-title">Gen — e-conomia</div>
+        <div class="lock-subtitle">Digite sua senha para continuar</div>
+        <form id="form-lock-screen">
+            <div class="lock-input-wrap">
+                <i class="fas fa-key lock-input-icon"></i>
+                <input type="password" id="lock-screen-password" placeholder="Sua senha" required autocomplete="current-password">
+            </div>
+            <button type="submit" class="lock-btn">
+                <i class="fas fa-unlock-alt"></i> Entrar
+            </button>
+        </form>
+    </div>
+</div>
 
 </body>
 </html>

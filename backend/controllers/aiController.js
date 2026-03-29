@@ -55,11 +55,7 @@ async function buscarCartaServicos() {
         const r = await query(`SELECT dados_financeiros FROM usuarios WHERE tipo = 'master' LIMIT 1`);
         const carta = r.rows[0]?.dados_financeiros?.carta_servicos;
         if (carta) return carta;
-        // Fallback para arquivo se ainda não migrado
-        const fs = require('fs');
-        const path = require('path');
-        const CARTA_PATH = path.join(__dirname, '../../docs/gen-instrucoes.md');
-        return fs.existsSync(CARTA_PATH) ? fs.readFileSync(CARTA_PATH, 'utf8') : '';
+        return '';
     } catch {
         return '';
     }
