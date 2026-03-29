@@ -343,6 +343,11 @@ window.IA = (function () {
                 setTimeout(fechar, 1500);
             } else {
                 addGen(res.resposta || '...');
+                // Após análise/consulta, oferece próxima ação (só se não termina com pergunta)
+                var resp = (res.resposta || '').trim();
+                if (resp && !resp.endsWith('?') && res.acao !== 'coletando_campos') {
+                    _mostrarChipsContinuacao(null, 1000);
+                }
             }
         }).catch(function () {
             removeTyping(tid);
@@ -380,6 +385,19 @@ window.IA = (function () {
     function toggleSidebar() {
         var sidebar = document.querySelector('.ia-sidebar');
         if (sidebar) sidebar.classList.toggle('ia-sidebar--open');
+    }
+
+    // ── CHIPS DE PRÓXIMA AÇÃO (reutilizável) ─────────────────────
+    function _chipsProximaAcao() {
+        return '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="cadastrar despesa" data-opcao-label="Cadastrar despesa">💸 Cadastrar despesa</button>' +
+               '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="cadastrar receita" data-opcao-label="Cadastrar receita">💰 Cadastrar receita</button>' +
+               '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="encerrar" data-opcao-label="Encerrar">✓ Encerrar</button>';
+    }
+
+    function _mostrarChipsContinuacao(msg, delay) {
+        setTimeout(function () {
+            addGen((msg || 'Posso ajudar com mais alguma coisa?') + '<div class="ai-welcome-chips">' + _chipsProximaAcao() + '</div>');
+        }, delay || 600);
     }
 
     // ── MENSAGENS ─────────────────────────────────────────────────
@@ -622,19 +640,15 @@ window.IA = (function () {
                 } else {
                     _refreshMes();
                 }
-                // Pergunta se quer continuar
-                setTimeout(function() {
-                    var chips = '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="cadastrar despesa" data-opcao-label="Cadastrar despesa">💸 Cadastrar despesa</button>' +
-                                '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="cadastrar receita" data-opcao-label="Cadastrar receita">💰 Cadastrar receita</button>' +
-                                '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="encerrar" data-opcao-label="Encerrar">✓ Encerrar</button>';
-                    addGen('Posso ajudar com mais alguma coisa?<div class="ai-welcome-chips">' + chips + '</div>');
-                }, 600);
+                _mostrarChipsContinuacao('Posso ajudar com mais alguma coisa?');
             } else {
                 addGen('Erro ao cadastrar: ' + ((res && res.message) || (res && res.errors && res.errors[0] && res.errors[0].msg) || 'tente novamente.'));
+                _mostrarChipsContinuacao('Quer tentar novamente ou fazer outra coisa?', 800);
             }
         }).catch(function () {
             removeTyping(tidD);
             addGen('Erro de conexão ao salvar a despesa.');
+            _mostrarChipsContinuacao('Quer tentar novamente?', 800);
         });
     }
 
@@ -663,7 +677,7 @@ window.IA = (function () {
 
     function cancelarDespesa() {
         estado.despesaPendente = null;
-        addGen('Operação cancelada.');
+        _mostrarChipsContinuacao('Ok, descartei. O que mais posso fazer?', 0);
     }
 
     // ── CONFIRMAR RECEITA ─────────────────────────────────────────
@@ -713,17 +727,16 @@ window.IA = (function () {
                 if (typeof window.carregarDadosDashboard === 'function') {
                     window.carregarDadosDashboard(ano);
                 }
-                // Pergunta se quer continuar
-                setTimeout(function() {
-                    var chips = '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="cadastrar despesa" data-opcao-label="Cadastrar despesa">💸 Cadastrar despesa</button>' +
-                                '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="cadastrar receita" data-opcao-label="Cadastrar receita">💰 Cadastrar receita</button>' +
-                                '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="encerrar" data-opcao-label="Encerrar">✓ Encerrar</button>';
-                    addGen('Posso ajudar com mais alguma coisa?<div class="ai-welcome-chips">' + chips + '</div>');
-                }, 600);
+                _mostrarChipsContinuacao('Posso ajudar com mais alguma coisa?');
             } else {
                 addGen('Erro ao salvar: ' + ((res && res.message) || 'tente novamente.'));
+                _mostrarChipsContinuacao('Quer tentar novamente ou fazer outra coisa?', 800);
             }
-        }).catch(function () { removeTyping(tidR); addGen('Erro de conexão ao salvar receita.'); });
+        }).catch(function () {
+            removeTyping(tidR);
+            addGen('Erro de conexão ao salvar receita.');
+            _mostrarChipsContinuacao('Quer tentar novamente?', 800);
+        });
     }
 
     function editarReceita() {
@@ -745,7 +758,7 @@ window.IA = (function () {
 
     function cancelarReceita() {
         estado.receitaPendente = null;
-        addGen('Operação cancelada.');
+        _mostrarChipsContinuacao('Ok, descartei. O que mais posso fazer?', 0);
     }
 
     // ── COLETA DE CAMPOS FALTANTES ────────────────────────────────
@@ -1086,6 +1099,47 @@ window.IA = (function () {
         return cartao ? cartao.id : null;
     }
 
+// ── POPULAR SELECT DE CATEGORIAS (modal) ─────────────────────
+    var _categoriasCarregadas = false;
+
+    function _popularSelectCategorias(sel, callback) {
+        if (!sel) { if (callback) callback(); return; }
+
+        // Já populado — não refaz
+        if (sel.options.length > 1) { if (callback) callback(); return; }
+
+        // Usa window.categoriasUsuario se já carregado (app.html + configuracao.js)
+        var cats = (window.categoriasUsuario && window.categoriasUsuario.despesas) || [];
+        if (cats.length > 0) {
+            _preencherOpcoesCategoria(sel, cats);
+            if (callback) callback();
+            return;
+        }
+
+        // Busca da API (ia-mobile.html não carrega configuracao.js)
+        var perfilId = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
+        var q = perfilId ? '?perfil_id=' + perfilId : '';
+        apiGet('/categorias' + q).then(function (res) {
+            if (res && res.success && Array.isArray(res.data)) {
+                _preencherOpcoesCategoria(sel, res.data);
+                _categoriasCarregadas = true;
+            }
+            if (callback) callback();
+        }).catch(function () { if (callback) callback(); });
+    }
+
+    function _preencherOpcoesCategoria(sel, cats) {
+        // Limpa mantendo só a opção vazia
+        while (sel.options.length > 1) sel.remove(1);
+        cats.forEach(function (c) {
+            if (!c || c.ativo === false) return;
+            var opt = document.createElement('option');
+            opt.value = c.id || c.nome;
+            opt.text  = c.nome;
+            sel.appendChild(opt);
+        });
+    }
+
 // ── PREENCHIMENTO — MODAL DE DESPESA (página ia.html) ─────────
     function _preencherModalDespesa(d) {
         _setId('ia-campo-descricao',   d.descricao);
@@ -1114,9 +1168,10 @@ window.IA = (function () {
             recorrenteEl.dispatchEvent(new Event('change', { bubbles: true }));
         }
 
-        // Categoria por ID (prioridade) ou por nome
+        // Categoria — popula o select se vazio, depois seleciona
         var selCat = document.getElementById('ia-campo-categoria');
-        if (selCat) {
+        _popularSelectCategorias(selCat, function () {
+            if (!selCat) return;
             if (d.categoria_id) {
                 selCat.value = d.categoria_id;
             } else if (d.categoria) {
@@ -1126,7 +1181,7 @@ window.IA = (function () {
                 if (optCat) selCat.value = optCat.value;
             }
             selCat.dispatchEvent(new Event('change', { bubbles: true }));
-        }
+        });
 
         if (d.descricao && d.categoria) {
             var hint = document.getElementById('ia-aprendizado-hint');
@@ -1214,13 +1269,16 @@ window.IA = (function () {
                 if (typeof window.carregarDadosDashboard === 'function') {
                     window.carregarDadosDashboard(ano);
                 }
+                _mostrarChipsContinuacao('Posso ajudar com mais alguma coisa?');
             } else {
                 addGen('Erro ao salvar: ' + ((res && res.message) || 'tente novamente.'));
+                _mostrarChipsContinuacao('Quer tentar novamente ou fazer outra coisa?', 800);
             }
         }).catch(function () {
             removeTyping(tidM);
             _fecharModal('modal-confirmar-despesa');
             addGen('Erro de conexão ao salvar a despesa.');
+            _mostrarChipsContinuacao('Quer tentar novamente?', 800);
         });
     }
 
