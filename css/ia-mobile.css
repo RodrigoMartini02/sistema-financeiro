@@ -148,6 +148,23 @@ body:has(.ia-container.im-page) {
     gap: 2px;
 }
 
+.im-header-right {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.im-btn-fechar {
+    color: var(--gray-400, #adb5bd);
+    font-size: 18px;
+}
+.im-btn-fechar:hover,
+.im-btn-fechar:active {
+    color: #ef4444;
+    background: #fef2f2;
+}
+
 .im-title {
     font-size: 16px;
     font-weight: 700;

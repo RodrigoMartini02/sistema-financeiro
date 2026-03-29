@@ -303,6 +303,21 @@
         });
     })();
 
+    // Fechar app (botão X)
+    var btnFecharApp = document.getElementById('im-btn-fechar-app');
+    if (btnFecharApp) {
+        btnFecharApp.addEventListener('click', function () {
+            window.close();
+            // Fallback: se window.close() não funcionar (alguns Android), minimiza via history
+            setTimeout(function () {
+                if (!document.hidden) {
+                    history.go(-(history.length - 1));
+                    setTimeout(function () { window.close(); }, 100);
+                }
+            }, 200);
+        });
+    }
+
     // Nova conversa
     if (btnNovaMob) {
         btnNovaMob.addEventListener('click', function () {
