@@ -254,37 +254,53 @@
         setTimeout(wireIAConfig, 1800); // fallback caso evento não dispare
     })();
 
-    // ── Câmera: fotografar boleto/documento ──────────────────────
-    (function setupCamera() {
-        var cameraInput  = document.getElementById('ia-camera-input');
-        var fileInput    = document.getElementById('ia-file-input');
-        var btnCamera    = document.getElementById('btn-camera-mobile');
-        var chipCamera   = document.getElementById('chip-camera-boleto');
+    // ── Paperclip: abrir galeria/câmera/arquivo ──────────────────
+    (function setupAttach() {
+        var fileInput = document.getElementById('ia-file-input');
+        var btnAttach = document.getElementById('btn-attach-file');
+        var chipCamera = document.getElementById('chip-camera-boleto');
 
-        function dispararCamera() {
-            if (!cameraInput) return;
-            // Reutiliza o handler de arquivo existente do ia.js via evento change
-            cameraInput.value = '';
-            cameraInput.click();
-        }
-
-        // Quando câmera captura imagem, redireciona para o file-input do ia.js
-        if (cameraInput) {
-            cameraInput.addEventListener('change', function () {
-                if (!cameraInput.files || !cameraInput.files[0]) return;
-                // Dispara o mesmo fluxo que o btn-attach-file faz via ia.js
-                // copiando o arquivo para o input original
-                var dt = new DataTransfer();
-                dt.items.add(cameraInput.files[0]);
-                if (fileInput) {
-                    fileInput.files = dt.files;
-                    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-                }
+        if (btnAttach && fileInput) {
+            btnAttach.addEventListener('click', function () {
+                fileInput.value = '';
+                fileInput.click();
             });
         }
+        if (chipCamera && fileInput) {
+            chipCamera.addEventListener('click', function () {
+                fileInput.value = '';
+                fileInput.click();
+            });
+        }
+    })();
 
-        if (btnCamera) btnCamera.addEventListener('click', dispararCamera);
-        if (chipCamera) chipCamera.addEventListener('click', dispararCamera);
+    // ── Barcode/Paste: colar código de barras ────────────────────
+    (function setupBarcodePaste() {
+        var btnBarcode = document.getElementById('btn-barcode-paste');
+        var textarea   = document.getElementById('ia-texto-input');
+        if (!btnBarcode || !textarea) return;
+
+        btnBarcode.addEventListener('click', function () {
+            if (navigator.clipboard && navigator.clipboard.readText) {
+                navigator.clipboard.readText().then(function (text) {
+                    if (text && text.trim()) {
+                        textarea.value = text.trim();
+                        textarea.focus();
+                        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                    } else {
+                        textarea.focus();
+                        textarea.placeholder = 'Cole o código de barras aqui...';
+                        setTimeout(function () {
+                            textarea.placeholder = 'Digite sua despesa, receita ou pergunta...';
+                        }, 3000);
+                    }
+                }).catch(function () {
+                    textarea.focus();
+                });
+            } else {
+                textarea.focus();
+            }
+        });
     })();
 
     // Nova conversa

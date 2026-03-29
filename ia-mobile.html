@@ -125,12 +125,6 @@
             <input type="file" id="ia-file-input"
                 accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
                 style="display:none">
-            <!-- Input câmera (oculto) — abre câmera traseira direto -->
-            <input type="file" id="ia-camera-input"
-                accept="image/*"
-                capture="environment"
-                style="display:none">
-
             <!-- Preview de arquivo -->
             <div class="ia-file-preview" id="ia-file-preview" style="display:none">
                 <i class="fas fa-file"></i>
@@ -139,29 +133,27 @@
             </div>
 
             <!-- Barra principal -->
-            <div class="ia-input-bar">
-                <button class="ia-btn-attach" id="btn-camera-mobile" title="Fotografar boleto ou documento">
-                    <i class="fas fa-camera"></i>
+            <div class="ia-input-row">
+                <button class="ia-btn-side" id="btn-barcode-paste" title="Colar código de barras">
+                    <i class="fas fa-barcode"></i>
                 </button>
-                <button class="ia-btn-attach" id="btn-attach-file" title="Enviar arquivo">
-                    <i class="fas fa-paperclip"></i>
-                </button>
-                <textarea
-                    id="ia-texto-input"
-                    class="ia-text-input"
-                    placeholder="Digite sua despesa, receita ou pergunta..."
-                    rows="1"
-                ></textarea>
-                <button class="ia-btn-voice" id="ia-btn-voice" title="Usar voz">
-                    <i class="fas fa-microphone"></i>
-                </button>
+                <div class="ia-input-bar">
+                    <textarea
+                        id="ia-texto-input"
+                        class="ia-text-input"
+                        placeholder="Mensagem..."
+                        rows="1"
+                    ></textarea>
+                    <button class="ia-btn-attach" id="btn-attach-file" title="Enviar foto ou arquivo">
+                        <i class="fas fa-paperclip"></i>
+                    </button>
+                    <button class="ia-btn-voice" id="ia-btn-voice" title="Usar voz">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                </div>
                 <button class="ia-btn-send" id="ia-btn-send" title="Enviar">
                     <i class="fas fa-paper-plane"></i>
                 </button>
-            </div>
-
-            <div class="ia-input-hint">
-                Pressione Enter para enviar, Shift+Enter para nova linha
             </div>
         </div>
     </main>

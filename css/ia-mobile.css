@@ -319,6 +319,115 @@ body:has(.ia-container.im-page) {
     display: none;
 }
 
+/* Layout estilo Messenger */
+.ia-container.im-page .ia-input-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+/* Botão lateral esquerdo (barcode) */
+.ia-container.im-page .ia-btn-side {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: none;
+    color: var(--gray-500, #6c757d);
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 0.2s, background 0.2s;
+}
+.ia-container.im-page .ia-btn-side:hover,
+.ia-container.im-page .ia-btn-side:active {
+    color: var(--primary-color, #4361ee);
+    background: #eff3ff;
+}
+
+/* Pill do input */
+.ia-container.im-page .ia-input-bar {
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    background: var(--bg-color, #f0f2f5);
+    border: 1px solid transparent;
+    border-radius: 22px;
+    padding: 6px 10px 6px 14px;
+    transition: border-color 0.2s;
+    min-height: 42px;
+}
+.ia-container.im-page .ia-input-bar:focus-within {
+    border-color: var(--primary-color, #4361ee);
+    background: var(--card-bg, #fff);
+}
+
+/* Textarea dentro da pill */
+.ia-container.im-page .ia-text-input {
+    flex: 1;
+    border: none;
+    background: none;
+    outline: none;
+    font-size: 15px;
+    font-family: inherit;
+    color: var(--text-color, #1a1a2e);
+    resize: none;
+    max-height: 100px;
+    overflow-y: auto;
+    line-height: 1.5;
+    padding: 2px 0;
+    align-self: center;
+}
+.ia-container.im-page .ia-text-input::placeholder {
+    color: var(--gray-400, #adb5bd);
+}
+
+/* Ícones dentro da pill (clip, mic) */
+.ia-container.im-page .ia-btn-attach,
+.ia-container.im-page .ia-btn-voice {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: none;
+    background: none;
+    color: var(--gray-400, #adb5bd);
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 0.2s, background 0.2s;
+    align-self: flex-end;
+    margin-bottom: 1px;
+}
+.ia-container.im-page .ia-btn-attach:hover,
+.ia-container.im-page .ia-btn-voice:hover { color: var(--primary-color, #4361ee); }
+.ia-container.im-page .ia-btn-voice.gravando { color: #fff; background: var(--danger, #dc3545); animation: ai-pulse 1s infinite; }
+
+/* Botão enviar — círculo azul à direita */
+.ia-container.im-page .ia-btn-send {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: var(--primary-color, #4361ee);
+    color: #fff;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+}
+.ia-container.im-page .ia-btn-send:hover { background: var(--secondary-color, #3f37c9); transform: scale(1.08); }
+.ia-container.im-page .ia-btn-send:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
 /* ── BOTTOM SHEET ────────────────────────────────────────────── */
 .im-sheet-backdrop {
     position: fixed;
@@ -615,6 +724,17 @@ body:has(.ia-container.im-page) {
     text-align: center;
     font-size: 13px;
     padding: 8px 14px;
+}
+
+/* ── Dark theme input ────────────────────────────────────────── */
+[data-theme="dark"] .ia-container.im-page .ia-input-bar {
+    background: var(--bg-color, #1e293b);
+}
+[data-theme="dark"] .ia-container.im-page .ia-input-bar:focus-within {
+    background: var(--card-bg, #0f172a);
+}
+[data-theme="dark"] .ia-container.im-page .ia-btn-side {
+    color: var(--gray-400, #94a3b8);
 }
 
 /* ── Dark theme ──────────────────────────────────────────────── */

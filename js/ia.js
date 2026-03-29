@@ -864,25 +864,39 @@ window.IA = (function () {
         }
 
         if (campo === 'cartao_id') {
-            var cartoes = (window.cartoesUsuario || []).filter(function(c) { return c.ativo !== false; });
-            if (cartoes.length === 0) {
-                setTimeout(function () { removeTyping(tid2); addGen('Qual cartão de crédito?'); }, 600);
-            } else if (cartoes.length === 1) {
-                // Só um cartão — resolve automaticamente sem perguntar
-                estado.dadosParciais.cartao_id = cartoes[0].id;
-                estado.filaCampos.shift();
-                estado.aguardandoCampo = null;
-                removeTyping(tid2);
-                _proximoCampo();
-            } else {
-                var btnsCartao = cartoes.map(function(c) {
-                    var nome = c.nome || c.banco || 'Cartão';
-                    return '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="' + esc(nome) + '">' + esc(nome) + '</button>';
-                }).join('');
-                setTimeout(function () {
+            function _mostrarChipsCartao() {
+                var cartoes = (window.cartoesUsuario || []).filter(function(c) { return c.ativo !== false; });
+                if (cartoes.length === 0) {
+                    removeTyping(tid2);
+                    addGen('Qual cartão de crédito?');
+                } else if (cartoes.length === 1) {
+                    estado.dadosParciais.cartao_id = cartoes[0].id;
+                    estado.filaCampos.shift();
+                    estado.aguardandoCampo = null;
+                    removeTyping(tid2);
+                    _proximoCampo();
+                } else {
+                    var btnsCartao = cartoes.map(function(c) {
+                        var nome = c.nome || c.banco || 'Cartão';
+                        return '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="' + esc(nome) + '">' + esc(nome) + '</button>';
+                    }).join('');
                     removeTyping(tid2);
                     addGen('Qual cartão de crédito?<div class="ai-welcome-chips">' + btnsCartao + '</div>');
-                }, 600);
+                }
+            }
+
+            // Se cartões ainda não carregados, buscar da API antes de exibir chips
+            if (!window.cartoesUsuario || window.cartoesUsuario.length === 0) {
+                var perfilId = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
+                var perfilQuery = perfilId ? '?perfil_id=' + perfilId : '';
+                apiGet('/cartoes' + perfilQuery).then(function(res) {
+                    if (res && res.success && Array.isArray(res.data)) {
+                        window.cartoesUsuario = res.data;
+                    }
+                    _mostrarChipsCartao();
+                }).catch(function() { _mostrarChipsCartao(); });
+            } else {
+                setTimeout(_mostrarChipsCartao, 600);
             }
             return;
         }
