@@ -145,6 +145,10 @@ async function verificarRetornoGoogle() {
         sessionStorage.setItem('token', token);
         sessionStorage.setItem('usuarioAtual', usuario.documento || usuario.email);
         sessionStorage.setItem('dadosUsuarioLogado', dadosUsuarioGoogle);
+        // Persistir no localStorage para que o PWA instalado não exija novo login
+        localStorage.setItem('token', token);
+        localStorage.setItem('usuarioAtual', usuario.documento || usuario.email);
+        localStorage.setItem('dadosUsuarioLogado', dadosUsuarioGoogle);
         localStorage.removeItem('perfilAtivoId');
 
         const redirect = sessionStorage.getItem('redirectAfterLogin');
@@ -298,6 +302,10 @@ async function processarLogin(documento, password, isModal, tentativa = 1) {
         sessionStorage.setItem('token', token);
         sessionStorage.setItem('usuarioAtual', docLimpo);
         sessionStorage.setItem('dadosUsuarioLogado', dadosUsuario);
+        // Persistir no localStorage para que o PWA instalado não exija novo login
+        localStorage.setItem('token', token);
+        localStorage.setItem('usuarioAtual', docLimpo);
+        localStorage.setItem('dadosUsuarioLogado', dadosUsuario);
         localStorage.removeItem('perfilAtivoId');
 
         const redirect = sessionStorage.getItem('redirectAfterLogin');

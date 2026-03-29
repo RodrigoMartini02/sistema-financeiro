@@ -28,10 +28,24 @@
 <script>
 (function() {
     const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-    const usuario = sessionStorage.getItem('usuarioAtual');
+    const usuario = sessionStorage.getItem('usuarioAtual') || localStorage.getItem('usuarioAtual');
+
     if (!token || !usuario) {
         sessionStorage.setItem('redirectAfterLogin', window.location.href);
         window.location.replace('index.html');
+        return;
+    }
+
+    // PWA instalado: sessionStorage foi limpo ao fechar o app, mas localStorage persiste.
+    // Restaura a sessão automaticamente — o lock-screen cuida da segurança.
+    if (!sessionStorage.getItem('token')) {
+        sessionStorage.setItem('token', token);
+    }
+    if (!sessionStorage.getItem('usuarioAtual') && localStorage.getItem('usuarioAtual')) {
+        sessionStorage.setItem('usuarioAtual', localStorage.getItem('usuarioAtual'));
+    }
+    if (!sessionStorage.getItem('dadosUsuarioLogado') && localStorage.getItem('dadosUsuarioLogado')) {
+        sessionStorage.setItem('dadosUsuarioLogado', localStorage.getItem('dadosUsuarioLogado'));
     }
 })();
 </script>

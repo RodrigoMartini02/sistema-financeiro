@@ -370,6 +370,8 @@
             if (!confirm('Deseja sair da conta?')) return;
             sessionStorage.clear();
             localStorage.removeItem('token');
+            localStorage.removeItem('usuarioAtual');
+            localStorage.removeItem('dadosUsuarioLogado');
             localStorage.removeItem('perfilAtivoId');
             localStorage.removeItem('perfilAtivoNome');
             localStorage.removeItem('perfilAtivoTipo');
