@@ -625,57 +625,6 @@ async function interpretarBoleto(req, res) {
     }
 }
 
-// ================================================================
-// GET /api/ai/analise
-// Análise financeira - responde perguntas sobre os dados
-// ================================================================
-async function analisarFinancas(req, res) {
-    try {
-        const usuarioId = req.usuario.id;
-        const { pergunta, mes, ano } = req.query;
-
-        if (!pergunta?.trim()) {
-            return res.status(400).json({ success: false, message: 'Pergunta não informada.' });
-        }
-
-        const resumo = await buscarResumoFinanceiro(
-            usuarioId,
-            mes !== undefined ? parseInt(mes) : null,
-            ano !== undefined ? parseInt(ano) : null
-        );
-
-        const sessao = obterSessao(usuarioId);
-        const providerConfig = await buscarConfigIA(usuarioId);
-        const instrucoesUsuario = providerConfig.instrucoesGen || '';
-
-        // Usa cache de sessão igual ao chat(), com fallback para busca direta
-        const agora = Date.now();
-        if (!sessao.contextoSistema || agora > sessao.contextoSistema.expira) {
-            const mAnal = mes !== undefined ? parseInt(mes) : null;
-            const aAnal = ano !== undefined ? parseInt(ano) : null;
-            const texto = await buscarContextoSistema(usuarioId, mAnal, aAnal);
-            const carta = await buscarCartaServicos();
-            sessao.contextoSistema = { texto, carta, expira: agora + 5 * 60 * 1000 };
-        }
-        const ctxSistemaAnalise = sessao.contextoSistema.texto;
-        const cartaAnalise = sessao.contextoSistema.carta;
-
-        const resposta = await responderPerguntaFinanceira(
-            pergunta, resumo, sessao.historico.slice(-4), providerConfig, ctxSistemaAnalise, cartaAnalise, instrucoesUsuario
-        );
-
-        return res.json({
-            success: true,
-            pergunta,
-            resposta,
-            dados: resumo,
-        });
-
-    } catch (err) {
-        console.error('Erro na análise financeira:', err);
-        res.status(500).json({ success: false, message: 'Erro ao analisar finanças.' });
-    }
-}
 
 // ================================================================
 // GET /api/ai/recorrencias
@@ -883,7 +832,6 @@ module.exports = {
     processarArquivoUpload,
     interpretarPIX,
     interpretarBoleto,
-    analisarFinancas,
     listarRecorrencias,
     confirmarRecorrencia,
     salvarAprendizadoCategoria,

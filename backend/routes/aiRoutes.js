@@ -60,9 +60,6 @@ router.post('/pix', authMiddleware, upload.single('imagem'), ctrl.interpretarPIX
 // Linha digitável de boleto
 router.post('/boleto', authMiddleware, ctrl.interpretarBoleto);
 
-// Análise financeira - responde perguntas
-router.get('/analise', authMiddleware, ctrl.analisarFinancas);
-
 // Recorrências detectadas/confirmadas
 router.get('/recorrencias', authMiddleware, ctrl.listarRecorrencias);
 router.post('/recorrencias', authMiddleware, ctrl.confirmarRecorrencia);
