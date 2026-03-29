@@ -55,8 +55,9 @@ Sua tarefa é extrair informações de despesas a partir de texto em português 
 Campos a extrair:
 - descricao: nome/descrição da despesa (string)
 - valor: valor numérico em reais (number, sem R$)
-- categoria: uma das categorias: Alimentação, Transporte, Moradia, Saúde, Educação, Lazer, Assinaturas, Vestuário, Finanças, Outros
+- categoria: use EXATAMENTE uma das categorias listadas em "Categorias cadastradas" no contexto do sistema. Se nenhuma se aplicar ou não houver contexto, use "Outros"
 - forma_pagamento: cartao_credito, cartao_debito, pix, dinheiro, transferencia, boleto
+- nome_cartao: nome do cartão mencionado pelo usuário — use os nomes de "Cartões do usuário" no contexto para identificar o cartão correto. null se não mencionado
 - vencimento: data de vencimento no formato YYYY-MM-DD ou null
 - parcelas: número de parcelas (number, padrão 1)
 - data: data da despesa no formato YYYY-MM-DD (padrão: hoje)
@@ -78,14 +79,14 @@ Demais regras:
 - Retorne APENAS o JSON, sem texto adicional
 
 Exemplos:
-Input: "paguei 120 de internet da vivo no cartão vence dia 15"
-Output: {"descricao":"Internet Vivo","valor":120,"categoria":"Moradia","forma_pagamento":"cartao_credito","vencimento":"DATA_DIA_15","parcelas":1,"data":"HOJE"}
+Input: "paguei 120 de internet da vivo no nubank vence dia 15"
+Output: {"descricao":"Internet Vivo","valor":120,"categoria":"Moradia","forma_pagamento":"cartao_credito","nome_cartao":"Nubank","vencimento":"DATA_DIA_15","parcelas":1,"data":"HOJE"}
 
 Input: "netflix 55,90 debito todo mes"
-Output: {"descricao":"Netflix","valor":55.90,"categoria":"Assinaturas","forma_pagamento":"cartao_debito","vencimento":null,"parcelas":1,"data":"HOJE"}
+Output: {"descricao":"Netflix","valor":55.90,"categoria":"Assinaturas","forma_pagamento":"cartao_debito","nome_cartao":null,"vencimento":null,"parcelas":1,"data":"HOJE"}
 
 Input: "Hiper, 150 de mercado no pix"
-Output: {"descricao":"Hiper","valor":150,"categoria":"Alimentação","forma_pagamento":"pix","vencimento":null,"parcelas":1,"data":"HOJE"}`;
+Output: {"descricao":"Hiper","valor":150,"categoria":"Alimentação","forma_pagamento":"pix","nome_cartao":null,"vencimento":null,"parcelas":1,"data":"HOJE"}`;
 
 // ── PARSER COM OPENAI ────────────────────────────────────────────
 async function parsearComOpenAI(texto, contextoConversa = [], apiKeyOverride, ctxSistema = '', cartaBase = '', instrucoesUsuario = '') {

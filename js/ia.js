@@ -1578,6 +1578,35 @@ window.IA = (function () {
         }).catch(function () { _toast('Erro de conexão ao salvar a configuração.', 'error'); });
     }
 
+    // ── SAUDAÇÃO COM PERFIL ATIVO ─────────────────────────────────
+    function _mostrarPerfilNaSaudacao() {
+        var wrapper = document.getElementById('ia-welcome-perfil');
+        var badge   = document.getElementById('ia-welcome-perfil-badge');
+        if (!wrapper || !badge) return;
+
+        var nome = localStorage.getItem('perfilAtivoNome') || '';
+        var tipo = localStorage.getItem('perfilAtivoTipo') || 'pessoal';
+
+        if (!nome) return; // sem perfil carregado ainda
+
+        var icone = tipo === 'empresa' ? '🏢' : '👤';
+        var label = tipo === 'empresa' ? 'PJ' : 'PF';
+
+        badge.textContent = icone + ' Perfil ativo: ' + nome + ' (' + label + ')';
+        badge.className   = 'ia-welcome-perfil-badge ' + (tipo === 'empresa' ? 'pj' : 'pf');
+        wrapper.style.display = 'flex';
+
+        // Atualiza se o perfil mudar durante a sessão (troca via select)
+        window.addEventListener('storage', function (e) {
+            if (e.key !== 'perfilAtivoNome' && e.key !== 'perfilAtivoTipo') return;
+            var n = localStorage.getItem('perfilAtivoNome') || '';
+            var t = localStorage.getItem('perfilAtivoTipo') || 'pessoal';
+            if (!n) return;
+            badge.textContent = (t === 'empresa' ? '🏢' : '👤') + ' Perfil ativo: ' + n + ' (' + (t === 'empresa' ? 'PJ' : 'PF') + ')';
+            badge.className   = 'ia-welcome-perfil-badge ' + (t === 'empresa' ? 'pj' : 'pf');
+        });
+    }
+
     // ── INICIALIZAÇÃO ─────────────────────────────────────────────
     function _init() {
         estado.modoPagina = !!document.querySelector('.ia-container');
@@ -1658,6 +1687,7 @@ window.IA = (function () {
             });
 
             inicializar();
+            _mostrarPerfilNaSaudacao();
 
             // Esconde o loader assim que a UI está pronta
             if (typeof window.hideLoadingScreen === 'function') {

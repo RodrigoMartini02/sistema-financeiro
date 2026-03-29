@@ -499,7 +499,7 @@ async function criarUsuarioMaster() {
     }
 }
 
-// ✅ SEED: Migra carta de serviços do arquivo para o banco (one-time)
+// ✅ SEED: Migra/atualiza carta de serviços do arquivo para o banco (versão-aware)
 async function seedCartaServicos() {
     try {
         const fs = require('fs');
@@ -507,15 +507,30 @@ async function seedCartaServicos() {
         const { query } = require('./config/database');
         const CARTA_PATH = path.join(__dirname, '../docs/gen-instrucoes.md');
         if (!fs.existsSync(CARTA_PATH)) return;
+        const conteudo = fs.readFileSync(CARTA_PATH, 'utf8');
+
+        // Extrair versão do arquivo (linha: # CARTA_VERSION: X.Y)
+        const matchArquivo = conteudo.match(/^#\s*CARTA_VERSION:\s*(.+)$/m);
+        const versaoArquivo = matchArquivo ? matchArquivo[1].trim() : '1.0';
+
         const r = await query(`SELECT dados_financeiros FROM usuarios WHERE tipo = 'master' LIMIT 1`);
         if (!r.rows[0]) return;
-        if (r.rows[0].dados_financeiros?.carta_servicos) return; // já existe
-        const conteudo = fs.readFileSync(CARTA_PATH, 'utf8');
+
+        const cartaAtual = r.rows[0].dados_financeiros?.carta_servicos || '';
+        const matchDB = cartaAtual.match(/^#\s*CARTA_VERSION:\s*(.+)$/m);
+        const versaoDB = matchDB ? matchDB[1].trim() : '0.0';
+
+        // Atualizar apenas se versão do arquivo for diferente (maior ou nova)
+        if (cartaAtual && versaoArquivo === versaoDB) {
+            console.log(`ℹ️ Carta de Serviços já está na versão ${versaoDB} — sem atualização`);
+            return;
+        }
+
         await query(
             `UPDATE usuarios SET dados_financeiros = COALESCE(dados_financeiros, '{}'::jsonb) || jsonb_build_object('carta_servicos', $1::text) WHERE tipo = 'master'`,
             [conteudo]
         );
-        console.log('✅ Carta de Serviços migrada para o banco de dados');
+        console.log(`✅ Carta de Serviços atualizada: ${versaoDB} → ${versaoArquivo}`);
     } catch (e) {
         console.error('⚠️ Seed carta falhou:', e.message);
     }
