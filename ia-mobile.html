@@ -309,6 +309,44 @@
 </div>
 
 <!-- ================================================================ -->
+<!-- MODAL: CONFIRMAR RECEITA -->
+<!-- ================================================================ -->
+<div class="ia-modal-overlay" id="modal-confirmar-receita" style="display:none">
+    <div class="ia-modal">
+        <div class="ia-modal-header">
+            <h3><i class="fas fa-check-circle"></i> Confirmar Receita</h3>
+            <button id="btn-fechar-modal-receita"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="ia-modal-body">
+            <form id="form-receita-ia">
+                <div class="ia-form-row">
+                    <div class="ia-form-group">
+                        <label>Descrição *</label>
+                        <input type="text" id="ia-receita-descricao" required placeholder="Descrição da receita">
+                    </div>
+                    <div class="ia-form-group ia-form-group--sm">
+                        <label>Valor (R$) *</label>
+                        <input type="number" id="ia-receita-valor" required min="0.01" step="0.01" placeholder="0,00">
+                    </div>
+                </div>
+                <div class="ia-form-row">
+                    <div class="ia-form-group">
+                        <label>Data de Recebimento *</label>
+                        <input type="date" id="ia-receita-data" required>
+                    </div>
+                </div>
+                <div class="ia-modal-footer">
+                    <button type="button" class="ia-btn-ghost" id="btn-cancelar-modal-receita">Cancelar</button>
+                    <button type="submit" class="ia-btn-primary">
+                        <i class="fas fa-save"></i> Salvar Receita
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================ -->
 <!-- MODAL: RECORRÊNCIAS SUGERIDAS -->
 <!-- ================================================================ -->
 <div class="ia-modal-overlay" id="modal-recorrencias" style="display:none">

@@ -731,18 +731,74 @@ window.IA = (function () {
     function editarReceita() {
         var r = estado.receitaPendente;
         if (!r) return;
-        estado.dadosParciais   = Object.assign({}, r);
-        estado.tipoColeta      = 'receita';
-        estado.aguardandoCampo = 'campo_revisao';
-        var campos = [
-            { label: 'Descrição', val: 'descricao' },
-            { label: 'Valor',     val: 'valor' },
-            { label: 'Data',      val: 'data_receita' }
-        ];
-        var btns = campos.map(function(c) {
-            return '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="' + esc(c.val) + '" data-opcao-label="' + esc(c.label) + '">' + esc(c.label) + '</button>';
-        }).join('');
-        addGen('Qual informação deseja corrigir?<div class="ai-welcome-chips">' + btns + '</div>');
+        _preencherModalReceita(r);
+        _abrirModal('modal-confirmar-receita');
+    }
+
+    function _preencherModalReceita(r) {
+        _setId('ia-receita-descricao', r.descricao || '');
+        _setId('ia-receita-valor',     r.valor ? Number(r.valor).toFixed(2) : '');
+
+        var mesAb  = window.mesAberto;
+        var anoAb  = window.anoAberto;
+        var dataFallback = (mesAb !== undefined && anoAb)
+            ? anoAb + '-' + String(mesAb + 1).padStart(2, '0') + '-15'
+            : new Date().toISOString().split('T')[0];
+        _setId('ia-receita-data', r.data || dataFallback);
+    }
+
+    function _salvarModalReceita(e) {
+        e.preventDefault();
+        var descricao = document.getElementById('ia-receita-descricao') ? document.getElementById('ia-receita-descricao').value.trim() : '';
+        var valor     = parseFloat(document.getElementById('ia-receita-valor') ? document.getElementById('ia-receita-valor').value : 0);
+        var data      = document.getElementById('ia-receita-data') ? document.getElementById('ia-receita-data').value : '';
+
+        if (!descricao || !valor || !data) {
+            addGen('Preencha todos os campos obrigatórios.');
+            return;
+        }
+
+        var parts = data.split('-');
+        var mes = parseInt(parts[1]) - 1;
+        var ano = parseInt(parts[0]);
+
+        var payload = {
+            descricao:        descricao,
+            valor:            parseFloat(valor.toFixed(2)),
+            data_recebimento: data,
+            mes:              mes,
+            ano:              ano,
+            perfil_id:        typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null
+        };
+
+        var tidR = addTyping();
+        apiMainPost('/receitas', payload).then(function(res) {
+            removeTyping(tidR);
+            _fecharModal('modal-confirmar-receita');
+            if (res && res.success) {
+                if (window.usuarioDataManager && typeof window.usuarioDataManager.limparCache === 'function') {
+                    window.usuarioDataManager.limparCache();
+                }
+                if (typeof window.renderizarDetalhesDoMes === 'function') {
+                    window.mesAberto = mes;
+                    window.anoAberto = ano;
+                    window.renderizarDetalhesDoMes(mes, ano);
+                }
+                if (typeof window.carregarDadosDashboard === 'function') {
+                    window.carregarDadosDashboard(ano);
+                }
+                addGen('Receita "' + descricao + '" salva em ' + (MESES[mes] || '') + '/' + ano + '.');
+                _mostrarChipsContinuacao('Posso ajudar com mais alguma coisa?');
+            } else {
+                addGen('Erro ao salvar: ' + ((res && res.message) || 'tente novamente.'));
+                _mostrarChipsContinuacao('Quer tentar novamente?', 800);
+            }
+        }).catch(function() {
+            removeTyping(tidR);
+            _fecharModal('modal-confirmar-receita');
+            addGen('Erro de conexão ao salvar receita.');
+            _mostrarChipsContinuacao('Quer tentar novamente?', 800);
+        });
     }
 
     function cancelarReceita() {
@@ -1139,24 +1195,30 @@ window.IA = (function () {
             }
         }
 
-        // Popula sincronamente com o que há disponível (garante PIX/Dinheiro/Débito imediatos)
-        _adicionarOpcoes(window.cartoesUsuario);
-        if (callback) callback();
-
-        // Se cartões ainda não foram carregados, busca e atualiza as opções de crédito
-        if (!window.cartoesUsuario) {
+        // Se cartões não foram carregados ou array está vazio, busca da API
+        if (!window.cartoesUsuario || window.cartoesUsuario.length === 0) {
             var perfilId = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
             var q = perfilId ? '?perfil_id=' + perfilId : '';
             apiMainGet('/cartoes' + q).then(function(res) {
                 if (res && res.success && Array.isArray(res.data)) {
                     window.cartoesUsuario = res.data;
-                    var prevVal = sel.value;
-                    _adicionarOpcoes(window.cartoesUsuario);
-                    if (prevVal) sel.value = prevVal;
-                } else {
-                    window.cartoesUsuario = [];
+                }  else {
+                    window.cartoesUsuario = window.cartoesUsuario || [];
                 }
-            }).catch(function() { window.cartoesUsuario = []; });
+                // Popula e executa callback APÓS API responder (garante cartões de crédito disponíveis)
+                var prevVal = sel.value;
+                _adicionarOpcoes(window.cartoesUsuario);
+                if (prevVal) sel.value = prevVal;
+                if (callback) callback();
+            }).catch(function() {
+                window.cartoesUsuario = window.cartoesUsuario || [];
+                _adicionarOpcoes(window.cartoesUsuario);
+                if (callback) callback();
+            });
+        } else {
+            // Cartões já carregados — popula sincronamente e executa callback
+            _adicionarOpcoes(window.cartoesUsuario);
+            if (callback) callback();
         }
     }
 
@@ -1824,6 +1886,9 @@ window.IA = (function () {
 
             document.getElementById('btn-fechar-modal-despesa')?.addEventListener('click', function () { _fecharModal('modal-confirmar-despesa'); });
             document.getElementById('btn-cancelar-modal-despesa')?.addEventListener('click', function () { _fecharModal('modal-confirmar-despesa'); });
+            document.getElementById('btn-fechar-modal-receita')?.addEventListener('click', function () { _fecharModal('modal-confirmar-receita'); });
+            document.getElementById('btn-cancelar-modal-receita')?.addEventListener('click', function () { _fecharModal('modal-confirmar-receita'); });
+            document.getElementById('form-receita-ia')?.addEventListener('submit', _salvarModalReceita);
             document.getElementById('btn-fechar-modal-recorrencias')?.addEventListener('click', function () { _fecharModal('modal-recorrencias'); });
             document.getElementById('btn-fechar-recorrencias')?.addEventListener('click', function () { _fecharModal('modal-recorrencias'); });
             document.getElementById('btn-confirmar-aprendizado')?.addEventListener('click', confirmarAprendizado);
