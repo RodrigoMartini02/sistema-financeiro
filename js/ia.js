@@ -1159,30 +1159,35 @@ window.IA = (function () {
             // Remove todos os filhos exceto a primeira opção "Selecione..."
             while (sel.children.length > 1) sel.removeChild(sel.lastChild);
 
-            var grpConta = document.createElement('optgroup');
-            grpConta.label = 'Conta';
-            [{ v: 'pix', t: 'PIX' }, { v: 'dinheiro', t: 'Dinheiro' }, { v: 'debito', t: 'Débito' }
+            // Separador visual de grupo
+            function _addSeparador(label) {
+                var opt = document.createElement('option');
+                opt.disabled = true;
+                opt.text = '── ' + label + ' ──';
+                sel.appendChild(opt);
+            }
+
+            _addSeparador('Conta');
+            [{ v: 'pix', t: '  • PIX' }, { v: 'dinheiro', t: '  • Dinheiro' }, { v: 'debito', t: '  • Débito' }
             ].forEach(function(o) {
                 var opt = document.createElement('option');
                 opt.value = o.v; opt.text = o.t;
-                grpConta.appendChild(opt);
+                sel.appendChild(opt);
             });
-            sel.appendChild(grpConta);
 
             var cred = (cartoes || []).filter(function(c) { return c.ativo !== false; });
             if (cred.length > 0) {
-                var grpCred = document.createElement('optgroup');
-                grpCred.label = 'Cartão de Crédito';
+                _addSeparador('Cartão de Crédito');
                 cred.forEach(function(c) {
                     var opt = document.createElement('option');
                     opt.value = 'credito:' + c.id;
-                    opt.text  = c.nome || c.banco || 'Cartão';
-                    grpCred.appendChild(opt);
+                    opt.text  = '  • ' + (c.nome || c.banco || 'Cartão');
+                    sel.appendChild(opt);
                 });
-                sel.appendChild(grpCred);
             } else {
+                _addSeparador('Cartão de Crédito');
                 var opt = document.createElement('option');
-                opt.value = 'credito'; opt.text = 'Crédito';
+                opt.value = 'credito'; opt.text = '  • Crédito';
                 sel.appendChild(opt);
             }
         }
