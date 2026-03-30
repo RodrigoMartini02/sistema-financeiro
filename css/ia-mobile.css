@@ -384,7 +384,7 @@ body:has(.ia-container.im-page) {
     display: none;
 }
 
-/* Layout estilo Messenger */
+/* Layout estilo WhatsApp */
 .ia-container.im-page .ia-input-row {
     display: flex;
     align-items: flex-end;
@@ -395,43 +395,44 @@ body:has(.ia-container.im-page) {
     background: var(--card-bg, #fff);
 }
 
-/* Botões laterais: barcode (esquerda) e enviar (direita) — fora da pill */
-.ia-container.im-page .ia-btn-side {
-    flex-shrink: 0;
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    border: none;
-    background: none;
-    color: var(--gray-500, #6c757d);
-    font-size: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: color 0.2s, background 0.2s;
-}
-.ia-container.im-page .ia-btn-side:hover,
-.ia-container.im-page .ia-btn-side:active {
-    color: var(--primary-color, #4361ee);
-    background: #eff3ff;
-}
-
-/* Pill do input — padding vertical 3px: 3+3+32(botões) = 38px, igual aos botões laterais */
+/* Pill do input */
 .ia-container.im-page .ia-input-bar {
     flex: 1;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
     background: var(--bg-color, #f0f2f5);
     border: 1px solid var(--border-color, #e0e4ef);
     border-radius: 22px;
-    padding: 3px 8px;
+    padding: 3px 6px 3px 4px;
     transition: border-color 0.2s, background 0.2s;
+    min-width: 0;
 }
 .ia-container.im-page .ia-input-bar:focus-within {
     border-color: var(--primary-color, #4361ee);
     background: var(--card-bg, #fff);
+}
+
+/* Barcode — esquerda dentro da pill */
+.ia-container.im-page .ia-btn-barcode {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--gray-500, #6c757d);
+    font-size: 17px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 0.2s;
+    align-self: center;
+}
+.ia-container.im-page .ia-btn-barcode:hover,
+.ia-container.im-page .ia-btn-barcode:active {
+    color: var(--primary-color, #4361ee);
 }
 
 /* Textarea dentro da pill */
@@ -451,16 +452,16 @@ body:has(.ia-container.im-page) {
     max-height: 120px;
     overflow-y: auto;
     line-height: 1.4;
-    padding: 0;
+    padding: 6px 0;
     align-self: center;
 }
 .ia-container.im-page .ia-text-input::placeholder {
     color: var(--gray-400, #adb5bd);
 }
 
-/* Ícones dentro da pill (clip, mic) */
+/* Ícones à direita dentro da pill: paperclip + câmera */
 .ia-container.im-page .ia-btn-attach,
-.ia-container.im-page .ia-btn-voice {
+.ia-container.im-page .ia-btn-camera {
     flex-shrink: 0;
     width: 30px;
     height: 30px;
@@ -473,31 +474,54 @@ body:has(.ia-container.im-page) {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: color 0.2s, background 0.2s;
+    transition: color 0.2s;
     align-self: center;
 }
 .ia-container.im-page .ia-btn-attach:hover,
-.ia-container.im-page .ia-btn-voice:hover { color: var(--primary-color, #4361ee); }
-.ia-container.im-page .ia-btn-voice.gravando { color: #fff; background: var(--danger, #dc3545); animation: ai-pulse 1s infinite; }
+.ia-container.im-page .ia-btn-camera:hover {
+    color: var(--primary-color, #4361ee);
+}
 
-/* Botão enviar — círculo verde à direita, fora da pill */
-.ia-container.im-page .ia-btn-send {
+/* Círculo verde mic/send — fora da pill, à direita */
+.ia-container.im-page .ia-btn-mic-send {
     flex-shrink: 0;
-    width: 38px;
-    height: 38px;
+    width: 42px;
+    height: 42px;
     border-radius: 50%;
     border: none;
-    background: var(--primary-color, #4CAF50);
+    background: #25d366; /* verde WhatsApp */
     color: #fff;
-    font-size: 16px;
+    font-size: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background 0.2s, transform 0.15s;
+    box-shadow: 0 2px 8px rgba(37,211,102,0.4);
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    align-self: flex-end;
 }
-.ia-container.im-page .ia-btn-send:hover { background: var(--secondary-color, #3f37c9); transform: scale(1.08); }
-.ia-container.im-page .ia-btn-send:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+.ia-container.im-page .ia-btn-mic-send:hover {
+    background: #1ebe5d;
+    transform: scale(1.06);
+    box-shadow: 0 4px 14px rgba(37,211,102,0.5);
+}
+.ia-container.im-page .ia-btn-mic-send:active {
+    transform: scale(0.96);
+}
+.ia-container.im-page .ia-btn-mic-send.gravando {
+    background: #dc3545;
+    box-shadow: 0 0 0 0 rgba(220,53,69,.4);
+    animation: ai-pulse 1s infinite;
+}
+.ia-container.im-page .ia-btn-mic-send--send {
+    /* Quando em modo enviar: ligeiramente mais escuro/diferente para feedback visual */
+    background: #25d366;
+}
+.ia-container.im-page .ia-btn-mic-send:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+    transform: none;
+}
 
 /* ── BOTTOM SHEET ────────────────────────────────────────────── */
 .im-sheet-backdrop {
@@ -811,8 +835,12 @@ body:has(.ia-container.im-page) {
 [data-theme="dark"] .ia-container.im-page .ia-text-input {
     color: var(--text-color, #e2e8f0);
 }
-[data-theme="dark"] .ia-container.im-page .ia-btn-side {
+[data-theme="dark"] .ia-container.im-page .ia-btn-barcode {
     color: var(--gray-400, #94a3b8);
+}
+[data-theme="dark"] .ia-container.im-page .ia-btn-attach,
+[data-theme="dark"] .ia-container.im-page .ia-btn-camera {
+    color: var(--gray-500, #64748b);
 }
 
 /* ── Dark theme ──────────────────────────────────────────────── */

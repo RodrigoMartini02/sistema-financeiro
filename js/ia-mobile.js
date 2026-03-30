@@ -253,24 +253,22 @@
         setTimeout(wireIAConfig, 1800); // fallback caso evento não dispare
     })();
 
-    // ── Paperclip: abrir galeria/câmera/arquivo ──────────────────
+    // ── Paperclip + câmera: abrir galeria/câmera/arquivo ─────────
     (function setupAttach() {
-        var fileInput = document.getElementById('ia-file-input');
-        var btnAttach = document.getElementById('btn-attach-file');
+        var fileInput  = document.getElementById('ia-file-input');
+        var btnAttach  = document.getElementById('btn-attach-file');
+        var btnCamera  = document.getElementById('btn-camera-file');
         var chipCamera = document.getElementById('chip-camera-boleto');
 
-        if (btnAttach && fileInput) {
-            btnAttach.addEventListener('click', function () {
-                fileInput.value = '';
-                fileInput.click();
-            });
+        function abrirArquivo() {
+            if (!fileInput) return;
+            fileInput.value = '';
+            fileInput.click();
         }
-        if (chipCamera && fileInput) {
-            chipCamera.addEventListener('click', function () {
-                fileInput.value = '';
-                fileInput.click();
-            });
-        }
+
+        if (btnAttach)  btnAttach.addEventListener('click', abrirArquivo);
+        if (btnCamera)  btnCamera.addEventListener('click', abrirArquivo);
+        if (chipCamera) chipCamera.addEventListener('click', abrirArquivo);
     })();
 
     // ── Barcode: abre campo dedicado acima do input ──────────────

@@ -1467,25 +1467,46 @@ window.IA = (function () {
             estado.gravandoVoz = true; estado.reconhecimento = rec;
             document.getElementById('ia-btn-voice')?.classList.add('gravando');
             document.getElementById('ai-btn-voice')?.classList.add('gravando');
+            document.getElementById('ia-btn-send')?.classList.add('gravando');
             addGen('🎙️ Ouvindo...');
         };
         rec.onresult = function (e) {
             var t = e.results[0][0].transcript;
             var inp = elInput();
-            if (inp) { inp.value = t; autoResize(inp); }
+            if (inp) { inp.value = t; autoResize(inp); _atualizarIconeMicSend(); }
         };
         rec.onend = function () {
             estado.gravandoVoz = false; estado.reconhecimento = null;
             document.getElementById('ia-btn-voice')?.classList.remove('gravando');
             document.getElementById('ai-btn-voice')?.classList.remove('gravando');
+            document.getElementById('ia-btn-send')?.classList.remove('gravando');
         };
         rec.onerror = function (e) {
             estado.gravandoVoz = false;
             document.getElementById('ia-btn-voice')?.classList.remove('gravando');
             document.getElementById('ai-btn-voice')?.classList.remove('gravando');
+            document.getElementById('ia-btn-send')?.classList.remove('gravando');
             if (e.error !== 'aborted') addGen('Erro de voz: ' + e.error);
         };
         rec.start();
+    }
+
+    // ── ATUALIZAR ÍCONE MIC/SEND (botão WhatsApp) ─────────────────
+    // Quando o input tem texto → mostra seta de enviar (verde)
+    // Quando está vazio → mostra microfone
+    function _atualizarIconeMicSend() {
+        var inp  = elInput();
+        var icon = document.getElementById('ia-mic-send-icon');
+        var btn  = document.getElementById('ia-btn-send');
+        if (!icon || !btn) return;
+        var temTexto = inp && inp.value.trim().length > 0;
+        if (temTexto) {
+            icon.className = 'fas fa-paper-plane';
+            btn.classList.add('ia-btn-mic-send--send');
+        } else {
+            icon.className = 'fas fa-microphone';
+            btn.classList.remove('ia-btn-mic-send--send');
+        }
     }
 
     // ── UTILITÁRIOS ───────────────────────────────────────────────
@@ -1754,8 +1775,11 @@ window.IA = (function () {
             });
 
             document.getElementById('btn-abrir-upload')?.addEventListener('click', abrirUpload);
+            document.getElementById('btn-attach-file')?.addEventListener('click', abrirUpload);
+            document.getElementById('btn-camera-file')?.addEventListener('click', abrirUpload);
             document.getElementById('chip-upload')?.addEventListener('click', abrirUpload);
             document.getElementById('btn-abrir-boleto')?.addEventListener('click', abrirBoleto);
+            document.getElementById('btn-barcode-desktop')?.addEventListener('click', abrirBoleto);
             document.getElementById('chip-boleto')?.addEventListener('click', abrirBoleto);
             document.getElementById('btn-processar-boleto-page')?.addEventListener('click', processarBoleto);
             document.getElementById('btn-fechar-boleto-page')?.addEventListener('click', fecharBoleto);
@@ -1792,8 +1816,28 @@ window.IA = (function () {
         }
 
         // send btn — elSend() já resolve o botão certo em cada contexto
+        // O botão ia-btn-send agora age como mic (voz) quando o input está vazio,
+        // e como enviar quando há texto — estilo WhatsApp.
         var sendBtn = elSend();
-        if (sendBtn) sendBtn.addEventListener('click', enviarMensagem);
+        if (sendBtn) {
+            sendBtn.addEventListener('click', function () {
+                var inp = elInput();
+                var temTexto = inp && inp.value.trim().length > 0;
+                if (temTexto || estado.arquivoPendente) {
+                    enviarMensagem();
+                } else {
+                    toggleVoz();
+                }
+            });
+        }
+
+        // Atualiza ícone do botão mic/send ao digitar
+        var inputEl = elInput();
+        if (inputEl) {
+            inputEl.addEventListener('input', function () {
+                _atualizarIconeMicSend();
+            });
+        }
 
         document.getElementById('ia-btn-voice')?.addEventListener('click', toggleVoz);
         document.getElementById('ai-btn-voice')?.addEventListener('click', toggleVoz);

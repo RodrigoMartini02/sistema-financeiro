@@ -191,29 +191,34 @@
                 <button id="btn-cancelar-arquivo-page"><i class="fas fa-times"></i></button>
             </div>
 
-            <!-- Barra principal -->
-            <div class="ia-input-bar">
-                <!-- Anexo / Upload -->
-                <button class="ia-btn-attach" id="btn-attach-file" title="Enviar arquivo">
-                    <i class="fas fa-paperclip"></i>
-                </button>
+            <!-- Barra principal — layout WhatsApp -->
+            <div class="ia-input-row-desktop">
+                <div class="ia-input-bar">
+                    <!-- Esquerda dentro da pill: barcode -->
+                    <button class="ia-btn-barcode" id="btn-barcode-desktop" title="Colar código de barras">
+                        <i class="fas fa-barcode"></i>
+                    </button>
 
-                <!-- Campo de texto -->
-                <textarea
-                    id="ia-texto-input"
-                    class="ia-text-input"
-                    placeholder="Digite sua despesa, receita ou faça uma pergunta..."
-                    rows="1"
-                ></textarea>
+                    <!-- Centro: campo de texto -->
+                    <textarea
+                        id="ia-texto-input"
+                        class="ia-text-input"
+                        placeholder="Digite sua despesa, receita ou faça uma pergunta..."
+                        rows="1"
+                    ></textarea>
 
-                <!-- Voz -->
-                <button class="ia-btn-voice" id="ia-btn-voice" title="Usar voz">
-                    <i class="fas fa-microphone"></i>
-                </button>
+                    <!-- Direita dentro da pill: anexo + câmera -->
+                    <button class="ia-btn-attach" id="btn-attach-file" title="Enviar arquivo">
+                        <i class="fas fa-paperclip"></i>
+                    </button>
+                    <button class="ia-btn-camera" id="btn-camera-file" title="Fotografar">
+                        <i class="fas fa-camera"></i>
+                    </button>
+                </div>
 
-                <!-- Enviar -->
-                <button class="ia-btn-send" id="ia-btn-send" title="Enviar">
-                    <i class="fas fa-paper-plane"></i>
+                <!-- Fora da pill: círculo verde com microfone (ou enviar) -->
+                <button class="ia-btn-mic-send" id="ia-btn-send" title="Enviar / Voz">
+                    <i class="fas fa-microphone" id="ia-mic-send-icon"></i>
                 </button>
             </div>
 

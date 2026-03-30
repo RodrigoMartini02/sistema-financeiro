@@ -993,40 +993,55 @@ body:has(.ia-container) {
 .ia-file-preview span { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .ia-file-preview button { background:none; border:none; cursor:pointer; color:var(--gray-500,#6c757d); }
 
-.ia-input-bar {
+/* Layout de input WhatsApp — desktop (ia.html) */
+.ia-input-row-desktop {
     display: flex;
     align-items: flex-end;
     gap: 8px;
+}
+
+.ia-input-bar {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 2px;
     background: var(--bg-color, #f0f2f5);
     border: 1px solid var(--border-color, #e0e4ef);
-    border-radius: 12px;
-    padding: 6px 8px;
-    transition: border-color 0.2s;
+    border-radius: 24px;
+    padding: 4px 8px 4px 6px;
+    transition: border-color 0.2s, background 0.2s;
+    min-width: 0;
 }
-.ia-input-bar:focus-within { border-color: var(--primary-color, #4361ee); }
+.ia-input-bar:focus-within {
+    border-color: var(--primary-color, #4361ee);
+    background: var(--card-bg, #fff);
+}
 
-.ia-btn-attach,
-.ia-btn-voice {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: var(--gray-400, #adb5bd);
-    font-size: 15px;
+/* Barcode — esquerda dentro da pill */
+.ia-btn-barcode {
+    flex-shrink: 0;
     width: 32px;
     height: 32px;
-    border-radius: 8px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--gray-500, #6c757d);
+    font-size: 17px;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
-    transition: color 0.2s, background 0.2s;
+    cursor: pointer;
+    transition: color 0.2s;
 }
-.ia-btn-attach:hover,
-.ia-btn-voice:hover { color: var(--primary-color, #4361ee); background: #eff3ff; }
-.ia-btn-voice.gravando { color:#fff; background:var(--danger,#dc3545); animation:ai-pulse 1s infinite; }
+.ia-btn-barcode:hover {
+    color: var(--primary-color, #4361ee);
+}
 
+/* Textarea */
 .ia-text-input {
     flex: 1;
+    min-width: 0;
+    width: 0;
     border: none;
     background: none;
     outline: none;
@@ -1037,27 +1052,103 @@ body:has(.ia-container) {
     max-height: 120px;
     overflow-y: auto;
     line-height: 1.5;
-    padding: 4px 0;
+    padding: 6px 0;
+    align-self: center;
 }
 .ia-text-input::placeholder { color: var(--gray-400, #adb5bd); }
 
-.ia-btn-send {
-    background: var(--primary-color, #4361ee);
+/* Ícones à direita dentro da pill: paperclip + câmera */
+.ia-btn-attach,
+.ia-btn-camera {
+    flex-shrink: 0;
+    background: none;
     border: none;
-    color: #fff;
-    width: 34px;
-    height: 34px;
-    border-radius: 8px;
     cursor: pointer;
-    font-size: 14px;
+    color: var(--gray-400, #adb5bd);
+    font-size: 16px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
-    transition: all 0.2s;
+    transition: color 0.2s;
+    align-self: center;
 }
-.ia-btn-send:hover { background: var(--secondary-color, #3f37c9); transform: scale(1.05); }
-.ia-btn-send:disabled { opacity:.4; cursor:not-allowed; transform:none; }
+.ia-btn-attach:hover,
+.ia-btn-camera:hover { color: var(--primary-color, #4361ee); }
+
+/* Círculo verde mic/send — fora da pill, à direita */
+.ia-btn-mic-send {
+    flex-shrink: 0;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: none;
+    background: #25d366;
+    color: #fff;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(37,211,102,0.4);
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    align-self: flex-end;
+}
+.ia-btn-mic-send:hover {
+    background: #1ebe5d;
+    transform: scale(1.06);
+    box-shadow: 0 4px 14px rgba(37,211,102,0.5);
+}
+.ia-btn-mic-send:active { transform: scale(0.96); }
+.ia-btn-mic-send.gravando {
+    background: #dc3545;
+    animation: ai-pulse 1s infinite;
+}
+.ia-btn-mic-send:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+/* Alias: ia-btn-send is now ia-btn-mic-send — keep old name working for ia.js */
+.ia-btn-send {
+    flex-shrink: 0;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: none;
+    background: #25d366;
+    color: #fff;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(37,211,102,0.4);
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    align-self: flex-end;
+}
+.ia-btn-send:hover { background: #1ebe5d; transform: scale(1.06); }
+.ia-btn-send:active { transform: scale(0.96); }
+.ia-btn-send.gravando { background: #dc3545; animation: ai-pulse 1s infinite; }
+.ia-btn-send:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+/* Legacy: voice button kept for floating panel (ai-btn-voice) */
+.ia-btn-voice {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--gray-400, #adb5bd);
+    font-size: 16px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+.ia-btn-voice:hover { color: var(--primary-color, #4361ee); }
+.ia-btn-voice.gravando { color: #fff; background: var(--danger, #dc3545); animation: ai-pulse 1s infinite; }
 
 .ia-input-hint {
     text-align: center;
@@ -1305,8 +1396,11 @@ body:has(.ia-container) {
     /* Botões e inputs com mínimo de toque */
     .ia-btn-icon,
     .ia-btn-send,
+    .ia-btn-mic-send,
     .ia-send-btn,
     .ia-btn-attach,
+    .ia-btn-camera,
+    .ia-btn-barcode,
     .ia-btn-voice {
         min-width: 44px;
         min-height: 44px;
@@ -1520,6 +1614,25 @@ body:has(.ia-container) {
     background: rgba(29, 78, 216, 0.12);
     border-color: rgba(96, 165, 250, 0.3);
     color: #93c5fd;
+}
+
+/* Página IA — novos botões do input bar (barcode, attach, camera) */
+[data-theme="dark"] .ia-btn-barcode {
+    color: var(--theme-text-muted);
+}
+[data-theme="dark"] .ia-btn-barcode:hover {
+    color: var(--primary-color);
+}
+[data-theme="dark"] .ia-btn-attach,
+[data-theme="dark"] .ia-btn-camera {
+    color: var(--theme-text-faint);
+}
+[data-theme="dark"] .ia-btn-attach:hover,
+[data-theme="dark"] .ia-btn-camera:hover {
+    color: var(--primary-color);
+}
+[data-theme="dark"] .ia-input-bar:focus-within {
+    background: var(--theme-surface-solid);
 }
 
 /* Página IA — botão ghost */

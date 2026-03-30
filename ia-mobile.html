@@ -151,27 +151,34 @@
                 <button id="btn-cancelar-arquivo-page"><i class="fas fa-times"></i></button>
             </div>
 
-            <!-- Barra principal -->
+            <!-- Barra principal — layout WhatsApp -->
             <div class="ia-input-row">
-                <button class="ia-btn-side" id="btn-barcode-paste" title="Colar código de barras">
-                    <i class="fas fa-barcode"></i>
-                </button>
                 <div class="ia-input-bar">
+                    <!-- Esquerda dentro da pill: barcode -->
+                    <button class="ia-btn-barcode" id="btn-barcode-paste" title="Colar código de barras">
+                        <i class="fas fa-barcode"></i>
+                    </button>
+
+                    <!-- Centro: campo de texto -->
                     <textarea
                         id="ia-texto-input"
                         class="ia-text-input"
                         placeholder="Mensagem..."
                         rows="1"
                     ></textarea>
-                    <button class="ia-btn-attach" id="btn-attach-file" title="Enviar foto ou arquivo">
+
+                    <!-- Direita dentro da pill: anexo + câmera -->
+                    <button class="ia-btn-attach" id="btn-attach-file" title="Enviar arquivo">
                         <i class="fas fa-paperclip"></i>
                     </button>
-                    <button class="ia-btn-voice" id="ia-btn-voice" title="Usar voz">
-                        <i class="fas fa-microphone"></i>
+                    <button class="ia-btn-camera" id="btn-camera-file" title="Fotografar">
+                        <i class="fas fa-camera"></i>
                     </button>
                 </div>
-                <button class="ia-btn-send" id="ia-btn-send" title="Enviar">
-                    <i class="fas fa-paper-plane"></i>
+
+                <!-- Fora da pill: círculo verde com microfone (ou enviar) -->
+                <button class="ia-btn-mic-send" id="ia-btn-send" title="Enviar / Voz">
+                    <i class="fas fa-microphone" id="ia-mic-send-icon"></i>
                 </button>
             </div>
         </div>
