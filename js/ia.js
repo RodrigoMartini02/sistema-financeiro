@@ -572,13 +572,6 @@ window.IA = (function () {
         if (!d) return;
         estado.despesaPendente = null;
 
-        if (estado.modoPagina) {
-            // Página ia.html: preenche o modal interno para revisão
-            _preencherModalDespesa(d);
-            _abrirModal('modal-confirmar-despesa');
-            return;
-        }
-
         // ── Monta payload idêntico ao do modal manual ────────────
         var pc2 = _calcParcelas(d);
         var totalParcelas = pc2.totalParcelas, parcelado = pc2.parcelado, valorTotal = pc2.valorTotal, valorParcela = pc2.valorParcela;
@@ -660,24 +653,9 @@ window.IA = (function () {
     function editarDespesa() {
         var d = estado.despesaPendente;
         if (!d) return;
-        estado.dadosParciais   = Object.assign({}, d);
-        estado.tipoColeta      = 'despesa';
-        estado.aguardandoCampo = 'campo_revisao';
-        var campos = [
-            { label: 'Descrição',          val: 'descricao' },
-            { label: 'Valor',              val: 'valor' },
-            { label: 'Forma de pagamento', val: 'forma_pagamento' },
-            { label: 'Data de vencimento', val: 'vencimento' },
-            { label: 'Categoria',          val: 'categoria' },
-            { label: 'Status',             val: 'status_despesa' },
-            { label: 'Parcelas',           val: 'parcelas' },
-            { label: 'Recorrente',         val: 'recorrente' },
-            { label: 'Replicar até',       val: 'replicar_ate' }
-        ];
-        var btns = campos.map(function(c) {
-            return '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="' + esc(c.val) + '" data-opcao-label="' + esc(c.label) + '">' + esc(c.label) + '</button>';
-        }).join('');
-        addGen('Qual informação deseja corrigir?<div class="ai-welcome-chips">' + btns + '</div>');
+        estado.despesaPendente = null;
+        _preencherModalDespesa(d);
+        _abrirModal('modal-confirmar-despesa');
     }
 
     function cancelarDespesa() {
