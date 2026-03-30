@@ -1120,6 +1120,58 @@ window.IA = (function () {
         return cartao ? cartao.id : null;
     }
 
+// ── POPULAR SELECT DE FORMA DE PAGAMENTO (modal) ─────────────
+    function _popularSelectFormaPagamento(sel, callback) {
+        if (!sel) { if (callback) callback(); return; }
+
+        function _preencher() {
+            while (sel.options.length > 1) sel.remove(1);
+            var cartoes = (window.cartoesUsuario || []).filter(function(c) { return c.ativo !== false; });
+
+            // Grupo: Conta (igual ao sistema principal)
+            var grpConta = document.createElement('optgroup');
+            grpConta.label = 'Conta';
+            [{ v: 'pix', t: 'PIX' }, { v: 'dinheiro', t: 'Dinheiro' }, { v: 'debito', t: 'Débito' }
+            ].forEach(function(o) {
+                var opt = document.createElement('option');
+                opt.value = o.v; opt.text = o.t;
+                grpConta.appendChild(opt);
+            });
+            sel.appendChild(grpConta);
+
+            // Grupo: Cartão de Crédito (um por cartão cadastrado)
+            var cred = cartoes.filter(function(c) { return c.tipo === 'credito'; });
+            if (cred.length > 0) {
+                var grpCred = document.createElement('optgroup');
+                grpCred.label = 'Cartão de Crédito';
+                cred.forEach(function(c) {
+                    var opt = document.createElement('option');
+                    opt.value = 'credito:' + c.id;
+                    opt.text  = c.nome || c.banco || 'Cartão';
+                    grpCred.appendChild(opt);
+                });
+                sel.appendChild(grpCred);
+            } else {
+                // Fallback se não houver cartões cadastrados
+                var opt = document.createElement('option');
+                opt.value = 'credito'; opt.text = 'Crédito';
+                sel.appendChild(opt);
+            }
+            if (callback) callback();
+        }
+
+        if (window.cartoesUsuario && window.cartoesUsuario.length > 0) {
+            _preencher();
+        } else {
+            var perfilId = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
+            var q = perfilId ? '?perfil_id=' + perfilId : '';
+            apiMainGet('/cartoes' + q).then(function(res) {
+                if (res && res.success && Array.isArray(res.data)) window.cartoesUsuario = res.data;
+                _preencher();
+            }).catch(function() { _preencher(); });
+        }
+    }
+
 // ── POPULAR SELECT DE CATEGORIAS (modal) ─────────────────────
     var _categoriasCarregadas = false;
 
@@ -1168,10 +1220,16 @@ window.IA = (function () {
         _setId('ia-campo-vencimento',  d.vencimento || '');
 
         var selForma = document.getElementById('ia-campo-forma-pagamento');
-        if (selForma && d.forma_pagamento) {
-            selForma.value = d.forma_pagamento;
+        _popularSelectFormaPagamento(selForma, function() {
+            if (!selForma || !d.forma_pagamento) return;
+            // Monta valor composto se tiver cartão de crédito
+            var formaVal = d.forma_pagamento;
+            if (d.forma_pagamento === 'credito' && d.cartao_id) {
+                formaVal = 'credito:' + d.cartao_id;
+            }
+            selForma.value = formaVal;
             selForma.dispatchEvent(new Event('change', { bubbles: true }));
-        }
+        });
 
         // Checkbox "já pago"
         var jaPagoEl = document.getElementById('ia-campo-ja-pago');
@@ -1214,12 +1272,21 @@ window.IA = (function () {
         e.preventDefault();
         var descricao  = document.getElementById('ia-campo-descricao') ? document.getElementById('ia-campo-descricao').value.trim() : '';
         var valorTotal = parseFloat(document.getElementById('ia-campo-valor') ? document.getElementById('ia-campo-valor').value : 0);
-        var forma      = document.getElementById('ia-campo-forma-pagamento') ? document.getElementById('ia-campo-forma-pagamento').value : '';
+        var formaRaw   = document.getElementById('ia-campo-forma-pagamento') ? document.getElementById('ia-campo-forma-pagamento').value : '';
+        var forma, cartaoId;
+        if (formaRaw.indexOf(':') > -1) {
+            // "credito:123" → forma=credito, cartaoId=123
+            var _fp = formaRaw.split(':');
+            forma    = _fp[0];
+            cartaoId = parseInt(_fp[1]) || null;
+        } else {
+            forma    = formaRaw;
+            cartaoId = null;
+        }
         var dataCompra = document.getElementById('ia-campo-data') ? document.getElementById('ia-campo-data').value : '';
         var vencimento = document.getElementById('ia-campo-vencimento') ? (document.getElementById('ia-campo-vencimento').value || null) : null;
         var totalParcelas = parseInt(document.getElementById('ia-campo-parcelas') ? document.getElementById('ia-campo-parcelas').value : 1) || 1;
         var catId      = document.getElementById('ia-campo-categoria') ? (document.getElementById('ia-campo-categoria').value || null) : null;
-        var cartaoId   = document.getElementById('ia-campo-cartao') ? (document.getElementById('ia-campo-cartao').value || null) : null;
         // Lê checkbox "já pago" e "recorrente" do modal — evita hardcode false
         var jaPagoEl   = document.getElementById('ia-campo-ja-pago');
         var jaPago     = jaPagoEl ? !!jaPagoEl.checked : false;
@@ -1771,10 +1838,14 @@ window.IA = (function () {
             document.getElementById('btn-confirmar-aprendizado')?.addEventListener('click', confirmarAprendizado);
 
             document.getElementById('form-despesa-ia')?.addEventListener('submit', _salvarModalDespesa);
-            document.getElementById('ia-campo-forma-pagamento')?.addEventListener('change', function () {
-                var row = document.getElementById('row-cartao');
-                if (row) row.style.display = (this.value === 'cartao_credito') ? 'flex' : 'none';
-            });
+            var selFormaModal = document.getElementById('ia-campo-forma-pagamento');
+            if (selFormaModal) {
+                _popularSelectFormaPagamento(selFormaModal);
+                selFormaModal.addEventListener('change', function () {
+                    var row = document.getElementById('row-cartao');
+                    if (row) row.style.display = this.value.startsWith('credito') ? 'flex' : 'none';
+                });
+            }
 
             inicializar();
             _mostrarPerfilNaSaudacao();
