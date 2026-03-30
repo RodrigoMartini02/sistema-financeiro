@@ -461,6 +461,36 @@ body:has(.ia-container.im-page) {
     color: var(--gray-400, #adb5bd);
 }
 
+/* Microfone dentro da pill */
+.ia-container.im-page .ia-btn-voice-pill {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 34px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--gray-500, #6c757d);
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 0.2s, background 0.2s;
+    align-self: center;
+}
+.ia-container.im-page .ia-btn-voice-pill:hover,
+.ia-container.im-page .ia-btn-voice-pill:active {
+    color: var(--primary-color, #4361ee);
+    background: rgba(67,97,238,0.08);
+}
+.ia-container.im-page .ia-btn-voice-pill.gravando {
+    color: #fff;
+    background: #dc3545;
+    animation: ai-pulse 1s infinite;
+}
+
 /* Ícone à direita dentro da pill: paperclip */
 .ia-container.im-page .ia-btn-attach {
     flex-shrink: 0;
@@ -486,8 +516,8 @@ body:has(.ia-container.im-page) {
     background: rgba(67,97,238,0.08);
 }
 
-/* Círculo verde mic/send — fora da pill, à direita */
-.ia-container.im-page .ia-btn-mic-send {
+/* Círculo verde enviar — fora da pill, sempre visível */
+.ia-container.im-page .ia-btn-send-circle {
     flex-shrink: 0;
     width: 44px;
     height: 44px;
@@ -497,7 +527,7 @@ body:has(.ia-container.im-page) {
     border: none;
     background: #25d366;
     color: #fff;
-    font-size: 18px;
+    font-size: 17px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -506,15 +536,10 @@ body:has(.ia-container.im-page) {
     transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
     align-self: flex-end;
 }
-.ia-container.im-page .ia-btn-mic-send:active {
+.ia-container.im-page .ia-btn-send-circle:active {
     transform: scale(0.94);
 }
-.ia-container.im-page .ia-btn-mic-send.gravando {
-    background: #dc3545;
-    box-shadow: 0 0 0 0 rgba(220,53,69,.4);
-    animation: ai-pulse 1s infinite;
-}
-.ia-container.im-page .ia-btn-mic-send:disabled {
+.ia-container.im-page .ia-btn-send-circle:disabled {
     opacity: .4;
     cursor: not-allowed;
     transform: none;
@@ -835,7 +860,8 @@ body:has(.ia-container.im-page) {
 [data-theme="dark"] .ia-container.im-page .ia-btn-barcode {
     color: #818cf8; /* indigo claro no dark */
 }
-[data-theme="dark"] .ia-container.im-page .ia-btn-attach {
+[data-theme="dark"] .ia-container.im-page .ia-btn-attach,
+[data-theme="dark"] .ia-container.im-page .ia-btn-voice-pill {
     color: var(--gray-400, #94a3b8);
 }
 [data-theme="dark"] .ia-container.im-page .ia-btn-barcode:hover,
@@ -843,7 +869,9 @@ body:has(.ia-container.im-page) {
     background: rgba(129,140,248,0.15);
 }
 [data-theme="dark"] .ia-container.im-page .ia-btn-attach:hover,
-[data-theme="dark"] .ia-container.im-page .ia-btn-attach:active {
+[data-theme="dark"] .ia-container.im-page .ia-btn-attach:active,
+[data-theme="dark"] .ia-container.im-page .ia-btn-voice-pill:hover,
+[data-theme="dark"] .ia-container.im-page .ia-btn-voice-pill:active {
     background: rgba(148,163,184,0.12);
 }
 

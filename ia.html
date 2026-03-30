@@ -207,15 +207,18 @@
                         rows="1"
                     ></textarea>
 
-                    <!-- Direita dentro da pill: anexo -->
+                    <!-- Direita dentro da pill: microfone + anexo -->
+                    <button class="ia-btn-voice-pill" id="ia-btn-voice" title="Gravar voz">
+                        <i class="fas fa-microphone"></i>
+                    </button>
                     <button class="ia-btn-attach" id="btn-attach-file" title="Enviar arquivo">
                         <i class="fas fa-paperclip"></i>
                     </button>
                 </div>
 
-                <!-- Fora da pill: círculo verde com microfone (ou enviar) -->
-                <button class="ia-btn-mic-send" id="ia-btn-send" title="Enviar / Voz">
-                    <i class="fas fa-microphone" id="ia-mic-send-icon"></i>
+                <!-- Fora da pill: botão enviar sempre visível -->
+                <button class="ia-btn-send-circle" id="ia-btn-send" title="Enviar">
+                    <i class="fas fa-paper-plane"></i>
                 </button>
             </div>
 

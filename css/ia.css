@@ -1077,37 +1077,28 @@ body:has(.ia-container) {
 .ia-btn-attach:hover { color: var(--primary-color, #4361ee); }
 
 /* Círculo verde mic/send — fora da pill, à direita */
-.ia-btn-mic-send {
+/* Microfone dentro da pill */
+.ia-btn-voice-pill {
     flex-shrink: 0;
-    width: 42px;
-    height: 42px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     border: none;
-    background: #25d366;
-    color: #fff;
-    font-size: 18px;
+    background: transparent;
+    color: var(--gray-400, #adb5bd);
+    font-size: 15px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(37,211,102,0.4);
-    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
-    align-self: flex-end;
+    transition: color 0.2s;
+    align-self: center;
 }
-.ia-btn-mic-send:hover {
-    background: #1ebe5d;
-    transform: scale(1.06);
-    box-shadow: 0 4px 14px rgba(37,211,102,0.5);
-}
-.ia-btn-mic-send:active { transform: scale(0.96); }
-.ia-btn-mic-send.gravando {
-    background: #dc3545;
-    animation: ai-pulse 1s infinite;
-}
-.ia-btn-mic-send:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+.ia-btn-voice-pill:hover { color: var(--primary-color, #4361ee); }
+.ia-btn-voice-pill.gravando { color: #fff; background: #dc3545; animation: ai-pulse 1s infinite; }
 
-/* Alias: ia-btn-send is now ia-btn-mic-send — keep old name working for ia.js */
-.ia-btn-send {
+/* Círculo verde enviar — fora da pill, sempre visível */
+.ia-btn-send-circle {
     flex-shrink: 0;
     width: 42px;
     height: 42px;
@@ -1115,7 +1106,7 @@ body:has(.ia-container) {
     border: none;
     background: #25d366;
     color: #fff;
-    font-size: 18px;
+    font-size: 17px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1124,10 +1115,9 @@ body:has(.ia-container) {
     transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
     align-self: flex-end;
 }
-.ia-btn-send:hover { background: #1ebe5d; transform: scale(1.06); }
-.ia-btn-send:active { transform: scale(0.96); }
-.ia-btn-send.gravando { background: #dc3545; animation: ai-pulse 1s infinite; }
-.ia-btn-send:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+.ia-btn-send-circle:hover { background: #1ebe5d; transform: scale(1.06); box-shadow: 0 4px 14px rgba(37,211,102,0.5); }
+.ia-btn-send-circle:active { transform: scale(0.96); }
+.ia-btn-send-circle:disabled { opacity: .4; cursor: not-allowed; transform: none; }
 
 /* Legacy: voice button kept for floating panel (ai-btn-voice) */
 .ia-btn-voice {
@@ -1393,12 +1383,8 @@ body:has(.ia-container) {
 
     /* Botões e inputs com mínimo de toque */
     .ia-btn-icon,
-    .ia-btn-send,
-    .ia-btn-mic-send,
-    .ia-send-btn,
-    .ia-btn-attach,
-    .ia-btn-barcode,
-    .ia-btn-voice {
+    .ia-btn-send-circle,
+    .ia-send-btn {
         min-width: 44px;
         min-height: 44px;
     }
