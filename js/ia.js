@@ -1156,7 +1156,8 @@ window.IA = (function () {
         if (!sel) { if (callback) callback(); return; }
 
         function _adicionarOpcoes(cartoes) {
-            while (sel.options.length > 1) sel.remove(1);
+            // Remove todos os filhos exceto a primeira opção "Selecione..."
+            while (sel.children.length > 1) sel.removeChild(sel.lastChild);
 
             var grpConta = document.createElement('optgroup');
             grpConta.label = 'Conta';
@@ -1168,7 +1169,7 @@ window.IA = (function () {
             });
             sel.appendChild(grpConta);
 
-            var cred = (cartoes || []).filter(function(c) { return c.tipo === 'credito' && c.ativo !== false; });
+            var cred = (cartoes || []).filter(function(c) { return c.ativo !== false; });
             if (cred.length > 0) {
                 var grpCred = document.createElement('optgroup');
                 grpCred.label = 'Cartão de Crédito';
