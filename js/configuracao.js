@@ -10,6 +10,8 @@ let cartoesUsuario = []; // Array dinâmico de cartões com IDs únicos
 let proximoIdCartao = 1; // Contador para gerar IDs únicos
 let usuariosFiltrados = [];
 let tipoUsuarioAtual = null;
+let _filtrarUsuariosCtrl = null;
+let _filtrarUsuariosTimer = null;
 
 const itensPorPagina = 25;
 let _usuariosOffset = 0;
@@ -47,7 +49,8 @@ function validarValidade(validade) {
     const anoNum = parseInt(ano);
     
     if (mesNum < 1 || mesNum > 12) return false;
-    if (anoNum < 2024 || anoNum > 2099) return false;
+    const anoMinimo = new Date().getFullYear();
+    if (anoNum < anoMinimo || anoNum > 2099) return false;
     
     const dataAtual = new Date();
     const anoAtual = dataAtual.getFullYear();
@@ -1221,7 +1224,15 @@ function ajustarVisibilidadeElementos() {
 }
 
 
-async function filtrarUsuarios() {
+function filtrarUsuarios() {
+    clearTimeout(_filtrarUsuariosTimer);
+    _filtrarUsuariosTimer = setTimeout(_executarFiltrarUsuarios, 300);
+}
+
+async function _executarFiltrarUsuarios() {
+    if (_filtrarUsuariosCtrl) _filtrarUsuariosCtrl.abort();
+    _filtrarUsuariosCtrl = new AbortController();
+
     const searchInput = document.getElementById('usuario-search');
     const filterSelect = document.getElementById('filter-user-type');
 
@@ -1231,10 +1242,9 @@ async function filtrarUsuarios() {
     try {
         const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
-        // 🔥 BUSCAR DA API
         const params = new URLSearchParams({
             page: 1,
-            limit: 1000, // Carregar todos para filtro local funcionar
+            limit: 1000,
             search: termoBusca,
             tipo: filtroTipo
         });
@@ -1244,13 +1254,13 @@ async function filtrarUsuarios() {
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${sessionStorage.getItem('token') || ''}`
-            }
+            },
+            signal: _filtrarUsuariosCtrl.signal
         });
 
         const data = await response.json();
 
         if (response.ok && data.success) {
-            // 🔥 APLICAR FILTRO DE PERMISSÕES
             const todosUsuarios = data.data || [];
             usuariosFiltrados = todosUsuarios.filter(usuario => podeVisualizarUsuario(usuario));
         } else {
@@ -1258,6 +1268,7 @@ async function filtrarUsuarios() {
             usuariosFiltrados = [];
         }
     } catch (error) {
+        if (error.name === 'AbortError') return;
         console.error('Erro ao filtrar usuários:', error);
         usuariosFiltrados = [];
     }
@@ -1816,8 +1827,8 @@ function garantirUsuarioMaster() {
             documento: cpfFormatado,
             tipo: "master",
             status: "ativo",
-            password: "master123",
-            senha: "master123",
+            password: "alterar_no_primeiro_acesso",
+            senha: "alterar_no_primeiro_acesso",
             categorias: {
                 despesas: [...categoriasPadrao.despesas]
             },

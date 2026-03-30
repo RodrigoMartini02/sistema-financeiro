@@ -14,7 +14,7 @@
  * @returns {string|null} Token JWT ou null se não existir
  */
 function getToken() {
-    return sessionStorage.getItem('token');
+    return sessionStorage.getItem('token') || localStorage.getItem('token') || null;
 }
 
 /**

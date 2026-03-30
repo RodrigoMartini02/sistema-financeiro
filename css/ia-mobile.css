@@ -120,9 +120,9 @@ body:has(.ia-container.im-page) {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 0 12px;
-    height: 56px;
-    min-height: 56px;
+    padding: env(safe-area-inset-top, 0px) 12px 0;
+    height: calc(56px + env(safe-area-inset-top, 0px));
+    min-height: calc(56px + env(safe-area-inset-top, 0px));
     background: var(--card-bg, #fff);
     border-bottom: 1px solid var(--border-color, #e0e4ef);
     flex-shrink: 0;

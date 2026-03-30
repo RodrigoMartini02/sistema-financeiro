@@ -80,19 +80,25 @@ window.IA = (function () {
 
     // Rotas do módulo IA (/api/ai/…)
     function apiPost(path, body) {
+        var ctrl = new AbortController();
+        setTimeout(function () { ctrl.abort(); }, 15000);
         return fetch(apiURL() + '/ai' + path, {
-            method: 'POST', headers: hdrs(), body: JSON.stringify(body)
+            method: 'POST', headers: hdrs(), body: JSON.stringify(body), signal: ctrl.signal
         }).then(function (r) { return r.json(); });
     }
 
     function apiForm(path, form) {
+        var ctrl = new AbortController();
+        setTimeout(function () { ctrl.abort(); }, 15000);
         return fetch(apiURL() + '/ai' + path, {
-            method: 'POST', headers: { 'Authorization': 'Bearer ' + getToken() }, body: form
+            method: 'POST', headers: { 'Authorization': 'Bearer ' + getToken() }, body: form, signal: ctrl.signal
         }).then(function (r) { return r.json(); });
     }
 
     function apiGet(path) {
-        return fetch(apiURL() + '/ai' + path, { headers: hdrs() })
+        var ctrl = new AbortController();
+        setTimeout(function () { ctrl.abort(); }, 15000);
+        return fetch(apiURL() + '/ai' + path, { headers: hdrs(), signal: ctrl.signal })
             .then(function (r) { return r.json(); });
     }
 
@@ -136,7 +142,7 @@ window.IA = (function () {
         var txt = document.getElementById('ia-status-text');
         var dot = document.getElementById('ia-status-dot');
         if (txt) txt.textContent = texto;
-        if (dot) { dot.classList.toggle('online', !!online); dot.classList.toggle('offline', !online); }
+        if (dot) { dot.classList.toggle('connected', !!online); dot.classList.toggle('offline', !online); }
     }
 
     function inicializar(tentativa) {

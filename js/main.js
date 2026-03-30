@@ -901,6 +901,9 @@ function setupOutrosControles() {
             localStorage.removeItem('usuarioAtual');
             localStorage.removeItem('dadosUsuarioLogado');
             localStorage.removeItem('token');
+            localStorage.removeItem('perfilAtivoId');
+            localStorage.removeItem('perfilAtivoNome');
+            localStorage.removeItem('perfilAtivoTipo');
 
             window.location.href = 'index.html';
         });
