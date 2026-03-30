@@ -67,6 +67,46 @@
         document.getElementById('btn-pwa-entendi')?.addEventListener('click', window.fecharModalPwa);
 
     } catch (e) {
-        console.error("PWA Handler Error:", e); 
+        console.error("PWA Handler Error:", e);
     }
+})();
+
+// ── Notificação de nova versão (SW_UPDATED) ───────────────────
+(function() {
+    if (!('serviceWorker' in navigator)) return;
+
+    function mostrarToastAtualizacao() {
+        if (document.getElementById('sw-update-toast')) return;
+
+        var toast = document.createElement('div');
+        toast.id = 'sw-update-toast';
+        toast.innerHTML =
+            '<i class="fas fa-rotate"></i>' +
+            '<span>Nova versão disponível</span>' +
+            '<button id="sw-update-btn">Atualizar</button>' +
+            '<button id="sw-update-dismiss" aria-label="Dispensar">✕</button>';
+        document.body.appendChild(toast);
+
+        // Anima entrada
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+                toast.classList.add('sw-toast-visible');
+            });
+        });
+
+        document.getElementById('sw-update-btn').addEventListener('click', function() {
+            window.location.reload();
+        });
+
+        document.getElementById('sw-update-dismiss').addEventListener('click', function() {
+            toast.classList.remove('sw-toast-visible');
+            setTimeout(function() { toast.remove(); }, 350);
+        });
+    }
+
+    navigator.serviceWorker.addEventListener('message', function(event) {
+        if (event.data && event.data.type === 'SW_UPDATED') {
+            mostrarToastAtualizacao();
+        }
+    });
 })();

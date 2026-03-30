@@ -1102,11 +1102,9 @@ window.IA = (function () {
     function _popularSelectFormaPagamento(sel, callback) {
         if (!sel) { if (callback) callback(); return; }
 
-        function _preencher() {
+        function _adicionarOpcoes(cartoes) {
             while (sel.options.length > 1) sel.remove(1);
-            var cartoes = (window.cartoesUsuario || []).filter(function(c) { return c.ativo !== false; });
 
-            // Grupo: Conta (igual ao sistema principal)
             var grpConta = document.createElement('optgroup');
             grpConta.label = 'Conta';
             [{ v: 'pix', t: 'PIX' }, { v: 'dinheiro', t: 'Dinheiro' }, { v: 'debito', t: 'Débito' }
@@ -1117,8 +1115,7 @@ window.IA = (function () {
             });
             sel.appendChild(grpConta);
 
-            // Grupo: Cartão de Crédito (um por cartão cadastrado)
-            var cred = cartoes.filter(function(c) { return c.tipo === 'credito'; });
+            var cred = (cartoes || []).filter(function(c) { return c.tipo === 'credito' && c.ativo !== false; });
             if (cred.length > 0) {
                 var grpCred = document.createElement('optgroup');
                 grpCred.label = 'Cartão de Crédito';
@@ -1130,23 +1127,30 @@ window.IA = (function () {
                 });
                 sel.appendChild(grpCred);
             } else {
-                // Fallback se não houver cartões cadastrados
                 var opt = document.createElement('option');
                 opt.value = 'credito'; opt.text = 'Crédito';
                 sel.appendChild(opt);
             }
-            if (callback) callback();
         }
 
-        if (window.cartoesUsuario && window.cartoesUsuario.length > 0) {
-            _preencher();
-        } else {
+        // Popula sincronamente com o que há disponível (garante PIX/Dinheiro/Débito imediatos)
+        _adicionarOpcoes(window.cartoesUsuario);
+        if (callback) callback();
+
+        // Se cartões ainda não foram carregados, busca e atualiza as opções de crédito
+        if (!window.cartoesUsuario) {
             var perfilId = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
             var q = perfilId ? '?perfil_id=' + perfilId : '';
             apiMainGet('/cartoes' + q).then(function(res) {
-                if (res && res.success && Array.isArray(res.data)) window.cartoesUsuario = res.data;
-                _preencher();
-            }).catch(function() { _preencher(); });
+                if (res && res.success && Array.isArray(res.data)) {
+                    window.cartoesUsuario = res.data;
+                    var prevVal = sel.value;
+                    _adicionarOpcoes(window.cartoesUsuario);
+                    if (prevVal) sel.value = prevVal;
+                } else {
+                    window.cartoesUsuario = [];
+                }
+            }).catch(function() { window.cartoesUsuario = []; });
         }
     }
 
