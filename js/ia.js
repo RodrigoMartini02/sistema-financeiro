@@ -47,8 +47,6 @@ window.IA = (function () {
         aguardandoCampo: null,   // campo sendo coletado ('descricao', 'valor', 'forma_pagamento', 'vencimento', 'data_receita')
         dadosParciais:   null,   // objeto despesa/receita em construção
         tipoColeta:      null,   // 'despesa' ou 'receita'
-        // campo_revisao: campo especial onde o usuário escolhe qual campo quer editar
-        // ao receber o texto, a fila é resetada para [texto] e _proximoCampo() reprocessa
         filaCampos:      [],     // fila de campos ainda a coletar
         aguardandoTrocaPerfil: false  // true quando exibiu botões de troca e aguarda clique
     };
@@ -994,13 +992,6 @@ window.IA = (function () {
     function _processarCampoColetado(texto) {
         var campo = estado.aguardandoCampo;
         var d     = estado.dadosParciais;
-
-        if (campo === 'campo_revisao') {
-            estado.filaCampos      = [texto];
-            estado.aguardandoCampo = null;
-            _proximoCampo();
-            return;
-        }
 
         switch (campo) {
             case 'descricao':
