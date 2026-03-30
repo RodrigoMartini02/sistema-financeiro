@@ -1820,7 +1820,10 @@ window.IA = (function () {
             });
 
             document.getElementById('btn-abrir-upload')?.addEventListener('click', abrirUpload);
-            document.getElementById('btn-attach-file')?.addEventListener('click', abrirUpload);
+            // btn-attach-file é gerenciado pelo ia-mobile.js na página mobile
+            if (!document.querySelector('.im-page')) {
+                document.getElementById('btn-attach-file')?.addEventListener('click', abrirUpload);
+            }
             document.getElementById('chip-upload')?.addEventListener('click', abrirUpload);
             document.getElementById('btn-abrir-boleto')?.addEventListener('click', abrirBoleto);
             document.getElementById('btn-barcode-desktop')?.addEventListener('click', abrirBoleto);

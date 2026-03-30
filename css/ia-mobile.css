@@ -371,13 +371,14 @@ body:has(.ia-container.im-page) {
 /* ── Input area ──────────────────────────────────────────────── */
 .ia-container.im-page .ia-input-area {
     flex-shrink: 0;
-    min-height: 0;
     box-sizing: border-box;
     width: 100%;
     padding: 0 0 env(safe-area-inset-bottom, 0px);
     background: var(--card-bg, #fff);
     border-top: 1px solid var(--border-color, #e0e4ef);
-    overflow: hidden;
+    /* Força compositing próprio — evita colapso no primeiro render do PWA */
+    will-change: transform;
+    transform: translateZ(0);
 }
 
 .ia-container.im-page .ia-input-hint {
