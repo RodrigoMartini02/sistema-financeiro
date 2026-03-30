@@ -1138,9 +1138,7 @@ window.IA = (function () {
         }
 
         // Busca da API (ia-mobile.html não carrega configuracao.js)
-        var perfilId = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
-        var q = perfilId ? '?perfil_id=' + perfilId : '';
-        apiGet('/categorias' + q).then(function (res) {
+        apiMainGet('/categorias').then(function (res) {
             if (res && res.success && Array.isArray(res.data)) {
                 _preencherOpcoesCategoria(sel, res.data);
                 _categoriasCarregadas = true;
