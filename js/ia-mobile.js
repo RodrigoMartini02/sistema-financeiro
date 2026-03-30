@@ -257,7 +257,6 @@
     (function setupAttach() {
         var fileInput  = document.getElementById('ia-file-input');
         var btnAttach  = document.getElementById('btn-attach-file');
-        var btnCamera  = document.getElementById('btn-camera-file');
         var chipCamera = document.getElementById('chip-camera-boleto');
 
         function abrirArquivo() {
@@ -267,7 +266,6 @@
         }
 
         if (btnAttach)  btnAttach.addEventListener('click', abrirArquivo);
-        if (btnCamera)  btnCamera.addEventListener('click', abrirArquivo);
         if (chipCamera) chipCamera.addEventListener('click', abrirArquivo);
     })();
 

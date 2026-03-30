@@ -416,23 +416,25 @@ body:has(.ia-container.im-page) {
 /* Barcode — esquerda dentro da pill */
 .ia-container.im-page .ia-btn-barcode {
     flex-shrink: 0;
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 34px;
     border-radius: 50%;
     border: none;
     background: transparent;
-    color: var(--gray-500, #6c757d);
-    font-size: 17px;
+    color: var(--primary-color, #4361ee);
+    font-size: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: color 0.2s;
+    transition: color 0.2s, background 0.2s;
     align-self: center;
 }
 .ia-container.im-page .ia-btn-barcode:hover,
 .ia-container.im-page .ia-btn-barcode:active {
-    color: var(--primary-color, #4361ee);
+    background: rgba(67,97,238,0.1);
 }
 
 /* Textarea dentro da pill */
@@ -459,37 +461,41 @@ body:has(.ia-container.im-page) {
     color: var(--gray-400, #adb5bd);
 }
 
-/* Ícones à direita dentro da pill: paperclip + câmera */
-.ia-container.im-page .ia-btn-attach,
-.ia-container.im-page .ia-btn-camera {
+/* Ícone à direita dentro da pill: paperclip */
+.ia-container.im-page .ia-btn-attach {
     flex-shrink: 0;
-    width: 30px;
-    height: 30px;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 34px;
     border-radius: 50%;
     border: none;
     background: transparent;
-    color: var(--gray-400, #adb5bd);
+    color: var(--gray-500, #6c757d);
     font-size: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: color 0.2s;
+    transition: color 0.2s, background 0.2s;
     align-self: center;
 }
 .ia-container.im-page .ia-btn-attach:hover,
-.ia-container.im-page .ia-btn-camera:hover {
+.ia-container.im-page .ia-btn-attach:active {
     color: var(--primary-color, #4361ee);
+    background: rgba(67,97,238,0.08);
 }
 
 /* Círculo verde mic/send — fora da pill, à direita */
 .ia-container.im-page .ia-btn-mic-send {
     flex-shrink: 0;
-    width: 42px;
-    height: 42px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
     border-radius: 50%;
     border: none;
-    background: #25d366; /* verde WhatsApp */
+    background: #25d366;
     color: #fff;
     font-size: 18px;
     display: flex;
@@ -500,22 +506,13 @@ body:has(.ia-container.im-page) {
     transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
     align-self: flex-end;
 }
-.ia-container.im-page .ia-btn-mic-send:hover {
-    background: #1ebe5d;
-    transform: scale(1.06);
-    box-shadow: 0 4px 14px rgba(37,211,102,0.5);
-}
 .ia-container.im-page .ia-btn-mic-send:active {
-    transform: scale(0.96);
+    transform: scale(0.94);
 }
 .ia-container.im-page .ia-btn-mic-send.gravando {
     background: #dc3545;
     box-shadow: 0 0 0 0 rgba(220,53,69,.4);
     animation: ai-pulse 1s infinite;
-}
-.ia-container.im-page .ia-btn-mic-send--send {
-    /* Quando em modo enviar: ligeiramente mais escuro/diferente para feedback visual */
-    background: #25d366;
 }
 .ia-container.im-page .ia-btn-mic-send:disabled {
     opacity: .4;
@@ -836,11 +833,18 @@ body:has(.ia-container.im-page) {
     color: var(--text-color, #e2e8f0);
 }
 [data-theme="dark"] .ia-container.im-page .ia-btn-barcode {
+    color: #818cf8; /* indigo claro no dark */
+}
+[data-theme="dark"] .ia-container.im-page .ia-btn-attach {
     color: var(--gray-400, #94a3b8);
 }
-[data-theme="dark"] .ia-container.im-page .ia-btn-attach,
-[data-theme="dark"] .ia-container.im-page .ia-btn-camera {
-    color: var(--gray-500, #64748b);
+[data-theme="dark"] .ia-container.im-page .ia-btn-barcode:hover,
+[data-theme="dark"] .ia-container.im-page .ia-btn-barcode:active {
+    background: rgba(129,140,248,0.15);
+}
+[data-theme="dark"] .ia-container.im-page .ia-btn-attach:hover,
+[data-theme="dark"] .ia-container.im-page .ia-btn-attach:active {
+    background: rgba(148,163,184,0.12);
 }
 
 /* ── Dark theme ──────────────────────────────────────────────── */

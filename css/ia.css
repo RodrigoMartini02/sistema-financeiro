@@ -1057,9 +1057,8 @@ body:has(.ia-container) {
 }
 .ia-text-input::placeholder { color: var(--gray-400, #adb5bd); }
 
-/* Ícones à direita dentro da pill: paperclip + câmera */
-.ia-btn-attach,
-.ia-btn-camera {
+/* Ícone à direita dentro da pill: paperclip */
+.ia-btn-attach {
     flex-shrink: 0;
     background: none;
     border: none;
@@ -1075,8 +1074,7 @@ body:has(.ia-container) {
     transition: color 0.2s;
     align-self: center;
 }
-.ia-btn-attach:hover,
-.ia-btn-camera:hover { color: var(--primary-color, #4361ee); }
+.ia-btn-attach:hover { color: var(--primary-color, #4361ee); }
 
 /* Círculo verde mic/send — fora da pill, à direita */
 .ia-btn-mic-send {
@@ -1399,7 +1397,6 @@ body:has(.ia-container) {
     .ia-btn-mic-send,
     .ia-send-btn,
     .ia-btn-attach,
-    .ia-btn-camera,
     .ia-btn-barcode,
     .ia-btn-voice {
         min-width: 44px;
@@ -1623,12 +1620,10 @@ body:has(.ia-container) {
 [data-theme="dark"] .ia-btn-barcode:hover {
     color: var(--primary-color);
 }
-[data-theme="dark"] .ia-btn-attach,
-[data-theme="dark"] .ia-btn-camera {
+[data-theme="dark"] .ia-btn-attach {
     color: var(--theme-text-faint);
 }
-[data-theme="dark"] .ia-btn-attach:hover,
-[data-theme="dark"] .ia-btn-camera:hover {
+[data-theme="dark"] .ia-btn-attach:hover {
     color: var(--primary-color);
 }
 [data-theme="dark"] .ia-input-bar:focus-within {
