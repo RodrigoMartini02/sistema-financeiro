@@ -1452,6 +1452,15 @@ function preencherConteudoMes(mesCard, mes, ano, saldo, fechado, temTransacoes) 
                        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
     
     clone.querySelector('.mes-nome').textContent = nomesMeses[mes];
+
+    const temMovReserva = window.movimentacoesReservasCache && Array.isArray(window.movimentacoesReservasCache) &&
+        window.movimentacoesReservasCache.some(mov => {
+            const d = new Date(mov.data_hora);
+            return d.getFullYear() === ano && d.getMonth() === mes;
+        });
+    if (temMovReserva) {
+        clone.querySelector('.mes-reserva-icon').classList.remove('hidden');
+    }
     
     const saldoAnteriorDiv = clone.querySelector('.mes-saldo-anterior');
     saldoAnteriorDiv.classList.remove('hidden');

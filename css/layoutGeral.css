@@ -1158,6 +1158,14 @@ textarea:focus {
     padding: 0.75em 1.15em;
     text-align: left;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.mes-reserva-icon {
+    font-size: 1.1em;
+    line-height: 1;
 }
 
 /* Mês com transações */
