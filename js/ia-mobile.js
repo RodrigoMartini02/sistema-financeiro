@@ -311,15 +311,11 @@
                     }, 2500);
                     return;
                 }
-                // Válido: envia para o fluxo de boleto via textarea + send
-                var textarea = document.getElementById('ia-texto-input');
-                if (textarea) {
-                    textarea.value = codigo;
-                    textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                    var send = document.getElementById('ia-btn-send');
-                    if (send) send.click();
+                // Válido: delega para o módulo IA (lê ia-boleto-input, chama /boleto API e abre modal)
+                // fecharBoleto() é chamado internamente por processarBoleto() em ia.js
+                if (window.IA && typeof window.IA.processarBoleto === 'function') {
+                    window.IA.processarBoleto();
                 }
-                fecharBarraBoleto();
             });
 
             // Enter no campo também aciona

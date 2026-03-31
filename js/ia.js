@@ -1874,9 +1874,12 @@ window.IA = (function () {
             document.getElementById('chip-upload')?.addEventListener('click', abrirUpload);
             document.getElementById('btn-abrir-boleto')?.addEventListener('click', abrirBoleto);
             document.getElementById('btn-barcode-desktop')?.addEventListener('click', abrirBoleto);
-            document.getElementById('chip-boleto')?.addEventListener('click', abrirBoleto);
-            document.getElementById('btn-processar-boleto-page')?.addEventListener('click', processarBoleto);
-            document.getElementById('btn-fechar-boleto-page')?.addEventListener('click', fecharBoleto);
+            // chip-boleto e botões de página de boleto são gerenciados pelo ia-mobile.js na página mobile
+            if (!document.querySelector('.im-page')) {
+                document.getElementById('chip-boleto')?.addEventListener('click', abrirBoleto);
+                document.getElementById('btn-processar-boleto-page')?.addEventListener('click', processarBoleto);
+                document.getElementById('btn-fechar-boleto-page')?.addEventListener('click', fecharBoleto);
+            }
             document.getElementById('btn-cancelar-arquivo-page')?.addEventListener('click', cancelarArquivo);
             document.getElementById('btn-detectar-recorrencias')?.addEventListener('click', detectarRecorrencias);
             document.getElementById('ia-file-input')?.addEventListener('change', function () { processarArquivo(this); });

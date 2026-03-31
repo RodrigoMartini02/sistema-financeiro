@@ -173,6 +173,36 @@ function extrairInfoFinanceira(texto) {
         info.descricao = relevante?.substring(0, 100) || 'Documento financeiro';
     }
 
+    // ── CATEGORIA SUGERIDA (inferida por palavras-chave) ──────
+    const textoLower = texto.toLowerCase();
+    if (/luz|energia|enel|cemig|copel|elektro|cpfl|coelba|celpe|equatorial|endesa/i.test(texto)) {
+        info.categoria_sugerida = 'Moradia';
+    } else if (/água|saneamento|sabesp|sanepar|cagece|compesa|embasa/i.test(texto)) {
+        info.categoria_sugerida = 'Moradia';
+    } else if (/aluguel|condomínio|condominio|iptu|administradora|imóvel|imovel/i.test(texto)) {
+        info.categoria_sugerida = 'Moradia';
+    } else if (/internet|telefone|celular|tim|claro|vivo|oi|net|sky|nextel|telecom/i.test(texto)) {
+        info.categoria_sugerida = 'Serviços';
+    } else if (/netflix|spotify|amazon|disney|youtube|prime|hbo|streaming/i.test(texto)) {
+        info.categoria_sugerida = 'Lazer';
+    } else if (/supermercado|mercado|padaria|açougue|hortifruti|atacadão|carrefour|extra|pão\s+de\s+açúcar/i.test(texto)) {
+        info.categoria_sugerida = 'Alimentação';
+    } else if (/farmácia|farmacia|drogaria|droga|remédio|remedio|medicamento|ultrafarma|nissei/i.test(texto)) {
+        info.categoria_sugerida = 'Saúde';
+    } else if (/médico|medico|dentista|plano\s+de\s+saúde|unimed|amil|bradesco\s+saúde|sul\s+améri/i.test(texto)) {
+        info.categoria_sugerida = 'Saúde';
+    } else if (/escola|faculdade|universidade|mensalidade|curso|matrícula|matricula|ensino/i.test(texto)) {
+        info.categoria_sugerida = 'Educação';
+    } else if (/combustível|combustivel|gasolina|etanol|posto|shell|petrobras|ipiranga|br\s+dist/i.test(texto)) {
+        info.categoria_sugerida = 'Transporte';
+    } else if (/seguro|apólice|apolice|bradesco\s+seg|porto\s+seguro|liberty|zurich/i.test(texto)) {
+        info.categoria_sugerida = 'Serviços';
+    } else if (/cartão|cartao|fatura|banco|financiamento|empréstimo|emprestimo|parcelamento/i.test(texto)) {
+        info.categoria_sugerida = 'Finanças';
+    } else if (info.tipo === 'boleto') {
+        info.categoria_sugerida = 'Finanças';
+    }
+
     return info;
 }
 
