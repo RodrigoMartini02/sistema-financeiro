@@ -72,7 +72,7 @@ router.post('/create-order', authMiddleware, async (req, res) => {
     }
 
     const valor = tipo === 'mensal' ? '39.99' : '422.28';
-    const descricao = `FinGerence - Plano ${tipo === 'mensal' ? 'Mensal' : 'Anual'}`;
+    const descricao = `e-conomia - Plano ${tipo === 'mensal' ? 'Mensal' : 'Anual'}`;
 
     try {
         const token = await getAccessToken();
@@ -94,7 +94,7 @@ router.post('/create-order', authMiddleware, async (req, res) => {
                     }
                 }],
                 application_context: {
-                    brand_name: 'FinGerence',
+                    brand_name: 'e-conomia',
                     locale: 'pt-BR',
                     return_url: `${FRONTEND_URL}/app.html`,
                     cancel_url: `${FRONTEND_URL}/app.html`

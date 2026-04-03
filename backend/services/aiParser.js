@@ -1,7 +1,7 @@
 // ================================================================
 // AI PARSER - Interpreta linguagem natural para despesas
 // Usa OpenAI GPT se OPENAI_API_KEY disponível, caso contrário
-// utiliza a Gen (IA interna do FinGerence)
+// utiliza a Gen (IA interna do e-conomia)
 // ================================================================
 
 const { normalizarDespesa, normalizarValor, normalizarFormaPagamento,

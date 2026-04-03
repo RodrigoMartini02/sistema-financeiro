@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // VARIÁVEIS GLOBAIS
 // ================================================================
 
-const API_URL = 'https://sistema-financeiro-backend-o199.onrender.com/api';
+const API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
 
 function isMobileDevice() {
     return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
@@ -93,6 +93,28 @@ function configurarGoogleLogin() {
     verificarRetornoGoogle();
 }
 
+function _finalizarLogin(token, usuario, identificador) {
+    const dadosUsuario = JSON.stringify({
+        id: usuario.id,
+        nome: usuario.nome || usuario.name,
+        documento: identificador,
+        email: usuario.email,
+        tipo: usuario.tipo
+    });
+    sessionStorage.setItem('token', token);
+    sessionStorage.setItem('usuarioAtual', identificador);
+    sessionStorage.setItem('dadosUsuarioLogado', dadosUsuario);
+    localStorage.setItem('token', token);
+    localStorage.setItem('usuarioAtual', identificador);
+    localStorage.setItem('dadosUsuarioLogado', dadosUsuario);
+    localStorage.removeItem('perfilAtivoId');
+    localStorage.removeItem('perfilAtivoNome');
+
+    const redirect = sessionStorage.getItem('redirectAfterLogin');
+    sessionStorage.removeItem('redirectAfterLogin');
+    window.location.href = redirect || (isMobileDevice() ? 'ia-mobile.html' : 'app.html');
+}
+
 async function verificarRetornoGoogle() {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
@@ -135,25 +157,7 @@ async function verificarRetornoGoogle() {
         const token = data.data?.token || data.token;
         const usuario = data.data?.usuario || data.usuario;
 
-        const dadosUsuarioGoogle = JSON.stringify({
-            id: usuario.id,
-            nome: usuario.nome,
-            documento: usuario.documento || '',
-            email: usuario.email,
-            tipo: usuario.tipo
-        });
-        sessionStorage.setItem('token', token);
-        sessionStorage.setItem('usuarioAtual', usuario.documento || usuario.email);
-        sessionStorage.setItem('dadosUsuarioLogado', dadosUsuarioGoogle);
-        // Persistir no localStorage para que o PWA instalado não exija novo login
-        localStorage.setItem('token', token);
-        localStorage.setItem('usuarioAtual', usuario.documento || usuario.email);
-        localStorage.setItem('dadosUsuarioLogado', dadosUsuarioGoogle);
-        localStorage.removeItem('perfilAtivoId');
-
-        const redirect = sessionStorage.getItem('redirectAfterLogin');
-        sessionStorage.removeItem('redirectAfterLogin');
-        window.location.href = redirect || (isMobileDevice() ? 'ia-mobile.html' : 'app.html');
+        _finalizarLogin(token, usuario, usuario.documento || usuario.email);
     } catch (error) {
         if (typeof window.hideLoadingScreen === 'function') {
             window.hideLoadingScreen();
@@ -292,25 +296,7 @@ async function processarLogin(documento, password, isModal, tentativa = 1) {
         const token = data.data?.token || data.token;
         const usuario = data.data?.usuario || data.user || data.usuario || data;
 
-        const dadosUsuario = JSON.stringify({
-            id: usuario.id,
-            nome: usuario.nome || usuario.name,
-            documento: docLimpo,
-            email: usuario.email,
-            tipo: usuario.tipo
-        });
-        sessionStorage.setItem('token', token);
-        sessionStorage.setItem('usuarioAtual', docLimpo);
-        sessionStorage.setItem('dadosUsuarioLogado', dadosUsuario);
-        // Persistir no localStorage para que o PWA instalado não exija novo login
-        localStorage.setItem('token', token);
-        localStorage.setItem('usuarioAtual', docLimpo);
-        localStorage.setItem('dadosUsuarioLogado', dadosUsuario);
-        localStorage.removeItem('perfilAtivoId');
-
-        const redirect = sessionStorage.getItem('redirectAfterLogin');
-        sessionStorage.removeItem('redirectAfterLogin');
-        window.location.href = redirect || (isMobileDevice() ? 'ia-mobile.html' : 'app.html');
+        _finalizarLogin(token, usuario, docLimpo);
 
     } catch (error) {
         if (typeof window.hideLoadingScreen === 'function') {

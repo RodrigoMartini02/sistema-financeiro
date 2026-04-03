@@ -380,28 +380,3 @@ if (document.readyState === 'loading') {
     }
 })();
 
-// ================================================================
-// VERIFICAÇÃO AUTOMÁTICA — dispara modal após 7 dias de cadastro
-// ================================================================
-async function verificarEDispararAvaliacao() {
-    // Verifica se usuário já avaliou via API
-    try {
-        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-        const res = await fetch('/api/avaliacoes/minha', { headers: { 'Authorization': 'Bearer ' + token } });
-        if (res.ok) {
-            const data = await res.json();
-            if (data && data.avaliacao) return; // já avaliou, não dispara
-        }
-    } catch(e) { return; }
-    // Verifica data de cadastro
-    const usuario = JSON.parse(sessionStorage.getItem('usuario') || localStorage.getItem('usuario') || '{}');
-    if (!usuario.dataCadastro && !usuario.createdAt) return;
-    const dataCadastro = new Date(usuario.dataCadastro || usuario.createdAt);
-    const diasDesde = (Date.now() - dataCadastro.getTime()) / (1000 * 60 * 60 * 24);
-    if (diasDesde >= 7) {
-        setTimeout(() => {
-            if (window.abrirModalAvaliacao) window.abrirModalAvaliacao();
-        }, 3000); // 3 segundos após carregar
-    }
-}
-window.verificarEDispararAvaliacao = verificarEDispararAvaliacao;

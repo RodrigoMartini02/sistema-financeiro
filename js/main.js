@@ -2715,10 +2715,6 @@ function notificarSistemaReady() {
 
     window.dispatchEvent(evento);
 
-    // Disparo automático de avaliação após 7 dias de cadastro
-    if (typeof window.verificarEDispararAvaliacao === 'function') {
-        window.verificarEDispararAvaliacao();
-    }
 }
 
 // ================================================================
