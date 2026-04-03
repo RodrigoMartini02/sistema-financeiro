@@ -9,15 +9,22 @@ types.setTypeParser(1082, val => val);
 types.setTypeParser(1114, val => val);
 types.setTypeParser(1184, val => val);
 
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+    throw new Error(
+        'DATABASE_URL não configurada. Este projeto está configurado para usar somente o PostgreSQL remoto.'
+    );
+}
+
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || 
-        `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
+    connectionString,
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 2000,
-    ssl: process.env.DATABASE_URL ? {
+    ssl: {
         rejectUnauthorized: false
-    } : false
+    }
 });
 
 pool.on('connect', (client) => {
