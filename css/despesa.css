@@ -385,6 +385,35 @@ select.campo-invalido {
     border-color: #34d399;
 }
 
+/* Notificação inline discreta dentro do card */
+.card-success:not(.despesa-card) {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #15803d;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 6px;
+    padding: 4px 10px;
+    margin-top: 6px;
+}
+
+.card-error:not(.despesa-card) {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #b91c1c;
+    background: #fff8f8;
+    border: 1px solid #fca5a5;
+    border-radius: 6px;
+    padding: 4px 10px;
+    margin-top: 6px;
+}
+
 /* Layout principal: 3 colunas */
 .card-main-row {
     display: flex;
@@ -405,11 +434,12 @@ select.campo-invalido {
 }
 
 .card-col-middle {
-    flex: 1;
+    flex: 1 1 0;
+    min-width: 0;
 }
 
 .card-col-opcoes {
-    flex: 0 0 145px;
+    flex: 0 0 170px;
     padding-right: 4px;
 }
 
@@ -759,24 +789,30 @@ select.campo-invalido {
     cursor: pointer;
 }
 
-/* Opções de replicar */
-.card-replicar-options {
+/* Duração do recorrente */
+.card-recorrente-duracao {
     display: flex;
     align-items: center;
     gap: 6px;
     padding: 4px 0;
 }
 
-.card-replicar-options.hidden {
+.card-recorrente-duracao.hidden {
     display: none;
 }
 
-.card-replicar-options select {
+.card-duracao-label {
+    font-size: 12px;
+    color: #64748b;
+    white-space: nowrap;
+}
+
+.card-duracao-meses {
     padding: 3px 8px;
     font-size: 11px;
     border: 1px solid #e2e8f0;
     border-radius: 4px;
-    min-width: 80px;
+    width: 70px;
 }
 
 /* ================================================================
@@ -806,9 +842,8 @@ select.campo-invalido {
 
 .card-anexos-lista {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 4px;
-    flex: 1;
     min-width: 0;
 }
 
@@ -1060,6 +1095,16 @@ select.campo-invalido {
     border-color: rgba(248, 113, 113, 0.4);
     background: rgba(248, 113, 113, 0.05);
 }
+[data-theme="dark"] .card-success:not(.despesa-card) {
+    color: #4ade80;
+    background: rgba(16, 185, 129, 0.08);
+    border-color: rgba(16, 185, 129, 0.2);
+}
+[data-theme="dark"] .card-error:not(.despesa-card) {
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.08);
+    border-color: rgba(248, 113, 113, 0.2);
+}
 
 /* Labels de seção */
 [data-theme="dark"] .card-section-label {
@@ -1128,7 +1173,7 @@ select.campo-invalido {
 [data-theme="dark"] .card-flag {
     color: var(--theme-text-muted);
 }
-[data-theme="dark"] .card-replicar-options select {
+[data-theme="dark"] .card-duracao-meses {
     background: var(--theme-input-bg);
     border-color: var(--theme-input-border);
     color: var(--theme-text);

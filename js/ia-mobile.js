@@ -230,14 +230,22 @@
         var btnAttach  = document.getElementById('btn-attach-file');
         var chipCamera = document.getElementById('chip-camera-boleto');
 
+        function abrirCamera() {
+            if (!fileInput) return;
+            fileInput.value = '';
+            fileInput.setAttribute('capture', 'environment');
+            fileInput.click();
+        }
+
         function abrirArquivo() {
             if (!fileInput) return;
             fileInput.value = '';
+            fileInput.removeAttribute('capture');
             fileInput.click();
         }
 
         if (btnAttach)  btnAttach.addEventListener('click', abrirArquivo);
-        if (chipCamera) chipCamera.addEventListener('click', abrirArquivo);
+        if (chipCamera) chipCamera.addEventListener('click', abrirCamera);
     })();
 
     // ── Barcode: abre campo dedicado acima do input ──────────────

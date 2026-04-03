@@ -2273,9 +2273,6 @@ function calcularSaldoMes(mes, ano) {
 
         const obterValor = window.obterValorRealDespesa || (d => parseFloat(d.valor || 0));
 
-        const _hoje = new Date();
-        _hoje.setHours(0, 0, 0, 0);
-
         const despesas = (dadosMes.despesas || []).reduce((sum, d) => {
             if (d.quitacaoAntecipada === true) return sum;
             if (d.pago) return sum + obterValor(d);
@@ -2284,12 +2281,7 @@ function calcularSaldoMes(mes, ano) {
             const ehParcelado = d.parcelado || d.parcela || d.idGrupoParcelamento;
             // Parceladas confirmadas sempre contam (são compromissos futuros definidos)
             if (ehParcelado) return sum + obterValor(d);
-            if (ehRecorrente) {
-                if (!d.dataVencimento) return sum;
-                const partes = d.dataVencimento.split('-');
-                const vencimento = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
-                return vencimento <= _hoje ? sum + obterValor(d) : sum;
-            }
+            if (ehRecorrente) return sum + obterValor(d); // sempre conta no mês
             return sum;
         }, 0);
 

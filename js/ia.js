@@ -502,9 +502,12 @@ window.IA = (function () {
             elRecorr.className = 'ai-dc-val ' + (d.recorrente ? 'ai-dc-pago' : '');
         }
 
-        if (d.replicar_ate) {
-            c.querySelector('.dc-row-replicar').hidden = false;
-            c.querySelector('.dc-replicar').textContent = d.replicar_ate;
+        if (d.duracao_meses) {
+            var rowDur = c.querySelector('.dc-row-duracao-meses');
+            if (rowDur) {
+                rowDur.hidden = false;
+                c.querySelector('.dc-duracao-meses').textContent = d.duracao_meses + ' mês' + (d.duracao_meses > 1 ? 'es' : '');
+            }
         }
 
         var numAnexos = (d.anexos && d.anexos.length) || 0;
@@ -980,7 +983,7 @@ window.IA = (function () {
             'data_receita': 'Qual a data de recebimento? (ex: hoje, 15/03)',
             'categoria':    'Qual a categoria? (ex: Alimentação, Transporte, Lazer)',
             'parcelas':     'Quantas parcelas? (ex: 3, 12 — ou 1 para à vista)',
-            'replicar_ate': 'Replicar até qual mês? (ex: 12/2026) — ou "não" para remover'
+            'duracao_meses': 'Por quantos meses deve ser recorrente? (número, ou 0 para sem limite)'
         };
         var pergunta = perguntas[campo] || 'Informe o ' + campo + ':';
         setTimeout(function () {
@@ -1065,23 +1068,10 @@ window.IA = (function () {
             case 'recorrente':
                 d.recorrente = (texto === 'sim');
                 break;
-            case 'replicar_ate':
-                var textoLower = texto.toLowerCase().trim();
-                if (textoLower === 'não' || textoLower === 'nao' || textoLower === 'n') {
-                    d.replicar_ate = null;
-                } else {
-                    // Aceita MM/YYYY ou YYYY-MM → normaliza para YYYY-MM-DD
-                    var mMatch = texto.match(/^(\d{1,2})[\/\-](\d{4})$/);
-                    var yMatch = texto.match(/^(\d{4})[\/\-](\d{1,2})$/);
-                    if (mMatch) {
-                        d.replicar_ate = mMatch[2] + '-' + String(mMatch[1]).padStart(2,'0') + '-01';
-                    } else if (yMatch) {
-                        d.replicar_ate = yMatch[1] + '-' + String(yMatch[2]).padStart(2,'0') + '-01';
-                    } else {
-                        addGen('Não entendi. Use o formato MM/AAAA (ex: 12/2026) ou "não" para remover.');
-                        return;
-                    }
-                }
+            case 'duracao_meses':
+                var nm = parseInt(texto);
+                if (isNaN(nm) || nm < 0) { addGen('Informe um número de meses válido (0 = sem limite).'); return; }
+                d.duracao_meses = nm;
                 break;
         }
 
@@ -1489,7 +1479,16 @@ window.IA = (function () {
         form.append('arquivo', file);
 
         // Garante mínimo de 10 segundos de análise para leitura mais precisa
-        var apiPromise  = apiForm('/arquivo', form);
+        var apiPromise  = (function () {
+            var ctrl = new AbortController();
+            setTimeout(function () { ctrl.abort(); }, 90000); // 90s para análise de imagem via Vision AI
+            return fetch(apiURL() + '/ai/arquivo', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + getToken() },
+                body: form,
+                signal: ctrl.signal
+            }).then(function (r) { return r.json(); });
+        })();
         var minDelay    = new Promise(function (resolve) { setTimeout(resolve, 10000); });
         // Mensagens de progresso durante análise
         var prog1 = setTimeout(function () { removeTyping(tid); addGen('Lendo conteúdo do documento...'); tid = addTyping(); }, 3000);

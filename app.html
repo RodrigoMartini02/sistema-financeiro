@@ -3315,10 +3315,9 @@
             <button type="button" class="card-fav-btn" title="Favoritar para esta categoria"><i class="far fa-star"></i> Favoritar forma de pgto</button>
             <label class="card-flag"><input type="checkbox" class="card-ja-paga"> Já está Paga</label>
             <label class="card-flag"><input type="checkbox" class="card-recorrente"> Recorrente</label>
-            <label class="card-flag"><input type="checkbox" class="card-replicar"> Replicar até</label>
-            <div class="card-replicar-options hidden">
-                <select class="card-replicar-mes"></select>
-                <select class="card-replicar-ano"></select>
+            <div class="card-recorrente-duracao hidden">
+                <label class="card-duracao-label">Meses:</label>
+                <input type="number" class="card-duracao-meses" min="0" max="120" placeholder="∞" title="Quantidade de meses a replicar (vazio = sem limite)">
             </div>
             <button type="button" class="card-anexos-btn"><i class="fas fa-paperclip"></i> Anexos (<span class="card-anexos-count">0</span>)</button>
         </div>
@@ -3359,7 +3358,7 @@
     <div class="ai-dc-row dc-row-vencimento" hidden><span class="ai-dc-label">Vencimento</span><span class="ai-dc-val dc-vencimento"></span></div>
     <div class="ai-dc-row"><span class="ai-dc-label">Status</span><span class="ai-dc-val dc-status-despesa"></span></div>
     <div class="ai-dc-row dc-row-recorrente"><span class="ai-dc-label">Recorrente</span><span class="ai-dc-val dc-recorrente-val"></span></div>
-    <div class="ai-dc-row dc-row-replicar" hidden><span class="ai-dc-label">Replicar até</span><span class="ai-dc-val dc-replicar"></span></div>
+    <div class="ai-dc-row dc-row-duracao-meses" hidden><span class="ai-dc-label">Duração (meses)</span><span class="ai-dc-val dc-duracao-meses"></span></div>
     <div class="ai-dc-row dc-row-anexos" hidden><span class="ai-dc-label">Anexos</span><span class="ai-dc-val dc-anexos-count"></span></div>
 </div><p class="ai-card-pergunta">Quer revisar algum dado antes de salvar?</p><div class="ai-msg-btns">
     <button class="ai-msg-btn-ok" data-action="confirmar-despesa">Salvar</button>

@@ -925,32 +925,11 @@ function preencherCelulaAnexos(clone, despesa, index, fechado) {
 const cardAnexosStore = new Map();
 let cardCounter = 0;
 
-// Clona o template do card e preenche os selects dinâmicos (mês/ano de replicação)
+// Clona o template do card
 function _montarCardDespesa() {
     const tmpl = document.getElementById('template-card-despesa-lancamento');
     if (!tmpl) return null;
-    const clone = tmpl.content.cloneNode(true);
-
-    const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-    const anoBase = window.anoAberto || new Date().getFullYear();
-
-    const selMes = clone.querySelector('.card-replicar-mes');
-    meses.forEach((m, i) => {
-        const opt = document.createElement('option');
-        opt.value = i;
-        opt.textContent = m;
-        selMes.appendChild(opt);
-    });
-
-    const selAno = clone.querySelector('.card-replicar-ano');
-    Array.from({length: 6}, (_, i) => anoBase + i).forEach(a => {
-        const opt = document.createElement('option');
-        opt.value = a;
-        opt.textContent = a;
-        selAno.appendChild(opt);
-    });
-
-    return clone;
+    return tmpl.content.cloneNode(true);
 }
 
 // Cria um card DOM e configura seus eventos
@@ -1041,9 +1020,9 @@ function configurarEventosCard(cardEl) {
         atualizarIndicadorMesCard(cardEl);
     });
 
-    // Replicar
-    cardEl.querySelector('.card-replicar').addEventListener('change', function() {
-        cardEl.querySelector('.card-replicar-options').classList.toggle('hidden', !this.checked);
+    // Recorrente → mostrar/esconder campo de duração
+    cardEl.querySelector('.card-recorrente').addEventListener('change', function() {
+        cardEl.querySelector('.card-recorrente-duracao').classList.toggle('hidden', !this.checked);
     });
 
     // Favoritar
@@ -1305,10 +1284,8 @@ function coletarDadosCard(cardEl) {
         totalParcelas: parcelas,
         jaPago: cardEl.querySelector('.card-ja-paga').checked,
         recorrente: cardEl.querySelector('.card-recorrente').checked,
-        anexos: cardAnexosStore.get(cardEl.dataset.cardId) || [],
-        _replicarChecked: cardEl.querySelector('.card-replicar').checked,
-        _replicarMes: parseInt(cardEl.querySelector('.card-replicar-mes')?.value || 0),
-        _replicarAno: parseInt(cardEl.querySelector('.card-replicar-ano')?.value || (window.anoAberto || new Date().getFullYear()))
+        duracaoMeses: parseInt(cardEl.querySelector('.card-duracao-meses')?.value) || 0,
+        anexos: cardAnexosStore.get(cardEl.dataset.cardId) || []
     };
 }
 
@@ -1364,7 +1341,6 @@ async function salvarTodasDespesas() {
     for (const card of cards) {
         const formData = coletarDadosCard(card);
         const ehEdicao = formData.id !== '' && formData.id !== null;
-        if (formData._replicarChecked) formData.recorrente = true;
 
         card.querySelector('.card-success').classList.add('hidden');
         card.querySelector('.card-error').classList.add('hidden');
@@ -1398,7 +1374,7 @@ async function salvarTodasDespesas() {
     if (btnSalvar) { btnSalvar.disabled = false; btnSalvar.textContent = 'Salvar'; }
 
     if (erroCount === 0) {
-        if (window.mostrarMensagemSucesso) window.mostrarMensagemSucesso(`${salvoCount} despesa(s) salva(s) com sucesso!`);
+        // Feedback visual já exibido no .card-success inline de cada card
         const ehEdicao = cards.length === 1 && cards[0].dataset.despesaId;
         if (ehEdicao) {
             fecharModalLancamentoDespesas();
@@ -1410,11 +1386,12 @@ async function salvarTodasDespesas() {
     }
 }
 
-// Replicação de despesa a partir dos dados de um card
+// Criação de cópias recorrentes nos meses seguintes
 async function processarReplicacaoDespesaCard(formData) {
-    if (!formData._replicarChecked) return;
-    const mesFinal = formData._replicarMes;
-    const anoFinal = formData._replicarAno;
+    if (!formData.recorrente) return;
+    // duracaoMeses: 0 ou ausente = sem limite (usa 12 meses por padrão)
+    const totalMeses = formData.duracaoMeses > 0 ? formData.duracaoMeses : 12;
+
     let mesAtual = formData.mes + 1;
     let anoAtual = formData.ano;
     if (mesAtual > 11) { mesAtual = 0; anoAtual++; }
@@ -1422,16 +1399,17 @@ async function processarReplicacaoDespesaCard(formData) {
     const dataVencOriginal = new Date(formData.dataVencimento + 'T00:00:00');
     const diaVenc = dataVencOriginal.getDate();
 
-    while (anoAtual < anoFinal || (anoAtual === anoFinal && mesAtual <= mesFinal)) {
+    for (let i = 0; i < totalMeses; i++) {
         const novaDataVenc = calcularDataReplicada(diaVenc, mesAtual, anoAtual);
         try {
             await window.usuarioDataManager.salvarDespesa(mesAtual, anoAtual, {
                 descricao: formData.descricao, valor: formData.valor, valorPago: formData.valorPago,
                 dataCompra: novaDataVenc, dataVencimento: novaDataVenc,
                 categoria_id: formData.categoria_id, formaPagamento: formData.formaPagamento,
-                cartao_id: formData.cartao_id, pago: false, recorrente: true, anexos: []
+                cartao_id: formData.cartao_id, pago: false, recorrente: true,
+                duracaoMeses: formData.duracaoMeses, anexos: []
             }, null);
-        } catch(e) { console.error(`Erro ao replicar:`, e); }
+        } catch(e) { console.error(`Erro ao criar cópia recorrente:`, e); }
         mesAtual++;
         if (mesAtual > 11) { mesAtual = 0; anoAtual++; }
     }
@@ -1497,7 +1475,13 @@ function preencherCardEdicao(cardEl, index) {
     }
 
     if (despesa.quitado || despesa.pago) cardEl.querySelector('.card-ja-paga').checked = true;
-    if (despesa.recorrente) cardEl.querySelector('.card-recorrente').checked = true;
+    if (despesa.recorrente) {
+        cardEl.querySelector('.card-recorrente').checked = true;
+        cardEl.querySelector('.card-recorrente-duracao').classList.remove('hidden');
+        if (despesa.duracaoMeses) {
+            cardEl.querySelector('.card-duracao-meses').value = despesa.duracaoMeses;
+        }
+    }
 
     if (despesa.anexos && despesa.anexos.length > 0) {
         cardAnexosStore.set(cardEl.dataset.cardId, [...despesa.anexos]);
@@ -1669,6 +1653,7 @@ async function salvarDespesaLocal(formData) {
             quitado: formData.jaPago || false,
             pago: formData.jaPago || false,
             recorrente: formData.recorrente || false,
+            duracaoMeses: formData.duracaoMeses || null,
             observacoes: formData.observacoes || '',
             anexos: formData.anexos || [],
             metadados: totalJuros !== 0 ? {
