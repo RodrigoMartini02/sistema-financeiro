@@ -516,56 +516,6 @@
 <script src="js/ia-mobile.js"></script>
 <script src="js/pwa-handler.js"></script>
 
-<script>
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').then((reg) => {
-            // Verifica atualização a cada 10 minutos (app pode ficar aberto por horas)
-            setInterval(() => reg.update(), 10 * 60 * 1000);
-
-            // Novo SW esperando → oferece atualização imediata
-            reg.addEventListener('updatefound', () => {
-                const newWorker = reg.installing;
-                newWorker.addEventListener('statechange', () => {
-                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        mostrarBannerUpdate(() => newWorker.postMessage({ type: 'SKIP_WAITING' }));
-                    }
-                });
-            });
-        }).catch((err) => console.warn('SW registration failed:', err));
-
-        // SW já ativado em background → recarrega para pegar nova versão
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-            window.location.reload();
-        });
-
-        // Mensagem do SW informando nova versão ativa
-        navigator.serviceWorker.addEventListener('message', (e) => {
-            if (e.data && e.data.type === 'SW_UPDATED') {
-                mostrarBannerUpdate(null);
-            }
-        });
-    });
-}
-
-function mostrarBannerUpdate(onUpdate) {
-    if (document.getElementById('sw-update-banner')) return;
-    var banner = document.createElement('div');
-    banner.id = 'sw-update-banner';
-    banner.innerHTML =
-        '<span>Nova versão disponível</span>' +
-        '<button id="sw-update-btn">Atualizar</button>' +
-        '<button id="sw-update-dismiss">✕</button>';
-    document.body.appendChild(banner);
-    document.getElementById('sw-update-btn').addEventListener('click', function () {
-        if (onUpdate) onUpdate();
-        else window.location.reload();
-    });
-    document.getElementById('sw-update-dismiss').addEventListener('click', function () {
-        banner.remove();
-    });
-}
-</script>
 
 <!-- ── MODAL DE BLOQUEIO (PWA) ─────────────────────────────── -->
 <div id="lock-screen-overlay" class="lock-screen-overlay"></div>

@@ -85,53 +85,23 @@
         });
     }
 
-    // ── 3. PWA INSTALL PROMPT ────────────────────────────────────
-    window.addEventListener('beforeinstallprompt', function (e) {
-        e.preventDefault();
-        _deferredInstall = e;
-
-        // Não mostrar se o usuário já dispensou antes
-        if (sessionStorage.getItem('pwaInstallDismissed')) return;
-
-        // Mostrar banner após 3s de uso
-        setTimeout(function () {
-            if (installBanner) installBanner.classList.add('visible');
-        }, 3000);
-    });
-
-    if (btnInstalar) {
-        btnInstalar.addEventListener('click', function () {
-            if (!_deferredInstall) return;
-            _deferredInstall.prompt();
-            _deferredInstall.userChoice.then(function () {
-                if (installBanner) installBanner.classList.remove('visible');
-                _deferredInstall = null;
-            });
-        });
-    }
-
-    if (btnDismiss) {
-        btnDismiss.addEventListener('click', function () {
-            if (installBanner) installBanner.classList.remove('visible');
-            sessionStorage.setItem('pwaInstallDismissed', '1');
-        });
-    }
-
-    // Esconder banner quando já está instalado
-    window.addEventListener('appinstalled', function () {
-        if (installBanner) installBanner.classList.remove('visible');
-    });
-
     // ── BOTTOM SHEET ─────────────────────────────────────────────
+    var _sheetInHistory = false;
+
     function abrirSheet() {
         backdrop.classList.add('visible');
         sheet.classList.add('open');
         history.pushState({ imSheet: true }, '');
+        _sheetInHistory = true;
     }
 
     function fecharSheet() {
         backdrop.classList.remove('visible');
         sheet.classList.remove('open');
+        if (_sheetInHistory) {
+            _sheetInHistory = false;
+            history.back();
+        }
     }
 
     if (btnSettings) btnSettings.addEventListener('click', abrirSheet);
@@ -141,6 +111,7 @@
     // Android back button: fecha sheet se aberto
     window.addEventListener('popstate', function () {
         if (sheet && sheet.classList.contains('open')) {
+            _sheetInHistory = false;
             fecharSheet();
         }
     });
@@ -458,8 +429,16 @@
                     if (passwordInput) { passwordInput.value = ''; passwordInput.focus(); }
                 }
             }).catch(function () {
-                // Sem conexão: liberar acesso para não bloquear offline
-                fecharLock();
+                if (!navigator.onLine) {
+                    fecharLock();
+                } else {
+                    var card = document.querySelector('.lock-card');
+                    if (card) {
+                        card.classList.add('shake-animation');
+                        setTimeout(function () { card.classList.remove('shake-animation'); }, 500);
+                    }
+                    if (passwordInput) { passwordInput.value = ''; passwordInput.focus(); }
+                }
             });
         });
 
@@ -475,6 +454,10 @@
         carregarNomeUsuario();
         if (typeof window.inicializarPerfis === 'function') {
             window.inicializarPerfis();
+        }
+        // Fallback para :has() em WebViews antigas
+        if (document.querySelector('.ia-container.im-page')) {
+            document.body.classList.add('im-page-active');
         }
     }
 

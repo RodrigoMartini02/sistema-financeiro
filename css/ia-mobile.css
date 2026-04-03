@@ -82,6 +82,13 @@
 }
 
 /* ── Reset de página ─────────────────────────────────────────── */
+/* Fallback para WebViews sem suporte a :has() (Android Chrome < 105) */
+body.im-page-active {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    height: 100dvh;
+}
 body:has(.ia-container.im-page) {
     margin: 0;
     padding: 0;

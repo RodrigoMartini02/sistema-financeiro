@@ -37,7 +37,11 @@
       "Bash(curl:*)",
       "Bash(for f in \"c:/Users/rodri/Music/sistema financas/js/\"*.js)",
       "Bash(done)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(psql -U postgres -p 5433 -c \"SELECT version\\(\\);\")",
+      "Bash(\"/c/Program Files/PostgreSQL/17/bin/psql.exe\" -U postgres -p 5433 -c \"SELECT version\\(\\);\")",
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -p 5433 -c \"SELECT version\\(\\);\")",
+      "Bash(\"/c/Program Files/PostgreSQL/15/bin/psql.exe\" -U postgres -p 5433 -c \"SELECT version\\(\\);\")"
     ]
   }
 }
