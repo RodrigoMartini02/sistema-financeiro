@@ -647,7 +647,7 @@ textarea:focus {
     z-index: 200;
     transform: none !important;
     transition: width 0.25s ease;
-    overflow: hidden;
+    overflow: visible;
 }
 
 /* Recolhida = strip de ícones */
@@ -1237,33 +1237,32 @@ textarea:focus {
     /* Fluid base: shrinks on narrow viewports, caps at 14 px on wide ones */
     font-size: clamp(10px, 1vw, 14px);
     background: var(--theme-card-bg);
-    border-radius: 0.6em;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-radius: 0.75em;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
     overflow: hidden;
     cursor: pointer;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     display: flex;
     flex-direction: column;
-    /* No fixed min-height — let content determine height so nothing clips */
     border: 1px solid var(--theme-border);
 }
 
 .mes-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.09);
 }
 
 /* --- HEADER --- */
 .mes-header {
     background: var(--theme-card-bg);
     color: var(--theme-text);
-    padding: 0.75em 1.15em;
+    padding: 0.65em 1em;
     text-align: left;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-left: 4px solid #cbd5e1;
+    border-left: 3px solid #cbd5e1;
     border-bottom: 1px solid var(--theme-border);
 }
 
@@ -1284,20 +1283,20 @@ textarea:focus {
 }
 
 .mes-nome {
-    font-size: 1em;
-    font-weight: 700;
+    font-size: 0.95em;
+    font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
     color: var(--theme-text);
 }
 
 /* --- BODY --- */
 .mes-body {
-    padding: 0.85em 1em;
+    padding: 0.8em 1em;
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 0.57em;
+    gap: 0.5em;
 }
 
 .mes-saldos-container {
@@ -1346,26 +1345,26 @@ textarea:focus {
 
 /* --- LABELS E VALORES --- */
 .mes-label {
-    font-size: 0.65em;       /* ~8-9 px at default base */
+    font-size: 0.62em;       /* ~8-9 px at default base */
     color: var(--theme-text-muted);
-    margin-bottom: 0.25em;
+    margin-bottom: 0.3em;
     text-transform: uppercase;
-    font-weight: 700;
-    letter-spacing: 0.05em;
+    font-weight: 400;
+    letter-spacing: 0.07em;
     display: block;
 }
 
 .valor-anterior,
 .mes-saldo-valor {
     font-size: 0.93em;       /* ~13 px at default base */
-    font-weight: 800;
+    font-weight: 500;
     display: block;
 }
 
 .mes-receita,
 .mes-despesa {
     font-size: 0.86em;       /* ~12 px at default base */
-    font-weight: 800;
+    font-weight: 500;
     display: block;
 }
 
@@ -1386,9 +1385,9 @@ textarea:focus {
 
 .btn-toggle-mes {
     width: 100%;
-    padding: 0.78em;         /* ~11 px at default base */
-    font-size: 0.86em;       /* ~12 px at default base */
-    font-weight: 600;
+    padding: 0.68em;         /* ~11 px at default base */
+    font-size: 0.82em;       /* ~12 px at default base */
+    font-weight: 400;
     border: none;
     cursor: pointer;
     display: flex;
@@ -1396,7 +1395,7 @@ textarea:focus {
     justify-content: center;
     gap: 0.5em;
     transition: all 0.2s ease;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.04em;
     outline: none;
 }
 
