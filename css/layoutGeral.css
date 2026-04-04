@@ -470,11 +470,11 @@ textarea:focus {
 }
 
 .sidebar-header {
-    padding: var(--space-lg) var(--space-md);
+    padding: var(--space-md) var(--space-md) var(--space-md);
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    align-items: flex-start;
+    justify-content: flex-start;
     gap: 8px;
     height: auto;
     min-height: var(--header-height);
@@ -704,11 +704,12 @@ textarea:focus {
 .sidebar-title {
     overflow: hidden;
     white-space: nowrap;
-    text-align: center;
+    text-align: left;
     width: 100%;
-    margin: 0 0 8px 0;
-    font-size: var(--font-size-base);
-    font-weight: var(--font-weight-semibold);
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
     color: var(--white);
 }
 
