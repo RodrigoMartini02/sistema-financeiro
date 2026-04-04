@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "KASH — Controle de Gastos com IA",
-  "short_name": "KASH",
+  "name": "IGen - Sistema Financeiro Inteligente — Controle de Gastos com IA",
+  "short_name": "IGen",
   "description": "Controle financeiro para autônomos e MEIs. Registre gastos por IA, controle cartões e parcelas.",
   "start_url": "./ia-mobile.html?source=pwa",
   "scope": "/",

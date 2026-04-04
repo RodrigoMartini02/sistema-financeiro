@@ -39,8 +39,8 @@ async function enviarEmailRecuperacaoEmailJS(email, nome, codigo) {
                 to_name: nome,
                 codigo_recuperacao: codigo,
                 validade: '15 minutos',
-                sistema_nome: 'KASH',
-                assunto: '[KASH] Codigo de Recuperacao de Senha'
+                sistema_nome: 'IGen - Sistema Financeiro Inteligente',
+                assunto: '[IGen - Sistema Financeiro Inteligente] Codigo de Recuperacao de Senha'
             }
         })
     });

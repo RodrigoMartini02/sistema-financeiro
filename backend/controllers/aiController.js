@@ -327,7 +327,7 @@ async function chat(req, res) {
         const intencao = await detectarIntencaoComIA(mensagem, sessao.historico, providerConfig);
 
         if (intencao === 'saudacao') {
-            resposta = 'Olá! Sou a Gen, sua IA financeira do KASH. Posso ajudá-lo a:\n\n• Cadastrar despesas (ex: "paguei 150 de mercado no pix")\n• Cadastrar receitas (ex: "recebi salário 3500 hoje")\n• Responder perguntas (ex: "quanto gastei esse mês")\n• Interpretar boletos, PIX e documentos\n\nComo posso ajudar?';
+            resposta = 'Olá! Sou a Gen, sua IA financeira do IGen - Sistema Financeiro Inteligente. Posso ajudá-lo a:\n\n• Cadastrar despesas (ex: "paguei 150 de mercado no pix")\n• Cadastrar receitas (ex: "recebi salário 3500 hoje")\n• Responder perguntas (ex: "quanto gastei esse mês")\n• Interpretar boletos, PIX e documentos\n\nComo posso ajudar?';
             sessao.historico.push({ role: 'assistant', content: resposta });
             return res.json({ success: true, resposta, acao: 'saudacao' });
         }
@@ -801,7 +801,7 @@ async function status(req, res) {
         versao: '1.0.0',
         gen: {
             ativo: true,
-            descricao: 'IA interna KASH',
+            descricao: 'IA interna IGen - Sistema Financeiro Inteligente',
         },
         openai: {
             ativo: openaiAtivo,

@@ -72,7 +72,7 @@ router.post('/create-order', authMiddleware, async (req, res) => {
     }
 
     const valor = tipo === 'mensal' ? '4.99' : '422.28';
-    const descricao = `KASH - Plano ${tipo === 'mensal' ? 'Mensal' : 'Anual'}`;
+    const descricao = `IGen - Sistema Financeiro Inteligente - Plano ${tipo === 'mensal' ? 'Mensal' : 'Anual'}`;
 
     try {
         const token = await getAccessToken();
@@ -94,7 +94,7 @@ router.post('/create-order', authMiddleware, async (req, res) => {
                     }
                 }],
                 application_context: {
-                    brand_name: 'KASH',
+                    brand_name: 'IGen - Sistema Financeiro Inteligente',
                     locale: 'pt-BR',
                     return_url: `${FRONTEND_URL}/app.html`,
                     cancel_url: `${FRONTEND_URL}/app.html`
