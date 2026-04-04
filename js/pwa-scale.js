@@ -4,9 +4,10 @@
 
     function applyScale() {
         var isPortrait = window.innerHeight > window.innerWidth;
+        var isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 
         // Em portrait (mobile): colapsar sidebar para liberar espaço visual
-        if (isPortrait && sidebar && !sidebar.classList.contains('collapsed')) {
+        if (isPortrait && isTouchDevice && sidebar && !sidebar.classList.contains('collapsed')) {
             sidebar.classList.add('collapsed');
             if (mainContent) mainContent.classList.add('sidebar-collapsed');
         }

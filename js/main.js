@@ -475,7 +475,12 @@ function setupNavigation() {
     const overlay    = document.getElementById('sidebar-overlay');
     const mainContent = document.querySelector('.main-content');
 
-    const isMobile = () => window.innerWidth <= 768;
+    const isMobile = () =>
+        window.innerWidth <= 1024 ||
+        (
+            window.innerHeight > window.innerWidth &&
+            window.matchMedia('(hover: none) and (pointer: coarse)').matches
+        );
 
     // Desktop inicia com sidebar expandida
     // Mobile inicia com sidebar escondida (overlay model)

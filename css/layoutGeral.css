@@ -741,23 +741,24 @@ textarea:focus {
 /* ── Hambúrguer no header (só mobile) ────────────────────────── */
 .btn-hamburger-mobile {
     display: none;
-    width: 36px;
-    height: 36px;
-    border: none;
-    background: transparent;
-    color: var(--gray-600);
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--theme-border);
+    background: var(--theme-surface);
+    color: var(--theme-text-muted);
     cursor: pointer;
     border-radius: 8px;
     align-items: center;
     justify-content: center;
     font-size: 18px;
     flex-shrink: 0;
-    transition: background 0.15s;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
     margin-right: 8px;
 }
 .btn-hamburger-mobile:hover {
-    background: var(--gray-100);
-    color: var(--gray-800);
+    background: var(--theme-surface-hover, var(--theme-surface));
+    color: var(--theme-text);
+    border-color: var(--primary-color);
 }
 
 /* ── Overlay (só mobile via .visivel) ────────────────────────── */
@@ -774,7 +775,7 @@ textarea:focus {
 }
 
 /* ── Mobile (<769px): modelo overlay ─────────────────────────── */
-@media (max-width: 768px) {
+@media (max-width: 1024px), (hover: none) and (pointer: coarse) and (orientation: portrait) {
     .sidebar {
         width: var(--sidebar-width) !important;
         transform: translateX(-100%) !important;
