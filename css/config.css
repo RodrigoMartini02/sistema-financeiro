@@ -1710,19 +1710,19 @@
 .perfil-select-sidebar {
     background: linear-gradient(135deg, #3b82f6, #6366f1);
     border: none;
-    border-radius: 8px;
-    padding: 0 10px;
+    border-radius: 20px;
+    padding: 0 14px;
     font-size: 11px;
     font-weight: 600;
     color: #fff;
-    max-width: 160px;
-    width: 100%;
+    width: 160px;
     cursor: pointer;
     outline: none;
     height: 30px;
     transition: opacity 0.2s;
     letter-spacing: 0.2px;
     appearance: auto;
+    text-align: center;
 }
 
 .perfil-select-sidebar:hover {

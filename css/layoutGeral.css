@@ -461,7 +461,7 @@ textarea:focus {
     height: 100vh;
     flex-shrink: 0;
     z-index: var(--z-fixed);
-    overflow: hidden;
+    overflow: visible;
     display: flex;
     flex-direction: column;
     position: fixed;
@@ -670,51 +670,46 @@ textarea:focus {
     margin-left: var(--sidebar-collapsed-width);
 }
 
-/* ── Botão toggle dentro da sidebar ───────────────────────────── */
+/* ── Botão toggle: aba grudada na borda direita da sidebar ───────── */
 .sidebar-toggle-btn {
-    background: var(--primary-color, #6366f1);
+    background: var(--theme-sidebar-bg);
     border: none;
-    color: #fff;
+    border-right: 1px solid rgba(255,255,255,0.08);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.75);
     cursor: pointer;
-    padding: 6px 8px;
-    border-radius: 6px;
-    font-size: 15px;
+    padding: 0;
+    border-radius: 0 8px 8px 0;
+    font-size: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
     position: absolute;
-    right: -16px;
-    top: 16px;
+    right: -24px;
+    top: 20px;
     z-index: 10;
-    box-shadow: 2px 0 8px rgba(0,0,0,0.18);
-    width: 28px;
-    height: 28px;
+    box-shadow: 3px 0 10px rgba(0,0,0,0.25);
+    width: 24px;
+    height: 40px;
 }
 .sidebar-toggle-btn:hover {
-    background: var(--primary-hover, #4f46e5);
+    background: rgba(255,255,255,0.08);
     color: #fff;
-}
-
-/* ── Header da sidebar com linha de toggle + título ───────────── */
-.sidebar-header-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    min-height: 28px;
-    position: relative;
 }
 
 /* Título da sidebar */
 .sidebar-title {
     overflow: hidden;
     white-space: nowrap;
-    flex: unset;
     text-align: center;
     width: 100%;
-    margin-top: 4px;
+    margin: 0 0 8px 0;
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--white);
 }
 
 /* ── Estado recolhido: esconde textos, centraliza ícones ───────── */
@@ -722,9 +717,6 @@ textarea:focus {
 .sidebar.collapsed .user-profile-sidebar,
 .sidebar.collapsed #plano-sidebar-container {
     display: none;
-}
-.sidebar.collapsed .sidebar-header-row {
-    justify-content: center;
 }
 .sidebar.collapsed .sidebar-header {
     padding: var(--space-sm) 0;

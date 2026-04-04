@@ -355,7 +355,7 @@
 }
 
 .dash-temas-nav {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     min-width: 0;
 }
 
