@@ -139,7 +139,7 @@ function atualizarSidebarPlano(plano) {
     } else if (plano.status === 'ativo') {
         const tipo = plano.plano_tipo;
         if (btnLabel) {
-            btnLabel.textContent = tipo === 'anual' ? 'Plano Premium' : tipo === 'master' ? 'Master' : 'Plano Plus';
+            btnLabel.textContent = 'Ver planos';
         }
         btnUpgrade.style.cssText = '';
         btnUpgrade.style.display = 'flex';

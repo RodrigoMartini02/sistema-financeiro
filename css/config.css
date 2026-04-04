@@ -1708,11 +1708,11 @@
 
 /* Seletor de perfil posicionado na sidebar */
 .perfil-select-sidebar {
-    background: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    border: none;
     border-radius: 8px;
-    padding: 5px 10px;
-    font-size: 12px;
+    padding: 0 10px;
+    font-size: 11px;
     font-weight: 600;
     color: #fff;
     max-width: 160px;
@@ -1720,12 +1720,18 @@
     cursor: pointer;
     outline: none;
     height: 30px;
-    transition: background 0.2s, border-color 0.2s;
+    transition: opacity 0.2s;
+    letter-spacing: 0.2px;
+    appearance: auto;
 }
 
 .perfil-select-sidebar:hover {
-    background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.35);
+    opacity: 0.88;
+}
+
+.perfil-select-sidebar option {
+    background: #3b3f8c;
+    color: #fff;
 }
 
 /* ================================================================ */
