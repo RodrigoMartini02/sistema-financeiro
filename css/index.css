@@ -720,14 +720,14 @@ form .btn-primary:hover {
 .nav-logo {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 14px;
     text-decoration: none;
 }
 
 .nav-logo img.nav-logo-image {
-    width: 42px;
-    height: 42px;
-    border-radius: 10px;
+    width: 60px;
+    height: 60px;
+    border-radius: 14px;
     display: block;
     object-fit: cover;
     flex-shrink: 0;
@@ -2433,6 +2433,19 @@ form .btn-primary:hover {
         padding: 0 1.25rem;
     }
 
+    .nav-logo {
+        gap: 10px;
+    }
+
+    .nav-logo img.nav-logo-image {
+        width: 52px;
+        height: 52px;
+    }
+
+    .nav-logo span {
+        font-size: 18px;
+    }
+
     /* Hero: não forçar 100vh em mobile — conteúdo empilhado precisa de mais altura */
     .hero-section {
         min-height: unset;
@@ -2513,6 +2526,16 @@ form .btn-primary:hover {
     /* Navbar ainda mais compacta */
     .nav-container {
         padding: 0 1rem;
+    }
+
+    .nav-logo img.nav-logo-image {
+        width: 46px;
+        height: 46px;
+        border-radius: 12px;
+    }
+
+    .nav-logo span {
+        font-size: 16px;
     }
 
     /* section-container ainda mais estreito */
