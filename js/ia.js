@@ -1,5 +1,5 @@
 // ================================================================
-// GEN — IA Financeira e-conomia
+// GEN — IA Financeira KASH
 // Funciona como painel flutuante (outras páginas) e página completa (ia.html)
 // Exposto como window.IA
 // ================================================================
@@ -149,7 +149,7 @@ window.IA = (function () {
 
         apiGet('/config').then(function (cfg) {
             var provider = (cfg && cfg.provider) || 'gen';
-            var nome     = (cfg && cfg.nome)     || 'Gen ativa — IA interna e-conomia';
+            var nome     = (cfg && cfg.nome)     || 'Gen ativa — IA interna KASH';
             var isGen    = provider === 'gen';
 
             _setStatus(nome, true);
@@ -1698,7 +1698,7 @@ window.IA = (function () {
         claude:  'Chave começa com <code>sk-ant-</code>. Obtenha em console.anthropic.com'
     };
     var LABELS_PROVIDER = {
-        gen:    'Gen ativa — IA interna e-conomia',
+        gen:    'Gen ativa — IA interna KASH',
         openai: 'OpenAI ativa — GPT-4o mini',
         gemini: 'Google Gemini ativo — Gemini 2.0 Flash',
         claude: 'Anthropic Claude ativo — Claude Haiku'

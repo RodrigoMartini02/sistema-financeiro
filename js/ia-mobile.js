@@ -143,7 +143,7 @@
             claude: 'Chave começa com <code>sk-ant-</code>. Obtenha em console.anthropic.com'
         };
         var LABELS = {
-            gen:    'Gen ativa — IA interna e-conomia',
+            gen:    'Gen ativa — IA interna KASH',
             openai: 'OpenAI ativa — GPT-4o mini',
             gemini: 'Google Gemini ativo — Gemini 2.0 Flash',
             claude: 'Anthropic Claude ativo — Claude Haiku'

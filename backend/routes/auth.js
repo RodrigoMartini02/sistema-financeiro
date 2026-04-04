@@ -39,8 +39,8 @@ async function enviarEmailRecuperacaoEmailJS(email, nome, codigo) {
                 to_name: nome,
                 codigo_recuperacao: codigo,
                 validade: '15 minutos',
-                sistema_nome: 'e-conomia',
-                assunto: '[e-conomia] Codigo de Recuperacao de Senha'
+                sistema_nome: 'KASH',
+                assunto: '[KASH] Codigo de Recuperacao de Senha'
             }
         })
     });

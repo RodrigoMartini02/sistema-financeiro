@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "e-conomia — Controle de Gastos com IA",
-  "short_name": "e-conomia",
+  "name": "KASH — Controle de Gastos com IA",
+  "short_name": "KASH",
   "description": "Controle financeiro para autônomos e MEIs. Registre gastos por IA, controle cartões e parcelas.",
   "start_url": "./ia-mobile.html?source=pwa",
   "scope": "/",

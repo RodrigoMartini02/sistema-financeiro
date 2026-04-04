@@ -72,7 +72,7 @@ router.post('/create-order', authMiddleware, async (req, res) => {
     }
 
     const valor = tipo === 'mensal' ? '4.99' : '422.28';
-    const descricao = `e-conomia - Plano ${tipo === 'mensal' ? 'Mensal' : 'Anual'}`;
+    const descricao = `KASH - Plano ${tipo === 'mensal' ? 'Mensal' : 'Anual'}`;
 
     try {
         const token = await getAccessToken();
@@ -94,7 +94,7 @@ router.post('/create-order', authMiddleware, async (req, res) => {
                     }
                 }],
                 application_context: {
-                    brand_name: 'e-conomia',
+                    brand_name: 'KASH',
                     locale: 'pt-BR',
                     return_url: `${FRONTEND_URL}/app.html`,
                     cancel_url: `${FRONTEND_URL}/app.html`
