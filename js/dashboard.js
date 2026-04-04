@@ -1036,7 +1036,9 @@ function renderizarTemaSaude() {
                             const { chart, tooltip } = context;
                             if (tooltip.opacity === 0) { el.style.opacity = '0'; return; }
                             const pos = chart.canvas.getBoundingClientRect();
-                            const left = pos.left + window.scrollX + tooltip.caretX + 14;
+                            const ttW = 260;
+                            const rawLeft = pos.left + window.scrollX + tooltip.caretX + 14;
+                            const left = (rawLeft + ttW > window.innerWidth - 10) ? pos.left + window.scrollX + tooltip.caretX - ttW - 10 : rawLeft;
                             const top  = pos.top  + window.scrollY + tooltip.caretY - 10;
                             el.style.left = left + 'px';
                             el.style.top  = top  + 'px';
@@ -1885,7 +1887,10 @@ function renderizarTemaAnalise() {
                         const { chart, tooltip } = context;
                         if (tooltip.opacity === 0) { el.style.opacity = '0'; return; }
                         const pos = chart.canvas.getBoundingClientRect();
-                        el.style.left = (pos.left + window.scrollX + tooltip.caretX + 14) + 'px';
+                        const ttW = 260;
+                        const rawLeft = pos.left + window.scrollX + tooltip.caretX + 14;
+                        const left = (rawLeft + ttW > window.innerWidth - 10) ? pos.left + window.scrollX + tooltip.caretX - ttW - 10 : rawLeft;
+                        el.style.left = left + 'px';
                         el.style.top  = (pos.top  + window.scrollY + tooltip.caretY - 10) + 'px';
                         el.style.opacity = '1';
                         const title = tooltip.title?.[0] || '';
