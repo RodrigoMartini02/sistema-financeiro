@@ -724,6 +724,15 @@ form .btn-primary:hover {
     text-decoration: none;
 }
 
+.nav-logo img.nav-logo-image {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: block;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
 .nav-logo i {
     font-size: 22px;
     color: rgba(255,255,255,0.95);
