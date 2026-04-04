@@ -87,7 +87,7 @@ router.post('/assinar', authMiddleware, async (req, res) => {
         return res.status(400).json({ success: false, message: 'Tipo de plano invalido' });
     }
 
-    const valor = tipo === 'mensal' ? 39.99 : 422.28;
+    const valor = tipo === 'mensal' ? 4.99 : 422.28;
 
     try {
         const preference = new Preference(client);
@@ -143,7 +143,7 @@ router.post('/pix', authMiddleware, async (req, res) => {
         return res.status(400).json({ success: false, message: 'Tipo de plano invalido' });
     }
 
-    const valor = tipo === 'mensal' ? 39.99 : 422.28;
+    const valor = tipo === 'mensal' ? 4.99 : 422.28;
 
     try {
         const usuarioResult = await query(
@@ -299,7 +299,7 @@ router.post('/pagar-cartao', authMiddleware, async (req, res) => {
         return res.status(400).json({ success: false, message: 'Token do cartao ausente. Verifique os dados e tente novamente.' });
     }
 
-    const valor = tipo === 'mensal' ? 39.99 : 422.28;
+    const valor = tipo === 'mensal' ? 4.99 : 422.28;
     const parcelas = parseInt(installments) || 1;
 
     try {
@@ -375,7 +375,7 @@ router.post('/assinar-recorrente', authMiddleware, async (req, res) => {
         return res.status(400).json({ success: false, message: 'Token do cartao ausente.' });
     }
 
-    const valor     = tipo === 'mensal' ? 39.99 : 422.28;
+    const valor     = tipo === 'mensal' ? 4.99 : 422.28;
     const frequencia = tipo === 'mensal' ? 1 : 12; // mensal=1 mês, anual=12 meses
 
     try {

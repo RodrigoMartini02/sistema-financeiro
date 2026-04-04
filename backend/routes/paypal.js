@@ -71,7 +71,7 @@ router.post('/create-order', authMiddleware, async (req, res) => {
         return res.status(503).json({ success: false, message: 'PayPal não configurado no servidor' });
     }
 
-    const valor = tipo === 'mensal' ? '39.99' : '422.28';
+    const valor = tipo === 'mensal' ? '4.99' : '422.28';
     const descricao = `e-conomia - Plano ${tipo === 'mensal' ? 'Mensal' : 'Anual'}`;
 
     try {
