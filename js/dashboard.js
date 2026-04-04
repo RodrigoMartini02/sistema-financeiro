@@ -635,23 +635,6 @@ function inicializarDashboardTematico() {
         });
     });
 
-    // Filtro de período
-    const btnAno = document.querySelector('.periodo-btn[data-periodo="ano"]');
-    const btnTodos = document.querySelector('.periodo-btn[data-periodo="todos"]');
-    if (btnAno) btnAno.addEventListener('click', function() {
-        document.querySelectorAll('.periodo-btn').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        atualizarDashboardTematico();
-    });
-    if (btnTodos) btnTodos.addEventListener('click', function() {
-        document.querySelectorAll('.periodo-btn').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        atualizarDashboardTematico();
-    });
-
-    const filtroMes = document.getElementById('dash-filtro-mes');
-    if (filtroMes) filtroMes.addEventListener('change', atualizarDashboardTematico);
-
     // Renderiza tema inicial (saude)
     atualizarDashboardTematico();
     atualizarKpisFixos();
@@ -659,12 +642,10 @@ function inicializarDashboardTematico() {
 
 
 function obterFiltroAtivo() {
-    const filtroMes = document.getElementById('dash-filtro-mes');
-    const periodoTodos = document.querySelector('.periodo-btn[data-periodo="todos"]')?.classList.contains('active');
     return {
         ano: window.anoAtual || new Date().getFullYear(),
-        mes: filtroMes && filtroMes.value !== '' ? parseInt(filtroMes.value) : null,
-        todos: !!periodoTodos
+        mes: window._dashFiltroMes !== undefined ? window._dashFiltroMes : null,
+        todos: window._dashFiltroTodos === true
     };
 }
 
@@ -1372,7 +1353,11 @@ function desenharTreemap(canvasId, dados) {
         if (hit) {
             const pct = ((hit.realValue / totalReal) * 100).toFixed(1);
             el.style.opacity = '1';
-            el.style.left = (e.clientX + 14) + 'px';
+            const ttW = 200;
+            const leftPos = (e.clientX + 14 + ttW > window.innerWidth - 10)
+                ? e.clientX - ttW - 14
+                : e.clientX + 14;
+            el.style.left = leftPos + 'px';
             el.style.top  = (e.clientY - 10) + 'px';
             el.innerHTML = '<div style="font-weight:700;margin-bottom:6px;color:#a5b4fc;font-size:11px;text-transform:uppercase;letter-spacing:0.6px">' + hit.label + '</div>' +
                 '<div style="display:flex;gap:7px;align-items:center"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + hit.color + ';flex-shrink:0"></span>' +

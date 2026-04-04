@@ -145,6 +145,8 @@
                 <div class="user-info-sidebar">
                     <span id="nome-usuario-sidebar"></span>
                 </div>
+                <!-- Switcher de Perfil na Sidebar -->
+                <select id="select-perfil-ativo" class="perfil-select perfil-select-sidebar" title="Perfil ativo"></select>
             </div>
         </div>
         <ul class="sidebar-nav">
@@ -265,7 +267,7 @@
             </div>
             <button id="btn-instrucoes-gen">Instruções da Gen</button>
             <button id="btn-upgrade" style="display:none">
-                <span id="btn-upgrade-label">Assinar agora</span>
+                <span id="btn-upgrade-label">Ver planos</span>
             </button>
         </div>
     </nav>
@@ -310,6 +312,12 @@
                         <i class="fas fa-chevron-right"></i>
                     </button>
                 </div>
+                <div class="mes-dropdown-chip">
+                    <button class="header-icon-btn header-mes-label" id="mes-atual-btn">
+                        <i class="fas fa-calendar-alt"></i> <span id="mes-chip-label">Todos os meses</span> <i class="fas fa-chevron-down" style="font-size:10px"></i>
+                    </button>
+                    <div id="dropdown-meses" class="dropdown-meses-lista"></div>
+                </div>
                 <div class="header-separator"></div>
                 <button class="header-icon-btn" id="btn-toggle-theme" title="Alternar Tema">
                     <i class="fas fa-moon" id="theme-icon"></i>
@@ -345,10 +353,6 @@
                         </button>
                     </div>
                 </div>
-               
-                <!-- Switcher de Perfil -->
-                <select id="select-perfil-ativo" class="perfil-select" title="Perfil ativo"></select>
-
                 <button class="header-icon-btn" id="logout-btn" title="Sair">
                     <i class="fas fa-sign-out-alt"></i>
                 </button>
@@ -421,21 +425,6 @@
                 <i class="fas fa-chart-bar"></i>
                 <span>Comparativo</span>
             </button>
-          </div>
-          <div class="dash-filtros-inline">
-            <div class="filtro-periodo-toggle">
-              <button class="periodo-btn active" data-periodo="ano">Ano Atual</button>
-              <button class="periodo-btn" data-periodo="todos">Todos os Anos</button>
-            </div>
-            <select id="dash-filtro-mes" class="dash-select">
-              <option value="">Todos os meses</option>
-              <option value="0">Janeiro</option><option value="1">Fevereiro</option>
-              <option value="2">Março</option><option value="3">Abril</option>
-              <option value="4">Maio</option><option value="5">Junho</option>
-              <option value="6">Julho</option><option value="7">Agosto</option>
-              <option value="8">Setembro</option><option value="9">Outubro</option>
-              <option value="10">Novembro</option><option value="11">Dezembro</option>
-            </select>
           </div>
         </div>
 
@@ -3306,7 +3295,6 @@
                     <div class="card-field"><label>Vencimento *</label><input type="date" class="card-vencimento" required><span class="card-mes-indicador"></span></div>
                 </div>
             </div>
-            <div class="card-anexos-lista"></div>
         </div>
 
         <!-- Coluna 3: Opções -->
@@ -3320,6 +3308,7 @@
                 <input type="number" class="card-duracao-meses" min="0" max="120" placeholder="∞" title="Quantidade de meses a replicar (vazio = sem limite)">
             </div>
             <button type="button" class="card-anexos-btn"><i class="fas fa-paperclip"></i> Anexos (<span class="card-anexos-count">0</span>)</button>
+            <div class="card-anexos-lista"></div>
         </div>
     </div>
     <div class="card-bottom-row">

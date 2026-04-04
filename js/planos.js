@@ -128,7 +128,7 @@ function atualizarSidebarPlano(plano) {
         if (fillEl) fillEl.style.width = `${progresso}%`;
 
         trialBanner.style.display = 'flex';
-        if (btnLabel) btnLabel.textContent = 'Assinar Plus ou Premium';
+        if (btnLabel) btnLabel.textContent = 'Ver planos';
         btnUpgrade.style.cssText = '';
         btnUpgrade.style.display = 'flex';
 

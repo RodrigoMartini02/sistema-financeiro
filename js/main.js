@@ -635,6 +635,10 @@ function onSecaoAtivada(secao, tab) {
 }
 
 function setupControlesAno() {
+    // Inicializar estados globais dos filtros do dashboard
+    if (window._dashFiltroTodos === undefined) window._dashFiltroTodos = false;
+    if (window._dashFiltroMes === undefined) window._dashFiltroMes = null;
+
     const btnAnoAnterior = document.getElementById('btn-ano-anterior');
     const btnProximoAno = document.getElementById('btn-proximo-ano');
     const btnAnoAtualDisplay = document.getElementById('ano-atual-btn');
@@ -687,9 +691,23 @@ function setupControlesAno() {
         });
     }
 
+    // Event listener do chip de mês
+    const btnMesAtual = document.getElementById('mes-atual-btn');
+    const dropdownMeses = document.getElementById('dropdown-meses');
+    if (btnMesAtual && dropdownMeses) {
+        btnMesAtual.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdownMeses.classList.toggle('show');
+            if (dropdownMeses.classList.contains('show')) {
+                preencherDropdownMeses();
+            }
+        });
+    }
+
     document.addEventListener('click', () => {
         if (dropdownAnos) dropdownAnos.classList.remove('show');
         if (dropdownAnoMenu) dropdownAnoMenu.classList.remove('show');
+        if (dropdownMeses) dropdownMeses.classList.remove('show');
     });
 
     const formNovoAno = document.getElementById('form-novo-ano');
@@ -708,6 +726,24 @@ function preencherDropdownAnos() {
 
     dropdownAnos.innerHTML = '';
 
+    // Opção "Todos os anos"
+    const btnTodos = document.createElement('button');
+    btnTodos.textContent = 'Todos os anos';
+    btnTodos.className = 'dropdown-ano-item todos-anos-item' + (window._dashFiltroTodos ? ' active' : '');
+    btnTodos.addEventListener('click', (e) => {
+        e.stopPropagation();
+        window._dashFiltroTodos = true;
+        const btnAnoDisplay = document.getElementById('ano-atual-btn');
+        if (btnAnoDisplay) btnAnoDisplay.textContent = 'Todos os anos';
+        dropdownAnos.classList.remove('show');
+        if (typeof window.atualizarDashboardTematico === 'function') window.atualizarDashboardTematico();
+    });
+    dropdownAnos.appendChild(btnTodos);
+
+    const divider = document.createElement('div');
+    divider.className = 'dropdown-divider';
+    dropdownAnos.appendChild(divider);
+
     if (anosDisponiveis.length === 0) {
         const tmplAno = document.getElementById('template-ano-vazio');
         dropdownAnos.appendChild(tmplAno ? tmplAno.content.cloneNode(true) : (() => { const b = document.createElement('button'); b.className = 'btn btn-secondary'; b.disabled = true; b.textContent = 'Nenhum ano disponível'; return b; })());
@@ -717,13 +753,56 @@ function preencherDropdownAnos() {
     anosDisponiveis.forEach(ano => {
         const btn = document.createElement('button');
         btn.textContent = ano;
-        btn.className = ano === anoAtual ? 'btn btn-secondary active' : 'btn btn-secondary';
+        btn.className = 'dropdown-ano-item' + (!window._dashFiltroTodos && ano === anoAtual ? ' active' : '');
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
+            window._dashFiltroTodos = false;
             mudarAno(ano);
             dropdownAnos.classList.remove('show');
         });
         dropdownAnos.appendChild(btn);
+    });
+}
+
+function preencherDropdownMeses() {
+    const dropdownMeses = document.getElementById('dropdown-meses');
+    if (!dropdownMeses) return;
+
+    const nomesMeses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+    dropdownMeses.innerHTML = '';
+
+    // Opção "Todos os meses"
+    const btnTodos = document.createElement('button');
+    btnTodos.textContent = 'Todos os meses';
+    btnTodos.className = 'dropdown-mes-item todos-meses-item' + (window._dashFiltroMes === null || window._dashFiltroMes === undefined ? ' active' : '');
+    btnTodos.addEventListener('click', (e) => {
+        e.stopPropagation();
+        window._dashFiltroMes = null;
+        const label = document.getElementById('mes-chip-label');
+        if (label) label.textContent = 'Todos os meses';
+        dropdownMeses.classList.remove('show');
+        if (typeof window.atualizarDashboardTematico === 'function') window.atualizarDashboardTematico();
+    });
+    dropdownMeses.appendChild(btnTodos);
+
+    const divider = document.createElement('div');
+    divider.className = 'dropdown-divider';
+    dropdownMeses.appendChild(divider);
+
+    nomesMeses.forEach((nome, idx) => {
+        const btn = document.createElement('button');
+        btn.textContent = nome;
+        btn.className = 'dropdown-mes-item' + (window._dashFiltroMes === idx ? ' active' : '');
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            window._dashFiltroMes = idx;
+            const label = document.getElementById('mes-chip-label');
+            if (label) label.textContent = nome;
+            dropdownMeses.classList.remove('show');
+            if (typeof window.atualizarDashboardTematico === 'function') window.atualizarDashboardTematico();
+        });
+        dropdownMeses.appendChild(btn);
     });
 }
 
@@ -2275,13 +2354,10 @@ function calcularSaldoMes(mes, ano) {
 
         const despesas = (dadosMes.despesas || []).reduce((sum, d) => {
             if (d.quitacaoAntecipada === true) return sum;
-            if (d.pago) return sum + obterValor(d);
+            // Mês fechado: conta tudo
             if (dadosMes.fechado === true) return sum + obterValor(d);
-            const ehRecorrente = d.recorrente === true || d.recorrente === 'true' || d.recorrente === 1 || d.recorrente === '1';
-            const ehParcelado = d.parcelado || d.parcela || d.idGrupoParcelamento;
-            // Parceladas confirmadas sempre contam (são compromissos futuros definidos)
-            if (ehParcelado) return sum + obterValor(d);
-            if (ehRecorrente) return sum + obterValor(d); // sempre conta no mês
+            // Mês aberto: conta apenas o que foi efetivamente pago
+            if (d.pago || d.quitado) return sum + obterValor(d);
             return sum;
         }, 0);
 
@@ -2789,18 +2865,12 @@ function exibirNomeUsuario() {
 
         if (dadosUsuario) {
             const usuario = JSON.parse(dadosUsuario);
-            const primeiroNome = usuario.nome?.split(' ')[0] || 'Usuário';
+            const nomeCompleto = usuario.nome || 'Usuário';
             const tipoUsuario = usuario.tipo || 'padrao';
-
-            const tipoTexto = {
-                'master': 'Master',
-                'admin': 'Admin',
-                'padrao': 'Padrão'
-            }[tipoUsuario] || 'Padrão';
 
             const nomeSidebar = document.getElementById('nome-usuario-sidebar');
             if (nomeSidebar) {
-                nomeSidebar.textContent = `${primeiroNome} - ${tipoTexto}`;
+                nomeSidebar.textContent = nomeCompleto;
             }
 
             // Mostrar grupo admin para admin/master
