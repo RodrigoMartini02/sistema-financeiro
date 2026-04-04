@@ -1247,14 +1247,16 @@ textarea:focus {
 
 /* --- HEADER --- */
 .mes-header {
-    background: linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%);
-    color: #ffffff;
+    background: var(--theme-card-bg);
+    color: var(--theme-text);
     padding: 0.75em 1.15em;
     text-align: left;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    border-left: 4px solid #cbd5e1;
+    border-bottom: 1px solid var(--theme-border);
 }
 
 .mes-reserva-icon {
@@ -1264,19 +1266,21 @@ textarea:focus {
 
 /* Mês com transações */
 .mes-card.mes-ativo .mes-header {
-    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    border-left-color: #3b82f6;
 }
 
 /* Mês fechado */
 .mes-card.mes-fechado .mes-header {
-    background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+    border-left-color: #94a3b8;
+    background: var(--theme-surface-2);
 }
 
 .mes-nome {
-    font-size: 1em;          /* = card base font-size */
+    font-size: 1em;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
+    color: var(--theme-text);
 }
 
 /* --- BODY --- */
@@ -1300,9 +1304,14 @@ textarea:focus {
     min-width: 0;
     padding: 0.5em 0.7em;
     text-align: center;
-    background: var(--theme-surface-2);
-    border-radius: 0.7em;
+    background: none;
+    border-radius: 0;
     border: none;
+    border-right: 1px solid var(--theme-border);
+}
+
+.mes-saldo {
+    border-right: none;
 }
 
 .mes-resumo {
@@ -1318,13 +1327,13 @@ textarea:focus {
 }
 
 .mes-valor:first-child {
-    background: #f0fdf4;
-    border: 1px solid #bbf7d0;
+    background: none;
+    border: none;
 }
 
 .mes-valor:last-child {
-    background: #fff5f5;
-    border: 1px solid #fecaca;
+    background: none;
+    border: none;
 }
 
 /* --- LABELS E VALORES --- */
@@ -1393,12 +1402,14 @@ textarea:focus {
 }
 
 .btn-fechar {
-    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-    color: #ffffff;
+    background: #f0fdf4;
+    color: #16a34a;
+    border-top: 1px solid #bbf7d0;
 }
 
 .btn-fechar:hover {
-    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+    background: #dcfce7;
+    color: #15803d;
 }
 
 .btn-reabrir {
