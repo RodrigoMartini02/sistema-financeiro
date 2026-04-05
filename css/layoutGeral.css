@@ -673,31 +673,31 @@ textarea:focus {
 /* ── Botão toggle: aba grudada na borda direita da sidebar ───────── */
 .sidebar-toggle-btn {
     background: var(--theme-sidebar-bg);
-    border: none;
-    border-right: 1px solid rgba(255,255,255,0.08);
-    border-top: 1px solid rgba(255,255,255,0.08);
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    color: rgba(255,255,255,0.75);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-left: none;
+    color: rgba(255,255,255,0.92);
     cursor: pointer;
     padding: 0;
-    border-radius: 0 8px 8px 0;
-    font-size: 14px;
+    border-radius: 0 12px 12px 0;
+    font-size: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s;
     position: absolute;
-    right: -24px;
-    top: 20px;
-    z-index: 10;
-    box-shadow: 3px 0 10px rgba(0,0,0,0.25);
-    width: 24px;
-    height: 40px;
+    right: 0;
+    top: 18px;
+    z-index: 260;
+    transform: translateX(70%);
+    box-shadow: 6px 0 18px rgba(15, 23, 42, 0.28);
+    width: 34px;
+    height: 46px;
 }
 .sidebar-toggle-btn:hover {
     background: rgba(255,255,255,0.08);
     color: #fff;
+    transform: translateX(70%) scale(1.03);
 }
 
 /* Título da sidebar */
