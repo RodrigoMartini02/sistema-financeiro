@@ -730,20 +730,20 @@ form .btn-primary:hover {
 .nav-logo {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 10px; /* antes 14px */
     text-decoration: none;
 }
 
 .nav-logo img.nav-logo-image {
-    width: 52px;
-    height: 52px;
-    border-radius: 14px;
+    width: 64px; /* antes 52px */
+    height: 64px; /* antes 52px */
+    border-radius: 16px;
     display: block;
     object-fit: contain;
     flex-shrink: 0;
-    background: transparent;
-    padding: 0;
-    box-shadow: none;
+    background: rgba(99, 102, 241, 0.08); /* leve destaque */
+    padding: 6px; /* cria presença visual */
+    box-shadow: 0 2px 10px rgba(99, 102, 241, 0.15);
 }
 
 .nav-logo i {
@@ -752,10 +752,10 @@ form .btn-primary:hover {
 }
 
 .nav-logo span {
-    font-size: 20px;
-    font-weight: 800;
+    font-size: 18px; /* antes 20px */
+    font-weight: 700; /* antes 800 */
     color: #fff;
-    letter-spacing: -0.4px;
+    letter-spacing: -0.3px;
 }
 
 .nav-links {
@@ -776,7 +776,6 @@ form .btn-primary:hover {
 .nav-links a:hover {
     color: #fff;
 }
-
 
 /* ================================================================
    HERO SECTION
