@@ -51,6 +51,8 @@ window.IA = (function () {
         aguardandoTrocaPerfil: false  // true quando exibiu botões de troca e aguarda clique
     };
 
+    var _ultimoCardDespesa = null; // referência ao último card de confirmação de despesa no chat
+
     var _iaInitializando = false;
 
     // ── HELPERS DE ELEMENTOS (painel flutuante vs página completa) ─
@@ -517,7 +519,69 @@ window.IA = (function () {
         }
 
         c.querySelector('.ai-msg-time').textContent = _hhmm();
+        _ultimoCardDespesa = c;
         _insNode(c);
+    }
+
+    function _atualizarCardDespesa(descricao, valorTotal, valorParcela, totalParcelas, parcelado, forma, cartaoId, catNome, dataCompra, dataVencimento, jaPago, recorrente) {
+        var c = _ultimoCardDespesa;
+        if (!c) return;
+        var isCredito = _eCredito(forma);
+
+        c.querySelector('.dc-descricao').textContent = descricao || '—';
+
+        if (parcelado) {
+            c.querySelector('.dc-row-valor').hidden = true;
+            c.querySelector('.dc-row-valor-total').hidden = false;
+            c.querySelector('.dc-valor-total').textContent = fmtV(valorTotal);
+            c.querySelector('.dc-parcelas').textContent = totalParcelas + 'x de ' + fmtV(valorParcela);
+        } else {
+            c.querySelector('.dc-row-valor').hidden = false;
+            c.querySelector('.dc-row-valor-total').hidden = true;
+            c.querySelector('.dc-valor').textContent = fmtV(valorTotal);
+            c.querySelector('.dc-parcelas').textContent = '1x';
+        }
+
+        c.querySelector('.dc-forma').textContent = fmtF(forma);
+
+        var rowCartao = c.querySelector('.dc-row-cartao');
+        if (isCredito && cartaoId) {
+            var cartao = (window.cartoesUsuario || []).find(function(cc) { return cc.id === cartaoId; });
+            var nomeCartao = cartao ? (cartao.nome || cartao.banco || 'Cartão #' + cartaoId) : 'Cartão #' + cartaoId;
+            if (rowCartao) { rowCartao.hidden = false; c.querySelector('.dc-cartao').textContent = nomeCartao; }
+        } else {
+            if (rowCartao) rowCartao.hidden = true;
+        }
+
+        c.querySelector('.dc-categoria').textContent = catNome || 'Outros';
+
+        var rowCompra = c.querySelector('.dc-row-data-compra');
+        if (dataCompra && dataCompra !== dataVencimento) {
+            if (rowCompra) { rowCompra.hidden = false; c.querySelector('.dc-data-compra').textContent = fmtD(dataCompra); }
+        } else {
+            if (rowCompra) rowCompra.hidden = true;
+        }
+
+        var elVenc = c.querySelector('.dc-vencimento');
+        if (elVenc) elVenc.textContent = dataVencimento ? fmtD(dataVencimento) : '—';
+
+        var elStatus = c.querySelector('.dc-status-despesa');
+        if (elStatus) {
+            if (jaPago && !isCredito) { elStatus.textContent = 'Paga'; elStatus.className = 'ai-dc-val ai-dc-pago'; }
+            else { elStatus.textContent = 'Pendente'; elStatus.className = 'ai-dc-val ai-dc-pendente'; }
+        }
+
+        var elRecorr = c.querySelector('.dc-recorrente-val');
+        if (elRecorr) {
+            elRecorr.textContent = recorrente ? 'Sim' : 'Não';
+            elRecorr.className = 'ai-dc-val ' + (recorrente ? 'ai-dc-pago' : '');
+        }
+
+        // Esconde os botões de ação após a revisão ser salva
+        var btns = c.querySelector('.ai-msg-btns');
+        var pergunta = c.querySelector('.ai-card-pergunta');
+        if (btns) btns.style.display = 'none';
+        if (pergunta) pergunta.style.display = 'none';
     }
 
     function addComReceita(texto, r) {
@@ -1382,6 +1446,10 @@ window.IA = (function () {
                 if (window.dadosFinanceiros) {
                     window.dadosFinanceiros = {};
                 }
+                // Atualiza o card de confirmação no chat com os dados revisados
+                var catSelEl = document.getElementById('ia-campo-categoria');
+                var catNomeModal = catSelEl && catSelEl.selectedIndex >= 0 ? catSelEl.options[catSelEl.selectedIndex].text : '';
+                _atualizarCardDespesa(descricao, valorTotal, valorParcela, totalParcelas, parcelado, forma, cartaoId, catNomeModal, dataCompra, dataVencimento, jaPago, recorrente);
                 addGen('Despesa "' + descricao + '" cadastrada!');
                 // Atualiza a tabela do mês correto
                 if (typeof window.renderizarDetalhesDoMes === 'function') {
@@ -1899,6 +1967,22 @@ window.IA = (function () {
                 selFormaModal.addEventListener('change', function () {
                     var row = document.getElementById('row-cartao');
                     if (row) row.style.display = this.value.startsWith('credito') ? 'flex' : 'none';
+                    // Auto-preenche vencimento com próximo fechamento do cartão selecionado
+                    if (this.value.startsWith('credito:')) {
+                        var cId = parseInt(this.value.split(':')[1]);
+                        var cartao = (window.cartoesUsuario || []).find(function(c) { return c.id === cId; });
+                        if (cartao && cartao.dia_fechamento) {
+                            var hoje = new Date();
+                            var diaFech = cartao.dia_fechamento;
+                            var anoFech = hoje.getFullYear();
+                            var mesFech = hoje.getMonth(); // 0-based
+                            if (hoje.getDate() >= diaFech) mesFech++; // já passou, usa próximo mês
+                            if (mesFech > 11) { mesFech = 0; anoFech++; }
+                            var dataFech = anoFech + '-' + String(mesFech + 1).padStart(2, '0') + '-' + String(diaFech).padStart(2, '0');
+                            var campVenc = document.getElementById('ia-campo-vencimento');
+                            if (campVenc && !campVenc.value) campVenc.value = dataFech;
+                        }
+                    }
                 });
             }
 
