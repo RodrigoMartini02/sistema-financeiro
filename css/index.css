@@ -2561,20 +2561,4 @@ form .btn-primary:hover {
         width: 100%;
         text-align: center;
     }
-
-    /* Seções com padding vertical excessivo */
-    .features-section,
-    .ia-section,
-        padding-top: 60px !important;
-        padding-bottom: 60px !important;
-    }
-
-    /* Footer CTA */
-    .footer-cta-section {
-        padding: 60px 1rem;
-    }
-
-    .footer-cta-container {
-        padding: 0 1rem;
-    }
-
+}
