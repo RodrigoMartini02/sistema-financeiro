@@ -686,7 +686,7 @@ form .btn-primary:hover {
     left: 0;
     width: 100%;
     z-index: 900;
-    padding: 4px 0;
+    padding: 0;
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(16px);
 
@@ -716,11 +716,11 @@ form .btn-primary:hover {
 }
 
 .nav-logo img.nav-logo-image {
-    width: 90px;
-    height: 90px;
-    border-radius: 16px;
+    width: 72px;
+    height: 72px;
     display: block;
-    object-fit: contain;
+    object-fit: cover;
+    object-position: center;
     flex-shrink: 0;
 }
 
