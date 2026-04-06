@@ -684,7 +684,7 @@ textarea:focus {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    transition: background 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
     position: absolute;
     right: 0;
     top: 18px;
@@ -697,7 +697,6 @@ textarea:focus {
 .sidebar-toggle-btn:hover {
     background: rgba(255,255,255,0.08);
     color: #fff;
-    transform: translateX(70%) scale(1.03);
 }
 
 /* Título da sidebar */
@@ -711,6 +710,36 @@ textarea:focus {
     font-weight: 700;
     letter-spacing: 0.04em;
     color: var(--white);
+}
+
+/* Logo na sidebar */
+.sidebar-logo-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 0 8px;
+    width: 100%;
+}
+.sidebar-logo-img {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+.sidebar-logo-text {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--white);
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+}
+.sidebar.collapsed .sidebar-logo-text {
+    display: none;
+}
+.sidebar.collapsed .sidebar-logo-wrap {
+    justify-content: center;
+    padding: 4px 0;
 }
 
 /* ── Estado recolhido: esconde textos, centraliza ícones ───────── */
