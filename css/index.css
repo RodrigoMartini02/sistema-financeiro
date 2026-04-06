@@ -714,7 +714,8 @@ form .btn-primary:hover {
 .landing-nav .nav-logo img.nav-logo-image,
 .landing-nav.nav-scrolled .nav-logo img.nav-logo-image {
     background: rgba(99, 102, 241, 0.08);
-    box-shadow: 0 2px 10px rgba(99, 102, 241, 0.2), 0 0 0 1.5px rgba(99, 102, 241, 0.15);
+    box-shadow: 0 2px 10px rgba(99, 102, 241, 0.2),
+                0 0 0 1.5px rgba(99, 102, 241, 0.15);
 }
 
 .nav-container {
@@ -730,19 +731,19 @@ form .btn-primary:hover {
 .nav-logo {
     display: flex;
     align-items: center;
-    gap: 10px; /* antes 14px */
+    gap: 10px; /* mais compacto */
     text-decoration: none;
 }
 
 .nav-logo img.nav-logo-image {
-    width: 64px; /* antes 52px */
-    height: 64px; /* antes 52px */
+    width: 64px;
+    height: 64px;
     border-radius: 16px;
     display: block;
     object-fit: contain;
     flex-shrink: 0;
-    background: rgba(99, 102, 241, 0.08); /* leve destaque */
-    padding: 6px; /* cria presença visual */
+    background: rgba(99, 102, 241, 0.08);
+    padding: 6px;
     box-shadow: 0 2px 10px rgba(99, 102, 241, 0.15);
 }
 
@@ -752,8 +753,8 @@ form .btn-primary:hover {
 }
 
 .nav-logo span {
-    font-size: 18px; /* antes 20px */
-    font-weight: 700; /* antes 800 */
+    font-size: 18px;
+    font-weight: 700;
     color: #fff;
     letter-spacing: -0.3px;
 }
