@@ -686,27 +686,32 @@ form .btn-primary:hover {
     left: 0;
     width: 100%;
     z-index: 900;
-    padding: 18px 0;
+    padding: 10px 0;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 1px 0 rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.05);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .landing-nav.nav-scrolled {
-    background: rgba(255, 255, 255, 0.88);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    box-shadow: 0 1px 0 rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.05);
-    padding: 10px 0;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 1px 0 rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.07);
 }
 
+.landing-nav .nav-logo span,
 .landing-nav.nav-scrolled .nav-logo span,
+.landing-nav .nav-links a,
 .landing-nav.nav-scrolled .nav-links a {
     color: #1e293b;
 }
 
+.landing-nav .nav-logo i,
 .landing-nav.nav-scrolled .nav-logo i {
     color: var(--primary-color);
 }
 
+.landing-nav .nav-logo img.nav-logo-image,
 .landing-nav.nav-scrolled .nav-logo img.nav-logo-image {
     background: rgba(99, 102, 241, 0.08);
     box-shadow: 0 2px 10px rgba(99, 102, 241, 0.2), 0 0 0 1.5px rgba(99, 102, 241, 0.15);
@@ -736,9 +741,9 @@ form .btn-primary:hover {
     display: block;
     object-fit: contain;
     flex-shrink: 0;
-    background: rgba(255, 255, 255, 0.12);
-    padding: 6px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25), 0 0 0 1.5px rgba(255, 255, 255, 0.18);
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
 }
 
 .nav-logo i {
@@ -2073,7 +2078,16 @@ form .btn-primary:hover {
 }
 
 .landing-footer .nav-logo i { color: #818cf8; }
-.landing-footer .nav-logo span { color: #fff; }
+.landing-footer .nav-logo span { color: #fff; font-size: 20px; font-weight: 800; }
+.landing-footer .nav-logo img.nav-logo-image {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    object-fit: contain;
+    flex-shrink: 0;
+    padding: 0;
+    background: rgba(255,255,255,0.08);
+}
 
 .footer-brand p {
     color: #475569;
@@ -2448,7 +2462,7 @@ form .btn-primary:hover {
     .nav-logo img.nav-logo-image {
         width: 46px;
         height: 46px;
-        padding: 5px;
+        padding: 0;
     }
 
     .nav-logo span {
@@ -2541,7 +2555,7 @@ form .btn-primary:hover {
         width: 40px;
         height: 40px;
         border-radius: 12px;
-        padding: 4px;
+        padding: 0;
     }
 
     .nav-logo span {
