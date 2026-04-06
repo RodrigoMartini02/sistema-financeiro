@@ -55,6 +55,42 @@ window.IA = (function () {
 
     var _iaInitializando = false;
 
+    // ── HISTÓRICO LOCAL (page mode only) ─────────────────────────
+    var _HIST_KEY = 'gen_chat_history';
+    var _histEnabled = false;
+
+    function _histSave(role, html) {
+        if (!_histEnabled) return;
+        try {
+            var h = JSON.parse(localStorage.getItem(_HIST_KEY) || '[]');
+            h.push({ r: role, h: html, t: _hhmm() });
+            if (h.length > 100) h = h.slice(-100);
+            localStorage.setItem(_HIST_KEY, JSON.stringify(h));
+        } catch(e) {}
+    }
+
+    function _histRender() {
+        try {
+            var msgs = JSON.parse(localStorage.getItem(_HIST_KEY) || '[]');
+            if (!msgs.length) return false;
+            var area = elChat();
+            if (!area) return false;
+            msgs.forEach(function(m) {
+                var iUser = m.r === 'user';
+                area.insertAdjacentHTML('beforeend',
+                    '<div class="ai-msg ' + (iUser ? 'ai-msg--user' : 'ai-msg--ai') + '">' +
+                    '<div class="ai-msg-bub"><span class="' + (iUser ? 'ia-msg-texto' : 'ia-msg-conteudo') + '">' +
+                    m.h + '</span><span class="ai-msg-time">' + m.t + '</span></div></div>');
+            });
+            area.scrollTop = area.scrollHeight;
+            return true;
+        } catch(e) { return false; }
+    }
+
+    function _histClear() {
+        localStorage.removeItem(_HIST_KEY);
+    }
+
     // ── HELPERS DE ELEMENTOS (painel flutuante vs página completa) ─
     // Painel flutuante: ai-messages / ai-input / ai-btn-send
     // Página ia.html:   ia-chat-area / ia-texto-input / ia-btn-send (mesmo id, só existe um por vez)
@@ -233,13 +269,10 @@ window.IA = (function () {
         var nome  = _getPerfilAtualNome();
         var tipo  = _getPerfilAtualTipo();
         var icone = tipo === 'empresa' ? '🏢' : '👤';
-        var chips = '<button class="ai-welcome-chip" data-chip>Hiper, 150 de mercado no pix</button>' +
-                    '<button class="ai-welcome-chip" data-chip>salário, caiu 3500 hoje</button>' +
-                    '<button class="ai-welcome-chip" data-chip>quanto gastei esse mês?</button>';
-        addGen('Olá! Estou aqui para te ajudar com o perfil <b>' + icone + ' ' + nome + '</b>. Pode mandar!<div class="ai-welcome-chips">' + chips + '</div>');
-        setTimeout(function () {
-            addGen('Se quiser usar outro perfil, é só dizer <b>"trocar perfil"</b>.');
-        }, 600);
+        var chips = '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="quero cadastrar uma despesa" data-opcao-label="Cadastrar despesa">💸 Cadastrar despesa</button>' +
+                    '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="quero cadastrar uma receita" data-opcao-label="Cadastrar receita">💰 Cadastrar receita</button>' +
+                    '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="qual meu saldo atual" data-opcao-label="Consultar">🔍 Consultar</button>';
+        addGen('Olá, <b>' + esc(nome) + '</b>! ' + icone + ' O que você quer fazer hoje?<div class="ai-welcome-chips">' + chips + '</div>');
     }
 
     function _exibirBotoesTrocaPerfil() {
@@ -287,6 +320,7 @@ window.IA = (function () {
         estado.receitaPendente = null;
         cancelarArquivo();
         fecharBoleto();
+        _histClear();
         apiPost('/chat', { mensagem: '_reset_', limpar_sessao: true }).catch(function () { });
         boasVindas();
     }
@@ -421,9 +455,10 @@ window.IA = (function () {
         } else {
             _ins('<div class="ai-msg ai-msg--user"><div class="ai-msg-bub">' + esc(texto) + '<span class="ai-msg-time">' + _hhmm() + '</span></div></div>');
         }
+        _histSave('user', esc(texto));
     }
 
-    function addGen(html) {
+    function addGen(html, nosave) {
         var c = _cloneTmpl('template-ia-msg-gen');
         if (c) {
             c.querySelector('.ia-msg-conteudo').innerHTML = html;
@@ -432,6 +467,7 @@ window.IA = (function () {
         } else {
             _ins('<div class="ai-msg ai-msg--ai"><div class="ai-msg-bub">' + html + '<span class="ai-msg-time">' + _hhmm() + '</span></div></div>');
         }
+        if (!nosave) _histSave('gen', html);
     }
 
     function addComDespesa(texto, d) {
@@ -1847,32 +1883,22 @@ window.IA = (function () {
         }).catch(function () { _toast('Erro de conexão ao salvar a configuração.', 'error'); });
     }
 
-    // ── SAUDAÇÃO COM PERFIL ATIVO ─────────────────────────────────
-    function _mostrarPerfilNaSaudacao() {
-        var wrapper = document.getElementById('ia-welcome-perfil');
-        var badge   = document.getElementById('ia-welcome-perfil-badge');
-        if (!wrapper || !badge) return;
+    // ── BADGE DE PERFIL NO HEADER MOBILE ─────────────────────────
+    function _mostrarPerfilHeader() {
+        var badge = document.getElementById('im-perfil-badge');
+        if (!badge) return;
 
-        var nome = localStorage.getItem('perfilAtivoNome') || '';
-        var tipo = localStorage.getItem('perfilAtivoTipo') || 'pessoal';
+        function _atualizar() {
+            var nome = localStorage.getItem('perfilAtivoNome') || '';
+            var tipo = localStorage.getItem('perfilAtivoTipo') || 'pessoal';
+            if (!nome) { badge.style.display = 'none'; return; }
+            badge.textContent = (tipo === 'empresa' ? '🏢' : '👤') + ' ' + nome;
+            badge.style.display = 'inline-flex';
+        }
 
-        if (!nome) return; // sem perfil carregado ainda
-
-        var icone = tipo === 'empresa' ? '🏢' : '👤';
-        var label = tipo === 'empresa' ? 'PJ' : 'PF';
-
-        badge.textContent = icone + ' Perfil ativo: ' + nome + ' (' + label + ')';
-        badge.className   = 'ia-welcome-perfil-badge ' + (tipo === 'empresa' ? 'pj' : 'pf');
-        wrapper.style.display = 'flex';
-
-        // Atualiza se o perfil mudar durante a sessão (troca via select)
+        _atualizar();
         window.addEventListener('storage', function (e) {
-            if (e.key !== 'perfilAtivoNome' && e.key !== 'perfilAtivoTipo') return;
-            var n = localStorage.getItem('perfilAtivoNome') || '';
-            var t = localStorage.getItem('perfilAtivoTipo') || 'pessoal';
-            if (!n) return;
-            badge.textContent = (t === 'empresa' ? '🏢' : '👤') + ' Perfil ativo: ' + n + ' (' + (t === 'empresa' ? 'PJ' : 'PF') + ')';
-            badge.className   = 'ia-welcome-perfil-badge ' + (t === 'empresa' ? 'pj' : 'pf');
+            if (e.key === 'perfilAtivoNome' || e.key === 'perfilAtivoTipo') _atualizar();
         });
     }
 
@@ -1986,8 +2012,13 @@ window.IA = (function () {
                 });
             }
 
+            _histEnabled = true;
+            if (!_histRender()) {
+                boasVindas();
+            }
+
             inicializar();
-            _mostrarPerfilNaSaudacao();
+            _mostrarPerfilHeader();
 
             // Esconde o loader assim que a UI está pronta
             if (typeof window.hideLoadingScreen === 'function') {

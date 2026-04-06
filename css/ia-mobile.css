@@ -423,6 +423,9 @@ body:has(.ia-container.im-page) {
 
 /* Barcode — esquerda dentro da pill */
 .ia-container.im-page .ia-btn-barcode {
+    -webkit-appearance: none;
+    appearance: none;
+    -webkit-tap-highlight-color: transparent;
     flex-shrink: 0;
     width: 34px;
     height: 34px;
@@ -471,6 +474,9 @@ body:has(.ia-container.im-page) {
 
 /* Microfone dentro da pill */
 .ia-container.im-page .ia-btn-voice-pill {
+    -webkit-appearance: none;
+    appearance: none;
+    -webkit-tap-highlight-color: transparent;
     flex-shrink: 0;
     width: 34px;
     height: 34px;
@@ -501,6 +507,9 @@ body:has(.ia-container.im-page) {
 
 /* Ícone à direita dentro da pill: paperclip */
 .ia-container.im-page .ia-btn-attach {
+    -webkit-appearance: none;
+    appearance: none;
+    -webkit-tap-highlight-color: transparent;
     flex-shrink: 0;
     width: 34px;
     height: 34px;
@@ -816,39 +825,25 @@ body:has(.ia-container.im-page) {
     flex-shrink: 0;
 }
 
-/* ── Welcome mobile ──────────────────────────────────────────── */
-.ia-container.im-page .ia-welcome {
-    padding: 32px 16px 24px;
+/* ── Badge de perfil no header ───────────────────────────────── */
+.im-perfil-badge {
+    display: none;
     align-items: center;
-    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-500, #6c757d);
+    background: var(--bg-color, #f0f2f5);
+    border-radius: 20px;
+    padding: 3px 10px;
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
-
-.ia-container.im-page .ia-welcome-icon {
-    width: 60px;
-    height: 60px;
-    font-size: 26px;
-}
-
-.ia-container.im-page .ia-welcome h2 {
-    font-size: 20px;
-}
-
-.ia-container.im-page .ia-welcome p {
-    font-size: 13px;
-    max-width: 280px;
-}
-
-.ia-container.im-page .ia-welcome-chips {
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.ia-container.im-page .ia-welcome-chips span {
-    white-space: normal;
-    text-align: center;
-    font-size: 13px;
-    padding: 8px 14px;
+[data-theme="dark"] .im-perfil-badge {
+    background: var(--theme-surface-solid);
+    color: var(--theme-text-muted);
 }
 
 /* ── Dark theme input ────────────────────────────────────────── */

@@ -849,109 +849,6 @@ body:has(.ia-container) {
 .ia-chat-area::-webkit-scrollbar { width: 5px; }
 .ia-chat-area::-webkit-scrollbar-thumb { background: var(--border-color,#e0e4ef); border-radius:4px; }
 
-/* Boas-vindas */
-.ia-welcome {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    padding: 48px 24px;
-    max-width: 480px;
-    margin: 0 auto;
-}
-
-.ia-welcome-icon {
-    width: 72px;
-    height: 72px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary-color, #4361ee), #7c3aed);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 32px;
-    color: #fff;
-    margin-bottom: 20px;
-    box-shadow: 0 8px 24px rgba(67,97,238,0.3);
-}
-
-.ia-welcome h2 {
-    font-size: 24px;
-    font-weight: 700;
-    margin: 0 0 12px;
-    color: var(--text-color, #1a1a2e);
-}
-
-.ia-welcome-perfil {
-    display: flex;
-    justify-content: center;
-    margin: 2px 0 4px;
-}
-
-.ia-welcome-perfil-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 12px;
-    border-radius: 20px;
-    background: var(--bg-color, #f0f2f5);
-    border: 1px solid var(--border-color, #e0e4ef);
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--gray-500, #6c757d);
-}
-
-.ia-welcome-perfil-badge.pf {
-    background: #eff6ff;
-    border-color: #bfdbfe;
-    color: #1d4ed8;
-}
-
-.ia-welcome-perfil-badge.pj {
-    background: #f0fdf4;
-    border-color: #bbf7d0;
-    color: #15803d;
-}
-
-[data-theme="dark"] .ia-welcome-perfil-badge {
-    background: var(--theme-surface-solid);
-    border-color: var(--theme-border);
-    color: var(--theme-text-muted);
-}
-[data-theme="dark"] .ia-welcome-perfil-badge.pf { background: #1e3a5f; border-color: #2d5a8e; color: #93c5fd; }
-[data-theme="dark"] .ia-welcome-perfil-badge.pj { background: #14432a; border-color: #166534; color: #86efac; }
-
-.ia-welcome p {
-    font-size: 14px;
-    color: var(--gray-500, #6c757d);
-    line-height: 1.6;
-    margin: 0 0 24px;
-}
-
-.ia-welcome-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: center;
-}
-
-.ia-welcome-chips span {
-    background: var(--card-bg, #fff);
-    border: 1px solid var(--border-color, #e0e4ef);
-    border-radius: 20px;
-    padding: 7px 14px;
-    font-size: 13px;
-    cursor: pointer;
-    transition: all 0.2s;
-    color: var(--text-color, #1a1a2e);
-    white-space: nowrap;
-}
-.ia-welcome-chips span:hover {
-    border-color: var(--primary-color, #4361ee);
-    color: var(--primary-color, #4361ee);
-    background: #eff3ff;
-}
-
-
 /* ── INPUT AREA ──────────────────────────────────────────────── */
 .ia-input-area {
     padding: 12px 20px 16px;
@@ -1559,21 +1456,6 @@ body:has(.ia-container) {
 /* Página IA — chat area */
 [data-theme="dark"] .ia-chat-area {
     background: var(--theme-bg);
-}
-
-/* Página IA — welcome */
-[data-theme="dark"] .ia-welcome h2 {
-    color: var(--theme-text);
-}
-[data-theme="dark"] .ia-welcome-chips span {
-    background: var(--theme-surface-solid);
-    border-color: var(--theme-border);
-    color: var(--theme-text-muted);
-}
-[data-theme="dark"] .ia-welcome-chips span:hover {
-    border-color: var(--primary-color);
-    color: var(--primary-color);
-    background: rgba(67, 97, 238, 0.08);
 }
 
 /* Página IA — input area */
