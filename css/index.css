@@ -223,7 +223,6 @@ form .btn-primary:hover {
     color: white;
     box-shadow: 0 8px 25px rgba(37, 211, 102, 0.4);
     transition: var(--transition);
-    font-size: 1.75rem;
     animation: pulse 2s infinite;
     border-radius: 50%;
 }
