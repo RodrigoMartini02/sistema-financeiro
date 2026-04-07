@@ -721,10 +721,10 @@ textarea:focus {
     width: 100%;
 }
 .sidebar-logo-img {
-    width: 36px;
     height: 36px;
+    width: auto;
+    max-width: 60px;
     object-fit: contain;
-    border-radius: 8px;
     flex-shrink: 0;
 }
 .sidebar-logo-text {

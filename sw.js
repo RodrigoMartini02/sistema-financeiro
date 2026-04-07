@@ -3,7 +3,7 @@
 // Sistema de Controle Financeiro
 // ================================================================
 
-const CACHE_VERSION = 'v146';
+const CACHE_VERSION = 'v147';
 const CACHE_STATIC  = `sf-static-${CACHE_VERSION}`;
 
 // Assets estáticos que serão cacheados no install
@@ -17,6 +17,9 @@ const STATIC_ASSETS = [
     '/termoPrivacidade.html',
     '/manifest.json',
     '/icons/financeiro.png',
+    '/icons/icone.png',
+    '/icons/icone-192.png',
+    '/icons/icone-512.png',
     // CSS
     '/css/loading.css',
     '/css/index.css',

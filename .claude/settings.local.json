@@ -41,7 +41,13 @@
       "Bash(psql -U postgres -p 5433 -c \"SELECT version\\(\\);\")",
       "Bash(\"/c/Program Files/PostgreSQL/17/bin/psql.exe\" -U postgres -p 5433 -c \"SELECT version\\(\\);\")",
       "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -p 5433 -c \"SELECT version\\(\\);\")",
-      "Bash(\"/c/Program Files/PostgreSQL/15/bin/psql.exe\" -U postgres -p 5433 -c \"SELECT version\\(\\);\")"
+      "Bash(\"/c/Program Files/PostgreSQL/15/bin/psql.exe\" -U postgres -p 5433 -c \"SELECT version\\(\\);\")",
+      "Bash(python3 -c ':*)",
+      "Bash(magick --version)",
+      "Bash(convert --version)",
+      "Bash(ffmpeg -version)",
+      "Bash(magick -version)",
+      "Bash(convert -version)"
     ]
   }
 }
