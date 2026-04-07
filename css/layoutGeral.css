@@ -129,8 +129,8 @@
 }
 
 [data-theme="light"] {
-    --theme-bg:            #ffffff;
-    --theme-bg-2:          #f8fafc;
+    --theme-bg:            #f0f4ff;
+    --theme-bg-2:          #e8eeff;
     --theme-surface:       rgba(255, 255, 255, 0.9);
     --theme-surface-solid: #ffffff;
     --theme-surface-2:     rgba(240, 244, 255, 0.95);

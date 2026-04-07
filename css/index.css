@@ -686,9 +686,7 @@ form .btn-primary:hover {
     width: 100%;
     z-index: 900;
     padding: 6px 0;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(16px);
-
+    background: #ffffff;
     box-shadow: 0 1px 0 rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.05);
     transition: box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
