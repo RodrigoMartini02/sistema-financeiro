@@ -436,10 +436,8 @@ window.IA = (function () {
 
         // Interceptar payload PIX (string EMV — começa com "0002" e tem 30+ chars numérico-alfanumérico)
         if (/^00020[12]/i.test(texto.trim()) && texto.trim().length > 30) {
-            addUser(texto.length > 40 ? texto.substring(0, 40) + '...' : texto);
-            var tidP = addTyping();
             apiPost('/pix', { payload: texto.trim() }).then(function(res) {
-                removeTyping(tidP);
+                removeTyping(tid);
                 if (res && res.sucesso && res.despesa) {
                     var beneficiario = res.nome || res.beneficiario || '';
                     addGen(fmt('Encontrei um pagamento PIX' + (beneficiario ? ' para **' + beneficiario + '**' : '') + ':'));
@@ -449,7 +447,7 @@ window.IA = (function () {
                     _mostrarChipsContinuacao(null, 600);
                 }
             }).catch(function() {
-                removeTyping(tidP);
+                removeTyping(tid);
                 addGen('Erro ao processar o PIX.');
                 _mostrarChipsContinuacao(null, 600);
             }).finally(function() { estado.enviando = false; setBtnDisabled(false); });
@@ -930,8 +928,7 @@ window.IA = (function () {
             data_recebimento:  dataReceita,
             mes:               mes,
             ano:               ano,
-            perfil_id:         (estado.perfilSelecionado && estado.perfilSelecionado.id) ||
-                               (typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null)
+            perfil_id:         typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null
         };
 
         var tidR = addTyping();
@@ -1408,7 +1405,7 @@ window.IA = (function () {
         return cartao ? cartao.id : null;
     }
 
-// ── POPULAR SELECT DE FORMA DE PAGAMENTO (modal) ─────────────
+    // ── POPULAR SELECT DE FORMA DE PAGAMENTO (modal) ─────────────
     function _popularSelectFormaPagamento(sel, callback) {
         if (!sel) { if (callback) callback(); return; }
 
@@ -1476,9 +1473,7 @@ window.IA = (function () {
         }
     }
 
-// ── POPULAR SELECT DE CATEGORIAS (modal) ─────────────────────
-    var _categoriasCarregadas = false;
-
+    // ── POPULAR SELECT DE CATEGORIAS (modal) ─────────────────────
     function _popularSelectCategorias(sel, callback) {
         if (!sel) { if (callback) callback(); return; }
 
@@ -1497,7 +1492,6 @@ window.IA = (function () {
         apiMainGet('/categorias').then(function (res) {
             if (res && res.success && Array.isArray(res.data)) {
                 _preencherOpcoesCategoria(sel, res.data);
-                _categoriasCarregadas = true;
             }
             if (callback) callback();
         }).catch(function () { if (callback) callback(); });
@@ -1870,7 +1864,6 @@ window.IA = (function () {
         rec.start();
     }
 
-    // ── ATUALIZAR ÍCONE MIC/SEND (botão WhatsApp) ─────────────────
     // ── UTILITÁRIOS ───────────────────────────────────────────────
     // Resolve elemento que pode ter prefixo 'ia-' (página ia.html) ou 'ai-' (painel flutuante)
     function _el(idIA, idAI) {
