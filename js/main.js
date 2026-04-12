@@ -482,22 +482,16 @@ function setupNavigation() {
             window.matchMedia('(hover: none) and (pointer: coarse)').matches
         );
 
-    // Desktop inicia com sidebar expandida
-    // Mobile inicia com sidebar escondida (overlay model)
-    if (isMobile()) {
-        sidebar?.classList.add('collapsed');
-        mainContent?.classList.add('sidebar-collapsed');
-    }
+    // Mobile inicia com sidebar escondida (overlay)
+    if (isMobile()) sidebar?.classList.add('collapsed');
 
     function abrirSidebar() {
         sidebar?.classList.remove('collapsed');
-        mainContent?.classList.remove('sidebar-collapsed');
         if (isMobile()) overlay?.classList.add('visivel');
     }
 
     function fecharSidebar() {
         sidebar?.classList.add('collapsed');
-        mainContent?.classList.add('sidebar-collapsed');
         overlay?.classList.remove('visivel');
     }
 
@@ -506,14 +500,12 @@ function setupNavigation() {
         else fecharSidebar();
     }
 
-    // Toggle dentro da sidebar (desktop + mobile quando aberta)
-    document.getElementById('btn-toggle-sidebar')?.addEventListener('click', toggleSidebar);
     // Hambúrguer no header (mobile)
     document.getElementById('btn-abrir-sidebar')?.addEventListener('click', toggleSidebar);
     // Overlay fecha a sidebar (mobile)
     overlay?.addEventListener('click', fecharSidebar);
 
-    // Ao redimensionar: ajusta overlay se necessário
+    // Ao redimensionar: remove overlay se não for mais mobile
     window.addEventListener('resize', () => {
         if (!isMobile()) overlay?.classList.remove('visivel');
     });

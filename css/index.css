@@ -713,7 +713,7 @@ form .btn-primary:hover {
 }
 
 .nav-logo img.nav-logo-image {
-    height: 64px;
+    height: 48px;
     width: auto;
     display: block;
     object-fit: contain;
@@ -2048,7 +2048,7 @@ form .btn-primary:hover {
 
 .landing-footer .nav-logo span { display: none; }
 .landing-footer .nav-logo img.nav-logo-image {
-    height: 52px;
+    height: 40px;
     width: auto;
     object-fit: contain;
     flex-shrink: 0;

@@ -85,7 +85,6 @@
     
     /* LAYOUT DIMENSIONS */
     --sidebar-width: 220px;
-    --sidebar-collapsed-width: 52px;
     --header-height: 80px;
     
     /* Z-INDEX SYSTEM */
@@ -470,18 +469,14 @@ textarea:focus {
 }
 
 .sidebar-header {
-    padding: var(--space-md) var(--space-md) var(--space-md);
+    padding: var(--space-md) var(--space-md) var(--space-sm);
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
     justify-content: flex-start;
-    gap: 8px;
-    height: auto;
-    min-height: var(--header-height);
+    gap: 6px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     flex-shrink: 0;
-    position: relative;
-    overflow: visible;
 }
 
 .sidebar-header h3 {
@@ -651,10 +646,6 @@ textarea:focus {
 }
 
 /* Recolhida = strip de ícones */
-.sidebar.collapsed {
-    width: var(--sidebar-collapsed-width);
-}
-
 /* Conteúdo principal acompanha a sidebar */
 .main-content, .main-content.expanded {
     flex: 1;
@@ -663,40 +654,7 @@ textarea:focus {
     display: flex;
     flex-direction: column;
     margin-left: var(--sidebar-width);
-    transition: margin-left 0.25s ease;
     min-width: 0;
-}
-.main-content.sidebar-collapsed {
-    margin-left: var(--sidebar-collapsed-width);
-}
-
-/* ── Botão toggle: aba grudada na borda direita da sidebar ───────── */
-.sidebar-toggle-btn {
-    background: var(--theme-sidebar-bg);
-    border: 1px solid rgba(255,255,255,0.12);
-    border-left: none;
-    color: rgba(255,255,255,0.92);
-    cursor: pointer;
-    padding: 0;
-    border-radius: 0 12px 12px 0;
-    font-size: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
-    position: absolute;
-    right: 0;
-    top: 18px;
-    z-index: 260;
-    transform: translateX(70%);
-    box-shadow: 6px 0 18px rgba(15, 23, 42, 0.28);
-    width: 34px;
-    height: 46px;
-}
-.sidebar-toggle-btn:hover {
-    background: rgba(255,255,255,0.08);
-    color: #fff;
 }
 
 /* Título da sidebar */
@@ -710,61 +668,6 @@ textarea:focus {
     font-weight: 700;
     letter-spacing: 0.04em;
     color: var(--white);
-}
-
-/* Logo na sidebar */
-.sidebar-logo-wrap {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 4px 0 8px;
-    width: 100%;
-}
-.sidebar-logo-img {
-    height: 36px;
-    width: auto;
-    max-width: 60px;
-    object-fit: contain;
-    flex-shrink: 0;
-}
-.sidebar-logo-text {
-    font-size: 1.25rem;
-    font-weight: 800;
-    color: var(--white);
-    letter-spacing: 0.06em;
-    white-space: nowrap;
-}
-.sidebar.collapsed .sidebar-logo-text {
-    display: none;
-}
-.sidebar.collapsed .sidebar-logo-wrap {
-    justify-content: center;
-    padding: 4px 0;
-}
-
-/* ── Estado recolhido: esconde textos, centraliza ícones ───────── */
-.sidebar.collapsed .sidebar-title,
-.sidebar.collapsed .user-profile-sidebar,
-.sidebar.collapsed #plano-sidebar-container {
-    display: none;
-}
-.sidebar.collapsed .sidebar-header {
-    padding: var(--space-sm) 0;
-    align-items: center;
-}
-.sidebar.collapsed .nav-link {
-    justify-content: center;
-    padding: 12px 0;
-}
-.sidebar.collapsed .nav-icon {
-    margin-right: 0;
-}
-.sidebar.collapsed .nav-text {
-    display: none;
-}
-.sidebar.collapsed .nav-link.active {
-    border-right: none;
-    border-left: 3px solid var(--primary-color);
 }
 
 /* ── Hambúrguer no header (só mobile) ────────────────────────── */
@@ -834,7 +737,7 @@ textarea:focus {
     }
     .sidebar .nav-icon { margin-right: 12px; }
     .sidebar .nav-link.active { border-right: 4px solid var(--primary-color); border-left: none; }
-    .main-content, .main-content.sidebar-collapsed {
+    .main-content {
         margin-left: 0 !important;
     }
     .btn-hamburger-mobile { display: flex; }
@@ -4600,9 +4503,6 @@ table tr:hover {
     user-select: none;
 }
 
-.sidebar.collapsed .nav-group-label {
-    display: none;
-}
 
 .nav-group-collapsible {
     list-style: none;
@@ -4646,10 +4546,6 @@ table tr:hover {
     font-weight: 500;
 }
 
-.sidebar.collapsed .nav-group-title,
-.sidebar.collapsed .nav-group-chevron {
-    display: none;
-}
 
 .nav-group-chevron {
     font-size: 0.75rem;
@@ -4679,8 +4575,5 @@ table tr:hover {
     font-size: 0.8rem;
 }
 
-.sidebar.collapsed .nav-subitem .nav-link {
-    padding-left: 12px;
-}
 
 

@@ -16,10 +16,8 @@ const STATIC_ASSETS = [
     '/offline.html',
     '/termoPrivacidade.html',
     '/manifest.json',
-    '/icons/financeiro.png',
+    '/icons/logo.png',
     '/icons/icone.png',
-    '/icons/icone-192.png',
-    '/icons/icone-512.png',
     // CSS
     '/css/loading.css',
     '/css/index.css',

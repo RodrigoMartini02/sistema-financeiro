@@ -36,12 +36,12 @@
 
 /* 3. LOGO E TEXTOS */
 .pwa-modal-logo {
-    width: 80px;
-    height: 80px;
+    width: 72px;
+    height: 72px;
     margin: 0 auto 16px;
     display: block;
-    border-radius: 20px;
-    object-fit: cover;
+    border-radius: 16px;
+    object-fit: contain;
 }
 
 .pwa-modal-title {
