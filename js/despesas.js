@@ -1039,17 +1039,51 @@ function configurarEventosCard(cardEl) {
     cardEl.querySelector('.card-anexos-btn').addEventListener('click', () => abrirAnexosCard(cardEl));
 }
 
+// Retorna data no formato YYYY-MM-DD sem bugs de UTC
+function _hoje() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// Calcula a data de vencimento do cartão considerando o fechamento
+// Se hoje >= dia_fechamento, o vencimento é no próximo mês
+function _calcVencimentoCartao(diaFechamento, diaVencimento) {
+    if (!diaVencimento) return null;
+    const hoje = new Date();
+    const diaHoje = hoje.getDate();
+    let mes = hoje.getMonth();
+    let ano = hoje.getFullYear();
+    // Se já passou do fechamento, o vencimento cai no mês seguinte
+    if (diaFechamento && diaHoje >= diaFechamento) {
+        mes++;
+        if (mes > 11) { mes = 0; ano++; }
+    }
+    // Ajusta dia caso o mês não tenha dias suficientes (ex: dia 31 em fevereiro)
+    const maxDia = new Date(ano, mes + 1, 0).getDate();
+    const dia = Math.min(diaVencimento, maxDia);
+    return `${ano}-${String(mes+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+}
+
 // Seleciona uma forma de pagamento conta (pix/dinheiro/debito)
+// Preenche compra e vencimento com hoje automaticamente
 function selecionarPagamentoCard(cardEl, forma) {
     cardEl.querySelectorAll('.pgto-btn').forEach(b => b.classList.remove('pgto-ativo'));
     const btn = cardEl.querySelector(`.pgto-btn[data-forma="${forma}"]`);
     if (btn) btn.classList.add('pgto-ativo');
     cardEl.dataset.formaPagamento = forma;
     cardEl.dataset.cartaoId = '';
+
+    const hoje = _hoje();
+    const compraEl = cardEl.querySelector('.card-compra');
+    const vencEl   = cardEl.querySelector('.card-vencimento');
+    if (compraEl) compraEl.value = hoje;
+    if (vencEl)   { vencEl.value = hoje; atualizarIndicadorMesCard(cardEl); }
+
     atualizarEstrelasCard(cardEl);
 }
 
 // Seleciona um cartão de crédito específico
+// Preenche vencimento com base em dia_vencimento/dia_fechamento do cartão
 function selecionarPagamentoCartao(cardEl, cartaoId) {
     cardEl.querySelectorAll('.pgto-btn').forEach(b => b.classList.remove('pgto-ativo'));
     const btn = cardEl.querySelector(`.pgto-btn[data-cartao-id="${cartaoId}"]`);
@@ -1057,6 +1091,14 @@ function selecionarPagamentoCartao(cardEl, cartaoId) {
     cardEl.dataset.formaPagamento = 'credito';
     cardEl.dataset.cartaoId = String(cartaoId);
     cardEl.querySelector('.card-pgto-credito-lista')?.classList.remove('campo-invalido');
+
+    const cartao = (window.cartoesUsuario || []).find(c => c.id === cartaoId || String(c.id) === String(cartaoId));
+    if (cartao) {
+        const vencData = _calcVencimentoCartao(cartao.dia_fechamento, cartao.dia_vencimento);
+        const vencEl = cardEl.querySelector('.card-vencimento');
+        if (vencEl && vencData) { vencEl.value = vencData; atualizarIndicadorMesCard(cardEl); }
+    }
+
     atualizarEstrelasCard(cardEl);
 }
 
