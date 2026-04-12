@@ -51,7 +51,9 @@ window.IA = (function () {
         aguardandoTrocaPerfil: false  // true quando exibiu botões de troca e aguarda clique
     };
 
-    var _ultimoCardDespesa = null; // referência ao último card de confirmação de despesa no chat
+    var _ultimoCardDespesa  = null; // referência ao último card de confirmação de despesa no chat
+    var _ultimoCardReceita  = null; // referência ao último card de confirmação de receita no chat
+    var _ultimoRegistro     = null; // { tipo: 'despesa'|'receita', id, descricao } — para desfazer
 
     var _iaInitializando = false;
 
@@ -190,7 +192,23 @@ window.IA = (function () {
             var nome     = (cfg && cfg.nome)     || 'Gen ativa — IA interna IGen - Sistema Financeiro Inteligente';
             var isGen    = provider === 'gen';
 
-            _setStatus(nome, true);
+            if (isGen) {
+                // Gen interna: sempre online
+                _setStatus(nome, true);
+            } else {
+                // IA externa: mostra "verificando..." até testar a conexão real
+                _setStatus(nome + ' — verificando...', false);
+                apiGet('/test').then(function(t) {
+                    if (t && t.online) {
+                        _setStatus(nome, true);
+                    } else {
+                        var motivo = (t && t.mensagem) ? t.mensagem : 'sem resposta';
+                        _setStatus(nome + ' — offline (' + motivo + ')', false);
+                    }
+                }).catch(function() {
+                    _setStatus(nome + ' — erro de conexão', false);
+                });
+            }
 
             var badge = document.getElementById('ia-badge-status');
             if (badge) { badge.textContent = nome; badge.className = 'badge ' + (isGen ? 'gen' : 'ativo'); }
@@ -273,6 +291,70 @@ window.IA = (function () {
                     '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="quero cadastrar uma receita" data-opcao-label="Cadastrar receita">💰 Cadastrar receita</button>' +
                     '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="qual meu saldo atual" data-opcao-label="Consultar">🔍 Consultar</button>';
         addGen('Olá, <b>' + esc(nome) + '</b>! ' + icone + ' O que você quer fazer hoje?<div class="ai-welcome-chips">' + chips + '</div>');
+
+        // Busca resumo financeiro e exibe proativamente após 500ms
+        var _mes  = window.mesAberto !== undefined ? window.mesAberto : new Date().getMonth();
+        var _ano  = window.anoAberto !== undefined ? window.anoAberto : new Date().getFullYear();
+        var _pid  = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
+        var _qs   = '?mes=' + _mes + '&ano=' + _ano + (_pid ? '&perfil_id=' + _pid : '');
+
+        apiGet('/resumo' + _qs).then(function(d) {
+            if (!d || !d.success) return;
+            var r       = d.resumo || {};
+            var msgs    = [];
+            var NOMES_M = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+            var nomeMes = NOMES_M[_mes] || '';
+
+            // Resumo rápido do mês
+            if (r.totalReceitas > 0 || r.totalDespesas > 0) {
+                var saldo = r.saldo || 0;
+                var saldoCor = saldo >= 0 ? 'ai-dc-pago' : 'ai-dc-atrasada';
+                var saldoSinal = saldo >= 0 ? '+' : '';
+                msgs.push('<b>' + nomeMes + '/' + _ano + '</b> — Receitas: <b>' + fmtV(r.totalReceitas) + '</b> · Despesas: <b>' + fmtV(r.totalDespesas) + '</b> · Saldo: <span class="' + saldoCor + '"><b>' + saldoSinal + fmtV(saldo) + '</b></span>');
+            }
+
+            // Alerta: despesas em aberto
+            if (r.totalDespesasEmAberto > 0) {
+                msgs.push('⚠️ Você tem <b>' + fmtV(r.totalDespesasEmAberto) + '</b> em despesas em aberto.');
+            }
+
+            // Alerta: despesas vencendo nos próximos 7 dias
+            var prox = d.proximasVencer || [];
+            if (prox.length > 0) {
+                var listProx = prox.map(function(p) {
+                    var parts = (p.vencimento || '').split('T')[0].split('-');
+                    var dtFmt = parts.length === 3 ? parts[2] + '/' + parts[1] : p.vencimento;
+                    return '• ' + esc(p.descricao) + ' — ' + fmtV(p.valor) + ' (vence ' + dtFmt + ')';
+                }).join('<br>');
+                msgs.push('📅 Vencendo em 7 dias:<br>' + listProx);
+            }
+
+            // Alerta: gastos acima do mês anterior
+            var ant = d.resumoMesAnterior || {};
+            if (ant.totalDespesas > 0 && r.totalDespesas > ant.totalDespesas * 1.2) {
+                var pct = Math.round((r.totalDespesas / ant.totalDespesas - 1) * 100);
+                msgs.push('📈 Seus gastos em ' + nomeMes + ' estão <b>' + pct + '% acima</b> de ' + (NOMES_M[ant.mes] || '') + '.');
+            }
+
+            // Alertas de orçamento por categoria
+            var alertas = d.alertasOrcamento || [];
+            alertas.forEach(function(a) {
+                var icone = a.excedido ? '🚨' : '⚠️';
+                msgs.push(icone + ' <b>' + esc(a.categoria) + '</b>: ' + fmtV(a.gasto) + ' de ' + fmtV(a.limite) + ' (' + a.percentual + '% do limite' + (a.excedido ? ' — <b>EXCEDIDO</b>' : '') + ').');
+            });
+
+            // Progresso de metas
+            var metas = d.metas || [];
+            metas.forEach(function(m) {
+                var prazoParts = m.prazo ? m.prazo.split('-') : [];
+                var prazoStr = prazoParts.length >= 2 ? NOMES_M[parseInt(prazoParts[1]) - 1] + '/' + prazoParts[0] : '';
+                msgs.push('🎯 Meta: <b>' + esc(m.descricao) + '</b> — ' + fmtV(m.valor) + (prazoStr ? ' até ' + prazoStr : '') + '.');
+            });
+
+            if (msgs.length > 0) {
+                setTimeout(function() { addGen(msgs.join('<br><br>')); }, 600);
+            }
+        }).catch(function() {}); // silencioso se falhar
     }
 
     function _exibirBotoesTrocaPerfil() {
@@ -352,6 +434,37 @@ window.IA = (function () {
         addUser(texto);
         var tid = addTyping();
 
+        // Interceptar payload PIX (string EMV — começa com "0002" e tem 30+ chars numérico-alfanumérico)
+        if (/^00020[12]/i.test(texto.trim()) && texto.trim().length > 30) {
+            addUser(texto.length > 40 ? texto.substring(0, 40) + '...' : texto);
+            var tidP = addTyping();
+            apiPost('/pix', { payload: texto.trim() }).then(function(res) {
+                removeTyping(tidP);
+                if (res && res.sucesso && res.despesa) {
+                    var beneficiario = res.nome || res.beneficiario || '';
+                    addGen(fmt('Encontrei um pagamento PIX' + (beneficiario ? ' para **' + beneficiario + '**' : '') + ':'));
+                    _iniciarColetaCampos(res.despesa, 'despesa');
+                } else {
+                    addGen('Não consegui ler este payload PIX. Tente colar a despesa no formato: "paguei R$ X para [empresa] no PIX".');
+                    _mostrarChipsContinuacao(null, 600);
+                }
+            }).catch(function() {
+                removeTyping(tidP);
+                addGen('Erro ao processar o PIX.');
+                _mostrarChipsContinuacao(null, 600);
+            }).finally(function() { estado.enviando = false; setBtnDisabled(false); });
+            return;
+        }
+
+        // Interceptar "desfazer" antes de ir ao backend
+        if (/^(desfaz|desfazer|undo|cancela\s+(o\s+)?último|apagar\s+(o\s+)?último|remov|exclu)\b/i.test(texto.trim())) {
+            estado.enviando = false;
+            setBtnDisabled(false);
+            removeTyping(tid);
+            _desfazerUltimoRegistro();
+            return;
+        }
+
         // Interceptar intenção de encerrar conversa
         if (/^encerrar$|^(encer|finaliz|tchau|obrigad|até|valeu|ok\s*obrigad)/i.test(texto.trim())) {
             estado.enviando = false;
@@ -384,10 +497,10 @@ window.IA = (function () {
             } else if (res.acao === 'confirmar_receita' && res.receita) {
                 _iniciarColetaCampos(res.receita, 'receita');
             } else if (res.acao === 'encerrar') {
-                addGen(res.resposta || 'Até mais!');
+                addGen(fmt(res.resposta || 'Até mais!'));
                 setTimeout(fechar, 1500);
             } else {
-                addGen(res.resposta || '...');
+                addGen(fmt(res.resposta || '...'));
                 // Após análise/consulta, oferece próxima ação (só se não termina com pergunta)
                 var resp = (res.resposta || '').trim();
                 if (resp && !resp.endsWith('?') && res.acao !== 'coletando_campos') {
@@ -555,7 +668,7 @@ window.IA = (function () {
         }
 
         c.querySelector('.ai-msg-time').textContent = _hhmm();
-        _ultimoCardDespesa = c;
+        _ultimoCardDespesa = c.querySelector('.ai-msg'); // guarda ref ao elemento real antes de inserir
         _insNode(c);
     }
 
@@ -631,7 +744,25 @@ window.IA = (function () {
             c.querySelector('.dc-data').textContent = fmtD(r.data);
         }
         c.querySelector('.ai-msg-time').textContent = _hhmm();
+        _ultimoCardReceita = c.querySelector('.ai-msg'); // guarda ref ao elemento real antes de inserir
         _insNode(c);
+    }
+
+    // ── FINALIZAR CARD (read-only após salvar/cancelar) ───────────
+    function _finalizarCard(cardEl, textoStatus, isOk) {
+        if (!cardEl) return;
+        var btns     = cardEl.querySelector('.ai-msg-btns');
+        var pergunta = cardEl.querySelector('.ai-card-pergunta');
+        var intro    = cardEl.querySelector('.ia-card-intro');
+        if (btns)     btns.remove();
+        if (pergunta) pergunta.remove();
+        var statusHtml = '<span class="ai-card-finalizado ' + (isOk ? 'ai-card-finalizado--ok' : 'ai-card-finalizado--cancel') + '">' + textoStatus + '</span>';
+        if (intro) intro.innerHTML = statusHtml;
+        // Persiste no histórico como card read-only (sem botões)
+        var cardContent = cardEl.querySelector('.ai-despesa-card');
+        if (cardContent) {
+            _histSave('gen', statusHtml + '<div class="ai-despesa-card">' + cardContent.innerHTML + '</div>');
+        }
     }
 
     function addTyping() {
@@ -730,7 +861,9 @@ window.IA = (function () {
             removeTyping(tidD);
             if (res && res.success) {
                 var sufixo = parcelado ? ' (' + totalParcelas + 'x de ' + fmtV(valorParcela) + ')' : '';
-                addGen('✔ "' + d.descricao + '"' + sufixo + ' salva em ' + (MESES[mes] || '') + '/' + ano + '.');
+                _finalizarCard(_ultimoCardDespesa, '✔ Salva em ' + (MESES[mes] || '') + '/' + ano + sufixo, true);
+                // Guarda referência para possível desfazer
+                if (res.data && res.data.id) _ultimoRegistro = { tipo: 'despesa', id: res.data.id, descricao: d.descricao };
                 // Recarrega só as despesas do mês afetado e re-renderiza a tabela
                 var _refreshMes = function() {
                     if (typeof window.renderizarDetalhesDoMes === 'function') {
@@ -767,6 +900,7 @@ window.IA = (function () {
 
     function cancelarDespesa() {
         estado.despesaPendente = null;
+        _finalizarCard(_ultimoCardDespesa, '✗ Cancelada', false);
         _mostrarChipsContinuacao('Ok, descartei. O que mais posso fazer?', 0);
     }
 
@@ -805,7 +939,9 @@ window.IA = (function () {
         apiMainPost('/receitas', payload).then(function (res) {
             removeTyping(tidR);
             if (res && res.success) {
-                addGen('✔ Receita "' + r.descricao + '" salva em ' + (MESES[mes] || '') + '/' + ano + '.');
+                _finalizarCard(_ultimoCardReceita, '✔ Salva em ' + (MESES[mes] || '') + '/' + ano, true);
+                // Guarda referência para possível desfazer
+                if (res.data && res.data.id) _ultimoRegistro = { tipo: 'receita', id: res.data.id, descricao: r.descricao };
                 if (window.usuarioDataManager && typeof window.usuarioDataManager.limparCache === 'function') {
                     window.usuarioDataManager.limparCache();
                 }
@@ -904,7 +1040,38 @@ window.IA = (function () {
 
     function cancelarReceita() {
         estado.receitaPendente = null;
+        _finalizarCard(_ultimoCardReceita, '✗ Cancelada', false);
         _mostrarChipsContinuacao('Ok, descartei. O que mais posso fazer?', 0);
+    }
+
+    // ── DESFAZER ÚLTIMO REGISTRO ──────────────────────────────────
+    function _desfazerUltimoRegistro() {
+        if (!_ultimoRegistro) {
+            addGen('Não há nada recente para desfazer.');
+            _mostrarChipsContinuacao(null, 600);
+            return;
+        }
+        var reg = _ultimoRegistro;
+        _ultimoRegistro = null;
+        var endpoint = reg.tipo === 'despesa' ? '/despesas/' + reg.id : '/receitas/' + reg.id;
+        var tidU = addTyping();
+        fetch(apiURL() + endpoint, { method: 'DELETE', headers: hdrs() })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                removeTyping(tidU);
+                if (res && res.success) {
+                    addGen('✔ "' + esc(reg.descricao) + '" removida com sucesso.');
+                    if (typeof window.carregarDadosDashboard === 'function') window.carregarDadosDashboard(window.anoAberto || new Date().getFullYear());
+                } else {
+                    addGen('Não consegui remover. Talvez já tenha sido editada. Acesse a tabela para excluir manualmente.');
+                }
+                _mostrarChipsContinuacao(null, 600);
+            })
+            .catch(function() {
+                removeTyping(tidU);
+                addGen('Erro de conexão ao tentar desfazer.');
+                _mostrarChipsContinuacao(null, 600);
+            });
     }
 
     // ── COLETA DE CAMPOS FALTANTES ────────────────────────────────
@@ -1720,7 +1887,7 @@ window.IA = (function () {
 
     function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
     function fmt(s) { return esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>'); }
-    function fmtV(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ','); }
+    function fmtV(v) { return 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
     function _hhmm() {
         var n = new Date();
         return String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0');

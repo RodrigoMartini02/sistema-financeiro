@@ -4318,3 +4318,210 @@ function inicializarCategoriaInline() {
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(inicializarCategoriaInline, 300);
 });
+
+// ================================================================
+// IMPORTAÇÃO DE EXTRATO PDF
+// ================================================================
+
+(function() {
+    const API_URL = () => window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+
+    let _transacoesExtrato = [];
+
+    function _abrirSeletorPDF() {
+        const input = document.getElementById('extrato-pdf-input');
+        if (input) input.click();
+    }
+
+    function _atualizarContador() {
+        const checkboxes = document.querySelectorAll('#extrato-tabela-body .extrato-row-check');
+        const total = checkboxes.length;
+        const sel = Array.from(checkboxes).filter(c => c.checked).length;
+        const cont = document.getElementById('extrato-contador');
+        if (cont) cont.textContent = `${sel} de ${total} selecionadas`;
+        const btnImp = document.getElementById('btn-extrato-importar');
+        if (btnImp) btnImp.style.display = sel > 0 ? '' : 'none';
+    }
+
+    function _renderizarTabela(transacoes) {
+        const tbody = document.getElementById('extrato-tabela-body');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        transacoes.forEach((t, i) => {
+            const tr = document.createElement('tr');
+            tr.className = t.tipo === 'receita' ? 'extrato-row-receita' : '';
+            const valorFmt = 'R$ ' + parseFloat(t.valor).toFixed(2).replace('.', ',');
+            const badgeClass = t.tipo === 'receita' ? 'extrato-badge-receita' : 'extrato-badge-despesa';
+            const badgeLabel = t.tipo === 'receita' ? 'Receita' : 'Despesa';
+            tr.innerHTML = `
+                <td><input type="checkbox" class="extrato-row-check" data-idx="${i}" checked></td>
+                <td>${t.data || ''}</td>
+                <td>${t.descricao || ''}</td>
+                <td><strong>${valorFmt}</strong></td>
+                <td><span class="extrato-badge ${badgeClass}">${badgeLabel}</span></td>
+                <td>${t.categoria_sugerida || 'Outros'}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+        tbody.querySelectorAll('.extrato-row-check').forEach(cb => {
+            cb.addEventListener('change', _atualizarContador);
+        });
+        _atualizarContador();
+    }
+
+    async function _processarPDF(file) {
+        const modal = document.getElementById('modal-extrato-revisao');
+        const loading = document.getElementById('extrato-carregando');
+        const tabelaWrap = document.getElementById('extrato-tabela-wrap');
+        const vazio = document.getElementById('extrato-vazio');
+
+        if (!modal) return;
+        modal.style.display = 'flex';
+        loading.style.display = '';
+        tabelaWrap.style.display = 'none';
+        vazio.style.display = 'none';
+
+        try {
+            const formData = new FormData();
+            formData.append('arquivo', file);
+
+            const res = await fetch(`${API_URL()}/ai/extrato`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${getToken()}` },
+                body: formData
+            });
+
+            const data = await res.json();
+            loading.style.display = 'none';
+
+            if (!res.ok) throw new Error(data.message || data.erro || 'Erro ao processar extrato');
+
+            _transacoesExtrato = data.transacoes || [];
+
+            if (_transacoesExtrato.length === 0) {
+                vazio.style.display = '';
+            } else {
+                _renderizarTabela(_transacoesExtrato);
+                tabelaWrap.style.display = '';
+                document.getElementById('btn-extrato-importar').style.display = '';
+            }
+        } catch (err) {
+            loading.style.display = 'none';
+            vazio.style.display = '';
+            vazio.textContent = 'Erro ao processar PDF: ' + err.message;
+            console.error('Extrato import error:', err);
+        }
+    }
+
+    function _resolverCategoriaId(nomeCategoria) {
+        if (!nomeCategoria) return '';
+        const cats = window.categoriasUsuario?.despesas || [];
+        const nome = nomeCategoria.toLowerCase();
+        const match = cats.find(c => c.nome?.toLowerCase() === nome) ||
+                      cats.find(c => c.nome?.toLowerCase().includes(nome)) ||
+                      cats.find(c => nome.includes(c.nome?.toLowerCase()));
+        return match ? String(match.id) : '';
+    }
+
+    function _importarSelecionadas() {
+        const checkboxes = document.querySelectorAll('#extrato-tabela-body .extrato-row-check:checked');
+        if (checkboxes.length === 0) return;
+
+        // Fechar modal de revisão
+        const modal = document.getElementById('modal-extrato-revisao');
+        if (modal) modal.style.display = 'none';
+
+        // Garantir que o modal de lançamento está aberto
+        const modalLancamento = document.getElementById('modal-lancamento-despesas');
+        if (modalLancamento) modalLancamento.style.display = 'flex';
+
+        // Limpar cards existentes e adicionar um por transação
+        const container = document.getElementById('despesa-cards-container');
+
+        checkboxes.forEach((cb) => {
+            const idx = parseInt(cb.dataset.idx);
+            const t = _transacoesExtrato[idx];
+            if (!t || t.tipo !== 'despesa') return; // só despesas no lançador
+
+            const card = adicionarCard();
+            if (!card) return;
+
+            // Preencher campos
+            const descInput = card.querySelector('.card-descricao');
+            if (descInput) descInput.value = t.descricao || '';
+
+            const valorInput = card.querySelector('.card-valor-original');
+            if (valorInput) valorInput.value = parseFloat(t.valor).toFixed(2);
+
+            const compraInput = card.querySelector('.card-compra');
+            if (compraInput) compraInput.value = t.data || '';
+
+            const vencInput = card.querySelector('.card-vencimento');
+            if (vencInput) vencInput.value = t.data || '';
+
+            const catSelect = card.querySelector('.card-categoria');
+            if (catSelect) {
+                const catId = _resolverCategoriaId(t.categoria_sugerida);
+                if (catId) catSelect.value = catId;
+            }
+
+            calcularInfoCard(card);
+            atualizarIndicadorMesCard(card);
+        });
+
+        // Scroll para o topo do container
+        if (container) {
+            const modalBody = container.closest('.modal-body');
+            if (modalBody) modalBody.scrollTop = 0;
+        }
+
+        // Limpar input de arquivo para permitir re-importação
+        const input = document.getElementById('extrato-pdf-input');
+        if (input) input.value = '';
+    }
+
+    function _fecharRevisao() {
+        const modal = document.getElementById('modal-extrato-revisao');
+        if (modal) modal.style.display = 'none';
+        const input = document.getElementById('extrato-pdf-input');
+        if (input) input.value = '';
+    }
+
+    // Wire up events after DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        // Botão "Importar PDF" no modal de lançamento
+        const btnImportar = document.getElementById('btn-importar-extrato');
+        if (btnImportar) btnImportar.addEventListener('click', _abrirSeletorPDF);
+
+        // Input de arquivo
+        const fileInput = document.getElementById('extrato-pdf-input');
+        if (fileInput) {
+            fileInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    _processarPDF(this.files[0]);
+                }
+            });
+        }
+
+        // Botão fechar revisão
+        const btnFechar = document.getElementById('btn-fechar-extrato-revisao');
+        if (btnFechar) btnFechar.addEventListener('click', _fecharRevisao);
+
+        const btnCancelar = document.getElementById('btn-extrato-cancelar');
+        if (btnCancelar) btnCancelar.addEventListener('click', _fecharRevisao);
+
+        // Botão importar selecionadas
+        const btnConf = document.getElementById('btn-extrato-importar');
+        if (btnConf) btnConf.addEventListener('click', _importarSelecionadas);
+
+        // Selecionar todas
+        const selAll = document.getElementById('extrato-select-all');
+        if (selAll) {
+            selAll.addEventListener('change', function() {
+                document.querySelectorAll('#extrato-tabela-body .extrato-row-check')
+                    .forEach(cb => { cb.checked = this.checked; });
+                _atualizarContador();
+            });
+        }
+    });
+})();

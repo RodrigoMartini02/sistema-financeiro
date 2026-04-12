@@ -278,44 +278,22 @@ function parsearComGen(texto, cartaBase = '', instrucoesUsuario = '') {
 
     // ── Extração de DESCRIÇÃO ────────────────────────────────
     // REGRA PRIORITÁRIA: Se a primeira palavra é seguida de vírgula, ela É a descrição
+    // Ex: "Hiper, 150 pix" → descricao = "Hiper"
     const virgulaPrioMatch = texto.match(/^([\w\u00C0-\u017F]+),\s*/);
-    let descricaoFixadaPorVirgula = false;
     if (virgulaPrioMatch) {
         result.descricao = virgulaPrioMatch[1].charAt(0).toUpperCase() + virgulaPrioMatch[1].slice(1);
-        descricaoFixadaPorVirgula = true;
-    }
-
-    // Remove palavras-chave e extrai o restante como descrição (apenas se a regra da vírgula não se aplicou)
-    let descricao = texto
-        .replace(/R\$\s*[\d.,]+/gi, '')
-        .replace(/[\d.,]+\s*reais?/gi, '')
-        .replace(/(?:já\s+)?paguei|já\s+pago|quitei|quitado/gi, '')
-        .replace(/(?:gastei|comprei|recebi|adicionei|adicione|lançar)\s*/gi, '')
-        .replace(/(?:no|na|com|via|pelo|pela)\s+(?:cartão|cartao|pix|dinheiro|débito|debito|crédito|credito|boleto)\s*/gi, '')
-        .replace(/todo\s+m[eê]s|mensal(?:idade)?|recorrente|fixo|toda\s+semana|semanal/gi, '')
-        .replace(/vence(?:mento)?\s+(?:dia\s+)?\d{1,2}(?:\/\d{1,2}(?:\/\d{2,4})?)?/gi, '')
-        .replace(/em\s+\d+\s*(?:x|vezes?|parcelas?)/gi, '')
-        .replace(/\s{2,}/g, ' ')
-        .trim();
-
-    // Remove artigos no início
-    descricao = descricao.replace(/^(?:de|do|da|um|uma|o|a)\s+/i, '').trim();
-
-    // Capitaliza primeira letra (apenas se descrição NÃO foi fixada pela regra da vírgula)
-    if (!descricaoFixadaPorVirgula) {
-        if (descricao) {
-            result.descricao = descricao.charAt(0).toUpperCase() + descricao.slice(1);
-        } else {
-            result.descricao = 'Despesa';
-        }
+    } else {
+        // Para frases livres, não tenta adivinhar — usa padrão editável pelo usuário
+        result.descricao = 'Cadastrado por GEN';
     }
 
     // ── Inferir CATEGORIA ──────────────────────────────────
+    // Usa o texto original (não a descrição) para inferir categoria corretamente
     const textoInstrucoes = [cartaBase, instrucoesUsuario].filter(Boolean).join('\n\n');
     const regrasCartas = extrairRegrasCategoriaParaGen(textoInstrucoes);
-    const descLower = (result.descricao || texto).toLowerCase();
-    const regaEncontrada = regrasCartas.find(r => r.palavras.some(p => descLower.includes(p)));
-    result.categoria = regaEncontrada ? regaEncontrada.categoria : inferirCategoria(result.descricao || texto);
+    const textoLower = texto.toLowerCase();
+    const regaEncontrada = regrasCartas.find(r => r.palavras.some(p => textoLower.includes(p)));
+    result.categoria = regaEncontrada ? regaEncontrada.categoria : inferirCategoria(texto);
 
     return result;
 }
@@ -328,6 +306,24 @@ function detectarIntencao(texto) {
     // Encerrar conversa
     if (/^(?:tchau|até\s+mais|ate\s+mais|até\s+logo|ate\s+logo|flw|valeu\s+tchau|obrigad\w*\s+tchau|encerr\w*|pode\s+fechar|sair|bye)/i.test(lower)) {
         return 'encerrar';
+    }
+
+    // Ação direta via botão de interface (ex: "cadastrar despesa", "quero cadastrar uma despesa")
+    if (/cadastrar?\s+(?:uma?\s+)?despesa|quero\s+cadastrar\s+(?:uma?\s+)?despesa/i.test(lower)) {
+        return 'despesa';
+    }
+    if (/cadastrar?\s+(?:uma?\s+)?receita|quero\s+cadastrar\s+(?:uma?\s+)?receita/i.test(lower)) {
+        return 'receita';
+    }
+
+    // Metas de economia
+    if (/(?:quero|definir?|criar?|nova?|adicionar?)\s+(?:uma?\s+)?meta|economiz|poupar|guardar\s+\d|meta\s+de\s+(economia|poupan)/i.test(lower)) {
+        return 'meta';
+    }
+
+    // Alertas de orçamento
+    if (/(?:me\s+)?avis[ae]|alert[ae]|limit[ae]|or[cç]amento|n[aã]o\s+gast[ae]\s+mais\s+de|se\s+gastar\s+mais/i.test(lower)) {
+        return 'orcamento';
     }
 
     // Análise financeira / pergunta

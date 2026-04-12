@@ -2514,11 +2514,61 @@
            <button type="button" id="btn-adicionar-despesa-card" class="btn btn-secondary btn-sm">
                <i class="fas fa-plus"></i> Adicionar Despesa
            </button>
+           <input type="file" id="extrato-pdf-input" accept=".pdf" style="display:none">
+           <button type="button" id="btn-importar-extrato" class="btn btn-secondary btn-sm" title="Importar extrato bancário em PDF">
+               <i class="fas fa-file-pdf"></i> Importar PDF
+           </button>
            <button type="button" id="btn-salvar-todas" class="btn btn-primary btn-salvar-lancamento">
                Salvar
            </button>
        </div>
    </div>
+</div>
+
+<!-- Modal de revisão do extrato PDF -->
+<div id="modal-extrato-revisao" class="modal modal-extrato-revisao" style="display:none">
+    <div class="modal-content modal-extrato-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-file-pdf"></i> Extrato Importado</h2>
+            <button type="button" class="close" id="btn-fechar-extrato-revisao">&times;</button>
+        </div>
+        <div class="modal-body extrato-revisao-body">
+            <div id="extrato-carregando" class="extrato-carregando" style="display:none">
+                <i class="fas fa-spinner fa-spin"></i> Analisando extrato com IA...
+            </div>
+            <div id="extrato-tabela-wrap" style="display:none">
+                <p class="extrato-info">Selecione as transações que deseja importar como despesas:</p>
+                <div class="extrato-select-bar">
+                    <label><input type="checkbox" id="extrato-select-all" checked> Selecionar todas</label>
+                    <span id="extrato-contador" class="extrato-contador"></span>
+                </div>
+                <div class="extrato-tabela-container">
+                    <table class="extrato-tabela" id="extrato-tabela">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th>Data</th>
+                                <th>Descrição</th>
+                                <th>Valor</th>
+                                <th>Tipo</th>
+                                <th>Categoria</th>
+                            </tr>
+                        </thead>
+                        <tbody id="extrato-tabela-body"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div id="extrato-vazio" class="extrato-vazio" style="display:none">
+                <i class="fas fa-info-circle"></i> Nenhuma transação encontrada no PDF.
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" id="btn-extrato-cancelar" class="btn btn-secondary">Cancelar</button>
+            <button type="button" id="btn-extrato-importar" class="btn btn-primary" style="display:none">
+                <i class="fas fa-download"></i> Importar Selecionadas
+            </button>
+        </div>
+    </div>
 </div>
 
 

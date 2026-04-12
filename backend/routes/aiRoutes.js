@@ -70,6 +70,9 @@ router.post('/aprendizado', authMiddleware, ctrl.salvarAprendizadoCategoria);
 // Configuração de provedor de IA por usuário
 router.get('/config', authMiddleware, ctrl.obterConfigIA);
 router.post('/config/chave', authMiddleware, ctrl.salvarConfigChave);
+router.get('/test', authMiddleware, ctrl.testarConexaoIA);
+router.get('/resumo', authMiddleware, ctrl.resumoFinanceiro);
+router.post('/extrato', authMiddleware, upload.single('arquivo'), ctrl.importarExtrato);
 
 // Instruções da Gen — por usuário, armazenadas no banco
 const { query } = require('../config/database');
@@ -141,6 +144,88 @@ router.post('/carta', authMiddleware, async (req, res) => {
         console.error('Erro ao revisar carta:', e);
         res.status(500).json({ erro: 'Erro ao revisar carta com IA' });
     }
+});
+
+// ── METAS DE ECONOMIA ────────────────────────────────────────────
+router.get('/metas', authMiddleware, async (req, res) => {
+    try {
+        const r = await query('SELECT dados_financeiros FROM usuarios WHERE id = $1', [req.usuario.id]);
+        const metas = r.rows[0]?.dados_financeiros?.metas || [];
+        res.json({ success: true, metas });
+    } catch { res.status(500).json({ success: false, message: 'Erro ao buscar metas.' }); }
+});
+
+router.post('/metas', authMiddleware, async (req, res) => {
+    try {
+        const { descricao, valor, prazo } = req.body;
+        if (!descricao || !valor) return res.status(400).json({ success: false, message: 'Descrição e valor são obrigatórios.' });
+        const r = await query('SELECT dados_financeiros FROM usuarios WHERE id = $1', [req.usuario.id]);
+        const df = r.rows[0]?.dados_financeiros || {};
+        const metas = df.metas || [];
+        const nova = { id: Date.now(), descricao, valor: parseFloat(valor), prazo: prazo || null, criada: new Date().toISOString().split('T')[0] };
+        metas.push(nova);
+        await query(
+            `UPDATE usuarios SET dados_financeiros = COALESCE(dados_financeiros,'{}' ::jsonb) || jsonb_build_object('metas', $1::jsonb) WHERE id = $2`,
+            [JSON.stringify(metas), req.usuario.id]
+        );
+        res.json({ success: true, meta: nova });
+    } catch { res.status(500).json({ success: false, message: 'Erro ao salvar meta.' }); }
+});
+
+router.delete('/metas/:id', authMiddleware, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const r = await query('SELECT dados_financeiros FROM usuarios WHERE id = $1', [req.usuario.id]);
+        const df = r.rows[0]?.dados_financeiros || {};
+        const metas = (df.metas || []).filter(m => m.id !== id);
+        await query(
+            `UPDATE usuarios SET dados_financeiros = COALESCE(dados_financeiros,'{}' ::jsonb) || jsonb_build_object('metas', $1::jsonb) WHERE id = $2`,
+            [JSON.stringify(metas), req.usuario.id]
+        );
+        res.json({ success: true });
+    } catch { res.status(500).json({ success: false, message: 'Erro ao remover meta.' }); }
+});
+
+// ── ALERTAS DE ORÇAMENTO POR CATEGORIA ──────────────────────────
+router.get('/orcamentos', authMiddleware, async (req, res) => {
+    try {
+        const r = await query('SELECT dados_financeiros FROM usuarios WHERE id = $1', [req.usuario.id]);
+        const orcamentos = r.rows[0]?.dados_financeiros?.orcamentos || [];
+        res.json({ success: true, orcamentos });
+    } catch { res.status(500).json({ success: false, message: 'Erro ao buscar orçamentos.' }); }
+});
+
+router.post('/orcamentos', authMiddleware, async (req, res) => {
+    try {
+        const { categoria, limite } = req.body;
+        if (!categoria || !limite) return res.status(400).json({ success: false, message: 'Categoria e limite são obrigatórios.' });
+        const r = await query('SELECT dados_financeiros FROM usuarios WHERE id = $1', [req.usuario.id]);
+        const df = r.rows[0]?.dados_financeiros || {};
+        const orcamentos = df.orcamentos || [];
+        // Atualiza se já existe para essa categoria, senão adiciona
+        const idx = orcamentos.findIndex(o => o.categoria.toLowerCase() === categoria.toLowerCase());
+        const item = { id: Date.now(), categoria, limite: parseFloat(limite) };
+        if (idx >= 0) orcamentos[idx] = item; else orcamentos.push(item);
+        await query(
+            `UPDATE usuarios SET dados_financeiros = COALESCE(dados_financeiros,'{}' ::jsonb) || jsonb_build_object('orcamentos', $1::jsonb) WHERE id = $2`,
+            [JSON.stringify(orcamentos), req.usuario.id]
+        );
+        res.json({ success: true, orcamento: item });
+    } catch { res.status(500).json({ success: false, message: 'Erro ao salvar orçamento.' }); }
+});
+
+router.delete('/orcamentos/:id', authMiddleware, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const r = await query('SELECT dados_financeiros FROM usuarios WHERE id = $1', [req.usuario.id]);
+        const df = r.rows[0]?.dados_financeiros || {};
+        const orcamentos = (df.orcamentos || []).filter(o => o.id !== id);
+        await query(
+            `UPDATE usuarios SET dados_financeiros = COALESCE(dados_financeiros,'{}' ::jsonb) || jsonb_build_object('orcamentos', $1::jsonb) WHERE id = $2`,
+            [JSON.stringify(orcamentos), req.usuario.id]
+        );
+        res.json({ success: true });
+    } catch { res.status(500).json({ success: false, message: 'Erro ao remover orçamento.' }); }
 });
 
 // ── TRATAMENTO DE ERRO DO MULTER ─────────────────────────────────

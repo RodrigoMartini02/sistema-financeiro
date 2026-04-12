@@ -11,6 +11,7 @@ const { processarQRCodePIX, processarTextoPIX } = require('../services/pixReader
 const { parsearBoleto, encontrarLinhaDigitavel } = require('../services/boletoParser');
 const { detectarRecorrencias, salvarRecorrencia, buscarRecorrencias } = require('../services/recurrenceDetector');
 const { normalizarDespesa, validarCamposObrigatorios, perguntaParaCampo } = require('../utils/expenseNormalizer');
+const { parsearExtratoComIA } = require('../services/extratoParser');
 
 const fs = require('fs');
 
@@ -298,6 +299,7 @@ async function chat(req, res) {
         let dadosDespesa = null;
 
         // ── Se estava esperando campo específico ────────────────
+        let _estavaCometendoCampo = false;
         if (sessao.esperandoCampo && sessao.despesaParcial) {
             const campo = sessao.esperandoCampo;
             const valor = mensagem.trim();
@@ -321,10 +323,15 @@ async function chat(req, res) {
             }
 
             sessao.esperandoCampo = null;
+            _estavaCometendoCampo = true;
         }
 
         // ── Detecta intenção ────────────────────────────────────
-        const intencao = await detectarIntencaoComIA(mensagem, sessao.historico, providerConfig);
+        // Se o usuário estava respondendo um campo de despesa parcial, força intenção
+        // de despesa para não interromper o fluxo de coleta.
+        const intencao = _estavaCometendoCampo && sessao.despesaParcial
+            ? 'despesa'
+            : await detectarIntencaoComIA(mensagem, sessao.historico, providerConfig);
 
         if (intencao === 'saudacao') {
             resposta = 'Olá! Sou a Gen, sua IA financeira do IGen - Sistema Financeiro Inteligente. Posso ajudá-lo a:\n\n• Cadastrar despesas (ex: "paguei 150 de mercado no pix")\n• Cadastrar receitas (ex: "recebi salário 3500 hoje")\n• Responder perguntas (ex: "quanto gastei esse mês")\n• Interpretar boletos, PIX e documentos\n\nComo posso ajudar?';
@@ -335,6 +342,70 @@ async function chat(req, res) {
         if (intencao === 'encerrar') {
             limparSessao(usuarioId);
             return res.json({ success: true, resposta: 'Até mais! Se precisar de algo, é só chamar. 👋', acao: 'encerrar' });
+        }
+
+        if (intencao === 'meta') {
+            // Extrai valor e prazo da mensagem
+            const valorMatch = mensagem.match(/R?\$?\s*(\d+(?:[.,]\d{1,2})?)/);
+            const valor = valorMatch ? parseFloat(valorMatch[1].replace(',', '.')) : null;
+            const prazMatch = mensagem.match(/\b(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-z]*\s*(\/|de\s*)?\s*(\d{4})/i);
+            let prazo = null;
+            if (prazMatch) {
+                const mMap = { jan: '01', fev: '02', mar: '03', abr: '04', mai: '05', jun: '06', jul: '07', ago: '08', set: '09', out: '10', nov: '11', dez: '12' };
+                const mKey = prazMatch[1].toLowerCase().slice(0, 3);
+                prazo = prazMatch[3] + '-' + (mMap[mKey] || '12');
+            }
+            // Descrição: tudo que não é número/prazo
+            const descricao = mensagem.replace(/R?\$?\s*[\d.,]+/, '').replace(/\b(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-z]*/gi, '').replace(/\d{4}/g, '').replace(/quero|definir|criar|nova|meta|de|economia|poupança|poupar|economizar|até/gi, '').trim() || 'Meta de economia';
+
+            if (!valor) {
+                resposta = 'Para criar uma meta, me diga o valor. Exemplo: "Quero economizar **R$ 3000** até dezembro".';
+            } else {
+                const { query: qry } = require('../config/database');
+                const r = await qry('SELECT dados_financeiros FROM usuarios WHERE id = $1', [usuarioId]);
+                const df = r.rows[0]?.dados_financeiros || {};
+                const metas = df.metas || [];
+                const nova = { id: Date.now(), descricao, valor, prazo };
+                metas.push(nova);
+                await qry(
+                    `UPDATE usuarios SET dados_financeiros = COALESCE(dados_financeiros,'{}'::jsonb) || jsonb_build_object('metas', $1::jsonb) WHERE id = $2`,
+                    [JSON.stringify(metas), usuarioId]
+                );
+                const prazoStr = prazo ? ' até ' + prazo.split('-').reverse().join('/') : '';
+                resposta = `✅ Meta salva! Vou acompanhar: **${descricao}** — R$ ${valor.toFixed(2).replace('.', ',')}${prazoStr}.\n\nVocê verá o progresso toda vez que abrir o chat.`;
+            }
+            sessao.historico.push({ role: 'assistant', content: resposta });
+            return res.json({ success: true, resposta, acao: 'meta' });
+        }
+
+        if (intencao === 'orcamento') {
+            // Extrai limite e categoria da mensagem
+            const valorMatch2 = mensagem.match(/R?\$?\s*(\d+(?:[.,]\d{1,2})?)/);
+            const limite = valorMatch2 ? parseFloat(valorMatch2[1].replace(',', '.')) : null;
+
+            if (!limite) {
+                resposta = 'Para criar um alerta de orçamento, me diga o limite. Exemplo: "Me avisa se gastar mais de **R$ 500** em restaurante".';
+            } else {
+                // Busca categorias do usuário para detectar qual foi mencionada
+                const cats = await buscarCategorias(usuarioId);
+                const catMatch = cats.find(c => mensagem.toLowerCase().includes(c.nome.toLowerCase()));
+                const categoria = catMatch ? catMatch.nome : (mensagem.replace(/R?\$?\s*[\d.,]+/, '').replace(/me\s+avis[ae]|alert[ae]|limit[ae]|or[cç]amento|se\s+gastar\s+mais\s+de/gi, '').trim() || 'Geral');
+
+                const { query: qry2 } = require('../config/database');
+                const r2 = await qry2('SELECT dados_financeiros FROM usuarios WHERE id = $1', [usuarioId]);
+                const df2 = r2.rows[0]?.dados_financeiros || {};
+                const orcamentos = df2.orcamentos || [];
+                const idx = orcamentos.findIndex(o => o.categoria.toLowerCase() === categoria.toLowerCase());
+                const item = { id: Date.now(), categoria, limite };
+                if (idx >= 0) orcamentos[idx] = item; else orcamentos.push(item);
+                await qry2(
+                    `UPDATE usuarios SET dados_financeiros = COALESCE(dados_financeiros,'{}'::jsonb) || jsonb_build_object('orcamentos', $1::jsonb) WHERE id = $2`,
+                    [JSON.stringify(orcamentos), usuarioId]
+                );
+                resposta = `✅ Alerta configurado! Vou avisar quando seus gastos em **${categoria}** ultrapassarem 70% de R$ ${limite.toFixed(2).replace('.', ',')}.`;
+            }
+            sessao.historico.push({ role: 'assistant', content: resposta });
+            return res.json({ success: true, resposta, acao: 'orcamento' });
         }
 
         if (intencao === 'receita') {
@@ -348,8 +419,45 @@ async function chat(req, res) {
         }
 
         if (intencao === 'analise') {
-            const resumo = await buscarResumoFinanceiro(usuarioId, mes_atual, ano_atual);
-            resposta = await responderPerguntaFinanceira(mensagem, resumo, sessao.historico.slice(-6), providerConfig, ctxSistema, cartaBase, instrucoesUsuario);
+            // Detecta se a pergunta menciona um mês/período específico ou "mês passado"
+            const msgLower = mensagem.toLowerCase();
+            const MESES_NOMES = ['janeiro','fevereiro','março','marco','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+            let mesAnalise = mes_atual ?? new Date().getMonth();
+            let anoAnalise = ano_atual ?? new Date().getFullYear();
+
+            // "mês passado" / "mês anterior"
+            if (/m[eê]s\s+(passado|anterior|passando)/i.test(msgLower)) {
+                mesAnalise = mesAnalise - 1;
+                if (mesAnalise < 0) { mesAnalise = 11; anoAnalise--; }
+            }
+            // Nome de mês explícito: "em março", "de abril", "janeiro"
+            else {
+                MESES_NOMES.forEach(function(nm, idx) {
+                    var mesIdx = idx > 3 ? idx : idx; // marco=marco(2), março=2
+                    if (nm === 'marco') return;
+                    if (msgLower.includes(nm)) {
+                        var m = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'].indexOf(nm === 'marco' ? 'março' : nm);
+                        if (m >= 0) mesAnalise = m;
+                    }
+                });
+                if (msgLower.includes('marco')) mesAnalise = 2;
+            }
+            // Ano explícito: "2025", "2026"
+            const anoMatch = msgLower.match(/\b(202\d)\b/);
+            if (anoMatch) anoAnalise = parseInt(anoMatch[1]);
+
+            // Busca resumo do período detectado + mês atual para comparação
+            const resumo = await buscarResumoFinanceiro(usuarioId, mesAnalise, anoAnalise);
+            const contextoHistorico = { resumoAtual: resumo };
+
+            // Se buscou período diferente do atual, adiciona comparação
+            if (mesAnalise !== (mes_atual ?? new Date().getMonth()) || anoAnalise !== (ano_atual ?? new Date().getFullYear())) {
+                const resumoAtual = await buscarResumoFinanceiro(usuarioId, mes_atual, ano_atual);
+                contextoHistorico.resumoComparacao = resumoAtual;
+                contextoHistorico.notaContexto = `Analisando período: ${MESES[mesAnalise]}/${anoAnalise} vs atual: ${MESES[mes_atual ?? new Date().getMonth()]}/${ano_atual ?? new Date().getFullYear()}`;
+            }
+
+            resposta = await responderPerguntaFinanceira(mensagem, contextoHistorico, sessao.historico.slice(-6), providerConfig, ctxSistema, cartaBase, instrucoesUsuario);
             sessao.historico.push({ role: 'assistant', content: resposta });
             return res.json({ success: true, resposta, acao: 'analise', dados: resumo });
         }
@@ -764,6 +872,190 @@ async function salvarConfigChave(req, res) {
 }
 
 // ================================================================
+// POST /api/ai/extrato
+// Importação de extrato bancário em PDF
+// ================================================================
+async function importarExtrato(req, res) {
+    const filePath = req.file?.path;
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: 'Envie o arquivo PDF do extrato.' });
+        }
+
+        const { extrairTextoPDF } = require('../services/ocrService');
+        const texto = await extrairTextoPDF(filePath);
+
+        if (!texto || texto.trim().length < 50) {
+            return res.status(422).json({ success: false, message: 'Não foi possível ler o conteúdo do PDF. Verifique se o arquivo não está protegido.' });
+        }
+
+        const providerConfig = await buscarConfigIA(req.usuario.id);
+        const transacoes = await parsearExtratoComIA(texto, providerConfig);
+
+        if (!transacoes.length) {
+            return res.json({ success: true, transacoes: [], mensagem: 'Nenhuma transação encontrada no extrato. O formato pode não ser suportado.' });
+        }
+
+        return res.json({ success: true, transacoes, total: transacoes.length });
+
+    } catch (err) {
+        console.error('Erro ao importar extrato:', err);
+        res.status(500).json({ success: false, message: 'Erro ao processar o extrato: ' + err.message });
+    } finally {
+        if (filePath && fs.existsSync(filePath)) {
+            try { fs.unlinkSync(filePath); } catch {}
+        }
+    }
+}
+
+// ================================================================
+// GET /api/ai/resumo
+// Resumo financeiro do mês atual + alertas proativos
+// ================================================================
+async function resumoFinanceiro(req, res) {
+    try {
+        const usuarioId = req.usuario.id;
+        const hoje = new Date();
+        const mes = parseInt(req.query.mes ?? hoje.getMonth());
+        const ano = parseInt(req.query.ano ?? hoje.getFullYear());
+        const perfilId = req.query.perfil_id ? parseInt(req.query.perfil_id) : null;
+
+        const perfilFilter = perfilId ? 'AND d.perfil_id = ' + perfilId : '';
+        const perfilFilterR = perfilId ? 'AND r.perfil_id = ' + perfilId : '';
+
+        const EXCL = `NOT (d.recorrente = true AND LOWER(d.forma_pagamento) IN ('credito', 'crédito', 'cred-merpago', 'créd-merpago'))`;
+
+        // Resumo do mês atual
+        const resumo = await buscarResumoFinanceiro(usuarioId, mes, ano);
+
+        // Despesas vencendo nos próximos 7 dias (não pagas)
+        const dataHoje = hoje.toISOString().split('T')[0];
+        const data7d   = new Date(hoje.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const proximas = await query(
+            `SELECT descricao, COALESCE(valor_pago, valor) as valor, data_vencimento
+             FROM despesas d
+             WHERE usuario_id = $1 AND pago = false
+               AND data_vencimento BETWEEN $2 AND $3
+               ${perfilFilter}
+             ORDER BY data_vencimento ASC LIMIT 5`,
+            [usuarioId, dataHoje, data7d]
+        );
+
+        // Total despesas do mês anterior (para comparar)
+        let mesAnt = mes - 1, anoAnt = ano;
+        if (mesAnt < 0) { mesAnt = 11; anoAnt--; }
+        const resumoAnt = await buscarResumoFinanceiro(usuarioId, mesAnt, anoAnt);
+
+        // Metas e orçamentos do usuário
+        const dfUser = await query('SELECT dados_financeiros FROM usuarios WHERE id = $1', [usuarioId]);
+        const dadosFinanc = dfUser.rows[0]?.dados_financeiros || {};
+        const metas     = dadosFinanc.metas     || [];
+        const orcamentos = dadosFinanc.orcamentos || [];
+
+        // Verifica alertas de orçamento por categoria
+        const alertasOrcamento = orcamentos.map(o => {
+            const catGastos = resumo.porCategoria.find(c => c.categoria?.toLowerCase() === o.categoria.toLowerCase());
+            const gasto = catGastos ? catGastos.total : 0;
+            return { categoria: o.categoria, limite: o.limite, gasto, excedido: gasto > o.limite, percentual: o.limite > 0 ? Math.round(gasto / o.limite * 100) : 0 };
+        }).filter(a => a.percentual >= 70); // só alerta se >= 70% do limite
+
+        return res.json({
+            success: true,
+            mes, ano,
+            resumo,
+            resumoMesAnterior: { mes: mesAnt, ano: anoAnt, totalDespesas: resumoAnt.totalDespesas },
+            proximasVencer: proximas.rows.map(r => ({
+                descricao: r.descricao,
+                valor: parseFloat(r.valor),
+                vencimento: r.data_vencimento,
+            })),
+            metas,
+            alertasOrcamento,
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Erro ao buscar resumo.' });
+    }
+}
+
+// ================================================================
+// GET /api/ai/test
+// Testa conexão real com a IA externa configurada
+// ================================================================
+async function testarConexaoIA(req, res) {
+    try {
+        const config = await buscarConfigIA(req.usuario.id);
+        const provider = config?.provider || 'gen';
+
+        if (!provider || provider === 'gen') {
+            return res.json({ success: true, online: true, provider: 'gen', mensagem: 'Gen ativa — IA interna funcionando.' });
+        }
+
+        const apiKey = config?.apiKey;
+        if (!apiKey) {
+            return res.json({ success: false, online: false, provider, mensagem: 'Nenhuma chave de API configurada.' });
+        }
+
+        // Faz um teste mínimo com a IA externa
+        const TESTE_PROMPT = 'Responda apenas com a palavra "ok".';
+        let resposta = null;
+
+        try {
+            if (provider === 'openai') {
+                const OpenAI = require('openai');
+                const openai = new OpenAI({ apiKey });
+                const r = await openai.chat.completions.create({
+                    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+                    messages: [{ role: 'user', content: TESTE_PROMPT }],
+                    temperature: 0,
+                    max_tokens: 5,
+                });
+                resposta = r.choices[0]?.message?.content?.trim();
+            } else if (provider === 'gemini') {
+                const fetch = require('node-fetch');
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                const r = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ role: 'user', parts: [{ text: TESTE_PROMPT }] }],
+                        generationConfig: { temperature: 0, maxOutputTokens: 5 },
+                    }),
+                    timeout: 8000,
+                });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                const data = await r.json();
+                resposta = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+            } else if (provider === 'claude') {
+                const Anthropic = require('@anthropic-ai/sdk');
+                const client = new Anthropic({ apiKey });
+                const r = await client.messages.create({
+                    model: 'claude-haiku-4-5-20251001',
+                    max_tokens: 5,
+                    messages: [{ role: 'user', content: TESTE_PROMPT }],
+                });
+                resposta = r.content[0]?.text?.trim();
+            }
+
+            if (resposta) {
+                return res.json({ success: true, online: true, provider, mensagem: `${provider} respondendo corretamente.` });
+            }
+            return res.json({ success: false, online: false, provider, mensagem: 'IA não retornou resposta válida.' });
+
+        } catch (err) {
+            const msg = err.message || '';
+            let detalhe = 'Erro de conexão com a IA externa.';
+            if (msg.includes('401') || msg.includes('invalid') || msg.includes('API key')) detalhe = 'Chave de API inválida ou expirada.';
+            else if (msg.includes('429')) detalhe = 'Limite de requisições atingido.';
+            else if (msg.includes('403')) detalhe = 'Acesso negado — verifique a chave de API.';
+            return res.json({ success: false, online: false, provider, mensagem: detalhe });
+        }
+
+    } catch (err) {
+        res.status(500).json({ success: false, online: false, mensagem: 'Erro ao testar conexão.' });
+    }
+}
+
+// ================================================================
 // GET /api/ai/config
 // Retorna configuração de IA do usuário autenticado
 // ================================================================
@@ -850,6 +1142,9 @@ module.exports = {
     salvarAprendizadoCategoria,
     salvarConfigChave,
     obterConfigIA,
+    testarConexaoIA,
+    resumoFinanceiro,
+    importarExtrato,
     status,
     buscarConfigIA,
     buscarCartaServicos,
