@@ -2043,7 +2043,7 @@ function renderizarTemaAnalise() {
                         el.innerHTML =
                             '<div style="font-weight:700;margin-bottom:7px;color:#a5b4fc;font-size:11px;text-transform:uppercase;letter-spacing:0.6px">' + cat.nome + '</div>' +
                             '<div style="display:flex;flex-direction:column;gap:4px">' +
-                            '<div style="color:#f1f5f9;font-size:13px;font-weight:700">' + tempoStr + ' de trabalho</div>' +
+                            '<div style="color:#1e293b;font-size:13px;font-weight:700">' + tempoStr + ' de trabalho</div>' +
                             '<div style="color:#94a3b8;font-size:11px">' + fmtR(cat.total) + ' <span style="color:#6366f1">(' + pct + '% da renda)</span></div>' +
                             (taxaHoraria ? '<div style="color:#64748b;font-size:10px;margin-top:2px">Taxa: ' + fmtR(taxaHoraria) + '/h</div>' : '') +
                             '</div>';
