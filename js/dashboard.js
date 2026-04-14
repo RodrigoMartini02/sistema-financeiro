@@ -2,25 +2,58 @@
 // PLUGINS GLOBAIS CHART.JS — GRADIENTES + GLOW
 // ================================================================
 
+// Converte qualquer string de cor para rgba com alpha específico
+function _colorWithAlpha(color, alpha) {
+    if (!color || typeof color !== 'string') return color;
+    if (color.startsWith('#')) {
+        const hex = color.slice(1);
+        const full = hex.length === 3
+            ? hex.split('').map(c => c + c).join('')
+            : hex;
+        const r = parseInt(full.slice(0,2),16);
+        const g = parseInt(full.slice(2,4),16);
+        const b = parseInt(full.slice(4,6),16);
+        return `rgba(${r},${g},${b},${alpha})`;
+    }
+    if (color.startsWith('rgba')) return color.replace(/[\d.]+\)$/, alpha + ')');
+    if (color.startsWith('rgb(')) return color.replace('rgb(', 'rgba(').replace(')', `,${alpha})`);
+    return color;
+}
+
 // Plugin 1: Gradientes automáticos em barras (vertical e horizontal)
+// — Suporta _gradColors explícito OU auto-gradiente banking-style para cor sólida
 const gradientBarsPlugin = {
     id: 'gradientBars',
     beforeDatasetDraw(chart, args) {
         const dataset = chart.data.datasets[args.index];
-        if (!dataset._gradColors) return;
         const { ctx, chartArea } = chart;
         if (!chartArea) return;
         const { top, bottom, left, right } = chartArea;
-        const [c1, c2] = dataset._gradColors;
         const isH = chart.options.indexAxis === 'y';
-        let grad;
-        if (isH) {
-            grad = ctx.createLinearGradient(left, 0, right, 0);
-        } else {
-            grad = ctx.createLinearGradient(0, bottom, 0, top);
+        const meta = chart.getDatasetMeta(args.index);
+
+        // Gradiente explícito via _gradColors
+        if (dataset._gradColors) {
+            const [c1, c2] = dataset._gradColors;
+            const grad = isH
+                ? ctx.createLinearGradient(left, 0, right, 0)
+                : ctx.createLinearGradient(0, bottom, 0, top);
+            grad.addColorStop(0, c1);
+            grad.addColorStop(1, c2);
+            dataset.backgroundColor = grad;
+            return;
         }
-        grad.addColorStop(0, c1);
-        grad.addColorStop(1, c2);
+
+        // Auto-gradiente banking-style para barras com cor sólida (string)
+        if (meta?.type !== 'bar') return;
+        const origColor = dataset._origBgColor || dataset.backgroundColor;
+        if (typeof origColor !== 'string' || Array.isArray(origColor)) return;
+        dataset._origBgColor = origColor;
+        const grad = isH
+            ? ctx.createLinearGradient(left, 0, right, 0)
+            : ctx.createLinearGradient(0, top, 0, bottom);
+        grad.addColorStop(0, _colorWithAlpha(origColor, 0.95));
+        grad.addColorStop(1, _colorWithAlpha(origColor, 0.45));
         dataset.backgroundColor = grad;
     }
 };
@@ -610,6 +643,10 @@ function inicializarDashboardTematico() {
     Chart.defaults.color = '#94a3b8';
     Chart.defaults.borderColor = 'rgba(255,255,255,0.05)';
     if (Chart.defaults.font) Chart.defaults.font.family = "'Inter', sans-serif";
+    if (Chart.defaults.datasets?.bar) {
+        Chart.defaults.datasets.bar.borderRadius = 8;
+        Chart.defaults.datasets.bar.borderSkipped = false;
+    }
 
     // Garantir registro dos plugins visuais
     _registrarPluginsChart();
@@ -2767,7 +2804,12 @@ async function renderizarTemaEmpresa() {
             },
             scales: {
                 x: { ticks: { color: 'var(--text-secondary,#aaa)' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-                y: { ticks: { color: 'var(--text-secondary,#aaa)', callback: v => 'R$ ' + v.toLocaleString('pt-BR') }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                y: {
+                    ticks: { color: 'var(--text-secondary,#aaa)', callback: v => 'R$ ' + v.toLocaleString('pt-BR') },
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    suggestedMin: -(Math.max(...dadosPorPerfil.map(p => Math.abs(p.saldo)), 1) * 1.2),
+                    suggestedMax:   Math.max(...dadosPorPerfil.map(p => Math.abs(p.saldo)), 1) * 1.2
+                }
             }
         }
     });
