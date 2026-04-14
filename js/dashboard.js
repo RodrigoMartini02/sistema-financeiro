@@ -812,7 +812,7 @@ function opcoesBarraH() {
                 grid: { color: gridColor }
             },
             y: {
-                ticks: { color: labelColor, font: { size: 11 } },
+                ticks: { color: labelColor, font: { size: 9 }, autoSkip: false },
                 grid: { display: false }
             }
         }
@@ -1637,15 +1637,29 @@ function renderizarTemaDivida() {
         })
     });
 
-    // Gráfico 2: Área — parcelamentos por mês com glow
-    const parcPorMes = agruparPorMes(parceladas, 'valor');
+    // Gráfico 2: Barras — parcelamentos por mês (pago = verde, pendente = âmbar)
+    const parcPagas = new Array(12).fill(0);
+    const parcPendentes = new Array(12).fill(0);
+    parceladas.forEach(function(d) {
+        const m = d.mes;
+        if (m >= 0 && m <= 11) {
+            const v = parseFloat(d.valor || 0);
+            if (!isNaN(v)) {
+                if (d.quitado || d.status === 'quitada') parcPagas[m] += v;
+                else parcPendentes[m] += v;
+            }
+        }
+    });
     criarChart('tema-divida-parcelas', {
-        type: 'line',
-        data: { labels: MESES_LABELS, datasets: [{ label: 'Parcelamentos', data: parcPorMes, borderColor: '#f59e0b', backgroundColor: criarGradiente('tema-divida-parcelas','#f59e0b',0.35,0.02), fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2.5, _glowColor: '#f59e0b', _glowBlur: 10 }] },
+        type: 'bar',
+        data: { labels: MESES_LABELS, datasets: [
+            { label: 'Pago', data: parcPagas, backgroundColor: '#10b981', borderRadius: 6, borderSkipped: false, maxBarThickness: 32, stack: 'parc' },
+            { label: 'Pendente', data: parcPendentes, backgroundColor: '#f59e0b', borderRadius: 6, borderSkipped: false, maxBarThickness: 32, stack: 'parc' }
+        ]},
         options: opcoesEscuras({
-            plugins: { legend: { display: false }, tooltip: { enabled: false, external: tooltipExternoHandler } },
+            plugins: { legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 12, padding: 12 } }, tooltip: { enabled: false, external: tooltipExternoHandler } },
             animation: { duration: 900, easing: 'easeOutQuart' },
-            scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } }
+            scales: { x: { stacked: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { stacked: true, beginAtZero: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } }
         })
     });
 
@@ -1823,7 +1837,7 @@ function renderizarTemaAnual() {
                 barThickness: 18
             }]
         },
-        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { display: false } } } }
+        options: opcoesBarraH()
     });
 }
 
@@ -1846,24 +1860,16 @@ function renderizarTemaAnalise() {
     if (el2) el2.textContent = MESES_LABELS[despPorMes.indexOf(despPorMes.slice().sort((a,b)=>Math.abs(a-mediaMensal)-Math.abs(b-mediaMensal))[0])] || '--';
     if (el3) el3.textContent = fmtR(max - minPositivo);
 
-    // Gráfico 1: Peso das Categorias — barras horizontais com valor total anual ordenado por peso
+    // Gráfico 1: Peso das Categorias — barras horizontais com valor total ordenado por peso (respeita filtro ativo)
     const porCat = {};
-    // Usar todos os anos disponíveis da estrutura dadosFinanceiros para calcular total anual
-    const todosAnosAnalise = Object.keys(df).map(Number).filter(Boolean);
-    todosAnosAnalise.forEach(function(anoN) {
-        const mesesAno = df[anoN]?.meses || [];
-        for (let m = 0; m < 12; m++) {
-            (mesesAno[m]?.despesas || []).forEach(function(d) {
-                const catObj = categorias.find(c => c.id === d.categoria_id);
-                const nome = catObj ? catObj.nome : (d.categoria || 'Outros');
-                const valor = window.obterValorRealDespesa ? window.obterValorRealDespesa(d) : parseFloat(d.valor || 0);
-                if (!isNaN(valor) && valor > 0) porCat[nome] = (porCat[nome] || 0) + valor;
-            });
-        }
+    despesas.forEach(function(d) {
+        const catObj = categorias.find(c => c.id === d.categoria_id);
+        const nome = catObj ? catObj.nome : (d.categoria || 'Outros');
+        const valor = window.obterValorRealDespesa ? window.obterValorRealDespesa(d) : parseFloat(d.valor || 0);
+        if (!isNaN(valor) && valor > 0) porCat[nome] = (porCat[nome] || 0) + valor;
     });
     const catArrPeso = Object.entries(porCat).sort((a, b) => b[1] - a[1]);
     const totalAnualPeso = catArrPeso.reduce((s, [, v]) => s + v, 0);
-    const maxPeso = catArrPeso.length > 0 ? catArrPeso[0][1] : 1;
     criarChart('tema-analise-media', {
         type: 'bar',
         data: {
