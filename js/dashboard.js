@@ -1984,42 +1984,77 @@ function renderizarTemaAnalise() {
         }
     });
 
-    // Gráfico 3: Barras agrupadas — balanço por ano (lê estrutura correta)
-    const todosAnos = Object.keys(df).map(Number).filter(Boolean).sort();
-    const recAnos = todosAnos.map(function(ano) {
-        let s = 0;
-        const meses = df[ano]?.meses || [];
-        for (let m = 0; m < 12; m++) {
-            (meses[m]?.receitas || []).forEach(function(r) {
-                if (!r.saldoAnterior && !r.automatica && !r.descricao?.includes('Saldo Anterior')) s += parseFloat(r.valor||0);
-            });
-        }
-        return s;
+    // Gráfico 3: Custo em Horas de Trabalho por categoria
+    const totalReceitas = receitas
+        .filter(r => !r.saldoAnterior && !r.automatica && !r.descricao?.includes('Saldo Anterior'))
+        .reduce((s, r) => s + parseFloat(r.valor || 0), 0);
+    const taxaHoraria = totalReceitas > 0 ? totalReceitas / 220 : null;
+
+    const horasPorCat = {};
+    despesas.forEach(function(d) {
+        const catObj = categorias.find(c => c.id === d.categoria_id);
+        const nome = catObj ? catObj.nome : (d.categoria || 'Outros');
+        const valor = window.obterValorRealDespesa ? window.obterValorRealDespesa(d) : parseFloat(d.valor || 0);
+        if (!isNaN(valor) && valor > 0) horasPorCat[nome] = (horasPorCat[nome] || 0) + valor;
     });
-    const despAnos = todosAnos.map(function(ano) {
-        let s = 0;
-        const meses = df[ano]?.meses || [];
-        for (let m = 0; m < 12; m++) {
-            (meses[m]?.despesas || []).forEach(function(d) { s += parseFloat(d.valor||0); });
-        }
-        return s;
-    });
+
+    const catHoras = Object.entries(horasPorCat)
+        .map(([nome, total]) => ({ nome, total, horas: taxaHoraria ? total / taxaHoraria : 0 }))
+        .sort((a, b) => b.horas - a.horas);
+
     criarChart('tema-analise-anos', {
         type: 'bar',
         data: {
-            labels: todosAnos,
-            datasets: [
-                { label: 'Receitas', data: recAnos, backgroundColor: '#10b981', borderRadius: 4, _gradColors: ['#10b981', '#34d399'] },
-                { label: 'Despesas', data: despAnos, backgroundColor: '#f43f5e', borderRadius: 4, _gradColors: ['#f43f5e', '#fb7185'] }
-            ]
+            labels: catHoras.map(c => c.nome),
+            datasets: [{
+                label: 'Horas',
+                data: catHoras.map(c => parseFloat(c.horas.toFixed(1))),
+                backgroundColor: '#6366f1',
+                borderRadius: 6,
+                borderSkipped: false,
+                barPercentage: 0.85
+            }]
         },
-        options: opcoesEscuras({
-            plugins: {
-                legend: { position: 'top', labels: { color: '#94a3b8', font: { size: 11 } } },
-                tooltip: { enabled: false, external: tooltipExternoHandler }
-            },
-            animation: { duration: 900, easing: 'easeOutQuart', delay: function(ctx) { return ctx.dataIndex * 80; } },
-            scales: { x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } } }
+        options: Object.assign({}, opcoesBarraH(), {
+            animation: { duration: 900, easing: 'easeOutQuart', delay: function(ctx) { return ctx.dataIndex * 35; } },
+            plugins: Object.assign({}, opcoesBarraH().plugins, {
+                tooltip: {
+                    enabled: false,
+                    external: function(context) {
+                        const el = criarOuObterTooltipEl();
+                        const { chart, tooltip } = context;
+                        if (tooltip.opacity === 0) { el.style.opacity = '0'; return; }
+                        const pos = chart.canvas.getBoundingClientRect();
+                        const ttW = 240;
+                        const rawLeft = pos.left + window.scrollX + tooltip.caretX + 14;
+                        const left = (rawLeft + ttW > window.innerWidth - 10) ? pos.left + window.scrollX + tooltip.caretX - ttW - 10 : rawLeft;
+                        el.style.left = left + 'px';
+                        el.style.top  = (pos.top + window.scrollY + tooltip.caretY - 10) + 'px';
+                        el.style.opacity = '1';
+                        const i = tooltip.dataPoints?.[0]?.dataIndex ?? 0;
+                        const cat = catHoras[i];
+                        if (!cat) return;
+                        const pct = totalReceitas > 0 ? ((cat.total / totalReceitas) * 100).toFixed(1) : '0';
+                        const horasInt = Math.floor(cat.horas);
+                        const minutos = Math.round((cat.horas - horasInt) * 60);
+                        const tempoStr = horasInt > 0
+                            ? horasInt + 'h' + (minutos > 0 ? ' ' + minutos + 'min' : '')
+                            : minutos + 'min';
+                        el.innerHTML =
+                            '<div style="font-weight:700;margin-bottom:7px;color:#a5b4fc;font-size:11px;text-transform:uppercase;letter-spacing:0.6px">' + cat.nome + '</div>' +
+                            '<div style="display:flex;flex-direction:column;gap:4px">' +
+                            '<div style="color:#f1f5f9;font-size:13px;font-weight:700">' + tempoStr + ' de trabalho</div>' +
+                            '<div style="color:#94a3b8;font-size:11px">' + fmtR(cat.total) + ' <span style="color:#6366f1">(' + pct + '% da renda)</span></div>' +
+                            (taxaHoraria ? '<div style="color:#64748b;font-size:10px;margin-top:2px">Taxa: ' + fmtR(taxaHoraria) + '/h</div>' : '') +
+                            '</div>';
+                    }
+                }
+            }),
+            scales: Object.assign({}, opcoesBarraH().scales, {
+                x: Object.assign({}, opcoesBarraH().scales?.x, {
+                    ticks: { color: '#94a3b8', font: { size: 10 }, callback: function(v) { return v + 'h'; } }
+                })
+            })
         })
     });
 }
