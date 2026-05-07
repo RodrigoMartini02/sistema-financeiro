@@ -27,7 +27,10 @@ const pool = new Pool({
     }
 });
 
+const DB_SCHEMA = process.env.DB_SCHEMA || 'public';
+
 pool.on('connect', (client) => {
+    client.query(`SET search_path TO ${DB_SCHEMA}, public`);
     client.query("SET timezone = 'America/Sao_Paulo'");
 });
 
@@ -175,6 +178,15 @@ const executarMigracoes = async () => {
             ON cartoes(usuario_id, LOWER(nome), COALESCE(perfil_id, 0))
         `);
         console.log('✅ Duplicatas de cartões removidas e constraint criada');;
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS ia_sessoes (
+                usuario_id INT PRIMARY KEY REFERENCES usuarios(id) ON DELETE CASCADE,
+                historico JSONB DEFAULT '[]'::jsonb,
+                atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        console.log('✅ Tabela ia_sessoes verificada/criada');
 
         console.log('✅ Migrações concluídas');
         return true;

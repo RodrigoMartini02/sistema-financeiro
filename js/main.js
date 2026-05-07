@@ -1,7 +1,11 @@
 // ================================================================
 // SISTEMA PRINCIPAL - MAIN.JS OTIMIZADO
 // ================================================================
-window.API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
+window.API_URL = window.API_URL || (
+    (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+        ? 'http://localhost:3010/api'
+        : 'https://sistema-financeiro-backend-o199.onrender.com/api'
+);
 const API_URL = window.API_URL;
 
 // ================================================================

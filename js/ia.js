@@ -215,7 +215,7 @@ window.IA = (function () {
 
             // Cacheia quais provedores têm chave salva
             var hasKeys = (cfg && cfg.has_keys) || {};
-            ['openai','gemini','claude'].forEach(function(p) {
+            ['openai','gemini','claude','groq'].forEach(function(p) {
                 if (hasKeys[p]) sessionStorage.setItem('ia_tem_chave_' + p, '1');
             });
 
@@ -497,9 +497,10 @@ window.IA = (function () {
             } else if (res.acao === 'encerrar') {
                 addGen(fmt(res.resposta || 'Até mais!'));
                 setTimeout(fechar, 1500);
+            } else if (res.acao === 'sem_provider' || res.acao === 'erro_provider') {
+                addGen(fmt(res.resposta || 'Configure uma chave de IA nas configurações para continuar.'));
             } else {
                 addGen(fmt(res.resposta || '...'));
-                // Após análise/consulta, oferece próxima ação (só se não termina com pergunta)
                 var resp = (res.resposta || '').trim();
                 if (resp && !resp.endsWith('?') && res.acao !== 'coletando_campos') {
                     _mostrarChipsContinuacao(null, 1000);
@@ -1959,13 +1960,15 @@ window.IA = (function () {
     var HINTS_PROVIDER = {
         openai:  'Chave começa com <code>sk-</code>. Obtenha em platform.openai.com',
         gemini:  'Obtenha sua chave em aistudio.google.com/apikey',
-        claude:  'Chave começa com <code>sk-ant-</code>. Obtenha em console.anthropic.com'
+        claude:  'Chave começa com <code>sk-ant-</code>. Obtenha em console.anthropic.com',
+        groq:    'Obtenha sua chave gratuita em console.groq.com'
     };
     var LABELS_PROVIDER = {
-        gen:    'Gen ativa — IA interna IGen - Sistema Financeiro Inteligente',
+        gen:    'Gen ativa — configure uma chave de IA para ativar o assistente',
         openai: 'OpenAI ativa — GPT-4o mini',
         gemini: 'Google Gemini ativo — Gemini 2.0 Flash',
-        claude: 'Anthropic Claude ativo — Claude Haiku'
+        claude: 'Anthropic Claude ativo — Claude Sonnet',
+        groq:   'Groq ativo — Llama 3.3 70B'
     };
 
     function setupProviderSelect() {

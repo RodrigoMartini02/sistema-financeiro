@@ -140,13 +140,15 @@
         var HINTS = {
             openai: 'Chave começa com <code>sk-</code>. Obtenha em platform.openai.com',
             gemini: 'Obtenha sua chave em aistudio.google.com/apikey',
-            claude: 'Chave começa com <code>sk-ant-</code>. Obtenha em console.anthropic.com'
+            claude: 'Chave começa com <code>sk-ant-</code>. Obtenha em console.anthropic.com',
+            groq:   'Obtenha sua chave gratuita em console.groq.com'
         };
         var LABELS = {
-            gen:    'Gen ativa — IA interna IGen - Sistema Financeiro Inteligente',
-            openai: 'OpenAI ativa — GPT-4o mini',
+            gen:    'Gen — configure uma chave de IA para ativar o assistente',
+            openai: 'OpenAI ativo — GPT-4o mini',
             gemini: 'Google Gemini ativo — Gemini 2.0 Flash',
-            claude: 'Anthropic Claude ativo — Claude Haiku'
+            claude: 'Anthropic Claude ativo — Claude Sonnet',
+            groq:   'Groq ativo — Llama 3.3 70B'
         };
         var MASK = '••••••••';
         var API_URL = window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api';
