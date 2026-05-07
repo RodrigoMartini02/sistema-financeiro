@@ -46,7 +46,7 @@ const starsEl = document.getElementById('stars-container');
 // ================================================================
 async function carregarAvaliacoesReais() {
     try {
-        const response = await fetch('https://sistema-financeiro-backend-o199.onrender.com/api/avaliacoes');
+        const response = await fetch(`${window.API_URL}/avaliacoes`);
         if (!response.ok) return;
 
         const data = await response.json();
@@ -178,7 +178,7 @@ if (document.readyState === 'loading') {
 // MODAL DE AVALIAÇÃO (app.html) — disparado após 5 dias de uso
 // ================================================================
 (function () {
-    const API = 'https://sistema-financeiro-backend-o199.onrender.com/api';
+    const API = window.API_URL;
     let estrelaSelecionada = 0;
     const labels = ['', 'Ruim', 'Regular', 'Bom', 'Muito bom', 'Excelente!'];
 

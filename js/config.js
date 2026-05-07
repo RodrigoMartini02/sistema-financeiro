@@ -1,15 +1,6 @@
-// ================================================================
-// ARQUIVO DE CONFIGURAÇÃO CENTRALIZADO
-// ================================================================
-// IMPORTANTE: Este arquivo deve ser carregado ANTES de todos os outros
-// scripts JS do sistema. Adicione no index.html:
-// <script src="js/config.js"></script>
-// ================================================================
+const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
-// ================================================================
-// CONFIGURAÇÕES DE API E AMBIENTE
-// ================================================================
-
-window.API_URL = 'https://sistema-financeiro-backend-o199.onrender.com/api';
-
-window.ENVIRONMENT = 'production';
+window.ENVIRONMENT = isLocal ? 'development' : 'production';
+window.API_URL = isLocal
+    ? 'http://localhost:3010/api'
+    : 'https://sistema-financeiro-backend-o199.onrender.com/api';
