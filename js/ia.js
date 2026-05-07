@@ -187,18 +187,17 @@ window.IA = (function () {
         tentativa = tentativa || 1;
         _setStatus(tentativa > 1 ? 'iniciando... (' + tentativa + ')' : 'conectando...', false);
 
-        apiGet('/config').then(function (cfg) {
+        apiGet('/providers').then(function (cfg) {
             var provider = (cfg && cfg.provider) || 'gen';
-            var nome     = (cfg && cfg.nome)     || 'Gen ativa — IA interna IGen - Sistema Financeiro Inteligente';
+            var nome     = (cfg && cfg.nome)     || 'Gen aguardando provedor';
             var isGen    = provider === 'gen';
 
             if (isGen) {
-                // Gen interna: sempre online
-                _setStatus(nome, true);
+                _setStatus(nome, false);
             } else {
                 // IA externa: mostra "verificando..." até testar a conexão real
                 _setStatus(nome + ' — verificando...', false);
-                apiGet('/test').then(function(t) {
+                apiGet('/providers/test').then(function(t) {
                     if (t && t.online) {
                         _setStatus(nome, true);
                     } else {
@@ -252,11 +251,11 @@ window.IA = (function () {
 
         }).catch(function () {
             // /config falhou (novo endpoint ainda não deployado?) — tenta /status sem auth
-            apiGet('/status').then(function (st) {
+            apiGet('/health').then(function (st) {
                 var nome = (st && st.openai && st.openai.ativo)
                     ? 'OpenAI ativa — ' + (st.openai.modelo || 'gpt-4o-mini')
-                    : 'Gen ativa — IA interna';
-                _setStatus(nome, true);
+                    : 'Gen aguardando provedor';
+                _setStatus(nome, false);
                 var badge = document.getElementById('ia-badge-status');
                 if (badge) { badge.textContent = nome; badge.className = 'badge gen'; }
             }).catch(function () {
@@ -303,7 +302,7 @@ window.IA = (function () {
         var _pid  = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
         var _qs   = '?mes=' + _mes + '&ano=' + _ano + (_pid ? '&perfil_id=' + _pid : '');
 
-        apiGet('/resumo' + _qs).then(function(d) {
+        apiGet('/financial-summary' + _qs).then(function(d) {
             if (!d || !d.success) return;
             var r       = d.resumo || {};
             var msgs    = [];
@@ -408,7 +407,7 @@ window.IA = (function () {
         cancelarArquivo();
         fecharBoleto();
         _histClear();
-        apiPost('/chat', { mensagem: '_reset_', limpar_sessao: true }).catch(function () { });
+        apiPost('/conversation', { mensagem: '_reset_', limpar_sessao: true }).catch(function () { });
         boasVindas();
     }
 
@@ -441,7 +440,7 @@ window.IA = (function () {
 
         // Interceptar payload PIX (string EMV — começa com "0002" e tem 30+ chars numérico-alfanumérico)
         if (/^00020[12]/i.test(texto.trim()) && texto.trim().length > 30) {
-            apiPost('/pix', { payload: texto.trim() }).then(function(res) {
+            apiPost('/pix/parse', { payload: texto.trim() }).then(function(res) {
                 removeTyping(tid);
                 if (res && res.sucesso && res.despesa) {
                     var beneficiario = res.nome || res.beneficiario || '';
@@ -491,7 +490,7 @@ window.IA = (function () {
         if (window.anoAberto !== undefined) _payload.ano_atual = window.anoAberto;
         var _perfilId = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
         if (_perfilId) _payload.perfil_id = _perfilId;
-        apiPost('/chat', _payload).then(function (res) {
+        apiPost('/conversation', _payload).then(function (res) {
             removeTyping(tid);
             if (!res || !res.success) { addGen('Desculpe, ocorreu um erro. Tente novamente.'); return; }
 
@@ -1115,6 +1114,7 @@ window.IA = (function () {
         var falta = [];
         if (!r.descricao) falta.push('descricao');
         if (!r.valor || parseFloat(r.valor) <= 0) falta.push('valor');
+        if (!r.data) falta.push('data_receita');
         return falta;
     }
 
@@ -1685,7 +1685,7 @@ window.IA = (function () {
         var lista = document.getElementById('recorrencias-lista');
         if (lista) lista.innerHTML = '<p class="ia-hint">Analisando...</p>';
 
-        apiGet('/recorrencias?detectar=true').then(function (res) {
+        apiGet('/recurrences?detectar=true').then(function (res) {
             if (!res || !res.sugestoes || res.sugestoes.length === 0) {
                 if (lista) lista.innerHTML = '<p class="ia-hint">Nenhuma recorrência detectada.</p>';
                 return;
@@ -1707,7 +1707,7 @@ window.IA = (function () {
         var catEl    = document.getElementById('ia-campo-categoria');
         var categoria = catEl?.options[catEl.selectedIndex]?.text;
         if (!texto || !categoria) return;
-        apiPost('/aprendizado', { texto, categoria }).then(function (res) {
+        apiPost('/category-learning', { texto, categoria }).then(function (res) {
             var hint = document.getElementById('ia-aprendizado-hint');
             if (hint) hint.style.display = 'none';
             if (res && res.success) addGen('Gen vai lembrar: "' + texto + '" → ' + categoria);
@@ -1753,7 +1753,7 @@ window.IA = (function () {
         var apiPromise  = (function () {
             var ctrl = new AbortController();
             setTimeout(function () { ctrl.abort(); }, 90000); // 90s para análise de imagem via Vision AI
-            return fetch(apiURL() + '/ai/arquivo', {
+            return fetch(apiURL() + '/ai/documents', {
                 method: 'POST',
                 headers: { 'Authorization': 'Bearer ' + getToken() },
                 body: form,
@@ -1817,7 +1817,7 @@ window.IA = (function () {
         addUser('🏦 Linha digitável enviada');
         var tid = addTyping();
 
-        apiPost('/boleto', { linha_digitavel: val }).then(function (res) {
+        apiPost('/boletos/parse', { linha_digitavel: val }).then(function (res) {
             removeTyping(tid);
             if (!res || !res.sucesso) { addGen('Não consegui interpretar o boleto: ' + (res?.erro || 'verifique a linha digitável e tente novamente.')); return; }
             var partes = [];
@@ -1969,7 +1969,7 @@ window.IA = (function () {
         groq:    'Obtenha sua chave gratuita em console.groq.com'
     };
     var LABELS_PROVIDER = {
-        gen:    'Gen ativa — configure uma chave de IA para ativar o assistente',
+        gen:    'Gen aguardando provedor',
         openai: 'OpenAI ativa — GPT-4o mini',
         gemini: 'Google Gemini ativo — Gemini 2.0 Flash',
         claude: 'Anthropic Claude ativo — Claude Sonnet',
@@ -1993,7 +1993,7 @@ window.IA = (function () {
             var inp = document.getElementById('ia-api-key-input');
             if (v === 'gen') {
                 // "gen" não tem campo de chave — salva silenciosamente sem toast
-                apiPost('/config/chave', { provider: 'gen', api_key: '' }).catch(function () {});
+                apiPost('/providers', { provider: 'gen', api_key: '' }).catch(function () {});
                 return;
             }
             if (sessionStorage.getItem('ia_tem_chave_' + v)) {
@@ -2052,7 +2052,7 @@ window.IA = (function () {
             _toast('Informe a chave antes de salvar.', 'warning'); return;
         }
 
-        apiPost('/config/chave', { provider: provider, api_key: chave }).then(function (res) {
+        apiPost('/providers', { provider: provider, api_key: chave }).then(function (res) {
             if (res && res.success) {
                 _toast((LABELS_PROVIDER[provider] || 'Configuração salva') + ' ativa!', 'success');
                 // Mostra máscara em vez de limpar
@@ -2281,7 +2281,7 @@ function abrirModalInstrucoesGen() {
     if (!modal) return;
     modal.style.display = 'flex';
     // Carrega instruções existentes do usuário
-    var url = (window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api') + '/ai/instrucoes';
+    var url = (window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api') + '/ai/personal-instructions';
     var token = sessionStorage.getItem('token') || localStorage.getItem('token') || '';
     fetch(url, { headers: { 'Authorization': 'Bearer ' + token } })
         .then(function (r) { return r.json(); })
@@ -2298,10 +2298,10 @@ function salvarInstrucoesGen() {
     var input = document.getElementById('instrucoes-gen-input');
     var conteudo = input ? input.value.trim() : '';
     // Permite salvar vazio (para limpar as instruções)
-    var url = (window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api') + '/ai/instrucoes';
+    var url = (window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api') + '/ai/personal-instructions';
     var token = sessionStorage.getItem('token') || localStorage.getItem('token') || '';
     fetch(url, {
-        method: 'POST',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
         body: JSON.stringify({ conteudo: conteudo })
     }).then(function (r) { return r.json(); }).then(function (res) {
@@ -2319,7 +2319,7 @@ function salvarInstrucoesGen() {
 function carregarCartaServicos() {
     var container = document.getElementById('carta-servicos-content');
     if (!container) return;
-    var url = (window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api') + '/ai/carta';
+    var url = (window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api') + '/ai/service-letter';
     var token = sessionStorage.getItem('token') || localStorage.getItem('token') || '';
     fetch(url, { headers: { 'Authorization': 'Bearer ' + token } })
         .then(function (r) { return r.json(); })
@@ -2363,10 +2363,10 @@ function salvarCartaInstrucao() {
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Revisando...'; }
     if (status) status.textContent = 'A IA está analisando e incorporando a instrução...';
 
-    var url = (window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api') + '/ai/carta';
+    var url = (window.API_URL || 'https://sistema-financeiro-backend-o199.onrender.com/api') + '/ai/service-letter';
     var token = sessionStorage.getItem('token') || localStorage.getItem('token') || '';
     fetch(url, {
-        method: 'POST',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
         body: JSON.stringify({ instrucao: instrucao })
     })

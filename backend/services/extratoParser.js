@@ -3,6 +3,8 @@
 // Extrai transações usando IA (texto do PDF)
 // ================================================================
 
+const { generateJson, hasExternalProvider } = require('./genProviderGateway');
+
 const PROMPT_EXTRATO = `Você está analisando o texto extraído de um extrato bancário em PDF.
 
 Extraia TODAS as transações encontradas e retorne um array JSON.
@@ -33,66 +35,19 @@ Regras:
  * Parseia extrato bancário em PDF usando IA externa
  */
 async function parsearExtratoComIA(texto, providerConfig) {
-    const provider = providerConfig?.provider;
-    const apiKey   = providerConfig?.apiKey;
-
-    if (!provider || provider === 'gen' || !apiKey) {
+    if (!hasExternalProvider(providerConfig)) {
         return parsearExtratoHeuristico(texto);
     }
 
     try {
-        let resultado = null;
-
-        if (provider === 'openai') {
-            const OpenAI = require('openai');
-            const openai = new OpenAI({ apiKey });
-            const r = await openai.chat.completions.create({
-                model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-                messages: [
-                    { role: 'system', content: PROMPT_EXTRATO },
-                    { role: 'user',   content: texto.slice(0, 8000) } // limita tokens
-                ],
-                temperature: 0,
-                max_tokens: 4000,
-                response_format: { type: 'json_object' }
-            });
-            const raw = r.choices[0]?.message?.content?.trim();
-            const parsed = JSON.parse(raw);
-            resultado = Array.isArray(parsed) ? parsed : (parsed.transacoes || parsed.transactions || []);
-
-        } else if (provider === 'gemini') {
-            const fetch = require('node-fetch');
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-            const r = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ role: 'user', parts: [{ text: PROMPT_EXTRATO + '\n\n' + texto.slice(0, 8000) }] }],
-                    generationConfig: { temperature: 0, maxOutputTokens: 4000 },
-                }),
-                timeout: 30000,
-            });
-            if (!r.ok) throw new Error('Gemini HTTP ' + r.status);
-            const data  = await r.json();
-            const raw2  = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '[]';
-            const clean = raw2.replace(/```json\n?|\n?```/g, '').trim();
-            const parsed2 = JSON.parse(clean);
-            resultado = Array.isArray(parsed2) ? parsed2 : (parsed2.transacoes || parsed2.transactions || []);
-
-        } else if (provider === 'claude') {
-            const Anthropic = require('@anthropic-ai/sdk');
-            const client = new Anthropic({ apiKey });
-            const r = await client.messages.create({
-                model: 'claude-haiku-4-5-20251001',
-                max_tokens: 4000,
-                system: PROMPT_EXTRATO,
-                messages: [{ role: 'user', content: texto.slice(0, 8000) }],
-            });
-            const raw3  = r.content[0]?.text?.trim() || '[]';
-            const clean3 = raw3.replace(/```json\n?|\n?```/g, '').trim();
-            const parsed3 = JSON.parse(clean3);
-            resultado = Array.isArray(parsed3) ? parsed3 : (parsed3.transacoes || parsed3.transactions || []);
-        }
+        const parsed = await generateJson(providerConfig, {
+            system: PROMPT_EXTRATO,
+            prompt: texto.slice(0, 8000),
+            temperature: 0,
+            maxTokens: 4000,
+            timeout: 30000,
+        }, []);
+        const resultado = Array.isArray(parsed) ? parsed : (parsed?.transacoes || parsed?.transactions || []);
 
         if (Array.isArray(resultado)) {
             return normalizarTransacoes(resultado);

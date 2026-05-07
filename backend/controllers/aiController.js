@@ -9,6 +9,7 @@ const { parsearBoleto, encontrarLinhaDigitavel } = require('../services/boletoPa
 const { detectarRecorrencias, salvarRecorrencia, buscarRecorrencias } = require('../services/recurrenceDetector');
 const { normalizarData, formatarData } = require('../utils/expenseNormalizer');
 const { parsearExtratoComIA } = require('../services/extratoParser');
+const secureKeyStore = require('../services/secureKeyStore');
 const fs = require('fs');
 
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -20,8 +21,9 @@ async function buscarConfigIA(usuarioId) {
         const r = await query('SELECT dados_financeiros FROM usuarios WHERE id = $1', [usuarioId]);
         const df = r.rows[0]?.dados_financeiros || {};
         const provider      = df.ia_provider   || null;
-        const apiKeys       = df.ia_api_keys   || {};
-        const apiKey        = df.ia_api_key    || apiKeys[provider] || null;
+        const apiKeys       = secureKeyStore.decryptKeyMap(df.ia_api_keys || {});
+        const legacyApiKey  = secureKeyStore.decryptKey(df.ia_api_key);
+        const apiKey        = apiKeys[provider] || legacyApiKey || null;
         const instrucoesGen = df.instrucoes_gen || '';
         return { provider, apiKey, apiKeys, instrucoesGen };
     } catch {
@@ -237,8 +239,8 @@ async function buscarContextoAtual(usuarioId, mes, ano, perfilId) {
 
 const FERRAMENTAS = [
     {
-        name: 'criar_despesa',
-        description: 'Registra uma nova despesa financeira. Use quando o usuário quiser lançar um gasto, compra ou pagamento. Chame esta ferramenta somente quando tiver todos os campos obrigatórios: descricao, valor e forma_pagamento. Se forma_pagamento for "credito", nome_cartao também é obrigatório. Se parcelas > 1, nome_cartao também é obrigatório. Se faltar algum campo obrigatório, pergunte TODOS de uma vez antes de chamar.',
+        name: 'preparar_lancamento_despesa',
+        description: 'Prepara uma despesa para conferência do usuário antes de salvar. Use quando o usuário quiser lançar um gasto, compra ou pagamento. Chame somente com descricao, valor e forma_pagamento. Se forma_pagamento for "credito" ou parcelas > 1, nome_cartao também é obrigatório. Se faltar algum campo obrigatório, pergunte todos de uma vez antes de chamar.',
         parameters: {
             type: 'object',
             properties: {
@@ -255,8 +257,8 @@ const FERRAMENTAS = [
         },
     },
     {
-        name: 'criar_receita',
-        description: 'Registra uma nova receita ou entrada financeira. Use quando o usuário mencionar que recebeu dinheiro, salário, pagamento ou qualquer entrada.',
+        name: 'preparar_lancamento_receita',
+        description: 'Prepara uma receita para conferência do usuário antes de salvar. Use quando o usuário mencionar entrada de dinheiro, salário, pagamento recebido ou qualquer receita.',
         parameters: {
             type: 'object',
             properties: {
@@ -268,8 +270,8 @@ const FERRAMENTAS = [
         },
     },
     {
-        name: 'buscar_resumo_financeiro',
-        description: 'Busca o resumo financeiro de um período: total de receitas, despesas, saldo e gastos por categoria.',
+        name: 'consultar_resumo_financeiro',
+        description: 'Consulta o resumo financeiro de um período: receitas, despesas, saldo, valores pagos/em aberto e gastos por categoria.',
         parameters: {
             type: 'object',
             properties: {
@@ -279,8 +281,8 @@ const FERRAMENTAS = [
         },
     },
     {
-        name: 'buscar_despesas',
-        description: 'Busca lista de despesas com filtros opcionais por período e categoria.',
+        name: 'listar_despesas',
+        description: 'Lista despesas com filtros opcionais por período, categoria e limite de resultados.',
         parameters: {
             type: 'object',
             properties: {
@@ -292,8 +294,8 @@ const FERRAMENTAS = [
         },
     },
     {
-        name: 'comparar_periodos',
-        description: 'Compara dados financeiros entre dois períodos. Útil para "gastei mais que o mês passado?" ou comparações entre meses/anos.',
+        name: 'comparar_competencias',
+        description: 'Compara duas competências financeiras. Útil para perguntas como "gastei mais que mês passado?" ou comparações entre meses/anos.',
         parameters: {
             type: 'object',
             properties: {
@@ -306,8 +308,8 @@ const FERRAMENTAS = [
         },
     },
     {
-        name: 'buscar_historico_categoria',
-        description: 'Busca o histórico de gastos em uma categoria ao longo de vários meses. Use para identificar tendências de consumo.',
+        name: 'analisar_historico_categoria',
+        description: 'Analisa a evolução de gastos em uma categoria ao longo de vários meses para identificar tendências de consumo.',
         parameters: {
             type: 'object',
             properties: {
@@ -338,12 +340,12 @@ const FERRAMENTAS_GEMINI = [{
 
 async function executarFerramenta(nome, args, ctx) {
     switch (nome) {
-        case 'criar_despesa':              return executarCriarDespesa(args, ctx);
-        case 'criar_receita':              return executarCriarReceita(args, ctx);
-        case 'buscar_resumo_financeiro':   return executarBuscarResumo(args, ctx);
-        case 'buscar_despesas':            return executarBuscarDespesas(args, ctx);
-        case 'comparar_periodos':          return executarCompararPeriodos(args, ctx);
-        case 'buscar_historico_categoria': return executarHistoricoCategoria(args, ctx);
+        case 'preparar_lancamento_despesa': return executarCriarDespesa(args, ctx);
+        case 'preparar_lancamento_receita': return executarCriarReceita(args, ctx);
+        case 'consultar_resumo_financeiro': return executarBuscarResumo(args, ctx);
+        case 'listar_despesas':             return executarBuscarDespesas(args, ctx);
+        case 'comparar_competencias':       return executarCompararPeriodos(args, ctx);
+        case 'analisar_historico_categoria': return executarHistoricoCategoria(args, ctx);
         default:                           return { erro: `Ferramenta desconhecida: ${nome}` };
     }
 }
@@ -395,12 +397,16 @@ async function executarCriarDespesa(args, ctx) {
 }
 
 async function executarCriarReceita(args, ctx) {
+    if (!args.data) {
+        return { sucesso: false, mensagem: 'Para registrar a receita, informe a data de recebimento.' };
+    }
+
     return {
         sucesso: true,
         receita: {
             descricao: String(args.descricao).trim(),
             valor:     parseFloat(args.valor),
-            data:      args.data ? normalizarData(args.data) : formatarData(new Date()),
+            data:      normalizarData(args.data),
         },
     };
 }
@@ -518,7 +524,7 @@ async function chamarClaude({ apiKey, systemPrompt, workingMsgs }) {
     const client = new Anthropic({ apiKey });
 
     const r = await client.messages.create({
-        model: 'claude-sonnet-4-6',
+        model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514',
         max_tokens: 1024,
         system: systemPrompt,
         messages: workingMsgs,
@@ -614,7 +620,7 @@ function construirSystemPrompt(ctx, carta, instrucoes) {
         'Você ajuda o usuário a registrar despesas e receitas, consultar dados financeiros, comparar períodos e identificar tendências nos gastos.',
         '',
         'REGRAS PARA REGISTRAR DESPESAS:',
-        '- Use criar_despesa somente com: descricao, valor e forma_pagamento preenchidos',
+        '- Use preparar_lancamento_despesa somente com: descricao, valor e forma_pagamento preenchidos',
         '- Se forma_pagamento for "credito" ou parcelas > 1, nome_cartao também é obrigatório',
         '- Se faltarem campos obrigatórios, pergunte TODOS de uma vez em uma única mensagem',
         '- Nunca invente ou assuma valores que o usuário não informou',
@@ -622,7 +628,7 @@ function construirSystemPrompt(ctx, carta, instrucoes) {
         'FORMAS DE PAGAMENTO ACEITAS: dinheiro, debito, pix, credito',
         '',
         'REGRAS PARA REGISTRAR RECEITAS:',
-        '- Use criar_receita com descricao, valor e data',
+        '- Use preparar_lancamento_receita com descricao, valor e data',
         '',
         'REGRAS GERAIS:',
         '- Responda sempre em português brasileiro',
@@ -649,13 +655,20 @@ function construirSystemPrompt(ctx, carta, instrucoes) {
 
 // ── CHAT ──────────────────────────────────────────────────────────
 
-async function chat(req, res) {
+async function handleConversation(req, res) {
     try {
         const usuarioId = req.usuario.id;
         const { mensagem, limpar_sessao, mes_atual, ano_atual, perfil_id } = req.body;
 
         if (!mensagem?.trim()) {
             return res.status(400).json({ success: false, message: 'Mensagem não pode estar vazia.' });
+        }
+
+        if (limpar_sessao) {
+            await limparHistorico(usuarioId);
+            if (mensagem === '_reset_') {
+                return res.json({ success: true, resposta: 'Conversa reiniciada.', acao: 'sessao_limpa' });
+            }
         }
 
         const providerConfig = await buscarConfigIA(usuarioId);
@@ -675,8 +688,6 @@ async function chat(req, res) {
                 acao: 'erro_provider',
             });
         }
-
-        if (limpar_sessao) await limparHistorico(usuarioId);
 
         const historico = await carregarHistorico(usuarioId);
         const ctx = await buscarContextoAtual(usuarioId, mes_atual, ano_atual, perfil_id || null);
@@ -731,9 +742,9 @@ async function chat(req, res) {
                 const toolRes = await executarFerramenta(tc.nome, tc.args, ctx);
                 toolResults.push({ id: tc.id, nome: tc.nome, resultado: toolRes });
 
-                if ((tc.nome === 'criar_despesa' || tc.nome === 'criar_receita') && toolRes.sucesso && !pendingAction) {
+                if ((tc.nome === 'preparar_lancamento_despesa' || tc.nome === 'preparar_lancamento_receita') && toolRes.sucesso && !pendingAction) {
                     pendingAction = {
-                        tipo:  tc.nome === 'criar_despesa' ? 'despesa' : 'receita',
+                        tipo:  tc.nome === 'preparar_lancamento_despesa' ? 'despesa' : 'receita',
                         dados: toolRes.despesa || toolRes.receita,
                     };
                 }
@@ -752,7 +763,7 @@ async function chat(req, res) {
 
 // ── INTERPRETAR DESPESA ───────────────────────────────────────────
 
-async function interpretarDespesa(req, res) {
+async function parseExpenseDraft(req, res) {
     try {
         const usuarioId = req.usuario.id;
         const { texto }  = req.body;
@@ -785,7 +796,7 @@ async function interpretarDespesa(req, res) {
 
 // ── ARQUIVO ───────────────────────────────────────────────────────
 
-async function processarArquivoUpload(req, res) {
+async function analyzeFinancialDocument(req, res) {
     const filePath = req.file?.path;
 
     try {
@@ -856,7 +867,7 @@ async function processarArquivoUpload(req, res) {
 
 // ── PIX ───────────────────────────────────────────────────────────
 
-async function interpretarPIX(req, res) {
+async function parsePixPayload(req, res) {
     const filePath = req.file?.path;
     try {
         let resultado;
@@ -880,7 +891,7 @@ async function interpretarPIX(req, res) {
 
 // ── BOLETO ────────────────────────────────────────────────────────
 
-async function interpretarBoleto(req, res) {
+async function parseBoletoPayload(req, res) {
     try {
         const { linha_digitavel, texto } = req.body;
         const linha = linha_digitavel || (texto ? encontrarLinhaDigitavel(texto) : null);
@@ -898,7 +909,7 @@ async function interpretarBoleto(req, res) {
 
 // ── RECORRÊNCIAS ──────────────────────────────────────────────────
 
-async function listarRecorrencias(req, res) {
+async function listRecurrenceInsights(req, res) {
     try {
         const usuarioId = req.usuario.id;
         if (req.query.detectar === 'true') {
@@ -913,7 +924,7 @@ async function listarRecorrencias(req, res) {
     }
 }
 
-async function confirmarRecorrencia(req, res) {
+async function confirmRecurrenceInsight(req, res) {
     try {
         if (!req.body.descricao || !req.body.valor_medio) {
             return res.status(400).json({ success: false, message: 'Dados incompletos.' });
@@ -928,7 +939,7 @@ async function confirmarRecorrencia(req, res) {
 
 // ── APRENDIZADO ───────────────────────────────────────────────────
 
-async function salvarAprendizadoCategoria(req, res) {
+async function saveCategoryLearning(req, res) {
     try {
         const { texto, categoria } = req.body;
         if (!texto || !categoria) {
@@ -944,7 +955,7 @@ async function salvarAprendizadoCategoria(req, res) {
 
 // ── CONFIGURAÇÃO DE PROVIDER ──────────────────────────────────────
 
-async function salvarConfigChave(req, res) {
+async function saveProviderConfiguration(req, res) {
     try {
         const usuarioId = req.usuario.id;
         const { provider, api_key } = req.body;
@@ -972,13 +983,16 @@ async function salvarConfigChave(req, res) {
             apiKeys[provider] = api_key;
         }
 
+        const storedApiKeys = secureKeyStore.encryptKeyMap(apiKeys);
+        const storedApiKey  = provider === 'gen' ? null : secureKeyStore.encryptKey(chaveAtual);
+
         await query(
             `UPDATE usuarios SET dados_financeiros = COALESCE(dados_financeiros, '{}'::jsonb) || $1::jsonb WHERE id = $2`,
-            [JSON.stringify({ ia_provider: provider, ia_api_key: provider === 'gen' ? null : chaveAtual, ia_api_keys: apiKeys }), usuarioId]
+            [JSON.stringify({ ia_provider: provider, ia_api_key: storedApiKey, ia_api_keys: storedApiKeys }), usuarioId]
         );
 
         const nomes = {
-            gen: 'Gen (sem IA externa)', openai: 'OpenAI GPT-4o mini',
+            gen: 'Gen aguardando provedor', openai: 'OpenAI GPT-4o mini',
             gemini: 'Google Gemini 2.0 Flash', claude: 'Anthropic Claude Sonnet',
             groq: 'Groq Llama 3.3 70B',
         };
@@ -990,18 +1004,18 @@ async function salvarConfigChave(req, res) {
     }
 }
 
-async function obterConfigIA(req, res) {
+async function getProviderConfiguration(req, res) {
     try {
         const config   = await buscarConfigIA(req.usuario.id);
         const provider = config?.provider || 'gen';
         const apiKeys  = config?.apiKeys  || {};
         const nomes    = {
-            gen: 'Gen (sem IA externa)', openai: 'OpenAI GPT-4o mini',
+            gen: 'Gen aguardando provedor', openai: 'OpenAI GPT-4o mini',
             gemini: 'Google Gemini 2.0 Flash', claude: 'Anthropic Claude Sonnet',
             groq: 'Groq Llama 3.3 70B',
         };
         const has_keys     = { openai: !!apiKeys.openai, gemini: !!apiKeys.gemini, claude: !!apiKeys.claude, groq: !!apiKeys.groq };
-        const maskKey      = k => k ? k.slice(0, 6) + '••••••••' : null;
+        const maskKey      = k => k ? k.slice(0, 6) + '********' : null;
         const key_previews = { openai: maskKey(apiKeys.openai), gemini: maskKey(apiKeys.gemini), claude: maskKey(apiKeys.claude), groq: maskKey(apiKeys.groq) };
 
         return res.json({ success: true, provider, nome: nomes[provider] || provider, tem_chave: !!config?.apiKey, has_keys, key_previews });
@@ -1010,13 +1024,13 @@ async function obterConfigIA(req, res) {
     }
 }
 
-async function testarConexaoIA(req, res) {
+async function validateProviderConfiguration(req, res) {
     try {
         const config   = await buscarConfigIA(req.usuario.id);
         const provider = config?.provider || 'gen';
 
         if (!provider || provider === 'gen') {
-            return res.json({ success: true, online: true, provider: 'gen', mensagem: 'Nenhuma IA externa configurada.' });
+            return res.json({ success: true, online: false, provider: 'gen', mensagem: 'Configure um provedor para ativar o chat inteligente.' });
         }
 
         const apiKey = config?.apiKey;
@@ -1045,7 +1059,7 @@ async function testarConexaoIA(req, res) {
 
 // ── RESUMO FINANCEIRO ─────────────────────────────────────────────
 
-async function resumoFinanceiro(req, res) {
+async function getAssistantFinancialOverview(req, res) {
     try {
         const usuarioId = req.usuario.id;
         const hoje      = new Date();
@@ -1057,13 +1071,16 @@ async function resumoFinanceiro(req, res) {
 
         const dataHoje = formatarData(hoje);
         const data7d   = formatarData(new Date(hoje.getTime() + 7 * 24 * 60 * 60 * 1000));
-        const pf       = perfilId ? `AND d.perfil_id = ${perfilId}` : '';
+        const pf       = perfilFilterSQL('d', perfilId, 4, 1);
+        const paramsProximas = perfilId
+            ? [usuarioId, dataHoje, data7d, perfilId]
+            : [usuarioId, dataHoje, data7d];
         const proximas = await query(
             `SELECT descricao, COALESCE(valor_pago, valor) as valor, data_vencimento
              FROM despesas d WHERE usuario_id = $1 AND pago = false
-               AND data_vencimento BETWEEN $2 AND $3 ${pf}
+               AND data_vencimento BETWEEN $2 AND $3${pf}
              ORDER BY data_vencimento ASC LIMIT 5`,
-            [usuarioId, dataHoje, data7d]
+            paramsProximas
         );
 
         let mesAnt = mes - 1, anoAnt = ano;
@@ -1095,7 +1112,7 @@ async function resumoFinanceiro(req, res) {
 
 // ── EXTRATO ───────────────────────────────────────────────────────
 
-async function importarExtrato(req, res) {
+async function importStatementWithAI(req, res) {
     const filePath = req.file?.path;
     try {
         if (!req.file) {
@@ -1130,12 +1147,19 @@ async function importarExtrato(req, res) {
 
 // ── STATUS ────────────────────────────────────────────────────────
 
-async function status(req, res) {
+async function getAssistantHealth(req, res) {
     res.json({
         success: true,
-        modulo_ia: 'Gen',
-        versao: '2.0.0',
+        modulo_ia: 'Gen Finance Assistant',
+        versao: '2.1.0',
+        arquitetura: 'tool-calling com adaptadores de provedores e confirmacao antes de gravar',
         providers_suportados: ['openai', 'gemini', 'claude', 'groq'],
+        endpoints_recomendados: {
+            conversa: '/api/ai/conversation',
+            provedores: '/api/ai/providers',
+            documentos: '/api/ai/documents',
+            resumo: '/api/ai/financial-summary',
+        },
         funcionalidades: {
             chat: true,
             tool_use: true,
@@ -1152,20 +1176,34 @@ async function status(req, res) {
 }
 
 module.exports = {
-    chat,
-    interpretarDespesa,
-    processarArquivoUpload,
-    interpretarPIX,
-    interpretarBoleto,
-    listarRecorrencias,
-    confirmarRecorrencia,
-    salvarAprendizadoCategoria,
-    salvarConfigChave,
-    obterConfigIA,
-    testarConexaoIA,
-    resumoFinanceiro,
-    importarExtrato,
-    status,
+    handleConversation,
+    parseExpenseDraft,
+    analyzeFinancialDocument,
+    parsePixPayload,
+    parseBoletoPayload,
+    listRecurrenceInsights,
+    confirmRecurrenceInsight,
+    saveCategoryLearning,
+    saveProviderConfiguration,
+    getProviderConfiguration,
+    validateProviderConfiguration,
+    getAssistantFinancialOverview,
+    importStatementWithAI,
+    getAssistantHealth,
+    chat: handleConversation,
+    interpretarDespesa: parseExpenseDraft,
+    processarArquivoUpload: analyzeFinancialDocument,
+    interpretarPIX: parsePixPayload,
+    interpretarBoleto: parseBoletoPayload,
+    listarRecorrencias: listRecurrenceInsights,
+    confirmarRecorrencia: confirmRecurrenceInsight,
+    salvarAprendizadoCategoria: saveCategoryLearning,
+    salvarConfigChave: saveProviderConfiguration,
+    obterConfigIA: getProviderConfiguration,
+    testarConexaoIA: validateProviderConfiguration,
+    resumoFinanceiro: getAssistantFinancialOverview,
+    importarExtrato: importStatementWithAI,
+    status: getAssistantHealth,
     buscarConfigIA,
     buscarCartaServicos,
     invalidarCacheCartaSessoes,

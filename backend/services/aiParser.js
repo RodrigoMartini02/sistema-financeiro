@@ -1,11 +1,12 @@
 // ================================================================
 // AI PARSER - Interpreta linguagem natural para despesas
-// Usa OpenAI GPT se OPENAI_API_KEY disponível, caso contrário
-// utiliza a Gen (IA interna do IGen - Sistema Financeiro Inteligente)
+// Usa OpenAI GPT quando OPENAI_API_KEY esta disponivel.
+// Sem provider externo, aplica fallback deterministico de parsing.
 // ================================================================
 
 const { normalizarDespesa, normalizarValor, normalizarFormaPagamento,
     normalizarData, inferirCategoria } = require('../utils/expenseNormalizer');
+const { generateText, hasExternalProvider } = require('./genProviderGateway');
 
 function extrairRegrasCategoriaParaGen(texto) {
     if (!texto) return [];
@@ -157,7 +158,7 @@ async function parsearComClaude(texto, contextoConversa = [], apiKey, ctxSistema
         : '';
 
     const response = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514',
         max_tokens: 500,
         system: `${SYSTEM_PROMPT}\n\nData de hoje: ${hoje}${ctxExtra}${instrucoesPrio}${cartaBase ? '\n\n---\n' + cartaBase : ''}\n\nResponda APENAS com JSON válido.`,
         messages: [{ role: 'user', content: texto }]
@@ -415,7 +416,7 @@ async function detectarIntencaoComIA(texto, historico, providerConfig) {
                 const Anthropic = require('@anthropic-ai/sdk');
                 const client = new Anthropic({ apiKey: providerConfig.apiKey });
                 const r = await client.messages.create({
-                    model: 'claude-haiku-4-5-20251001',
+                    model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514',
                     max_tokens: 10,
                     system: PROMPT_INTENCAO,
                     messages: [{ role: 'user', content: texto }]
@@ -523,7 +524,7 @@ async function responderPerguntaFinanceira(pergunta, dadosFinanceiros, historico
             const Anthropic = require('@anthropic-ai/sdk');
             const client = new Anthropic({ apiKey });
             const response = await client.messages.create({
-                model: 'claude-haiku-4-5-20251001',
+                model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514',
                 max_tokens: 300,
                 system: systemMsg,
                 messages: [...historico.slice(-4), { role: 'user', content: pergunta }]
@@ -643,42 +644,17 @@ Instruções para edição:
 Carta atual:
 ${cartaAtual}`;
 
-    const provider = providerConfig?.provider;
-    const apiKey   = providerConfig?.apiKey;
-
     try {
-        if (provider === 'gemini' && apiKey) {
-            const fetch = require('node-fetch');
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-            const r = await fetch(url, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                    generationConfig: { temperature: 0.2, maxOutputTokens: 4000 }
-                })
+        if (hasExternalProvider(providerConfig)) {
+            const texto = await generateText(providerConfig, {
+                prompt,
+                temperature: 0.2,
+                maxTokens: 4000,
             });
-            if (!r.ok) throw new Error('Gemini HTTP ' + r.status);
-            const data = await r.json();
-            const texto = data.candidates?.[0]?.content?.parts?.[0]?.text;
             if (texto) return texto.trim();
         }
 
-        if (provider === 'claude' && apiKey) {
-            const Anthropic = require('@anthropic-ai/sdk');
-            const client = new Anthropic({ apiKey });
-            const response = await client.messages.create({
-                model: 'claude-haiku-4-5-20251001',
-                max_tokens: 4000,
-                messages: [{ role: 'user', content: prompt }]
-            });
-            const texto = response.content[0]?.text;
-            if (texto) return texto.trim();
-        }
-
-        const openai = (provider === 'openai' && apiKey)
-            ? (() => { const OpenAI = require('openai'); return new OpenAI({ apiKey }); })()
-            : getOpenAI();
-
+        const openai = getOpenAI();
         if (openai) {
             const response = await openai.chat.completions.create({
                 model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
@@ -766,7 +742,7 @@ async function parsearReceita(texto, contextoConversa = [], providerConfig = nul
                 const Anthropic = require('@anthropic-ai/sdk');
                 const client = new Anthropic({ apiKey: providerConfig.apiKey });
                 const response = await client.messages.create({
-                    model: 'claude-haiku-4-5-20251001',
+                    model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514',
                     max_tokens: 300,
                     system: systemFull + '\n\nResponda APENAS com JSON válido.',
                     messages: [...contextoConversa.slice(-4), { role: 'user', content: texto }]

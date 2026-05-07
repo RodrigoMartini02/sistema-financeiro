@@ -1,239 +1,213 @@
 // ================================================================
-// AI ROUTES - Endpoints do módulo de Inteligência Artificial
+// Gen Assistant Routes
+// Rotas novas e legadas do assistente financeiro.
 // ================================================================
 
 const express = require('express');
-const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const { authMiddleware } = require('../middleware/auth');
+const { revisarCarta } = require('../services/aiParser');
+const workspace = require('../services/genWorkspaceService');
 const ctrl = require('../controllers/aiController');
 
-// ── CONFIGURAÇÃO DO MULTER (Upload de arquivos) ──────────────────
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const uploadDir = path.join(__dirname, '../uploads');
-        cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-        const ext = path.extname(file.originalname);
-        const nome = `upload_${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`;
-        cb(null, nome);
-    }
-});
-
-const fileFilter = (req, file, cb) => {
-    const tiposPermitidos = [
-        'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif',
-        'application/pdf'
-    ];
-    if (tiposPermitidos.includes(file.mimetype)) {
-        cb(null, true);
-    } else {
-        cb(new Error('Tipo de arquivo não permitido. Use JPG, PNG, WEBP ou PDF.'), false);
-    }
-};
+const router = express.Router();
 
 const upload = multer({
-    storage,
-    fileFilter,
-    limits: { fileSize: 10 * 1024 * 1024 } // 10MB
+    storage: multer.diskStorage({
+        destination: (req, file, cb) => cb(null, path.join(__dirname, '../uploads')),
+        filename: (req, file, cb) => {
+            const ext = path.extname(file.originalname);
+            cb(null, `upload_${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`);
+        },
+    }),
+    fileFilter: (req, file, cb) => {
+        const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
+        if (allowed.includes(file.mimetype)) return cb(null, true);
+        return cb(new Error('Tipo de arquivo não permitido. Use JPG, PNG, WEBP, GIF ou PDF.'), false);
+    },
+    limits: { fileSize: 10 * 1024 * 1024 },
 });
 
-// ── ROTAS ────────────────────────────────────────────────────────
-
-// Status do módulo IA (não requer auth para debug)
-router.get('/status', ctrl.status);
-
-// Chat conversacional (endpoint principal)
-router.post('/chat', authMiddleware, ctrl.chat);
-
-// Interpretar texto de despesa diretamente
-router.post('/despesa', authMiddleware, ctrl.interpretarDespesa);
-
-// Upload de documento financeiro (boleto, nota fiscal, comprovante)
-router.post('/arquivo', authMiddleware, upload.single('arquivo'), ctrl.processarArquivoUpload);
-
-// QR Code PIX (imagem ou texto do payload)
-router.post('/pix', authMiddleware, upload.single('imagem'), ctrl.interpretarPIX);
-
-// Linha digitável de boleto
-router.post('/boleto', authMiddleware, ctrl.interpretarBoleto);
-
-// Recorrências detectadas/confirmadas
-router.get('/recorrencias', authMiddleware, ctrl.listarRecorrencias);
-router.post('/recorrencias', authMiddleware, ctrl.confirmarRecorrencia);
-
-// Aprendizado de categoria
-router.post('/aprendizado', authMiddleware, ctrl.salvarAprendizadoCategoria);
-
-// Configuração de provedor de IA por usuário
-router.get('/config', authMiddleware, ctrl.obterConfigIA);
-router.post('/config/chave', authMiddleware, ctrl.salvarConfigChave);
-router.get('/test', authMiddleware, ctrl.testarConexaoIA);
-router.get('/resumo', authMiddleware, ctrl.resumoFinanceiro);
-router.post('/extrato', authMiddleware, upload.single('arquivo'), ctrl.importarExtrato);
-
-// Instruções da Gen — por usuário, armazenadas no banco
-const { query } = require('../config/database');
-const { revisarCarta } = require('../services/aiParser');
-
-router.get('/instrucoes', authMiddleware, async (req, res) => {
+async function getPersonalInstructions(req, res) {
     try {
-        const r = await query('SELECT dados_financeiros FROM usuarios WHERE id = $1', [req.usuario.id]);
-        const conteudo = r.rows[0]?.dados_financeiros?.instrucoes_gen || '';
-        res.json({ conteudo });
-    } catch (e) {
-        res.status(500).json({ erro: 'Erro ao ler instruções' });
+        res.json({ conteudo: await workspace.getPersonalInstructions(req.usuario.id) });
+    } catch {
+        res.status(500).json({ erro: 'Erro ao ler instruções.' });
     }
-});
+}
 
-router.post('/instrucoes', authMiddleware, async (req, res) => {
+async function savePersonalInstructions(req, res) {
     try {
         const { conteudo } = req.body;
-        if (conteudo === undefined) return res.status(400).json({ erro: 'Conteúdo ausente' });
-        // UPSERT: substitui as instruções do usuário (não acumula)
-        await query(
-            `UPDATE usuarios
-             SET dados_financeiros = COALESCE(dados_financeiros, '{}'::jsonb) || jsonb_build_object('instrucoes_gen', $1::text)
-             WHERE id = $2`,
-            [conteudo.trim(), req.usuario.id]
-        );
+        if (conteudo === undefined) return res.status(400).json({ erro: 'Conteúdo ausente.' });
+        await workspace.savePersonalInstructions(req.usuario.id, conteudo);
         res.json({ success: true });
-    } catch (e) {
-        res.status(500).json({ erro: 'Erro ao salvar instruções' });
+    } catch {
+        res.status(500).json({ erro: 'Erro ao salvar instruções.' });
     }
-});
+}
 
-// Carta de Serviços global — leitura para todos
-router.get('/carta', authMiddleware, async (req, res) => {
+async function getServiceLetter(req, res) {
     try {
-        const conteudo = await ctrl.buscarCartaServicos();
-        res.json({ conteudo });
-    } catch (e) {
-        res.status(500).json({ erro: 'Erro ao ler carta' });
+        res.json({ conteudo: await ctrl.buscarCartaServicos() });
+    } catch {
+        res.status(500).json({ erro: 'Erro ao ler carta de serviços.' });
     }
-});
+}
 
-// Carta de Serviços global — revisão com IA (só master)
-router.post('/carta', authMiddleware, async (req, res) => {
+async function reviseServiceLetter(req, res) {
     try {
-        const r = await query('SELECT tipo FROM usuarios WHERE id = $1', [req.usuario.id]);
-        if (!r.rows[0] || r.rows[0].tipo !== 'master') {
-            return res.status(403).json({ erro: 'Apenas o master pode editar a carta de serviços' });
+        if (await workspace.userType(req.usuario.id) !== 'master') {
+            return res.status(403).json({ erro: 'Apenas o master pode editar a carta de serviços.' });
         }
-        const { instrucao } = req.body;
-        if (!instrucao || !instrucao.trim()) return res.status(400).json({ erro: 'Instrução vazia' });
 
-        // Lê carta atual (com fallback para arquivo via helper do controller)
+        const instrucao = String(req.body.instrucao || '').trim();
+        if (!instrucao) return res.status(400).json({ erro: 'Instrução vazia.' });
+
         const cartaAtual = await ctrl.buscarCartaServicos();
-
-        // Usa IA para mesclar a instrução na carta
         const providerConfig = await ctrl.buscarConfigIA(req.usuario.id);
-        const cartaAtualizada = await revisarCarta(cartaAtual, instrucao.trim(), providerConfig);
+        const cartaAtualizada = await revisarCarta(cartaAtual, instrucao, providerConfig);
 
-        // Salva no banco no usuário master
-        await query(
-            `UPDATE usuarios SET dados_financeiros = COALESCE(dados_financeiros, '{}'::jsonb) || jsonb_build_object('carta_servicos', $1::text) WHERE tipo = 'master'`,
-            [cartaAtualizada]
-        );
-        // Invalida cache de sessão de todos os usuários ativos
+        await workspace.saveServiceLetter(cartaAtualizada);
         ctrl.invalidarCacheCartaSessoes();
         res.json({ success: true, conteudo: cartaAtualizada });
-    } catch (e) {
-        console.error('Erro ao revisar carta:', e);
-        res.status(500).json({ erro: 'Erro ao revisar carta com IA' });
+    } catch (err) {
+        console.error('Erro ao revisar carta:', err);
+        res.status(500).json({ erro: 'Erro ao revisar carta com IA.' });
     }
-});
+}
 
-// ── METAS DE ECONOMIA ────────────────────────────────────────────
-router.get('/metas', authMiddleware, async (req, res) => {
+async function listGoals(req, res) {
     try {
-        const r = await query('SELECT dados_financeiros FROM usuarios WHERE id = $1', [req.usuario.id]);
-        const metas = r.rows[0]?.dados_financeiros?.metas || [];
-        res.json({ success: true, metas });
-    } catch { res.status(500).json({ success: false, message: 'Erro ao buscar metas.' }); }
-});
+        res.json({ success: true, metas: await workspace.listGoals(req.usuario.id) });
+    } catch {
+        res.status(500).json({ success: false, message: 'Erro ao buscar metas.' });
+    }
+}
 
-router.post('/metas', authMiddleware, async (req, res) => {
+async function createGoal(req, res) {
     try {
         const { descricao, valor, prazo } = req.body;
         if (!descricao || !valor) return res.status(400).json({ success: false, message: 'Descrição e valor são obrigatórios.' });
-        const r = await query('SELECT dados_financeiros FROM usuarios WHERE id = $1', [req.usuario.id]);
-        const df = r.rows[0]?.dados_financeiros || {};
-        const metas = df.metas || [];
-        const nova = { id: Date.now(), descricao, valor: parseFloat(valor), prazo: prazo || null, criada: new Date().toISOString().split('T')[0] };
-        metas.push(nova);
-        await query(
-            `UPDATE usuarios SET dados_financeiros = COALESCE(dados_financeiros,'{}' ::jsonb) || jsonb_build_object('metas', $1::jsonb) WHERE id = $2`,
-            [JSON.stringify(metas), req.usuario.id]
-        );
-        res.json({ success: true, meta: nova });
-    } catch { res.status(500).json({ success: false, message: 'Erro ao salvar meta.' }); }
-});
 
-router.delete('/metas/:id', authMiddleware, async (req, res) => {
+        const metas = await workspace.listGoals(req.usuario.id);
+        const meta = { id: Date.now(), descricao, valor: parseFloat(valor), prazo: prazo || null, criada: new Date().toISOString().split('T')[0] };
+        metas.push(meta);
+
+        await workspace.saveGoals(req.usuario.id, metas);
+        res.json({ success: true, meta });
+    } catch {
+        res.status(500).json({ success: false, message: 'Erro ao salvar meta.' });
+    }
+}
+
+async function deleteGoal(req, res) {
     try {
         const id = parseInt(req.params.id);
-        const r = await query('SELECT dados_financeiros FROM usuarios WHERE id = $1', [req.usuario.id]);
-        const df = r.rows[0]?.dados_financeiros || {};
-        const metas = (df.metas || []).filter(m => m.id !== id);
-        await query(
-            `UPDATE usuarios SET dados_financeiros = COALESCE(dados_financeiros,'{}' ::jsonb) || jsonb_build_object('metas', $1::jsonb) WHERE id = $2`,
-            [JSON.stringify(metas), req.usuario.id]
-        );
+        const metas = (await workspace.listGoals(req.usuario.id)).filter(m => m.id !== id);
+        await workspace.saveGoals(req.usuario.id, metas);
         res.json({ success: true });
-    } catch { res.status(500).json({ success: false, message: 'Erro ao remover meta.' }); }
-});
+    } catch {
+        res.status(500).json({ success: false, message: 'Erro ao remover meta.' });
+    }
+}
 
-// ── ALERTAS DE ORÇAMENTO POR CATEGORIA ──────────────────────────
-router.get('/orcamentos', authMiddleware, async (req, res) => {
+async function listBudgets(req, res) {
     try {
-        const r = await query('SELECT dados_financeiros FROM usuarios WHERE id = $1', [req.usuario.id]);
-        const orcamentos = r.rows[0]?.dados_financeiros?.orcamentos || [];
-        res.json({ success: true, orcamentos });
-    } catch { res.status(500).json({ success: false, message: 'Erro ao buscar orçamentos.' }); }
-});
+        res.json({ success: true, orcamentos: await workspace.listBudgets(req.usuario.id) });
+    } catch {
+        res.status(500).json({ success: false, message: 'Erro ao buscar orçamentos.' });
+    }
+}
 
-router.post('/orcamentos', authMiddleware, async (req, res) => {
+async function upsertBudget(req, res) {
     try {
         const { categoria, limite } = req.body;
         if (!categoria || !limite) return res.status(400).json({ success: false, message: 'Categoria e limite são obrigatórios.' });
-        const r = await query('SELECT dados_financeiros FROM usuarios WHERE id = $1', [req.usuario.id]);
-        const df = r.rows[0]?.dados_financeiros || {};
-        const orcamentos = df.orcamentos || [];
-        // Atualiza se já existe para essa categoria, senão adiciona
-        const idx = orcamentos.findIndex(o => o.categoria.toLowerCase() === categoria.toLowerCase());
-        const item = { id: Date.now(), categoria, limite: parseFloat(limite) };
-        if (idx >= 0) orcamentos[idx] = item; else orcamentos.push(item);
-        await query(
-            `UPDATE usuarios SET dados_financeiros = COALESCE(dados_financeiros,'{}' ::jsonb) || jsonb_build_object('orcamentos', $1::jsonb) WHERE id = $2`,
-            [JSON.stringify(orcamentos), req.usuario.id]
-        );
-        res.json({ success: true, orcamento: item });
-    } catch { res.status(500).json({ success: false, message: 'Erro ao salvar orçamento.' }); }
-});
 
-router.delete('/orcamentos/:id', authMiddleware, async (req, res) => {
+        const orcamentos = await workspace.listBudgets(req.usuario.id);
+        const item = { id: Date.now(), categoria, limite: parseFloat(limite) };
+        const idx = orcamentos.findIndex(o => o.categoria.toLowerCase() === categoria.toLowerCase());
+        if (idx >= 0) orcamentos[idx] = { ...orcamentos[idx], ...item, id: orcamentos[idx].id };
+        else orcamentos.push(item);
+
+        await workspace.saveBudgets(req.usuario.id, orcamentos);
+        res.json({ success: true, orcamento: idx >= 0 ? orcamentos[idx] : item });
+    } catch {
+        res.status(500).json({ success: false, message: 'Erro ao salvar orçamento.' });
+    }
+}
+
+async function deleteBudget(req, res) {
     try {
         const id = parseInt(req.params.id);
-        const r = await query('SELECT dados_financeiros FROM usuarios WHERE id = $1', [req.usuario.id]);
-        const df = r.rows[0]?.dados_financeiros || {};
-        const orcamentos = (df.orcamentos || []).filter(o => o.id !== id);
-        await query(
-            `UPDATE usuarios SET dados_financeiros = COALESCE(dados_financeiros,'{}' ::jsonb) || jsonb_build_object('orcamentos', $1::jsonb) WHERE id = $2`,
-            [JSON.stringify(orcamentos), req.usuario.id]
-        );
+        const orcamentos = (await workspace.listBudgets(req.usuario.id)).filter(o => o.id !== id);
+        await workspace.saveBudgets(req.usuario.id, orcamentos);
         res.json({ success: true });
-    } catch { res.status(500).json({ success: false, message: 'Erro ao remover orçamento.' }); }
-});
+    } catch {
+        res.status(500).json({ success: false, message: 'Erro ao remover orçamento.' });
+    }
+}
 
-// ── TRATAMENTO DE ERRO DO MULTER ─────────────────────────────────
+function mountRoutes(prefix = '') {
+    router.get(`${prefix}/health`, ctrl.getAssistantHealth);
+    router.post(`${prefix}/conversation`, authMiddleware, ctrl.handleConversation);
+    router.post(`${prefix}/expenses/parse`, authMiddleware, ctrl.parseExpenseDraft);
+    router.post(`${prefix}/documents`, authMiddleware, upload.single('arquivo'), ctrl.analyzeFinancialDocument);
+    router.post(`${prefix}/pix/parse`, authMiddleware, upload.single('imagem'), ctrl.parsePixPayload);
+    router.post(`${prefix}/boletos/parse`, authMiddleware, ctrl.parseBoletoPayload);
+    router.get(`${prefix}/recurrences`, authMiddleware, ctrl.listRecurrenceInsights);
+    router.post(`${prefix}/recurrences`, authMiddleware, ctrl.confirmRecurrenceInsight);
+    router.post(`${prefix}/category-learning`, authMiddleware, ctrl.saveCategoryLearning);
+    router.get(`${prefix}/providers`, authMiddleware, ctrl.getProviderConfiguration);
+    router.post(`${prefix}/providers`, authMiddleware, ctrl.saveProviderConfiguration);
+    router.get(`${prefix}/providers/test`, authMiddleware, ctrl.validateProviderConfiguration);
+    router.get(`${prefix}/financial-summary`, authMiddleware, ctrl.getAssistantFinancialOverview);
+    router.post(`${prefix}/statements/import`, authMiddleware, upload.single('arquivo'), ctrl.importStatementWithAI);
+    router.get(`${prefix}/personal-instructions`, authMiddleware, getPersonalInstructions);
+    router.put(`${prefix}/personal-instructions`, authMiddleware, savePersonalInstructions);
+    router.get(`${prefix}/service-letter`, authMiddleware, getServiceLetter);
+    router.patch(`${prefix}/service-letter`, authMiddleware, reviseServiceLetter);
+    router.get(`${prefix}/goals`, authMiddleware, listGoals);
+    router.post(`${prefix}/goals`, authMiddleware, createGoal);
+    router.delete(`${prefix}/goals/:id`, authMiddleware, deleteGoal);
+    router.get(`${prefix}/budgets`, authMiddleware, listBudgets);
+    router.post(`${prefix}/budgets`, authMiddleware, upsertBudget);
+    router.delete(`${prefix}/budgets/:id`, authMiddleware, deleteBudget);
+}
+
+mountRoutes('');
+
+// Compatibilidade com o frontend atual.
+router.get('/status', ctrl.getAssistantHealth);
+router.post('/chat', authMiddleware, ctrl.handleConversation);
+router.post('/despesa', authMiddleware, ctrl.parseExpenseDraft);
+router.post('/arquivo', authMiddleware, upload.single('arquivo'), ctrl.analyzeFinancialDocument);
+router.post('/pix', authMiddleware, upload.single('imagem'), ctrl.parsePixPayload);
+router.post('/boleto', authMiddleware, ctrl.parseBoletoPayload);
+router.get('/recorrencias', authMiddleware, ctrl.listRecurrenceInsights);
+router.post('/recorrencias', authMiddleware, ctrl.confirmRecurrenceInsight);
+router.post('/aprendizado', authMiddleware, ctrl.saveCategoryLearning);
+router.get('/config', authMiddleware, ctrl.getProviderConfiguration);
+router.post('/config/chave', authMiddleware, ctrl.saveProviderConfiguration);
+router.get('/test', authMiddleware, ctrl.validateProviderConfiguration);
+router.get('/resumo', authMiddleware, ctrl.getAssistantFinancialOverview);
+router.post('/extrato', authMiddleware, upload.single('arquivo'), ctrl.importStatementWithAI);
+router.get('/instrucoes', authMiddleware, getPersonalInstructions);
+router.post('/instrucoes', authMiddleware, savePersonalInstructions);
+router.get('/carta', authMiddleware, getServiceLetter);
+router.post('/carta', authMiddleware, reviseServiceLetter);
+router.get('/metas', authMiddleware, listGoals);
+router.post('/metas', authMiddleware, createGoal);
+router.delete('/metas/:id', authMiddleware, deleteGoal);
+router.get('/orcamentos', authMiddleware, listBudgets);
+router.post('/orcamentos', authMiddleware, upsertBudget);
+router.delete('/orcamentos/:id', authMiddleware, deleteBudget);
+
 router.use((err, req, res, next) => {
     if (err instanceof multer.MulterError) {
-        if (err.code === 'LIMIT_FILE_SIZE') {
-            return res.status(400).json({ success: false, message: 'Arquivo muito grande (máx 10MB).' });
-        }
+        if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ success: false, message: 'Arquivo muito grande (máx 10MB).' });
         return res.status(400).json({ success: false, message: err.message });
     }
     if (err.message?.includes('Tipo de arquivo')) {

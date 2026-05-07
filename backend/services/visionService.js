@@ -39,7 +39,7 @@ async function analisarComOpenAI(filePath, mimeType, apiKey) {
 
     const base64 = fs.readFileSync(filePath).toString('base64');
     const response = await client.chat.completions.create({
-        model: 'gpt-4o',
+        model: process.env.OPENAI_VISION_MODEL || 'gpt-4o',
         max_tokens: 500,
         messages: [{
             role: 'user',
@@ -92,7 +92,7 @@ async function analisarComClaude(filePath, mimeType, apiKey) {
         : { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } };
 
     const response = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: process.env.CLAUDE_VISION_MODEL || process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514',
         max_tokens: 500,
         messages: [{
             role: 'user',

@@ -4427,7 +4427,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const formData = new FormData();
             formData.append('arquivo', file);
 
-            const res = await fetch(`${API_URL()}/ai/extrato`, {
+            const res = await fetch(`${API_URL()}/ai/statements/import`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${getToken()}` },
                 body: formData
