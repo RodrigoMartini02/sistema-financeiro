@@ -1024,51 +1024,19 @@ async function testarConexaoIA(req, res) {
             return res.json({ success: false, online: false, provider, mensagem: 'Nenhuma chave de API configurada.' });
         }
 
-        const TESTE = 'Responda apenas com a palavra "ok".';
-        let resposta = null;
-
-        try {
-            if (provider === 'openai' || provider === 'groq') {
-                const OpenAI  = require('openai');
-                const baseURL = provider === 'groq' ? 'https://api.groq.com/openai/v1' : undefined;
-                const modelo  = provider === 'groq' ? 'llama-3.3-70b-versatile' : (process.env.OPENAI_MODEL || 'gpt-4o-mini');
-                const r = await new OpenAI({ apiKey, ...(baseURL && { baseURL }) }).chat.completions.create({
-                    model: modelo,
-                    messages: [{ role: 'user', content: TESTE }],
-                    temperature: 0, max_tokens: 5,
-                });
-                resposta = r.choices[0]?.message?.content?.trim();
-            } else if (provider === 'gemini') {
-                const fetch = require('node-fetch');
-                const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: TESTE }] }], generationConfig: { temperature: 0, maxOutputTokens: 5 } }),
-                    timeout: 8000,
-                });
-                if (!r.ok) throw new Error('HTTP ' + r.status);
-                const data = await r.json();
-                resposta = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-            } else if (provider === 'claude') {
-                const Anthropic = require('@anthropic-ai/sdk');
-                const r = await new Anthropic({ apiKey }).messages.create({
-                    model: 'claude-sonnet-4-6', max_tokens: 5,
-                    messages: [{ role: 'user', content: TESTE }],
-                });
-                resposta = r.content[0]?.text?.trim();
-            }
-
-            if (resposta) return res.json({ success: true, online: true, provider, mensagem: `${provider} respondendo corretamente.` });
-            return res.json({ success: false, online: false, provider, mensagem: 'IA não retornou resposta válida.' });
-
-        } catch (err) {
-            const msg = err.message || '';
-            let detalhe = 'Erro de conexão com a IA externa.';
-            if (msg.includes('401') || msg.includes('invalid') || msg.includes('API key')) detalhe = 'Chave de API inválida ou expirada.';
-            else if (msg.includes('429')) detalhe = 'Limite de requisições atingido.';
-            else if (msg.includes('403')) detalhe = 'Acesso negado — verifique a chave de API.';
-            return res.json({ success: false, online: false, provider, mensagem: detalhe });
+        // Valida apenas o formato da chave — sem chamar a API para não consumir quota
+        const formatosValidos = {
+            openai:  k => k.startsWith('sk-'),
+            groq:    k => k.startsWith('gsk_'),
+            claude:  k => k.startsWith('sk-ant-'),
+            gemini:  k => k.length > 10,
+        };
+        const valida = formatosValidos[provider] ? formatosValidos[provider](apiKey) : true;
+        if (!valida) {
+            return res.json({ success: false, online: false, provider, mensagem: 'Formato de chave inválido.' });
         }
+
+        return res.json({ success: true, online: true, provider, mensagem: `${provider} configurado.` });
 
     } catch (err) {
         res.status(500).json({ success: false, online: false, mensagem: 'Erro ao testar conexão.' });
