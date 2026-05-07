@@ -1,4 +1,6 @@
 node_modules/
+.claude/
+backend/config/staging-setup.sql
 .env
 .env.dev
 
