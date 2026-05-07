@@ -653,6 +653,10 @@ function construirSystemPrompt(ctx, carta, instrucoes) {
     return partes.join('\n');
 }
 
+function isSaudacaoSimples(texto) {
+    return /^(oi|ol[aá]|bom dia|boa tarde|boa noite|e ai|e aí|opa|hello|hi)[!.?\s]*$/i.test((texto || '').trim());
+}
+
 // ── CHAT ──────────────────────────────────────────────────────────
 
 async function handleConversation(req, res) {
@@ -669,6 +673,14 @@ async function handleConversation(req, res) {
             if (mensagem === '_reset_') {
                 return res.json({ success: true, resposta: 'Conversa reiniciada.', acao: 'sessao_limpa' });
             }
+        }
+
+        if (isSaudacaoSimples(mensagem)) {
+            return res.json({
+                success: true,
+                resposta: 'Oi! Estou por aqui. Você pode cadastrar uma despesa, registrar uma receita ou consultar seu resumo financeiro.',
+                acao: 'saudacao',
+            });
         }
 
         const providerConfig = await buscarConfigIA(usuarioId);
