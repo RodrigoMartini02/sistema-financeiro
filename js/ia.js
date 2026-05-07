@@ -295,15 +295,16 @@ window.IA = (function () {
                     '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="quero cadastrar uma receita" data-opcao-label="Cadastrar receita">💰 Cadastrar receita</button>' +
                     '<button class="ai-welcome-chip ai-opcao-btn" data-opcao="qual meu saldo atual" data-opcao-label="Consultar">🔍 Consultar</button>';
         addGen('Olá, <b>' + esc(nome) + '</b>! ' + icone + ' O que você quer fazer hoje?<div class="ai-welcome-chips">' + chips + '</div>');
+    }
 
-        // Busca resumo financeiro e exibe proativamente após 500ms
+    function _montarResumoFinanceiro() {
         var _mes  = window.mesAberto !== undefined ? window.mesAberto : new Date().getMonth();
         var _ano  = window.anoAberto !== undefined ? window.anoAberto : new Date().getFullYear();
         var _pid  = typeof window.getPerfilAtivo === 'function' ? window.getPerfilAtivo() : null;
         var _qs   = '?mes=' + _mes + '&ano=' + _ano + (_pid ? '&perfil_id=' + _pid : '');
 
-        apiGet('/financial-summary' + _qs).then(function(d) {
-            if (!d || !d.success) return;
+        return apiGet('/financial-summary' + _qs).then(function(d) {
+            if (!d || !d.success) return null;
             var r       = d.resumo || {};
             var msgs    = [];
             var NOMES_M = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -355,10 +356,18 @@ window.IA = (function () {
                 msgs.push('🎯 Meta: <b>' + esc(m.descricao) + '</b> — ' + fmtV(m.valor) + (prazoStr ? ' até ' + prazoStr : '') + '.');
             });
 
-            if (msgs.length > 0) {
-                setTimeout(function() { addGen(msgs.join('<br><br>')); }, 600);
-            }
-        }).catch(function() {}); // silencioso se falhar
+            return msgs.length > 0
+                ? msgs.join('<br><br>')
+                : 'Não encontrei alertas importantes para este período. Quer cadastrar uma despesa ou receita?';
+        });
+    }
+
+    function _isSaudacaoSimples(texto) {
+        return /^(oi|ol[aá]|bom dia|boa tarde|boa noite|e ai|e aí|opa|hello|hi)[!.?\s]*$/i.test((texto || '').trim());
+    }
+
+    function _isConsultaResumo(texto) {
+        return /^(consultar|qual meu saldo atual|saldo|resumo|resumo financeiro|como estou|como estou no m[eê]s)[!.?\s]*$/i.test((texto || '').trim());
     }
 
     function _exibirBotoesTrocaPerfil() {
@@ -482,6 +491,32 @@ window.IA = (function () {
             setBtnDisabled(false);
             removeTyping(tid);
             _exibirBotoesTrocaPerfil();
+            return;
+        }
+
+        // Saudacoes simples nao precisam consumir chamada do provedor externo
+        if (_isSaudacaoSimples(texto)) {
+            estado.enviando = false;
+            setBtnDisabled(false);
+            removeTyping(tid);
+            addGen('Oi! Estou por aqui. Você pode cadastrar uma despesa, registrar uma receita ou consultar seu resumo financeiro.');
+            _mostrarChipsContinuacao(null, 400);
+            return;
+        }
+
+        // Consulta rapida usa dados do sistema, sem depender do limite do provedor
+        if (_isConsultaResumo(texto)) {
+            _montarResumoFinanceiro().then(function(html) {
+                removeTyping(tid);
+                addGen(html || 'Não consegui carregar o resumo agora. Tente novamente em alguns segundos.');
+                _mostrarChipsContinuacao(null, 700);
+            }).catch(function() {
+                removeTyping(tid);
+                addGen('Não consegui carregar o resumo agora. Tente novamente em alguns segundos.');
+            }).finally(function() {
+                estado.enviando = false;
+                setBtnDisabled(false);
+            });
             return;
         }
 
