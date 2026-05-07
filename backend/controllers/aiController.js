@@ -668,6 +668,14 @@ async function chat(req, res) {
             });
         }
 
+        if (!providerConfig.apiKey) {
+            return res.json({
+                success: true,
+                resposta: 'Chave de API não encontrada para esse provedor. Acesse as configurações e salve sua chave novamente.',
+                acao: 'erro_provider',
+            });
+        }
+
         if (limpar_sessao) await limparHistorico(usuarioId);
 
         const historico = await carregarHistorico(usuarioId);
@@ -692,14 +700,15 @@ async function chat(req, res) {
             try {
                 resultado = await chamarProvider(providerConfig.provider, providerConfig.apiKey, systemPrompt, workingMsgs);
             } catch (err) {
-                const msg = err.message || '';
+                const msg = (err.message || '').toLowerCase();
+                const status = err.status || err.statusCode || 0;
                 if (msg === 'provider_nao_configurado') {
                     return res.json({ success: true, resposta: 'Nenhum provedor de IA configurado. Acesse as configurações para adicionar sua chave.', acao: 'sem_provider' });
                 }
-                if (msg.includes('401') || msg.includes('invalid_api_key') || msg.includes('API key') || msg.includes('authentication')) {
-                    return res.json({ success: true, resposta: 'Chave de API inválida ou expirada. Verifique nas configurações.', acao: 'erro_provider' });
+                if (status === 401 || msg.includes('401') || msg.includes('invalid_api_key') || msg.includes('api key') || msg.includes('api_key') || msg.includes('authentication') || msg.includes('unauthorized') || msg.includes('x-api-key')) {
+                    return res.json({ success: true, resposta: 'Chave de API inválida ou expirada. Verifique nas configurações e salve a chave novamente.', acao: 'erro_provider' });
                 }
-                if (msg.includes('429')) {
+                if (status === 429 || msg.includes('429') || msg.includes('rate limit') || msg.includes('too many')) {
                     return res.json({ success: true, resposta: 'Limite de requisições atingido. Aguarde alguns instantes e tente novamente.', acao: 'erro_provider' });
                 }
                 throw err;
