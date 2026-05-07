@@ -232,9 +232,10 @@ window.IA = (function () {
             // Se o provedor atual tem chave, mostra preview (primeiros chars + bullets)
             if (!isGen && (cfg.tem_chave || hasKeys[provider])) {
                 var inp = document.getElementById('ia-api-key-input');
-                var previews = (cfg && cfg.key_previews) || {};
-                if (inp) inp.value = previews[provider] || '••••••••';
+                var preview = previews[provider] || '••••••••';
+                _mostrarPreview(inp, preview);
             }
+            _setupInputFocus();
 
             _atualizarBadgeExterna(provider);
 
@@ -1996,12 +1997,13 @@ window.IA = (function () {
                 return;
             }
             if (sessionStorage.getItem('ia_tem_chave_' + v)) {
-                if (inp) inp.value = sessionStorage.getItem('ia_preview_' + v) || '••••••••';
+                _mostrarPreview(inp, sessionStorage.getItem('ia_preview_' + v) || '••••••••');
             } else {
-                if (inp) inp.value = '';
+                if (inp) { inp.type = 'password'; inp.value = ''; delete inp.dataset.preview; }
             }
         });
         atualizarUI();
+        _setupInputFocus();
     }
 
     function _toast(msg, tipo) {
@@ -2016,6 +2018,26 @@ window.IA = (function () {
     }
 
     var _CHAVE_MASK = '••••••••';
+
+    function _mostrarPreview(inp, texto) {
+        if (!inp) return;
+        inp.type = 'text';
+        inp.value = texto;
+        inp.dataset.preview = '1';
+    }
+
+    function _setupInputFocus() {
+        var inp = document.getElementById('ia-api-key-input');
+        if (!inp || inp.dataset.focusSetup) return;
+        inp.dataset.focusSetup = '1';
+        inp.addEventListener('focus', function () {
+            if (inp.dataset.preview === '1') {
+                inp.type = 'password';
+                inp.value = '';
+                delete inp.dataset.preview;
+            }
+        });
+    }
 
     function salvarChaveAPI() {
         var provider = document.getElementById('ia-provider-select')?.value || 'gen';
@@ -2036,7 +2058,7 @@ window.IA = (function () {
                 // Mostra máscara em vez de limpar
                 if (input && provider !== 'gen') {
                     var preview = chave ? chave.slice(0, 8) + '••••••••' : (sessionStorage.getItem('ia_preview_' + provider) || '••••••••');
-                    input.value = preview;
+                    _mostrarPreview(input, preview);
                     sessionStorage.setItem('ia_tem_chave_' + provider, '1');
                     sessionStorage.setItem('ia_preview_' + provider, preview);
                 } else if (input) {
