@@ -9,6 +9,7 @@ const { parsearBoleto, encontrarLinhaDigitavel } = require('../services/boletoPa
 const { detectarRecorrencias, salvarRecorrencia, buscarRecorrencias } = require('../services/recurrenceDetector');
 const { normalizarData, formatarData } = require('../utils/expenseNormalizer');
 const { parsearExtratoComIA } = require('../services/extratoParser');
+const { parsearDespesa, parsearReceita, detectarIntencao } = require('../services/aiParser');
 const secureKeyStore = require('../services/secureKeyStore');
 const fs = require('fs');
 
@@ -661,6 +662,58 @@ function isInicioCadastroSimples(texto) {
     return /^(quero\s+)?cadastrar\s+(uma\s+)?(despesa|receita)$|^registrar\s+(uma\s+)?(despesa|receita)$|^nova\s+(despesa|receita)$/i.test((texto || '').trim());
 }
 
+function isAjudaGen(texto) {
+    return /^(ajuda|help|o que voc[eê] faz|como funciona|op[cç][oõ]es|menu)[!.?\s]*$/i.test((texto || '').trim());
+}
+
+function buscarCategoriaCompat(categorias, nome) {
+    if (!nome) return null;
+    const alvo = String(nome).toLowerCase();
+    return categorias.find(c => String(c.nome || '').toLowerCase() === alvo)
+        || categorias.find(c => String(c.nome || '').toLowerCase().includes(alvo) || alvo.includes(String(c.nome || '').toLowerCase()))
+        || null;
+}
+
+function hasDraftSignal(texto, intencao) {
+    if (!['despesa', 'receita'].includes(intencao)) return false;
+    return /(?:r\$|\d+(?:[.,]\d{1,2})?|paguei|gastei|comprei|recebi|ganhei|entrou|sal[aá]rio|freelance|pix|cart[aã]o|dinheiro|boleto)/i.test(texto || '');
+}
+
+async function prepararLancamentoLocal({ usuarioId, mensagem, tipo, providerConfig }) {
+    const categorias = tipo === 'despesa' ? await buscarCategorias(usuarioId) : [];
+    const carta      = await buscarCartaServicos();
+    const instrucoes = providerConfig?.instrucoesGen || '';
+
+    if (tipo === 'receita') {
+        const parsed = await parsearReceita(mensagem, [], null, '', carta, instrucoes);
+        return {
+            success: true,
+            resposta: 'Preparei a receita pelo fluxo guiado.',
+            acao: 'confirmar_receita',
+            receita: parsed || {},
+            origem: 'fluxo_local',
+            usa_ia_externa: false,
+        };
+    }
+
+    const parsed = await parsearDespesa(mensagem, [], true, null, '', carta, instrucoes);
+    const despesa = parsed?.dados || {};
+    const categoria = buscarCategoriaCompat(categorias, despesa.categoria);
+    if (categoria) {
+        despesa.categoria = categoria.nome;
+        despesa.categoria_id = categoria.id;
+    }
+
+    return {
+        success: true,
+        resposta: 'Preparei a despesa pelo fluxo guiado.',
+        acao: 'confirmar_despesa',
+        despesa,
+        origem: 'fluxo_local',
+        usa_ia_externa: false,
+    };
+}
+
 // ── CHAT ──────────────────────────────────────────────────────────
 
 async function handleConversation(req, res) {
@@ -684,6 +737,16 @@ async function handleConversation(req, res) {
                 success: true,
                 resposta: 'Oi! Estou por aqui. Você pode cadastrar uma despesa, registrar uma receita ou consultar seu resumo financeiro.',
                 acao: 'saudacao',
+                usa_ia_externa: false,
+            });
+        }
+
+        if (isAjudaGen(mensagem)) {
+            return res.json({
+                success: true,
+                resposta: 'Posso cadastrar despesas e receitas, consultar seu resumo, ler PIX, boleto, arquivos e ajudar em perguntas financeiras. Os fluxos guiados não consomem IA externa; eu só aciono o provedor quando a mensagem precisa de interpretação livre.',
+                acao: 'ajuda',
+                usa_ia_externa: false,
             });
         }
 
@@ -692,10 +755,20 @@ async function handleConversation(req, res) {
                 success: true,
                 resposta: 'Vamos fazer pelo fluxo guiado.',
                 acao: /receita/i.test(mensagem) ? 'iniciar_receita' : 'iniciar_despesa',
+                usa_ia_externa: false,
             });
         }
 
         const providerConfig = await buscarConfigIA(usuarioId);
+        const intencaoLocal = detectarIntencao(mensagem);
+        if (hasDraftSignal(mensagem, intencaoLocal)) {
+            return prepararLancamentoLocal({
+                usuarioId,
+                mensagem,
+                tipo: intencaoLocal,
+                providerConfig,
+            });
+        }
 
         if (!providerConfig.provider || providerConfig.provider === 'gen') {
             return res.json({
@@ -744,6 +817,15 @@ async function handleConversation(req, res) {
                     return res.json({ success: true, resposta: 'Chave de API inválida ou expirada. Verifique nas configurações e salve a chave novamente.', acao: 'erro_provider' });
                 }
                 if (status === 429 || msg.includes('429') || msg.includes('rate limit') || msg.includes('too many')) {
+                    const intencaoFallback = detectarIntencao(mensagem);
+                    if (hasDraftSignal(mensagem, intencaoFallback)) {
+                        return prepararLancamentoLocal({
+                            usuarioId,
+                            mensagem,
+                            tipo: intencaoFallback,
+                            providerConfig,
+                        });
+                    }
                     return res.json({ success: true, resposta: `Limite de requisições do provedor ${providerConfig.provider} atingido. Aguarde alguns instantes e tente novamente.`, acao: 'erro_provider' });
                 }
                 throw err;

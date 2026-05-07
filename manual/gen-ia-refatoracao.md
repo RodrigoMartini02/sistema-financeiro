@@ -113,6 +113,25 @@ A conversa mantem as ultimas 40 mensagens por usuario. A limpeza de sessao agora
 
 ---
 
+## Quando a IA Externa Entra
+
+A Gen deve economizar chamadas de provedor e manter os fluxos operacionais funcionando mesmo quando Gemini/OpenAI/Claude/Groq estiverem fora ou com limite atingido.
+
+| Caminho | Execucao esperada |
+|---|---|
+| Saudacao simples (`oi`, `ola`, `bom dia`) | Resposta local, sem IA externa. |
+| Ajuda/menu/opcoes | Resposta local, sem IA externa. |
+| `Cadastrar despesa` ou `Cadastrar receita` | Coleta guiada local no frontend; backend tambem protege esse caminho. |
+| Frase clara de lancamento (`paguei 120...`, `recebi 3500...`) | Parser local/heuristico prepara o card; se faltar campo, frontend coleta. |
+| Consulta rapida (`saldo`, `resumo`, `consultar`) | Usa `/api/ai/financial-summary`, sem IA externa. |
+| PIX, boleto, upload e extrato | Usam parsers/endpoints especificos; documentos podem usar provider multimodal quando necessario. |
+| Pergunta livre ou analise aberta | Chama `/api/ai/conversation` e usa IA externa com tool calling. |
+| Limite do provedor em lancamento claro | Fallback para parser local antes de exibir erro de limite. |
+
+Assim, IA externa entra somente quando agrega interpretacao livre, tool calling ou analise conversacional. Rotinas previsiveis ficam deterministicas.
+
+---
+
 ## Pontos de Atencao
 
 - As chaves de API ficam em `usuarios.dados_financeiros`, mas agora passam por `backend/services/secureKeyStore.js`; leituras aceitam chaves antigas em texto simples e novas gravacoes usam criptografia quando `GEN_KEY_ENCRYPTION_SECRET`, `JWT_SECRET` ou `SESSION_SECRET` estiver configurado.
@@ -121,7 +140,7 @@ A conversa mantem as ultimas 40 mensagens por usuario. A limpeza de sessao agora
 - O controller ja possui nomes profissionais exportados, mantendo aliases antigos para compatibilidade.
 - `backend/services/genWorkspaceService.js` concentra persistencia de instrucoes pessoais, carta de servicos, metas e orcamentos.
 - `backend/services/genProviderGateway.js` centraliza geracao de texto/JSON para OpenAI, Gemini, Claude e Groq; chamadas multimodais de imagem/PDF continuam em `visionService.js`.
-- A interface da Gen recebeu um polimento leve em `css/ia.css` e `css/ia-mobile.css`: bolhas menos pesadas, botoes mais estaveis, foco mais claro no input, rolagem mais suave e suporte a reducao de movimento.
+- A interface da Gen recebeu refresh visual em `css/ia.css` e `css/ia-mobile.css`: painel mais amplo, header mais limpo, fundo mais leve, bolhas redesenhadas, botoes mais claros, input mais estavel e cache-busting explicito em HTML.
 
 ---
 

@@ -378,6 +378,10 @@ window.IA = (function () {
         return /^(quero\s+)?cadastrar\s+(uma\s+)?despesa$|^registrar\s+(uma\s+)?despesa$|^nova\s+despesa$/i.test((texto || '').trim());
     }
 
+    function _isAjudaGen(texto) {
+        return /^(ajuda|help|o que voc[eê] faz|como funciona|op[cç][oõ]es|menu)[!.?\s]*$/i.test((texto || '').trim());
+    }
+
     function _exibirBotoesTrocaPerfil() {
         estado.aguardandoTrocaPerfil = true;
         fetch(apiURL() + '/perfis', { headers: hdrs() })
@@ -525,6 +529,15 @@ window.IA = (function () {
             setBtnDisabled(false);
             removeTyping(tid);
             _iniciarColetaCampos({}, 'despesa');
+            return;
+        }
+
+        if (_isAjudaGen(texto)) {
+            estado.enviando = false;
+            setBtnDisabled(false);
+            removeTyping(tid);
+            addGen('Posso cadastrar despesas e receitas, consultar seu resumo, ler PIX, boleto e arquivos. Os botões e fluxos guiados não usam IA externa; ela entra só quando você escreve uma solicitação livre ou pede uma análise mais aberta.');
+            _mostrarChipsContinuacao(null, 500);
             return;
         }
 
