@@ -214,9 +214,13 @@ window.IA = (function () {
             if (badge) { badge.textContent = nome; badge.className = 'badge ' + (isGen ? 'gen' : 'ativo'); }
 
             // Cacheia quais provedores têm chave salva
-            var hasKeys = (cfg && cfg.has_keys) || {};
+            var hasKeys  = (cfg && cfg.has_keys)     || {};
+            var previews = (cfg && cfg.key_previews) || {};
             ['openai','gemini','claude','groq'].forEach(function(p) {
-                if (hasKeys[p]) sessionStorage.setItem('ia_tem_chave_' + p, '1');
+                if (hasKeys[p]) {
+                    sessionStorage.setItem('ia_tem_chave_' + p, '1');
+                    if (previews[p]) sessionStorage.setItem('ia_preview_' + p, previews[p]);
+                }
             });
 
             var sel = document.getElementById('ia-provider-select');
@@ -1983,17 +1987,16 @@ window.IA = (function () {
         }
         sel.addEventListener('change', function () {
             atualizarUI();
-            if (_iaInitializando) return; // carregamento inicial — não salvar nem toastar
+            if (_iaInitializando) return;
             var v = sel.value;
+            var inp = document.getElementById('ia-api-key-input');
             if (v === 'gen') {
-                salvarChaveAPI();
+                // "gen" não tem campo de chave — salva silenciosamente sem toast
+                apiPost('/config/chave', { provider: 'gen', api_key: '' }).catch(function () {});
                 return;
             }
-            var inp = document.getElementById('ia-api-key-input');
-            // Se já tem chave salva para este provedor, mostra máscara e auto-salva
             if (sessionStorage.getItem('ia_tem_chave_' + v)) {
-                if (inp) inp.value = '••••••••';
-                salvarChaveAPI(); // envia provider com chave vazia → backend mantém existente
+                if (inp) inp.value = sessionStorage.getItem('ia_preview_' + v) || '••••••••';
             } else {
                 if (inp) inp.value = '';
             }
@@ -2020,7 +2023,7 @@ window.IA = (function () {
         var chave    = input ? input.value.trim() : '';
 
         // Máscara = usuário não alterou, envia vazio (backend mantém chave existente)
-        if (chave === _CHAVE_MASK) chave = '';
+        if (chave.includes('••••••••')) chave = '';
 
         // Sem chave e sem registro anterior
         if (provider !== 'gen' && !chave && !sessionStorage.getItem('ia_tem_chave_' + provider)) {
@@ -2032,8 +2035,10 @@ window.IA = (function () {
                 _toast((LABELS_PROVIDER[provider] || 'Configuração salva') + ' ativa!', 'success');
                 // Mostra máscara em vez de limpar
                 if (input && provider !== 'gen') {
-                    input.value = _CHAVE_MASK;
+                    var preview = chave ? chave.slice(0, 8) + '••••••••' : (sessionStorage.getItem('ia_preview_' + provider) || '••••••••');
+                    input.value = preview;
                     sessionStorage.setItem('ia_tem_chave_' + provider, '1');
+                    sessionStorage.setItem('ia_preview_' + provider, preview);
                 } else if (input) {
                     input.value = '';
                 }
