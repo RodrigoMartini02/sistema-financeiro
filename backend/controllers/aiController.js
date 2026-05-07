@@ -657,6 +657,10 @@ function isSaudacaoSimples(texto) {
     return /^(oi|ol[aá]|bom dia|boa tarde|boa noite|e ai|e aí|opa|hello|hi)[!.?\s]*$/i.test((texto || '').trim());
 }
 
+function isInicioCadastroSimples(texto) {
+    return /^(quero\s+)?cadastrar\s+(uma\s+)?(despesa|receita)$|^registrar\s+(uma\s+)?(despesa|receita)$|^nova\s+(despesa|receita)$/i.test((texto || '').trim());
+}
+
 // ── CHAT ──────────────────────────────────────────────────────────
 
 async function handleConversation(req, res) {
@@ -680,6 +684,14 @@ async function handleConversation(req, res) {
                 success: true,
                 resposta: 'Oi! Estou por aqui. Você pode cadastrar uma despesa, registrar uma receita ou consultar seu resumo financeiro.',
                 acao: 'saudacao',
+            });
+        }
+
+        if (isInicioCadastroSimples(mensagem)) {
+            return res.json({
+                success: true,
+                resposta: 'Vamos fazer pelo fluxo guiado.',
+                acao: /receita/i.test(mensagem) ? 'iniciar_receita' : 'iniciar_despesa',
             });
         }
 
@@ -732,7 +744,7 @@ async function handleConversation(req, res) {
                     return res.json({ success: true, resposta: 'Chave de API inválida ou expirada. Verifique nas configurações e salve a chave novamente.', acao: 'erro_provider' });
                 }
                 if (status === 429 || msg.includes('429') || msg.includes('rate limit') || msg.includes('too many')) {
-                    return res.json({ success: true, resposta: 'Limite de requisições atingido. Aguarde alguns instantes e tente novamente.', acao: 'erro_provider' });
+                    return res.json({ success: true, resposta: `Limite de requisições do provedor ${providerConfig.provider} atingido. Aguarde alguns instantes e tente novamente.`, acao: 'erro_provider' });
                 }
                 throw err;
             }

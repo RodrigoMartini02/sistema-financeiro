@@ -370,6 +370,14 @@ window.IA = (function () {
         return /^(consultar|qual meu saldo atual|saldo|resumo|resumo financeiro|como estou|como estou no m[eê]s)[!.?\s]*$/i.test((texto || '').trim());
     }
 
+    function _isInicioCadastroReceita(texto) {
+        return /^(quero\s+)?cadastrar\s+(uma\s+)?receita$|^registrar\s+(uma\s+)?receita$|^nova\s+receita$/i.test((texto || '').trim());
+    }
+
+    function _isInicioCadastroDespesa(texto) {
+        return /^(quero\s+)?cadastrar\s+(uma\s+)?despesa$|^registrar\s+(uma\s+)?despesa$|^nova\s+despesa$/i.test((texto || '').trim());
+    }
+
     function _exibirBotoesTrocaPerfil() {
         estado.aguardandoTrocaPerfil = true;
         fetch(apiURL() + '/perfis', { headers: hdrs() })
@@ -504,6 +512,22 @@ window.IA = (function () {
             return;
         }
 
+        if (_isInicioCadastroReceita(texto)) {
+            estado.enviando = false;
+            setBtnDisabled(false);
+            removeTyping(tid);
+            _iniciarColetaCampos({}, 'receita');
+            return;
+        }
+
+        if (_isInicioCadastroDespesa(texto)) {
+            estado.enviando = false;
+            setBtnDisabled(false);
+            removeTyping(tid);
+            _iniciarColetaCampos({}, 'despesa');
+            return;
+        }
+
         // Consulta rapida usa dados do sistema, sem depender do limite do provedor
         if (_isConsultaResumo(texto)) {
             _montarResumoFinanceiro().then(function(html) {
@@ -533,6 +557,10 @@ window.IA = (function () {
                 _iniciarColetaCampos(res.despesa, 'despesa');
             } else if (res.acao === 'confirmar_receita' && res.receita) {
                 _iniciarColetaCampos(res.receita, 'receita');
+            } else if (res.acao === 'iniciar_receita') {
+                _iniciarColetaCampos({}, 'receita');
+            } else if (res.acao === 'iniciar_despesa') {
+                _iniciarColetaCampos({}, 'despesa');
             } else if (res.acao === 'encerrar') {
                 addGen(fmt(res.resposta || 'Até mais!'));
                 setTimeout(fechar, 1500);
