@@ -8,7 +8,7 @@ const client = new MercadoPagoConfig({
     accessToken: process.env.MP_ACCESS_TOKEN
 });
 
-const TRIAL_DIAS = 15;
+const TRIAL_DIAS = 60;
 const BACKEND_URL = process.env.BACKEND_URL || 'https://sistema-financeiro-backend-o199.onrender.com';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://sistema-financeiro-kxed.onrender.com';
 
@@ -103,7 +103,7 @@ router.post('/assinar', authMiddleware, async (req, res) => {
         const body = {
             items: [{
                 id: tipo,
-                title: `IGen - Sistema Financeiro Inteligente - Plano ${tipo === 'anual' ? 'Premium' : 'Plus'}`,
+                title: `FINGERENCE - Plano ${tipo === 'anual' ? 'Premium' : 'Plus'}`,
                 unit_price: valor,
                 quantity: 1,
                 currency_id: 'BRL'
@@ -160,7 +160,7 @@ router.post('/pix', authMiddleware, async (req, res) => {
                 transaction_amount: valor,
                 payment_method_id: 'pix',
                 payer: { email: usuario.email },
-                description: `IGen - Sistema Financeiro Inteligente - Plano ${tipo === 'anual' ? 'Premium' : 'Plus'}`,
+                description: `FINGERENCE - Plano ${tipo === 'anual' ? 'Premium' : 'Plus'}`,
                 external_reference: req.usuario.id.toString(),
                 notification_url: `${BACKEND_URL}/api/planos/webhook`,
                 date_of_expiration: expiracao
@@ -322,7 +322,7 @@ router.post('/pagar-cartao', authMiddleware, async (req, res) => {
                         ? { type: 'CPF', number: req.body.cpf.replace(/\D/g, '') }
                         : undefined
                 },
-                description: `IGen - Sistema Financeiro Inteligente - Plano ${tipo === 'anual' ? 'Premium' : 'Plus'}`,
+                description: `FINGERENCE - Plano ${tipo === 'anual' ? 'Premium' : 'Plus'}`,
                 external_reference: req.usuario.id.toString(),
                 notification_url: `${BACKEND_URL}/api/planos/webhook`
             }
@@ -404,7 +404,7 @@ router.post('/assinar-recorrente', authMiddleware, async (req, res) => {
 
         const result = await preApproval.create({
             body: {
-                reason: `IGen - Sistema Financeiro Inteligente - Plano ${tipo === 'mensal' ? 'Plus' : 'Premium'}`,
+                reason: `FINGERENCE - Plano ${tipo === 'mensal' ? 'Plus' : 'Premium'}`,
                 external_reference: req.usuario.id.toString(),
                 payer_email: usuario.email,
                 card_token_id: card_token,

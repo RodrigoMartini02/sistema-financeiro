@@ -1,5 +1,5 @@
-// ================================================================
-// ROTAS DE USUÁRIOS - EXPANDIDO COM FUNCIONALIDADES ADMINISTRATIVAS
+﻿// ================================================================
+// ROTAS DE USUÃRIOS - EXPANDIDO COM FUNCIONALIDADES ADMINISTRATIVAS
 // ================================================================
 const express = require('express');
 const router = express.Router();
@@ -8,13 +8,13 @@ const { query } = require('../config/database');
 const { authMiddleware } = require('../middleware/auth');
 
 // ================================================================
-// MIDDLEWARE DE PERMISSÕES
+// MIDDLEWARE DE PERMISSÃ•ES
 // ================================================================
 const isMaster = (req, res, next) => {
     if (req.usuario.tipo !== 'master') {
         return res.status(403).json({
             success: false,
-            message: 'Acesso negado. Apenas usuários Master podem realizar esta ação.'
+            message: 'Acesso negado. Apenas usuÃ¡rios Master podem realizar esta aÃ§Ã£o.'
         });
     }
     next();
@@ -24,14 +24,14 @@ const isAdminOrMaster = (req, res, next) => {
     if (req.usuario.tipo !== 'admin' && req.usuario.tipo !== 'master') {
         return res.status(403).json({
             success: false,
-            message: 'Acesso negado. Apenas usuários Admin ou Master podem realizar esta ação.'
+            message: 'Acesso negado. Apenas usuÃ¡rios Admin ou Master podem realizar esta aÃ§Ã£o.'
         });
     }
     next();
 };
 
 // ================================================================
-// GET /api/usuarios/current - Dados do usuário logado
+// GET /api/usuarios/current - Dados do usuÃ¡rio logado
 // ================================================================
 router.get('/current', authMiddleware, async (req, res) => {
     try {
@@ -43,7 +43,7 @@ router.get('/current', authMiddleware, async (req, res) => {
         if (result.rows.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: 'Usuário não encontrado'
+                message: 'UsuÃ¡rio nÃ£o encontrado'
             });
         }
         
@@ -53,16 +53,16 @@ router.get('/current', authMiddleware, async (req, res) => {
         });
         
     } catch (error) {
-        console.error('Erro ao buscar usuário:', error);
+        console.error('Erro ao buscar usuÃ¡rio:', error);
         res.status(500).json({
             success: false,
-            message: 'Erro ao buscar dados do usuário'
+            message: 'Erro ao buscar dados do usuÃ¡rio'
         });
     }
 });
 
 // ================================================================
-// PUT /api/usuarios/current - Atualizar dados do usuário logado
+// PUT /api/usuarios/current - Atualizar dados do usuÃ¡rio logado
 // ================================================================
 router.put('/current', authMiddleware, async (req, res) => {
     try {
@@ -77,7 +77,7 @@ router.put('/current', authMiddleware, async (req, res) => {
                 [JSON.stringify(dados_financeiros_merge), req.usuario.id]
             );
 
-            // Se só veio o merge, retornar sucesso sem alterar outros campos
+            // Se sÃ³ veio o merge, retornar sucesso sem alterar outros campos
             if (!nome && !email) {
                 return res.json({
                     success: true,
@@ -101,7 +101,7 @@ router.put('/current', authMiddleware, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Erro ao atualizar usuário:', error);
+        console.error('Erro ao atualizar usuÃ¡rio:', error);
         res.status(500).json({
             success: false,
             message: 'Erro ao atualizar dados'
@@ -136,7 +136,7 @@ router.put('/current/foto', authMiddleware, async (req, res) => {
 });
 
 // ================================================================
-// GET /api/usuarios - Listar todos os usuários (Admin/Master)
+// GET /api/usuarios - Listar todos os usuÃ¡rios (Admin/Master)
 // ================================================================
 router.get('/', authMiddleware, isAdminOrMaster, async (req, res) => {
     try {
@@ -168,7 +168,7 @@ router.get('/', authMiddleware, isAdminOrMaster, async (req, res) => {
             params.push(status);
         }
         
-        // Permissão: Admin só vê usuários padrão, Master vê todos
+        // PermissÃ£o: Admin sÃ³ vÃª usuÃ¡rios padrÃ£o, Master vÃª todos
         if (req.usuario.tipo === 'admin') {
             paramCount++;
             whereClause += ` AND tipo = $${paramCount}`;
@@ -180,7 +180,7 @@ router.get('/', authMiddleware, isAdminOrMaster, async (req, res) => {
         const countResult = await query(countQuery, params);
         const total = parseInt(countResult.rows[0].total);
         
-        // Buscar usuários
+        // Buscar usuÃ¡rios
         params.push(parseInt(limit), offset);
         const usersQuery = `
             SELECT id, nome, email, documento, tipo, status, pais, estado, cidade, latitude, longitude, data_cadastro, data_atualizacao
@@ -194,7 +194,7 @@ router.get('/', authMiddleware, isAdminOrMaster, async (req, res) => {
         
         res.json({
             success: true,
-            message: 'Usuários carregados com sucesso',
+            message: 'UsuÃ¡rios carregados com sucesso',
             data: usersResult.rows,
             pagination: {
                 page: parseInt(page),
@@ -205,7 +205,7 @@ router.get('/', authMiddleware, isAdminOrMaster, async (req, res) => {
         });
         
     } catch (error) {
-        console.error('Erro ao buscar usuários:', error);
+        console.error('Erro ao buscar usuÃ¡rios:', error);
         res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',
@@ -215,17 +215,17 @@ router.get('/', authMiddleware, isAdminOrMaster, async (req, res) => {
 });
 
 // ================================================================
-// POST /api/usuarios - Criar novo usuário (Apenas Master)
+// POST /api/usuarios - Criar novo usuÃ¡rio (Apenas Master)
 // ================================================================
 router.post('/', authMiddleware, isMaster, async (req, res) => {
     try {
         const { nome, email, documento, senha, tipo = 'admin', status = 'ativo', pais, estado, cidade } = req.body;
         
-        // Validações
+        // ValidaÃ§Ãµes
         if (!nome || !email || !documento || !senha) {
             return res.status(400).json({
                 success: false,
-                message: 'Nome, email, documento e senha são obrigatórios'
+                message: 'Nome, email, documento e senha sÃ£o obrigatÃ³rios'
             });
         }
         
@@ -240,33 +240,33 @@ router.post('/', authMiddleware, isMaster, async (req, res) => {
         if (!emailRegex.test(email)) {
             return res.status(400).json({
                 success: false,
-                message: 'Email inválido'
+                message: 'Email invÃ¡lido'
             });
         }
         
-        // Verificar se email já existe
+        // Verificar se email jÃ¡ existe
         const emailExists = await query('SELECT id FROM usuarios WHERE email = $1', [email]);
         if (emailExists.rows.length > 0) {
             return res.status(400).json({
                 success: false,
-                message: 'Este email já está cadastrado'
+                message: 'Este email jÃ¡ estÃ¡ cadastrado'
             });
         }
         
-        // Verificar se documento já existe
+        // Verificar se documento jÃ¡ existe
         const documentoLimpo = documento.replace(/[^\d]+/g, '');
         const docExists = await query('SELECT id FROM usuarios WHERE REPLACE(documento, \'.|-|/\', \'\') = $1', [documentoLimpo]);
         if (docExists.rows.length > 0) {
             return res.status(400).json({
                 success: false,
-                message: 'Este documento já está cadastrado'
+                message: 'Este documento jÃ¡ estÃ¡ cadastrado'
             });
         }
 
         // Hash da senha
         const senhaHash = await bcrypt.hash(senha, 10);
 
-        // Criar usuário
+        // Criar usuÃ¡rio
         const result = await query(
             `INSERT INTO usuarios (nome, email, documento, senha, tipo, status, pais, estado, cidade)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -276,12 +276,12 @@ router.post('/', authMiddleware, isMaster, async (req, res) => {
         
         res.status(201).json({
             success: true,
-            message: 'Usuário criado com sucesso',
+            message: 'UsuÃ¡rio criado com sucesso',
             data: result.rows[0]
         });
         
     } catch (error) {
-        console.error('Erro ao criar usuário:', error);
+        console.error('Erro ao criar usuÃ¡rio:', error);
         res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',
@@ -291,7 +291,122 @@ router.post('/', authMiddleware, isMaster, async (req, res) => {
 });
 
 // ================================================================
-// GET /api/usuarios/:id - Buscar usuário específico
+// GET /api/usuarios/me â€” Dados do prÃ³prio usuÃ¡rio logado
+// ================================================================
+router.get('/me', authMiddleware, async (req, res) => {
+    try {
+        const result = await query(
+            'SELECT id, nome, email, documento, pais, estado, cidade, latitude, longitude, tipo, status, plano_status, plano_tipo, plano_expiracao, data_cadastro FROM usuarios WHERE id = $1',
+            [req.usuario.id]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'UsuÃ¡rio nÃ£o encontrado' });
+        }
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Erro ao buscar perfil:', error);
+        res.status(500).json({ success: false, message: 'Erro ao buscar perfil' });
+    }
+});
+
+// ================================================================
+// PUT /api/usuarios/me â€” Atualizar dados do prÃ³prio usuÃ¡rio
+// ================================================================
+router.put('/me', authMiddleware, async (req, res) => {
+    try {
+        const { nome, email, pais, estado, cidade, senha_atual, nova_senha, latitude, longitude } = req.body;
+
+        if (!nome || nome.trim() === '') {
+            return res.status(400).json({ success: false, message: 'Nome Ã© obrigatÃ³rio' });
+        }
+
+        const current = await query('SELECT senha, email FROM usuarios WHERE id = $1', [req.usuario.id]);
+        if (current.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'UsuÃ¡rio nÃ£o encontrado' });
+        }
+
+        // Se quer trocar senha, valida a atual
+        let senhaHash = null;
+        if (nova_senha) {
+            if (!senha_atual) {
+                return res.status(400).json({ success: false, message: 'Informe a senha atual para alterar a senha' });
+            }
+            const senhaValida = await bcrypt.compare(senha_atual, current.rows[0].senha);
+            if (!senhaValida) {
+                return res.status(400).json({ success: false, message: 'Senha atual incorreta' });
+            }
+            if (nova_senha.length < 8) {
+                return res.status(400).json({ success: false, message: 'Nova senha deve ter pelo menos 8 caracteres' });
+            }
+            senhaHash = await bcrypt.hash(nova_senha, 10);
+        }
+
+        // Verificar email duplicado (se mudou)
+        if (email && email.toLowerCase() !== current.rows[0].email) {
+            const emailExiste = await query('SELECT id FROM usuarios WHERE email = $1 AND id != $2', [email.toLowerCase(), req.usuario.id]);
+            if (emailExiste.rows.length > 0) {
+                return res.status(400).json({ success: false, message: 'Este email jÃ¡ estÃ¡ em uso' });
+            }
+        }
+
+        const lat = latitude != null ? parseFloat(latitude) : null;
+        const lng = longitude != null ? parseFloat(longitude) : null;
+
+        const updateQuery = senhaHash
+            ? `UPDATE usuarios SET nome = $1, email = $2, pais = $3, estado = $4, cidade = $5, senha = $6, latitude = $7, longitude = $8, data_atualizacao = CURRENT_TIMESTAMP WHERE id = $9 RETURNING id, nome, email, pais, estado, cidade, latitude, longitude`
+            : `UPDATE usuarios SET nome = $1, email = $2, pais = $3, estado = $4, cidade = $5, latitude = $6, longitude = $7, data_atualizacao = CURRENT_TIMESTAMP WHERE id = $8 RETURNING id, nome, email, pais, estado, cidade, latitude, longitude`;
+
+        const params = senhaHash
+            ? [nome.trim(), (email || current.rows[0].email).toLowerCase(), pais || null, estado || null, cidade || null, senhaHash, lat, lng, req.usuario.id]
+            : [nome.trim(), (email || current.rows[0].email).toLowerCase(), pais || null, estado || null, cidade || null, lat, lng, req.usuario.id];
+
+        const result = await query(updateQuery, params);
+
+        res.json({ success: true, message: 'Perfil atualizado com sucesso', data: result.rows[0] });
+    } catch (error) {
+        console.error('Erro ao atualizar perfil:', error);
+        res.status(500).json({ success: false, message: 'Erro ao atualizar perfil' });
+    }
+});
+
+// ================================================================
+// DELETE /api/usuarios/me/cancelar â€” Cancelar a prÃ³pria conta
+// ================================================================
+router.delete('/me/cancelar', authMiddleware, async (req, res) => {
+    try {
+        const { senha } = req.body;
+        if (!senha) {
+            return res.status(400).json({ success: false, message: 'Informe sua senha para confirmar o cancelamento' });
+        }
+
+        const result = await query('SELECT senha, tipo FROM usuarios WHERE id = $1', [req.usuario.id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'UsuÃ¡rio nÃ£o encontrado' });
+        }
+
+        if (result.rows[0].tipo === 'master') {
+            return res.status(403).json({ success: false, message: 'Conta master nÃ£o pode ser cancelada por este fluxo' });
+        }
+
+        const senhaValida = await bcrypt.compare(senha, result.rows[0].senha);
+        if (!senhaValida) {
+            return res.status(400).json({ success: false, message: 'Senha incorreta' });
+        }
+
+        await query(
+            `UPDATE usuarios SET status = 'cancelado', plano_status = 'expirado', data_atualizacao = CURRENT_TIMESTAMP WHERE id = $1`,
+            [req.usuario.id]
+        );
+
+        res.json({ success: true, message: 'Conta cancelada com sucesso' });
+    } catch (error) {
+        console.error('Erro ao cancelar conta:', error);
+        res.status(500).json({ success: false, message: 'Erro ao cancelar conta' });
+    }
+});
+
+// ================================================================
+// GET /api/usuarios/:id - Buscar usuÃ¡rio especÃ­fico
 // ================================================================
 router.get('/:id', authMiddleware, isAdminOrMaster, async (req, res) => {
     try {
@@ -300,7 +415,7 @@ router.get('/:id', authMiddleware, isAdminOrMaster, async (req, res) => {
         if (isNaN(userId)) {
             return res.status(400).json({
                 success: false,
-                message: 'ID do usuário deve ser um número válido'
+                message: 'ID do usuÃ¡rio deve ser um nÃºmero vÃ¡lido'
             });
         }
         
@@ -312,13 +427,13 @@ router.get('/:id', authMiddleware, isAdminOrMaster, async (req, res) => {
         if (result.rows.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: 'Usuário não encontrado'
+                message: 'UsuÃ¡rio nÃ£o encontrado'
             });
         }
         
         const usuario = result.rows[0];
         
-        // Admin não pode ver dados de outros admins ou masters
+        // Admin nÃ£o pode ver dados de outros admins ou masters
         if (req.usuario.tipo === 'admin' && usuario.tipo !== 'padrao') {
             return res.status(403).json({
                 success: false,
@@ -332,7 +447,7 @@ router.get('/:id', authMiddleware, isAdminOrMaster, async (req, res) => {
         });
         
     } catch (error) {
-        console.error('Erro ao buscar usuário:', error);
+        console.error('Erro ao buscar usuÃ¡rio:', error);
         res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',
@@ -342,7 +457,7 @@ router.get('/:id', authMiddleware, isAdminOrMaster, async (req, res) => {
 });
 
 // ================================================================
-// PUT /api/usuarios/:id - Atualizar usuário específico
+// PUT /api/usuarios/:id - Atualizar usuÃ¡rio especÃ­fico
 // ================================================================
 router.put('/:id', authMiddleware, isAdminOrMaster, async (req, res) => {
     try {
@@ -352,11 +467,11 @@ router.put('/:id', authMiddleware, isAdminOrMaster, async (req, res) => {
         if (isNaN(userId)) {
             return res.status(400).json({
                 success: false,
-                message: 'ID do usuário deve ser um número válido'
+                message: 'ID do usuÃ¡rio deve ser um nÃºmero vÃ¡lido'
             });
         }
         
-        // Verificar se usuário existe
+        // Verificar se usuÃ¡rio existe
         const existingUser = await query(
             'SELECT id, tipo FROM usuarios WHERE id = $1',
             [userId]
@@ -365,35 +480,35 @@ router.put('/:id', authMiddleware, isAdminOrMaster, async (req, res) => {
         if (existingUser.rows.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: 'Usuário não encontrado'
+                message: 'UsuÃ¡rio nÃ£o encontrado'
             });
         }
         
         const targetUser = existingUser.rows[0];
         
-        // Verificações de permissão
+        // VerificaÃ§Ãµes de permissÃ£o
         if (req.usuario.tipo === 'admin' && targetUser.tipo !== 'padrao') {
             return res.status(403).json({
                 success: false,
-                message: 'Admin só pode editar usuários padrão'
+                message: 'Admin sÃ³ pode editar usuÃ¡rios padrÃ£o'
             });
         }
         
-        // Apenas Master pode alterar tipo de usuário
+        // Apenas Master pode alterar tipo de usuÃ¡rio
         if (tipo && req.usuario.tipo !== 'master') {
             return res.status(403).json({
                 success: false,
-                message: 'Apenas Master pode alterar tipo de usuário'
+                message: 'Apenas Master pode alterar tipo de usuÃ¡rio'
             });
         }
         
-        // Validações
+        // ValidaÃ§Ãµes
         if (email) {
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(email)) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Email inválido'
+                    message: 'Email invÃ¡lido'
                 });
             }
             
@@ -401,7 +516,7 @@ router.put('/:id', authMiddleware, isAdminOrMaster, async (req, res) => {
             if (emailExists.rows.length > 0) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Este email já está sendo usado por outro usuário'
+                    message: 'Este email jÃ¡ estÃ¡ sendo usado por outro usuÃ¡rio'
                 });
             }
         }
@@ -413,7 +528,7 @@ router.put('/:id', authMiddleware, isAdminOrMaster, async (req, res) => {
             });
         }
         
-        // Construir query de update dinâmica
+        // Construir query de update dinÃ¢mica
         const updates = [];
         const params = [];
         let paramCount = 0;
@@ -502,12 +617,12 @@ router.put('/:id', authMiddleware, isAdminOrMaster, async (req, res) => {
         
         res.json({
             success: true,
-            message: 'Usuário atualizado com sucesso',
+            message: 'UsuÃ¡rio atualizado com sucesso',
             data: result.rows[0]
         });
         
     } catch (error) {
-        console.error('Erro ao atualizar usuário:', error);
+        console.error('Erro ao atualizar usuÃ¡rio:', error);
         res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',
@@ -517,33 +632,33 @@ router.put('/:id', authMiddleware, isAdminOrMaster, async (req, res) => {
 });
 
 // ================================================================
-// PUT /api/usuarios/:id/alterar-senha - Alterar senha do usuário
+// PUT /api/usuarios/:id/alterar-senha - Alterar senha do usuÃ¡rio
 // ================================================================
 router.put('/:id/alterar-senha', authMiddleware, async (req, res) => {
     try {
         const userId = parseInt(req.params.id);
         const { senhaAtual, senhaNova } = req.body;
 
-        // Validações
+        // ValidaÃ§Ãµes
         if (isNaN(userId)) {
             return res.status(400).json({
                 success: false,
-                message: 'ID do usuário deve ser um número válido'
+                message: 'ID do usuÃ¡rio deve ser um nÃºmero vÃ¡lido'
             });
         }
 
-        // Usuário só pode alterar sua própria senha
+        // UsuÃ¡rio sÃ³ pode alterar sua prÃ³pria senha
         if (userId !== req.usuario.id) {
             return res.status(403).json({
                 success: false,
-                message: 'Você só pode alterar sua própria senha'
+                message: 'VocÃª sÃ³ pode alterar sua prÃ³pria senha'
             });
         }
 
         if (!senhaAtual || !senhaNova) {
             return res.status(400).json({
                 success: false,
-                message: 'Senha atual e senha nova são obrigatórias'
+                message: 'Senha atual e senha nova sÃ£o obrigatÃ³rias'
             });
         }
 
@@ -554,7 +669,7 @@ router.put('/:id/alterar-senha', authMiddleware, async (req, res) => {
             });
         }
 
-        // Buscar usuário e verificar senha atual
+        // Buscar usuÃ¡rio e verificar senha atual
         const userResult = await query(
             'SELECT id, senha FROM usuarios WHERE id = $1',
             [userId]
@@ -563,13 +678,13 @@ router.put('/:id/alterar-senha', authMiddleware, async (req, res) => {
         if (userResult.rows.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: 'Usuário não encontrado'
+                message: 'UsuÃ¡rio nÃ£o encontrado'
             });
         }
 
         const usuario = userResult.rows[0];
 
-        // Verificar se a senha atual está correta
+        // Verificar se a senha atual estÃ¡ correta
         const senhaValida = await bcrypt.compare(senhaAtual, usuario.senha);
 
         if (!senhaValida) {
@@ -606,7 +721,7 @@ router.put('/:id/alterar-senha', authMiddleware, async (req, res) => {
 });
 
 // ================================================================
-// DELETE /api/usuarios/:id - Excluir usuário (Apenas Master)
+// DELETE /api/usuarios/:id - Excluir usuÃ¡rio (Apenas Master)
 // ================================================================
 router.delete('/:id', authMiddleware, isMaster, async (req, res) => {
     try {
@@ -615,19 +730,19 @@ router.delete('/:id', authMiddleware, isMaster, async (req, res) => {
         if (isNaN(userId)) {
             return res.status(400).json({
                 success: false,
-                message: 'ID do usuário deve ser um número válido'
+                message: 'ID do usuÃ¡rio deve ser um nÃºmero vÃ¡lido'
             });
         }
         
-        // Não pode excluir a si mesmo
+        // NÃ£o pode excluir a si mesmo
         if (userId === req.usuario.id) {
             return res.status(400).json({
                 success: false,
-                message: 'Você não pode excluir sua própria conta'
+                message: 'VocÃª nÃ£o pode excluir sua prÃ³pria conta'
             });
         }
         
-        // Verificar se usuário existe
+        // Verificar se usuÃ¡rio existe
         const existingUser = await query(
             'SELECT id, nome, tipo FROM usuarios WHERE id = $1',
             [userId]
@@ -636,11 +751,11 @@ router.delete('/:id', authMiddleware, isMaster, async (req, res) => {
         if (existingUser.rows.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: 'Usuário não encontrado'
+                message: 'UsuÃ¡rio nÃ£o encontrado'
             });
         }
         
-        // Verificar se usuário tem dados financeiros
+        // Verificar se usuÃ¡rio tem dados financeiros
         const hasData = await query(
             'SELECT COUNT(*) as total FROM (SELECT id FROM receitas WHERE usuario_id = $1 UNION SELECT id FROM despesas WHERE usuario_id = $1) as dados',
             [userId]
@@ -651,7 +766,7 @@ router.delete('/:id', authMiddleware, isMaster, async (req, res) => {
         if (totalDados > 0) {
             return res.status(400).json({
                 success: false,
-                message: `Não é possível excluir este usuário pois ele possui ${totalDados} registros financeiros. Desative o usuário em vez de excluí-lo.`
+                message: `NÃ£o Ã© possÃ­vel excluir este usuÃ¡rio pois ele possui ${totalDados} registros financeiros. Desative o usuÃ¡rio em vez de excluÃ­-lo.`
             });
         }
         
@@ -659,11 +774,11 @@ router.delete('/:id', authMiddleware, isMaster, async (req, res) => {
         
         res.json({
             success: true,
-            message: `Usuário "${existingUser.rows[0].nome}" excluído com sucesso`
+            message: `UsuÃ¡rio "${existingUser.rows[0].nome}" excluÃ­do com sucesso`
         });
         
     } catch (error) {
-        console.error('Erro ao excluir usuário:', error);
+        console.error('Erro ao excluir usuÃ¡rio:', error);
         res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',
@@ -673,7 +788,7 @@ router.delete('/:id', authMiddleware, isMaster, async (req, res) => {
 });
 
 // ================================================================
-// PUT /api/usuarios/:id/status - Alterar status do usuário (Admin/Master)
+// PUT /api/usuarios/:id/status - Alterar status do usuÃ¡rio (Admin/Master)
 // ================================================================
 router.put('/:id/status', authMiddleware, isAdminOrMaster, async (req, res) => {
     try {
@@ -683,7 +798,7 @@ router.put('/:id/status', authMiddleware, isAdminOrMaster, async (req, res) => {
         if (isNaN(userId)) {
             return res.status(400).json({
                 success: false,
-                message: 'ID do usuário deve ser um número válido'
+                message: 'ID do usuÃ¡rio deve ser um nÃºmero vÃ¡lido'
             });
         }
         
@@ -694,15 +809,15 @@ router.put('/:id/status', authMiddleware, isAdminOrMaster, async (req, res) => {
             });
         }
         
-        // Não pode alterar próprio status
+        // NÃ£o pode alterar prÃ³prio status
         if (userId === req.usuario.id) {
             return res.status(400).json({
                 success: false,
-                message: 'Você não pode alterar seu próprio status'
+                message: 'VocÃª nÃ£o pode alterar seu prÃ³prio status'
             });
         }
         
-        // Verificar se usuário existe
+        // Verificar se usuÃ¡rio existe
         const existingUser = await query(
             'SELECT id, nome, tipo, status FROM usuarios WHERE id = $1',
             [userId]
@@ -711,17 +826,17 @@ router.put('/:id/status', authMiddleware, isAdminOrMaster, async (req, res) => {
         if (existingUser.rows.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: 'Usuário não encontrado'
+                message: 'UsuÃ¡rio nÃ£o encontrado'
             });
         }
         
         const targetUser = existingUser.rows[0];
         
-        // Admin não pode alterar status de outros admins ou masters
+        // Admin nÃ£o pode alterar status de outros admins ou masters
         if (req.usuario.tipo === 'admin' && targetUser.tipo !== 'padrao') {
             return res.status(403).json({
                 success: false,
-                message: 'Admin só pode alterar status de usuários padrão'
+                message: 'Admin sÃ³ pode alterar status de usuÃ¡rios padrÃ£o'
             });
         }
         
@@ -737,7 +852,7 @@ router.put('/:id/status', authMiddleware, isAdminOrMaster, async (req, res) => {
         
         res.json({
             success: true,
-            message: `Usuário "${result.rows[0].nome}" ${statusTexto} com sucesso`,
+            message: `UsuÃ¡rio "${result.rows[0].nome}" ${statusTexto} com sucesso`,
             data: result.rows[0]
         });
         
@@ -752,7 +867,7 @@ router.put('/:id/status', authMiddleware, isAdminOrMaster, async (req, res) => {
 });
 
 // ================================================================
-// GET /api/usuarios/stats/geral - Estatísticas gerais (Master)
+// GET /api/usuarios/stats/geral - EstatÃ­sticas gerais (Master)
 // ================================================================
 router.get('/stats/geral', authMiddleware, isMaster, async (req, res) => {
     try {
@@ -780,7 +895,7 @@ router.get('/stats/geral', authMiddleware, isMaster, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Erro ao buscar estatísticas:', error);
+        console.error('Erro ao buscar estatÃ­sticas:', error);
         res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',
@@ -790,7 +905,7 @@ router.get('/stats/geral', authMiddleware, isMaster, async (req, res) => {
 });
 
 // ================================================================
-// GET /api/usuarios/stats/mapa - Distribuição geográfica de usuários (Master)
+// GET /api/usuarios/stats/mapa - DistribuiÃ§Ã£o geogrÃ¡fica de usuÃ¡rios (Master)
 // ================================================================
 router.get('/stats/mapa', authMiddleware, isMaster, async (req, res) => {
     try {
@@ -803,7 +918,7 @@ router.get('/stats/mapa', authMiddleware, isMaster, async (req, res) => {
 
         const porPais = await query(`
             SELECT
-                COALESCE(pais, 'Não informado') as pais,
+                COALESCE(pais, 'NÃ£o informado') as pais,
                 COUNT(*) as total
             FROM usuarios
             WHERE tipo = 'padrao' OR tipo = 'admin'
@@ -820,7 +935,7 @@ router.get('/stats/mapa', authMiddleware, isMaster, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Erro ao buscar mapa de usuários:', error);
+        console.error('Erro ao buscar mapa de usuÃ¡rios:', error);
         res.status(500).json({
             success: false,
             message: 'Erro interno do servidor',
@@ -830,7 +945,7 @@ router.get('/stats/mapa', authMiddleware, isMaster, async (req, res) => {
 });
 
 // ================================================================
-// FUNÇÃO AUXILIAR: Criar estrutura inicial de dados financeiros
+// FUNÃ‡ÃƒO AUXILIAR: Criar estrutura inicial de dados financeiros
 // ================================================================
 function criarEstruturaInicial() {
     const anoAtual = new Date().getFullYear();
@@ -852,21 +967,21 @@ function criarEstruturaInicial() {
 
 // ================================================================
 // GET /api/usuarios/:id/dados-financeiros
-// Buscar dados financeiros de um usuário
+// Buscar dados financeiros de um usuÃ¡rio
 // ================================================================
 router.get('/:id/dados-financeiros', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Verificar se o usuário está tentando acessar seus próprios dados
+        // Verificar se o usuÃ¡rio estÃ¡ tentando acessar seus prÃ³prios dados
         if (req.usuario.id !== parseInt(id)) {
             return res.status(403).json({
                 success: false,
-                message: 'Acesso negado. Você só pode acessar seus próprios dados.'
+                message: 'Acesso negado. VocÃª sÃ³ pode acessar seus prÃ³prios dados.'
             });
         }
 
-        // Buscar usuário no banco de dados
+        // Buscar usuÃ¡rio no banco de dados
         const result = await query(
             'SELECT dados_financeiros FROM usuarios WHERE id = $1',
             [id]
@@ -875,11 +990,11 @@ router.get('/:id/dados-financeiros', authMiddleware, async (req, res) => {
         if (result.rows.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: 'Usuário não encontrado'
+                message: 'UsuÃ¡rio nÃ£o encontrado'
             });
         }
 
-        // Se não houver dados financeiros, retornar estrutura inicial
+        // Se nÃ£o houver dados financeiros, retornar estrutura inicial
         const dadosFinanceiros = result.rows[0].dados_financeiros || criarEstruturaInicial();
 
         res.json({
@@ -899,18 +1014,18 @@ router.get('/:id/dados-financeiros', authMiddleware, async (req, res) => {
 
 // ================================================================
 // PUT /api/usuarios/:id/dados-financeiros
-// Salvar/atualizar dados financeiros de um usuário
+// Salvar/atualizar dados financeiros de um usuÃ¡rio
 // ================================================================
 router.put('/:id/dados-financeiros', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
         const { dadosFinanceiros } = req.body;
 
-        // Verificar se o usuário está tentando atualizar seus próprios dados
+        // Verificar se o usuÃ¡rio estÃ¡ tentando atualizar seus prÃ³prios dados
         if (req.usuario.id !== parseInt(id)) {
             return res.status(403).json({
                 success: false,
-                message: 'Acesso negado. Você só pode atualizar seus próprios dados.'
+                message: 'Acesso negado. VocÃª sÃ³ pode atualizar seus prÃ³prios dados.'
             });
         }
 
@@ -918,7 +1033,7 @@ router.put('/:id/dados-financeiros', authMiddleware, async (req, res) => {
         if (!dadosFinanceiros || typeof dadosFinanceiros !== 'object') {
             return res.status(400).json({
                 success: false,
-                message: 'Dados financeiros inválidos'
+                message: 'Dados financeiros invÃ¡lidos'
             });
         }
 
@@ -931,7 +1046,7 @@ router.put('/:id/dados-financeiros', authMiddleware, async (req, res) => {
         if (result.rows.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: 'Usuário não encontrado'
+                message: 'UsuÃ¡rio nÃ£o encontrado'
             });
         }
 
@@ -953,13 +1068,13 @@ router.put('/:id/dados-financeiros', authMiddleware, async (req, res) => {
 
 // ================================================================
 // GET /api/usuarios/:id/categorias
-// Buscar categorias de um usuário
+// Buscar categorias de um usuÃ¡rio
 // ================================================================
 router.get('/:id/categorias', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Verificar se o usuário está tentando acessar seus próprios dados
+        // Verificar se o usuÃ¡rio estÃ¡ tentando acessar seus prÃ³prios dados
         if (req.usuario.id !== parseInt(id)) {
             return res.status(403).json({
                 success: false,
@@ -975,13 +1090,13 @@ router.get('/:id/categorias', authMiddleware, async (req, res) => {
         if (result.rows.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: 'Usuário não encontrado'
+                message: 'UsuÃ¡rio nÃ£o encontrado'
             });
         }
 
-        // Estrutura padrão de categorias
+        // Estrutura padrÃ£o de categorias
         const categoriasPadrao = {
-            despesas: ["Alimentação", "Combustível", "Moradia"]
+            despesas: ["AlimentaÃ§Ã£o", "CombustÃ­vel", "Moradia"]
         };
 
         const categorias = result.rows[0].categorias || categoriasPadrao;
@@ -1003,7 +1118,7 @@ router.get('/:id/categorias', authMiddleware, async (req, res) => {
 
 // ================================================================
 // PUT /api/usuarios/:id/categorias
-// Salvar/atualizar categorias de um usuário
+// Salvar/atualizar categorias de um usuÃ¡rio
 // ================================================================
 router.put('/:id/categorias', authMiddleware, async (req, res) => {
     try {
@@ -1020,7 +1135,7 @@ router.put('/:id/categorias', authMiddleware, async (req, res) => {
         if (!categorias || typeof categorias !== 'object') {
             return res.status(400).json({
                 success: false,
-                message: 'Categorias inválidas'
+                message: 'Categorias invÃ¡lidas'
             });
         }
 
@@ -1032,7 +1147,7 @@ router.put('/:id/categorias', authMiddleware, async (req, res) => {
         if (result.rows.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: 'Usuário não encontrado'
+                message: 'UsuÃ¡rio nÃ£o encontrado'
             });
         }
 
@@ -1053,7 +1168,7 @@ router.put('/:id/categorias', authMiddleware, async (req, res) => {
 
 // ================================================================
 // GET /api/usuarios/:id/cartoes
-// Buscar cartões de um usuário
+// Buscar cartÃµes de um usuÃ¡rio
 // ================================================================
 router.get('/:id/cartoes', authMiddleware, async (req, res) => {
     try {
@@ -1084,7 +1199,7 @@ router.get('/:id/cartoes', authMiddleware, async (req, res) => {
             cartoesParams
         );
 
-        // Se encontrou cartões na tabela, retornar eles
+        // Se encontrou cartÃµes na tabela, retornar eles
         if (resultTabela.rows.length > 0) {
             const cartoes = resultTabela.rows.map((cartao, index) => ({
                 id: cartao.id,
@@ -1113,13 +1228,13 @@ router.get('/:id/cartoes', authMiddleware, async (req, res) => {
         if (resultJson.rows.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: 'Usuário não encontrado'
+                message: 'UsuÃ¡rio nÃ£o encontrado'
             });
         }
 
         const cartoesJson = resultJson.rows[0].cartoes;
 
-        // Se não tem cartões no JSON, retornar array vazio
+        // Se nÃ£o tem cartÃµes no JSON, retornar array vazio
         if (!cartoesJson) {
             return res.json({
                 success: true,
@@ -1127,7 +1242,7 @@ router.get('/:id/cartoes', authMiddleware, async (req, res) => {
             });
         }
 
-        // 3. Migrar cartões do JSON para a tabela automaticamente
+        // 3. Migrar cartÃµes do JSON para a tabela automaticamente
         let cartoesParaMigrar = [];
 
         if (Array.isArray(cartoesJson)) {
@@ -1151,7 +1266,7 @@ router.get('/:id/cartoes', authMiddleware, async (req, res) => {
             });
         }
 
-        // Se tem cartões para migrar, inserir na tabela (ON CONFLICT ignora duplicatas)
+        // Se tem cartÃµes para migrar, inserir na tabela (ON CONFLICT ignora duplicatas)
         const cartoesMigrados = [];
         for (let i = 0; i < cartoesParaMigrar.length; i++) {
             const cartao = cartoesParaMigrar[i];
@@ -1187,11 +1302,11 @@ router.get('/:id/cartoes', authMiddleware, async (req, res) => {
                     });
                 }
             } catch (insertError) {
-                console.error('Erro ao migrar cartão:', insertError);
+                console.error('Erro ao migrar cartÃ£o:', insertError);
             }
         }
 
-        console.log(`✅ Migrados ${cartoesMigrados.length} cartões do JSON para tabela (usuário ${id})`);
+        console.log(`âœ… Migrados ${cartoesMigrados.length} cartÃµes do JSON para tabela (usuÃ¡rio ${id})`);
 
         res.json({
             success: true,
@@ -1199,10 +1314,10 @@ router.get('/:id/cartoes', authMiddleware, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Erro ao buscar cartões:', error);
+        console.error('Erro ao buscar cartÃµes:', error);
         res.status(500).json({
             success: false,
-            message: 'Erro ao buscar cartões',
+            message: 'Erro ao buscar cartÃµes',
             error: error.message
         });
     }
@@ -1210,7 +1325,7 @@ router.get('/:id/cartoes', authMiddleware, async (req, res) => {
 
 // ================================================================
 // PUT /api/usuarios/:id/cartoes
-// Salvar/atualizar cartões de um usuário - SALVA NA TABELA CARTOES
+// Salvar/atualizar cartÃµes de um usuÃ¡rio - SALVA NA TABELA CARTOES
 // ================================================================
 router.put('/:id/cartoes', authMiddleware, async (req, res) => {
     try {
@@ -1227,33 +1342,33 @@ router.put('/:id/cartoes', authMiddleware, async (req, res) => {
         if (!cartoes || !Array.isArray(cartoes)) {
             return res.status(400).json({
                 success: false,
-                message: 'Cartões inválidos - esperado array'
+                message: 'CartÃµes invÃ¡lidos - esperado array'
             });
         }
 
-        // Iniciar transação
+        // Iniciar transaÃ§Ã£o
         await query('BEGIN');
 
         try {
-            // 1. Buscar cartões existentes na tabela
+            // 1. Buscar cartÃµes existentes na tabela
             const existentes = await query(
                 'SELECT id FROM cartoes WHERE usuario_id = $1',
                 [id]
             );
             const idsExistentes = existentes.rows.map(r => r.id);
 
-            // 2. IDs dos cartões enviados (apenas os que já têm ID válido do banco)
+            // 2. IDs dos cartÃµes enviados (apenas os que jÃ¡ tÃªm ID vÃ¡lido do banco)
             const idsEnviados = cartoes
-                .filter(c => c.id && typeof c.id === 'number' && c.id > 100) // IDs reais são maiores
+                .filter(c => c.id && typeof c.id === 'number' && c.id > 100) // IDs reais sÃ£o maiores
                 .map(c => c.id);
 
-            // 3. Deletar cartões que não estão mais na lista
+            // 3. Deletar cartÃµes que nÃ£o estÃ£o mais na lista
             const idsParaDeletar = idsExistentes.filter(id => !idsEnviados.includes(id));
             for (const cartaoId of idsParaDeletar) {
                 await query('DELETE FROM cartoes WHERE id = $1 AND usuario_id = $2', [cartaoId, id]);
             }
 
-            // 4. Inserir ou atualizar cada cartão
+            // 4. Inserir ou atualizar cada cartÃ£o
             const cartoesSalvos = [];
             for (let i = 0; i < cartoes.length; i++) {
                 const cartao = cartoes[i];
@@ -1261,7 +1376,7 @@ router.put('/:id/cartoes', authMiddleware, async (req, res) => {
 
                 if (!nome) continue;
 
-                // Se tem ID válido do banco, atualizar
+                // Se tem ID vÃ¡lido do banco, atualizar
                 if (cartao.id && typeof cartao.id === 'number' && idsExistentes.includes(cartao.id)) {
                     const updateResult = await query(
                         `UPDATE cartoes
@@ -1284,7 +1399,7 @@ router.put('/:id/cartoes', authMiddleware, async (req, res) => {
                         cartoesSalvos.push(updateResult.rows[0]);
                     }
                 } else {
-                    // Inserir novo cartão
+                    // Inserir novo cartÃ£o
                     const insertResult = await query(
                         `INSERT INTO cartoes (usuario_id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo)
                          VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -1307,11 +1422,11 @@ router.put('/:id/cartoes', authMiddleware, async (req, res) => {
 
             await query('COMMIT');
 
-            console.log(`✅ Salvos ${cartoesSalvos.length} cartões na tabela (usuário ${id})`);
+            console.log(`âœ… Salvos ${cartoesSalvos.length} cartÃµes na tabela (usuÃ¡rio ${id})`);
 
             res.json({
                 success: true,
-                message: 'Cartões salvos com sucesso',
+                message: 'CartÃµes salvos com sucesso',
                 cartoes: cartoesSalvos.map(c => ({
                     id: c.id,
                     banco: c.banco,
@@ -1330,10 +1445,10 @@ router.put('/:id/cartoes', authMiddleware, async (req, res) => {
         }
 
     } catch (error) {
-        console.error('Erro ao salvar cartões:', error);
+        console.error('Erro ao salvar cartÃµes:', error);
         res.status(500).json({
             success: false,
-            message: 'Erro ao salvar cartões',
+            message: 'Erro ao salvar cartÃµes',
             error: error.message
         });
     }
@@ -1344,7 +1459,7 @@ router.delete('/:id/limpar-dados', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Segurança: verifica se o ID da URL é o mesmo do token
+        // SeguranÃ§a: verifica se o ID da URL Ã© o mesmo do token
         if (req.usuario.id !== parseInt(id)) {
             return res.status(403).json({ success: false, message: 'Acesso negado' });
         }
@@ -1357,7 +1472,7 @@ router.delete('/:id/limpar-dados', authMiddleware, async (req, res) => {
         await query('DELETE FROM categorias WHERE usuario_id = $1', [id]);
         await query('DELETE FROM cartoes WHERE usuario_id = $1', [id]);
 
-        // Limpa os campos JSON e notificações na tabela usuarios
+        // Limpa os campos JSON e notificaÃ§Ãµes na tabela usuarios
         await query(`
             UPDATE usuarios
             SET dados_financeiros = NULL,
@@ -1369,12 +1484,12 @@ router.delete('/:id/limpar-dados', authMiddleware, async (req, res) => {
             [id]
         );
 
-        // Opcional: Recria as categorias padrão (Alimentação, Moradia, etc.) para o usuário não ficar sem nada
+        // Opcional: Recria as categorias padrÃ£o (AlimentaÃ§Ã£o, Moradia, etc.) para o usuÃ¡rio nÃ£o ficar sem nada
         await query('SELECT criar_categorias_padrao($1)', [id]);
 
         res.json({ 
             success: true, 
-            message: 'Sistema resetado: Dados, Categorias, Cartões e Notificações apagados.' 
+            message: 'Sistema resetado: Dados, Categorias, CartÃµes e NotificaÃ§Ãµes apagados.' 
         });
 
     } catch (error) {
@@ -1385,119 +1500,5 @@ router.delete('/:id/limpar-dados', authMiddleware, async (req, res) => {
 
 
 
-// ================================================================
-// GET /api/usuarios/me — Dados do próprio usuário logado
-// ================================================================
-router.get('/me', authMiddleware, async (req, res) => {
-    try {
-        const result = await query(
-            'SELECT id, nome, email, documento, pais, estado, cidade, latitude, longitude, tipo, status, plano_status, plano_tipo, plano_expiracao, data_cadastro FROM usuarios WHERE id = $1',
-            [req.usuario.id]
-        );
-        if (result.rows.length === 0) {
-            return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
-        }
-        res.json({ success: true, data: result.rows[0] });
-    } catch (error) {
-        console.error('Erro ao buscar perfil:', error);
-        res.status(500).json({ success: false, message: 'Erro ao buscar perfil' });
-    }
-});
-
-// ================================================================
-// PUT /api/usuarios/me — Atualizar dados do próprio usuário
-// ================================================================
-router.put('/me', authMiddleware, async (req, res) => {
-    try {
-        const { nome, email, pais, estado, cidade, senha_atual, nova_senha, latitude, longitude } = req.body;
-
-        if (!nome || nome.trim() === '') {
-            return res.status(400).json({ success: false, message: 'Nome é obrigatório' });
-        }
-
-        const current = await query('SELECT senha, email FROM usuarios WHERE id = $1', [req.usuario.id]);
-        if (current.rows.length === 0) {
-            return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
-        }
-
-        // Se quer trocar senha, valida a atual
-        let senhaHash = null;
-        if (nova_senha) {
-            if (!senha_atual) {
-                return res.status(400).json({ success: false, message: 'Informe a senha atual para alterar a senha' });
-            }
-            const senhaValida = await bcrypt.compare(senha_atual, current.rows[0].senha);
-            if (!senhaValida) {
-                return res.status(400).json({ success: false, message: 'Senha atual incorreta' });
-            }
-            if (nova_senha.length < 8) {
-                return res.status(400).json({ success: false, message: 'Nova senha deve ter pelo menos 8 caracteres' });
-            }
-            senhaHash = await bcrypt.hash(nova_senha, 10);
-        }
-
-        // Verificar email duplicado (se mudou)
-        if (email && email.toLowerCase() !== current.rows[0].email) {
-            const emailExiste = await query('SELECT id FROM usuarios WHERE email = $1 AND id != $2', [email.toLowerCase(), req.usuario.id]);
-            if (emailExiste.rows.length > 0) {
-                return res.status(400).json({ success: false, message: 'Este email já está em uso' });
-            }
-        }
-
-        const lat = latitude != null ? parseFloat(latitude) : null;
-        const lng = longitude != null ? parseFloat(longitude) : null;
-
-        const updateQuery = senhaHash
-            ? `UPDATE usuarios SET nome = $1, email = $2, pais = $3, estado = $4, cidade = $5, senha = $6, latitude = $7, longitude = $8, data_atualizacao = CURRENT_TIMESTAMP WHERE id = $9 RETURNING id, nome, email, pais, estado, cidade, latitude, longitude`
-            : `UPDATE usuarios SET nome = $1, email = $2, pais = $3, estado = $4, cidade = $5, latitude = $6, longitude = $7, data_atualizacao = CURRENT_TIMESTAMP WHERE id = $8 RETURNING id, nome, email, pais, estado, cidade, latitude, longitude`;
-
-        const params = senhaHash
-            ? [nome.trim(), (email || current.rows[0].email).toLowerCase(), pais || null, estado || null, cidade || null, senhaHash, lat, lng, req.usuario.id]
-            : [nome.trim(), (email || current.rows[0].email).toLowerCase(), pais || null, estado || null, cidade || null, lat, lng, req.usuario.id];
-
-        const result = await query(updateQuery, params);
-
-        res.json({ success: true, message: 'Perfil atualizado com sucesso', data: result.rows[0] });
-    } catch (error) {
-        console.error('Erro ao atualizar perfil:', error);
-        res.status(500).json({ success: false, message: 'Erro ao atualizar perfil' });
-    }
-});
-
-// ================================================================
-// DELETE /api/usuarios/me/cancelar — Cancelar a própria conta
-// ================================================================
-router.delete('/me/cancelar', authMiddleware, async (req, res) => {
-    try {
-        const { senha } = req.body;
-        if (!senha) {
-            return res.status(400).json({ success: false, message: 'Informe sua senha para confirmar o cancelamento' });
-        }
-
-        const result = await query('SELECT senha, tipo FROM usuarios WHERE id = $1', [req.usuario.id]);
-        if (result.rows.length === 0) {
-            return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
-        }
-
-        if (result.rows[0].tipo === 'master') {
-            return res.status(403).json({ success: false, message: 'Conta master não pode ser cancelada por este fluxo' });
-        }
-
-        const senhaValida = await bcrypt.compare(senha, result.rows[0].senha);
-        if (!senhaValida) {
-            return res.status(400).json({ success: false, message: 'Senha incorreta' });
-        }
-
-        await query(
-            `UPDATE usuarios SET status = 'cancelado', plano_status = 'expirado', data_atualizacao = CURRENT_TIMESTAMP WHERE id = $1`,
-            [req.usuario.id]
-        );
-
-        res.json({ success: true, message: 'Conta cancelada com sucesso' });
-    } catch (error) {
-        console.error('Erro ao cancelar conta:', error);
-        res.status(500).json({ success: false, message: 'Erro ao cancelar conta' });
-    }
-});
-
 module.exports = router;
+

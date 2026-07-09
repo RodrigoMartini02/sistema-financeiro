@@ -17,7 +17,6 @@ const STATIC_ASSETS = [
     '/termoPrivacidade.html',
     '/manifest.json',
     '/icons/logo.png',
-    '/icons/icone.png',
     // CSS
     '/css/loading.css',
     '/css/index.css',

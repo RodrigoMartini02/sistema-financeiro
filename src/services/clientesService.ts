@@ -1,4 +1,4 @@
-import { apiRequest } from './apiClient';
+import { apiRequest, getApiUrl } from './apiClient';
 
 export interface Cliente {
   id: number;
@@ -34,26 +34,9 @@ export interface Contrato {
   horas_remotas_saldo_ini?: number | null;
   horas_remotas_saldo_atual?: number | null;
   valor_contrato?: number | null;
+  valor_mensal?: number | null;
 }
 
-export interface ModuloContrato {
-  id: number;
-  contrato_id: number;
-  nome: string;
-  valor_mensal: number;
-  implantado: boolean;
-  faturando: boolean;
-  data_inicio_faturamento?: string | null;
-}
-
-export interface ServicoTecnico {
-  id: number;
-  contrato_id: number;
-  tipo: string;
-  valor_hora: number;
-  qtde_contratada: number;
-  qtde_consumida: number;
-}
 
 // Clientes
 export async function fetchClientes(): Promise<Cliente[]> {
@@ -89,79 +72,6 @@ export async function encerrarContrato(id: number): Promise<void> {
 
 export async function gerarPrevistas(contratoId: number): Promise<{ count: number }> {
   return apiRequest<{ count: number }>(`/contratos/${contratoId}/gerar-previstas`, { method: 'POST' });
-}
-
-export async function processarAditivo(
-  contratoId: number,
-  data: {
-    novo_vencimento: string;
-    novo_num_aditivo?: number;
-    nova_data_aditivo?: string;
-    novo_ajuste?: string;
-    nova_data_inicio_faturamento?: string;
-    observacoes?: string;
-  },
-): Promise<Contrato> {
-  return apiRequest<Contrato>(`/contratos/${contratoId}/aditivo`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
-}
-
-// Módulos
-export async function fetchModulos(contratoId: number): Promise<ModuloContrato[]> {
-  return apiRequest<ModuloContrato[]>(`/modulos-contrato?contrato_id=${contratoId}`);
-}
-
-export async function saveModulo(
-  data: Omit<ModuloContrato, 'id'>,
-  id?: number,
-): Promise<ModuloContrato> {
-  if (id) {
-    return apiRequest<ModuloContrato>(`/modulos-contrato/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
-  return apiRequest<ModuloContrato>('/modulos-contrato', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
-
-export async function deleteModulo(id: number): Promise<void> {
-  return apiRequest<void>(`/modulos-contrato/${id}`, { method: 'DELETE' });
-}
-
-// Serviços técnicos
-export async function fetchServicosTecnicos(contratoId: number): Promise<ServicoTecnico[]> {
-  return apiRequest<ServicoTecnico[]>(`/servicos-tecnicos?contrato_id=${contratoId}`);
-}
-
-export async function saveServicoTecnico(
-  data: Omit<ServicoTecnico, 'id'>,
-  id?: number,
-): Promise<ServicoTecnico> {
-  if (id) {
-    return apiRequest<ServicoTecnico>(`/servicos-tecnicos/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
-  return apiRequest<ServicoTecnico>('/servicos-tecnicos', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
-
-export async function lancarHoras(
-  servicoId: number,
-  data: { data: string; qtde: number; descricao?: string },
-): Promise<ServicoTecnico> {
-  return apiRequest<ServicoTecnico>(`/servicos-tecnicos/${servicoId}/lancar`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
 }
 
 // Contratos-Serviços
@@ -203,4 +113,51 @@ export async function atualizarServicoContrato(
 
 export async function desvincularServico(id: number): Promise<void> {
   return apiRequest<void>(`/contratos-servicos/${id}`, { method: 'DELETE' });
+}
+
+// Contrato Anexos
+export interface ContratoAnexo {
+  id: number;
+  contrato_id: number;
+  nome_original: string;
+  mime_type: string | null;
+  tamanho: number | null;
+  created_at: string;
+}
+
+export async function fetchContratoAnexos(contratoId: number): Promise<ContratoAnexo[]> {
+  return apiRequest<ContratoAnexo[]>(`/contrato-anexos?contrato_id=${contratoId}`);
+}
+
+export async function uploadContratoAnexo(contratoId: number, file: File): Promise<ContratoAnexo> {
+  const token = sessionStorage.getItem('token') ?? localStorage.getItem('token');
+  const form = new FormData();
+  form.append('arquivo', file);
+  form.append('contrato_id', String(contratoId));
+
+  const response = await fetch(`${getApiUrl()}/contrato-anexos`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  const payload = await response.json() as { success: boolean; message?: string; data?: ContratoAnexo };
+  if (!response.ok || !payload.success) {
+    throw new Error(payload.message ?? 'Falha ao enviar arquivo');
+  }
+  return payload.data!;
+}
+
+export async function viewContratoAnexo(id: number): Promise<Blob> {
+  const token = sessionStorage.getItem('token') ?? localStorage.getItem('token');
+  const response = await fetch(`${getApiUrl()}/contrato-anexos/${id}/arquivo`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) {
+    throw new Error('Falha ao carregar arquivo');
+  }
+  return response.blob();
+}
+
+export async function deleteContratoAnexo(id: number): Promise<void> {
+  return apiRequest<void>(`/contrato-anexos/${id}`, { method: 'DELETE' });
 }

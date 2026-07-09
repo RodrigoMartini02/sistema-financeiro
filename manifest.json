@@ -13,7 +13,7 @@
   "categories": ["finance", "productivity", "business"],
   "icons": [
     {
-      "src": "icons/icone.png",
+      "src": "icons/logo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
@@ -25,14 +25,14 @@
       "short_name": "Painel",
       "description": "Acessar o painel de controle financeiro",
       "url": "./app.html?source=shortcut",
-      "icons": [{ "src": "icons/icone.png", "sizes": "512x512" }]
+      "icons": [{ "src": "icons/logo.png", "sizes": "512x512" }]
     },
     {
       "name": "Assistente IA",
       "short_name": "IA Gen",
       "description": "Registrar gastos por conversa com IA",
       "url": "./ia.html?source=shortcut",
-      "icons": [{ "src": "icons/icone.png", "sizes": "512x512" }]
+      "icons": [{ "src": "icons/logo.png", "sizes": "512x512" }]
     }
   ]
 }

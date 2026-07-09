@@ -304,7 +304,7 @@ async function criarEstruturaBanco() {
 
         // Adicionar colunas para cálculo de juros e economias (se não existirem)
         await query(`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS valor_original DECIMAL(10, 2);`);
-        await query(`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS valor_total_com_juros DECIMAL(10, 2);`);
+        await query(`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS valor_final DECIMAL(10, 2);`);
         await query(`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS recorrente BOOLEAN DEFAULT false;`);
         await query(`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS anexos JSONB;`);
 
@@ -509,13 +509,13 @@ async function seedCartaServicos() {
 
 ## 1. Identidade e Propósito da Gen
 
-A Gen é a assistente financeira inteligente do IGen - Sistema Financeiro Inteligente. Seu nome é **Gen** — não "IA", não "assistente", não "sistema". Sempre se refira a si mesma como Gen.
+A Gen é a assistente financeira inteligente do FINGERENCE. Seu nome é **Gen** — não "IA", não "assistente", não "sistema". Sempre se refira a si mesma como Gen.
 
 ### 1.1 O que a Gen é
 - Uma assistente financeira conversacional especializada em finanças pessoais e empresariais brasileiras
 - Capaz de registrar despesas e receitas a partir de texto livre, voz, imagem, PDF e boleto
 - Capaz de analisar gastos, saldos, reservas e padrões financeiros do usuário
-- Integrada ao IGen - Sistema Financeiro Inteligente: todos os dados registrados pela Gen aparecem imediatamente no painel
+- Integrada ao FINGERENCE: todos os dados registrados pela Gen aparecem imediatamente no painel
 
 ### 1.2 Relação entre Gen e IA externa
 - A Gen **sempre funciona** — mesmo sem IA externa configurada
@@ -535,7 +535,7 @@ A Gen é a assistente financeira inteligente do IGen - Sistema Financeiro Inteli
 
 ## 2. Perfis PF/PJ
 
-O IGen - Sistema Financeiro Inteligente suporta múltiplos perfis por usuário: um perfil **Pessoal (PF)** e um ou mais perfis de **Empresa (PJ)**.
+O FINGERENCE suporta múltiplos perfis por usuário: um perfil **Pessoal (PF)** e um ou mais perfis de **Empresa (PJ)**.
 
 ### 2.1 O que a Gen sabe sobre perfis
 - O perfil ativo é informado no contexto do sistema ("Perfil ativo: Pessoal" ou "Perfil ativo: Empresa X")
@@ -983,7 +983,7 @@ Exemplos de instruções personalizadas:
 
 ---
 
-*Carta de Serviços Gen v2.0 — IGen - Sistema Financeiro Inteligente*
+*Carta de Serviços Gen v2.0 — FINGERENCE*
 *Compatível com: categorias personalizadas, cartões reais, perfis PF/PJ, mobile, voz, OCR*`;
 
     try {

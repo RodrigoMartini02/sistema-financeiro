@@ -286,6 +286,7 @@ const executarMigracoes = async () => {
         await pool.query(`ALTER TABLE contratos ADD COLUMN IF NOT EXISTS horas_remotas_saldo_ini NUMERIC(10,2) DEFAULT 0`);
         await pool.query(`ALTER TABLE contratos ADD COLUMN IF NOT EXISTS horas_remotas_saldo_atual NUMERIC(10,2) DEFAULT 0`);
         await pool.query(`ALTER TABLE contratos ADD COLUMN IF NOT EXISTS valor_contrato NUMERIC(12,2) DEFAULT 0`);
+        await pool.query(`ALTER TABLE contratos ADD COLUMN IF NOT EXISTS valor_mensal NUMERIC(12,2) DEFAULT 0`);
         console.log('âœ… Tabelas de clientes/contratos verificadas/criadas');
 
         // Catálogo de serviços e vínculo contrato-serviço

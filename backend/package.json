@@ -5,9 +5,10 @@
   "description": "Backend do Sistema de Controle Financeiro com PostgreSQL",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
-    "dev:local": "set DOTENV_CONFIG_PATH=.env.dev&& nodemon server.js",
+    "start": "tsx src/server.ts",
+    "dev": "tsx watch src/server.ts",
+    "dev:local": "set DOTENV_CONFIG_PATH=.env.dev&& tsx watch src/server.ts",
+    "dev:legacy": "nodemon server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

@@ -13,6 +13,17 @@ import { EmptyState, ErrorState } from '../../ui/states';
 import { ConfigListRow } from '../../ui/ConfigListRow';
 import { ClienteDetail } from './ClienteDetail';
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatCNPJ(raw: string): string {
+  const d = raw.replace(/\D/g, '').slice(0, 14);
+  if (d.length <= 2) return d;
+  if (d.length <= 5) return `${d.slice(0, 2)}.${d.slice(2)}`;
+  if (d.length <= 8) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5)}`;
+  if (d.length <= 12) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8)}`;
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+}
+
 // ─── Cliente Dialog ───────────────────────────────────────────────────────────
 
 function ClienteDialog({
@@ -27,8 +38,10 @@ function ClienteDialog({
   onDelete?: () => void;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [cnpj, setCnpj] = useState(cliente?.cnpj ?? '');
 
   useEffect(() => { if (!open) setConfirmDelete(false); }, [open]);
+  useEffect(() => { setCnpj(cliente?.cnpj ?? ''); }, [cliente?.id, open]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -37,7 +50,7 @@ function ClienteDialog({
       nome: (fd.get('nome') as string).trim(),
       codigo: null,
       tipo_empresa: null,
-      cnpj: (fd.get('cnpj') as string) || null,
+      cnpj: cnpj || null,
     });
   };
 
@@ -48,7 +61,12 @@ function ClienteDialog({
           <Input name="nome" defaultValue={cliente?.nome} placeholder="Ex: Empresa Ltda" autoFocus required />
         </Field>
         <Field label="CNPJ" hint="Opcional">
-          <Input name="cnpj" defaultValue={cliente?.cnpj ?? ''} placeholder="00.000.000/0001-00" />
+          <Input
+            value={cnpj}
+            onChange={(e) => setCnpj(formatCNPJ(e.target.value))}
+            placeholder="00.000.000/0001-00"
+            inputMode="numeric"
+          />
         </Field>
 
         {error && (
@@ -67,8 +85,7 @@ function ClienteDialog({
               </>
             )
           )}
-          <div className="ml-auto flex gap-2">
-            <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+          <div className="ml-auto">
             <Button type="submit" disabled={isSaving}>{isSaving ? 'Salvando...' : 'Salvar'}</Button>
           </div>
         </div>
@@ -167,6 +184,15 @@ export function ClientesTab() {
         )}
       </div>
 
+      <ClienteDialog
+        open={dialog.open}
+        cliente={dialog.item}
+        isSaving={saveMut.isPending}
+        error={saveMut.error?.message}
+        onClose={() => setDialog({ open: false })}
+        onSave={(values) => saveMut.mutate({ values, id: dialog.item?.id })}
+        onDelete={dialog.item ? () => deleteMut.mutate(dialog.item!.id) : undefined}
+      />
     </>
   );
 }

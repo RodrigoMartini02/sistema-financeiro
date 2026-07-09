@@ -178,7 +178,7 @@ export function ToggleGroup({ value, options, onChange, className = '' }: Toggle
             type="button"
             onClick={() => onChange(opt.value)}
             className={[
-              'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all',
+              'inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border px-4 h-10 text-xs font-semibold transition-all',
               active
                 ? 'border-brand-700 bg-brand-600 text-white shadow-sm'
                 : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 shadow-sm dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:bg-slate-600',

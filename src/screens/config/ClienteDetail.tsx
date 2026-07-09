@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowLeft, Plus, Trash2, RefreshCw, Check, X,
-  Package, FileText, AlertTriangle, ChevronRight,
+  ArrowLeft, Plus, RefreshCw,
+  Package, FileText, AlertTriangle, ChevronRight, Paperclip,
 } from 'lucide-react';
 import {
   fetchContratos, saveContrato, encerrarContrato, gerarPrevistas,
   fetchContratosServicos, vincularServico, atualizarServicoContrato, desvincularServico,
-  type Cliente, type Contrato, type ServicoContrato,
+  fetchContratoAnexos, uploadContratoAnexo, viewContratoAnexo, deleteContratoAnexo,
+  type Cliente, type Contrato, type ServicoContrato, type ContratoAnexo,
 } from '../../services/clientesService';
 import { fetchServicos, type Servico } from '../../services/servicosService';
 import { fetchRepresentantes, type Representante } from '../../services/representantesService';
@@ -18,72 +19,67 @@ import { Field, Input, Textarea, ToggleGroup, SectionDivider } from '../../ui/fo
 import { EmptyState } from '../../ui/states';
 import { formatCurrency } from '../finance/formatters';
 
+// ─── Module-level helpers ─────────────────────────────────────────────────────
+
+// Normalize postgres NUMERIC string → display string (zero → empty string)
+const fv = (v: number | string | null | undefined): string => {
+  const x = parseFloat(String(v ?? 0));
+  return x ? String(x) : '';
+};
+
+const MODAL_TABS = [
+  { id: 'dados'    as const, label: 'Dados do contrato', icon: FileText },
+  { id: 'servicos' as const, label: 'Valores',           icon: Package  },
+] as const;
+
 // ─── Contrato Form ────────────────────────────────────────────────────────────
 
 function ContratoForm({
-  clienteId, initial, representantes, onSave, onCancel, isSaving,
+  clienteId, initial, representantes, onSave,
 }: {
   clienteId: number;
   initial?: Partial<Contrato>;
   representantes: Representante[];
   onSave: (data: Parameters<typeof saveContrato>[0]) => void;
-  onCancel: () => void;
-  isSaving: boolean;
 }) {
   const [form, setForm] = useState({
-    numero:                       initial?.numero ?? '',
-    data_assinatura:              initial?.data_assinatura ?? '',
-    vencimento:                   initial?.vencimento ?? '',
-    data_inicio_faturamento:      initial?.data_inicio_faturamento ?? '',
-    ajuste:                       initial?.ajuste ?? 'NADA CONSTA',
-    observacoes:                  initial?.observacoes ?? '',
-    num_aditivo:                  String(initial?.num_aditivo ?? 0),
-    data_aditivo:                 initial?.data_aditivo ?? '',
-    representante_id:             String(initial?.representante_id ?? ''),
-    implantacao_parcelas:         String(initial?.implantacao_parcelas ?? 1),
-    implantacao_total:            String(((initial?.implantacao_parcelas ?? 1) * (initial?.implantacao_valor_parcela ?? 0)) || ''),
-    horas_presenciais_valor:       String(initial?.horas_presenciais_valor ?? ''),
-    horas_presenciais_saldo_ini:   String(initial?.horas_presenciais_saldo_ini ?? ''),
-    horas_presenciais_saldo_atual: String(initial?.horas_presenciais_saldo_atual ?? ''),
-    horas_remotas_valor:           String(initial?.horas_remotas_valor ?? ''),
-    horas_remotas_saldo_ini:       String(initial?.horas_remotas_saldo_ini ?? ''),
-    horas_remotas_saldo_atual:     String(initial?.horas_remotas_saldo_atual ?? ''),
-    valor_contrato:                String(initial?.valor_contrato ?? ''),
+    numero:                  initial?.numero ?? '',
+    data_assinatura:         initial?.data_assinatura ?? '',
+    vencimento:              initial?.vencimento ?? '',
+    data_inicio_faturamento: initial?.data_inicio_faturamento ?? '',
+    ajuste:                  initial?.ajuste ?? 'NADA CONSTA',
+    observacoes:             initial?.observacoes ?? '',
+    representante_id:        String(initial?.representante_id ?? ''),
   });
 
-  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
-
-  const parcelas     = parseInt(form.implantacao_parcelas) || 1;
-  const totalImplant = parseFloat(form.implantacao_total) || 0;
-  const valorParcela = parcelas > 0 ? totalImplant / parcelas : 0;
+  const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({
-      cliente_id:                   clienteId,
-      numero:                       form.numero || null,
-      data_assinatura:              form.data_assinatura || null,
-      vencimento:                   form.vencimento,
-      data_aditivo:                 form.data_aditivo || null,
-      num_aditivo:                  parseInt(form.num_aditivo) || 0,
-      ajuste:                       form.ajuste || null,
-      data_inicio_faturamento:      form.data_inicio_faturamento || null,
-      observacoes:                  form.observacoes || null,
-      representante_id:             form.representante_id ? parseInt(form.representante_id) : null,
-      implantacao_parcelas:         parcelas,
-      implantacao_valor_parcela:    parseFloat(valorParcela.toFixed(2)),
-      horas_presenciais_valor:       parseFloat(form.horas_presenciais_valor) || 0,
-      horas_presenciais_saldo_ini:   parseFloat(form.horas_presenciais_saldo_ini) || 0,
-      horas_presenciais_saldo_atual: parseFloat(form.horas_presenciais_saldo_atual) || 0,
-      horas_remotas_valor:           parseFloat(form.horas_remotas_valor) || 0,
-      horas_remotas_saldo_ini:       parseFloat(form.horas_remotas_saldo_ini) || 0,
-      horas_remotas_saldo_atual:     parseFloat(form.horas_remotas_saldo_atual) || 0,
-      valor_contrato:                parseFloat(form.valor_contrato) || 0,
+      cliente_id:                clienteId,
+      numero:                    form.numero || null,
+      data_assinatura:           form.data_assinatura || null,
+      vencimento:                form.vencimento,
+      data_aditivo:              initial?.data_aditivo ?? null,
+      num_aditivo:               initial?.num_aditivo ?? 0,
+      ajuste:                    form.ajuste || null,
+      data_inicio_faturamento:   form.data_inicio_faturamento || null,
+      observacoes:               form.observacoes || null,
+      representante_id:          form.representante_id ? parseInt(form.representante_id) : null,
+      implantacao_parcelas:      initial?.implantacao_parcelas ?? 1,
+      implantacao_valor_parcela: initial?.implantacao_valor_parcela ?? 0,
+      horas_presenciais_valor:   initial?.horas_presenciais_valor ?? 0,
+      horas_presenciais_saldo_ini: initial?.horas_presenciais_saldo_ini ?? 0,
+      horas_remotas_valor:       initial?.horas_remotas_valor ?? 0,
+      horas_remotas_saldo_ini:   initial?.horas_remotas_saldo_ini ?? 0,
+      valor_contrato:            initial?.valor_contrato ?? 0,
+      valor_mensal:              initial?.valor_mensal ?? 0,
     } as Parameters<typeof saveContrato>[0]);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-5">
+    <form id="contrato-form" onSubmit={handleSubmit} className="grid gap-5">
 
       {/* Datas e identificação */}
       <div className="grid grid-cols-2 gap-4">
@@ -99,23 +95,7 @@ function ContratoForm({
         <Field label="Início faturamento">
           <Input type="date" value={form.data_inicio_faturamento} onChange={(e) => set('data_inicio_faturamento', e.target.value)} />
         </Field>
-        <Field label="Aditivo nº">
-          <Input type="number" min="0" value={form.num_aditivo} onChange={(e) => set('num_aditivo', e.target.value)} placeholder="0" />
-        </Field>
-        <Field label="Data do aditivo">
-          <Input type="date" value={form.data_aditivo} onChange={(e) => set('data_aditivo', e.target.value)} />
-        </Field>
       </div>
-
-      {/* Valor do contrato */}
-      <Field label="Valor do contrato">
-        <Input
-          type="number" min="0" step="0.01"
-          value={form.valor_contrato}
-          onChange={(e) => set('valor_contrato', e.target.value)}
-          placeholder="0,00"
-        />
-      </Field>
 
       {/* Reajuste */}
       <Field label="Reajuste">
@@ -134,174 +114,236 @@ function ContratoForm({
       {representantes.length > 0 && (
         <>
           <SectionDivider label="Representante" />
-          <ToggleGroup
-            value={form.representante_id}
-            options={[
-              { value: '', label: 'Nenhum' },
-              ...representantes.map((r) => ({ value: String(r.id), label: r.nome })),
-            ]}
-            onChange={(v) => set('representante_id', v)}
-          />
+          {representantes.length <= 5 ? (
+            <ToggleGroup
+              value={form.representante_id}
+              options={[
+                { value: '', label: 'Nenhum' },
+                ...representantes.map((r) => ({ value: String(r.id), label: r.nome })),
+              ]}
+              onChange={(v) => set('representante_id', v)}
+            />
+          ) : (
+            <select
+              value={form.representante_id}
+              onChange={(e) => set('representante_id', e.target.value)}
+              className="h-10 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-400"
+            >
+              <option value="">— Nenhum —</option>
+              {representantes.map((r) => (
+                <option key={r.id} value={String(r.id)}>{r.nome}</option>
+              ))}
+            </select>
+          )}
         </>
       )}
-
-      {/* Implantação */}
-      <SectionDivider label="Implantação" />
-      <div className="grid grid-cols-3 gap-4 items-end">
-        <Field label="Total implantação">
-          <Input type="number" min="0" step="0.01" value={form.implantacao_total} onChange={(e) => set('implantacao_total', e.target.value)} placeholder="0,00" />
-        </Field>
-        <Field label="Nº de parcelas">
-          <Input type="number" min="1" value={form.implantacao_parcelas} onChange={(e) => set('implantacao_parcelas', e.target.value)} placeholder="1" />
-        </Field>
-        <Field label="Valor por parcela">
-          <div className="flex h-10 items-center px-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-800">
-            {formatCurrency(valorParcela)}
-          </div>
-        </Field>
-      </div>
-
-      {/* Serviços Técnicos */}
-      <SectionDivider label="Serviços Técnicos" />
-      <div className="grid gap-4">
-        {([
-          {
-            label:    'Hora Presencial',
-            valorKey: 'horas_presenciais_valor'        as keyof typeof form,
-            iniKey:   'horas_presenciais_saldo_ini'    as keyof typeof form,
-            atualKey: 'horas_presenciais_saldo_atual'  as keyof typeof form,
-          },
-          {
-            label:    'Hora Remoto',
-            valorKey: 'horas_remotas_valor'            as keyof typeof form,
-            iniKey:   'horas_remotas_saldo_ini'        as keyof typeof form,
-            atualKey: 'horas_remotas_saldo_atual'      as keyof typeof form,
-          },
-        ]).map(({ label, valorKey, iniKey, atualKey }) => (
-          <div key={label} className="grid gap-2">
-            <p className="text-sm font-semibold text-slate-700">{label}</p>
-            <div className="grid grid-cols-3 gap-3">
-              <Field label="Valor/hora">
-                <Input type="number" min="0" step="0.01" value={form[valorKey]} onChange={(e) => set(valorKey, e.target.value)} placeholder="0,00" />
-              </Field>
-              <Field label="Saldo inicial">
-                <Input type="number" min="0" step="0.5" value={form[iniKey]} onChange={(e) => set(iniKey, e.target.value)} placeholder="0" />
-              </Field>
-              <Field label="Saldo atual">
-                <Input type="number" min="0" step="0.5" value={form[atualKey]} onChange={(e) => set(atualKey, e.target.value)} placeholder="0" />
-              </Field>
-            </div>
-          </div>
-        ))}
-      </div>
 
       {/* Observações */}
       <Field label="Observações">
         <Textarea value={form.observacoes} onChange={(e) => set('observacoes', e.target.value)} placeholder="Anotações sobre o contrato..." rows={2} />
       </Field>
 
-      <div className="flex justify-end gap-2 pt-1">
-        <Button type="button" variant="secondary" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit" disabled={isSaving}>{isSaving ? 'Salvando...' : 'Salvar contrato'}</Button>
-      </div>
     </form>
   );
 }
 
 // ─── Catálogo Serviço Row ─────────────────────────────────────────────────────
 
-function CatalogoServicoRow({ servico, vinculo, onVincular, onAtualizar, onDesvincular }: {
+function CatalogoServicoRow({ servico, vinculo, numero, showStatus = true, onVincular, onAtualizar, onDesvincular }: {
   servico: Servico;
   vinculo?: ServicoContrato;
+  numero?: number;
+  showStatus?: boolean;
   onVincular: (valorMensal: number) => void;
   onAtualizar: (data: Partial<Pick<ServicoContrato, 'valor_mensal' | 'implantado' | 'faturando'>>) => void;
   onDesvincular: () => void;
 }) {
-  const isLinked = !!vinculo;
-  const [checked, setChecked]       = useState(isLinked);
-  const [valor, setValor]           = useState(String(vinculo?.valor_mensal ?? servico.valor_mensal_padrao ?? 0));
+  const checked = !!vinculo;
+  const [valor, setValor]           = useState(fv(vinculo?.valor_mensal ?? servico.valor_mensal_padrao));
   const [implantado, setImplantado] = useState(vinculo?.implantado ?? false);
   const [faturando, setFaturando]   = useState(vinculo?.faturando ?? false);
-  const [dirty, setDirty]           = useState(false);
 
   useEffect(() => {
-    setChecked(!!vinculo);
-    setValor(String(vinculo?.valor_mensal ?? servico.valor_mensal_padrao ?? 0));
+    setValor(fv(vinculo?.valor_mensal ?? servico.valor_mensal_padrao));
     setImplantado(vinculo?.implantado ?? false);
     setFaturando(vinculo?.faturando ?? false);
-    setDirty(false);
   }, [vinculo?.id, servico.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleToggle = () => {
     if (checked) {
       onDesvincular();
     } else {
-      onVincular(parseFloat(valor) || (servico.valor_mensal_padrao ?? 0));
+      onVincular(parseFloat(valor) || parseFloat(String(servico.valor_mensal_padrao ?? 0)) || 0);
     }
   };
 
-  const handleSave = () => {
-    onAtualizar({ valor_mensal: parseFloat(valor) || 0, implantado, faturando });
-    setDirty(false);
+  const handleImplantado = (v: boolean) => {
+    setImplantado(v);
+    if (vinculo) onAtualizar({ implantado: v, faturando, valor_mensal: parseFloat(valor) || 0 });
   };
 
-  const handleCancel = () => {
-    setValor(String(vinculo?.valor_mensal ?? servico.valor_mensal_padrao ?? 0));
-    setImplantado(vinculo?.implantado ?? false);
-    setFaturando(vinculo?.faturando ?? false);
-    setDirty(false);
+  const handleFaturando = (v: boolean) => {
+    setFaturando(v);
+    if (vinculo) onAtualizar({ faturando: v, implantado, valor_mensal: parseFloat(valor) || 0 });
   };
 
-  const change = (fn: () => void) => { fn(); if (checked) setDirty(true); };
+  const handleValorBlur = () => {
+    if (vinculo) onAtualizar({ valor_mensal: parseFloat(valor) || 0, implantado, faturando });
+  };
 
   return (
-    <div className={[
-      'flex items-center gap-4 border-b border-slate-100 last:border-0 px-4 py-3 transition-colors',
-      checked ? 'bg-white hover:bg-slate-50/60' : 'bg-slate-50/40',
-    ].join(' ')}>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={handleToggle}
-        className="h-4 w-4 shrink-0 cursor-pointer accent-brand-600"
-      />
-      <span className={`flex-1 text-sm font-medium truncate ${checked ? 'text-slate-800' : 'text-slate-400'}`}>
+    <div
+      className={[
+        'grid items-center gap-x-3 rounded-xl border px-4 py-3 transition-colors',
+        checked ? 'border-slate-200 bg-white shadow-sm' : 'border-slate-100 bg-slate-50/40',
+      ].join(' ')}
+      style={{ gridTemplateColumns: showStatus ? '28px 1fr 90px 72px 80px 80px' : '28px 1fr 90px 72px' }}
+    >
+      <div className="flex justify-center">
+        {checked && numero ? (
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-brand-100 text-[10px] font-bold text-brand-700">
+            {numero}
+          </span>
+        ) : <span />}
+      </div>
+      <span className={`text-sm font-medium truncate ${checked ? 'text-slate-800' : 'text-slate-400'}`}>
         {servico.nome}
       </span>
       <input
         type="number" min="0" step="0.01"
         value={valor}
-        onChange={(e) => change(() => setValor(e.target.value))}
+        onChange={(e) => setValor(e.target.value)}
+        onBlur={handleValorBlur}
         disabled={!checked}
         placeholder="0,00"
         className="w-24 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-right disabled:opacity-30 focus:outline-none focus:ring-2 focus:ring-brand-200 focus:border-brand-400"
       />
-      <label className={`flex items-center gap-1.5 text-xs ${checked ? 'text-slate-500' : 'text-slate-300'}`}>
-        <input type="checkbox" checked={implantado} onChange={(e) => change(() => setImplantado(e.target.checked))} disabled={!checked} className="h-3.5 w-3.5 cursor-pointer accent-brand-600 disabled:opacity-30" />
-        Implantado
-      </label>
-      <label className={`flex items-center gap-1.5 text-xs ${checked ? 'text-slate-500' : 'text-slate-300'}`}>
-        <input type="checkbox" checked={faturando} onChange={(e) => change(() => setFaturando(e.target.checked))} disabled={!checked} className="h-3.5 w-3.5 cursor-pointer accent-brand-600 disabled:opacity-30" />
-        Faturando
-      </label>
-      <div className="flex gap-1 shrink-0 w-[90px] justify-end">
-        {dirty ? (
-          <>
-            <button onClick={handleSave} className="flex items-center gap-1 rounded-lg bg-brand-600 px-2 py-1 text-xs font-semibold text-white hover:bg-brand-700">
-              <Check size={11} /> Salvar
-            </button>
-            <button onClick={handleCancel} className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-500 hover:bg-slate-100">
-              <X size={11} />
-            </button>
-          </>
-        ) : (
-          checked && (
-            <button onClick={onDesvincular} className="rounded p-1.5 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors" title="Remover">
-              <Trash2 size={13} />
-            </button>
-          )
-        )}
+      <div className="flex justify-center">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={handleToggle}
+          className="h-4 w-4 cursor-pointer accent-brand-600"
+        />
       </div>
+      {showStatus && (
+        <div className="flex justify-center">
+          <input
+            type="checkbox"
+            checked={implantado}
+            onChange={(e) => handleImplantado(e.target.checked)}
+            disabled={!checked}
+            className="h-4 w-4 cursor-pointer accent-brand-600 disabled:opacity-30"
+          />
+        </div>
+      )}
+      {showStatus && (
+        <div className="flex justify-center">
+          <input
+            type="checkbox"
+            checked={faturando}
+            onChange={(e) => handleFaturando(e.target.checked)}
+            disabled={!checked}
+            className="h-4 w-4 cursor-pointer accent-brand-600 disabled:opacity-30"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Contrato Anexos ──────────────────────────────────────────────────────────
+
+function ContratoAnexos({ contratoId }: { contratoId: number }) {
+  const qc = useQueryClient();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const anexosQ = useQuery({
+    queryKey: queryKeys.contratoAnexos(contratoId),
+    queryFn: () => fetchContratoAnexos(contratoId),
+  });
+
+  const uploadMut = useMutation({
+    mutationFn: (file: File) => uploadContratoAnexo(contratoId, file),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: queryKeys.contratoAnexos(contratoId) }),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: deleteContratoAnexo,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: queryKeys.contratoAnexos(contratoId) }),
+  });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) uploadMut.mutate(file);
+    e.target.value = '';
+  };
+
+  const handleView = async (id: number) => {
+    try {
+      const blob = await viewContratoAnexo(id);
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 15000);
+    } catch (err) {
+      console.error('Failed to open attachment:', err);
+    }
+  };
+
+  const anexos: ContratoAnexo[] = anexosQ.data ?? [];
+
+  return (
+    <div className="grid gap-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Anexos</span>
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploadMut.isPending}
+          className="flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-1 text-xs text-slate-500 hover:border-brand-400 hover:text-brand-600 transition disabled:opacity-50"
+        >
+          <Paperclip size={12} />
+          {uploadMut.isPending ? 'Enviando...' : 'Anexar arquivo'}
+        </button>
+        <input ref={inputRef} type="file" className="hidden" onChange={handleFileChange} />
+      </div>
+
+      {anexosQ.isLoading && (
+        <p className="text-xs text-slate-400 py-1">Carregando...</p>
+      )}
+
+      {!anexosQ.isLoading && anexos.length === 0 && (
+        <p className="text-xs text-slate-400 py-1">Nenhum arquivo anexado</p>
+      )}
+
+      {anexos.map((a) => (
+        <div key={a.id} className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5">
+          <Paperclip size={14} className="shrink-0 text-slate-400" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-slate-700 truncate">{a.nome_original}</p>
+            {a.tamanho != null && (
+              <p className="text-[10px] text-slate-400">{(a.tamanho / 1024).toFixed(0)} KB</p>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => handleView(a.id)}
+              className="text-xs font-medium text-brand-600 hover:text-brand-700 transition"
+            >
+              Visualizar
+            </button>
+            <button
+              type="button"
+              onClick={() => deleteMut.mutate(a.id)}
+              disabled={deleteMut.isPending}
+              className="text-xs font-medium text-red-500 hover:text-red-700 transition disabled:opacity-50"
+            >
+              Excluir
+            </button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -374,19 +416,82 @@ function ContratoModal({
   clienteId: number;
   representantes: Representante[];
   isSaving: boolean;
-  onSave: (data: Parameters<typeof saveContrato>[0]) => void;
+  onSave: (data: Parameters<typeof saveContrato>[0], pendingServicos?: Map<number, number>) => void;
   onClose: () => void;
   onEncerrar?: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<'dados' | 'servicos'>('dados');
+  const [pendingServicos, setPendingServicos] = useState<Map<number, number>>(new Map());
+  const [valMensal, setValMensal]   = useState(fv(contrato?.valor_mensal));
+  const [implTotal, setImplTotal]   = useState(fv((contrato?.implantacao_parcelas ?? 1) * (contrato?.implantacao_valor_parcela ?? 0)));
+  const [implParc, setImplParc]     = useState(fv(contrato?.implantacao_parcelas));
+  const [hpValor, setHpValor]       = useState(fv(contrato?.horas_presenciais_valor));
+  const [hpIni, setHpIni]           = useState(fv(contrato?.horas_presenciais_saldo_ini));
+  const [hrValor, setHrValor]       = useState(fv(contrato?.horas_remotas_valor));
+  const [hrIni, setHrIni]           = useState(fv(contrato?.horas_remotas_saldo_ini));
+
+  const periodoMeses = (() => {
+    if (!contrato?.data_assinatura || !contrato?.vencimento) return 0;
+    const [ay, am] = contrato.data_assinatura.split('-').map(Number);
+    const [vy, vm] = contrato.vencimento.split('-').map(Number);
+    return Math.max(0, (vy! - ay!) * 12 + (vm! - am!) + 1);
+  })();
+  const vMensalNum   = parseFloat(valMensal) || 0;
+  const implTotalNum = parseFloat(implTotal)  || 0;
+  const hpIniNum     = parseFloat(hpIni)      || 0;
+  const hpValorNum   = parseFloat(hpValor)    || 0;
+  const hrIniNum     = parseFloat(hrIni)      || 0;
+  const hrValorNum   = parseFloat(hrValor)    || 0;
+  const somaCalc     = vMensalNum * periodoMeses + implTotalNum + hpIniNum * hpValorNum + hrIniNum * hrValorNum;
+
   const qc = useQueryClient();
 
-  useEffect(() => { if (open) setActiveTab('dados'); }, [open, contrato?.id]);
+  useEffect(() => {
+    if (open) {
+      setActiveTab('dados');
+      setPendingServicos(new Map());
+    }
+  }, [open, contrato?.id]);
+  useEffect(() => {
+    setValMensal(fv(contrato?.valor_mensal));
+    setImplTotal(fv((contrato?.implantacao_parcelas ?? 1) * (contrato?.implantacao_valor_parcela ?? 0)));
+    setImplParc(fv(contrato?.implantacao_parcelas));
+    setHpValor(fv(contrato?.horas_presenciais_valor));
+    setHpIni(fv(contrato?.horas_presenciais_saldo_ini));
+    setHrValor(fv(contrato?.horas_remotas_valor));
+    setHrIni(fv(contrato?.horas_remotas_saldo_ini));
+  }, [contrato?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSaveWithValores = (formData: Parameters<typeof saveContrato>[0]) => {
+    const parc = parseInt(implParc) || 1;
+    onSave(
+      {
+        ...formData,
+        valor_mensal: vMensalNum || 0,
+        valor_contrato: somaCalc || 0,
+        implantacao_parcelas: parc,
+        implantacao_valor_parcela: parseFloat((implTotalNum / parc).toFixed(2)),
+        horas_presenciais_valor: hpValorNum || 0,
+        horas_presenciais_saldo_ini: hpIniNum || 0,
+        horas_remotas_valor: hrValorNum || 0,
+        horas_remotas_saldo_ini: hrIniNum || 0,
+      },
+      pendingServicos,
+    );
+  };
+
+  const handleFooterSave = () => {
+    if (activeTab === 'servicos' && contrato) {
+      onClose();
+    } else {
+      (document.getElementById('contrato-form') as HTMLFormElement | null)?.requestSubmit();
+    }
+  };
 
   const catalogoQ = useQuery({
     queryKey: queryKeys.servicos,
     queryFn: () => fetchServicos(true),
-    enabled: open && !!contrato,
+    enabled: open,
   });
 
   const servicosContratoQ = useQuery({
@@ -394,6 +499,53 @@ function ContratoModal({
     queryFn: () => fetchContratosServicos(contrato!.id),
     enabled: open && !!contrato,
   });
+
+  const patchValoresMut = useMutation({
+    mutationFn: (v: {
+      vContrato: number; vMensal: number;
+      iTotal: number; iParc: number;
+      hpV: number; hpI: number;
+      hrV: number; hrI: number;
+    }) => {
+      const parc = v.iParc || 1;
+      return saveContrato(
+        {
+          cliente_id:                    contrato!.cliente_id,
+          numero:                        contrato!.numero ?? null,
+          data_assinatura:               contrato!.data_assinatura ?? null,
+          vencimento:                    contrato!.vencimento,
+          data_aditivo:                  contrato!.data_aditivo ?? null,
+          num_aditivo:                   contrato!.num_aditivo ?? 0,
+          ajuste:                        contrato!.ajuste ?? null,
+          data_inicio_faturamento:       contrato!.data_inicio_faturamento ?? null,
+          observacoes:                   contrato!.observacoes ?? null,
+          representante_id:              contrato!.representante_id ?? null,
+          implantacao_parcelas:          parc,
+          implantacao_valor_parcela:     parseFloat((v.iTotal / parc).toFixed(2)),
+          horas_presenciais_valor:       v.hpV,
+          horas_presenciais_saldo_ini:   v.hpI,
+          horas_remotas_valor:           v.hrV,
+          horas_remotas_saldo_ini:       v.hrI,
+          valor_contrato:                v.vContrato,
+          valor_mensal:                  v.vMensal,
+        },
+        contrato!.id,
+      );
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: queryKeys.contratos(contrato!.cliente_id) }),
+  });
+
+  const saveValores = () => {
+    if (!contrato) return;
+    patchValoresMut.mutate({
+      vContrato: somaCalc,
+      vMensal:   vMensalNum,
+      iTotal:    implTotalNum,
+      iParc:     parseInt(implParc) || 1,
+      hpV: hpValorNum, hpI: hpIniNum,
+      hrV: hrValorNum, hrI: hrIniNum,
+    });
+  };
 
   const vincularMut = useMutation({
     mutationFn: ({ servicoId, valorMensal }: { servicoId: number; valorMensal: number }) =>
@@ -416,15 +568,6 @@ function ContratoModal({
   const servicosContrato = servicosContratoQ.data ?? [];
   const vinculoMap     = new Map(servicosContrato.map((s) => [s.servico_id, s]));
 
-  const hp_ini   = contrato?.horas_presenciais_saldo_ini ?? 0;
-  const hr_ini   = contrato?.horas_remotas_saldo_ini ?? 0;
-  const hp_atual = contrato?.horas_presenciais_saldo_atual ?? 0;
-  const hr_atual = contrato?.horas_remotas_saldo_atual ?? 0;
-
-  const modalTabs = [
-    { id: 'dados'    as const, label: 'Dados do contrato', icon: FileText },
-    { id: 'servicos' as const, label: 'Serviços',          icon: Package  },
-  ];
 
   return (
     <Dialog
@@ -435,142 +578,223 @@ function ContratoModal({
     >
       <div className="grid gap-4">
 
-        {/* Tabs internas — só quando editando contrato existente */}
-        {contrato && (
-          <div className="flex gap-1 border-b border-slate-200 -mt-1">
-            {modalTabs.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setActiveTab(id)}
-                className={[
-                  'flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors',
-                  activeTab === id
-                    ? 'border-brand-500 text-brand-700'
-                    : 'border-transparent text-slate-500 hover:text-slate-700',
-                ].join(' ')}
-              >
-                <Icon size={14} />{label}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* Tabs */}
+        <div className="flex gap-1 border-b border-slate-200 -mt-1">
+          {MODAL_TABS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setActiveTab(id)}
+              className={[
+                'flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors',
+                activeTab === id
+                  ? 'border-brand-500 text-brand-700'
+                  : 'border-transparent text-slate-500 hover:text-slate-700',
+              ].join(' ')}
+            >
+              <Icon size={14} />{label}
+            </button>
+          ))}
+        </div>
 
         {/* ── Dados do contrato ── */}
         {activeTab === 'dados' && (
-          <div className="grid gap-5">
-            {contrato && (hp_ini > 0 || hr_ini > 0) && (
-              <div className="grid grid-cols-2 gap-3">
-                {([
-                  { label: 'Hora Presencial', valor: contrato.horas_presenciais_valor ?? 0, ini: hp_ini, atual: hp_atual },
-                  { label: 'Hora Remoto',     valor: contrato.horas_remotas_valor ?? 0,     ini: hr_ini, atual: hr_atual },
-                ]).map(({ label, valor, ini, atual }) => (
-                  <div key={label} className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-                    <p className="text-xs font-semibold text-slate-500 mb-1">{label}</p>
-                    <div className="flex items-baseline gap-2">
-                      <span className={`text-base font-bold ${atual <= 0 && ini > 0 ? 'text-red-600' : 'text-green-700'}`}>
-                        {atual}h
-                      </span>
-                      <span className="text-xs text-slate-400">de {ini}h</span>
-                      {valor > 0 && <span className="text-xs text-slate-400">· {formatCurrency(valor)}/h</span>}
-                    </div>
-                    <div className="mt-1.5 h-1.5 rounded-full bg-slate-200 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${atual <= 0 ? 'bg-red-400' : 'bg-green-500'}`}
-                        style={{ width: `${ini > 0 ? Math.min(100, (atual / ini) * 100) : 0}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
+          <div className="grid gap-4">
             <ContratoForm
               clienteId={clienteId}
               initial={contrato}
               representantes={representantes}
-              isSaving={isSaving}
-              onSave={onSave}
-              onCancel={onClose}
+              onSave={contrato ? onSave : handleSaveWithValores}
             />
-
-            {onEncerrar && (
-              <div className="pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={onEncerrar}
-                  className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-700 transition-colors"
-                >
-                  <AlertTriangle size={12} /> Encerrar contrato
-                </button>
-              </div>
+            {contrato && (
+              <>
+                <div className="-mx-1 border-t border-slate-100" />
+                <ContratoAnexos contratoId={contrato.id} />
+              </>
             )}
           </div>
         )}
 
         {/* ── Serviços ── */}
-        {activeTab === 'servicos' && contrato && (
+        {activeTab === 'servicos' && (() => {
+          const vinculoOrdem = new Map(
+            [...servicosContrato].sort((a, b) => a.id - b.id).map((v, i) => [v.servico_id, i + 1])
+          );
+          const totalFaturando = servicosContrato.filter((s) => s.faturando).reduce((acc, s) => acc + parseFloat(String(s.valor_mensal ?? 0)), 0);
+          const diferencaFaturando = vMensalNum - totalFaturando;
+          return (
           <div className="grid gap-4">
-            {/* Cards de confronto */}
-            {(() => {
-              const valorContrato  = contrato.valor_contrato ?? 0;
-              const totalFaturando = servicosContrato.filter((s) => s.faturando).reduce((acc, s) => acc + s.valor_mensal, 0);
-              const diferenca      = valorContrato - totalFaturando;
-              return (
-                <div className="grid grid-cols-3 gap-3">
-                  {([
-                    { label: 'Valor do contrato', value: valorContrato,  color: 'text-slate-800' },
-                    { label: 'Faturando',          value: totalFaturando, color: 'text-blue-700'  },
-                    {
-                      label: 'Diferença',
-                      value: diferenca,
-                      color: diferenca < 0 ? 'text-red-600' : diferenca === 0 ? 'text-green-700' : 'text-amber-600',
-                    },
-                  ] as { label: string; value: number; color: string }[]).map(({ label, value, color }) => (
-                    <div key={label} className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">{label}</p>
-                      <p className={`text-base font-bold ${color}`}>{formatCurrency(value)}</p>
-                    </div>
-                  ))}
+            {/* Cards: total mensal × valor total × faturando × diferença */}
+            <div className="grid grid-cols-4 gap-3">
+              {([
+                { label: 'Total mensal', value: vMensalNum * periodoMeses, color: 'text-slate-800' },
+                { label: 'Valor total',  value: somaCalc,                  color: 'text-slate-800' },
+                { label: 'Faturando',    value: totalFaturando,            color: 'text-blue-700'  },
+                {
+                  label: 'Diferença',
+                  value: diferencaFaturando,
+                  color: diferencaFaturando < 0 ? 'text-red-600' : diferencaFaturando === 0 ? 'text-green-700' : 'text-amber-600',
+                },
+              ] as { label: string; value: number; color: string }[]).map(({ label, value, color }) => (
+                <div key={label} className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">{label}</p>
+                  <p className={`text-base font-bold ${color}`}>{formatCurrency(value)}</p>
                 </div>
-              );
-            })()}
+              ))}
+            </div>
 
-            {catalogoQ.isLoading ? (
-              <p className="py-8 text-center text-sm text-slate-400">Carregando serviços...</p>
-            ) : catalogo.length === 0 ? (
-              <EmptyState title="Sem serviços" description="Nenhum serviço cadastrado no catálogo." />
-            ) : (
-              <div className="rounded-xl border border-slate-200 overflow-hidden">
-                <div className="grid items-center border-b border-slate-100 bg-slate-50 px-4 py-2"
-                  style={{ gridTemplateColumns: '20px 1fr 96px 96px 96px 90px' }}>
-                  <span />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Serviço</span>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-right">Valor/mês</span>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center">Implantado</span>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center">Faturando</span>
-                  <span />
-                </div>
-                {catalogo.map((servico) => (
-                  <CatalogoServicoRow
-                    key={servico.id}
-                    servico={servico}
-                    vinculo={vinculoMap.get(servico.id)}
-                    onVincular={(valorMensal) => vincularMut.mutate({ servicoId: servico.id, valorMensal })}
-                    onAtualizar={(data) => {
-                      const v = vinculoMap.get(servico.id);
-                      if (v) atualizarServicoMut.mutate({ id: v.id, data });
-                    }}
-                    onDesvincular={() => {
-                      const v = vinculoMap.get(servico.id);
-                      if (v && confirm(`Remover "${servico.nome}" deste contrato?`)) desvincularMut.mutate(v.id);
-                    }}
+            {/* ── Prestação de serviço ── */}
+            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 grid gap-3">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Prestação de serviço</span>
+              <div className="flex items-center gap-3">
+                <span className="w-36 shrink-0 text-[10px] font-bold uppercase tracking-widest text-slate-400">Valor mensal</span>
+                <div className="flex-1">
+                  <Input
+                    type="number" min="0" step="0.01"
+                    value={valMensal}
+                    onChange={(e) => setValMensal(e.target.value)}
+                    onBlur={saveValores}
+                    placeholder="0,00"
                   />
-                ))}
+                </div>
               </div>
-            )}
+            </div>
+
+            {/* ── Serviços técnicos ── */}
+            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 grid gap-3">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Serviços técnicos</span>
+              <div className="flex items-center gap-4">
+                <span className="w-36 shrink-0 text-[10px] font-bold uppercase tracking-widest text-slate-400">Implantação</span>
+                <div className="flex-1 grid grid-cols-3 gap-3 items-end">
+                  <div className="grid gap-1.5">
+                    <span className="text-xs text-slate-400">Total</span>
+                    <Input type="number" min="0" step="0.01" value={implTotal} onChange={(e) => setImplTotal(e.target.value)} onBlur={saveValores} placeholder="0,00" />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <span className="text-xs text-slate-400">Nº de parcelas</span>
+                    <Input type="number" min="1" value={implParc} onChange={(e) => setImplParc(e.target.value)} onBlur={saveValores} placeholder="1" />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <span className="text-xs text-slate-400">Valor por parcela</span>
+                    <div className="flex h-10 items-center px-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700">
+                      {formatCurrency(implTotalNum / (parseInt(implParc) || 1))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {([
+                {
+                  label: 'Hora Presencial', vS: hpValor, vSet: setHpValor, iS: hpIni, iSet: setHpIni,
+                  saldoAtual: contrato ? parseFloat(String(contrato.horas_presenciais_saldo_atual ?? 0)) || 0 : null,
+                },
+                {
+                  label: 'Hora Remoto', vS: hrValor, vSet: setHrValor, iS: hrIni, iSet: setHrIni,
+                  saldoAtual: contrato ? parseFloat(String(contrato.horas_remotas_saldo_atual ?? 0)) || 0 : null,
+                },
+              ] as { label: string; vS: string; vSet: (v: string) => void; iS: string; iSet: (v: string) => void; saldoAtual: number | null }[]).map(({ label, vS, vSet, iS, iSet, saldoAtual }) => (
+                <div key={label} className="flex items-center gap-4">
+                  <span className="w-36 shrink-0 text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</span>
+                  <div className="flex-1 grid grid-cols-3 gap-3">
+                    <div className="grid gap-1.5">
+                      <span className="text-xs text-slate-400">Valor/hora</span>
+                      <Input type="number" min="0" step="0.01" value={vS} onChange={(e) => vSet(e.target.value)} onBlur={saveValores} placeholder="0,00" />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <span className="text-xs text-slate-400">Saldo inicial</span>
+                      <Input type="number" min="0" step="0.5" value={iS} onChange={(e) => iSet(e.target.value)} onBlur={saveValores} placeholder="0" />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <span className="text-xs text-slate-400">Saldo atual</span>
+                      <div className="flex h-10 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700">
+                        {saldoAtual !== null ? `${saldoAtual}h` : '—'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Discriminação de prestação de serviço ── */}
+            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 grid gap-3">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Discriminação de prestação de serviço</span>
+              {catalogoQ.isLoading ? (
+                <p className="py-8 text-center text-sm text-slate-400">Carregando serviços...</p>
+              ) : catalogo.length === 0 ? (
+                <EmptyState title="Sem serviços" description="Nenhum serviço cadastrado no catálogo." />
+              ) : (
+                <>
+                  <div className="grid items-center gap-x-3 px-1 pb-1"
+                    style={{ gridTemplateColumns: contrato ? '28px 1fr 90px 72px 80px 80px' : '28px 1fr 90px 72px' }}>
+                    <span />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Serviço</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-right">Valor/mês</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center">Contratado</span>
+                    {contrato && <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center">Implantado</span>}
+                    {contrato && <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center">Faturando</span>}
+                  </div>
+                  <div className="grid gap-2">
+                    {catalogo.map((servico) => {
+                      const pendingValor = pendingServicos.get(servico.id);
+                      const syntheticVinculo: ServicoContrato | undefined = !contrato && pendingServicos.has(servico.id)
+                        ? { id: 0, contrato_id: 0, servico_id: servico.id, servico_nome: servico.nome, valor_mensal: pendingValor ?? 0, implantado: false, faturando: false }
+                        : undefined;
+                      return (
+                        <CatalogoServicoRow
+                          key={servico.id}
+                          servico={servico}
+                          vinculo={contrato ? vinculoMap.get(servico.id) : syntheticVinculo}
+                          numero={contrato ? vinculoOrdem.get(servico.id) : undefined}
+                          showStatus={!!contrato}
+                          onVincular={(valorMensal) => {
+                            if (contrato) {
+                              vincularMut.mutate({ servicoId: servico.id, valorMensal });
+                            } else {
+                              setPendingServicos((m) => new Map(m).set(servico.id, valorMensal));
+                            }
+                          }}
+                          onAtualizar={(data) => {
+                            if (contrato) {
+                              const v = vinculoMap.get(servico.id);
+                              if (v) atualizarServicoMut.mutate({ id: v.id, data });
+                            } else if (data.valor_mensal !== undefined) {
+                              setPendingServicos((m) => new Map(m).set(servico.id, data.valor_mensal!));
+                            }
+                          }}
+                          onDesvincular={() => {
+                            if (contrato) {
+                              const v = vinculoMap.get(servico.id);
+                              if (v && confirm(`Remover "${servico.nome}" deste contrato?`)) desvincularMut.mutate(v.id);
+                            } else {
+                              setPendingServicos((m) => { const n = new Map(m); n.delete(servico.id); return n; });
+                            }
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-        )}
+          );
+        })()}
+
+        {/* ── Persistent footer ── */}
+        <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-2">
+          {onEncerrar ? (
+            <button
+              type="button"
+              onClick={onEncerrar}
+              className="flex items-center gap-1.5 text-xs font-medium text-red-500 hover:text-red-700 transition-colors"
+            >
+              <AlertTriangle size={12} /> Encerrar contrato
+            </button>
+          ) : <span />}
+          <Button disabled={isSaving} onClick={handleFooterSave}>
+            {isSaving ? 'Salvando...' : 'Salvar contrato'}
+          </Button>
+        </div>
 
       </div>
     </Dialog>
@@ -599,11 +823,27 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
 
   const contratos      = contratosQ.data ?? [];
   const contrato       = contratos.find((c) => c.status === 'ativo') ?? contratos[0];
+  // Deriva o contrato do modal da query viva para que saves parciais (patchValoresMut) reflitam imediatamente
+  const contratoParaModal = contratoModal.contrato
+    ? (contratos.find((c) => c.id === contratoModal.contrato!.id) ?? contratoModal.contrato)
+    : undefined;
   const representantes = (representantesQ.data ?? []).filter((r) => r.ativo);
 
   const saveContratoMut = useMutation({
-    mutationFn: (data: Parameters<typeof saveContrato>[0]) =>
-      saveContrato(data, contratoModal.contrato?.id),
+    mutationFn: async ({ data, pendingServicos }: {
+      data: Parameters<typeof saveContrato>[0];
+      pendingServicos?: Map<number, number>;
+    }) => {
+      const saved = await saveContrato(data, contratoModal.contrato?.id);
+      if (!contratoModal.contrato && pendingServicos?.size) {
+        await Promise.all(
+          Array.from(pendingServicos.entries()).map(([servicoId, valorMensal]) =>
+            vincularServico(saved.id, servicoId, valorMensal),
+          ),
+        );
+      }
+      return saved;
+    },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.contratos(cliente.id) });
       setContratoModal({ open: false });
@@ -696,11 +936,11 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
       {/* Modal */}
       <ContratoModal
         open={contratoModal.open}
-        contrato={contratoModal.contrato}
+        contrato={contratoParaModal}
         clienteId={cliente.id}
         representantes={representantes}
         isSaving={saveContratoMut.isPending}
-        onSave={(data) => saveContratoMut.mutate(data)}
+        onSave={(data, pendingServicos) => saveContratoMut.mutate({ data, pendingServicos })}
         onClose={() => setContratoModal({ open: false })}
         onEncerrar={
           contratoModal.contrato?.status === 'ativo'
