@@ -41,7 +41,8 @@ router.get('/', authMiddleware, async (req, res) => {
                 c.data_criacao,
                 c.data_atualizacao,
                 u.nome as usuario_nome,
-                COALESCE(c.ativo, true) as ativo
+                COALESCE(c.ativo, true) as ativo,
+                COALESCE(c.tipo_despesa, 'opex') as tipo_despesa
             FROM categorias c
             LEFT JOIN usuarios u ON c.usuario_id = u.id
             LEFT JOIN cartoes ct ON c.cartao_favorito_id = ct.id
@@ -69,7 +70,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
 router.post('/', authMiddleware, async (req, res) => {
     try {
-        const { nome, cor, icone } = req.body;
+        const { nome, cor, icone, tipo_despesa } = req.body;
 
         if (!nome || nome.trim() === '') {
             return res.status(400).json({
@@ -84,6 +85,8 @@ router.post('/', authMiddleware, async (req, res) => {
                 message: 'Nome da categoria deve ter no máximo 255 caracteres'
             });
         }
+
+        const tipoDespesaValido = tipo_despesa === 'capex' ? 'capex' : 'opex';
 
         // Verificar duplicata e obter próximo número em paralelo
         const [existente, proximoNumero] = await Promise.all([
@@ -102,9 +105,9 @@ router.post('/', authMiddleware, async (req, res) => {
         }
 
         const queryText = `
-            INSERT INTO categorias (usuario_id, nome, cor, icone, numero)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING id, nome, cor, icone, numero, data_criacao, data_atualizacao
+            INSERT INTO categorias (usuario_id, nome, cor, icone, numero, tipo_despesa)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING id, nome, cor, icone, numero, tipo_despesa, data_criacao, data_atualizacao
         `;
 
         const values = [
@@ -112,7 +115,8 @@ router.post('/', authMiddleware, async (req, res) => {
             nome.trim(),
             cor || '#3498db',
             icone || null,
-            proximoNumero
+            proximoNumero,
+            tipoDespesaValido,
         ];
         
         const result = await query(queryText, values);
@@ -178,29 +182,31 @@ router.get('/:id', authMiddleware, async (req, res) => {
 router.put('/:id', authMiddleware, async (req, res) => {
     try {
         const categoriaId = parseInt(req.params.id);
-        const { nome, cor, icone } = req.body;
-        
+        const { nome, cor, icone, tipo_despesa } = req.body;
+
         if (isNaN(categoriaId)) {
             return res.status(400).json({
                 success: false,
                 message: 'ID da categoria deve ser um número válido'
             });
         }
-        
+
         if (!nome || nome.trim() === '') {
             return res.status(400).json({
                 success: false,
                 message: 'Nome da categoria é obrigatório'
             });
         }
-        
+
         if (nome.length > 255) {
             return res.status(400).json({
                 success: false,
                 message: 'Nome da categoria deve ter no máximo 255 caracteres'
             });
         }
-        
+
+        const tipoDespesaValido = tipo_despesa === 'capex' ? 'capex' : 'opex';
+
         const [existeCategoria, nomeDuplicado] = await Promise.all([
             query('SELECT id FROM categorias WHERE id = $1 AND usuario_id = $2', [categoriaId, req.usuario.id]),
             query('SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2) AND id != $3', [req.usuario.id, nome.trim(), categoriaId])
@@ -219,18 +225,19 @@ router.put('/:id', authMiddleware, async (req, res) => {
                 message: 'Já existe uma categoria com este nome'
             });
         }
-        
+
         const queryText = `
-            UPDATE categorias 
-            SET nome = $1, cor = $2, icone = $3, data_atualizacao = CURRENT_TIMESTAMP
-            WHERE id = $4 AND usuario_id = $5
-            RETURNING id, nome, cor, icone, data_criacao, data_atualizacao
+            UPDATE categorias
+            SET nome = $1, cor = $2, icone = $3, tipo_despesa = $4, data_atualizacao = CURRENT_TIMESTAMP
+            WHERE id = $5 AND usuario_id = $6
+            RETURNING id, nome, cor, icone, tipo_despesa, data_criacao, data_atualizacao
         `;
-        
+
         const values = [
             nome.trim(),
             cor || '#3498db',
             icone || null,
+            tipoDespesaValido,
             categoriaId,
             req.usuario.id
         ];

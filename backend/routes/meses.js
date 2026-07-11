@@ -146,11 +146,17 @@ router.get('/:ano/:mes/saldo', authMiddleware, async (req, res) => {
 
         const [receitas, despesas, saldoAnterior] = await Promise.all([
             query(
-                `SELECT COALESCE(SUM(valor), 0) as total FROM receitas WHERE usuario_id = $1 AND ano = $2 AND mes = $3${perfilClause}`,
+                `SELECT COALESCE(SUM(valor), 0) as total FROM receitas WHERE usuario_id = $1 AND ano = $2 AND mes = $3 AND status = 'ativa'${perfilClause}`,
                 [req.usuario.id, anoInt, mesInt, ...perfilParams]
             ),
             query(
-                `SELECT COALESCE(SUM(valor), 0) as total FROM despesas WHERE usuario_id = $1 AND ano = $2 AND mes = $3${perfilClause}`,
+                `SELECT COALESCE(SUM(
+                    CASE
+                        WHEN parcelado = true AND COALESCE(numero_parcelas, 0) > 0 AND parcela_atual = 1
+                            THEN valor_final / numero_parcelas
+                        ELSE valor_final
+                    END
+                ), 0) as total FROM despesas WHERE usuario_id = $1 AND ano = $2 AND mes = $3 AND status = 'ativa'${perfilClause}`,
                 [req.usuario.id, anoInt, mesInt, ...perfilParams]
             ),
             query(

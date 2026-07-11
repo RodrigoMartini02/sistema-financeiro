@@ -616,7 +616,7 @@ async function chamarProvider(provider, apiKey, systemPrompt, workingMsgs) {
 function construirSystemPrompt(ctx, carta, instrucoes) {
     const hoje = formatarData(new Date());
     const partes = [
-        'Você é Gen, a assistente financeira inteligente do IGen - Sistema Financeiro Inteligente.',
+        'Você é Gen, a assistente financeira inteligente do FINGERENCE.',
         '',
         'Você ajuda o usuário a registrar despesas e receitas, consultar dados financeiros, comparar períodos e identificar tendências nos gastos.',
         '',

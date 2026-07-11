@@ -74,8 +74,8 @@ router.get('/', authMiddleware, async (req, res) => {
 // POST - Criar nova reserva
 router.post('/', authMiddleware, [
     body('valor').isFloat({ min: 0 }).withMessage('Valor deve ser maior ou igual a zero'),
-    body('mes').isInt({ min: 0, max: 11 }).withMessage('Mês inválido'),
-    body('ano').isInt({ min: 2000 }).withMessage('Ano inválido'),
+    body('mes').optional().isInt({ min: 0, max: 11 }).withMessage('Mês inválido'),
+    body('ano').optional().isInt({ min: 2000 }).withMessage('Ano inválido'),
     body('data').isISO8601().withMessage('Data inválida')
 ], async (req, res) => {
     try {
@@ -87,19 +87,28 @@ router.post('/', authMiddleware, [
             });
         }
 
-        const { valor, mes, ano, data, observacoes, tipo_reserva, objetivo_valor, objetivo_atingido, data_objetivo, perfil_id } = req.body;
+        const { valor, mes, ano, data, observacoes, objetivo_valor, data_objetivo, perfil_id, cor, icone } = req.body;
         const valorNumerico = parseFloat(valor);
 
-        // Reservas normais devem ter valor > 0; objetivos começam com valor = 0
-        if (tipo_reserva !== 'objetivo' && valorNumerico < 0.01) {
+        // mes/ano: usar os enviados ou derivar da data
+        const dataObj = new Date(data);
+        const mesEfetivo = mes !== undefined ? parseInt(mes) : dataObj.getUTCMonth();
+        const anoEfetivo = ano !== undefined ? parseInt(ano) : dataObj.getUTCFullYear();
+
+        // tipo_reserva derivado automaticamente do objetivo_valor
+        const objValor = objetivo_valor ? parseFloat(objetivo_valor) : null;
+        const tipoReserva = objValor > 0 ? 'objetivo' : 'normal';
+
+        // Reservas normais devem ter valor > 0; objetivos podem começar com valor = 0
+        if (tipoReserva !== 'objetivo' && valorNumerico < 0.01) {
             return res.status(400).json({
                 success: false,
-                message: 'Valor deve ser maior que zero para reservas normais'
+                message: 'Valor deve ser maior que zero para reservas sem meta'
             });
         }
 
         // Verificar se o mês está fechado
-        const mesFechado = await verificarMesFechado(req.usuario.id, mes, ano);
+        const mesFechado = await verificarMesFechado(req.usuario.id, mesEfetivo, anoEfetivo);
         if (mesFechado) {
             return res.status(400).json({
                 success: false,
@@ -107,7 +116,7 @@ router.post('/', authMiddleware, [
             });
         }
 
-        // Verificar saldo disponível: saldoFinal do último mês fechado + receitas dos meses abertos - reservas acumuladas
+        // Verificar saldo disponível
         const saldoResult = await query(
             `WITH uf AS (
                 SELECT ano, mes, saldo_final
@@ -140,12 +149,12 @@ router.post('/', authMiddleware, [
                     WHERE usuario_id = $1 AND (ano < $2 OR (ano = $2 AND mes <= $3))
                 ), 0)
                 AS saldo_disponivel`,
-            [req.usuario.id, ano, mes]
+            [req.usuario.id, anoEfetivo, mesEfetivo]
         );
 
         const saldoAtual = parseFloat(saldoResult.rows[0].saldo_disponivel) || 0;
 
-        if (tipo_reserva !== 'objetivo' && saldoAtual < valorNumerico) {
+        if (tipoReserva !== 'objetivo' && saldoAtual < valorNumerico) {
             return res.status(400).json({
                 success: false,
                 message: `Saldo insuficiente para reserva. Disponível: R$ ${saldoAtual.toFixed(2)}`,
@@ -153,16 +162,16 @@ router.post('/', authMiddleware, [
             });
         }
 
-        // Criar a reserva
-        const tipoReserva = tipo_reserva || 'normal';
-        const objValor = objetivo_valor ? parseFloat(objetivo_valor) : null;
-        const dataObj = data_objetivo || null;
+        const dataObjetivo = data_objetivo || null;
         const perfilIdReserva = perfil_id ? parseInt(perfil_id) : null;
+        const corReserva = cor || '#6366f1';
+        const iconeReserva = icone || '💰';
+
         const result = await query(
-            `INSERT INTO reservas (usuario_id, valor, mes, ano, data, observacoes, tipo_reserva, objetivo_valor, objetivo_atingido, data_objetivo, perfil_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            `INSERT INTO reservas (usuario_id, valor, mes, ano, data, observacoes, tipo_reserva, objetivo_valor, objetivo_atingido, data_objetivo, perfil_id, cor, icone)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
              RETURNING *`,
-            [req.usuario.id, valorNumerico, mes, ano, data, observacoes || null, tipoReserva, objValor, false, dataObj, perfilIdReserva]
+            [req.usuario.id, valorNumerico, mesEfetivo, anoEfetivo, data, observacoes || null, tipoReserva, objValor, false, dataObjetivo, perfilIdReserva, corReserva, iconeReserva]
         );
 
         // Registrar movimentação inicial de entrada apenas se valor > 0
@@ -203,7 +212,12 @@ router.put('/:id', authMiddleware, [
         }
 
         const { id } = req.params;
-        const { observacoes, tipo_reserva, objetivo_valor, objetivo_atingido, data_objetivo } = req.body;
+        const { observacoes, objetivo_valor, objetivo_atingido, data_objetivo, cor, icone } = req.body;
+
+        // tipo_reserva derivado automaticamente do objetivo_valor quando presente
+        const tipoReservaAtualizado = objetivo_valor !== undefined
+            ? (parseFloat(objetivo_valor) > 0 ? 'objetivo' : 'normal')
+            : undefined;
 
         // Build dynamic update
         const setClauses = [];
@@ -211,10 +225,12 @@ router.put('/:id', authMiddleware, [
         let paramIdx = 1;
 
         if (observacoes !== undefined) { setClauses.push(`observacoes = $${paramIdx++}`); params.push(observacoes); }
-        if (tipo_reserva !== undefined) { setClauses.push(`tipo_reserva = $${paramIdx++}`); params.push(tipo_reserva); }
+        if (tipoReservaAtualizado !== undefined) { setClauses.push(`tipo_reserva = $${paramIdx++}`); params.push(tipoReservaAtualizado); }
         if (objetivo_valor !== undefined) { setClauses.push(`objetivo_valor = $${paramIdx++}`); params.push(objetivo_valor !== null ? parseFloat(objetivo_valor) : null); }
         if (objetivo_atingido !== undefined) { setClauses.push(`objetivo_atingido = $${paramIdx++}`); params.push(!!objetivo_atingido); }
         if (data_objetivo !== undefined) { setClauses.push(`data_objetivo = $${paramIdx++}`); params.push(data_objetivo || null); }
+        if (cor !== undefined) { setClauses.push(`cor = $${paramIdx++}`); params.push(cor); }
+        if (icone !== undefined) { setClauses.push(`icone = $${paramIdx++}`); params.push(icone); }
 
         if (setClauses.length === 0) {
             return res.status(400).json({ success: false, message: 'Nenhum campo para atualizar' });

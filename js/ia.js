@@ -1,5 +1,5 @@
 // ================================================================
-// GEN — IA Financeira IGen - Sistema Financeiro Inteligente
+// GEN — IA Financeira FINGERENCE
 // Funciona como painel flutuante (outras páginas) e página completa (ia.html)
 // Exposto como window.IA
 // ================================================================

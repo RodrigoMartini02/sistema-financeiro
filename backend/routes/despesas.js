@@ -85,7 +85,7 @@ router.get('/', authMiddleware, async (req, res) => {
 // ================================================================
 router.post('/', authMiddleware, [
     body('descricao').notEmpty().withMessage('Descrição é obrigatória'),
-    body('valor').isFloat({ min: 0.01 }).withMessage('Valor deve ser maior que zero'),
+    body('valor_original').isFloat({ min: 0.01 }).withMessage('Valor original deve ser maior que zero'),
     body('data_vencimento').isISO8601().withMessage('Data inválida'),
     body('mes').isInt({ min: 0, max: 11 }).withMessage('Mês inválido'),
     body('ano').isInt({ min: 2000 }).withMessage('Ano inválido')
@@ -101,10 +101,10 @@ router.post('/', authMiddleware, [
         }
 
         const {
-            descricao, valor, data_vencimento, data_compra, data_pagamento,
+            descricao, valor_original, valor_final, data_vencimento, data_compra, data_pagamento,
             mes, ano, categoria_id, cartao_id, forma_pagamento,
             parcelado, total_parcelas, parcela_atual, observacoes, pago,
-            valor_original, valor_total_com_juros, valor_pago, anexos, recorrente,
+            valor_pago, anexos, recorrente,
             perfil_id
         } = req.body;
 
@@ -129,20 +129,20 @@ router.post('/', authMiddleware, [
 
         const result = await query(
             `INSERT INTO despesas (
-                usuario_id, descricao, valor, data_vencimento, data_compra, data_pagamento,
+                usuario_id, descricao, data_vencimento, data_compra, data_pagamento,
                 mes, ano, categoria_id, cartao_id, forma_pagamento,
                 parcelado, numero_parcelas, parcela_atual, observacoes, pago,
-                valor_original, valor_total_com_juros, valor_pago, numero, anexos, recorrente, perfil_id
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+                valor_original, valor_final, valor_pago, numero, anexos, recorrente, perfil_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
             RETURNING *`,
             [
-                req.usuario.id, descricao, parseFloat(valor), data_vencimento,
+                req.usuario.id, descricao, data_vencimento,
                 data_compra || null, data_pagamento || null, mes, ano,
                 categoriaFinal, cartaoIdFinal, forma_pagamento || 'dinheiro',
                 parcelado || false, numeroParcelas, parcelaAtual,
                 observacoes || null, pago || false,
                 valor_original ? parseFloat(valor_original) : null,
-                valor_total_com_juros ? parseFloat(valor_total_com_juros) : null,
+                valor_final ? parseFloat(valor_final) : (valor_original ? parseFloat(valor_original) : null),
                 valor_pago ? parseFloat(valor_pago) : null,
                 proximoNumero,
                 anexosJson,
@@ -201,15 +201,15 @@ async function criarParcelasFuturas(usuarioId, despesaBase, totalParcelas) {
             const proximaDataVencimento = `${proximoAnoCalc}-${proximoMesCalc}-${proximoDiaCalc}`;
 
             const placeholders = [];
-            for (let p = 0; p < 18; p++) {
+            for (let p = 0; p < 19; p++) {
                 placeholders.push(`$${paramIndex++}`);
             }
             values.push(`(${placeholders.join(', ')})`);
 
+            const valorPorParcela = parseFloat(despesaBase.valor_final) / totalParcelas;
             params.push(
                 usuarioId,
                 despesaBase.descricao + ` (${i}/${totalParcelas})`,
-                despesaBase.valor,
                 proximaDataVencimento,
                 despesaBase.data_compra,
                 proximoMes,
@@ -224,7 +224,9 @@ async function criarParcelasFuturas(usuarioId, despesaBase, totalParcelas) {
                 false,
                 despesaBase.id,
                 despesaBase.recorrente || false,
-                despesaBase.perfil_id || null
+                despesaBase.perfil_id || null,
+                valorPorParcela,
+                valorPorParcela
             );
         }
 
@@ -232,10 +234,11 @@ async function criarParcelasFuturas(usuarioId, despesaBase, totalParcelas) {
         if (values.length > 0) {
             await query(
                 `INSERT INTO despesas (
-                    usuario_id, descricao, valor, data_vencimento, data_compra,
+                    usuario_id, descricao, data_vencimento, data_compra,
                     mes, ano, categoria_id, cartao_id, forma_pagamento,
                     parcelado, numero_parcelas, parcela_atual, observacoes, pago,
-                    grupo_parcelamento_id, recorrente, perfil_id
+                    grupo_parcelamento_id, recorrente, perfil_id,
+                    valor_original, valor_final
                 ) VALUES ${values.join(', ')}`,
                 params
             );
@@ -263,9 +266,9 @@ router.put('/:id', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
         const {
-            descricao, valor, data_vencimento, data_compra, data_pagamento,
+            descricao, valor_original, valor_final, data_vencimento, data_compra, data_pagamento,
             categoria_id, cartao_id, forma_pagamento, observacoes, pago,
-            total_parcelas, parcela_atual, valor_original, valor_total_com_juros, valor_pago, anexos,
+            total_parcelas, parcela_atual, valor_pago, anexos,
             mes, ano, parcelado, recorrente, perfil_id
         } = req.body;
 
@@ -278,22 +281,22 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
         const result = await query(
             `UPDATE despesas
-             SET descricao = $1, valor = $2, data_vencimento = $3, data_compra = $4,
-                 data_pagamento = $5, categoria_id = $6, cartao_id = $7,
-                 forma_pagamento = $8, observacoes = $9, pago = $10,
-                 numero_parcelas = $11, parcela_atual = $12,
-                 valor_original = $13, valor_total_com_juros = $14, valor_pago = $15, anexos = $16,
-                 mes = COALESCE($17, mes), ano = COALESCE($18, ano), parcelado = COALESCE($19, parcelado),
-                 recorrente = COALESCE($20, recorrente),
-                 perfil_id = COALESCE($21, perfil_id)
-             WHERE id = $22 AND usuario_id = $23
+             SET descricao = $1, data_vencimento = $2, data_compra = $3,
+                 data_pagamento = $4, categoria_id = $5, cartao_id = $6,
+                 forma_pagamento = $7, observacoes = $8, pago = $9,
+                 numero_parcelas = $10, parcela_atual = $11,
+                 valor_original = $12, valor_final = $13, valor_pago = $14, anexos = $15,
+                 mes = COALESCE($16, mes), ano = COALESCE($17, ano), parcelado = COALESCE($18, parcelado),
+                 recorrente = COALESCE($19, recorrente),
+                 perfil_id = COALESCE($20, perfil_id)
+             WHERE id = $21 AND usuario_id = $22
              RETURNING *`,
             [
-                descricao, parseFloat(valor), data_vencimento, data_compra,
+                descricao, data_vencimento, data_compra,
                 data_pagamento, categoria_id || null, cartaoIdFinal, forma_pagamento,
                 observacoes, pago, numeroParcelas, parcelaAtual,
                 valor_original ? parseFloat(valor_original) : null,
-                valor_total_com_juros ? parseFloat(valor_total_com_juros) : null,
+                valor_final ? parseFloat(valor_final) : (valor_original ? parseFloat(valor_original) : null),
                 valor_pago ? parseFloat(valor_pago) : null,
                 anexosJson,
                 mes !== undefined ? mes : null, ano !== undefined ? ano : null, parcelado !== undefined ? parcelado : null,
@@ -371,6 +374,26 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 });
 
 // ================================================================
+// CANCELAR DESPESA
+// ================================================================
+router.put('/:id/cancelar', authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await query(
+            `UPDATE despesas SET status = 'cancelada' WHERE id = $1 AND usuario_id = $2 RETURNING *`,
+            [parseInt(id), req.usuario.id]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Despesa não encontrada' });
+        }
+        res.json({ success: true, message: 'Despesa cancelada', data: result.rows[0] });
+    } catch (error) {
+        console.error('Erro ao cancelar despesa:', error);
+        res.status(500).json({ success: false, message: 'Erro ao cancelar despesa' });
+    }
+});
+
+// ================================================================
 // PAGAR DESPESA - COMPATÍVEL COM FRONTEND
 // ================================================================
 router.post('/:id/pagar', authMiddleware, async (req, res) => {
@@ -424,6 +447,55 @@ router.post('/:id/pagar', authMiddleware, async (req, res) => {
             success: false,
             message: 'Erro ao processar pagamento'
         });
+    }
+});
+
+// ================================================================
+// MOVER DESPESA PARA O PRÓXIMO MÊS
+// ================================================================
+router.post('/:id/mover', authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const orig = await query(
+            'SELECT * FROM despesas WHERE id = $1 AND usuario_id = $2',
+            [id, req.usuario.id]
+        );
+
+        if (orig.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Despesa não encontrada' });
+        }
+
+        const d = orig.rows[0];
+        const novoMes = d.mes === 12 ? 1 : d.mes + 1;
+        const novoAno = d.mes === 12 ? d.ano + 1 : d.ano;
+
+        const novaVencimento = d.data_vencimento
+            ? `${novoAno}-${String(novoMes).padStart(2, '0')}-${d.data_vencimento.toISOString().slice(8, 10)}`
+            : `${novoAno}-${String(novoMes).padStart(2, '0')}-15`;
+
+        const result = await query(
+            `INSERT INTO despesas (
+                descricao, valor_original, valor_final, data_vencimento, data_compra,
+                mes, ano, forma_pagamento, observacoes, pago, recorrente, parcelado,
+                numero_nf, data_emissao_nf, tipo_despesa, categoria_id, cartao_id,
+                usuario_id, perfil_id, grupo_parcelamento_id, parcela_atual, numero_parcelas
+            ) VALUES (
+                $1,$2,$3,$4,$5,$6,$7,$8,$9,false,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21
+            ) RETURNING *`,
+            [
+                d.descricao, d.valor_original, d.valor_final, novaVencimento, d.data_compra,
+                novoMes, novoAno, d.forma_pagamento, d.observacoes, d.recorrente, d.parcelado,
+                d.numero_nf, d.data_emissao_nf, d.tipo_despesa, d.categoria_id, d.cartao_id,
+                d.usuario_id, d.perfil_id, d.grupo_parcelamento_id, d.parcela_atual, d.numero_parcelas,
+            ]
+        );
+
+        res.json({ success: true, data: result.rows[0] });
+
+    } catch (error) {
+        console.error('Erro ao mover despesa:', error);
+        res.status(500).json({ success: false, message: 'Erro ao mover despesa' });
     }
 });
 
