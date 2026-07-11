@@ -1,9 +1,10 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool, types } from 'pg';
 import * as dotenv from 'dotenv';
+import path from 'path';
 import * as schema from './schema';
 
-dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || '.env' });
+dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || path.resolve(process.cwd(), '../../.env') });
 
 // Return dates as strings to avoid timezone issues
 types.setTypeParser(1082, (val) => val); // DATE

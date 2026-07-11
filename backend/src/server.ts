@@ -1,22 +1,28 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import * as dotenv from 'dotenv';
+import path from 'path';
 import { testConnection } from './db/client';
 
-dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || '.env' });
+dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || path.resolve(process.cwd(), '../../.env') });
 
 const app = express();
 const PORT = process.env.PORT ?? 3010;
 
 const envOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
-  : ['https://sistema-financeiro-kxed.onrender.com'];
+  : [
+      'https://sistema-financeiro-kxed.onrender.com',
+      'https://escalacao-futebol-1.onrender.com',
+      'https://escalacao-futebol.onrender.com',
+    ];
 
 const devOrigins =
   process.env.NODE_ENV !== 'production'
     ? [
         'http://localhost:3000', 'http://127.0.0.1:3000',
         'http://localhost:5173', 'http://127.0.0.1:5173',
+        'http://localhost:5175', 'http://127.0.0.1:5175',
         'http://localhost:5500', 'http://127.0.0.1:5500',
       ]
     : [];
@@ -58,7 +64,7 @@ if (process.env.NODE_ENV !== 'production') {
   });
 }
 
-// ── Routes ──────────────────────────────────────────────────────────────────
+// ── Routes ──────────────────────────────────────────────────────────────
 import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
 import profileRoutes from './routes/profiles';
@@ -83,6 +89,8 @@ import technicalServiceRoutes from './routes/technical-services';
 import serviceRoutes from './routes/services';
 import contractServiceRoutes from './routes/contract-services';
 import contractAttachmentRoutes from './routes/contract-attachments';
+import futebolRoutes from './modules/futebol/routes';
+import { startFootballCron } from './modules/futebol/cron';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -123,8 +131,9 @@ app.use('/api/servicos-tecnicos', technicalServiceRoutes);
 app.use('/api/servicos', serviceRoutes);
 app.use('/api/contratos-servicos', contractServiceRoutes);
 app.use('/api/contrato-anexos', contractAttachmentRoutes);
+app.use('/api/futebol', futebolRoutes);
 
-// ── System endpoints ─────────────────────────────────────────────────────────
+// ── System endpoints ───────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const pkg = require('../package.json') as { version: string; releaseDate: string };
 
@@ -146,12 +155,12 @@ app.get('/version', (_req: Request, res: Response) => {
   res.json({ success: true, version: pkg.version, releaseDate: pkg.releaseDate });
 });
 
-// ── 404 ──────────────────────────────────────────────────────────────────────
+// ── 404 ─────────────────────────────────────────────────────────────────
 app.use((req: Request, res: Response) => {
   res.status(404).json({ success: false, message: 'Route not found', path: req.path });
 });
 
-// ── Error handler ─────────────────────────────────────────────────────────────
+// ── Error handler ──────────────────────────────────────────────────────
 app.use((err: Error & { status?: number }, req: Request, res: Response, _next: NextFunction) => {
   console.error('Unhandled error:', err);
   res.status(err.status ?? 500).json({
@@ -161,7 +170,7 @@ app.use((err: Error & { status?: number }, req: Request, res: Response, _next: N
   });
 });
 
-// ── Bootstrap ─────────────────────────────────────────────────────────────────
+// ── Bootstrap ───────────────────────────────────────────────────────────
 async function bootstrap(): Promise<void> {
   console.log('Testing PostgreSQL connection...');
   const dbOk = await testConnection();
@@ -178,6 +187,8 @@ async function bootstrap(): Promise<void> {
     console.log(`Environment: ${process.env.NODE_ENV ?? 'development'}`);
     console.log('================================================');
   });
+
+  startFootballCron();
 }
 
 process.on('SIGTERM', () => process.exit(0));

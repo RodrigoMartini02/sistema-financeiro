@@ -7,8 +7,9 @@
   "scripts": {
     "start": "tsx src/server.ts",
     "dev": "tsx watch src/server.ts",
-    "dev:local": "set DOTENV_CONFIG_PATH=.env.dev&& tsx watch src/server.ts",
+    "dev:local": "set DOTENV_CONFIG_PATH=../../.env&& tsx watch src/server.ts",
     "dev:legacy": "nodemon server.js",
+    "build": "tsc --noEmit",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

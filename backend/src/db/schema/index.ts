@@ -11,3 +11,4 @@ export * from './ratings';
 export * from './representatives';
 export * from './partners';
 export * from './aiSessions';
+export * from '../../modules/futebol/db/schema';
