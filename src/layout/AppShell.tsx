@@ -8,6 +8,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import type { AuthUser } from '../types/auth';
 import { logout } from '../services/session';
+import { apiRequest, getActiveProfileId } from '../services/apiClient';
 import { fetchPerfis } from '../services/configService';
 import { queryKeys } from '../services/queryKeys';
 import { useAppContext } from '../context/AppContext';
@@ -145,15 +146,13 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
   const { data = [], isLoading } = useQuery({
     queryKey: ['notif-despesas', month, year],
     queryFn: async () => {
-      const token = localStorage.getItem('token');
-      const r = await fetch(`/api/despesas?mes=${month + 1}&ano=${year}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await r.json();
-      return (json.data ?? json ?? []) as Array<{
+      const params = new URLSearchParams({ mes: String(month), ano: String(year) });
+      const profileId = getActiveProfileId();
+      if (profileId) params.set('perfil_id', String(profileId));
+      return apiRequest<Array<{
         id: number; descricao: string; valor_final: number;
         categoria_nome?: string; forma_pagamento?: string;
-      }>;
+      }>>(`/despesas?${params}`);
     },
     staleTime: 60_000,
   });

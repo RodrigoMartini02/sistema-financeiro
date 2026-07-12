@@ -57,6 +57,7 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: Mode }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [verifiedCode, setVerifiedCode] = useState('');
   const [termosAceitos, setTermosAceitos] = useState(false);
   const [modalTermos, setModalTermos] = useState<'termos' | 'privacidade' | null>(null);
 
@@ -141,7 +142,9 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: Mode }) {
     setError(''); setLoading(true);
     const fd = new FormData(e.currentTarget);
     try {
-      await verifyRecoveryCode(recoveryEmail, fd.get('codigo') as string);
+      const codigo = fd.get('codigo') as string;
+      await verifyRecoveryCode(recoveryEmail, codigo);
+      setVerifiedCode(codigo);
       setMode('reset');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Código inválido ou expirado');
@@ -156,8 +159,7 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: Mode }) {
     const confirma = fd.get('confirma_senha') as string;
     if (nova !== confirma) { setError('As senhas não coincidem'); setLoading(false); return; }
     try {
-      const fd2 = new FormData(e.currentTarget);
-      await resetPassword(recoveryEmail, fd2.get('codigo') as string, nova);
+      await resetPassword(recoveryEmail, verifiedCode, nova);
       setSuccess('Senha redefinida com sucesso!');
       setMode('login');
     } catch (err) {
@@ -305,7 +307,6 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: Mode }) {
       {/* RESET PASSWORD */}
       {mode === 'reset' && (
         <form className="mt-4 grid gap-3" onSubmit={handleReset}>
-          <input type="hidden" name="codigo" value="" />
           <p className="text-sm text-slate-500 dark:text-site-textSub">Escolha uma nova senha com pelo menos 8 caracteres.</p>
           <Field label="Nova senha">
             <Input name="nova_senha" type="password" required minLength={8} placeholder="••••••••" />
