@@ -3,6 +3,8 @@ node_modules/
 backend/config/staging-setup.sql
 .env
 .env.dev
+dist/
+*.log
 
 # Arquivos temporários e reservados do Windows
 nul

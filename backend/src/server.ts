@@ -91,6 +91,7 @@ import contractServiceRoutes from './routes/contract-services';
 import contractAttachmentRoutes from './routes/contract-attachments';
 import futebolRoutes from './modules/futebol/routes';
 import { startFootballCron } from './modules/futebol/cron';
+import { startCobrancaCron } from './cron/cobrancas';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -189,6 +190,7 @@ async function bootstrap(): Promise<void> {
   });
 
   startFootballCron();
+  startCobrancaCron();
 }
 
 process.on('SIGTERM', () => process.exit(0));
