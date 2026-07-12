@@ -25,7 +25,7 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
     const password = String(req.body?.password ?? '');
 
     if (!email) {
-      res.status(400).json({ error: 'E-mail obrigatorio' });
+      res.status(400).json({ error: 'E-mail obrigatório' });
       return;
     }
 
@@ -41,7 +41,7 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
       .limit(1);
 
     if (existingUser) {
-      res.status(409).json({ error: 'Ja existe uma conta com este e-mail' });
+      res.status(409).json({ error: 'Já existe uma conta com este e-mail' });
       return;
     }
 
@@ -53,7 +53,7 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
     res.status(201).json(buildAuthResponse(user!));
   } catch (error) {
     console.error('Football register error:', error);
-    res.status(500).json({ error: 'Erro ao registrar usuario' });
+    res.status(500).json({ error: 'Erro ao registrar usuário' });
   }
 });
 
@@ -63,7 +63,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
     const password = String(req.body?.password ?? '');
 
     if (!email || !password) {
-      res.status(400).json({ error: 'E-mail e senha sao obrigatorios' });
+      res.status(400).json({ error: 'E-mail e senha são obrigatórios' });
       return;
     }
 

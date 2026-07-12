@@ -30,7 +30,7 @@ router.post('/', authenticateFootball, async (req: Request, res: Response): Prom
     const { date, teams, notes } = req.body as Record<string, unknown>;
 
     if (!date) {
-      res.status(400).json({ error: 'date obrigatorio' });
+      res.status(400).json({ error: 'date obrigatório' });
       return;
     }
 
@@ -63,7 +63,7 @@ router.patch('/:id', authenticateFootball, async (req: Request, res: Response): 
       .limit(1);
 
     if (!existing) {
-      res.status(404).json({ error: 'Partida nao encontrada' });
+      res.status(404).json({ error: 'Partida não encontrada' });
       return;
     }
 
@@ -94,7 +94,7 @@ router.delete('/:id', authenticateFootball, async (req: Request, res: Response):
       .limit(1);
 
     if (!existing) {
-      res.status(404).json({ error: 'Partida nao encontrada' });
+      res.status(404).json({ error: 'Partida não encontrada' });
       return;
     }
 
