@@ -249,7 +249,7 @@ export function DespesasScreen() {
 
   const hoje = todayStr();
   const semanaAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const mesPrefixo = `${year}-${String(month).padStart(2, '0')}`;
+  const mesPrefixo = `${year}-${String(month + 1).padStart(2, '0')}`;
 
   const filtered = allItems
     .filter((i) => {

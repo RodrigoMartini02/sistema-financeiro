@@ -188,7 +188,7 @@ export async function deleteExpense(id: number) {
 }
 
 export async function pagarDespesa(id: number, dataPagamento: string, valorPago: number) {
-  return apiRequest<void>(`/despesas/${id}/pagar`, {
+  return apiRequest<void>(`/despesas/${id}/pay`, {
     method: 'POST',
     body: JSON.stringify({ data_pagamento: dataPagamento, valor_pago: valorPago }),
   });

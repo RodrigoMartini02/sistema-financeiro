@@ -367,4 +367,53 @@ router.post('/:id/pay', authenticate, async (req: Request, res: Response): Promi
   }
 });
 
+// POST /api/despesas/:id/mover -- move vencimento para o mesmo dia do proximo mes
+router.post('/:id/mover', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const expenseId = parseInt(req.params['id']!);
+
+    const existing = await pool.query(
+      `SELECT data_vencimento, pago FROM despesas WHERE id = $1 AND usuario_id = $2`,
+      [expenseId, req.user!.id],
+    );
+
+    if (existing.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Expense not found' });
+      return;
+    }
+
+    const despesa = existing.rows[0] as { data_vencimento: string; pago: boolean };
+
+    if (despesa.pago) {
+      res.status(400).json({ success: false, message: 'Cannot move a paid expense' });
+      return;
+    }
+
+    const [year, month, day] = despesa.data_vencimento.split('-').map(Number) as [number, number, number];
+
+    let nextMonth = month + 1;
+    let nextYear = year;
+    if (nextMonth > 12) {
+      nextMonth = 1;
+      nextYear += 1;
+    }
+
+    // Ajusta o dia se o mes seguinte nao tiver esse dia (ex: 31/jan -> ultimo dia de fev)
+    const lastDayOfNextMonth = new Date(nextYear, nextMonth, 0).getDate();
+    const nextDay = Math.min(day, lastDayOfNextMonth);
+
+    const newDueDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-${String(nextDay).padStart(2, '0')}`;
+
+    const result = await pool.query(
+      `UPDATE despesas SET data_vencimento = $1, mes = $2, ano = $3 WHERE id = $4 AND usuario_id = $5 RETURNING *`,
+      [newDueDate, nextMonth - 1, nextYear, expenseId, req.user!.id],
+    );
+
+    res.json({ success: true, message: 'Expense moved to next month', data: result.rows[0] });
+  } catch (error) {
+    console.error('Move expense error:', error);
+    res.status(500).json({ success: false, message: 'Failed to move expense' });
+  }
+});
+
 export default router;
