@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller, useWatch } from 'react-hook-form';
 import { z } from 'zod';
-import { Paperclip, ChevronDown, ChevronUp } from 'lucide-react';
+import { Paperclip, ChevronDown, ChevronUp, Clock } from 'lucide-react';
 import { MONTH_NAMES, type Attachment, type Income, type IncomeFormValues } from '../../types/finance';
 import { Dialog } from '../../ui/dialog';
 import { Button } from '../../ui/button';
@@ -11,6 +11,7 @@ import { Field, Input, ToggleGroup, SectionDivider } from '../../ui/form';
 import { AttachmentSection, type AttachmentSectionHandle } from '../../ui/AttachmentSection';
 import { fetchRepresentantes } from '../../services/representantesService';
 import { fetchIncomeTypes } from '../../services/incomeTypesService';
+import { fetchContratosAtivos } from '../../services/clientesService';
 import { queryKeys } from '../../services/queryKeys';
 
 const schema = z.object({
@@ -38,8 +39,16 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, onClo
   const [replicarMes, setReplicarMes] = useState(month);
   const [replicarAno, setReplicarAno] = useState(year);
 
+  const [horasFaturar, setHorasFaturar] = useState(false);
+  const [contratoId, setContratoId] = useState<number | null>(null);
+  const [tipoHora, setTipoHora] = useState<'presencial' | 'remoto' | null>(null);
+  const [quantidadeHoras, setQuantidadeHoras] = useState<number | ''>('');
+
   const repsQ = useQuery({ queryKey: queryKeys.representantes, queryFn: fetchRepresentantes, staleTime: 60_000 });
   const representantes = repsQ.data ?? [];
+
+  const contratosQ = useQuery({ queryKey: queryKeys.contratosAtivos, queryFn: fetchContratosAtivos, staleTime: 60_000 });
+  const contratosAtivos = contratosQ.data ?? [];
 
   const typesQ = useQuery({ queryKey: queryKeys.incomeTypes, queryFn: fetchIncomeTypes, staleTime: 60_000 });
   const tiposOpcoes = (typesQ.data ?? [])
@@ -59,10 +68,30 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, onClo
     },
   });
 
+  const contratoSelecionado = contratoId ? (contratosAtivos.find((c) => c.id === contratoId) ?? null) : null;
+  const valorHora = tipoHora === 'presencial'
+    ? (contratoSelecionado?.horas_presenciais_valor ?? null)
+    : tipoHora === 'remoto'
+    ? (contratoSelecionado?.horas_remotas_valor ?? null)
+    : null;
+  const saldoAtual = tipoHora === 'presencial'
+    ? (contratoSelecionado?.horas_presenciais_saldo_atual ?? null)
+    : tipoHora === 'remoto'
+    ? (contratoSelecionado?.horas_remotas_saldo_atual ?? null)
+    : null;
+  const valorCalculado = (valorHora && quantidadeHoras) ? Number(quantidadeHoras) * valorHora : null;
+
+  useEffect(() => {
+    if (valorCalculado && valorCalculado > 0) {
+      form.setValue('valor', valorCalculado);
+    }
+  }, [valorCalculado, form]);
+
   useEffect(() => {
     if (!open) {
       setAnexos([]); setReplicar(false);
       setReplicarMes(month); setReplicarAno(year);
+      setHorasFaturar(false); setContratoId(null); setTipoHora(null); setQuantidadeHoras('');
       return;
     }
     setAnexos(income?.anexos ?? []);
@@ -100,6 +129,9 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, onClo
       valorComissao:     valorComissao ?? null,
       anexos,
       replicarAte:       isNew && replicar ? { mes: replicarMes, ano: replicarAno } : null,
+      contratoId:        isNew && horasFaturar ? contratoId : null,
+      tipoHora:          isNew && horasFaturar ? tipoHora : null,
+      quantidadeHoras:   isNew && horasFaturar && quantidadeHoras !== '' ? Number(quantidadeHoras) : null,
     };
     await onSave(formValues);
   };
@@ -209,6 +241,109 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, onClo
             <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium capitalize">
               {comissaoMatch.tipo === 'unica' ? 'única' : 'mensal'}
             </span>
+          </div>
+        )}
+
+        {/* ── Horas a faturar (nova receita only) ──────────────── */}
+        {isNew && contratosAtivos.length > 0 && (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/40">
+            <button
+              type="button"
+              onClick={() => { setHorasFaturar((v) => !v); if (horasFaturar) { setContratoId(null); setTipoHora(null); setQuantidadeHoras(''); } }}
+              className="flex w-full items-center justify-between text-sm font-semibold text-slate-700 dark:text-slate-300"
+            >
+              <span className="flex items-center gap-2"><Clock size={14} />Horas a faturar...</span>
+              {horasFaturar ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+            </button>
+            {horasFaturar && (
+              <div className="mt-3 space-y-3">
+                <Field label="Contrato">
+                  <select
+                    value={contratoId ?? ''}
+                    onChange={(e) => { setContratoId(e.target.value ? Number(e.target.value) : null); setTipoHora(null); setQuantidadeHoras(''); }}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                  >
+                    <option value="">Selecione o contrato</option>
+                    {contratosAtivos.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.cliente_nome}{c.numero ? ` — ${c.numero}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                {contratoSelecionado && (
+                  <>
+                    <div className="flex gap-2">
+                      {(contratoSelecionado.horas_presenciais_valor ?? 0) > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setTipoHora('presencial')}
+                          className={[
+                            'rounded-full border px-3 py-1 text-xs font-semibold transition',
+                            tipoHora === 'presencial'
+                              ? 'border-brand-400 bg-brand-50 text-brand-700 dark:border-brand-600 dark:bg-brand-900/30 dark:text-brand-400'
+                              : 'border-slate-200 text-slate-500 hover:border-slate-300 dark:border-slate-600 dark:text-slate-400',
+                          ].join(' ')}
+                        >
+                          Presencial
+                        </button>
+                      )}
+                      {(contratoSelecionado.horas_remotas_valor ?? 0) > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setTipoHora('remoto')}
+                          className={[
+                            'rounded-full border px-3 py-1 text-xs font-semibold transition',
+                            tipoHora === 'remoto'
+                              ? 'border-brand-400 bg-brand-50 text-brand-700 dark:border-brand-600 dark:bg-brand-900/30 dark:text-brand-400'
+                              : 'border-slate-200 text-slate-500 hover:border-slate-300 dark:border-slate-600 dark:text-slate-400',
+                          ].join(' ')}
+                        >
+                          Remoto
+                        </button>
+                      )}
+                    </div>
+
+                    {tipoHora && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field label="Quantidade de horas">
+                          <Input
+                            type="number"
+                            min="0.5"
+                            step="0.5"
+                            value={quantidadeHoras}
+                            onChange={(e) => setQuantidadeHoras(e.target.value !== '' ? Number(e.target.value) : '')}
+                            placeholder="0"
+                          />
+                        </Field>
+                        <div className="flex flex-col gap-0.5 pt-6">
+                          <span className="text-xs font-medium text-slate-500">
+                            {valorHora != null
+                              ? valorHora.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) + '/h'
+                              : '—'}
+                          </span>
+                          {saldoAtual != null && (
+                            <span className="text-xs text-slate-400">
+                              Saldo: {saldoAtual}h disponíveis
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {valorCalculado != null && valorCalculado > 0 && (
+                      <div className="flex items-center justify-between rounded-lg border border-brand-100 bg-brand-50 px-3 py-2 text-sm dark:border-brand-800 dark:bg-brand-900/20">
+                        <span className="text-brand-600 dark:text-brand-400">Valor calculado:</span>
+                        <span className="font-bold text-brand-700 dark:text-brand-300">
+                          {valorCalculado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
         )}
 

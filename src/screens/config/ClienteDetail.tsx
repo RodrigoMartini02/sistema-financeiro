@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Plus, RefreshCw,
-  Package, FileText, AlertTriangle, ChevronRight, Paperclip,
+  AlertTriangle, ChevronRight, Paperclip,
 } from 'lucide-react';
 import {
-  fetchContratos, saveContrato, encerrarContrato, gerarPrevistas,
+  fetchContratos, saveContrato, encerrarContrato, gerarPrevistas, criarReceitaImplantacao,
   fetchContratosServicos, vincularServico, atualizarServicoContrato, desvincularServico,
   fetchContratoAnexos, uploadContratoAnexo, viewContratoAnexo, deleteContratoAnexo,
   type Cliente, type Contrato, type ServicoContrato, type ContratoAnexo,
@@ -27,20 +27,16 @@ const fv = (v: number | string | null | undefined): string => {
   return x ? String(x) : '';
 };
 
-const MODAL_TABS = [
-  { id: 'dados'    as const, label: 'Dados do contrato', icon: FileText },
-  { id: 'servicos' as const, label: 'Valores',           icon: Package  },
-] as const;
-
 // ─── Contrato Form ────────────────────────────────────────────────────────────
 
 function ContratoForm({
-  clienteId, initial, representantes, onSave,
+  clienteId, initial, representantes, onSave, readOnly = false,
 }: {
   clienteId: number;
   initial?: Partial<Contrato>;
   representantes: Representante[];
   onSave: (data: Parameters<typeof saveContrato>[0]) => void;
+  readOnly?: boolean;
 }) {
   const [form, setForm] = useState({
     numero:                  initial?.numero ?? '',
@@ -77,6 +73,48 @@ function ContratoForm({
       valor_mensal:              initial?.valor_mensal ?? 0,
     } as Parameters<typeof saveContrato>[0]);
   };
+
+  if (readOnly) {
+    const repNome = representantes.find((r) => String(r.id) === form.representante_id)?.nome;
+    return (
+      <div className="grid gap-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Número do contrato</span>
+            <p className="text-sm font-medium text-slate-800">{form.numero || '—'}</p>
+          </div>
+          <div className="grid gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Data de assinatura</span>
+            <p className="text-sm font-medium text-slate-800">{form.data_assinatura || '—'}</p>
+          </div>
+          <div className="grid gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Vencimento</span>
+            <p className="text-sm font-medium text-slate-800">{form.vencimento || '—'}</p>
+          </div>
+          <div className="grid gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Início faturamento</span>
+            <p className="text-sm font-medium text-slate-800">{form.data_inicio_faturamento || '—'}</p>
+          </div>
+        </div>
+        <div className="grid gap-1">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Reajuste</span>
+          <p className="text-sm font-medium text-slate-800">{form.ajuste || '—'}</p>
+        </div>
+        {representantes.length > 0 && (
+          <div className="grid gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Representante</span>
+            <p className="text-sm font-medium text-slate-800">{repNome || 'Nenhum'}</p>
+          </div>
+        )}
+        {form.observacoes && (
+          <div className="grid gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Observações</span>
+            <p className="text-sm font-medium text-slate-800">{form.observacoes}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <form id="contrato-form" onSubmit={handleSubmit} className="grid gap-5">
@@ -149,11 +187,12 @@ function ContratoForm({
 
 // ─── Catálogo Serviço Row ─────────────────────────────────────────────────────
 
-function CatalogoServicoRow({ servico, vinculo, numero, showStatus = true, onVincular, onAtualizar, onDesvincular }: {
+function CatalogoServicoRow({ servico, vinculo, numero, showStatus = true, disabled = false, onVincular, onAtualizar, onDesvincular }: {
   servico: Servico;
   vinculo?: ServicoContrato;
   numero?: number;
   showStatus?: boolean;
+  disabled?: boolean;
   onVincular: (valorMensal: number) => void;
   onAtualizar: (data: Partial<Pick<ServicoContrato, 'valor_mensal' | 'implantado' | 'faturando'>>) => void;
   onDesvincular: () => void;
@@ -214,16 +253,17 @@ function CatalogoServicoRow({ servico, vinculo, numero, showStatus = true, onVin
         value={valor}
         onChange={(e) => setValor(e.target.value)}
         onBlur={handleValorBlur}
-        disabled={!checked}
+        disabled={!checked || disabled}
         placeholder="0,00"
-        className="w-24 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-right disabled:opacity-30 focus:outline-none focus:ring-2 focus:ring-brand-200 focus:border-brand-400"
+        className="w-24 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-right disabled:opacity-30 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-brand-200 focus:border-brand-400"
       />
       <div className="flex justify-center">
         <input
           type="checkbox"
           checked={checked}
           onChange={handleToggle}
-          className="h-4 w-4 cursor-pointer accent-brand-600"
+          disabled={disabled}
+          className="h-4 w-4 cursor-pointer accent-brand-600 disabled:opacity-30 disabled:cursor-not-allowed"
         />
       </div>
       {showStatus && (
@@ -232,8 +272,8 @@ function CatalogoServicoRow({ servico, vinculo, numero, showStatus = true, onVin
             type="checkbox"
             checked={implantado}
             onChange={(e) => handleImplantado(e.target.checked)}
-            disabled={!checked}
-            className="h-4 w-4 cursor-pointer accent-brand-600 disabled:opacity-30"
+            disabled={!checked || disabled}
+            className="h-4 w-4 cursor-pointer accent-brand-600 disabled:opacity-30 disabled:cursor-not-allowed"
           />
         </div>
       )}
@@ -243,8 +283,9 @@ function CatalogoServicoRow({ servico, vinculo, numero, showStatus = true, onVin
             type="checkbox"
             checked={faturando}
             onChange={(e) => handleFaturando(e.target.checked)}
-            disabled={!checked}
-            className="h-4 w-4 cursor-pointer accent-brand-600 disabled:opacity-30"
+            disabled={!checked || disabled || (parseFloat(valor) || 0) <= 0}
+            title={!disabled && checked && (parseFloat(valor) || 0) <= 0 ? 'Defina o valor/mês primeiro' : undefined}
+            className="h-4 w-4 cursor-pointer accent-brand-600 disabled:opacity-30 disabled:cursor-not-allowed"
           />
         </div>
       )}
@@ -420,7 +461,8 @@ function ContratoModal({
   onClose: () => void;
   onEncerrar?: () => void;
 }) {
-  const [activeTab, setActiveTab] = useState<'dados' | 'servicos'>('dados');
+  const [isEditing, setIsEditing] = useState(!contrato);
+  const [showServicos, setShowServicos] = useState(false);
   const [pendingServicos, setPendingServicos] = useState<Map<number, number>>(new Map());
   const [valMensal, setValMensal]   = useState(fv(contrato?.valor_mensal));
   const [implTotal, setImplTotal]   = useState(fv((contrato?.implantacao_parcelas ?? 1) * (contrato?.implantacao_valor_parcela ?? 0)));
@@ -430,28 +472,23 @@ function ContratoModal({
   const [hrValor, setHrValor]       = useState(fv(contrato?.horas_remotas_valor));
   const [hrIni, setHrIni]           = useState(fv(contrato?.horas_remotas_saldo_ini));
 
-  const periodoMeses = (() => {
-    if (!contrato?.data_assinatura || !contrato?.vencimento) return 0;
-    const [ay, am] = contrato.data_assinatura.split('-').map(Number);
-    const [vy, vm] = contrato.vencimento.split('-').map(Number);
-    return Math.max(0, (vy! - ay!) * 12 + (vm! - am!) + 1);
-  })();
   const vMensalNum   = parseFloat(valMensal) || 0;
   const implTotalNum = parseFloat(implTotal)  || 0;
   const hpIniNum     = parseFloat(hpIni)      || 0;
   const hpValorNum   = parseFloat(hpValor)    || 0;
   const hrIniNum     = parseFloat(hrIni)      || 0;
   const hrValorNum   = parseFloat(hrValor)    || 0;
-  const somaCalc     = vMensalNum * periodoMeses + implTotalNum + hpIniNum * hpValorNum + hrIniNum * hrValorNum;
+  const totalAnual   = vMensalNum * 12 + implTotalNum + hpIniNum * hpValorNum + hrIniNum * hrValorNum;
 
   const qc = useQueryClient();
 
   useEffect(() => {
     if (open) {
-      setActiveTab('dados');
+      setIsEditing(!contrato);
       setPendingServicos(new Map());
     }
   }, [open, contrato?.id]);
+
   useEffect(() => {
     setValMensal(fv(contrato?.valor_mensal));
     setImplTotal(fv((contrato?.implantacao_parcelas ?? 1) * (contrato?.implantacao_valor_parcela ?? 0)));
@@ -462,13 +499,23 @@ function ContratoModal({
     setHrIni(fv(contrato?.horas_remotas_saldo_ini));
   }, [contrato?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const handleCancelEdit = () => {
+    setValMensal(fv(contrato?.valor_mensal));
+    setImplTotal(fv((contrato?.implantacao_parcelas ?? 1) * (contrato?.implantacao_valor_parcela ?? 0)));
+    setImplParc(fv(contrato?.implantacao_parcelas));
+    setHpValor(fv(contrato?.horas_presenciais_valor));
+    setHpIni(fv(contrato?.horas_presenciais_saldo_ini));
+    setHrValor(fv(contrato?.horas_remotas_valor));
+    setHrIni(fv(contrato?.horas_remotas_saldo_ini));
+    setIsEditing(false);
+  };
+
   const handleSaveWithValores = (formData: Parameters<typeof saveContrato>[0]) => {
     const parc = parseInt(implParc) || 1;
     onSave(
       {
         ...formData,
         valor_mensal: vMensalNum || 0,
-        valor_contrato: somaCalc || 0,
         implantacao_parcelas: parc,
         implantacao_valor_parcela: parseFloat((implTotalNum / parc).toFixed(2)),
         horas_presenciais_valor: hpValorNum || 0,
@@ -478,14 +525,6 @@ function ContratoModal({
       },
       pendingServicos,
     );
-  };
-
-  const handleFooterSave = () => {
-    if (activeTab === 'servicos' && contrato) {
-      onClose();
-    } else {
-      (document.getElementById('contrato-form') as HTMLFormElement | null)?.requestSubmit();
-    }
   };
 
   const catalogoQ = useQuery({
@@ -499,53 +538,6 @@ function ContratoModal({
     queryFn: () => fetchContratosServicos(contrato!.id),
     enabled: open && !!contrato,
   });
-
-  const patchValoresMut = useMutation({
-    mutationFn: (v: {
-      vContrato: number; vMensal: number;
-      iTotal: number; iParc: number;
-      hpV: number; hpI: number;
-      hrV: number; hrI: number;
-    }) => {
-      const parc = v.iParc || 1;
-      return saveContrato(
-        {
-          cliente_id:                    contrato!.cliente_id,
-          numero:                        contrato!.numero ?? null,
-          data_assinatura:               contrato!.data_assinatura ?? null,
-          vencimento:                    contrato!.vencimento,
-          data_aditivo:                  contrato!.data_aditivo ?? null,
-          num_aditivo:                   contrato!.num_aditivo ?? 0,
-          ajuste:                        contrato!.ajuste ?? null,
-          data_inicio_faturamento:       contrato!.data_inicio_faturamento ?? null,
-          observacoes:                   contrato!.observacoes ?? null,
-          representante_id:              contrato!.representante_id ?? null,
-          implantacao_parcelas:          parc,
-          implantacao_valor_parcela:     parseFloat((v.iTotal / parc).toFixed(2)),
-          horas_presenciais_valor:       v.hpV,
-          horas_presenciais_saldo_ini:   v.hpI,
-          horas_remotas_valor:           v.hrV,
-          horas_remotas_saldo_ini:       v.hrI,
-          valor_contrato:                v.vContrato,
-          valor_mensal:                  v.vMensal,
-        },
-        contrato!.id,
-      );
-    },
-    onSuccess: () => void qc.invalidateQueries({ queryKey: queryKeys.contratos(contrato!.cliente_id) }),
-  });
-
-  const saveValores = () => {
-    if (!contrato) return;
-    patchValoresMut.mutate({
-      vContrato: somaCalc,
-      vMensal:   vMensalNum,
-      iTotal:    implTotalNum,
-      iParc:     parseInt(implParc) || 1,
-      hpV: hpValorNum, hpI: hpIniNum,
-      hrV: hrValorNum, hrI: hrIniNum,
-    });
-  };
 
   const vincularMut = useMutation({
     mutationFn: ({ servicoId, valorMensal }: { servicoId: number; valorMensal: number }) =>
@@ -564,77 +556,51 @@ function ContratoModal({
     onSuccess: () => void qc.invalidateQueries({ queryKey: queryKeys.contratosServicos(contrato!.id) }),
   });
 
-  const catalogo       = catalogoQ.data ?? [];
+  const catalogo         = catalogoQ.data ?? [];
   const servicosContrato = servicosContratoQ.data ?? [];
-  const vinculoMap     = new Map(servicosContrato.map((s) => [s.servico_id, s]));
-
+  const vinculoMap       = new Map(servicosContrato.map((s) => [s.servico_id, s]));
+  const vinculoOrdem     = new Map(
+    [...servicosContrato].sort((a, b) => a.id - b.id).map((v, i) => [v.servico_id, i + 1])
+  );
+  const totalFaturando   = servicosContrato
+    .filter((s) => s.faturando)
+    .reduce((acc, s) => acc + parseFloat(String(s.valor_mensal ?? 0)), 0);
 
   return (
     <Dialog
       open={open}
       title={contrato ? 'Editar contrato' : 'Novo contrato'}
       onClose={onClose}
-      size="lg"
+      size="xxl"
     >
-      <div className="grid gap-4">
+      <div className="grid gap-5">
 
-        {/* Tabs */}
-        <div className="flex gap-1 border-b border-slate-200 -mt-1">
-          {MODAL_TABS.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setActiveTab(id)}
-              className={[
-                'flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors',
-                activeTab === id
-                  ? 'border-brand-500 text-brand-700'
-                  : 'border-transparent text-slate-500 hover:text-slate-700',
-              ].join(' ')}
-            >
-              <Icon size={14} />{label}
-            </button>
-          ))}
-        </div>
+        {/* ── Top: Dados do contrato + Valores lado a lado ── */}
+        <div className="grid grid-cols-2 gap-6 items-start">
 
-        {/* ── Dados do contrato ── */}
-        {activeTab === 'dados' && (
-          <div className="grid gap-4">
+          {/* ── Dados do contrato ── */}
+          <div className="grid gap-3">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Dados do contrato</span>
             <ContratoForm
+              key={isEditing ? 'edit' : 'read'}
               clienteId={clienteId}
               initial={contrato}
               representantes={representantes}
-              onSave={contrato ? onSave : handleSaveWithValores}
+              readOnly={!isEditing}
+              onSave={handleSaveWithValores}
             />
-            {contrato && (
-              <>
-                <div className="-mx-1 border-t border-slate-100" />
-                <ContratoAnexos contratoId={contrato.id} />
-              </>
-            )}
           </div>
-        )}
 
-        {/* ── Serviços ── */}
-        {activeTab === 'servicos' && (() => {
-          const vinculoOrdem = new Map(
-            [...servicosContrato].sort((a, b) => a.id - b.id).map((v, i) => [v.servico_id, i + 1])
-          );
-          const totalFaturando = servicosContrato.filter((s) => s.faturando).reduce((acc, s) => acc + parseFloat(String(s.valor_mensal ?? 0)), 0);
-          const diferencaFaturando = vMensalNum - totalFaturando;
-          return (
+          {/* ── Valores ── */}
           <div className="grid gap-4">
-            {/* Cards: total mensal × valor total × faturando × diferença */}
-            <div className="grid grid-cols-4 gap-3">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Valores</span>
+
+            {/* Cards resumo */}
+            <div className="grid grid-cols-3 gap-3">
               {([
-                { label: 'Total mensal', value: vMensalNum * periodoMeses, color: 'text-slate-800' },
-                { label: 'Valor total',  value: somaCalc,                  color: 'text-slate-800' },
-                { label: 'Faturando',    value: totalFaturando,            color: 'text-blue-700'  },
-                {
-                  label: 'Diferença',
-                  value: diferencaFaturando,
-                  color: diferencaFaturando < 0 ? 'text-red-600' : diferencaFaturando === 0 ? 'text-green-700' : 'text-amber-600',
-                },
+                { label: 'Valor mensal',      value: vMensalNum,     color: 'text-slate-800' },
+                { label: 'Valor total anual', value: totalAnual,     color: 'text-slate-800' },
+                { label: 'Faturando',         value: totalFaturando, color: 'text-blue-700'  },
               ] as { label: string; value: number; color: string }[]).map(({ label, value, color }) => (
                 <div key={label} className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">{label}</p>
@@ -643,46 +609,64 @@ function ContratoModal({
               ))}
             </div>
 
-            {/* ── Prestação de serviço ── */}
+            {/* Prestação de serviço */}
             <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 grid gap-3">
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Prestação de serviço</span>
               <div className="flex items-center gap-3">
-                <span className="w-36 shrink-0 text-[10px] font-bold uppercase tracking-widest text-slate-400">Valor mensal</span>
+                <span className="w-32 shrink-0 text-[10px] font-bold uppercase tracking-widest text-slate-400">Valor mensal</span>
                 <div className="flex-1">
-                  <Input
-                    type="number" min="0" step="0.01"
-                    value={valMensal}
-                    onChange={(e) => setValMensal(e.target.value)}
-                    onBlur={saveValores}
-                    placeholder="0,00"
-                  />
+                  {isEditing ? (
+                    <Input type="number" min="0" step="0.01" value={valMensal} onChange={(e) => setValMensal(e.target.value)} placeholder="0,00" />
+                  ) : (
+                    <p className="text-sm font-semibold text-slate-800">{vMensalNum > 0 ? formatCurrency(vMensalNum) : '—'}</p>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* ── Serviços técnicos ── */}
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 grid gap-3">
+            {/* Serviços técnicos */}
+            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 grid gap-4">
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Serviços técnicos</span>
-              <div className="flex items-center gap-4">
-                <span className="w-36 shrink-0 text-[10px] font-bold uppercase tracking-widest text-slate-400">Implantação</span>
-                <div className="flex-1 grid grid-cols-3 gap-3 items-end">
-                  <div className="grid gap-1.5">
-                    <span className="text-xs text-slate-400">Total</span>
-                    <Input type="number" min="0" step="0.01" value={implTotal} onChange={(e) => setImplTotal(e.target.value)} onBlur={saveValores} placeholder="0,00" />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <span className="text-xs text-slate-400">Nº de parcelas</span>
-                    <Input type="number" min="1" value={implParc} onChange={(e) => setImplParc(e.target.value)} onBlur={saveValores} placeholder="1" />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <span className="text-xs text-slate-400">Valor por parcela</span>
-                    <div className="flex h-10 items-center px-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700">
-                      {formatCurrency(implTotalNum / (parseInt(implParc) || 1))}
+
+              {/* Implantação */}
+              <div className="flex items-start gap-3">
+                <span className="w-32 shrink-0 pt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Implantação</span>
+                {isEditing ? (
+                  <div className="flex-1 grid grid-cols-3 gap-3 items-end">
+                    <div className="grid gap-1.5">
+                      <span className="text-xs text-slate-400">Total</span>
+                      <Input type="number" min="0" step="0.01" value={implTotal} onChange={(e) => setImplTotal(e.target.value)} placeholder="0,00" />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <span className="text-xs text-slate-400">Nº de parcelas</span>
+                      <Input type="number" min="1" value={implParc} onChange={(e) => setImplParc(e.target.value)} placeholder="1" />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <span className="text-xs text-slate-400">Valor por parcela</span>
+                      <div className="flex h-10 items-center px-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700">
+                        {formatCurrency(implTotalNum / (parseInt(implParc) || 1))}
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="flex-1 grid grid-cols-3 gap-3">
+                    <div className="grid gap-1">
+                      <span className="text-xs text-slate-400">Total</span>
+                      <p className="text-sm font-semibold text-slate-800">{implTotalNum > 0 ? formatCurrency(implTotalNum) : '—'}</p>
+                    </div>
+                    <div className="grid gap-1">
+                      <span className="text-xs text-slate-400">Nº de parcelas</span>
+                      <p className="text-sm font-semibold text-slate-800">{implParc || '1'}</p>
+                    </div>
+                    <div className="grid gap-1">
+                      <span className="text-xs text-slate-400">Valor por parcela</span>
+                      <p className="text-sm font-semibold text-slate-800">{formatCurrency(implTotalNum / (parseInt(implParc) || 1))}</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
+              {/* Horas presencial + remoto */}
               {([
                 {
                   label: 'Hora Presencial', vS: hpValor, vSet: setHpValor, iS: hpIni, iSet: setHpIni,
@@ -693,95 +677,144 @@ function ContratoModal({
                   saldoAtual: contrato ? parseFloat(String(contrato.horas_remotas_saldo_atual ?? 0)) || 0 : null,
                 },
               ] as { label: string; vS: string; vSet: (v: string) => void; iS: string; iSet: (v: string) => void; saldoAtual: number | null }[]).map(({ label, vS, vSet, iS, iSet, saldoAtual }) => (
-                <div key={label} className="flex items-center gap-4">
-                  <span className="w-36 shrink-0 text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</span>
-                  <div className="flex-1 grid grid-cols-3 gap-3">
-                    <div className="grid gap-1.5">
-                      <span className="text-xs text-slate-400">Valor/hora</span>
-                      <Input type="number" min="0" step="0.01" value={vS} onChange={(e) => vSet(e.target.value)} onBlur={saveValores} placeholder="0,00" />
-                    </div>
-                    <div className="grid gap-1.5">
-                      <span className="text-xs text-slate-400">Saldo inicial</span>
-                      <Input type="number" min="0" step="0.5" value={iS} onChange={(e) => iSet(e.target.value)} onBlur={saveValores} placeholder="0" />
-                    </div>
-                    <div className="grid gap-1.5">
-                      <span className="text-xs text-slate-400">Saldo atual</span>
-                      <div className="flex h-10 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700">
-                        {saldoAtual !== null ? `${saldoAtual}h` : '—'}
+                <div key={label} className="flex items-start gap-3">
+                  <span className="w-32 shrink-0 pt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</span>
+                  {isEditing ? (
+                    <div className="flex-1 grid grid-cols-3 gap-3">
+                      <div className="grid gap-1.5">
+                        <span className="text-xs text-slate-400">Valor/hora</span>
+                        <Input type="number" min="0" step="0.01" value={vS} onChange={(e) => vSet(e.target.value)} placeholder="0,00" />
+                      </div>
+                      <div className="grid gap-1.5">
+                        <span className="text-xs text-slate-400">Saldo inicial</span>
+                        <Input type="number" min="0" step="0.5" value={iS} onChange={(e) => iSet(e.target.value)} placeholder="0" />
+                      </div>
+                      <div className="grid gap-1.5">
+                        <span className="text-xs text-slate-400">Saldo atual</span>
+                        <div className="flex h-10 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700">
+                          {saldoAtual !== null ? `${saldoAtual}h` : '—'}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="flex-1 grid grid-cols-3 gap-3">
+                      <div className="grid gap-1">
+                        <span className="text-xs text-slate-400">Valor/hora</span>
+                        <p className="text-sm font-semibold text-slate-800">{parseFloat(vS) > 0 ? formatCurrency(parseFloat(vS)) : '—'}</p>
+                      </div>
+                      <div className="grid gap-1">
+                        <span className="text-xs text-slate-400">Saldo inicial</span>
+                        <p className="text-sm font-semibold text-slate-800">{iS ? `${iS}h` : '—'}</p>
+                      </div>
+                      <div className="grid gap-1">
+                        <span className="text-xs text-slate-400">Saldo atual</span>
+                        <p className="text-sm font-semibold text-slate-800">{saldoAtual !== null ? `${saldoAtual}h` : '—'}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
-
-            {/* ── Discriminação de prestação de serviço ── */}
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 grid gap-3">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Discriminação de prestação de serviço</span>
-              {catalogoQ.isLoading ? (
-                <p className="py-8 text-center text-sm text-slate-400">Carregando serviços...</p>
-              ) : catalogo.length === 0 ? (
-                <EmptyState title="Sem serviços" description="Nenhum serviço cadastrado no catálogo." />
-              ) : (
-                <>
-                  <div className="grid items-center gap-x-3 px-1 pb-1"
-                    style={{ gridTemplateColumns: contrato ? '28px 1fr 90px 72px 80px 80px' : '28px 1fr 90px 72px' }}>
-                    <span />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Serviço</span>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-right">Valor/mês</span>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center">Contratado</span>
-                    {contrato && <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center">Implantado</span>}
-                    {contrato && <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center">Faturando</span>}
-                  </div>
-                  <div className="grid gap-2">
-                    {catalogo.map((servico) => {
-                      const pendingValor = pendingServicos.get(servico.id);
-                      const syntheticVinculo: ServicoContrato | undefined = !contrato && pendingServicos.has(servico.id)
-                        ? { id: 0, contrato_id: 0, servico_id: servico.id, servico_nome: servico.nome, valor_mensal: pendingValor ?? 0, implantado: false, faturando: false }
-                        : undefined;
-                      return (
-                        <CatalogoServicoRow
-                          key={servico.id}
-                          servico={servico}
-                          vinculo={contrato ? vinculoMap.get(servico.id) : syntheticVinculo}
-                          numero={contrato ? vinculoOrdem.get(servico.id) : undefined}
-                          showStatus={!!contrato}
-                          onVincular={(valorMensal) => {
-                            if (contrato) {
-                              vincularMut.mutate({ servicoId: servico.id, valorMensal });
-                            } else {
-                              setPendingServicos((m) => new Map(m).set(servico.id, valorMensal));
-                            }
-                          }}
-                          onAtualizar={(data) => {
-                            if (contrato) {
-                              const v = vinculoMap.get(servico.id);
-                              if (v) atualizarServicoMut.mutate({ id: v.id, data });
-                            } else if (data.valor_mensal !== undefined) {
-                              setPendingServicos((m) => new Map(m).set(servico.id, data.valor_mensal!));
-                            }
-                          }}
-                          onDesvincular={() => {
-                            if (contrato) {
-                              const v = vinculoMap.get(servico.id);
-                              if (v && confirm(`Remover "${servico.nome}" deste contrato?`)) desvincularMut.mutate(v.id);
-                            } else {
-                              setPendingServicos((m) => { const n = new Map(m); n.delete(servico.id); return n; });
-                            }
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </div>
           </div>
-          );
-        })()}
+        </div>
 
-        {/* ── Persistent footer ── */}
-        <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-2">
+        {/* ── Botão Serviços ── */}
+        <div className="shrink-0 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowServicos(true)}
+            className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            <ChevronRight size={15} className="text-slate-400" />
+            Discriminação de prestação de serviço
+            {servicosContrato.length > 0 && (
+              <span className="ml-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-700">
+                {servicosContrato.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* ── Sub-modal Serviços ── */}
+        <Dialog
+          open={showServicos}
+          title="Discriminação de prestação de serviço"
+          onClose={() => setShowServicos(false)}
+          size="xl"
+          scrollBody={false}
+        >
+          <div className="flex flex-col flex-1 min-h-0 gap-3">
+            {catalogoQ.isLoading ? (
+              <p className="py-8 text-center text-sm text-slate-400">Carregando serviços...</p>
+            ) : catalogo.length === 0 ? (
+              <EmptyState title="Sem serviços" description="Nenhum serviço cadastrado no catálogo." />
+            ) : (
+              <>
+                <div className="grid items-center gap-x-3 px-1 pb-1 shrink-0"
+                  style={{ gridTemplateColumns: contrato ? '28px 1fr 90px 72px 80px 80px' : '28px 1fr 90px 72px' }}>
+                  <span />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Serviço</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-right">Valor/mês</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center">Contratado</span>
+                  {contrato && <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center">Implantado</span>}
+                  {contrato && <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center">Faturando</span>}
+                </div>
+                <div className="scrollbar-thin overflow-y-auto flex-1 grid gap-2 content-start">
+                  {catalogo.map((servico) => {
+                    const pendingValor = pendingServicos.get(servico.id);
+                    const syntheticVinculo: ServicoContrato | undefined = !contrato && pendingServicos.has(servico.id)
+                      ? { id: 0, contrato_id: 0, servico_id: servico.id, servico_nome: servico.nome, valor_mensal: pendingValor ?? 0, implantado: false, faturando: false }
+                      : undefined;
+                    return (
+                      <CatalogoServicoRow
+                        key={servico.id}
+                        servico={servico}
+                        vinculo={contrato ? vinculoMap.get(servico.id) : syntheticVinculo}
+                        numero={contrato ? vinculoOrdem.get(servico.id) : undefined}
+                        showStatus={!!contrato}
+                        disabled={!isEditing}
+                        onVincular={(valorMensal) => {
+                          if (contrato) {
+                            vincularMut.mutate({ servicoId: servico.id, valorMensal });
+                          } else {
+                            setPendingServicos((m) => new Map(m).set(servico.id, valorMensal));
+                          }
+                        }}
+                        onAtualizar={(data) => {
+                          if (contrato) {
+                            const v = vinculoMap.get(servico.id);
+                            if (v) atualizarServicoMut.mutate({ id: v.id, data });
+                          } else if (data.valor_mensal !== undefined) {
+                            setPendingServicos((m) => new Map(m).set(servico.id, data.valor_mensal!));
+                          }
+                        }}
+                        onDesvincular={() => {
+                          if (contrato) {
+                            const v = vinculoMap.get(servico.id);
+                            if (v && confirm(`Remover "${servico.nome}" deste contrato?`)) desvincularMut.mutate(v.id);
+                          } else {
+                            setPendingServicos((m) => { const n = new Map(m); n.delete(servico.id); return n; });
+                          }
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        </Dialog>
+
+        {/* ── Anexos ── */}
+        {contrato && (
+          <div>
+            <div className="-mx-1 border-t border-slate-100 mb-4" />
+            <ContratoAnexos contratoId={contrato.id} />
+          </div>
+        )}
+
+        {/* ── Footer ── */}
+        <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-1">
           {onEncerrar ? (
             <button
               type="button"
@@ -791,9 +824,24 @@ function ContratoModal({
               <AlertTriangle size={12} /> Encerrar contrato
             </button>
           ) : <span />}
-          <Button disabled={isSaving} onClick={handleFooterSave}>
-            {isSaving ? 'Salvando...' : 'Salvar contrato'}
-          </Button>
+
+          <div className="flex items-center gap-2">
+            {!isEditing && contrato ? (
+              <Button onClick={() => setIsEditing(true)}>Editar</Button>
+            ) : (
+              <>
+                {contrato && (
+                  <Button variant="secondary" onClick={handleCancelEdit}>Cancelar</Button>
+                )}
+                <Button
+                  disabled={isSaving}
+                  onClick={() => (document.getElementById('contrato-form') as HTMLFormElement | null)?.requestSubmit()}
+                >
+                  {isSaving ? 'Salvando...' : 'Salvar contrato'}
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
       </div>
@@ -844,8 +892,17 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
       }
       return saved;
     },
-    onSuccess: () => {
+    onSuccess: (saved) => {
       void qc.invalidateQueries({ queryKey: queryKeys.contratos(cliente.id) });
+      if (!contratoModal.contrato) {
+        // Novo contrato: auto-gerar previstas e criar receita de implantação
+        if (saved.data_inicio_faturamento) {
+          gerarMut.mutate(saved.id);
+        }
+        if ((saved.implantacao_valor_parcela ?? 0) > 0) {
+          void criarReceitaImplantacao(saved.id);
+        }
+      }
       setContratoModal({ open: false });
     },
   });
@@ -860,7 +917,6 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
 
   const gerarMut = useMutation({
     mutationFn: (id: number) => gerarPrevistas(id),
-    onSuccess: (data) => alert(`${data.count} receitas previstas geradas com sucesso!`),
   });
 
   return (

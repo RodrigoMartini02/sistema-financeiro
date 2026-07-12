@@ -48,7 +48,7 @@ function incomeFromApi(r: RawIncome): Income {
   return {
     id: r.id, descricao: r.descricao, valor: asNumber(r.valor),
     data: r.data_recebimento, mes: r.mes, ano: r.ano,
-    status: (r.status as 'ativa' | 'cancelada' | 'prevista') ?? 'ativa',
+    status: (r.status as 'ativa' | 'cancelada' | 'prevista' | 'faturada') ?? 'ativa',
     contratoId: r.contrato_id ?? null,
     observacoes: r.observacoes, cliente: r.cliente, tipoReceita: r.tipo_receita,
     representanteId: r.representante_id ?? null,
@@ -127,6 +127,9 @@ export async function saveIncome(month: number, year: number, values: IncomeForm
     representante_id: values.representanteId ?? null,
     valor_comissao: values.valorComissao ?? null,
     anexos: values.anexos && values.anexos.length > 0 ? values.anexos : null,
+    contrato_id: values.contratoId ?? null,
+    tipo_hora: values.tipoHora ?? null,
+    quantidade_horas: values.quantidadeHoras ?? null,
   };
   const saved = await apiRequest<RawIncome>(id ? `/receitas/${id}` : '/receitas', {
     method: id ? 'PUT' : 'POST', body: JSON.stringify(body),
@@ -196,4 +199,87 @@ export async function pagarDespesa(id: number, dataPagamento: string, valorPago:
 
 export async function moverDespesa(id: number) {
   return apiRequest<void>(`/despesas/${id}/mover`, { method: 'POST' });
+}
+
+export interface ContratoFaturamento {
+  contratoId: number;
+  clienteNome: string;
+  contratoDescricao: string | null;
+  valorMensal: number;
+  receitaId: number | null;
+  receitaStatus: 'ativa' | 'prevista' | 'faturada' | 'cancelada' | null;
+}
+
+export async function getContratosFaturamento(mes: number, ano: number): Promise<ContratoFaturamento[]> {
+  const q = new URLSearchParams({ mes: String(mes), ano: String(ano) });
+  const rows = await apiRequest<Array<{
+    contrato_id: number;
+    cliente_nome: string;
+    contrato_descricao: string | null;
+    valor_mensal: string | number;
+    receita_id: number | null;
+    receita_status: string | null;
+  }>>(`/contratos/faturamento?${q}`);
+
+  return rows.map((r) => ({
+    contratoId: r.contrato_id,
+    clienteNome: r.cliente_nome,
+    contratoDescricao: r.contrato_descricao,
+    valorMensal: asNumber(r.valor_mensal),
+    receitaId: r.receita_id ?? null,
+    receitaStatus: (r.receita_status as ContratoFaturamento['receitaStatus']) ?? null,
+  }));
+}
+
+export async function faturarContrato(contratoId: number, mes: number, ano: number): Promise<void> {
+  await apiRequest<unknown>(`/contratos/${contratoId}/faturar`, {
+    method: 'POST',
+    body: JSON.stringify({ mes, ano }),
+  });
+}
+
+export interface DashboardAnualMes {
+  mes: number;
+  receitas: number;
+  despesas: number;
+  saldo_final: number;
+  receitas_previstas: number;
+}
+
+export interface ParcelaFutura {
+  mes: number;
+  ano: number;
+  total: number;
+}
+
+export async function fetchParcelasFuturas(mes: number, ano: number, meses = 3): Promise<ParcelaFutura[]> {
+  const q = new URLSearchParams({ mes: String(mes), ano: String(ano), meses: String(meses) });
+  appendProfile(q);
+  const rows = await apiRequest<Array<{ mes: string | number; ano: string | number; total: string | number }>>(
+    `/despesas/parcelas-futuras?${q}`,
+  );
+  return rows.map((r) => ({
+    mes: Number(r.mes),
+    ano: Number(r.ano),
+    total: asNumber(r.total),
+  }));
+}
+
+export async function fetchDashboardAnual(ano: number): Promise<DashboardAnualMes[]> {
+  const q = new URLSearchParams({ ano: String(ano) });
+  appendProfile(q);
+  const rows = await apiRequest<Array<{
+    mes: string | number;
+    receitas: string | number;
+    despesas: string | number;
+    saldo_final: string | number;
+    receitas_previstas: string | number;
+  }>>(`/financial/anual?${q}`);
+  return rows.map((r) => ({
+    mes: Number(r.mes),
+    receitas: asNumber(r.receitas),
+    despesas: asNumber(r.despesas),
+    saldo_final: asNumber(r.saldo_final),
+    receitas_previstas: asNumber(r.receitas_previstas),
+  }));
 }

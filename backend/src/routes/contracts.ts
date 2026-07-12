@@ -34,7 +34,7 @@ async function gerarPrevistas(
   const [startYear, startMonth] = startDate.split('-').map(Number);
   const [endYear, endMonth] = endDate.split('-').map(Number);
 
-  let count = 0;
+  const monthRows: Array<{ dueDate: string; monthIndex: number; year: number }> = [];
   let currentYear = startYear!;
   let currentMonth = startMonth!;
 
@@ -42,26 +42,11 @@ async function gerarPrevistas(
     currentYear < endYear! ||
     (currentYear === endYear! && currentMonth <= endMonth!)
   ) {
-    const dueDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
-    const monthIndex = currentMonth - 1;
-
-    await pool.query(
-      `INSERT INTO receitas
-         (usuario_id, descricao, valor, data_recebimento, mes, ano, status, contrato_id, perfil_id)
-       VALUES ($1, $2, $3, $4, $5, $6, 'prevista', $7, $8)`,
-      [
-        userId,
-        `Mensalidade - ${clientName}`,
-        monthlyAmount,
-        dueDate,
-        monthIndex,
-        currentYear,
-        contractId,
-        profileId,
-      ],
-    );
-
-    count++;
+    monthRows.push({
+      dueDate: `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`,
+      monthIndex: currentMonth - 1,
+      year: currentYear,
+    });
     currentMonth++;
     if (currentMonth > 12) {
       currentMonth = 1;
@@ -69,20 +54,43 @@ async function gerarPrevistas(
     }
   }
 
-  return count;
+  if (monthRows.length === 0) return 0;
+
+  const valueGroups = monthRows.map((_, i) => {
+    const b = i * 8;
+    return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, $${b + 5}, $${b + 6}, 'prevista', $${b + 7}, $${b + 8})`;
+  });
+
+  const params: unknown[] = [];
+  for (const row of monthRows) {
+    params.push(userId, `Mensalidade - ${clientName}`, monthlyAmount, row.dueDate, row.monthIndex, row.year, contractId, profileId);
+  }
+
+  await pool.query(
+    `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, status, contrato_id, perfil_id)
+     VALUES ${valueGroups.join(', ')}`,
+    params,
+  );
+
+  return monthRows.length;
 }
 
-// GET /api/contratos?cliente_id=X
+// GET /api/contratos?cliente_id=X&status=ativo
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { cliente_id } = req.query as Record<string, string | undefined>;
+    const { cliente_id, status } = req.query as Record<string, string | undefined>;
 
     let where = 'WHERE ct.usuario_id = $1';
     const params: unknown[] = [req.user!.id];
 
     if (cliente_id) {
-      where += ' AND ct.cliente_id = $2';
+      where += ` AND ct.cliente_id = $${params.length + 1}`;
       params.push(parseInt(cliente_id));
+    }
+
+    if (status) {
+      where += ` AND ct.status = $${params.length + 1}`;
+      params.push(status);
     }
 
     const result = await pool.query(
@@ -98,6 +106,54 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
   } catch (error) {
     console.error('List contracts error:', error);
     res.status(500).json({ success: false, message: 'Failed to list contracts' });
+  }
+});
+
+// GET /api/contratos/faturamento?mes=X&ano=Y
+// IMPORTANT: must be declared before /:id to avoid Express matching "faturamento" as an ID
+router.get('/faturamento', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { mes, ano } = req.query as Record<string, string | undefined>;
+
+    if (!mes || !ano) {
+      res.status(400).json({ success: false, message: 'mes e ano são obrigatórios' });
+      return;
+    }
+
+    const mesNum = parseInt(mes);
+    const anoNum = parseInt(ano);
+
+    if (isNaN(mesNum) || mesNum < 1 || mesNum > 12 || isNaN(anoNum)) {
+      res.status(400).json({ success: false, message: 'mes deve ser 1-12 e ano deve ser um número' });
+      return;
+    }
+
+    const result = await pool.query(
+      `SELECT
+         c.id AS contrato_id,
+         cl.nome AS cliente_nome,
+         c.descricao AS contrato_descricao,
+         c.valor_mensal,
+         r.id AS receita_id,
+         r.status AS receita_status
+       FROM contratos c
+       JOIN clientes cl ON cl.id = c.cliente_id
+       LEFT JOIN receitas r
+         ON r.contrato_id = c.id
+         AND EXTRACT(MONTH FROM r.data_recebimento) = $2
+         AND EXTRACT(YEAR FROM r.data_recebimento) = $3
+         AND r.usuario_id = $1
+         AND r.status != 'cancelada'
+       WHERE c.status = 'ativo'
+         AND c.usuario_id = $1
+       ORDER BY cl.nome, c.id`,
+      [req.user!.id, mesNum, anoNum],
+    );
+
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Get faturamento error:', error);
+    res.status(500).json({ success: false, message: 'Failed to get faturamento' });
   }
 });
 
@@ -134,7 +190,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
       implantacao_parcelas, implantacao_valor_parcela,
       horas_presenciais_valor, horas_presenciais_saldo_ini,
       horas_remotas_valor, horas_remotas_saldo_ini,
-      valor_contrato, valor_mensal,
+      valor_mensal,
     } = req.body as Record<string, unknown>;
 
     if (!vencimento) {
@@ -156,8 +212,8 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
           representante_id, implantacao_parcelas, implantacao_valor_parcela,
           horas_presenciais_valor, horas_presenciais_saldo_ini, horas_presenciais_saldo_atual,
           horas_remotas_valor, horas_remotas_saldo_ini, horas_remotas_saldo_atual,
-          valor_contrato, valor_mensal)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$15,$16,$17,$17,$18,$19) RETURNING *`,
+          valor_mensal)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$15,$16,$17,$17,$18) RETURNING *`,
       [
         req.user!.id,
         parseInt(String(cliente_id)),
@@ -176,7 +232,6 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
         hpIni,
         parseFloat(String(horas_remotas_valor ?? 0)) || 0,
         hrIni,
-        parseFloat(String(valor_contrato ?? 0)) || 0,
         parseFloat(String(valor_mensal ?? 0)) || 0,
       ],
     );
@@ -197,7 +252,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       implantacao_parcelas, implantacao_valor_parcela,
       horas_presenciais_valor, horas_presenciais_saldo_ini,
       horas_remotas_valor, horas_remotas_saldo_ini,
-      valor_contrato, valor_mensal,
+      valor_mensal,
     } = req.body as Record<string, unknown>;
 
     const hpIni = parseFloat(String(horas_presenciais_saldo_ini ?? 0)) || 0;
@@ -219,8 +274,8 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
              WHEN horas_remotas_saldo_atual = 0 OR horas_remotas_saldo_atual IS NULL THEN $15
              ELSE horas_remotas_saldo_atual
            END,
-           valor_contrato = $16, valor_mensal = $17
-       WHERE id = $18 AND usuario_id = $19 RETURNING *`,
+           valor_mensal = $16
+       WHERE id = $17 AND usuario_id = $18 RETURNING *`,
       [
         numero ?? null,                                               // $1
         data_assinatura ?? null,                                      // $2
@@ -237,10 +292,9 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
         hpIni,                                                        // $13
         parseFloat(String(horas_remotas_valor ?? 0)) || 0,           // $14
         hrIni,                                                        // $15
-        parseFloat(String(valor_contrato ?? 0)) || 0,                // $16
-        parseFloat(String(valor_mensal ?? 0)) || 0,                  // $17
-        req.params['id'],                                            // $18
-        req.user!.id,                                               // $19
+        parseFloat(String(valor_mensal ?? 0)) || 0,                  // $16
+        req.params['id'],                                             // $17
+        req.user!.id,                                                 // $18
       ],
     );
     if (result.rows.length === 0) {
@@ -378,8 +432,8 @@ router.put('/:id/aditivo', authenticate, async (req: Request, res: Response): Pr
           implantacao_parcelas, implantacao_valor_parcela,
           horas_presenciais_valor, horas_presenciais_saldo_ini, horas_presenciais_saldo_atual,
           horas_remotas_valor, horas_remotas_saldo_ini, horas_remotas_saldo_atual,
-          valor_contrato, valor_mensal)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $15, $16, $17, $17, $18, $19) RETURNING *`,
+          valor_mensal)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $15, $16, $17, $17, $18) RETURNING *`,
       [
         req.user!.id,                                                                              // $1
         currentContract['cliente_id'],                                                             // $2
@@ -398,8 +452,7 @@ router.put('/:id/aditivo', authenticate, async (req: Request, res: Response): Pr
         hpIni,                                                                                     // $15 (saldo_ini + saldo_atual via duplicate param)
         parseFloat(String(currentContract['horas_remotas_valor'] ?? 0)) || 0,                    // $16
         hrIni,                                                                                     // $17 (saldo_ini + saldo_atual via duplicate param)
-        parseFloat(String(currentContract['valor_contrato'] ?? 0)) || 0,                         // $18
-        parseFloat(String(currentContract['valor_mensal'] ?? 0)) || 0,                           // $19
+        parseFloat(String(currentContract['valor_mensal'] ?? 0)) || 0,                           // $18
       ],
     );
 
@@ -438,6 +491,172 @@ router.put('/:id/aditivo', authenticate, async (req: Request, res: Response): Pr
   } catch (error) {
     console.error('Additive error:', error);
     res.status(500).json({ success: false, message: 'Failed to process additive' });
+  }
+});
+
+// POST /api/contratos/:id/faturar
+router.post('/:id/faturar', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const contratoId = parseInt(req.params['id']!);
+    const { mes, ano } = req.body as Record<string, unknown>;
+
+    if (!mes || !ano) {
+      res.status(400).json({ success: false, message: 'mes e ano são obrigatórios' });
+      return;
+    }
+
+    const mesNum = parseInt(String(mes));
+    const anoNum = parseInt(String(ano));
+
+    // Verify contract belongs to user and fetch details
+    const contratoResult = await pool.query(
+      `SELECT c.*, cl.nome AS cliente_nome
+       FROM contratos c
+       JOIN clientes cl ON cl.id = c.cliente_id
+       WHERE c.id = $1 AND c.usuario_id = $2 AND c.status = 'ativo'`,
+      [contratoId, req.user!.id],
+    );
+
+    if (contratoResult.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Contrato não encontrado ou inativo' });
+      return;
+    }
+
+    const contrato = contratoResult.rows[0] as {
+      valor_mensal: string | number;
+      cliente_nome: string;
+      perfil_id: number | null;
+    };
+
+    // Check if a receita already exists for this contract + month
+    const receitaResult = await pool.query(
+      `SELECT id, status FROM receitas
+       WHERE contrato_id = $1
+         AND EXTRACT(MONTH FROM data_recebimento) = $2
+         AND EXTRACT(YEAR FROM data_recebimento) = $3
+         AND usuario_id = $4
+         AND status != 'cancelada'`,
+      [contratoId, mesNum, anoNum, req.user!.id],
+    );
+
+    let resultRow: Record<string, unknown>;
+
+    if (receitaResult.rows.length > 0) {
+      const existing = receitaResult.rows[0] as { id: number; status: string };
+
+      if (existing.status === 'ativa') {
+        res.status(400).json({ success: false, message: 'Esta receita já foi recebida' });
+        return;
+      }
+
+      // prevista → faturada
+      const updated = await pool.query(
+        `UPDATE receitas SET status = 'faturada' WHERE id = $1 AND usuario_id = $2 RETURNING *`,
+        [existing.id, req.user!.id],
+      );
+      resultRow = updated.rows[0] as Record<string, unknown>;
+    } else {
+      // Create new receita with status faturada
+      const dueDate = `${anoNum}-${String(mesNum).padStart(2, '0')}-01`;
+      const monthIndex = mesNum - 1;
+      const valor = parseFloat(String(contrato.valor_mensal)) || 0;
+
+      const inserted = await pool.query(
+        `INSERT INTO receitas
+           (usuario_id, descricao, valor, data_recebimento, mes, ano, status, contrato_id, perfil_id)
+         VALUES ($1, $2, $3, $4, $5, $6, 'faturada', $7, $8)
+         RETURNING *`,
+        [
+          req.user!.id,
+          `Mensalidade - ${contrato.cliente_nome}`,
+          valor,
+          dueDate,
+          monthIndex,
+          anoNum,
+          contratoId,
+          contrato.perfil_id,
+        ],
+      );
+      resultRow = inserted.rows[0] as Record<string, unknown>;
+    }
+
+    res.json({ success: true, data: resultRow });
+  } catch (error) {
+    console.error('Faturar contrato error:', error);
+    res.status(500).json({ success: false, message: 'Failed to faturar contrato' });
+  }
+});
+
+// POST /api/contratos/:id/receita-implantacao
+router.post('/:id/receita-implantacao', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const contractId = parseInt(req.params['id']!);
+
+    const contractResult = await pool.query(
+      `SELECT ct.*, cl.nome AS cliente_nome
+       FROM contratos ct
+       LEFT JOIN clientes cl ON cl.id = ct.cliente_id
+       WHERE ct.id = $1 AND ct.usuario_id = $2`,
+      [contractId, req.user!.id],
+    );
+
+    if (contractResult.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Contrato não encontrado' });
+      return;
+    }
+
+    const ct = contractResult.rows[0] as {
+      implantacao_parcelas: number | null;
+      implantacao_valor_parcela: number | null;
+      data_assinatura: string | null;
+      data_inicio_faturamento: string | null;
+      cliente_nome: string;
+      perfil_id: number | null;
+    };
+
+    const parcelas = ct.implantacao_parcelas ?? 1;
+    const valorParcela = parseFloat(String(ct.implantacao_valor_parcela ?? 0)) || 0;
+    const valorTotal = parcelas * valorParcela;
+
+    if (valorTotal <= 0) {
+      res.status(400).json({ success: false, message: 'Contrato sem valor de implantação' });
+      return;
+    }
+
+    // Evitar duplicata
+    const existing = await pool.query(
+      `SELECT id FROM receitas WHERE contrato_id = $1 AND tipo_receita = 'Implantação' AND usuario_id = $2 LIMIT 1`,
+      [contractId, req.user!.id],
+    );
+    if (existing.rows.length > 0) {
+      res.json({ success: true, message: 'Receita de implantação já existe', data: existing.rows[0] });
+      return;
+    }
+
+    const dataRef = ct.data_assinatura ?? ct.data_inicio_faturamento ?? new Date().toISOString().slice(0, 10);
+    const [ano, mesStr] = dataRef.split('-');
+    const mes = parseInt(mesStr!) - 1;
+
+    const result = await pool.query(
+      `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, status, contrato_id, tipo_receita, perfil_id)
+       VALUES ($1, $2, $3, $4, $5, $6, 'prevista', $7, 'Implantação', $8)
+       RETURNING *`,
+      [
+        req.user!.id,
+        `Implantação - ${ct.cliente_nome}`,
+        valorTotal,
+        dataRef,
+        mes,
+        parseInt(String(ano)),
+        contractId,
+        ct.perfil_id,
+      ],
+    );
+
+    res.status(201).json({ success: true, message: 'Receita de implantação criada', data: result.rows[0] });
+  } catch (error) {
+    console.error('Create implantacao income error:', error);
+    res.status(500).json({ success: false, message: 'Failed to create implantacao income' });
   }
 });
 

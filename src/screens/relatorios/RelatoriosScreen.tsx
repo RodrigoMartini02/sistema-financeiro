@@ -136,6 +136,8 @@ export function RelatoriosScreen() {
 
   const [dataInicio, setDataInicio] = useState(`${anoAtual}-${pad2(mesAtual + 1)}-01`);
   const [dataFim, setDataFim] = useState(`${anoAtual}-${pad2(mesAtual + 1)}-${pad2(lastDayOf(anoAtual, mesAtual + 1))}`);
+  const [queryDataInicio, setQueryDataInicio] = useState(`${anoAtual}-${pad2(mesAtual + 1)}-01`);
+  const [queryDataFim, setQueryDataFim] = useState(`${anoAtual}-${pad2(mesAtual + 1)}-${pad2(lastDayOf(anoAtual, mesAtual + 1))}`);
 
   const [tipoFiltro, setTipoFiltro] = useState<'todos' | 'despesas' | 'receitas'>('todos');
   const [formaFiltro, setFormaFiltro] = useState('todos');
@@ -198,23 +200,30 @@ export function RelatoriosScreen() {
 
   // ── data ─────────────────────────────────────────────────────────────────────
 
-  const mesesRange = useMemo(() => getMesesRange(dateToMesAno(dataInicio), dateToMesAno(dataFim)), [dataInicio, dataFim]);
+  const mesesQueryRange = useMemo(() => getMesesRange(dateToMesAno(queryDataInicio), dateToMesAno(queryDataFim)), [queryDataInicio, queryDataFim]);
 
   const despQuery = useQuery({
-    queryKey: ['rel-desp-range', dataInicio, dataFim],
+    queryKey: ['rel-desp-range', queryDataInicio, queryDataFim],
     queryFn: async () => {
-      const results = await Promise.all(mesesRange.map(({ mes, ano }) => fetchDespesasMes(mes, ano)));
+      const results = await Promise.all(mesesQueryRange.map(({ mes, ano }) => fetchDespesasMes(mes, ano)));
       return results.flat();
     },
   });
 
   const recQuery = useQuery({
-    queryKey: ['rel-rec-range', dataInicio, dataFim],
+    queryKey: ['rel-rec-range', queryDataInicio, queryDataFim],
     queryFn: async () => {
-      const results = await Promise.all(mesesRange.map(({ mes, ano }) => fetchReceitasMes(mes, ano)));
+      const results = await Promise.all(mesesQueryRange.map(({ mes, ano }) => fetchReceitasMes(mes, ano)));
       return results.flat();
     },
   });
+
+  const hasPendingChange = dataInicio !== queryDataInicio || dataFim !== queryDataFim;
+
+  function handleConsultar() {
+    setQueryDataInicio(dataInicio);
+    setQueryDataFim(dataFim);
+  }
 
   const despesas = despQuery.data ?? [];
   const receitas = recQuery.data ?? [];
@@ -288,7 +297,10 @@ export function RelatoriosScreen() {
 
       {/* Filters — sem overflow-hidden para dropdowns aparecerem */}
       <div className="no-print rounded-xl border border-slate-200 bg-white shadow-sm p-4 dark:border-slate-700 dark:bg-slate-800">
-        <p className="text-xs font-semibold text-[#0EC4D8] mb-2">{periodoLabel(dataInicio, dataFim)}</p>
+        <p className="text-xs font-semibold text-[#0EC4D8] mb-2">
+          {periodoLabel(dataInicio, dataFim)}
+          {hasPendingChange && <span className="ml-1.5 font-medium text-amber-500">· não consultado</span>}
+        </p>
         <div className="flex flex-wrap items-center gap-1.5">
           {/* Atalhos */}
           {([
@@ -348,7 +360,7 @@ export function RelatoriosScreen() {
             </button>
           )}
 
-          {/* De / Até */}
+          {/* De / Até / Consultar */}
           <div className="ml-auto flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-medium text-slate-500 shrink-0">De:</span>
@@ -358,6 +370,19 @@ export function RelatoriosScreen() {
               <span className="text-xs font-medium text-slate-500 shrink-0">Até:</span>
               <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className={dateCls} />
             </div>
+            <button
+              type="button"
+              onClick={handleConsultar}
+              disabled={!hasPendingChange}
+              className={[
+                'rounded-lg px-3 py-1.5 text-xs font-semibold transition shrink-0',
+                hasPendingChange
+                  ? 'bg-[#0EC4D8] text-white hover:bg-[#0ab5c7]'
+                  : 'bg-slate-100 text-slate-400 cursor-default dark:bg-slate-700 dark:text-slate-500',
+              ].join(' ')}
+            >
+              Consultar
+            </button>
           </div>
         </div>
       </div>
