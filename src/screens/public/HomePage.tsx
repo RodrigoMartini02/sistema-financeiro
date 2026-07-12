@@ -117,7 +117,7 @@ export function HomePage({ notice }: HomePageProps) {
             <strong className="font-medium text-site-text">Perfis separados</strong> para finanças pessoais e empresariais.
           </p>
           <p className="mt-3 text-[13px] text-site-textMuted">
-            60 dias grátis — sem cartão de crédito.
+            15 dias grátis — sem cartão de crédito.
           </p>
           <div className="mt-8 flex flex-wrap gap-4">
             <button
@@ -125,7 +125,7 @@ export function HomePage({ notice }: HomePageProps) {
               onClick={() => setLoginOpen(true)}
               className="inline-flex h-12 items-center rounded-xl border border-site-accent/50 bg-[rgba(14,196,216,0.08)] px-7 text-[12px] uppercase tracking-[0.18em] text-site-text transition duration-300 hover:border-site-accent hover:bg-[rgba(14,196,216,0.14)] hover:shadow-[0_0_28px_rgba(14,196,216,0.22)]"
             >
-              Começar — 60 dias grátis
+              Começar — 15 dias grátis
             </button>
             <button
               type="button"
