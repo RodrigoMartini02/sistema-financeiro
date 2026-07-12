@@ -96,7 +96,7 @@ router.get('/anual', authenticate, async (req: Request, res: Response): Promise<
         GROUP BY mes
       ) r ON r.mes = gs.mes
       LEFT JOIN (
-        SELECT mes, SUM(valor_final) AS total
+        SELECT mes, SUM(COALESCE(valor_final, valor_original, valor)) AS total
         FROM despesas
         WHERE ano = $1 AND usuario_id = $2
           AND ($3::int IS NULL OR perfil_id = $3 OR (perfil_id IS NULL AND EXISTS (

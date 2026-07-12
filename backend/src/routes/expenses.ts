@@ -441,8 +441,8 @@ router.get('/parcelas-futuras', authenticate, async (req: Request, res: Response
       `SELECT mes, ano,
         SUM(
           CASE WHEN parcela_atual = 1 AND numero_parcelas > 1
-               THEN valor_final::float / NULLIF(numero_parcelas, 0)
-               ELSE valor_final::float
+               THEN COALESCE(valor_final, valor_original, valor)::float / NULLIF(numero_parcelas, 0)
+               ELSE COALESCE(valor_final, valor_original, valor)::float
           END
         ) AS total
        FROM despesas
