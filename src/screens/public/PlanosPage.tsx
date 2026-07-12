@@ -57,8 +57,8 @@ const COMPARATIVO = [
 ];
 
 const FAQ = [
-  { q: 'Preciso de cartão de crédito para começar?', a: 'Não. Crie sua conta sem nenhum dado de pagamento e use o sistema completo por 60 dias.' },
-  { q: 'O que acontece depois dos 60 dias de avaliação?', a: 'Ao final do período de avaliação, você escolhe um plano para continuar. Seus dados ficam preservados independentemente do plano escolhido.' },
+  { q: 'Preciso de cartão de crédito para começar?', a: 'Não. Crie sua conta sem nenhum dado de pagamento e use o sistema completo por 15 dias.' },
+  { q: 'O que acontece depois dos 15 dias de avaliação?', a: 'Ao final do período de avaliação, você escolhe um plano para continuar. Seus dados ficam preservados independentemente do plano escolhido.' },
   { q: 'Posso mudar de plano depois?', a: 'Sim. Você pode migrar entre Plus e Premium a qualquer momento. Todos os seus dados são preservados — nenhum lançamento se perde.' },
   { q: 'O que acontece com meus dados se eu cancelar?', a: 'Seus dados ficam disponíveis por 30 dias após o cancelamento. Você pode exportá-los antes de encerrar a conta.' },
 ];
@@ -75,14 +75,14 @@ export function PlanosPage() {
       <SitePageHero
         label="PLANOS"
         title="Escolha o plano certo para você."
-        description="60 dias grátis ao criar conta. Depois, Plus ou Premium — sem surpresas."
+        description="15 dias grátis ao criar conta. Depois, Plus ou Premium — sem surpresas."
       />
 
       {/* Cards de planos */}
       <section className="border-b border-[rgba(14,196,216,0.10)] bg-[#040E12]">
         <div className="mx-auto max-w-[1800px] px-5 py-14 sm:px-8 xl:px-10 xl:py-18">
           <p className="mb-6 text-center text-[13px] text-site-textMuted">
-            Todos os planos incluem <span className="text-site-text">60 dias grátis</span> ao criar a conta.
+            Todos os planos incluem <span className="text-site-text">15 dias grátis</span> ao criar a conta.
           </p>
           <div className="mx-auto grid gap-5 md:grid-cols-2 xl:max-w-[860px]">
             {PLANOS.map((plano) => (
@@ -201,7 +201,7 @@ export function PlanosPage() {
           <div className="relative overflow-hidden rounded-[24px] border border-[rgba(14,196,216,0.24)] bg-[linear-gradient(135deg,rgba(14,196,216,0.04),rgba(14,196,216,0.01)_52%,rgba(14,196,216,0.03))] p-8 sm:p-10">
             <p className="text-[11px] uppercase tracking-[0.28em] text-site-textMuted">COMECE HOJE</p>
             <h2 className="mt-4 text-[clamp(26px,2.2vw,44px)] font-light leading-[1.14] tracking-[0.02em] text-site-text">
-              60 dias grátis para explorar tudo.
+              15 dias grátis para explorar tudo.
             </h2>
             <div className="mt-5 h-px w-[180px] bg-gradient-to-r from-site-accent/72 via-[rgba(14,196,216,0.34)] to-transparent" />
             <button
