@@ -22,6 +22,15 @@ async function getAccessToken(): Promise<string> {
   return data.access_token;
 }
 
+async function fetchCaptureDetails(captureId: string): Promise<Record<string, unknown> | null> {
+  const token = await getAccessToken();
+  const res = await fetch(`${PAYPAL_BASE}/v2/payments/captures/${captureId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+  return (await res.json()) as Record<string, unknown>;
+}
+
 async function activatePlan(userId: number, planType: string, paypalOrderId: string): Promise<void> {
   const daysToAdd = planType === 'anual' ? 365 : 30;
   const expiration = new Date();
@@ -139,17 +148,28 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
 
   try {
     if (eventType === 'PAYMENT.CAPTURE.COMPLETED') {
-      const relatedIds = (resource['supplementary_data'] as Record<string, unknown> | undefined)?.['related_ids'] as Record<string, unknown> | undefined;
-      const orderId = String(relatedIds?.['order_id'] ?? resource['id']);
-      const amount = parseFloat(String((resource['amount'] as Record<string, unknown> | undefined)?.['value'] ?? 0));
-      const refId = String(resource['custom_id'] ?? (resource['purchase_units'] as Array<Record<string, unknown>> | undefined)?.[0]?.['reference_id'] ?? '');
+      const captureId = String(resource['id'] ?? '');
+      if (!captureId) return;
+
+      // Nunca confiar nos dados do corpo do webhook — reconsultar a API da
+      // PayPal para confirmar que a captura é real antes de ativar o plano.
+      const capture = await fetchCaptureDetails(captureId);
+      if (!capture || capture['status'] !== 'COMPLETED') {
+        console.warn(`[PayPal Webhook] Captura ${captureId} não confirmada como COMPLETED na API da PayPal`);
+        return;
+      }
+
+      const relatedIds = (capture['supplementary_data'] as Record<string, unknown> | undefined)?.['related_ids'] as Record<string, unknown> | undefined;
+      const orderId = String(relatedIds?.['order_id'] ?? capture['id']);
+      const amount = parseFloat(String((capture['amount'] as Record<string, unknown> | undefined)?.['value'] ?? 0));
+      const refId = String(capture['custom_id'] ?? (capture['purchase_units'] as Array<Record<string, unknown>> | undefined)?.[0]?.['reference_id'] ?? '');
       const userId = refId.split('_')[0];
 
       if (!userId) return;
 
       const planType = amount >= 200 ? 'anual' : 'mensal';
       await activatePlan(parseInt(userId), planType, orderId);
-      console.log(`[PayPal Webhook] Plan ${planType} activated for user ${userId}`);
+      console.log(`[PayPal Webhook] Plan ${planType} activated for user ${userId} (captura confirmada na API da PayPal)`);
     }
   } catch (error) {
     console.error('[PayPal Webhook] Error:', error);

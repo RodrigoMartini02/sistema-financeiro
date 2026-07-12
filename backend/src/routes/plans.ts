@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { MercadoPagoConfig, Preference, Payment, PreApproval } from 'mercadopago';
 import { pool } from '../db/client';
-import { authenticate } from '../middleware/auth';
+import { authenticate, requireAdmin } from '../middleware/auth';
 
 const router = Router();
 
@@ -355,7 +355,7 @@ router.post('/cancel', authenticate, async (req: Request, res: Response): Promis
 });
 
 // POST /api/plans/activate — manual activation (admin/test)
-router.post('/activate', authenticate, async (req: Request, res: Response): Promise<void> => {
+router.post('/activate', authenticate, requireAdmin, async (req: Request, res: Response): Promise<void> => {
   const { tipo, dias } = req.body as { tipo: unknown; dias: unknown };
 
   if (!['mensal', 'anual'].includes(String(tipo))) {

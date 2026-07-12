@@ -5,11 +5,11 @@ import { authenticate } from '../middleware/auth';
 const router = Router();
 
 // Cancel all future predicted revenues for a contract
-async function cancelFutureRevenues(contractId: number): Promise<void> {
+async function cancelFutureRevenues(contractId: number, userId: number): Promise<void> {
   await pool.query(
     `UPDATE receitas SET status = 'cancelada'
-     WHERE contrato_id = $1 AND status = 'prevista' AND data_recebimento >= CURRENT_DATE`,
-    [contractId],
+     WHERE contrato_id = $1 AND usuario_id = $2 AND status = 'prevista' AND data_recebimento >= CURRENT_DATE`,
+    [contractId, userId],
   );
 }
 
@@ -285,7 +285,7 @@ router.post('/:id/gerar-previstas', authenticate, async (req: Request, res: Resp
     }
 
     // Cancel existing future predicted revenues before regenerating
-    await cancelFutureRevenues(contractId);
+    await cancelFutureRevenues(contractId, req.user!.id);
 
     const count = await gerarPrevistas(
       contractId,
@@ -308,9 +308,6 @@ router.put('/:id/encerrar', authenticate, async (req: Request, res: Response): P
   try {
     const contractId = parseInt(req.params['id']!);
 
-    // Cancel future predicted revenues
-    await cancelFutureRevenues(contractId);
-
     const result = await pool.query(
       `UPDATE contratos SET status = 'encerrado' WHERE id = $1 AND usuario_id = $2 RETURNING *`,
       [contractId, req.user!.id],
@@ -320,6 +317,9 @@ router.put('/:id/encerrar', authenticate, async (req: Request, res: Response): P
       res.status(404).json({ success: false, message: 'Contract not found' });
       return;
     }
+
+    // Cancel future predicted revenues (só após confirmar que o contrato pertence ao usuário)
+    await cancelFutureRevenues(contractId, req.user!.id);
 
     res.json({ success: true, message: 'Contract closed', data: result.rows[0] });
   } catch (error) {
@@ -359,7 +359,7 @@ router.put('/:id/aditivo', authenticate, async (req: Request, res: Response): Pr
     const currentContract = currentContractResult.rows[0] as Record<string, unknown>;
 
     // Close previous contract (cancel future revenues + mark as encerrado)
-    await cancelFutureRevenues(contractId);
+    await cancelFutureRevenues(contractId, req.user!.id);
     await pool.query(
       `UPDATE contratos SET status = 'encerrado' WHERE id = $1 AND usuario_id = $2`,
       [contractId, req.user!.id],
