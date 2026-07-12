@@ -3,12 +3,11 @@
   "version": "1.1.0",
   "releaseDate": "2026-03-21",
   "description": "Backend do Sistema de Controle Financeiro com PostgreSQL",
-  "main": "server.js",
+  "main": "src/server.ts",
   "scripts": {
     "start": "tsx src/server.ts",
     "dev": "tsx watch src/server.ts",
     "dev:local": "set DOTENV_CONFIG_PATH=../../.env&& tsx watch src/server.ts",
-    "dev:legacy": "nodemon server.js",
     "build": "tsc --noEmit",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
