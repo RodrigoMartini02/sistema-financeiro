@@ -4,6 +4,14 @@ import { authenticate } from '../middleware/auth';
 
 const router = Router();
 
+function profileWhere(profileId: number | null, paramIndex: number): { clause: string; params: unknown[] } {
+  if (!profileId) return { clause: '', params: [] };
+  return {
+    clause: ` AND (ct.perfil_id = $${paramIndex} OR (ct.perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis p WHERE p.id = $${paramIndex} AND p.tipo = 'pessoal' AND p.usuario_id = ct.usuario_id)))`,
+    params: [profileId],
+  };
+}
+
 // Cancel all future predicted revenues for a contract
 async function cancelFutureRevenues(contractId: number, userId: number): Promise<void> {
   await pool.query(
@@ -78,7 +86,7 @@ async function gerarPrevistas(
 // GET /api/contratos?cliente_id=X&status=ativo
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { cliente_id, status } = req.query as Record<string, string | undefined>;
+    const { cliente_id, status, perfil_id } = req.query as Record<string, string | undefined>;
 
     let where = 'WHERE ct.usuario_id = $1';
     const params: unknown[] = [req.user!.id];
@@ -92,6 +100,11 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
       where += ` AND ct.status = $${params.length + 1}`;
       params.push(status);
     }
+
+    const profileId = perfil_id ? parseInt(perfil_id) : null;
+    const { clause: profileClause, params: profileParams } = profileWhere(profileId, params.length + 1);
+    where += profileClause;
+    params.push(...profileParams);
 
     const result = await pool.query(
       `SELECT ct.*, cl.nome AS cliente_nome, r.nome AS representante_nome
@@ -113,7 +126,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
 // IMPORTANT: must be declared before /:id to avoid Express matching "faturamento" as an ID
 router.get('/faturamento', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { mes, ano } = req.query as Record<string, string | undefined>;
+    const { mes, ano, perfil_id } = req.query as Record<string, string | undefined>;
 
     if (!mes || !ano) {
       res.status(400).json({ success: false, message: 'mes e ano são obrigatórios' });
@@ -127,6 +140,13 @@ router.get('/faturamento', authenticate, async (req: Request, res: Response): Pr
       res.status(400).json({ success: false, message: 'mes deve ser 1-12 e ano deve ser um número' });
       return;
     }
+
+    const profileId = perfil_id ? parseInt(perfil_id) : null;
+    const profileClause = profileId
+      ? ` AND (c.perfil_id = $4 OR (c.perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis p WHERE p.id = $4 AND p.tipo = 'pessoal' AND p.usuario_id = c.usuario_id)))`
+      : '';
+    const params: unknown[] = [req.user!.id, mesNum, anoNum];
+    if (profileId) params.push(profileId);
 
     const result = await pool.query(
       `SELECT
@@ -145,9 +165,9 @@ router.get('/faturamento', authenticate, async (req: Request, res: Response): Pr
          AND r.usuario_id = $1
          AND r.status != 'cancelada'
        WHERE c.status = 'ativo'
-         AND c.usuario_id = $1
+         AND c.usuario_id = $1${profileClause}
        ORDER BY cl.nome, c.id`,
-      [req.user!.id, mesNum, anoNum],
+      params,
     );
 
     res.json({ success: true, data: result.rows });
@@ -186,7 +206,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
       cliente_id, numero, data_assinatura, vencimento,
       num_aditivo, data_aditivo, ajuste, data_inicio_faturamento,
       observacoes,
-      representante_id,
+      representante_id, perfil_id,
       implantacao_parcelas, implantacao_valor_parcela,
       horas_presenciais_valor, horas_presenciais_saldo_ini,
       horas_remotas_valor, horas_remotas_saldo_ini,
@@ -209,11 +229,11 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
       `INSERT INTO contratos
          (usuario_id, cliente_id, numero, data_assinatura, vencimento,
           num_aditivo, data_aditivo, ajuste, data_inicio_faturamento, observacoes,
-          representante_id, implantacao_parcelas, implantacao_valor_parcela,
+          representante_id, perfil_id, implantacao_parcelas, implantacao_valor_parcela,
           horas_presenciais_valor, horas_presenciais_saldo_ini, horas_presenciais_saldo_atual,
           horas_remotas_valor, horas_remotas_saldo_ini, horas_remotas_saldo_atual,
           valor_mensal)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$15,$16,$17,$17,$18) RETURNING *`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$16,$17,$18,$18,$19) RETURNING *`,
       [
         req.user!.id,
         parseInt(String(cliente_id)),
@@ -226,6 +246,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
         data_inicio_faturamento ?? null,
         observacoes ?? null,
         representante_id ? parseInt(String(representante_id)) : null,
+        perfil_id ? parseInt(String(perfil_id)) : null,
         implantacao_parcelas ? parseInt(String(implantacao_parcelas)) : 1,
         parseFloat(String(implantacao_valor_parcela ?? 0)) || 0,
         parseFloat(String(horas_presenciais_valor ?? 0)) || 0,
@@ -428,12 +449,12 @@ router.put('/:id/aditivo', authenticate, async (req: Request, res: Response): Pr
       `INSERT INTO contratos
          (usuario_id, cliente_id, numero, data_assinatura, vencimento,
           num_aditivo, data_aditivo, ajuste, data_inicio_faturamento, observacoes,
-          representante_id,
+          representante_id, perfil_id,
           implantacao_parcelas, implantacao_valor_parcela,
           horas_presenciais_valor, horas_presenciais_saldo_ini, horas_presenciais_saldo_atual,
           horas_remotas_valor, horas_remotas_saldo_ini, horas_remotas_saldo_atual,
           valor_mensal)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $15, $16, $17, $17, $18) RETURNING *`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $16, $17, $18, $18, $19) RETURNING *`,
       [
         req.user!.id,                                                                              // $1
         currentContract['cliente_id'],                                                             // $2
@@ -446,13 +467,14 @@ router.put('/:id/aditivo', authenticate, async (req: Request, res: Response): Pr
         nova_data_inicio_faturamento ?? currentContract['data_inicio_faturamento'],               // $9
         observacoes ?? currentContract['observacoes'],                                             // $10
         currentContract['representante_id'] ?? null,                                              // $11
-        parseFloat(String(currentContract['implantacao_parcelas'] ?? 1)) || 1,                   // $12
-        parseFloat(String(currentContract['implantacao_valor_parcela'] ?? 0)) || 0,              // $13
-        parseFloat(String(currentContract['horas_presenciais_valor'] ?? 0)) || 0,                // $14
-        hpIni,                                                                                     // $15 (saldo_ini + saldo_atual via duplicate param)
-        parseFloat(String(currentContract['horas_remotas_valor'] ?? 0)) || 0,                    // $16
-        hrIni,                                                                                     // $17 (saldo_ini + saldo_atual via duplicate param)
-        parseFloat(String(currentContract['valor_mensal'] ?? 0)) || 0,                           // $18
+        currentContract['perfil_id'] ?? null,                                                     // $12
+        parseFloat(String(currentContract['implantacao_parcelas'] ?? 1)) || 1,                   // $13
+        parseFloat(String(currentContract['implantacao_valor_parcela'] ?? 0)) || 0,              // $14
+        parseFloat(String(currentContract['horas_presenciais_valor'] ?? 0)) || 0,                // $15
+        hpIni,                                                                                     // $16 (saldo_ini + saldo_atual via duplicate param)
+        parseFloat(String(currentContract['horas_remotas_valor'] ?? 0)) || 0,                    // $17
+        hrIni,                                                                                     // $18 (saldo_ini + saldo_atual via duplicate param)
+        parseFloat(String(currentContract['valor_mensal'] ?? 0)) || 0,                           // $19
       ],
     );
 
