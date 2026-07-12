@@ -74,7 +74,9 @@ interface HomePageProps {
 }
 
 export function HomePage({ notice }: HomePageProps) {
-  const [loginOpen, setLoginOpen] = useState(!!notice);
+  const [loginOpen, setLoginOpen] = useState(
+    () => !!notice || new URLSearchParams(window.location.search).get('state') === 'google-oauth',
+  );
   const [modalAberto, setModalAberto] = useState<'termos' | 'privacidade' | null>(null);
 
   const avaliacoesQ = useQuery({
