@@ -16,4 +16,8 @@ export const queryKeys = {
   servicos: ['servicos'] as const,
   contratosServicos: (contratoId: number) => ['contratos-servicos', contratoId] as const,
   contratoAnexos: (contratoId: number) => ['contrato-anexos', contratoId] as const,
+  contratosAtivos: ['contratos-ativos'] as const,
+  contratosStatusFaturamento: (mes: number, ano: number) => ['contratos-status-faturamento', mes, ano] as const,
+  dashboardAnual: (year: number) => ['dashboard-anual', year] as const,
+  parcelasFuturas: (mes: number, ano: number, meses: number) => ['parcelas-futuras', mes, ano, meses] as const,
 };

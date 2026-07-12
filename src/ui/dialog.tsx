@@ -7,10 +7,11 @@ interface DialogProps {
   description?: string;
   onClose: () => void;
   children: ReactNode;
-  size?: 'md' | 'lg';
+  size?: 'md' | 'lg' | 'xl' | 'xxl';
+  scrollBody?: boolean;
 }
 
-export function Dialog({ open, title, description, onClose, children, size = 'md' }: DialogProps) {
+export function Dialog({ open, title, description, onClose, children, size = 'md', scrollBody = true }: DialogProps) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handler);
@@ -19,8 +20,8 @@ export function Dialog({ open, title, description, onClose, children, size = 'md
 
   if (!open) return null;
 
-  const maxW = size === 'lg' ? 'max-w-2xl' : 'max-w-lg';
-  const minH = size === 'lg' ? 'min-h-[560px]' : '';
+  const maxW = size === 'xxl' ? 'max-w-7xl' : size === 'xl' ? 'max-w-5xl' : size === 'lg' ? 'max-w-2xl' : 'max-w-lg';
+  const minH = size === 'xxl' || size === 'xl' || size === 'lg' ? 'min-h-[560px]' : '';
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
@@ -49,8 +50,11 @@ export function Dialog({ open, title, description, onClose, children, size = 'md
             <X size={15} />
           </button>
         </div>
-        {/* Scrollable body */}
-        <div className="scrollbar-thin overflow-y-auto px-5 py-4">{children}</div>
+        {/* Body */}
+        <div className={[
+          'px-5 py-4',
+          scrollBody ? 'scrollbar-thin overflow-y-auto' : 'flex flex-col flex-1 min-h-0 overflow-hidden',
+        ].join(' ')}>{children}</div>
       </div>
     </div>
   );

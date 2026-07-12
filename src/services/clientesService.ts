@@ -59,6 +59,24 @@ export async function fetchContratos(clienteId: number): Promise<Contrato[]> {
   return apiRequest<Contrato[]>(`/contratos?cliente_id=${clienteId}`);
 }
 
+export interface ContratoResumo {
+  id: number;
+  cliente_nome: string;
+  numero?: string | null;
+  horas_presenciais_valor?: number | null;
+  horas_presenciais_saldo_atual?: number | null;
+  horas_remotas_valor?: number | null;
+  horas_remotas_saldo_atual?: number | null;
+}
+
+export async function fetchContratosAtivos(): Promise<ContratoResumo[]> {
+  return apiRequest<ContratoResumo[]>('/contratos?status=ativo');
+}
+
+export async function criarReceitaImplantacao(contratoId: number): Promise<void> {
+  return apiRequest<void>(`/contratos/${contratoId}/receita-implantacao`, { method: 'POST' });
+}
+
 export async function saveContrato(data: Omit<Contrato, 'id' | 'cliente_nome' | 'num_aditivo' | 'status'>, id?: number): Promise<Contrato> {
   if (id) {
     return apiRequest<Contrato>(`/contratos/${id}`, { method: 'PUT', body: JSON.stringify(data) });

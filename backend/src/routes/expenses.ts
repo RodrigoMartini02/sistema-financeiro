@@ -367,7 +367,7 @@ router.post('/:id/pay', authenticate, async (req: Request, res: Response): Promi
   }
 });
 
-// POST /api/despesas/:id/mover -- move vencimento para o mesmo dia do proximo mes
+// POST /api/despesas/:id/mover — move vencimento para o mesmo dia do proximo mes
 router.post('/:id/mover', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const expenseId = parseInt(req.params['id']!);
@@ -413,6 +413,56 @@ router.post('/:id/mover', authenticate, async (req: Request, res: Response): Pro
   } catch (error) {
     console.error('Move expense error:', error);
     res.status(500).json({ success: false, message: 'Failed to move expense' });
+  }
+});
+
+// GET /api/despesas/parcelas-futuras?mes=X&ano=Y&meses=3
+router.get('/parcelas-futuras', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { mes: mesQ, ano: anoQ, meses: mesesQ, perfil_id } = req.query as Record<string, string | undefined>;
+    const mes = parseInt(mesQ ?? '');
+    const ano = parseInt(anoQ ?? '');
+    const meses = parseInt(mesesQ ?? '3');
+
+    if (isNaN(mes) || mes < 0 || mes > 11) {
+      res.status(400).json({ success: false, message: 'Parâmetro mes inválido (0-11)' });
+      return;
+    }
+    if (isNaN(ano) || ano < 2000 || ano > 2100) {
+      res.status(400).json({ success: false, message: 'Parâmetro ano inválido' });
+      return;
+    }
+
+    const userId = req.user!.id;
+    const perfilId = perfil_id ? parseInt(perfil_id) : null;
+    const limiteMeses = Math.min(Math.max(meses || 3, 1), 12);
+
+    const result = await pool.query(
+      `SELECT mes, ano,
+        SUM(
+          CASE WHEN parcela_atual = 1 AND numero_parcelas > 1
+               THEN valor_final::float / NULLIF(numero_parcelas, 0)
+               ELSE valor_final::float
+          END
+        ) AS total
+       FROM despesas
+       WHERE usuario_id = $1
+         AND parcelado = true
+         AND pago = false
+         AND (ano * 12 + mes) > ($2 * 12 + $3)
+         AND (ano * 12 + mes) <= ($2 * 12 + $3 + $4)
+         AND ($5::int IS NULL OR perfil_id = $5 OR (perfil_id IS NULL AND EXISTS (
+           SELECT 1 FROM perfis pf WHERE pf.id = $5 AND pf.tipo = 'pessoal' AND pf.usuario_id = $1
+         )))
+       GROUP BY mes, ano
+       ORDER BY ano, mes`,
+      [userId, ano, mes, limiteMeses, perfilId],
+    );
+
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Parcelas futuras error:', error);
+    res.status(500).json({ success: false, message: 'Failed to load future installments' });
   }
 });
 

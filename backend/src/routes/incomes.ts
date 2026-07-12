@@ -72,34 +72,62 @@ router.post(
   ],
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { descricao, valor, data_recebimento, mes, ano, observacoes, anexos, perfil_id, cliente, tipo_receita, representante_id } =
-        req.body as Record<string, unknown>;
+      const {
+        descricao, valor, data_recebimento, mes, ano, observacoes, anexos, perfil_id,
+        cliente, tipo_receita, representante_id, valor_comissao,
+        contrato_id, tipo_hora, quantidade_horas,
+      } = req.body as Record<string, unknown>;
 
       const attachmentsJson = Array.isArray(anexos) && anexos.length > 0 ? JSON.stringify(anexos) : null;
-
-      const { valor_comissao } = req.body as Record<string, unknown>;
       const representanteIdInt = representante_id ? parseInt(String(representante_id)) : null;
+      const contratoIdInt = contrato_id ? parseInt(String(contrato_id)) : null;
+      const qtdHoras = quantidade_horas ? parseFloat(String(quantidade_horas)) : null;
 
-      const result = await pool.query(
-        `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, observacoes, anexos, perfil_id, cliente, tipo_receita, representante_id, valor_comissao)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-         RETURNING *`,
-        [
-          req.user!.id,
-          descricao,
-          parseFloat(String(valor)),
-          data_recebimento,
-          mes,
-          ano,
-          observacoes ?? null,
-          attachmentsJson,
-          perfil_id ? parseInt(String(perfil_id)) : null,
-          cliente ?? null,
-          tipo_receita ?? null,
-          representanteIdInt,
-          valor_comissao != null ? parseFloat(String(valor_comissao)) : null,
-        ],
-      );
+      const client = await pool.connect();
+      let result: { rows: unknown[] } = { rows: [] };
+      try {
+        await client.query('BEGIN');
+
+        result = await client.query(
+          `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, observacoes, anexos, perfil_id, cliente, tipo_receita, representante_id, valor_comissao, contrato_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+           RETURNING *`,
+          [
+            req.user!.id,
+            descricao,
+            parseFloat(String(valor)),
+            data_recebimento,
+            mes,
+            ano,
+            observacoes ?? null,
+            attachmentsJson,
+            perfil_id ? parseInt(String(perfil_id)) : null,
+            cliente ?? null,
+            tipo_receita ?? null,
+            representanteIdInt,
+            valor_comissao != null ? parseFloat(String(valor_comissao)) : null,
+            contratoIdInt,
+          ],
+        );
+
+        // Debitar horas do contrato se informadas
+        if (contratoIdInt && qtdHoras && qtdHoras > 0 && tipo_hora) {
+          const col = tipo_hora === 'remoto'
+            ? 'horas_remotas_saldo_atual'
+            : 'horas_presenciais_saldo_atual';
+          await client.query(
+            `UPDATE contratos SET ${col} = GREATEST(0, ${col} - $1) WHERE id = $2 AND usuario_id = $3`,
+            [qtdHoras, contratoIdInt, req.user!.id],
+          );
+        }
+
+        await client.query('COMMIT');
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
 
       // Auto-criar despesa de comissão sempre que houver representante vinculado
       if (representanteIdInt) {
@@ -216,7 +244,7 @@ router.put('/:id/receber', authenticate, async (req: Request, res: Response): Pr
        SET status = 'ativa',
            data_recebimento = COALESCE($1, data_recebimento),
            valor = COALESCE($2, valor)
-       WHERE id = $3 AND usuario_id = $4 AND status = 'prevista'
+       WHERE id = $3 AND usuario_id = $4 AND status IN ('prevista', 'faturada')
        RETURNING *`,
       [
         data_recebimento ?? null,

@@ -26,7 +26,7 @@ export interface Income {
   data: string;
   mes: number;
   ano: number;
-  status?: 'ativa' | 'cancelada' | 'prevista';
+  status?: 'ativa' | 'cancelada' | 'prevista' | 'faturada';
   contratoId?: number | null;
   observacoes?: string | null;
   cliente?: string | null;
@@ -48,6 +48,9 @@ export interface IncomeFormValues {
   valorComissao?: number | null;
   anexos?: Attachment[];
   replicarAte?: { mes: number; ano: number } | null;
+  contratoId?: number | null;
+  tipoHora?: 'presencial' | 'remoto' | null;
+  quantidadeHoras?: number | null;
 }
 
 export interface Expense {

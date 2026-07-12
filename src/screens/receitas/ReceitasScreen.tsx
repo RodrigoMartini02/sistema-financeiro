@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Paperclip, Plus, RefreshCw, Ban, TrendingUp, Tag, Lock, LockOpen, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Paperclip, Plus, RefreshCw, Ban, TrendingUp, Tag, Lock, LockOpen, Clock, CheckCircle, AlertCircle, FileCheck, Building2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
 import { useAppContext } from '../../context/AppContext';
 import { apiRequest, getActiveProfileId } from '../../services/apiClient';
 import { queryKeys } from '../../services/queryKeys';
 import type { Income, IncomeFormValues } from '../../types/finance';
+import { getContratosFaturamento, faturarContrato, type ContratoFaturamento } from '../../services/financeService';
 import { Button } from '../../ui/button';
 import { Card } from '../../ui/card';
 import { EmptyState, ErrorState } from '../../ui/states';
@@ -14,6 +15,26 @@ import { IncomeDialog } from '../finance/IncomeDialog';
 import { AttachmentPreviewDialog } from '../../ui/AttachmentPreviewDialog';
 import { formatCurrency, formatDate } from '../finance/formatters';
 import type { Attachment } from '../../types/finance';
+
+const MONTH_NAMES_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+function statusFaturamentoBadge(item: ContratoFaturamento, mes: number, ano: number) {
+  const hoje = new Date();
+  const mesAtual = hoje.getMonth() + 1;
+  const anoAtual = hoje.getFullYear();
+  const isPast = ano < anoAtual || (ano === anoAtual && mes < mesAtual);
+
+  if (item.receitaStatus === 'ativa') {
+    return <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-700"><CheckCircle size={10} /> Recebido</span>;
+  }
+  if (item.receitaStatus === 'faturada') {
+    return <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700"><FileCheck size={10} /> Faturado</span>;
+  }
+  if (isPast) {
+    return <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-600"><AlertCircle size={10} /> Em atraso</span>;
+  }
+  return <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700"><Clock size={10} /> Pendente</span>;
+}
 
 const TIPO_COLORS: Record<string, string> = {
   salario:       'bg-green-100 text-green-700',
@@ -51,7 +72,31 @@ export function ReceitasScreen() {
 
   const receberReceita = useMutation({
     mutationFn: (id: number) => apiRequest<void>(`/receitas/${id}/receber`, { method: 'PUT' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) });
+      void qc.invalidateQueries({ queryKey: queryKeys.contratosStatusFaturamento(month, year) });
+    },
+  });
+
+  const contratosQ = useQuery({
+    queryKey: queryKeys.contratosStatusFaturamento(month, year),
+    queryFn: () => getContratosFaturamento(month + 1, year),
+  });
+
+  const faturarMut = useMutation({
+    mutationFn: (contratoId: number) => faturarContrato(contratoId, month + 1, year),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.contratosStatusFaturamento(month, year) });
+      void qc.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) });
+    },
+  });
+
+  const receberContratoMut = useMutation({
+    mutationFn: (receitaId: number) => apiRequest<void>(`/receitas/${receitaId}/receber`, { method: 'PUT' }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.contratosStatusFaturamento(month, year) });
+      void qc.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) });
+    },
   });
 
   const hoje = new Date().toISOString().split('T')[0]!;
@@ -171,6 +216,61 @@ export function ReceitasScreen() {
 
         {finance.dashboard.error && (
           <ErrorState title="Erro ao carregar receitas" description={finance.dashboard.error.message} />
+        )}
+
+        {/* Contratos — Faturamento */}
+        {(contratosQ.data?.length ?? 0) > 0 && (
+          <Card>
+            <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
+              <Building2 size={15} className="text-slate-500" />
+              <h3 className="text-sm font-bold text-slate-800">
+                Contratos — Faturamento{' '}
+                <span className="font-normal text-slate-400">{MONTH_NAMES_SHORT[month]}/{year}</span>
+              </h3>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {contratosQ.data!.map((item) => {
+                const isPendente = item.receitaStatus === null || item.receitaStatus === 'prevista';
+                const isFaturado = item.receitaStatus === 'faturada';
+                const isRecebido = item.receitaStatus === 'ativa';
+                return (
+                  <div key={item.contratoId} className="flex items-center justify-between gap-3 px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm text-slate-900 truncate">{item.clienteNome}</p>
+                      {item.contratoDescricao && (
+                        <p className="text-[11px] text-slate-400 truncate">{item.contratoDescricao}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-sm font-bold text-slate-700">{formatCurrency(item.valorMensal)}</span>
+                      {statusFaturamentoBadge(item, month + 1, year)}
+                      {(isPendente) && (
+                        <button
+                          onClick={() => faturarMut.mutate(item.contratoId)}
+                          disabled={faturarMut.isPending}
+                          className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-40 transition"
+                        >
+                          Faturar
+                        </button>
+                      )}
+                      {isFaturado && item.receitaId && (
+                        <button
+                          onClick={() => receberContratoMut.mutate(item.receitaId!)}
+                          disabled={receberContratoMut.isPending}
+                          className="rounded-lg border border-green-200 bg-green-50 px-2.5 py-1 text-[11px] font-semibold text-green-700 hover:bg-green-100 disabled:opacity-40 transition"
+                        >
+                          Recebido
+                        </button>
+                      )}
+                      {isRecebido && (
+                        <span className="text-[11px] text-slate-300">✓</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
         )}
 
         {/* Table */}
@@ -314,7 +414,7 @@ export function ReceitasScreen() {
                 <tfoot>
                   <tr className="border-t border-slate-200 bg-slate-50">
                     <td colSpan={5} className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">
-                      Total ({ativas.filter(i => items.includes(i)).length} lançamento{ativas.filter(i => items.includes(i)).length !== 1 ? 's' : ''})
+                      {(() => { const n = items.filter(i => i.status === 'ativa').length; return `Total (${n} lançamento${n !== 1 ? 's' : ''})`; })()}
                     </td>
                     <td className="px-4 py-3 text-right font-bold text-green-700 text-sm whitespace-nowrap">
                       {formatCurrency(items.filter(i => i.status !== 'cancelada').reduce((s, i) => s + i.valor, 0))}
