@@ -25,10 +25,26 @@ function optionalNumber(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+const LIST_COLUMNS = {
+  id: footballPlayers.id,
+  userId: footballPlayers.userId,
+  name: footballPlayers.name,
+  position: footballPlayers.position,
+  foot: footballPlayers.foot,
+  color: footballPlayers.color,
+  age: footballPlayers.age,
+  height: footballPlayers.height,
+  weight: footballPlayers.weight,
+  skills: footballPlayers.skills,
+  positions: footballPlayers.positions,
+  createdAt: footballPlayers.createdAt,
+  updatedAt: footballPlayers.updatedAt,
+};
+
 router.get('/', authenticateFootball, async (req: Request, res: Response): Promise<void> => {
   try {
     const players = await db
-      .select()
+      .select(LIST_COLUMNS)
       .from(footballPlayers)
       .where(eq(footballPlayers.userId, req.futebolUser!.userId))
       .orderBy(asc(footballPlayers.createdAt));
@@ -40,12 +56,34 @@ router.get('/', authenticateFootball, async (req: Request, res: Response): Promi
   }
 });
 
+router.get('/:id', authenticateFootball, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const [player] = await db
+      .select()
+      .from(footballPlayers)
+      .where(and(eq(footballPlayers.id, id!), eq(footballPlayers.userId, req.futebolUser!.userId)))
+      .limit(1);
+
+    if (!player) {
+      res.status(404).json({ error: 'Jogador não encontrado' });
+      return;
+    }
+
+    res.json(player);
+  } catch (error) {
+    console.error('Football get player error:', error);
+    res.status(500).json({ error: 'Erro ao buscar jogador' });
+  }
+});
+
 router.post('/', authenticateFootball, async (req: Request, res: Response): Promise<void> => {
   try {
     const { name, position, foot, color, photo } = req.body as Record<string, unknown>;
 
     if (!String(name ?? '').trim()) {
-      res.status(400).json({ error: 'Nome obrigatorio' });
+      res.status(400).json({ error: 'Nome obrigatório' });
       return;
     }
 
@@ -85,7 +123,7 @@ router.put('/:id', authenticateFootball, async (req: Request, res: Response): Pr
       .limit(1);
 
     if (!existing) {
-      res.status(404).json({ error: 'Jogador nao encontrado' });
+      res.status(404).json({ error: 'Jogador não encontrado' });
       return;
     }
 
@@ -125,7 +163,7 @@ router.delete('/:id', authenticateFootball, async (req: Request, res: Response):
       .limit(1);
 
     if (!existing) {
-      res.status(404).json({ error: 'Jogador nao encontrado' });
+      res.status(404).json({ error: 'Jogador não encontrado' });
       return;
     }
 

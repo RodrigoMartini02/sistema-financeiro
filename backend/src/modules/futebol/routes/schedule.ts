@@ -3,6 +3,7 @@ import { desc, eq } from 'drizzle-orm';
 import { db } from '../../../db/client';
 import { authenticateFootball } from '../middleware/auth';
 import { footballSchedules } from '../db/schema';
+import { cancelFootballSchedule, refreshFootballSchedule } from '../cron';
 
 const router = Router();
 
@@ -47,6 +48,10 @@ router.post('/', authenticateFootball, async (req: Request, res: Response): Prom
         .returning();
     });
 
+    if (schedule) {
+      refreshFootballSchedule(schedule);
+    }
+
     res.json(schedule);
   } catch (error) {
     console.error('Football save schedule error:', error);
@@ -57,6 +62,7 @@ router.post('/', authenticateFootball, async (req: Request, res: Response): Prom
 router.delete('/', authenticateFootball, async (req: Request, res: Response): Promise<void> => {
   try {
     await db.delete(footballSchedules).where(eq(footballSchedules.userId, req.futebolUser!.userId));
+    cancelFootballSchedule(req.futebolUser!.userId);
     res.json({ ok: true });
   } catch (error) {
     console.error('Football delete schedule error:', error);

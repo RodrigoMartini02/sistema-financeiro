@@ -30,7 +30,7 @@ async function accountExists(req: Request, res: Response, next: NextFunction): P
       .limit(1);
 
     if (!user) {
-      res.status(404).json({ error: 'Conta nao encontrada' });
+      res.status(404).json({ error: 'Conta não encontrada' });
       return;
     }
 
@@ -59,7 +59,6 @@ router.get('/:accountId/players', accountExists, async (req: Request, res: Respo
         name: footballPlayers.name,
         position: footballPlayers.position,
         color: footballPlayers.color,
-        photo: footballPlayers.photo,
       })
       .from(footballPlayers)
       .where(eq(footballPlayers.userId, accountId(req)))
@@ -92,7 +91,7 @@ router.get('/:accountId/confirmations', accountExists, async (req: Request, res:
   try {
     const date = String(req.query['date'] ?? '');
     if (!date) {
-      res.status(400).json({ error: 'date obrigatorio' });
+      res.status(400).json({ error: 'date obrigatório' });
       return;
     }
 
@@ -104,7 +103,7 @@ router.get('/:accountId/confirmations', accountExists, async (req: Request, res:
     res.json(confirmations);
   } catch (error) {
     console.error('Football public confirmations error:', error);
-    res.status(500).json({ error: 'Erro ao listar confirmacoes' });
+    res.status(500).json({ error: 'Erro ao listar confirmações' });
   }
 });
 
@@ -114,7 +113,7 @@ router.post('/:accountId/confirmations', accountExists, async (req: Request, res
     const gameDate = String(req.body?.gameDate ?? '');
 
     if (!playerId || !gameDate) {
-      res.status(400).json({ error: 'playerId e gameDate obrigatorios' });
+      res.status(400).json({ error: 'playerId e gameDate obrigatórios' });
       return;
     }
 
@@ -125,12 +124,12 @@ router.post('/:accountId/confirmations', accountExists, async (req: Request, res
       .limit(1);
 
     if (!player) {
-      res.status(404).json({ error: 'Jogador nao encontrado nesta conta' });
+      res.status(404).json({ error: 'Jogador não encontrado nesta conta' });
       return;
     }
 
     if (isAfterConfirmationDeadline(gameDate)) {
-      res.status(403).json({ error: 'Prazo de confirmacao encerrado (12h do dia do jogo)' });
+      res.status(403).json({ error: 'Prazo de confirmação encerrado (12h do dia do jogo)' });
       return;
     }
 
@@ -158,7 +157,7 @@ router.post('/:accountId/confirmations', accountExists, async (req: Request, res
     res.status(201).json(confirmation);
   } catch (error) {
     console.error('Football public confirm error:', error);
-    res.status(500).json({ error: 'Erro ao confirmar presenca' });
+    res.status(500).json({ error: 'Erro ao confirmar presença' });
   }
 });
 
@@ -167,7 +166,7 @@ router.delete('/:accountId/confirmations/:playerId/:gameDate', accountExists, as
     const { playerId, gameDate } = req.params;
 
     if (isAfterConfirmationDeadline(gameDate!)) {
-      res.status(403).json({ error: 'Prazo encerrado, nao e possivel cancelar' });
+      res.status(403).json({ error: 'Prazo encerrado, não é possível cancelar' });
       return;
     }
 
@@ -184,7 +183,7 @@ router.delete('/:accountId/confirmations/:playerId/:gameDate', accountExists, as
     res.json({ ok: true });
   } catch (error) {
     console.error('Football public cancel confirmation error:', error);
-    res.status(500).json({ error: 'Erro ao cancelar confirmacao' });
+    res.status(500).json({ error: 'Erro ao cancelar confirmação' });
   }
 });
 
@@ -192,7 +191,7 @@ router.post('/:accountId/register', accountExists, async (req: Request, res: Res
   try {
     const name = String(req.body?.name ?? '').trim();
     if (!name) {
-      res.status(400).json({ error: 'Nome obrigatorio' });
+      res.status(400).json({ error: 'Nome obrigatório' });
       return;
     }
 
@@ -274,7 +273,7 @@ router.get('/:accountId/guests', accountExists, async (req: Request, res: Respon
   try {
     const date = String(req.query['date'] ?? '');
     if (!date) {
-      res.status(400).json({ error: 'date obrigatorio' });
+      res.status(400).json({ error: 'date obrigatório' });
       return;
     }
 
@@ -297,15 +296,15 @@ router.post('/:accountId/guests', accountExists, async (req: Request, res: Respo
     const gameDate = String(req.body?.gameDate ?? '');
 
     if (!name) {
-      res.status(400).json({ error: 'Nome obrigatorio' });
+      res.status(400).json({ error: 'Nome obrigatório' });
       return;
     }
     if (!gameDate) {
-      res.status(400).json({ error: 'gameDate obrigatorio' });
+      res.status(400).json({ error: 'gameDate obrigatório' });
       return;
     }
     if (isAfterConfirmationDeadline(gameDate)) {
-      res.status(403).json({ error: 'Prazo de confirmacao encerrado (12h do dia do jogo)' });
+      res.status(403).json({ error: 'Prazo de confirmação encerrado (12h do dia do jogo)' });
       return;
     }
 
@@ -331,7 +330,7 @@ router.delete('/:accountId/guests/:id', accountExists, async (req: Request, res:
       .limit(1);
 
     if (!guest) {
-      res.status(404).json({ error: 'Convidado nao encontrado' });
+      res.status(404).json({ error: 'Convidado não encontrado' });
       return;
     }
 
