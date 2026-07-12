@@ -1,4 +1,9 @@
-import { apiRequest, getApiUrl } from './apiClient';
+import { apiRequest, getApiUrl, getActiveProfileId } from './apiClient';
+
+function appendProfile(q: URLSearchParams) {
+  const id = getActiveProfileId();
+  if (id) q.set('perfil_id', String(id));
+}
 
 export interface Cliente {
   id: number;
@@ -6,6 +11,7 @@ export interface Cliente {
   codigo?: string | null;
   tipo_empresa?: string | null;
   cnpj?: string | null;
+  perfil_id?: number | null;
   total_contratos?: number;
   contratos_ativos?: number;
 }
@@ -35,19 +41,24 @@ export interface Contrato {
   horas_remotas_saldo_atual?: number | null;
   valor_contrato?: number | null;
   valor_mensal?: number | null;
+  perfil_id?: number | null;
 }
 
 
 // Clientes
 export async function fetchClientes(): Promise<Cliente[]> {
-  return apiRequest<Cliente[]>('/clientes');
+  const q = new URLSearchParams();
+  appendProfile(q);
+  const suffix = q.toString() ? `?${q}` : '';
+  return apiRequest<Cliente[]>(`/clientes${suffix}`);
 }
 
-export async function saveCliente(data: Omit<Cliente, 'id' | 'total_contratos' | 'contratos_ativos'>, id?: number): Promise<Cliente> {
+export async function saveCliente(data: Omit<Cliente, 'id' | 'total_contratos' | 'contratos_ativos' | 'perfil_id'>, id?: number): Promise<Cliente> {
+  const body = { ...data, perfil_id: getActiveProfileId() };
   if (id) {
-    return apiRequest<Cliente>(`/clientes/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+    return apiRequest<Cliente>(`/clientes/${id}`, { method: 'PUT', body: JSON.stringify(body) });
   }
-  return apiRequest<Cliente>('/clientes', { method: 'POST', body: JSON.stringify(data) });
+  return apiRequest<Cliente>('/clientes', { method: 'POST', body: JSON.stringify(body) });
 }
 
 export async function deleteCliente(id: number): Promise<void> {
@@ -56,7 +67,9 @@ export async function deleteCliente(id: number): Promise<void> {
 
 // Contratos
 export async function fetchContratos(clienteId: number): Promise<Contrato[]> {
-  return apiRequest<Contrato[]>(`/contratos?cliente_id=${clienteId}`);
+  const q = new URLSearchParams({ cliente_id: String(clienteId) });
+  appendProfile(q);
+  return apiRequest<Contrato[]>(`/contratos?${q}`);
 }
 
 export interface ContratoResumo {
@@ -70,18 +83,21 @@ export interface ContratoResumo {
 }
 
 export async function fetchContratosAtivos(): Promise<ContratoResumo[]> {
-  return apiRequest<ContratoResumo[]>('/contratos?status=ativo');
+  const q = new URLSearchParams({ status: 'ativo' });
+  appendProfile(q);
+  return apiRequest<ContratoResumo[]>(`/contratos?${q}`);
 }
 
 export async function criarReceitaImplantacao(contratoId: number): Promise<void> {
   return apiRequest<void>(`/contratos/${contratoId}/receita-implantacao`, { method: 'POST' });
 }
 
-export async function saveContrato(data: Omit<Contrato, 'id' | 'cliente_nome' | 'num_aditivo' | 'status'>, id?: number): Promise<Contrato> {
+export async function saveContrato(data: Omit<Contrato, 'id' | 'cliente_nome' | 'num_aditivo' | 'status' | 'perfil_id'>, id?: number): Promise<Contrato> {
+  const body = { ...data, perfil_id: getActiveProfileId() };
   if (id) {
-    return apiRequest<Contrato>(`/contratos/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+    return apiRequest<Contrato>(`/contratos/${id}`, { method: 'PUT', body: JSON.stringify(body) });
   }
-  return apiRequest<Contrato>('/contratos', { method: 'POST', body: JSON.stringify(data) });
+  return apiRequest<Contrato>('/contratos', { method: 'POST', body: JSON.stringify(body) });
 }
 
 export async function encerrarContrato(id: number): Promise<void> {
