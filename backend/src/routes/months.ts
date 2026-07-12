@@ -130,7 +130,7 @@ router.get('/:year/:month/balance', authenticate, async (req: Request, res: Resp
         [req.user!.id, year, month, ...extra],
       ),
       pool.query(
-        `SELECT COALESCE(SUM(CASE WHEN parcelado = true AND COALESCE(numero_parcelas, 0) > 0 AND parcela_atual = 1 THEN valor_final / numero_parcelas ELSE valor_final END), 0) AS total FROM despesas WHERE usuario_id = $1 AND ano = $2 AND mes = $3 AND status = 'ativa'${clause}`,
+        `SELECT COALESCE(SUM(CASE WHEN parcelado = true AND COALESCE(numero_parcelas, 0) > 0 AND parcela_atual = 1 THEN COALESCE(valor_final, valor_original, valor) / numero_parcelas ELSE COALESCE(valor_final, valor_original, valor) END), 0) AS total FROM despesas WHERE usuario_id = $1 AND ano = $2 AND mes = $3 AND status = 'ativa'${clause}`,
         [req.user!.id, year, month, ...extra],
       ),
       pool.query(
@@ -172,7 +172,7 @@ router.get('/:ano/:mes/saldo', authenticate, async (req: Request, res: Response)
         [req.user!.id, year, month, ...extra],
       ),
       pool.query(
-        `SELECT COALESCE(SUM(CASE WHEN parcelado = true AND COALESCE(numero_parcelas, 0) > 0 AND parcela_atual = 1 THEN valor_final / numero_parcelas ELSE valor_final END), 0) AS total FROM despesas WHERE usuario_id = $1 AND ano = $2 AND mes = $3 AND status = 'ativa'${clause}`,
+        `SELECT COALESCE(SUM(CASE WHEN parcelado = true AND COALESCE(numero_parcelas, 0) > 0 AND parcela_atual = 1 THEN COALESCE(valor_final, valor_original, valor) / numero_parcelas ELSE COALESCE(valor_final, valor_original, valor) END), 0) AS total FROM despesas WHERE usuario_id = $1 AND ano = $2 AND mes = $3 AND status = 'ativa'${clause}`,
         [req.user!.id, year, month, ...extra],
       ),
       pool.query(

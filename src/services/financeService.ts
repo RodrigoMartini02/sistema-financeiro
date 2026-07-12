@@ -22,7 +22,7 @@ interface RawExpense {
   data_vencimento: string; data_compra?: string | null; data_pagamento?: string | null;
   mes: number; ano: number; status?: string | null; pago?: boolean; parcelado?: boolean; recorrente?: boolean;
   numero_parcelas?: number | null; parcela_atual?: number | null; observacoes?: string | null;
-  valor_original?: string | null; valor_final?: string | null;
+  valor_original?: string | null; valor_final?: string | null; valor?: string | null;
   numero_nf?: string | null; data_emissao_nf?: string | null; tipo_despesa?: string | null;
   anexos?: Attachment[] | null;
 }
@@ -65,7 +65,7 @@ function expenseFromApi(r: RawExpense): Expense {
   // rawFinalDb é o valor_final bruto do banco:
   //   - primeira parcela parcelado: total da compra
   //   - sub-parcelas e não-parcelado: valor por período
-  const rawFinalDb = asNumber(r.valor_final ?? r.valor_original);
+  const rawFinalDb = asNumber(r.valor_final ?? r.valor_original ?? r.valor);
   const numeroParcelas = Number(r.numero_parcelas ?? 0);
   const parcelaAtual   = Number(r.parcela_atual ?? 0);
 
