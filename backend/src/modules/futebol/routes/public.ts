@@ -6,6 +6,8 @@ import {
   footballGuests,
   footballMatches,
   footballPlayers,
+  footballPoolGuesses,
+  footballPools,
   footballSchedules,
   footballUsers,
 } from '../db/schema';
@@ -49,6 +51,19 @@ function isAfterConfirmationDeadline(gameDate: string): boolean {
 
 function accountId(req: Request): string {
   return req.futebolAccountId!;
+}
+
+function calculateAge(birthDate: string): number {
+  const [year, month, day] = birthDate.split('-').map(Number);
+  if (!year || !month || !day) return -1;
+
+  const today = new Date();
+  let age = today.getFullYear() - year;
+  const hasHadBirthdayThisYear =
+    today.getMonth() + 1 > month || (today.getMonth() + 1 === month && today.getDate() >= day);
+  if (!hasHadBirthdayThisYear) age--;
+
+  return age;
 }
 
 router.get('/:accountId/players', accountExists, async (req: Request, res: Response): Promise<void> => {
@@ -344,6 +359,130 @@ router.delete('/:accountId/guests/:id', accountExists, async (req: Request, res:
   } catch (error) {
     console.error('Football public delete guest error:', error);
     res.status(500).json({ error: 'Erro ao remover convidado' });
+  }
+});
+
+router.get('/:accountId/pool', accountExists, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const [pool] = await db
+      .select()
+      .from(footballPools)
+      .where(and(eq(footballPools.userId, accountId(req)), eq(footballPools.active, true)))
+      .orderBy(desc(footballPools.createdAt))
+      .limit(1);
+
+    if (!pool) {
+      res.json(null);
+      return;
+    }
+
+    const [match] = await db
+      .select({ date: footballMatches.date, teams: footballMatches.teams })
+      .from(footballMatches)
+      .where(eq(footballMatches.id, pool.matchId))
+      .limit(1);
+
+    const teams = Array.isArray(match?.teams)
+      ? (match.teams as Array<{ name: string; color: string }>).map((team) => ({
+          name: team.name,
+          color: team.color,
+        }))
+      : [];
+
+    res.json({
+      id: pool.id,
+      prize: pool.prize,
+      gameDate: match?.date ?? null,
+      teams,
+    });
+  } catch (error) {
+    console.error('Football public pool error:', error);
+    res.status(500).json({ error: 'Erro ao buscar bolão' });
+  }
+});
+
+router.post('/:accountId/pool/guesses', accountExists, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const poolId = String(req.body?.poolId ?? '');
+    const name = String(req.body?.name ?? '').trim();
+    const birthDate = String(req.body?.birthDate ?? '');
+    const guessTeams = req.body?.guessTeams;
+
+    if (!poolId || !name || !birthDate || !Array.isArray(guessTeams)) {
+      res.status(400).json({ error: 'poolId, name, birthDate e guessTeams são obrigatórios' });
+      return;
+    }
+
+    const age = calculateAge(birthDate);
+    if (age < 18) {
+      res.status(403).json({ error: 'É necessário ter 18 anos ou mais para participar' });
+      return;
+    }
+
+    const [pool] = await db
+      .select()
+      .from(footballPools)
+      .where(
+        and(
+          eq(footballPools.id, poolId),
+          eq(footballPools.userId, accountId(req)),
+          eq(footballPools.active, true),
+        ),
+      )
+      .limit(1);
+
+    if (!pool) {
+      res.status(404).json({ error: 'Bolão não encontrado ou encerrado' });
+      return;
+    }
+
+    const [match] = await db
+      .select({ date: footballMatches.date, teams: footballMatches.teams })
+      .from(footballMatches)
+      .where(eq(footballMatches.id, pool.matchId))
+      .limit(1);
+
+    if (!match) {
+      res.status(404).json({ error: 'Partida do bolão não encontrada' });
+      return;
+    }
+
+    if (isAfterConfirmationDeadline(match.date)) {
+      res.status(403).json({ error: 'Prazo de palpite encerrado (12h do dia do jogo)' });
+      return;
+    }
+
+    const matchTeamCount = Array.isArray(match.teams) ? match.teams.length : 0;
+    const validGuess =
+      guessTeams.length === matchTeamCount &&
+      guessTeams.every(
+        (team: unknown) =>
+          team !== null &&
+          typeof team === 'object' &&
+          typeof (team as { score?: unknown }).score === 'number' &&
+          Number.isInteger((team as { score: number }).score) &&
+          (team as { score: number }).score >= 0,
+      );
+
+    if (!validGuess) {
+      res.status(400).json({ error: 'Palpite inválido' });
+      return;
+    }
+
+    const [guess] = await db
+      .insert(footballPoolGuesses)
+      .values({
+        poolId: pool.id,
+        name,
+        birthDate,
+        guessTeams,
+      })
+      .returning();
+
+    res.status(201).json(guess);
+  } catch (error) {
+    console.error('Football public submit guess error:', error);
+    res.status(500).json({ error: 'Erro ao registrar palpite' });
   }
 });
 

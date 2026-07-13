@@ -116,8 +116,42 @@ export const footballGuests = futebolSchema.table(
   }),
 );
 
+export type FootballPoolGuessTeam = { name: string; score: number };
+
+export const footballPools = futebolSchema.table(
+  'pools',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id').notNull().references(() => footballUsers.id, { onDelete: 'cascade' }),
+    matchId: uuid('match_id').notNull().references(() => footballMatches.id, { onDelete: 'cascade' }),
+    prize: text('prize').notNull(),
+    active: boolean('active').default(true).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    userIdx: index('idx_futebol_pools_user').on(table.userId),
+  }),
+);
+
+export const footballPoolGuesses = futebolSchema.table(
+  'pool_guesses',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    poolId: uuid('pool_id').notNull().references(() => footballPools.id, { onDelete: 'cascade' }),
+    name: varchar('name', { length: 255 }).notNull(),
+    birthDate: varchar('birth_date', { length: 10 }).notNull(),
+    guessTeams: jsonb('guess_teams').$type<FootballPoolGuessTeam[]>().notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    poolIdx: index('idx_futebol_pool_guesses_pool').on(table.poolId),
+  }),
+);
+
 export type FootballUser = typeof footballUsers.$inferSelect;
 export type FootballPlayer = typeof footballPlayers.$inferSelect;
 export type FootballMatch = typeof footballMatches.$inferSelect;
 export type FootballSchedule = typeof footballSchedules.$inferSelect;
 export type FootballGuest = typeof footballGuests.$inferSelect;
+export type FootballPool = typeof footballPools.$inferSelect;
+export type FootballPoolGuess = typeof footballPoolGuesses.$inferSelect;
