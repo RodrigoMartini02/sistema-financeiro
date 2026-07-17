@@ -119,8 +119,49 @@ export const footballGuests = futebolSchema.table(
   }),
 );
 
+export const footballChampionshipMatches = futebolSchema.table(
+  'championship_matches',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    competition: varchar('competition', { length: 10 }).notNull(),
+    externalMatchId: varchar('external_match_id', { length: 50 }).notNull().unique(),
+    homeTeam: varchar('home_team', { length: 255 }).notNull(),
+    awayTeam: varchar('away_team', { length: 255 }).notNull(),
+    homeCrest: varchar('home_crest', { length: 500 }),
+    awayCrest: varchar('away_crest', { length: 500 }),
+    matchday: integer('matchday'),
+    stage: varchar('stage', { length: 50 }),
+    matchDate: timestamp('match_date').notNull(),
+    open: boolean('open').default(true).notNull(),
+    homeScore: integer('home_score'),
+    awayScore: integer('away_score'),
+    finished: boolean('finished').default(false).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    openIdx: index('idx_futebol_champ_matches_open').on(table.open),
+  }),
+);
+
+export const footballChampionshipGuesses = futebolSchema.table(
+  'championship_guesses',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    matchId: uuid('match_id').notNull().references(() => footballChampionshipMatches.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id').notNull().references(() => footballUsers.id, { onDelete: 'cascade' }),
+    homeScore: integer('home_score').notNull(),
+    awayScore: integer('away_score').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    matchUserUnique: uniqueIndex('idx_futebol_champ_guesses_match_user').on(table.matchId, table.userId),
+  }),
+);
+
 export type FootballUser = typeof footballUsers.$inferSelect;
 export type FootballPlayer = typeof footballPlayers.$inferSelect;
 export type FootballMatch = typeof footballMatches.$inferSelect;
 export type FootballSchedule = typeof footballSchedules.$inferSelect;
 export type FootballGuest = typeof footballGuests.$inferSelect;
+export type FootballChampionshipMatch = typeof footballChampionshipMatches.$inferSelect;
+export type FootballChampionshipGuess = typeof footballChampionshipGuesses.$inferSelect;
