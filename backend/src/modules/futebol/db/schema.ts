@@ -21,6 +21,9 @@ export const footballUsers = futebolSchema.table('users', {
   id: uuid('id').defaultRandom().primaryKey(),
   email: varchar('email', { length: 255 }).notNull().unique(),
   passwordHash: text('password_hash').notNull(),
+  resetCode: varchar('reset_code', { length: 6 }),
+  resetCodeExpiresAt: timestamp('reset_code_expires_at'),
+  resetAttempts: integer('reset_attempts').default(0).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
