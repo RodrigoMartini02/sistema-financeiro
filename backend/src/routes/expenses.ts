@@ -66,7 +66,7 @@ async function createFutureInstallments(
     baseDate.setMonth(baseDate.getMonth() + (i - 1));
     const nextDue = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(baseDate.getDate()).padStart(2, '0')}`;
 
-    const placeholders = Array.from({ length: 19 }, () => `$${idx++}`).join(', ');
+    const placeholders = Array.from({ length: 20 }, () => `$${idx++}`).join(', ');
     values.push(`(${placeholders})`);
     const valorPorParcela = parseFloat(String(baseExpense['valor_final'] ?? baseExpense['valor_original'] ?? 0)) / totalInstallments;
     params.push(
@@ -89,6 +89,7 @@ async function createFutureInstallments(
       baseExpense['perfil_id'] ?? null,
       valorPorParcela,
       valorPorParcela,
+      valorPorParcela,
     );
   }
 
@@ -99,7 +100,7 @@ async function createFutureInstallments(
         mes, ano, categoria_id, cartao_id, forma_pagamento,
         parcelado, numero_parcelas, parcela_atual, observacoes, pago,
         grupo_parcelamento_id, recorrente, perfil_id,
-        valor_original, valor_final
+        valor_original, valor_final, valor
       ) VALUES ${values.join(', ')}`,
       params,
     );
@@ -180,14 +181,18 @@ router.post(
         categoryFinal = fallback.rows.length > 0 ? (fallback.rows[0] as { id: number }).id : null;
       }
 
+      const valorFinalCalculado = valor_final
+        ? parseFloat(String(valor_final))
+        : parseFloat(String(valor_original));
+
       const result = await pool.query(
         `INSERT INTO despesas (
           usuario_id, descricao, data_vencimento, data_compra, data_pagamento,
           mes, ano, categoria_id, cartao_id, forma_pagamento,
           parcelado, numero_parcelas, parcela_atual, observacoes, pago,
-          valor_original, valor_final, valor_pago, anexos, recorrente, perfil_id,
+          valor_original, valor_final, valor, valor_pago, anexos, recorrente, perfil_id,
           numero_nf, data_emissao_nf, tipo_despesa
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
         RETURNING *`,
         [
           req.user!.id, descricao, data_vencimento,
@@ -196,9 +201,8 @@ router.post(
           parcelado ?? false, totalInstallments, currentInstallment,
           observacoes ?? null, pago ?? false,
           valor_original ? parseFloat(String(valor_original)) : null,
-          valor_final
-            ? parseFloat(String(valor_final))
-            : (valor_original ? parseFloat(String(valor_original)) : null),
+          valorFinalCalculado,
+          valorFinalCalculado,
           valor_pago ? parseFloat(String(valor_pago)) : null,
           attachmentsJson, recorrente ?? false,
           perfil_id ? parseInt(String(perfil_id)) : null,
