@@ -14,12 +14,16 @@ export interface ExternalMatch {
   status: string;
   homeScore: number | null;
   awayScore: number | null;
+  matchday: number | null;
+  stage: string | null;
 }
 
 interface FootballDataMatch {
   id: number;
   utcDate: string;
   status: string;
+  matchday?: number | null;
+  stage?: string | null;
   homeTeam: { name: string; crest?: string | null };
   awayTeam: { name: string; crest?: string | null };
   score: { fullTime: { home: number | null; away: number | null } };
@@ -49,6 +53,8 @@ function normalizeMatch(competition: SupportedCompetition, match: FootballDataMa
     status: match.status,
     homeScore: match.score.fullTime.home,
     awayScore: match.score.fullTime.away,
+    matchday: match.matchday ?? null,
+    stage: match.stage ?? null,
   };
 }
 
@@ -79,23 +85,4 @@ export async function fetchCompetitionMatches(
 
   const data = (await res.json()) as FootballDataMatchesResponse;
   return data.matches.map((match) => normalizeMatch(competition, match));
-}
-
-export async function fetchMatchById(
-  competition: SupportedCompetition,
-  externalMatchId: string,
-): Promise<ExternalMatch | null> {
-  const res = await fetch(`${API_BASE}/matches/${externalMatchId}`, {
-    headers: { 'X-Auth-Token': getApiKey() },
-  });
-
-  if (res.status === 404) {
-    return null;
-  }
-  if (!res.ok) {
-    throw new Error(`football-data.org retornou ${res.status} para partida ${externalMatchId}`);
-  }
-
-  const match = (await res.json()) as FootballDataMatch;
-  return normalizeMatch(competition, match);
 }

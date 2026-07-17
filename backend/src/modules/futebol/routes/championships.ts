@@ -3,12 +3,6 @@ import { and, desc, eq } from 'drizzle-orm';
 import { db } from '../../../db/client';
 import { authenticateFootball } from '../middleware/auth';
 import { footballChampionshipMatches, footballChampionshipGuesses, footballUsers } from '../db/schema';
-import {
-  SUPPORTED_COMPETITIONS,
-  SupportedCompetition,
-  fetchCompetitionMatches,
-  fetchMatchById,
-} from '../services/footballData';
 
 const router = Router();
 
@@ -20,84 +14,6 @@ function requireAdminAccount(req: Request, res: Response, next: NextFunction): v
   }
   next();
 }
-
-function isSupportedCompetition(value: unknown): value is SupportedCompetition {
-  return (SUPPORTED_COMPETITIONS as readonly string[]).includes(value as string);
-}
-
-router.get(
-  '/available',
-  authenticateFootball,
-  requireAdminAccount,
-  async (_req: Request, res: Response): Promise<void> => {
-    try {
-      const results = await Promise.all(
-        SUPPORTED_COMPETITIONS.map((competition) =>
-          fetchCompetitionMatches(competition, { status: 'SCHEDULED' }).catch((error) => {
-            console.error(`Football championships fetch error (${competition}):`, error);
-            return [];
-          }),
-        ),
-      );
-      res.json(results.flat());
-    } catch (error) {
-      console.error('Football championships available error:', error);
-      res.status(500).json({ error: 'Erro ao buscar partidas disponíveis' });
-    }
-  },
-);
-
-router.post(
-  '/matches',
-  authenticateFootball,
-  requireAdminAccount,
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      const items = req.body?.matches;
-      if (!Array.isArray(items) || items.length === 0) {
-        res.status(400).json({ error: 'matches deve ser uma lista não vazia' });
-        return;
-      }
-
-      const created = [];
-      for (const item of items as Array<Record<string, unknown>>) {
-        const competition = item['competition'];
-        const externalMatchId = String(item['externalMatchId'] ?? '');
-        const homeTeam = String(item['homeTeam'] ?? '');
-        const awayTeam = String(item['awayTeam'] ?? '');
-        const homeCrest = item['homeCrest'] ? String(item['homeCrest']) : null;
-        const awayCrest = item['awayCrest'] ? String(item['awayCrest']) : null;
-        const utcDate = item['utcDate'];
-
-        if (!isSupportedCompetition(competition) || !externalMatchId || !homeTeam || !awayTeam || !utcDate) {
-          continue;
-        }
-
-        const [match] = await db
-          .insert(footballChampionshipMatches)
-          .values({
-            competition,
-            externalMatchId,
-            homeTeam,
-            awayTeam,
-            homeCrest,
-            awayCrest,
-            matchDate: new Date(String(utcDate)),
-            open: true,
-          })
-          .onConflictDoNothing({ target: footballChampionshipMatches.externalMatchId })
-          .returning();
-
-        if (match) created.push(match);
-      }
-
-      res.status(201).json(created);
-    } catch (error) {
-      console.error('Football championships open matches error:', error);
-      res.status(500).json({ error: 'Erro ao abrir partidas' });
-    }
-  },
-);
 
 router.patch(
   '/matches/:id',
@@ -123,49 +39,6 @@ router.patch(
     } catch (error) {
       console.error('Football championships update match error:', error);
       res.status(500).json({ error: 'Erro ao atualizar partida' });
-    }
-  },
-);
-
-router.post(
-  '/sync',
-  authenticateFootball,
-  requireAdminAccount,
-  async (_req: Request, res: Response): Promise<void> => {
-    try {
-      const pending = await db
-        .select()
-        .from(footballChampionshipMatches)
-        .where(eq(footballChampionshipMatches.finished, false));
-
-      const updated = [];
-      for (const match of pending) {
-        if (!isSupportedCompetition(match.competition)) continue;
-
-        const external = await fetchMatchById(match.competition, match.externalMatchId).catch((error) => {
-          console.error(`Football championships sync error (${match.externalMatchId}):`, error);
-          return null;
-        });
-
-        if (!external || external.status !== 'FINISHED') continue;
-
-        const [saved] = await db
-          .update(footballChampionshipMatches)
-          .set({
-            homeScore: external.homeScore,
-            awayScore: external.awayScore,
-            finished: true,
-          })
-          .where(eq(footballChampionshipMatches.id, match.id))
-          .returning();
-
-        if (saved) updated.push(saved);
-      }
-
-      res.json(updated);
-    } catch (error) {
-      console.error('Football championships sync error:', error);
-      res.status(500).json({ error: 'Erro ao sincronizar placares' });
     }
   },
 );
