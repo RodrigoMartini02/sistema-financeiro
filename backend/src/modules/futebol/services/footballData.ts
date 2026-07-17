@@ -8,6 +8,8 @@ export interface ExternalMatch {
   competition: SupportedCompetition;
   homeTeam: string;
   awayTeam: string;
+  homeCrest: string | null;
+  awayCrest: string | null;
   utcDate: string;
   status: string;
   homeScore: number | null;
@@ -18,8 +20,8 @@ interface FootballDataMatch {
   id: number;
   utcDate: string;
   status: string;
-  homeTeam: { name: string };
-  awayTeam: { name: string };
+  homeTeam: { name: string; crest?: string | null };
+  awayTeam: { name: string; crest?: string | null };
   score: { fullTime: { home: number | null; away: number | null } };
 }
 
@@ -41,6 +43,8 @@ function normalizeMatch(competition: SupportedCompetition, match: FootballDataMa
     competition,
     homeTeam: match.homeTeam.name,
     awayTeam: match.awayTeam.name,
+    homeCrest: match.homeTeam.crest ?? null,
+    awayCrest: match.awayTeam.crest ?? null,
     utcDate: match.utcDate,
     status: match.status,
     homeScore: match.score.fullTime.home,

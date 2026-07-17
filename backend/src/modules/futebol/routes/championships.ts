@@ -65,6 +65,8 @@ router.post(
         const externalMatchId = String(item['externalMatchId'] ?? '');
         const homeTeam = String(item['homeTeam'] ?? '');
         const awayTeam = String(item['awayTeam'] ?? '');
+        const homeCrest = item['homeCrest'] ? String(item['homeCrest']) : null;
+        const awayCrest = item['awayCrest'] ? String(item['awayCrest']) : null;
         const utcDate = item['utcDate'];
 
         if (!isSupportedCompetition(competition) || !externalMatchId || !homeTeam || !awayTeam || !utcDate) {
@@ -78,6 +80,8 @@ router.post(
             externalMatchId,
             homeTeam,
             awayTeam,
+            homeCrest,
+            awayCrest,
             matchDate: new Date(String(utcDate)),
             open: true,
           })

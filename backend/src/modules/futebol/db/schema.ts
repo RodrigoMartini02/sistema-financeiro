@@ -124,6 +124,8 @@ export const footballChampionshipMatches = futebolSchema.table(
     externalMatchId: varchar('external_match_id', { length: 50 }).notNull().unique(),
     homeTeam: varchar('home_team', { length: 255 }).notNull(),
     awayTeam: varchar('away_team', { length: 255 }).notNull(),
+    homeCrest: varchar('home_crest', { length: 500 }),
+    awayCrest: varchar('away_crest', { length: 500 }),
     matchDate: timestamp('match_date').notNull(),
     open: boolean('open').default(true).notNull(),
     homeScore: integer('home_score'),
