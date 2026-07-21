@@ -20,7 +20,9 @@ export const futebolSchema = pgSchema('futebol');
 
 export const footballUsers = futebolSchema.table('users', {
   id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 255 }),
   email: varchar('email', { length: 255 }).notNull().unique(),
+  cpf: varchar('cpf', { length: 11 }).unique(),
   passwordHash: text('password_hash').notNull(),
   resetCode: varchar('reset_code', { length: 6 }),
   resetCodeExpiresAt: timestamp('reset_code_expires_at'),
