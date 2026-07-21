@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '../../../db/client';
 import { authenticateFootball } from '../middleware/auth';
-import { footballPools, footballPoolGuesses, footballMatches } from '../db/schema';
+import { footballPools, footballPoolGuesses, footballMatches, footballPlayers } from '../db/schema';
 
 const router = Router();
 
@@ -21,8 +21,16 @@ router.get('/', authenticateFootball, async (req: Request, res: Response): Promi
     }
 
     const guesses = await db
-      .select()
+      .select({
+        id: footballPoolGuesses.id,
+        poolId: footballPoolGuesses.poolId,
+        playerId: footballPoolGuesses.playerId,
+        playerName: footballPlayers.name,
+        guessTeams: footballPoolGuesses.guessTeams,
+        createdAt: footballPoolGuesses.createdAt,
+      })
       .from(footballPoolGuesses)
+      .innerJoin(footballPlayers, eq(footballPlayers.id, footballPoolGuesses.playerId))
       .where(eq(footballPoolGuesses.poolId, pool.id))
       .orderBy(desc(footballPoolGuesses.createdAt));
 

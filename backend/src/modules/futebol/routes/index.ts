@@ -6,6 +6,7 @@ import scheduleRoutes from './schedule';
 import poolRoutes from './pool';
 import championshipsRoutes from './championships';
 import publicRoutes from './public';
+import playerRoutes from './player';
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.use('/schedule', scheduleRoutes);
 router.use('/pool', poolRoutes);
 router.use('/championships', championshipsRoutes);
 router.use('/public', publicRoutes);
+router.use('/jogador', playerRoutes);
 
 export default router;
