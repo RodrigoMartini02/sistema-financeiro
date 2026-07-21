@@ -4,15 +4,15 @@ import { db } from '../../../db/client';
 import { footballUsers } from '../db/schema';
 import { hashFootballPassword, verifyFootballPassword } from '../password';
 import { signFootballUser } from '../middleware/auth';
-import { authRateLimiter } from '../../../middleware/validation';
+import { authRateLimiter, validateDocument } from '../../../middleware/validation';
 
 const router = Router();
 const RESET_CODE_EXPIRY_MS = 15 * 60 * 1000;
 const RESET_CODE_MAX_ATTEMPTS = 3;
 
-function buildAuthResponse(user: { id: string; email: string }) {
+function buildAuthResponse(user: { id: string; email: string; name?: string | null }) {
   const token = signFootballUser({ userId: user.id, email: user.email });
-  return { token, user: { id: user.id, email: user.email } };
+  return { token, user: { id: user.id, email: user.email, name: user.name ?? null } };
 }
 
 function generateResetCode(): string {
@@ -56,11 +56,23 @@ async function sendFootballRecoveryEmail(email: string, code: string): Promise<v
 
 router.post('/register', authRateLimiter(), async (req: Request, res: Response): Promise<void> => {
   try {
+    const name = String(req.body?.name ?? '').trim();
     const email = String(req.body?.email ?? '').trim().toLowerCase();
     const password = String(req.body?.password ?? '');
+    const cpf = String(req.body?.cpf ?? '').replace(/\D/g, '');
+
+    if (!name) {
+      res.status(400).json({ error: 'Nome obrigatório' });
+      return;
+    }
 
     if (!email) {
       res.status(400).json({ error: 'E-mail obrigatório' });
+      return;
+    }
+
+    if (cpf.length !== 11 || !validateDocument(cpf)) {
+      res.status(400).json({ error: 'CPF inválido' });
       return;
     }
 
@@ -69,21 +81,32 @@ router.post('/register', authRateLimiter(), async (req: Request, res: Response):
       return;
     }
 
-    const [existingUser] = await db
+    const [existingEmail] = await db
       .select({ id: footballUsers.id })
       .from(footballUsers)
       .where(eq(footballUsers.email, email))
       .limit(1);
 
-    if (existingUser) {
+    if (existingEmail) {
       res.status(409).json({ error: 'Já existe uma conta com este e-mail' });
+      return;
+    }
+
+    const [existingCpf] = await db
+      .select({ id: footballUsers.id })
+      .from(footballUsers)
+      .where(eq(footballUsers.cpf, cpf))
+      .limit(1);
+
+    if (existingCpf) {
+      res.status(409).json({ error: 'Já existe uma conta com este CPF' });
       return;
     }
 
     const [user] = await db
       .insert(footballUsers)
-      .values({ email, passwordHash: hashFootballPassword(password) })
-      .returning({ id: footballUsers.id, email: footballUsers.email });
+      .values({ name, email, cpf, passwordHash: hashFootballPassword(password) })
+      .returning({ id: footballUsers.id, email: footballUsers.email, name: footballUsers.name });
 
     res.status(201).json(buildAuthResponse(user!));
   } catch (error) {
