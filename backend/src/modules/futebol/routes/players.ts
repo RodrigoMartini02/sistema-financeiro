@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, ne } from 'drizzle-orm';
 import { db } from '../../../db/client';
+import { validateDocument } from '../../../middleware/validation';
 import { authenticateFootball } from '../middleware/auth';
 import { FootballPositions, FootballSkills, footballPlayers } from '../db/schema';
 
@@ -23,6 +24,29 @@ function optionalNumber(value: unknown): number | null {
   }
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+type CpfResult = { ok: true; cpf: string | null } | { ok: false; error: string };
+
+async function resolveCpf(value: unknown, excludePlayerId?: string): Promise<CpfResult> {
+  const cpf = String(value ?? '').replace(/\D/g, '');
+  if (!cpf) return { ok: true, cpf: null };
+
+  if (cpf.length !== 11 || !validateDocument(cpf)) {
+    return { ok: false, error: 'CPF inválido' };
+  }
+
+  const conditions = excludePlayerId
+    ? and(eq(footballPlayers.cpf, cpf), ne(footballPlayers.id, excludePlayerId))
+    : eq(footballPlayers.cpf, cpf);
+
+  const [existing] = await db.select({ id: footballPlayers.id }).from(footballPlayers).where(conditions).limit(1);
+
+  if (existing) {
+    return { ok: false, error: 'Este CPF já está cadastrado em outro jogador' };
+  }
+
+  return { ok: true, cpf };
 }
 
 const LIST_COLUMNS = {
@@ -87,11 +111,18 @@ router.post('/', authenticateFootball, async (req: Request, res: Response): Prom
       return;
     }
 
+    const cpfResult = await resolveCpf(req.body?.cpf);
+    if (!cpfResult.ok) {
+      res.status(400).json({ error: cpfResult.error });
+      return;
+    }
+
     const [player] = await db
       .insert(footballPlayers)
       .values({
         userId: req.futebolUser!.userId,
         name: String(name).trim(),
+        cpf: cpfResult.cpf,
         position: String(position || 'Centroavante'),
         foot: String(foot || 'direito'),
         color: String(color || '#22c55e'),
@@ -127,10 +158,17 @@ router.put('/:id', authenticateFootball, async (req: Request, res: Response): Pr
       return;
     }
 
+    const cpfResult = await resolveCpf(req.body?.cpf, id);
+    if (!cpfResult.ok) {
+      res.status(400).json({ error: cpfResult.error });
+      return;
+    }
+
     const [player] = await db
       .update(footballPlayers)
       .set({
         name: String(name ?? '').trim(),
+        cpf: cpfResult.cpf,
         position: String(position || 'Centroavante'),
         foot: String(foot || 'direito'),
         color: String(color || '#22c55e'),

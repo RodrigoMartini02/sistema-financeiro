@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { and, asc, desc, eq } from 'drizzle-orm';
 import { db } from '../../../db/client';
+import { validateDocument } from '../../../middleware/validation';
 import {
   footballConfirmations,
   footballGuests,
@@ -195,12 +196,30 @@ router.post('/:accountId/register', accountExists, async (req: Request, res: Res
       return;
     }
 
+    const cpf = String(req.body?.cpf ?? '').replace(/\D/g, '');
+    if (cpf.length !== 11 || !validateDocument(cpf)) {
+      res.status(400).json({ error: 'CPF inválido' });
+      return;
+    }
+
+    const [existing] = await db
+      .select({ id: footballPlayers.id })
+      .from(footballPlayers)
+      .where(eq(footballPlayers.cpf, cpf))
+      .limit(1);
+
+    if (existing) {
+      res.status(409).json({ error: 'Este CPF já está cadastrado' });
+      return;
+    }
+
     const defaultSkills = { velocidade: 50, drible: 50, passe: 50, chute: 50, defesa: 50, fisico: 50 };
     const [player] = await db
       .insert(footballPlayers)
       .values({
         userId: accountId(req),
         name,
+        cpf,
         position: String(req.body?.position || 'Centroavante'),
         positions: Array.isArray(req.body?.positions) ? req.body.positions.map(String) : [],
         foot: String(req.body?.foot || 'direito'),

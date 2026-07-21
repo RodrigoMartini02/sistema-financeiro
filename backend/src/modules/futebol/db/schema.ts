@@ -34,6 +34,7 @@ export const footballPlayers = futebolSchema.table(
     id: uuid('id').defaultRandom().primaryKey(),
     userId: uuid('user_id').notNull().references(() => footballUsers.id, { onDelete: 'cascade' }),
     name: varchar('name', { length: 255 }).notNull(),
+    cpf: varchar('cpf', { length: 11 }).unique(),
     position: varchar('position', { length: 100 }).notNull(),
     foot: varchar('foot', { length: 20 }).default('direito').notNull(),
     color: varchar('color', { length: 20 }).default('#22c55e').notNull(),
@@ -119,6 +120,38 @@ export const footballGuests = futebolSchema.table(
   }),
 );
 
+export type FootballPoolGuessTeam = { name: string; score: number };
+
+export const footballPools = futebolSchema.table(
+  'pools',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id').notNull().references(() => footballUsers.id, { onDelete: 'cascade' }),
+    matchId: uuid('match_id').notNull().references(() => footballMatches.id, { onDelete: 'cascade' }),
+    prize: text('prize').notNull(),
+    active: boolean('active').default(true).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    userIdx: index('idx_futebol_pools_user').on(table.userId),
+  }),
+);
+
+export const footballPoolGuesses = futebolSchema.table(
+  'pool_guesses',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    poolId: uuid('pool_id').notNull().references(() => footballPools.id, { onDelete: 'cascade' }),
+    playerId: uuid('player_id').notNull().references(() => footballPlayers.id, { onDelete: 'cascade' }),
+    guessTeams: jsonb('guess_teams').$type<FootballPoolGuessTeam[]>().notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    poolIdx: index('idx_futebol_pool_guesses_pool').on(table.poolId),
+    poolPlayerUnique: uniqueIndex('idx_futebol_pool_guesses_pool_player').on(table.poolId, table.playerId),
+  }),
+);
+
 export const footballChampionshipMatches = futebolSchema.table(
   'championship_matches',
   {
@@ -163,5 +196,7 @@ export type FootballPlayer = typeof footballPlayers.$inferSelect;
 export type FootballMatch = typeof footballMatches.$inferSelect;
 export type FootballSchedule = typeof footballSchedules.$inferSelect;
 export type FootballGuest = typeof footballGuests.$inferSelect;
+export type FootballPool = typeof footballPools.$inferSelect;
+export type FootballPoolGuess = typeof footballPoolGuesses.$inferSelect;
 export type FootballChampionshipMatch = typeof footballChampionshipMatches.$inferSelect;
 export type FootballChampionshipGuess = typeof footballChampionshipGuesses.$inferSelect;
