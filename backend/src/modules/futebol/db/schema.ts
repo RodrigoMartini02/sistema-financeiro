@@ -21,6 +21,9 @@ export const footballUsers = futebolSchema.table('users', {
   id: uuid('id').defaultRandom().primaryKey(),
   email: varchar('email', { length: 255 }).notNull().unique(),
   passwordHash: text('password_hash').notNull(),
+  resetCode: varchar('reset_code', { length: 6 }),
+  resetCodeExpiresAt: timestamp('reset_code_expires_at'),
+  resetAttempts: integer('reset_attempts').default(0).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -31,6 +34,7 @@ export const footballPlayers = futebolSchema.table(
     id: uuid('id').defaultRandom().primaryKey(),
     userId: uuid('user_id').notNull().references(() => footballUsers.id, { onDelete: 'cascade' }),
     name: varchar('name', { length: 255 }).notNull(),
+    cpf: varchar('cpf', { length: 11 }).unique(),
     position: varchar('position', { length: 100 }).notNull(),
     foot: varchar('foot', { length: 20 }).default('direito').notNull(),
     color: varchar('color', { length: 20 }).default('#22c55e').notNull(),
@@ -138,13 +142,52 @@ export const footballPoolGuesses = futebolSchema.table(
   {
     id: uuid('id').defaultRandom().primaryKey(),
     poolId: uuid('pool_id').notNull().references(() => footballPools.id, { onDelete: 'cascade' }),
-    name: varchar('name', { length: 255 }).notNull(),
-    birthDate: varchar('birth_date', { length: 10 }).notNull(),
+    playerId: uuid('player_id').notNull().references(() => footballPlayers.id, { onDelete: 'cascade' }),
     guessTeams: jsonb('guess_teams').$type<FootballPoolGuessTeam[]>().notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (table) => ({
     poolIdx: index('idx_futebol_pool_guesses_pool').on(table.poolId),
+    poolPlayerUnique: uniqueIndex('idx_futebol_pool_guesses_pool_player').on(table.poolId, table.playerId),
+  }),
+);
+
+export const footballChampionshipMatches = futebolSchema.table(
+  'championship_matches',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    competition: varchar('competition', { length: 10 }).notNull(),
+    externalMatchId: varchar('external_match_id', { length: 50 }).notNull().unique(),
+    homeTeam: varchar('home_team', { length: 255 }).notNull(),
+    awayTeam: varchar('away_team', { length: 255 }).notNull(),
+    homeCrest: varchar('home_crest', { length: 500 }),
+    awayCrest: varchar('away_crest', { length: 500 }),
+    matchday: integer('matchday'),
+    stage: varchar('stage', { length: 50 }),
+    matchDate: timestamp('match_date').notNull(),
+    open: boolean('open').default(true).notNull(),
+    homeScore: integer('home_score'),
+    awayScore: integer('away_score'),
+    finished: boolean('finished').default(false).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    openIdx: index('idx_futebol_champ_matches_open').on(table.open),
+  }),
+);
+
+export const footballChampionshipGuesses = futebolSchema.table(
+  'championship_guesses',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    matchId: uuid('match_id').notNull().references(() => footballChampionshipMatches.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id').notNull().references(() => footballUsers.id, { onDelete: 'cascade' }),
+    homeScore: integer('home_score').notNull(),
+    awayScore: integer('away_score').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    matchUserUnique: uniqueIndex('idx_futebol_champ_guesses_match_user').on(table.matchId, table.userId),
   }),
 );
 
@@ -155,3 +198,5 @@ export type FootballSchedule = typeof footballSchedules.$inferSelect;
 export type FootballGuest = typeof footballGuests.$inferSelect;
 export type FootballPool = typeof footballPools.$inferSelect;
 export type FootballPoolGuess = typeof footballPoolGuesses.$inferSelect;
+export type FootballChampionshipMatch = typeof footballChampionshipMatches.$inferSelect;
+export type FootballChampionshipGuess = typeof footballChampionshipGuesses.$inferSelect;
