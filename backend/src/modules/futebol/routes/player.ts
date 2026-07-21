@@ -16,9 +16,12 @@ function normalizeCpf(value: unknown): string {
   return String(value ?? '').replace(/\D/g, '');
 }
 
-function isAfterGuessDeadline(gameDate: string): boolean {
-  const deadline = new Date(`${gameDate}T12:00:00-03:00`);
-  return new Date() > deadline;
+function resolveGuessDeadline(gameDate: string, customDeadline: Date | null): Date {
+  return customDeadline ?? new Date(`${gameDate}T12:00:00-03:00`);
+}
+
+function isAfterGuessDeadline(gameDate: string, customDeadline: Date | null): boolean {
+  return new Date() > resolveGuessDeadline(gameDate, customDeadline);
 }
 
 router.post('/login', async (req: Request, res: Response): Promise<void> => {
@@ -137,10 +140,12 @@ router.get('/bolao', authenticatePlayer, async (req: Request, res: Response): Pr
     res.json({
       id: pool.id,
       prize: pool.prize,
+      prizeValue: pool.prizeValue,
       gameDate: match?.date ?? null,
+      guessDeadline: match ? resolveGuessDeadline(match.date, pool.guessDeadline) : null,
       teams: match?.teams ?? [],
       myGuess: myGuess ?? null,
-      locked: match ? isAfterGuessDeadline(match.date) : true,
+      locked: match ? isAfterGuessDeadline(match.date, pool.guessDeadline) : true,
     });
   } catch (error) {
     console.error('Football player bolao error:', error);
@@ -197,8 +202,8 @@ router.post('/bolao/guess', authenticatePlayer, async (req: Request, res: Respon
       return;
     }
 
-    if (isAfterGuessDeadline(match.date)) {
-      res.status(403).json({ error: 'Prazo de palpite encerrado (12h do dia do jogo)' });
+    if (isAfterGuessDeadline(match.date, pool.guessDeadline)) {
+      res.status(403).json({ error: 'Prazo de palpite encerrado' });
       return;
     }
 

@@ -41,6 +41,18 @@ router.get('/', authenticateFootball, async (req: Request, res: Response): Promi
   }
 });
 
+function parsePrizeValue(value: unknown): string | null {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed.toFixed(2) : null;
+}
+
+function parseGuessDeadline(value: unknown): Date | null {
+  if (value === undefined || value === null || value === '') return null;
+  const date = new Date(String(value));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 router.post('/', authenticateFootball, async (req: Request, res: Response): Promise<void> => {
   try {
     const { matchId, prize } = req.body as Record<string, unknown>;
@@ -67,6 +79,8 @@ router.post('/', authenticateFootball, async (req: Request, res: Response): Prom
         userId: req.futebolUser!.userId,
         matchId: String(matchId),
         prize: String(prize),
+        prizeValue: parsePrizeValue(req.body?.prizeValue),
+        guessDeadline: parseGuessDeadline(req.body?.guessDeadline),
       })
       .returning();
 
@@ -80,7 +94,7 @@ router.post('/', authenticateFootball, async (req: Request, res: Response): Prom
 router.patch('/:id', authenticateFootball, async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { prize, active } = req.body as Record<string, unknown>;
+    const { prize, active, prizeValue, guessDeadline } = req.body as Record<string, unknown>;
 
     const [existing] = await db
       .select({ id: footballPools.id })
@@ -98,6 +112,8 @@ router.patch('/:id', authenticateFootball, async (req: Request, res: Response): 
       .set({
         ...(prize !== undefined ? { prize: String(prize) } : {}),
         ...(active !== undefined ? { active: Boolean(active) } : {}),
+        ...(prizeValue !== undefined ? { prizeValue: parsePrizeValue(prizeValue) } : {}),
+        ...(guessDeadline !== undefined ? { guessDeadline: parseGuessDeadline(guessDeadline) } : {}),
       })
       .where(and(eq(footballPools.id, id!), eq(footballPools.userId, req.futebolUser!.userId)))
       .returning();
