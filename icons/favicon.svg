@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="48" x2="208" y1="16" y2="240" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#083847"/>
+      <stop offset="0.48" stop-color="#052734"/>
+      <stop offset="1" stop-color="#020f16"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="58" x2="204" y1="184" y2="48" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0898aa"/>
+      <stop offset="0.4" stop-color="#12d8e6"/>
+      <stop offset="1" stop-color="#7ffcff"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect x="14" y="14" width="228" height="228" rx="44" fill="url(#bg)" stroke="#09cfea" stroke-width="4"/>
+  <path d="M70 184 106 67c7-22 24-35 47-35h55l-18 30h-40c-12 0-20 6-24 19L94 184H70Z" fill="url(#mark)" filter="url(#glow)"/>
+  <path d="M103 132 129 103h70l-18 29h-78Z" fill="url(#mark)" filter="url(#glow)"/>
+  <path d="M118 184 143 154h48l-17 30h-56Z" fill="url(#mark)" filter="url(#glow)"/>
+  <path d="M71 184 130 118 115 166c-4 12-14 18-27 18H71Z" fill="#2df1ff" opacity="0.72"/>
+</svg>
