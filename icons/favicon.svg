@@ -1,26 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
   <defs>
-    <linearGradient id="bg" x1="48" x2="208" y1="16" y2="240" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#083847"/>
-      <stop offset="0.48" stop-color="#052734"/>
-      <stop offset="1" stop-color="#020f16"/>
+    <linearGradient id="bg" x1="36" x2="220" y1="20" y2="236" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#075061"/>
+      <stop offset="0.42" stop-color="#073140"/>
+      <stop offset="1" stop-color="#031017"/>
     </linearGradient>
-    <linearGradient id="mark" x1="58" x2="204" y1="184" y2="48" gradientUnits="userSpaceOnUse">
+    <linearGradient id="mark" x1="72" x2="190" y1="184" y2="68" gradientUnits="userSpaceOnUse">
       <stop stop-color="#0898aa"/>
-      <stop offset="0.4" stop-color="#12d8e6"/>
+      <stop offset="0.45" stop-color="#11d7e5"/>
       <stop offset="1" stop-color="#7ffcff"/>
     </linearGradient>
     <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feGaussianBlur stdDeviation="3" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
   </defs>
-  <rect x="14" y="14" width="228" height="228" rx="44" fill="url(#bg)" stroke="#09cfea" stroke-width="4"/>
-  <path d="M70 184 106 67c7-22 24-35 47-35h55l-18 30h-40c-12 0-20 6-24 19L94 184H70Z" fill="url(#mark)" filter="url(#glow)"/>
-  <path d="M103 132 129 103h70l-18 29h-78Z" fill="url(#mark)" filter="url(#glow)"/>
-  <path d="M118 184 143 154h48l-17 30h-56Z" fill="url(#mark)" filter="url(#glow)"/>
-  <path d="M71 184 130 118 115 166c-4 12-14 18-27 18H71Z" fill="#2df1ff" opacity="0.72"/>
+  <rect width="256" height="256" rx="56" fill="#020b10"/>
+  <rect x="12" y="12" width="232" height="232" rx="50" fill="url(#bg)" stroke="#11d7e5" stroke-width="7"/>
+  <rect x="24" y="24" width="208" height="208" rx="42" fill="none" stroke="#77faff" stroke-opacity="0.28" stroke-width="2"/>
+  <path d="M66 188 98 82c7-24 26-38 51-38h54l-18 32h-38c-12 0-20 7-24 20L94 188H66Z" fill="url(#mark)" filter="url(#glow)"/>
+  <path d="M95 138 124 108h72l-18 30H95Z" fill="url(#mark)" filter="url(#glow)"/>
+  <path d="M120 188 143 158h50l-17 30h-56Z" fill="url(#mark)" filter="url(#glow)"/>
+  <path d="M68 188 128 121 114 168c-4 13-15 20-30 20H68Z" fill="#7ffcff" opacity="0.78"/>
 </svg>
