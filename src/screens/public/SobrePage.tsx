@@ -132,7 +132,7 @@ export function SobrePage() {
                   <button
                     type="button"
                     onClick={() => setFaqOpen(isOpen ? null : idx)}
-                    className="group flex w-full items-center justify-between gap-6 px-6 py-5 text-left transition duration-300 hover:bg-[rgba(14,196,216,0.03)] sm:px-8"
+                    className="site-neon-row-button group flex w-full items-center justify-between gap-6 px-6 py-5 text-left transition duration-300 sm:px-8"
                   >
                     <span className="text-[16px] leading-[1.45] text-site-text">{q}</span>
                     <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition duration-300 ${isOpen ? 'border-site-accent/70 bg-[rgba(14,196,216,0.08)] shadow-[0_0_18px_rgba(14,196,216,0.14)]' : 'border-[rgba(14,196,216,0.24)] text-site-textMuted group-hover:border-site-accent/50'}`}>
@@ -147,26 +147,6 @@ export function SobrePage() {
                 </div>
               );
             })}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="bg-[#040E12]">
-        <div className="mx-auto max-w-[1800px] px-5 py-14 sm:px-8 xl:px-10 xl:py-20">
-          <div className="relative overflow-hidden rounded-[24px] border border-[rgba(14,196,216,0.24)] bg-[linear-gradient(135deg,rgba(14,196,216,0.04),rgba(14,196,216,0.01)_52%,rgba(14,196,216,0.03))] p-8 sm:p-10">
-            <p className="text-[11px] uppercase tracking-[0.28em] text-site-textMuted">FINGERENCE</p>
-            <h2 className="mt-4 text-[clamp(26px,2.2vw,46px)] font-light leading-[1.14] tracking-[0.02em] text-site-text text-balance">
-              Comece a controlar suas finanças com clareza.
-            </h2>
-            <div className="mt-5 h-px w-[180px] bg-gradient-to-r from-site-accent/72 via-[rgba(14,196,216,0.34)] to-transparent" />
-            <button
-              type="button"
-              onClick={() => setLoginOpen(true)}
-              className="mt-7 inline-flex h-11 items-center rounded-xl border border-site-accent/50 bg-[rgba(14,196,216,0.08)] px-7 text-[11px] uppercase tracking-[0.16em] text-site-text transition hover:border-site-accent hover:bg-[rgba(14,196,216,0.14)] hover:shadow-[0_0_24px_rgba(14,196,216,0.18)]"
-            >
-              Criar conta grátis
-            </button>
           </div>
         </div>
       </section>

@@ -59,15 +59,30 @@ export function ContatoPage() {
   const [form, setForm] = useState({ name: '', email: '', phone: '', message: '' });
   const [submitState, setSubmitState] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
 
-  const update = (field: keyof typeof form, value: string) =>
+  const update = (field: keyof typeof form, value: string) => {
+    if (submitState !== 'idle') {
+      setSubmitState('idle');
+    }
     setForm((f) => ({ ...f, [field]: value }));
+  };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitState('sending');
     try {
-      const body = `Nome: ${form.name}%0AEmail: ${form.email}%0ATelefone: ${form.phone}%0A%0AMensagem:%0A${form.message}`;
-      window.location.href = `mailto:fingerence@gmail.com?subject=Contato via site&body=${body}`;
+      const body = [
+        `Nome: ${form.name}`,
+        `E-mail: ${form.email}`,
+        `Telefone: ${form.phone || 'Não informado'}`,
+        '',
+        'Mensagem:',
+        form.message,
+      ].join('\n');
+      const params = new URLSearchParams({
+        subject: 'Contato via site',
+        body,
+      });
+      window.location.href = `mailto:fingerence@gmail.com?${params.toString()}`;
       setSubmitState('success');
       setForm({ name: '', email: '', phone: '', message: '' });
     } catch {
@@ -179,7 +194,7 @@ export function ContatoPage() {
             <button
               type="submit"
               disabled={submitState === 'sending'}
-              className="mt-5 inline-flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-site-accent/50 bg-[rgba(14,196,216,0.08)] text-[11px] uppercase tracking-[0.16em] text-site-text transition duration-300 hover:border-site-accent hover:bg-[rgba(14,196,216,0.14)] hover:shadow-[0_0_28px_rgba(14,196,216,0.18)] disabled:cursor-not-allowed disabled:opacity-60"
+              className="site-neon-button mt-5 inline-flex h-12 w-full items-center justify-center gap-3 rounded-xl border text-[11px] uppercase tracking-[0.16em] transition duration-300 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitState === 'sending' ? 'ENVIANDO...' : 'ENVIAR MENSAGEM'}
               <Send className="h-4 w-4" />
@@ -187,12 +202,12 @@ export function ContatoPage() {
 
             {submitState === 'success' && (
               <p className="mt-4 rounded-xl border border-site-accent/30 bg-[rgba(14,196,216,0.06)] px-4 py-3 text-[12px] text-site-textSub" role="status">
-                Mensagem preparada. Confirme o envio no seu cliente de e-mail.
+                Seu aplicativo de e-mail foi aberto com a mensagem preenchida. Revise e clique em enviar para concluir.
               </p>
             )}
             {submitState === 'error' && (
               <p className="mt-4 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-[12px] text-red-300" role="status">
-                Não foi possível abrir o e-mail. Contate-nos diretamente pelo WhatsApp.
+                Não foi possível abrir o aplicativo de e-mail. Envie sua mensagem para fingerence@gmail.com ou pelo WhatsApp.
               </p>
             )}
           </form>

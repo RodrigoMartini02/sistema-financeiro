@@ -27,8 +27,8 @@ export function SiteFooter({ onOpenTermos, onOpenPrivacidade }: SiteFooterProps)
         </div>
 
         <div className="flex flex-wrap items-center gap-5 text-[11px] uppercase tracking-[0.14em] text-site-textMuted">
-          <button type="button" onClick={onOpenPrivacidade} className="hover:text-site-text transition">Privacidade</button>
-          <button type="button" onClick={onOpenTermos} className="hover:text-site-text transition">Termos</button>
+          <button type="button" onClick={onOpenPrivacidade} className="site-neon-text-button transition">Privacidade</button>
+          <button type="button" onClick={onOpenTermos} className="site-neon-text-button transition">Termos</button>
         </div>
       </div>
     </footer>

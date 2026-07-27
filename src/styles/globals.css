@@ -20,3 +20,274 @@
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background-color: #cbd5e1;
 }
+
+
+.site-neon-button {
+  border-color: rgba(14, 196, 216, 0.5);
+  background-color: rgba(14, 196, 216, 0.08);
+  color: #f4fbff;
+  box-shadow: 0 0 0 rgba(14, 196, 216, 0);
+  transition:
+    border-color 300ms ease,
+    background-color 300ms ease,
+    color 300ms ease,
+    box-shadow 300ms ease,
+    opacity 300ms ease;
+}
+
+.site-neon-button:hover:not(:disabled),
+.site-neon-button:focus-visible {
+  border-color: #0ec4d8;
+  background-color: rgba(14, 196, 216, 0.14);
+  color: #f4fbff;
+  box-shadow: 0 0 28px rgba(14, 196, 216, 0.22);
+}
+
+.site-neon-button:focus-visible {
+  outline: 1px solid rgba(14, 196, 216, 0.75);
+  outline-offset: 3px;
+}
+
+.site-neon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+.site-neon-button-subtle {
+  border-color: rgba(14, 196, 216, 0.18);
+  background-color: rgba(14, 196, 216, 0.02);
+  color: rgba(210, 229, 233, 0.72);
+}
+
+.site-neon-button-subtle:hover:not(:disabled),
+.site-neon-button-subtle:focus-visible {
+  border-color: #0ec4d8;
+  background-color: rgba(14, 196, 216, 0.14);
+  color: #f4fbff;
+  box-shadow: 0 0 28px rgba(14, 196, 216, 0.22);
+}
+
+.site-neon-icon-button {
+  border-color: rgba(14, 196, 216, 0.18);
+  color: rgba(210, 229, 233, 0.72);
+  transition:
+    border-color 300ms ease,
+    background-color 300ms ease,
+    color 300ms ease,
+    box-shadow 300ms ease;
+}
+
+.site-neon-icon-button:hover,
+.site-neon-icon-button:focus-visible {
+  border-color: #0ec4d8;
+  background-color: rgba(14, 196, 216, 0.12);
+  color: #f4fbff;
+  box-shadow: 0 0 22px rgba(14, 196, 216, 0.2);
+}
+
+.site-neon-row-button {
+  transition:
+    background-color 300ms ease,
+    box-shadow 300ms ease;
+}
+
+.site-neon-row-button:hover,
+.site-neon-row-button:focus-visible {
+  background-color: rgba(14, 196, 216, 0.04);
+  box-shadow: inset 0 0 26px rgba(14, 196, 216, 0.06);
+}
+
+.site-neon-text-button {
+  transition:
+    color 300ms ease,
+    text-shadow 300ms ease,
+    opacity 300ms ease;
+}
+
+.site-neon-text-button:hover,
+.site-neon-text-button:focus-visible {
+  color: #f4fbff;
+  text-shadow: 0 0 14px rgba(14, 196, 216, 0.55);
+}
+
+.site-neon-google-button {
+  transition:
+    border-color 300ms ease,
+    background-color 300ms ease,
+    box-shadow 300ms ease,
+    color 300ms ease,
+    opacity 300ms ease;
+}
+
+.site-neon-google-button:hover:not(:disabled),
+.site-neon-google-button:focus-visible {
+  border-color: rgba(14, 196, 216, 0.55);
+  box-shadow: 0 0 22px rgba(14, 196, 216, 0.18);
+}
+
+
+.site-neon-light-button {
+  border-color: rgba(14, 196, 216, 0.55);
+  background-color: #086574;
+  color: #ffffff;
+  box-shadow: 0 0 0 rgba(14, 196, 216, 0);
+  transition:
+    border-color 300ms ease,
+    background-color 300ms ease,
+    color 300ms ease,
+    box-shadow 300ms ease;
+}
+
+.site-neon-light-button:hover,
+.site-neon-light-button:focus-visible {
+  border-color: #0ec4d8;
+  background-color: #09899c;
+  color: #ffffff;
+  box-shadow: 0 0 24px rgba(14, 196, 216, 0.28);
+}
+
+.site-neon-light-icon-button {
+  border-color: transparent;
+  color: #64748b;
+  transition:
+    border-color 300ms ease,
+    background-color 300ms ease,
+    color 300ms ease,
+    box-shadow 300ms ease;
+}
+
+.site-neon-light-icon-button:hover,
+.site-neon-light-icon-button:focus-visible {
+  border-color: rgba(14, 196, 216, 0.45);
+  background-color: rgba(14, 196, 216, 0.08);
+  color: #08343d;
+  box-shadow: 0 0 18px rgba(14, 196, 216, 0.16);
+}
+
+
+.site-neon-light-button-subtle {
+  border-color: rgba(14, 196, 216, 0.35);
+  background-color: #ffffff;
+  color: #334155;
+}
+
+.site-neon-light-button-subtle:hover,
+.site-neon-light-button-subtle:focus-visible {
+  border-color: #0ec4d8;
+  background-color: rgba(14, 196, 216, 0.08);
+  color: #08343d;
+  box-shadow: 0 0 22px rgba(14, 196, 216, 0.22);
+}
+
+.site-neon-light-text-button {
+  transition:
+    color 300ms ease,
+    text-shadow 300ms ease;
+}
+
+.site-neon-light-text-button:hover,
+.site-neon-light-text-button:focus-visible {
+  color: #087987;
+  text-shadow: 0 0 12px rgba(14, 196, 216, 0.28);
+}
+
+/* Home - Como funciona */
+.fingerence-how-active-path {
+  stroke-dasharray: 1;
+  transition: stroke-dashoffset 420ms ease;
+}
+
+.fingerence-how-card.is-active .profile-personal {
+  animation: howProfilePersonal 450ms ease both;
+}
+
+.fingerence-how-card.is-active .profile-business {
+  animation: howProfileBusiness 450ms ease both;
+}
+
+.fingerence-how-card.is-active .profile-check {
+  animation: howCheck 420ms ease both;
+}
+
+.fingerence-how-card.is-active .tab-income {
+  animation: howGlow 430ms ease both;
+}
+
+.fingerence-how-card.is-active .how-field {
+  animation: howField 470ms ease both;
+}
+
+.fingerence-how-card.is-active .how-field:nth-of-type(2) {
+  animation-delay: 60ms;
+}
+
+.fingerence-how-card.is-active .recurring-option,
+.fingerence-how-card.is-active .export-action,
+.fingerence-how-card.is-active .month-alert {
+  animation: howGlow 450ms ease both;
+}
+
+.fingerence-how-card.is-active .month-row {
+  animation: howFadeUp 380ms ease both;
+}
+
+.fingerence-how-card.is-active .month-row:nth-child(2) {
+  animation-delay: 55ms;
+}
+
+.fingerence-how-card.is-active .month-row:nth-child(3) {
+  animation-delay: 110ms;
+}
+
+.fingerence-how-card.is-active .report-bar {
+  transform-origin: left;
+  animation: howBar 420ms ease both;
+}
+
+@keyframes howProfilePersonal {
+  0%, 35% { border-color: rgba(98, 222, 235, 0.46); background: rgba(14, 196, 216, 0.08); }
+  100% { border-color: rgba(120, 149, 157, 0.18); background: rgba(5, 29, 38, 0.52); }
+}
+
+@keyframes howProfileBusiness {
+  0%, 35% { transform: translateY(2px); box-shadow: none; }
+  100% { transform: translateY(0); box-shadow: 0 0 22px rgba(14, 196, 216, 0.20); }
+}
+
+@keyframes howCheck {
+  0%, 45% { opacity: 0; transform: scale(0.8); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes howField {
+  0% { opacity: 0.62; transform: translateY(3px); border-color: rgba(74, 153, 173, 0.18); }
+  100% { opacity: 1; transform: translateY(0); border-color: rgba(98, 222, 235, 0.36); }
+}
+
+@keyframes howGlow {
+  0% { box-shadow: 0 0 0 rgba(24, 191, 216, 0); }
+  100% { box-shadow: 0 0 18px rgba(24, 191, 216, 0.16); }
+}
+
+@keyframes howFadeUp {
+  0% { opacity: 0.64; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes howBar {
+  0% { transform: scaleX(0.18); }
+  100% { transform: scaleX(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fingerence-how-active-path,
+  .fingerence-how-card,
+  .fingerence-how-marker,
+  .fingerence-how-card *,
+  .fingerence-how-card.is-active * {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}

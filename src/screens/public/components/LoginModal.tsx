@@ -1,13 +1,16 @@
 import { X } from 'lucide-react';
 import { LoginPage } from '../LoginPage';
 
+type LoginModalMode = 'login' | 'register' | 'forgot' | 'verify' | 'reset';
+
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   notice?: string;
+  initialMode?: LoginModalMode;
 }
 
-export function LoginModal({ isOpen, onClose, notice }: LoginModalProps) {
+export function LoginModal({ isOpen, onClose, notice, initialMode = 'login' }: LoginModalProps) {
   if (!isOpen) return null;
 
   return (
@@ -34,7 +37,7 @@ export function LoginModal({ isOpen, onClose, notice }: LoginModalProps) {
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-[rgba(14,196,216,0.18)] text-site-textMuted transition hover:border-site-accent hover:text-site-text"
+            className="site-neon-icon-button flex h-8 w-8 items-center justify-center rounded-full border transition"
             aria-label="Fechar"
           >
             <X className="h-4 w-4" />
@@ -48,7 +51,7 @@ export function LoginModal({ isOpen, onClose, notice }: LoginModalProps) {
         )}
 
         <div className="relative">
-          <LoginPage />
+          <LoginPage initialMode={initialMode} />
         </div>
       </div>
     </div>

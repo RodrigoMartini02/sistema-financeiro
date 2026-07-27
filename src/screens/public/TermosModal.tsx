@@ -184,7 +184,7 @@ export function TermosModal({ open, tipo, onClose }: ModalProps) {
           </div>
           <button
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+            className="site-neon-light-icon-button flex h-8 w-8 items-center justify-center rounded-lg border transition"
           >
             <X size={18} />
           </button>
@@ -197,7 +197,7 @@ export function TermosModal({ open, tipo, onClose }: ModalProps) {
         <div className="border-t border-slate-100 px-6 py-4 flex justify-end">
           <button
             onClick={onClose}
-            className="rounded-lg bg-brand-600 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-700 transition"
+            className="site-neon-light-button rounded-lg border px-5 py-2 text-sm font-semibold transition"
           >
             Entendido
           </button>

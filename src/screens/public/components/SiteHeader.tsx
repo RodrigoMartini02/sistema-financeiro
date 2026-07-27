@@ -56,7 +56,7 @@ export function SiteHeader({ onOpenLogin }: SiteHeaderProps) {
           <button
             type="button"
             onClick={onOpenLogin}
-            className="hidden h-9 items-center rounded-xl border border-[rgba(14,196,216,0.30)] px-5 text-[11px] uppercase tracking-[0.14em] text-site-text transition duration-300 hover:border-site-accent hover:bg-[rgba(14,196,216,0.06)] hover:shadow-[0_0_20px_rgba(14,196,216,0.14)] md:inline-flex"
+            className="site-neon-button site-neon-button-subtle hidden h-9 items-center rounded-xl border px-5 text-[11px] uppercase tracking-[0.14em] transition duration-300 md:inline-flex"
           >
             Entrar
           </button>
@@ -64,7 +64,7 @@ export function SiteHeader({ onOpenLogin }: SiteHeaderProps) {
           <button
             type="button"
             onClick={() => setMenuOpen((v) => !v)}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-[rgba(14,196,216,0.18)] text-site-textMuted transition hover:border-site-accent hover:text-site-text md:hidden"
+            className="site-neon-icon-button flex h-9 w-9 items-center justify-center rounded-xl border transition md:hidden"
             aria-label="Menu"
           >
             {menuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
@@ -87,7 +87,7 @@ export function SiteHeader({ onOpenLogin }: SiteHeaderProps) {
           <button
             type="button"
             onClick={() => { setMenuOpen(false); onOpenLogin(); }}
-            className="mt-3 w-full rounded-xl border border-[rgba(14,196,216,0.30)] py-2.5 text-[11px] uppercase tracking-[0.14em] text-site-text"
+            className="site-neon-button site-neon-button-subtle mt-3 w-full rounded-xl border py-2.5 text-[11px] uppercase tracking-[0.14em]"
           >
             Entrar
           </button>

@@ -166,26 +166,6 @@ export function FuncionalidadesPage() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="bg-[#061419]">
-        <div className="mx-auto max-w-[1800px] px-5 py-14 sm:px-8 xl:px-10 xl:py-20">
-          <div className="relative overflow-hidden rounded-[24px] border border-[rgba(14,196,216,0.24)] bg-[linear-gradient(135deg,rgba(14,196,216,0.04),rgba(14,196,216,0.01)_52%,rgba(14,196,216,0.03))] p-8 sm:p-10">
-            <p className="text-[11px] uppercase tracking-[0.28em] text-site-textMuted">COMECE AGORA</p>
-            <h2 className="mt-4 text-[clamp(26px,2.2vw,44px)] font-light leading-[1.14] tracking-[0.02em] text-site-text text-balance">
-              Comece a controlar suas finanças hoje.
-            </h2>
-            <div className="mt-5 h-px w-[180px] bg-gradient-to-r from-site-accent/72 via-[rgba(14,196,216,0.34)] to-transparent" />
-            <button
-              type="button"
-              onClick={() => setLoginOpen(true)}
-              className="mt-7 inline-flex h-11 items-center rounded-xl border border-site-accent/50 bg-[rgba(14,196,216,0.08)] px-7 text-[11px] uppercase tracking-[0.16em] text-site-text transition hover:border-site-accent hover:bg-[rgba(14,196,216,0.14)] hover:shadow-[0_0_24px_rgba(14,196,216,0.18)]"
-            >
-              Criar conta grátis
-            </button>
-          </div>
-        </div>
-      </section>
-
       <SiteFooter
         onOpenTermos={() => setModalAberto('termos')}
         onOpenPrivacidade={() => setModalAberto('privacidade')}

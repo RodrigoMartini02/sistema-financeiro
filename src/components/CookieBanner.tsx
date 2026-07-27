@@ -40,7 +40,7 @@ export function CookieBanner() {
               <button
                 type="button"
                 onClick={() => setPrivOpen(true)}
-                className="font-semibold text-brand-600 underline underline-offset-2 hover:text-brand-700"
+                className="site-neon-light-text-button font-semibold text-brand-600 underline underline-offset-2 hover:text-brand-700"
               >
                 Política de Privacidade e LGPD
               </button>
@@ -53,14 +53,14 @@ export function CookieBanner() {
             <button
               type="button"
               onClick={() => accept('essential')}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition whitespace-nowrap"
+              className="site-neon-light-button site-neon-light-button-subtle rounded-lg border px-4 py-2 text-sm font-semibold transition whitespace-nowrap"
             >
               Apenas essenciais
             </button>
             <button
               type="button"
               onClick={() => accept('all')}
-              className="flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 transition whitespace-nowrap"
+              className="site-neon-light-button flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-semibold transition whitespace-nowrap"
             >
               <ShieldCheck size={14} /> Aceitar todos
             </button>
@@ -68,7 +68,7 @@ export function CookieBanner() {
               type="button"
               onClick={() => accept('essential')}
               aria-label="Fechar"
-              className="ml-1 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 transition"
+              className="site-neon-light-icon-button ml-1 rounded-lg border border-transparent p-1.5 transition"
             >
               <X size={16} />
             </button>
