@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Star } from 'lucide-react';
 import { SiteFooter } from './components/SiteFooter';
@@ -75,7 +75,7 @@ export function HomePage({ notice }: HomePageProps) {
 
   return (
     <div className="min-h-screen bg-[#040E12] text-site-text">
-      <SiteHeader onOpenLogin={openLogin} onOpenRegister={openRegister} />
+      <SiteHeader onOpenLogin={openLogin} />
 
       <main id="conteudo-principal">
         <SitePageHero
