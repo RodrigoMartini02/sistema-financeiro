@@ -1,6 +1,6 @@
 ﻿import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, RefreshCw, TrendingUp, Trash2, Pencil } from 'lucide-react';
+import { PiggyBank, Plus, RefreshCw, TrendingUp, Trash2, Pencil } from 'lucide-react';
 import { fetchReservas, saveReserva, deleteReserva, movimentar } from '../../services/reservasService';
 import { queryKeys } from '../../services/queryKeys';
 import type { Reserva, ReservaFormValues, MovimentacaoFormValues } from '../../types/reservas';
@@ -54,7 +54,6 @@ function ReservaCard({
   onDelete: () => void;
 }) {
   const cor = r.cor ?? '#6366f1';
-  const icone = r.icone ?? '💰';
   const temMeta = !!r.objetivo_valor && Number(r.objetivo_valor) > 0;
   const contribuicao =
     temMeta && r.data_objetivo
@@ -68,7 +67,13 @@ function ReservaCard({
     >
       {/* Zona esquerda */}
       <div className="flex flex-[2] items-center gap-3 min-w-0">
-        <span className="text-2xl leading-none shrink-0">{icone}</span>
+        <span
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
+          style={{ backgroundColor: `${cor}18`, color: cor }}
+          aria-hidden="true"
+        >
+          <PiggyBank size={22} strokeWidth={2.1} />
+        </span>
         <div className="min-w-0">
           <p className="font-semibold text-slate-950 dark:text-white leading-snug truncate">
             {r.observacoes || <span className="text-slate-400 italic text-sm">Sem nome</span>}
