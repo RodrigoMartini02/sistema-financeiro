@@ -8,7 +8,7 @@ interface SitePageHeroProps {
 
 export function SitePageHero({ label, title, description }: SitePageHeroProps) {
   return (
-    <section className="relative isolate overflow-hidden border-b border-[rgba(14,196,216,0.10)] bg-[#040E12]">
+    <section id="conteudo-principal" className="relative isolate overflow-hidden border-b border-[rgba(14,196,216,0.10)] bg-[#040E12]">
       <HeroLogoDecor />
       <div className="relative mx-auto max-w-[1800px] px-5 pb-14 pt-20 sm:px-8 xl:px-10 xl:pt-24">
         <p className="text-[11px] uppercase tracking-[0.38em] text-site-textMuted">{label}</p>
