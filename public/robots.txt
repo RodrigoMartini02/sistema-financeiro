@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+Allow: /index.html
+Allow: /termoPrivacidade.html
+Allow: /css/
+Allow: /icons/
+Allow: /manifest.json
+Allow: /sitemap.xml
+
+Disallow: /js/
+Disallow: /app.html
+Disallow: /node_modules/
+Disallow: /backend/
+Disallow: /.env
+
+Sitemap: https://fin-gerence.com.br/sitemap.xml
