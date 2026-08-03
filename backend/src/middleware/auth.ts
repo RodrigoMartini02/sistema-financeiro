@@ -5,6 +5,8 @@ interface TokenPayload {
   id: number;
   document: string;
   type: 'padrao' | 'admin' | 'master';
+  tipo?: 'padrao' | 'admin' | 'master';
+  documento?: string;
 }
 
 declare global {
@@ -33,7 +35,11 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
     }
 
     const decoded = jwt.verify(token, getJwtSecret()) as TokenPayload;
-    req.user = { id: decoded.id, document: decoded.document, type: decoded.type };
+    req.user = {
+      id: decoded.id,
+      document: decoded.document ?? decoded.documento ?? '',
+      type: decoded.type ?? decoded.tipo ?? 'padrao',
+    };
     next();
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {
@@ -53,7 +59,11 @@ export function authenticateOptional(req: Request, res: Response, next: NextFunc
     const token = req.header('Authorization')?.replace('Bearer ', '');
     if (token) {
       const decoded = jwt.verify(token, getJwtSecret()) as TokenPayload;
-      req.user = { id: decoded.id, document: decoded.document, type: decoded.type };
+      req.user = {
+      id: decoded.id,
+      document: decoded.document ?? decoded.documento ?? '',
+      type: decoded.type ?? decoded.tipo ?? 'padrao',
+    };
     }
     next();
   } catch {

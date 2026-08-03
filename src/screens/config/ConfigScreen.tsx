@@ -9,12 +9,15 @@ import { RepresentantesTab } from './RepresentantesTab';
 import { SociosTab } from './SociosTab';
 import { ClientesTab } from './ClientesTab';
 import { ServicosTab } from './ServicosTab';
+import { AcessosTab } from './AcessosTab';
 import type { ConfigTab } from '../../layout/AppShell';
 
 interface ConfigScreenProps {
   activeTab?: ConfigTab;
   onTabChange?: (tab: ConfigTab) => void;
 }
+
+const ANALYTICS_ALLOWED_DOCUMENT = '08996441988';
 
 const TAB_TITLES: Record<ConfigTab, string> = {
   conta:          'Minha conta',
@@ -26,11 +29,15 @@ const TAB_TITLES: Record<ConfigTab, string> = {
   usuarios:       'Usuários',
   clientes:       'Clientes',
   servicos:       'Serviços',
+  acessos:        'Acessos',
 };
 
 export function ConfigScreen({ activeTab = 'conta' }: ConfigScreenProps) {
   const { data: me } = useQuery({ queryKey: ['usuario-me'], queryFn: fetchMe });
-  const isAdminOrMaster = me?.tipo === 'admin' || me?.tipo === 'master';
+  const meTipo = me?.tipo ?? me?.type;
+  const meDocument = (me?.documento ?? me?.document ?? '').replace(/\D/g, '');
+  const isAdminOrMaster = meTipo === 'admin' || meTipo === 'master';
+  const canViewAnalytics = meDocument === ANALYTICS_ALLOWED_DOCUMENT;
 
   return (
     <div className="mx-auto grid max-w-7xl gap-6">
@@ -48,9 +55,13 @@ export function ConfigScreen({ activeTab = 'conta' }: ConfigScreenProps) {
         {activeTab === 'socios'         && <SociosTab />}
         {activeTab === 'clientes'       && <ClientesTab />}
         {activeTab === 'servicos'       && <ServicosTab />}
-        {activeTab === 'usuarios'       && isAdminOrMaster && <UsuariosTab userTipo={me?.tipo ?? 'admin'} />}
+        {activeTab === 'usuarios'       && isAdminOrMaster && <UsuariosTab userTipo={meTipo ?? 'admin'} />}
         {activeTab === 'usuarios'       && !isAdminOrMaster && (
           <p className="py-8 text-center text-sm text-slate-400">Acesso restrito a administradores.</p>
+        )}
+        {activeTab === 'acessos'        && canViewAnalytics && <AcessosTab />}
+        {activeTab === 'acessos'        && !canViewAnalytics && (
+          <p className="py-8 text-center text-sm text-slate-400">Acesso restrito ao usuario autorizado.</p>
         )}
       </div>
     </div>

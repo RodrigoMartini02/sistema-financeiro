@@ -89,6 +89,7 @@ import technicalServiceRoutes from './routes/technical-services';
 import serviceRoutes from './routes/services';
 import contractServiceRoutes from './routes/contract-services';
 import contractAttachmentRoutes from './routes/contract-attachments';
+import analyticsRoutes from './routes/analytics';
 import futebolRoutes from './modules/futebol/routes';
 import { startFootballCron } from './modules/futebol/cron';
 import { startChampionshipsCron } from './modules/futebol/championshipsCron';
@@ -133,6 +134,7 @@ app.use('/api/servicos-tecnicos', technicalServiceRoutes);
 app.use('/api/servicos', serviceRoutes);
 app.use('/api/contratos-servicos', contractServiceRoutes);
 app.use('/api/contrato-anexos', contractAttachmentRoutes);
+app.use('/api/analytics', analyticsRoutes);
 app.use('/api/futebol', futebolRoutes);
 
 // ── System endpoints ───────────────────────────────────────────────────

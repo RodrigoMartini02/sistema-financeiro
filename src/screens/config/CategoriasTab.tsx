@@ -2,13 +2,11 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, ChevronDown, ChevronRight } from 'lucide-react';
 import { fetchCategorias, saveCategoria, deleteCategoria, toggleCategoria, setCategoriaFavorito, fetchCartoes } from '../../services/configService';
-import { fetchIncomeTypes, saveIncomeType, deleteIncomeType, toggleIncomeType, type IncomeType } from '../../services/incomeTypesService';
 import { queryKeys } from '../../services/queryKeys';
 import type { Categoria, CategoriaFormValues } from '../../types/config';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { Field, Input, Select, SectionDivider, ToggleGroup } from '../../ui/form';
-import { ConfigListRow } from '../../ui/ConfigListRow';
 
 const FORMAS_OPTIONS = [
   { value: '',         label: '—' },
@@ -294,144 +292,7 @@ function CategoriaRow({
   );
 }
 
-// ── Tipos de Receita ─────────────────────────────────────────────────────────
-
-function IncomeTypeDialog({
-  open, item, isSaving, error, onClose, onSave, onDelete, onToggle,
-}: {
-  open: boolean; item?: IncomeType; isSaving: boolean; error?: string;
-  onClose: () => void; onSave: (nome: string) => void;
-  onDelete?: () => void;
-  onToggle?: () => void;
-}) {
-  const [confirmDelete, setConfirmDelete] = useState(false);
-
-  useEffect(() => { if (!open) setConfirmDelete(false); }, [open]);
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const nome = (new FormData(e.currentTarget).get('nome') as string ?? '').trim();
-    if (nome) onSave(nome);
-  };
-
-  return (
-    <Dialog open={open} title={item ? 'Editar tipo de receita' : 'Novo tipo de receita'} onClose={onClose}>
-      <form className="grid gap-5" onSubmit={handleSubmit}>
-        <Field label="Nome do tipo">
-          <Input name="nome" defaultValue={item?.nome} placeholder="Ex: Serviços, Produtos, Comissão..." autoFocus required maxLength={100} />
-        </Field>
-        {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
-        )}
-        <div className="flex items-center gap-2">
-          {item && (
-            <div className="flex items-center gap-2">
-              {onToggle && (
-                <Button type="button" variant="ghost" onClick={onToggle}>
-                  {item.ativo ? 'Desativar' : 'Ativar'}
-                </Button>
-              )}
-              {onDelete && (
-                !confirmDelete ? (
-                  <Button type="button" variant="danger" onClick={() => setConfirmDelete(true)}>Excluir</Button>
-                ) : (
-                  <>
-                    <span className="text-sm text-slate-600">Confirmar?</span>
-                    <Button type="button" variant="danger" onClick={() => { onDelete(); setConfirmDelete(false); }}>Sim</Button>
-                    <Button type="button" variant="ghost" onClick={() => setConfirmDelete(false)}>Não</Button>
-                  </>
-                )
-              )}
-            </div>
-          )}
-          <div className="ml-auto">
-            <Button type="submit" disabled={isSaving}>{isSaving ? 'Salvando...' : 'Salvar'}</Button>
-          </div>
-        </div>
-      </form>
-    </Dialog>
-  );
-}
-
-function IncomeTypesPanel() {
-  const qc = useQueryClient();
-  const [dialog, setDialog] = useState<{ open: boolean; item?: IncomeType }>({ open: false });
-
-  const typesQ = useQuery({ queryKey: queryKeys.incomeTypes, queryFn: fetchIncomeTypes });
-  const types = typesQ.data ?? [];
-
-  const saveMut = useMutation({
-    mutationFn: ({ nome, id }: { nome: string; id?: number }) => saveIncomeType(nome, id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: queryKeys.incomeTypes }); setDialog({ open: false }); },
-  });
-
-  const deleteMut = useMutation({
-    mutationFn: deleteIncomeType,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: queryKeys.incomeTypes }); setDialog({ open: false }); },
-  });
-
-  const toggleMut = useMutation({
-    mutationFn: toggleIncomeType,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: queryKeys.incomeTypes }); setDialog({ open: false }); },
-  });
-
-  return (
-    <div className="grid gap-4 content-start rounded-2xl border border-green-100 bg-white p-5 shadow-sm">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
-          <h3 className="text-sm font-semibold text-green-700">Receitas</h3>
-          <span className="text-xs text-slate-400">
-            {types.length} tipo{types.length !== 1 ? 's' : ''}
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={() => setDialog({ open: true })}
-          className="flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-green-700"
-        >
-          <Plus size={14} />
-          Novo tipo
-        </button>
-      </div>
-
-      {typesQ.isLoading && <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>}
-
-      <div className="grid gap-2">
-        {types.map((t, i) => (
-          <ConfigListRow
-            key={t.id}
-            index={i}
-            nome={t.nome}
-            dataCriacao={t.criado_em}
-            dataAtualizacao={t.atualizado_em}
-            colorScheme="green"
-            onClick={() => setDialog({ open: true, item: t })}
-          />
-        ))}
-        {types.length === 0 && !typesQ.isLoading && (
-          <p className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-400">
-            Nenhum tipo cadastrado. Crie tipos para usar no form de receitas e comissões.
-          </p>
-        )}
-      </div>
-
-      <IncomeTypeDialog
-        open={dialog.open}
-        item={dialog.item}
-        isSaving={saveMut.isPending}
-        error={saveMut.error?.message}
-        onClose={() => setDialog({ open: false })}
-        onSave={(nome) => saveMut.mutate({ nome, id: dialog.item?.id })}
-        onDelete={dialog.item ? () => deleteMut.mutate(dialog.item!.id) : undefined}
-        onToggle={dialog.item ? () => toggleMut.mutate(dialog.item!.id) : undefined}
-      />
-    </div>
-  );
-}
-
-// ── Tab principal ─────────────────────────────────────────────────────────────
+// -- Tab principal ─────────────────────────────────────────────────────────────
 
 export function CategoriasTab() {
   const qc = useQueryClient();
@@ -476,7 +337,7 @@ export function CategoriasTab() {
   });
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid gap-6">
       {/* Coluna Despesas */}
       <div className="grid gap-4 content-start rounded-2xl border border-red-100 bg-white p-5 shadow-sm">
         {/* Header */}
@@ -535,9 +396,6 @@ export function CategoriasTab() {
           onToggle={dialog.item ? () => toggleMut.mutate(dialog.item!.id) : undefined}
         />
       </div>
-
-      {/* Coluna Receitas */}
-      <IncomeTypesPanel />
     </div>
   );
 }
