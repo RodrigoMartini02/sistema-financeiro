@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AppProvider, useAppContext } from './context/AppContext';
 import { HomePage } from './screens/public/HomePage';
 import { FuncionalidadesPage } from './screens/public/FuncionalidadesPage';
@@ -23,6 +23,7 @@ import { IncomeDialog } from './screens/finance/IncomeDialog';
 import { ExpenseDialog } from './screens/finance/ExpenseDialog';
 import { useFinanceDashboard } from './hooks/useFinanceDashboard';
 import { apiRequest } from './services/apiClient';
+import { trackPageView } from './services/analyticsService';
 
 interface PlanoStatus {
   status: 'trial' | 'ativo' | 'expirado';
@@ -58,9 +59,19 @@ function PlanExpiredGate() {
   );
 }
 
+function PublicPageTracker() {
+  const location = useLocation();
+
+  useEffect(() => {
+    trackPageView(`${location.pathname}${location.search}`);
+  }, [location.pathname, location.search]);
+
+  return null;
+}
 function PublicSite() {
   return (
     <BrowserRouter>
+      <PublicPageTracker />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/index.html" element={<HomePage />} />

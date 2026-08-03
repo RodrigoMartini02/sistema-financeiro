@@ -1,6 +1,6 @@
 import { type ReactNode, useState, useEffect } from 'react';
 import {
-  BarChart3, Bell, Briefcase, Building2, ChevronDown, ChevronLeft, ChevronRight,
+  Activity, BarChart3, Bell, Briefcase, Building2, ChevronDown, ChevronLeft, ChevronRight,
   ChevronRight as ChevronSubRight, CreditCard, FileText, LayoutDashboard, Layers,
   LogOut, Moon, Plus, Settings, Sun, Tag, TrendingDown, TrendingUp, User,
   UserCheck, Users, Wallet, X,
@@ -20,7 +20,7 @@ export type AppSection =
 
 export type ConfigTab =
   | 'conta' | 'categorias' | 'cartoes' | 'perfis'
-  | 'representantes' | 'socios' | 'usuarios' | 'clientes' | 'servicos';
+  | 'representantes' | 'socios' | 'usuarios' | 'clientes' | 'servicos' | 'acessos';
 
 interface AppShellProps {
   user?: AuthUser;
@@ -58,11 +58,13 @@ const CONFIG_SUBS: { id: ConfigTab; label: string; icon: React.ElementType }[] =
   { id: 'representantes', label: 'Representantes', icon: UserCheck },
   { id: 'socios',         label: 'Sócios',         icon: Briefcase },
   { id: 'usuarios',       label: 'Usuários',       icon: Users },
+  { id: 'acessos',        label: 'Acessos',        icon: Activity },
   { id: 'clientes',       label: 'Clientes',       icon: Building2 },
   { id: 'servicos',       label: 'Serviços',       icon: Layers },
 ];
 
 const ALL_NAV = NAV_GROUPS.flatMap((g) => g.items);
+const ANALYTICS_ALLOWED_DOCUMENT = '08996441988';
 
 function PerfilSwitcher() {
   const [open, setOpen] = useState(false);
@@ -226,7 +228,9 @@ export function AppShell({
   }, [activeSection]);
 
   const handleLogout = () => { logout(); window.location.replace('/index.html'); };
-  const userInitial = (user?.nome ?? 'U')[0].toUpperCase();
+  const userInitial = (user?.nome ?? user?.name ?? 'U')[0].toUpperCase();
+  const userDocument = (user?.documento ?? user?.document ?? '').replace(/\D/g, '');
+  const canViewAnalytics = userDocument === ANALYTICS_ALLOWED_DOCUMENT;
 
   const currentNav = ALL_NAV.find((n) => n.section === activeSection);
   const currentConfigSub = CONFIG_SUBS.find((s) => s.id === configTab);
@@ -327,6 +331,9 @@ export function AppShell({
               <div className="ml-3 space-y-0.5 border-l border-[rgba(14,196,216,0.15)] pl-2.5">
                 {CONFIG_SUBS.filter((sub) => {
                   const perfilTipo = localStorage.getItem('perfilAtivoTipo');
+                  if (sub.id === 'acessos') {
+                    return canViewAnalytics;
+                  }
                   if (sub.id === 'representantes' || sub.id === 'socios') {
                     return perfilTipo !== 'pessoal';
                   }
@@ -367,7 +374,7 @@ export function AppShell({
             {userInitial}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="truncate text-sm font-semibold text-[#E8F4F5]">{user?.nome ?? 'Usuário'}</p>
+            <p className="truncate text-sm font-semibold text-[#E8F4F5]">{user?.nome ?? user?.name ?? 'Usuário'}</p>
             <p className="truncate text-xs text-[rgba(14,196,216,0.45)]">{user?.email ?? 'Sessão ativa'}</p>
           </div>
         </div>

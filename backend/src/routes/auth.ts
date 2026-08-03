@@ -7,6 +7,7 @@ import { db, pool } from '../db/client';
 import { users, profiles } from '../db/schema';
 import { authenticate } from '../middleware/auth';
 import { validate, validateDocument, authRateLimiter } from '../middleware/validation';
+import { recordAnalyticsEvent } from '../services/analytics';
 
 const router = Router();
 
@@ -95,6 +96,12 @@ router.post(
         .update(users)
         .set({ updatedAt: new Date() })
         .where(eq(users.id, user.id));
+
+      void recordAnalyticsEvent({
+        eventType: 'login',
+        path: '/app.html',
+        userId: user.id,
+      });
 
       res.json({
         success: true,
@@ -186,6 +193,12 @@ router.post(
         { expiresIn: (process.env['JWT_EXPIRES_IN'] ?? '7d') as unknown as number },
       );
 
+      void recordAnalyticsEvent({
+        eventType: 'login',
+        path: '/app.html',
+        userId: newUser!.id,
+      });
+
       res.status(201).json({
         success: true,
         message: 'User registered successfully',
@@ -219,7 +232,19 @@ router.get('/verify', authenticate, async (req: Request, res: Response): Promise
       return;
     }
 
-    res.json({ success: true, data: { usuario: user } });
+    res.json({
+      success: true,
+      data: {
+        usuario: {
+          id: user.id,
+          nome: user.name,
+          email: user.email,
+          documento: user.document,
+          tipo: user.type,
+          status: user.status,
+        },
+      },
+    });
   } catch (error) {
     console.error('Verify error:', error);
     res.status(500).json({ success: false, message: 'Failed to verify authentication' });
@@ -502,6 +527,12 @@ router.post('/google', async (req: Request, res: Response): Promise<void> => {
       getJwtSecret(),
       { expiresIn: (process.env['JWT_EXPIRES_IN'] ?? '7d') as unknown as number },
     );
+
+    void recordAnalyticsEvent({
+      eventType: 'login',
+      path: '/app.html',
+      userId: user.id,
+    });
 
     res.json({
       success: true,
