@@ -511,7 +511,6 @@ export function HomeHowItWorksSection({ onOpenRegister }: HomeHowItWorksSectionP
           >
             Começar 15 dias grátis
           </button>
-          <p className="mt-3 text-[15px] text-site-textMuted">Sem cartão de crédito.</p>
         </div>
       </div>
     </section>
