@@ -7,6 +7,8 @@ import { FuncionalidadesPage } from './screens/public/FuncionalidadesPage';
 import { SobrePage } from './screens/public/SobrePage';
 import { PlanosPage } from './screens/public/PlanosPage';
 import { ContatoPage } from './screens/public/ContatoPage';
+import { LegalPage } from './screens/public/LegalPage';
+import { PublicSeo } from './screens/public/components/PublicSeo';
 import { FinanceDashboard } from './screens/finance/FinanceDashboard';
 import { ReceitasScreen } from './screens/receitas/ReceitasScreen';
 import { DespesasScreen } from './screens/despesas/DespesasScreen';
@@ -72,6 +74,7 @@ function PublicSite() {
   return (
     <BrowserRouter>
       <PublicPageTracker />
+      <PublicSeo />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/index.html" element={<HomePage />} />
@@ -79,6 +82,8 @@ function PublicSite() {
         <Route path="/sobre" element={<SobrePage />} />
         <Route path="/planos" element={<PlanosPage />} />
         <Route path="/contato" element={<ContatoPage />} />
+        <Route path="/termos" element={<LegalPage type="termos" />} />
+        <Route path="/privacidade" element={<LegalPage type="privacidade" />} />
         <Route path="*" element={<HomePage />} />
       </Routes>
     </BrowserRouter>

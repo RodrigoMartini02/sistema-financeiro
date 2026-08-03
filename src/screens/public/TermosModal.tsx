@@ -7,7 +7,7 @@ interface ModalProps {
   onClose: () => void;
 }
 
-const TERMOS_CONTEUDO = `
+export const TERMOS_CONTEUDO = `
 **TERMOS DE USO — FINGERENCE Sistema Financeiro**
 Última atualização: Junho de 2026
 
@@ -63,7 +63,7 @@ Estes Termos são regidos pela legislação da República Federativa do Brasil. 
 Contato: fingerence@gmail.com | (49) 99955-4856
 `;
 
-const PRIVACIDADE_CONTEUDO = `
+export const PRIVACIDADE_CONTEUDO = `
 **POLÍTICA DE PRIVACIDADE E PROTEÇÃO DE DADOS — FINGERENCE**
 Em conformidade com a Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018)
 Última atualização: Junho de 2026

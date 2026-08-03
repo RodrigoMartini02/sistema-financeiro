@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 
@@ -9,10 +9,10 @@ interface SiteHeaderProps {
 
 const NAV = [
   { label: 'Home', to: '/' },
-  { label: 'Funcionalidades', to: '/funcionalidades' },
-  { label: 'Planos', to: '/planos' },
-  { label: 'Sobre', to: '/sobre' },
-  { label: 'Contato', to: '/contato' },
+  { label: 'Funcionalidades', to: '/funcionalidades/' },
+  { label: 'Planos', to: '/planos/' },
+  { label: 'Sobre', to: '/sobre/' },
+  { label: 'Contato', to: '/contato/' },
 ];
 
 export function SiteHeader({ onOpenLogin, onOpenRegister }: SiteHeaderProps) {
@@ -75,7 +75,8 @@ export function SiteHeader({ onOpenLogin, onOpenRegister }: SiteHeaderProps) {
     onOpenRegister?.();
   };
 
-  const isActive = (to: string) => (to === '/' ? pathname === '/' : pathname === to);
+  const normalizePath = (value: string) => (value !== '/' && value.endsWith('/') ? value.slice(0, -1) : value);
+  const isActive = (to: string) => normalizePath(pathname) === normalizePath(to);
 
   return (
     <header className="sticky inset-x-0 top-0 z-50 border-b border-[rgba(30,196,220,0.12)] bg-[#03161D]/88 backdrop-blur-xl">

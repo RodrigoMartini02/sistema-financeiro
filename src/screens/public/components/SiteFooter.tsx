@@ -1,11 +1,11 @@
-﻿import { Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 interface SiteFooterProps {
-  onOpenTermos: () => void;
-  onOpenPrivacidade: () => void;
+  onOpenTermos?: () => void;
+  onOpenPrivacidade?: () => void;
 }
 
-export function SiteFooter({ onOpenTermos, onOpenPrivacidade }: SiteFooterProps) {
+export function SiteFooter(_props: SiteFooterProps = {}) {
   return (
     <footer className="border-t border-[rgba(14,196,216,0.10)] bg-[#040E12]">
       <div className="mx-auto flex max-w-[1800px] flex-wrap items-center justify-between gap-4 px-5 py-6 sm:px-8 xl:px-10">
@@ -27,8 +27,8 @@ export function SiteFooter({ onOpenTermos, onOpenPrivacidade }: SiteFooterProps)
         </div>
 
         <div className="flex flex-wrap items-center gap-5 text-[11px] uppercase tracking-[0.14em] text-site-textMuted">
-          <button type="button" onClick={onOpenPrivacidade} className="site-neon-text-button transition">Privacidade</button>
-          <button type="button" onClick={onOpenTermos} className="site-neon-text-button transition">Termos</button>
+          <Link to="/privacidade/" className="site-neon-text-button transition">Privacidade</Link>
+          <Link to="/termos/" className="site-neon-text-button transition">Termos</Link>
         </div>
       </div>
     </footer>
