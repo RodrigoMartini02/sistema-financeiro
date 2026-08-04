@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, ChevronDown, ChevronRight, Tag } from 'lucide-react';
+import { Plus, ChevronDown, ChevronRight, Tag, FolderTree } from 'lucide-react';
 import { fetchCategorias, saveCategoria, toggleCategoria } from '../../services/configService';
 import { queryKeys } from '../../services/queryKeys';
 import type { Categoria, CategoriaFormValues } from '../../types/config';
@@ -191,7 +191,7 @@ function CategoriaDialog({
 }
 
 function CategoriaRow({
-  cat, index, isChild, colorScheme = 'brand', onEdit, onCreateSubcategory,
+  cat, index, isChild, colorScheme = 'brand', onEdit, onCreateSubcategory, subcategoryGuide,
 }: {
   cat: Categoria;
   index: number;
@@ -199,6 +199,7 @@ function CategoriaRow({
   colorScheme?: 'red' | 'brand';
   onEdit: (cat: Categoria) => void;
   onCreateSubcategory?: (cat: Categoria) => void;
+  subcategoryGuide?: { description: string; onDismiss: () => void };
 }) {
   const [expanded, setExpanded] = useState(true);
   const hasSubs = (cat.subcategorias?.length ?? 0) > 0;
@@ -243,15 +244,29 @@ function CategoriaRow({
           </button>
 
           {!isChild && cat.ativo && onCreateSubcategory && (
-            <button
-              type="button"
-              onClick={() => onCreateSubcategory(cat)}
-              className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-red-100 px-2.5 text-xs font-semibold text-red-600 transition hover:border-red-200 hover:bg-red-50"
-            >
-              <Plus size={12} />
-              <span className="hidden sm:inline">Subcategoria</span>
-              <span className="sm:hidden">Sub</span>
-            </button>
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => onCreateSubcategory(cat)}
+                className="inline-flex h-8 items-center gap-1 rounded-lg border border-red-100 px-2.5 text-xs font-semibold text-red-600 transition hover:border-red-200 hover:bg-red-50"
+              >
+                <Plus size={12} />
+                <span className="hidden sm:inline">Subcategoria</span>
+                <span className="sm:hidden">Sub</span>
+              </button>
+
+              {subcategoryGuide && (
+                <FirstAccessGuideCard
+                  floating
+                  placement="top"
+                  align="right"
+                  className="absolute right-0 top-full z-50 mt-3 w-[min(22rem,calc(100vw-2rem))]"
+                  icon={FolderTree}
+                  description={subcategoryGuide.description}
+                  onDismiss={subcategoryGuide.onDismiss}
+                />
+              )}
+            </div>
           )}
 
           {hasSubs && !isChild ? (
@@ -289,6 +304,8 @@ function CategoriaRow({
 export function CategoriasTab() {
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Categoria; parentId?: number }>({ open: false });
+  const guideNovaCategoria = useFirstAccessGuide('categorias:nova-v1');
+  const guideSubcategoria = useFirstAccessGuide('categorias:sub-v1');
   const cats = useQuery({ queryKey: queryKeys.categorias, queryFn: fetchCategorias });
   const allCats = cats.data ?? [];
   const roots = allCats.filter((c) => !c.parent_id);
@@ -321,14 +338,28 @@ export function CategoriasTab() {
               {roots.length} raiz{allCats.length > roots.length ? ` - ${allCats.length - roots.length} sub` : ''}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={() => setDialog({ open: true })}
-            className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-red-700"
-          >
-            <Plus size={14} />
-            Nova categoria
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setDialog({ open: true })}
+              className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-red-700"
+            >
+              <Plus size={14} />
+              Nova categoria
+            </button>
+
+            {guideNovaCategoria.isVisible && (
+              <FirstAccessGuideCard
+                floating
+                placement="top"
+                align="right"
+                className="absolute right-0 top-full z-50 mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                icon={Tag}
+                description={firstAccessGuideMessages.categoriasNova}
+                onDismiss={guideNovaCategoria.dismiss}
+              />
+            )}
+          </div>
         </div>
 
         {cats.isLoading && <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>}
@@ -342,6 +373,9 @@ export function CategoriasTab() {
               colorScheme="red"
               onEdit={(item) => setDialog({ open: true, item })}
               onCreateSubcategory={(item) => setDialog({ open: true, parentId: item.id })}
+              subcategoryGuide={i === 0 && guideSubcategoria.isVisible
+                ? { description: firstAccessGuideMessages.categoriasSub, onDismiss: guideSubcategoria.dismiss }
+                : undefined}
             />
           ))}
           {tree.length === 0 && !cats.isLoading && (
