@@ -65,6 +65,7 @@ export function ReceitasScreen() {
   const [busca, setBusca] = useState('');
   const guide = useFirstAccessGuide('receitas:novo-v1');
   const searchGuide = useFirstAccessGuide('receitas:busca-v1');
+  const contratosGuide = useFirstAccessGuide('receitas:contratos-faturamento-v1');
 
   const qc = useQueryClient();
   const finance = useFinanceDashboard(month, year);
@@ -236,12 +237,22 @@ export function ReceitasScreen() {
         {/* Contratos ? Faturamento */}
         {(contratosQ.data?.length ?? 0) > 0 && (
           <Card>
-            <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
+            <div className="relative flex items-center gap-2 border-b border-slate-100 px-4 py-3">
               <Building2 size={15} className="text-slate-500" />
               <h3 className="text-sm font-bold text-slate-800">
                 Contratos — Faturamento{' '}
                 <span className="font-normal text-slate-400">{MONTH_NAMES_SHORT[month]}/{year}</span>
               </h3>
+              {contratosGuide.isVisible && (
+                <FirstAccessGuideCard
+                  floating
+                  placement="bottom"
+                  className="absolute left-0 top-full z-50 mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                  icon={Building2}
+                  description={firstAccessGuideMessages.receitasContratosFaturamento}
+                  onDismiss={contratosGuide.dismiss}
+                />
+              )}
             </div>
             <div className="divide-y divide-slate-100">
               {contratosQ.data!.map((item) => {

@@ -11,6 +11,9 @@ import { Dialog } from '../../ui/dialog';
 import { Field, Input } from '../../ui/form';
 import { ConfigListRow } from '../../ui/ConfigListRow';
 import { formatCurrency } from '../finance/formatters';
+import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
+import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 
 function ServicoDialog({
   open, servico, isSaving, error, onClose, onSave, onDelete,
@@ -118,6 +121,17 @@ export function ServicosTab() {
         <Button icon={<Plus size={16} />} onClick={() => setDialog({ open: true })}>
           Novo serviço
         </Button>
+        {createGuide.isVisible && (
+          <FirstAccessGuideCard
+            icon={Layers}
+            description={firstAccessGuideMessages.servicosNovo}
+            align="right"
+            floating
+            placement="top"
+            className="absolute right-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+            onDismiss={createGuide.dismiss}
+          />
+        )}
       </div>
 
       <div className="rounded-xl border border-brand-100 bg-brand-50 px-4 py-3 text-sm text-brand-800">

@@ -187,6 +187,7 @@ function PerfilDialog({
   const [tipo, setTipo] = useState<'pessoal' | 'empresa'>(perfil?.tipo ?? 'empresa');
   const [enquadramento, setEnquadramento] = useState<string>(perfil?.enquadramento ?? '');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const enquadramentoGuide = useFirstAccessGuide('perfis:enquadramento-v1');
 
   const isNew = !perfil;
 
@@ -266,19 +267,31 @@ function PerfilDialog({
               <Input name="documento" defaultValue={perfil?.documento ?? ''} placeholder="00000000000000" maxLength={18} required={!perfil} />
             </Field>
 
-            <Field label="Enquadramento" hint={isNew ? 'Cria categorias de despesas automaticamente (opcional)' : 'Tipo jurídico da empresa'}>
-              <div className="grid gap-2">
-                {ENQUADRAMENTO_OPTIONS.map((opt) => (
-                  <ToggleRow
-                    key={opt.value}
-                    label={opt.label}
-                    description={opt.description}
-                    checked={enquadramento === opt.value}
-                    onChange={() => setEnquadramento((prev) => prev === opt.value ? '' : opt.value)}
-                  />
-                ))}
-              </div>
-            </Field>
+            <div className="relative">
+              <Field label="Enquadramento" hint={isNew ? 'Cria categorias de despesas automaticamente (opcional)' : 'Tipo jurídico da empresa'}>
+                <div className="grid gap-2">
+                  {ENQUADRAMENTO_OPTIONS.map((opt) => (
+                    <ToggleRow
+                      key={opt.value}
+                      label={opt.label}
+                      description={opt.description}
+                      checked={enquadramento === opt.value}
+                      onChange={() => setEnquadramento((prev) => prev === opt.value ? '' : opt.value)}
+                    />
+                  ))}
+                </div>
+              </Field>
+              {isNew && enquadramentoGuide.isVisible && (
+                <FirstAccessGuideCard
+                  floating
+                  placement="bottom"
+                  className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                  icon={Briefcase}
+                  description={firstAccessGuideMessages.perfisEnquadramento}
+                  onDismiss={enquadramentoGuide.dismiss}
+                />
+              )}
+            </div>
 
             {isNew && enquadramento && (
               <CategoryPreview enquadramento={enquadramento} />

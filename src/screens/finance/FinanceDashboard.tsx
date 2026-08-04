@@ -53,6 +53,7 @@ export function FinanceDashboard({ onNavigate, onConfigTab }: FinanceDashboardPr
   const finance = useFinanceDashboard(month, year);
   const data = finance.dashboard.data;
   const guide = useFirstAccessGuide('painel:mes-v1');
+  const comprometimentoGuide = useFirstAccessGuide('painel:comprometimento-v1');
 
   const anualQ = useQuery({
     queryKey: queryKeys.dashboardAnual(year),
@@ -253,11 +254,24 @@ export function FinanceDashboard({ onNavigate, onConfigTab }: FinanceDashboardPr
           value={formatCurrency(saldoProjetado)}
           tone={saldoProjetado >= 0 ? 'income' : 'expense'}
         />
-        <MetricCard
-          label="Comprometimento"
-          value={receitas > 0 ? `${txComprometimento.toFixed(0)}%` : '—'}
-          tone={txComprometimento > 90 ? 'expense' : txComprometimento > 70 ? 'warning' : 'income'}
-        />
+        <div className="relative">
+          <MetricCard
+            label="Comprometimento"
+            value={receitas > 0 ? `${txComprometimento.toFixed(0)}%` : '—'}
+            tone={txComprometimento > 90 ? 'expense' : txComprometimento > 70 ? 'warning' : 'income'}
+          />
+          {comprometimentoGuide.isVisible && (
+            <FirstAccessGuideCard
+              floating
+              placement="top"
+              align="right"
+              className="absolute right-0 top-full z-50 mt-3 w-[min(25rem,calc(100vw-2rem))]"
+              icon={AlertTriangle}
+              description={firstAccessGuideMessages.painelComprometimento}
+              onDismiss={comprometimentoGuide.dismiss}
+            />
+          )}
+        </div>
       </div>
 
       {/* Contratos panel */}

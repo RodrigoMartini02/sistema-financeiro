@@ -12,6 +12,9 @@ import { Field, Input } from '../../ui/form';
 import { EmptyState, ErrorState } from '../../ui/states';
 import { ConfigListRow } from '../../ui/ConfigListRow';
 import { ClienteDetail } from './ClienteDetail';
+import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
+import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -100,6 +103,7 @@ export function ClientesTab() {
   const qc = useQueryClient();
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
   const [dialog, setDialog] = useState<{ open: boolean; item?: Cliente }>({ open: false });
+  const createGuide = useFirstAccessGuide('clientes:novo-v1');
 
   const { data: clientes = [], isLoading, error } = useQuery({
     queryKey: queryKeys.clientes,
@@ -152,13 +156,24 @@ export function ClientesTab() {
   return (
     <>
       <div className="grid gap-4">
-        <div className="flex items-center justify-between">
+        <div className="relative flex items-center justify-between">
           <p className="text-sm text-slate-500">
             {clientes.length} cliente{clientes.length !== 1 ? 's' : ''} cadastrado{clientes.length !== 1 ? 's' : ''}
           </p>
           <Button icon={<Plus size={15} />} onClick={() => setDialog({ open: true })}>
             Novo cliente
           </Button>
+          {createGuide.isVisible && (
+            <FirstAccessGuideCard
+              icon={Building2}
+              description={firstAccessGuideMessages.clientesNovo}
+              align="right"
+              floating
+              placement="top"
+              className="absolute right-0 top-full z-50 mt-3 w-[min(25rem,calc(100vw-2rem))]"
+              onDismiss={createGuide.dismiss}
+            />
+          )}
         </div>
 
         {error && <ErrorState title="Erro ao carregar clientes" description={(error as Error).message} />}

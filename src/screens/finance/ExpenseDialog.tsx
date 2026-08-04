@@ -16,6 +16,9 @@ import { CategoryChipSelector } from '../../ui/CategoryChipSelector';
 import { getRecentCategoryIds, suggestCategoryForDescription } from '../../utils/categorySuggestions';
 import { fetchCategorias, fetchCartoes, saveCategoria } from '../../services/configService';
 import { queryKeys } from '../../services/queryKeys';
+import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
+import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 
 const schema = z.object({
   descricao:       z.string().min(1, 'Informe a descrição'),
@@ -96,6 +99,11 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
 
   const [categoriaSugestao, setCategoriaSugestao] = useState<CategoriaSugestao | null>(null);
   const [duplicataInfo, setDuplicataInfo]         = useState<DuplicataInfo | null>(null);
+
+  const togglesGuide = useFirstAccessGuide('despesas:toggles-tipo-v1');
+  const loteGuide = useFirstAccessGuide('despesas:adicionar-lote-v1');
+  const categoriaSugeridaGuide = useFirstAccessGuide('despesas:categoria-sugerida-v1');
+  const duplicataGuide = useFirstAccessGuide('despesas:duplicata-v1');
 
   const criarCatMut = useMutation({
     mutationFn: (nome: string) => saveCategoria({ nome }),
@@ -323,7 +331,17 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
         )}
 
         {/* ── Status: Já pago · Recorrente · Parcelado ─────────── */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex flex-wrap items-center gap-2">
+          {togglesGuide.isVisible && (
+            <FirstAccessGuideCard
+              floating
+              placement="bottom"
+              className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+              icon={Layers}
+              description={firstAccessGuideMessages.despesasTogglesTipo}
+              onDismiss={togglesGuide.dismiss}
+            />
+          )}
           <Controller
             control={form.control}
             name="pago"
@@ -388,7 +406,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
           </div>
 
           {categoriaSugestao && !categoriaId && (
-            <div className="flex items-center gap-2 rounded-lg border border-brand-100 bg-brand-50 px-3 py-2 text-xs dark:border-brand-800 dark:bg-brand-900/20">
+            <div className="relative flex items-center gap-2 rounded-lg border border-brand-100 bg-brand-50 px-3 py-2 text-xs dark:border-brand-800 dark:bg-brand-900/20">
               <Tag size={12} className="shrink-0 text-brand-400" />
               <span className="flex-1 text-slate-600 dark:text-slate-400">
                 Categoria sugerida: <strong className="text-slate-700 dark:text-slate-300">{categoriaSugestao.categoriaNome}</strong>
@@ -403,6 +421,16 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
               <button type="button" onClick={() => setCategoriaSugestao(null)} className="text-slate-300 hover:text-red-400 transition">
                 <X size={12} />
               </button>
+              {categoriaSugeridaGuide.isVisible && (
+                <FirstAccessGuideCard
+                  floating
+                  placement="bottom"
+                  className="absolute left-0 top-full z-50 mt-3 w-[min(22rem,calc(100vw-2rem))]"
+                  icon={Tag}
+                  description={firstAccessGuideMessages.despesasCategoriaSugerida}
+                  onDismiss={categoriaSugeridaGuide.dismiss}
+                />
+              )}
             </div>
           )}
 
@@ -546,7 +574,17 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
 
         {/* Feature 4: Aviso de duplicata */}
         {duplicataInfo && (
-          <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm dark:border-amber-800 dark:bg-amber-900/20">
+          <div className="relative flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm dark:border-amber-800 dark:bg-amber-900/20">
+            {duplicataGuide.isVisible && (
+              <FirstAccessGuideCard
+                floating
+                placement="top"
+                className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                icon={AlertTriangle}
+                description={firstAccessGuideMessages.despesasDuplicata}
+                onDismiss={duplicataGuide.dismiss}
+              />
+            )}
             <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-500" />
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-amber-800 dark:text-amber-400">Possível duplicata detectada</p>
@@ -583,9 +621,22 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
 
         <div className="flex justify-end gap-2 pt-1">
           {!isEditing && (
-            <Button type="button" variant="secondary" icon={<Plus size={14} />} onClick={handleAddToBatch}>
-              Adicionar ao lote
-            </Button>
+            <div className="relative">
+              <Button type="button" variant="secondary" icon={<Plus size={14} />} onClick={handleAddToBatch}>
+                Adicionar ao lote
+              </Button>
+              {loteGuide.isVisible && (
+                <FirstAccessGuideCard
+                  floating
+                  placement="top"
+                  align="right"
+                  className="absolute right-0 top-full z-50 mt-3 w-[min(22rem,calc(100vw-2rem))]"
+                  icon={Plus}
+                  description={firstAccessGuideMessages.despesasAdicionarLote}
+                  onDismiss={loteGuide.dismiss}
+                />
+              )}
+            </div>
           )}
           <Button type="submit" disabled={isSaving || isSavingAll}>
             {isSaving || isSavingAll

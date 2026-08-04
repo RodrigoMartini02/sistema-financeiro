@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller, useWatch } from 'react-hook-form';
 import { z } from 'zod';
-import { Paperclip, ChevronDown, ChevronUp, Clock } from 'lucide-react';
+import { Paperclip, ChevronDown, ChevronUp, Clock, Users } from 'lucide-react';
 import { MONTH_NAMES, type Attachment, type Income, type IncomeFormValues } from '../../types/finance';
 import { Dialog } from '../../ui/dialog';
 import { Button } from '../../ui/button';
@@ -13,6 +13,9 @@ import { fetchRepresentantes } from '../../services/representantesService';
 import { fetchIncomeTypes } from '../../services/incomeTypesService';
 import { fetchContratosAtivos } from '../../services/clientesService';
 import { queryKeys } from '../../services/queryKeys';
+import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
+import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 
 const schema = z.object({
   descricao:       z.string().min(1, 'Informe a descrição'),
@@ -43,6 +46,10 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, onClo
   const [contratoId, setContratoId] = useState<number | null>(null);
   const [tipoHora, setTipoHora] = useState<'presencial' | 'remoto' | null>(null);
   const [quantidadeHoras, setQuantidadeHoras] = useState<number | ''>('');
+
+  const horasGuide = useFirstAccessGuide('receitas:horas-v1');
+  const replicarGuide = useFirstAccessGuide('receitas:replicar-v1');
+  const representanteGuide = useFirstAccessGuide('receitas:representante-v1');
 
   const repsQ = useQuery({ queryKey: queryKeys.representantes, queryFn: fetchRepresentantes, staleTime: 60_000 });
   const representantes = repsQ.data ?? [];
@@ -213,17 +220,29 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, onClo
         {representantes.length > 0 && (
           <>
             <SectionDivider label="Representante" />
-            <Controller
-              control={form.control}
-              name="representanteId"
-              render={({ field }) => (
-                <ToggleGroup
-                  value={field.value ? String(field.value) : ''}
-                  options={repOpcoes}
-                  onChange={(v) => field.onChange(v ? Number(v) : null)}
+            <div className="relative">
+              <Controller
+                control={form.control}
+                name="representanteId"
+                render={({ field }) => (
+                  <ToggleGroup
+                    value={field.value ? String(field.value) : ''}
+                    options={repOpcoes}
+                    onChange={(v) => field.onChange(v ? Number(v) : null)}
+                  />
+                )}
+              />
+              {representanteGuide.isVisible && (
+                <FirstAccessGuideCard
+                  floating
+                  placement="bottom"
+                  className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                  icon={Users}
+                  description={firstAccessGuideMessages.receitasRepresentante}
+                  onDismiss={representanteGuide.dismiss}
                 />
               )}
-            />
+            </div>
           </>
         )}
 
@@ -246,7 +265,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, onClo
 
         {/* ── Horas a faturar (nova receita only) ──────────────── */}
         {isNew && contratosAtivos.length > 0 && (
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/40">
+          <div className="relative rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/40">
             <button
               type="button"
               onClick={() => { setHorasFaturar((v) => !v); if (horasFaturar) { setContratoId(null); setTipoHora(null); setQuantidadeHoras(''); } }}
@@ -255,6 +274,16 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, onClo
               <span className="flex items-center gap-2"><Clock size={14} />Horas a faturar...</span>
               {horasFaturar ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
             </button>
+            {horasGuide.isVisible && (
+              <FirstAccessGuideCard
+                floating
+                placement="bottom"
+                className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                icon={Clock}
+                description={firstAccessGuideMessages.receitasHoras}
+                onDismiss={horasGuide.dismiss}
+              />
+            )}
             {horasFaturar && (
               <div className="mt-3 space-y-3">
                 <Field label="Contrato">
@@ -349,7 +378,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, onClo
 
         {/* ── Replicar até (nova receita only) ─────────────────── */}
         {isNew && (
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/40">
+          <div className="relative rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/40">
             <button
               type="button"
               onClick={() => setReplicar((v) => !v)}
@@ -358,6 +387,16 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, onClo
               <span>Replicar até...</span>
               {replicar ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
             </button>
+            {replicarGuide.isVisible && (
+              <FirstAccessGuideCard
+                floating
+                placement="bottom"
+                className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                icon={ChevronDown}
+                description={firstAccessGuideMessages.receitasReplicar}
+                onDismiss={replicarGuide.dismiss}
+              />
+            )}
             {replicar && (
               <div className="mt-3 flex items-center gap-3">
                 <div className="flex-1">

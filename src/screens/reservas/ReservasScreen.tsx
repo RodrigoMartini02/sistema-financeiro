@@ -50,11 +50,13 @@ function ReservaCard({
   onEdit,
   onMovimentar,
   onDelete,
+  moveGuide,
 }: {
   r: Reserva;
   onEdit: () => void;
   onMovimentar: () => void;
   onDelete: () => void;
+  moveGuide?: { description: string; onDismiss: () => void };
 }) {
   const cor = r.cor ?? '#6366f1';
   const temMeta = !!r.objetivo_valor && Number(r.objetivo_valor) > 0;
@@ -110,14 +112,27 @@ function ReservaCard({
 
       {/* Zona direita */}
       <div className="relative flex-none ml-auto flex items-center gap-2">
-        <Button
-          variant="secondary"
-          className="text-xs py-1.5"
-          icon={<TrendingUp size={14} />}
-          onClick={onMovimentar}
-        >
-          Movimentar
-        </Button>
+        <div className="relative">
+          <Button
+            variant="secondary"
+            className="text-xs py-1.5"
+            icon={<TrendingUp size={14} />}
+            onClick={onMovimentar}
+          >
+            Movimentar
+          </Button>
+          {moveGuide && (
+            <FirstAccessGuideCard
+              floating
+              placement="top"
+              align="right"
+              className="absolute right-0 top-full z-50 mt-3 w-[min(22rem,calc(100vw-2rem))]"
+              icon={TrendingUp}
+              description={moveGuide.description}
+              onDismiss={moveGuide.onDismiss}
+            />
+          )}
+        </div>
         <Button
           variant="ghost"
           className="px-2"
@@ -223,7 +238,7 @@ export function ReservasScreen() {
             </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {data.map((r) => (
+            {data.map((r, i) => (
               <ReservaCard
                 key={r.id}
                 r={r}
@@ -232,6 +247,9 @@ export function ReservasScreen() {
                 onDelete={() => {
                   if (confirm('Excluir esta reserva?')) deleteMut.mutate(r.id);
                 }}
+                moveGuide={i === 0 && moveGuide.isVisible
+                  ? { description: firstAccessGuideMessages.reservasMovimentar, onDismiss: moveGuide.dismiss }
+                  : undefined}
               />
             ))}
           </div>
