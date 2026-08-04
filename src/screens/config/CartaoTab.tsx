@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Pencil, CreditCard } from 'lucide-react';
+import { Plus, Trash2, Pencil, CreditCard, Calendar, DollarSign } from 'lucide-react';
 import { fetchCartoes, saveCartao, deleteCartao } from '../../services/configService';
 import { queryKeys } from '../../services/queryKeys';
 import type { Cartao, CartaoFormValues } from '../../types/config';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { Field, Input, SectionDivider } from '../../ui/form';
+import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
+import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 
 const COR_OPCOES = [
   { value: '#1e40af', label: 'Azul' },
@@ -26,6 +29,9 @@ function CartaoDialog({
   onClose: () => void; onSave: (v: CartaoFormValues) => void;
 }) {
   const [cor, setCor] = useState(cartao?.cor ?? COR_OPCOES[0].value);
+  const limiteGuide = useFirstAccessGuide('cartoes:limite-v1');
+  const validadeGuide = useFirstAccessGuide('cartoes:validade-v1');
+  const fechamentoGuide = useFirstAccessGuide('cartoes:fechamento-vencimento-v1');
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -53,22 +59,53 @@ function CartaoDialog({
           </Field>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="relative grid gap-4 sm:grid-cols-2">
           <Field label="Limite (R$)" hint="Opcional">
             <Input name="limite" type="number" step="0.01" min="0" defaultValue={cartao?.limite ?? ''} placeholder="0,00" />
           </Field>
           <Field label="Validade" hint="MM/AA">
             <Input name="validade" maxLength={5} defaultValue={cartao?.validade ?? ''} placeholder="12/28" />
           </Field>
+          {limiteGuide.isVisible && (
+            <FirstAccessGuideCard
+              floating
+              placement="bottom"
+              className="absolute left-0 top-full z-50 mt-3 w-[min(22rem,calc(100vw-2rem))]"
+              icon={DollarSign}
+              description={firstAccessGuideMessages.cartoesLimite}
+              onDismiss={limiteGuide.dismiss}
+            />
+          )}
+          {validadeGuide.isVisible && (
+            <FirstAccessGuideCard
+              floating
+              placement="bottom"
+              align="right"
+              className="absolute right-0 top-full z-50 mt-3 w-[min(22rem,calc(100vw-2rem))]"
+              icon={Calendar}
+              description={firstAccessGuideMessages.cartoesValidade}
+              onDismiss={validadeGuide.dismiss}
+            />
+          )}
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="relative grid gap-4 sm:grid-cols-2">
           <Field label="Dia de fechamento" hint="Dia do mês">
             <Input name="dia_fechamento" type="number" min="1" max="31" defaultValue={cartao?.dia_fechamento ?? ''} placeholder="Ex: 25" />
           </Field>
           <Field label="Dia de vencimento" hint="Dia do mês">
             <Input name="dia_vencimento" type="number" min="1" max="31" defaultValue={cartao?.dia_vencimento ?? ''} placeholder="Ex: 5" />
           </Field>
+          {fechamentoGuide.isVisible && (
+            <FirstAccessGuideCard
+              floating
+              placement="bottom"
+              className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+              icon={Calendar}
+              description={firstAccessGuideMessages.cartoesFechamentoVencimento}
+              onDismiss={fechamentoGuide.dismiss}
+            />
+          )}
         </div>
 
         <SectionDivider label="Cor do cartão" />
@@ -114,6 +151,7 @@ function CartaoDialog({
 export function CartaoTab() {
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Cartao }>({ open: false });
+  const createGuide = useFirstAccessGuide('cartoes:novo-v1');
 
   const cartoes = useQuery({ queryKey: queryKeys.cartoes, queryFn: fetchCartoes });
 
@@ -131,11 +169,22 @@ export function CartaoTab() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex items-center justify-between">
+      <div className="relative flex items-center justify-between">
         <p className="text-sm text-slate-500">{data.length} cartão/cartões cadastrado(s)</p>
         <Button icon={<Plus size={16} />} onClick={() => setDialog({ open: true })}>
           Novo cartão
         </Button>
+        {createGuide.isVisible && (
+          <FirstAccessGuideCard
+            icon={CreditCard}
+            description={firstAccessGuideMessages.cartoesNovo}
+            align="right"
+            floating
+            placement="top"
+            className="absolute right-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+            onDismiss={createGuide.dismiss}
+          />
+        )}
       </div>
 
       {cartoes.isLoading && <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>}

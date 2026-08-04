@@ -5,6 +5,9 @@ import { useAppContext } from '../../context/AppContext';
 import { MONTH_NAMES } from '../../types/finance';
 import { Card } from '../../ui/card';
 import type { AppSection } from '../../layout/AppShell';
+import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
+import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 
 interface MesData {
   ano: number;
@@ -51,10 +54,13 @@ function fmt(v: number) {
 }
 
 function MesCard({
-  mes, ano, dadoBD, onNavigate,
+  mes, ano, dadoBD, onNavigate, showGuide, guideVisible, onGuideDismiss,
 }: {
   mes: number; ano: number; dadoBD?: MesData;
   onNavigate: (section: AppSection, month: number) => void;
+  showGuide?: boolean;
+  guideVisible?: boolean;
+  onGuideDismiss?: () => void;
 }) {
   const qc = useQueryClient();
   const saldo = useQuery({
@@ -127,23 +133,36 @@ function MesCard({
         >
           Ver detalhes <ChevronRight size={12} />
         </button>
-        <button
-          onClick={() => {
-            if (fechado) {
-              if (confirm(`Reabrir ${MONTH_NAMES[mes]}?`)) reabrirMut.mutate();
-            } else {
-              if (confirm(`Fechar ${MONTH_NAMES[mes]}? Os lançamentos ficarão bloqueados.`)) fecharMut.mutate();
-            }
-          }}
-          disabled={fecharMut.isPending || reabrirMut.isPending}
-          className={['flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition',
-            fechado
-              ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
-              : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-          ].join(' ')}
-        >
-          {fechado ? <><LockOpen size={12} /> Reabrir</> : <><Lock size={12} /> Fechar</>}
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => {
+              if (fechado) {
+                if (confirm(`Reabrir ${MONTH_NAMES[mes]}?`)) reabrirMut.mutate();
+              } else {
+                if (confirm(`Fechar ${MONTH_NAMES[mes]}? Os lançamentos ficarão bloqueados.`)) fecharMut.mutate();
+              }
+            }}
+            disabled={fecharMut.isPending || reabrirMut.isPending}
+            className={['flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition',
+              fechado
+                ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+            ].join(' ')}
+          >
+            {fechado ? <><LockOpen size={12} /> Reabrir</> : <><Lock size={12} /> Fechar</>}
+          </button>
+          {showGuide && guideVisible && (
+            <FirstAccessGuideCard
+              floating
+              placement="top"
+              align="right"
+              className="absolute right-0 top-full z-50 mt-3 w-[min(22rem,calc(100vw-2rem))]"
+              icon={Lock}
+              description={firstAccessGuideMessages.mesesFecharReabrir}
+              onDismiss={onGuideDismiss}
+            />
+          )}
+        </div>
       </div>
     </Card>
   );
@@ -155,6 +174,7 @@ interface MesesScreenProps {
 
 export function MesesScreen({ onNavigate }: MesesScreenProps) {
   const { year, setYear } = useAppContext();
+  const fecharReabrirGuide = useFirstAccessGuide('meses:fechar-reabrir-v1');
 
   const meses = useQuery({
     queryKey: ['meses', year],
@@ -200,6 +220,9 @@ export function MesesScreen({ onNavigate }: MesesScreenProps) {
             ano={year}
             dadoBD={dadosPorMes.get(i)}
             onNavigate={handleNavigate}
+            showGuide={i === 0}
+            guideVisible={fecharReabrirGuide.isVisible}
+            onGuideDismiss={fecharReabrirGuide.dismiss}
           />
         ))}
       </div>

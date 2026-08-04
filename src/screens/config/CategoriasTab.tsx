@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, ChevronDown, ChevronRight, Tag, FolderTree } from 'lucide-react';
+import { Plus, ChevronDown, ChevronRight, Tag, FolderTree, Link2 } from 'lucide-react';
 import { fetchCategorias, saveCategoria, toggleCategoria } from '../../services/configService';
 import { queryKeys } from '../../services/queryKeys';
 import type { Categoria, CategoriaFormValues } from '../../types/config';
@@ -55,6 +55,8 @@ function CategoriaDialog({
   const [tipoCategoria, setTipoCategoria] = useState<CategoriaKind>(resolveInitialKind);
   const [selectedParentId, setSelectedParentId] = useState(resolveInitialParent);
   const [localError, setLocalError] = useState<string | null>(null);
+  const vincularGuide = useFirstAccessGuide('categorias:vincular-principal-v1');
+  const desativarGuide = useFirstAccessGuide('categorias:desativar-v1');
 
   useEffect(() => {
     if (!open) {
@@ -154,19 +156,31 @@ function CategoriaDialog({
         )}
 
         {isSubcategory && !isDirectSubcategoryCreation && (
-          <Field label="Vincular a uma categoria principal" required>
-            <Select
-              name="parent_id"
-              value={selectedParentId}
-              onChange={(e) => { setSelectedParentId(e.target.value); setLocalError(null); }}
-              required
-            >
-              <option value="">Selecione uma categoria principal</option>
-              {parentOptions.map((p) => (
-                <option key={p.id} value={p.id}>{p.nome}</option>
-              ))}
-            </Select>
-          </Field>
+          <div className="relative">
+            <Field label="Vincular a uma categoria principal" required>
+              <Select
+                name="parent_id"
+                value={selectedParentId}
+                onChange={(e) => { setSelectedParentId(e.target.value); setLocalError(null); }}
+                required
+              >
+                <option value="">Selecione uma categoria principal</option>
+                {parentOptions.map((p) => (
+                  <option key={p.id} value={p.id}>{p.nome}</option>
+                ))}
+              </Select>
+            </Field>
+            {vincularGuide.isVisible && (
+              <FirstAccessGuideCard
+                floating
+                placement="bottom"
+                className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                icon={Link2}
+                description={firstAccessGuideMessages.categoriasVincularPrincipal}
+                onDismiss={vincularGuide.dismiss}
+              />
+            )}
+          </div>
         )}
 
         {(error || localError) && (
@@ -177,9 +191,21 @@ function CategoriaDialog({
 
         <div className="flex items-center gap-2">
           {cat && onToggle && (
-            <Button type="button" variant={cat.ativo ? 'danger' : 'ghost'} onClick={onToggle}>
-              {cat.ativo ? 'Desativar' : 'Ativar'}
-            </Button>
+            <div className="relative">
+              <Button type="button" variant={cat.ativo ? 'danger' : 'ghost'} onClick={onToggle}>
+                {cat.ativo ? 'Desativar' : 'Ativar'}
+              </Button>
+              {cat.ativo && desativarGuide.isVisible && (
+                <FirstAccessGuideCard
+                  floating
+                  placement="top"
+                  className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                  icon={Tag}
+                  description={firstAccessGuideMessages.categoriasDesativar}
+                  onDismiss={desativarGuide.dismiss}
+                />
+              )}
+            </div>
           )}
           <div className="ml-auto">
             <Button type="submit" disabled={isSaving}>{isSaving ? 'Salvando...' : 'Salvar'}</Button>

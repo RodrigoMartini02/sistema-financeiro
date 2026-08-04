@@ -4,6 +4,9 @@ import { Dialog } from '../../ui/dialog';
 import { pagarDespesa } from '../../services/financeService';
 import type { Expense } from '../../types/finance';
 import { formatCurrency } from './formatters';
+import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
+import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 
 interface BatchPaymentModalProps {
   open: boolean;
@@ -24,6 +27,7 @@ export function BatchPaymentModal({ open, expenses, onClose, onSuccess }: BatchP
   const [valoresPorId, setValoresPorId] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const tabGuide = useFirstAccessGuide('despesas:batch-valor-v1');
 
   useEffect(() => {
     if (open) {
@@ -73,7 +77,7 @@ export function BatchPaymentModal({ open, expenses, onClose, onSuccess }: BatchP
     >
       <div className="flex flex-col gap-4">
         {/* Tab switcher */}
-        <div className="flex rounded-xl border border-slate-200 overflow-hidden dark:border-slate-600">
+        <div className="relative flex rounded-xl border border-slate-200 overflow-hidden dark:border-slate-600">
           <button
             type="button"
             onClick={() => setTab('original')}
@@ -98,6 +102,16 @@ export function BatchPaymentModal({ open, expenses, onClose, onSuccess }: BatchP
           >
             Valor personalizado
           </button>
+          {tabGuide.isVisible && (
+            <FirstAccessGuideCard
+              floating
+              placement="bottom"
+              className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+              icon={CircleCheck}
+              description={tab === 'original' ? firstAccessGuideMessages.batchValorOriginal : firstAccessGuideMessages.batchValorPersonalizado}
+              onDismiss={tabGuide.dismiss}
+            />
+          )}
         </div>
 
         {/* Date input */}

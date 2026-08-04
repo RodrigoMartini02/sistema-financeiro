@@ -30,6 +30,7 @@ function UsuarioDialog({
 }) {
   const [tipoAcesso, setTipoAcesso] = useState(usuario?.tipo ?? 'padrao');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const desativarGuide = useFirstAccessGuide('usuarios:desativar-excluir-v1');
 
   useEffect(() => { if (!open) setConfirmDelete(false); }, [open]);
 
@@ -92,7 +93,7 @@ function UsuarioDialog({
 
         <div className="flex items-center gap-2">
           {usuario && (
-            <div className="flex items-center gap-2">
+            <div className="relative flex items-center gap-2">
               {onToggleStatus && (
                 <Button
                   type="button"
@@ -101,6 +102,16 @@ function UsuarioDialog({
                 >
                   {isAtivo ? <><UserX size={14} /> Desativar</> : <><UserCheck size={14} /> Ativar</>}
                 </Button>
+              )}
+              {desativarGuide.isVisible && (
+                <FirstAccessGuideCard
+                  floating
+                  placement="top"
+                  className="absolute left-0 top-full z-50 mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                  icon={UserX}
+                  description={firstAccessGuideMessages.usuariosDesativarExcluir}
+                  onDismiss={desativarGuide.dismiss}
+                />
               )}
               {isMaster && onDelete && (
                 !confirmDelete ? (

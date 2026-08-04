@@ -10,6 +10,9 @@ import {
   Shield, RotateCcw, XCircle,
 } from 'lucide-react';
 import { ErrorState } from '../../ui/states';
+import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
+import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 
 // ─── types ───────────────────────────────────────────────────
 
@@ -400,6 +403,7 @@ function PagamentoDialog({ plano, onClose, onSuccess }: {
 }) {
   const [tab, setTab] = useState<PayTab>('pix');
   const [erro, setErro] = useState('');
+  const tabsGuide = useFirstAccessGuide('planos:formas-pagamento-v1');
 
   const handleSuccess = () => { onClose(); onSuccess(); };
 
@@ -429,7 +433,7 @@ function PagamentoDialog({ plano, onClose, onSuccess }: {
         )}
 
         {/* Tabs */}
-        <div className="flex gap-0.5 rounded-xl border border-slate-200 bg-slate-50 p-1">
+        <div className="relative flex gap-0.5 rounded-xl border border-slate-200 bg-slate-50 p-1">
           {TABS.map(({ id, label }) => (
             <button
               key={id} type="button"
@@ -442,6 +446,16 @@ function PagamentoDialog({ plano, onClose, onSuccess }: {
               {label}
             </button>
           ))}
+          {tabsGuide.isVisible && (
+            <FirstAccessGuideCard
+              floating
+              placement="bottom"
+              className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+              icon={CreditCard}
+              description={firstAccessGuideMessages.planosFormasPagamento}
+              onDismiss={tabsGuide.dismiss}
+            />
+          )}
         </div>
 
         {/* Tab content */}

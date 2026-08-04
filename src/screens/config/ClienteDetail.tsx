@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Plus, RefreshCw,
-  AlertTriangle, ChevronRight, Paperclip,
+  AlertTriangle, ChevronRight, Paperclip, Info, Users, Clock as ClockIcon,
 } from 'lucide-react';
 import {
   fetchContratos, saveContrato, encerrarContrato, gerarPrevistas, criarReceitaImplantacao,
@@ -18,6 +18,9 @@ import { Dialog } from '../../ui/dialog';
 import { Field, Input, Textarea, ToggleGroup, SectionDivider } from '../../ui/form';
 import { EmptyState } from '../../ui/states';
 import { formatCurrency } from '../finance/formatters';
+import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
+import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 
 // ─── Module-level helpers ─────────────────────────────────────────────────────
 
@@ -49,6 +52,8 @@ function ContratoForm({
   });
 
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const reajusteGuide = useFirstAccessGuide('clientes:reajuste-v1');
+  const representanteGuide = useFirstAccessGuide('clientes:representante-v1');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,43 +141,67 @@ function ContratoForm({
       </div>
 
       {/* Reajuste */}
-      <Field label="Reajuste">
-        <ToggleGroup
-          value={['IGPM', 'IPCA'].includes(form.ajuste) ? form.ajuste : 'NADA CONSTA'}
-          options={[
-            { value: 'NADA CONSTA', label: 'Nada consta' },
-            { value: 'IGPM',        label: 'IGPM' },
-            { value: 'IPCA',        label: 'IPCA' },
-          ]}
-          onChange={(v) => set('ajuste', v)}
-        />
-      </Field>
+      <div className="relative">
+        <Field label="Reajuste">
+          <ToggleGroup
+            value={['IGPM', 'IPCA'].includes(form.ajuste) ? form.ajuste : 'NADA CONSTA'}
+            options={[
+              { value: 'NADA CONSTA', label: 'Nada consta' },
+              { value: 'IGPM',        label: 'IGPM' },
+              { value: 'IPCA',        label: 'IPCA' },
+            ]}
+            onChange={(v) => set('ajuste', v)}
+          />
+        </Field>
+        {reajusteGuide.isVisible && (
+          <FirstAccessGuideCard
+            floating
+            placement="bottom"
+            className="absolute left-0 top-full z-50 mt-3 w-[min(25rem,calc(100vw-2rem))]"
+            icon={Info}
+            description={firstAccessGuideMessages.clientesReajuste}
+            onDismiss={reajusteGuide.dismiss}
+          />
+        )}
+      </div>
 
       {/* Representante */}
       {representantes.length > 0 && (
         <>
           <SectionDivider label="Representante" />
-          {representantes.length <= 5 ? (
-            <ToggleGroup
-              value={form.representante_id}
-              options={[
-                { value: '', label: 'Nenhum' },
-                ...representantes.map((r) => ({ value: String(r.id), label: r.nome })),
-              ]}
-              onChange={(v) => set('representante_id', v)}
-            />
-          ) : (
-            <select
-              value={form.representante_id}
-              onChange={(e) => set('representante_id', e.target.value)}
-              className="h-10 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-400"
-            >
-              <option value="">— Nenhum —</option>
-              {representantes.map((r) => (
-                <option key={r.id} value={String(r.id)}>{r.nome}</option>
-              ))}
-            </select>
-          )}
+          <div className="relative">
+            {representantes.length <= 5 ? (
+              <ToggleGroup
+                value={form.representante_id}
+                options={[
+                  { value: '', label: 'Nenhum' },
+                  ...representantes.map((r) => ({ value: String(r.id), label: r.nome })),
+                ]}
+                onChange={(v) => set('representante_id', v)}
+              />
+            ) : (
+              <select
+                value={form.representante_id}
+                onChange={(e) => set('representante_id', e.target.value)}
+                className="h-10 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-400"
+              >
+                <option value="">— Nenhum —</option>
+                {representantes.map((r) => (
+                  <option key={r.id} value={String(r.id)}>{r.nome}</option>
+                ))}
+              </select>
+            )}
+            {representanteGuide.isVisible && (
+              <FirstAccessGuideCard
+                floating
+                placement="bottom"
+                className="absolute left-0 top-full z-50 mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                icon={Users}
+                description={firstAccessGuideMessages.clientesRepresentante}
+                onDismiss={representanteGuide.dismiss}
+              />
+            )}
+          </div>
         </>
       )}
 
@@ -463,6 +492,10 @@ function ContratoModal({
 }) {
   const [isEditing, setIsEditing] = useState(!contrato);
   const [showServicos, setShowServicos] = useState(false);
+  const servicosVinculoGuide = useFirstAccessGuide('clientes:servicos-vinculo-v1');
+  const implantacaoGuide = useFirstAccessGuide('clientes:implantacao-v1');
+  const horasGuide = useFirstAccessGuide('clientes:horas-v1');
+  const encerrarGuide = useFirstAccessGuide('clientes:encerrar-contrato-v1');
   const [pendingServicos, setPendingServicos] = useState<Map<number, number>>(new Map());
   const [valMensal, setValMensal]   = useState(fv(contrato?.valor_mensal));
   const [implTotal, setImplTotal]   = useState(fv((contrato?.implantacao_parcelas ?? 1) * (contrato?.implantacao_valor_parcela ?? 0)));
@@ -629,8 +662,18 @@ function ContratoModal({
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Serviços técnicos</span>
 
               {/* Implantação */}
-              <div className="flex items-start gap-3">
+              <div className="relative flex items-start gap-3">
                 <span className="w-32 shrink-0 pt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Implantação</span>
+                {isEditing && implantacaoGuide.isVisible && (
+                  <FirstAccessGuideCard
+                    floating
+                    placement="bottom"
+                    className="absolute left-0 top-full z-50 mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                    icon={Info}
+                    description={firstAccessGuideMessages.clientesImplantacao}
+                    onDismiss={implantacaoGuide.dismiss}
+                  />
+                )}
                 {isEditing ? (
                   <div className="flex-1 grid grid-cols-3 gap-3 items-end">
                     <div className="grid gap-1.5">
@@ -677,8 +720,18 @@ function ContratoModal({
                   saldoAtual: contrato ? parseFloat(String(contrato.horas_remotas_saldo_atual ?? 0)) || 0 : null,
                 },
               ] as { label: string; vS: string; vSet: (v: string) => void; iS: string; iSet: (v: string) => void; saldoAtual: number | null }[]).map(({ label, vS, vSet, iS, iSet, saldoAtual }) => (
-                <div key={label} className="flex items-start gap-3">
+                <div key={label} className="relative flex items-start gap-3">
                   <span className="w-32 shrink-0 pt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</span>
+                  {label === 'Hora Presencial' && horasGuide.isVisible && (
+                    <FirstAccessGuideCard
+                      floating
+                      placement="bottom"
+                      className="absolute left-0 top-full z-50 mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                      icon={ClockIcon}
+                      description={firstAccessGuideMessages.clientesHoras}
+                      onDismiss={horasGuide.dismiss}
+                    />
+                  )}
                   {isEditing ? (
                     <div className="flex-1 grid grid-cols-3 gap-3">
                       <div className="grid gap-1.5">
@@ -750,7 +803,7 @@ function ContratoModal({
               <EmptyState title="Sem serviços" description="Nenhum serviço cadastrado no catálogo." />
             ) : (
               <>
-                <div className="grid items-center gap-x-3 px-1 pb-1 shrink-0"
+                <div className="relative grid items-center gap-x-3 px-1 pb-1 shrink-0"
                   style={{ gridTemplateColumns: contrato ? '28px 1fr 90px 72px 80px 80px' : '28px 1fr 90px 72px' }}>
                   <span />
                   <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Serviço</span>
@@ -758,6 +811,17 @@ function ContratoModal({
                   <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center">Contratado</span>
                   {contrato && <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center">Implantado</span>}
                   {contrato && <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center">Faturando</span>}
+                  {contrato && servicosVinculoGuide.isVisible && (
+                    <FirstAccessGuideCard
+                      floating
+                      placement="bottom"
+                      align="right"
+                      className="absolute right-0 top-full z-50 mt-3 w-[min(25rem,calc(100vw-2rem))] normal-case"
+                      icon={Info}
+                      description={firstAccessGuideMessages.clientesServicosVinculo}
+                      onDismiss={servicosVinculoGuide.dismiss}
+                    />
+                  )}
                 </div>
                 <div className="scrollbar-thin overflow-y-auto flex-1 grid gap-2 content-start">
                   {catalogo.map((servico) => {
@@ -816,13 +880,25 @@ function ContratoModal({
         {/* ── Footer ── */}
         <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-1">
           {onEncerrar ? (
-            <button
-              type="button"
-              onClick={onEncerrar}
-              className="flex items-center gap-1.5 text-xs font-medium text-red-500 hover:text-red-700 transition-colors"
-            >
-              <AlertTriangle size={12} /> Encerrar contrato
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={onEncerrar}
+                className="flex items-center gap-1.5 text-xs font-medium text-red-500 hover:text-red-700 transition-colors"
+              >
+                <AlertTriangle size={12} /> Encerrar contrato
+              </button>
+              {encerrarGuide.isVisible && (
+                <FirstAccessGuideCard
+                  floating
+                  placement="top"
+                  className="absolute left-0 bottom-full z-50 mb-3 w-[min(24rem,calc(100vw-2rem))]"
+                  icon={AlertTriangle}
+                  description={firstAccessGuideMessages.clientesEncerrarContrato}
+                  onDismiss={encerrarGuide.dismiss}
+                />
+              )}
+            </div>
           ) : <span />}
 
           <div className="flex items-center gap-2">
@@ -858,6 +934,7 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
 }) {
   const qc = useQueryClient();
   const [contratoModal, setContratoModal] = useState<{ open: boolean; contrato?: Contrato }>({ open: false });
+  const gerarPrevistasGuide = useFirstAccessGuide('clientes:gerar-previstas-v1');
 
   const contratosQ = useQuery({
     queryKey: queryKeys.contratos(cliente.id),
@@ -939,14 +1016,27 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
             <Button variant="secondary" onClick={onEditCliente}>Editar cliente</Button>
           )}
           {contrato && (
-            <Button
-              variant="secondary"
-              icon={<RefreshCw size={14} />}
-              onClick={() => gerarMut.mutate(contrato.id)}
-              disabled={gerarMut.isPending}
-            >
-              {gerarMut.isPending ? 'Gerando...' : 'Gerar previstas'}
-            </Button>
+            <div className="relative">
+              <Button
+                variant="secondary"
+                icon={<RefreshCw size={14} />}
+                onClick={() => gerarMut.mutate(contrato.id)}
+                disabled={gerarMut.isPending}
+              >
+                {gerarMut.isPending ? 'Gerando...' : 'Gerar previstas'}
+              </Button>
+              {gerarPrevistasGuide.isVisible && (
+                <FirstAccessGuideCard
+                  floating
+                  placement="top"
+                  align="right"
+                  className="absolute right-0 top-full z-50 mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                  icon={RefreshCw}
+                  description={firstAccessGuideMessages.clientesGerarPrevistas}
+                  onDismiss={gerarPrevistasGuide.dismiss}
+                />
+              )}
+            </div>
           )}
         </div>
       </div>

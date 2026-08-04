@@ -10,6 +10,9 @@ import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { Field, Input } from '../../ui/form';
 import { ConfigListRow } from '../../ui/ConfigListRow';
+import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
+import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 
 function SocioDialog({
   open, socio, isSaving, error, onClose, onSave, onDelete,
@@ -76,6 +79,7 @@ function SocioDialog({
 export function SociosTab() {
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Socio }>({ open: false });
+  const createGuide = useFirstAccessGuide('socios:novo-v1');
 
   const socios = useQuery({ queryKey: queryKeys.socios, queryFn: fetchSocios });
   const data = socios.data ?? [];
@@ -94,11 +98,22 @@ export function SociosTab() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex items-center justify-between">
+      <div className="relative flex items-center justify-between">
         <p className="text-sm text-slate-500">{data.length} sócio{data.length !== 1 ? 's' : ''} cadastrado{data.length !== 1 ? 's' : ''}</p>
         <Button icon={<Plus size={16} />} onClick={() => setDialog({ open: true })}>
           Novo sócio
         </Button>
+        {createGuide.isVisible && (
+          <FirstAccessGuideCard
+            icon={Plus}
+            description={firstAccessGuideMessages.sociosNovo}
+            align="right"
+            floating
+            placement="top"
+            className="absolute right-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+            onDismiss={createGuide.dismiss}
+          />
+        )}
       </div>
 
       <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800">

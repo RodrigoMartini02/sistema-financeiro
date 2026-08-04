@@ -7,6 +7,10 @@ import { Dialog } from '../../ui/dialog';
 import { Field, Input, SectionDivider, ToggleRow } from '../../ui/form';
 import { Button } from '../../ui/button';
 import type { Reserva, ReservaFormValues, MovimentacaoFormValues } from '../../types/reservas';
+import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
+import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { TrendingUp } from 'lucide-react';
 
 const EMOJIS = ['💰', '🏠', '🚗', '✈️', '📚', '🛡️', '🎓', '💊', '🎮', '💻', '💶', '🐾'];
 
@@ -75,6 +79,8 @@ export function ReservaDialog({
   open, reserva, isSaving, isMovimentando = false, error, startTab, onClose, onSave, onMovimentar,
 }: Props) {
   const [tab, setTab] = useState<'config' | 'movimentar'>('config');
+  const tabsGuide = useFirstAccessGuide('reservas:aba-movimentar-v1');
+  const contribuicaoGuide = useFirstAccessGuide('reservas:contribuicao-sugerida-v1');
 
   // --- Form: Configurações ---
   const configForm = useForm<ReservaFormValues>({
@@ -131,7 +137,7 @@ export function ReservaDialog({
 
       {/* Seletor de abas — só aparece ao editar */}
       {reserva && (
-        <div className="flex gap-1 mb-5 rounded-xl bg-slate-100 dark:bg-slate-700/60 p-1">
+        <div className="relative flex gap-1 mb-5 rounded-xl bg-slate-100 dark:bg-slate-700/60 p-1">
           {(['config', 'movimentar'] as const).map((t) => (
             <button
               key={t}
@@ -147,6 +153,16 @@ export function ReservaDialog({
               {t === 'config' ? 'Configurações' : 'Movimentar'}
             </button>
           ))}
+          {tabsGuide.isVisible && (
+            <FirstAccessGuideCard
+              floating
+              placement="bottom"
+              className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+              icon={TrendingUp}
+              description={firstAccessGuideMessages.reservasAbaMovimentar}
+              onDismiss={tabsGuide.dismiss}
+            />
+          )}
         </div>
       )}
 
@@ -237,7 +253,7 @@ export function ReservaDialog({
           </div>
 
           {contribuicao !== null && (
-            <div className="flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <div className="relative flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800">
               <span>⏱</span>
               <span>
                 Você precisa guardar cerca de{' '}
@@ -247,6 +263,16 @@ export function ReservaDialog({
                 </strong>{' '}
                 para atingir a meta.
               </span>
+              {contribuicaoGuide.isVisible && (
+                <FirstAccessGuideCard
+                  floating
+                  placement="bottom"
+                  className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                  icon={TrendingUp}
+                  description={firstAccessGuideMessages.reservasContribuicaoSugerida}
+                  onDismiss={contribuicaoGuide.dismiss}
+                />
+              )}
             </div>
           )}
 

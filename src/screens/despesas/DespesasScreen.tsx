@@ -195,6 +195,10 @@ export function DespesasScreen() {
   const [batchModal, setBatchModal] = useState(false);
   const guide = useFirstAccessGuide('despesas:novo-v1');
   const filterGuide = useFirstAccessGuide('despesas:filtros-v1');
+  const fecharMesGuide = useFirstAccessGuide('despesas:fechar-mes-v1');
+  const loteGuide = useFirstAccessGuide('despesas:lote-v1');
+  const pagarSelecionadasGuide = useFirstAccessGuide('despesas:pagar-selecionadas-v1');
+  const moverMesGuide = useFirstAccessGuide('despesas:mover-mes-v1');
 
   const isEmpresa = localStorage.getItem('perfilAtivoTipo') === 'empresa';
   const qc = useQueryClient();
@@ -325,14 +329,26 @@ export function DespesasScreen() {
               <Button variant="secondary" icon={<RefreshCw size={15} />} onClick={() => finance.dashboard.refetch()}>
                 Atualizar
               </Button>
-              <Button
-                variant="secondary"
-                icon={mesFechado ? <LockOpen size={15} /> : <Lock size={15} />}
-                onClick={() => mesFechado ? reabrirMut.mutate() : fecharMut.mutate()}
-                disabled={fecharMut.isPending || reabrirMut.isPending}
-              >
-                {mesFechado ? 'Reabrir mês' : 'Fechar mês'}
-              </Button>
+              <div className="relative">
+                <Button
+                  variant="secondary"
+                  icon={mesFechado ? <LockOpen size={15} /> : <Lock size={15} />}
+                  onClick={() => mesFechado ? reabrirMut.mutate() : fecharMut.mutate()}
+                  disabled={fecharMut.isPending || reabrirMut.isPending}
+                >
+                  {mesFechado ? 'Reabrir mês' : 'Fechar mês'}
+                </Button>
+                {fecharMesGuide.isVisible && (
+                  <FirstAccessGuideCard
+                    floating
+                    placement="top"
+                    className="absolute right-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                    icon={Lock}
+                    description={firstAccessGuideMessages.despesasFecharMes}
+                    onDismiss={fecharMesGuide.dismiss}
+                  />
+                )}
+              </div>
               <Button icon={<Plus size={15} />} onClick={() => setDialog({ open: true })}>
                 Nova despesa
               </Button>
@@ -403,7 +419,7 @@ export function DespesasScreen() {
         <Card>
           {/* Toolbar: filtros */}
           <div className="flex items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700 px-4 py-3">
-            <div className="shrink-0">
+            <div className="relative shrink-0">
               {selecionadas.size > 0 && !mesFechado ? (
                 <div className="flex items-center gap-2">
                   <CheckSquare size={14} className="text-[#0a9db5]" />
@@ -426,6 +442,16 @@ export function DespesasScreen() {
                   </button>
                 </div>
               ) : null}
+              {pagarSelecionadasGuide.isVisible && selecionadas.size > 0 && !mesFechado && (
+                <FirstAccessGuideCard
+                  floating
+                  placement="bottom"
+                  className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                  icon={CheckSquare}
+                  description={firstAccessGuideMessages.despesasPagarSelecionadas}
+                  onDismiss={pagarSelecionadasGuide.dismiss}
+                />
+              )}
             </div>
             <div className="relative flex flex-wrap items-center justify-end gap-1.5">
               {filterGuide.isVisible && !finance.dashboard.isLoading && allItems.length > 0 && (
@@ -538,7 +564,7 @@ export function DespesasScreen() {
                 </colgroup>
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-left">
-                    <th className="px-3 py-2.5 text-center">
+                    <th className="relative px-3 py-2.5 text-center">
                       <input
                         type="checkbox"
                         checked={allSelected}
@@ -547,6 +573,16 @@ export function DespesasScreen() {
                         title="Selecionar todas não pagas"
                         className="rounded accent-[#0EC4D8] cursor-pointer disabled:opacity-40"
                       />
+                      {loteGuide.isVisible && selecionadas.size === 0 && !mesFechado && unpaidFiltered.length > 0 && (
+                        <FirstAccessGuideCard
+                          floating
+                          placement="bottom"
+                          className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))] normal-case"
+                          icon={CheckSquare}
+                          description={firstAccessGuideMessages.despesasLote}
+                          onDismiss={loteGuide.dismiss}
+                        />
+                      )}
                     </th>
                     <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Descrição</th>
                     <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Tipo</th>
@@ -562,7 +598,7 @@ export function DespesasScreen() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                  {filtered.map((item) => (
+                  {filtered.map((item, rowIdx) => (
                     <tr
                       key={item.id}
                       className={[
@@ -682,18 +718,31 @@ export function DespesasScreen() {
                           >
                             <CircleCheck size={15} />
                           </ActionBtn>
-                          <ActionBtn
-                            onClick={() => {
-                              if (confirm(`Mover "${item.descricao}" para o próximo mês?`)) {
-                                moverMut.mutate(item.id);
-                              }
-                            }}
-                            disabled={item.pago || mesFechado || item.status === 'cancelada'}
-                            title={item.status === 'cancelada' ? 'Cancelada' : item.pago ? 'Já pago' : mesFechado ? 'Mês fechado' : 'Mover para próximo mês'}
-                            colorClass="text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/30"
-                          >
-                            <ArrowRight size={14} />
-                          </ActionBtn>
+                          <div className="relative">
+                            <ActionBtn
+                              onClick={() => {
+                                if (confirm(`Mover "${item.descricao}" para o próximo mês?`)) {
+                                  moverMut.mutate(item.id);
+                                }
+                              }}
+                              disabled={item.pago || mesFechado || item.status === 'cancelada'}
+                              title={item.status === 'cancelada' ? 'Cancelada' : item.pago ? 'Já pago' : mesFechado ? 'Mês fechado' : 'Mover para próximo mês'}
+                              colorClass="text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/30"
+                            >
+                              <ArrowRight size={14} />
+                            </ActionBtn>
+                            {rowIdx === 0 && moverMesGuide.isVisible && (
+                              <FirstAccessGuideCard
+                                floating
+                                placement="top"
+                                align="right"
+                                className="absolute right-0 top-full z-50 mt-3 w-[min(22rem,calc(100vw-2rem))]"
+                                icon={ArrowRight}
+                                description={firstAccessGuideMessages.despesasMoverMes}
+                                onDismiss={moverMesGuide.dismiss}
+                              />
+                            )}
+                          </div>
                           <ActionBtn
                             onClick={() => {
                               if (item.status === 'cancelada') return;

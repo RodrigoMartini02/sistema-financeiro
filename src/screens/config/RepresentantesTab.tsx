@@ -11,6 +11,9 @@ import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { Field, Input, Select, SectionDivider } from '../../ui/form';
 import { ConfigListRow } from '../../ui/ConfigListRow';
+import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
+import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 
 function ComissaoRow({
   comissao,
@@ -18,12 +21,14 @@ function ComissaoRow({
   onChange,
   onRemove,
   onCreateType,
+  tipoGuide,
 }: {
   comissao: Comissao;
   tiposReceita: string[];
   onChange: (c: Comissao) => void;
   onRemove: () => void;
   onCreateType: (name: string) => Promise<string>;
+  tipoGuide?: { description: string; onDismiss: () => void };
 }) {
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
@@ -108,7 +113,7 @@ function ComissaoRow({
           <Plus size={14} />
         </button>
       </div>
-      <div className="flex overflow-hidden rounded-lg border border-slate-200">
+      <div className="relative flex overflow-hidden rounded-lg border border-slate-200">
         <button
           type="button"
           onClick={() => onChange({ ...comissao, tipo: 'mensal' })}
@@ -123,6 +128,16 @@ function ComissaoRow({
         >
           Única
         </button>
+        {tipoGuide && (
+          <FirstAccessGuideCard
+            floating
+            placement="bottom"
+            className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+            icon={Percent}
+            description={tipoGuide.description}
+            onDismiss={tipoGuide.onDismiss}
+          />
+        )}
       </div>
       <div className="relative w-28">
         <input
@@ -161,6 +176,8 @@ function RepresentanteDialog({
     rep?.comissoes?.length ? rep.comissoes : [{ tipo_receita: defaultTipo, percentual: 5, tipo: 'mensal' }]
   );
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const comissoesGuide = useFirstAccessGuide('representantes:comissoes-v1');
+  const tipoComissaoGuide = useFirstAccessGuide('representantes:tipo-comissao-v1');
 
   const createTypeMut = useMutation({
     mutationFn: (nome: string) => saveIncomeType(nome),
@@ -210,7 +227,19 @@ function RepresentanteDialog({
           </Field>
         </div>
 
-        <SectionDivider label="Comissões por tipo de receita" />
+        <div className="relative">
+          <SectionDivider label="Comissões por tipo de receita" />
+          {comissoesGuide.isVisible && (
+            <FirstAccessGuideCard
+              floating
+              placement="bottom"
+              className="absolute left-0 top-full z-50 mt-1 w-[min(25rem,calc(100vw-2rem))]"
+              icon={Percent}
+              description={firstAccessGuideMessages.representantesComissoes}
+              onDismiss={comissoesGuide.dismiss}
+            />
+          )}
+        </div>
 
         {tiposReceita.length === 0 && (
           <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
@@ -233,6 +262,9 @@ function RepresentanteDialog({
               onChange={(updated) => updateComissao(i, updated)}
               onRemove={() => removeComissao(i)}
               onCreateType={handleCreateType}
+              tipoGuide={i === 0 && tipoComissaoGuide.isVisible
+                ? { description: firstAccessGuideMessages.representantesTipoComissao, onDismiss: tipoComissaoGuide.dismiss }
+                : undefined}
             />
           ))}
           <button
@@ -273,6 +305,7 @@ function RepresentanteDialog({
 export function RepresentantesTab() {
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Representante }>({ open: false });
+  const createGuide = useFirstAccessGuide('representantes:novo-v1');
 
   const reps = useQuery({ queryKey: queryKeys.representantes, queryFn: fetchRepresentantes });
   const incomeTypesQ = useQuery({ queryKey: queryKeys.incomeTypes, queryFn: fetchIncomeTypes });
@@ -291,11 +324,22 @@ export function RepresentantesTab() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex items-center justify-between">
+      <div className="relative flex items-center justify-between">
         <p className="text-sm text-slate-500">{data.length} representante{data.length !== 1 ? 's' : ''} cadastrado{data.length !== 1 ? 's' : ''}</p>
         <Button icon={<Plus size={16} />} onClick={() => setDialog({ open: true })}>
           Novo representante
         </Button>
+        {createGuide.isVisible && (
+          <FirstAccessGuideCard
+            icon={Plus}
+            description={firstAccessGuideMessages.representantesNovo}
+            align="right"
+            floating
+            placement="top"
+            className="absolute right-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+            onDismiss={createGuide.dismiss}
+          />
+        )}
       </div>
 
       <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
