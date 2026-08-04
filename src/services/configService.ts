@@ -64,12 +64,3 @@ export async function savePerfil(values: {
 export async function deletePerfil(id: number): Promise<void> {
   await apiRequest<void>(`/perfis/${id}`, { method: 'DELETE' });
 }
-
-export async function setCategoriaFavorito(
-  id: number, forma_favorita: string | null, cartao_favorito_id: number | null
-): Promise<void> {
-  await apiRequest<void>(`/categorias/${id}/favorito`, {
-    method: 'PUT',
-    body: JSON.stringify({ forma_favorita, cartao_favorito_id }),
-  });
-}

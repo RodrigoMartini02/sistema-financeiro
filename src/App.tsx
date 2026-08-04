@@ -137,7 +137,7 @@ function AppContent() {
       case 'reservas':      return <ReservasScreen />;
       case 'relatorios':    return <RelatoriosScreen />;
       case 'planos':        return <PlanosScreen />;
-      case 'configuracoes': return <ConfigScreen activeTab={configTab} onTabChange={setConfigTab} onNavigate={handleNavigate} />;
+      case 'configuracoes': return <ConfigScreen activeTab={configTab} onTabChange={setConfigTab} />;
     }
   };
 
