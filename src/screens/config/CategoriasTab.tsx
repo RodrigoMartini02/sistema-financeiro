@@ -220,8 +220,8 @@ function CategoriaRow({
 
   return (
     <>
-      <div className={['relative', isChild ? 'ml-6 max-w-[50%]' : '', !cat.ativo ? 'opacity-50' : ''].join(' ')}>
-        <div className={`group flex w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-4 text-left shadow-sm transition hover:shadow-md ${s.cardHover}`}>
+      <div className={['relative', isChild ? 'ml-6' : '', !cat.ativo ? 'opacity-50' : ''].join(' ')}>
+        <div className={`group flex w-full items-center gap-2 rounded-xl border border-slate-200 bg-white text-left shadow-sm transition hover:shadow-md ${isChild ? 'px-4 py-2' : 'px-5 py-4'} ${s.cardHover}`}>
           <button
             type="button"
             onClick={() => onEdit(cat)}
