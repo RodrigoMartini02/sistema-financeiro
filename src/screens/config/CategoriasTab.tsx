@@ -1,35 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, ChevronDown, ChevronRight } from 'lucide-react';
-import { fetchCategorias, saveCategoria, deleteCategoria, toggleCategoria, setCategoriaFavorito, fetchCartoes } from '../../services/configService';
+import { Plus, ChevronDown, ChevronRight, Tag } from 'lucide-react';
+import { fetchCategorias, saveCategoria, toggleCategoria } from '../../services/configService';
 import { queryKeys } from '../../services/queryKeys';
 import type { Categoria, CategoriaFormValues } from '../../types/config';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
-import { Field, Input, Select, SectionDivider, ToggleGroup } from '../../ui/form';
+import { Field, Input, Select } from '../../ui/form';
+import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
+import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 
-const FORMAS_OPTIONS = [
-  { value: '',         label: '—' },
-  { value: 'dinheiro', label: 'Dinheiro' },
-  { value: 'pix',      label: 'PIX' },
-  { value: 'debito',   label: 'Débito' },
-  { value: 'credito',  label: 'Crédito' },
-  { value: 'boleto',   label: 'Boleto' },
-  { value: 'ted',      label: 'TED' },
-];
-
-const COR_OPCOES = [
-  { value: '#6366f1', label: 'Índigo' },
-  { value: '#10b981', label: 'Verde' },
-  { value: '#f59e0b', label: 'Âmbar' },
-  { value: '#ef4444', label: 'Vermelho' },
-  { value: '#8b5cf6', label: 'Violeta' },
-  { value: '#06b6d4', label: 'Ciano' },
-  { value: '#f97316', label: 'Laranja' },
-  { value: '#84cc16', label: 'Lima' },
-  { value: '#ec4899', label: 'Rosa' },
-  { value: '#14b8a6', label: 'Teal' },
-];
+type CategoriaKind = 'principal' | 'subcategoria';
 
 const CAT_SCHEME = {
   red: {
@@ -44,160 +26,160 @@ const CAT_SCHEME = {
   },
 };
 
-const TIPO_DESPESA_OPTIONS = [
-  { value: 'opex', label: 'Operacional (OPEX)', description: 'Custos do dia a dia da operação' },
-  { value: 'capex', label: 'Capital (CAPEX)', description: 'Investimentos em ativos' },
-];
-
 function CategoriaDialog({
-  open, cat, pais, isSaving, error, onClose, onSave, onDelete, onToggle,
+  open, cat, pais, initialParentId, isSaving, error, onClose, onSave, onToggle,
 }: {
-  open: boolean; cat?: Categoria; pais: Categoria[]; isSaving: boolean; error?: string;
+  open: boolean;
+  cat?: Categoria;
+  pais: Categoria[];
+  initialParentId?: number;
+  isSaving: boolean;
+  error?: string;
   onClose: () => void;
-  onSave: (v: CategoriaFormValues & { forma_favorita?: string; cartao_favorito_id?: number | null }) => void;
-  onDelete?: () => void;
+  onSave: (v: CategoriaFormValues) => void;
   onToggle?: () => void;
 }) {
-  const [cor, setCor] = useState(cat?.cor ?? COR_OPCOES[0].value);
-  const [formaFav, setFormaFav] = useState(cat?.forma_favorita ?? '');
-  const [tipoDespesa, setTipoDespesa] = useState<'opex' | 'capex'>(cat?.tipo_despesa ?? 'opex');
-  const [parentIdSelecionado, setParentIdSelecionado] = useState<string>(cat?.parent_id ? String(cat.parent_id) : '');
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const cartoes = useQuery({ queryKey: queryKeys.cartoes, queryFn: fetchCartoes });
+  const categoryHasChildren = (cat?.subcategorias?.length ?? 0) > 0;
+  const parentOptions = pais.filter((p) => p.ativo && p.id !== cat?.id);
+  const canChooseSubcategory = !categoryHasChildren && parentOptions.length > 0;
+  const isDirectSubcategoryCreation = !cat && !!initialParentId;
+
+  const resolveInitialKind = (): CategoriaKind => {
+    if (categoryHasChildren) return 'principal';
+    if (cat?.parent_id || initialParentId) return 'subcategoria';
+    return 'principal';
+  };
+
+  const resolveInitialParent = () => String(cat?.parent_id ?? initialParentId ?? '');
+
+  const [tipoCategoria, setTipoCategoria] = useState<CategoriaKind>(resolveInitialKind);
+  const [selectedParentId, setSelectedParentId] = useState(resolveInitialParent);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open) { setConfirmDelete(false); return; }
-    setTipoDespesa(cat?.tipo_despesa ?? 'opex');
-    setParentIdSelecionado(cat?.parent_id ? String(cat.parent_id) : '');
-  }, [open, cat]);
+    if (!open) {
+      setLocalError(null);
+      return;
+    }
 
-  const isRaiz = !parentIdSelecionado;
+    setTipoCategoria(resolveInitialKind());
+    setSelectedParentId(resolveInitialParent());
+    setLocalError(null);
+  }, [open, cat?.id, cat?.parent_id, categoryHasChildren, initialParentId]);
+
+  const isSubcategory = tipoCategoria === 'subcategoria';
+  const forcedPrincipalMessage = categoryHasChildren
+    ? 'Esta categoria possui subcategorias. Para manter a estrutura, ela deve continuar como categoria principal.'
+    : null;
+
+  const handleKindChange = (kind: CategoriaKind) => {
+    if (kind === 'subcategoria' && !canChooseSubcategory) return;
+
+    setTipoCategoria(kind);
+    setLocalError(null);
+    if (kind === 'principal') {
+      setSelectedParentId('');
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const cartaoId = fd.get('cartao_favorito_id') ? Number(fd.get('cartao_favorito_id')) : null;
-    const parentId = fd.get('parent_id') ? Number(fd.get('parent_id')) : null;
+    const nome = String(fd.get('nome') ?? '').trim();
+
+    if (isSubcategory && !selectedParentId) {
+      setLocalError('Selecione uma categoria principal para vincular esta subcategoria.');
+      return;
+    }
+
     onSave({
-      nome: fd.get('nome') as string,
-      cor,
-      parent_id: parentId,
-      forma_favorita: formaFav || undefined,
-      cartao_favorito_id: cartaoId ?? undefined,
-      tipo_despesa: isRaiz ? tipoDespesa : undefined,
+      nome,
+      parent_id: isSubcategory ? Number(selectedParentId) : null,
     });
   };
 
+  const title = cat
+    ? 'Editar categoria'
+    : initialParentId
+      ? 'Nova subcategoria'
+      : 'Nova categoria';
+
   return (
-    <Dialog open={open} title={cat ? 'Editar categoria' : 'Nova categoria'} onClose={onClose}>
+    <Dialog open={open} title={title} onClose={onClose}>
       <form className="grid gap-5" onSubmit={handleSubmit}>
         <Field label="Nome da categoria">
-          <Input name="nome" defaultValue={cat?.nome} placeholder="Ex: Alimentação" autoFocus required />
+          <Input
+            key={`nome-${cat?.id ?? initialParentId ?? 'new'}-${open}`}
+            name="nome"
+            defaultValue={cat?.nome}
+            placeholder="Ex: Alimentacao"
+            autoFocus
+            required
+          />
         </Field>
 
-        <Field label="Categoria pai" hint="Opcional — deixe em branco para categoria raiz">
-          <Select
-            name="parent_id"
-            defaultValue={cat?.parent_id ?? ''}
-            onChange={(e) => setParentIdSelecionado(e.target.value)}
-          >
-            <option value="">Sem categoria pai (raiz)</option>
-            {pais
-              .filter((p) => p.id !== cat?.id)
-              .map((p) => (
-                <option key={p.id} value={p.id}>{p.nome}</option>
-              ))}
-          </Select>
-        </Field>
+        {!isDirectSubcategoryCreation && (
+          <Field label="Tipo da categoria" hint={forcedPrincipalMessage ?? undefined}>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => handleKindChange('principal')}
+                className={[
+                  'rounded-2xl border px-4 py-3 text-left transition-all',
+                  tipoCategoria === 'principal'
+                    ? 'border-brand-600 bg-brand-50 text-brand-800 shadow-sm'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:bg-slate-50',
+                ].join(' ')}
+              >
+                <span className="block text-sm font-bold">Categoria principal</span>
+                <span className="mt-0.5 block text-xs text-slate-400">Agrupa despesas e subcategorias.</span>
+              </button>
 
-        {isRaiz && (
-          <>
-            <SectionDivider label="Classificação" />
-            <div className="grid grid-cols-2 gap-3">
-              {TIPO_DESPESA_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setTipoDespesa(opt.value as 'opex' | 'capex')}
-                  className={[
-                    'flex flex-col gap-0.5 rounded-xl border-2 px-4 py-3 text-left transition',
-                    tipoDespesa === opt.value
-                      ? 'border-brand-500 bg-brand-50 text-brand-900'
-                      : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50',
-                  ].join(' ')}
-                >
-                  <span className="text-sm font-semibold">{opt.label}</span>
-                  <span className={['text-xs', tipoDespesa === opt.value ? 'text-brand-600' : 'text-slate-400'].join(' ')}>
-                    {opt.description}
-                  </span>
-                </button>
-              ))}
+              <button
+                type="button"
+                disabled={!canChooseSubcategory}
+                onClick={() => handleKindChange('subcategoria')}
+                className={[
+                  'rounded-2xl border px-4 py-3 text-left transition-all disabled:cursor-not-allowed disabled:opacity-45',
+                  tipoCategoria === 'subcategoria'
+                    ? 'border-brand-600 bg-brand-50 text-brand-800 shadow-sm'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:bg-slate-50',
+                ].join(' ')}
+              >
+                <span className="block text-sm font-bold">Subcategoria</span>
+                <span className="mt-0.5 block text-xs text-slate-400">Fica vinculada a uma principal.</span>
+              </button>
             </div>
-          </>
+          </Field>
         )}
 
-        <SectionDivider label="Cor" />
+        {isSubcategory && !isDirectSubcategoryCreation && (
+          <Field label="Vincular a uma categoria principal" required>
+            <Select
+              name="parent_id"
+              value={selectedParentId}
+              onChange={(e) => { setSelectedParentId(e.target.value); setLocalError(null); }}
+              required
+            >
+              <option value="">Selecione uma categoria principal</option>
+              {parentOptions.map((p) => (
+                <option key={p.id} value={p.id}>{p.nome}</option>
+              ))}
+            </Select>
+          </Field>
+        )}
 
-        <div className="flex flex-wrap gap-2.5">
-          {COR_OPCOES.map((c) => (
-            <button
-              key={c.value}
-              type="button"
-              onClick={() => setCor(c.value)}
-              title={c.label}
-              className={[
-                'h-8 w-8 rounded-full transition-all',
-                cor === c.value ? 'ring-2 ring-offset-2 ring-brand-600 scale-110' : 'hover:scale-105',
-              ].join(' ')}
-              style={{ background: c.value }}
-            />
-          ))}
-        </div>
-
-        <div className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-          <span className="h-3 w-3 rounded-full" style={{ background: cor }} />
-          <span className="text-sm font-medium text-slate-700">Prévia da categoria</span>
-        </div>
-
-        <SectionDivider label="Padrões de pagamento" />
-
-        <Field label="Forma favorita" hint="Padrão ao registrar despesa nesta categoria">
-          <ToggleGroup value={formaFav} options={FORMAS_OPTIONS} onChange={setFormaFav} />
-        </Field>
-
-        <Field label="Cartão favorito" hint="Opcional">
-          <Select name="cartao_favorito_id" defaultValue={cat?.cartao_favorito_id ?? ''}>
-            <option value="">Sem cartão padrão</option>
-            {(cartoes.data ?? []).filter((c) => c.ativo).map((c) => (
-              <option key={c.id} value={c.id}>{c.nome}</option>
-            ))}
-          </Select>
-        </Field>
-
-        {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
+        {(error || localError) && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {localError ?? error}
+          </div>
         )}
 
         <div className="flex items-center gap-2">
-          {cat && (
-            <div className="flex items-center gap-2">
-              {onToggle && (
-                <Button type="button" variant="ghost" onClick={onToggle}>
-                  {cat.ativo ? 'Desativar' : 'Ativar'}
-                </Button>
-              )}
-              {onDelete && (
-                !confirmDelete ? (
-                  <Button type="button" variant="danger" onClick={() => setConfirmDelete(true)}>Excluir</Button>
-                ) : (
-                  <>
-                    <span className="text-sm text-slate-600">Confirmar?</span>
-                    <Button type="button" variant="danger" onClick={() => { onDelete(); setConfirmDelete(false); }}>Sim</Button>
-                    <Button type="button" variant="ghost" onClick={() => setConfirmDelete(false)}>Não</Button>
-                  </>
-                )
-              )}
-            </div>
+          {cat && onToggle && (
+            <Button type="button" variant={cat.ativo ? 'danger' : 'ghost'} onClick={onToggle}>
+              {cat.ativo ? 'Desativar' : 'Ativar'}
+            </Button>
           )}
           <div className="ml-auto">
             <Button type="submit" disabled={isSaving}>{isSaving ? 'Salvando...' : 'Salvar'}</Button>
@@ -209,19 +191,18 @@ function CategoriaDialog({
 }
 
 function CategoriaRow({
-  cat, index, isChild, colorScheme = 'brand', onEdit,
+  cat, index, isChild, colorScheme = 'brand', onEdit, onCreateSubcategory,
 }: {
   cat: Categoria;
   index: number;
   isChild?: boolean;
   colorScheme?: 'red' | 'brand';
-  onEdit: () => void;
+  onEdit: (cat: Categoria) => void;
+  onCreateSubcategory?: (cat: Categoria) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
   const hasSubs = (cat.subcategorias?.length ?? 0) > 0;
   const s = CAT_SCHEME[colorScheme];
-
-  const accentColor = cat.cor ?? '#94a3b8';
   const dataCriado = cat.data_criacao
     ? new Date(cat.data_criacao).toLocaleDateString('pt-BR')
     : null;
@@ -239,43 +220,56 @@ function CategoriaRow({
 
   return (
     <>
-      <div className={['relative', isChild ? 'ml-6' : '', !cat.ativo ? 'opacity-50' : ''].join(' ')}>
-        <button
-          type="button"
-          onClick={onEdit}
-          className={`group flex w-full items-center gap-4 rounded-xl border border-slate-200 bg-white px-5 py-4 text-left shadow-sm transition hover:shadow-md ${s.cardHover}`}
-        >
-          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 font-mono text-sm font-semibold text-slate-500 transition ${s.badge}`}>
-            {String(index + 1).padStart(2, '0')}
-          </span>
+      <div className={['relative', isChild ? 'ml-6 max-w-[50%]' : '', !cat.ativo ? 'opacity-50' : ''].join(' ')}>
+        <div className={`group flex w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-4 text-left shadow-sm transition hover:shadow-md ${s.cardHover}`}>
+          <button
+            type="button"
+            onClick={() => onEdit(cat)}
+            className="flex min-w-0 flex-1 items-center gap-4 text-left"
+          >
+            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 font-mono text-sm font-semibold text-slate-500 transition ${s.badge}`}>
+              {String(index + 1).padStart(2, '0')}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="lg:hidden">
+                <p className="truncate text-sm font-semibold text-slate-900">{nome}</p>
+                {dataCriado && <p className="mt-0.5 text-xs text-slate-400">Criado {dataCriado}</p>}
+              </div>
+              <div className="hidden lg:grid lg:grid-cols-[2fr_1fr] lg:items-center lg:gap-6">
+                <p className="truncate text-sm font-semibold text-slate-900">{nome}</p>
+                <p className="text-xs text-slate-400">{dataCriado ?? '-'}</p>
+              </div>
+            </div>
+          </button>
 
-          <div className="min-w-0 flex-1">
-            <div className="lg:hidden">
-              <p className="truncate text-sm font-semibold text-slate-900">{nome}</p>
-              {dataCriado && <p className="mt-0.5 text-xs text-slate-400">Criado {dataCriado}</p>}
-            </div>
-            <div className="hidden lg:grid lg:grid-cols-[2fr_1fr] lg:items-center lg:gap-6">
-              <p className="truncate text-sm font-semibold text-slate-900">{nome}</p>
-              <p className="text-xs text-slate-400">{dataCriado ?? '—'}</p>
-            </div>
-          </div>
+          {!isChild && cat.ativo && onCreateSubcategory && (
+            <button
+              type="button"
+              onClick={() => onCreateSubcategory(cat)}
+              className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-red-100 px-2.5 text-xs font-semibold text-red-600 transition hover:border-red-200 hover:bg-red-50"
+            >
+              <Plus size={12} />
+              <span className="hidden sm:inline">Subcategoria</span>
+              <span className="sm:hidden">Sub</span>
+            </button>
+          )}
 
           {hasSubs && !isChild ? (
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); setExpanded((o) => !o); }}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+              onClick={() => setExpanded((o) => !o)}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
             >
               {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
             </button>
           ) : (
             <ChevronRight size={15} className={`shrink-0 text-slate-300 transition group-hover:translate-x-0.5 ${s.chevron}`} />
           )}
-        </button>
+        </div>
       </div>
 
       {!isChild && hasSubs && expanded && (
-        <div className="grid gap-2 mt-1">
+        <div className="mt-1 grid gap-2">
           {cat.subcategorias!.map((sub, subIdx) => (
             <CategoriaRow
               key={sub.id}
@@ -292,14 +286,10 @@ function CategoriaRow({
   );
 }
 
-// -- Tab principal ─────────────────────────────────────────────────────────────
-
 export function CategoriasTab() {
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Categoria; parentId?: number }>({ open: false });
-
   const cats = useQuery({ queryKey: queryKeys.categorias, queryFn: fetchCategorias });
-
   const allCats = cats.data ?? [];
   const roots = allCats.filter((c) => !c.parent_id);
   const tree: Categoria[] = roots.map((root) => ({
@@ -308,27 +298,11 @@ export function CategoriasTab() {
   }));
 
   const saveMut = useMutation({
-    mutationFn: async ({
-      v, id,
-    }: {
-      v: CategoriaFormValues & { forma_favorita?: string; cartao_favorito_id?: number | null };
-      id?: number;
-    }) => {
-      const saved = await saveCategoria(v, id);
-      if (saved?.id && (v.forma_favorita !== undefined || v.cartao_favorito_id !== undefined)) {
-        await setCategoriaFavorito(saved.id, v.forma_favorita ?? null, v.cartao_favorito_id ?? null);
-      }
-      return saved;
-    },
+    mutationFn: async ({ v, id }: { v: CategoriaFormValues; id?: number }) => saveCategoria(v, id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.categorias });
       setDialog({ open: false });
     },
-  });
-
-  const deleteMut = useMutation({
-    mutationFn: deleteCategoria,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: queryKeys.categorias }); setDialog({ open: false }); },
   });
 
   const toggleMut = useMutation({
@@ -338,15 +312,13 @@ export function CategoriasTab() {
 
   return (
     <div className="grid gap-6">
-      {/* Coluna Despesas */}
       <div className="grid gap-4 content-start rounded-2xl border border-red-100 bg-white p-5 shadow-sm">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
             <h3 className="text-sm font-semibold text-red-700">Despesas</h3>
             <span className="text-xs text-slate-400">
-              {roots.length} raiz{allCats.length > roots.length ? ` · ${allCats.length - roots.length} sub` : ''}
+              {roots.length} raiz{allCats.length > roots.length ? ` - ${allCats.length - roots.length} sub` : ''}
             </span>
           </div>
           <button
@@ -368,13 +340,20 @@ export function CategoriasTab() {
               cat={c}
               index={i}
               colorScheme="red"
-              onEdit={() => setDialog({ open: true, item: c })}
+              onEdit={(item) => setDialog({ open: true, item })}
+              onCreateSubcategory={(item) => setDialog({ open: true, parentId: item.id })}
             />
           ))}
           {tree.length === 0 && !cats.isLoading && (
-            <p className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-400">
-              Nenhuma categoria cadastrada
-            </p>
+            <div className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center shadow-sm">
+              <p className="text-sm font-semibold text-slate-600">Nenhuma categoria cadastrada</p>
+              <p className="mt-1 text-xs text-slate-400">Crie categorias para organizar despesas e relatorios.</p>
+              <div className="mt-4">
+                <Button icon={<Plus size={15} />} onClick={() => setDialog({ open: true })}>
+                  Criar categoria
+                </Button>
+              </div>
+            </div>
           )}
         </div>
 
@@ -382,17 +361,11 @@ export function CategoriasTab() {
           open={dialog.open}
           cat={dialog.item}
           pais={roots}
+          initialParentId={dialog.parentId}
           isSaving={saveMut.isPending}
           error={saveMut.error?.message}
           onClose={() => setDialog({ open: false })}
-          onSave={(v) => {
-            const values = {
-              ...v,
-              parent_id: dialog.parentId ?? v.parent_id,
-            } as CategoriaFormValues & { forma_favorita?: string; cartao_favorito_id?: number | null };
-            saveMut.mutate({ v: values, id: dialog.item?.id });
-          }}
-          onDelete={dialog.item ? () => deleteMut.mutate(dialog.item!.id) : undefined}
+          onSave={(v) => saveMut.mutate({ v, id: dialog.item?.id })}
           onToggle={dialog.item ? () => toggleMut.mutate(dialog.item!.id) : undefined}
         />
       </div>

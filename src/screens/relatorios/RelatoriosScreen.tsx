@@ -1,10 +1,13 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Printer, TrendingDown, TrendingUp, ArrowUpDown, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { BarChart3, Printer, TrendingDown, TrendingUp, ArrowUpDown, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { apiRequest, getActiveProfileId } from '../../services/apiClient';
 import { MONTH_NAMES } from '../../types/finance';
 import { Card } from '../../ui/card';
 import { formatCurrency, formatDate } from '../finance/formatters';
+import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
+import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 
 // ── types ──────────────────────────────────────────────────────────────────────
 
@@ -144,6 +147,8 @@ export function RelatoriosScreen() {
   const [statusFiltro, setStatusFiltro] = useState<'todos' | 'pago' | 'pendente'>('todos');
   const [sortKey, setSortKey] = useState<'data' | 'valor' | 'descricao'>('data');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const consultGuide = useFirstAccessGuide('relatorios:consultar-v1');
+  const exportGuide = useFirstAccessGuide('relatorios:exportar-v1');
 
   // Inject print CSS to hide sidebar + header
   useEffect(() => {
@@ -287,12 +292,25 @@ export function RelatoriosScreen() {
       {/* Header — single row */}
       <div className="flex items-center gap-4">
         <h2 className="text-2xl font-bold text-slate-950 dark:text-white shrink-0">Relatórios</h2>
+        <div className="relative ml-auto">
         <button
           onClick={() => window.print()}
-          className="no-print ml-auto flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+          className="no-print flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
         >
           <Printer size={15} /> Exportar PDF
         </button>
+        {exportGuide.isVisible && (
+          <FirstAccessGuideCard
+            icon={Printer}
+            description={firstAccessGuideMessages.relatoriosExportar}
+            align="right"
+            floating
+            placement="top"
+            className="absolute right-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+            onDismiss={exportGuide.dismiss}
+          />
+        )}
+        </div>
       </div>
 
       {/* Filters — sem overflow-hidden para dropdowns aparecerem */}
@@ -361,7 +379,7 @@ export function RelatoriosScreen() {
           )}
 
           {/* De / Até / Consultar */}
-          <div className="ml-auto flex flex-wrap items-center gap-3">
+          <div className="relative ml-auto flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-medium text-slate-500 shrink-0">De:</span>
               <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className={dateCls} />
@@ -383,6 +401,17 @@ export function RelatoriosScreen() {
             >
               Consultar
             </button>
+            {consultGuide.isVisible && (
+              <FirstAccessGuideCard
+                icon={BarChart3}
+                description={firstAccessGuideMessages.relatoriosConsultar}
+                align="right"
+                floating
+                placement="top"
+                className="absolute right-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                onDismiss={consultGuide.dismiss}
+              />
+            )}
           </div>
         </div>
       </div>

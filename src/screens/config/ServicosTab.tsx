@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
+import { Layers, Plus } from 'lucide-react';
 import {
   fetchServicos, saveServico, deleteServico,
   type Servico,
@@ -11,6 +11,9 @@ import { Dialog } from '../../ui/dialog';
 import { Field, Input } from '../../ui/form';
 import { ConfigListRow } from '../../ui/ConfigListRow';
 import { formatCurrency } from '../finance/formatters';
+import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
+import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 
 function ServicoDialog({
   open, servico, isSaving, error, onClose, onSave, onDelete,
@@ -87,6 +90,7 @@ function ServicoDialog({
 export function ServicosTab() {
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Servico }>({ open: false });
+  const createGuide = useFirstAccessGuide('servicos:novo-v1');
 
   const servicosQ = useQuery({ queryKey: queryKeys.servicos, queryFn: () => fetchServicos() });
   const data = (servicosQ.data ?? []).filter((s) => s.ativo);
@@ -110,7 +114,7 @@ export function ServicosTab() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex items-center justify-between">
+      <div className="relative flex items-center justify-between">
         <p className="text-sm text-slate-500">
           {data.length} serviço{data.length !== 1 ? 's' : ''} no catálogo
         </p>

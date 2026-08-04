@@ -20,6 +20,9 @@ import { AttachmentPreviewDialog } from '../../ui/AttachmentPreviewDialog';
 import { PaymentModal } from '../finance/PaymentModal';
 import { BatchPaymentModal } from '../finance/BatchPaymentModal';
 import { formatCurrency, formatDate } from '../finance/formatters';
+import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
+import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 
 type FiltroStatus = 'todos' | 'pago' | 'em_dia' | 'atrasada';
 type FiltroDataPag = 'qualquer' | 'hoje' | 'semana' | 'mes';
@@ -190,6 +193,8 @@ export function DespesasScreen() {
   const [ordenar, setOrdenar] = useState<Ordenar>('vencimento_asc');
   const [selecionadas, setSelecionadas] = useState<Set<number>>(new Set());
   const [batchModal, setBatchModal] = useState(false);
+  const guide = useFirstAccessGuide('despesas:novo-v1');
+  const filterGuide = useFirstAccessGuide('despesas:filtros-v1');
 
   const isEmpresa = localStorage.getItem('perfilAtivoTipo') === 'empresa';
   const qc = useQueryClient();
@@ -316,7 +321,7 @@ export function DespesasScreen() {
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-xl font-bold text-slate-950 dark:text-white">Despesas</h2>
-            <div className="flex gap-2">
+            <div className="relative flex gap-2">
               <Button variant="secondary" icon={<RefreshCw size={15} />} onClick={() => finance.dashboard.refetch()}>
                 Atualizar
               </Button>
@@ -331,6 +336,16 @@ export function DespesasScreen() {
               <Button icon={<Plus size={15} />} onClick={() => setDialog({ open: true })}>
                 Nova despesa
               </Button>
+              {guide.isVisible && !finance.dashboard.isLoading && allItems.length === 0 && !hasFilter2 && (
+                <FirstAccessGuideCard
+                  floating
+                  placement="top"
+                  className="absolute right-0 top-full z-50 mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                  icon={TrendingDown}
+                  description={firstAccessGuideMessages.despesasNova}
+                  onDismiss={guide.dismiss}
+                />
+              )}
             </div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
@@ -412,7 +427,18 @@ export function DespesasScreen() {
                 </div>
               ) : null}
             </div>
-            <div className="flex flex-wrap items-center justify-end gap-1.5">
+            <div className="relative flex flex-wrap items-center justify-end gap-1.5">
+              {filterGuide.isVisible && !finance.dashboard.isLoading && allItems.length > 0 && (
+                <FirstAccessGuideCard
+                  icon={CheckSquare}
+                  description={firstAccessGuideMessages.despesasFiltros}
+                  align="right"
+                  floating
+                  placement="top"
+                  className="absolute right-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                  onDismiss={filterGuide.dismiss}
+                />
+              )}
               <FilterChip
                 value={filtroStatus}
                 onChange={(v) => setFiltroStatus(v as FiltroStatus)}
@@ -480,10 +506,19 @@ export function DespesasScreen() {
           {finance.dashboard.isLoading ? (
             <EmptyState title="Carregando" description="Buscando despesas do mês." />
           ) : filtered.length === 0 ? (
-            <EmptyState
-              title={hasFilter2 ? 'Nenhum resultado' : 'Nenhuma despesa'}
-              description={hasFilter2 ? 'Tente ajustar os filtros.' : 'Nenhuma despesa registrada neste mês.'}
-            />
+            hasFilter2 ? (
+              <EmptyState title="Nenhum resultado" description="Tente ajustar os filtros." />
+            ) : (
+              <div className="grid justify-items-center gap-3 py-8">
+                <EmptyState
+                  title="Nenhuma despesa"
+                  description="Cadastre sua primeira despesa para acompanhar pagamentos, vencimentos e categorias."
+                />
+                <Button icon={<Plus size={15} />} onClick={() => setDialog({ open: true })}>
+                  Nova despesa
+                </Button>
+              </div>
+            )
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm table-fixed">

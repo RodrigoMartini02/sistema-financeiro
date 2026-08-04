@@ -4,6 +4,9 @@ import { User, Lock, Save, CheckCircle2 } from 'lucide-react';
 import { fetchMe, updateMe } from '../../services/usuariosService';
 import { Button } from '../../ui/button';
 import { Field, Input } from '../../ui/form';
+import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
+import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 
 const TYPE_BADGE: Record<string, string> = {
   master: 'bg-purple-100 text-purple-700',
@@ -31,6 +34,8 @@ export function MinhaContaTab() {
   const [senhaConfirm, setSenhaConfirm] = useState('');
   const [senhaError, setSenhaError] = useState('');
   const [senhaSaved, setSenhaSaved] = useState(false);
+  const saveGuide = useFirstAccessGuide('conta:salvar-v1');
+  const senhaGuide = useFirstAccessGuide('conta:senha-v1');
 
   useEffect(() => {
     if (user) {
@@ -118,7 +123,7 @@ export function MinhaContaTab() {
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{updateMut.error.message}</div>
         )}
 
-        <div className="flex items-center justify-end gap-3">
+        <div className="relative flex items-center justify-end gap-3">
           {saved && (
             <span className="flex items-center gap-1.5 text-sm text-green-600">
               <CheckCircle2 size={15} /> Salvo com sucesso
@@ -127,6 +132,17 @@ export function MinhaContaTab() {
           <Button type="submit" icon={<Save size={15} />} disabled={updateMut.isPending}>
             Salvar dados
           </Button>
+          {saveGuide.isVisible && (
+            <FirstAccessGuideCard
+              icon={Save}
+              description={firstAccessGuideMessages.contaSalvar}
+              align="right"
+              floating
+              placement="top"
+              className="absolute right-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+              onDismiss={saveGuide.dismiss}
+            />
+          )}
         </div>
       </form>
 
@@ -154,7 +170,7 @@ export function MinhaContaTab() {
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{senhaError}</div>
         )}
 
-        <div className="flex items-center justify-end gap-3">
+        <div className="relative flex items-center justify-end gap-3">
           {senhaSaved && (
             <span className="flex items-center gap-1.5 text-sm text-green-600">
               <CheckCircle2 size={15} /> Senha alterada!
@@ -163,6 +179,17 @@ export function MinhaContaTab() {
           <Button type="submit" icon={<Lock size={15} />} disabled={updateMut.isPending}>
             Alterar senha
           </Button>
+          {senhaGuide.isVisible && (
+            <FirstAccessGuideCard
+              icon={Lock}
+              description={firstAccessGuideMessages.contaSenha}
+              align="right"
+              floating
+              placement="top"
+              className="absolute right-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+              onDismiss={senhaGuide.dismiss}
+            />
+          )}
         </div>
       </form>
     </div>

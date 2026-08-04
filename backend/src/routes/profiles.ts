@@ -3,6 +3,7 @@ import { eq, and, isNull } from 'drizzle-orm';
 import { db, pool } from '../db/client';
 import { profiles, expenses, incomes, months, reserves } from '../db/schema';
 import { authenticate } from '../middleware/auth';
+import { ensureDefaultCategories } from '../services/defaultCategories';
 
 const router = Router();
 
@@ -49,6 +50,8 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
         .values({ userId: req.user!.id, type: 'pessoal', name: nome.trim(), active: true })
         .returning();
 
+      await ensureDefaultCategories(req.user!.id, 'pessoal');
+
       res.status(201).json({ success: true, message: 'Personal profile created', data: created });
       return;
     }
@@ -74,6 +77,8 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
         active: true,
       })
       .returning();
+
+    await ensureDefaultCategories(req.user!.id, 'empresa');
 
     res.status(201).json({ success: true, message: 'Company created successfully', data: created });
   } catch (error) {

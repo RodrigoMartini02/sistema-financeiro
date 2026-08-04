@@ -7,6 +7,7 @@ interface Props {
   value?: number;
   onChange: (id: number | undefined) => void;
   onCreateNew?: () => void;
+  featuredIds?: number[];
   error?: string;
 }
 
@@ -41,8 +42,12 @@ const chipMuted =
 const chipOff =
   'border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:bg-slate-50 shadow-sm dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:border-slate-500';
 
-export function CategoryChipSelector({ categories, value, onChange, onCreateNew, error }: Props) {
+export function CategoryChipSelector({ categories, value, onChange, onCreateNew, featuredIds = [], error }: Props) {
   const tree = buildTree(categories);
+  const activeById = new Map(categories.filter((category) => category.ativo).map((category) => [category.id, category]));
+  const featuredCategories = featuredIds
+    .map((id) => activeById.get(id))
+    .filter((category): category is Categoria => Boolean(category));
 
   const resolveParent = (val: number | undefined): number | null => {
     if (!val) return null;
@@ -75,6 +80,26 @@ export function CategoryChipSelector({ categories, value, onChange, onCreateNew,
 
   return (
     <div className={['grid gap-2', error ? 'rounded-xl ring-1 ring-red-400 p-1' : ''].join(' ')}>
+      {featuredCategories.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-100 pb-2 dark:border-slate-700">
+          <span className="mr-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Recentes</span>
+          {featuredCategories.map((category) => {
+            const isSelected = value === category.id;
+            return (
+              <button
+                key={category.id}
+                type="button"
+                onClick={() => onChange(isSelected ? undefined : category.id)}
+                className={[chipBase, 'py-1 px-2.5 text-[11px]', isSelected ? chipOn : chipMuted].join(' ')}
+              >
+                {isSelected && <Check size={10} strokeWidth={3} />}
+                {category.nome}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Pais */}
       <div className="flex flex-wrap gap-2">
         {tree.map((parent) => {

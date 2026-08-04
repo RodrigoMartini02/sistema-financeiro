@@ -7,6 +7,7 @@ import type { Cartao, CartaoFormValues } from '../../types/config';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { Field, Input, SectionDivider } from '../../ui/form';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 
 const COR_OPCOES = [
   { value: '#1e40af', label: 'Azul' },
@@ -114,6 +115,7 @@ function CartaoDialog({
 export function CartaoTab() {
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Cartao }>({ open: false });
+  const guide = useFirstAccessGuide('cartoes:novo-v1');
 
   const cartoes = useQuery({ queryKey: queryKeys.cartoes, queryFn: fetchCartoes });
 
@@ -141,9 +143,12 @@ export function CartaoTab() {
       {cartoes.isLoading && <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>}
 
       {data.length === 0 && !cartoes.isLoading && (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-slate-200 bg-white py-12 text-slate-400">
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-slate-200 bg-white py-10 text-slate-400 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <CreditCard size={36} strokeWidth={1.5} />
-          <p className="text-sm">Nenhum cartão cadastrado</p>
+          <div className="text-center">
+            <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Nenhum cart?o cadastrado</p>
+            <p className="mt-1 text-xs text-slate-400">Cadastre um cart?o para acompanhar limite e vencimento.</p>
+          </div>
         </div>
       )}
 

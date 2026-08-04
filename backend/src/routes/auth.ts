@@ -8,6 +8,7 @@ import { users, profiles } from '../db/schema';
 import { authenticate } from '../middleware/auth';
 import { validate, validateDocument, authRateLimiter } from '../middleware/validation';
 import { recordAnalyticsEvent } from '../services/analytics';
+import { ensureDefaultCategories } from '../services/defaultCategories';
 
 const router = Router();
 
@@ -182,9 +183,8 @@ router.post(
           city: cidade ?? null,
         })
         .returning({ id: users.id, name: users.name, email: users.email, document: users.document, type: users.type, status: users.status });
-
-      // Create default categories and personal profile using raw SQL for PG function
-      await pool.query('SELECT criar_categorias_padrao($1)', [newUser!.id]);
+      // Create useful defaults for the initial personal profile.
+      await ensureDefaultCategories(newUser!.id, 'pessoal');
       await db.insert(profiles).values({ userId: newUser!.id, type: 'pessoal', name: 'Pessoal', active: true });
 
       const token = jwt.sign(

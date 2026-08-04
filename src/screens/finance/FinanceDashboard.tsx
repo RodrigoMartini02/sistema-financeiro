@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { RefreshCw, AlertTriangle, TrendingDown, TrendingUp, CreditCard } from 'lucide-react';
+import { RefreshCw, AlertTriangle, TrendingDown, TrendingUp, CreditCard, Settings, Tag, Wallet } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area, Legend, ReferenceLine,
@@ -14,6 +14,10 @@ import { Button } from '../../ui/button';
 import { Card } from '../../ui/card';
 import { ErrorState } from '../../ui/states';
 import { MetricCard } from './MetricCard';
+import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
+import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import type { AppSection, ConfigTab } from '../../layout/AppShell';
 import { MonthSelector } from './MonthSelector';
 import { formatCurrency } from './formatters';
 
@@ -39,10 +43,16 @@ function deltaPct(current: number, previous: number | undefined): number | undef
   return ((current - previous) / previous) * 100;
 }
 
-export function FinanceDashboard() {
-  const { month, year, setMonth, setYear } = useAppContext();
+interface FinanceDashboardProps {
+  onNavigate?: (section: AppSection) => void;
+  onConfigTab?: (tab: ConfigTab) => void;
+}
+
+export function FinanceDashboard({ onNavigate, onConfigTab }: FinanceDashboardProps) {
+  const { month, year, setMonth, setYear, setQuickAction } = useAppContext();
   const finance = useFinanceDashboard(month, year);
   const data = finance.dashboard.data;
+  const guide = useFirstAccessGuide('painel:mes-v1');
 
   const anualQ = useQuery({
     queryKey: queryKeys.dashboardAnual(year),
@@ -72,6 +82,7 @@ export function FinanceDashboard() {
   const saldoAnterior = data?.balance.saldoAnterior ?? 0;
   const saldoProjetado = saldoAnterior + receitas - despesas;
   const txComprometimento = receitas > 0 ? (despesas / receitas) * 100 : 0;
+  const hasNoMonthlyEntries = !finance.dashboard.isLoading && !!data && (data.incomes?.length ?? 0) === 0 && (data.expenses?.length ?? 0) === 0;
   const deltaReceitas = deltaPct(receitas, mesAnterior?.receitas);
   const deltaDespesas = deltaPct(despesas, mesAnterior?.despesas);
 
@@ -189,9 +200,20 @@ export function FinanceDashboard() {
             Atualizar
           </Button>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
+        <div className="relative rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
           <MonthSelector month={month} year={year} onMonthChange={setMonth} onYearChange={setYear} />
         </div>
+          {guide.isVisible && hasNoMonthlyEntries && (
+            <FirstAccessGuideCard
+              icon={Settings}
+              description={firstAccessGuideMessages.painelMes}
+              align="right"
+              floating
+              placement="top"
+              className="absolute right-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+              onDismiss={guide.dismiss}
+            />
+          )}
       </div>
 
       {saldoProjetado < 0 && (
@@ -209,6 +231,7 @@ export function FinanceDashboard() {
           description={(finance.dashboard.error ?? anualQ.error)?.message}
         />
       )}
+
 
       {/* 5 KPI cards */}
       <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">

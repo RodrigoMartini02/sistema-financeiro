@@ -4,6 +4,7 @@ import { eq, and, ne, or, ilike } from 'drizzle-orm';
 import { db, pool } from '../db/client';
 import { users, categories, cards as cardsTable, expenses, incomes, reserves, months } from '../db/schema';
 import { authenticate, requireAdmin, requireMaster } from '../middleware/auth';
+import { ensureDefaultCategories } from '../services/defaultCategories';
 
 const router = Router();
 
@@ -674,7 +675,7 @@ router.delete('/:id/clear-data', authenticate, async (req: Request, res: Respons
       .set({ financialData: null, categories: null, cards: null, updatedAt: new Date() })
       .where(eq(users.id, userId));
 
-    await pool.query('SELECT criar_categorias_padrao($1)', [userId]);
+    await ensureDefaultCategories(userId, 'pessoal');
 
     res.json({ success: true, message: 'System reset: data, categories, cards and notifications cleared.' });
   } catch (error) {

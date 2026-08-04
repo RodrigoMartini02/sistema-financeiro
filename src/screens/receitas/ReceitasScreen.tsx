@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Paperclip, Plus, RefreshCw, Ban, TrendingUp, Tag, Lock, LockOpen, Clock, CheckCircle, AlertCircle, FileCheck, Building2 } from 'lucide-react';
+import { Paperclip, Plus, RefreshCw, Ban, TrendingUp, Tag, Lock, LockOpen, Clock, CheckCircle, AlertCircle, FileCheck, Building2, Search } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
 import { useAppContext } from '../../context/AppContext';
@@ -14,6 +14,9 @@ import { MonthSelector } from '../finance/MonthSelector';
 import { IncomeDialog } from '../finance/IncomeDialog';
 import { AttachmentPreviewDialog } from '../../ui/AttachmentPreviewDialog';
 import { formatCurrency, formatDate } from '../finance/formatters';
+import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
+import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import type { Attachment } from '../../types/finance';
 
 const MONTH_NAMES_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -60,6 +63,8 @@ export function ReceitasScreen() {
   const [dialog, setDialog] = useState<{ open: boolean; item?: Income }>({ open: false });
   const [anexosDialog, setAnexosDialog] = useState<{ open: boolean; title: string; anexos: Attachment[] }>({ open: false, title: '', anexos: [] });
   const [busca, setBusca] = useState('');
+  const guide = useFirstAccessGuide('receitas:novo-v1');
+  const searchGuide = useFirstAccessGuide('receitas:busca-v1');
 
   const qc = useQueryClient();
   const finance = useFinanceDashboard(month, year);
@@ -157,7 +162,7 @@ export function ReceitasScreen() {
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-xl font-bold text-slate-950 dark:text-white">Receitas</h2>
-            <div className="flex gap-2">
+            <div className="relative flex gap-2">
               <Button variant="secondary" icon={<RefreshCw size={15} />} onClick={() => finance.dashboard.refetch()}>
                 Atualizar
               </Button>
@@ -172,6 +177,16 @@ export function ReceitasScreen() {
               <Button icon={<Plus size={15} />} onClick={() => setDialog({ open: true })}>
                 Nova receita
               </Button>
+              {guide.isVisible && !finance.dashboard.isLoading && allItems.length === 0 && !busca && (
+                <FirstAccessGuideCard
+                  floating
+                  placement="top"
+                  className="absolute right-0 top-full z-50 mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                  icon={TrendingUp}
+                  description={firstAccessGuideMessages.receitasNova}
+                  onDismiss={guide.dismiss}
+                />
+              )}
             </div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
@@ -218,7 +233,7 @@ export function ReceitasScreen() {
           <ErrorState title="Erro ao carregar receitas" description={finance.dashboard.error.message} />
         )}
 
-        {/* Contratos — Faturamento */}
+        {/* Contratos ? Faturamento */}
         {(contratosQ.data?.length ?? 0) > 0 && (
           <Card>
             <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
@@ -280,22 +295,44 @@ export function ReceitasScreen() {
             <h3 className="text-sm font-bold text-slate-800 shrink-0">
               Lançamentos <span className="ml-1 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-bold text-green-700">{allItems.length}</span>
             </h3>
-            <input
-              type="search"
-              placeholder="Buscar receita..."
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              className="w-full max-w-xs rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-200"
-            />
+            <div className="relative w-full max-w-xs">
+              <input
+                type="search"
+                placeholder="Buscar receita..."
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-200"
+              />
+              {searchGuide.isVisible && !finance.dashboard.isLoading && allItems.length > 0 && (
+                <FirstAccessGuideCard
+                  icon={Search}
+                  description={firstAccessGuideMessages.receitasBusca}
+                  align="right"
+                  floating
+                  placement="top"
+                  className="absolute right-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                  onDismiss={searchGuide.dismiss}
+                />
+              )}
+            </div>
           </div>
 
           {finance.dashboard.isLoading ? (
             <EmptyState title="Carregando" description="Buscando receitas do mês." />
           ) : items.length === 0 ? (
-            <EmptyState
-              title={busca ? 'Nenhum resultado' : 'Nenhuma receita'}
-              description={busca ? 'Tente outro termo de busca.' : 'Cadastre uma receita para este mês.'}
-            />
+            busca ? (
+              <EmptyState title="Nenhum resultado" description="Tente outro termo de busca." />
+            ) : (
+              <div className="grid justify-items-center gap-3 py-8">
+                <EmptyState
+                  title="Nenhuma receita"
+                  description="Cadastre sua primeira receita para começar a acompanhar entradas e saldo do mês."
+                />
+                <Button icon={<Plus size={15} />} onClick={() => setDialog({ open: true })}>
+                  Nova receita
+                </Button>
+              </div>
+            )
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[540px]">

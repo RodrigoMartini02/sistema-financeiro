@@ -8,6 +8,9 @@ import { Button } from '../../ui/button';
 import { Card } from '../../ui/card';
 import { ErrorState, EmptyState } from '../../ui/states';
 import { ReservaDialog } from './ReservaDialog';
+import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
+import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 
 function fmt(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -106,7 +109,7 @@ function ReservaCard({
       </div>
 
       {/* Zona direita */}
-      <div className="flex-none ml-auto flex items-center gap-2">
+      <div className="relative flex-none ml-auto flex items-center gap-2">
         <Button
           variant="secondary"
           className="text-xs py-1.5"
@@ -143,6 +146,8 @@ export function ReservasScreen() {
     item?: Reserva;
     startTab?: 'config' | 'movimentar';
   }>({ open: false });
+  const guide = useFirstAccessGuide('reservas:novo-v1');
+  const moveGuide = useFirstAccessGuide('reservas:movimentar-v1');
 
   const reservas = useQuery({ queryKey: queryKeys.reservas, queryFn: fetchReservas });
 
@@ -172,13 +177,23 @@ export function ReservasScreen() {
             <p className="text-sm font-semibold text-brand-700">Gestão de reservas</p>
             <h2 className="mt-1 text-2xl font-bold text-slate-950">Reservas e metas</h2>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="relative flex flex-wrap gap-2">
             <Button variant="secondary" icon={<RefreshCw size={17} />} onClick={() => reservas.refetch()}>
               Atualizar
             </Button>
             <Button icon={<Plus size={17} />} onClick={() => setDialog({ open: true })}>
               Nova reserva
             </Button>
+            {guide.isVisible && !reservas.isLoading && data.length === 0 && (
+              <FirstAccessGuideCard
+                floating
+                placement="top"
+                className="absolute right-0 top-full z-50 mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                icon={PiggyBank}
+                description={firstAccessGuideMessages.reservasNova}
+                onDismiss={guide.dismiss}
+              />
+            )}
           </div>
         </div>
 
@@ -197,10 +212,15 @@ export function ReservasScreen() {
         {reservas.isLoading ? (
           <EmptyState title="Carregando reservas" description="Buscando suas reservas e metas." />
         ) : data.length === 0 ? (
-          <EmptyState
-            title="Nenhuma reserva cadastrada"
-            description="Crie sua primeira reserva para guardar dinheiro com um objetivo."
-          />
+          <div className="rounded-xl border border-slate-200 bg-white py-6 text-center shadow-sm dark:border-slate-700 dark:bg-slate-800">
+              <EmptyState
+                title="Nenhuma reserva cadastrada"
+                description="Crie uma reserva para acompanhar objetivos, emerg?ncias ou valores separados."
+              />
+              <Button icon={<Plus size={15} />} onClick={() => setDialog({ open: true })}>
+                Criar reserva
+              </Button>
+            </div>
         ) : (
           <div className="flex flex-col gap-3">
             {data.map((r) => (

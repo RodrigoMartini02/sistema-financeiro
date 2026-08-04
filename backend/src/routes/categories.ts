@@ -3,6 +3,7 @@ import { eq, and, ne, count, sum, sql } from 'drizzle-orm';
 import { db, pool } from '../db/client';
 import { categories, expenses } from '../db/schema';
 import { authenticate } from '../middleware/auth';
+import { ensureDefaultCategories } from '../services/defaultCategories';
 
 const router = Router();
 
@@ -60,7 +61,7 @@ router.post('/default', authenticate, async (req: Request, res: Response): Promi
     const before = await pool.query('SELECT COUNT(*) AS total FROM categorias WHERE usuario_id = $1', [req.user!.id]);
     const totalBefore = parseInt((before.rows[0] as { total: string }).total);
 
-    await pool.query('SELECT criar_categorias_padrao($1)', [req.user!.id]);
+    await ensureDefaultCategories(req.user!.id, 'pessoal');
 
     const result = await pool.query('SELECT * FROM categorias WHERE usuario_id = $1 ORDER BY id ASC', [req.user!.id]);
     const total = result.rows.length;
@@ -213,12 +214,12 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     }
 
     const setParent = parentId !== undefined ? ', parent_id = $6' : '';
-    const baseParams: unknown[] = [nome.trim(), cor ?? '#3498db', icone ?? null, categoryId, req.user!.id];
+    const baseParams: unknown[] = [nome.trim(), cor ?? null, icone ?? null, categoryId, req.user!.id];
     if (parentId !== undefined) baseParams.push(parentId);
 
     const result = await pool.query(
       `UPDATE categorias
-       SET nome = $1, cor = $2, icone = $3, data_atualizacao = CURRENT_TIMESTAMP${setParent}
+       SET nome = $1, cor = COALESCE($2, cor), icone = COALESCE($3, icone), data_atualizacao = CURRENT_TIMESTAMP${setParent}
        WHERE id = $4 AND usuario_id = $5
        RETURNING id, nome, cor, icone, parent_id, data_criacao, data_atualizacao`,
       baseParams,

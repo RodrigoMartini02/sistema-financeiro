@@ -131,13 +131,13 @@ function AppContent() {
 
   const renderContent = () => {
     switch (section) {
-      case 'painel':        return <FinanceDashboard />;
+      case 'painel':        return <FinanceDashboard onNavigate={handleNavigate} onConfigTab={handleConfigTab} />;
       case 'receitas':      return <ReceitasScreen />;
       case 'despesas':      return <DespesasScreen />;
       case 'reservas':      return <ReservasScreen />;
       case 'relatorios':    return <RelatoriosScreen />;
       case 'planos':        return <PlanosScreen />;
-      case 'configuracoes': return <ConfigScreen activeTab={configTab} onTabChange={setConfigTab} />;
+      case 'configuracoes': return <ConfigScreen activeTab={configTab} onTabChange={setConfigTab} onNavigate={handleNavigate} />;
     }
   };
 
