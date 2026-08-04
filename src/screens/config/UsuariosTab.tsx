@@ -136,7 +136,6 @@ export function UsuariosTab({ userTipo }: Props) {
   const [status, setStatus] = useState('todos');
   const [dialog, setDialog] = useState<{ open: boolean; item?: UsuarioListItem }>({ open: false });
   const [mutError, setMutError] = useState('');
-  const createGuide = useFirstAccessGuide('usuarios:novo-v1');
   const filterGuide = useFirstAccessGuide('usuarios:filtros-v1');
 
   const qKey = ['usuarios-list', page, search, tipo, status];

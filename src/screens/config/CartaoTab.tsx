@@ -7,7 +7,6 @@ import type { Cartao, CartaoFormValues } from '../../types/config';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { Field, Input, SectionDivider } from '../../ui/form';
-import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 
 const COR_OPCOES = [
   { value: '#1e40af', label: 'Azul' },
@@ -115,7 +114,6 @@ function CartaoDialog({
 export function CartaoTab() {
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Cartao }>({ open: false });
-  const guide = useFirstAccessGuide('cartoes:novo-v1');
 
   const cartoes = useQuery({ queryKey: queryKeys.cartoes, queryFn: fetchCartoes });
 

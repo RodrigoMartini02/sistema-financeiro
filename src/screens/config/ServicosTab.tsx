@@ -11,9 +11,6 @@ import { Dialog } from '../../ui/dialog';
 import { Field, Input } from '../../ui/form';
 import { ConfigListRow } from '../../ui/ConfigListRow';
 import { formatCurrency } from '../finance/formatters';
-import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
-import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
-import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 
 function ServicoDialog({
   open, servico, isSaving, error, onClose, onSave, onDelete,
