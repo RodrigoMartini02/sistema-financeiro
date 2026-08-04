@@ -52,7 +52,7 @@ export function AcessosTab() {
   if (overviewQuery.isError) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar os acessos"
+        title="Não foi possível carregar os acessos"
         description={overviewQuery.error.message}
       />
     );

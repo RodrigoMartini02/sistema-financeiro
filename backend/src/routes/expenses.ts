@@ -175,11 +175,8 @@ router.post(
       const cardIdFinal = await validateCardId(cartao_id, req.user!.id);
       const attachmentsJson = Array.isArray(anexos) && anexos.length > 0 ? JSON.stringify(anexos) : null;
 
-      let categoryFinal = categoria_id;
-      if (!categoryFinal) {
-        const fallback = await pool.query('SELECT id FROM categorias WHERE usuario_id = $1 ORDER BY id ASC LIMIT 1', [req.user!.id]);
-        categoryFinal = fallback.rows.length > 0 ? (fallback.rows[0] as { id: number }).id : null;
-      }
+      const parsedCategoryId = categoria_id ? parseInt(String(categoria_id), 10) : NaN;
+      const categoryFinal = Number.isFinite(parsedCategoryId) ? parsedCategoryId : null;
 
       const valorFinalCalculado = valor_final
         ? parseFloat(String(valor_final))

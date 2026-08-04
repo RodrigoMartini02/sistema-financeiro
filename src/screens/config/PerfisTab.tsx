@@ -8,6 +8,9 @@ import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { Field, Input, ToggleRow, SectionDivider } from '../../ui/form';
 import { ConfigListRow } from '../../ui/ConfigListRow';
+import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
+import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 
 // ─── Category preview data (mirrors backend presets) ─────────────────────────
 
@@ -335,6 +338,7 @@ export function PerfisTab() {
 
   const perfis = useQuery({ queryKey: queryKeys.perfis, queryFn: fetchPerfis });
   const data = perfis.data ?? [];
+  const createGuide = useFirstAccessGuide('perfis:novo-v1');
 
   const saveMut = useMutation({
     mutationFn: ({ v, id }: { v: Parameters<typeof savePerfil>[0]; id?: number }) => savePerfil(v, id),
@@ -349,13 +353,24 @@ export function PerfisTab() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex items-center justify-between">
+      <div className="relative flex items-center justify-between">
         <p className="text-sm text-slate-500">
           {data.length} perfil/perfis ativo(s)
         </p>
         <Button icon={<Plus size={16} />} onClick={() => { setMutError(''); setDialog({ open: true }); }}>
           Novo perfil
         </Button>
+        {createGuide.isVisible && (
+          <FirstAccessGuideCard
+            icon={Briefcase}
+            description={firstAccessGuideMessages.perfisNovo}
+            align="right"
+            floating
+            placement="top"
+            className="absolute right-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+            onDismiss={createGuide.dismiss}
+          />
+        )}
       </div>
 
       <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800">

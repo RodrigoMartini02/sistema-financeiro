@@ -40,7 +40,7 @@ export async function apiRequest<T>(endpoint: string, init: RequestInit = {}): P
   }
 
   if (!response.ok || payload.success === false) {
-    throw new Error(payload.message ?? 'Nao foi possivel concluir a requisicao');
+    throw new Error(payload.message ?? 'Não foi possível concluir a requisição');
   }
 
   return (payload.data ?? payload) as T;

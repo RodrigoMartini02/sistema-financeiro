@@ -15,11 +15,7 @@ export interface Categoria {
 
 export interface CategoriaFormValues {
   nome: string;
-  cor?: string;
-  icone?: string;
-  forma_favorita?: string;
   parent_id?: number | null;
-  tipo_despesa?: 'opex' | 'capex';
 }
 
 export interface Cartao {

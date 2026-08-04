@@ -1,0 +1,4 @@
+interface:
+  display_name: "Run"
+  short_description: "Roda o FinGerence local rapidamente"
+  default_prompt: "Suba o FinGerence local na porta 5173 com backend 3010"

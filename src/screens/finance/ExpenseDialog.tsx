@@ -13,6 +13,7 @@ import { Button } from '../../ui/button';
 import { Field, Input, Textarea, ToggleGroup, SectionDivider } from '../../ui/form';
 import { AttachmentSection, type AttachmentSectionHandle } from '../../ui/AttachmentSection';
 import { CategoryChipSelector } from '../../ui/CategoryChipSelector';
+import { getRecentCategoryIds, suggestCategoryForDescription } from '../../utils/categorySuggestions';
 import { fetchCategorias, fetchCartoes, saveCategoria } from '../../services/configService';
 import { queryKeys } from '../../services/queryKeys';
 
@@ -137,38 +138,30 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
     ? efectivoFinal / (totalParcelas ?? 1)
     : 0;
 
-  // Feature 1: Auto-sugestão de categoria
-  const cats = (categorias.data ?? []).filter((c) => c.ativo);
+  const cats = useMemo(() => (categorias.data ?? []).filter((c) => c.ativo), [categorias.data]);
+  const cachedExpenses = useMemo(() => {
+    const allCached = qc.getQueriesData<FinanceDashboardData>({ queryKey: ['dashboard'] });
+    return allCached.flatMap(([, data]) => data?.expenses ?? []);
+  }, [qc, month, year, categorias.data]);
+  const featuredCategoryIds = useMemo(
+    () => getRecentCategoryIds(cachedExpenses, cats),
+    [cachedExpenses, cats],
+  );
+
+  // Sugere categoria a partir do historico local e de palavras-chave comuns.
   useEffect(() => {
     if ((descricaoWatch?.length ?? 0) < 3 || categoriaId) {
       setCategoriaSugestao(null);
       return;
     }
-    const timer = setTimeout(() => {
-      const allCached = qc.getQueriesData<FinanceDashboardData>({ queryKey: ['dashboard'] });
-      const allExpenses = allCached.flatMap(([, d]) => d?.expenses ?? []);
-      const match = allExpenses.find(
-        (e) => e.id !== expense?.id && e.descricao.toLowerCase().includes(descricaoWatch.toLowerCase()),
-      );
-      if (match) {
-        const cat = cats.find((c) => c.nome === match.categoria);
-        if (cat) setCategoriaSugestao({ categoriaId: cat.id, categoriaNome: cat.nome });
-        else setCategoriaSugestao(null);
-      } else {
-        setCategoriaSugestao(null);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [descricaoWatch, categoriaId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Deriva tipo_despesa automaticamente da categoria selecionada
-  useEffect(() => {
-    if (!categoriaId) return;
-    const cat = cats.find((c) => c.id === Number(categoriaId));
-    if (cat?.tipo_despesa) {
-      form.setValue('tipo_despesa', cat.tipo_despesa);
-    }
-  }, [categoriaId]); // eslint-disable-line react-hooks/exhaustive-deps
+    const timer = setTimeout(() => {
+      const suggestion = suggestCategoryForDescription(descricaoWatch, cats, cachedExpenses, expense?.id);
+      setCategoriaSugestao(suggestion ? { categoriaId: suggestion.id, categoriaNome: suggestion.name } : null);
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [descricaoWatch, categoriaId, cats, cachedExpenses, expense?.id]);
 
   const activeCards = (cartoes.data ?? []).filter((c) => c.ativo);
   const paymentOptions = [
@@ -480,7 +473,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
         </div>
 
         {/* ── Categoria ─────────────────────────────────────────── */}
-        <Field label="Categoria" required>
+        <Field label="Categoria" hint="Opcional. Escolha uma categoria quando fizer sentido para filtrar e analisar depois.">
           <Controller
             control={form.control}
             name="categoria_id"
@@ -490,6 +483,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
                 value={field.value ? Number(field.value) : undefined}
                 onChange={(id) => { field.onChange(id ?? undefined); if (id) setCategoriaSugestao(null); }}
                 onCreateNew={() => { setShowCatForm((v) => !v); setNovaCatNome(''); }}
+                featuredIds={featuredCategoryIds}
               />
             )}
           />

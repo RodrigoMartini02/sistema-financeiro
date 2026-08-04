@@ -8,10 +8,8 @@ export async function fetchCategorias(): Promise<Categoria[]> {
 }
 
 export async function saveCategoria(values: CategoriaFormValues, id?: number): Promise<Categoria> {
-  const body: Record<string, unknown> = { nome: values.nome, cor: values.cor };
+  const body: Record<string, unknown> = { nome: values.nome.trim() };
   if (values.parent_id !== undefined) body.parent_id = values.parent_id;
-  if (values.tipo_despesa !== undefined) body.tipo_despesa = values.tipo_despesa;
-  if (!id) body.perfil_id = getActiveProfileId();
   return apiRequest<Categoria>(id ? `/categorias/${id}` : '/categorias', {
     method: id ? 'PUT' : 'POST',
     body: JSON.stringify(body),

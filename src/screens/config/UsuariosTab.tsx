@@ -9,6 +9,9 @@ import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { Field, Input, ToggleRow, ToggleGroup, SectionDivider } from '../../ui/form';
 import { ConfigListRow } from '../../ui/ConfigListRow';
+import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
+import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 
 const TIPO_ACESSO_OPTIONS = [
   { value: 'padrao', label: 'Padrão', description: 'Acesso básico ao sistema' },
@@ -133,6 +136,8 @@ export function UsuariosTab({ userTipo }: Props) {
   const [status, setStatus] = useState('todos');
   const [dialog, setDialog] = useState<{ open: boolean; item?: UsuarioListItem }>({ open: false });
   const [mutError, setMutError] = useState('');
+  const createGuide = useFirstAccessGuide('usuarios:novo-v1');
+  const filterGuide = useFirstAccessGuide('usuarios:filtros-v1');
 
   const qKey = ['usuarios-list', page, search, tipo, status];
 
@@ -171,7 +176,7 @@ export function UsuariosTab({ userTipo }: Props) {
   return (
     <div className="grid gap-5">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="relative flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px]">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           <input
@@ -180,6 +185,16 @@ export function UsuariosTab({ userTipo }: Props) {
             placeholder="Buscar por nome, email ou documento..."
             className="w-full rounded-lg border border-slate-200 bg-white pl-8 pr-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
           />
+          {filterGuide.isVisible && (
+            <FirstAccessGuideCard
+              icon={Search}
+              description={firstAccessGuideMessages.usuariosFiltros}
+              floating
+              placement="bottom"
+              className="absolute left-0 bottom-full z-50 mb-3 w-[min(24rem,calc(100vw-2rem))]"
+              onDismiss={filterGuide.dismiss}
+            />
+          )}
         </div>
         <ToggleGroup
           value={tipo}

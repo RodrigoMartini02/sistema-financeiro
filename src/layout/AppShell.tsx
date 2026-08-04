@@ -154,63 +154,86 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
       return apiRequest<Array<{
         id: number; descricao: string; valor_final: number;
         categoria_nome?: string; forma_pagamento?: string;
-      }>>(`/despesas?${params}`);
+      }>>('/despesas?' + params);
     },
     staleTime: 60_000,
   });
 
   const total = data.reduce((s, d) => s + Number(d.valor_final), 0);
-  const recentes = data.slice(0, 6);
+  const recentes = data.slice(0, 12);
 
   return (
-    <div className="absolute right-0 top-full mt-2 w-80 rounded-xl border border-[rgba(14,196,216,0.22)] bg-[#0A2530] shadow-xl z-50 overflow-hidden">
-      <div className="flex items-center justify-between border-b border-[rgba(14,196,216,0.15)] px-4 py-3 bg-[#0D2E3C]">
-        <p className="font-bold text-[#E8F4F5] text-sm">Notificações</p>
-        <button onClick={onClose} className="rounded-lg p-1 text-[rgba(14,196,216,0.5)] hover:bg-[rgba(14,196,216,0.08)] hover:text-[#0EC4D8] transition">
-          <X size={15} />
-        </button>
-      </div>
-
-      {isLoading ? (
-        <div className="py-8 text-center text-sm text-[rgba(14,196,216,0.4)]">Carregando...</div>
-      ) : data.length === 0 ? (
-        <div className="py-10 text-center text-sm text-[rgba(14,196,216,0.4)]">
-          <Bell size={28} className="mx-auto mb-2 text-[rgba(14,196,216,0.2)]" />
-          Sem despesas este mês
-        </div>
-      ) : (
-        <div className="divide-y divide-[rgba(14,196,216,0.08)]">
-          <div className="flex items-center justify-between px-4 py-2.5 bg-rose-900/20">
-            <p className="text-xs font-semibold text-rose-400">
-              {data.length} despesa{data.length !== 1 ? 's' : ''} no mês
-            </p>
-            <p className="text-xs font-bold text-rose-300">
-              R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </p>
+    <>
+      <div className="fixed inset-0 z-[9998] bg-slate-950/15 backdrop-blur-[1px]" onClick={onClose} />
+      <aside
+        className="fixed inset-y-0 right-0 z-[9999] flex w-[min(100vw,410px)] flex-col border-l border-slate-200 bg-white shadow-2xl shadow-slate-900/25 dark:border-slate-800 dark:bg-slate-950"
+        role="dialog"
+        aria-label={'Notifica\u00e7\u00f5es'}
+        aria-modal="true"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-5 dark:border-slate-800">
+          <div>
+            <p className="text-base font-bold text-slate-950 dark:text-white">{'Notifica\u00e7\u00f5es'}</p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{'Resumo do m\u00eas selecionado'}</p>
           </div>
-          <div className="max-h-72 overflow-y-auto">
-            {recentes.map((d) => (
-              <div key={d.id} className="flex items-start gap-3 px-4 py-3 hover:bg-[rgba(14,196,216,0.04)] transition">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-rose-900/30 mt-0.5">
-                  <TrendingDown size={13} className="text-rose-500" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="truncate text-xs font-semibold text-[#E8F4F5]">{d.descricao}</p>
-                  <p className="text-xs text-[rgba(14,196,216,0.4)]">
-                    {d.categoria_nome ?? 'Sem categoria'} · R$ {Number(d.valor_final).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          <button
+            onClick={onClose}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-900 dark:hover:text-white"
+            aria-label={'Fechar notifica\u00e7\u00f5es'}
+          >
+            <X size={17} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-5">
+          {isLoading ? (
+            <div className="rounded-2xl border border-slate-100 bg-slate-50 py-10 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+              {'Carregando notifica\u00e7\u00f5es...'}
+            </div>
+          ) : data.length === 0 ? (
+            <div className="rounded-2xl border border-cyan-100 bg-cyan-50 py-10 text-center text-sm text-slate-600 dark:border-cyan-900 dark:bg-cyan-950 dark:text-cyan-100">
+              <Bell size={30} className="mx-auto mb-3 text-cyan-500" />
+              {'Sem despesas neste m\u00eas'}
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 dark:border-rose-900/70 dark:bg-rose-950/40">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-rose-700 dark:text-rose-200">
+                    {data.length} despesa{data.length !== 1 ? 's' : ''} {'no m\u00eas'}
+                  </p>
+                  <p className="text-sm font-bold text-rose-700 dark:text-rose-200">
+                    R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </p>
                 </div>
               </div>
-            ))}
-          </div>
-          {data.length > 6 && (
-            <div className="px-4 py-2 text-center text-xs text-[rgba(14,196,216,0.4)] bg-[#0D2E3C]">
-              +{data.length - 6} despesas registradas
+
+              <div className="grid gap-2">
+                {recentes.map((d) => (
+                  <div key={d.id} className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm transition hover:border-cyan-200 hover:bg-cyan-50/40 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-cyan-900 dark:hover:bg-cyan-950/30">
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600 ring-1 ring-rose-100 dark:bg-rose-950 dark:text-rose-300 dark:ring-rose-900">
+                      <TrendingDown size={14} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{d.descricao}</p>
+                      <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                        {d.categoria_nome ?? 'Sem categoria'} {'\u00b7'} R$ {Number(d.valor_final).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {data.length > recentes.length && (
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-center text-xs font-medium text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+                  +{data.length - recentes.length} despesas registradas
+                </div>
+              )}
             </div>
           )}
         </div>
-      )}
-    </div>
+      </aside>
+    </>
   );
 }
 
@@ -257,44 +280,43 @@ export function AppShell({
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-4">
-        {/* Main groups */}
-        {NAV_GROUPS.map((group) => (
-          <div key={group.label}>
-            <p className="mb-1 px-3 text-[10px] font-bold uppercase tracking-widest text-[rgba(14,196,216,0.38)]">
-              {group.label}
-            </p>
-            <div className="space-y-0.5">
-              {group.items.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeSection === item.section;
-                return (
-                  <button
-                    key={item.section}
-                    onClick={() => { onNavigate?.(item.section); setMobileOpen(false); }}
-                    className={[
-                      'relative flex h-10 w-full items-center gap-3 rounded-lg text-sm font-medium transition',
-                      isActive
-                        ? 'bg-[rgba(14,196,216,0.10)] text-[#0EC4D8] font-semibold'
-                        : 'text-[rgba(14,196,216,0.5)] hover:bg-[rgba(14,196,216,0.06)] hover:text-[#E8F4F5]',
-                    ].join(' ')}
-                    style={{ paddingLeft: isActive ? '10px' : '12px', paddingRight: '12px' }}
-                  >
-                    {isActive && <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-[#0EC4D8]" />}
-                    <Icon size={17} className={isActive ? 'text-[#0EC4D8]' : ''} />
-                    {item.label}
-                  </button>
-                );
-              })}
+      <nav className="flex min-h-0 flex-1 flex-col px-3 py-2">
+        <div className="shrink-0 space-y-4">
+          {NAV_GROUPS.map((group) => (
+            <div key={group.label}>
+              <p className="mb-1 px-3 text-[10px] font-bold uppercase tracking-widest text-[rgba(14,196,216,0.38)]">
+                {group.label}
+              </p>
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeSection === item.section;
+                  return (
+                    <button
+                      key={item.section}
+                      onClick={() => { onNavigate?.(item.section); setMobileOpen(false); }}
+                      className={[
+                        'relative flex h-10 w-full items-center gap-3 rounded-lg text-sm font-medium transition',
+                        isActive
+                          ? 'bg-[rgba(14,196,216,0.10)] text-[#0EC4D8] font-semibold'
+                          : 'text-[rgba(14,196,216,0.5)] hover:bg-[rgba(14,196,216,0.06)] hover:text-[#E8F4F5]',
+                      ].join(' ')}
+                      style={{ paddingLeft: isActive ? '10px' : '12px', paddingRight: '12px' }}
+                    >
+                      {isActive && <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-[#0EC4D8]" />}
+                      <Icon size={17} className={isActive ? 'text-[#0EC4D8]' : ''} />
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
 
-        {/* Sistema — Configurações accordion */}
-        <div>
-          <p className="mb-1 px-3 text-[10px] font-bold uppercase tracking-widest text-[rgba(14,196,216,0.38)]">Sistema</p>
-          <div className="space-y-0.5">
-            {/* Configurações header */}
+        <div className="mt-4 flex min-h-0 flex-1 flex-col">
+          <p className="mb-1 shrink-0 px-3 text-[10px] font-bold uppercase tracking-widest text-[rgba(14,196,216,0.38)]">Sistema</p>
+          <div className="flex min-h-0 flex-1 flex-col space-y-0.5">
             <button
               onClick={() => {
                 const wasOpen = configOpen;
@@ -305,7 +327,7 @@ export function AppShell({
                 }
               }}
               className={[
-                'relative flex h-10 w-full items-center gap-3 rounded-lg text-sm font-medium transition',
+                'relative flex h-10 w-full shrink-0 items-center gap-3 rounded-lg text-sm font-medium transition',
                 activeSection === 'configuracoes'
                   ? 'bg-[rgba(14,196,216,0.10)] text-[#0EC4D8] font-semibold'
                   : 'text-[rgba(14,196,216,0.5)] hover:bg-[rgba(14,196,216,0.06)] hover:text-[#E8F4F5]',
@@ -319,16 +341,15 @@ export function AppShell({
                 <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-[#0EC4D8]" />
               )}
               <Settings size={17} className={activeSection === 'configuracoes' ? 'text-[#0EC4D8]' : ''} />
-              <span className="flex-1 text-left">Configurações</span>
+              <span className="flex-1 text-left">{'Configura\u00e7\u00f5es'}</span>
               <ChevronDown
                 size={14}
                 className={`transition-transform ${configOpen ? 'rotate-180' : ''}`}
               />
             </button>
 
-            {/* Submenu */}
             {configOpen && (
-              <div className="ml-3 space-y-0.5 border-l border-[rgba(14,196,216,0.15)] pl-2.5">
+              <div className="sidebar-config-scroll ml-3 mt-1 min-h-0 flex-1 space-y-0.5 overflow-y-auto border-l border-[rgba(14,196,216,0.15)] pl-2.5 pr-1">
                 {CONFIG_SUBS.filter((sub) => {
                   const perfilTipo = localStorage.getItem('perfilAtivoTipo');
                   if (sub.id === 'acessos') {
@@ -391,6 +412,7 @@ export function AppShell({
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+      {notifOpen && <NotificationPanel onClose={() => setNotifOpen(false)} />}
       <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-[rgba(14,196,216,0.18)] lg:flex lg:flex-col shadow-sm">
         {sidebar}
       </aside>
@@ -441,7 +463,6 @@ export function AppShell({
               >
                 <Bell size={16} />
               </button>
-              {notifOpen && <NotificationPanel onClose={() => setNotifOpen(false)} />}
             </div>
 
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#0EC4D8] text-xs font-bold text-[#040E12] shadow-sm lg:hidden">
