@@ -36,7 +36,6 @@ export const firstAccessGuideMessages = {
   reservasContribuicaoSugerida: 'Com meta e prazo definidos, calculamos quanto guardar por m\u00eas para atingir o objetivo.',
 
   // Categorias
-  categoriasVincularPrincipal: 'Toda subcategoria precisa estar vinculada a uma categoria principal j\u00e1 existente.',
   categoriasDesativar: 'N\u00e3o \u00e9 poss\u00edvel excluir categorias. Desative as que n\u00e3o usa mais para ocult\u00e1-las sem perder o hist\u00f3rico.',
 
   // Cart\u00f5es

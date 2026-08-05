@@ -164,7 +164,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
 router.put('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const categoryId = parseInt(req.params['id']!);
-    const { nome, cor, icone, parent_id } = req.body as Record<string, string | undefined>;
+    const { nome, cor, icone } = req.body as Record<string, string | undefined>;
 
     if (isNaN(categoryId)) {
       res.status(400).json({ success: false, message: 'Category ID must be a valid number' });
@@ -173,27 +173,6 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     if (!nome?.trim()) {
       res.status(400).json({ success: false, message: 'Category name is required' });
       return;
-    }
-
-    const parentId = parent_id !== undefined ? (parent_id ? parseInt(parent_id) : null) : undefined;
-
-    if (parentId !== undefined && parentId !== null) {
-      if (parentId === categoryId) {
-        res.status(400).json({ success: false, message: 'A category cannot be a subcategory of itself' });
-        return;
-      }
-      const parentResult = await pool.query(
-        'SELECT id, parent_id FROM categorias WHERE id = $1 AND usuario_id = $2',
-        [parentId, req.user!.id],
-      );
-      if (parentResult.rows.length === 0) {
-        res.status(400).json({ success: false, message: 'Parent category not found' });
-        return;
-      }
-      if ((parentResult.rows[0] as { parent_id: number | null }).parent_id !== null) {
-        res.status(400).json({ success: false, message: 'Cannot create a subcategory of a subcategory' });
-        return;
-      }
     }
 
     const [existing] = await db.select({ id: categories.id }).from(categories)
@@ -213,16 +192,12 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const setParent = parentId !== undefined ? ', parent_id = $6' : '';
-    const baseParams: unknown[] = [nome.trim(), cor ?? null, icone ?? null, categoryId, req.user!.id];
-    if (parentId !== undefined) baseParams.push(parentId);
-
     const result = await pool.query(
       `UPDATE categorias
-       SET nome = $1, cor = COALESCE($2, cor), icone = COALESCE($3, icone), data_atualizacao = CURRENT_TIMESTAMP${setParent}
+       SET nome = $1, cor = COALESCE($2, cor), icone = COALESCE($3, icone), data_atualizacao = CURRENT_TIMESTAMP
        WHERE id = $4 AND usuario_id = $5
        RETURNING id, nome, cor, icone, parent_id, data_criacao, data_atualizacao`,
-      baseParams,
+      [nome.trim(), cor ?? null, icone ?? null, categoryId, req.user!.id],
     );
 
     res.json({ success: true, message: 'Category updated', data: result.rows[0] });
