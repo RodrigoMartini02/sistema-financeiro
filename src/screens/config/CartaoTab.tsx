@@ -6,7 +6,7 @@ import { queryKeys } from '../../services/queryKeys';
 import type { Cartao, CartaoFormValues } from '../../types/config';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
-import { Field, Input, SectionDivider } from '../../ui/form';
+import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
@@ -59,106 +59,145 @@ function CartaoDialog({
   };
 
   return (
-    <Dialog open={open} title={cartao ? 'Editar cartão' : 'Novo cartão'} onClose={onClose} size="lg">
-      <form className="grid gap-5" onSubmit={handleSubmit}>
-        <div className="grid gap-4 sm:grid-cols-[1fr_120px]">
-          <Field label="Nome do cartão">
-            <Input name="nome" defaultValue={cartao?.nome} placeholder="Ex: Nubank" autoFocus required />
-          </Field>
-          <Field label="Últimos 4 dígitos">
-            <Input name="numero_cartao" maxLength={4} defaultValue={cartao?.numero_cartao ?? ''} placeholder="0000" />
-          </Field>
-        </div>
+    <Dialog open={open} title={cartao ? 'Editar cartão' : 'Novo cartão'} onClose={onClose} size="lg" scrollBody={false}>
+      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }} onSubmit={handleSubmit}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
 
-        <div className="relative grid gap-4 sm:grid-cols-2">
-          <Field label="Limite (R$)" hint="Opcional">
-            <Input name="limite" type="number" step="0.01" min="0" defaultValue={cartao?.limite ?? ''} placeholder="0,00" />
-          </Field>
-          <Field label="Validade" hint="MM/AA" error={validadeIncompleta ? 'Formato incompleto' : undefined}>
-            <Input
-              value={validade}
-              onChange={(e) => setValidade(formatValidade(e.target.value))}
-              maxLength={5}
-              placeholder="12/28"
-              inputMode="numeric"
-            />
-          </Field>
-          {limiteGuide.isVisible && (
-            <FirstAccessGuideCard
-              floating
-              placement="bottom"
-              className="absolute left-0 top-full z-[45] mt-3 w-[min(22rem,calc(100vw-2rem))]"
-              icon={DollarSign}
-              description={firstAccessGuideMessages.cartoesLimite}
-              onDismiss={limiteGuide.dismiss}
-            />
-          )}
-          {validadeGuide.isVisible && (
-            <FirstAccessGuideCard
-              floating
-              placement="bottom"
-              align="right"
-              className="absolute right-0 top-full z-[45] mt-3 w-[min(22rem,calc(100vw-2rem))]"
-              icon={Calendar}
-              description={firstAccessGuideMessages.cartoesValidade}
-              onDismiss={validadeGuide.dismiss}
-            />
-          )}
-        </div>
-
-        <div className="relative grid gap-4 sm:grid-cols-2">
-          <Field label="Dia de fechamento" hint="Dia do mês">
-            <Input name="dia_fechamento" type="number" min="1" max="31" defaultValue={cartao?.dia_fechamento ?? ''} placeholder="Ex: 25" />
-          </Field>
-          <Field label="Dia de vencimento" hint="Dia do mês">
-            <Input name="dia_vencimento" type="number" min="1" max="31" defaultValue={cartao?.dia_vencimento ?? ''} placeholder="Ex: 5" />
-          </Field>
-          {fechamentoGuide.isVisible && (
-            <FirstAccessGuideCard
-              floating
-              placement="bottom"
-              className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
-              icon={Calendar}
-              description={firstAccessGuideMessages.cartoesFechamentoVencimento}
-              onDismiss={fechamentoGuide.dismiss}
-            />
-          )}
-        </div>
-
-        <SectionDivider label="Cor do cartão" />
-
-        <div className="flex flex-wrap gap-2.5">
-          {COR_OPCOES.map((c) => (
-            <button
-              key={c.value}
-              type="button"
-              onClick={() => setCor(c.value)}
-              title={c.label}
-              className={[
-                'h-8 w-8 rounded-lg transition-all',
-                cor === c.value ? 'ring-2 ring-offset-2 ring-brand-600 scale-110' : 'hover:scale-105',
-              ].join(' ')}
-              style={{ background: c.value }}
-            />
-          ))}
-        </div>
-
-        {/* Preview cartão */}
-        <div
-          className="flex items-center gap-3 rounded-xl p-4 shadow-sm"
-          style={{ background: `linear-gradient(135deg, ${cor}, ${cor}cc)` }}
-        >
-          <CreditCard size={24} className="text-white/80" />
-          <div>
-            <p className="font-bold text-white text-sm">{cor === COR_OPCOES[0].value ? 'Nome do cartão' : ''}</p>
-            <p className="text-white/60 text-xs font-mono">•••• •••• •••• 0000</p>
+          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 140px', columnGap: 18 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <label style={labelStyle}><span>NOME DO CARTÃO</span><span style={{ color: C.primary }}>*</span></label>
+              <input name="nome" defaultValue={cartao?.nome} placeholder="Ex: Nubank" autoFocus required style={fieldInputStyle} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <label style={labelStyle}>ÚLTIMOS 4 DÍGITOS</label>
+              <input name="numero_cartao" maxLength={4} defaultValue={cartao?.numero_cartao ?? ''} placeholder="0000" style={fieldInputStyle} />
+            </div>
           </div>
+
+          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18, position: 'relative' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
+                <label style={{ ...labelStyle, height: 'auto' }}>LIMITE (R$)</label>
+                <span style={{ fontSize: 11, color: C.placeholder }}>opcional</span>
+              </div>
+              <input name="limite" type="number" step="0.01" min="0" defaultValue={cartao?.limite ?? ''} placeholder="0,00" style={fieldInputStyle} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
+                <label style={{ ...labelStyle, height: 'auto' }}>VALIDADE</label>
+                <span style={{ fontSize: 11, color: validadeIncompleta ? C.danger : C.placeholder }}>
+                  {validadeIncompleta ? 'formato incompleto' : 'MM/AA'}
+                </span>
+              </div>
+              <input
+                value={validade}
+                onChange={(e) => setValidade(formatValidade(e.target.value))}
+                maxLength={5}
+                placeholder="12/28"
+                inputMode="numeric"
+                style={{ ...fieldInputStyle, border: validadeIncompleta ? `1.5px solid ${C.danger}` : fieldInputStyle.border }}
+              />
+            </div>
+            {limiteGuide.isVisible && (
+              <FirstAccessGuideCard
+                floating
+                placement="bottom"
+                className="absolute left-0 top-full z-[45] mt-3 w-[min(22rem,calc(100vw-2rem))]"
+                icon={DollarSign}
+                description={firstAccessGuideMessages.cartoesLimite}
+                onDismiss={limiteGuide.dismiss}
+              />
+            )}
+            {validadeGuide.isVisible && (
+              <FirstAccessGuideCard
+                floating
+                placement="bottom"
+                align="right"
+                className="absolute right-0 top-full z-[45] mt-3 w-[min(22rem,calc(100vw-2rem))]"
+                icon={Calendar}
+                description={firstAccessGuideMessages.cartoesValidade}
+                onDismiss={validadeGuide.dismiss}
+              />
+            )}
+          </div>
+
+          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18, position: 'relative' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <label style={labelStyle}>DIA DE FECHAMENTO</label>
+              <input name="dia_fechamento" type="number" min="1" max="31" defaultValue={cartao?.dia_fechamento ?? ''} placeholder="Ex: 25" style={fieldInputStyle} />
+              <span style={{ fontSize: 12, color: C.textFaint }}>Dia do mês</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <label style={labelStyle}>DIA DE VENCIMENTO</label>
+              <input name="dia_vencimento" type="number" min="1" max="31" defaultValue={cartao?.dia_vencimento ?? ''} placeholder="Ex: 5" style={fieldInputStyle} />
+              <span style={{ fontSize: 12, color: C.textFaint }}>Dia do mês</span>
+            </div>
+            {fechamentoGuide.isVisible && (
+              <FirstAccessGuideCard
+                floating
+                placement="bottom"
+                className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                icon={Calendar}
+                description={firstAccessGuideMessages.cartoesFechamentoVencimento}
+                onDismiss={fechamentoGuide.dismiss}
+              />
+            )}
+          </div>
+
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <label style={labelStyle}>COR DO CARTÃO</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {COR_OPCOES.map((c) => (
+                  <button
+                    key={c.value}
+                    type="button"
+                    onClick={() => setCor(c.value)}
+                    title={c.label}
+                    style={{
+                      height: 32, width: 32, borderRadius: 9, border: cor === c.value ? `2px solid ${C.primary}` : '2px solid transparent',
+                      boxShadow: cor === c.value ? `0 0 0 2px #fff, 0 0 0 4px ${C.primary}` : 'none',
+                      background: c.value, cursor: 'pointer', transition: 'all .13s ease',
+                    }}
+                  />
+                ))}
+              </div>
+
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: 12, borderRadius: 14, padding: 16, marginTop: 4 }}
+              >
+                <div style={{ background: `linear-gradient(135deg, ${cor}, ${cor}cc)`, borderRadius: 14, padding: 16, width: '100%', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <CreditCard size={24} color="rgba(255,255,255,0.8)" />
+                  <div>
+                    <p style={{ fontWeight: 700, color: '#fff', fontSize: 14, margin: 0 }}>Nome do cartão</p>
+                    <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, fontFamily: 'monospace', margin: 0 }}>•••• •••• •••• 0000</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {error && (
+            <div style={{ margin: '0 26px 14px', borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
+              {error}
+            </div>
+          )}
         </div>
 
-        {error && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
-
-        <div className="flex justify-end">
-          <Button type="submit" disabled={isSaving}>{isSaving ? 'Salvando...' : 'Salvar'}</Button>
+        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', justifyContent: 'flex-end' }}>
+          <button
+            type="submit"
+            disabled={isSaving}
+            style={{
+              padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
+              border: 'none', transition: 'all .15s ease', cursor: isSaving ? 'not-allowed' : 'pointer',
+              ...(isSaving
+                ? { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }
+                : { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }),
+            }}
+          >
+            {isSaving ? 'Salvando...' : 'Salvar'}
+          </button>
         </div>
       </form>
     </Dialog>

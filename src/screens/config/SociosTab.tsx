@@ -8,7 +8,7 @@ import {
 import { queryKeys } from '../../services/queryKeys';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
-import { Field, Input } from '../../ui/form';
+import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
@@ -42,34 +42,58 @@ function SocioDialog({
   };
 
   return (
-    <Dialog open={open} title={socio ? 'Editar sócio' : 'Novo sócio'} onClose={onClose}>
-      <form className="grid gap-5" onSubmit={handleSubmit}>
-        <Field label="Nome do sócio">
-          <Input name="nome" defaultValue={socio?.nome} placeholder="Ex: Maria Souza" autoFocus required />
-        </Field>
-        <Field label="Participação (%)" hint="Entre 0,01 e 100">
-          <Input
-            name="percentual"
-            type="number"
-            min="0.01"
-            max="100"
-            step="0.01"
-            defaultValue={socio?.percentual ?? ''}
-            placeholder="Ex: 50"
-            required
-          />
-        </Field>
+    <Dialog open={open} title={socio ? 'Editar sócio' : 'Novo sócio'} onClose={onClose} scrollBody={false}>
+      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }} onSubmit={handleSubmit}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <label style={labelStyle}><span>NOME DO SÓCIO</span><span style={{ color: C.primary }}>*</span></label>
+              <input name="nome" defaultValue={socio?.nome} placeholder="Ex: Maria Souza" autoFocus required style={fieldInputStyle} />
+            </div>
+          </div>
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <label style={labelStyle}><span>PARTICIPAÇÃO (%)</span><span style={{ color: C.primary }}>*</span></label>
+              <input
+                name="percentual"
+                type="number"
+                min="0.01"
+                max="100"
+                step="0.01"
+                defaultValue={socio?.percentual ?? ''}
+                placeholder="Ex: 50"
+                required
+                style={fieldInputStyle}
+              />
+              <span style={{ fontSize: 12, color: C.textFaint }}>Entre 0,01 e 100</span>
+            </div>
+          </div>
 
-        {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
-        )}
+          {error && (
+            <div style={{ margin: '0 26px 14px', borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
+              {error}
+            </div>
+          )}
+        </div>
 
-        <div className="flex items-center gap-2">
+        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
           {socio && onDelete && (
             <Button type="button" variant="danger" onClick={handleDelete}>Excluir</Button>
           )}
-          <div className="ml-auto">
-            <Button type="submit" disabled={isSaving}>{isSaving ? 'Salvando...' : 'Salvar'}</Button>
+          <div style={{ marginLeft: 'auto' }}>
+            <button
+              type="submit"
+              disabled={isSaving}
+              style={{
+                padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
+                border: 'none', transition: 'all .15s ease', cursor: isSaving ? 'not-allowed' : 'pointer',
+                ...(isSaving
+                  ? { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }
+                  : { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }),
+              }}
+            >
+              {isSaving ? 'Salvando...' : 'Salvar'}
+            </button>
           </div>
         </div>
       </form>
