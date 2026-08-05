@@ -69,7 +69,7 @@ async function createFutureInstallments(
 
     const placeholders = Array.from({ length: 19 }, () => `$${idx++}`).join(', ');
     values.push(`(${placeholders})`);
-    const valorPorParcela = parseFloat(String(baseExpense['valor_final'] ?? baseExpense['valor_original'] ?? 0)) / totalInstallments;
+    const valorParcela = parseFloat(String(baseExpense['valor_final'] ?? baseExpense['valor_original'] ?? 0));
     const installmentIsPaid = i <= installmentsAlreadyPaid;
     params.push(
       userId,
@@ -89,8 +89,8 @@ async function createFutureInstallments(
       baseExpense['id'],
       baseExpense['recorrente'] ?? false,
       baseExpense['perfil_id'] ?? null,
-      valorPorParcela,
-      valorPorParcela,
+      valorParcela,
+      valorParcela,
     );
   }
 
