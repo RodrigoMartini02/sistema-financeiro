@@ -81,58 +81,10 @@ router.get(
 
       const eventsResult = await pool.query(
         `SELECT
-          COUNT(*) FILTER (WHERE event_type = 'page_view')::int AS page_views_total,
-          COUNT(*) FILTER (WHERE event_type = 'page_view' AND data_criacao >= NOW() - ($1::int * INTERVAL '1 day'))::int AS page_views_in_period,
           COUNT(*) FILTER (WHERE event_type = 'login')::int AS logins_total,
           COUNT(*) FILTER (WHERE event_type = 'login' AND data_criacao >= NOW() - ($1::int * INTERVAL '1 day'))::int AS logins_in_period,
           COUNT(DISTINCT usuario_id) FILTER (WHERE event_type = 'login' AND usuario_id IS NOT NULL AND data_criacao >= NOW() - ($1::int * INTERVAL '1 day'))::int AS login_users_in_period
          FROM analytics_events`,
-        [days],
-      );
-
-      const dailyResult = await pool.query(
-        `WITH days AS (
-           SELECT generate_series(
-             CURRENT_DATE - (($1::int - 1) * INTERVAL '1 day'),
-             CURRENT_DATE,
-             INTERVAL '1 day'
-           )::date AS day
-         ),
-         event_counts AS (
-           SELECT
-             data_criacao::date AS day,
-             COUNT(*) FILTER (WHERE event_type = 'page_view')::int AS page_views,
-             COUNT(*) FILTER (WHERE event_type = 'login')::int AS logins
-           FROM analytics_events
-           WHERE data_criacao >= CURRENT_DATE - (($1::int - 1) * INTERVAL '1 day')
-           GROUP BY data_criacao::date
-         ),
-         account_counts AS (
-           SELECT data_cadastro::date AS day, COUNT(*)::int AS accounts
-           FROM usuarios
-           WHERE data_cadastro >= CURRENT_DATE - (($1::int - 1) * INTERVAL '1 day')
-           GROUP BY data_cadastro::date
-         )
-         SELECT
-           days.day::text AS date,
-           COALESCE(event_counts.page_views, 0)::int AS page_views,
-           COALESCE(event_counts.logins, 0)::int AS logins,
-           COALESCE(account_counts.accounts, 0)::int AS accounts
-         FROM days
-         LEFT JOIN event_counts ON event_counts.day = days.day
-         LEFT JOIN account_counts ON account_counts.day = days.day
-         ORDER BY days.day ASC`,
-        [days],
-      );
-
-      const pagesResult = await pool.query(
-        `SELECT path, COUNT(*)::int AS views
-         FROM analytics_events
-         WHERE event_type = 'page_view'
-           AND data_criacao >= NOW() - ($1::int * INTERVAL '1 day')
-         GROUP BY path
-         ORDER BY views DESC, path ASC
-         LIMIT 8`,
         [days],
       );
 
@@ -152,8 +104,6 @@ router.get(
             ...accountsResult.rows[0],
             ...eventsResult.rows[0],
           },
-          daily: dailyResult.rows,
-          topPages: pagesResult.rows,
           recentAccounts: recentAccountsResult.rows,
         },
       });
@@ -183,14 +133,10 @@ router.get(
             eventsAvailable: false,
             summary: {
               ...accountsResult.rows[0],
-              page_views_total: 0,
-              page_views_in_period: 0,
               logins_total: 0,
               logins_in_period: 0,
               login_users_in_period: 0,
             },
-            daily: [],
-            topPages: [],
             recentAccounts: recentAccountsResult.rows,
           },
         });

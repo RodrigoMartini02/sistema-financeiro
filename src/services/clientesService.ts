@@ -8,8 +8,6 @@ function appendProfile(q: URLSearchParams) {
 export interface Cliente {
   id: number;
   nome: string;
-  codigo?: string | null;
-  tipo_empresa?: string | null;
   cnpj?: string | null;
   perfil_id?: number | null;
   total_contratos?: number;
@@ -29,6 +27,7 @@ export interface Contrato {
   status: 'ativo' | 'encerrado';
   data_inicio_faturamento?: string | null;
   observacoes?: string | null;
+  descricao?: string | null;
   representante_id?: number | null;
   representante_nome?: string | null;
   implantacao_parcelas?: number | null;
@@ -39,7 +38,6 @@ export interface Contrato {
   horas_remotas_valor?: number | null;
   horas_remotas_saldo_ini?: number | null;
   horas_remotas_saldo_atual?: number | null;
-  valor_contrato?: number | null;
   valor_mensal?: number | null;
   perfil_id?: number | null;
 }
@@ -76,6 +74,8 @@ export interface ContratoResumo {
   id: number;
   cliente_nome: string;
   numero?: string | null;
+  representante_id?: number | null;
+  representante_nome?: string | null;
   horas_presenciais_valor?: number | null;
   horas_presenciais_saldo_atual?: number | null;
   horas_remotas_valor?: number | null;
@@ -106,6 +106,21 @@ export async function encerrarContrato(id: number): Promise<void> {
 
 export async function gerarPrevistas(contratoId: number): Promise<{ count: number }> {
   return apiRequest<{ count: number }>(`/contratos/${contratoId}/gerar-previstas`, { method: 'POST' });
+}
+
+export interface AditivoContratoValues {
+  novo_numero?: string | null;
+  nova_data_assinatura?: string | null;
+  novo_vencimento: string;
+  novo_num_aditivo?: number | null;
+  nova_data_aditivo?: string | null;
+  novo_ajuste?: string | null;
+  nova_data_inicio_faturamento?: string | null;
+  observacoes?: string | null;
+}
+
+export async function registrarAditivo(contratoId: number, data: AditivoContratoValues): Promise<Contrato> {
+  return apiRequest<Contrato>(`/contratos/${contratoId}/aditivo`, { method: 'PUT', body: JSON.stringify(data) });
 }
 
 // Contratos-Serviços

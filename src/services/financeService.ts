@@ -62,17 +62,9 @@ function expenseFromApi(r: RawExpense): Expense {
   const parcela = r.parcelado && r.parcela_atual && r.numero_parcelas
     ? `${r.parcela_atual}/${r.numero_parcelas}` : null;
 
-  // rawFinalDb é o valor_final bruto do banco:
-  //   - primeira parcela parcelado: total da compra
-  //   - sub-parcelas e não-parcelado: valor por período
+  // rawFinalDb é o valor_final bruto do banco — sempre o valor daquela parcela/período.
   const rawFinalDb = asNumber(r.valor_final ?? r.valor_original ?? r.valor);
-  const numeroParcelas = Number(r.numero_parcelas ?? 0);
-  const parcelaAtual   = Number(r.parcela_atual ?? 0);
-
-  // valorFinal = valor efetivo de exibição (por parcela para primeira linha parcelada)
-  const valorFinal = (r.parcelado && numeroParcelas > 0 && parcelaAtual === 1)
-    ? rawFinalDb / numeroParcelas
-    : rawFinalDb;
+  const valorFinal = rawFinalDb;
 
   return {
     id: r.id, descricao: r.descricao,
@@ -176,6 +168,8 @@ export async function saveExpense(month: number, year: number, values: ExpenseFo
     recorrente: values.recorrente ?? false,
     parcelado: values.parcelado ?? false,
     total_parcelas: values.parcelado ? (values.total_parcelas ?? null) : null,
+    parcelas_ja_pagas: values.parcelado ? (values.parcelasJaPagas ?? 0) : null,
+    recorrencia_mensal: values.recorrenciaMensal ?? false,
     perfil_id: profileId,
   };
   if (values.categoria_id) body.categoria_id = Number(values.categoria_id);

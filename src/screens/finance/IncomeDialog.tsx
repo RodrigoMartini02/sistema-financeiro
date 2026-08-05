@@ -1,21 +1,119 @@
-import { useEffect, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller, useWatch } from 'react-hook-form';
 import { z } from 'zod';
-import { Paperclip, ChevronDown, ChevronUp, Clock, Users } from 'lucide-react';
-import { MONTH_NAMES, type Attachment, type Income, type IncomeFormValues } from '../../types/finance';
-import { Dialog } from '../../ui/dialog';
-import { Button } from '../../ui/button';
-import { Field, Input, ToggleGroup, SectionDivider } from '../../ui/form';
+import { Paperclip, X, Clock, Users, ChevronDown, ChevronUp } from 'lucide-react';
+import { MONTH_NAMES, type Attachment, type Income, type IncomeFormValues, type FinanceDashboardData } from '../../types/finance';
 import { AttachmentSection, type AttachmentSectionHandle } from '../../ui/AttachmentSection';
 import { fetchRepresentantes } from '../../services/representantesService';
-import { fetchIncomeTypes } from '../../services/incomeTypesService';
-import { fetchContratosAtivos } from '../../services/clientesService';
+import { fetchIncomeTypes, saveIncomeType } from '../../services/incomeTypesService';
+import { fetchContratosAtivos, fetchClientes, saveCliente } from '../../services/clientesService';
+import { fetchIncomeSuggestions, type IncomeSuggestionMatch } from '../../services/incomeSuggestionsService';
+import { suggestIncomeTypeForDescription } from '../../utils/incomeTypeSuggestions';
 import { queryKeys } from '../../services/queryKeys';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+
+const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+// ── Paleta e tokens visuais — mesmos do ExpenseDialog, mantidos consistentes entre os dois modais ──
+const C = {
+  border: '#e6eef3',
+  borderInput: '#dbe6ec',
+  cardBg: '#fbfdfe',
+  panelBg: '#f2f9fb',
+  panelBorder: '#dcebf1',
+  primary: '#0891b2',
+  primaryDark: '#0e7490',
+  primarySoft: '#e6f7fa',
+  primarySoftBorder: '#b9e6ef',
+  text: '#0f2b38',
+  textSoft: '#6c8593',
+  textMuted: '#7b93a1',
+  textFaint: '#8ba3b0',
+  placeholder: '#9db0bb',
+  chipOffBorder: '#e0e9ee',
+  chipOffText: '#416275',
+  success: '#067647',
+  successBg: '#ecfdf3',
+  successBorder: '#b7e4c7',
+  warn: '#8a6d1f',
+  warnBg: '#fdf6e3',
+  warnBorder: '#f0e0b0',
+};
+
+const labelStyle: CSSProperties = {
+  fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.09em', color: C.textFaint,
+  textTransform: 'uppercase', height: 15, display: 'flex', alignItems: 'center', gap: 4,
+};
+
+const fieldInputStyle: CSSProperties = {
+  width: '100%', minWidth: 0, boxSizing: 'border-box', height: 54, borderRadius: 12,
+  border: `1.5px solid ${C.borderInput}`, background: '#fff', padding: '0 14px',
+  fontSize: 17, fontWeight: 500, color: C.text, outline: 'none',
+};
+
+const smallInputStyle: CSSProperties = {
+  width: 168, height: 42, boxSizing: 'border-box', borderRadius: 10,
+  border: `1.5px solid ${C.borderInput}`, background: '#fff', padding: '0 12px',
+  fontSize: 14, color: C.text, outline: 'none',
+};
+
+const cardStyle: CSSProperties = {
+  margin: '0 26px 10px', padding: '13px 14px 14px', borderRadius: 14,
+  border: `1px solid ${C.border}`, background: C.cardBg,
+};
+
+const panelStyle: CSSProperties = {
+  display: 'flex', flexDirection: 'column', gap: 10, background: C.panelBg,
+  border: `1px solid ${C.panelBorder}`, borderRadius: 12, padding: '12px 14px', marginTop: 9,
+};
+
+function chipStyle(active: boolean, opts?: { h?: number; r?: number; size?: number }): CSSProperties {
+  const o = opts ?? {};
+  return {
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer',
+    height: o.h ?? 42, padding: '0 10px', borderRadius: o.r ?? 10, fontSize: o.size ?? 13,
+    fontWeight: active ? 600 : 500, whiteSpace: 'nowrap',
+    border: `1.5px solid ${active ? C.primary : C.chipOffBorder}`,
+    background: active ? C.primary : '#fff',
+    color: active ? '#fff' : C.chipOffText,
+    boxShadow: active ? '0 2px 8px -2px rgba(8,145,178,0.5)' : 'none',
+    transition: 'all .13s ease',
+  };
+}
+
+function formatCents(cents: number): string {
+  return (cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function digitsOnly(value: string): number {
+  const digits = value.replace(/\D/g, '');
+  return digits ? parseInt(digits, 10) : 0;
+}
+
+function MoneyField({ value, onChange, autoFocus }: { value: number | undefined; onChange: (v: number) => void; autoFocus?: boolean }) {
+  const cents = value ? Math.round(value * 100) : 0;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 54, borderRadius: 12, border: `1.5px solid ${C.borderInput}`, background: '#fff', padding: '0 14px' }}>
+      <span style={{ fontSize: 13, fontWeight: 600, color: C.textFaint }}>R$</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        autoFocus={autoFocus}
+        value={cents > 0 ? formatCents(cents) : ''}
+        onChange={(e) => onChange(digitsOnly(e.target.value) / 100)}
+        placeholder="0,00"
+        style={{
+          flex: 1, width: '100%', minWidth: 0, border: 'none', background: 'transparent',
+          fontSize: 26, fontWeight: 700, color: C.text, letterSpacing: '-0.02em',
+          fontVariantNumeric: 'tabular-nums', outline: 'none',
+        }}
+      />
+    </div>
+  );
+}
 
 const schema = z.object({
   descricao:       z.string().min(1, 'Informe a descrição'),
@@ -26,6 +124,8 @@ const schema = z.object({
   representanteId: z.coerce.number().nullable().optional(),
 });
 
+type FormData = z.infer<typeof schema>;
+
 interface Props {
   open: boolean; month: number; year: number;
   income?: Income; isSaving: boolean; error?: string;
@@ -33,9 +133,12 @@ interface Props {
 }
 
 export function IncomeDialog({ open, month, year, income, isSaving, error, onClose, onSave }: Props) {
+  const qc = useQueryClient();
   const defaultDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
   const isNew = !income;
+  const isEmpresa = useMemo(() => localStorage.getItem('perfilAtivoTipo') === 'empresa', []);
 
+  const bodyRef = useRef<HTMLDivElement>(null);
   const attachmentRef = useRef<AttachmentSectionHandle>(null);
   const [anexos, setAnexos] = useState<Attachment[]>([]);
   const [replicar, setReplicar] = useState(false);
@@ -46,6 +149,13 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, onClo
   const [contratoId, setContratoId] = useState<number | null>(null);
   const [tipoHora, setTipoHora] = useState<'presencial' | 'remoto' | null>(null);
   const [quantidadeHoras, setQuantidadeHoras] = useState<number | ''>('');
+  const [clienteTocado, setClienteTocado] = useState(false);
+  const [representanteTocado, setRepresentanteTocado] = useState(false);
+
+  const [showTipoForm, setShowTipoForm] = useState<string | null>(null);
+  const [showClienteForm, setShowClienteForm] = useState<string | null>(null);
+  const [tipoSugestao, setTipoSugestao] = useState<{ nome: string } | null>(null);
+  const [duplicataInfo, setDuplicataInfo] = useState<{ income: Income } | null>(null);
 
   const horasGuide = useFirstAccessGuide('receitas:horas-v1');
   const replicarGuide = useFirstAccessGuide('receitas:replicar-v1');
@@ -58,16 +168,31 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, onClo
   const contratosAtivos = contratosQ.data ?? [];
 
   const typesQ = useQuery({ queryKey: queryKeys.incomeTypes, queryFn: fetchIncomeTypes, staleTime: 60_000 });
-  const tiposOpcoes = (typesQ.data ?? [])
-    .filter((t) => t.ativo)
-    .map((t) => ({ value: t.nome, label: t.nome, icon: null as React.ReactNode }));
+  const tiposReceita = (typesQ.data ?? []).filter((t) => t.ativo);
 
-  const repOpcoes = [
-    { value: '', label: 'Nenhum' },
-    ...representantes.map((r) => ({ value: String(r.id), label: r.nome })),
-  ];
+  const clientesQ = useQuery({ queryKey: queryKeys.clientes, queryFn: fetchClientes, staleTime: 60_000 });
+  const clientes = clientesQ.data ?? [];
 
-  const form = useForm<z.input<typeof schema>>({
+  const criarTipoMut = useMutation({
+    mutationFn: (nome: string) => saveIncomeType(nome),
+    onSuccess: (tipo) => {
+      qc.invalidateQueries({ queryKey: queryKeys.incomeTypes });
+      form.setValue('tipoReceita', tipo.nome);
+      setShowTipoForm(null);
+    },
+  });
+
+  const criarClienteMut = useMutation({
+    mutationFn: (nome: string) => saveCliente({ nome, cnpj: null }),
+    onSuccess: (cliente) => {
+      qc.invalidateQueries({ queryKey: queryKeys.clientes });
+      form.setValue('cliente', cliente.nome);
+      setClienteTocado(true);
+      setShowClienteForm(null);
+    },
+  });
+
+  const form = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       descricao: '', valor: '' as unknown as number, data: defaultDate,
@@ -94,14 +219,30 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, onClo
     }
   }, [valorCalculado, form]);
 
+  // Contrato traz cliente e representante já vinculados — evita re-digitar/re-selecionar o que já existe.
+  useEffect(() => {
+    if (!contratoSelecionado) return;
+    if (!clienteTocado && !form.getValues('cliente')) {
+      form.setValue('cliente', contratoSelecionado.cliente_nome);
+    }
+    if (!representanteTocado && contratoSelecionado.representante_id && !form.getValues('representanteId')) {
+      form.setValue('representanteId', contratoSelecionado.representante_id);
+    }
+  }, [contratoSelecionado, clienteTocado, representanteTocado, form]);
+
   useEffect(() => {
     if (!open) {
       setAnexos([]); setReplicar(false);
       setReplicarMes(month); setReplicarAno(year);
       setHorasFaturar(false); setContratoId(null); setTipoHora(null); setQuantidadeHoras('');
+      setClienteTocado(false); setRepresentanteTocado(false);
+      setShowTipoForm(null); setShowClienteForm(null);
+      setTipoSugestao(null); setDuplicataInfo(null);
       return;
     }
     setAnexos(income?.anexos ?? []);
+    setClienteTocado(!!income?.cliente);
+    setRepresentanteTocado(!!income?.representanteId);
     form.reset({
       descricao:       income?.descricao ?? '',
       valor:           income?.valor ?? ('' as unknown as number),
@@ -112,9 +253,11 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, onClo
     });
   }, [income, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const valorWatch           = useWatch({ control: form.control, name: 'valor' });
-  const tipoReceitaWatch     = useWatch({ control: form.control, name: 'tipoReceita' });
-  const representanteIdWatch = useWatch({ control: form.control, name: 'representanteId' });
+  const descricaoWatch          = useWatch({ control: form.control, name: 'descricao' });
+  const valorWatch               = useWatch({ control: form.control, name: 'valor' });
+  const clienteWatch             = useWatch({ control: form.control, name: 'cliente' });
+  const tipoReceitaWatch         = useWatch({ control: form.control, name: 'tipoReceita' });
+  const representanteIdWatch     = useWatch({ control: form.control, name: 'representanteId' });
 
   const repSelecionado = representanteIdWatch
     ? representantes.find((r) => r.id === Number(representanteIdWatch))
@@ -124,8 +267,81 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, onClo
     comissaoMatch && valorWatch > 0
       ? (valorWatch * Number(comissaoMatch.percentual)) / 100
       : null;
+  const semComissaoConfigurada = !!repSelecionado && !!tipoReceitaWatch && !comissaoMatch;
 
-  const handleSubmit = async (data: z.output<typeof schema>) => {
+  // Recentes: histórico local do dashboard já carregado, sem round-trip extra.
+  const cachedIncomes = useMemo(() => {
+    const allCached = qc.getQueriesData<FinanceDashboardData>({ queryKey: ['dashboard'] });
+    return allCached.flatMap(([, data]) => data?.incomes ?? []);
+  }, [qc, month, year]);
+
+  // ── Sugestão de tipo de receita por histórico de descrição parecida (perfil PJ apenas) ──
+  useEffect(() => {
+    if (!isEmpresa || (descricaoWatch?.length ?? 0) < 3 || tipoReceitaWatch) {
+      setTipoSugestao(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      const suggestion = suggestIncomeTypeForDescription(descricaoWatch, cachedIncomes, income?.id);
+      setTipoSugestao(suggestion);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [descricaoWatch, tipoReceitaWatch, cachedIncomes, income?.id]);
+
+  // ── Autocomplete de descrição por histórico real (backend) ──
+  const [debouncedDescricao, setDebouncedDescricao] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedDescricao(descricaoWatch ?? ''), 220);
+    return () => clearTimeout(timer);
+  }, [descricaoWatch]);
+
+  const suggestionsQuery = useQuery({
+    queryKey: queryKeys.incomeSuggestions(debouncedDescricao),
+    queryFn: () => fetchIncomeSuggestions(debouncedDescricao),
+    enabled: debouncedDescricao.trim().length >= 2,
+  });
+
+  const [acHidden, setAcHidden] = useState(false);
+  const [acIndex, setAcIndex] = useState(-1);
+  const acMatches: IncomeSuggestionMatch[] = acHidden ? [] : (suggestionsQuery.data?.matches ?? [])
+    .filter((m) => m.descricao.toLowerCase() !== (descricaoWatch ?? '').toLowerCase())
+    .slice(0, 4);
+  const acOpen = acMatches.length > 0 && (descricaoWatch?.length ?? 0) >= 2;
+
+  const applySuggestionMatch = (match: IncomeSuggestionMatch) => {
+    form.setValue('descricao', match.descricao);
+    if (!valorWatch) form.setValue('valor', match.valor);
+    if (match.cliente && !clienteWatch) { form.setValue('cliente', match.cliente); setClienteTocado(true); }
+    if (match.tipoReceita && !tipoReceitaWatch) form.setValue('tipoReceita', match.tipoReceita);
+    setAcHidden(true);
+    setAcIndex(-1);
+  };
+
+  const ultimoValorRecebido = suggestionsQuery.data?.matches.find(
+    (m) => m.descricao.toLowerCase() === (descricaoWatch ?? '').toLowerCase(),
+  )?.valor;
+
+  // Detecção de duplicata: mesma descrição + valor + cliente nos últimos 7 dias — aviso não bloqueante.
+  useEffect(() => {
+    const desc = descricaoWatch?.trim();
+    if (!desc || !valorWatch) { setDuplicataInfo(null); return; }
+    const seteAtras = new Date();
+    seteAtras.setDate(seteAtras.getDate() - 7);
+    const dup = cachedIncomes.find((i) => {
+      if (i.id === income?.id) return false;
+      if (i.descricao.toLowerCase() !== desc.toLowerCase()) return false;
+      if (i.valor !== valorWatch) return false;
+      if ((i.cliente ?? '') !== (clienteWatch ?? '')) return false;
+      if (new Date(i.data) < seteAtras) return false;
+      return true;
+    });
+    setDuplicataInfo(dup ? { income: dup } : null);
+  }, [descricaoWatch, valorWatch, clienteWatch, cachedIncomes, income?.id]);
+
+  // Cliente precisa corresponder a um cadastro existente — combobox não aceita texto solto.
+  const clienteValido = !clienteWatch?.trim() || clientes.some((c) => c.nome === clienteWatch.trim());
+
+  const handleSubmit = async (data: FormData) => {
     const formValues: IncomeFormValues = {
       descricao:         data.descricao,
       valor:             data.valor,
@@ -141,307 +357,568 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, onClo
       quantidadeHoras:   isNew && horasFaturar && quantidadeHoras !== '' ? Number(quantidadeHoras) : null,
     };
     await onSave(formValues);
+    setDuplicataInfo(null);
+  };
+
+  const submitForm = form.handleSubmit(handleSubmit);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      if (acOpen) { setAcHidden(true); return; }
+      onClose();
+      return;
+    }
+    if (acOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault();
+      const delta = e.key === 'ArrowDown' ? 1 : -1;
+      setAcIndex((prev) => Math.max(0, Math.min(acMatches.length - 1, prev + delta)));
+      return;
+    }
+    if (acOpen && e.key === 'Enter' && acIndex >= 0) {
+      e.preventDefault();
+      applySuggestionMatch(acMatches[acIndex]!);
+      return;
+    }
+    if (e.key === 'Tab' && tipoSugestao && !tipoReceitaWatch) {
+      e.preventDefault();
+      form.setValue('tipoReceita', tipoSugestao.nome);
+      setTipoSugestao(null);
+      return;
+    }
+    if (e.key === 'Enter' && !e.shiftKey && !acOpen) {
+      e.preventDefault();
+      if (clienteValido) submitForm();
+      return;
+    }
   };
 
   const currentYear = new Date().getFullYear();
   const replicarAnoOptions = Array.from({ length: 3 }, (_, i) => currentYear + i);
   const replicarMesOptions = Array.from({ length: 12 }, (_, i) => ({ value: i, label: MONTH_NAMES[i] }));
 
+  if (!open) return null;
+
   return (
-    <Dialog
-      open={open}
-      title={income ? 'Editar receita' : 'Nova receita'}
-      description="Registre uma entrada financeira"
-      onClose={onClose}
-      size="lg"
-    >
-      <form className="grid gap-4" onSubmit={form.handleSubmit(handleSubmit)}>
-
-        {/* ── Descrição + Anexos ────────────────────────────────── */}
-        <div className="grid gap-2">
-          <div className="flex items-end gap-2">
-            <div className="flex-1">
-              <Field label="Descrição" required error={form.formState.errors.descricao?.message}>
-                <Input {...form.register('descricao')} placeholder="Ex: Salário mensal" autoFocus />
-              </Field>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(15, 23, 42, 0.5)', backdropFilter: 'blur(2px)' }} onClick={onClose} />
+      <form
+        style={{
+          position: 'relative', zIndex: 10, width: 780, maxWidth: '100%', maxHeight: '92vh',
+          display: 'flex', flexDirection: 'column', background: '#fff', borderRadius: 18,
+          boxShadow: '0 32px 80px -24px rgba(13, 47, 63, 0.38), 0 0 0 1px rgba(13, 47, 63, 0.06)',
+          overflow: 'hidden', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+        }}
+        onSubmit={submitForm}
+        onKeyDown={handleKeyDown}
+      >
+        {/* Header */}
+        <div style={{ flex: 'none', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24, padding: '22px 26px 18px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <div style={{ fontSize: 19, fontWeight: 700, color: C.text, letterSpacing: '-0.01em' }}>
+              {income ? 'Editar receita' : 'Nova receita'}
             </div>
-            <button
-              type="button"
-              onClick={() => attachmentRef.current?.openPicker()}
-              title="Anexar arquivo"
-              className={[
-                'mb-[1px] flex h-10 items-center gap-1.5 rounded-2xl border px-3 text-xs font-semibold transition-all shrink-0',
-                anexos.length > 0
-                  ? 'border-brand-300 bg-brand-50 text-brand-600 dark:border-brand-700 dark:bg-brand-900/30 dark:text-brand-400'
-                  : 'border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600 dark:border-slate-600 dark:text-slate-500',
-              ].join(' ')}
-            >
-              <Paperclip size={13} />
-              {anexos.length > 0 && <span>{anexos.length}</span>}
-            </button>
+            <div style={{ fontSize: 13, color: C.textSoft }}>Registre uma entrada financeira</div>
           </div>
-          <div className={anexos.length > 0 ? 'rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/50' : ''}>
-            <AttachmentSection ref={attachmentRef} value={anexos} onChange={setAnexos} hideTrigger />
-          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              width: 32, height: 32, borderRadius: '50%', border: '1px solid #e3ecf1',
+              display: 'grid', placeItems: 'center', color: C.textMuted, cursor: 'pointer', background: 'transparent',
+            }}
+          >
+            <X size={13} />
+          </button>
         </div>
 
-        {/* ── Valor | Data | Cliente ────────────────────────────── */}
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Field label="Valor (R$)" required error={form.formState.errors.valor?.message}>
-            <Input {...form.register('valor')} type="number" step="0.01" min="0" placeholder="0,00" />
-          </Field>
-          <Field label="Data de recebimento" required error={form.formState.errors.data?.message}>
-            <Input {...form.register('data')} type="date" />
-          </Field>
-          <Field label="Cliente / Fonte">
-            <Input {...form.register('cliente')} placeholder="Ex: Empresa XYZ" />
-          </Field>
-        </div>
+        {/* Corpo rolável */}
+        <div ref={bodyRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
 
-        {/* ── Tipo de receita ───────────────────────────────────── */}
-        {tiposOpcoes.length > 0 && (
-          <>
-            <SectionDivider label="Tipo de receita" />
-            <Controller
-              control={form.control}
-              name="tipoReceita"
-              render={({ field }) => (
-                <ToggleGroup
-                  value={field.value ?? ''}
-                  options={tiposOpcoes}
-                  onChange={field.onChange}
-                />
+          {/* ── Descrição + Anexos ─────────────────────────────────── */}
+          <div style={cardStyle}>
+            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7, position: 'relative' }}>
+              <label style={labelStyle}>
+                <span>DESCRIÇÃO</span><span style={{ color: C.primary }}>*</span>
+              </label>
+              <input
+                {...form.register('descricao', { onChange: () => setAcHidden(false) })}
+                placeholder="Ex: Salário mensal"
+                autoFocus
+                autoComplete="off"
+                style={fieldInputStyle}
+              />
+              {acOpen && (
+                <>
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setAcHidden(true)} />
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, zIndex: 41,
+                    background: '#fff', border: `1px solid ${C.borderInput}`, borderRadius: 12,
+                    boxShadow: '0 20px 44px -14px rgba(13, 47, 63, 0.34)', padding: 6,
+                    display: 'flex', flexDirection: 'column',
+                  }}>
+                    {acMatches.map((match, i) => (
+                      <button
+                        key={`${match.descricao}-${i}`}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => applySuggestionMatch(match)}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                          height: 38, padding: '0 10px', borderRadius: 8, cursor: 'pointer', border: 'none',
+                          background: i === acIndex ? C.panelBg : 'transparent', textAlign: 'left',
+                        }}
+                      >
+                        <span style={{ fontSize: '13.5px', fontWeight: 600, color: C.text }}>{match.descricao}</span>
+                        <span style={{ fontSize: 12, color: C.textMuted, fontVariantNumeric: 'tabular-nums' }}>
+                          {brl(match.valor)}{match.cliente ? ` · ${match.cliente}` : ''}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </>
               )}
-            />
-          </>
-        )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 20 }}>
+                <button
+                  type="button"
+                  onClick={() => attachmentRef.current?.openPicker()}
+                  title="Anexar arquivo"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5, fontSize: '12.5px', fontWeight: 600,
+                    color: anexos.length > 0 ? C.primary : C.textMuted, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0,
+                  }}
+                >
+                  <Paperclip size={13} />
+                  <span>Anexar arquivo{anexos.length > 0 ? ` (${anexos.length})` : ''}</span>
+                </button>
+                {anexos.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setAnexos([])}
+                    title="Remover anexos"
+                    style={{ display: 'flex', alignItems: 'center', color: C.placeholder, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+                {tipoSugestao && !tipoReceitaWatch && (
+                  <button
+                    type="button"
+                    onClick={() => { form.setValue('tipoReceita', tipoSugestao.nome); setTipoSugestao(null); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12.5px', color: C.primaryDark, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
+                  >
+                    <span style={{ fontWeight: 600, background: C.primarySoft, border: `1px solid ${C.primarySoftBorder}`, borderRadius: 6, padding: '2px 7px' }}>
+                      {tipoSugestao.nome}
+                    </span>
+                    <span style={{ color: C.textMuted }}>sugerido · Tab aceita</span>
+                  </button>
+                )}
+              </div>
+              <div style={{ display: 'none' }}>
+                <AttachmentSection ref={attachmentRef} value={anexos} onChange={setAnexos} hideTrigger />
+              </div>
+            </div>
+          </div>
 
-        {/* ── Representante (pills) ─────────────────────────────── */}
-        {representantes.length > 0 && (
-          <>
-            <SectionDivider label="Representante" />
-            <div className="relative">
-              <Controller
-                control={form.control}
-                name="representanteId"
-                render={({ field }) => (
-                  <ToggleGroup
-                    value={field.value ? String(field.value) : ''}
-                    options={repOpcoes}
-                    onChange={(v) => field.onChange(v ? Number(v) : null)}
+          {/* ── Valor + Data + Cliente ─────────────────────────────── */}
+          <div style={cardStyle}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 168px', columnGap: 18, rowGap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                <label style={labelStyle}>
+                  <span>VALOR</span><span style={{ color: C.primary }}>*</span>
+                </label>
+                <Controller
+                  control={form.control}
+                  name="valor"
+                  render={({ field }) => <MoneyField value={field.value || undefined} onChange={field.onChange} />}
+                />
+                <div style={{ fontSize: 12, color: C.textFaint, minHeight: 16 }}>
+                  {ultimoValorRecebido ? `Última vez você recebeu ${brl(ultimoValorRecebido)}` : ''}
+                </div>
+                {form.formState.errors.valor?.message && (
+                  <div style={{ fontSize: 12, color: '#b42318' }}>{form.formState.errors.valor.message}</div>
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                <label style={labelStyle}>
+                  <span>DATA</span><span style={{ color: C.primary }}>*</span>
+                </label>
+                <input {...form.register('data')} type="date" style={{ ...fieldInputStyle, fontSize: 14 }} />
+              </div>
+            </div>
+
+            <div style={{ marginTop: 2, display: 'flex', flexDirection: 'column', gap: 7, position: 'relative' }}>
+              <label style={labelStyle}>CLIENTE / FONTE</label>
+              <input
+                {...form.register('cliente', { onChange: () => setClienteTocado(true) })}
+                list="clientes-datalist"
+                placeholder="Ex: Empresa XYZ"
+                autoComplete="off"
+                style={{
+                  ...fieldInputStyle, height: 42, fontSize: 14,
+                  border: `1.5px solid ${!clienteValido ? '#b42318' : C.borderInput}`,
+                }}
+              />
+              <datalist id="clientes-datalist">
+                {clientes.map((c) => <option key={c.id} value={c.nome} />)}
+              </datalist>
+              {!clienteValido && clienteWatch?.trim() && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                  <span style={{ color: '#b42318' }}>Cliente não cadastrado.</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowClienteForm(clienteWatch.trim())}
+                    style={{ fontWeight: 600, color: C.primaryDark, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
+                  >
+                    + Cadastrar "{clienteWatch.trim()}"
+                  </button>
+                </div>
+              )}
+              {showClienteForm !== null && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderRadius: 10, border: `1.5px solid ${C.primary}`, background: C.primarySoft, padding: 8 }}>
+                  <input
+                    type="text"
+                    defaultValue={showClienteForm}
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); const v = e.currentTarget.value.trim(); if (v) criarClienteMut.mutate(v); }
+                      if (e.key === 'Escape') { e.preventDefault(); setShowClienteForm(null); }
+                    }}
+                    id="novo-cliente-input"
+                    style={{ flex: 1, height: 32, borderRadius: 8, border: `1px solid ${C.borderInput}`, background: '#fff', padding: '0 10px', fontSize: 13, color: C.text, outline: 'none' }}
+                  />
+                  <button
+                    type="button"
+                    disabled={criarClienteMut.isPending}
+                    onClick={() => {
+                      const el = document.getElementById('novo-cliente-input') as HTMLInputElement | null;
+                      const v = el?.value.trim();
+                      if (v) criarClienteMut.mutate(v);
+                    }}
+                    style={{ borderRadius: 8, background: C.primary, padding: '7px 12px', fontSize: 12, fontWeight: 700, color: '#fff', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                  >
+                    {criarClienteMut.isPending ? '...' : 'Criar'}
+                  </button>
+                  <button type="button" onClick={() => setShowClienteForm(null)} style={{ color: C.textMuted, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex' }}>
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Tipo de receita (perfil PJ apenas) ────────────────── */}
+          {isEmpresa && (tiposReceita.length > 0 || showTipoForm !== null) && (
+            <div style={cardStyle}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
+                  <label style={{ ...labelStyle, height: 'auto' }}>TIPO DE RECEITA</label>
+                  <span style={{ fontSize: 11, color: '#a8bac4' }}>opcional</span>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {tiposReceita.map((t) => (
+                    <div
+                      key={t.id}
+                      onClick={() => form.setValue('tipoReceita', tipoReceitaWatch === t.nome ? '' : t.nome)}
+                      style={chipStyle(tipoReceitaWatch === t.nome)}
+                    >
+                      {t.nome}
+                    </div>
+                  ))}
+                  <div
+                    onClick={() => setShowTipoForm('')}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+                      height: 42, padding: '0 10px', borderRadius: 10, fontSize: 12.5, fontWeight: 600,
+                      border: `1.5px dashed ${C.chipOffBorder}`, color: C.textMuted, background: '#fff',
+                    }}
+                  >
+                    <span>+</span> novo
+                  </div>
+                </div>
+                {showTipoForm !== null && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderRadius: 10, border: `1.5px solid ${C.primary}`, background: C.primarySoft, padding: 8 }}>
+                    <input
+                      type="text"
+                      defaultValue={showTipoForm}
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); const v = e.currentTarget.value.trim(); if (v) criarTipoMut.mutate(v); }
+                        if (e.key === 'Escape') { e.preventDefault(); setShowTipoForm(null); }
+                      }}
+                      id="novo-tipo-input"
+                      placeholder="Nome do tipo de receita"
+                      style={{ flex: 1, height: 32, borderRadius: 8, border: `1px solid ${C.borderInput}`, background: '#fff', padding: '0 10px', fontSize: 13, color: C.text, outline: 'none' }}
+                    />
+                    <button
+                      type="button"
+                      disabled={criarTipoMut.isPending}
+                      onClick={() => {
+                        const el = document.getElementById('novo-tipo-input') as HTMLInputElement | null;
+                        const v = el?.value.trim();
+                        if (v) criarTipoMut.mutate(v);
+                      }}
+                      style={{ borderRadius: 8, background: C.primary, padding: '7px 12px', fontSize: 12, fontWeight: 700, color: '#fff', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                    >
+                      {criarTipoMut.isPending ? '...' : 'Criar'}
+                    </button>
+                    <button type="button" onClick={() => setShowTipoForm(null)} style={{ color: C.textMuted, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex' }}>
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Representante (perfil PJ apenas) ──────────────────── */}
+          {isEmpresa && representantes.length > 0 && (
+            <div style={cardStyle}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7, position: 'relative' }}>
+                <label style={{ ...labelStyle, height: 'auto' }}>REPRESENTANTE</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  <div
+                    onClick={() => { form.setValue('representanteId', null); setRepresentanteTocado(true); }}
+                    style={chipStyle(!representanteIdWatch)}
+                  >
+                    Nenhum
+                  </div>
+                  {representantes.map((r) => (
+                    <div
+                      key={r.id}
+                      onClick={() => { form.setValue('representanteId', r.id); setRepresentanteTocado(true); }}
+                      style={chipStyle(Number(representanteIdWatch) === r.id)}
+                    >
+                      {r.nome}
+                    </div>
+                  ))}
+                </div>
+                {representanteGuide.isVisible && (
+                  <FirstAccessGuideCard
+                    floating
+                    placement="bottom"
+                    className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                    icon={Users}
+                    description={firstAccessGuideMessages.receitasRepresentante}
+                    onDismiss={representanteGuide.dismiss}
                   />
                 )}
-              />
-              {representanteGuide.isVisible && (
-                <FirstAccessGuideCard
-                  floating
-                  placement="bottom"
-                  className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
-                  icon={Users}
-                  description={firstAccessGuideMessages.receitasRepresentante}
-                  onDismiss={representanteGuide.dismiss}
-                />
-              )}
-            </div>
-          </>
-        )}
 
-        {/* ── Preview de comissão ───────────────────────────────── */}
-        {valorComissao !== null && repSelecionado && comissaoMatch && (
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-brand-100 bg-brand-50 px-3 py-2 text-sm text-brand-700">
-            <span className="font-medium">{repSelecionado.nome}</span>
-            <span className="text-brand-400">receberá</span>
-            <span className="font-semibold">
-              {valorComissao.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-            </span>
-            <span className="text-brand-300">·</span>
-            <span>{comissaoMatch.percentual}%</span>
-            <span className="text-brand-300">·</span>
-            <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium capitalize">
-              {comissaoMatch.tipo === 'unica' ? 'única' : 'mensal'}
-            </span>
-          </div>
-        )}
-
-        {/* ── Horas a faturar (nova receita only) ──────────────── */}
-        {isNew && contratosAtivos.length > 0 && (
-          <div className="relative rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/40">
-            <button
-              type="button"
-              onClick={() => { setHorasFaturar((v) => !v); if (horasFaturar) { setContratoId(null); setTipoHora(null); setQuantidadeHoras(''); } }}
-              className="flex w-full items-center justify-between text-sm font-semibold text-slate-700 dark:text-slate-300"
-            >
-              <span className="flex items-center gap-2"><Clock size={14} />Horas a faturar...</span>
-              {horasFaturar ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-            </button>
-            {horasGuide.isVisible && (
-              <FirstAccessGuideCard
-                floating
-                placement="bottom"
-                className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
-                icon={Clock}
-                description={firstAccessGuideMessages.receitasHoras}
-                onDismiss={horasGuide.dismiss}
-              />
-            )}
-            {horasFaturar && (
-              <div className="mt-3 space-y-3">
-                <Field label="Contrato">
-                  <select
-                    value={contratoId ?? ''}
-                    onChange={(e) => { setContratoId(e.target.value ? Number(e.target.value) : null); setTipoHora(null); setQuantidadeHoras(''); }}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-                  >
-                    <option value="">Selecione o contrato</option>
-                    {contratosAtivos.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.cliente_nome}{c.numero ? ` — ${c.numero}` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-
-                {contratoSelecionado && (
-                  <>
-                    <div className="flex gap-2">
-                      {(contratoSelecionado.horas_presenciais_valor ?? 0) > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setTipoHora('presencial')}
-                          className={[
-                            'rounded-full border px-3 py-1 text-xs font-semibold transition',
-                            tipoHora === 'presencial'
-                              ? 'border-brand-400 bg-brand-50 text-brand-700 dark:border-brand-600 dark:bg-brand-900/30 dark:text-brand-400'
-                              : 'border-slate-200 text-slate-500 hover:border-slate-300 dark:border-slate-600 dark:text-slate-400',
-                          ].join(' ')}
-                        >
-                          Presencial
-                        </button>
-                      )}
-                      {(contratoSelecionado.horas_remotas_valor ?? 0) > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setTipoHora('remoto')}
-                          className={[
-                            'rounded-full border px-3 py-1 text-xs font-semibold transition',
-                            tipoHora === 'remoto'
-                              ? 'border-brand-400 bg-brand-50 text-brand-700 dark:border-brand-600 dark:bg-brand-900/30 dark:text-brand-400'
-                              : 'border-slate-200 text-slate-500 hover:border-slate-300 dark:border-slate-600 dark:text-slate-400',
-                          ].join(' ')}
-                        >
-                          Remoto
-                        </button>
-                      )}
-                    </div>
-
-                    {tipoHora && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <Field label="Quantidade de horas">
-                          <Input
-                            type="number"
-                            min="0.5"
-                            step="0.5"
-                            value={quantidadeHoras}
-                            onChange={(e) => setQuantidadeHoras(e.target.value !== '' ? Number(e.target.value) : '')}
-                            placeholder="0"
-                          />
-                        </Field>
-                        <div className="flex flex-col gap-0.5 pt-6">
-                          <span className="text-xs font-medium text-slate-500">
-                            {valorHora != null
-                              ? valorHora.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) + '/h'
-                              : '—'}
-                          </span>
-                          {saldoAtual != null && (
-                            <span className="text-xs text-slate-400">
-                              Saldo: {saldoAtual}h disponíveis
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {valorCalculado != null && valorCalculado > 0 && (
-                      <div className="flex items-center justify-between rounded-lg border border-brand-100 bg-brand-50 px-3 py-2 text-sm dark:border-brand-800 dark:bg-brand-900/20">
-                        <span className="text-brand-600 dark:text-brand-400">Valor calculado:</span>
-                        <span className="font-bold text-brand-700 dark:text-brand-300">
-                          {valorCalculado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </span>
-                      </div>
-                    )}
-                  </>
+                {valorComissao !== null && repSelecionado && comissaoMatch && (
+                  <div style={{ ...panelStyle, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{repSelecionado.nome}</span>
+                    <span style={{ fontSize: 13, color: C.textMuted }}>receberá</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: C.primaryDark }}>{brl(valorComissao)}</span>
+                    <span style={{ fontSize: 13, color: C.textFaint }}>·</span>
+                    <span style={{ fontSize: 13, color: C.textMuted }}>{comissaoMatch.percentual}%</span>
+                    <span style={{ fontSize: 13, color: C.textFaint }}>·</span>
+                    <span style={{
+                      fontSize: 11, fontWeight: 600, textTransform: 'capitalize', borderRadius: 999,
+                      background: C.primarySoft, padding: '2px 8px', color: C.primaryDark,
+                    }}>
+                      {comissaoMatch.tipo === 'unica' ? 'única' : 'mensal'}
+                    </span>
+                  </div>
+                )}
+                {semComissaoConfigurada && (
+                  <div style={{ ...panelStyle, background: C.warnBg, borderColor: C.warnBorder }}>
+                    <span style={{ fontSize: 12.5, color: C.warn }}>
+                      Nenhuma comissão configurada para este tipo de receita.
+                    </span>
+                  </div>
                 )}
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
 
-        {/* ── Replicar até (nova receita only) ─────────────────── */}
-        {isNew && (
-          <div className="relative rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/40">
-            <button
-              type="button"
-              onClick={() => setReplicar((v) => !v)}
-              className="flex w-full items-center justify-between text-sm font-semibold text-slate-700 dark:text-slate-300"
-            >
-              <span>Replicar até...</span>
-              {replicar ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-            </button>
-            {replicarGuide.isVisible && (
-              <FirstAccessGuideCard
-                floating
-                placement="bottom"
-                className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
-                icon={ChevronDown}
-                description={firstAccessGuideMessages.receitasReplicar}
-                onDismiss={replicarGuide.dismiss}
-              />
-            )}
-            {replicar && (
-              <div className="mt-3 flex items-center gap-3">
-                <div className="flex-1">
-                  <Field label="Mês">
-                    <select
-                      value={replicarMes}
-                      onChange={(e) => setReplicarMes(Number(e.target.value))}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-                    >
-                      {replicarMesOptions.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
-                  </Field>
-                </div>
-                <div className="w-28">
-                  <Field label="Ano">
-                    <select
-                      value={replicarAno}
-                      onChange={(e) => setReplicarAno(Number(e.target.value))}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-                    >
-                      {replicarAnoOptions.map((a) => (
-                        <option key={a} value={a}>{a}</option>
-                      ))}
-                    </select>
-                  </Field>
-                </div>
+          {/* ── Horas a faturar (nova receita only) ───────────────── */}
+          {isNew && contratosAtivos.length > 0 && (
+            <div style={cardStyle}>
+              <div style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={() => { setHorasFaturar((v) => !v); if (horasFaturar) { setContratoId(null); setTipoHora(null); setQuantidadeHoras(''); } }}
+                  style={{
+                    display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between',
+                    fontSize: 13, fontWeight: 700, color: C.text, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Clock size={14} />Horas a faturar...</span>
+                  {horasFaturar ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                </button>
+                {horasGuide.isVisible && (
+                  <FirstAccessGuideCard
+                    floating
+                    placement="bottom"
+                    className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                    icon={Clock}
+                    description={firstAccessGuideMessages.receitasHoras}
+                    onDismiss={horasGuide.dismiss}
+                  />
+                )}
+                {horasFaturar && (
+                  <div style={panelStyle}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                      <label style={labelStyle}>CONTRATO</label>
+                      <select
+                        value={contratoId ?? ''}
+                        onChange={(e) => { setContratoId(e.target.value ? Number(e.target.value) : null); setTipoHora(null); setQuantidadeHoras(''); }}
+                        style={{ ...smallInputStyle, width: '100%' }}
+                      >
+                        <option value="">Selecione o contrato</option>
+                        {contratosAtivos.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.cliente_nome}{c.numero ? ` — ${c.numero}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {contratoSelecionado && (
+                      <>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          {(contratoSelecionado.horas_presenciais_valor ?? 0) > 0 && (
+                            <div onClick={() => setTipoHora('presencial')} style={chipStyle(tipoHora === 'presencial', { h: 36, r: 9, size: 12.5 })}>
+                              Presencial
+                            </div>
+                          )}
+                          {(contratoSelecionado.horas_remotas_valor ?? 0) > 0 && (
+                            <div onClick={() => setTipoHora('remoto')} style={chipStyle(tipoHora === 'remoto', { h: 36, r: 9, size: 12.5 })}>
+                              Remoto
+                            </div>
+                          )}
+                        </div>
+
+                        {tipoHora && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                              <label style={labelStyle}>QUANTIDADE DE HORAS</label>
+                              <input
+                                type="number"
+                                min="0.5"
+                                step="0.5"
+                                value={quantidadeHoras}
+                                onChange={(e) => setQuantidadeHoras(e.target.value !== '' ? Number(e.target.value) : '')}
+                                placeholder="0"
+                                style={smallInputStyle}
+                              />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              <span style={{ fontSize: 12, fontWeight: 600, color: C.textMuted }}>
+                                {valorHora != null ? `${brl(valorHora)}/h` : '—'}
+                              </span>
+                              {saldoAtual != null && (
+                                <span style={{ fontSize: 12, color: C.textFaint }}>Saldo: {saldoAtual}h disponíveis</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {valorCalculado != null && valorCalculado > 0 && (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: 10, border: `1px solid ${C.primarySoftBorder}`, background: C.primarySoft, padding: '8px 12px' }}>
+                            <span style={{ fontSize: 13, color: C.primaryDark }}>Valor calculado:</span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: C.primaryDark }}>{brl(valorCalculado)}</span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
 
-        {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+          {/* ── Replicar até (nova receita only) ──────────────────── */}
+          {isNew && (
+            <div style={{ ...cardStyle, marginBottom: 14 }}>
+              <div style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={() => setReplicar((v) => !v)}
+                  style={{
+                    display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between',
+                    fontSize: 13, fontWeight: 700, color: C.text, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
+                  }}
+                >
+                  <span>Replicar até...</span>
+                  {replicar ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                </button>
+                {replicarGuide.isVisible && (
+                  <FirstAccessGuideCard
+                    floating
+                    placement="bottom"
+                    className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                    icon={ChevronDown}
+                    description={firstAccessGuideMessages.receitasReplicar}
+                    onDismiss={replicarGuide.dismiss}
+                  />
+                )}
+                {replicar && (
+                  <div style={panelStyle}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, flex: 1 }}>
+                        <label style={labelStyle}>MÊS</label>
+                        <select
+                          value={replicarMes}
+                          onChange={(e) => setReplicarMes(Number(e.target.value))}
+                          style={{ ...smallInputStyle, width: '100%' }}
+                        >
+                          {replicarMesOptions.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, width: 100 }}>
+                        <label style={labelStyle}>ANO</label>
+                        <select
+                          value={replicarAno}
+                          onChange={(e) => setReplicarAno(Number(e.target.value))}
+                          style={{ ...smallInputStyle, width: '100%' }}
+                        >
+                          {replicarAnoOptions.map((a) => (
+                            <option key={a} value={a}>{a}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
-        <div className="flex justify-end pt-1">
-          <Button type="submit" disabled={isSaving}>
-            {isSaving ? 'Salvando...' : income ? 'Salvar alterações' : 'Registrar receita'}
-          </Button>
+          {error && (
+            <div style={{ margin: '0 26px 14px', borderRadius: 10, border: '1px solid #fbd5d1', background: '#fef3f2', padding: '10px 14px', fontSize: 13, color: '#b42318' }}>
+              {error}
+            </div>
+          )}
+        </div>
+
+        {/* ── Rodapé fixo ──────────────────────────────────────────── */}
+        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {duplicataInfo && (
+            <div style={{ fontSize: '12.5px', color: '#a3728a' }}>
+              Você já lançou "{duplicataInfo.income.descricao}" nos últimos 7 dias — é outra receita?
+            </div>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 16 }}>
+            <button
+              type="submit"
+              disabled={isSaving || !clienteValido}
+              style={{
+                padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
+                whiteSpace: 'nowrap', border: 'none', transition: 'all .15s ease',
+                cursor: isSaving || !clienteValido ? 'not-allowed' : 'pointer',
+                ...(!isSaving && clienteValido
+                  ? { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }
+                  : { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }),
+              }}
+            >
+              {isSaving ? 'Salvando...' : income ? 'Salvar alterações' : 'Registrar receita'}
+            </button>
+          </div>
         </div>
       </form>
-    </Dialog>
+    </div>
   );
 }

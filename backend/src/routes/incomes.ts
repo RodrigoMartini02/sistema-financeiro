@@ -58,6 +58,33 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
   }
 });
 
+// GET /api/incomes/suggestions
+router.get('/suggestions', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { descricao } = req.query as Record<string, string | undefined>;
+    const userId = req.user!.id;
+    const normalizedDescricao = descricao?.trim();
+
+    const matches = normalizedDescricao
+      ? await pool.query(
+          `SELECT descricao, valor, cliente, tipo_receita,
+                  COUNT(*) OVER (PARTITION BY LOWER(descricao)) AS frequencia,
+                  data_recebimento
+           FROM receitas
+           WHERE usuario_id = $1 AND descricao ILIKE $2 AND status != 'cancelada'
+           ORDER BY frequencia DESC, data_recebimento DESC
+           LIMIT 4`,
+          [userId, `%${normalizedDescricao}%`],
+        )
+      : { rows: [] as Record<string, unknown>[] };
+
+    res.json({ success: true, data: { matches: matches.rows } });
+  } catch (error) {
+    console.error('Get income suggestions error:', error);
+    res.status(500).json({ success: false, message: 'Failed to get income suggestions' });
+  }
+});
+
 // POST /api/incomes
 router.post(
   '/',
@@ -129,8 +156,14 @@ router.post(
         client.release();
       }
 
-      // Auto-criar despesa de comissão sempre que houver representante vinculado
-      if (representanteIdInt) {
+      // Auto-criar despesa de comissão apenas quando há match real de comissão
+      // (valor_comissao positivo enviado pelo client). Sem match, não criar
+      // despesa nenhuma — evita lançamentos-fantasma de valor simbólico.
+      const valorComissaoValido = valor_comissao != null && parseFloat(String(valor_comissao)) > 0
+        ? parseFloat(String(valor_comissao))
+        : null;
+
+      if (representanteIdInt && valorComissaoValido != null) {
         const repResult = await pool.query(
           'SELECT nome FROM representantes WHERE id = $1 AND usuario_id = $2',
           [representanteIdInt, req.user!.id],
@@ -158,11 +191,6 @@ router.post(
           );
           const proximoNumero = (numResult.rows[0] as { proximo: number }).proximo;
 
-          const valorCom =
-            valor_comissao != null && parseFloat(String(valor_comissao)) > 0
-              ? parseFloat(String(valor_comissao))
-              : 0.01;
-
           await pool.query(
             `INSERT INTO despesas (usuario_id, descricao, valor_original, valor_final,
               data_vencimento, mes, ano, categoria_id, forma_pagamento, pago, recorrente, perfil_id, numero)
@@ -170,7 +198,7 @@ router.post(
             [
               req.user!.id,
               `Comissão - ${repNome}`,
-              valorCom,
+              valorComissaoValido,
               data_recebimento,
               mes,
               ano,

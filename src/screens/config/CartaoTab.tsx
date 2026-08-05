@@ -23,6 +23,12 @@ const COR_OPCOES = [
   { value: '#b45309', label: 'Dourado' },
 ];
 
+function formatValidade(raw: string): string {
+  const d = raw.replace(/\D/g, '').slice(0, 4);
+  if (d.length <= 2) return d;
+  return `${d.slice(0, 2)}/${d.slice(2)}`;
+}
+
 function CartaoDialog({
   open, cartao, isSaving, error, onClose, onSave,
 }: {
@@ -30,12 +36,16 @@ function CartaoDialog({
   onClose: () => void; onSave: (v: CartaoFormValues) => void;
 }) {
   const [cor, setCor] = useState(cartao?.cor ?? COR_OPCOES[0].value);
+  const [validade, setValidade] = useState(cartao?.validade ?? '');
   const limiteGuide = useFirstAccessGuide('cartoes:limite-v1');
   const validadeGuide = useFirstAccessGuide('cartoes:validade-v1');
   const fechamentoGuide = useFirstAccessGuide('cartoes:fechamento-vencimento-v1');
 
+  const validadeIncompleta = validade.length > 0 && validade.length < 5;
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (validadeIncompleta) return;
     const fd = new FormData(e.currentTarget);
     onSave({
       nome: fd.get('nome') as string,
@@ -44,7 +54,7 @@ function CartaoDialog({
       dia_vencimento: fd.get('dia_vencimento') ? Number(fd.get('dia_vencimento')) : undefined,
       cor,
       numero_cartao: fd.get('numero_cartao') as string || undefined,
-      validade: fd.get('validade') as string || undefined,
+      validade: validade || undefined,
     });
   };
 
@@ -64,8 +74,14 @@ function CartaoDialog({
           <Field label="Limite (R$)" hint="Opcional">
             <Input name="limite" type="number" step="0.01" min="0" defaultValue={cartao?.limite ?? ''} placeholder="0,00" />
           </Field>
-          <Field label="Validade" hint="MM/AA">
-            <Input name="validade" maxLength={5} defaultValue={cartao?.validade ?? ''} placeholder="12/28" />
+          <Field label="Validade" hint="MM/AA" error={validadeIncompleta ? 'Formato incompleto' : undefined}>
+            <Input
+              value={validade}
+              onChange={(e) => setValidade(formatValidade(e.target.value))}
+              maxLength={5}
+              placeholder="12/28"
+              inputMode="numeric"
+            />
           </Field>
           {limiteGuide.isVisible && (
             <FirstAccessGuideCard

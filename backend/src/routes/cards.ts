@@ -5,6 +5,7 @@ import { cards, expenses } from '../db/schema';
 import { authenticate } from '../middleware/auth';
 
 const router = Router();
+const VALIDADE_REGEX = /^\d{2}\/\d{2}$/;
 
 // GET /api/cards
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
@@ -80,6 +81,10 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     }
     if (Number(limite) > 999999.99) {
       res.status(400).json({ success: false, message: 'Maximum limit is 999,999.99' });
+      return;
+    }
+    if (validade && !VALIDADE_REGEX.test(String(validade))) {
+      res.status(400).json({ success: false, message: 'Validade must be in MM/AA format' });
       return;
     }
 
@@ -198,6 +203,10 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     }
     if (!limite || Number(limite) <= 0) {
       res.status(400).json({ success: false, message: 'Limit must be greater than zero' });
+      return;
+    }
+    if (validade && !VALIDADE_REGEX.test(String(validade))) {
+      res.status(400).json({ success: false, message: 'Validade must be in MM/AA format' });
       return;
     }
 
