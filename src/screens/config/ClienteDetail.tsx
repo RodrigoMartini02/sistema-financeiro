@@ -1,17 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowLeft, Plus, RefreshCw,
+  ArrowLeft, Plus, RefreshCw, X,
   AlertTriangle, ChevronRight, Paperclip, Info, Users, Clock as ClockIcon,
 } from 'lucide-react';
 import {
-  fetchContratos, saveContrato, encerrarContrato, gerarPrevistas, criarReceitaImplantacao,
+  fetchContratos, saveContrato, encerrarContrato, gerarPrevistas, criarReceitaImplantacao, registrarAditivo,
   fetchContratosServicos, vincularServico, atualizarServicoContrato, desvincularServico,
   fetchContratoAnexos, uploadContratoAnexo, viewContratoAnexo, deleteContratoAnexo,
-  type Cliente, type Contrato, type ServicoContrato, type ContratoAnexo,
+  type Cliente, type Contrato, type ServicoContrato, type ContratoAnexo, type AditivoContratoValues,
 } from '../../services/clientesService';
-import { fetchServicos, type Servico } from '../../services/servicosService';
-import { fetchRepresentantes, type Representante } from '../../services/representantesService';
+import { fetchServicos, saveServico, type Servico } from '../../services/servicosService';
+import { fetchRepresentantes, saveRepresentante, type Representante } from '../../services/representantesService';
 import { queryKeys } from '../../services/queryKeys';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
@@ -35,12 +35,15 @@ const fv = (v: number | string | null | undefined): string => {
 
 function ContratoForm({
   clienteId, initial, representantes, onSave, readOnly = false,
+  onCreateRepresentante, isCreatingRepresentante = false,
 }: {
   clienteId: number;
   initial?: Partial<Contrato>;
   representantes: Representante[];
   onSave: (data: Parameters<typeof saveContrato>[0]) => void;
   readOnly?: boolean;
+  onCreateRepresentante?: (nome: string) => void;
+  isCreatingRepresentante?: boolean;
 }) {
   const [form, setForm] = useState({
     numero:                  initial?.numero ?? '',
@@ -52,6 +55,18 @@ function ContratoForm({
     descricao:               initial?.descricao ?? '',
     representante_id:        String(initial?.representante_id ?? ''),
   });
+  const [showRepForm, setShowRepForm] = useState(false);
+  const representantesCountRef = useRef(representantes.length);
+
+  // Ao criar representante inline, a lista cresce em 1 — seleciona o recém-criado e fecha o mini-form.
+  useEffect(() => {
+    if (showRepForm && representantes.length > representantesCountRef.current) {
+      const criado = representantes[representantes.length - 1];
+      if (criado) set('representante_id', String(criado.id));
+      setShowRepForm(false);
+    }
+    representantesCountRef.current = representantes.length;
+  }, [representantes, showRepForm]);
 
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const reajusteGuide = useFirstAccessGuide('clientes:reajuste-v1');
@@ -177,30 +192,86 @@ function ContratoForm({
       </div>
 
       {/* Representante */}
-      {representantes.length > 0 && (
+      {(representantes.length > 0 || onCreateRepresentante) && (
         <>
           <SectionDivider label="Representante" />
           <div className="relative">
             {representantes.length <= 5 ? (
-              <ToggleGroup
-                value={form.representante_id}
-                options={[
-                  { value: '', label: 'Nenhum' },
-                  ...representantes.map((r) => ({ value: String(r.id), label: r.nome })),
-                ]}
-                onChange={(v) => set('representante_id', v)}
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                <ToggleGroup
+                  value={form.representante_id}
+                  options={[
+                    { value: '', label: 'Nenhum' },
+                    ...representantes.map((r) => ({ value: String(r.id), label: r.nome })),
+                  ]}
+                  onChange={(v) => set('representante_id', v)}
+                />
+                {onCreateRepresentante && (
+                  <button
+                    type="button"
+                    onClick={() => setShowRepForm(true)}
+                    className="flex h-10 items-center gap-1 rounded-2xl border border-dashed border-slate-300 px-3 text-xs font-semibold text-slate-500 hover:border-slate-400 hover:text-slate-700"
+                  >
+                    <Plus size={13} /> novo
+                  </button>
+                )}
+              </div>
             ) : (
-              <select
-                value={form.representante_id}
-                onChange={(e) => set('representante_id', e.target.value)}
-                className="h-10 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-400"
-              >
-                <option value="">— Nenhum —</option>
-                {representantes.map((r) => (
-                  <option key={r.id} value={String(r.id)}>{r.nome}</option>
-                ))}
-              </select>
+              <div className="flex items-center gap-2">
+                <select
+                  value={form.representante_id}
+                  onChange={(e) => set('representante_id', e.target.value)}
+                  className="h-10 flex-1 rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-400"
+                >
+                  <option value="">— Nenhum —</option>
+                  {representantes.map((r) => (
+                    <option key={r.id} value={String(r.id)}>{r.nome}</option>
+                  ))}
+                </select>
+                {onCreateRepresentante && (
+                  <button
+                    type="button"
+                    onClick={() => setShowRepForm(true)}
+                    className="flex h-10 shrink-0 items-center gap-1 rounded-2xl border border-dashed border-slate-300 px-3 text-xs font-semibold text-slate-500 hover:border-slate-400 hover:text-slate-700"
+                  >
+                    <Plus size={13} /> novo
+                  </button>
+                )}
+              </div>
+            )}
+            {showRepForm && onCreateRepresentante && (
+              <div className="mt-2 flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 p-2">
+                <input
+                  type="text"
+                  id="novo-representante-input"
+                  autoFocus
+                  placeholder="Nome do representante"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const v = e.currentTarget.value.trim();
+                      if (v) onCreateRepresentante(v);
+                    }
+                    if (e.key === 'Escape') { e.preventDefault(); setShowRepForm(false); }
+                  }}
+                  className="flex-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-200"
+                />
+                <button
+                  type="button"
+                  disabled={isCreatingRepresentante}
+                  onClick={() => {
+                    const el = document.getElementById('novo-representante-input') as HTMLInputElement | null;
+                    const v = el?.value.trim();
+                    if (v) onCreateRepresentante(v);
+                  }}
+                  className="rounded-md bg-brand-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-700 disabled:opacity-50 whitespace-nowrap"
+                >
+                  {isCreatingRepresentante ? '...' : 'Criar'}
+                </button>
+                <button type="button" onClick={() => setShowRepForm(false)} className="text-slate-400 hover:text-red-500">
+                  <X size={14} />
+                </button>
+              </div>
             )}
             {representanteGuide.isVisible && (
               <FirstAccessGuideCard
@@ -490,7 +561,7 @@ function ContratoRow({ contrato, index, onClick }: {
 // ─── Contrato Modal ───────────────────────────────────────────────────────────
 
 function ContratoModal({
-  open, contrato, clienteId, representantes, isSaving, onSave, onClose, onEncerrar,
+  open, contrato, clienteId, representantes, isSaving, onSave, onClose, onEncerrar, onRegistrarAditivo,
 }: {
   open: boolean;
   contrato?: Contrato;
@@ -500,6 +571,7 @@ function ContratoModal({
   onSave: (data: Parameters<typeof saveContrato>[0], pendingServicos?: Map<number, number>) => void;
   onClose: () => void;
   onEncerrar?: () => void;
+  onRegistrarAditivo?: () => void;
 }) {
   const [isEditing, setIsEditing] = useState(!contrato);
   const [showServicos, setShowServicos] = useState(false);
@@ -508,6 +580,7 @@ function ContratoModal({
   const horasGuide = useFirstAccessGuide('clientes:horas-v1');
   const encerrarGuide = useFirstAccessGuide('clientes:encerrar-contrato-v1');
   const [pendingServicos, setPendingServicos] = useState<Map<number, number>>(new Map());
+  const [showServicoForm, setShowServicoForm] = useState(false);
   const [valMensal, setValMensal]   = useState(fv(contrato?.valor_mensal));
   const [implTotal, setImplTotal]   = useState(fv((contrato?.implantacao_parcelas ?? 1) * (contrato?.implantacao_valor_parcela ?? 0)));
   const [implParc, setImplParc]     = useState(fv(contrato?.implantacao_parcelas));
@@ -525,6 +598,16 @@ function ContratoModal({
   const totalAnual   = vMensalNum * 12 + implTotalNum + hpIniNum * hpValorNum + hrIniNum * hrValorNum;
 
   const qc = useQueryClient();
+
+  const criarRepresentanteMut = useMutation({
+    mutationFn: (nome: string) => saveRepresentante({ nome, comissoes: [] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.representantes }),
+  });
+
+  const criarServicoMut = useMutation({
+    mutationFn: (nome: string) => saveServico({ nome, valor_mensal_padrao: 0 }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.servicos }),
+  });
 
   useEffect(() => {
     if (open) {
@@ -643,6 +726,8 @@ function ContratoModal({
               representantes={representantes}
               readOnly={!isEditing}
               onSave={handleSaveWithValores}
+              onCreateRepresentante={(nome) => criarRepresentanteMut.mutate(nome)}
+              isCreatingRepresentante={criarRepresentanteMut.isPending}
             />
           </div>
 
@@ -822,7 +907,51 @@ function ContratoModal({
             {catalogoQ.isLoading ? (
               <p className="py-8 text-center text-sm text-slate-400">Carregando serviços...</p>
             ) : catalogo.length === 0 ? (
-              <EmptyState title="Sem serviços" description="Nenhum serviço cadastrado no catálogo." />
+              <div className="grid gap-3">
+                <EmptyState title="Sem serviços" description="Nenhum serviço cadastrado no catálogo." />
+                {!showServicoForm ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowServicoForm(true)}
+                    className="mx-auto flex items-center gap-1.5 rounded-2xl border border-dashed border-slate-300 px-4 py-2 text-xs font-semibold text-slate-500 hover:border-slate-400 hover:text-slate-700"
+                  >
+                    <Plus size={13} /> Cadastrar serviço
+                  </button>
+                ) : (
+                  <div className="mx-auto flex w-full max-w-sm items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 p-2">
+                    <input
+                      type="text"
+                      id="novo-servico-input"
+                      autoFocus
+                      placeholder="Nome do serviço"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const v = e.currentTarget.value.trim();
+                          if (v) criarServicoMut.mutate(v, { onSuccess: () => setShowServicoForm(false) });
+                        }
+                        if (e.key === 'Escape') { e.preventDefault(); setShowServicoForm(false); }
+                      }}
+                      className="flex-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-200"
+                    />
+                    <button
+                      type="button"
+                      disabled={criarServicoMut.isPending}
+                      onClick={() => {
+                        const el = document.getElementById('novo-servico-input') as HTMLInputElement | null;
+                        const v = el?.value.trim();
+                        if (v) criarServicoMut.mutate(v, { onSuccess: () => setShowServicoForm(false) });
+                      }}
+                      className="rounded-md bg-brand-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-700 disabled:opacity-50 whitespace-nowrap"
+                    >
+                      {criarServicoMut.isPending ? '...' : 'Criar'}
+                    </button>
+                    <button type="button" onClick={() => setShowServicoForm(false)} className="text-slate-400 hover:text-red-500">
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
               <>
                 <div className="relative grid items-center gap-x-3 px-1 pb-1 shrink-0"
@@ -902,23 +1031,34 @@ function ContratoModal({
         {/* ── Footer ── */}
         <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-1">
           {onEncerrar ? (
-            <div className="relative">
-              <button
-                type="button"
-                onClick={onEncerrar}
-                className="flex items-center gap-1.5 text-xs font-medium text-red-500 hover:text-red-700 transition-colors"
-              >
-                <AlertTriangle size={12} /> Encerrar contrato
-              </button>
-              {encerrarGuide.isVisible && (
-                <FirstAccessGuideCard
-                  floating
-                  placement="top"
-                  className="absolute left-0 bottom-full z-50 mb-3 w-[min(24rem,calc(100vw-2rem))]"
-                  icon={AlertTriangle}
-                  description={firstAccessGuideMessages.clientesEncerrarContrato}
-                  onDismiss={encerrarGuide.dismiss}
-                />
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={onEncerrar}
+                  className="flex items-center gap-1.5 text-xs font-medium text-red-500 hover:text-red-700 transition-colors"
+                >
+                  <AlertTriangle size={12} /> Encerrar contrato
+                </button>
+                {encerrarGuide.isVisible && (
+                  <FirstAccessGuideCard
+                    floating
+                    placement="top"
+                    className="absolute left-0 bottom-full z-50 mb-3 w-[min(24rem,calc(100vw-2rem))]"
+                    icon={AlertTriangle}
+                    description={firstAccessGuideMessages.clientesEncerrarContrato}
+                    onDismiss={encerrarGuide.dismiss}
+                  />
+                )}
+              </div>
+              {onRegistrarAditivo && (
+                <button
+                  type="button"
+                  onClick={onRegistrarAditivo}
+                  className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors"
+                >
+                  <RefreshCw size={12} /> Registrar aditivo
+                </button>
               )}
             </div>
           ) : <span />}
@@ -943,6 +1083,81 @@ function ContratoModal({
         </div>
 
       </div>
+    </Dialog>
+  );
+}
+
+// ─── Aditivo Modal ────────────────────────────────────────────────────────────
+
+function AditivoModal({
+  open, contrato, isSaving, onClose, onSave,
+}: {
+  open: boolean;
+  contrato?: Contrato;
+  isSaving: boolean;
+  onClose: () => void;
+  onSave: (data: AditivoContratoValues) => void;
+}) {
+  const [form, setForm] = useState({
+    novo_numero: '', nova_data_assinatura: '', novo_vencimento: '',
+    nova_data_inicio_faturamento: '', observacoes: '',
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    setForm({
+      novo_numero: contrato?.numero ?? '',
+      nova_data_assinatura: '',
+      novo_vencimento: '',
+      nova_data_inicio_faturamento: '',
+      observacoes: contrato?.observacoes ?? '',
+    });
+  }, [open, contrato]);
+
+  const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave({
+      novo_numero: form.novo_numero || null,
+      nova_data_assinatura: form.nova_data_assinatura || null,
+      novo_vencimento: form.novo_vencimento,
+      novo_num_aditivo: (contrato?.num_aditivo ?? 0) + 1,
+      nova_data_aditivo: null,
+      novo_ajuste: contrato?.ajuste ?? null,
+      nova_data_inicio_faturamento: form.nova_data_inicio_faturamento || null,
+      observacoes: form.observacoes || null,
+    });
+  };
+
+  return (
+    <Dialog open={open} title="Registrar aditivo" onClose={onClose}>
+      <form id="aditivo-form" className="grid gap-4" onSubmit={handleSubmit}>
+        <p className="text-xs text-slate-500">
+          Encerra o contrato atual e cria um novo, copiando valores, horas e serviços vinculados.
+        </p>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Novo número">
+            <Input value={form.novo_numero} onChange={(e) => set('novo_numero', e.target.value)} placeholder="002/2026" />
+          </Field>
+          <Field label="Nova data de assinatura">
+            <Input type="date" value={form.nova_data_assinatura} onChange={(e) => set('nova_data_assinatura', e.target.value)} />
+          </Field>
+          <Field label="Novo vencimento" required>
+            <Input type="date" value={form.novo_vencimento} onChange={(e) => set('novo_vencimento', e.target.value)} required />
+          </Field>
+          <Field label="Novo início de faturamento">
+            <Input type="date" value={form.nova_data_inicio_faturamento} onChange={(e) => set('nova_data_inicio_faturamento', e.target.value)} />
+          </Field>
+        </div>
+        <Field label="Observações">
+          <Textarea value={form.observacoes} onChange={(e) => set('observacoes', e.target.value)} rows={2} />
+        </Field>
+        <div className="flex justify-end gap-2 pt-1">
+          <Button variant="secondary" type="button" onClick={onClose}>Cancelar</Button>
+          <Button type="submit" disabled={isSaving}>{isSaving ? 'Registrando...' : 'Registrar aditivo'}</Button>
+        </div>
+      </form>
     </Dialog>
   );
 }
@@ -1023,6 +1238,17 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
     });
     if (ok) encerrarMut.mutate(contratoId);
   };
+
+  const [aditivoModal, setAditivoModal] = useState<{ open: boolean; contrato?: Contrato }>({ open: false });
+
+  const aditivoMut = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: AditivoContratoValues }) => registrarAditivo(id, data),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.contratos(cliente.id) });
+      setAditivoModal({ open: false });
+      setContratoModal({ open: false });
+    },
+  });
 
   const gerarMut = useMutation({
     mutationFn: (id: number) => gerarPrevistas(id),
@@ -1132,6 +1358,21 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
             ? () => handleEncerrarContrato(contratoModal.contrato!.id)
             : undefined
         }
+        onRegistrarAditivo={
+          contratoModal.contrato?.status === 'ativo'
+            ? () => setAditivoModal({ open: true, contrato: contratoModal.contrato })
+            : undefined
+        }
+      />
+
+      <AditivoModal
+        open={aditivoModal.open}
+        contrato={aditivoModal.contrato}
+        isSaving={aditivoMut.isPending}
+        onClose={() => setAditivoModal({ open: false })}
+        onSave={(data) => {
+          if (aditivoModal.contrato) aditivoMut.mutate({ id: aditivoModal.contrato.id, data });
+        }}
       />
 
     </div>

@@ -58,6 +58,33 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
   }
 });
 
+// GET /api/incomes/suggestions
+router.get('/suggestions', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { descricao } = req.query as Record<string, string | undefined>;
+    const userId = req.user!.id;
+    const normalizedDescricao = descricao?.trim();
+
+    const matches = normalizedDescricao
+      ? await pool.query(
+          `SELECT descricao, valor, cliente, tipo_receita,
+                  COUNT(*) OVER (PARTITION BY LOWER(descricao)) AS frequencia,
+                  data_recebimento
+           FROM receitas
+           WHERE usuario_id = $1 AND descricao ILIKE $2 AND status != 'cancelada'
+           ORDER BY frequencia DESC, data_recebimento DESC
+           LIMIT 4`,
+          [userId, `%${normalizedDescricao}%`],
+        )
+      : { rows: [] as Record<string, unknown>[] };
+
+    res.json({ success: true, data: { matches: matches.rows } });
+  } catch (error) {
+    console.error('Get income suggestions error:', error);
+    res.status(500).json({ success: false, message: 'Failed to get income suggestions' });
+  }
+});
+
 // POST /api/incomes
 router.post(
   '/',

@@ -22,4 +22,5 @@ export const queryKeys = {
   parcelasFuturas: (mes: number, ano: number, meses: number) => ['parcelas-futuras', mes, ano, meses] as const,
   expenseSuggestions: (descricao: string, categoriaId?: number) =>
     ['expense-suggestions', descricao, categoriaId] as const,
+  incomeSuggestions: (descricao: string) => ['income-suggestions', descricao] as const,
 };

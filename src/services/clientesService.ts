@@ -108,6 +108,21 @@ export async function gerarPrevistas(contratoId: number): Promise<{ count: numbe
   return apiRequest<{ count: number }>(`/contratos/${contratoId}/gerar-previstas`, { method: 'POST' });
 }
 
+export interface AditivoContratoValues {
+  novo_numero?: string | null;
+  nova_data_assinatura?: string | null;
+  novo_vencimento: string;
+  novo_num_aditivo?: number | null;
+  nova_data_aditivo?: string | null;
+  novo_ajuste?: string | null;
+  nova_data_inicio_faturamento?: string | null;
+  observacoes?: string | null;
+}
+
+export async function registrarAditivo(contratoId: number, data: AditivoContratoValues): Promise<Contrato> {
+  return apiRequest<Contrato>(`/contratos/${contratoId}/aditivo`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
 // Contratos-Serviços
 export interface ServicoContrato {
   id: number;
