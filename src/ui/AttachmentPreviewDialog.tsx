@@ -11,7 +11,7 @@ interface Props {
 
 export function AttachmentPreviewDialog({ open, title, anexos, onClose }: Props) {
   return (
-    <Dialog open={open} title="Anexos" description={title} onClose={onClose} size="sm">
+    <Dialog open={open} title="Anexos" description={title} onClose={onClose}>
       <AttachmentSection value={anexos} readonly />
     </Dialog>
   );

@@ -2,16 +2,20 @@ import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Plus, X } from 'lucide-react';
 import type { Categoria } from '../types/config';
 import { normalizeCategoryText } from '../utils/categorySuggestions';
+import { C as sharedC } from './dialogFormTokens';
 
+// Mantém os mesmos valores hex já usados neste componente (alguns divergem
+// sutilmente da paleta compartilhada, ex.: border/textSoft) para não alterar
+// o visual atual sem revisão dedicada — reaproveita o que já é idêntico.
 const C = {
   border: '#dbe6ec',
-  primary: '#0891b2',
-  primaryDark: '#0e7490',
-  primarySoft: '#e6f7fa',
-  primarySoftBorder: '#b9e6ef',
-  text: '#0f2b38',
+  primary: sharedC.primary,
+  primaryDark: sharedC.primaryDark,
+  primarySoft: sharedC.primarySoft,
+  primarySoftBorder: sharedC.primarySoftBorder,
+  text: sharedC.text,
   textSoft: '#33566a',
-  placeholder: '#9db0bb',
+  placeholder: sharedC.placeholder,
 };
 
 interface Props {
