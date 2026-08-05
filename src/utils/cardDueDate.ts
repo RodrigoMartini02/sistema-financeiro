@@ -20,7 +20,6 @@ function toIsoDate(date: Date): string {
 
 export interface FaturaVencimento {
   dataVencimento: string;
-  dataFechamento: string;
 }
 
 /**
@@ -45,7 +44,6 @@ export function calcularVencimentoFatura(cartao: Pick<Cartao, 'dia_fechamento' |
 
   return {
     dataVencimento: toIsoDate(vencimento),
-    dataFechamento: toIsoDate(fechamento),
   };
 }
 

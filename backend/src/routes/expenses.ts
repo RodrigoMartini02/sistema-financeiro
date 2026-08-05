@@ -137,7 +137,7 @@ async function createRecurringOccurrences(
     baseDate.setMonth(baseDate.getMonth() + (i - 1));
     const nextDue = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(baseDate.getDate()).padStart(2, '0')}`;
 
-    const placeholders = Array.from({ length: 17 }, () => `$${idx++}`).join(', ');
+    const placeholders = Array.from({ length: 16 }, () => `$${idx++}`).join(', ');
     values.push(`(${placeholders})`);
     params.push(
       userId,
@@ -156,7 +156,6 @@ async function createRecurringOccurrences(
       baseExpense['perfil_id'] ?? null,
       baseExpense['valor_original'],
       baseExpense['valor_final'],
-      baseExpense['valor'],
     );
   }
 
@@ -167,7 +166,7 @@ async function createRecurringOccurrences(
         mes, ano, categoria_id, cartao_id, forma_pagamento,
         observacoes, pago,
         grupo_parcelamento_id, recorrente, perfil_id,
-        valor_original, valor_final, valor
+        valor_original, valor_final
       ) VALUES ${values.join(', ')}`,
       params,
     );
@@ -225,7 +224,7 @@ router.get('/suggestions', authenticate, async (req: Request, res: Response): Pr
 
     const matches = normalizedDescricao
       ? await pool.query(
-          `SELECT descricao, valor_final, valor_original, valor, categoria_id, forma_pagamento,
+          `SELECT descricao, valor_final, valor_original, categoria_id, forma_pagamento,
                   COUNT(*) OVER (PARTITION BY LOWER(descricao)) AS frequencia,
                   data_vencimento
            FROM despesas
@@ -272,26 +271,18 @@ router.get('/suggestions', authenticate, async (req: Request, res: Response): Pr
 
     if (formaPagamentoSugerida === 'credito' || formaPagamentoSugerida === 'debito') {
       const cartaoMaisUsado = await pool.query(
-        `SELECT c.id, c.nome, c.limite, c.dia_fechamento, c.dia_vencimento,
-                COUNT(d.id) AS total_usos,
-                COALESCE(SUM(CASE WHEN d.pago = false THEN COALESCE(d.valor_final, d.valor_original, d.valor) ELSE 0 END), 0) AS em_aberto
+        `SELECT c.id, COUNT(d.id) AS total_usos
          FROM cartoes c
          LEFT JOIN despesas d ON d.cartao_id = c.id AND d.forma_pagamento = $2
          WHERE c.usuario_id = $1 AND c.ativo = true
-         GROUP BY c.id, c.nome, c.limite, c.dia_fechamento, c.dia_vencimento
+         GROUP BY c.id
          ORDER BY total_usos DESC
          LIMIT 1`,
         [userId, formaPagamentoSugerida],
       );
       if (cartaoMaisUsado.rows.length > 0) {
-        const row = cartaoMaisUsado.rows[0] as {
-          id: number; nome: string; limite: string | number; dia_fechamento: number; dia_vencimento: number; em_aberto: string | number;
-        };
-        cartaoSugerido = {
-          id: row.id,
-          nome: row.nome,
-          limite_disponivel: parseFloat(String(row.limite)) - parseFloat(String(row.em_aberto)),
-        };
+        const row = cartaoMaisUsado.rows[0] as { id: number };
+        cartaoSugerido = { id: row.id };
       }
     }
 

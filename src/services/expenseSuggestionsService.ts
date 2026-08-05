@@ -9,8 +9,6 @@ export interface ExpenseSuggestionMatch {
 
 export interface CartaoSugerido {
   id: number;
-  nome: string;
-  limiteDisponivel: number;
 }
 
 export interface ExpenseSuggestions {
@@ -23,15 +21,12 @@ interface RawMatch {
   descricao: string;
   valor_final?: string | number | null;
   valor_original?: string | number | null;
-  valor?: string | number | null;
   categoria_id?: number | null;
   forma_pagamento?: string | null;
 }
 
 interface RawCartaoSugerido {
   id: number;
-  nome: string;
-  limite_disponivel: string | number;
 }
 
 interface RawSuggestions {
@@ -55,17 +50,13 @@ export async function fetchExpenseSuggestions(descricao: string, categoriaId?: n
   return {
     matches: raw.matches.map((match) => ({
       descricao: match.descricao,
-      valorFinal: asNumber(match.valor_final ?? match.valor_original ?? match.valor),
+      valorFinal: asNumber(match.valor_final ?? match.valor_original),
       categoriaId: match.categoria_id ?? null,
       formaPagamento: match.forma_pagamento ?? 'dinheiro',
     })),
     formaPagamentoSugerida: raw.forma_pagamento_sugerida,
     cartaoSugerido: raw.cartao_sugerido
-      ? {
-          id: raw.cartao_sugerido.id,
-          nome: raw.cartao_sugerido.nome,
-          limiteDisponivel: asNumber(raw.cartao_sugerido.limite_disponivel),
-        }
+      ? { id: raw.cartao_sugerido.id }
       : null,
   };
 }

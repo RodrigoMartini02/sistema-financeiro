@@ -3,6 +3,17 @@ import { ChevronDown, Plus, X } from 'lucide-react';
 import type { Categoria } from '../types/config';
 import { normalizeCategoryText } from '../utils/categorySuggestions';
 
+const C = {
+  border: '#dbe6ec',
+  primary: '#0891b2',
+  primaryDark: '#0e7490',
+  primarySoft: '#e6f7fa',
+  primarySoftBorder: '#b9e6ef',
+  text: '#0f2b38',
+  textSoft: '#33566a',
+  placeholder: '#9db0bb',
+};
+
 interface Props {
   categories: Categoria[];
   value?: number;
@@ -80,83 +91,97 @@ export function CategoryFloatingSelect({ categories, value, onChange, onCreateNe
   };
 
   return (
-    <div className="relative">
+    <div style={{ position: 'relative' }}>
       <button
         ref={fieldRef}
         type="button"
         onClick={() => (open ? closeMenu() : openMenu())}
-        className="flex h-10 w-full items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm transition-all hover:border-slate-300 dark:border-slate-600 dark:bg-slate-700"
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+          width: '100%', boxSizing: 'border-box', height: 54, padding: '0 14px',
+          borderRadius: 12, border: `1.5px solid ${open ? C.primary : C.border}`,
+          background: '#fff', cursor: 'pointer', transition: 'border-color .13s ease',
+        }}
       >
         {selected ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-300 bg-brand-50 px-2.5 py-0.5 text-xs font-semibold text-brand-700 dark:border-brand-700 dark:bg-brand-900/30 dark:text-brand-400">
+          <span style={{ fontSize: 13, fontWeight: 600, color: C.primaryDark, background: C.primarySoft, border: `1px solid ${C.primarySoftBorder}`, borderRadius: 7, padding: '3px 9px' }}>
             {selected.nome}
           </span>
         ) : (
-          <span className="text-slate-400 dark:text-slate-500">Selecionar categoria</span>
+          <span style={{ fontSize: '13.5px', color: C.placeholder }}>Selecionar categoria</span>
         )}
-        <ChevronDown size={15} className="shrink-0 text-slate-400" />
+        <ChevronDown size={14} style={{ flexShrink: 0, color: '#8ba3b0' }} />
       </button>
 
       {open && rect && (
-        <div
-          ref={menuRef}
-          style={{ position: 'fixed', top: rect.top, left: rect.left, width: rect.width }}
-          className="z-50 flex flex-col gap-1.5 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-600 dark:bg-slate-800"
-        >
-          <div className="flex items-center gap-1.5">
-            <input
-              ref={searchRef}
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar categoria..."
-              className="h-9 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-slate-700 outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
-            />
-            {selected && (
-              <button
-                type="button"
-                onClick={() => pick(selected.id)}
-                title="Remover categoria"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-red-500 dark:hover:bg-slate-700"
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={closeMenu} />
+          <div
+            ref={menuRef}
+            style={{
+              position: 'fixed', top: rect.top, left: rect.left, width: rect.width, zIndex: 41,
+              display: 'flex', flexDirection: 'column', gap: 6,
+              background: '#fff', border: `1px solid ${C.border}`, borderRadius: 12,
+              boxShadow: '0 20px 44px -14px rgba(13, 47, 63, 0.34)', padding: 8,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input
+                ref={searchRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Buscar categoria..."
+                style={{
+                  flex: 1, height: 38, borderRadius: 9, border: `1.5px solid ${C.border}`,
+                  background: '#fff', padding: '0 11px', fontSize: '13.5px', color: C.text, outline: 'none',
+                }}
+              />
+              {selected && (
+                <button
+                  type="button"
+                  onClick={() => pick(selected.id)}
+                  title="Remover categoria"
+                  style={{ display: 'flex', flexShrink: 0, alignItems: 'center', justifyContent: 'center', width: 38, height: 38, borderRadius: 9, color: C.placeholder, background: 'transparent', border: 'none', cursor: 'pointer' }}
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
 
-          <div className="flex max-h-56 flex-col gap-0.5 overflow-y-auto">
-            {!normalizedQuery && featured.length > 0 && (
-              <p className="mt-1 px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Recentes</p>
-            )}
-            {filtered.map((category) => (
-              <button
-                key={category.id}
-                type="button"
-                onClick={() => pick(category.id)}
-                className={[
-                  'rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors',
-                  value === category.id
-                    ? 'bg-brand-50 font-semibold text-brand-700 dark:bg-brand-900/30 dark:text-brand-400'
-                    : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700',
-                ].join(' ')}
-              >
-                {category.nome}
-              </button>
-            ))}
-            {filtered.length === 0 && !showCreateOption && (
-              <p className="px-2.5 py-2 text-sm text-slate-400">Nenhuma categoria encontrada</p>
-            )}
-            {showCreateOption && (
-              <button
-                type="button"
-                onClick={() => { onCreateNew(query.trim()); closeMenu(); }}
-                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-left text-sm font-semibold text-brand-600 hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-900/20"
-              >
-                <Plus size={13} /> criar "{query.trim()}"
-              </button>
-            )}
+            <div style={{ display: 'flex', flexDirection: 'column', maxHeight: 200, overflowY: 'auto' }}>
+              {!normalizedQuery && featured.length > 0 && (
+                <p style={{ margin: '4px 0 2px 9px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.placeholder }}>Recentes</p>
+              )}
+              {filtered.map((category) => (
+                <div
+                  key={category.id}
+                  onClick={() => pick(category.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', height: 30, padding: '0 9px', borderRadius: 7,
+                    cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap',
+                    fontWeight: value === category.id ? 600 : 500,
+                    color: value === category.id ? C.primaryDark : C.textSoft,
+                    background: value === category.id ? C.primarySoft : 'transparent',
+                  }}
+                >
+                  {category.nome}
+                </div>
+              ))}
+              {filtered.length === 0 && !showCreateOption && (
+                <p style={{ padding: '8px 10px', fontSize: 13, color: C.placeholder }}>Nenhuma categoria encontrada</p>
+              )}
+              {showCreateOption && (
+                <div
+                  onClick={() => { onCreateNew(query.trim()); closeMenu(); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, height: 30, padding: '0 9px', borderRadius: 7, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: C.primaryDark }}
+                >
+                  <Plus size={13} /> criar "{query.trim()}"
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

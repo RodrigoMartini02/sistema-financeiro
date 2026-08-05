@@ -1,17 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useForm, Controller, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  Banknote, CreditCard, QrCode,
-  Plus, X, Tag, Paperclip, FileText, AlertTriangle, ArrowUp, ArrowDown,
-} from 'lucide-react';
+import { Banknote, CreditCard, Paperclip, Plus, QrCode, X } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Attachment, Expense, ExpenseFormValues, FinanceDashboardData } from '../../types/finance';
-import { Dialog } from '../../ui/dialog';
-import { Button } from '../../ui/button';
-import { Field, Input, ToggleGroup } from '../../ui/form';
-import { MoneyInput } from '../../ui/MoneyInput';
 import { AttachmentSection, type AttachmentSectionHandle } from '../../ui/AttachmentSection';
 import { CategoryFloatingSelect } from '../../ui/CategoryFloatingSelect';
 import { getRecentCategoryIds, suggestCategoryForDescription } from '../../utils/categorySuggestions';
@@ -44,6 +37,114 @@ interface DuplicataInfo { expense: Expense; }
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const todayNumericDay = () => new Date().getDate();
 const formatBr = (iso: string) => new Date(iso + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+// ── Paleta e tokens visuais extraídos do mockup ────────────────────────
+const C = {
+  border: '#e6eef3',
+  borderInput: '#dbe6ec',
+  cardBg: '#fbfdfe',
+  panelBg: '#f2f9fb',
+  panelBorder: '#dcebf1',
+  primary: '#0891b2',
+  primaryDark: '#0e7490',
+  primarySoft: '#e6f7fa',
+  primarySoftBorder: '#b9e6ef',
+  text: '#0f2b38',
+  textSoft: '#6c8593',
+  textMuted: '#7b93a1',
+  textFaint: '#8ba3b0',
+  placeholder: '#9db0bb',
+  chipOffBorder: '#e0e9ee',
+  chipOffText: '#416275',
+  danger: '#b42318',
+  dangerBg: '#fef3f2',
+  dangerBorder: '#fbd5d1',
+  success: '#067647',
+  successBg: '#ecfdf3',
+  successBorder: '#b7e4c7',
+  warn: '#8a6d1f',
+  warnBg: '#fdf6e3',
+  warnBorder: '#f0e0b0',
+};
+
+const labelStyle: CSSProperties = {
+  fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.09em', color: C.textFaint,
+  textTransform: 'uppercase', height: 15, display: 'flex', alignItems: 'center', gap: 4,
+};
+
+const fieldInputStyle: CSSProperties = {
+  width: '100%', minWidth: 0, boxSizing: 'border-box', height: 54, borderRadius: 12,
+  border: `1.5px solid ${C.borderInput}`, background: '#fff', padding: '0 14px',
+  fontSize: 17, fontWeight: 500, color: C.text, outline: 'none',
+};
+
+const smallInputStyle: CSSProperties = {
+  width: 168, height: 42, boxSizing: 'border-box', borderRadius: 10,
+  border: `1.5px solid ${C.borderInput}`, background: '#fff', padding: '0 12px',
+  fontSize: 14, color: C.text, outline: 'none',
+};
+
+const numericInputStyle: CSSProperties = {
+  width: 76, height: 42, boxSizing: 'border-box', borderRadius: 10,
+  border: `1.5px solid ${C.borderInput}`, background: '#fff', padding: '0 12px',
+  fontSize: 17, fontWeight: 700, color: C.text, textAlign: 'center',
+  fontVariantNumeric: 'tabular-nums', outline: 'none',
+};
+
+const cardStyle: CSSProperties = {
+  margin: '0 26px 10px', padding: '13px 14px 14px', borderRadius: 14,
+  border: `1px solid ${C.border}`, background: C.cardBg,
+};
+
+const panelStyle: CSSProperties = {
+  display: 'flex', flexDirection: 'column', gap: 10, background: C.panelBg,
+  border: `1px solid ${C.panelBorder}`, borderRadius: 12, padding: '12px 14px', marginTop: 9,
+};
+
+function chipStyle(active: boolean, opts?: { h?: number; r?: number; size?: number }): CSSProperties {
+  const o = opts ?? {};
+  return {
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer',
+    height: o.h ?? 42, padding: '0 10px', borderRadius: o.r ?? 10, fontSize: o.size ?? 13,
+    fontWeight: active ? 600 : 500, whiteSpace: 'nowrap',
+    border: `1.5px solid ${active ? C.primary : C.chipOffBorder}`,
+    background: active ? C.primary : '#fff',
+    color: active ? '#fff' : C.chipOffText,
+    boxShadow: active ? '0 2px 8px -2px rgba(8,145,178,0.5)' : 'none',
+    transition: 'all .13s ease',
+  };
+}
+
+function formatCents(cents: number): string {
+  return (cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function digitsOnly(value: string): number {
+  const digits = value.replace(/\D/g, '');
+  return digits ? parseInt(digits, 10) : 0;
+}
+
+function MoneyField({ value, onChange, autoFocus }: { value: number | undefined; onChange: (v: number) => void; autoFocus?: boolean }) {
+  const cents = value ? Math.round(value * 100) : 0;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 54, borderRadius: 12, border: `1.5px solid ${C.borderInput}`, background: '#fff', padding: '0 14px' }}>
+      <span style={{ fontSize: 13, fontWeight: 600, color: C.textFaint }}>R$</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        autoFocus={autoFocus}
+        value={cents > 0 ? formatCents(cents) : ''}
+        onChange={(e) => onChange(digitsOnly(e.target.value) / 100)}
+        placeholder="0,00"
+        style={{
+          flex: 1, width: '100%', minWidth: 0, border: 'none', background: 'transparent',
+          fontSize: 26, fontWeight: 700, color: C.text, letterSpacing: '-0.02em',
+          fontVariantNumeric: 'tabular-nums', outline: 'none',
+        }}
+      />
+    </div>
+  );
+}
 
 interface Props {
   open: boolean; month: number; year: number;
@@ -157,7 +258,8 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
   const [acHidden, setAcHidden] = useState(false);
   const [acIndex, setAcIndex] = useState(-1);
   const acMatches: ExpenseSuggestionMatch[] = acHidden ? [] : (suggestionsQuery.data?.matches ?? [])
-    .filter((m) => m.descricao.toLowerCase() !== (descricaoWatch ?? '').toLowerCase());
+    .filter((m) => m.descricao.toLowerCase() !== (descricaoWatch ?? '').toLowerCase())
+    .slice(0, 4);
   const acOpen = acMatches.length > 0 && (descricaoWatch?.length ?? 0) >= 2;
 
   const applySuggestionMatch = (match: ExpenseSuggestionMatch) => {
@@ -267,10 +369,10 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
   }, [vencimentoManualAberto, dataVencimentoManual, isCredito, selectedCard, dataCompra, repeticao, diaRecorrencia]);
 
   const statusDerivado = useMemo(() => {
-    if (isCredito) return { label: 'Entra na fatura', className: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800' };
+    if (isCredito) return { label: 'Entra na fatura', color: C.primaryDark, bg: C.primarySoft, border: C.primarySoftBorder };
     const isFuture = vencimentoDerivado.data > todayIso();
-    if (isFuture) return { label: 'Agendado', className: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800' };
-    return { label: 'Pago', className: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800' };
+    if (isFuture) return { label: 'Agendado', color: C.warn, bg: C.warnBg, border: C.warnBorder };
+    return { label: 'Pago', color: C.success, bg: C.successBg, border: C.successBorder };
   }, [isCredito, vencimentoDerivado.data]);
 
   const pagoDerivado = statusDerivado.label === 'Pago';
@@ -289,7 +391,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
 
   const mensalTexto = isCredito
     ? `todo mês na fatura ${selectedCard?.nome ?? 'do cartão'}, até cancelar`
-    : `todo dia ${diaRecorrencia ?? '?'}, até cancelar`;
+    : diaRecorrencia ? `todo dia ${diaRecorrencia}, até cancelar` : 'informe o dia';
 
   const toFormValues = (data: FormData, anexosArr: Attachment[] = []): ExpenseFormValues => ({
     descricao:       data.descricao,
@@ -312,6 +414,18 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
     anexos:          anexosArr,
   });
 
+  const resetForm = (data: FormData) => {
+    form.reset({
+      descricao: '', valor_original: '' as unknown as number, valor_final: undefined,
+      dataCompra: data.dataCompra, dataVencimentoManual: undefined,
+      categoria_id: undefined, cartao_id: data.cartao_id,
+      formaPagamento: data.formaPagamento, repeticao: 'nao',
+      totalParcelas: 2, parcelasJaPagas: 0, diaRecorrencia: todayNumericDay(),
+      numero_nf: undefined, data_emissao_nf: undefined,
+    });
+    setShowValorFinal(false);
+  };
+
   const doSave = async (data: FormData) => {
     setIsSavingAll(true);
     try {
@@ -321,15 +435,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
       setAnexos([]);
       setDuplicataInfo(null);
       setSavedMessage(items.length > 1 ? `✓ ${items.length} despesas registradas` : '✓ Despesa registrada');
-      form.reset({
-        descricao: '', valor_original: '' as unknown as number, valor_final: undefined,
-        dataCompra: data.dataCompra, dataVencimentoManual: undefined,
-        categoria_id: undefined, cartao_id: data.cartao_id,
-        formaPagamento: data.formaPagamento, repeticao: 'nao',
-        totalParcelas: 2, parcelasJaPagas: 0, diaRecorrencia: todayNumericDay(),
-        numero_nf: undefined, data_emissao_nf: undefined,
-      });
-      setShowValorFinal(false);
+      resetForm(data);
       setTimeout(() => setSavedMessage(''), 2600);
     } finally {
       setIsSavingAll(false);
@@ -341,15 +447,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
     if (!data.descricao.trim() || !data.valor_original) return;
     setBatch((prev) => [...prev, toFormValues(data, anexos)]);
     setAnexos([]);
-    form.reset({
-      descricao: '', valor_original: '' as unknown as number, valor_final: undefined,
-      dataCompra: data.dataCompra, dataVencimentoManual: undefined,
-      categoria_id: undefined, cartao_id: data.cartao_id,
-      formaPagamento: data.formaPagamento, repeticao: 'nao',
-      totalParcelas: 2, parcelasJaPagas: 0, diaRecorrencia: todayNumericDay(),
-      numero_nf: undefined, data_emissao_nf: undefined,
-    });
-    setShowValorFinal(false);
+    resetForm(data);
     setTimeout(() => form.setFocus('descricao'), 50);
   };
 
@@ -372,15 +470,17 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
     setDuplicataInfo(dup ? { expense: dup } : null);
   }, [descricaoWatch, efetivoFinal, formaPagamento, qc, expense?.id]);
 
-  const handleSubmit = form.handleSubmit((data) => doSave(data));
+  const submitForm = form.handleSubmit((data) => doSave(data));
 
   const hasBatch = batch.length > 0;
   const batchTotal = batch.reduce((sum, item) => sum + (item.valor_original ?? 0), 0);
   const podeSalvar = !!descricaoWatch?.trim() && !!valorOriginalWatch;
+  const canSubmit = podeSalvar || hasBatch;
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       if (acOpen) { setAcHidden(true); return; }
+      onClose();
       return;
     }
     if (acOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
@@ -402,7 +502,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
     }
     if (e.key === 'Enter' && !e.shiftKey && !acOpen) {
       e.preventDefault();
-      handleSubmit();
+      if (canSubmit) submitForm();
       return;
     }
     if (e.key === 'Enter' && e.shiftKey) {
@@ -411,352 +511,457 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
     }
   };
 
-  return (
-    <Dialog open={open} title={expense ? 'Editar despesa' : 'Nova despesa'} description="Registre uma saída financeira" onClose={onClose} size="lg" scrollBody={false}>
-      <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
-        <div ref={bodyRef} className="scrollbar-thin flex-1 min-h-0 overflow-y-auto px-1 py-1">
-          <div className="grid gap-3">
+  if (!open) return null;
 
-            {/* ── Bloco 1: Identificação ─────────────────────────────── */}
-            <div className="grid gap-2 rounded-2xl border border-slate-100 bg-white p-3 dark:border-slate-700 dark:bg-slate-800/40">
-              <div className="flex items-end gap-2">
-                <div className="relative flex-1">
-                  <Field label="Descrição" required error={form.formState.errors.descricao?.message}>
-                    <Input
-                      {...form.register('descricao', {
-                        onChange: () => setAcHidden(false),
-                      })}
-                      placeholder="Ex: Conta de luz"
-                      autoFocus
-                      autoComplete="off"
-                    />
-                  </Field>
-                  {acOpen && (
-                    <div className="absolute left-0 top-full z-40 mt-1 w-full rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg dark:border-slate-600 dark:bg-slate-800">
-                      {acMatches.map((match, i) => (
-                        <button
-                          key={`${match.descricao}-${i}`}
-                          type="button"
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => applySuggestionMatch(match)}
-                          className={[
-                            'flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors',
-                            i === acIndex ? 'bg-brand-50 dark:bg-brand-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-700',
-                          ].join(' ')}
-                        >
-                          <span className="truncate font-medium text-slate-700 dark:text-slate-200">{match.descricao}</span>
-                          <span className="shrink-0 text-xs text-slate-400">
-                            {match.valorFinal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(15, 23, 42, 0.5)', backdropFilter: 'blur(2px)' }} onClick={onClose} />
+      <form
+        style={{
+          position: 'relative', zIndex: 10, width: 980, maxWidth: '100%', maxHeight: '92vh',
+          display: 'flex', flexDirection: 'column', background: '#fff', borderRadius: 18,
+          boxShadow: '0 32px 80px -24px rgba(13, 47, 63, 0.38), 0 0 0 1px rgba(13, 47, 63, 0.06)',
+          overflow: 'hidden', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+        }}
+        onSubmit={submitForm}
+        onKeyDown={handleKeyDown}
+      >
+        {/* Header */}
+        <div style={{ flex: 'none', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24, padding: '22px 26px 18px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <div style={{ fontSize: 19, fontWeight: 700, color: C.text, letterSpacing: '-0.01em' }}>
+              {expense ? 'Editar despesa' : 'Nova despesa'}
+            </div>
+            <div style={{ fontSize: 13, color: C.textSoft }}>Registre uma saída financeira</div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              width: 32, height: 32, borderRadius: '50%', border: '1px solid #e3ecf1',
+              display: 'grid', placeItems: 'center', color: C.textMuted, cursor: 'pointer', background: 'transparent',
+            }}
+          >
+            <X size={13} />
+          </button>
+        </div>
+
+        {/* Corpo rolável */}
+        <div ref={bodyRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+
+          {/* ── Bloco 1: Identificação ─────────────────────────────── */}
+          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1.35fr 1fr', columnGap: 18, alignItems: 'start' }}>
+            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7, position: 'relative' }}>
+              <label style={labelStyle}>
+                <span>DESCRIÇÃO</span><span style={{ color: C.primary }}>*</span>
+              </label>
+              <input
+                {...form.register('descricao', { onChange: () => setAcHidden(false) })}
+                placeholder="Ex: Conta de luz"
+                autoFocus
+                autoComplete="off"
+                style={fieldInputStyle}
+              />
+              {acOpen && (
+                <>
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setAcHidden(true)} />
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, zIndex: 41,
+                    background: '#fff', border: `1px solid ${C.borderInput}`, borderRadius: 12,
+                    boxShadow: '0 20px 44px -14px rgba(13, 47, 63, 0.34)', padding: 6,
+                    display: 'flex', flexDirection: 'column',
+                  }}>
+                    {acMatches.map((match, i) => (
+                      <button
+                        key={`${match.descricao}-${i}`}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => applySuggestionMatch(match)}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                          height: 38, padding: '0 10px', borderRadius: 8, cursor: 'pointer', border: 'none',
+                          background: i === acIndex ? C.panelBg : 'transparent', textAlign: 'left',
+                        }}
+                      >
+                        <span style={{ fontSize: '13.5px', fontWeight: 600, color: C.text }}>{match.descricao}</span>
+                        <span style={{ fontSize: 12, color: C.textMuted, fontVariantNumeric: 'tabular-nums' }}>
+                          {brl(match.valorFinal)} · {match.formaPagamento}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 20 }}>
                 <button
                   type="button"
                   onClick={() => attachmentRef.current?.openPicker()}
                   title="Anexar comprovante"
-                  className={[
-                    'mb-[1px] flex h-10 items-center gap-1.5 rounded-2xl border px-3 text-xs font-semibold transition-all shrink-0',
-                    anexos.length > 0
-                      ? 'border-brand-300 bg-brand-50 text-brand-600 dark:border-brand-700 dark:bg-brand-900/30 dark:text-brand-400'
-                      : 'border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600 dark:border-slate-600 dark:text-slate-500',
-                  ].join(' ')}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5, fontSize: '12.5px', fontWeight: 600,
+                    color: anexos.length > 0 ? C.primary : C.textMuted, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0,
+                  }}
                 >
                   <Paperclip size={13} />
-                  {anexos.length > 0 && <span>{anexos.length}</span>}
+                  <span>Anexar comprovante{anexos.length > 0 ? ` (${anexos.length})` : ''}</span>
                 </button>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 min-h-[20px]">
-                <span className="text-xs text-slate-400">Anexar comprovante</span>
+                {anexos.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setAnexos([])}
+                    title="Remover anexos"
+                    style={{ display: 'flex', alignItems: 'center', color: C.placeholder, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
+                  >
+                    <X size={12} />
+                  </button>
+                )}
                 {categoriaSugestao && !categoriaId && (
                   <button
                     type="button"
                     onClick={() => { form.setValue('categoria_id', categoriaSugestao.id as any); setCategoriaSugestao(null); }}
-                    className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700 hover:bg-brand-100 transition dark:border-brand-800 dark:bg-brand-900/20 dark:text-brand-400"
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12.5px', color: C.primaryDark, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
                   >
-                    <Tag size={11} /> {categoriaSugestao.nome} · Tab aceita
+                    <span style={{ fontWeight: 600, background: C.primarySoft, border: `1px solid ${C.primarySoftBorder}`, borderRadius: 6, padding: '2px 7px' }}>
+                      {categoriaSugestao.nome}
+                    </span>
+                    <span style={{ color: C.textMuted }}>sugerida · Tab aceita</span>
                   </button>
                 )}
               </div>
-
-              <div className={anexos.length > 0 ? 'rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/50' : ''}>
+              <div style={{ display: 'none' }}>
                 <AttachmentSection ref={attachmentRef} value={anexos} onChange={setAnexos} hideTrigger />
               </div>
-
-              <Field label="Categoria" hint="Opcional">
-                <Controller
-                  control={form.control}
-                  name="categoria_id"
-                  render={({ field }) => (
-                    <CategoryFloatingSelect
-                      categories={cats}
-                      value={field.value ? Number(field.value) : undefined}
-                      onChange={(id) => { field.onChange(id ?? undefined); if (id) setCategoriaSugestao(null); }}
-                      onCreateNew={(nome) => setShowCatForm(nome)}
-                      featuredIds={featuredCategoryIds}
-                      scrollContainerRef={bodyRef}
-                    />
-                  )}
-                />
-                {showCatForm !== null && (
-                  <div className="mt-2 flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 p-2 dark:border-brand-800 dark:bg-brand-900/20">
-                    <Tag size={13} className="shrink-0 text-brand-400" />
-                    <input
-                      type="text"
-                      defaultValue={showCatForm}
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') { e.preventDefault(); const v = e.currentTarget.value.trim(); if (v) criarCatMut.mutate(v); }
-                      }}
-                      id="nova-categoria-input"
-                      className="flex-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-200"
-                    />
-                    <button
-                      type="button"
-                      disabled={criarCatMut.isPending}
-                      onClick={() => {
-                        const el = document.getElementById('nova-categoria-input') as HTMLInputElement | null;
-                        const v = el?.value.trim();
-                        if (v) criarCatMut.mutate(v);
-                      }}
-                      className="rounded-md bg-brand-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-700 disabled:opacity-50 transition whitespace-nowrap"
-                    >
-                      {criarCatMut.isPending ? '...' : 'Criar'}
-                    </button>
-                    <button type="button" onClick={() => setShowCatForm(null)} className="text-slate-400 hover:text-red-500 transition">
-                      <X size={14} />
-                    </button>
-                  </div>
-                )}
-              </Field>
             </div>
 
-            {/* ── Bloco 2: Valores ───────────────────────────────────── */}
-            <div className="grid gap-2 rounded-2xl border border-slate-100 bg-white p-3 dark:border-slate-700 dark:bg-slate-800/40">
-              <div className="grid grid-cols-2 gap-2">
-                <Field label="Valor" required error={form.formState.errors.valor_original?.message}>
-                  <Controller
-                    control={form.control}
-                    name="valor_original"
-                    render={({ field }) => (
-                      <MoneyInput value={field.value || undefined} onChange={field.onChange} />
-                    )}
-                  />
-                  <p className="text-xs text-slate-400">
-                    {ultimoValorPago
-                      ? `Última vez você pagou ${ultimoValorPago.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
-                      : 'Preço base da compra'}
-                  </p>
-                </Field>
-
-                <Field label={showValorFinal ? 'Valor final' : ''}>
-                  {showValorFinal ? (
-                    <>
-                      <div className="flex items-center justify-between">
-                        <Controller
-                          control={form.control}
-                          name="valor_final"
-                          render={({ field }) => (
-                            <MoneyInput value={field.value} onChange={field.onChange} />
-                          )}
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => { setShowValorFinal(false); form.setValue('valor_final', undefined); }}
-                        className="text-xs text-slate-400 hover:text-red-500 transition"
-                      >
-                        remover
-                      </button>
-                      {jurosCalculado > 0 && (
-                        <span className="inline-flex w-fit items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
-                          <ArrowUp size={11} /> + {jurosCalculado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} de juros
-                        </span>
-                      )}
-                      {descontoCalculado > 0 && (
-                        <span className="inline-flex w-fit items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400">
-                          <ArrowDown size={11} /> − {descontoCalculado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} de desconto
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setShowValorFinal(true)}
-                      className="flex h-10 items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-brand-600 transition dark:text-slate-400"
-                    >
-                      <Plus size={14} /> Teve juros ou desconto
-                    </button>
-                  )}
-                </Field>
+            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, height: 15 }}>
+                <label style={{ ...labelStyle, height: 'auto' }}>CATEGORIA</label>
+                <span style={{ fontSize: 11, color: '#a8bac4' }}>opcional</span>
               </div>
-            </div>
-
-            {/* ── Bloco 3: Pagamento ─────────────────────────────────── */}
-            <div className="grid gap-2 rounded-2xl border border-slate-100 bg-white p-3 dark:border-slate-700 dark:bg-slate-800/40">
-              <Field label="Forma de pagamento">
-                <ToggleGroup value={formaPagamento} options={paymentOptions} onChange={handlePaymentSelect} />
-              </Field>
-
-              {(isCredito || isDebito) && (
-                <div className="grid gap-2 rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/30">
-                  {activeCards.length > 1 ? (
-                    <Controller
-                      control={form.control}
-                      name="cartao_id"
-                      render={({ field }) => (
-                        <ToggleGroup
-                          value={String(field.value ?? selectedCard?.id ?? '')}
-                          options={activeCards.map((c) => ({ value: String(c.id), label: c.nome }))}
-                          onChange={(v) => { field.onChange(Number(v)); setMethodTouched(true); }}
-                        />
-                      )}
-                    />
-                  ) : (
-                    <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{selectedCard?.nome ?? 'Nenhum cartão cadastrado'}</p>
-                  )}
-                  {selectedCard && (
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      {isCredito
-                        ? `Limite disponível: ${((selectedCard.limite ?? 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`
-                        : 'Desconta da conta vinculada'}
-                    </p>
-                  )}
+              <Controller
+                control={form.control}
+                name="categoria_id"
+                render={({ field }) => (
+                  <CategoryFloatingSelect
+                    categories={cats}
+                    value={field.value ? Number(field.value) : undefined}
+                    onChange={(id) => { field.onChange(id ?? undefined); if (id) setCategoriaSugestao(null); }}
+                    onCreateNew={(nome) => setShowCatForm(nome)}
+                    featuredIds={featuredCategoryIds}
+                    scrollContainerRef={bodyRef}
+                  />
+                )}
+              />
+              {showCatForm !== null && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderRadius: 10, border: `1.5px solid ${C.primary}`, background: C.primarySoft, padding: 8 }}>
+                  <input
+                    type="text"
+                    defaultValue={showCatForm}
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); const v = e.currentTarget.value.trim(); if (v) criarCatMut.mutate(v); }
+                    }}
+                    id="nova-categoria-input"
+                    style={{ flex: 1, height: 32, borderRadius: 8, border: `1px solid ${C.borderInput}`, background: '#fff', padding: '0 10px', fontSize: 13, color: C.text, outline: 'none' }}
+                  />
+                  <button
+                    type="button"
+                    disabled={criarCatMut.isPending}
+                    onClick={() => {
+                      const el = document.getElementById('nova-categoria-input') as HTMLInputElement | null;
+                      const v = el?.value.trim();
+                      if (v) criarCatMut.mutate(v);
+                    }}
+                    style={{ borderRadius: 8, background: C.primary, padding: '7px 12px', fontSize: 12, fontWeight: 700, color: '#fff', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                  >
+                    {criarCatMut.isPending ? '...' : 'Criar'}
+                  </button>
+                  <button type="button" onClick={() => setShowCatForm(null)} style={{ color: C.textMuted, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex' }}>
+                    <X size={14} />
+                  </button>
                 </div>
               )}
             </div>
+          </div>
 
-            {/* ── Bloco 4: Recorrência e data ────────────────────────── */}
-            <div className="grid gap-2 rounded-2xl border border-slate-100 bg-white p-3 dark:border-slate-700 dark:bg-slate-800/40">
-              <div className="grid grid-cols-2 gap-2">
-                <Field label="Data da compra">
-                  <Input {...form.register('dataCompra')} type="date" />
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs text-slate-500 dark:text-slate-400">{vencimentoDerivado.texto}</span>
+          {/* ── Bloco 2: Valores ───────────────────────────────────── */}
+          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18, alignItems: 'start' }}>
+            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <label style={labelStyle}>
+                <span>VALOR</span><span style={{ color: C.primary }}>*</span>
+              </label>
+              <Controller
+                control={form.control}
+                name="valor_original"
+                render={({ field }) => <MoneyField value={field.value || undefined} onChange={field.onChange} />}
+              />
+              <div style={{ fontSize: 12, color: C.textFaint, minHeight: 18 }}>
+                {ultimoValorPago ? `Última vez você pagou ${brl(ultimoValorPago)}` : 'Preço base da compra'}
+              </div>
+              {form.formState.errors.valor_original?.message && (
+                <div style={{ fontSize: 12, color: C.danger }}>{form.formState.errors.valor_original.message}</div>
+              )}
+            </div>
+
+            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
+              {showValorFinal ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
+                    <label style={{ ...labelStyle, height: 'auto' }}>VALOR FINAL</label>
                     <button
                       type="button"
-                      onClick={() => setVencimentoManualAberto((v) => !v)}
-                      className="text-xs font-semibold text-brand-600 hover:text-brand-700 transition dark:text-brand-400"
+                      onClick={() => { setShowValorFinal(false); form.setValue('valor_final', undefined); }}
+                      style={{ fontSize: '11.5px', fontWeight: 600, color: C.placeholder, cursor: 'pointer', background: 'transparent', border: 'none' }}
                     >
-                      {vencimentoManualAberto ? 'usar automática' : 'alterar'}
+                      remover
                     </button>
-                    <span className={['rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide', statusDerivado.className].join(' ')}>
-                      {statusDerivado.label}
-                    </span>
                   </div>
-                  {vencimentoManualAberto && (
-                    <Input {...form.register('dataVencimentoManual')} type="date" />
-                  )}
-                </Field>
-
-                <Field label="Isso se repete?">
-                  <ToggleGroup
-                    value={repeticao}
-                    options={[
-                      { value: 'nao', label: 'Não repete' },
-                      { value: 'parcelas', label: 'Parcelas' },
-                      { value: 'mensal', label: 'Todo mês' },
-                    ]}
-                    onChange={(v) => form.setValue('repeticao', v as FormData['repeticao'])}
+                  <Controller
+                    control={form.control}
+                    name="valor_final"
+                    render={({ field }) => <MoneyField value={field.value} onChange={field.onChange} />}
                   />
-                </Field>
-              </div>
-
-              {repeticao === 'parcelas' && (
-                <div className="grid gap-2 rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/30">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Field label="Quantas parcelas">
-                      <Input {...form.register('totalParcelas')} type="text" inputMode="numeric" className="w-20 text-center" />
-                    </Field>
-                    <Field label="Já pagas">
-                      <Input {...form.register('parcelasJaPagas')} type="text" inputMode="numeric" className="w-20 text-center" />
-                    </Field>
-                    {valorPorParcela > 0 && (
-                      <span className="text-xs text-slate-500 dark:text-slate-400">
-                        {totalParcelas}x de {valorPorParcela.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        {(parcelasJaPagas ?? 0) > 0 && ` · ${parcelasJaPagas} de ${totalParcelas} pagas`}
-                        {proximaParcelaVence && ` · próxima vence ${proximaParcelaVence}`}
+                  <div style={{ minHeight: 18 }}>
+                    {jurosCalculado > 0 && (
+                      <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.danger, background: C.dangerBg, border: `1px solid ${C.dangerBorder}` }}>
+                        + {brl(jurosCalculado)} de juros
+                      </span>
+                    )}
+                    {descontoCalculado > 0 && (
+                      <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.success, background: C.successBg, border: `1px solid ${C.successBorder}` }}>
+                        − {brl(descontoCalculado)} de desconto
                       </span>
                     )}
                   </div>
-                </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ height: 15 }} />
+                  <button
+                    type="button"
+                    onClick={() => setShowValorFinal(true)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, height: 54, fontSize: 13, fontWeight: 600, color: C.textMuted, cursor: 'pointer', background: 'transparent', border: 'none' }}
+                  >
+                    <Plus size={14} />
+                    <span>Teve juros ou desconto</span>
+                  </button>
+                </>
               )}
+            </div>
+          </div>
 
-              {repeticao === 'mensal' && (
-                <div className="grid gap-2 rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/30">
-                  {!isCredito && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-slate-500 dark:text-slate-400">Todo dia</span>
-                      <Input {...form.register('diaRecorrencia')} type="text" inputMode="numeric" className="w-20 text-center" />
+          {/* ── Bloco 3: Pagamento ─────────────────────────────────── */}
+          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1.35fr 1fr', columnGap: 18, rowGap: 14, alignItems: 'start' }}>
+            <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <div style={{ ...labelStyle }}>FORMA DE PAGAMENTO</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                {paymentOptions.map((opt) => (
+                  <div key={opt.value} onClick={() => handlePaymentSelect(opt.value)} style={chipStyle(formaPagamento === opt.value)}>
+                    {opt.icon}
+                    {opt.label}
+                  </div>
+                ))}
+              </div>
+
+              {(isCredito || isDebito) && (
+                <div style={panelStyle}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <span style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.09em', color: C.textSoft, textTransform: 'uppercase' }}>
+                      {isCredito ? 'CARTÃO · CONSOME LIMITE' : 'CARTÃO · DESCONTA SALDO'}
+                    </span>
+                    {selectedCard && (
+                      <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#33566a', fontVariantNumeric: 'tabular-nums' }}>
+                        {activeCards.length <= 1 ? `${selectedCard.nome} · ` : ''}
+                        {isCredito ? `limite disponível ${brl(selectedCard.limite ?? 0)}` : 'conta corrente'}
+                      </span>
+                    )}
+                  </div>
+                  {activeCards.length > 1 && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                      {activeCards.map((c) => (
+                        <div
+                          key={c.id}
+                          onClick={() => { form.setValue('cartao_id', c.id as any); setMethodTouched(true); }}
+                          style={chipStyle(c.id === (cartaoId ?? selectedCard?.id), { h: 36, r: 9, size: 12.5 })}
+                        >
+                          {c.nome}
+                        </div>
+                      ))}
                     </div>
                   )}
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{mensalTexto}</p>
+                  {activeCards.length === 0 && (
+                    <span style={{ fontSize: '12.5px', color: C.textMuted }}>Nenhum cartão cadastrado</span>
+                  )}
                 </div>
               )}
             </div>
+          </div>
 
-            {isEmpresa && (
-              <div className="grid grid-cols-2 gap-3 rounded-2xl border border-slate-100 bg-white p-3 dark:border-slate-700 dark:bg-slate-800/40">
-                <div className="col-span-2 flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-                  <FileText size={12} /> Nota Fiscal
+          {/* ── Bloco 4: Recorrência e data ────────────────────────── */}
+          <div style={{ ...cardStyle, marginBottom: 14, display: 'grid', gridTemplateColumns: '1.35fr 1fr', columnGap: 18, rowGap: 10, alignItems: 'start' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <label style={labelStyle}>DATA DA COMPRA</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input {...form.register('dataCompra')} type="date" style={smallInputStyle} />
+                <span style={{
+                  fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 6,
+                  color: statusDerivado.color, background: statusDerivado.bg, border: `1px solid ${statusDerivado.border}`,
+                }}>
+                  {statusDerivado.label}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, minHeight: 20 }}>
+                <span style={{ fontSize: '12.5px', color: C.textSoft }}>{vencimentoDerivado.texto}</span>
+                <button
+                  type="button"
+                  onClick={() => setVencimentoManualAberto((v) => !v)}
+                  style={{ fontSize: '12.5px', fontWeight: 600, color: C.primaryDark, cursor: 'pointer', background: 'transparent', border: 'none' }}
+                >
+                  {vencimentoManualAberto ? 'usar automática' : 'alterar'}
+                </button>
+              </div>
+              {vencimentoManualAberto && (
+                <input {...form.register('dataVencimentoManual')} type="date" style={{ ...smallInputStyle, border: `1.5px solid ${C.primary}` }} />
+              )}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <div style={labelStyle}>ISSO SE REPETE?</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                {([
+                  ['nao', 'Não repete'],
+                  ['parcelas', 'Parcelas'],
+                  ['mensal', 'Todo mês'],
+                ] as const).map(([value, label]) => (
+                  <div key={value} onClick={() => form.setValue('repeticao', value)} style={chipStyle(repeticao === value)}>
+                    {label}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {repeticao === 'parcelas' && (
+              <div style={{ ...panelStyle, gridColumn: '1 / -1', marginTop: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <span style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.09em', color: C.textSoft, textTransform: 'uppercase' }}>PARCELAMENTO</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: C.text, fontVariantNumeric: 'tabular-nums' }}>
+                    {valorPorParcela > 0 ? `${totalParcelas}x de ${brl(valorPorParcela)}` : 'informe o valor'}
+                  </span>
                 </div>
-                <Field label="Número da NF">
-                  <Input {...form.register('numero_nf')} placeholder="Ex: 000123456" />
-                </Field>
-                <Field label="Data de emissão">
-                  <Input {...form.register('data_emissao_nf')} type="date" />
-                </Field>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                    <input {...form.register('totalParcelas')} type="text" inputMode="numeric" placeholder="2" style={numericInputStyle} />
+                    <span style={{ fontSize: 13, color: C.textSoft }}>parcelas</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                    <input {...form.register('parcelasJaPagas')} type="text" inputMode="numeric" placeholder="0" style={numericInputStyle} />
+                    <span style={{ fontSize: 13, color: C.textSoft }}>já pagas</span>
+                  </div>
+                  <span style={{ fontSize: '12.5px', color: C.textSoft }}>
+                    {(parcelasJaPagas ?? 0) > 0 ? `${parcelasJaPagas} de ${totalParcelas} pagas · ` : ''}
+                    {proximaParcelaVence ? `próxima vence ${proximaParcelaVence}` : ''}
+                  </span>
+                </div>
               </div>
             )}
 
-            {error && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+            {repeticao === 'mensal' && (
+              <div style={{ ...panelStyle, gridColumn: '1 / -1', marginTop: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <span style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.09em', color: C.textSoft, textTransform: 'uppercase' }}>RECORRÊNCIA</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{mensalTexto}</span>
+                </div>
+                {!isCredito && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                    <span style={{ fontSize: 13, color: C.textSoft }}>Todo dia</span>
+                    <input {...form.register('diaRecorrencia')} type="text" inputMode="numeric" placeholder="5" style={numericInputStyle} />
+                    <span style={{ fontSize: 13, color: C.textSoft }}>de cada mês, até cancelar</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {isEmpresa && (
+              <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, borderTop: `1px solid ${C.border}`, paddingTop: 10, marginTop: 4 }}>
+                <div style={{ gridColumn: '1 / -1', fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.09em', color: C.textSoft, textTransform: 'uppercase' }}>
+                  Nota Fiscal
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  <label style={labelStyle}>NÚMERO DA NF</label>
+                  <input {...form.register('numero_nf')} placeholder="Ex: 000123456" style={smallInputStyle} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  <label style={labelStyle}>DATA DE EMISSÃO</label>
+                  <input {...form.register('data_emissao_nf')} type="date" style={smallInputStyle} />
+                </div>
+              </div>
             )}
           </div>
+
+          {error && (
+            <div style={{ margin: '0 26px 14px', borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
+              {error}
+            </div>
+          )}
         </div>
 
         {/* ── Rodapé fixo ──────────────────────────────────────────── */}
-        <div className="shrink-0 border-t border-slate-100 pt-3 dark:border-slate-700">
+        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {hasBatch && (
-            <div className="mb-2 flex flex-wrap items-center gap-1.5">
-              <span className="text-xs font-bold text-slate-500">
-                NO LOTE · {batch.length} · {batchTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '11.5px', fontWeight: 700, letterSpacing: '0.07em', color: C.textSoft }}>
+                NO LOTE · {batch.length} · {brl(batchTotal)}
               </span>
               {batch.map((item, i) => (
-                <span key={i} className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700 dark:bg-brand-900/20 dark:text-brand-400">
-                  {item.descricao}
-                  <button type="button" onClick={() => setBatch((prev) => prev.filter((_, j) => j !== i))} className="text-brand-400 hover:text-red-500 transition">
-                    <X size={11} />
-                  </button>
-                </span>
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: `1px solid ${C.borderInput}`, borderRadius: 8, padding: '5px 8px 5px 10px', fontSize: '12.5px', color: '#33566a' }}>
+                  <span style={{ fontWeight: 600 }}>{item.descricao}</span>
+                  <span style={{ color: C.textMuted, fontVariantNumeric: 'tabular-nums' }}>{brl(item.valor_original ?? 0)}</span>
+                  <span onClick={() => setBatch((prev) => prev.filter((_, j) => j !== i))} style={{ color: C.placeholder, cursor: 'pointer', fontSize: 13, lineHeight: 1 }}>
+                    ×
+                  </span>
+                </div>
               ))}
             </div>
           )}
 
           {duplicataInfo && (
-            <div className="mb-2 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
-              <AlertTriangle size={13} className="shrink-0" />
+            <div style={{ fontSize: '12.5px', color: '#a3728a' }}>
               Você já lançou isso em {formatBr(duplicataInfo.expense.dataVencimento)} — é outra?
             </div>
           )}
 
-          <div className="flex items-center justify-between gap-3">
-            <p className={savedMessage ? 'text-xs font-semibold text-green-600' : 'text-xs text-slate-400'}>
-              {savedMessage || (podeSalvar || hasBatch ? '' : 'Preencha descrição e valor para registrar.')}
-            </p>
-            <div className="flex items-center gap-2">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+            <div style={savedMessage
+              ? { fontSize: '12.5px', fontWeight: 600, color: C.success, display: 'flex', alignItems: 'center', gap: 6 }
+              : { fontSize: '12.5px', color: !canSubmit ? '#a3728a' : C.textMuted }
+            }>
+              {savedMessage || (canSubmit ? '' : 'Preencha descrição e valor para registrar.')}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <button
                 type="button"
                 onClick={handleAddToBatch}
                 disabled={!podeSalvar}
-                className="rounded-xl px-3 py-2 text-xs font-semibold text-brand-600 hover:bg-brand-50 disabled:cursor-not-allowed disabled:text-slate-300 transition dark:text-brand-400 dark:hover:bg-brand-900/20"
+                style={{
+                  padding: '12px 8px', borderRadius: 11, fontSize: 13, fontWeight: 600,
+                  background: 'transparent', border: 'none', boxShadow: 'none',
+                  color: podeSalvar ? C.primaryDark : '#adbfc9', cursor: podeSalvar ? 'pointer' : 'not-allowed',
+                }}
               >
                 + Adicionar ao lote
               </button>
-              <Button type="submit" disabled={(!podeSalvar && !hasBatch) || isSaving || isSavingAll}>
+              <button
+                type="submit"
+                disabled={!canSubmit || isSaving || isSavingAll}
+                style={{
+                  padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
+                  whiteSpace: 'nowrap', border: 'none', transition: 'all .15s ease',
+                  cursor: canSubmit && !isSaving && !isSavingAll ? 'pointer' : 'not-allowed',
+                  ...(canSubmit
+                    ? { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }
+                    : { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }),
+                }}
+              >
                 {isSaving || isSavingAll
                   ? 'Salvando...'
                   : isEditing
@@ -764,11 +969,11 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
                     : hasBatch
                       ? `Salvar ${batch.length + (podeSalvar ? 1 : 0)} despesas`
                       : 'Registrar despesa'}
-              </Button>
+              </button>
             </div>
           </div>
         </div>
       </form>
-    </Dialog>
+    </div>
   );
 }
