@@ -11,6 +11,7 @@ import { ReservaDialog } from './ReservaDialog';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { useConfirm } from '../../context/ConfirmContext';
 
 function fmt(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -163,6 +164,7 @@ export function ReservasScreen() {
   }>({ open: false });
   const guide = useFirstAccessGuide('reservas:novo-v1');
   const moveGuide = useFirstAccessGuide('reservas:movimentar-v1');
+  const confirm = useConfirm();
 
   const reservas = useQuery({ queryKey: queryKeys.reservas, queryFn: fetchReservas });
 
@@ -175,6 +177,15 @@ export function ReservasScreen() {
     mutationFn: deleteReserva,
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.reservas }),
   });
+
+  const handleDeleteReserva = async (id: number) => {
+    const ok = await confirm({
+      title: 'Excluir reserva',
+      message: 'Excluir esta reserva?',
+      confirmLabel: 'Excluir',
+    });
+    if (ok) deleteMut.mutate(id);
+  };
 
   const movMut = useMutation({
     mutationFn: ({ id, values }: { id: number; values: MovimentacaoFormValues }) => movimentar(id, values),
@@ -244,9 +255,7 @@ export function ReservasScreen() {
                 r={r}
                 onEdit={() => setDialog({ open: true, item: r })}
                 onMovimentar={() => setDialog({ open: true, item: r, startTab: 'movimentar' })}
-                onDelete={() => {
-                  if (confirm('Excluir esta reserva?')) deleteMut.mutate(r.id);
-                }}
+                onDelete={() => handleDeleteReserva(r.id)}
                 moveGuide={i === 0 && moveGuide.isVisible
                   ? { description: firstAccessGuideMessages.reservasMovimentar, onDismiss: moveGuide.dismiss }
                   : undefined}

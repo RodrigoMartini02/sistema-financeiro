@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Layers, Plus } from 'lucide-react';
 import {
@@ -14,6 +14,7 @@ import { formatCurrency } from '../finance/formatters';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { useConfirm } from '../../context/ConfirmContext';
 
 function ServicoDialog({
   open, servico, isSaving, error, onClose, onSave, onDelete,
@@ -26,9 +27,17 @@ function ServicoDialog({
   onSave: (data: { nome: string; valor_mensal_padrao: number }) => void;
   onDelete?: () => void;
 }) {
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const confirm = useConfirm();
 
-  useEffect(() => { if (!open) setConfirmDelete(false); }, [open]);
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    const ok = await confirm({
+      title: 'Excluir serviço',
+      message: `Excluir "${servico?.nome}"? Esta ação não pode ser desfeita.`,
+      confirmLabel: 'Excluir',
+    });
+    if (ok) onDelete();
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -68,15 +77,7 @@ function ServicoDialog({
 
         <div className="flex items-center gap-2">
           {servico && onDelete && (
-            !confirmDelete ? (
-              <Button type="button" variant="danger" onClick={() => setConfirmDelete(true)}>Excluir</Button>
-            ) : (
-              <>
-                <span className="text-sm text-slate-600">Confirmar?</span>
-                <Button type="button" variant="danger" onClick={() => { onDelete(); setConfirmDelete(false); }}>Sim</Button>
-                <Button type="button" variant="ghost" onClick={() => setConfirmDelete(false)}>Não</Button>
-              </>
-            )
+            <Button type="button" variant="danger" onClick={handleDelete}>Excluir</Button>
           )}
           <div className="ml-auto">
             <Button type="submit" disabled={isSaving}>{isSaving ? 'Salvando...' : 'Salvar'}</Button>

@@ -10,6 +10,7 @@ import { Field, Input, Select } from '../../ui/form';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { useConfirm } from '../../context/ConfirmContext';
 
 type CategoriaKind = 'principal' | 'subcategoria';
 
@@ -57,6 +58,20 @@ function CategoriaDialog({
   const [localError, setLocalError] = useState<string | null>(null);
   const vincularGuide = useFirstAccessGuide('categorias:vincular-principal-v1');
   const desativarGuide = useFirstAccessGuide('categorias:desativar-v1');
+  const confirm = useConfirm();
+
+  const handleToggle = async () => {
+    if (!onToggle || !cat) return;
+    const ok = await confirm({
+      title: cat.ativo ? 'Desativar categoria' : 'Ativar categoria',
+      message: cat.ativo
+        ? `Desativar "${cat.nome}"? Ela deixará de aparecer nas opções de categoria ao lançar receitas e despesas.`
+        : `Ativar "${cat.nome}" novamente?`,
+      confirmLabel: cat.ativo ? 'Desativar' : 'Ativar',
+      variant: cat.ativo ? 'danger' : 'default',
+    });
+    if (ok) onToggle();
+  };
 
   useEffect(() => {
     if (!open) {
@@ -192,7 +207,7 @@ function CategoriaDialog({
         <div className="flex items-center gap-2">
           {cat && onToggle && (
             <div className="relative">
-              <Button type="button" variant={cat.ativo ? 'danger' : 'ghost'} onClick={onToggle}>
+              <Button type="button" variant={cat.ativo ? 'danger' : 'ghost'} onClick={handleToggle}>
                 {cat.ativo ? 'Desativar' : 'Ativar'}
               </Button>
               {cat.ativo && desativarGuide.isVisible && (

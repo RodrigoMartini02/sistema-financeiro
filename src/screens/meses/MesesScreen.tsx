@@ -8,6 +8,7 @@ import type { AppSection } from '../../layout/AppShell';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { useConfirm } from '../../context/ConfirmContext';
 
 interface MesData {
   ano: number;
@@ -63,6 +64,7 @@ function MesCard({
   onGuideDismiss?: () => void;
 }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const saldo = useQuery({
     queryKey: ['mes-saldo', ano, mes],
     queryFn: () => fetchSaldoMes(ano, mes),
@@ -80,6 +82,25 @@ function MesCard({
   });
 
   const fechado = dadoBD?.fechado ?? false;
+
+  const handleToggleFechamento = async () => {
+    if (fechado) {
+      const ok = await confirm({
+        title: 'Reabrir mês',
+        message: `Reabrir ${MONTH_NAMES[mes]}?`,
+        confirmLabel: 'Reabrir',
+      });
+      if (ok) reabrirMut.mutate();
+    } else {
+      const ok = await confirm({
+        title: 'Fechar mês',
+        message: `Fechar ${MONTH_NAMES[mes]}? Os lançamentos ficarão bloqueados.`,
+        confirmLabel: 'Fechar',
+      });
+      if (ok) fecharMut.mutate();
+    }
+  };
+
   const s = saldo.data;
   const saldoVal = s ? s.saldo_anterior + s.receitas - s.despesas : null;
   const positivo = saldoVal !== null && saldoVal >= 0;
@@ -135,13 +156,7 @@ function MesCard({
         </button>
         <div className="relative">
           <button
-            onClick={() => {
-              if (fechado) {
-                if (confirm(`Reabrir ${MONTH_NAMES[mes]}?`)) reabrirMut.mutate();
-              } else {
-                if (confirm(`Fechar ${MONTH_NAMES[mes]}? Os lançamentos ficarão bloqueados.`)) fecharMut.mutate();
-              }
-            }}
+            onClick={handleToggleFechamento}
             disabled={fecharMut.isPending || reabrirMut.isPending}
             className={['flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition',
               fechado

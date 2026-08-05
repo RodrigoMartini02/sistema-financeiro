@@ -10,6 +10,7 @@ import { Field, Input, SectionDivider } from '../../ui/form';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { useConfirm } from '../../context/ConfirmContext';
 
 const COR_OPCOES = [
   { value: '#1e40af', label: 'Azul' },
@@ -152,6 +153,7 @@ export function CartaoTab() {
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Cartao }>({ open: false });
   const createGuide = useFirstAccessGuide('cartoes:novo-v1');
+  const confirm = useConfirm();
 
   const cartoes = useQuery({ queryKey: queryKeys.cartoes, queryFn: fetchCartoes });
 
@@ -164,6 +166,15 @@ export function CartaoTab() {
     mutationFn: deleteCartao,
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.cartoes }),
   });
+
+  const handleDeleteCartao = async (cartao: Cartao) => {
+    const ok = await confirm({
+      title: 'Excluir cartão',
+      message: `Excluir cartão "${cartao.nome}"?`,
+      confirmLabel: 'Excluir',
+    });
+    if (ok) deleteMut.mutate(cartao.id);
+  };
 
   const data = cartoes.data ?? [];
 
@@ -222,7 +233,7 @@ export function CartaoTab() {
                   </button>
                   <button
                     className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15 text-white hover:bg-red-400/40 transition"
-                    onClick={() => { if (confirm(`Excluir cartão "${c.nome}"?`)) deleteMut.mutate(c.id); }}
+                    onClick={() => handleDeleteCartao(c)}
                     title="Excluir"
                   >
                     <Trash2 size={13} />

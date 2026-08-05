@@ -11,6 +11,7 @@ import { ConfigListRow } from '../../ui/ConfigListRow';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { useConfirm } from '../../context/ConfirmContext';
 
 // ─── Category preview data (mirrors backend presets) ─────────────────────────
 
@@ -186,18 +187,25 @@ function PerfilDialog({
 }) {
   const [tipo, setTipo] = useState<'pessoal' | 'empresa'>(perfil?.tipo ?? 'empresa');
   const [enquadramento, setEnquadramento] = useState<string>(perfil?.enquadramento ?? '');
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const confirm = useConfirm();
   const enquadramentoGuide = useFirstAccessGuide('perfis:enquadramento-v1');
 
   const isNew = !perfil;
 
   useEffect(() => {
-    if (!open) {
-      setConfirmDelete(false);
-      return;
-    }
+    if (!open) return;
     setEnquadramento(perfil?.enquadramento ?? '');
   }, [open, perfil]);
+
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    const ok = await confirm({
+      title: 'Arquivar perfil',
+      message: `Arquivar "${perfil?.nome}"? Ele deixará de aparecer na lista de perfis ativos.`,
+      confirmLabel: 'Arquivar',
+    });
+    if (ok) onDelete();
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -323,15 +331,7 @@ function PerfilDialog({
 
         <div className="flex items-center gap-2">
           {perfil && onDelete && (
-            !confirmDelete ? (
-              <Button type="button" variant="danger" onClick={() => setConfirmDelete(true)}>Arquivar</Button>
-            ) : (
-              <>
-                <span className="text-sm text-slate-600">Confirmar?</span>
-                <Button type="button" variant="danger" onClick={() => { onDelete(); setConfirmDelete(false); }}>Sim</Button>
-                <Button type="button" variant="ghost" onClick={() => setConfirmDelete(false)}>Não</Button>
-              </>
-            )
+            <Button type="button" variant="danger" onClick={handleDelete}>Arquivar</Button>
           )}
           <div className="ml-auto">
             <Button type="submit" disabled={isSaving}>{isSaving ? 'Salvando...' : 'Salvar'}</Button>
