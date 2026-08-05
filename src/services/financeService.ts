@@ -176,6 +176,8 @@ export async function saveExpense(month: number, year: number, values: ExpenseFo
     recorrente: values.recorrente ?? false,
     parcelado: values.parcelado ?? false,
     total_parcelas: values.parcelado ? (values.total_parcelas ?? null) : null,
+    parcelas_ja_pagas: values.parcelado ? (values.parcelasJaPagas ?? 0) : null,
+    recorrencia_mensal: values.recorrenciaMensal ?? false,
     perfil_id: profileId,
   };
   if (values.categoria_id) body.categoria_id = Number(values.categoria_id);

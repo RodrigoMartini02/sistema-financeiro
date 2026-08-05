@@ -31,6 +31,10 @@ export function normalizeCategoryText(value: string): string {
     .trim();
 }
 
+function tokenize(value: string): string[] {
+  return normalizeCategoryText(value).split(/[^a-z0-9]+/).filter(Boolean);
+}
+
 function activeCategories(categories: Categoria[]): Categoria[] {
   return categories.filter((category) => category.ativo);
 }
@@ -92,7 +96,13 @@ export function suggestCategoryForDescription(
     if (category) return { id: category.id, name: category.nome, reason: 'historico' };
   }
 
-  const keywordRule = KEYWORD_RULES.find((rule) => rule.keywords.some((keyword) => normalizedDescription.includes(normalizeCategoryText(keyword))));
+  const descriptionTokens = tokenize(description);
+  const keywordRule = KEYWORD_RULES.find((rule) => rule.keywords.some((keyword) => {
+    const keywordTokens = tokenize(keyword);
+    return keywordTokens.length > 1
+      ? normalizedDescription.includes(normalizeCategoryText(keyword))
+      : descriptionTokens.includes(keywordTokens[0]);
+  }));
   if (keywordRule) {
     const category = findCategoryByNames(categories, keywordRule.categories);
     if (category) return { id: category.id, name: category.nome, reason: 'palavra-chave' };

@@ -92,6 +92,8 @@ export interface ExpenseFormValues {
   recorrente?: boolean;
   parcelado?: boolean;
   total_parcelas?: number;
+  parcelasJaPagas?: number;     // quantas parcelas nascem pagas (0 a total_parcelas-1)
+  recorrenciaMensal?: boolean;  // gera lote fixo de ocorrências futuras (dia livre ou fatura do cartão)
   numero_nf?: string;
   data_emissao_nf?: string;
   tipo_despesa?: 'opex' | 'capex';

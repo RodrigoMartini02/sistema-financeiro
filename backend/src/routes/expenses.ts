@@ -48,6 +48,7 @@ async function createFutureInstallments(
   userId: number,
   baseExpense: Record<string, unknown>,
   totalInstallments: number,
+  installmentsAlreadyPaid: number = 0,
 ): Promise<void> {
   const values: string[] = [];
   const params: unknown[] = [];
@@ -69,6 +70,7 @@ async function createFutureInstallments(
     const placeholders = Array.from({ length: 20 }, () => `$${idx++}`).join(', ');
     values.push(`(${placeholders})`);
     const valorPorParcela = parseFloat(String(baseExpense['valor_final'] ?? baseExpense['valor_original'] ?? 0)) / totalInstallments;
+    const installmentIsPaid = i <= installmentsAlreadyPaid;
     params.push(
       userId,
       `${baseExpense['descricao']} (${i}/${totalInstallments})`,
@@ -83,7 +85,7 @@ async function createFutureInstallments(
       totalInstallments,
       i,
       baseExpense['observacoes'],
-      false,
+      installmentIsPaid,
       baseExpense['id'],
       baseExpense['recorrente'] ?? false,
       baseExpense['perfil_id'] ?? null,
@@ -106,9 +108,75 @@ async function createFutureInstallments(
     );
   }
 
+  const firstInstallmentPaid = installmentsAlreadyPaid >= 1;
   await pool.query(
-    `UPDATE despesas SET grupo_parcelamento_id = $1, descricao = $2, parcela_atual = 1 WHERE id = $3`,
-    [baseExpense['id'], `${baseExpense['descricao']} (1/${totalInstallments})`, baseExpense['id']],
+    `UPDATE despesas SET grupo_parcelamento_id = $1, descricao = $2, parcela_atual = 1, pago = $3 WHERE id = $4`,
+    [baseExpense['id'], `${baseExpense['descricao']} (1/${totalInstallments})`, firstInstallmentPaid, baseExpense['id']],
+  );
+}
+
+async function createRecurringOccurrences(
+  userId: number,
+  baseExpense: Record<string, unknown>,
+  totalOccurrences: number,
+): Promise<void> {
+  const values: string[] = [];
+  const params: unknown[] = [];
+  let idx = 1;
+
+  const [yr, mo, dy] = String(baseExpense['data_vencimento']).split('-').map(Number);
+
+  for (let i = 2; i <= totalOccurrences; i++) {
+    let nextMonth = Number(baseExpense['mes']) + (i - 1);
+    let nextYear = Number(baseExpense['ano']);
+    while (nextMonth > 11) {
+      nextMonth -= 12;
+      nextYear += 1;
+    }
+
+    const baseDate = new Date(yr!, mo! - 1, dy!);
+    baseDate.setMonth(baseDate.getMonth() + (i - 1));
+    const nextDue = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(baseDate.getDate()).padStart(2, '0')}`;
+
+    const placeholders = Array.from({ length: 17 }, () => `$${idx++}`).join(', ');
+    values.push(`(${placeholders})`);
+    params.push(
+      userId,
+      baseExpense['descricao'],
+      nextDue,
+      null,
+      nextMonth,
+      nextYear,
+      baseExpense['categoria_id'],
+      baseExpense['cartao_id'],
+      baseExpense['forma_pagamento'],
+      baseExpense['observacoes'],
+      false,
+      baseExpense['id'],
+      true,
+      baseExpense['perfil_id'] ?? null,
+      baseExpense['valor_original'],
+      baseExpense['valor_final'],
+      baseExpense['valor'],
+    );
+  }
+
+  if (values.length > 0) {
+    await pool.query(
+      `INSERT INTO despesas (
+        usuario_id, descricao, data_vencimento, data_compra,
+        mes, ano, categoria_id, cartao_id, forma_pagamento,
+        observacoes, pago,
+        grupo_parcelamento_id, recorrente, perfil_id,
+        valor_original, valor_final, valor
+      ) VALUES ${values.join(', ')}`,
+      params,
+    );
+  }
+
+  await pool.query(
+    `UPDATE despesas SET grupo_parcelamento_id = $1 WHERE id = $2`,
+    [baseExpense['id'], baseExpense['id']],
   );
 }
 
@@ -148,6 +216,100 @@ router.get('/categories', authenticate, async (req: Request, res: Response): Pro
   }
 });
 
+// GET /api/expenses/suggestions?descricao=&categoria_id=
+router.get('/suggestions', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { descricao, categoria_id } = req.query as Record<string, string | undefined>;
+    const userId = req.user!.id;
+    const normalizedDescricao = descricao?.trim();
+    const parsedCategoryId = categoria_id ? parseInt(categoria_id, 10) : null;
+
+    const matches = normalizedDescricao
+      ? await pool.query(
+          `SELECT descricao, valor_final, valor_original, valor, categoria_id, forma_pagamento,
+                  COUNT(*) OVER (PARTITION BY LOWER(descricao)) AS frequencia,
+                  data_vencimento
+           FROM despesas
+           WHERE usuario_id = $1 AND descricao ILIKE $2
+           ORDER BY frequencia DESC, data_vencimento DESC
+           LIMIT 4`,
+          [userId, `%${normalizedDescricao}%`],
+        )
+      : { rows: [] as Record<string, unknown>[] };
+
+    let formaPagamentoSugerida: string | null = null;
+
+    if (Number.isFinite(parsedCategoryId)) {
+      const porCategoria = await pool.query(
+        `SELECT forma_pagamento, COUNT(*) AS total
+         FROM despesas
+         WHERE usuario_id = $1 AND categoria_id = $2
+         GROUP BY forma_pagamento
+         ORDER BY total DESC
+         LIMIT 1`,
+        [userId, parsedCategoryId],
+      );
+      if (porCategoria.rows.length > 0) {
+        formaPagamentoSugerida = (porCategoria.rows[0] as { forma_pagamento: string }).forma_pagamento;
+      }
+    }
+
+    if (!formaPagamentoSugerida) {
+      const geral = await pool.query(
+        `SELECT forma_pagamento, COUNT(*) AS total
+         FROM despesas
+         WHERE usuario_id = $1
+         GROUP BY forma_pagamento
+         ORDER BY total DESC
+         LIMIT 1`,
+        [userId],
+      );
+      if (geral.rows.length > 0) {
+        formaPagamentoSugerida = (geral.rows[0] as { forma_pagamento: string }).forma_pagamento;
+      }
+    }
+
+    let cartaoSugerido: Record<string, unknown> | null = null;
+
+    if (formaPagamentoSugerida === 'credito' || formaPagamentoSugerida === 'debito') {
+      const cartaoMaisUsado = await pool.query(
+        `SELECT c.id, c.nome, c.limite, c.dia_fechamento, c.dia_vencimento,
+                COUNT(d.id) AS total_usos,
+                COALESCE(SUM(CASE WHEN d.pago = false THEN COALESCE(d.valor_final, d.valor_original, d.valor) ELSE 0 END), 0) AS em_aberto
+         FROM cartoes c
+         LEFT JOIN despesas d ON d.cartao_id = c.id AND d.forma_pagamento = $2
+         WHERE c.usuario_id = $1 AND c.ativo = true
+         GROUP BY c.id, c.nome, c.limite, c.dia_fechamento, c.dia_vencimento
+         ORDER BY total_usos DESC
+         LIMIT 1`,
+        [userId, formaPagamentoSugerida],
+      );
+      if (cartaoMaisUsado.rows.length > 0) {
+        const row = cartaoMaisUsado.rows[0] as {
+          id: number; nome: string; limite: string | number; dia_fechamento: number; dia_vencimento: number; em_aberto: string | number;
+        };
+        cartaoSugerido = {
+          id: row.id,
+          nome: row.nome,
+          limite_disponivel: parseFloat(String(row.limite)) - parseFloat(String(row.em_aberto)),
+        };
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        matches: matches.rows,
+        forma_pagamento_sugerida: formaPagamentoSugerida,
+        cartao_sugerido: cartaoSugerido,
+      },
+    });
+  } catch (error) {
+    console.error('Get expense suggestions error:', error);
+    res.status(500).json({ success: false, message: 'Failed to get expense suggestions' });
+  }
+});
+
 // POST /api/expenses
 router.post(
   '/',
@@ -165,8 +327,8 @@ router.post(
       const {
         descricao, valor_original, valor_final, data_vencimento, data_compra, data_pagamento,
         mes, ano, categoria_id, cartao_id, forma_pagamento,
-        parcelado, total_parcelas, parcela_atual, observacoes, pago,
-        valor_pago, anexos, recorrente, perfil_id,
+        parcelado, total_parcelas, parcela_atual, parcelas_ja_pagas, observacoes, pago,
+        valor_pago, anexos, recorrente, recorrencia_mensal, perfil_id,
         numero_nf, data_emissao_nf, tipo_despesa,
       } = req.body as Record<string, unknown>;
 
@@ -211,7 +373,11 @@ router.post(
       const created = result.rows[0] as Record<string, unknown>;
 
       if (parcelado && totalInstallments && Number(totalInstallments) > 1) {
-        await createFutureInstallments(req.user!.id, created, Number(totalInstallments));
+        const installmentsAlreadyPaid = parcelas_ja_pagas ? Number(parcelas_ja_pagas) : 0;
+        await createFutureInstallments(req.user!.id, created, Number(totalInstallments), installmentsAlreadyPaid);
+      } else if (recorrencia_mensal) {
+        const MONTHLY_RECURRENCE_OCCURRENCES = 12;
+        await createRecurringOccurrences(req.user!.id, created, MONTHLY_RECURRENCE_OCCURRENCES);
       }
 
       res.status(201).json({ success: true, message: 'Expense created', data: created });
