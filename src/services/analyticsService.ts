@@ -5,23 +5,9 @@ export interface AnalyticsSummary {
   accounts_in_period: number;
   active_accounts: number;
   cancelled_accounts: number;
-  page_views_total: number;
-  page_views_in_period: number;
   logins_total: number;
   logins_in_period: number;
   login_users_in_period: number;
-}
-
-export interface AnalyticsDailyItem {
-  date: string;
-  page_views: number;
-  logins: number;
-  accounts: number;
-}
-
-export interface AnalyticsTopPage {
-  path: string | null;
-  views: number;
 }
 
 export interface AnalyticsRecentAccount {
@@ -37,8 +23,6 @@ export interface AnalyticsOverview {
   days: number;
   eventsAvailable: boolean;
   summary: AnalyticsSummary;
-  daily: AnalyticsDailyItem[];
-  topPages: AnalyticsTopPage[];
   recentAccounts: AnalyticsRecentAccount[];
 }
 
