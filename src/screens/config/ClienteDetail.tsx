@@ -21,6 +21,7 @@ import { formatCurrency } from '../finance/formatters';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { useConfirm } from '../../context/ConfirmContext';
 
 // ─── Module-level helpers ─────────────────────────────────────────────────────
 
@@ -589,6 +590,17 @@ function ContratoModal({
     onSuccess: () => void qc.invalidateQueries({ queryKey: queryKeys.contratosServicos(contrato!.id) }),
   });
 
+  const confirm = useConfirm();
+
+  const handleDesvincularServico = async (servicoNome: string, vinculoId: number) => {
+    const ok = await confirm({
+      title: 'Remover serviço',
+      message: `Remover "${servicoNome}" deste contrato?`,
+      confirmLabel: 'Remover',
+    });
+    if (ok) desvincularMut.mutate(vinculoId);
+  };
+
   const catalogo         = catalogoQ.data ?? [];
   const servicosContrato = servicosContratoQ.data ?? [];
   const vinculoMap       = new Map(servicosContrato.map((s) => [s.servico_id, s]));
@@ -855,7 +867,7 @@ function ContratoModal({
                         onDesvincular={() => {
                           if (contrato) {
                             const v = vinculoMap.get(servico.id);
-                            if (v && confirm(`Remover "${servico.nome}" deste contrato?`)) desvincularMut.mutate(v.id);
+                            if (v) handleDesvincularServico(servico.nome, v.id);
                           } else {
                             setPendingServicos((m) => { const n = new Map(m); n.delete(servico.id); return n; });
                           }
@@ -933,6 +945,7 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
   onEditCliente?: () => void;
 }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [contratoModal, setContratoModal] = useState<{ open: boolean; contrato?: Contrato }>({ open: false });
   const gerarPrevistasGuide = useFirstAccessGuide('clientes:gerar-previstas-v1');
 
@@ -991,6 +1004,15 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
       setContratoModal({ open: false });
     },
   });
+
+  const handleEncerrarContrato = async (contratoId: number) => {
+    const ok = await confirm({
+      title: 'Encerrar contrato',
+      message: 'Encerrar contrato e cancelar receitas previstas futuras?',
+      confirmLabel: 'Encerrar contrato',
+    });
+    if (ok) encerrarMut.mutate(contratoId);
+  };
 
   const gerarMut = useMutation({
     mutationFn: (id: number) => gerarPrevistas(id),
@@ -1090,11 +1112,7 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
         onClose={() => setContratoModal({ open: false })}
         onEncerrar={
           contratoModal.contrato?.status === 'ativo'
-            ? () => {
-                if (confirm('Encerrar contrato e cancelar receitas previstas futuras?')) {
-                  encerrarMut.mutate(contratoModal.contrato!.id);
-                }
-              }
+            ? () => handleEncerrarContrato(contratoModal.contrato!.id)
             : undefined
         }
       />

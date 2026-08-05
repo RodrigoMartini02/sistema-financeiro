@@ -23,6 +23,7 @@ import { formatCurrency, formatDate } from '../finance/formatters';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { useConfirm } from '../../context/ConfirmContext';
 
 type FiltroStatus = 'todos' | 'pago' | 'em_dia' | 'atrasada';
 type FiltroDataPag = 'qualquer' | 'hoje' | 'semana' | 'mes';
@@ -202,6 +203,7 @@ export function DespesasScreen() {
 
   const isEmpresa = localStorage.getItem('perfilAtivoTipo') === 'empresa';
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const finance = useFinanceDashboard(month, year);
   const allItems = finance.dashboard.data?.expenses ?? [];
 
@@ -252,6 +254,26 @@ export function DespesasScreen() {
     mutationFn: (id: number) => apiRequest<void>(`/despesas/${id}/cancelar`, { method: 'PUT' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) }),
   });
+
+  const handleMoverProximoMes = async (item: Expense) => {
+    const ok = await confirm({
+      title: 'Mover despesa',
+      message: `Mover "${item.descricao}" para o próximo mês?`,
+      confirmLabel: 'Mover',
+      variant: 'default',
+    });
+    if (ok) moverMut.mutate(item.id);
+  };
+
+  const handleCancelarDespesa = async (item: Expense) => {
+    if (item.status === 'cancelada') return;
+    const ok = await confirm({
+      title: 'Cancelar despesa',
+      message: `Cancelar "${item.descricao}"?`,
+      confirmLabel: 'Cancelar despesa',
+    });
+    if (ok) cancelarMut.mutate(item.id);
+  };
 
   const categorias = [...new Set(allItems.map((i) => i.categoria))].sort();
   const formas = [...new Set(allItems.map((i) => i.formaPagamento))].sort();
@@ -720,11 +742,7 @@ export function DespesasScreen() {
                           </ActionBtn>
                           <div className="relative">
                             <ActionBtn
-                              onClick={() => {
-                                if (confirm(`Mover "${item.descricao}" para o próximo mês?`)) {
-                                  moverMut.mutate(item.id);
-                                }
-                              }}
+                              onClick={() => handleMoverProximoMes(item)}
                               disabled={item.pago || mesFechado || item.status === 'cancelada'}
                               title={item.status === 'cancelada' ? 'Cancelada' : item.pago ? 'Já pago' : mesFechado ? 'Mês fechado' : 'Mover para próximo mês'}
                               colorClass="text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/30"
@@ -744,10 +762,7 @@ export function DespesasScreen() {
                             )}
                           </div>
                           <ActionBtn
-                            onClick={() => {
-                              if (item.status === 'cancelada') return;
-                              if (confirm(`Cancelar "${item.descricao}"?`)) cancelarMut.mutate(item.id);
-                            }}
+                            onClick={() => handleCancelarDespesa(item)}
                             disabled={item.status === 'cancelada' || cancelarMut.isPending}
                             title={item.status === 'cancelada' ? 'Já cancelada' : 'Cancelar'}
                             colorClass="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"

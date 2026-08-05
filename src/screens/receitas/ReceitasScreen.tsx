@@ -17,6 +17,7 @@ import { formatCurrency, formatDate } from '../finance/formatters';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { useConfirm } from '../../context/ConfirmContext';
 import type { Attachment } from '../../types/finance';
 
 const MONTH_NAMES_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -68,6 +69,7 @@ export function ReceitasScreen() {
   const contratosGuide = useFirstAccessGuide('receitas:contratos-faturamento-v1');
 
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const finance = useFinanceDashboard(month, year);
   const allItems = finance.dashboard.data?.incomes ?? [];
 
@@ -83,6 +85,26 @@ export function ReceitasScreen() {
       void qc.invalidateQueries({ queryKey: queryKeys.contratosStatusFaturamento(month, year) });
     },
   });
+
+  const handleConfirmarRecebimento = async (item: Income) => {
+    const ok = await confirm({
+      title: 'Confirmar recebimento',
+      message: `Confirmar recebimento de "${item.descricao}"?`,
+      confirmLabel: 'Confirmar',
+      variant: 'default',
+    });
+    if (ok) receberReceita.mutate(item.id);
+  };
+
+  const handleCancelarReceita = async (item: Income) => {
+    if (item.status === 'cancelada') return;
+    const ok = await confirm({
+      title: 'Cancelar receita',
+      message: `Cancelar "${item.descricao}"?`,
+      confirmLabel: 'Cancelar receita',
+    });
+    if (ok) cancelarReceita.mutate(item.id);
+  };
 
   const contratosQ = useQuery({
     queryKey: queryKeys.contratosStatusFaturamento(month, year),
@@ -431,9 +453,7 @@ export function ReceitasScreen() {
                         <div className="flex justify-end gap-1">
                           {isPrevista ? (
                             <button
-                              onClick={() => {
-                                if (confirm(`Confirmar recebimento de "${item.descricao}"?`)) receberReceita.mutate(item.id);
-                              }}
+                              onClick={() => handleConfirmarRecebimento(item)}
                               disabled={receberReceita.isPending}
                               title="Confirmar recebimento"
                               className="rounded-lg p-1.5 text-slate-400 hover:bg-green-50 hover:text-green-600 disabled:opacity-30 transition"
@@ -442,10 +462,7 @@ export function ReceitasScreen() {
                             </button>
                           ) : (
                             <button
-                              onClick={() => {
-                                if (item.status === 'cancelada') return;
-                                if (confirm(`Cancelar "${item.descricao}"?`)) cancelarReceita.mutate(item.id);
-                              }}
+                              onClick={() => handleCancelarReceita(item)}
                               disabled={item.status === 'cancelada' || cancelarReceita.isPending}
                               title={item.status === 'cancelada' ? 'Já cancelada' : 'Cancelar'}
                               className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 transition"

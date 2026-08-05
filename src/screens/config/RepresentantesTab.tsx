@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, X, Percent, Check } from 'lucide-react';
 import {
@@ -14,6 +14,7 @@ import { ConfigListRow } from '../../ui/ConfigListRow';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { useConfirm } from '../../context/ConfirmContext';
 
 function ComissaoRow({
   comissao,
@@ -175,7 +176,7 @@ function RepresentanteDialog({
   const [comissoes, setComissoes] = useState<Comissao[]>(
     rep?.comissoes?.length ? rep.comissoes : [{ tipo_receita: defaultTipo, percentual: 5, tipo: 'mensal' }]
   );
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const confirm = useConfirm();
   const comissoesGuide = useFirstAccessGuide('representantes:comissoes-v1');
   const tipoComissaoGuide = useFirstAccessGuide('representantes:tipo-comissao-v1');
 
@@ -189,7 +190,15 @@ function RepresentanteDialog({
     return created.nome;
   };
 
-  useEffect(() => { if (!open) setConfirmDelete(false); }, [open]);
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    const ok = await confirm({
+      title: 'Excluir representante',
+      message: `Excluir "${rep?.nome}"? Esta ação não pode ser desfeita.`,
+      confirmLabel: 'Excluir',
+    });
+    if (ok) onDelete();
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -283,15 +292,7 @@ function RepresentanteDialog({
 
         <div className="flex items-center gap-2">
           {rep && onDelete && (
-            !confirmDelete ? (
-              <Button type="button" variant="danger" onClick={() => setConfirmDelete(true)}>Excluir</Button>
-            ) : (
-              <>
-                <span className="text-sm text-slate-600">Confirmar?</span>
-                <Button type="button" variant="danger" onClick={() => { onDelete(); setConfirmDelete(false); }}>Sim</Button>
-                <Button type="button" variant="ghost" onClick={() => setConfirmDelete(false)}>Não</Button>
-              </>
-            )
+            <Button type="button" variant="danger" onClick={handleDelete}>Excluir</Button>
           )}
           <div className="ml-auto">
             <Button type="submit" disabled={isSaving}>{isSaving ? 'Salvando...' : 'Salvar'}</Button>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AppProvider, useAppContext } from './context/AppContext';
+import { ConfirmProvider } from './context/ConfirmContext';
 import { HomePage } from './screens/public/HomePage';
 import { FuncionalidadesPage } from './screens/public/FuncionalidadesPage';
 import { SobrePage } from './screens/public/SobrePage';
@@ -174,7 +175,9 @@ function AppContent() {
 export function App() {
   return (
     <AppProvider>
-      <AppContent />
+      <ConfirmProvider>
+        <AppContent />
+      </ConfirmProvider>
     </AppProvider>
   );
 }

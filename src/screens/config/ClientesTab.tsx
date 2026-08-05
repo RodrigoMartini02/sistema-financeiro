@@ -15,6 +15,7 @@ import { ClienteDetail } from './ClienteDetail';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { useConfirm } from '../../context/ConfirmContext';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -40,11 +41,20 @@ function ClienteDialog({
   onSave: (data: Omit<Cliente, 'id' | 'total_contratos' | 'contratos_ativos'>) => void;
   onDelete?: () => void;
 }) {
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [cnpj, setCnpj] = useState(cliente?.cnpj ?? '');
+  const confirm = useConfirm();
 
-  useEffect(() => { if (!open) setConfirmDelete(false); }, [open]);
   useEffect(() => { setCnpj(cliente?.cnpj ?? ''); }, [cliente?.id, open]);
+
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    const ok = await confirm({
+      title: 'Excluir cliente',
+      message: `Excluir "${cliente?.nome}"? Esta ação não pode ser desfeita.`,
+      confirmLabel: 'Excluir',
+    });
+    if (ok) onDelete();
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -78,15 +88,7 @@ function ClienteDialog({
 
         <div className="flex items-center gap-2">
           {cliente && onDelete && (
-            !confirmDelete ? (
-              <Button type="button" variant="danger" onClick={() => setConfirmDelete(true)}>Excluir</Button>
-            ) : (
-              <>
-                <span className="text-sm text-slate-600">Confirmar?</span>
-                <Button type="button" variant="danger" onClick={() => { onDelete(); setConfirmDelete(false); }}>Sim</Button>
-                <Button type="button" variant="ghost" onClick={() => setConfirmDelete(false)}>Não</Button>
-              </>
-            )
+            <Button type="button" variant="danger" onClick={handleDelete}>Excluir</Button>
           )}
           <div className="ml-auto">
             <Button type="submit" disabled={isSaving}>{isSaving ? 'Salvando...' : 'Salvar'}</Button>
