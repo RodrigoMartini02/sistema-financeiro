@@ -106,7 +106,7 @@ function MesCard({
   const positivo = saldoVal !== null && saldoVal >= 0;
 
   return (
-    <Card className={['flex flex-col transition', fechado ? 'opacity-80' : ''].join(' ')}>
+    <Card allowOverflow className={['flex flex-col transition', fechado ? 'opacity-80' : ''].join(' ')}>
       <div className={['flex items-center justify-between px-4 py-3 border-b', fechado ? 'border-slate-100 bg-slate-50' : 'border-slate-100'].join(' ')}>
         <div>
           <p className="font-bold text-slate-900 text-sm">{MONTH_NAMES[mes]}</p>
@@ -171,7 +171,7 @@ function MesCard({
               floating
               placement="top"
               align="right"
-              className="absolute right-0 top-full z-50 mt-3 w-[min(22rem,calc(100vw-2rem))]"
+              className="absolute right-0 top-full z-[45] mt-3 w-[min(22rem,calc(100vw-2rem))]"
               icon={Lock}
               description={firstAccessGuideMessages.mesesFecharReabrir}
               onDismiss={onGuideDismiss}

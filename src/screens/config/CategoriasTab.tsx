@@ -189,7 +189,7 @@ function CategoriaDialog({
               <FirstAccessGuideCard
                 floating
                 placement="bottom"
-                className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
                 icon={Link2}
                 description={firstAccessGuideMessages.categoriasVincularPrincipal}
                 onDismiss={vincularGuide.dismiss}
@@ -213,8 +213,8 @@ function CategoriaDialog({
               {cat.ativo && desativarGuide.isVisible && (
                 <FirstAccessGuideCard
                   floating
-                  placement="top"
-                  className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                  placement="bottom"
+                  className="absolute left-0 bottom-full z-[45] mb-3 w-[min(24rem,calc(100vw-2rem))]"
                   icon={Tag}
                   description={firstAccessGuideMessages.categoriasDesativar}
                   onDismiss={desativarGuide.dismiss}
@@ -301,7 +301,7 @@ function CategoriaRow({
                   floating
                   placement="top"
                   align="right"
-                  className="absolute right-0 top-full z-50 mt-3 w-[min(22rem,calc(100vw-2rem))]"
+                  className="absolute right-0 top-full z-[45] mt-3 w-[min(22rem,calc(100vw-2rem))]"
                   icon={FolderTree}
                   description={subcategoryGuide.description}
                   onDismiss={subcategoryGuide.onDismiss}
@@ -394,7 +394,7 @@ export function CategoriasTab() {
                 floating
                 placement="top"
                 align="right"
-                className="absolute right-0 top-full z-50 mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                className="absolute right-0 top-full z-[45] mt-3 w-[min(25rem,calc(100vw-2rem))]"
                 icon={Tag}
                 description={firstAccessGuideMessages.categoriasNova}
                 onDismiss={guideNovaCategoria.dismiss}

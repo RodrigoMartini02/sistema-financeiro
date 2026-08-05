@@ -204,7 +204,7 @@ export function ReceitasScreen() {
                 <FirstAccessGuideCard
                   floating
                   placement="top"
-                  className="absolute right-0 top-full z-50 mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                  className="absolute right-0 top-full z-[45] mt-3 w-[min(25rem,calc(100vw-2rem))]"
                   icon={TrendingUp}
                   description={firstAccessGuideMessages.receitasNova}
                   onDismiss={guide.dismiss}
@@ -258,7 +258,7 @@ export function ReceitasScreen() {
 
         {/* Contratos ? Faturamento */}
         {(contratosQ.data?.length ?? 0) > 0 && (
-          <Card>
+          <Card allowOverflow>
             <div className="relative flex items-center gap-2 border-b border-slate-100 px-4 py-3">
               <Building2 size={15} className="text-slate-500" />
               <h3 className="text-sm font-bold text-slate-800">
@@ -269,7 +269,7 @@ export function ReceitasScreen() {
                 <FirstAccessGuideCard
                   floating
                   placement="bottom"
-                  className="absolute left-0 top-full z-50 mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                  className="absolute left-0 top-full z-[45] mt-3 w-[min(25rem,calc(100vw-2rem))]"
                   icon={Building2}
                   description={firstAccessGuideMessages.receitasContratosFaturamento}
                   onDismiss={contratosGuide.dismiss}
@@ -322,7 +322,7 @@ export function ReceitasScreen() {
         )}
 
         {/* Table */}
-        <Card>
+        <Card allowOverflow>
           {/* Toolbar */}
           <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
             <h3 className="text-sm font-bold text-slate-800 shrink-0">
@@ -343,7 +343,7 @@ export function ReceitasScreen() {
                   align="right"
                   floating
                   placement="top"
-                  className="absolute right-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                  className="absolute right-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
                   onDismiss={searchGuide.dismiss}
                 />
               )}

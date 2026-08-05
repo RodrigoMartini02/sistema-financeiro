@@ -696,7 +696,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, onClo
                   <FirstAccessGuideCard
                     floating
                     placement="bottom"
-                    className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                    className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
                     icon={Users}
                     description={firstAccessGuideMessages.receitasRepresentante}
                     onDismiss={representanteGuide.dismiss}
@@ -749,7 +749,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, onClo
                   <FirstAccessGuideCard
                     floating
                     placement="bottom"
-                    className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                    className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
                     icon={Clock}
                     description={firstAccessGuideMessages.receitasHoras}
                     onDismiss={horasGuide.dismiss}
@@ -845,8 +845,8 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, onClo
                 {replicarGuide.isVisible && (
                   <FirstAccessGuideCard
                     floating
-                    placement="bottom"
-                    className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                    placement="top"
+                    className="absolute left-0 bottom-full z-[45] mb-3 w-[min(24rem,calc(100vw-2rem))]"
                     icon={ChevronDown}
                     description={firstAccessGuideMessages.receitasReplicar}
                     onDismiss={replicarGuide.dismiss}

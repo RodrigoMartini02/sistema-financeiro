@@ -364,7 +364,7 @@ export function DespesasScreen() {
                   <FirstAccessGuideCard
                     floating
                     placement="top"
-                    className="absolute right-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                    className="absolute right-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
                     icon={Lock}
                     description={firstAccessGuideMessages.despesasFecharMes}
                     onDismiss={fecharMesGuide.dismiss}
@@ -378,7 +378,7 @@ export function DespesasScreen() {
                 <FirstAccessGuideCard
                   floating
                   placement="top"
-                  className="absolute right-0 top-full z-50 mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                  className="absolute right-0 top-full z-[45] mt-3 w-[min(25rem,calc(100vw-2rem))]"
                   icon={TrendingDown}
                   description={firstAccessGuideMessages.despesasNova}
                   onDismiss={guide.dismiss}
@@ -438,7 +438,7 @@ export function DespesasScreen() {
         )}
 
         {/* Table card */}
-        <Card>
+        <Card allowOverflow>
           {/* Toolbar: filtros */}
           <div className="flex items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700 px-4 py-3">
             <div className="relative shrink-0">
@@ -468,7 +468,7 @@ export function DespesasScreen() {
                 <FirstAccessGuideCard
                   floating
                   placement="bottom"
-                  className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                  className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
                   icon={CheckSquare}
                   description={firstAccessGuideMessages.despesasPagarSelecionadas}
                   onDismiss={pagarSelecionadasGuide.dismiss}
@@ -483,7 +483,7 @@ export function DespesasScreen() {
                   align="right"
                   floating
                   placement="top"
-                  className="absolute right-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                  className="absolute right-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
                   onDismiss={filterGuide.dismiss}
                 />
               )}
@@ -568,7 +568,29 @@ export function DespesasScreen() {
               </div>
             )
           ) : (
-            <div className="overflow-x-auto">
+            <div className="relative">
+              {loteGuide.isVisible && selecionadas.size === 0 && !mesFechado && unpaidFiltered.length > 0 && (
+                <FirstAccessGuideCard
+                  floating
+                  placement="bottom"
+                  className="absolute left-3 top-0 z-[45] w-[min(24rem,calc(100vw-2rem))]"
+                  icon={CheckSquare}
+                  description={firstAccessGuideMessages.despesasLote}
+                  onDismiss={loteGuide.dismiss}
+                />
+              )}
+              {moverMesGuide.isVisible && (
+                <FirstAccessGuideCard
+                  floating
+                  placement="top"
+                  align="right"
+                  className="absolute right-3 top-0 z-[45] w-[min(22rem,calc(100vw-2rem))]"
+                  icon={ArrowRight}
+                  description={firstAccessGuideMessages.despesasMoverMes}
+                  onDismiss={moverMesGuide.dismiss}
+                />
+              )}
+              <div className="overflow-x-auto">
               <table className="w-full text-sm table-fixed">
                 <colgroup>
                   <col style={{ width: '40px' }} />
@@ -586,7 +608,7 @@ export function DespesasScreen() {
                 </colgroup>
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-left">
-                    <th className="relative px-3 py-2.5 text-center">
+                    <th className="px-3 py-2.5 text-center">
                       <input
                         type="checkbox"
                         checked={allSelected}
@@ -595,16 +617,6 @@ export function DespesasScreen() {
                         title="Selecionar todas não pagas"
                         className="rounded accent-[#0EC4D8] cursor-pointer disabled:opacity-40"
                       />
-                      {loteGuide.isVisible && selecionadas.size === 0 && !mesFechado && unpaidFiltered.length > 0 && (
-                        <FirstAccessGuideCard
-                          floating
-                          placement="bottom"
-                          className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))] normal-case"
-                          icon={CheckSquare}
-                          description={firstAccessGuideMessages.despesasLote}
-                          onDismiss={loteGuide.dismiss}
-                        />
-                      )}
                     </th>
                     <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Descrição</th>
                     <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Tipo</th>
@@ -620,7 +632,7 @@ export function DespesasScreen() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                  {filtered.map((item, rowIdx) => (
+                  {filtered.map((item) => (
                     <tr
                       key={item.id}
                       className={[
@@ -740,27 +752,14 @@ export function DespesasScreen() {
                           >
                             <CircleCheck size={15} />
                           </ActionBtn>
-                          <div className="relative">
-                            <ActionBtn
-                              onClick={() => handleMoverProximoMes(item)}
-                              disabled={item.pago || mesFechado || item.status === 'cancelada'}
-                              title={item.status === 'cancelada' ? 'Cancelada' : item.pago ? 'Já pago' : mesFechado ? 'Mês fechado' : 'Mover para próximo mês'}
-                              colorClass="text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/30"
-                            >
-                              <ArrowRight size={14} />
-                            </ActionBtn>
-                            {rowIdx === 0 && moverMesGuide.isVisible && (
-                              <FirstAccessGuideCard
-                                floating
-                                placement="top"
-                                align="right"
-                                className="absolute right-0 top-full z-50 mt-3 w-[min(22rem,calc(100vw-2rem))]"
-                                icon={ArrowRight}
-                                description={firstAccessGuideMessages.despesasMoverMes}
-                                onDismiss={moverMesGuide.dismiss}
-                              />
-                            )}
-                          </div>
+                          <ActionBtn
+                            onClick={() => handleMoverProximoMes(item)}
+                            disabled={item.pago || mesFechado || item.status === 'cancelada'}
+                            title={item.status === 'cancelada' ? 'Cancelada' : item.pago ? 'Já pago' : mesFechado ? 'Mês fechado' : 'Mover para próximo mês'}
+                            colorClass="text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/30"
+                          >
+                            <ArrowRight size={14} />
+                          </ActionBtn>
                           <ActionBtn
                             onClick={() => handleCancelarDespesa(item)}
                             disabled={item.status === 'cancelada' || cancelarMut.isPending}
@@ -775,6 +774,7 @@ export function DespesasScreen() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </Card>

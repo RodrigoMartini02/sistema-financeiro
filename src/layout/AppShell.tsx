@@ -13,6 +13,7 @@ import { fetchPerfis } from '../services/configService';
 import { queryKeys } from '../services/queryKeys';
 import { useAppContext } from '../context/AppContext';
 import { MONTH_NAMES } from '../types/finance';
+import { Z_DROPDOWN, Z_MOBILE_NAV_OVERLAY, Z_SYSTEM_OVERLAY } from '../ui/zIndex';
 
 export type AppSection =
   | 'painel' | 'receitas' | 'despesas' | 'reservas'
@@ -100,7 +101,7 @@ function PerfilSwitcher() {
         <ChevronDown size={12} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="absolute left-3 right-3 top-full z-50 mt-1 rounded-xl border border-[rgba(14,196,216,0.22)] bg-[#0A2530] shadow-xl overflow-hidden">
+        <div className={['absolute left-3 right-3 top-full mt-1 rounded-xl border border-[rgba(14,196,216,0.22)] bg-[#0A2530] shadow-xl overflow-hidden', Z_DROPDOWN].join(' ')}>
           {data.map((p) => (
             <button
               key={p.id}
@@ -164,9 +165,9 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
 
   return (
     <>
-      <div className="fixed inset-0 z-[9998] bg-slate-950/15 backdrop-blur-[1px]" onClick={onClose} />
+      <div className={['fixed inset-0 bg-slate-950/15 backdrop-blur-[1px]', Z_SYSTEM_OVERLAY].join(' ')} onClick={onClose} />
       <aside
-        className="fixed inset-y-0 right-0 z-[9999] flex w-[min(100vw,410px)] flex-col border-l border-slate-200 bg-white shadow-2xl shadow-slate-900/25 dark:border-slate-800 dark:bg-slate-950"
+        className={['fixed inset-y-0 right-0 flex w-[min(100vw,410px)] flex-col border-l border-slate-200 bg-white shadow-2xl shadow-slate-900/25 dark:border-slate-800 dark:bg-slate-950', Z_SYSTEM_OVERLAY].join(' ')}
         role="dialog"
         aria-label={'Notifica\u00e7\u00f5es'}
         aria-modal="true"
@@ -418,7 +419,7 @@ export function AppShell({
       </aside>
 
       {mobileOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
+        <div className={['fixed inset-0 lg:hidden', Z_MOBILE_NAV_OVERLAY].join(' ')}>
           <div className="absolute inset-0 bg-[#040E12]/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
           <aside className="absolute inset-y-0 left-0 w-64 flex flex-col shadow-2xl">{sidebar}</aside>
         </div>

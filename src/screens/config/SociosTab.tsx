@@ -111,7 +111,7 @@ export function SociosTab() {
             align="right"
             floating
             placement="top"
-            className="absolute right-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+            className="absolute right-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
             onDismiss={createGuide.dismiss}
           />
         )}

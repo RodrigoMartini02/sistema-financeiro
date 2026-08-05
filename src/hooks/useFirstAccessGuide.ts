@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useFirstAccessGuideCoordinator } from '../context/FirstAccessGuideContext';
 
 const STORAGE_PREFIX = 'fingerence:first-access-guide';
 
@@ -41,10 +42,17 @@ function writeDismissed(key: string) {
 export function useFirstAccessGuide(scope: string) {
   const storageKey = useMemo(() => STORAGE_PREFIX + ':' + getActiveProfileScope() + ':' + scope, [scope]);
   const [isDismissed, setIsDismissed] = useState(() => readDismissed(storageKey));
+  const { register, unregister, isActive } = useFirstAccessGuideCoordinator();
 
   useEffect(() => {
     setIsDismissed(readDismissed(storageKey));
   }, [storageKey]);
+
+  useEffect(() => {
+    if (isDismissed) return;
+    register(scope);
+    return () => unregister(scope);
+  }, [scope, isDismissed, register, unregister]);
 
   const dismiss = useCallback(() => {
     writeDismissed(storageKey);
@@ -52,7 +60,7 @@ export function useFirstAccessGuide(scope: string) {
   }, [storageKey]);
 
   return {
-    isVisible: !isDismissed,
+    isVisible: !isDismissed && isActive(scope),
     dismiss,
   };
 }

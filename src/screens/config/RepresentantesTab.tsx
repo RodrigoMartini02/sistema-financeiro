@@ -114,26 +114,28 @@ function ComissaoRow({
           <Plus size={14} />
         </button>
       </div>
-      <div className="relative flex overflow-hidden rounded-lg border border-slate-200">
-        <button
-          type="button"
-          onClick={() => onChange({ ...comissao, tipo: 'mensal' })}
-          className={`px-2.5 py-1.5 text-xs font-medium transition ${tipoAtual === 'mensal' ? 'bg-brand-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
-        >
-          Mensal
-        </button>
-        <button
-          type="button"
-          onClick={() => onChange({ ...comissao, tipo: 'unica' })}
-          className={`border-l border-slate-200 px-2.5 py-1.5 text-xs font-medium transition ${tipoAtual === 'unica' ? 'bg-brand-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
-        >
-          Única
-        </button>
+      <div className="relative">
+        <div className="flex overflow-hidden rounded-lg border border-slate-200">
+          <button
+            type="button"
+            onClick={() => onChange({ ...comissao, tipo: 'mensal' })}
+            className={`px-2.5 py-1.5 text-xs font-medium transition ${tipoAtual === 'mensal' ? 'bg-brand-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+          >
+            Mensal
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange({ ...comissao, tipo: 'unica' })}
+            className={`border-l border-slate-200 px-2.5 py-1.5 text-xs font-medium transition ${tipoAtual === 'unica' ? 'bg-brand-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+          >
+            Única
+          </button>
+        </div>
         {tipoGuide && (
           <FirstAccessGuideCard
             floating
             placement="bottom"
-            className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+            className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
             icon={Percent}
             description={tipoGuide.description}
             onDismiss={tipoGuide.onDismiss}
@@ -242,7 +244,7 @@ function RepresentanteDialog({
             <FirstAccessGuideCard
               floating
               placement="bottom"
-              className="absolute left-0 top-full z-50 mt-1 w-[min(25rem,calc(100vw-2rem))]"
+              className="absolute left-0 top-full z-[45] mt-1 w-[min(25rem,calc(100vw-2rem))]"
               icon={Percent}
               description={firstAccessGuideMessages.representantesComissoes}
               onDismiss={comissoesGuide.dismiss}
@@ -337,7 +339,7 @@ export function RepresentantesTab() {
             align="right"
             floating
             placement="top"
-            className="absolute right-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+            className="absolute right-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
             onDismiss={createGuide.dismiss}
           />
         )}

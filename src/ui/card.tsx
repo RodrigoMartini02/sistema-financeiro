@@ -1,8 +1,12 @@
 import type { HTMLAttributes } from 'react';
 
-export function Card({ className = '', children, ...props }: HTMLAttributes<HTMLDivElement>) {
+interface CardProps extends HTMLAttributes<HTMLDivElement> {
+  allowOverflow?: boolean;
+}
+
+export function Card({ className = '', allowOverflow = false, children, ...props }: CardProps) {
   return (
-    <div className={['rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden dark:border-slate-700 dark:bg-slate-800', className].join(' ')} {...props}>
+    <div className={['rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800', allowOverflow ? 'overflow-visible' : 'overflow-hidden', className].join(' ')} {...props}>
       {children}
     </div>
   );
