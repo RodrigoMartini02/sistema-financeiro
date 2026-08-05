@@ -1,18 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, ChevronDown, ChevronRight, Tag, FolderTree, Link2 } from 'lucide-react';
+import { Plus, ChevronDown, ChevronRight, Tag, FolderTree } from 'lucide-react';
 import { fetchCategorias, saveCategoria, toggleCategoria } from '../../services/configService';
 import { queryKeys } from '../../services/queryKeys';
 import type { Categoria, CategoriaFormValues } from '../../types/config';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
-import { Field, Input, Select } from '../../ui/form';
+import { Field, Input } from '../../ui/form';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
-
-type CategoriaKind = 'principal' | 'subcategoria';
 
 const CAT_SCHEME = {
   red: {
@@ -28,11 +26,10 @@ const CAT_SCHEME = {
 };
 
 function CategoriaDialog({
-  open, cat, pais, initialParentId, isSaving, error, onClose, onSave, onToggle,
+  open, cat, initialParentId, isSaving, error, onClose, onSave, onToggle,
 }: {
   open: boolean;
   cat?: Categoria;
-  pais: Categoria[];
   initialParentId?: number;
   isSaving: boolean;
   error?: string;
@@ -40,23 +37,6 @@ function CategoriaDialog({
   onSave: (v: CategoriaFormValues) => void;
   onToggle?: () => void;
 }) {
-  const categoryHasChildren = (cat?.subcategorias?.length ?? 0) > 0;
-  const parentOptions = pais.filter((p) => p.ativo && p.id !== cat?.id);
-  const canChooseSubcategory = !categoryHasChildren && parentOptions.length > 0;
-  const isDirectSubcategoryCreation = !cat && !!initialParentId;
-
-  const resolveInitialKind = (): CategoriaKind => {
-    if (categoryHasChildren) return 'principal';
-    if (cat?.parent_id || initialParentId) return 'subcategoria';
-    return 'principal';
-  };
-
-  const resolveInitialParent = () => String(cat?.parent_id ?? initialParentId ?? '');
-
-  const [tipoCategoria, setTipoCategoria] = useState<CategoriaKind>(resolveInitialKind);
-  const [selectedParentId, setSelectedParentId] = useState(resolveInitialParent);
-  const [localError, setLocalError] = useState<string | null>(null);
-  const vincularGuide = useFirstAccessGuide('categorias:vincular-principal-v1');
   const desativarGuide = useFirstAccessGuide('categorias:desativar-v1');
   const confirm = useConfirm();
 
@@ -73,46 +53,14 @@ function CategoriaDialog({
     if (ok) onToggle();
   };
 
-  useEffect(() => {
-    if (!open) {
-      setLocalError(null);
-      return;
-    }
-
-    setTipoCategoria(resolveInitialKind());
-    setSelectedParentId(resolveInitialParent());
-    setLocalError(null);
-  }, [open, cat?.id, cat?.parent_id, categoryHasChildren, initialParentId]);
-
-  const isSubcategory = tipoCategoria === 'subcategoria';
-  const forcedPrincipalMessage = categoryHasChildren
-    ? 'Esta categoria possui subcategorias. Para manter a estrutura, ela deve continuar como categoria principal.'
-    : null;
-
-  const handleKindChange = (kind: CategoriaKind) => {
-    if (kind === 'subcategoria' && !canChooseSubcategory) return;
-
-    setTipoCategoria(kind);
-    setLocalError(null);
-    if (kind === 'principal') {
-      setSelectedParentId('');
-    }
-  };
-
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const nome = String(fd.get('nome') ?? '').trim();
 
-    if (isSubcategory && !selectedParentId) {
-      setLocalError('Selecione uma categoria principal para vincular esta subcategoria.');
-      return;
-    }
-
-    onSave({
-      nome,
-      parent_id: isSubcategory ? Number(selectedParentId) : null,
-    });
+    onSave(cat
+      ? { nome }
+      : { nome, parent_id: initialParentId ?? null });
   };
 
   const title = cat
@@ -135,72 +83,9 @@ function CategoriaDialog({
           />
         </Field>
 
-        {!isDirectSubcategoryCreation && (
-          <Field label="Tipo da categoria" hint={forcedPrincipalMessage ?? undefined}>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleKindChange('principal')}
-                className={[
-                  'rounded-2xl border px-4 py-3 text-left transition-all',
-                  tipoCategoria === 'principal'
-                    ? 'border-brand-600 bg-brand-50 text-brand-800 shadow-sm'
-                    : 'border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:bg-slate-50',
-                ].join(' ')}
-              >
-                <span className="block text-sm font-bold">Categoria principal</span>
-                <span className="mt-0.5 block text-xs text-slate-400">Agrupa despesas e subcategorias.</span>
-              </button>
-
-              <button
-                type="button"
-                disabled={!canChooseSubcategory}
-                onClick={() => handleKindChange('subcategoria')}
-                className={[
-                  'rounded-2xl border px-4 py-3 text-left transition-all disabled:cursor-not-allowed disabled:opacity-45',
-                  tipoCategoria === 'subcategoria'
-                    ? 'border-brand-600 bg-brand-50 text-brand-800 shadow-sm'
-                    : 'border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:bg-slate-50',
-                ].join(' ')}
-              >
-                <span className="block text-sm font-bold">Subcategoria</span>
-                <span className="mt-0.5 block text-xs text-slate-400">Fica vinculada a uma principal.</span>
-              </button>
-            </div>
-          </Field>
-        )}
-
-        {isSubcategory && !isDirectSubcategoryCreation && (
-          <div className="relative">
-            <Field label="Vincular a uma categoria principal" required>
-              <Select
-                name="parent_id"
-                value={selectedParentId}
-                onChange={(e) => { setSelectedParentId(e.target.value); setLocalError(null); }}
-                required
-              >
-                <option value="">Selecione uma categoria principal</option>
-                {parentOptions.map((p) => (
-                  <option key={p.id} value={p.id}>{p.nome}</option>
-                ))}
-              </Select>
-            </Field>
-            {vincularGuide.isVisible && (
-              <FirstAccessGuideCard
-                floating
-                placement="bottom"
-                className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
-                icon={Link2}
-                description={firstAccessGuideMessages.categoriasVincularPrincipal}
-                onDismiss={vincularGuide.dismiss}
-              />
-            )}
-          </div>
-        )}
-
-        {(error || localError) && (
+        {error && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {localError ?? error}
+            {error}
           </div>
         )}
 
@@ -285,29 +170,15 @@ function CategoriaRow({
           </button>
 
           {!isChild && cat.ativo && onCreateSubcategory && (
-            <div className="relative shrink-0">
-              <button
-                type="button"
-                onClick={() => onCreateSubcategory(cat)}
-                className="inline-flex h-8 items-center gap-1 rounded-lg border border-red-100 px-2.5 text-xs font-semibold text-red-600 transition hover:border-red-200 hover:bg-red-50"
-              >
-                <Plus size={12} />
-                <span className="hidden sm:inline">Subcategoria</span>
-                <span className="sm:hidden">Sub</span>
-              </button>
-
-              {subcategoryGuide && (
-                <FirstAccessGuideCard
-                  floating
-                  placement="top"
-                  align="right"
-                  className="absolute right-0 top-full z-[45] mt-3 w-[min(22rem,calc(100vw-2rem))]"
-                  icon={FolderTree}
-                  description={subcategoryGuide.description}
-                  onDismiss={subcategoryGuide.onDismiss}
-                />
-              )}
-            </div>
+            <button
+              type="button"
+              onClick={() => onCreateSubcategory(cat)}
+              className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-red-100 px-2.5 text-xs font-semibold text-red-600 transition hover:border-red-200 hover:bg-red-50"
+            >
+              <Plus size={12} />
+              <span className="hidden sm:inline">Subcategoria</span>
+              <span className="sm:hidden">Sub</span>
+            </button>
           )}
 
           {hasSubs && !isChild ? (
@@ -322,6 +193,18 @@ function CategoriaRow({
             <ChevronRight size={15} className={`shrink-0 text-slate-300 transition group-hover:translate-x-0.5 ${s.chevron}`} />
           )}
         </div>
+
+        {subcategoryGuide && (
+          <FirstAccessGuideCard
+            floating
+            placement="top"
+            align="right"
+            className="absolute right-0 top-full z-[45] mt-3 w-[min(22rem,calc(100vw-2rem))]"
+            icon={FolderTree}
+            description={subcategoryGuide.description}
+            onDismiss={subcategoryGuide.onDismiss}
+          />
+        )}
       </div>
 
       {!isChild && hasSubs && expanded && (
@@ -435,7 +318,6 @@ export function CategoriasTab() {
         <CategoriaDialog
           open={dialog.open}
           cat={dialog.item}
-          pais={roots}
           initialParentId={dialog.parentId}
           isSaving={saveMut.isPending}
           error={saveMut.error?.message}
