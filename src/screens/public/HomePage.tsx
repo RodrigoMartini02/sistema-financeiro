@@ -74,7 +74,7 @@ export function HomePage({ notice }: HomePageProps) {
   const totalAval: number = (avaliacoesQ.data as any)?.data?.total ?? 0;
 
   return (
-    <div className="min-h-screen bg-[#040E12] text-site-text">
+    <div className="min-h-screen bg-site-bg text-site-text">
       <SiteHeader onOpenLogin={openLogin} />
 
       <main id="conteudo-principal">
@@ -83,9 +83,9 @@ export function HomePage({ notice }: HomePageProps) {
           title="Controle financeiro com clareza."
           description="Organize sua vida financeira e sua empresa em perfis separados, com saldos, cartões, reservas e relatórios sempre visíveis."
         />
-        <section className="border-b border-[rgba(14,196,216,0.10)] bg-[#061419]">
+        <section className="border-b border-[rgba(14,196,216,0.10)] bg-site-bgAlt">
           <div className="mx-auto max-w-[1800px] px-5 py-10 sm:px-8 xl:px-10 xl:py-12">
-            <div className="mx-auto max-w-[1320px]">
+            <div className="max-w-[1800px]">
               <p className="text-[11px] uppercase tracking-[0.30em] text-site-textMuted">VISÃO DO SISTEMA</p>
               <h2 className="mt-4 text-[clamp(26px,2.2vw,42px)] font-light leading-[1.16] tracking-[0.02em] text-site-text">
                 Painel financeiro organizado desde o primeiro acesso.
@@ -103,7 +103,7 @@ export function HomePage({ notice }: HomePageProps) {
 
       {/* ── Avaliações ── */}
       {avaliacoes.length > 0 && (
-        <section className="border-b border-[rgba(14,196,216,0.10)] bg-[#040E12]">
+        <section className="border-b border-[rgba(14,196,216,0.10)] bg-site-bg">
           <div className="mx-auto max-w-[1800px] px-5 py-14 sm:px-8 xl:px-10 xl:py-18">
             <p className="text-[11px] uppercase tracking-[0.34em] text-site-textMuted">O QUE DIZEM OS USUÁRIOS</p>
             <div className="mt-3 flex items-center gap-3">
