@@ -49,6 +49,7 @@ function ContratoForm({
     data_inicio_faturamento: initial?.data_inicio_faturamento ?? '',
     ajuste:                  initial?.ajuste ?? 'NADA CONSTA',
     observacoes:             initial?.observacoes ?? '',
+    descricao:               initial?.descricao ?? '',
     representante_id:        String(initial?.representante_id ?? ''),
   });
 
@@ -68,6 +69,7 @@ function ContratoForm({
       ajuste:                    form.ajuste || null,
       data_inicio_faturamento:   form.data_inicio_faturamento || null,
       observacoes:               form.observacoes || null,
+      descricao:                 form.descricao || null,
       representante_id:          form.representante_id ? parseInt(form.representante_id) : null,
       implantacao_parcelas:      initial?.implantacao_parcelas ?? 1,
       implantacao_valor_parcela: initial?.implantacao_valor_parcela ?? 0,
@@ -75,7 +77,6 @@ function ContratoForm({
       horas_presenciais_saldo_ini: initial?.horas_presenciais_saldo_ini ?? 0,
       horas_remotas_valor:       initial?.horas_remotas_valor ?? 0,
       horas_remotas_saldo_ini:   initial?.horas_remotas_saldo_ini ?? 0,
-      valor_contrato:            initial?.valor_contrato ?? 0,
       valor_mensal:              initial?.valor_mensal ?? 0,
     } as Parameters<typeof saveContrato>[0]);
   };
@@ -112,6 +113,12 @@ function ContratoForm({
             <p className="text-sm font-medium text-slate-800">{repNome || 'Nenhum'}</p>
           </div>
         )}
+        {form.descricao && (
+          <div className="grid gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Descrição</span>
+            <p className="text-sm font-medium text-slate-800">{form.descricao}</p>
+          </div>
+        )}
         {form.observacoes && (
           <div className="grid gap-1">
             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Observações</span>
@@ -129,6 +136,9 @@ function ContratoForm({
       <div className="grid grid-cols-2 gap-4">
         <Field label="Número do contrato">
           <Input value={form.numero} onChange={(e) => set('numero', e.target.value)} placeholder="001/2025" />
+        </Field>
+        <Field label="Descrição">
+          <Input value={form.descricao} onChange={(e) => set('descricao', e.target.value)} placeholder="Ex: Mensalidade de suporte técnico" />
         </Field>
         <Field label="Data de assinatura">
           <Input type="date" value={form.data_assinatura} onChange={(e) => set('data_assinatura', e.target.value)} />
@@ -984,14 +994,14 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
     },
     onSuccess: (saved) => {
       void qc.invalidateQueries({ queryKey: queryKeys.contratos(cliente.id) });
-      if (!contratoModal.contrato) {
-        // Novo contrato: auto-gerar previstas e criar receita de implantação
-        if (saved.data_inicio_faturamento) {
-          gerarMut.mutate(saved.id);
-        }
-        if ((saved.implantacao_valor_parcela ?? 0) > 0) {
-          void criarReceitaImplantacao(saved.id);
-        }
+      // Novo ou editado: re-gerar previstas sempre que houver início de faturamento,
+      // já que gerarPrevistas cancela+regenera com segurança (idempotente).
+      if (saved.data_inicio_faturamento) {
+        gerarMut.mutate(saved.id);
+      }
+      if (!contratoModal.contrato && (saved.implantacao_valor_parcela ?? 0) > 0) {
+        // Receita de implantação só faz sentido na criação do contrato.
+        void criarReceitaImplantacao(saved.id);
       }
       setContratoModal({ open: false });
     },
@@ -1039,14 +1049,21 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
           )}
           {contrato && (
             <div className="relative">
-              <Button
-                variant="secondary"
-                icon={<RefreshCw size={14} />}
-                onClick={() => gerarMut.mutate(contrato.id)}
-                disabled={gerarMut.isPending}
-              >
-                {gerarMut.isPending ? 'Gerando...' : 'Gerar previstas'}
-              </Button>
+              <div className="flex flex-col items-end gap-0.5">
+                <Button
+                  variant="secondary"
+                  icon={<RefreshCw size={14} />}
+                  onClick={() => gerarMut.mutate(contrato.id)}
+                  disabled={gerarMut.isPending}
+                >
+                  {gerarMut.isPending ? 'Gerando...' : 'Gerar previstas'}
+                </Button>
+                {gerarMut.isSuccess && (
+                  <span className="text-[11px] text-slate-400">
+                    {gerarMut.data.count} previstas geradas
+                  </span>
+                )}
+              </div>
               {gerarPrevistasGuide.isVisible && (
                 <FirstAccessGuideCard
                   floating

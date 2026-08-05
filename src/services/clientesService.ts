@@ -8,8 +8,6 @@ function appendProfile(q: URLSearchParams) {
 export interface Cliente {
   id: number;
   nome: string;
-  codigo?: string | null;
-  tipo_empresa?: string | null;
   cnpj?: string | null;
   perfil_id?: number | null;
   total_contratos?: number;
@@ -29,6 +27,7 @@ export interface Contrato {
   status: 'ativo' | 'encerrado';
   data_inicio_faturamento?: string | null;
   observacoes?: string | null;
+  descricao?: string | null;
   representante_id?: number | null;
   representante_nome?: string | null;
   implantacao_parcelas?: number | null;
@@ -39,7 +38,6 @@ export interface Contrato {
   horas_remotas_valor?: number | null;
   horas_remotas_saldo_ini?: number | null;
   horas_remotas_saldo_atual?: number | null;
-  valor_contrato?: number | null;
   valor_mensal?: number | null;
   perfil_id?: number | null;
 }
@@ -76,6 +74,8 @@ export interface ContratoResumo {
   id: number;
   cliente_nome: string;
   numero?: string | null;
+  representante_id?: number | null;
+  representante_nome?: string | null;
   horas_presenciais_valor?: number | null;
   horas_presenciais_saldo_atual?: number | null;
   horas_remotas_valor?: number | null;

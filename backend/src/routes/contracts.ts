@@ -205,7 +205,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     const {
       cliente_id, numero, data_assinatura, vencimento,
       num_aditivo, data_aditivo, ajuste, data_inicio_faturamento,
-      observacoes,
+      observacoes, descricao,
       representante_id, perfil_id,
       implantacao_parcelas, implantacao_valor_parcela,
       horas_presenciais_valor, horas_presenciais_saldo_ini,
@@ -228,12 +228,12 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     const result = await pool.query(
       `INSERT INTO contratos
          (usuario_id, cliente_id, numero, data_assinatura, vencimento,
-          num_aditivo, data_aditivo, ajuste, data_inicio_faturamento, observacoes,
+          num_aditivo, data_aditivo, ajuste, data_inicio_faturamento, observacoes, descricao,
           representante_id, perfil_id, implantacao_parcelas, implantacao_valor_parcela,
           horas_presenciais_valor, horas_presenciais_saldo_ini, horas_presenciais_saldo_atual,
           horas_remotas_valor, horas_remotas_saldo_ini, horas_remotas_saldo_atual,
           valor_mensal)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$16,$17,$18,$18,$19) RETURNING *`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$17,$18,$19,$19,$20) RETURNING *`,
       [
         req.user!.id,
         parseInt(String(cliente_id)),
@@ -245,6 +245,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
         ajuste ?? 'NADA CONSTA',
         data_inicio_faturamento ?? null,
         observacoes ?? null,
+        descricao ?? null,
         representante_id ? parseInt(String(representante_id)) : null,
         perfil_id ? parseInt(String(perfil_id)) : null,
         implantacao_parcelas ? parseInt(String(implantacao_parcelas)) : 1,
@@ -268,7 +269,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
   try {
     const {
       numero, data_assinatura, vencimento, num_aditivo, data_aditivo,
-      ajuste, data_inicio_faturamento, observacoes,
+      ajuste, data_inicio_faturamento, observacoes, descricao,
       representante_id,
       implantacao_parcelas, implantacao_valor_parcela,
       horas_presenciais_valor, horas_presenciais_saldo_ini,
@@ -283,20 +284,20 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       `UPDATE contratos
        SET numero = $1, data_assinatura = $2, vencimento = $3,
            num_aditivo = $4, data_aditivo = $5, ajuste = $6,
-           data_inicio_faturamento = $7, observacoes = $8,
-           representante_id = $9, implantacao_parcelas = $10, implantacao_valor_parcela = $11,
-           horas_presenciais_valor = $12, horas_presenciais_saldo_ini = $13,
+           data_inicio_faturamento = $7, observacoes = $8, descricao = $9,
+           representante_id = $10, implantacao_parcelas = $11, implantacao_valor_parcela = $12,
+           horas_presenciais_valor = $13, horas_presenciais_saldo_ini = $14,
            horas_presenciais_saldo_atual = CASE
-             WHEN horas_presenciais_saldo_atual = 0 OR horas_presenciais_saldo_atual IS NULL THEN $13
+             WHEN horas_presenciais_saldo_atual = 0 OR horas_presenciais_saldo_atual IS NULL THEN $14
              ELSE horas_presenciais_saldo_atual
            END,
-           horas_remotas_valor = $14, horas_remotas_saldo_ini = $15,
+           horas_remotas_valor = $15, horas_remotas_saldo_ini = $16,
            horas_remotas_saldo_atual = CASE
-             WHEN horas_remotas_saldo_atual = 0 OR horas_remotas_saldo_atual IS NULL THEN $15
+             WHEN horas_remotas_saldo_atual = 0 OR horas_remotas_saldo_atual IS NULL THEN $16
              ELSE horas_remotas_saldo_atual
            END,
-           valor_mensal = $16
-       WHERE id = $17 AND usuario_id = $18 RETURNING *`,
+           valor_mensal = $17
+       WHERE id = $18 AND usuario_id = $19 RETURNING *`,
       [
         numero ?? null,                                               // $1
         data_assinatura ?? null,                                      // $2
@@ -306,16 +307,17 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
         ajuste ?? 'NADA CONSTA',                                      // $6
         data_inicio_faturamento ?? null,                              // $7
         observacoes ?? null,                                          // $8
-        representante_id ? parseInt(String(representante_id)) : null, // $9
-        implantacao_parcelas ? parseInt(String(implantacao_parcelas)) : 1, // $10
-        parseFloat(String(implantacao_valor_parcela ?? 0)) || 0,     // $11
-        parseFloat(String(horas_presenciais_valor ?? 0)) || 0,       // $12
-        hpIni,                                                        // $13
-        parseFloat(String(horas_remotas_valor ?? 0)) || 0,           // $14
-        hrIni,                                                        // $15
-        parseFloat(String(valor_mensal ?? 0)) || 0,                  // $16
-        req.params['id'],                                             // $17
-        req.user!.id,                                                 // $18
+        descricao ?? null,                                            // $9
+        representante_id ? parseInt(String(representante_id)) : null, // $10
+        implantacao_parcelas ? parseInt(String(implantacao_parcelas)) : 1, // $11
+        parseFloat(String(implantacao_valor_parcela ?? 0)) || 0,     // $12
+        parseFloat(String(horas_presenciais_valor ?? 0)) || 0,       // $13
+        hpIni,                                                        // $14
+        parseFloat(String(horas_remotas_valor ?? 0)) || 0,           // $15
+        hrIni,                                                        // $16
+        parseFloat(String(valor_mensal ?? 0)) || 0,                  // $17
+        req.params['id'],                                             // $18
+        req.user!.id,                                                 // $19
       ],
     );
     if (result.rows.length === 0) {
@@ -581,7 +583,18 @@ router.post('/:id/faturar', authenticate, async (req: Request, res: Response): P
       // Create new receita with status faturada
       const dueDate = `${anoNum}-${String(mesNum).padStart(2, '0')}-01`;
       const monthIndex = mesNum - 1;
-      const valor = parseFloat(String(contrato.valor_mensal)) || 0;
+
+      // Same source of truth as gerarPrevistas(): sum linked contratos_servicos
+      // marked faturando=true. Fall back to valor_mensal only when no service
+      // is linked, so contracts billed directly by valor_mensal keep working.
+      const servicosResult = await pool.query(
+        `SELECT COALESCE(SUM(valor_mensal), 0) AS total
+         FROM contratos_servicos
+         WHERE contrato_id = $1 AND usuario_id = $2 AND faturando = true`,
+        [contratoId, req.user!.id],
+      );
+      const somaServicos = parseFloat((servicosResult.rows[0] as { total: string }).total);
+      const valor = somaServicos > 0 ? somaServicos : (parseFloat(String(contrato.valor_mensal)) || 0);
 
       const inserted = await pool.query(
         `INSERT INTO receitas

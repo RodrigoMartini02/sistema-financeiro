@@ -129,8 +129,14 @@ router.post(
         client.release();
       }
 
-      // Auto-criar despesa de comissão sempre que houver representante vinculado
-      if (representanteIdInt) {
+      // Auto-criar despesa de comissão apenas quando há match real de comissão
+      // (valor_comissao positivo enviado pelo client). Sem match, não criar
+      // despesa nenhuma — evita lançamentos-fantasma de valor simbólico.
+      const valorComissaoValido = valor_comissao != null && parseFloat(String(valor_comissao)) > 0
+        ? parseFloat(String(valor_comissao))
+        : null;
+
+      if (representanteIdInt && valorComissaoValido != null) {
         const repResult = await pool.query(
           'SELECT nome FROM representantes WHERE id = $1 AND usuario_id = $2',
           [representanteIdInt, req.user!.id],
@@ -158,11 +164,6 @@ router.post(
           );
           const proximoNumero = (numResult.rows[0] as { proximo: number }).proximo;
 
-          const valorCom =
-            valor_comissao != null && parseFloat(String(valor_comissao)) > 0
-              ? parseFloat(String(valor_comissao))
-              : 0.01;
-
           await pool.query(
             `INSERT INTO despesas (usuario_id, descricao, valor_original, valor_final,
               data_vencimento, mes, ano, categoria_id, forma_pagamento, pago, recorrente, perfil_id, numero)
@@ -170,7 +171,7 @@ router.post(
             [
               req.user!.id,
               `Comissão - ${repNome}`,
-              valorCom,
+              valorComissaoValido,
               data_recebimento,
               mes,
               ano,

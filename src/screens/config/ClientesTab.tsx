@@ -61,8 +61,6 @@ function ClienteDialog({
     const fd = new FormData(e.currentTarget);
     onSave({
       nome: (fd.get('nome') as string).trim(),
-      codigo: null,
-      tipo_empresa: null,
       cnpj: cnpj || null,
     });
   };
