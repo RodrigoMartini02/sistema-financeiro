@@ -34,7 +34,7 @@ const AVAILABLE_BALANCE_SQL = `
           )
     ), 0)
     - COALESCE((
-        SELECT SUM(d.valor)
+        SELECT SUM(COALESCE(d.valor_final, d.valor_original))
         FROM despesas d
         WHERE d.usuario_id = $1
           AND (d.ano < $2 OR (d.ano = $2 AND d.mes <= $3))

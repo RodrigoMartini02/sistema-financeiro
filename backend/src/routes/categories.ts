@@ -40,7 +40,7 @@ router.get('/stats/usage', authenticate, async (req: Request, res: Response): Pr
     const result = await pool.query(
       `SELECT c.id, c.nome, c.cor,
         COUNT(d.id) AS total_uses,
-        COALESCE(SUM(d.valor), 0) AS total_amount
+        COALESCE(SUM(COALESCE(d.valor_final, d.valor_original)), 0) AS total_amount
        FROM categorias c
        LEFT JOIN despesas d ON c.id = d.categoria_id
        WHERE c.usuario_id = $1
