@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '../../services/apiClient';
 import { Card } from '../../ui/card';
-import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
+import { C, labelStyle, fieldInputStyle, cardStyle, chipStyle } from '../../ui/dialogFormTokens';
 import {
   CheckCircle2, Crown, Loader2, Copy, Check, QrCode,
   CreditCard, ExternalLink, AlertTriangle, RefreshCw,
@@ -84,10 +84,6 @@ function maskCpf(v: string) {
   return `${n.slice(0, 3)}.${n.slice(3, 6)}.${n.slice(6, 9)}-${n.slice(9)}`;
 }
 
-function inputCls(extra?: string) {
-  return `w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100 ${extra ?? ''}`;
-}
-
 // ─── MP SDK loader ────────────────────────────────────────────
 
 let mpInitPromise: Promise<any> | null = null;
@@ -149,53 +145,61 @@ function PixPanel({ tipo, onSuccess }: { tipo: PlanTipo; onSuccess: () => void }
 
   if (!pixMut.data && !pixMut.isPending && !pixMut.error) {
     return (
-      <div className="grid gap-4">
-        <p className="text-sm text-slate-500 text-center">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <p style={{ margin: 0, fontSize: 13.5, color: C.textMuted, textAlign: 'center' }}>
           Pague com PIX em qualquer app bancário. Confirmação automática em até 1 minuto.
         </p>
-        <Button className="justify-center" onClick={() => pixMut.mutate()}>
-          <QrCode size={16} className="mr-1.5" /> Gerar QR Code PIX
-        </Button>
+        <button
+          type="button"
+          onClick={() => pixMut.mutate()}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700, border: 'none', background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)', cursor: 'pointer' }}
+        >
+          <QrCode size={16} /> Gerar QR Code PIX
+        </button>
       </div>
     );
   }
 
   if (pixMut.isPending) {
     return (
-      <div className="flex flex-col items-center gap-3 py-6">
-        <Loader2 size={32} className="animate-spin text-brand-600" />
-        <p className="text-sm text-slate-500">Gerando QR Code...</p>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '24px 0' }}>
+        <Loader2 size={32} className="animate-spin" style={{ color: C.primary }} />
+        <p style={{ margin: 0, fontSize: 13.5, color: C.textMuted }}>Gerando QR Code...</p>
       </div>
     );
   }
 
   if (pixMut.error) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      <div style={{ borderRadius: 12, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '12px 14px', fontSize: 13, color: C.danger }}>
         {pixMut.error instanceof Error ? pixMut.error.message : 'Erro ao gerar PIX.'}
-        <button onClick={() => pixMut.reset()} className="ml-2 underline text-red-600">Tentar novamente</button>
+        <button onClick={() => pixMut.reset()} style={{ marginLeft: 8, textDecoration: 'underline', color: C.danger, background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>Tentar novamente</button>
       </div>
     );
   }
 
   const d = pixMut.data!;
   return (
-    <div className="grid gap-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {d.qr_code_base64 && (
-        <div className="flex justify-center">
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
           <img src={`data:image/png;base64,${d.qr_code_base64}`} alt="QR Code PIX"
-            className="h-48 w-48 rounded-xl border border-slate-200 p-2" />
+            style={{ height: 192, width: 192, borderRadius: 12, border: `1px solid ${C.border}`, padding: 8 }} />
         </div>
       )}
-      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-        <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Copia e cola</p>
-        <p className="break-all text-[11px] font-mono text-slate-700 leading-relaxed">{d.qr_code.slice(0, 80)}…</p>
+      <div style={{ borderRadius: 12, border: `1px solid ${C.border}`, background: C.cardBg, padding: '10px 12px' }}>
+        <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.textFaint }}>Copia e cola</p>
+        <p style={{ margin: 0, fontSize: 11, fontFamily: 'monospace', color: C.text, lineHeight: 1.5, wordBreak: 'break-all' }}>{d.qr_code.slice(0, 80)}…</p>
       </div>
-      <Button variant="secondary" className="justify-center" onClick={handleCopy}>
-        {copied ? <><Check size={15} className="mr-1" /> Copiado!</> : <><Copy size={15} className="mr-1" /> Copiar código</>}
-      </Button>
-      <p className="text-center text-xs text-slate-400">Seu plano é ativado automaticamente após o pagamento.</p>
-      <button onClick={onSuccess} className="text-center text-sm text-brand-600 hover:underline">
+      <button
+        type="button"
+        onClick={handleCopy}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 600, border: `1px solid ${C.borderInput}`, background: '#fff', color: C.textSoft, cursor: 'pointer' }}
+      >
+        {copied ? <><Check size={15} /> Copiado!</> : <><Copy size={15} /> Copiar código</>}
+      </button>
+      <p style={{ margin: 0, textAlign: 'center', fontSize: 12, color: C.textMuted }}>Seu plano é ativado automaticamente após o pagamento.</p>
+      <button onClick={onSuccess} style={{ textAlign: 'center', fontSize: 13, color: C.primary, background: 'none', border: 'none', cursor: 'pointer' }}>
         Já paguei — verificar status
       </button>
     </div>
@@ -266,79 +270,77 @@ function CardPaymentForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-3">
-      <div>
-        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-          Número do cartão
-        </label>
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <label style={labelStyle}>NÚMERO DO CARTÃO</label>
         <input
           required maxLength={19} placeholder="0000 0000 0000 0000"
-          className={inputCls()}
+          style={fieldInputStyle}
           value={form.number}
           onChange={(e) => set('number', maskCard(e.target.value))}
         />
       </div>
 
-      <div>
-        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-          Nome no cartão
-        </label>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <label style={labelStyle}>NOME NO CARTÃO</label>
         <input
           required placeholder="Como aparece no cartão"
-          className={inputCls('uppercase')}
+          style={{ ...fieldInputStyle, textTransform: 'uppercase' }}
           value={form.name}
           onChange={(e) => set('name', e.target.value.toUpperCase())}
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-            Validade
-          </label>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+          <label style={labelStyle}>VALIDADE</label>
           <input
             required placeholder="MM/AA" maxLength={5}
-            className={inputCls()}
+            style={fieldInputStyle}
             value={form.expiry}
             onChange={(e) => set('expiry', maskExpiry(e.target.value))}
           />
         </div>
-        <div>
-          <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-            CVV
-          </label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+          <label style={labelStyle}>CVV</label>
           <input
             required type="password" placeholder="•••" maxLength={4}
-            className={inputCls()}
+            style={fieldInputStyle}
             value={form.cvv}
             onChange={(e) => set('cvv', e.target.value.replace(/\D/g, '').slice(0, 4))}
           />
         </div>
       </div>
 
-      <div>
-        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-          CPF do titular <span className="font-normal text-slate-400">(recomendado)</span>
-        </label>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <label style={labelStyle}>CPF DO TITULAR <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: C.textMuted }}>(recomendado)</span></label>
         <input
           placeholder="000.000.000-00" maxLength={14}
-          className={inputCls()}
+          style={fieldInputStyle}
           value={form.cpf}
           onChange={(e) => set('cpf', maskCpf(e.target.value))}
         />
       </div>
 
-
-      <Button type="submit" disabled={loading} className="justify-center mt-1">
+      <button
+        type="submit"
+        disabled={loading}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4,
+          padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700, border: 'none',
+          background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)',
+          cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1,
+        }}
+      >
         {loading
-          ? <><Loader2 size={15} className="mr-1.5 animate-spin" /> Processando...</>
+          ? <><Loader2 size={15} className="animate-spin" /> Processando...</>
           : mode === 'one-time'
-            ? <><CreditCard size={15} className="mr-1.5" /> Pagar agora</>
-            : <><RotateCcw size={15} className="mr-1.5" /> Assinar com débito automático</>
+            ? <><CreditCard size={15} /> Pagar agora</>
+            : <><RotateCcw size={15} /> Assinar com débito automático</>
         }
-      </Button>
+      </button>
 
-      <p className="text-center text-[11px] text-slate-400 flex items-center justify-center gap-1">
+      <p style={{ margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, textAlign: 'center', fontSize: 11, color: C.textMuted }}>
         <Shield size={11} /> Pagamento seguro via Mercado Pago
       </p>
     </form>
@@ -366,30 +368,29 @@ function CheckoutRedirectPanel({ tipo, onError }: { tipo: PlanTipo; onError: (ms
   });
 
   return (
-    <div className="grid gap-4">
-      <p className="text-sm text-slate-500 text-center">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <p style={{ margin: 0, fontSize: 13.5, color: C.textMuted, textAlign: 'center' }}>
         Você será redirecionado para o checkout seguro do Mercado Pago.
       </p>
-      <div className="grid grid-cols-2 gap-2">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         {(['cartao', 'debito'] as const).map((f) => (
-          <button
-            key={f} type="button" onClick={() => setFormaPag(f)}
-            className={[
-              'rounded-xl border-2 px-4 py-3 text-sm font-semibold transition',
-              formaPag === f ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-600 hover:border-slate-300',
-            ].join(' ')}
-          >
-            <CreditCard size={16} className="mx-auto mb-1" />
+          <div key={f} onClick={() => setFormaPag(f)} style={{ ...chipStyle(formaPag === f, { h: 62, r: 12 }), flexDirection: 'column', gap: 4 }}>
+            <CreditCard size={16} />
             {f === 'cartao' ? 'Crédito' : 'Débito'}
-          </button>
+          </div>
         ))}
       </div>
-      <Button className="justify-center" disabled={checkoutMut.isPending} onClick={() => checkoutMut.mutate()}>
+      <button
+        type="button"
+        disabled={checkoutMut.isPending}
+        onClick={() => checkoutMut.mutate()}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700, border: 'none', background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)', cursor: checkoutMut.isPending ? 'not-allowed' : 'pointer', opacity: checkoutMut.isPending ? 0.6 : 1 }}
+      >
         {checkoutMut.isPending
-          ? <><Loader2 size={16} className="mr-1.5 animate-spin" /> Gerando link...</>
-          : <><ExternalLink size={16} className="mr-1.5" /> Ir para o checkout</>}
-      </Button>
-      <p className="text-center text-xs text-slate-400">Abre em nova aba. Retorna automaticamente após o pagamento.</p>
+          ? <><Loader2 size={16} className="animate-spin" /> Gerando link...</>
+          : <><ExternalLink size={16} /> Ir para o checkout</>}
+      </button>
+      <p style={{ margin: 0, textAlign: 'center', fontSize: 12, color: C.textMuted }}>Abre em nova aba. Retorna automaticamente após o pagamento.</p>
     </div>
   );
 }
@@ -415,37 +416,32 @@ function PagamentoDialog({ plano, onClose, onSuccess }: {
 
   return (
     <Dialog open title={`Assinar ${plano.nome}`} onClose={onClose}>
-      <div className="grid gap-5">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {/* Resumo */}
-        <div className="flex items-center justify-between rounded-xl border border-brand-200 bg-brand-50 px-4 py-3">
+        <div style={{ ...cardStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: C.primarySoft, border: `1px solid ${C.primarySoftBorder}` }}>
           <div>
-            <p className="font-bold text-brand-900">{plano.nome}</p>
-            <p className="text-xs text-brand-600">Cobrado mensalmente</p>
+            <p style={{ margin: 0, fontWeight: 700, color: C.primaryDark }}>{plano.nome}</p>
+            <p style={{ margin: 0, fontSize: 12, color: C.primary }}>Cobrado mensalmente</p>
           </div>
-          <p className="text-xl font-bold text-brand-700">{plano.label}</p>
+          <p style={{ margin: 0, fontSize: 21, fontWeight: 700, color: C.primaryDark }}>{plano.label}</p>
         </div>
 
         {erro && (
-          <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
-            <AlertTriangle size={15} className="mt-0.5 shrink-0" />
-            <span>{erro}</span>
+          <div style={{ ...cardStyle, display: 'flex', alignItems: 'flex-start', gap: 8, background: C.dangerBg, border: `1px solid ${C.dangerBorder}` }}>
+            <AlertTriangle size={15} style={{ marginTop: 2, flexShrink: 0, color: C.danger }} />
+            <span style={{ fontSize: 13, color: C.danger }}>{erro}</span>
           </div>
         )}
 
         {/* Tabs */}
-        <div className="relative flex gap-0.5 rounded-xl border border-slate-200 bg-slate-50 p-1">
-          {TABS.map(({ id, label }) => (
-            <button
-              key={id} type="button"
-              onClick={() => { setTab(id); setErro(''); }}
-              className={[
-                'flex-1 rounded-lg py-2 text-xs font-semibold transition',
-                tab === id ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-800',
-              ].join(' ')}
-            >
-              {label}
-            </button>
-          ))}
+        <div style={{ ...cardStyle, position: 'relative' }}>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {TABS.map(({ id, label }) => (
+              <div key={id} onClick={() => { setTab(id); setErro(''); }} style={{ ...chipStyle(tab === id, { h: 38 }), flex: 1 }}>
+                {label}
+              </div>
+            ))}
+          </div>
           {tabsGuide.isVisible && (
             <FirstAccessGuideCard
               floating
@@ -459,33 +455,36 @@ function PagamentoDialog({ plano, onClose, onSuccess }: {
         </div>
 
         {/* Tab content */}
-        {tab === 'pix' && <PixPanel tipo={plano.tipo} onSuccess={handleSuccess} />}
-        {tab === 'cartao' && (
-          <div className="grid gap-4">
-            <p className="text-[11px] text-slate-400 text-center">Pagamento único — seu plano é renovado manualmente.</p>
-            <CardPaymentForm
-              tipo={plano.tipo} mode="one-time"
-              onSuccess={handleSuccess} onError={setErro}
-            />
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
-              <div className="relative flex justify-center text-[10px] text-slate-400 bg-white px-2 mx-auto w-fit">ou</div>
-            </div>
-            <CheckoutRedirectPanel tipo={plano.tipo} onError={setErro} />
-          </div>
-        )}
-        {tab === 'recorrente' && (
-          <div className="grid gap-4">
-            <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-              <p className="font-semibold mb-0.5">Débito automático mensal</p>
-              <p className="text-xs text-green-700">Seu cartão é cobrado automaticamente a cada período. Cancele a qualquer momento.</p>
-            </div>
-            <CardPaymentForm
-              tipo={plano.tipo} mode="recurring"
-              onSuccess={handleSuccess} onError={setErro}
-            />
-          </div>
-        )}
+        <div style={{ margin: '0 26px 10px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {tab === 'pix' && <PixPanel tipo={plano.tipo} onSuccess={handleSuccess} />}
+          {tab === 'cartao' && (
+            <>
+              <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textAlign: 'center' }}>Pagamento único — seu plano é renovado manualmente.</p>
+              <CardPaymentForm
+                tipo={plano.tipo} mode="one-time"
+                onSuccess={handleSuccess} onError={setErro}
+              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ flex: 1, borderTop: `1px solid ${C.border}` }} />
+                <span style={{ fontSize: 10, color: C.textMuted }}>ou</span>
+                <div style={{ flex: 1, borderTop: `1px solid ${C.border}` }} />
+              </div>
+              <CheckoutRedirectPanel tipo={plano.tipo} onError={setErro} />
+            </>
+          )}
+          {tab === 'recorrente' && (
+            <>
+              <div style={{ borderRadius: 12, border: `1px solid ${C.successBorder}`, background: C.successBg, padding: '12px 14px' }}>
+                <p style={{ margin: '0 0 2px', fontSize: 13.5, fontWeight: 600, color: C.success }}>Débito automático mensal</p>
+                <p style={{ margin: 0, fontSize: 12, color: C.success }}>Seu cartão é cobrado automaticamente a cada período. Cancele a qualquer momento.</p>
+              </div>
+              <CardPaymentForm
+                tipo={plano.tipo} mode="recurring"
+                onSuccess={handleSuccess} onError={setErro}
+              />
+            </>
+          )}
+        </div>
       </div>
     </Dialog>
   );
@@ -519,54 +518,63 @@ function CancelarDialog({ onClose, onCanceled }: { onClose: () => void; onCancel
 
   return (
     <Dialog open title="Cancelar assinatura" onClose={onClose}>
-      <div className="grid gap-5">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {previewQ.isLoading && (
-          <div className="flex justify-center py-6">
-            <Loader2 size={24} className="animate-spin text-slate-400" />
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}>
+            <Loader2 size={24} className="animate-spin" style={{ color: C.textMuted }} />
           </div>
         )}
 
         {preview && (
           <>
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-              <div className="flex items-start gap-2">
-                <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-600" />
-                <div className="text-sm text-amber-800">
-                  <p className="font-bold mb-0.5">Atenção</p>
-                  <p>Ao cancelar, seu acesso será encerrado imediatamente.</p>
-                  {preview.elegivel && preview.reembolso > 0 && (
-                    <p className="mt-1 font-semibold text-amber-900">
-                      Reembolso proporcional: R$ {preview.reembolso.toFixed(2).replace('.', ',')}
-                    </p>
-                  )}
-                </div>
+            <div style={{ ...cardStyle, display: 'flex', alignItems: 'flex-start', gap: 8, background: C.warnBg, border: `1px solid ${C.warnBorder}` }}>
+              <AlertTriangle size={16} style={{ marginTop: 2, flexShrink: 0, color: C.warn }} />
+              <div style={{ fontSize: 13, color: C.warn }}>
+                <p style={{ margin: '0 0 2px', fontWeight: 700 }}>Atenção</p>
+                <p style={{ margin: 0 }}>Ao cancelar, seu acesso será encerrado imediatamente.</p>
+                {preview.elegivel && preview.reembolso > 0 && (
+                  <p style={{ margin: '4px 0 0', fontWeight: 600 }}>
+                    Reembolso proporcional: R$ {preview.reembolso.toFixed(2).replace('.', ',')}
+                  </p>
+                )}
               </div>
             </div>
 
             {erro && (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700 flex items-start gap-2">
-                <AlertTriangle size={14} className="mt-0.5 shrink-0" /> {erro}
+              <div style={{ ...cardStyle, display: 'flex', alignItems: 'flex-start', gap: 8, background: C.dangerBg, border: `1px solid ${C.dangerBorder}` }}>
+                <AlertTriangle size={14} style={{ marginTop: 2, flexShrink: 0, color: C.danger }} />
+                <span style={{ fontSize: 13, color: C.danger }}>{erro}</span>
               </div>
             )}
 
-            <label className="flex items-start gap-3 cursor-pointer">
+            <label style={{ margin: '0 26px 14px', display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
               <input
                 type="checkbox" checked={confirmado} onChange={(e) => setConfirmado(e.target.checked)}
-                className="mt-0.5 h-4 w-4 accent-red-600"
+                style={{ marginTop: 2, width: 16, height: 16, accentColor: C.danger, cursor: 'pointer' }}
               />
-              <span className="text-sm text-slate-700">
+              <span style={{ fontSize: 13.5, color: C.text }}>
                 Entendo que minha assinatura será cancelada e o acesso encerrado imediatamente.
               </span>
             </label>
 
-            <div className="flex gap-2">
-              <Button variant="secondary" className="flex-1 justify-center" onClick={onClose}>
+            <div style={{ margin: '0 26px', display: 'flex', gap: 10 }}>
+              <button
+                type="button"
+                onClick={onClose}
+                style={{ flex: 1, padding: '12px 20px', borderRadius: 11, fontSize: 14, fontWeight: 600, border: `1px solid ${C.borderInput}`, background: '#fff', color: C.textSoft, cursor: 'pointer' }}
+              >
                 Manter assinatura
-              </Button>
+              </button>
               <button
                 disabled={!confirmado || cancelarMut.isPending}
                 onClick={() => cancelarMut.mutate()}
-                className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40 transition"
+                style={{
+                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                  padding: '12px 20px', borderRadius: 11, fontSize: 14, fontWeight: 700, border: 'none',
+                  background: C.danger, color: '#fff', boxShadow: '0 6px 16px -6px rgba(180,35,24,0.5)',
+                  cursor: (!confirmado || cancelarMut.isPending) ? 'not-allowed' : 'pointer',
+                  opacity: (!confirmado || cancelarMut.isPending) ? 0.4 : 1,
+                }}
               >
                 {cancelarMut.isPending
                   ? <><Loader2 size={14} className="animate-spin" /> Cancelando...</>

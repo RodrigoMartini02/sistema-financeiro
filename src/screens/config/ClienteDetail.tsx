@@ -15,7 +15,7 @@ import { fetchRepresentantes, saveRepresentante, type Representante } from '../.
 import { queryKeys } from '../../services/queryKeys';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
-import { Field, Input, Textarea, ToggleGroup, SectionDivider } from '../../ui/form';
+import { C, labelStyle, fieldInputStyle, cardStyle, chipStyle } from '../../ui/dialogFormTokens';
 import { EmptyState } from '../../ui/states';
 import { formatCurrency } from '../finance/formatters';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
@@ -145,40 +145,50 @@ function ContratoForm({
   }
 
   return (
-    <form id="contrato-form" onSubmit={handleSubmit} className="grid gap-5">
+    <form id="contrato-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
       {/* Datas e identificação */}
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Número do contrato">
-          <Input value={form.numero} onChange={(e) => set('numero', e.target.value)} placeholder="001/2025" />
-        </Field>
-        <Field label="Descrição">
-          <Input value={form.descricao} onChange={(e) => set('descricao', e.target.value)} placeholder="Ex: Mensalidade de suporte técnico" />
-        </Field>
-        <Field label="Data de assinatura">
-          <Input type="date" value={form.data_assinatura} onChange={(e) => set('data_assinatura', e.target.value)} />
-        </Field>
-        <Field label="Vencimento" required>
-          <Input type="date" value={form.vencimento} onChange={(e) => set('vencimento', e.target.value)} required />
-        </Field>
-        <Field label="Início faturamento">
-          <Input type="date" value={form.data_inicio_faturamento} onChange={(e) => set('data_inicio_faturamento', e.target.value)} />
-        </Field>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+          <label style={labelStyle}>NÚMERO DO CONTRATO</label>
+          <input value={form.numero} onChange={(e) => set('numero', e.target.value)} placeholder="001/2025" style={fieldInputStyle} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+          <label style={labelStyle}>DESCRIÇÃO</label>
+          <input value={form.descricao} onChange={(e) => set('descricao', e.target.value)} placeholder="Ex: Mensalidade de suporte técnico" style={fieldInputStyle} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+          <label style={labelStyle}>DATA DE ASSINATURA</label>
+          <input type="date" value={form.data_assinatura} onChange={(e) => set('data_assinatura', e.target.value)} style={{ ...fieldInputStyle, fontSize: 14 }} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+          <label style={labelStyle}>VENCIMENTO *</label>
+          <input type="date" value={form.vencimento} onChange={(e) => set('vencimento', e.target.value)} required style={{ ...fieldInputStyle, fontSize: 14 }} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+          <label style={labelStyle}>INÍCIO FATURAMENTO</label>
+          <input type="date" value={form.data_inicio_faturamento} onChange={(e) => set('data_inicio_faturamento', e.target.value)} style={{ ...fieldInputStyle, fontSize: 14 }} />
+        </div>
       </div>
 
       {/* Reajuste */}
-      <div className="relative">
-        <Field label="Reajuste">
-          <ToggleGroup
-            value={['IGPM', 'IPCA'].includes(form.ajuste) ? form.ajuste : 'NADA CONSTA'}
-            options={[
-              { value: 'NADA CONSTA', label: 'Nada consta' },
-              { value: 'IGPM',        label: 'IGPM' },
-              { value: 'IPCA',        label: 'IPCA' },
-            ]}
-            onChange={(v) => set('ajuste', v)}
-          />
-        </Field>
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <label style={labelStyle}>REAJUSTE</label>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {[
+            { value: 'NADA CONSTA', label: 'Nada consta' },
+            { value: 'IGPM', label: 'IGPM' },
+            { value: 'IPCA', label: 'IPCA' },
+          ].map((opt) => (
+            <div
+              key={opt.value}
+              onClick={() => set('ajuste', opt.value)}
+              style={{ ...chipStyle((['IGPM', 'IPCA'].includes(form.ajuste) ? form.ajuste : 'NADA CONSTA') === opt.value), flex: 1 }}
+            >
+              {opt.label}
+            </div>
+          ))}
+        </div>
         {reajusteGuide.isVisible && (
           <FirstAccessGuideCard
             floating
@@ -193,104 +203,106 @@ function ContratoForm({
 
       {/* Representante */}
       {(representantes.length > 0 || onCreateRepresentante) && (
-        <>
-          <SectionDivider label="Representante" />
-          <div className="relative">
-            {representantes.length <= 5 ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <ToggleGroup
-                  value={form.representante_id}
-                  options={[
-                    { value: '', label: 'Nenhum' },
-                    ...representantes.map((r) => ({ value: String(r.id), label: r.nome })),
-                  ]}
-                  onChange={(v) => set('representante_id', v)}
-                />
-                {onCreateRepresentante && (
-                  <button
-                    type="button"
-                    onClick={() => setShowRepForm(true)}
-                    className="flex h-10 items-center gap-1 rounded-2xl border border-dashed border-slate-300 px-3 text-xs font-semibold text-slate-500 hover:border-slate-400 hover:text-slate-700"
-                  >
-                    <Plus size={13} /> novo
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <select
-                  value={form.representante_id}
-                  onChange={(e) => set('representante_id', e.target.value)}
-                  className="h-10 flex-1 rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-400"
-                >
-                  <option value="">— Nenhum —</option>
-                  {representantes.map((r) => (
-                    <option key={r.id} value={String(r.id)}>{r.nome}</option>
-                  ))}
-                </select>
-                {onCreateRepresentante && (
-                  <button
-                    type="button"
-                    onClick={() => setShowRepForm(true)}
-                    className="flex h-10 shrink-0 items-center gap-1 rounded-2xl border border-dashed border-slate-300 px-3 text-xs font-semibold text-slate-500 hover:border-slate-400 hover:text-slate-700"
-                  >
-                    <Plus size={13} /> novo
-                  </button>
-                )}
-              </div>
-            )}
-            {showRepForm && onCreateRepresentante && (
-              <div className="mt-2 flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 p-2">
-                <input
-                  type="text"
-                  id="novo-representante-input"
-                  autoFocus
-                  placeholder="Nome do representante"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      const v = e.currentTarget.value.trim();
-                      if (v) onCreateRepresentante(v);
-                    }
-                    if (e.key === 'Escape') { e.preventDefault(); setShowRepForm(false); }
-                  }}
-                  className="flex-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-200"
-                />
+        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 7 }}>
+          <label style={labelStyle}>REPRESENTANTE</label>
+          {representantes.length <= 5 ? (
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+              {[{ value: '', label: 'Nenhum' }, ...representantes.map((r) => ({ value: String(r.id), label: r.nome }))].map((opt) => (
+                <div key={opt.value} onClick={() => set('representante_id', opt.value)} style={chipStyle(form.representante_id === opt.value)}>
+                  {opt.label}
+                </div>
+              ))}
+              {onCreateRepresentante && (
                 <button
                   type="button"
-                  disabled={isCreatingRepresentante}
-                  onClick={() => {
-                    const el = document.getElementById('novo-representante-input') as HTMLInputElement | null;
-                    const v = el?.value.trim();
-                    if (v) onCreateRepresentante(v);
-                  }}
-                  className="rounded-md bg-brand-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-700 disabled:opacity-50 whitespace-nowrap"
+                  onClick={() => setShowRepForm(true)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, height: 42, padding: '0 12px', borderRadius: 10, border: `1.5px dashed ${C.chipOffBorder}`, background: 'transparent', fontSize: 13, fontWeight: 600, color: C.textMuted, cursor: 'pointer' }}
                 >
-                  {isCreatingRepresentante ? '...' : 'Criar'}
+                  <Plus size={13} /> novo
                 </button>
-                <button type="button" onClick={() => setShowRepForm(false)} className="text-slate-400 hover:text-red-500">
-                  <X size={14} />
+              )}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <select
+                value={form.representante_id}
+                onChange={(e) => set('representante_id', e.target.value)}
+                style={{ ...fieldInputStyle, flex: 1, fontSize: 14 }}
+              >
+                <option value="">— Nenhum —</option>
+                {representantes.map((r) => (
+                  <option key={r.id} value={String(r.id)}>{r.nome}</option>
+                ))}
+              </select>
+              {onCreateRepresentante && (
+                <button
+                  type="button"
+                  onClick={() => setShowRepForm(true)}
+                  style={{ display: 'flex', flexShrink: 0, alignItems: 'center', gap: 5, height: 54, padding: '0 14px', borderRadius: 12, border: `1.5px dashed ${C.chipOffBorder}`, background: 'transparent', fontSize: 13, fontWeight: 600, color: C.textMuted, cursor: 'pointer' }}
+                >
+                  <Plus size={13} /> novo
                 </button>
-              </div>
-            )}
-            {representanteGuide.isVisible && (
-              <FirstAccessGuideCard
-                floating
-                placement="bottom"
-                className="absolute left-0 top-full z-[45] mt-3 w-[min(25rem,calc(100vw-2rem))]"
-                icon={Users}
-                description={firstAccessGuideMessages.clientesRepresentante}
-                onDismiss={representanteGuide.dismiss}
+              )}
+            </div>
+          )}
+          {showRepForm && onCreateRepresentante && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderRadius: 12, border: `1.5px solid ${C.primarySoftBorder}`, background: C.primarySoft, padding: 8 }}>
+              <input
+                type="text"
+                id="novo-representante-input"
+                autoFocus
+                placeholder="Nome do representante"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const v = e.currentTarget.value.trim();
+                    if (v) onCreateRepresentante(v);
+                  }
+                  if (e.key === 'Escape') { e.preventDefault(); setShowRepForm(false); }
+                }}
+                style={{ flex: 1, height: 36, borderRadius: 8, border: `1.5px solid ${C.borderInput}`, background: '#fff', padding: '0 10px', fontSize: 13, color: C.text, outline: 'none' }}
               />
-            )}
-          </div>
-        </>
+              <button
+                type="button"
+                disabled={isCreatingRepresentante}
+                onClick={() => {
+                  const el = document.getElementById('novo-representante-input') as HTMLInputElement | null;
+                  const v = el?.value.trim();
+                  if (v) onCreateRepresentante(v);
+                }}
+                style={{ height: 36, padding: '0 14px', borderRadius: 8, border: 'none', background: C.primary, color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: isCreatingRepresentante ? 'not-allowed' : 'pointer', opacity: isCreatingRepresentante ? 0.6 : 1, whiteSpace: 'nowrap' }}
+              >
+                {isCreatingRepresentante ? '...' : 'Criar'}
+              </button>
+              <button type="button" onClick={() => setShowRepForm(false)} style={{ display: 'flex', alignItems: 'center', color: C.textMuted, background: 'none', border: 'none', cursor: 'pointer' }}>
+                <X size={14} />
+              </button>
+            </div>
+          )}
+          {representanteGuide.isVisible && (
+            <FirstAccessGuideCard
+              floating
+              placement="bottom"
+              className="absolute left-0 top-full z-[45] mt-3 w-[min(25rem,calc(100vw-2rem))]"
+              icon={Users}
+              description={firstAccessGuideMessages.clientesRepresentante}
+              onDismiss={representanteGuide.dismiss}
+            />
+          )}
+        </div>
       )}
 
       {/* Observações */}
-      <Field label="Observações">
-        <Textarea value={form.observacoes} onChange={(e) => set('observacoes', e.target.value)} placeholder="Anotações sobre o contrato..." rows={2} />
-      </Field>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <label style={labelStyle}>OBSERVAÇÕES</label>
+        <textarea
+          value={form.observacoes}
+          onChange={(e) => set('observacoes', e.target.value)}
+          placeholder="Anotações sobre o contrato..."
+          rows={2}
+          style={{ ...fieldInputStyle, height: 'auto', minHeight: 64, padding: '12px 14px', fontSize: 14, fontWeight: 400, resize: 'vertical', fontFamily: 'inherit' }}
+        />
+      </div>
 
     </form>
   );
@@ -756,7 +768,7 @@ function ContratoModal({
                 <span className="w-32 shrink-0 text-[10px] font-bold uppercase tracking-widest text-slate-400">Valor mensal</span>
                 <div className="flex-1">
                   {isEditing ? (
-                    <Input type="number" min="0" step="0.01" value={valMensal} onChange={(e) => setValMensal(e.target.value)} placeholder="0,00" />
+                    <input type="number" min="0" step="0.01" value={valMensal} onChange={(e) => setValMensal(e.target.value)} placeholder="0,00" style={{ ...fieldInputStyle, height: 40, fontSize: 14 }} />
                   ) : (
                     <p className="text-sm font-semibold text-slate-800">{vMensalNum > 0 ? formatCurrency(vMensalNum) : '—'}</p>
                   )}
@@ -785,11 +797,11 @@ function ContratoModal({
                   <div className="flex-1 grid grid-cols-3 gap-3 items-end">
                     <div className="grid gap-1.5">
                       <span className="text-xs text-slate-400">Total</span>
-                      <Input type="number" min="0" step="0.01" value={implTotal} onChange={(e) => setImplTotal(e.target.value)} placeholder="0,00" />
+                      <input type="number" min="0" step="0.01" value={implTotal} onChange={(e) => setImplTotal(e.target.value)} placeholder="0,00" style={{ ...fieldInputStyle, height: 40, fontSize: 14 }} />
                     </div>
                     <div className="grid gap-1.5">
                       <span className="text-xs text-slate-400">Nº de parcelas</span>
-                      <Input type="number" min="1" value={implParc} onChange={(e) => setImplParc(e.target.value)} placeholder="1" />
+                      <input type="number" min="1" value={implParc} onChange={(e) => setImplParc(e.target.value)} placeholder="1" style={{ ...fieldInputStyle, height: 40, fontSize: 14 }} />
                     </div>
                     <div className="grid gap-1.5">
                       <span className="text-xs text-slate-400">Valor por parcela</span>
@@ -843,11 +855,11 @@ function ContratoModal({
                     <div className="flex-1 grid grid-cols-3 gap-3">
                       <div className="grid gap-1.5">
                         <span className="text-xs text-slate-400">Valor/hora</span>
-                        <Input type="number" min="0" step="0.01" value={vS} onChange={(e) => vSet(e.target.value)} placeholder="0,00" />
+                        <input type="number" min="0" step="0.01" value={vS} onChange={(e) => vSet(e.target.value)} placeholder="0,00" style={{ ...fieldInputStyle, height: 40, fontSize: 14 }} />
                       </div>
                       <div className="grid gap-1.5">
                         <span className="text-xs text-slate-400">Saldo inicial</span>
-                        <Input type="number" min="0" step="0.5" value={iS} onChange={(e) => iSet(e.target.value)} placeholder="0" />
+                        <input type="number" min="0" step="0.5" value={iS} onChange={(e) => iSet(e.target.value)} placeholder="0" style={{ ...fieldInputStyle, height: 40, fontSize: 14 }} />
                       </div>
                       <div className="grid gap-1.5">
                         <span className="text-xs text-slate-400">Saldo atual</span>
@@ -1131,31 +1143,61 @@ function AditivoModal({
   };
 
   return (
-    <Dialog open={open} title="Registrar aditivo" onClose={onClose}>
-      <form id="aditivo-form" className="grid gap-4" onSubmit={handleSubmit}>
-        <p className="text-xs text-slate-500">
-          Encerra o contrato atual e cria um novo, copiando valores, horas e serviços vinculados.
-        </p>
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Novo número">
-            <Input value={form.novo_numero} onChange={(e) => set('novo_numero', e.target.value)} placeholder="002/2026" />
-          </Field>
-          <Field label="Nova data de assinatura">
-            <Input type="date" value={form.nova_data_assinatura} onChange={(e) => set('nova_data_assinatura', e.target.value)} />
-          </Field>
-          <Field label="Novo vencimento" required>
-            <Input type="date" value={form.novo_vencimento} onChange={(e) => set('novo_vencimento', e.target.value)} required />
-          </Field>
-          <Field label="Novo início de faturamento">
-            <Input type="date" value={form.nova_data_inicio_faturamento} onChange={(e) => set('nova_data_inicio_faturamento', e.target.value)} />
-          </Field>
+    <Dialog open={open} title="Registrar aditivo" onClose={onClose} scrollBody={false}>
+      <form id="aditivo-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+          <p style={{ margin: '0 26px 14px', fontSize: 12.5, color: C.textMuted }}>
+            Encerra o contrato atual e cria um novo, copiando valores, horas e serviços vinculados.
+          </p>
+          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <label style={labelStyle}>NOVO NÚMERO</label>
+              <input value={form.novo_numero} onChange={(e) => set('novo_numero', e.target.value)} placeholder="002/2026" style={fieldInputStyle} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <label style={labelStyle}>NOVA DATA DE ASSINATURA</label>
+              <input type="date" value={form.nova_data_assinatura} onChange={(e) => set('nova_data_assinatura', e.target.value)} style={{ ...fieldInputStyle, fontSize: 14 }} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <label style={labelStyle}>NOVO VENCIMENTO *</label>
+              <input type="date" value={form.novo_vencimento} onChange={(e) => set('novo_vencimento', e.target.value)} required style={{ ...fieldInputStyle, fontSize: 14 }} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <label style={labelStyle}>NOVO INÍCIO DE FATURAMENTO</label>
+              <input type="date" value={form.nova_data_inicio_faturamento} onChange={(e) => set('nova_data_inicio_faturamento', e.target.value)} style={{ ...fieldInputStyle, fontSize: 14 }} />
+            </div>
+          </div>
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <label style={labelStyle}>OBSERVAÇÕES</label>
+              <textarea
+                value={form.observacoes}
+                onChange={(e) => set('observacoes', e.target.value)}
+                rows={2}
+                style={{ ...fieldInputStyle, height: 'auto', minHeight: 64, padding: '12px 14px', fontSize: 14, fontWeight: 400, resize: 'vertical', fontFamily: 'inherit' }}
+              />
+            </div>
+          </div>
         </div>
-        <Field label="Observações">
-          <Textarea value={form.observacoes} onChange={(e) => set('observacoes', e.target.value)} rows={2} />
-        </Field>
-        <div className="flex justify-end gap-2 pt-1">
-          <Button variant="secondary" type="button" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" disabled={isSaving}>{isSaving ? 'Registrando...' : 'Registrar aditivo'}</Button>
+        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ padding: '12px 20px', borderRadius: 11, fontSize: 14, fontWeight: 600, border: `1px solid ${C.borderInput}`, background: '#fff', color: C.textSoft, cursor: 'pointer' }}
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            disabled={isSaving}
+            style={{
+              padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700, border: 'none',
+              background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)',
+              cursor: isSaving ? 'not-allowed' : 'pointer', opacity: isSaving ? 0.6 : 1,
+            }}
+          >
+            {isSaving ? 'Registrando...' : 'Registrar aditivo'}
+          </button>
         </div>
       </form>
     </Dialog>

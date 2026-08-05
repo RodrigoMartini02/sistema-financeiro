@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { CircleCheck, AlertCircle } from 'lucide-react';
 import { Dialog } from '../../ui/dialog';
+import { C, labelStyle, fieldInputStyle, cardStyle, chipStyle } from '../../ui/dialogFormTokens';
 import { pagarDespesa } from '../../services/financeService';
 import type { Expense } from '../../types/finance';
 import { formatCurrency } from './formatters';
@@ -74,131 +75,110 @@ export function BatchPaymentModal({ open, expenses, onClose, onSuccess }: BatchP
       open={open}
       title={`Pagamento em lote — ${expenses.length} despesa(s)`}
       onClose={() => { if (!loading) onClose(); }}
+      scrollBody={false}
     >
-      <div className="flex flex-col gap-4">
-        {/* Tab switcher */}
-        <div className="relative">
-          <div className="flex rounded-xl border border-slate-200 overflow-hidden dark:border-slate-600">
-            <button
-              type="button"
-              onClick={() => setTab('original')}
-              className={[
-                'flex-1 py-2 text-xs font-semibold transition',
-                tab === 'original'
-                  ? 'bg-[#0EC4D8] text-white'
-                  : 'bg-white text-slate-500 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700',
-              ].join(' ')}
-            >
-              Valor original
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab('personalizado')}
-              className={[
-                'flex-1 py-2 text-xs font-semibold transition',
-                tab === 'personalizado'
-                  ? 'bg-[#0EC4D8] text-white'
-                  : 'bg-white text-slate-500 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700',
-              ].join(' ')}
-            >
-              Valor personalizado
-            </button>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+
+          <div style={{ ...cardStyle, position: 'relative' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <label style={labelStyle}>FORMA DE COBRANÇA</label>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <div onClick={() => setTab('original')} style={{ ...chipStyle(tab === 'original', { h: 38 }), flex: 1 }}>
+                  Valor original
+                </div>
+                <div onClick={() => setTab('personalizado')} style={{ ...chipStyle(tab === 'personalizado', { h: 38 }), flex: 1 }}>
+                  Valor personalizado
+                </div>
+              </div>
+            </div>
+            {tabGuide.isVisible && (
+              <FirstAccessGuideCard
+                floating
+                placement="bottom"
+                className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                icon={CircleCheck}
+                description={tab === 'original' ? firstAccessGuideMessages.batchValorOriginal : firstAccessGuideMessages.batchValorPersonalizado}
+                onDismiss={tabGuide.dismiss}
+              />
+            )}
           </div>
-          {tabGuide.isVisible && (
-            <FirstAccessGuideCard
-              floating
-              placement="bottom"
-              className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
-              icon={CircleCheck}
-              description={tab === 'original' ? firstAccessGuideMessages.batchValorOriginal : firstAccessGuideMessages.batchValorPersonalizado}
-              onDismiss={tabGuide.dismiss}
-            />
+
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <label style={labelStyle}>DATA DE PAGAMENTO</label>
+              <input
+                type="date"
+                value={dataPagamento}
+                onChange={(e) => setDataPagamento(e.target.value)}
+                style={{ ...fieldInputStyle, fontSize: 14 }}
+              />
+            </div>
+          </div>
+
+          <div style={{ margin: '0 26px 10px', borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden', maxHeight: 224, overflowY: 'auto' }}>
+            {tab === 'original' ? (
+              expenses.map((e, i) => (
+                <div
+                  key={e.id}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', fontSize: 13,
+                    background: i % 2 === 0 ? '#fff' : C.cardBg,
+                  }}
+                >
+                  <span style={{ color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 260 }}>{e.descricao}</span>
+                  <span style={{ fontWeight: 700, color: C.danger, flexShrink: 0, marginLeft: 12 }}>
+                    {formatCurrency(e.valorFinal)}
+                  </span>
+                </div>
+              ))
+            ) : (
+              expenses.map((e, i) => (
+                <div
+                  key={e.id}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', fontSize: 13,
+                    background: i % 2 === 0 ? '#fff' : C.cardBg,
+                  }}
+                >
+                  <span style={{ flex: 1, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.descricao}</span>
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    placeholder={e.valorFinal.toFixed(2)}
+                    value={valoresPorId[e.id] ?? ''}
+                    onChange={(ev) =>
+                      setValoresPorId((prev) => ({ ...prev, [e.id]: ev.target.value }))
+                    }
+                    style={{ width: 110, height: 32, borderRadius: 8, border: `1.5px solid ${C.borderInput}`, padding: '0 8px', textAlign: 'right', fontSize: 13, color: C.text, outline: 'none' }}
+                  />
+                </div>
+              ))
+            )}
+          </div>
+
+          <div style={{ margin: '0 26px 14px', borderRadius: 12, background: '#f8fafb', padding: '12px 14px', display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+            <span style={{ color: C.textMuted }}>Total a pagar</span>
+            <span style={{ fontWeight: 700, color: C.danger }}>
+              {formatCurrency(tab === 'original' ? totalOriginal : totalPersonalizado)}
+            </span>
+          </div>
+
+          {erro && (
+            <div style={{ margin: '0 26px 14px', display: 'flex', alignItems: 'flex-start', gap: 8, borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
+              <AlertCircle size={15} style={{ flexShrink: 0, marginTop: 2 }} />
+              <span>{erro}</span>
+            </div>
           )}
         </div>
 
-        {/* Date input */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-            Data de Pagamento
-          </label>
-          <input
-            type="date"
-            value={dataPagamento}
-            onChange={(e) => setDataPagamento(e.target.value)}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#0EC4D8] focus:ring-2 focus:ring-[#0EC4D8]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-          />
-        </div>
-
-        {/* Expenses list */}
-        <div className="flex flex-col gap-0 rounded-xl border border-slate-100 dark:border-slate-700 overflow-hidden max-h-56 overflow-y-auto">
-          {tab === 'original' ? (
-            expenses.map((e, i) => (
-              <div
-                key={e.id}
-                className={[
-                  'flex items-center justify-between px-3 py-2.5 text-sm',
-                  i % 2 === 0
-                    ? 'bg-white dark:bg-slate-800'
-                    : 'bg-slate-50 dark:bg-slate-800/60',
-                ].join(' ')}
-              >
-                <span className="text-slate-700 dark:text-slate-200 truncate max-w-[260px]">{e.descricao}</span>
-                <span className="font-semibold text-red-700 dark:text-red-400 shrink-0 ml-3">
-                  {formatCurrency(e.valorFinal)}
-                </span>
-              </div>
-            ))
-          ) : (
-            expenses.map((e, i) => (
-              <div
-                key={e.id}
-                className={[
-                  'flex items-center gap-3 px-3 py-2 text-sm',
-                  i % 2 === 0
-                    ? 'bg-white dark:bg-slate-800'
-                    : 'bg-slate-50 dark:bg-slate-800/60',
-                ].join(' ')}
-              >
-                <span className="flex-1 text-slate-700 dark:text-slate-200 truncate">{e.descricao}</span>
-                <input
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  placeholder={e.valorFinal.toFixed(2)}
-                  value={valoresPorId[e.id] ?? ''}
-                  onChange={(ev) =>
-                    setValoresPorId((prev) => ({ ...prev, [e.id]: ev.target.value }))
-                  }
-                  className="w-28 rounded-lg border border-slate-200 px-2 py-1 text-right text-sm text-slate-800 outline-none focus:border-[#0EC4D8] focus:ring-1 focus:ring-[#0EC4D8]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                />
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Total summary */}
-        <div className="rounded-xl bg-slate-50 dark:bg-slate-700/50 px-4 py-3 flex justify-between text-sm">
-          <span className="text-slate-500 dark:text-slate-400">Total a pagar</span>
-          <span className="font-bold text-red-700 dark:text-red-400">
-            {formatCurrency(tab === 'original' ? totalOriginal : totalPersonalizado)}
-          </span>
-        </div>
-
-        {/* Error */}
-        {erro && (
-          <div className="flex items-start gap-2 rounded-xl bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-600 dark:text-red-400">
-            <AlertCircle size={15} className="shrink-0 mt-0.5" />
-            <span>{erro}</span>
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="flex gap-2 justify-end pt-1">
+        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <button
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="rounded-[14px] border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition disabled:opacity-40 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+            style={{ padding: '12px 20px', borderRadius: 11, fontSize: 14, fontWeight: 600, border: `1px solid ${C.borderInput}`, background: '#fff', color: C.textSoft, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.5 : 1 }}
           >
             Cancelar
           </button>
@@ -206,7 +186,12 @@ export function BatchPaymentModal({ open, expenses, onClose, onSuccess }: BatchP
             type="button"
             onClick={handleConfirm}
             disabled={loading || !dataPagamento}
-            className="inline-flex items-center gap-2 rounded-[14px] bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 transition disabled:opacity-50"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
+              border: 'none', cursor: loading || !dataPagamento ? 'not-allowed' : 'pointer',
+              background: C.success, color: '#fff', boxShadow: '0 6px 16px -6px rgba(6,118,71,0.6)',
+              opacity: loading || !dataPagamento ? 0.5 : 1,
+            }}
           >
             <CircleCheck size={16} />
             {loading ? 'Processando...' : `Pagar ${expenses.length} despesa(s)`}

@@ -1,5 +1,5 @@
 import { Dialog } from './dialog';
-import { Button } from './button';
+import { C } from './dialogFormTokens';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -25,16 +25,32 @@ export function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   return (
-    <Dialog open={open} title={title} onClose={onCancel} size="md">
-      <div className="grid gap-5">
-        <p className="text-sm text-slate-600 dark:text-slate-300">{message}</p>
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={onCancel} disabled={isLoading}>
+    <Dialog open={open} title={title} onClose={onCancel}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <p style={{ margin: '0 26px', fontSize: 14, color: C.textSoft }}>{message}</p>
+        <div style={{ margin: '0 26px', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isLoading}
+            style={{ padding: '12px 20px', borderRadius: 11, fontSize: 14, fontWeight: 600, border: `1px solid ${C.borderInput}`, background: '#fff', color: C.textSoft, cursor: isLoading ? 'not-allowed' : 'pointer', opacity: isLoading ? 0.5 : 1 }}
+          >
             {cancelLabel}
-          </Button>
-          <Button type="button" variant={variant === 'danger' ? 'danger' : 'primary'} onClick={onConfirm} disabled={isLoading}>
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isLoading}
+            style={{
+              padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700, border: 'none',
+              cursor: isLoading ? 'not-allowed' : 'pointer', opacity: isLoading ? 0.5 : 1,
+              ...(variant === 'danger'
+                ? { background: C.danger, color: '#fff', boxShadow: '0 6px 16px -6px rgba(180,35,24,0.5)' }
+                : { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }),
+            }}
+          >
             {isLoading ? 'Aguarde...' : confirmLabel}
-          </Button>
+          </button>
         </div>
       </div>
     </Dialog>

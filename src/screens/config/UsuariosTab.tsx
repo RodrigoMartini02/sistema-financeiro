@@ -7,7 +7,8 @@ import {
 } from '../../services/usuariosService';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
-import { Field, Input, ToggleRow, ToggleGroup, SectionDivider } from '../../ui/form';
+import { C, labelStyle, fieldInputStyle, cardStyle, chipStyle } from '../../ui/dialogFormTokens';
+import { ToggleGroup } from '../../ui/form';
 import { ConfigListRow } from '../../ui/ConfigListRow';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
@@ -59,48 +60,60 @@ function UsuarioDialog({
   const isAtivo = usuario?.status === 'ativo';
 
   return (
-    <Dialog open={open} title={usuario ? 'Editar usuário' : 'Novo usuário'} onClose={onClose} size="lg">
-      <form className="grid gap-5" onSubmit={handleSubmit}>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Nome completo">
-            <Input name="nome" defaultValue={usuario?.nome} placeholder="Nome do usuário" autoFocus required />
-          </Field>
-          <Field label="E-mail">
-            <Input name="email" type="email" defaultValue={usuario?.email} placeholder="usuario@email.com" required />
-          </Field>
-        </div>
+    <Dialog open={open} title={usuario ? 'Editar usuário' : 'Novo usuário'} onClose={onClose} size="lg" scrollBody={false}>
+      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }} onSubmit={handleSubmit}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <label style={labelStyle}><span>NOME COMPLETO</span><span style={{ color: C.primary }}>*</span></label>
+              <input name="nome" defaultValue={usuario?.nome} placeholder="Nome do usuário" autoFocus required style={fieldInputStyle} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <label style={labelStyle}><span>E-MAIL</span><span style={{ color: C.primary }}>*</span></label>
+              <input name="email" type="email" defaultValue={usuario?.email} placeholder="usuario@email.com" required style={fieldInputStyle} />
+            </div>
+          </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Documento (CPF/CNPJ)">
-            <Input name="documento" defaultValue={usuario?.documento} placeholder="000.000.000-00" required={!usuario} />
-          </Field>
-          {!usuario && (
-            <Field label="Senha" hint="Mínimo 6 caracteres">
-              <Input name="senha" type="password" placeholder="••••••••" required minLength={6} />
-            </Field>
+          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <label style={labelStyle}><span>DOCUMENTO (CPF/CNPJ)</span>{!usuario && <span style={{ color: C.primary }}>*</span>}</label>
+              <input name="documento" defaultValue={usuario?.documento} placeholder="000.000.000-00" required={!usuario} style={fieldInputStyle} />
+            </div>
+            {!usuario && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                <label style={labelStyle}><span>SENHA</span><span style={{ color: C.primary }}>*</span></label>
+                <input name="senha" type="password" placeholder="••••••••" required minLength={6} style={fieldInputStyle} />
+                <span style={{ fontSize: 12, color: C.textFaint }}>Mínimo 6 caracteres</span>
+              </div>
+            )}
+          </div>
+
+          {isMaster && (
+            <div style={cardStyle}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                <label style={labelStyle}>PERMISSÃO DE ACESSO</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {TIPO_ACESSO_OPTIONS.map((opt) => (
+                    <div key={opt.value} onClick={() => setTipoAcesso(opt.value)} title={opt.description} style={chipStyle(tipoAcesso === opt.value)}>
+                      {opt.label}
+                    </div>
+                  ))}
+                </div>
+                <span style={{ fontSize: 12, color: C.textFaint }}>
+                  {TIPO_ACESSO_OPTIONS.find((o) => o.value === tipoAcesso)?.description}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div style={{ margin: '0 26px 14px', borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
+              {error}
+            </div>
           )}
         </div>
 
-        {isMaster && (
-          <>
-            <SectionDivider label="Permissão de acesso" />
-            <div className="grid gap-2">
-              {TIPO_ACESSO_OPTIONS.map((opt) => (
-                <ToggleRow
-                  key={opt.value}
-                  label={opt.label}
-                  description={opt.description}
-                  checked={tipoAcesso === opt.value}
-                  onChange={() => setTipoAcesso(opt.value)}
-                />
-              ))}
-            </div>
-          </>
-        )}
-
-        {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-
-        <div className="flex items-center gap-2">
+        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
           {usuario && (
             <div className="relative flex items-center gap-2">
               {onToggleStatus && (
@@ -127,8 +140,20 @@ function UsuarioDialog({
               )}
             </div>
           )}
-          <div className="ml-auto">
-            <Button type="submit" disabled={isSaving}>{isSaving ? 'Salvando...' : 'Salvar'}</Button>
+          <div style={{ marginLeft: 'auto' }}>
+            <button
+              type="submit"
+              disabled={isSaving}
+              style={{
+                padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
+                border: 'none', transition: 'all .15s ease', cursor: isSaving ? 'not-allowed' : 'pointer',
+                ...(isSaving
+                  ? { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }
+                  : { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }),
+              }}
+            >
+              {isSaving ? 'Salvando...' : 'Salvar'}
+            </button>
           </div>
         </div>
       </form>

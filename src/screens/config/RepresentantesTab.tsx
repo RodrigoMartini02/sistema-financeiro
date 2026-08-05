@@ -9,7 +9,7 @@ import { fetchIncomeTypes, saveIncomeType } from '../../services/incomeTypesServ
 import { queryKeys } from '../../services/queryKeys';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
-import { Field, Input, Select, SectionDivider } from '../../ui/form';
+import { C, labelStyle, fieldInputStyle, cardStyle, chipStyle } from '../../ui/dialogFormTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
@@ -54,9 +54,9 @@ function ComissaoRow({
 
   if (creating) {
     return (
-      <div className="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 grid gap-2">
-        <p className="text-xs font-semibold text-brand-700 uppercase tracking-wide">Criar tipo de receita</p>
-        <div className="flex gap-2">
+      <div style={{ borderRadius: 10, border: `1.5px solid ${C.primary}`, background: C.primarySoft, padding: 10, display: 'grid', gap: 8 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.primaryDark, margin: 0 }}>Criar tipo de receita</p>
+        <div style={{ display: 'flex', gap: 8 }}>
           <input
             ref={inputRef}
             autoFocus
@@ -67,13 +67,13 @@ function ComissaoRow({
               if (e.key === 'Escape') cancelCreate();
             }}
             placeholder="Ex: Mensalidade, Consultoria..."
-            className="flex-1 rounded-lg border border-brand-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200"
+            style={{ flex: 1, height: 36, borderRadius: 8, border: `1.5px solid ${C.primary}`, background: '#fff', padding: '0 10px', fontSize: 13, color: C.text, outline: 'none' }}
           />
           <button
             type="button"
             onClick={handleCreate}
             disabled={saving || !newName.trim()}
-            className="flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-40 transition"
+            style={{ display: 'flex', alignItems: 'center', gap: 6, borderRadius: 8, background: C.primary, padding: '0 12px', fontSize: 13, fontWeight: 600, color: '#fff', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', opacity: saving || !newName.trim() ? 0.5 : 1 }}
           >
             <Check size={13} />
             {saving ? 'Salvando...' : 'Criar'}
@@ -81,12 +81,12 @@ function ComissaoRow({
           <button
             type="button"
             onClick={cancelCreate}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500 hover:bg-slate-50 transition"
+            style={{ borderRadius: 8, border: `1.5px solid ${C.borderInput}`, background: '#fff', padding: '0 12px', fontSize: 13, color: C.textMuted, cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
             Cancelar
           </button>
         </div>
-        <p className="text-xs text-brand-600">O tipo será salvo e selecionado automaticamente nesta linha.</p>
+        <p style={{ fontSize: 12, color: C.primaryDark, margin: 0 }}>O tipo será salvo e selecionado automaticamente nesta linha.</p>
       </div>
     );
   }
@@ -94,42 +94,35 @@ function ComissaoRow({
   const tipoAtual = comissao.tipo ?? 'mensal';
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex flex-1 gap-1">
-        <Select
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ display: 'flex', flex: 1, gap: 6 }}>
+        <select
           value={comissao.tipo_receita}
           onChange={(e) => onChange({ ...comissao, tipo_receita: e.target.value })}
+          style={{ ...fieldInputStyle, height: 42, fontSize: 14, flex: 1 }}
         >
           {tiposReceita.length === 0 && (
             <option value={comissao.tipo_receita}>{comissao.tipo_receita || '—'}</option>
           )}
           {tiposReceita.map((t) => <option key={t} value={t}>{t}</option>)}
-        </Select>
+        </select>
         <button
           type="button"
           onClick={() => setCreating(true)}
           title="Criar novo tipo de receita"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-dashed border-slate-300 text-slate-400 hover:border-brand-400 hover:text-brand-600 transition"
+          style={{ display: 'flex', height: 42, width: 42, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 10, border: `1.5px dashed ${C.chipOffBorder}`, color: C.textMuted, background: 'transparent', cursor: 'pointer' }}
         >
           <Plus size={14} />
         </button>
       </div>
-      <div className="relative">
-        <div className="flex overflow-hidden rounded-lg border border-slate-200">
-          <button
-            type="button"
-            onClick={() => onChange({ ...comissao, tipo: 'mensal' })}
-            className={`px-2.5 py-1.5 text-xs font-medium transition ${tipoAtual === 'mensal' ? 'bg-brand-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
-          >
+      <div style={{ position: 'relative' }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <div onClick={() => onChange({ ...comissao, tipo: 'mensal' })} style={chipStyle(tipoAtual === 'mensal', { h: 42, r: 10, size: 12.5 })}>
             Mensal
-          </button>
-          <button
-            type="button"
-            onClick={() => onChange({ ...comissao, tipo: 'unica' })}
-            className={`border-l border-slate-200 px-2.5 py-1.5 text-xs font-medium transition ${tipoAtual === 'unica' ? 'bg-brand-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
-          >
+          </div>
+          <div onClick={() => onChange({ ...comissao, tipo: 'unica' })} style={chipStyle(tipoAtual === 'unica', { h: 42, r: 10, size: 12.5 })}>
             Única
-          </button>
+          </div>
         </div>
         {tipoGuide && (
           <FirstAccessGuideCard
@@ -142,7 +135,7 @@ function ComissaoRow({
           />
         )}
       </div>
-      <div className="relative w-28">
+      <div style={{ position: 'relative', width: 110 }}>
         <input
           type="number"
           min="0.01"
@@ -150,15 +143,15 @@ function ComissaoRow({
           step="0.01"
           value={comissao.percentual}
           onChange={(e) => onChange({ ...comissao, percentual: parseFloat(e.target.value) || 0 })}
-          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 pr-7 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
+          style={{ ...fieldInputStyle, height: 42, fontSize: 14, paddingRight: 26 }}
           placeholder="0,00"
         />
-        <Percent size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+        <Percent size={12} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.placeholder }} />
       </div>
       <button
         type="button"
         onClick={onRemove}
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-300 hover:bg-red-50 hover:text-red-500 transition"
+        style={{ display: 'flex', height: 36, width: 36, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 9, color: C.placeholder, background: 'transparent', border: 'none', cursor: 'pointer' }}
       >
         <X size={14} />
       </button>
@@ -223,81 +216,110 @@ function RepresentanteDialog({
     setComissoes((prev) => prev.filter((_, idx) => idx !== i));
 
   return (
-    <Dialog open={open} title={rep ? 'Editar representante' : 'Novo representante'} onClose={onClose} size="lg">
-      <form className="grid gap-5" onSubmit={handleSubmit}>
-        <Field label="Nome completo">
-          <Input name="nome" defaultValue={rep?.nome} placeholder="Ex: João Silva" autoFocus required />
-        </Field>
+    <Dialog open={open} title={rep ? 'Editar representante' : 'Novo representante'} onClose={onClose} size="lg" scrollBody={false}>
+      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }} onSubmit={handleSubmit}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <label style={labelStyle}><span>NOME COMPLETO</span><span style={{ color: C.primary }}>*</span></label>
+              <input name="nome" defaultValue={rep?.nome} placeholder="Ex: João Silva" autoFocus required style={fieldInputStyle} />
+            </div>
+          </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="E-mail" hint="Opcional">
-            <Input name="email" type="email" defaultValue={rep?.email ?? ''} placeholder="joao@email.com" />
-          </Field>
-          <Field label="Telefone" hint="Opcional">
-            <Input name="telefone" defaultValue={rep?.telefone ?? ''} placeholder="(11) 99999-9999" />
-          </Field>
-        </div>
+          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
+                <label style={{ ...labelStyle, height: 'auto' }}>E-MAIL</label>
+                <span style={{ fontSize: 11, color: C.placeholder }}>opcional</span>
+              </div>
+              <input name="email" type="email" defaultValue={rep?.email ?? ''} placeholder="joao@email.com" style={fieldInputStyle} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
+                <label style={{ ...labelStyle, height: 'auto' }}>TELEFONE</label>
+                <span style={{ fontSize: 11, color: C.placeholder }}>opcional</span>
+              </div>
+              <input name="telefone" defaultValue={rep?.telefone ?? ''} placeholder="(11) 99999-9999" style={fieldInputStyle} />
+            </div>
+          </div>
 
-        <div className="relative">
-          <SectionDivider label="Comissões por tipo de receita" />
-          {comissoesGuide.isVisible && (
-            <FirstAccessGuideCard
-              floating
-              placement="bottom"
-              className="absolute left-0 top-full z-[45] mt-1 w-[min(25rem,calc(100vw-2rem))]"
-              icon={Percent}
-              description={firstAccessGuideMessages.representantesComissoes}
-              onDismiss={comissoesGuide.dismiss}
-            />
+          <div style={{ ...cardStyle, position: 'relative' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <label style={labelStyle}>COMISSÕES POR TIPO DE RECEITA</label>
+
+              {tiposReceita.length === 0 && (
+                <p style={{ borderRadius: 8, border: `1px solid ${C.warnBorder}`, background: C.warnBg, padding: '8px 12px', fontSize: 12.5, color: C.warn, margin: 0 }}>
+                  Nenhum tipo de receita cadastrado. Use o botão <strong>+</strong> ao lado do seletor para criar um.
+                </p>
+              )}
+
+              <div style={{ display: 'grid', gap: 8 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 110px 36px', gap: 8, padding: '0 2px' }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: C.textMuted }}>Tipo de receita</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: C.textMuted }}>Frequência</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: C.textMuted }}>Percentual</span>
+                  <span />
+                </div>
+                {comissoes.map((c, i) => (
+                  <ComissaoRow
+                    key={i}
+                    comissao={c}
+                    tiposReceita={tiposReceita}
+                    onChange={(updated) => updateComissao(i, updated)}
+                    onRemove={() => removeComissao(i)}
+                    onCreateType={handleCreateType}
+                    tipoGuide={i === 0 && tipoComissaoGuide.isVisible
+                      ? { description: firstAccessGuideMessages.representantesTipoComissao, onDismiss: tipoComissaoGuide.dismiss }
+                      : undefined}
+                  />
+                ))}
+                <button
+                  type="button"
+                  onClick={addComissao}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, borderRadius: 10, border: `1.5px dashed ${C.chipOffBorder}`, padding: '10px 12px', fontSize: 13, color: C.textMuted, background: 'transparent', cursor: 'pointer' }}
+                >
+                  <Plus size={14} />
+                  Adicionar comissão
+                </button>
+              </div>
+            </div>
+            {comissoesGuide.isVisible && (
+              <FirstAccessGuideCard
+                floating
+                placement="top"
+                className="absolute left-0 top-full z-[45] mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                icon={Percent}
+                description={firstAccessGuideMessages.representantesComissoes}
+                onDismiss={comissoesGuide.dismiss}
+              />
+            )}
+          </div>
+
+          {error && (
+            <div style={{ margin: '0 26px 14px', borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
+              {error}
+            </div>
           )}
         </div>
 
-        {tiposReceita.length === 0 && (
-          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-            Nenhum tipo de receita cadastrado. Use o botão <strong>+</strong> ao lado do seletor para criar um.
-          </p>
-        )}
-
-        <div className="grid gap-2">
-          <div className="grid grid-cols-[1fr_auto_112px_32px] gap-2 px-0.5">
-            <p className="text-xs font-semibold text-slate-500">Tipo de receita</p>
-            <p className="text-xs font-semibold text-slate-500">Frequência</p>
-            <p className="text-xs font-semibold text-slate-500">Percentual</p>
-            <span />
-          </div>
-          {comissoes.map((c, i) => (
-            <ComissaoRow
-              key={i}
-              comissao={c}
-              tiposReceita={tiposReceita}
-              onChange={(updated) => updateComissao(i, updated)}
-              onRemove={() => removeComissao(i)}
-              onCreateType={handleCreateType}
-              tipoGuide={i === 0 && tipoComissaoGuide.isVisible
-                ? { description: firstAccessGuideMessages.representantesTipoComissao, onDismiss: tipoComissaoGuide.dismiss }
-                : undefined}
-            />
-          ))}
-          <button
-            type="button"
-            onClick={addComissao}
-            className="flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm text-slate-500 hover:border-brand-400 hover:text-brand-600 transition"
-          >
-            <Plus size={14} />
-            Adicionar comissão
-          </button>
-        </div>
-
-        {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
-        )}
-
-        <div className="flex items-center gap-2">
+        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
           {rep && onDelete && (
             <Button type="button" variant="danger" onClick={handleDelete}>Excluir</Button>
           )}
-          <div className="ml-auto">
-            <Button type="submit" disabled={isSaving}>{isSaving ? 'Salvando...' : 'Salvar'}</Button>
+          <div style={{ marginLeft: 'auto' }}>
+            <button
+              type="submit"
+              disabled={isSaving}
+              style={{
+                padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
+                border: 'none', transition: 'all .15s ease', cursor: isSaving ? 'not-allowed' : 'pointer',
+                ...(isSaving
+                  ? { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }
+                  : { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }),
+              }}
+            >
+              {isSaving ? 'Salvando...' : 'Salvar'}
+            </button>
           </div>
         </div>
       </form>
