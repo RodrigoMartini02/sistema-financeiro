@@ -77,36 +77,38 @@ export function BatchPaymentModal({ open, expenses, onClose, onSuccess }: BatchP
     >
       <div className="flex flex-col gap-4">
         {/* Tab switcher */}
-        <div className="relative flex rounded-xl border border-slate-200 overflow-hidden dark:border-slate-600">
-          <button
-            type="button"
-            onClick={() => setTab('original')}
-            className={[
-              'flex-1 py-2 text-xs font-semibold transition',
-              tab === 'original'
-                ? 'bg-[#0EC4D8] text-white'
-                : 'bg-white text-slate-500 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700',
-            ].join(' ')}
-          >
-            Valor original
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab('personalizado')}
-            className={[
-              'flex-1 py-2 text-xs font-semibold transition',
-              tab === 'personalizado'
-                ? 'bg-[#0EC4D8] text-white'
-                : 'bg-white text-slate-500 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700',
-            ].join(' ')}
-          >
-            Valor personalizado
-          </button>
+        <div className="relative">
+          <div className="flex rounded-xl border border-slate-200 overflow-hidden dark:border-slate-600">
+            <button
+              type="button"
+              onClick={() => setTab('original')}
+              className={[
+                'flex-1 py-2 text-xs font-semibold transition',
+                tab === 'original'
+                  ? 'bg-[#0EC4D8] text-white'
+                  : 'bg-white text-slate-500 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700',
+              ].join(' ')}
+            >
+              Valor original
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('personalizado')}
+              className={[
+                'flex-1 py-2 text-xs font-semibold transition',
+                tab === 'personalizado'
+                  ? 'bg-[#0EC4D8] text-white'
+                  : 'bg-white text-slate-500 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700',
+              ].join(' ')}
+            >
+              Valor personalizado
+            </button>
+          </div>
           {tabGuide.isVisible && (
             <FirstAccessGuideCard
               floating
               placement="bottom"
-              className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+              className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
               icon={CircleCheck}
               description={tab === 'original' ? firstAccessGuideMessages.batchValorOriginal : firstAccessGuideMessages.batchValorPersonalizado}
               onDismiss={tabGuide.dismiss}

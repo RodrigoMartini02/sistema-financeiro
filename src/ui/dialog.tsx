@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { Z_MODAL } from './zIndex';
 
 interface DialogProps {
   open: boolean;
@@ -24,7 +25,7 @@ export function Dialog({ open, title, description, onClose, children, size = 'md
   const minH = size === 'xxl' || size === 'xl' || size === 'lg' ? 'min-h-[560px]' : '';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
+    <div className={['fixed inset-0 flex items-end justify-center p-4 sm:items-center', Z_MODAL].join(' ')}>
       <div
         className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm"
         onClick={onClose}

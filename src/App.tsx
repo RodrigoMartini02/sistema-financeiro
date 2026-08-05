@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AppProvider, useAppContext } from './context/AppContext';
 import { ConfirmProvider } from './context/ConfirmContext';
+import { FirstAccessGuideProvider } from './context/FirstAccessGuideContext';
 import { HomePage } from './screens/public/HomePage';
 import { FuncionalidadesPage } from './screens/public/FuncionalidadesPage';
 import { SobrePage } from './screens/public/SobrePage';
@@ -27,6 +28,8 @@ import { ExpenseDialog } from './screens/finance/ExpenseDialog';
 import { useFinanceDashboard } from './hooks/useFinanceDashboard';
 import { apiRequest } from './services/apiClient';
 import { trackPageView } from './services/analyticsService';
+import { useOnboardingChecklist } from './hooks/useOnboardingChecklist';
+import { OnboardingChecklistModal } from './components/OnboardingChecklistModal';
 
 interface PlanoStatus {
   status: 'trial' | 'ativo' | 'expirado';
@@ -110,6 +113,8 @@ function AppContent() {
     staleTime: 3 * 60 * 1000,
   });
 
+  const onboarding = useOnboardingChecklist(isAppRoute && !!session.user);
+
   if (!isAppRoute) return <PublicSite />;
   if (!session.hasToken) {
     window.location.replace('/index.html');
@@ -168,6 +173,12 @@ function AppContent() {
         onClose={() => setQuickAction('none')}
         onSave={async (items) => { for (const v of items) await finance.saveExpense.mutateAsync({ values: v }); setQuickAction('none'); }}
       />
+      <OnboardingChecklistModal
+        open={onboarding.isVisible}
+        items={onboarding.items}
+        onDismiss={onboarding.dismiss}
+        onGoToTab={handleConfigTab}
+      />
     </AppShell>
   );
 }
@@ -176,7 +187,9 @@ export function App() {
   return (
     <AppProvider>
       <ConfirmProvider>
-        <AppContent />
+        <FirstAccessGuideProvider>
+          <AppContent />
+        </FirstAccessGuideProvider>
       </ConfirmProvider>
     </AppProvider>
   );

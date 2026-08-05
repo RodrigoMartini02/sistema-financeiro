@@ -450,7 +450,7 @@ function PagamentoDialog({ plano, onClose, onSuccess }: {
             <FirstAccessGuideCard
               floating
               placement="bottom"
-              className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+              className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
               icon={CreditCard}
               description={firstAccessGuideMessages.planosFormasPagamento}
               onDismiss={tabsGuide.dismiss}

@@ -59,7 +59,7 @@ export function FirstAccessGuideCard({
           </span>
         )}
 
-        <p className="min-w-0 flex-1 pr-1">{description}</p>
+        <p className="min-w-0 flex-1 pr-1 font-normal">{description}</p>
 
         {onDismiss && (
           <button

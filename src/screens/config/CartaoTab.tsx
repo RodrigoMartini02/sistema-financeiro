@@ -87,7 +87,7 @@ function CartaoDialog({
             <FirstAccessGuideCard
               floating
               placement="bottom"
-              className="absolute left-0 top-full z-50 mt-3 w-[min(22rem,calc(100vw-2rem))]"
+              className="absolute left-0 top-full z-[45] mt-3 w-[min(22rem,calc(100vw-2rem))]"
               icon={DollarSign}
               description={firstAccessGuideMessages.cartoesLimite}
               onDismiss={limiteGuide.dismiss}
@@ -98,7 +98,7 @@ function CartaoDialog({
               floating
               placement="bottom"
               align="right"
-              className="absolute right-0 top-full z-50 mt-3 w-[min(22rem,calc(100vw-2rem))]"
+              className="absolute right-0 top-full z-[45] mt-3 w-[min(22rem,calc(100vw-2rem))]"
               icon={Calendar}
               description={firstAccessGuideMessages.cartoesValidade}
               onDismiss={validadeGuide.dismiss}
@@ -117,7 +117,7 @@ function CartaoDialog({
             <FirstAccessGuideCard
               floating
               placement="bottom"
-              className="absolute left-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+              className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
               icon={Calendar}
               description={firstAccessGuideMessages.cartoesFechamentoVencimento}
               onDismiss={fechamentoGuide.dismiss}
@@ -208,7 +208,7 @@ export function CartaoTab() {
             align="right"
             floating
             placement="top"
-            className="absolute right-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+            className="absolute right-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
             onDismiss={createGuide.dismiss}
           />
         )}

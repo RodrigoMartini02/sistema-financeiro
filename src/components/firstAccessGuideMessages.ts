@@ -20,9 +20,7 @@ export const firstAccessGuideMessages = {
   despesasPagarSelecionadas: 'Clique em Pagar selecionadas para dar baixa em todas as despesas marcadas de uma s\u00f3 vez.',
   despesasMoverMes: 'Use Mover para pr\u00f3ximo m\u00eas para adiar uma despesa sem precisar recri\u00e1-la.',
   despesasTogglesTipo: 'J\u00e1 pago, Recorrente e Parcelado s\u00e3o mutuamente exclusivos: escolha apenas uma caracter\u00edstica por despesa.',
-  despesasAdicionarLote: 'Clique em Adicionar ao lote para acumular v\u00e1rias despesas e salv\u00e1-las juntas no final.',
   despesasCategoriaSugerida: 'Sugerimos uma categoria com base no hist\u00f3rico e na descri\u00e7\u00e3o. Clique em Usar para aplicar.',
-  despesasDuplicata: 'Detectamos uma despesa parecida lan\u00e7ada recentemente. Confira antes de salvar mesmo assim.',
   batchValorOriginal: 'Use Valor original para pagar cada despesa exatamente pelo valor lan\u00e7ado.',
   batchValorPersonalizado: 'Use Valor personalizado para ajustar o valor pago de cada despesa individualmente.',
 

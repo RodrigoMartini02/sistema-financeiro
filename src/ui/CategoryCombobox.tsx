@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Search, Check, Plus } from 'lucide-react';
 import type { Categoria } from '../types/config';
+import { Z_DROPDOWN } from './zIndex';
 
 interface Props {
   categories: Categoria[];
@@ -96,7 +97,7 @@ export function CategoryCombobox({ categories, value, onChange, onCreateNew, pla
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-full rounded-2xl border border-slate-200 bg-white shadow-lg dark:border-slate-600 dark:bg-slate-800">
+        <div className={['absolute mt-1 w-full rounded-2xl border border-slate-200 bg-white shadow-lg dark:border-slate-600 dark:bg-slate-800', Z_DROPDOWN].join(' ')}>
           <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2 dark:border-slate-700">
             <Search size={13} className="shrink-0 text-slate-400" />
             <input

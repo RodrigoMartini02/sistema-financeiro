@@ -127,7 +127,7 @@ function ReservaCard({
               floating
               placement="top"
               align="right"
-              className="absolute right-0 top-full z-50 mt-3 w-[min(22rem,calc(100vw-2rem))]"
+              className="absolute right-0 top-full z-[45] mt-3 w-[min(22rem,calc(100vw-2rem))]"
               icon={TrendingUp}
               description={moveGuide.description}
               onDismiss={moveGuide.onDismiss}
@@ -214,7 +214,7 @@ export function ReservasScreen() {
               <FirstAccessGuideCard
                 floating
                 placement="top"
-                className="absolute right-0 top-full z-50 mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                className="absolute right-0 top-full z-[45] mt-3 w-[min(25rem,calc(100vw-2rem))]"
                 icon={PiggyBank}
                 description={firstAccessGuideMessages.reservasNova}
                 onDismiss={guide.dismiss}

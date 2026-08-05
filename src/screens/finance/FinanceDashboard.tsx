@@ -203,7 +203,6 @@ export function FinanceDashboard({ onNavigate, onConfigTab }: FinanceDashboardPr
         </div>
         <div className="relative rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
           <MonthSelector month={month} year={year} onMonthChange={setMonth} onYearChange={setYear} />
-        </div>
           {guide.isVisible && hasNoMonthlyEntries && (
             <FirstAccessGuideCard
               icon={Settings}
@@ -211,10 +210,11 @@ export function FinanceDashboard({ onNavigate, onConfigTab }: FinanceDashboardPr
               align="right"
               floating
               placement="top"
-              className="absolute right-0 top-full z-50 mt-3 w-[min(24rem,calc(100vw-2rem))]"
+              className="absolute right-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
               onDismiss={guide.dismiss}
             />
           )}
+        </div>
       </div>
 
       {saldoProjetado < 0 && (
@@ -265,7 +265,7 @@ export function FinanceDashboard({ onNavigate, onConfigTab }: FinanceDashboardPr
               floating
               placement="top"
               align="right"
-              className="absolute right-0 top-full z-50 mt-3 w-[min(25rem,calc(100vw-2rem))]"
+              className="absolute right-0 top-full z-[45] mt-3 w-[min(25rem,calc(100vw-2rem))]"
               icon={AlertTriangle}
               description={firstAccessGuideMessages.painelComprometimento}
               onDismiss={comprometimentoGuide.dismiss}
