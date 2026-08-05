@@ -68,7 +68,7 @@ function MetricCard({ label, value, delta, tone }: MetricCardProps) {
     : 'bg-red-400/10 text-[#FF6B6B]';
 
   return (
-    <div className="min-w-0 rounded-xl border border-[rgba(30,196,220,0.13)] bg-[rgba(8,42,52,0.72)] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+    <div className="min-w-0 rounded-xl border border-[rgba(14,196,216,0.14)] bg-[rgba(14,196,216,0.02)] p-3.5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-site-textMuted">{label}</p>
@@ -85,7 +85,7 @@ function MetricCard({ label, value, delta, tone }: MetricCardProps) {
 
 function CommitmentList() {
   return (
-    <div className="rounded-2xl border border-[rgba(30,196,220,0.13)] bg-[rgba(8,42,52,0.66)] p-3.5">
+    <div className="rounded-2xl border border-[rgba(14,196,216,0.14)] bg-[rgba(14,196,216,0.02)] p-3.5">
       <h3 className="text-[14px] font-semibold text-site-text">Próximos compromissos</h3>
       <div className="mt-3 grid gap-2.5">
         {commitments.map(({ label, date, value, tone, icon: Icon }, index) => (
@@ -93,7 +93,7 @@ function CommitmentList() {
             key={label}
             className={index > 1 ? 'hidden items-center gap-3 xl:flex' : 'flex items-center gap-3'}
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[rgba(30,196,220,0.22)] bg-[rgba(14,196,216,0.05)] text-site-accent">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[rgba(14,196,216,0.18)] bg-[rgba(14,196,216,0.04)] text-site-accent">
               <Icon className="h-4 w-4" aria-hidden="true" />
             </span>
             <span className="min-w-0 flex-1">
@@ -113,13 +113,13 @@ function CommitmentList() {
 export function HeroDashboardPreview() {
   return (
     <div
-      className="relative mx-auto mt-5 w-full max-w-[1320px] sm:mt-6 lg:mt-7"
+      className="relative mx-auto mt-5 w-full max-w-[1800px] sm:mt-6 lg:mt-7"
       aria-label="Prévia demonstrativa do painel financeiro do FINGERENCE com dados fictícios"
     >
-      <div className="pointer-events-none absolute -bottom-8 left-[6%] right-[6%] h-20 rounded-[50%] bg-[radial-gradient(ellipse_at_center,rgba(20,184,212,0.36),rgba(20,184,212,0.10)_42%,transparent_72%)] blur-xl" aria-hidden="true" />
-      <div className="pointer-events-none absolute -bottom-4 left-[12%] right-[12%] h-px bg-gradient-to-r from-transparent via-site-accent/70 to-transparent shadow-[0_0_24px_rgba(20,184,212,0.55)]" aria-hidden="true" />
-      <div className="relative flex min-h-[310px] overflow-hidden rounded-[28px] border border-[rgba(30,196,220,0.30)] bg-[linear-gradient(135deg,rgba(6,35,44,0.92),rgba(3,22,29,0.90))] shadow-[0_0_46px_rgba(14,196,216,0.16),0_34px_110px_rgba(0,0,0,0.48)]">
-        <aside className="hidden w-[206px] shrink-0 border-r border-[rgba(30,196,220,0.14)] bg-[rgba(3,22,29,0.74)] p-3.5 lg:block">
+      <div className="pointer-events-none absolute -bottom-8 left-[6%] right-[6%] h-20 rounded-[50%] bg-[radial-gradient(ellipse_at_center,rgba(20,184,212,0.06),rgba(20,184,212,0.018)_42%,transparent_72%)] blur-xl" aria-hidden="true" />
+      <div className="pointer-events-none absolute -bottom-4 left-[12%] right-[12%] h-px bg-gradient-to-r from-transparent via-site-accent/18 to-transparent shadow-[0_0_10px_rgba(20,184,212,0.10)]" aria-hidden="true" />
+      <div className="relative flex min-h-[310px] overflow-hidden rounded-[28px] border border-[rgba(14,196,216,0.14)] bg-[rgba(14,196,216,0.02)] shadow-[0_0_24px_rgba(14,196,216,0.05),0_18px_54px_rgba(0,0,0,0.24)]">
+        <aside className="hidden w-[206px] shrink-0 border-r border-[rgba(14,196,216,0.10)] bg-[rgba(14,196,216,0.018)] p-3.5 lg:block">
           <div className="flex items-center gap-3">
             <img src="/icons/logo.png" alt="" width={40} height={40} className="h-10 w-10 object-contain" aria-hidden="true" />
             <div>
@@ -133,8 +133,8 @@ export function HeroDashboardPreview() {
             </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-2 rounded-xl border border-[rgba(30,196,220,0.12)] bg-[rgba(3,22,29,0.58)] p-1">
-            <span className="rounded-lg bg-site-accent/80 px-3 py-2 text-center text-[11px] font-semibold text-white">Pessoal</span>
+          <div className="mt-5 grid grid-cols-2 gap-2 rounded-xl border border-[rgba(14,196,216,0.12)] bg-[rgba(14,196,216,0.02)] p-1">
+            <span className="rounded-lg bg-site-accent/70 px-3 py-2 text-center text-[11px] font-semibold text-white">Pessoal</span>
             <span className="rounded-lg px-3 py-2 text-center text-[11px] text-site-textMuted">Empresa</span>
           </div>
 
@@ -144,7 +144,7 @@ export function HeroDashboardPreview() {
               <span
                 key={label}
                 className={active
-                  ? 'flex items-center gap-3 rounded-xl bg-[rgba(14,196,216,0.13)] px-3 py-2.5 text-[12px] font-semibold text-site-text'
+                  ? 'flex items-center gap-3 rounded-xl bg-[rgba(14,196,216,0.06)] px-3 py-2.5 text-[12px] font-semibold text-site-text'
                   : 'flex items-center gap-3 rounded-xl px-3 py-2.5 text-[12px] text-site-textSub'}
               >
                 <Icon className="h-4 w-4 text-site-accent" aria-hidden="true" />
@@ -155,11 +155,11 @@ export function HeroDashboardPreview() {
         </aside>
 
         <div className="min-w-0 flex-1 p-3.5 sm:p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[rgba(30,196,220,0.10)] pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[rgba(14,196,216,0.10)] pb-3">
             <div className="flex items-center gap-3 text-site-textSub">
               <CalendarDays className="h-4 w-4 text-site-accent" aria-hidden="true" />
               <span className="text-[13px] font-semibold text-site-text">Julho 2026</span>
-              <span className="rounded-full border border-[rgba(30,196,220,0.18)] px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-site-textMuted">
+              <span className="rounded-full border border-[rgba(14,196,216,0.14)] px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-site-textMuted">
                 Simulação visual
               </span>
             </div>
@@ -176,7 +176,7 @@ export function HeroDashboardPreview() {
           </div>
 
           <div className="mt-3 grid gap-3 xl:grid-cols-[1fr_280px]">
-            <div className="min-w-0 rounded-2xl border border-[rgba(30,196,220,0.13)] bg-[rgba(3,22,29,0.50)] p-3.5">
+            <div className="min-w-0 rounded-2xl border border-[rgba(14,196,216,0.14)] bg-[rgba(14,196,216,0.02)] p-3.5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h3 className="text-[14px] font-semibold text-site-text">Receitas × Despesas × Saldo — 2026</h3>
                 <div className="flex flex-wrap items-center gap-3 text-[11px] text-site-textMuted" aria-hidden="true">

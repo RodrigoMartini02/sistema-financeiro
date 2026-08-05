@@ -31,12 +31,6 @@ interface StepConfig {
   preview: 'profile' | 'transaction' | 'month' | 'report';
 }
 
-const lineProgress: Record<StepId, number> = {
-  1: 0.18,
-  2: 0.43,
-  3: 0.7,
-  4: 1,
-};
 
 // Dados fictícios usados somente na demonstração pública do produto.
 const steps: StepConfig[] = [
@@ -45,8 +39,8 @@ const steps: StepConfig[] = [
     number: '01',
     title: 'Crie seu perfil',
     description: 'Escolha entre Pessoal ou Empresa e mantenha cada contexto completamente separado.',
-    cardClass: 'xl:left-[5%] xl:top-[12px] xl:h-[250px] xl:w-[390px] 2xl:left-[2.5%] 2xl:top-[24px] 2xl:h-[270px] 2xl:w-[430px]',
-    markerClass: 'xl:left-[17%] xl:top-[278px] 2xl:left-[15%] 2xl:top-[224px]',
+    cardClass: 'xl:left-[2%] xl:top-[12px] xl:h-[250px] xl:w-[470px] 2xl:left-0 2xl:top-[24px] 2xl:h-[270px] 2xl:w-[520px]',
+    markerClass: 'xl:left-[calc(2%+506px)] xl:top-[36px] 2xl:left-[556px] 2xl:top-[48px]',
     preview: 'profile',
   },
   {
@@ -54,8 +48,8 @@ const steps: StepConfig[] = [
     number: '02',
     title: 'Registre seus movimentos',
     description: 'Adicione receitas e despesas únicas, parceladas ou recorrentes.',
-    cardClass: 'xl:left-[22.5%] xl:top-[340px] xl:h-[250px] xl:w-[390px] 2xl:left-[19%] 2xl:top-[315px] 2xl:h-[270px] 2xl:w-[430px]',
-    markerClass: 'xl:left-[40%] xl:top-[320px] 2xl:left-[38%] 2xl:top-[258px]',
+    cardClass: 'xl:left-[20%] xl:top-[340px] xl:h-[250px] xl:w-[470px] 2xl:left-[17%] 2xl:top-[315px] 2xl:h-[270px] 2xl:w-[520px]',
+    markerClass: 'xl:left-[calc(20%+506px)] xl:top-[364px] 2xl:left-[calc(17%+556px)] 2xl:top-[339px]',
     preview: 'transaction',
   },
   {
@@ -63,8 +57,8 @@ const steps: StepConfig[] = [
     number: '03',
     title: 'Acompanhe o mês',
     description: 'Veja o que entrou, o que foi pago e o que ainda está por vencer.',
-    cardClass: 'xl:right-[13%] xl:top-[12px] xl:h-[250px] xl:w-[390px] 2xl:right-[9%] 2xl:top-[24px] 2xl:h-[270px] 2xl:w-[430px]',
-    markerClass: 'xl:left-[59%] xl:top-[278px] 2xl:left-[61.5%] 2xl:top-[224px]',
+    cardClass: 'xl:right-[8%] xl:top-[12px] xl:h-[250px] xl:w-[470px] 2xl:right-[10%] 2xl:top-[24px] 2xl:h-[270px] 2xl:w-[520px]',
+    markerClass: 'xl:left-[calc(92%+36px)] xl:top-[36px] 2xl:left-[calc(90%+36px)] 2xl:top-[48px]',
     preview: 'month',
   },
   {
@@ -72,8 +66,8 @@ const steps: StepConfig[] = [
     number: '04',
     title: 'Analise seus resultados',
     description: 'Filtre períodos, identifique padrões e exporte relatórios quando precisar.',
-    cardClass: 'xl:right-[5%] xl:top-[340px] xl:h-[250px] xl:w-[390px] 2xl:right-[2.5%] 2xl:top-[315px] 2xl:h-[270px] 2xl:w-[430px]',
-    markerClass: 'xl:left-[90%] xl:top-[304px] 2xl:left-[91%] 2xl:top-[252px]',
+    cardClass: 'xl:right-[4%] xl:top-[340px] xl:h-[250px] xl:w-[470px] 2xl:right-[2%] 2xl:top-[315px] 2xl:h-[270px] 2xl:w-[520px]',
+    markerClass: 'xl:left-[calc(96%+36px)] xl:top-[364px] 2xl:left-[calc(98%+36px)] 2xl:top-[339px]',
     preview: 'report',
   },
 ];
@@ -324,7 +318,7 @@ function TimelineStep({
         <span className="pointer-events-none absolute -left-14 top-4 hidden text-[58px] font-semibold leading-none text-site-accent/[0.055] xl:block" aria-hidden="true">
           {step.number}
         </span>
-        <div className="grid h-full gap-3 md:grid-cols-[0.9fr_1.1fr] md:items-center xl:grid-cols-[0.82fr_1.18fr] 2xl:gap-4 2xl:grid-cols-[0.85fr_1.15fr]">
+        <div className="grid h-full gap-4 md:grid-cols-[0.88fr_1.12fr] md:items-center xl:grid-cols-[0.82fr_1.28fr] 2xl:grid-cols-[0.86fr_1.34fr] 2xl:gap-5">
           <div>
             <h3 className="text-[clamp(19px,1.35vw,22px)] font-semibold leading-tight text-site-text">{step.title}</h3>
             <p className="mt-2 text-[14px] leading-relaxed text-site-textSub">{step.description}</p>
@@ -340,7 +334,6 @@ export function HomeHowItWorksSection({ onOpenRegister }: HomeHowItWorksSectionP
   const [selectedStep, setSelectedStep] = useState<StepId>(1);
   const [hoveredStep, setHoveredStep] = useState<StepId | null>(null);
   const visualStep = hoveredStep ?? selectedStep;
-  const activeProgress = lineProgress[visualStep];
 
   const selectedTitle = useMemo(
     () => steps.find((step) => step.id === selectedStep)?.title ?? steps[0].title,
@@ -402,7 +395,7 @@ export function HomeHowItWorksSection({ onOpenRegister }: HomeHowItWorksSectionP
         />
       </div>
 
-      <div className="relative mx-auto max-w-[1520px] px-5 sm:px-8 xl:px-10">
+      <div className="relative mx-auto max-w-[1800px] px-5 sm:px-8 xl:px-10">
         <header className="mx-auto max-w-[1260px] text-center">
           <p className="text-[13px] font-semibold uppercase tracking-[0.26em] text-site-accent">SIMPLES DESDE O PRIMEIRO ACESSO</p>
           <h2
@@ -424,46 +417,6 @@ export function HomeHowItWorksSection({ onOpenRegister }: HomeHowItWorksSectionP
           <p id="how-it-works-selected" className="sr-only">
             Etapa selecionada: {selectedTitle}
           </p>
-
-          <div className="pointer-events-none absolute bottom-0 left-7 top-0 w-px bg-[rgba(24,191,216,0.26)] xl:hidden" aria-hidden="true" />
-
-          <svg
-            className="pointer-events-none absolute inset-x-0 top-[190px] z-0 hidden h-[150px] w-full xl:block 2xl:top-[150px]"
-            viewBox="0 0 1280 170"
-            preserveAspectRatio="none"
-            aria-hidden="true"
-          >
-            <defs>
-              <filter id="howLineGlow" x="-20%" y="-80%" width="140%" height="260%">
-                <feGaussianBlur stdDeviation="4" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-            <path
-              d="M 36 42 C 36 98 72 116 132 116 L 430 116 C 472 116 464 158 512 158 L 650 158 C 694 158 682 116 732 116 L 1088 116 C 1138 116 1128 142 1176 142 L 1248 142"
-              fill="none"
-              stroke="rgba(24,191,216,0.24)"
-              strokeWidth="3"
-              strokeLinecap="round"
-            />
-            <path
-              className="fingerence-how-active-path"
-              d="M 36 42 C 36 98 72 116 132 116 L 430 116 C 472 116 464 158 512 158 L 650 158 C 694 158 682 116 732 116 L 1088 116 C 1138 116 1128 142 1176 142 L 1248 142"
-              pathLength="1"
-              fill="none"
-              stroke="#62deeb"
-              strokeWidth="3"
-              strokeLinecap="round"
-              filter="url(#howLineGlow)"
-              style={{ strokeDashoffset: 1 - activeProgress }}
-            />
-            {[132, 512, 732, 1176].map((x, index) => (
-              <circle key={x} cx={x} cy={index === 1 ? 158 : index === 3 ? 142 : 116} r="3" fill="#18bfd8" opacity="0.8" />
-            ))}
-          </svg>
 
           {steps.map((step) => {
             const isVisual = visualStep === step.id;

@@ -89,7 +89,7 @@ const installments = [
 
 function SectionIcon({ icon: Icon }: { icon: LucideIcon }) {
   return (
-    <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[rgba(22,185,212,0.30)] bg-[radial-gradient(circle_at_35%_25%,rgba(22,185,212,0.22),rgba(5,29,38,0.74)_70%)] text-site-accent shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+    <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[rgba(14,196,216,0.20)] bg-[rgba(14,196,216,0.04)] text-site-accent">
       <Icon className="h-6 w-6" aria-hidden="true" />
     </span>
   );
@@ -97,7 +97,7 @@ function SectionIcon({ icon: Icon }: { icon: LucideIcon }) {
 
 function Pill({ children }: { children: string }) {
   return (
-    <span className="inline-flex shrink-0 items-center justify-center rounded-full border border-[rgba(22,185,212,0.18)] bg-[rgba(11,43,54,0.56)] px-5 py-2 text-[14px] font-semibold text-site-accent shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+    <span className="inline-flex shrink-0 items-center justify-center rounded-full border border-[rgba(14,196,216,0.14)] bg-[rgba(14,196,216,0.02)] px-5 py-2 text-[14px] font-semibold text-site-accent">
       {children}
     </span>
   );
@@ -122,7 +122,7 @@ function MonthlyMetric({ metric }: { metric: (typeof monthlyMetrics)[number] }) 
   const Icon = metric.icon;
 
   return (
-    <li className="relative min-w-0 overflow-hidden rounded-xl border border-[rgba(74,153,173,0.20)] bg-[rgba(11,43,54,0.78)] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+    <li className="relative min-w-0 overflow-hidden rounded-xl border border-[rgba(14,196,216,0.14)] bg-[rgba(14,196,216,0.02)] p-3.5">
       <div className="flex items-center gap-3">
         <span className={['flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border', toneStyles[metric.tone].icon].join(' ')}>
           <Icon className="h-4 w-4" aria-hidden="true" />
@@ -139,7 +139,7 @@ function MonthlyMetric({ metric }: { metric: (typeof monthlyMetrics)[number] }) 
 
 function FinancialHealthPanel() {
   return (
-    <article className="rounded-xl border border-[rgba(74,153,173,0.20)] bg-[rgba(5,29,38,0.62)] p-4 sm:p-5">
+    <article className="rounded-xl border border-[rgba(14,196,216,0.14)] bg-[rgba(14,196,216,0.02)] p-4 sm:p-5">
       <h4 className="text-[18px] font-semibold text-site-text">Saúde financeira — Julho</h4>
       <div className="mt-4 grid gap-3">
         {healthRows.map((row) => (
@@ -159,7 +159,7 @@ function FinancialHealthPanel() {
 function CommitmentPanel() {
   return (
     <div className="grid gap-3">
-      <article className="rounded-xl border border-[rgba(74,153,173,0.20)] bg-[rgba(5,29,38,0.62)] p-4 sm:p-5">
+      <article className="rounded-xl border border-[rgba(14,196,216,0.14)] bg-[rgba(14,196,216,0.02)] p-4 sm:p-5">
         <h4 className="text-[15px] font-medium text-site-text">Comprometimento do mês</h4>
         <p className="mt-1 text-[clamp(28px,2.1vw,34px)] font-semibold leading-none text-site-text">62%</p>
         <div className="mt-4">
@@ -168,7 +168,7 @@ function CommitmentPanel() {
         <p className="mt-3 text-[13px] leading-relaxed text-site-textSub">Percentual das receitas já comprometidas.</p>
       </article>
 
-      <article className="flex items-center gap-4 rounded-xl border border-[rgba(74,153,173,0.20)] bg-[rgba(5,29,38,0.62)] p-4 sm:p-5">
+      <article className="flex items-center gap-4 rounded-xl border border-[rgba(14,196,216,0.14)] bg-[rgba(14,196,216,0.02)] p-4 sm:p-5">
         <BellRing className="h-7 w-7 shrink-0 text-[#F6A623]" aria-hidden="true" />
         <p className="min-w-0 flex-1 text-[16px] font-semibold leading-snug text-site-text">
           3 compromissos<br className="hidden sm:block" /> nos próximos 7 dias
@@ -181,7 +181,7 @@ function CommitmentPanel() {
 
 function ExpenseDistribution() {
   return (
-    <article className="rounded-xl border border-[rgba(74,153,173,0.20)] bg-[rgba(5,29,38,0.62)] p-4 sm:p-5">
+    <article className="rounded-xl border border-[rgba(14,196,216,0.14)] bg-[rgba(14,196,216,0.02)] p-4 sm:p-5">
       <h4 className="text-[18px] font-semibold text-site-text">Fixas × Variáveis</h4>
       <div
         className="relative mt-4 flex h-5 overflow-hidden rounded-md bg-[rgba(120,149,157,0.14)]"
@@ -212,8 +212,8 @@ function ExpenseDistribution() {
 
 function MonthlyControlCard() {
   return (
-    <article className="relative overflow-hidden rounded-[24px] border border-[rgba(24,190,217,0.50)] bg-[rgba(5,29,38,0.88)] p-5 shadow-[0_28px_90px_rgba(0,0,0,0.30),inset_0_1px_0_rgba(255,255,255,0.04)] sm:p-5 lg:p-6">
-      <div className="pointer-events-none absolute -left-20 -top-24 h-56 w-56 rounded-full bg-[rgba(22,185,212,0.08)] blur-3xl" aria-hidden="true" />
+    <article className="relative overflow-hidden rounded-[24px] border border-[rgba(14,196,216,0.14)] bg-[rgba(14,196,216,0.02)] p-5 shadow-[0_0_24px_rgba(14,196,216,0.04),0_16px_48px_rgba(0,0,0,0.18)] sm:p-5 lg:p-6">
+      <div className="pointer-events-none absolute -left-20 -top-24 hidden h-56 w-56 rounded-full bg-[rgba(14,196,216,0.02)] blur-3xl" aria-hidden="true" />
       <header className="relative flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 gap-4">
           <SectionIcon icon={CalendarDays} />
@@ -266,7 +266,7 @@ function CategoryBar({ item }: { item: (typeof categoryRows)[number] }) {
 
 function VisibilityCard() {
   return (
-    <article className="relative overflow-hidden rounded-[24px] border border-[rgba(24,190,217,0.50)] bg-[rgba(5,29,38,0.88)] p-5 shadow-[0_22px_80px_rgba(0,0,0,0.26),inset_0_1px_0_rgba(255,255,255,0.04)] sm:p-5">
+    <article className="relative overflow-hidden rounded-[24px] border border-[rgba(14,196,216,0.14)] bg-[rgba(14,196,216,0.02)] p-5 shadow-[0_0_20px_rgba(14,196,216,0.035),0_14px_42px_rgba(0,0,0,0.16)] sm:p-5">
       <header className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 gap-4">
           <SectionIcon icon={PieChart} />
@@ -281,7 +281,7 @@ function VisibilityCard() {
       </header>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
-        <article className="rounded-xl border border-[rgba(74,153,173,0.20)] bg-[rgba(11,43,54,0.62)] p-4">
+        <article className="rounded-xl border border-[rgba(14,196,216,0.14)] bg-[rgba(14,196,216,0.02)] p-4">
           <h4 className="text-[12px] font-semibold uppercase text-site-text">Despesas por categoria</h4>
           <ul className="mt-4 grid gap-4">
             {categoryRows.map((item) => (
@@ -290,11 +290,11 @@ function VisibilityCard() {
           </ul>
         </article>
 
-        <article className="rounded-xl border border-[rgba(74,153,173,0.20)] bg-[rgba(11,43,54,0.62)] p-4">
+        <article className="rounded-xl border border-[rgba(14,196,216,0.14)] bg-[rgba(14,196,216,0.02)] p-4">
           <h4 className="text-[12px] font-semibold uppercase text-site-text">Parcelas futuras</h4>
           <ul className="mt-3 grid gap-2">
             {installments.map(({ label, date, value, icon: Icon, tone }) => (
-              <li key={label} className="grid grid-cols-[40px_1fr_auto] items-center gap-3 rounded-xl border border-[rgba(74,153,173,0.12)] bg-[rgba(5,29,38,0.36)] p-3">
+              <li key={label} className="grid grid-cols-[40px_1fr_auto] items-center gap-3 rounded-xl border border-[rgba(14,196,216,0.10)] bg-[rgba(14,196,216,0.02)] p-3">
                 <span className={['flex h-9 w-9 items-center justify-center rounded-lg border', toneStyles[tone].icon].join(' ')}>
                   <Icon className="h-4 w-4" aria-hidden="true" />
                 </span>
@@ -333,7 +333,7 @@ function ProfileSummary({
   tone: Tone;
 }) {
   return (
-    <article className={['min-w-0 rounded-xl border bg-[rgba(5,29,38,0.42)] p-4', toneStyles[tone].border].join(' ')}>
+    <article className={['min-w-0 rounded-xl border bg-[rgba(14,196,216,0.02)] p-4', toneStyles[tone].border].join(' ')}>
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className={['flex h-9 w-9 shrink-0 items-center justify-center rounded-full border', toneStyles[tone].icon].join(' ')}>
@@ -346,7 +346,7 @@ function ProfileSummary({
           Ativo
         </span>
       </div>
-      <div className="mt-3 border-t border-[rgba(74,153,173,0.16)] pt-3">
+      <div className="mt-3 border-t border-[rgba(14,196,216,0.10)] pt-3">
         <p className="text-[13px] text-site-textSub">Saldo projetado</p>
         <div className="mt-1 flex items-center justify-between gap-4">
           <div className="min-w-0">
@@ -364,7 +364,7 @@ function ProfileSummary({
 
 function ProfilesCard() {
   return (
-    <article className="relative overflow-hidden rounded-[24px] border border-[rgba(24,190,217,0.50)] bg-[rgba(5,29,38,0.88)] p-5 shadow-[0_22px_80px_rgba(0,0,0,0.26),inset_0_1px_0_rgba(255,255,255,0.04)] sm:p-5">
+    <article className="relative overflow-hidden rounded-[24px] border border-[rgba(14,196,216,0.14)] bg-[rgba(14,196,216,0.02)] p-5 shadow-[0_0_20px_rgba(14,196,216,0.035),0_14px_42px_rgba(0,0,0,0.16)] sm:p-5">
       <header className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 gap-4">
           <SectionIcon icon={UsersRound} />
@@ -381,13 +381,13 @@ function ProfilesCard() {
       <div className="mt-5 grid items-center gap-4 lg:grid-cols-[1fr_54px_1fr]">
         <ProfileSummary title="Pessoal" value="R$ 2.050,00" delta="↑ 8,4% vs. Jun/2026" icon={UserRound} tone="green" />
         <div className="relative mx-auto hidden h-full min-h-[88px] w-[54px] items-center justify-center lg:flex" aria-hidden="true">
-          <div className="absolute inset-y-2 left-1/2 w-px -translate-x-1/2 bg-[rgba(22,185,212,0.22)]" />
-          <span className="relative flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(22,185,212,0.26)] bg-[rgba(5,29,38,0.92)] text-site-textSub">
+          <div className="absolute inset-y-2 left-1/2 w-px -translate-x-1/2 bg-[rgba(14,196,216,0.16)]" />
+          <span className="relative flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(14,196,216,0.18)] bg-[rgba(14,196,216,0.03)] text-site-textSub">
             <Repeat2 className="h-5 w-5" />
           </span>
         </div>
         <div className="flex justify-center lg:hidden" aria-hidden="true">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(22,185,212,0.22)] bg-[rgba(5,29,38,0.72)] text-site-textSub">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(14,196,216,0.18)] bg-[rgba(14,196,216,0.03)] text-site-textSub">
             <Repeat2 className="h-5 w-5" />
           </span>
         </div>
@@ -402,11 +402,11 @@ export function HomeBenefitsSection() {
     <section
       id="beneficios"
       aria-labelledby="beneficios-title"
-      className="relative isolate -mt-px overflow-hidden bg-[#041A22] pb-12 pt-7 sm:pb-14 sm:pt-9 xl:pb-16 xl:pt-9"
+      className="relative isolate -mt-px overflow-hidden bg-site-bg pb-12 pt-7 sm:pb-14 sm:pt-9 xl:pb-16 xl:pt-9"
     >
-      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#03161D] via-[#041A22]/92 to-transparent" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_3%,rgba(22,185,212,0.14),transparent_26%),radial-gradient(circle_at_7%_70%,rgba(22,185,212,0.08),transparent_30%),radial-gradient(circle_at_90%_45%,rgba(22,185,212,0.06),transparent_30%)]" />
+      <div className="pointer-events-none absolute inset-0 hidden" aria-hidden="true">
+        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-site-bgAlt via-site-bg/92 to-transparent" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_3%,rgba(22,185,212,0.12),transparent_26%),radial-gradient(circle_at_7%_70%,rgba(22,185,212,0.07),transparent_30%),radial-gradient(circle_at_90%_45%,rgba(22,185,212,0.055),transparent_30%)]" />
         <div
           className="absolute inset-0 opacity-[0.13]"
           style={{
@@ -419,7 +419,7 @@ export function HomeBenefitsSection() {
         <div className="absolute -right-[8%] top-[6%] h-[720px] w-[720px] rounded-full border border-[rgba(22,185,212,0.07)]" />
       </div>
 
-      <div className="relative mx-auto max-w-[1520px] px-5 sm:px-8 xl:px-10">
+      <div className="relative mx-auto max-w-[1800px] px-5 sm:px-8 xl:px-10">
         <header className="mx-auto max-w-[1220px] text-center">
           <p className="text-[13px] font-semibold uppercase tracking-[0.34em] text-site-accent">POR QUE USAR O FINGERENCE</p>
           <h2
@@ -444,7 +444,7 @@ export function HomeBenefitsSection() {
         <div className="mt-5 flex justify-center">
           <Link
             to="/funcionalidades"
-            className="site-neon-text-button inline-flex items-center gap-3 rounded-xl px-3 py-2 text-[18px] text-site-accent outline-none focus-visible:ring-2 focus-visible:ring-site-accent/70 focus-visible:ring-offset-4 focus-visible:ring-offset-[#041A22]"
+            className="site-neon-text-button inline-flex items-center gap-3 rounded-xl px-3 py-2 text-[18px] text-site-accent outline-none focus-visible:ring-2 focus-visible:ring-site-accent/70 focus-visible:ring-offset-4 focus-visible:ring-offset-site-bg"
           >
             Conhecer todas as funcionalidades
             <ArrowRight className="h-5 w-5" aria-hidden="true" />
