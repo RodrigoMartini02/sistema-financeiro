@@ -241,7 +241,7 @@ export function ReservasScreen() {
           <div className="rounded-xl border border-slate-200 bg-white py-6 text-center shadow-sm dark:border-slate-700 dark:bg-slate-800">
               <EmptyState
                 title="Nenhuma reserva cadastrada"
-                description="Crie uma reserva para acompanhar objetivos, emerg?ncias ou valores separados."
+                description="Crie uma reserva para acompanhar objetivos, emergências ou valores separados."
               />
               <Button icon={<Plus size={15} />} onClick={() => setDialog({ open: true })}>
                 Criar reserva

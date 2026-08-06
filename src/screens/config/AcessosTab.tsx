@@ -65,7 +65,7 @@ export function AcessosTab() {
       color: 'text-blue-600 bg-blue-50 border-blue-100',
     },
     {
-      label: 'Usuarios ativos',
+      label: 'Usuários ativos',
       value: summary?.active_accounts,
       total: summary?.total_accounts,
       icon: Users,
@@ -77,7 +77,7 @@ export function AcessosTab() {
     <div className="grid gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-slate-700">Resumo dos ultimos {days} dias</p>
+          <p className="text-sm font-semibold text-slate-700">Resumo dos últimos {days} dias</p>
           <p className="mt-1 text-xs text-slate-400">Logins e novas contas do sistema.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -113,8 +113,8 @@ export function AcessosTab() {
         <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <AlertCircle size={18} className="mt-0.5 shrink-0" />
           <div>
-            <p className="font-semibold">Estatisticas de acesso ainda nao disponiveis</p>
-            <p className="mt-1 text-xs text-amber-700">As contas criadas ja aparecem pela tabela de usuarios.</p>
+            <p className="font-semibold">Estatísticas de acesso ainda não disponíveis</p>
+            <p className="mt-1 text-xs text-amber-700">As contas criadas já aparecem pela tabela de usuários.</p>
           </div>
         </div>
       )}
@@ -128,7 +128,7 @@ export function AcessosTab() {
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">{card.label}</p>
                   <p className="mt-2 text-2xl font-bold text-slate-950">{numberFormat(card.value)}</p>
-                  <p className="mt-1 text-xs text-slate-400">Total historico: {numberFormat(card.total)}</p>
+                  <p className="mt-1 text-xs text-slate-400">Total histórico: {numberFormat(card.total)}</p>
                 </div>
                 <div className={[card.color, 'flex h-10 w-10 items-center justify-center rounded-lg border'].join(' ')}>
                   <Icon size={18} />
@@ -140,7 +140,7 @@ export function AcessosTab() {
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-sm font-bold text-slate-900">Ultimas contas criadas</p>
+        <p className="text-sm font-bold text-slate-900">Últimas contas criadas</p>
         <div className="mt-4 divide-y divide-slate-100">
           {(overview?.recentAccounts ?? []).length === 0 ? (
             <p className="py-6 text-center text-sm text-slate-400">Nenhuma conta encontrada.</p>

@@ -259,8 +259,8 @@ export function CartaoTab() {
         <div className="flex flex-col items-center gap-3 rounded-xl border border-slate-200 bg-white py-10 text-slate-400 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <CreditCard size={36} strokeWidth={1.5} />
           <div className="text-center">
-            <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Nenhum cart?o cadastrado</p>
-            <p className="mt-1 text-xs text-slate-400">Cadastre um cart?o para acompanhar limite e vencimento.</p>
+            <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Nenhum cartão cadastrado</p>
+            <p className="mt-1 text-xs text-slate-400">Cadastre um cartão para acompanhar limite e vencimento.</p>
           </div>
         </div>
       )}
