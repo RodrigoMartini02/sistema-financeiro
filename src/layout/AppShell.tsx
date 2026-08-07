@@ -281,7 +281,7 @@ export function AppShell({
       </div>
 
       {/* Navigation */}
-      <nav className="flex min-h-0 flex-1 flex-col px-3 py-2">
+      <nav className="sidebar-config-scroll flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-2">
         <div className="shrink-0 space-y-4">
           {NAV_GROUPS.map((group) => (
             <div key={group.label}>
@@ -315,9 +315,9 @@ export function AppShell({
           ))}
         </div>
 
-        <div className="mt-4 flex min-h-0 flex-1 flex-col">
+        <div className="mt-4 flex flex-col">
           <p className="mb-1 shrink-0 px-3 text-[10px] font-bold uppercase tracking-widest text-[rgba(14,196,216,0.38)]">Sistema</p>
-          <div className="flex min-h-0 flex-1 flex-col space-y-0.5">
+          <div className="flex flex-col space-y-0.5">
             <button
               onClick={() => {
                 const wasOpen = configOpen;
@@ -350,7 +350,7 @@ export function AppShell({
             </button>
 
             {configOpen && (
-              <div className="sidebar-config-scroll ml-3 mt-1 min-h-0 flex-1 space-y-0.5 overflow-y-auto border-l border-[rgba(14,196,216,0.15)] pl-2.5 pr-1">
+              <div className="ml-3 mt-1 space-y-0.5 border-l border-[rgba(14,196,216,0.15)] pl-2.5 pr-1">
                 {CONFIG_SUBS.filter((sub) => {
                   const perfilTipo = localStorage.getItem('perfilAtivoTipo');
                   if (sub.id === 'acessos') {
