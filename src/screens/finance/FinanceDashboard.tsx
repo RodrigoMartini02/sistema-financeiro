@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { RefreshCw, AlertTriangle, TrendingDown, TrendingUp, CreditCard, Settings, Tag, Wallet } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -43,6 +43,21 @@ function deltaPct(current: number, previous: number | undefined): number | undef
   return ((current - previous) / previous) * 100;
 }
 
+// Largura do eixo de categoria dos gráficos: menor em mobile para dar mais espaço às barras.
+function useCategoryAxisWidth(): number {
+  const query = '(min-width: 640px)';
+  const [isWide, setIsWide] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+
+  useEffect(() => {
+    const mql = window.matchMedia(query);
+    const handler = (e: MediaQueryListEvent) => setIsWide(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
+  return isWide ? 120 : 84;
+}
+
 interface FinanceDashboardProps {
   onNavigate?: (section: AppSection) => void;
   onConfigTab?: (tab: ConfigTab) => void;
@@ -54,6 +69,7 @@ export function FinanceDashboard({ onNavigate, onConfigTab }: FinanceDashboardPr
   const data = finance.dashboard.data;
   const guide = useFirstAccessGuide('painel:mes-v1');
   const comprometimentoGuide = useFirstAccessGuide('painel:comprometimento-v1');
+  const categoryAxisWidth = useCategoryAxisWidth();
 
   const anualQ = useQuery({
     queryKey: queryKeys.dashboardAnual(year),
@@ -488,7 +504,7 @@ export function FinanceDashboard({ onNavigate, onConfigTab }: FinanceDashboardPr
               <BarChart data={catData} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                 <XAxis type="number" tickFormatter={fmtK} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" width={categoryAxisWidth} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="value" name="Valor" radius={[0, 6, 6, 0]}>
                   {catData.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
