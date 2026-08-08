@@ -35,8 +35,8 @@ export function MonthSelector({ month, year, onMonthChange, onYearChange }: Mont
 
       <div className="h-5 w-px bg-slate-200 dark:bg-slate-700 shrink-0" />
 
-      {/* Month pills — fill full width */}
-      <div className="flex flex-1 gap-1">
+      {/* Month pills — horizontal scroll with snap on mobile, fill full width on sm+ */}
+      <div className="flex flex-1 gap-1 overflow-x-auto snap-x snap-mandatory sm:overflow-visible scrollbar-none">
         {MONTH_NAMES.map((name, i) => {
           const isActive  = i === month;
           const isCurrent = i === THIS_MONTH && year === THIS_YEAR;
@@ -45,7 +45,7 @@ export function MonthSelector({ month, year, onMonthChange, onYearChange }: Mont
               key={i}
               onClick={() => onMonthChange(i)}
               className={[
-                'relative flex-1 rounded-lg py-2 text-sm font-semibold transition',
+                'relative shrink-0 snap-start rounded-lg px-3.5 py-2.5 text-sm font-semibold transition sm:flex-1 sm:px-0 sm:py-2',
                 isActive
                   ? 'bg-brand-600 text-white shadow-sm'
                   : 'border border-slate-200 text-slate-500 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100',

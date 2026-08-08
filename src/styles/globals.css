@@ -21,6 +21,15 @@
   background-color: #cbd5e1;
 }
 
+/* Sem barra de rolagem visível (ex: seletor de mês em telas estreitas) */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 
 .site-neon-button {
   border-color: rgba(14, 196, 216, 0.5);

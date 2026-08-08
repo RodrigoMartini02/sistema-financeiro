@@ -50,9 +50,9 @@ export function PaymentModal({ open, expense, onClose, onConfirm }: PaymentModal
       onClose={onClose}
       scrollBody={false}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 calc(-1 * var(--dialog-px))' }}>
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18 }}>
+          <div className="grid grid-cols-1 gap-y-3 sm:grid-cols-2" style={{ ...cardStyle, columnGap: 18 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               <label style={labelStyle}>DATA DE PAGAMENTO</label>
               <input
@@ -70,7 +70,7 @@ export function PaymentModal({ open, expense, onClose, onConfirm }: PaymentModal
 
           {valorPago !== undefined && diferenca !== 0 && (
             <div style={{
-              margin: '0 26px 10px', borderRadius: 10, padding: '10px 14px', fontSize: 13, fontWeight: 600,
+              margin: '0 var(--dialog-px) 10px', borderRadius: 10, padding: '10px 14px', fontSize: 13, fontWeight: 600,
               ...(diferenca < 0
                 ? { background: C.successBg, color: C.success, border: `1px solid ${C.successBorder}` }
                 : { background: C.warnBg, color: C.warn, border: `1px solid ${C.warnBorder}` }),
@@ -81,7 +81,7 @@ export function PaymentModal({ open, expense, onClose, onConfirm }: PaymentModal
             </div>
           )}
 
-          <div style={{ margin: '0 26px 14px', borderRadius: 12, background: '#f8fafb', padding: '12px 14px' }}>
+          <div style={{ margin: '0 var(--dialog-px) 14px', borderRadius: 12, background: '#f8fafb', padding: '12px 14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: C.textMuted }}>
               <span>Valor original</span>
               <span style={{ fontWeight: 600, color: C.text }}>{fmt(valorSugerido)}</span>
@@ -97,7 +97,7 @@ export function PaymentModal({ open, expense, onClose, onConfirm }: PaymentModal
           </div>
         </div>
 
-        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px var(--dialog-px) 16px', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <button
             type="button"
             onClick={onClose}

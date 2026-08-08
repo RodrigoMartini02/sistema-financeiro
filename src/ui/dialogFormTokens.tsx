@@ -54,7 +54,7 @@ export const numericInputStyle: CSSProperties = {
 };
 
 export const cardStyle: CSSProperties = {
-  margin: '0 26px 10px', padding: '13px 14px 14px', borderRadius: 14,
+  margin: '0 var(--dialog-px) 10px', padding: '13px 14px 14px', borderRadius: 14,
   border: `1px solid ${C.border}`, background: C.cardBg,
 };
 

@@ -503,16 +503,18 @@ export function FinanceDashboard({ onNavigate, onConfigTab }: FinanceDashboardPr
           {origemData.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">Sem receitas neste mês</p>
           ) : (
-            <div className="flex items-center gap-4">
-              <ResponsiveContainer width="55%" height={200}>
-                <PieChart>
-                  <Pie data={origemData} cx="50%" cy="50%" innerRadius={50} outerRadius={85} paddingAngle={2} dataKey="value">
-                    <Cell fill="#10b981" />
-                    <Cell fill="#6366f1" />
-                  </Pie>
-                  <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                </PieChart>
-              </ResponsiveContainer>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="w-full sm:w-[55%]">
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie data={origemData} cx="50%" cy="50%" innerRadius={50} outerRadius={85} paddingAngle={2} dataKey="value">
+                      <Cell fill="#10b981" />
+                      <Cell fill="#6366f1" />
+                    </Pie>
+                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
               <ul className="flex-1 space-y-3 text-xs">
                 {origemData.map((item, i) => (
                   <li key={item.name} className="flex items-center justify-between gap-2">
@@ -562,15 +564,17 @@ export function FinanceDashboard({ onNavigate, onConfigTab }: FinanceDashboardPr
           {formaData.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">Sem dados</p>
           ) : (
-            <div className="flex items-center gap-4">
-              <ResponsiveContainer width="55%" height={200}>
-                <PieChart>
-                  <Pie data={formaData} cx="50%" cy="50%" innerRadius={50} outerRadius={85} paddingAngle={2} dataKey="value">
-                    {formaData.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
-                  </Pie>
-                  <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                </PieChart>
-              </ResponsiveContainer>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="w-full sm:w-[55%]">
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie data={formaData} cx="50%" cy="50%" innerRadius={50} outerRadius={85} paddingAngle={2} dataKey="value">
+                      {formaData.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
+                    </Pie>
+                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
               <ul className="flex-1 space-y-2 text-xs">
                 {formaData.map((item, i) => (
                   <li key={item.name} className="flex items-center justify-between gap-2">

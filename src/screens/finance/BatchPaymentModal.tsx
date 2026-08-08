@@ -77,7 +77,7 @@ export function BatchPaymentModal({ open, expenses, onClose, onSuccess }: BatchP
       onClose={() => { if (!loading) onClose(); }}
       scrollBody={false}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 calc(-1 * var(--dialog-px))' }}>
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
 
           <div style={{ ...cardStyle, position: 'relative' }}>
@@ -116,7 +116,7 @@ export function BatchPaymentModal({ open, expenses, onClose, onSuccess }: BatchP
             </div>
           </div>
 
-          <div style={{ margin: '0 26px 10px', borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden', maxHeight: 224, overflowY: 'auto' }}>
+          <div style={{ margin: '0 var(--dialog-px) 10px', borderRadius: 12, border: `1px solid ${C.border}`, overflow: 'hidden', maxHeight: 224, overflowY: 'auto' }}>
             {tab === 'original' ? (
               expenses.map((e, i) => (
                 <div
@@ -158,7 +158,7 @@ export function BatchPaymentModal({ open, expenses, onClose, onSuccess }: BatchP
             )}
           </div>
 
-          <div style={{ margin: '0 26px 14px', borderRadius: 12, background: '#f8fafb', padding: '12px 14px', display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+          <div style={{ margin: '0 var(--dialog-px) 14px', borderRadius: 12, background: '#f8fafb', padding: '12px 14px', display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
             <span style={{ color: C.textMuted }}>Total a pagar</span>
             <span style={{ fontWeight: 700, color: C.danger }}>
               {formatCurrency(tab === 'original' ? totalOriginal : totalPersonalizado)}
@@ -166,14 +166,14 @@ export function BatchPaymentModal({ open, expenses, onClose, onSuccess }: BatchP
           </div>
 
           {erro && (
-            <div style={{ margin: '0 26px 14px', display: 'flex', alignItems: 'flex-start', gap: 8, borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
+            <div style={{ margin: '0 var(--dialog-px) 14px', display: 'flex', alignItems: 'flex-start', gap: 8, borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
               <AlertCircle size={15} style={{ flexShrink: 0, marginTop: 2 }} />
               <span>{erro}</span>
             </div>
           )}
         </div>
 
-        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px var(--dialog-px) 16px', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <button
             type="button"
             onClick={onClose}
