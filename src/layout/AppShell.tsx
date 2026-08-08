@@ -429,7 +429,7 @@ export function AppShell({
         <header className="sticky top-0 z-30 border-b border-[rgba(14,196,216,0.18)] bg-[#0D2E3C]/95 backdrop-blur">
           <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
             <button
-              className="lg:hidden flex h-8 w-8 items-center justify-center rounded-lg text-[rgba(14,196,216,0.55)] hover:bg-[rgba(14,196,216,0.08)] transition"
+              className="lg:hidden flex h-11 w-11 items-center justify-center rounded-lg text-[rgba(14,196,216,0.55)] hover:bg-[rgba(14,196,216,0.08)] transition"
               onClick={() => setMobileOpen(true)}
             >
               <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -452,7 +452,7 @@ export function AppShell({
 
             <button
               onClick={toggleTheme}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-[rgba(14,196,216,0.55)] hover:bg-[rgba(14,196,216,0.08)] hover:text-[#0EC4D8] transition"
+              className="flex h-11 w-11 items-center justify-center rounded-lg text-[rgba(14,196,216,0.55)] hover:bg-[rgba(14,196,216,0.08)] hover:text-[#0EC4D8] transition lg:h-8 lg:w-8"
             >
               {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
             </button>
@@ -460,7 +460,7 @@ export function AppShell({
             <div className="relative">
               <button
                 onClick={() => setNotifOpen((o) => !o)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-[rgba(14,196,216,0.55)] hover:bg-[rgba(14,196,216,0.08)] hover:text-[#0EC4D8] transition"
+                className="flex h-11 w-11 items-center justify-center rounded-lg text-[rgba(14,196,216,0.55)] hover:bg-[rgba(14,196,216,0.08)] hover:text-[#0EC4D8] transition lg:h-8 lg:w-8"
               >
                 <Bell size={16} />
               </button>

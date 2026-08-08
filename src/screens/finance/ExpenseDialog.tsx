@@ -471,7 +471,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
   return (
     <Dialog open={open} title={expense ? 'Editar despesa' : 'Nova despesa'} description="Registre uma saída financeira" onClose={onClose} size="xl" scrollBody={false}>
       <form
-        style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }}
+        style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 calc(-1 * var(--dialog-px))' }}
         onSubmit={submitForm}
         onKeyDown={handleKeyDown}
       >
@@ -479,7 +479,10 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
         <div ref={bodyRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
 
           {/* ── Bloco 1: O QUÊ (descrição + categoria) ─────────────────── */}
-          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1.35fr 1fr', columnGap: 18, alignItems: 'start' }}>
+          <div
+            className="grid grid-cols-1 gap-y-3.5 sm:grid-cols-[1.35fr_1fr] sm:gap-y-0"
+            style={{ ...cardStyle, columnGap: 18, alignItems: 'start' }}
+          >
             <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7, position: 'relative' }}>
               <label style={labelStyle}>
                 <span>DESCRIÇÃO</span><span style={{ color: C.primary }}>*</span>
@@ -614,10 +617,13 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
           </div>
 
           {/* ── Bloco 2: COMO (forma de pagamento → cartão → isso se repete) ── */}
-          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1.35fr 1fr', columnGap: 18, rowGap: 14, alignItems: 'start' }}>
+          <div
+            className="grid grid-cols-1 gap-y-3.5 sm:grid-cols-[1.35fr_1fr] sm:gap-y-3.5"
+            style={{ ...cardStyle, columnGap: 18, alignItems: 'start' }}
+          >
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               <div style={labelStyle}>FORMA DE PAGAMENTO</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {paymentOptions.map((opt) => (
                   <div key={opt.value} onClick={() => handlePaymentSelect(opt.value)} style={chipStyle(formaPagamento === opt.value)}>
                     {opt.icon}
@@ -640,7 +646,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
                     )}
                   </div>
                   {activeCards.length > 1 && (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       {activeCards.map((c) => (
                         <div
                           key={c.id}
@@ -661,7 +667,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               <div style={labelStyle}>ISSO SE REPETE?</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+              <div className="grid grid-cols-3 gap-2">
                 {([
                   ['nao', 'Não repete'],
                   ['parcelas', 'Parcelas'],
@@ -718,7 +724,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
                 )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-                <div style={{ width: 260 }}>
+                <div className="w-full max-w-[260px]">
                   {valorInputMode === 'avista' ? (
                     <Controller
                       control={form.control}
@@ -763,7 +769,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
           <div style={{ ...cardStyle, marginBottom: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               <label style={labelStyle}>DATA DA COMPRA</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <input {...form.register('dataCompra')} type="date" style={smallInputStyle} />
                 {vencimentoManualAberto && (
                   <input {...form.register('dataVencimentoManual')} type="date" style={{ ...smallInputStyle, width: 140, border: `1.5px solid ${C.primary}` }} />
@@ -839,17 +845,20 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
             )}
 
             {isEmpresa && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, borderTop: `1px solid ${C.border}`, paddingTop: 10, marginTop: 4 }}>
-                <div style={{ gridColumn: '1 / -1', fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.09em', color: C.textSoft, textTransform: 'uppercase' }}>
+              <div
+                className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+                style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, marginTop: 4 }}
+              >
+                <div className="sm:col-span-2" style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.09em', color: C.textSoft, textTransform: 'uppercase' }}>
                   Nota Fiscal
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                   <label style={labelStyle}>NÚMERO DA NF</label>
-                  <input {...form.register('numero_nf')} placeholder="Ex: 000123456" style={smallInputStyle} />
+                  <input {...form.register('numero_nf')} placeholder="Ex: 000123456" style={{ ...smallInputStyle, width: '100%', maxWidth: 168 }} />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                   <label style={labelStyle}>DATA DE EMISSÃO</label>
-                  <input {...form.register('data_emissao_nf')} type="date" style={smallInputStyle} />
+                  <input {...form.register('data_emissao_nf')} type="date" style={{ ...smallInputStyle, width: '100%', maxWidth: 168 }} />
                 </div>
               </div>
             )}
@@ -862,14 +871,14 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
           </div>
 
           {error && (
-            <div style={{ margin: '0 26px 14px', borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
+            <div style={{ margin: '0 var(--dialog-px) 14px', borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
               {error}
             </div>
           )}
         </div>
 
         {/* ── Rodapé fixo ──────────────────────────────────────────── */}
-        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px var(--dialog-px) 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {hasBatch && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <span style={{ fontSize: '11.5px', fontWeight: 700, letterSpacing: '0.07em', color: C.textSoft }}>

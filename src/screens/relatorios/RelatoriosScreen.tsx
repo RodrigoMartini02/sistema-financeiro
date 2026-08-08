@@ -8,6 +8,7 @@ import { formatCurrency, formatDate } from '../finance/formatters';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { ReportCard } from './ReportCard';
 
 // ── types ──────────────────────────────────────────────────────────────────────
 
@@ -464,7 +465,16 @@ export function RelatoriosScreen() {
         ) : allRows.length === 0 ? (
           <p className="py-8 text-center text-sm text-slate-400">Nenhum lançamento com estes filtros</p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            {/* Cards — mobile only */}
+            <div className="divide-y divide-slate-50 dark:divide-slate-700/50 md:hidden">
+              {allRows.map((row) => (
+                <ReportCard key={`${row.tipo}-${row.id}`} row={row} />
+              ))}
+            </div>
+
+            {/* Table — desktop only */}
+            <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/50">
@@ -515,7 +525,8 @@ export function RelatoriosScreen() {
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
       </Card>
     </div>

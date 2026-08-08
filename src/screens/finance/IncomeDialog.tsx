@@ -307,7 +307,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, onClo
   return (
     <Dialog open={open} title={income ? 'Editar receita' : 'Nova receita'} description="Registre uma entrada financeira" onClose={onClose} size="lg" scrollBody={false}>
       <form
-        style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }}
+        style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 calc(-1 * var(--dialog-px))' }}
         onSubmit={submitForm}
         onKeyDown={handleKeyDown}
       >
@@ -401,7 +401,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, onClo
 
           {/* ── Valor + Data + Cliente ─────────────────────────────── */}
           <div style={cardStyle}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 168px', columnGap: 18, rowGap: 12 }}>
+            <div className="grid grid-cols-1 gap-y-3 sm:grid-cols-[1fr_168px]" style={{ columnGap: 18 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                 <label style={labelStyle}>
                   <span>VALOR</span><span style={{ color: C.primary }}>*</span>
@@ -734,8 +734,8 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, onClo
                 )}
                 {replicar && (
                   <div style={panelStyle}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, flex: 1 }}>
+                    <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap sm:gap-3">
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, flex: 1, minWidth: 140 }}>
                         <label style={labelStyle}>MÊS</label>
                         <select
                           value={replicarMes}
@@ -767,14 +767,14 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, onClo
           )}
 
           {error && (
-            <div style={{ margin: '0 26px 14px', borderRadius: 10, border: '1px solid #fbd5d1', background: '#fef3f2', padding: '10px 14px', fontSize: 13, color: '#b42318' }}>
+            <div style={{ margin: '0 var(--dialog-px) 14px', borderRadius: 10, border: '1px solid #fbd5d1', background: '#fef3f2', padding: '10px 14px', fontSize: 13, color: '#b42318' }}>
               {error}
             </div>
           )}
         </div>
 
         {/* ── Rodapé fixo ──────────────────────────────────────────── */}
-        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px var(--dialog-px) 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {duplicataInfo && (
             <div style={{ fontSize: '12.5px', color: '#a3728a' }}>
               Você já lançou "{duplicataInfo.income.descricao}" nos últimos 7 dias — é outra receita?

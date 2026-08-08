@@ -24,6 +24,7 @@ import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
+import { ExpenseCard } from './ExpenseCard';
 
 type FiltroStatus = 'todos' | 'pago' | 'em_dia' | 'atrasada';
 type FiltroDataPag = 'qualquer' | 'hoje' | 'semana' | 'mes';
@@ -35,7 +36,7 @@ const FORMA_LABELS: Record<string, string> = {
   credito: 'Crédito', crédito: 'Crédito',
 };
 
-function getFormaLabel(forma: string): string {
+export function getFormaLabel(forma: string): string {
   return FORMA_LABELS[(forma ?? '').toLowerCase()] ?? forma ?? '—';
 }
 
@@ -43,12 +44,12 @@ function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function getStatus(item: Expense): 'pago' | 'em_dia' | 'atrasada' {
+export function getStatus(item: Expense): 'pago' | 'em_dia' | 'atrasada' {
   if (item.pago) return 'pago';
   return item.dataVencimento < todayStr() ? 'atrasada' : 'em_dia';
 }
 
-function StatusBadge({ item }: { item: Expense }) {
+export function StatusBadge({ item }: { item: Expense }) {
   const s = getStatus(item);
   if (s === 'pago') {
     return (
@@ -71,7 +72,7 @@ function StatusBadge({ item }: { item: Expense }) {
   );
 }
 
-function TipoBadge({ item }: { item: Expense }) {
+export function TipoBadge({ item }: { item: Expense }) {
   const hasBadge = item.parcela || item.recorrente;
   if (!hasBadge) return <span className="text-slate-300 dark:text-slate-600 text-xs">—</span>;
   return (
@@ -590,7 +591,24 @@ export function DespesasScreen() {
                   onDismiss={moverMesGuide.dismiss}
                 />
               )}
-              <div className="overflow-x-auto">
+              {/* Cards — mobile only */}
+              <div className="divide-y divide-slate-100 dark:divide-slate-700 md:hidden">
+                {filtered.map((item) => (
+                  <ExpenseCard
+                    key={item.id}
+                    item={item}
+                    isEmpresa={isEmpresa}
+                    mesFechado={mesFechado}
+                    onPay={() => setPaymentModal({ open: true, item })}
+                    onMoveToNextMonth={() => handleMoverProximoMes(item)}
+                    onCancel={() => handleCancelarDespesa(item)}
+                    onOpenAttachments={() => setAnexosDialog({ open: true, title: item.descricao, anexos: item.anexos! })}
+                  />
+                ))}
+              </div>
+
+              {/* Table — desktop only */}
+              <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-sm table-fixed">
                 <colgroup>
                   <col style={{ width: '40px' }} />

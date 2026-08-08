@@ -19,6 +19,7 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
 import type { Attachment } from '../../types/finance';
+import { IncomeCard } from './IncomeCard';
 
 const MONTH_NAMES_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
@@ -367,7 +368,23 @@ export function ReceitasScreen() {
               </div>
             )
           ) : (
-            <div className="overflow-x-auto">
+            <>
+              {/* Cards — mobile only */}
+              <div className="divide-y divide-slate-100 dark:divide-slate-700 md:hidden">
+                {items.map((item) => (
+                  <IncomeCard
+                    key={item.id}
+                    item={item}
+                    hoje={hoje}
+                    onConfirmRecebimento={() => handleConfirmarRecebimento(item)}
+                    onCancel={() => handleCancelarReceita(item)}
+                    onOpenAttachments={() => setAnexosDialog({ open: true, title: item.descricao, anexos: item.anexos! })}
+                  />
+                ))}
+              </div>
+
+              {/* Table — desktop only */}
+              <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-sm min-w-[540px]">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50 text-left">
@@ -489,7 +506,8 @@ export function ReceitasScreen() {
                   </tr>
                 </tfoot>
               </table>
-            </div>
+              </div>
+            </>
           )}
         </Card>
       </div>
