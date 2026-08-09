@@ -48,6 +48,7 @@ export const users = pgTable(
     documentIdx: index('idx_usuarios_documento').on(table.document),
     typeIdx: index('idx_usuarios_tipo').on(table.type),
     statusIdx: index('idx_usuarios_status').on(table.status),
+    planStatusExpirationIdx: index('idx_usuarios_plano_status_expiracao').on(table.planStatus, table.planExpiration),
   }),
 );
 

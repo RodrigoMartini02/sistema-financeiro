@@ -90,30 +90,31 @@ import serviceRoutes from './routes/services';
 import contractServiceRoutes from './routes/contract-services';
 import contractAttachmentRoutes from './routes/contract-attachments';
 import analyticsRoutes from './routes/analytics';
+import internalJobsRoutes from './routes/internal-jobs';
 import futebolRoutes from './modules/futebol/routes';
 import { startFootballCron } from './modules/futebol/cron';
 import { startChampionshipsCron } from './modules/futebol/championshipsCron';
-import { startCobrancaCron } from './cron/cobrancas';
+import { authenticate, requireActivePlan } from './middleware/auth';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/usuarios', userRoutes);           // PT alias
-app.use('/api/profiles', profileRoutes);
-app.use('/api/perfis', profileRoutes);          // PT alias
-app.use('/api/categories', categoryRoutes);
-app.use('/api/categorias', categoryRoutes);     // PT alias
-app.use('/api/cards', cardRoutes);
-app.use('/api/cartoes', cardRoutes);            // PT alias
-app.use('/api/incomes', incomeRoutes);
-app.use('/api/receitas', incomeRoutes);         // PT alias
-app.use('/api/expenses', expenseRoutes);
-app.use('/api/despesas', expenseRoutes);        // PT alias
-app.use('/api/months', monthRoutes);
-app.use('/api/meses', monthRoutes);             // PT alias
-app.use('/api/years', yearRoutes);
-app.use('/api/anos', yearRoutes);               // PT alias
-app.use('/api/reserves', reserveRoutes);
-app.use('/api/reservas', reserveRoutes);        // PT alias
+app.use('/api/profiles', authenticate, requireActivePlan, profileRoutes);
+app.use('/api/perfis', authenticate, requireActivePlan, profileRoutes);          // PT alias
+app.use('/api/categories', authenticate, requireActivePlan, categoryRoutes);
+app.use('/api/categorias', authenticate, requireActivePlan, categoryRoutes);     // PT alias
+app.use('/api/cards', authenticate, requireActivePlan, cardRoutes);
+app.use('/api/cartoes', authenticate, requireActivePlan, cardRoutes);            // PT alias
+app.use('/api/incomes', authenticate, requireActivePlan, incomeRoutes);
+app.use('/api/receitas', authenticate, requireActivePlan, incomeRoutes);         // PT alias
+app.use('/api/expenses', authenticate, requireActivePlan, expenseRoutes);
+app.use('/api/despesas', authenticate, requireActivePlan, expenseRoutes);        // PT alias
+app.use('/api/months', authenticate, requireActivePlan, monthRoutes);
+app.use('/api/meses', authenticate, requireActivePlan, monthRoutes);             // PT alias
+app.use('/api/years', authenticate, requireActivePlan, yearRoutes);
+app.use('/api/anos', authenticate, requireActivePlan, yearRoutes);               // PT alias
+app.use('/api/reserves', authenticate, requireActivePlan, reserveRoutes);
+app.use('/api/reservas', authenticate, requireActivePlan, reserveRoutes);        // PT alias
 app.use('/api/financial', financialRoutes);
 app.use('/api/financeiro', financialRoutes);    // PT alias
 app.use('/api/plans', planRoutes);
@@ -121,20 +122,21 @@ app.use('/api/planos', planRoutes);             // PT alias
 app.use('/api/paypal', paypalRoutes);
 app.use('/api/ratings', ratingRoutes);
 app.use('/api/avaliacoes', ratingRoutes);       // PT alias
-app.use('/api/representatives', representativeRoutes);
-app.use('/api/representantes', representativeRoutes); // PT alias
-app.use('/api/partners', partnerRoutes);
-app.use('/api/socios', partnerRoutes);          // PT alias
-app.use('/api/income-types', incomeTypeRoutes);
-app.use('/api/tipos-receita', incomeTypeRoutes); // PT alias
-app.use('/api/clientes', clientRoutes);
-app.use('/api/contratos', contractRoutes);
-app.use('/api/modulos-contrato', contractModuleRoutes);
-app.use('/api/servicos-tecnicos', technicalServiceRoutes);
-app.use('/api/servicos', serviceRoutes);
-app.use('/api/contratos-servicos', contractServiceRoutes);
-app.use('/api/contrato-anexos', contractAttachmentRoutes);
+app.use('/api/representatives', authenticate, requireActivePlan, representativeRoutes);
+app.use('/api/representantes', authenticate, requireActivePlan, representativeRoutes); // PT alias
+app.use('/api/partners', authenticate, requireActivePlan, partnerRoutes);
+app.use('/api/socios', authenticate, requireActivePlan, partnerRoutes);          // PT alias
+app.use('/api/income-types', authenticate, requireActivePlan, incomeTypeRoutes);
+app.use('/api/tipos-receita', authenticate, requireActivePlan, incomeTypeRoutes); // PT alias
+app.use('/api/clientes', authenticate, requireActivePlan, clientRoutes);
+app.use('/api/contratos', authenticate, requireActivePlan, contractRoutes);
+app.use('/api/modulos-contrato', authenticate, requireActivePlan, contractModuleRoutes);
+app.use('/api/servicos-tecnicos', authenticate, requireActivePlan, technicalServiceRoutes);
+app.use('/api/servicos', authenticate, requireActivePlan, serviceRoutes);
+app.use('/api/contratos-servicos', authenticate, requireActivePlan, contractServiceRoutes);
+app.use('/api/contrato-anexos', authenticate, requireActivePlan, contractAttachmentRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/internal-jobs', internalJobsRoutes);
 app.use('/api/futebol', futebolRoutes);
 
 // ── System endpoints ───────────────────────────────────────────────────
@@ -194,7 +196,6 @@ async function bootstrap(): Promise<void> {
 
   startFootballCron();
   startChampionshipsCron();
-  startCobrancaCron();
 }
 
 process.on('SIGTERM', () => process.exit(0));

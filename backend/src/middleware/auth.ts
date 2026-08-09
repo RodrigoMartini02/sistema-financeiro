@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { getPlanStatusForUser, isPlanAccessActive } from '../services/plan-lifecycle';
 
 interface TokenPayload {
   id: number;
@@ -85,4 +86,33 @@ export function requireMaster(req: Request, res: Response, next: NextFunction): 
     return;
   }
   next();
+}
+
+export async function requireActivePlan(req: Request, res: Response, next: NextFunction): Promise<void> {
+  if (!req.user) {
+    res.status(401).json({ success: false, message: 'Access denied. No token provided.' });
+    return;
+  }
+
+  try {
+    const planStatus = await getPlanStatusForUser(req.user.id);
+    if (!planStatus) {
+      res.status(401).json({ success: false, message: 'Access denied.' });
+      return;
+    }
+
+    if (!isPlanAccessActive(planStatus.status)) {
+      res.status(403).json({
+        success: false,
+        code: 'PLAN_EXPIRED',
+        message: 'Plan expired. Renew to continue using the system.',
+      });
+      return;
+    }
+
+    next();
+  } catch (error) {
+    console.error('Plan access verification failed:', (error as Error).message);
+    res.status(500).json({ success: false, message: 'Failed to verify plan access.' });
+  }
 }
