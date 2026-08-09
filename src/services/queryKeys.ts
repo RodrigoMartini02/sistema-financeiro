@@ -1,5 +1,6 @@
 export const queryKeys = {
   session: ['session'] as const,
+  planStatus: ['plano-status'] as const,
   dashboard: (month: number, year: number) => ['dashboard', month, year] as const,
   reservas: ['reservas'] as const,
   movimentacoes: (reservaId: number) => ['movimentacoes', reservaId] as const,

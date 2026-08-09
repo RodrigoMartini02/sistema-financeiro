@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../db/client';
-import { authenticate } from '../middleware/auth';
+import { authenticate, requireActivePlan } from '../middleware/auth';
 
 const router = Router();
 
@@ -66,7 +66,7 @@ router.get('/selic', async (_req: Request, res: Response): Promise<void> => {
 });
 
 // GET /api/financial/anual?ano=2026
-router.get('/anual', authenticate, async (req: Request, res: Response): Promise<void> => {
+router.get('/anual', authenticate, requireActivePlan, async (req: Request, res: Response): Promise<void> => {
   try {
     const { ano: anoQ, perfil_id } = req.query as Record<string, string | undefined>;
     const ano = parseInt(anoQ ?? '');

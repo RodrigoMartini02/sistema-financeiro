@@ -2,12 +2,17 @@ import { Router, Request, Response } from 'express';
 import { MercadoPagoConfig, Preference, Payment, PreApproval } from 'mercadopago';
 import { pool } from '../db/client';
 import { authenticate, requireAdmin } from '../middleware/auth';
+import {
+  activateRecurringPlanAfterApprovedPayment,
+  expireRecurringPlanAfterSubscriptionStopped,
+  expireRecurringPlanAfterRejectedPayment,
+  getPlanStatusForUser,
+} from '../services/plan-lifecycle';
 
 const router = Router();
 
 const mpClient = new MercadoPagoConfig({ accessToken: process.env['MP_ACCESS_TOKEN']! });
 
-const TRIAL_DAYS = 15;
 const BACKEND_URL = process.env['BACKEND_URL'] ?? 'https://sistema-financeiro-backend-o199.onrender.com';
 const FRONTEND_URL = process.env['FRONTEND_URL'] ?? 'https://sistema-financeiro-kxed.onrender.com';
 
@@ -22,42 +27,21 @@ function planLabel(type: string): string {
 // GET /api/plans/status
 router.get('/status', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const result = await pool.query(
-      'SELECT tipo, data_cadastro, plano_status, plano_tipo, plano_expiracao FROM usuarios WHERE id = $1',
-      [req.user!.id],
-    );
-
-    if (result.rows.length === 0) {
+    const planStatus = await getPlanStatusForUser(req.user!.id);
+    if (!planStatus) {
       res.status(404).json({ success: false, message: 'User not found' });
       return;
     }
 
-    const user = result.rows[0] as Record<string, unknown>;
-    const now = new Date();
-    const registeredAt = new Date(String(user['data_cadastro']));
-    const daysElapsed = Math.floor((now.getTime() - registeredAt.getTime()) / 86400000);
-    const trialDaysLeft = Math.max(0, TRIAL_DAYS - daysElapsed);
-
-    if (user['tipo'] === 'master') {
-      res.json({ success: true, data: { status: 'ativo', plano_tipo: 'master', plano_expiracao: null, dias_restantes_trial: null, data_cadastro: user['data_cadastro'] } });
-      return;
-    }
-
-    let status = String(user['plano_status'] ?? 'trial');
-
-    if (status === 'trial' && daysElapsed >= TRIAL_DAYS) {
-      status = 'expirado';
-      await pool.query(`UPDATE usuarios SET plano_status = 'expirado' WHERE id = $1`, [req.user!.id]);
-    }
-
-    if (status === 'ativo' && user['plano_expiracao'] && new Date(String(user['plano_expiracao'])) < now) {
-      status = 'expirado';
-      await pool.query(`UPDATE usuarios SET plano_status = 'expirado' WHERE id = $1`, [req.user!.id]);
-    }
-
     res.json({
       success: true,
-      data: { status, plano_tipo: user['plano_tipo'] ?? null, plano_expiracao: user['plano_expiracao'] ?? null, dias_restantes_trial: status === 'trial' ? trialDaysLeft : null, data_cadastro: user['data_cadastro'] },
+      data: {
+        status: planStatus.status,
+        plano_tipo: planStatus.userType === 'master' ? 'master' : planStatus.planType,
+        plano_expiracao: planStatus.planExpiration,
+        dias_restantes_trial: planStatus.trialDaysLeft,
+        data_cadastro: planStatus.createdAt,
+      },
     });
   } catch (error) {
     console.error('Get plan status error:', error);
@@ -180,7 +164,7 @@ router.post('/pay-card', authenticate, async (req: Request, res: Response): Prom
       const expiration = new Date();
       expiration.setDate(expiration.getDate() + (String(tipo) === 'anual' ? 365 : 30));
       await pool.query(
-        `UPDATE usuarios SET plano_status = 'ativo', plano_tipo = $1, plano_expiracao = $2, plano_inicio = NOW(), payment_id_anual = $3 WHERE id = $4`,
+        `UPDATE usuarios SET plano_status = 'ativo', plano_tipo = $1, plano_expiracao = $2, plano_inicio = NOW(), payment_id_anual = $3, preapproval_id = NULL WHERE id = $4`,
         [tipo, expiration, String(tipo) === 'anual' ? String(pdt.id) : null, req.user!.id],
       );
       res.json({ success: true, message: 'Payment approved!' });
@@ -367,7 +351,7 @@ router.post('/activate', authenticate, requireAdmin, async (req: Request, res: R
   expiration.setDate(expiration.getDate() + (dias ? parseInt(String(dias)) : String(tipo) === 'anual' ? 365 : 30));
 
   await pool.query(
-    `UPDATE usuarios SET plano_status = 'ativo', plano_tipo = $1, plano_expiracao = $2 WHERE id = $3`,
+    `UPDATE usuarios SET plano_status = 'ativo', plano_tipo = $1, plano_expiracao = $2, preapproval_id = NULL WHERE id = $3`,
     [tipo, expiration, req.user!.id],
   );
 
@@ -399,7 +383,7 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
         expiration.setDate(expiration.getDate() + daysToAdd);
 
         await pool.query(
-          `UPDATE usuarios SET plano_status = 'ativo', plano_tipo = $1, plano_expiracao = $2, plano_inicio = NOW(), payment_id_anual = $3 WHERE id = $4`,
+          `UPDATE usuarios SET plano_status = 'ativo', plano_tipo = $1, plano_expiracao = $2, plano_inicio = NOW(), payment_id_anual = $3, preapproval_id = NULL WHERE id = $4`,
           [planType, expiration, planType === 'anual' ? String(pdt.id) : null, userId],
         );
         console.log(`[Webhook] Plan ${planType} activated (one-time payment) for user ${userId}`);
@@ -414,12 +398,15 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
       if (sub.status === 'authorized') {
         const planType = parseFloat(String(((sub as unknown as Record<string, unknown>)?.['auto_recurring'] as Record<string, unknown> | undefined)?.['transaction_amount'])) >= 200 ? 'anual' : 'mensal';
         await pool.query(
-          `UPDATE usuarios SET plano_status = 'ativo', plano_tipo = $1, plano_expiracao = NULL, preapproval_id = $2 WHERE id = $3`,
+          `UPDATE usuarios SET plano_status = 'ativo', plano_tipo = $1, plano_expiracao = NULL, preapproval_id = $2 WHERE id = $3 AND preapproval_id = $2`,
           [planType, sub.id, userId],
         );
         console.log(`[Webhook] Subscription ${sub.id} authorized for user ${userId}`);
       } else if (sub.status === 'cancelled' || sub.status === 'paused') {
-        await pool.query(`UPDATE usuarios SET plano_status = 'expirado', preapproval_id = NULL WHERE id = $1`, [userId]);
+        const wasExpired = await expireRecurringPlanAfterSubscriptionStopped(Number(userId), String(sub.id));
+        if (!wasExpired) {
+          return;
+        }
         console.log(`[Webhook] Subscription ${sub.id} ${sub.status} — user ${userId} blocked`);
       }
     }
@@ -427,12 +414,25 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
     if (eventType === 'subscription_authorized_payment') {
       const payment = new Payment(mpClient);
       const pdt = await payment.get({ id: resourceId as string });
+      const preapprovalId = (pdt as unknown as Record<string, unknown>)['preapproval_id'];
 
-      if (pdt.status === 'approved' && pdt.external_reference) {
-        await pool.query(`UPDATE usuarios SET plano_status = 'ativo', plano_expiracao = NULL WHERE id = $1`, [pdt.external_reference]);
-        console.log(`[Webhook] Recurring charge approved for user ${pdt.external_reference}`);
-      } else if (pdt.status === 'rejected' && pdt.external_reference) {
-        console.warn(`[Webhook] Recurring charge rejected for user ${pdt.external_reference}: ${(pdt as unknown as Record<string, unknown>)['status_detail']}`);
+      if (pdt.status === 'approved' && pdt.external_reference && preapprovalId) {
+        const wasReactivated = await activateRecurringPlanAfterApprovedPayment(
+          Number(pdt.external_reference),
+          String(preapprovalId),
+        );
+        if (wasReactivated) {
+          console.log(`[Webhook] Recurring charge approved for user ${pdt.external_reference}`);
+        }
+      } else if (pdt.status === 'rejected' && pdt.external_reference && preapprovalId) {
+        const wasExpired = await expireRecurringPlanAfterRejectedPayment(
+          Number(pdt.external_reference),
+          String(pdt.id),
+          String(preapprovalId),
+        );
+        if (wasExpired) {
+          console.warn(`[Webhook] Recurring charge rejected and access blocked for user ${pdt.external_reference}: ${(pdt as unknown as Record<string, unknown>)['status_detail']}`);
+        }
       }
     }
   } catch (err) {

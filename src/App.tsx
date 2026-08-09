@@ -19,7 +19,7 @@ import { RelatoriosScreen } from './screens/relatorios/RelatoriosScreen';
 import { PlanosScreen } from './screens/planos/PlanosScreen';
 import { ConfigScreen } from './screens/config/ConfigScreen';
 import { useAuthSession } from './hooks/useAuthSession';
-import { LoadingState } from './ui/states';
+import { ErrorState, LoadingState } from './ui/states';
 import { AppShell } from './layout/AppShell';
 import { CookieBanner } from './components/CookieBanner';
 import type { AppSection, ConfigTab } from './layout/AppShell';
@@ -30,25 +30,28 @@ import { apiRequest } from './services/apiClient';
 import { trackPageView } from './services/analyticsService';
 import { useOnboardingChecklist } from './hooks/useOnboardingChecklist';
 import { OnboardingChecklistModal } from './components/OnboardingChecklistModal';
+import { queryKeys } from './services/queryKeys';
 
 interface PlanoStatus {
   status: 'trial' | 'ativo' | 'expirado';
   plano_tipo: string | null;
+  plano_expiracao: string | null;
   dias_restantes_trial: number | null;
 }
 
-function PlanExpiredGate() {
+function PlanExpiredGate({ trialExpired }: { trialExpired: boolean }) {
   const qc = useQueryClient();
+  const title = trialExpired ? 'Período de teste encerrado' : 'Plano vencido';
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col overflow-auto bg-white">
       <div className="sticky top-0 z-10 border-b border-slate-200 bg-white px-6 py-4 shadow-sm">
         <div className="mx-auto flex max-w-4xl items-center justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-widest text-brand-600">Fingerence</p>
-            <h1 className="text-lg font-bold text-slate-900">Período de teste encerrado</h1>
+            <h1 className="text-lg font-bold text-slate-900">{title}</h1>
           </div>
           <button
-            onClick={() => qc.invalidateQueries({ queryKey: ['plano-status'] })}
+            onClick={() => qc.invalidateQueries({ queryKey: queryKeys.planStatus })}
             className="rounded-xl border border-slate-200 px-4 py-2 text-xs text-slate-500 hover:bg-slate-50 transition"
           >
             Já paguei — verificar
@@ -101,10 +104,8 @@ function AppContent() {
   const [configTab, setConfigTab] = useState<ConfigTab>('conta');
   const { month, year, setMonth, quickAction, setQuickAction } = useAppContext();
 
-  const finance = useFinanceDashboard(month, year);
-
   const planQuery = useQuery<PlanoStatus>({
-    queryKey: ['plano-status'],
+    queryKey: queryKeys.planStatus,
     queryFn: async () => {
       const r = await apiRequest<any>('/planos/status');
       return r.data ?? r;
@@ -113,7 +114,9 @@ function AppContent() {
     staleTime: 3 * 60 * 1000,
   });
 
-  const onboarding = useOnboardingChecklist(isAppRoute && !!session.user);
+  const hasPlanAccess = planQuery.data?.status === 'trial' || planQuery.data?.status === 'ativo';
+  const finance = useFinanceDashboard(month, year, hasPlanAccess);
+  const onboarding = useOnboardingChecklist(isAppRoute && !!session.user && hasPlanAccess);
 
   if (!isAppRoute) return <PublicSite />;
   if (!session.hasToken) {
@@ -123,7 +126,19 @@ function AppContent() {
   if (session.isLoading) return <LoadingState title="Carregando painel" description="Validando sua sessão." />;
   if (session.isError) return <PublicSite />;
 
-  if (planQuery.data?.status === 'expirado') return <PlanExpiredGate />;
+  if (planQuery.isLoading) {
+    return <LoadingState title="Carregando plano" description="Verificando seu acesso ao sistema." />;
+  }
+  if (planQuery.isError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <ErrorState title="Não foi possível verificar seu plano" description="Tente atualizar a página." />
+      </div>
+    );
+  }
+  if (planQuery.data?.status === 'expirado') {
+    return <PlanExpiredGate trialExpired={!planQuery.data.plano_tipo} />;
+  }
 
   const handleNavigate = (sec: AppSection, targetMonth?: number) => {
     setSection(sec);

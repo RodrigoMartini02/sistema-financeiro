@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '../../services/apiClient';
+import { queryKeys } from '../../services/queryKeys';
 import { Card } from '../../ui/card';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle, chipStyle } from '../../ui/dialogFormTokens';
@@ -596,7 +597,7 @@ export function PlanosScreen() {
   const [cancelDialog, setCancelDialog] = useState(false);
 
   const statusQ = useQuery({
-    queryKey: ['plano-status'],
+    queryKey: queryKeys.planStatus,
     queryFn: async () => {
       const r = await apiRequest<any>('/planos/status');
       return (r.data ?? r) as PlanoStatus;
@@ -624,7 +625,7 @@ export function PlanosScreen() {
           <h2 className="mt-1 text-2xl font-bold text-slate-950">Planos e cobrança</h2>
         </div>
         <button
-          onClick={() => { qc.invalidateQueries({ queryKey: ['plano-status'] }); }}
+          onClick={() => { qc.invalidateQueries({ queryKey: queryKeys.planStatus }); }}
           className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition"
         >
           <RefreshCw size={13} /> Atualizar status
@@ -737,7 +738,7 @@ export function PlanosScreen() {
           onClose={() => setPagDialog(null)}
           onSuccess={() => {
             setPagDialog(null);
-            qc.invalidateQueries({ queryKey: ['plano-status'] });
+            qc.invalidateQueries({ queryKey: queryKeys.planStatus });
           }}
         />
       )}
@@ -747,7 +748,7 @@ export function PlanosScreen() {
           onClose={() => setCancelDialog(false)}
           onCanceled={() => {
             setCancelDialog(false);
-            qc.invalidateQueries({ queryKey: ['plano-status'] });
+            qc.invalidateQueries({ queryKey: queryKeys.planStatus });
           }}
         />
       )}
