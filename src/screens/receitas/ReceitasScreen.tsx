@@ -60,7 +60,7 @@ function tipoBadge(tipo?: string | null) {
   );
 }
 
-export function ReceitasScreen() {
+export function ReceitasScreen({ embedded = false }: { embedded?: boolean }) {
   const { month, year, setMonth, setYear } = useAppContext();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Income }>({ open: false });
   const [anexosDialog, setAnexosDialog] = useState<{ open: boolean; title: string; anexos: Attachment[] }>({ open: false, title: '', anexos: [] });
@@ -183,7 +183,7 @@ export function ReceitasScreen() {
     <>
       <div className="grid gap-4">
         {/* Header + Month selector */}
-        <div className="flex flex-col gap-3">
+        <div className={embedded ? 'hidden' : 'flex flex-col gap-3'}>
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-xl font-bold text-slate-950 dark:text-white">Receitas</h2>
             <div className="relative flex gap-2">
@@ -219,7 +219,7 @@ export function ReceitasScreen() {
         </div>
 
         {/* KPIs */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className={embedded ? 'hidden' : 'grid grid-cols-2 gap-4 sm:grid-cols-4'}>
           <Card className="p-4">
             <div className="flex items-center gap-2 mb-1">
               <TrendingUp size={15} className="text-green-500" />

@@ -12,8 +12,7 @@ import { ContatoPage } from './screens/public/ContatoPage';
 import { LegalPage } from './screens/public/LegalPage';
 import { PublicSeo } from './screens/public/components/PublicSeo';
 import { FinanceDashboard } from './screens/finance/FinanceDashboard';
-import { ReceitasScreen } from './screens/receitas/ReceitasScreen';
-import { DespesasScreen } from './screens/despesas/DespesasScreen';
+import { MovimentacoesScreen } from './screens/finance/MovimentacoesScreen';
 import { ReservasScreen } from './screens/reservas/ReservasScreen';
 import { RelatoriosScreen } from './screens/relatorios/RelatoriosScreen';
 import { PlanosScreen } from './screens/planos/PlanosScreen';
@@ -100,7 +99,7 @@ function PublicSite() {
 function AppContent() {
   const isAppRoute = window.location.pathname.endsWith('/app.html') || window.location.pathname.includes('app.html');
   const session = useAuthSession({ enabled: isAppRoute });
-  const [section, setSection] = useState<AppSection>('painel');
+  const [section, setSection] = useState<AppSection>('movimentacoes');
   const [configTab, setConfigTab] = useState<ConfigTab>('conta');
   const { month, year, setMonth, quickAction, setQuickAction } = useAppContext();
 
@@ -152,9 +151,8 @@ function AppContent() {
 
   const renderContent = () => {
     switch (section) {
-      case 'painel':        return <FinanceDashboard onNavigate={handleNavigate} onConfigTab={handleConfigTab} />;
-      case 'receitas':      return <ReceitasScreen />;
-      case 'despesas':      return <DespesasScreen />;
+      case 'painel':        return <FinanceDashboard />;
+      case 'movimentacoes': return <MovimentacoesScreen onManageReserves={() => handleNavigate('reservas')} />;
       case 'reservas':      return <ReservasScreen />;
       case 'relatorios':    return <RelatoriosScreen />;
       case 'planos':        return <PlanosScreen />;

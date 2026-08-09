@@ -16,7 +16,7 @@ import { MONTH_NAMES } from '../types/finance';
 import { Z_DROPDOWN, Z_MOBILE_NAV_OVERLAY, Z_SYSTEM_OVERLAY } from '../ui/zIndex';
 
 export type AppSection =
-  | 'painel' | 'receitas' | 'despesas' | 'reservas'
+  | 'painel' | 'movimentacoes' | 'reservas'
   | 'relatorios' | 'planos' | 'configuracoes';
 
 export type ConfigTab =
@@ -37,9 +37,7 @@ const NAV_GROUPS: { label: string; items: { label: string; icon: React.ElementTy
     label: 'Finanças',
     items: [
       { label: 'Painel',    icon: LayoutDashboard, section: 'painel' },
-      { label: 'Receitas',  icon: TrendingUp,      section: 'receitas' },
-      { label: 'Despesas',  icon: TrendingDown,    section: 'despesas' },
-      { label: 'Reservas',  icon: Wallet,          section: 'reservas' },
+      { label: 'Movimenta\u00e7\u00f5es', icon: Wallet, section: 'movimentacoes' },
     ],
   },
   {

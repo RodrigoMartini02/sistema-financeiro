@@ -180,7 +180,7 @@ function ActionBtn({
   );
 }
 
-export function DespesasScreen() {
+export function DespesasScreen({ embedded = false }: { embedded?: boolean }) {
   const { month, year, setMonth, setYear } = useAppContext();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Expense }>({ open: false });
   const [anexosDialog, setAnexosDialog] = useState<{ open: boolean; title: string; anexos: Attachment[] }>({
@@ -345,7 +345,7 @@ export function DespesasScreen() {
     <>
       <div className="grid gap-4">
         {/* Header */}
-        <div className="flex flex-col gap-3">
+        <div className={embedded ? 'hidden' : 'flex flex-col gap-3'}>
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-xl font-bold text-slate-950 dark:text-white">Despesas</h2>
             <div className="relative flex gap-2">
@@ -393,7 +393,7 @@ export function DespesasScreen() {
         </div>
 
         {/* KPIs */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className={embedded ? 'hidden' : 'grid grid-cols-2 gap-4 sm:grid-cols-4'}>
           <Card className="p-4">
             <div className="flex items-center gap-2 mb-1">
               <TrendingDown size={15} className="text-red-400" />
