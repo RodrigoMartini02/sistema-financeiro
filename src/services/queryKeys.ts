@@ -24,4 +24,5 @@ export const queryKeys = {
   expenseSuggestions: (descricao: string, categoriaId?: number) =>
     ['expense-suggestions', descricao, categoriaId] as const,
   incomeSuggestions: (descricao: string) => ['income-suggestions', descricao] as const,
+  appointments: (month: number, year: number) => ['appointments', month, year] as const,
 };
