@@ -17,7 +17,6 @@ import { MetricCard } from './MetricCard';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
-import type { AppSection, ConfigTab } from '../../layout/AppShell';
 import { MonthSelector } from './MonthSelector';
 import { formatCurrency } from './formatters';
 
@@ -59,11 +58,10 @@ function useCategoryAxisWidth(): number {
 }
 
 interface FinanceDashboardProps {
-  onNavigate?: (section: AppSection) => void;
-  onConfigTab?: (tab: ConfigTab) => void;
+  showMonthlySummary?: boolean;
 }
 
-export function FinanceDashboard({ onNavigate, onConfigTab }: FinanceDashboardProps) {
+export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboardProps) {
   const { month, year, setMonth, setYear, setQuickAction } = useAppContext();
   const finance = useFinanceDashboard(month, year);
   const data = finance.dashboard.data;
@@ -217,6 +215,7 @@ export function FinanceDashboard({ onNavigate, onConfigTab }: FinanceDashboardPr
             Atualizar
           </Button>
         </div>
+        {showMonthlySummary && (
         <div className="relative rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
           <MonthSelector month={month} year={year} onMonthChange={setMonth} onYearChange={setYear} />
           {guide.isVisible && hasNoMonthlyEntries && (
@@ -231,9 +230,10 @@ export function FinanceDashboard({ onNavigate, onConfigTab }: FinanceDashboardPr
             />
           )}
         </div>
+        )}
       </div>
 
-      {saldoProjetado < 0 && (
+      {showMonthlySummary && saldoProjetado < 0 && (
         <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
           <AlertTriangle size={16} className="shrink-0" />
           <span>
@@ -251,6 +251,7 @@ export function FinanceDashboard({ onNavigate, onConfigTab }: FinanceDashboardPr
 
 
       {/* 5 KPI cards */}
+      {showMonthlySummary && (
       <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
         <MetricCard label="Saldo anterior" value={formatCurrency(saldoAnterior)} tone="slate" />
         <MetricCard
@@ -289,6 +290,7 @@ export function FinanceDashboard({ onNavigate, onConfigTab }: FinanceDashboardPr
           )}
         </div>
       </div>
+      )}
 
       {/* Contratos panel */}
       {contratos.length > 0 && (

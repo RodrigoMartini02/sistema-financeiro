@@ -6,7 +6,7 @@ import {
 } from '../services/financeService';
 import type { IncomeFormValues, ExpenseFormValues } from '../types/finance';
 
-export function useFinanceDashboard(month: number, year: number, enabled: boolean) {
+export function useFinanceDashboard(month: number, year: number, enabled = true) {
   const qc = useQueryClient();
   const key = queryKeys.dashboard(month, year);
 

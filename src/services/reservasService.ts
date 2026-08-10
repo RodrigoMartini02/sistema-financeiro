@@ -35,13 +35,25 @@ export async function deleteReserva(id: number): Promise<void> {
   return apiRequest<void>(`/reservas/${id}`, { method: 'DELETE' });
 }
 
-export async function fetchMovimentacoes(reservaId: number): Promise<Movimentacao[]> {
-  return apiRequest<Movimentacao[]>(`/reservas/${reservaId}/movimentacoes`);
+export async function fetchMovimentacoes(reservaId: number, month?: number, year?: number): Promise<Movimentacao[]> {
+  const params = new URLSearchParams();
+  if (month !== undefined && year !== undefined) {
+    params.set('mes', String(month));
+    params.set('ano', String(year));
+  }
+  const query = params.size > 0 ? `?${params}` : '';
+  return apiRequest<Movimentacao[]>(`/reservas/${reservaId}/movements${query}`);
 }
 
 export async function movimentar(reservaId: number, values: MovimentacaoFormValues): Promise<Movimentacao> {
+  const tipo = values.tipo === 'deposito' ? 'entrada' : 'saida';
   return apiRequest<Movimentacao>(`/reservas/${reservaId}/movimentar`, {
     method: 'POST',
-    body: JSON.stringify(values),
+    body: JSON.stringify({
+      tipo,
+      valor: values.valor,
+      observacoes: values.descricao,
+      data: values.data,
+    }),
   });
 }

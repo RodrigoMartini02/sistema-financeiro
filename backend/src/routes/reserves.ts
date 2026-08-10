@@ -94,6 +94,38 @@ function profileFilter(perfilId: string | undefined, paramStart: number): { clau
   };
 }
 
+class InvalidMovementPeriodError extends Error {}
+
+interface MovementPeriod {
+  startDate: string;
+  endDate: string;
+}
+
+function parseMovementPeriod(mes?: string, ano?: string): MovementPeriod | null {
+  if (mes === undefined && ano === undefined) return null;
+
+  const month = Number(mes);
+  const year = Number(ano);
+  if (!Number.isInteger(month) || month < 0 || month > 11 || !Number.isInteger(year) || year < 2000) {
+    throw new InvalidMovementPeriodError('Invalid movement period');
+  }
+
+  const start = new Date(Date.UTC(year, month, 1));
+  const end = new Date(Date.UTC(year, month + 1, 1));
+  return {
+    startDate: start.toISOString().slice(0, 10),
+    endDate: end.toISOString().slice(0, 10),
+  };
+}
+
+function movementPeriodFilter(period: MovementPeriod | null, paramStart: number): { clause: string; params: string[] } {
+  if (!period) return { clause: '', params: [] };
+  return {
+    clause: ` AND mr.data_hora >= $${paramStart} AND mr.data_hora < $${paramStart + 1}`,
+    params: [period.startDate, period.endDate],
+  };
+}
+
 // GET /api/reserves/objectives — must come before /:id
 router.get('/objectives', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
@@ -119,7 +151,8 @@ router.get('/objectives', authenticate, async (req: Request, res: Response): Pro
 // GET /api/reserves/movimentacoes/todas (PT alias) — must come before /:id
 router.get('/movimentacoes/todas', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { limite, limit = limite ?? '20', offset = '0', perfil_id } = req.query as Record<string, string | undefined>;
+    const { limite, limit = limite ?? '20', offset = '0', perfil_id, mes, ano } = req.query as Record<string, string | undefined>;
+    const period = parseMovementPeriod(mes, ano);
 
     const baseParams: unknown[] = [req.user!.id];
     let profileClause = '';
@@ -127,6 +160,8 @@ router.get('/movimentacoes/todas', authenticate, async (req: Request, res: Respo
       baseParams.push(parseInt(perfil_id));
       profileClause = ` AND (r.perfil_id = $2 OR (r.perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis pf WHERE pf.id = $2 AND pf.tipo = 'pessoal' AND pf.usuario_id = $1)))`;
     }
+    const periodFilter = movementPeriodFilter(period, baseParams.length + 1);
+    baseParams.push(...periodFilter.params);
     const limitIdx = baseParams.push(parseInt(limit));
     const offsetIdx = baseParams.push(parseInt(offset));
 
@@ -134,7 +169,7 @@ router.get('/movimentacoes/todas', authenticate, async (req: Request, res: Respo
       `SELECT mr.*, r.observacoes AS reserve_name
        FROM movimentacoes_reservas mr
        INNER JOIN reservas r ON mr.reserva_id = r.id
-       WHERE r.usuario_id = $1${profileClause}
+       WHERE r.usuario_id = $1${profileClause}${periodFilter.clause}
        ORDER BY mr.data_hora ASC
        LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
       baseParams,
@@ -142,11 +177,13 @@ router.get('/movimentacoes/todas', authenticate, async (req: Request, res: Respo
 
     const countParams: unknown[] = [req.user!.id];
     if (perfil_id) countParams.push(parseInt(perfil_id));
+    const countPeriodFilter = movementPeriodFilter(period, countParams.length + 1);
+    countParams.push(...countPeriodFilter.params);
     const total = await pool.query(
       `SELECT COUNT(*) AS cnt
        FROM movimentacoes_reservas mr
        INNER JOIN reservas r ON mr.reserva_id = r.id
-       WHERE r.usuario_id = $1${profileClause}`,
+       WHERE r.usuario_id = $1${profileClause}${countPeriodFilter.clause}`,
       countParams,
     );
 
@@ -158,6 +195,10 @@ router.get('/movimentacoes/todas', authenticate, async (req: Request, res: Respo
       limit: parseInt(limit),
     });
   } catch (error) {
+    if (error instanceof InvalidMovementPeriodError) {
+      res.status(400).json({ success: false, message: error.message });
+      return;
+    }
     console.error('List all movements (PT) error:', error);
     res.status(500).json({ success: false, message: 'Failed to list movements' });
   }
@@ -166,10 +207,17 @@ router.get('/movimentacoes/todas', authenticate, async (req: Request, res: Respo
 // GET /api/reserves/movements/all — must come before /:id
 router.get('/movements/all', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { limit = '20', offset = '0', perfil_id } = req.query as Record<string, string | undefined>;
-    const { clause, params: extra } = profileFilter(perfil_id, 2);
+    const { limit = '20', offset = '0', perfil_id, mes, ano } = req.query as Record<string, string | undefined>;
+    const period = parseMovementPeriod(mes, ano);
 
-    const baseParams: unknown[] = [req.user!.id, ...extra];
+    const baseParams: unknown[] = [req.user!.id];
+    let profileClause = '';
+    if (perfil_id) {
+      baseParams.push(parseInt(perfil_id));
+      profileClause = ` AND (r.perfil_id = $2 OR (r.perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis pf WHERE pf.id = $2 AND pf.tipo = 'pessoal' AND pf.usuario_id = $1)))`;
+    }
+    const periodFilter = movementPeriodFilter(period, baseParams.length + 1);
+    baseParams.push(...periodFilter.params);
     const limitIdx = baseParams.push(parseInt(limit));
     const offsetIdx = baseParams.push(parseInt(offset));
 
@@ -177,18 +225,21 @@ router.get('/movements/all', authenticate, async (req: Request, res: Response): 
       `SELECT mr.*, r.observacoes AS reserve_name
        FROM movimentacoes_reservas mr
        INNER JOIN reservas r ON mr.reserva_id = r.id
-       WHERE r.usuario_id = $1${clause}
+       WHERE r.usuario_id = $1${profileClause}${periodFilter.clause}
        ORDER BY mr.data_hora ASC
        LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
       baseParams,
     );
 
-    const countParams: unknown[] = [req.user!.id, ...extra];
+    const countParams: unknown[] = [req.user!.id];
+    if (perfil_id) countParams.push(parseInt(perfil_id));
+    const countPeriodFilter = movementPeriodFilter(period, countParams.length + 1);
+    countParams.push(...countPeriodFilter.params);
     const total = await pool.query(
       `SELECT COUNT(*) AS cnt
        FROM movimentacoes_reservas mr
        INNER JOIN reservas r ON mr.reserva_id = r.id
-       WHERE r.usuario_id = $1${clause}`,
+       WHERE r.usuario_id = $1${profileClause}${countPeriodFilter.clause}`,
       countParams,
     );
 
@@ -200,6 +251,10 @@ router.get('/movements/all', authenticate, async (req: Request, res: Response): 
       limit: parseInt(limit),
     });
   } catch (error) {
+    if (error instanceof InvalidMovementPeriodError) {
+      res.status(400).json({ success: false, message: error.message });
+      return;
+    }
     console.error('List all movements error:', error);
     res.status(500).json({ success: false, message: 'Failed to list movements' });
   }
@@ -387,17 +442,18 @@ router.post(
   [
     body('tipo').isIn(['entrada', 'saida']).withMessage('Type must be entrada or saida'),
     body('valor').isFloat({ min: 0.01 }).withMessage('Amount must be greater than zero'),
-    body('mes').optional().isInt({ min: 0, max: 11 }),
-    body('ano').optional().isInt({ min: 2000 }),
+    body('data').isISO8601().withMessage('Invalid movement date'),
     body('observacoes').optional().isString(),
     validate,
   ],
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const { tipo, valor, observacoes } = req.body as Record<string, unknown>;
-      const currentMonth = req.body.mes !== undefined ? parseInt(String(req.body.mes)) : new Date().getMonth();
-      const currentYear = req.body.ano !== undefined ? parseInt(String(req.body.ano)) : new Date().getFullYear();
+      const { tipo, valor, observacoes, data } = req.body as Record<string, unknown>;
+      const movementDate = String(data).slice(0, 10);
+      const [yearPart = '', monthPart = ''] = movementDate.split('-');
+      const currentYear = Number(yearPart);
+      const currentMonth = Number(monthPart) - 1;
 
       if (await isMonthClosed(req.user!.id, currentMonth, currentYear)) {
         res.status(400).json({ success: false, message: 'Cannot move reserves in a closed month' });
@@ -436,13 +492,11 @@ router.post(
         }
       }
 
-      const movDate = new Date(currentYear, currentMonth, 15);
-
       const movResult = await pool.query(
         `INSERT INTO movimentacoes_reservas (reserva_id, tipo, valor, observacoes, data_hora)
          VALUES ($1, $2, $3, $4, $5)
          RETURNING *`,
-        [id, tipo, amount, observacoes ?? null, movDate],
+        [id, tipo, amount, observacoes ?? null, movementDate],
       );
 
       const newBalance =
@@ -468,6 +522,8 @@ router.post(
 router.get('/:id/movements', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    const { mes, ano } = req.query as Record<string, string | undefined>;
+    const period = parseMovementPeriod(mes, ano);
 
     const reserveResult = await pool.query(
       'SELECT id FROM reservas WHERE id = $1 AND usuario_id = $2',
@@ -479,13 +535,22 @@ router.get('/:id/movements', authenticate, async (req: Request, res: Response): 
       return;
     }
 
+    const params: unknown[] = [id];
+    const periodFilter = movementPeriodFilter(period, params.length + 1);
+    params.push(...periodFilter.params);
     const result = await pool.query(
-      'SELECT * FROM movimentacoes_reservas WHERE reserva_id = $1 ORDER BY data_hora DESC',
-      [id],
+      `SELECT mr.* FROM movimentacoes_reservas mr
+       WHERE mr.reserva_id = $1${periodFilter.clause}
+       ORDER BY mr.data_hora DESC`,
+      params,
     );
 
     res.json({ success: true, data: result.rows });
   } catch (error) {
+    if (error instanceof InvalidMovementPeriodError) {
+      res.status(400).json({ success: false, message: error.message });
+      return;
+    }
     console.error('Get reserve movements error:', error);
     res.status(500).json({ success: false, message: 'Failed to get movements' });
   }
