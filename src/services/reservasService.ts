@@ -47,7 +47,7 @@ export async function fetchMovimentacoes(reservaId: number, month?: number, year
 
 export async function movimentar(reservaId: number, values: MovimentacaoFormValues): Promise<Movimentacao> {
   const tipo = values.tipo === 'deposito' ? 'entrada' : 'saida';
-  return apiRequest<Movimentacao>(`/reservas/${reservaId}/movimentar`, {
+  return apiRequest<Movimentacao>(`/reservas/${reservaId}/move`, {
     method: 'POST',
     body: JSON.stringify({
       tipo,
