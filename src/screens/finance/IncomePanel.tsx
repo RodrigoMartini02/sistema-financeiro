@@ -4,6 +4,7 @@ import { Card } from '../../ui/card';
 import { Badge } from '../../ui/badge';
 import { EmptyState } from '../../ui/states';
 import { formatCurrency, formatDate } from './formatters';
+import { getLocalTodayIso } from '../../utils/date';
 
 interface IncomePanelProps {
   items: Income[];
@@ -18,7 +19,7 @@ function implantacaoStatus(item: Income): 'pendente' | 'atrasado' | 'recebido' |
   if (item.tipoReceita !== 'Implantação' || !item.contratoId) return null;
   if (item.status === 'ativa') return 'recebido';
   if (item.status === 'prevista') {
-    const hoje = new Date().toISOString().slice(0, 10);
+    const hoje = getLocalTodayIso();
     return item.data < hoje ? 'atrasado' : 'pendente';
   }
   return null;

@@ -101,7 +101,7 @@ function AppContent() {
   const session = useAuthSession({ enabled: isAppRoute });
   const [section, setSection] = useState<AppSection>('movimentacoes');
   const [configTab, setConfigTab] = useState<ConfigTab>('conta');
-  const { month, year, setMonth, quickAction, setQuickAction } = useAppContext();
+  const { month, year, setMonth, quickAction, setQuickAction, fillViewport } = useAppContext();
 
   const planQuery = useQuery<PlanoStatus>({
     queryKey: queryKeys.planStatus,
@@ -167,6 +167,7 @@ function AppContent() {
       onNavigate={(s) => handleNavigate(s)}
       configTab={configTab}
       onConfigTab={handleConfigTab}
+      fillViewport={section === 'movimentacoes' && fillViewport}
     >
       {renderContent()}
 

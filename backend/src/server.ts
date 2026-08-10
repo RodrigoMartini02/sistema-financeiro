@@ -75,6 +75,7 @@ import expenseRoutes from './routes/expenses';
 import monthRoutes from './routes/months';
 import yearRoutes from './routes/years';
 import reserveRoutes from './routes/reserves';
+import appointmentRoutes from './routes/appointments';
 import financialRoutes from './routes/financial';
 import planRoutes from './routes/plans';
 import paypalRoutes from './routes/paypal';
@@ -115,6 +116,8 @@ app.use('/api/years', authenticate, requireActivePlan, yearRoutes);
 app.use('/api/anos', authenticate, requireActivePlan, yearRoutes);               // PT alias
 app.use('/api/reserves', authenticate, requireActivePlan, reserveRoutes);
 app.use('/api/reservas', authenticate, requireActivePlan, reserveRoutes);        // PT alias
+app.use('/api/appointments', authenticate, requireActivePlan, appointmentRoutes);
+app.use('/api/compromissos', authenticate, requireActivePlan, appointmentRoutes); // PT alias
 app.use('/api/financial', financialRoutes);
 app.use('/api/financeiro', financialRoutes);    // PT alias
 app.use('/api/plans', planRoutes);

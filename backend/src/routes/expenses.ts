@@ -3,6 +3,7 @@ import { body } from 'express-validator';
 import { pool } from '../db/client';
 import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
+import { getTodayIsoInTimezone } from '../utils/date';
 
 const router = Router();
 
@@ -494,7 +495,7 @@ router.post('/:id/pay', authenticate, async (req: Request, res: Response): Promi
     const expenseId = parseInt(req.params['id']!);
     const { data_pagamento, valor_pago, settle_future } = req.body as Record<string, unknown>;
 
-    const paymentDate = data_pagamento ?? new Date().toISOString().split('T')[0];
+    const paymentDate = data_pagamento ?? getTodayIsoInTimezone();
 
     const result = await pool.query(
       `UPDATE despesas SET pago = true, data_pagamento = $1, valor_pago = $2 WHERE id = $3 AND usuario_id = $4 RETURNING *`,

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../db/client';
 import { authenticate } from '../middleware/auth';
+import { getTodayIsoInTimezone } from '../utils/date';
 
 const router = Router();
 
@@ -130,7 +131,7 @@ router.post('/:id/lancar', authenticate, async (req: Request, res: Response): Pr
     };
 
     const qtdeNum = parseFloat(String(qtde));
-    const dataLancamento = String(data || new Date().toISOString().split('T')[0]);
+    const dataLancamento = String(data || getTodayIsoInTimezone());
 
     // Registrar em consumo_horas
     await pool.query(

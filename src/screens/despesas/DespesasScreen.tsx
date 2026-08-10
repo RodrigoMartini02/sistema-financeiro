@@ -24,6 +24,7 @@ import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
+import { daysAgoLocalIso, getLocalTodayIso } from '../../utils/date';
 import { ExpenseCard } from './ExpenseCard';
 
 type FiltroStatus = 'todos' | 'pago' | 'em_dia' | 'atrasada';
@@ -41,7 +42,7 @@ export function getFormaLabel(forma: string): string {
 }
 
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  return getLocalTodayIso();
 }
 
 export function getStatus(item: Expense): 'pago' | 'em_dia' | 'atrasada' {
@@ -285,7 +286,7 @@ export function DespesasScreen({ embedded = false, toolbarStart }: DespesasScree
   const formas = [...new Set(allItems.map((i) => i.formaPagamento))].sort();
 
   const hoje = todayStr();
-  const semanaAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const semanaAgo = daysAgoLocalIso(7);
   const mesPrefixo = `${year}-${String(month + 1).padStart(2, '0')}`;
 
   const filtered = allItems

@@ -19,6 +19,7 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
 import type { Attachment } from '../../types/finance';
+import { getLocalTodayIso } from '../../utils/date';
 import { IncomeCard } from './IncomeCard';
 
 const MONTH_NAMES_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -133,7 +134,7 @@ export function ReceitasScreen({ embedded = false, toolbarStart }: ReceitasScree
     },
   });
 
-  const hoje = new Date().toISOString().split('T')[0]!;
+  const hoje = getLocalTodayIso();
 
   const mesStatusQuery = useQuery({
     queryKey: queryKeys.mesStatus(year, month),

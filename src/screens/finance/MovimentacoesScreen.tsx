@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Lock, LockOpen, PiggyBank, Plus, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Calendar, List, Lock, LockOpen, PiggyBank, Plus, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAppContext } from '../../context/AppContext';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
@@ -13,11 +13,41 @@ import { ErrorState } from '../../ui/states';
 import { DespesasScreen } from '../despesas/DespesasScreen';
 import { ReceitasScreen } from '../receitas/ReceitasScreen';
 import { ReserveMovementDialog } from '../reservas/ReserveMovementDialog';
-import { MetricCard } from './MetricCard';
-import { MonthSelector } from './MonthSelector';
+import { CalendarSubViewToggle, type CalendarSubView } from './calendar/CalendarSubViewToggle';
+import { CalendarView } from './calendar/CalendarView';
+import { CompactPeriodSelector } from './CompactPeriodSelector';
+import { MovementMetricCard } from './MovementMetricCard';
 import { formatCurrency } from './formatters';
 
 type MovementTab = 'receitas' | 'despesas';
+type ViewMode = 'lista' | 'calendario';
+
+function ViewModeToggle({ mode, onChange }: { mode: ViewMode; onChange: (mode: ViewMode) => void }) {
+  return (
+    <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1 dark:border-slate-600 dark:bg-slate-800">
+      <button
+        type="button"
+        onClick={() => onChange('lista')}
+        className={[
+          'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition',
+          mode === 'lista' ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200',
+        ].join(' ')}
+      >
+        <List size={13} /> Lista
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange('calendario')}
+        className={[
+          'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition',
+          mode === 'calendario' ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200',
+        ].join(' ')}
+      >
+        <Calendar size={13} /> Calendário
+      </button>
+    </div>
+  );
+}
 
 interface MovimentacoesScreenProps {
   onManageReserves: () => void;
@@ -72,9 +102,16 @@ function getDefaultMovementDate(month: number, year: number): string {
 }
 
 export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenProps) {
-  const { month, year, setMonth, setYear, setQuickAction } = useAppContext();
+  const { month, year, setMonth, setYear, setQuickAction, setFillViewport } = useAppContext();
   const [activeTab, setActiveTab] = useState<MovementTab>('receitas');
+  const [viewMode, setViewMode] = useState<ViewMode>('lista');
+  const [subView, setSubView] = useState<CalendarSubView>('mes');
   const [reserveDialogOpen, setReserveDialogOpen] = useState(false);
+
+  useEffect(() => {
+    setFillViewport(viewMode === 'calendario');
+    return () => setFillViewport(false);
+  }, [viewMode, setFillViewport]);
   const qc = useQueryClient();
   const finance = useFinanceDashboard(month, year);
   const annual = useQuery({
@@ -138,13 +175,15 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
   };
   const movementTabs = <MovementTableToggle activeTab={activeTab} onChange={setActiveTab} />;
 
+  const isCalendario = viewMode === 'calendario';
+
   return (
     <>
-      <div className="grid gap-5">
-        <div className="grid gap-3">
-          <div className="flex flex-col justify-between gap-3 xl:flex-row xl:items-center">
-            <h2 className="text-xl font-bold text-slate-950 dark:text-white">Movimentações</h2>
+      <div className={isCalendario ? 'flex h-full flex-col gap-3' : 'grid gap-5'}>
+        {isCalendario ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
             <div className="flex flex-wrap items-center gap-2">
+              <h2 className="pr-1 text-base font-bold text-slate-950 dark:text-white">Movimentações</h2>
               <Button variant="secondary" icon={<RefreshCw size={15} />} onClick={handleRefresh}>Atualizar</Button>
               <Button
                 variant="secondary"
@@ -154,17 +193,40 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
               >
                 {mesFechado ? 'Reabrir mês' : 'Fechar mês'}
               </Button>
-              <Button className="!bg-emerald-600 hover:!bg-emerald-700 focus:!ring-emerald-200" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-receita')}>Nova receita</Button>
-              <Button variant="danger" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-despesa')}>Nova despesa</Button>
-              <Button variant="secondary" icon={<PiggyBank size={15} />} onClick={() => setReserveDialogOpen(true)}>Movimentar reserva</Button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <CompactPeriodSelector month={month} year={year} onMonthChange={setMonth} onYearChange={setYear} mesFechado={mesFechado} />
+              <CalendarSubViewToggle value={subView} onChange={setSubView} />
+              <ViewModeToggle mode={viewMode} onChange={setViewMode} />
             </div>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
-            <MonthSelector month={month} year={year} onMonthChange={setMonth} onYearChange={setYear} />
+        ) : (
+          <div className="grid gap-3">
+            <div className="flex flex-col justify-between gap-3 xl:flex-row xl:items-center">
+              <h2 className="text-xl font-bold text-slate-950 dark:text-white">Movimentações</h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="secondary" icon={<RefreshCw size={15} />} onClick={handleRefresh}>Atualizar</Button>
+                <Button
+                  variant="secondary"
+                  icon={mesFechado ? <LockOpen size={15} /> : <Lock size={15} />}
+                  onClick={() => mesFechado ? reabrirMut.mutate() : fecharMut.mutate()}
+                  disabled={fecharMut.isPending || reabrirMut.isPending}
+                >
+                  {mesFechado ? 'Reabrir mês' : 'Fechar mês'}
+                </Button>
+                <Button className="!bg-emerald-600 hover:!bg-emerald-700 focus:!ring-emerald-200" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-receita')}>Nova receita</Button>
+                <Button variant="danger" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-despesa')}>Nova despesa</Button>
+                <Button variant="secondary" icon={<PiggyBank size={15} />} onClick={() => setReserveDialogOpen(true)}>Movimentar reserva</Button>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
+              <CompactPeriodSelector month={month} year={year} onMonthChange={setMonth} onYearChange={setYear} mesFechado={mesFechado} />
+              <ViewModeToggle mode={viewMode} onChange={setViewMode} />
+            </div>
           </div>
-        </div>
+        )}
 
-        {saldoProjetado < 0 && (
+        {saldoProjetado < 0 && !isCalendario && (
           <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300">
             Despesas superam receitas em <strong>{formatCurrency(Math.abs(saldoProjetado))}</strong> neste mês.
           </div>
@@ -174,21 +236,31 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
           <ErrorState title="Não foi possível carregar as movimentações" description={(finance.dashboard.error ?? annual.error)?.message} />
         )}
 
-        <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
-          <MetricCard label="Saldo anterior" value={formatCurrency(saldoAnterior)} tone="slate" />
-          <MetricCard label="Receitas" value={formatCurrency(receitas)} tone="income" />
-          <MetricCard label="Despesas" value={formatCurrency(despesas)} tone="expense" />
-          <MetricCard label="Saldo projetado" value={formatCurrency(saldoProjetado)} tone={saldoProjetado >= 0 ? 'income' : 'expense'} />
-          <MetricCard
-            label="Comprometimento"
-            value={receitas > 0 ? `${comprometimento.toFixed(0)}%` : '-'}
-            tone={comprometimento > 90 ? 'expense' : comprometimento > 70 ? 'warning' : 'income'}
-          />
-        </div>
+        {!isCalendario && (
+          <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
+            <MovementMetricCard label="Saldo anterior" value={formatCurrency(saldoAnterior)} tone="slate" note="Fechamento do mês anterior" />
+            <MovementMetricCard label="Receitas" value={formatCurrency(receitas)} tone="income" progressPct={receitas > 0 ? 100 : 0} note={`${finance.dashboard.data?.incomes.length ?? 0} lançamento(s)`} />
+            <MovementMetricCard label="Despesas" value={formatCurrency(despesas)} tone="expense" progressPct={comprometimento} note={`${finance.dashboard.data?.expenses.length ?? 0} lançamento(s)`} />
+            <MovementMetricCard label="Saldo projetado" value={formatCurrency(saldoProjetado)} tone={saldoProjetado >= 0 ? 'income' : 'expense'} note="Se tudo for pago em dia" />
+            <MovementMetricCard
+              label="Comprometimento"
+              value={receitas > 0 ? `${comprometimento.toFixed(0)}%` : '-'}
+              tone={comprometimento > 90 ? 'expense' : comprometimento > 70 ? 'warning' : 'income'}
+              progressPct={comprometimento}
+              note={comprometimento > 85 ? 'Acima do limite de 85%' : 'Dentro do limite saudável'}
+            />
+          </div>
+        )}
 
-        {activeTab === 'receitas'
-          ? <ReceitasScreen embedded toolbarStart={movementTabs} />
-          : <DespesasScreen embedded toolbarStart={movementTabs} />}
+        {viewMode === 'lista'
+          ? (activeTab === 'receitas'
+              ? <ReceitasScreen embedded toolbarStart={movementTabs} />
+              : <DespesasScreen embedded toolbarStart={movementTabs} />)
+          : (
+            <div className="min-h-0 flex-1">
+              <CalendarView month={month} year={year} subView={subView} />
+            </div>
+          )}
       </div>
 
       <ReserveMovementDialog

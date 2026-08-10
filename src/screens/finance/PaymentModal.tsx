@@ -3,6 +3,7 @@ import { CircleCheck } from 'lucide-react';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle, MoneyField } from '../../ui/dialogFormTokens';
 import type { Expense } from '../../types/finance';
+import { getLocalTodayIso } from '../../utils/date';
 
 interface PaymentModalProps {
   open: boolean;
@@ -12,7 +13,7 @@ interface PaymentModalProps {
 }
 
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  return getLocalTodayIso();
 }
 
 function fmt(v: number) {
