@@ -11,6 +11,10 @@ interface AppContextValue {
   // Quick-open dialogs from header
   quickAction: 'none' | 'nova-despesa' | 'nova-receita';
   setQuickAction: (a: 'none' | 'nova-despesa' | 'nova-receita') => void;
+  // Telas que precisam ocupar a altura restante da viewport sem scroll de
+  // página (ex: calendário de Movimentações) avisam o AppShell por aqui.
+  fillViewport: boolean;
+  setFillViewport: (v: boolean) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -25,6 +29,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return saved;
   });
   const [quickAction, setQuickAction] = useState<AppContextValue['quickAction']>('none');
+  const [fillViewport, setFillViewport] = useState(false);
 
   const toggleTheme = () => {
     setTheme((t) => {
@@ -38,7 +43,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setPeriod = (m: number, y: number) => { setMonth(m); setYear(y); };
 
   return (
-    <AppContext.Provider value={{ month, year, setMonth, setYear, setPeriod, theme, toggleTheme, quickAction, setQuickAction }}>
+    <AppContext.Provider value={{ month, year, setMonth, setYear, setPeriod, theme, toggleTheme, quickAction, setQuickAction, fillViewport, setFillViewport }}>
       {children}
     </AppContext.Provider>
   );

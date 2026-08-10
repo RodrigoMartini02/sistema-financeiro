@@ -37,12 +37,13 @@ type FormData = z.infer<typeof schema>;
 interface Props {
   open: boolean; month: number; year: number;
   income?: Income; isSaving: boolean; error?: string;
+  presetDate?: string;
   onClose: () => void; onSave: (v: IncomeFormValues) => Promise<void>;
 }
 
-export function IncomeDialog({ open, month, year, income, isSaving, error, onClose, onSave }: Props) {
+export function IncomeDialog({ open, month, year, income, isSaving, error, presetDate, onClose, onSave }: Props) {
   const qc = useQueryClient();
-  const defaultDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+  const defaultDate = presetDate ?? `${year}-${String(month + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
   const isNew = !income;
   const isEmpresa = useMemo(() => localStorage.getItem('perfilAtivoTipo') === 'empresa', []);
 
@@ -422,7 +423,15 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, onClo
                 <label style={labelStyle}>
                   <span>DATA</span><span style={{ color: C.primary }}>*</span>
                 </label>
-                <input {...form.register('data')} type="date" style={{ ...fieldInputStyle, fontSize: 14 }} />
+                <input
+                  {...form.register('data')}
+                  type="date"
+                  readOnly={isNew && !!presetDate}
+                  style={{
+                    ...fieldInputStyle, fontSize: 14,
+                    ...(isNew && presetDate ? { background: C.panelBg, cursor: 'not-allowed' } : {}),
+                  }}
+                />
               </div>
             </div>
 

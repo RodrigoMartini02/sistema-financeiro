@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../db/client';
 import { authenticate } from '../middleware/auth';
+import { getTodayIsoInTimezone } from '../utils/date';
 
 const router = Router();
 
@@ -668,7 +669,7 @@ router.post('/:id/receita-implantacao', authenticate, async (req: Request, res: 
       return;
     }
 
-    const dataRef = ct.data_assinatura ?? ct.data_inicio_faturamento ?? new Date().toISOString().slice(0, 10);
+    const dataRef = ct.data_assinatura ?? ct.data_inicio_faturamento ?? getTodayIsoInTimezone();
     const [ano, mesStr] = dataRef.split('-');
     const mes = parseInt(mesStr!) - 1;
 

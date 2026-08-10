@@ -10,6 +10,7 @@ import type { Reserva, ReservaFormValues, MovimentacaoFormValues } from '../../t
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { getLocalTodayIso } from '../../utils/date';
 import { TrendingUp } from 'lucide-react';
 
 const EMOJIS = ['💰', '🏠', '🚗', '✈️', '📚', '🛡️', '🎓', '💊', '🎮', '💻', '💶', '🐾'];
@@ -104,7 +105,7 @@ export function ReservaDialog({
     : null;
 
   // --- Form: Movimentar ---
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getLocalTodayIso();
 
   const movForm = useForm<z.input<typeof movSchema>, unknown, MovimentacaoFormValues>({
     resolver: zodResolver(movSchema),

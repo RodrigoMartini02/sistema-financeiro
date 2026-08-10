@@ -30,6 +30,10 @@ interface AppShellProps {
   onNavigate?: (section: AppSection) => void;
   configTab?: ConfigTab;
   onConfigTab?: (tab: ConfigTab) => void;
+  // Faz o <main> ocupar exatamente a altura restante da viewport (sem scroll
+  // de página), com o próprio conteúdo controlando seu scroll interno.
+  // Usado por telas que precisam caber inteiras na tela, como o calendário.
+  fillViewport?: boolean;
 }
 
 const NAV_GROUPS: { label: string; items: { label: string; icon: React.ElementType; section: AppSection }[] }[] = [
@@ -238,7 +242,7 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
 
 export function AppShell({
   user, children, activeSection = 'painel', onNavigate,
-  configTab = 'conta', onConfigTab,
+  configTab = 'conta', onConfigTab, fillViewport = false,
 }: AppShellProps) {
   const { theme, toggleTheme, setQuickAction } = useAppContext();
   const [notifOpen, setNotifOpen] = useState(false);
@@ -470,7 +474,13 @@ export function AppShell({
           </div>
         </header>
 
-        <main className="px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+        <main
+          className={fillViewport
+            ? 'flex h-[calc(100vh-56px)] flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-8'
+            : 'px-4 py-6 sm:px-6 lg:px-8'}
+        >
+          {children}
+        </main>
       </div>
     </div>
   );

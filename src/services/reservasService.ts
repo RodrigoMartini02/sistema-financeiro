@@ -1,4 +1,5 @@
 ﻿import { apiRequest, getActiveProfileId } from './apiClient';
+import { getLocalTodayIso } from '../utils/date';
 import type { Reserva, ReservaFormValues, Movimentacao, MovimentacaoFormValues } from '../types/reservas';
 
 export async function fetchReservas(): Promise<Reserva[]> {
@@ -14,7 +15,7 @@ export async function saveReserva(values: ReservaFormValues, id?: number): Promi
   const body = {
     observacoes: values.observacoes,
     valor: values.valor ?? 0,
-    data: hoje.toISOString().slice(0, 10),
+    data: getLocalTodayIso(),
     mes: hoje.getMonth(),
     ano: hoje.getFullYear(),
     tipo_reserva: values.objetivo_valor && values.objetivo_valor > 0 ? 'objetivo' : 'normal',

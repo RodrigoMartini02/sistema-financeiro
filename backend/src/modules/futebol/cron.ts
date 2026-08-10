@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import { db } from '../../db/client';
+import { getTodayIsoInTimezone } from '../../utils/date';
 import {
   footballConfirmations,
   footballMatches,
@@ -13,8 +14,7 @@ const activeTimers = new Map<string, NodeJS.Timeout>();
 
 async function runScheduledDraw(schedule: FootballSchedule): Promise<void> {
   try {
-    const today = new Date();
-    const dateStr = today.toISOString().slice(0, 10);
+    const dateStr = getTodayIsoInTimezone();
 
     const allPlayers = await db
       .select()

@@ -8,6 +8,7 @@ import { formatCurrency } from './formatters';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { getLocalTodayIso } from '../../utils/date';
 
 interface BatchPaymentModalProps {
   open: boolean;
@@ -19,7 +20,7 @@ interface BatchPaymentModalProps {
 type Tab = 'original' | 'personalizado';
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return getLocalTodayIso();
 }
 
 export function BatchPaymentModal({ open, expenses, onClose, onSuccess }: BatchPaymentModalProps) {

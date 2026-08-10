@@ -1,4 +1,5 @@
 import { inferCategory } from '../utils/expenseNormalizer';
+import { getTodayIsoInTimezone } from '../utils/date';
 
 export interface ParsedTransaction {
   data: string;
@@ -46,7 +47,7 @@ function parseHeuristic(text: string): ParsedTransaction[] {
 export function normalizeTransactions(list: Array<Partial<ParsedTransaction> & Record<string, unknown>>): ParsedTransaction[] {
   return list
     .map((t) => ({
-      data: String(t['data'] ?? new Date().toISOString().split('T')[0]),
+      data: String(t['data'] ?? getTodayIsoInTimezone()),
       descricao: (String(t['descricao'] ?? 'Transaction')).trim(),
       valor: Math.abs(parseFloat(String(t['valor'] ?? 0)) || 0),
       tipo: (t['tipo'] === 'receita' ? 'receita' : 'despesa') as 'receita' | 'despesa',

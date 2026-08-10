@@ -17,6 +17,7 @@ import { calcularVencimentoFatura, proximoDiaDoMes } from '../../utils/cardDueDa
 import { fetchCategorias, fetchCartoes, saveCategoria } from '../../services/configService';
 import { fetchExpenseSuggestions, type ExpenseSuggestionMatch } from '../../services/expenseSuggestionsService';
 import { queryKeys } from '../../services/queryKeys';
+import { getLocalTodayIso } from '../../utils/date';
 
 const schema = z.object({
   descricao:       z.string().min(1, 'Informe a descrição'),
@@ -40,7 +41,7 @@ type FormData = z.infer<typeof schema>;
 
 interface DuplicataInfo { expense: Expense; }
 
-const todayIso = () => new Date().toISOString().slice(0, 10);
+const todayIso = getLocalTodayIso;
 const todayNumericDay = () => new Date().getDate();
 const formatBr = (iso: string) => new Date(iso + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -48,11 +49,12 @@ const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curren
 interface Props {
   open: boolean; month: number; year: number;
   expense?: Expense; isSaving: boolean; error?: string;
+  presetDate?: string;
   onClose: () => void;
   onSave: (items: ExpenseFormValues[]) => Promise<void>;
 }
 
-export function ExpenseDialog({ open, month, year, expense, isSaving, error, onClose, onSave }: Props) {
+export function ExpenseDialog({ open, month, year, expense, isSaving, error, presetDate, onClose, onSave }: Props) {
   const qc = useQueryClient();
   const isEmpresa = useMemo(() => localStorage.getItem('perfilAtivoTipo') === 'empresa', []);
   const isEditing = !!expense;
@@ -243,7 +245,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
       valor_original:  vOrig ?? '' as unknown as number,
       valor_final:     temJurosOuDesconto ? vFinalDb : undefined,
       precoAVista:     undefined,
-      dataCompra:      expense?.dataCompra ?? todayIso(),
+      dataCompra:      expense?.dataCompra ?? presetDate ?? todayIso(),
       dataVencimentoManual: expense?.dataVencimento,
       categoria_id:    undefined,
       cartao_id:       undefined,
@@ -253,7 +255,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
       numero_nf:       expense?.numeroNf ?? undefined,
       data_emissao_nf: expense?.dataEmissaoNf ?? undefined,
     });
-  }, [expense, open]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [expense, open, presetDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reduzir o número de parcelas reajusta "já pagas" para caber no novo limite.
   useEffect(() => {
@@ -770,7 +772,12 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, onC
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               <label style={labelStyle}>DATA DA COMPRA</label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <input {...form.register('dataCompra')} type="date" style={smallInputStyle} />
+                <input
+                  {...form.register('dataCompra')}
+                  type="date"
+                  readOnly={!isEditing && !!presetDate}
+                  style={{ ...smallInputStyle, ...(!isEditing && presetDate ? { background: C.panelBg, cursor: 'not-allowed' } : {}) }}
+                />
                 {vencimentoManualAberto && (
                   <input {...form.register('dataVencimentoManual')} type="date" style={{ ...smallInputStyle, width: 140, border: `1.5px solid ${C.primary}` }} />
                 )}
