@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Paperclip, Plus, RefreshCw, Ban, TrendingUp, Tag, Lock, LockOpen, Clock, CheckCircle, AlertCircle, FileCheck, Building2, Search } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
@@ -60,7 +60,12 @@ function tipoBadge(tipo?: string | null) {
   );
 }
 
-export function ReceitasScreen({ embedded = false }: { embedded?: boolean }) {
+interface ReceitasScreenProps {
+  embedded?: boolean;
+  toolbarStart?: ReactNode;
+}
+
+export function ReceitasScreen({ embedded = false, toolbarStart }: ReceitasScreenProps) {
   const { month, year, setMonth, setYear } = useAppContext();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Income }>({ open: false });
   const [anexosDialog, setAnexosDialog] = useState<{ open: boolean; title: string; anexos: Attachment[] }>({ open: false, title: '', anexos: [] });
@@ -325,10 +330,8 @@ export function ReceitasScreen({ embedded = false }: { embedded?: boolean }) {
         {/* Table */}
         <Card allowOverflow>
           {/* Toolbar */}
-          <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
-            <h3 className="text-sm font-bold text-slate-800 shrink-0">
-              Lançamentos <span className="ml-1 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-bold text-green-700">{allItems.length}</span>
-            </h3>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
+            {toolbarStart && <div className="flex min-w-0 flex-wrap items-center gap-2">{toolbarStart}</div>}
             <div className="relative w-full max-w-xs">
               <input
                 type="search"

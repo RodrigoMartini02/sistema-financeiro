@@ -180,7 +180,12 @@ function ActionBtn({
   );
 }
 
-export function DespesasScreen({ embedded = false }: { embedded?: boolean }) {
+interface DespesasScreenProps {
+  embedded?: boolean;
+  toolbarStart?: ReactNode;
+}
+
+export function DespesasScreen({ embedded = false, toolbarStart }: DespesasScreenProps) {
   const { month, year, setMonth, setYear } = useAppContext();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Expense }>({ open: false });
   const [anexosDialog, setAnexosDialog] = useState<{ open: boolean; title: string; anexos: Attachment[] }>({
@@ -441,40 +446,43 @@ export function DespesasScreen({ embedded = false }: { embedded?: boolean }) {
         {/* Table card */}
         <Card allowOverflow>
           {/* Toolbar: filtros */}
-          <div className="flex items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700 px-4 py-3">
-            <div className="relative shrink-0">
-              {selecionadas.size > 0 && !mesFechado ? (
-                <div className="flex items-center gap-2">
-                  <CheckSquare size={14} className="text-[#0a9db5]" />
-                  <span className="text-xs font-semibold text-[#0a9db5]">
-                    {selecionadas.size} selecionada{selecionadas.size !== 1 ? 's' : ''}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setBatchModal(true)}
-                    className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700 transition"
-                  >
-                    Pagar selecionadas
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelecionadas(new Set())}
-                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
-                  >
-                    Desmarcar
-                  </button>
-                </div>
-              ) : null}
-              {pagarSelecionadasGuide.isVisible && selecionadas.size > 0 && !mesFechado && (
-                <FirstAccessGuideCard
-                  floating
-                  placement="bottom"
-                  className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
-                  icon={CheckSquare}
-                  description={firstAccessGuideMessages.despesasPagarSelecionadas}
-                  onDismiss={pagarSelecionadasGuide.dismiss}
-                />
-              )}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700 px-4 py-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              {toolbarStart}
+              <div className="relative shrink-0">
+                {selecionadas.size > 0 && !mesFechado ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <CheckSquare size={14} className="text-[#0a9db5]" />
+                    <span className="text-xs font-semibold text-[#0a9db5]">
+                      {selecionadas.size} selecionada{selecionadas.size !== 1 ? 's' : ''}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setBatchModal(true)}
+                      className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700 transition"
+                    >
+                      Pagar selecionadas
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelecionadas(new Set())}
+                      className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
+                    >
+                      Desmarcar
+                    </button>
+                  </div>
+                ) : null}
+                {pagarSelecionadasGuide.isVisible && selecionadas.size > 0 && !mesFechado && (
+                  <FirstAccessGuideCard
+                    floating
+                    placement="bottom"
+                    className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                    icon={CheckSquare}
+                    description={firstAccessGuideMessages.despesasPagarSelecionadas}
+                    onDismiss={pagarSelecionadasGuide.dismiss}
+                  />
+                )}
+              </div>
             </div>
             <div className="relative flex flex-wrap items-center justify-end gap-1.5">
               {filterGuide.isVisible && !finance.dashboard.isLoading && allItems.length > 0 && (

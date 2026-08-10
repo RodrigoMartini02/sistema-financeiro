@@ -23,6 +23,46 @@ interface MovimentacoesScreenProps {
   onManageReserves: () => void;
 }
 
+interface MovementTableToggleProps {
+  activeTab: MovementTab;
+  onChange: (tab: MovementTab) => void;
+}
+
+function MovementTableToggle({ activeTab, onChange }: MovementTableToggleProps) {
+  return (
+    <div className="flex items-center gap-1" role="tablist" aria-label="Tipo de movimentação">
+      <button
+        type="button"
+        role="tab"
+        aria-selected={activeTab === 'receitas'}
+        onClick={() => onChange('receitas')}
+        className={[
+          'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition',
+          activeTab === 'receitas'
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600',
+        ].join(' ')}
+      >
+        <TrendingUp size={15} /> Receitas
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={activeTab === 'despesas'}
+        onClick={() => onChange('despesas')}
+        className={[
+          'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition',
+          activeTab === 'despesas'
+            ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
+            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600',
+        ].join(' ')}
+      >
+        <TrendingDown size={15} /> Despesas
+      </button>
+    </div>
+  );
+}
+
 function getDefaultMovementDate(month: number, year: number): string {
   const today = new Date();
   const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
@@ -96,6 +136,7 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
     void annual.refetch();
     void reservas.refetch();
   };
+  const movementTabs = <MovementTableToggle activeTab={activeTab} onChange={setActiveTab} />;
 
   return (
     <>
@@ -113,8 +154,8 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
               >
                 {mesFechado ? 'Reabrir mês' : 'Fechar mês'}
               </Button>
-              <Button icon={<Plus size={15} />} onClick={() => setQuickAction('nova-receita')}>Nova receita</Button>
-              <Button icon={<Plus size={15} />} onClick={() => setQuickAction('nova-despesa')}>Nova despesa</Button>
+              <Button className="!bg-emerald-600 hover:!bg-emerald-700 focus:!ring-emerald-200" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-receita')}>Nova receita</Button>
+              <Button variant="danger" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-despesa')}>Nova despesa</Button>
               <Button variant="secondary" icon={<PiggyBank size={15} />} onClick={() => setReserveDialogOpen(true)}>Movimentar reserva</Button>
             </div>
           </div>
@@ -145,34 +186,9 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
           />
         </div>
 
-        <div className="flex w-fit rounded-lg border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900" role="tablist" aria-label="Tipo de movimentação">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'receitas'}
-            onClick={() => setActiveTab('receitas')}
-            className={[
-              'inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition',
-              activeTab === 'receitas' ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800',
-            ].join(' ')}
-          >
-            <TrendingUp size={15} /> Receitas
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'despesas'}
-            onClick={() => setActiveTab('despesas')}
-            className={[
-              'inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition',
-              activeTab === 'despesas' ? 'bg-rose-600 text-white' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800',
-            ].join(' ')}
-          >
-            <TrendingDown size={15} /> Despesas
-          </button>
-        </div>
-
-        {activeTab === 'receitas' ? <ReceitasScreen embedded /> : <DespesasScreen embedded />}
+        {activeTab === 'receitas'
+          ? <ReceitasScreen embedded toolbarStart={movementTabs} />
+          : <DespesasScreen embedded toolbarStart={movementTabs} />}
       </div>
 
       <ReserveMovementDialog
