@@ -323,17 +323,19 @@
 }
 
 .first-access-guide-bubble-top::before {
-  top: -6px;
-  right: 2rem;
-  border-left-width: 1px;
-  border-top-width: 1px;
+  left: var(--guide-arrow-left, calc(100% - 2rem));
+  bottom: -6px;
+  transform: translateX(-50%) rotate(45deg);
+  border-right-width: 1px;
+  border-bottom-width: 1px;
 }
 
 .first-access-guide-bubble-bottom::before {
-  right: 2rem;
-  bottom: -6px;
-  border-right-width: 1px;
-  border-bottom-width: 1px;
+  left: var(--guide-arrow-left, calc(100% - 2rem));
+  top: -6px;
+  transform: translateX(-50%) rotate(45deg);
+  border-left-width: 1px;
+  border-top-width: 1px;
 }
 
 .first-access-guide-bubble-left::before {

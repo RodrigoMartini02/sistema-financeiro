@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Z_MODAL } from './zIndex';
+import { GUIDE_LAYER_MODAL, useFirstAccessGuideSurface } from '../context/FirstAccessGuideContext';
 
 interface DialogProps {
   open: boolean;
@@ -27,11 +28,14 @@ const minHSize: Record<NonNullable<DialogProps['size']>, string> = {
 };
 
 export function Dialog({ open, title, description, onClose, children, size = 'md', scrollBody = true }: DialogProps) {
+  useFirstAccessGuideSurface(GUIDE_LAYER_MODAL, open);
+
   useEffect(() => {
+    if (!open) return;
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [onClose]);
+  }, [open, onClose]);
 
   if (!open) return null;
 

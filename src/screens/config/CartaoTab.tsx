@@ -10,6 +10,7 @@ import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTo
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
 
 const COR_OPCOES = [
@@ -37,9 +38,9 @@ function CartaoDialog({
 }) {
   const [cor, setCor] = useState(cartao?.cor ?? COR_OPCOES[0].value);
   const [validade, setValidade] = useState(cartao?.validade ?? '');
-  const limiteGuide = useFirstAccessGuide('cartoes:limite-v1');
-  const validadeGuide = useFirstAccessGuide('cartoes:validade-v1');
-  const fechamentoGuide = useFirstAccessGuide('cartoes:fechamento-vencimento-v1');
+  const limiteGuide = useFirstAccessGuide('cartoes:limite-v1', { enabled: open, layer: GUIDE_LAYER_MODAL });
+  const validadeGuide = useFirstAccessGuide('cartoes:validade-v1', { enabled: open, layer: GUIDE_LAYER_MODAL });
+  const fechamentoGuide = useFirstAccessGuide('cartoes:fechamento-vencimento-v1', { enabled: open, layer: GUIDE_LAYER_MODAL });
 
   const validadeIncompleta = validade.length > 0 && validade.length < 5;
 

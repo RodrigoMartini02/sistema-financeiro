@@ -14,6 +14,7 @@ import { ConfigListRow } from '../../ui/ConfigListRow';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
 
 function ComissaoRow({
@@ -172,8 +173,14 @@ function RepresentanteDialog({
     rep?.comissoes?.length ? rep.comissoes : [{ tipo_receita: defaultTipo, percentual: 5, tipo: 'mensal' }]
   );
   const confirm = useConfirm();
-  const comissoesGuide = useFirstAccessGuide('representantes:comissoes-v1');
-  const tipoComissaoGuide = useFirstAccessGuide('representantes:tipo-comissao-v1');
+  const comissoesGuide = useFirstAccessGuide('representantes:comissoes-v1', {
+    enabled: open,
+    layer: GUIDE_LAYER_MODAL,
+  });
+  const tipoComissaoGuide = useFirstAccessGuide('representantes:tipo-comissao-v1', {
+    enabled: open && comissoes.length > 0,
+    layer: GUIDE_LAYER_MODAL,
+  });
 
   const createTypeMut = useMutation({
     mutationFn: (nome: string) => saveIncomeType(nome),

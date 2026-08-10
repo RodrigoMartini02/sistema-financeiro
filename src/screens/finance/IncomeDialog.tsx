@@ -20,6 +20,7 @@ import { queryKeys } from '../../services/queryKeys';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -66,21 +67,44 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
   const [tipoSugestao, setTipoSugestao] = useState<{ nome: string } | null>(null);
   const [duplicataInfo, setDuplicataInfo] = useState<{ income: Income } | null>(null);
 
-  const horasGuide = useFirstAccessGuide('receitas:horas-v1');
-  const replicarGuide = useFirstAccessGuide('receitas:replicar-v1');
-  const representanteGuide = useFirstAccessGuide('receitas:representante-v1');
-
-  const repsQ = useQuery({ queryKey: queryKeys.representantes, queryFn: fetchRepresentantes, staleTime: 60_000 });
+  const repsQ = useQuery({
+    queryKey: queryKeys.representantes,
+    queryFn: fetchRepresentantes,
+    enabled: open && isEmpresa,
+    staleTime: 60_000,
+  });
   const representantes = repsQ.data ?? [];
 
-  const contratosQ = useQuery({ queryKey: queryKeys.contratosAtivos, queryFn: fetchContratosAtivos, staleTime: 60_000 });
+  const contratosQ = useQuery({
+    queryKey: queryKeys.contratosAtivos,
+    queryFn: fetchContratosAtivos,
+    enabled: open && isEmpresa,
+    staleTime: 60_000,
+  });
   const contratosAtivos = contratosQ.data ?? [];
 
   const typesQ = useQuery({ queryKey: queryKeys.incomeTypes, queryFn: fetchIncomeTypes, staleTime: 60_000 });
   const tiposReceita = (typesQ.data ?? []).filter((t) => t.ativo);
 
-  const clientesQ = useQuery({ queryKey: queryKeys.clientes, queryFn: fetchClientes, staleTime: 60_000 });
+  const clientesQ = useQuery({
+    queryKey: queryKeys.clientes,
+    queryFn: fetchClientes,
+    enabled: open && isEmpresa,
+    staleTime: 60_000,
+  });
   const clientes = clientesQ.data ?? [];
+  const horasGuide = useFirstAccessGuide('receitas:horas-v1', {
+    enabled: open && isNew && contratosAtivos.length > 0,
+    layer: GUIDE_LAYER_MODAL,
+  });
+  const replicarGuide = useFirstAccessGuide('receitas:replicar-v1', {
+    enabled: open && isNew,
+    layer: GUIDE_LAYER_MODAL,
+  });
+  const representanteGuide = useFirstAccessGuide('receitas:representante-v1', {
+    enabled: open && isEmpresa && representantes.length > 0,
+    layer: GUIDE_LAYER_MODAL,
+  });
 
   const criarTipoMut = useMutation({
     mutationFn: (nome: string) => saveIncomeType(nome),
@@ -248,7 +272,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
   }, [descricaoWatch, valorWatch, clienteWatch, cachedIncomes, income?.id]);
 
   // Cliente precisa corresponder a um cadastro existente — combobox não aceita texto solto.
-  const clienteValido = !clienteWatch?.trim() || clientes.some((c) => c.nome === clienteWatch.trim());
+  const clienteValido = !isEmpresa || !clienteWatch?.trim() || clientes.some((c) => c.nome === clienteWatch.trim());
 
   const handleSubmit = async (data: FormData) => {
     const formValues: IncomeFormValues = {

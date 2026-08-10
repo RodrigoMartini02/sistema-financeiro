@@ -13,6 +13,7 @@ import { ConfigListRow } from '../../ui/ConfigListRow';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
 
 const TIPO_ACESSO_OPTIONS = [
@@ -32,7 +33,10 @@ function UsuarioDialog({
 }) {
   const [tipoAcesso, setTipoAcesso] = useState(usuario?.tipo ?? 'padrao');
   const confirm = useConfirm();
-  const desativarGuide = useFirstAccessGuide('usuarios:desativar-excluir-v1');
+  const desativarGuide = useFirstAccessGuide('usuarios:desativar-excluir-v1', {
+    enabled: open && !!usuario && !!onToggleStatus,
+    layer: GUIDE_LAYER_MODAL,
+  });
 
   const handleDelete = async () => {
     if (!onDelete) return;

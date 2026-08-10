@@ -201,12 +201,6 @@ export function DespesasScreen({ embedded = false, toolbarStart }: DespesasScree
   const [ordenar, setOrdenar] = useState<Ordenar>('vencimento_asc');
   const [selecionadas, setSelecionadas] = useState<Set<number>>(new Set());
   const [batchModal, setBatchModal] = useState(false);
-  const guide = useFirstAccessGuide('despesas:novo-v1');
-  const filterGuide = useFirstAccessGuide('despesas:filtros-v1');
-  const fecharMesGuide = useFirstAccessGuide('despesas:fechar-mes-v1');
-  const loteGuide = useFirstAccessGuide('despesas:lote-v1');
-  const pagarSelecionadasGuide = useFirstAccessGuide('despesas:pagar-selecionadas-v1');
-  const moverMesGuide = useFirstAccessGuide('despesas:mover-mes-v1');
 
   const isEmpresa = localStorage.getItem('perfilAtivoTipo') === 'empresa';
   const qc = useQueryClient();
@@ -316,6 +310,23 @@ export function DespesasScreen({ embedded = false, toolbarStart }: DespesasScree
 
   const unpaidFiltered = filtered.filter((i) => !i.pago);
   const allSelected = unpaidFiltered.length > 0 && unpaidFiltered.every((i) => selecionadas.has(i.id));
+  const hasMovableItem = filtered.some((item) => !item.pago && !mesFechado && item.status !== 'cancelada');
+  const guide = useFirstAccessGuide('despesas:novo-v1', {
+    enabled: !embedded && !finance.dashboard.isLoading && allItems.length === 0 && !hasFilter2,
+  });
+  const filterGuide = useFirstAccessGuide('despesas:filtros-v1', {
+    enabled: !finance.dashboard.isLoading && allItems.length > 0,
+  });
+  const fecharMesGuide = useFirstAccessGuide('despesas:fechar-mes-v1', { enabled: !embedded });
+  const loteGuide = useFirstAccessGuide('despesas:lote-v1', {
+    enabled: selecionadas.size === 0 && !mesFechado && unpaidFiltered.length > 0,
+  });
+  const pagarSelecionadasGuide = useFirstAccessGuide('despesas:pagar-selecionadas-v1', {
+    enabled: selecionadas.size > 0 && !mesFechado,
+  });
+  const moverMesGuide = useFirstAccessGuide('despesas:mover-mes-v1', {
+    enabled: hasMovableItem,
+  });
 
   function toggleSelectAll() {
     if (allSelected) {

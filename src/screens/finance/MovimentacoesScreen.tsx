@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Calendar, List, Lock, LockOpen, PiggyBank, Plus, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
+import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useAppContext } from '../../context/AppContext';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
 import { apiRequest, getActiveProfileId } from '../../services/apiClient';
 import { fetchDashboardAnual } from '../../services/financeService';
@@ -107,6 +110,12 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
   const [viewMode, setViewMode] = useState<ViewMode>('lista');
   const [subView, setSubView] = useState<CalendarSubView>('mes');
   const [reserveDialogOpen, setReserveDialogOpen] = useState(false);
+  const isLista = viewMode === 'lista';
+  const isCalendario = viewMode === 'calendario';
+  const novaReceitaGuide = useFirstAccessGuide('receitas:novo-v1', { enabled: isLista });
+  const novaDespesaGuide = useFirstAccessGuide('despesas:novo-v1', { enabled: isLista });
+  const fecharMesGuide = useFirstAccessGuide('despesas:fechar-mes-v1');
+  const reservaGuide = useFirstAccessGuide('reservas:movimentar-v1', { enabled: isLista });
 
   useEffect(() => {
     setFillViewport(viewMode === 'calendario');
@@ -175,8 +184,6 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
   };
   const movementTabs = <MovementTableToggle activeTab={activeTab} onChange={setActiveTab} />;
 
-  const isCalendario = viewMode === 'calendario';
-
   return (
     <>
       <div className={isCalendario ? 'flex h-full flex-col gap-3' : 'grid gap-5'}>
@@ -185,14 +192,27 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="pr-1 text-base font-bold text-slate-950 dark:text-white">Movimentações</h2>
               <Button variant="secondary" icon={<RefreshCw size={15} />} onClick={handleRefresh}>Atualizar</Button>
-              <Button
-                variant="secondary"
-                icon={mesFechado ? <LockOpen size={15} /> : <Lock size={15} />}
-                onClick={() => mesFechado ? reabrirMut.mutate() : fecharMut.mutate()}
-                disabled={fecharMut.isPending || reabrirMut.isPending}
-              >
-                {mesFechado ? 'Reabrir mês' : 'Fechar mês'}
-              </Button>
+              <div className="relative">
+                <Button
+                  variant="secondary"
+                  icon={mesFechado ? <LockOpen size={15} /> : <Lock size={15} />}
+                  onClick={() => mesFechado ? reabrirMut.mutate() : fecharMut.mutate()}
+                  disabled={fecharMut.isPending || reabrirMut.isPending}
+                >
+                  {mesFechado ? 'Reabrir mês' : 'Fechar mês'}
+                </Button>
+                {fecharMesGuide.isVisible && (
+                  <FirstAccessGuideCard
+                    floating
+                    placement="top"
+                    align="right"
+                    className="w-[min(24rem,calc(100vw-2rem))]"
+                    icon={mesFechado ? LockOpen : Lock}
+                    description={firstAccessGuideMessages.despesasFecharMes}
+                    onDismiss={fecharMesGuide.dismiss}
+                  />
+                )}
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <CompactPeriodSelector month={month} year={year} onMonthChange={setMonth} onYearChange={setYear} mesFechado={mesFechado} />
@@ -206,17 +226,69 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
               <h2 className="text-xl font-bold text-slate-950 dark:text-white">Movimentações</h2>
               <div className="flex flex-wrap items-center gap-2">
                 <Button variant="secondary" icon={<RefreshCw size={15} />} onClick={handleRefresh}>Atualizar</Button>
-                <Button
-                  variant="secondary"
-                  icon={mesFechado ? <LockOpen size={15} /> : <Lock size={15} />}
-                  onClick={() => mesFechado ? reabrirMut.mutate() : fecharMut.mutate()}
-                  disabled={fecharMut.isPending || reabrirMut.isPending}
-                >
-                  {mesFechado ? 'Reabrir mês' : 'Fechar mês'}
-                </Button>
-                <Button className="!bg-emerald-600 hover:!bg-emerald-700 focus:!ring-emerald-200" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-receita')}>Nova receita</Button>
-                <Button variant="danger" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-despesa')}>Nova despesa</Button>
-                <Button variant="secondary" icon={<PiggyBank size={15} />} onClick={() => setReserveDialogOpen(true)}>Movimentar reserva</Button>
+                <div className="relative">
+                  <Button
+                    variant="secondary"
+                    icon={mesFechado ? <LockOpen size={15} /> : <Lock size={15} />}
+                    onClick={() => mesFechado ? reabrirMut.mutate() : fecharMut.mutate()}
+                    disabled={fecharMut.isPending || reabrirMut.isPending}
+                  >
+                    {mesFechado ? 'Reabrir mês' : 'Fechar mês'}
+                  </Button>
+                  {fecharMesGuide.isVisible && (
+                    <FirstAccessGuideCard
+                      floating
+                      placement="top"
+                      align="right"
+                      className="w-[min(24rem,calc(100vw-2rem))]"
+                      icon={mesFechado ? LockOpen : Lock}
+                      description={firstAccessGuideMessages.despesasFecharMes}
+                      onDismiss={fecharMesGuide.dismiss}
+                    />
+                  )}
+                </div>
+                <div className="relative">
+                  <Button className="!bg-emerald-600 hover:!bg-emerald-700 focus:!ring-emerald-200" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-receita')}>Nova receita</Button>
+                  {novaReceitaGuide.isVisible && (
+                    <FirstAccessGuideCard
+                      floating
+                      placement="top"
+                      align="right"
+                      className="w-[min(25rem,calc(100vw-2rem))]"
+                      icon={TrendingUp}
+                      description={firstAccessGuideMessages.receitasNova}
+                      onDismiss={novaReceitaGuide.dismiss}
+                    />
+                  )}
+                </div>
+                <div className="relative">
+                  <Button variant="danger" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-despesa')}>Nova despesa</Button>
+                  {novaDespesaGuide.isVisible && (
+                    <FirstAccessGuideCard
+                      floating
+                      placement="top"
+                      align="right"
+                      className="w-[min(25rem,calc(100vw-2rem))]"
+                      icon={TrendingDown}
+                      description={firstAccessGuideMessages.despesasNova}
+                      onDismiss={novaDespesaGuide.dismiss}
+                    />
+                  )}
+                </div>
+                <div className="relative">
+                  <Button variant="secondary" icon={<PiggyBank size={15} />} onClick={() => setReserveDialogOpen(true)}>Movimentar reserva</Button>
+                  {reservaGuide.isVisible && (
+                    <FirstAccessGuideCard
+                      floating
+                      placement="top"
+                      align="right"
+                      className="w-[min(24rem,calc(100vw-2rem))]"
+                      icon={PiggyBank}
+                      description={firstAccessGuideMessages.reservasMovimentar}
+                      onDismiss={reservaGuide.dismiss}
+                    />
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">

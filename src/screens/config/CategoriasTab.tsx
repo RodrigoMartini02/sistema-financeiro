@@ -10,6 +10,7 @@ import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTo
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
 
 const CAT_SCHEME = {
@@ -37,7 +38,10 @@ function CategoriaDialog({
   onSave: (v: CategoriaFormValues) => void;
   onToggle?: () => void;
 }) {
-  const desativarGuide = useFirstAccessGuide('categorias:desativar-v1');
+  const desativarGuide = useFirstAccessGuide('categorias:desativar-v1', {
+    enabled: open && !!cat && cat.ativo,
+    layer: GUIDE_LAYER_MODAL,
+  });
   const confirm = useConfirm();
 
   const handleToggle = async () => {

@@ -12,6 +12,32 @@ function profileWhere(profileId: number | null, paramIndex: number): { clause: s
   };
 }
 
+async function calculateFinalBalance(userId: number, year: number, month: number, profileId: number | null): Promise<number> {
+  const prevMonth = month === 0 ? 11 : month - 1;
+  const prevYear = month === 0 ? year - 1 : year;
+  const { clause, params: extra } = profileWhere(profileId, 4);
+
+  const [incomes, expenses_, prevBalance] = await Promise.all([
+    pool.query(
+      `SELECT COALESCE(SUM(valor), 0) AS total FROM receitas WHERE usuario_id = $1 AND ano = $2 AND mes = $3 AND status = 'ativa'${clause}`,
+      [userId, year, month, ...extra],
+    ),
+    pool.query(
+      `SELECT COALESCE(SUM(CASE WHEN parcelado = true AND COALESCE(numero_parcelas, 0) > 0 AND parcela_atual = 1 THEN COALESCE(valor_final, valor_original) / numero_parcelas ELSE COALESCE(valor_final, valor_original) END), 0) AS total FROM despesas WHERE usuario_id = $1 AND ano = $2 AND mes = $3 AND status = 'ativa'${clause}`,
+      [userId, year, month, ...extra],
+    ),
+    pool.query(
+      `SELECT COALESCE(saldo_final, 0) AS balance FROM meses WHERE usuario_id = $1 AND ano = $2 AND mes = $3${clause} ORDER BY perfil_id NULLS LAST LIMIT 1`,
+      [userId, prevYear, prevMonth, ...extra],
+    ),
+  ]);
+
+  const totalIncomes = parseFloat((incomes.rows[0] as { total: string }).total);
+  const totalExpenses = parseFloat((expenses_.rows[0] as { total: string }).total);
+  const previousBalance = parseFloat((prevBalance.rows[0] as { balance: string } | undefined)?.balance ?? '0');
+  return previousBalance + totalIncomes - totalExpenses;
+}
+
 // GET /api/months
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
@@ -67,11 +93,14 @@ router.post('/:year/:month/close', authenticate, async (req: Request, res: Respo
     const month = parseInt(req.params['month']!);
     const { saldo_final, perfil_id } = req.body as Record<string, unknown>;
     const profileId = perfil_id ? parseInt(String(perfil_id)) : null;
-    const finalBalance = parseFloat(String(saldo_final));
+    const parsedFinalBalance = parseFloat(String(saldo_final ?? ''));
+    const finalBalance = Number.isFinite(parsedFinalBalance)
+      ? parsedFinalBalance
+      : await calculateFinalBalance(req.user!.id, year, month, profileId);
 
     const result = await pool.query(
-      `INSERT INTO meses (usuario_id, ano, mes, fechado, saldo_final, saldo_anterior, perfil_id)
-       VALUES ($1, $2, $3, true, $4, 0, $5)
+      `INSERT INTO meses (usuario_id, ano, mes, fechado, saldo_final, perfil_id)
+       VALUES ($1, $2, $3, true, $4, $5)
        ON CONFLICT (usuario_id, ano, mes, COALESCE(perfil_id, 0))
        DO UPDATE SET fechado = true, saldo_final = EXCLUDED.saldo_final, data_fechamento = NOW()
        RETURNING *`,
@@ -202,11 +231,14 @@ router.post('/:ano/:mes/fechar', authenticate, async (req: Request, res: Respons
     const month = parseInt(req.params['mes']!);
     const { saldo_final, perfil_id } = req.body as Record<string, unknown>;
     const profileId = perfil_id ? parseInt(String(perfil_id)) : null;
-    const finalBalance = parseFloat(String(saldo_final));
+    const parsedFinalBalance = parseFloat(String(saldo_final ?? ''));
+    const finalBalance = Number.isFinite(parsedFinalBalance)
+      ? parsedFinalBalance
+      : await calculateFinalBalance(req.user!.id, year, month, profileId);
 
     const result = await pool.query(
-      `INSERT INTO meses (usuario_id, ano, mes, fechado, saldo_final, saldo_anterior, perfil_id)
-       VALUES ($1, $2, $3, true, $4, 0, $5)
+      `INSERT INTO meses (usuario_id, ano, mes, fechado, saldo_final, perfil_id)
+       VALUES ($1, $2, $3, true, $4, $5)
        ON CONFLICT (usuario_id, ano, mes, COALESCE(perfil_id, 0))
        DO UPDATE SET fechado = true, saldo_final = EXCLUDED.saldo_final, data_fechamento = NOW()
        RETURNING *`,
