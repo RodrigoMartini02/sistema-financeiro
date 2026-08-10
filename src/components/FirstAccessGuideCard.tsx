@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type ElementType, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type CSSProperties, type ElementType, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
@@ -27,6 +27,7 @@ interface FirstAccessGuideCardProps {
 
 const GAP = 12;
 const VIEWPORT_MARGIN = 12;
+const ARROW_MARGIN = 20;
 
 function extractWidth(className: string): number {
   const match = className.match(/w-\[min\((\d+(?:\.\d+)?)rem/);
@@ -43,9 +44,9 @@ export function FirstAccessGuideCard({
   placement = 'top',
 }: FirstAccessGuideCardProps) {
   const anchorRef = useRef<HTMLDivElement>(null);
-  const [coords, setCoords] = useState<{ top: number; left: number; placement: 'top' | 'bottom'; viewportHeight: number } | null>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number; arrowLeft: number; width: number; placement: 'top' | 'bottom'; viewportHeight: number } | null>(null);
 
-  const width = extractWidth(className);
+  const preferredWidth = extractWidth(className);
   const isVerticalPlacement = placement === 'top' || placement === 'bottom';
   const wantsBottom = isVerticalPlacement ? placement === 'bottom' : true;
   const alignRight = align === 'right' || className.includes('right-0');
@@ -58,6 +59,7 @@ export function FirstAccessGuideCard({
       const rect = anchor!.getBoundingClientRect();
       const vw = window.innerWidth;
       const vh = window.innerHeight;
+      const width = Math.min(preferredWidth, vw - VIEWPORT_MARGIN * 2);
 
       // Decide vertical side, com flip automático se não couber.
       const spaceBelow = vh - rect.bottom;
@@ -73,8 +75,10 @@ export function FirstAccessGuideCard({
       // Alinha à direita ou esquerda da âncora, sempre dentro da viewport.
       let left = alignRight ? rect.right - width : rect.left;
       left = Math.min(Math.max(left, VIEWPORT_MARGIN), vw - width - VIEWPORT_MARGIN);
+      const anchorCenter = rect.left + rect.width / 2;
+      const arrowLeft = Math.min(Math.max(anchorCenter - left, ARROW_MARGIN), width - ARROW_MARGIN);
 
-      setCoords({ top, left, placement: vertical, viewportHeight: vh });
+      setCoords({ top, left, arrowLeft, width, placement: vertical, viewportHeight: vh });
     }
 
     reposition();
@@ -84,7 +88,7 @@ export function FirstAccessGuideCard({
       window.removeEventListener('resize', reposition);
       window.removeEventListener('scroll', reposition, true);
     };
-  }, [wantsBottom, alignRight, width]);
+  }, [wantsBottom, alignRight, preferredWidth]);
 
   const bubble = coords && (
     <div
@@ -98,9 +102,10 @@ export function FirstAccessGuideCard({
         top: coords.placement === 'bottom' ? coords.top : undefined,
         bottom: coords.placement === 'top' ? coords.viewportHeight - coords.top : undefined,
         left: coords.left,
-        width,
+        '--guide-arrow-left': `${coords.arrowLeft}px`,
+        width: coords.width,
         zIndex: 9000,
-      }}
+      } as CSSProperties}
     >
       {Icon && (
         <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-cyan-700 shadow-sm ring-1 ring-cyan-200 dark:bg-cyan-900 dark:text-cyan-100 dark:ring-cyan-700" aria-hidden="true">

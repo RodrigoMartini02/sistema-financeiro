@@ -11,6 +11,7 @@ import { ConfigListRow } from '../../ui/ConfigListRow';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
 
 // ─── Category preview data (mirrors backend presets) ─────────────────────────
@@ -214,9 +215,12 @@ function PerfilDialog({
   const [tipo, setTipo] = useState<'pessoal' | 'empresa'>(perfil?.tipo ?? 'empresa');
   const [enquadramento, setEnquadramento] = useState<string>(perfil?.enquadramento ?? '');
   const confirm = useConfirm();
-  const enquadramentoGuide = useFirstAccessGuide('perfis:enquadramento-v1');
 
   const isNew = !perfil;
+  const enquadramentoGuide = useFirstAccessGuide('perfis:enquadramento-v1', {
+    enabled: open && isNew && tipo === 'empresa',
+    layer: GUIDE_LAYER_MODAL,
+  });
 
   useEffect(() => {
     if (!open) return;

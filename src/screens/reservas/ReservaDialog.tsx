@@ -10,6 +10,7 @@ import type { Reserva, ReservaFormValues, MovimentacaoFormValues } from '../../t
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { getLocalTodayIso } from '../../utils/date';
 import { TrendingUp } from 'lucide-react';
 
@@ -80,8 +81,14 @@ export function ReservaDialog({
   open, reserva, isSaving, isMovimentando = false, error, startTab, onClose, onSave, onMovimentar,
 }: Props) {
   const [tab, setTab] = useState<'config' | 'movimentar'>('config');
-  const tabsGuide = useFirstAccessGuide('reservas:aba-movimentar-v1');
-  const contribuicaoGuide = useFirstAccessGuide('reservas:contribuicao-sugerida-v1');
+  const tabsGuide = useFirstAccessGuide('reservas:aba-movimentar-v1', {
+    enabled: open && !!reserva,
+    layer: GUIDE_LAYER_MODAL,
+  });
+  const contribuicaoGuide = useFirstAccessGuide('reservas:contribuicao-sugerida-v1', {
+    enabled: open && tab === 'config',
+    layer: GUIDE_LAYER_MODAL,
+  });
 
   // --- Form: Configurações ---
   const configForm = useForm<ReservaFormValues>({

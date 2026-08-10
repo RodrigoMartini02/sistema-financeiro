@@ -21,6 +21,7 @@ import { formatCurrency } from '../finance/formatters';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
 
 // ─── Module-level helpers ─────────────────────────────────────────────────────
@@ -69,8 +70,14 @@ function ContratoForm({
   }, [representantes, showRepForm]);
 
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
-  const reajusteGuide = useFirstAccessGuide('clientes:reajuste-v1');
-  const representanteGuide = useFirstAccessGuide('clientes:representante-v1');
+  const reajusteGuide = useFirstAccessGuide('clientes:reajuste-v1', {
+    enabled: !readOnly,
+    layer: GUIDE_LAYER_MODAL,
+  });
+  const representanteGuide = useFirstAccessGuide('clientes:representante-v1', {
+    enabled: !readOnly && (representantes.length > 0 || !!onCreateRepresentante),
+    layer: GUIDE_LAYER_MODAL,
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -587,10 +594,22 @@ function ContratoModal({
 }) {
   const [isEditing, setIsEditing] = useState(!contrato);
   const [showServicos, setShowServicos] = useState(false);
-  const servicosVinculoGuide = useFirstAccessGuide('clientes:servicos-vinculo-v1');
-  const implantacaoGuide = useFirstAccessGuide('clientes:implantacao-v1');
-  const horasGuide = useFirstAccessGuide('clientes:horas-v1');
-  const encerrarGuide = useFirstAccessGuide('clientes:encerrar-contrato-v1');
+  const servicosVinculoGuide = useFirstAccessGuide('clientes:servicos-vinculo-v1', {
+    enabled: open && showServicos && !!contrato,
+    layer: GUIDE_LAYER_MODAL,
+  });
+  const implantacaoGuide = useFirstAccessGuide('clientes:implantacao-v1', {
+    enabled: open && isEditing,
+    layer: GUIDE_LAYER_MODAL,
+  });
+  const horasGuide = useFirstAccessGuide('clientes:horas-v1', {
+    enabled: open,
+    layer: GUIDE_LAYER_MODAL,
+  });
+  const encerrarGuide = useFirstAccessGuide('clientes:encerrar-contrato-v1', {
+    enabled: open && !!onEncerrar,
+    layer: GUIDE_LAYER_MODAL,
+  });
   const [pendingServicos, setPendingServicos] = useState<Map<number, number>>(new Map());
   const [showServicoForm, setShowServicoForm] = useState(false);
   const [valMensal, setValMensal]   = useState(fv(contrato?.valor_mensal));

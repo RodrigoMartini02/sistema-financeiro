@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, Controller, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Banknote, CreditCard, Paperclip, Plus, QrCode, X } from 'lucide-react';
+import { Banknote, CreditCard, Paperclip, Plus, QrCode, Repeat2, X } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Attachment, Expense, ExpenseFormValues, FinanceDashboardData } from '../../types/finance';
 import { AttachmentSection, type AttachmentSectionHandle } from '../../ui/AttachmentSection';
@@ -18,6 +18,10 @@ import { fetchCategorias, fetchCartoes, saveCategoria } from '../../services/con
 import { fetchExpenseSuggestions, type ExpenseSuggestionMatch } from '../../services/expenseSuggestionsService';
 import { queryKeys } from '../../services/queryKeys';
 import { getLocalTodayIso } from '../../utils/date';
+import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
+import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
+import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 
 const schema = z.object({
   descricao:       z.string().min(1, 'Informe a descrição'),
@@ -78,6 +82,10 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
 
   const categorias = useQuery({ queryKey: queryKeys.categorias, queryFn: fetchCategorias });
   const cartoes    = useQuery({ queryKey: queryKeys.cartoes,    queryFn: fetchCartoes });
+  const repetitionGuide = useFirstAccessGuide('despesas:toggles-tipo-v1', {
+    enabled: open && !isEditing,
+    layer: GUIDE_LAYER_MODAL,
+  });
 
   const criarCatMut = useMutation({
     mutationFn: (nome: string) => saveCategoria({ nome }),
@@ -667,7 +675,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
               )}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7, position: 'relative' }}>
               <div style={labelStyle}>ISSO SE REPETE?</div>
               <div className="grid grid-cols-3 gap-2">
                 {([
@@ -680,6 +688,16 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                   </div>
                 ))}
               </div>
+              {repetitionGuide.isVisible && (
+                <FirstAccessGuideCard
+                  floating
+                  placement="bottom"
+                  className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                  icon={Repeat2}
+                  description={firstAccessGuideMessages.despesasTogglesTipo}
+                  onDismiss={repetitionGuide.dismiss}
+                />
+              )}
 
               {repeticao === 'parcelas' && (
                 <div style={panelStyle}>

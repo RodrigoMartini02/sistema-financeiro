@@ -71,14 +71,12 @@ export function ReceitasScreen({ embedded = false, toolbarStart }: ReceitasScree
   const [dialog, setDialog] = useState<{ open: boolean; item?: Income }>({ open: false });
   const [anexosDialog, setAnexosDialog] = useState<{ open: boolean; title: string; anexos: Attachment[] }>({ open: false, title: '', anexos: [] });
   const [busca, setBusca] = useState('');
-  const guide = useFirstAccessGuide('receitas:novo-v1');
-  const searchGuide = useFirstAccessGuide('receitas:busca-v1');
-  const contratosGuide = useFirstAccessGuide('receitas:contratos-faturamento-v1');
 
   const qc = useQueryClient();
   const confirm = useConfirm();
   const finance = useFinanceDashboard(month, year);
   const allItems = finance.dashboard.data?.incomes ?? [];
+  const isEmpresa = localStorage.getItem('perfilAtivoTipo') === 'empresa';
 
   const cancelarReceita = useMutation({
     mutationFn: (id: number) => apiRequest<void>(`/receitas/${id}/cancelar`, { method: 'PUT' }),
@@ -116,6 +114,16 @@ export function ReceitasScreen({ embedded = false, toolbarStart }: ReceitasScree
   const contratosQ = useQuery({
     queryKey: queryKeys.contratosStatusFaturamento(month, year),
     queryFn: () => getContratosFaturamento(month + 1, year),
+    enabled: isEmpresa,
+  });
+  const guide = useFirstAccessGuide('receitas:novo-v1', {
+    enabled: !embedded && !finance.dashboard.isLoading && allItems.length === 0 && !busca,
+  });
+  const searchGuide = useFirstAccessGuide('receitas:busca-v1', {
+    enabled: !finance.dashboard.isLoading && allItems.length > 0,
+  });
+  const contratosGuide = useFirstAccessGuide('receitas:contratos-faturamento-v1', {
+    enabled: isEmpresa && (contratosQ.data?.length ?? 0) > 0,
   });
 
   const faturarMut = useMutation({

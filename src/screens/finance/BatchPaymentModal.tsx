@@ -8,6 +8,7 @@ import { formatCurrency } from './formatters';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { getLocalTodayIso } from '../../utils/date';
 
 interface BatchPaymentModalProps {
@@ -29,7 +30,10 @@ export function BatchPaymentModal({ open, expenses, onClose, onSuccess }: BatchP
   const [valoresPorId, setValoresPorId] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  const tabGuide = useFirstAccessGuide('despesas:batch-valor-v1');
+  const tabGuide = useFirstAccessGuide('despesas:batch-valor-v1', {
+    enabled: open && expenses.length > 0,
+    layer: GUIDE_LAYER_MODAL,
+  });
 
   useEffect(() => {
     if (open) {
