@@ -74,23 +74,24 @@ export function HomePage({ notice }: HomePageProps) {
   const totalAval: number = (avaliacoesQ.data as any)?.data?.total ?? 0;
 
   return (
-    <div className="min-h-screen bg-site-bg text-site-text">
-      <SiteHeader onOpenLogin={openLogin} />
+    <div className="min-h-screen bg-[#f8fbfb] text-slate-950">
+      <SiteHeader tone="light" onOpenLogin={openLogin} />
 
       <main id="conteudo-principal">
         <SitePageHero
+          tone="light"
           label="HOME"
           title="Controle financeiro com clareza."
           description="Organize sua vida financeira e sua empresa em perfis separados, com saldos, cartões, reservas e relatórios sempre visíveis."
         />
-        <section className="border-b border-[rgba(14,196,216,0.10)] bg-site-bgAlt">
+        <section className="public-light-panel border-b border-slate-200 bg-white">
           <div className="mx-auto max-w-[1800px] px-5 py-10 sm:px-8 xl:px-10 xl:py-12">
             <div className="max-w-[1800px]">
-              <p className="text-[11px] uppercase tracking-[0.30em] text-site-textMuted">VISÃO DO SISTEMA</p>
-              <h2 className="mt-4 text-[clamp(26px,2.2vw,42px)] font-light leading-[1.16] tracking-[0.02em] text-site-text">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-700">VISÃO DO SISTEMA</p>
+              <h2 className="mt-4 text-[clamp(26px,2.2vw,42px)] font-light leading-[1.16] tracking-[0.02em] text-slate-950">
                 Painel financeiro organizado desde o primeiro acesso.
               </h2>
-              <p className="mt-4 max-w-[680px] text-[15px] font-light leading-[1.75] text-site-textSub">
+              <p className="mt-4 max-w-[680px] text-[15px] font-light leading-[1.75] text-slate-600">
                 Acompanhe receitas, despesas, saldo e próximos compromissos em uma tela feita para leitura rápida e rotina diária.
               </p>
             </div>
@@ -103,12 +104,12 @@ export function HomePage({ notice }: HomePageProps) {
 
       {/* ── Avaliações ── */}
       {avaliacoes.length > 0 && (
-        <section className="border-b border-[rgba(14,196,216,0.10)] bg-site-bg">
+        <section className="border-b border-slate-200 bg-[#f8fbfb]">
           <div className="mx-auto max-w-[1800px] px-5 py-14 sm:px-8 xl:px-10 xl:py-18">
-            <p className="text-[11px] uppercase tracking-[0.34em] text-site-textMuted">O QUE DIZEM OS USUÁRIOS</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-700">O QUE DIZEM OS USUÁRIOS</p>
             <div className="mt-3 flex items-center gap-3">
               <StarRating n={Math.round(media)} />
-              <span className="text-[13px] text-site-textMuted">
+              <span className="text-[13px] text-slate-500">
                 {media.toFixed(1)} · {totalAval} {totalAval === 1 ? 'avaliação' : 'avaliações'}
               </span>
             </div>
@@ -116,11 +117,11 @@ export function HomePage({ notice }: HomePageProps) {
               {avaliacoes.slice(0, 6).map((av) => (
                 <article
                   key={av.id}
-                  className="min-w-0 overflow-hidden rounded-xl border border-[rgba(14,196,216,0.14)] bg-[rgba(14,196,216,0.02)] p-6 transition duration-300 hover:border-[rgba(14,196,216,0.30)] hover:shadow-[0_0_24px_rgba(14,196,216,0.08)]"
+                  className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-6 shadow-[0_16px_42px_rgba(15,23,42,0.05)] transition duration-300 hover:border-brand-200 hover:shadow-[0_20px_54px_rgba(15,23,42,0.08)]"
                 >
                   <StarRating n={av.estrelas} />
-                  <p className="mt-3 text-[14px] leading-[1.7] text-site-textSub">"{av.comentario}"</p>
-                  <p className="mt-4 text-[11px] uppercase tracking-[0.14em] text-site-textMuted">{av.autor}</p>
+                  <p className="mt-3 text-[14px] leading-[1.7] text-slate-600">"{av.comentario}"</p>
+                  <p className="mt-4 text-[11px] uppercase tracking-[0.14em] text-slate-500">{av.autor}</p>
                 </article>
               ))}
             </div>
@@ -131,15 +132,16 @@ export function HomePage({ notice }: HomePageProps) {
       </main>
 
       <SiteFooter
+        tone="light"
         onOpenTermos={() => setModalAberto('termos')}
         onOpenPrivacidade={() => setModalAberto('privacidade')}
       />
 
-      <LoginModal isOpen={loginOpen} onClose={closeLogin} notice={notice} initialMode={loginMode} />
+      <LoginModal isOpen={loginOpen} onClose={closeLogin} notice={notice} initialMode={loginMode} tone="light" />
 
       <TermosModal open={modalAberto !== null} tipo={modalAberto ?? 'termos'} onClose={() => setModalAberto(null)} />
 
-      <CookieBanner />
+      {!loginOpen && modalAberto === null && <CookieBanner />}
     </div>
   );
 }

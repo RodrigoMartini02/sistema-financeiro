@@ -380,16 +380,16 @@ export function HomeHowItWorksSection({ onOpenRegister }: HomeHowItWorksSectionP
     <section
       id="como-funciona"
       aria-labelledby="how-it-works-title"
-      className="relative isolate overflow-hidden bg-[#03161D] py-12 sm:py-14 xl:py-12 2xl:py-14"
+      className="fingerence-how-section public-light-panel relative isolate overflow-hidden border-b border-slate-200 bg-white py-12 sm:py-14 xl:py-12 2xl:py-14"
     >
       <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#041A22] via-[#03161D]/94 to-transparent" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_5%,rgba(24,191,216,0.12),transparent_28%),radial-gradient(circle_at_18%_46%,rgba(24,191,216,0.08),transparent_30%),radial-gradient(circle_at_80%_64%,rgba(24,191,216,0.07),transparent_34%)]" />
+        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#eef8f9] via-white to-transparent" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(238,248,249,0.82),rgba(255,255,255,0.96)_44%,rgba(238,248,249,0.72))]" />
         <div
-          className="absolute inset-0 opacity-[0.10]"
+          className="absolute inset-0 opacity-[0.18]"
           style={{
             backgroundImage:
-              'linear-gradient(rgba(93,217,234,0.17) 1px, transparent 1px), linear-gradient(90deg, rgba(93,217,234,0.17) 1px, transparent 1px)',
+              'linear-gradient(rgba(14,196,216,0.13) 1px, transparent 1px), linear-gradient(90deg, rgba(14,196,216,0.13) 1px, transparent 1px)',
             backgroundSize: '96px 96px',
           }}
         />
@@ -400,7 +400,7 @@ export function HomeHowItWorksSection({ onOpenRegister }: HomeHowItWorksSectionP
           <p className="text-[13px] font-semibold uppercase tracking-[0.26em] text-site-accent">SIMPLES DESDE O PRIMEIRO ACESSO</p>
           <h2
             id="how-it-works-title"
-            className="mx-auto mt-4 max-w-[1420px] text-[clamp(32px,3.05vw,48px)] font-semibold leading-[1.08] tracking-[-0.02em] text-site-text text-balance"
+            className="mx-auto mt-4 max-w-[1420px] text-[clamp(32px,3.05vw,48px)] font-semibold leading-[1.08] text-site-text text-balance"
           >
             Comece a organizar suas finanças em poucos minutos.
           </h2>
@@ -460,7 +460,7 @@ export function HomeHowItWorksSection({ onOpenRegister }: HomeHowItWorksSectionP
           <button
             type="button"
             onClick={onOpenRegister}
-            className="site-neon-button inline-flex min-h-14 w-full max-w-[320px] items-center justify-center rounded-xl border px-7 text-[18px] font-semibold shadow-[0_0_34px_rgba(14,196,216,0.16)] sm:w-auto sm:min-w-[320px]"
+            className="site-neon-light-button inline-flex min-h-14 w-full max-w-[320px] items-center justify-center rounded-xl border px-7 text-[18px] font-semibold sm:w-auto sm:min-w-[320px]"
           >
             Começar 15 dias grátis
           </button>

@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { CheckCircle2, Plus } from 'lucide-react';
 import { SiteHeader } from './components/SiteHeader';
 import { SiteFooter } from './components/SiteFooter';
@@ -43,17 +43,17 @@ const PLANOS = [
 ];
 
 const COMPARATIVO = [
-  { item: 'Controle mensal de receitas e despesas',    plus: true,  premium: true  },
-  { item: 'Reservas financeiras',                      plus: true,  premium: true  },
-  { item: 'Cartão de crédito',                         plus: true,  premium: true  },
-  { item: 'Parcelas e recorrências avançadas',         plus: true,  premium: true  },
-  { item: 'Relatórios detalhados',                     plus: true,  premium: true  },
-  { item: 'Categorias personalizadas',                 plus: true,  premium: true  },
-  { item: 'Múltiplos perfis (pessoal + CNPJ)',         plus: false, premium: true  },
-  { item: 'Perfil empresa (clientes e representantes)',plus: false, premium: true  },
-  { item: 'Cadastro em lote',                          plus: false, premium: true  },
-  { item: 'Exportação de dados',                       plus: false, premium: true  },
-  { item: 'Suporte prioritário',                       plus: false, premium: true  },
+  { item: 'Controle mensal de receitas e despesas', plus: true, premium: true },
+  { item: 'Reservas financeiras', plus: true, premium: true },
+  { item: 'Cartão de crédito', plus: true, premium: true },
+  { item: 'Parcelas e recorrências avançadas', plus: true, premium: true },
+  { item: 'Relatórios detalhados', plus: true, premium: true },
+  { item: 'Categorias personalizadas', plus: true, premium: true },
+  { item: 'Múltiplos perfis (pessoal + CNPJ)', plus: false, premium: true },
+  { item: 'Perfil empresa (clientes e representantes)', plus: false, premium: true },
+  { item: 'Cadastro em lote', plus: false, premium: true },
+  { item: 'Exportação de dados', plus: false, premium: true },
+  { item: 'Suporte prioritário', plus: false, premium: true },
 ];
 
 const FAQ = [
@@ -65,92 +65,113 @@ const FAQ = [
 
 export function PlanosPage() {
   const [loginOpen, setLoginOpen] = useState(false);
+  const [loginMode, setLoginMode] = useState<'login' | 'register'>('login');
   const [modalAberto, setModalAberto] = useState<'termos' | 'privacidade' | null>(null);
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
 
+  const openLogin = () => {
+    setLoginMode('login');
+    setLoginOpen(true);
+  };
+
+  const openRegister = () => {
+    setLoginMode('register');
+    setLoginOpen(true);
+  };
+
+  const closeLogin = () => {
+    setLoginOpen(false);
+    setLoginMode('login');
+  };
+
   return (
-    <div className="min-h-screen bg-[#040E12] text-site-text">
-      <SiteHeader onOpenLogin={() => setLoginOpen(true)} />
+    <div className="min-h-screen bg-[#f8fbfb] text-slate-950">
+      <SiteHeader tone="light" onOpenLogin={openLogin} />
 
       <SitePageHero
+        tone="light"
         label="PLANOS"
         title="Escolha o plano certo para você."
         description="15 dias grátis ao criar conta. Depois, Plus ou Premium — sem surpresas."
       />
 
-      {/* Cards de planos */}
-      <section className="border-b border-[rgba(14,196,216,0.10)] bg-[#040E12]">
-        <div className="mx-auto max-w-[1800px] px-5 py-14 sm:px-8 xl:px-10 xl:py-18">
-          <p className="mb-6 text-center text-[13px] text-site-textMuted">
-            Todos os planos incluem <span className="text-site-text">15 dias grátis</span> ao criar a conta.
+      <section className="border-b border-slate-200 bg-[#f8fbfb]">
+        <div className="mx-auto max-w-[1800px] px-5 py-14 sm:px-8 xl:px-10 xl:py-16">
+          <p className="mb-6 text-center text-[13px] text-slate-500">
+            Todos os planos incluem <span className="font-semibold text-slate-950">15 dias grátis</span> ao criar a conta.
           </p>
-          <div className="mx-auto grid gap-5 md:grid-cols-2 xl:max-w-[860px]">
+          <div className="mx-auto grid gap-5 md:grid-cols-2 xl:max-w-[900px]">
             {PLANOS.map((plano) => (
-              <div
+              <article
                 key={plano.nome}
-                className={`relative flex min-w-0 flex-col overflow-hidden rounded-2xl border p-7 transition duration-300 ${
+                className={[
+                  'relative flex min-w-0 flex-col overflow-hidden rounded-lg border p-7 transition duration-300',
                   plano.destaque
-                    ? 'border-site-accent/40 bg-[linear-gradient(145deg,rgba(14,196,216,0.06),rgba(14,196,216,0.02)_52%,rgba(14,196,216,0.04))] shadow-[0_0_40px_rgba(14,196,216,0.10)]'
-                    : 'border-[rgba(14,196,216,0.14)] bg-[rgba(14,196,216,0.02)]'
-                }`}
+                    ? 'border-brand-300 bg-[#eef8f9] shadow-[0_22px_64px_rgba(8,52,61,0.12)]'
+                    : 'border-slate-200 bg-white shadow-[0_16px_42px_rgba(15,23,42,0.05)]',
+                ].join(' ')}
               >
                 {plano.destaque && (
-                  <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-site-accent/50 to-transparent" />
+                  <span className="absolute right-5 top-5 rounded-full border border-brand-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-brand-700">
+                    Mais completo
+                  </span>
                 )}
-                <p className="text-[11px] uppercase tracking-[0.28em] text-site-textMuted">{plano.nome}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-700">{plano.nome}</p>
                 <div className="mt-4 flex items-end gap-2">
-                  <span className="text-[clamp(28px,2.2vw,42px)] font-light leading-none text-site-text">{plano.preco}</span>
-                  {plano.periodo && <span className="mb-1 text-[13px] text-site-textMuted">{plano.periodo}</span>}
+                  <span className="text-[clamp(32px,2.4vw,44px)] font-light leading-none text-slate-950">{plano.preco}</span>
+                  {plano.periodo && <span className="mb-1 text-[13px] text-slate-500">{plano.periodo}</span>}
                 </div>
-                <p className="mt-3 text-[13px] font-light leading-[1.6] text-site-textSub">{plano.descricao}</p>
-                <div className="mt-5 h-px w-full bg-[rgba(14,196,216,0.10)]" />
+                <p className="mt-3 text-[13px] leading-[1.6] text-slate-600">{plano.descricao}</p>
+                <div className="mt-5 h-px w-full bg-slate-200" />
                 <ul className="mt-5 flex-1 space-y-2.5">
-                  {plano.funcionalidades.map((f) => (
-                    <li key={f} className="flex items-center gap-3 text-[13px] text-site-textSub">
-                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-site-accent" strokeWidth={1.9} />
-                      {f}
+                  {plano.funcionalidades.map((funcionalidade) => (
+                    <li key={funcionalidade} className="flex items-center gap-3 text-[13px] text-slate-600">
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-brand-700" strokeWidth={1.9} />
+                      {funcionalidade}
                     </li>
                   ))}
                 </ul>
                 <button
                   type="button"
-                  onClick={() => setLoginOpen(true)}
-                  className={`site-neon-button ${plano.destaque ? '' : 'site-neon-button-subtle'} mt-8 inline-flex h-10 w-full items-center justify-center rounded-xl border text-[11px] uppercase tracking-[0.14em] transition duration-300`}
+                  onClick={openRegister}
+                  className={[
+                    plano.destaque ? 'site-neon-light-button' : 'site-neon-light-button-subtle',
+                    'mt-8 inline-flex h-10 w-full items-center justify-center rounded-xl border text-[11px] font-semibold uppercase tracking-[0.14em] transition duration-300',
+                  ].join(' ')}
                 >
                   {plano.cta}
                 </button>
-              </div>
+              </article>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Comparativo */}
-      <section className="border-b border-[rgba(14,196,216,0.10)] bg-[#061419]">
+      <section className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-[1800px] px-5 py-12 sm:px-8 xl:px-10 xl:py-16">
-          <p className="text-[11px] uppercase tracking-[0.28em] text-site-textMuted">COMPARATIVO</p>
-          <div className="mt-7 overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[rgba(14,196,216,0.10)]">
-                  <th className="py-3 pr-6 text-left text-[11px] uppercase tracking-[0.18em] font-normal text-site-textMuted">Funcionalidade</th>
-                  <th className="px-4 py-3 text-center text-[11px] uppercase tracking-[0.18em] font-normal text-site-textMuted">Plus</th>
-                  <th className="px-4 py-3 text-center text-[11px] uppercase tracking-[0.18em] font-normal text-site-accent">Premium</th>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-700">COMPARATIVO</p>
+          <div className="mt-7 overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-[0_16px_42px_rgba(15,23,42,0.05)]">
+            <table className="w-full min-w-[720px]">
+              <thead className="bg-[#eef8f9]">
+                <tr className="border-b border-slate-200">
+                  <th className="py-4 pl-5 pr-6 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Funcionalidade</th>
+                  <th className="px-4 py-4 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Plus</th>
+                  <th className="px-4 py-4 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-700">Premium</th>
                 </tr>
               </thead>
               <tbody>
                 {COMPARATIVO.map(({ item, plus, premium }) => (
-                  <tr key={item} className="border-b border-[rgba(14,196,216,0.06)] last:border-b-0">
-                    <td className="py-3 pr-6 text-[14px] text-site-textSub">{item}</td>
+                  <tr key={item} className="border-b border-slate-100 last:border-b-0">
+                    <td className="py-3 pl-5 pr-6 text-[14px] text-slate-600">{item}</td>
                     <td className="px-4 py-3 text-center">
                       {plus
-                        ? <CheckCircle2 className="mx-auto h-4 w-4 text-site-accent" strokeWidth={1.9} />
-                        : <span className="text-site-textMuted">—</span>}
+                        ? <CheckCircle2 className="mx-auto h-4 w-4 text-brand-700" strokeWidth={1.9} />
+                        : <span className="text-slate-400">—</span>}
                     </td>
                     <td className="px-4 py-3 text-center">
                       {premium
-                        ? <CheckCircle2 className="mx-auto h-4 w-4 text-site-accent" strokeWidth={1.9} />
-                        : <span className="text-site-textMuted">—</span>}
+                        ? <CheckCircle2 className="mx-auto h-4 w-4 text-brand-700" strokeWidth={1.9} />
+                        : <span className="text-slate-400">—</span>}
                     </td>
                   </tr>
                 ))}
@@ -160,28 +181,27 @@ export function PlanosPage() {
         </div>
       </section>
 
-      {/* FAQ */}
-      <section className="border-b border-[rgba(14,196,216,0.10)] bg-[#040E12]">
+      <section className="border-b border-slate-200 bg-[#eef8f9]">
         <div className="mx-auto max-w-[860px] px-5 py-12 sm:px-8 xl:py-16">
-          <p className="text-[11px] uppercase tracking-[0.30em] text-site-textMuted">DÚVIDAS SOBRE PLANOS</p>
-          <div className="mt-7 overflow-hidden rounded-2xl border border-[rgba(14,196,216,0.14)] bg-[rgba(14,196,216,0.02)]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-700">DÚVIDAS SOBRE PLANOS</p>
+          <div className="mt-7 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_16px_42px_rgba(15,23,42,0.05)]">
             {FAQ.map(({ q, a }, idx) => {
               const isOpen = faqOpen === idx;
               return (
-                <div key={q} className="border-b border-[rgba(14,196,216,0.08)] last:border-b-0">
+                <div key={q} className="border-b border-slate-100 last:border-b-0">
                   <button
                     type="button"
                     onClick={() => setFaqOpen(isOpen ? null : idx)}
                     className="site-neon-row-button group flex w-full items-center justify-between gap-6 px-6 py-5 text-left transition duration-300"
                   >
-                    <span className="text-[15px] leading-[1.45] text-site-text">{q}</span>
-                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition ${isOpen ? 'border-site-accent/70 bg-[rgba(14,196,216,0.08)]' : 'border-[rgba(14,196,216,0.24)] text-site-textMuted'}`}>
-                      <Plus className={`h-4 w-4 transition duration-300 ${isOpen ? 'rotate-45 text-site-accent' : ''}`} />
+                    <span className="text-[15px] leading-[1.45] text-slate-950">{q}</span>
+                    <span className={['flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition', isOpen ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-500 group-hover:border-brand-300'].join(' ')}>
+                      <Plus className={['h-4 w-4 transition duration-300', isOpen ? 'rotate-45' : ''].join(' ')} />
                     </span>
                   </button>
-                  <div className={`grid transition-all duration-300 ease-out ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                  <div className={['grid transition-all duration-300 ease-out', isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'].join(' ')}>
                     <div className="overflow-hidden">
-                      <p className="px-6 pb-5 pr-16 text-[14px] leading-[1.75] text-site-textSub">{a}</p>
+                      <p className="px-6 pb-5 pr-16 text-[14px] leading-[1.75] text-slate-600">{a}</p>
                     </div>
                   </div>
                 </div>
@@ -191,34 +211,33 @@ export function PlanosPage() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="bg-[#061419]">
-        <div className="mx-auto max-w-[1800px] px-5 py-14 sm:px-8 xl:px-10 xl:py-20">
-          <div className="relative overflow-hidden rounded-[24px] border border-[rgba(14,196,216,0.24)] bg-[linear-gradient(135deg,rgba(14,196,216,0.04),rgba(14,196,216,0.01)_52%,rgba(14,196,216,0.03))] p-8 sm:p-10">
-            <p className="text-[11px] uppercase tracking-[0.28em] text-site-textMuted">COMECE AGORA</p>
-            <h2 className="mt-4 text-[clamp(26px,2.2vw,44px)] font-light leading-[1.14] tracking-[0.02em] text-site-text">
+      <section className="bg-[#08343d] text-white">
+        <div className="mx-auto flex max-w-[1800px] flex-col gap-6 px-5 py-12 sm:px-8 lg:flex-row lg:items-center lg:justify-between xl:px-10">
+          <div className="max-w-[760px]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200">COMECE AGORA</p>
+            <h2 className="mt-4 text-[clamp(26px,2.2vw,42px)] font-light leading-[1.16]">
               Comece a controlar suas finanças hoje.
             </h2>
-            <div className="mt-5 h-px w-[180px] bg-gradient-to-r from-site-accent/72 via-[rgba(14,196,216,0.34)] to-transparent" />
-            <button
-              type="button"
-              onClick={() => setLoginOpen(true)}
-              className="site-neon-button mt-7 inline-flex h-11 items-center rounded-xl border px-7 text-[11px] uppercase tracking-[0.16em] transition duration-300"
-            >
-              Criar conta grátis
-            </button>
           </div>
+          <button
+            type="button"
+            onClick={openRegister}
+            className="site-neon-button inline-flex h-12 w-full items-center justify-center rounded-xl border px-7 text-[12px] font-semibold uppercase tracking-[0.14em] sm:w-auto"
+          >
+            Criar conta grátis
+          </button>
         </div>
       </section>
 
       <SiteFooter
+        tone="light"
         onOpenTermos={() => setModalAberto('termos')}
         onOpenPrivacidade={() => setModalAberto('privacidade')}
       />
 
-      <LoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
+      <LoginModal isOpen={loginOpen} onClose={closeLogin} initialMode={loginMode} tone="light" />
       <TermosModal open={modalAberto !== null} tipo={modalAberto ?? 'termos'} onClose={() => setModalAberto(null)} />
-      <CookieBanner />
+      {!loginOpen && modalAberto === null && <CookieBanner />}
     </div>
   );
 }
