@@ -201,6 +201,89 @@
   text-shadow: 0 0 12px rgba(14, 196, 216, 0.28);
 }
 
+.public-light-panel .text-site-text {
+  color: #020617;
+}
+
+.public-light-panel .text-site-textSub {
+  color: #475569;
+}
+
+.public-light-panel .text-site-textMuted {
+  color: #64748b;
+}
+
+.public-light-panel .text-site-accent {
+  color: #087987;
+}
+
+.public-light-panel .border-site-accent\/48 {
+  border-color: rgba(14, 196, 216, 0.48);
+}
+
+.public-light-panel [class*="bg-[rgba(14,196,216,0.02)]"],
+.public-light-panel [class*="bg-[rgba(14,196,216,0.018)]"] {
+  background-color: #ffffff;
+}
+
+.public-light-panel [class*="border-[rgba(14,196,216,0.14)]"],
+.public-light-panel [class*="border-[rgba(14,196,216,0.12)]"],
+.public-light-panel [class*="border-[rgba(14,196,216,0.10)]"] {
+  border-color: #dbeafe;
+}
+
+.fingerence-how-section .fingerence-how-marker {
+  border-color: rgba(14, 196, 216, 0.34);
+  background: #ffffff;
+  color: #087987;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+.fingerence-how-section .fingerence-how-marker:hover,
+.fingerence-how-section .fingerence-how-marker:focus-visible,
+.fingerence-how-section .fingerence-how-marker[aria-current="step"] {
+  border-color: #0ec4d8;
+  background: #086574;
+  color: #ffffff;
+  box-shadow: 0 18px 38px rgba(8, 101, 116, 0.22);
+}
+
+.fingerence-how-section .fingerence-how-card > div {
+  border-color: #cfedf2;
+  background: #ffffff;
+  box-shadow: 0 22px 64px rgba(15, 23, 42, 0.08);
+}
+
+.fingerence-how-section .fingerence-how-card[data-active="true"] > div {
+  border-color: rgba(14, 196, 216, 0.55);
+  box-shadow: 0 24px 70px rgba(8, 52, 61, 0.12);
+}
+
+.fingerence-how-section .how-profile-preview,
+.fingerence-how-section .how-transaction-preview,
+.fingerence-how-section .how-month-preview,
+.fingerence-how-section .how-report-preview,
+.fingerence-how-section .profile-option,
+.fingerence-how-section .how-field span,
+.fingerence-how-section .month-row,
+.fingerence-how-section .export-action {
+  border-color: #dbeafe;
+  background: #f8fbfb;
+}
+
+.fingerence-how-section .profile-business,
+.fingerence-how-section .tab-income,
+.fingerence-how-section .recurring-option,
+.fingerence-how-section .month-alert,
+.fingerence-how-section .export-action:hover {
+  border-color: rgba(14, 196, 216, 0.48);
+  background: rgba(14, 196, 216, 0.10);
+}
+
+.fingerence-how-section .focus-visible\:ring-offset-\[\#03161D\]:focus-visible {
+  --tw-ring-offset-color: #ffffff;
+}
+
 /* Home - Como funciona */
 .fingerence-how-active-path {
   stroke-dasharray: 1;
@@ -255,8 +338,8 @@
 }
 
 @keyframes howProfilePersonal {
-  0%, 35% { border-color: rgba(98, 222, 235, 0.46); background: rgba(14, 196, 216, 0.08); }
-  100% { border-color: rgba(120, 149, 157, 0.18); background: rgba(5, 29, 38, 0.52); }
+  0%, 35% { border-color: rgba(14, 196, 216, 0.46); background: rgba(14, 196, 216, 0.10); }
+  100% { border-color: #dbeafe; background: #ffffff; }
 }
 
 @keyframes howProfileBusiness {

@@ -50,7 +50,7 @@ function Divider() {
   );
 }
 
-export function LoginPage({ initialMode = 'login' }: { initialMode?: Mode }) {
+export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMode?: Mode; tone?: 'dark' | 'light' }) {
   const [mode, setMode] = useState<Mode>(initialMode);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -168,6 +168,8 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: Mode }) {
   };
 
   const backToLogin = () => { setMode('login'); setError(''); setSuccess(''); };
+  const textButtonClass = tone === 'light' ? 'site-neon-light-text-button' : 'site-neon-text-button';
+  const submitButtonClass = tone === 'light' ? 'site-neon-light-button' : 'site-neon-button';
 
   // Show full-screen Google loading while processing OAuth callback
   if (googleLoading) {
@@ -211,14 +213,14 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: Mode }) {
             <Field label="Senha">
               <Input name="senha" type="password" autoComplete="current-password" required />
             </Field>
-            <Button type="submit" disabled={loading} className="site-neon-button w-full justify-center">
+            <Button type="submit" disabled={loading} className={`${submitButtonClass} w-full justify-center`}>
               {loading ? 'Entrando...' : 'Entrar'}
             </Button>
             <div className="flex items-center justify-between">
-              <button type="button" onClick={() => { setMode('register'); setError(''); }} className="site-neon-text-button text-sm text-slate-500 hover:text-brand-600 dark:text-site-textMuted dark:hover:text-site-accent transition-colors">
+              <button type="button" onClick={() => { setMode('register'); setError(''); }} className={`${textButtonClass} text-sm text-slate-500 hover:text-brand-600 dark:text-site-textMuted dark:hover:text-site-accent transition-colors`}>
                 Criar nova conta
               </button>
-              <button type="button" onClick={() => { setMode('forgot'); setError(''); }} className="site-neon-text-button text-sm text-slate-500 hover:text-brand-600 dark:text-site-textMuted dark:hover:text-site-accent transition-colors">
+              <button type="button" onClick={() => { setMode('forgot'); setError(''); }} className={`${textButtonClass} text-sm text-slate-500 hover:text-brand-600 dark:text-site-textMuted dark:hover:text-site-accent transition-colors`}>
                 Esqueci minha senha
               </button>
             </div>
@@ -246,21 +248,21 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: Mode }) {
               />
               <span className="text-xs text-slate-600 leading-relaxed dark:text-site-textSub">
                 Li e aceito os{' '}
-                <button type="button" onClick={() => setModalTermos('termos')} className="site-neon-text-button font-semibold text-brand-600 underline underline-offset-2 hover:text-brand-700 dark:text-site-accent dark:hover:opacity-80">
+                <button type="button" onClick={() => setModalTermos('termos')} className={`${textButtonClass} font-semibold text-brand-600 underline underline-offset-2 hover:text-brand-700 dark:text-site-accent dark:hover:opacity-80`}>
                   Termos de Uso
                 </button>
                 {' '}e a{' '}
-                <button type="button" onClick={() => setModalTermos('privacidade')} className="site-neon-text-button font-semibold text-brand-600 underline underline-offset-2 hover:text-brand-700 dark:text-site-accent dark:hover:opacity-80">
+                <button type="button" onClick={() => setModalTermos('privacidade')} className={`${textButtonClass} font-semibold text-brand-600 underline underline-offset-2 hover:text-brand-700 dark:text-site-accent dark:hover:opacity-80`}>
                   Política de Privacidade
                 </button>
                 , incluindo o tratamento de dados conforme a LGPD.
               </span>
             </label>
 
-            <Button type="submit" disabled={loading || !termosAceitos} className="site-neon-button w-full justify-center">
+            <Button type="submit" disabled={loading || !termosAceitos} className={`${submitButtonClass} w-full justify-center`}>
               {loading ? 'Criando conta...' : 'Criar conta'}
             </Button>
-            <button type="button" onClick={backToLogin} className="site-neon-text-button flex items-center justify-center gap-1.5 text-sm text-slate-500 hover:text-brand-600 dark:text-site-textMuted dark:hover:text-site-accent transition-colors">
+            <button type="button" onClick={backToLogin} className={`${textButtonClass} flex items-center justify-center gap-1.5 text-sm text-slate-500 hover:text-brand-600 dark:text-site-textMuted dark:hover:text-site-accent transition-colors`}>
               <ArrowLeft size={14} /> Voltar para o login
             </button>
           </form>
@@ -276,10 +278,10 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: Mode }) {
           <Field label="E-mail cadastrado">
             <Input name="email" type="email" required placeholder="seu@email.com" />
           </Field>
-          <Button type="submit" disabled={loading} className="site-neon-button w-full justify-center">
+          <Button type="submit" disabled={loading} className={`${submitButtonClass} w-full justify-center`}>
             {loading ? 'Enviando...' : 'Enviar código'}
           </Button>
-          <button type="button" onClick={backToLogin} className="site-neon-text-button flex items-center justify-center gap-1.5 text-sm text-slate-500 hover:text-brand-600 dark:text-site-textMuted dark:hover:text-site-accent transition-colors">
+          <button type="button" onClick={backToLogin} className={`${textButtonClass} flex items-center justify-center gap-1.5 text-sm text-slate-500 hover:text-brand-600 dark:text-site-textMuted dark:hover:text-site-accent transition-colors`}>
             <ArrowLeft size={14} /> Voltar para o login
           </button>
         </form>
@@ -295,10 +297,10 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: Mode }) {
           <Field label="Código de recuperação">
             <Input name="codigo" maxLength={6} placeholder="000000" className="text-center text-2xl tracking-widest font-mono" required />
           </Field>
-          <Button type="submit" disabled={loading} className="site-neon-button w-full justify-center">
+          <Button type="submit" disabled={loading} className={`${submitButtonClass} w-full justify-center`}>
             {loading ? 'Verificando...' : 'Verificar código'}
           </Button>
-          <button type="button" onClick={() => setMode('forgot')} className="site-neon-text-button flex items-center justify-center gap-1.5 text-sm text-slate-500 hover:text-brand-600 dark:text-site-textMuted dark:hover:text-site-accent transition-colors">
+          <button type="button" onClick={() => setMode('forgot')} className={`${textButtonClass} flex items-center justify-center gap-1.5 text-sm text-slate-500 hover:text-brand-600 dark:text-site-textMuted dark:hover:text-site-accent transition-colors`}>
             <ArrowLeft size={14} /> Reenviar código
           </button>
         </form>
@@ -314,7 +316,7 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: Mode }) {
           <Field label="Confirmar senha">
             <Input name="confirma_senha" type="password" required minLength={8} placeholder="••••••••" />
           </Field>
-          <Button type="submit" disabled={loading} className="site-neon-button w-full justify-center">
+          <Button type="submit" disabled={loading} className={`${submitButtonClass} w-full justify-center`}>
             {loading ? 'Salvando...' : 'Redefinir senha'}
           </Button>
         </form>

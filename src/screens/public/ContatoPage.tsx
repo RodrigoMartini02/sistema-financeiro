@@ -1,4 +1,4 @@
-﻿import { type FormEvent, useState } from 'react';
+import { type FormEvent, useState } from 'react';
 import { Lock, Mail, MessageCircle, Phone, Send, ShieldCheck } from 'lucide-react';
 import { SiteHeader } from './components/SiteHeader';
 import { SiteFooter } from './components/SiteFooter';
@@ -13,19 +13,21 @@ const CANAIS = [
     value: 'fingerence@gmail.com',
     href: 'mailto:fingerence@gmail.com',
     icon: Mail,
+    accent: 'border-sky-100 bg-sky-50 text-sky-600',
   },
   {
     title: 'WhatsApp',
     value: '(49) 99955-4856',
     href: 'https://wa.me/5549999554856',
     icon: Phone,
+    accent: 'border-emerald-100 bg-emerald-50 text-emerald-600',
   },
 ];
 
 const GARANTIAS = [
-  { title: 'Resposta rápida', description: 'Retorno em até 1 dia útil.', icon: ShieldCheck },
-  { title: 'Privacidade', description: 'Seus dados não são compartilhados.', icon: Lock },
-  { title: 'Canal direto', description: 'Fale por e-mail ou WhatsApp.', icon: MessageCircle },
+  { title: 'Resposta rápida', description: 'Retorno em até 1 dia útil.', icon: ShieldCheck, accent: 'text-emerald-600' },
+  { title: 'Privacidade', description: 'Seus dados não são compartilhados.', icon: Lock, accent: 'text-brand-700' },
+  { title: 'Canal direto', description: 'Fale por e-mail ou WhatsApp.', icon: MessageCircle, accent: 'text-sky-600' },
 ];
 
 const FLUXO = [
@@ -52,10 +54,18 @@ function formatPhone(value: string) {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
 
+function Label({ children }: { children: string }) {
+  return <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-700">{children}</p>;
+}
+
+const fieldClass = [
+  'h-12 rounded-xl border border-slate-200 bg-white px-4 text-[14px] text-slate-950 outline-none transition',
+  'placeholder:text-slate-400 hover:border-slate-300 focus:border-brand-400 focus:shadow-[0_0_0_4px_rgba(14,196,216,0.12)]',
+].join(' ');
+
 export function ContatoPage() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [modalAberto, setModalAberto] = useState<'termos' | 'privacidade' | null>(null);
-
   const [form, setForm] = useState({ name: '', email: '', phone: '', message: '' });
   const [submitState, setSubmitState] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
 
@@ -91,70 +101,67 @@ export function ContatoPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#040E12] text-site-text">
-      <SiteHeader onOpenLogin={() => setLoginOpen(true)} />
+    <div className="min-h-screen bg-[#f8fbfb] text-slate-950">
+      <SiteHeader tone="light" onOpenLogin={() => setLoginOpen(true)} />
 
       <SitePageHero
+        tone="light"
         label="CONTATO"
         title="Fale com a gente."
-        description="Dúvidas, sugestões ou suporte — estamos disponíveis pelo e-mail ou WhatsApp."
+        description="Dúvidas, sugestões ou suporte: estamos disponíveis pelo e-mail ou WhatsApp."
       />
 
-      {/* Canais + Formulário */}
-      <section className="border-b border-[rgba(14,196,216,0.10)] bg-[#040E12]">
+      <section className="border-b border-slate-200 bg-white">
         <div className="mx-auto grid max-w-[1800px] gap-7 px-5 py-14 sm:px-8 xl:grid-cols-[0.9fr_1.1fr] xl:px-10 xl:py-16">
-
-          {/* Canais */}
-          <div className="flex flex-col gap-7 rounded-[24px] border border-[rgba(14,196,216,0.14)] bg-[rgba(14,196,216,0.02)] p-6 sm:p-8">
+          <aside className="flex flex-col gap-7 rounded-lg border border-slate-200 bg-[#f8fbfb] p-6 shadow-[0_16px_42px_rgba(15,23,42,0.05)] sm:p-8">
             <div>
-              <p className="text-[10px] uppercase tracking-[0.30em] text-site-textMuted">CANAIS DE CONTATO</p>
-              <h2 className="mt-4 text-[clamp(26px,2.2vw,40px)] font-light leading-[1.15] tracking-[0.03em] text-site-text">
+              <Label>Canais de contato</Label>
+              <h2 className="mt-4 text-[clamp(26px,2.2vw,40px)] font-light leading-[1.15] tracking-[0.02em] text-slate-950">
                 Escolha o canal mais conveniente.
               </h2>
-              <p className="mt-4 text-[14px] leading-[1.75] text-site-textSub">
+              <p className="mt-4 text-[14px] leading-[1.75] text-slate-600">
                 Responda pelo formulário ao lado ou entre em contato diretamente pelos canais abaixo.
               </p>
             </div>
 
-            <div className="space-y-3">
-              {CANAIS.map(({ title, value, href, icon: Icon }) => (
+            <div className="grid gap-3">
+              {CANAIS.map(({ title, value, href, icon: Icon, accent }) => (
                 <a
                   key={title}
                   href={href}
                   target={href.startsWith('http') ? '_blank' : undefined}
                   rel={href.startsWith('http') ? 'noreferrer' : undefined}
-                  className="group flex items-center gap-4 rounded-2xl border border-[rgba(14,196,216,0.0)] bg-[rgba(14,196,216,0.03)] p-3 transition duration-300 hover:border-[rgba(14,196,216,0.28)] hover:bg-[rgba(14,196,216,0.06)] hover:shadow-[0_0_22px_rgba(14,196,216,0.10)]"
+                  className="group flex items-center gap-4 rounded-lg border border-slate-200 bg-white p-4 transition duration-300 hover:border-brand-200 hover:shadow-[0_18px_46px_rgba(15,23,42,0.06)]"
                 >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[rgba(14,196,216,0.20)] bg-[rgba(14,196,216,0.04)] text-site-textMuted transition duration-300 group-hover:border-site-accent/60 group-hover:text-site-accent">
-                    <Icon className="h-4 w-4" />
+                  <span className={['flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border', accent].join(' ')}>
+                    <Icon className="h-5 w-5" aria-hidden="true" />
                   </span>
                   <span>
-                    <span className="block text-[10px] uppercase tracking-[0.18em] text-site-textMuted">{title}</span>
-                    <span className="mt-1 block text-[14px] text-site-text">{value}</span>
+                    <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{title}</span>
+                    <span className="mt-1 block text-[14px] font-semibold text-slate-950">{value}</span>
                   </span>
                 </a>
               ))}
             </div>
 
-            <div className="mt-auto grid gap-4 border-t border-[rgba(14,196,216,0.10)] pt-6 sm:grid-cols-3">
-              {GARANTIAS.map(({ title, description, icon: Icon }) => (
+            <div className="mt-auto grid gap-4 border-t border-slate-200 pt-6 sm:grid-cols-3">
+              {GARANTIAS.map(({ title, description, icon: Icon, accent }) => (
                 <div key={title} className="flex gap-2.5">
-                  <Icon className="mt-0.5 h-4 w-4 shrink-0 text-site-accent" />
+                  <Icon className={['mt-0.5 h-4 w-4 shrink-0', accent].join(' ')} aria-hidden="true" />
                   <div>
-                    <p className="text-[12px] text-site-text">{title}</p>
-                    <p className="mt-0.5 text-[11px] leading-[1.5] text-site-textMuted">{description}</p>
+                    <p className="text-[12px] font-semibold text-slate-950">{title}</p>
+                    <p className="mt-0.5 text-[11px] leading-[1.5] text-slate-500">{description}</p>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </aside>
 
-          {/* Formulário */}
           <form
             onSubmit={handleSubmit}
-            className="rounded-[24px] border border-[rgba(14,196,216,0.20)] bg-[linear-gradient(145deg,rgba(14,196,216,0.05),rgba(14,196,216,0.01)_52%,rgba(14,196,216,0.03))] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)] sm:p-8"
+            className="rounded-lg border border-brand-100 bg-[#eef8f9] p-6 shadow-[0_24px_70px_rgba(8,52,61,0.10)] sm:p-8"
           >
-            <p className="text-[10px] uppercase tracking-[0.30em] text-site-textMuted">ENVIE UMA MENSAGEM</p>
+            <Label>Envie uma mensagem</Label>
 
             <div className="mt-6 grid gap-4">
               <input
@@ -162,7 +169,7 @@ export function ContatoPage() {
                 value={form.name}
                 onChange={(e) => update('name', e.target.value)}
                 placeholder="Nome"
-                className="h-12 rounded-xl border border-[rgba(14,196,216,0.18)] bg-[rgba(14,196,216,0.04)] px-4 text-[14px] text-site-text outline-none transition placeholder:text-site-textMuted focus:border-site-accent/60 focus:shadow-[0_0_18px_rgba(14,196,216,0.12)]"
+                className={fieldClass}
               />
               <input
                 type="email"
@@ -170,7 +177,7 @@ export function ContatoPage() {
                 value={form.email}
                 onChange={(e) => update('email', e.target.value)}
                 placeholder="E-mail"
-                className="h-12 rounded-xl border border-[rgba(14,196,216,0.18)] bg-[rgba(14,196,216,0.04)] px-4 text-[14px] text-site-text outline-none transition placeholder:text-site-textMuted focus:border-site-accent/60 focus:shadow-[0_0_18px_rgba(14,196,216,0.12)]"
+                className={fieldClass}
               />
               <input
                 inputMode="tel"
@@ -179,7 +186,7 @@ export function ContatoPage() {
                 onBlur={() => { if (form.phone === '(') update('phone', ''); }}
                 onChange={(e) => update('phone', formatPhone(e.target.value))}
                 placeholder="(DDD) número / WhatsApp"
-                className="h-12 rounded-xl border border-[rgba(14,196,216,0.18)] bg-[rgba(14,196,216,0.04)] px-4 text-[14px] text-site-text outline-none transition placeholder:text-site-textMuted focus:border-site-accent/60 focus:shadow-[0_0_18px_rgba(14,196,216,0.12)]"
+                className={fieldClass}
               />
               <textarea
                 required
@@ -187,26 +194,26 @@ export function ContatoPage() {
                 value={form.message}
                 onChange={(e) => update('message', e.target.value)}
                 placeholder="Mensagem"
-                className="min-h-[110px] resize-y rounded-xl border border-[rgba(14,196,216,0.18)] bg-[rgba(14,196,216,0.04)] px-4 py-3.5 text-[14px] text-site-text outline-none transition placeholder:text-site-textMuted focus:border-site-accent/60 focus:shadow-[0_0_18px_rgba(14,196,216,0.12)]"
+                className={[fieldClass, 'min-h-[132px] resize-y py-3.5'].join(' ')}
               />
             </div>
 
             <button
               type="submit"
               disabled={submitState === 'sending'}
-              className="site-neon-button mt-5 inline-flex h-12 w-full items-center justify-center gap-3 rounded-xl border text-[11px] uppercase tracking-[0.16em] transition duration-300 disabled:cursor-not-allowed disabled:opacity-60"
+              className="site-neon-light-button mt-5 inline-flex h-12 w-full items-center justify-center gap-3 rounded-xl border text-[11px] font-semibold uppercase tracking-[0.14em] transition duration-300 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {submitState === 'sending' ? 'ENVIANDO...' : 'ENVIAR MENSAGEM'}
-              <Send className="h-4 w-4" />
+              {submitState === 'sending' ? 'Enviando...' : 'Enviar mensagem'}
+              <Send className="h-4 w-4" aria-hidden="true" />
             </button>
 
             {submitState === 'success' && (
-              <p className="mt-4 rounded-xl border border-site-accent/30 bg-[rgba(14,196,216,0.06)] px-4 py-3 text-[12px] text-site-textSub" role="status">
+              <p className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[12px] text-emerald-700" role="status">
                 Seu aplicativo de e-mail foi aberto com a mensagem preenchida. Revise e clique em enviar para concluir.
               </p>
             )}
             {submitState === 'error' && (
-              <p className="mt-4 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-[12px] text-red-300" role="status">
+              <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] text-red-700" role="status">
                 Não foi possível abrir o aplicativo de e-mail. Envie sua mensagem para fingerence@gmail.com ou pelo WhatsApp.
               </p>
             )}
@@ -214,24 +221,20 @@ export function ContatoPage() {
         </div>
       </section>
 
-      {/* Fluxo de atendimento */}
-      <section className="border-b border-[rgba(14,196,216,0.10)] bg-[#061419]">
+      <section className="border-b border-slate-200 bg-[#eef8f9]">
         <div className="mx-auto max-w-[1800px] px-5 py-14 sm:px-8 xl:px-10 xl:py-16">
-          <p className="text-[11px] uppercase tracking-[0.28em] text-site-textMuted">COMO FUNCIONA</p>
-          <h2 className="mt-4 text-[clamp(26px,2.2vw,40px)] font-light leading-[1.2] tracking-[0.03em] text-site-text">
+          <Label>Como funciona</Label>
+          <h2 className="mt-4 text-[clamp(26px,2.2vw,40px)] font-light leading-[1.2] tracking-[0.02em] text-slate-950">
             Do contato à resolução
           </h2>
           <div className="mt-10 grid gap-5 md:grid-cols-3">
             {FLUXO.map(({ title, description }, i) => (
-              <article
-                key={title}
-                className="rounded-2xl border border-[rgba(14,196,216,0.14)] bg-[rgba(14,196,216,0.02)] p-6 transition duration-300 hover:-translate-y-[2px] hover:border-[rgba(14,196,216,0.30)] hover:shadow-[0_0_28px_rgba(14,196,216,0.09)]"
-              >
-                <span className="text-[11px] uppercase tracking-[0.24em] text-site-accent">
+              <article key={title} className="rounded-lg border border-slate-200 bg-white p-6 shadow-[0_16px_42px_rgba(15,23,42,0.05)]">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.20em] text-brand-700">
                   0{i + 1}
                 </span>
-                <h3 className="mt-3 text-[18px] font-light text-site-text">{title}</h3>
-                <p className="mt-3 text-[14px] leading-[1.7] text-site-textSub">{description}</p>
+                <h3 className="mt-3 text-[18px] font-semibold text-slate-950">{title}</h3>
+                <p className="mt-3 text-[14px] leading-[1.7] text-slate-600">{description}</p>
               </article>
             ))}
           </div>
@@ -239,17 +242,18 @@ export function ContatoPage() {
       </section>
 
       <SiteFooter
+        tone="light"
         onOpenTermos={() => setModalAberto('termos')}
         onOpenPrivacidade={() => setModalAberto('privacidade')}
       />
 
-      <LoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
+      <LoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} tone="light" />
       <TermosModal
         open={modalAberto !== null}
         tipo={modalAberto ?? 'termos'}
         onClose={() => setModalAberto(null)}
       />
-      <CookieBanner />
+      {!loginOpen && modalAberto === null && <CookieBanner />}
     </div>
   );
 }

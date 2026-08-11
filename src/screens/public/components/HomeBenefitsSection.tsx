@@ -402,7 +402,7 @@ export function HomeBenefitsSection() {
     <section
       id="beneficios"
       aria-labelledby="beneficios-title"
-      className="relative isolate -mt-px overflow-hidden bg-site-bg pb-12 pt-7 sm:pb-14 sm:pt-9 xl:pb-16 xl:pt-9"
+      className="public-light-panel relative isolate -mt-px overflow-hidden border-b border-slate-200 bg-[#eef8f9] pb-12 pt-7 sm:pb-14 sm:pt-9 xl:pb-16 xl:pt-9"
     >
       <div className="pointer-events-none absolute inset-0 hidden" aria-hidden="true">
         <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-site-bgAlt via-site-bg/92 to-transparent" />
@@ -424,7 +424,7 @@ export function HomeBenefitsSection() {
           <p className="text-[13px] font-semibold uppercase tracking-[0.34em] text-site-accent">POR QUE USAR O FINGERENCE</p>
           <h2
             id="beneficios-title"
-            className="mx-auto mt-5 max-w-[1320px] text-[clamp(32px,3.25vw,50px)] font-semibold leading-[1.08] tracking-[-0.02em] text-site-text text-balance"
+            className="mx-auto mt-5 max-w-[1320px] text-[clamp(32px,3.25vw,50px)] font-semibold leading-[1.08] text-site-text text-balance"
           >
             Mais clareza para entender e controlar suas finanças.
           </h2>

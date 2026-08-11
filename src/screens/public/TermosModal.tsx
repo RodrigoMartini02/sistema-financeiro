@@ -173,7 +173,7 @@ export function TermosModal({ open, tipo, onClose }: ModalProps) {
   const conteudo = tipo === 'termos' ? TERMOS_CONTEUDO : PRIVACIDADE_CONTEUDO;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" data-legal-modal="true">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div className="relative flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-2xl">
         {/* Header */}
