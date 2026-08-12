@@ -1,19 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { GUIDE_LAYER_PAGE, useFirstAccessGuideCoordinator, type FirstAccessGuideLayer } from '../context/FirstAccessGuideContext';
+import { getFirstAccessGuideUserScope, isFirstAccessGuidesSessionActive } from '../services/firstAccessGuides';
 
 const STORAGE_PREFIX = 'fingerence:first-access-guide';
-
-function getActiveProfileScope() {
-  if (typeof window === 'undefined') {
-    return 'global';
-  }
-
-  try {
-    return window.localStorage.getItem('perfilAtivoId') || 'global';
-  } catch {
-    return 'global';
-  }
-}
 
 function readDismissed(key: string) {
   if (typeof window === 'undefined') {
@@ -46,19 +35,21 @@ interface UseFirstAccessGuideOptions {
 
 export function useFirstAccessGuide(scope: string, options: UseFirstAccessGuideOptions = {}) {
   const { enabled = true, layer = GUIDE_LAYER_PAGE } = options;
-  const storageKey = useMemo(() => STORAGE_PREFIX + ':' + getActiveProfileScope() + ':' + scope, [scope]);
+  const storageKey = useMemo(() => STORAGE_PREFIX + ':' + getFirstAccessGuideUserScope() + ':' + scope, [scope]);
+  const [isFirstAccessActive, setIsFirstAccessActive] = useState(() => isFirstAccessGuidesSessionActive());
   const [isDismissed, setIsDismissed] = useState(() => readDismissed(storageKey));
   const { register, unregister, isActive } = useFirstAccessGuideCoordinator();
 
   useEffect(() => {
+    setIsFirstAccessActive(isFirstAccessGuidesSessionActive());
     setIsDismissed(readDismissed(storageKey));
   }, [storageKey]);
 
   useEffect(() => {
-    if (isDismissed || !enabled) return;
+    if (!isFirstAccessActive || isDismissed || !enabled) return;
     register(scope, layer);
     return () => unregister(scope, layer);
-  }, [scope, isDismissed, enabled, layer, register, unregister]);
+  }, [scope, isFirstAccessActive, isDismissed, enabled, layer, register, unregister]);
 
   const dismiss = useCallback(() => {
     writeDismissed(storageKey);
@@ -66,7 +57,7 @@ export function useFirstAccessGuide(scope: string, options: UseFirstAccessGuideO
   }, [storageKey]);
 
   return {
-    isVisible: enabled && !isDismissed && isActive(scope, layer),
+    isVisible: isFirstAccessActive && enabled && !isDismissed && isActive(scope, layer),
     dismiss,
   };
 }

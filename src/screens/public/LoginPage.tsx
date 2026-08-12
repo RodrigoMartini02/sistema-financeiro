@@ -7,13 +7,19 @@ import {
 import { Button } from '../../ui/button';
 import { Field, Input } from '../../ui/form';
 import { TermosModal } from './TermosModal';
+import { clearFirstAccessGuidesSession, startFirstAccessGuidesForUser } from '../../services/firstAccessGuides';
 
 type Mode = 'login' | 'register' | 'forgot' | 'verify' | 'reset';
 
-function saveSession(token: string, usuario: object) {
+function saveSession(token: string, usuario: { id?: unknown }, options: { firstAccessGuides?: boolean } = {}) {
   sessionStorage.setItem('token', token);
   localStorage.setItem('token', token);
   localStorage.setItem('dadosUsuarioLogado', JSON.stringify(usuario));
+  if (options.firstAccessGuides) {
+    startFirstAccessGuidesForUser(usuario);
+  } else {
+    clearFirstAccessGuidesSession();
+  }
   window.location.href = '/app.html';
 }
 
@@ -116,7 +122,7 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
         fd.get('nome') as string, fd.get('documento') as string,
         fd.get('email') as string, fd.get('senha') as string,
       );
-      saveSession(token, usuario);
+      saveSession(token, usuario, { firstAccessGuides: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao cadastrar');
     } finally { setLoading(false); }
