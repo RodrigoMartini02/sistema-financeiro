@@ -14,6 +14,7 @@ import { queryKeys } from '../services/queryKeys';
 import { useAppContext } from '../context/AppContext';
 import { MONTH_NAMES } from '../types/finance';
 import { Z_DROPDOWN, Z_MOBILE_NAV_OVERLAY, Z_SYSTEM_OVERLAY } from '../ui/zIndex';
+import { FinancialAssistant } from '../components/financial-assistant/FinancialAssistant';
 
 export type AppSection =
   | 'painel' | 'movimentacoes' | 'reservas'
@@ -482,6 +483,7 @@ export function AppShell({
           {children}
         </main>
       </div>
+      <FinancialAssistant />
     </div>
   );
 }
