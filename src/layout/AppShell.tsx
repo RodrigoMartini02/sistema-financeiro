@@ -1,6 +1,6 @@
 import { type ReactNode, useState, useEffect } from 'react';
 import {
-  Activity, BarChart3, Bell, Briefcase, Building2, ChevronDown, ChevronLeft, ChevronRight,
+  Activity, BarChart3, Bell, Bot, Briefcase, Building2, ChevronDown, ChevronLeft, ChevronRight,
   CreditCard, FileText, LayoutDashboard, Layers,
   LogOut, Moon, Settings, Sun, Tag, TrendingDown, User,
   UserCheck, Users, Wallet, X,
@@ -22,7 +22,7 @@ export type AppSection =
 
 export type ConfigTab =
   | 'conta' | 'categorias' | 'cartoes' | 'perfis'
-  | 'representantes' | 'socios' | 'usuarios' | 'clientes' | 'servicos' | 'acessos';
+  | 'representantes' | 'socios' | 'usuarios' | 'clientes' | 'servicos' | 'acessos' | 'integracoes-ia';
 
 interface AppShellProps {
   user?: AuthUser;
@@ -69,6 +69,7 @@ const CONFIG_SUBS: { id: ConfigTab; label: string; icon: React.ElementType }[] =
   { id: 'acessos',        label: 'Acessos',        icon: Activity },
   { id: 'clientes',       label: 'Clientes',       icon: Building2 },
   { id: 'servicos',       label: 'Serviços',       icon: Layers },
+  { id: 'integracoes-ia', label: 'Integrações de IA', icon: Bot },
 ];
 
 const ALL_NAV = NAV_GROUPS.flatMap((g) => g.items);
@@ -266,6 +267,7 @@ export function AppShell({
   const userInitial = (user?.nome ?? user?.name ?? 'U')[0].toUpperCase();
   const userDocument = (user?.documento ?? user?.document ?? '').replace(/\D/g, '');
   const canViewAnalytics = userDocument === ANALYTICS_ALLOWED_DOCUMENT;
+  const isMaster = (user?.tipo ?? user?.type) === 'master';
 
   const currentNav = ALL_NAV.find((n) => n.section === activeSection);
   const currentConfigSub = CONFIG_SUBS.find((s) => s.id === configTab);
@@ -373,6 +375,9 @@ export function AppShell({
                   const perfilTipo = localStorage.getItem('perfilAtivoTipo');
                   if (sub.id === 'acessos') {
                     return canViewAnalytics;
+                  }
+                  if (sub.id === 'integracoes-ia') {
+                    return isMaster;
                   }
                   if (sub.id === 'representantes' || sub.id === 'socios') {
                     return perfilTipo !== 'pessoal';

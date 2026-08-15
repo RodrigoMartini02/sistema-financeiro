@@ -10,6 +10,7 @@ import { SociosTab } from './SociosTab';
 import { ClientesTab } from './ClientesTab';
 import { ServicosTab } from './ServicosTab';
 import { AcessosTab } from './AcessosTab';
+import { IntegracoesIaTab } from './IntegracoesIaTab';
 import type { ConfigTab } from '../../layout/AppShell';
 
 interface ConfigScreenProps {
@@ -30,6 +31,7 @@ const TAB_TITLES: Record<ConfigTab, string> = {
   clientes: 'Clientes',
   servicos: 'Serviços',
   acessos: 'Acessos',
+  'integracoes-ia': 'Integrações de IA',
 };
 
 export function ConfigScreen({ activeTab = 'conta' }: ConfigScreenProps) {
@@ -62,6 +64,10 @@ export function ConfigScreen({ activeTab = 'conta' }: ConfigScreenProps) {
         {activeTab === 'acessos' && canViewAnalytics && <AcessosTab />}
         {activeTab === 'acessos' && !canViewAnalytics && (
           <p className="py-8 text-center text-sm text-slate-400">Acesso restrito ao usuário autorizado.</p>
+        )}
+        {activeTab === 'integracoes-ia' && meTipo === 'master' && <IntegracoesIaTab />}
+        {activeTab === 'integracoes-ia' && meTipo !== 'master' && (
+          <p className="py-8 text-center text-sm text-slate-400">Acesso restrito ao usuário master.</p>
         )}
       </div>
     </div>

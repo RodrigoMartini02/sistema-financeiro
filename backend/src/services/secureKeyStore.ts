@@ -2,6 +2,10 @@ import * as crypto from 'crypto';
 
 const PREFIX = 'enc:v1:';
 
+export function hasDedicatedEncryptionSecret(): boolean {
+  return Boolean(process.env['GEN_KEY_ENCRYPTION_SECRET']);
+}
+
 function getSecret(): string {
   return process.env['GEN_KEY_ENCRYPTION_SECRET'] ?? process.env['JWT_SECRET'] ?? process.env['SESSION_SECRET'] ?? '';
 }

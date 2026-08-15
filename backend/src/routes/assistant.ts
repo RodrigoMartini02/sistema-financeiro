@@ -5,6 +5,13 @@ import {
   type AssistantAttachmentInput,
   type AssistantDraftContext,
 } from '../services/financialAssistant';
+import {
+  deleteCopilotConversation,
+  getCopilotConversation,
+  listCopilotConversations,
+  runFinancialCopilot,
+  FinancialCopilotInputError,
+} from '../services/financialCopilot';
 
 const router = Router();
 
@@ -50,6 +57,25 @@ function asContext(value: unknown): AssistantDraftContext | undefined {
   };
 }
 
+function asOptionalPositiveInteger(value: unknown): number | null {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) throw new FinancialAssistantInputError('Identificador invalido.');
+  return parsed;
+}
+
+function asMonth(value: unknown): number {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 11) throw new FinancialAssistantInputError('Mes invalido.');
+  return parsed;
+}
+
+function asYear(value: unknown): number {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 2000 || parsed > 2100) throw new FinancialAssistantInputError('Ano invalido.');
+  return parsed;
+}
+
 // Esta rota nunca cria receita ou despesa. Ela apenas devolve um rascunho revisavel.
 router.post('/financial-draft', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -69,6 +95,87 @@ router.post('/financial-draft', async (req: Request, res: Response): Promise<voi
 
     console.error('Financial assistant draft failed:', (error as Error).message);
     res.status(500).json({ success: false, message: 'Nao foi possivel preparar o rascunho financeiro.' });
+  }
+});
+
+// A conversa decide entre consultar dados e preparar rascunhos. Nenhuma escrita financeira ocorre aqui.
+router.post('/chat', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const body = req.body as Record<string, unknown>;
+    const result = await runFinancialCopilot({
+      userId: req.user!.id,
+      profileId: asOptionalPositiveInteger(body['perfil_id']),
+      month: asMonth(body['mes']),
+      year: asYear(body['ano']),
+      message: asMessage(body['message']),
+      attachments: asAttachments(body['attachments']),
+      context: asContext(body['context']),
+      conversationId: asOptionalPositiveInteger(body['conversa_id']),
+    });
+    res.json({ success: true, data: result });
+  } catch (error) {
+    if (error instanceof FinancialAssistantInputError || error instanceof FinancialCopilotInputError) {
+      res.status(400).json({ success: false, message: error.message });
+      return;
+    }
+    console.error('Financial copilot chat failed:', (error as Error).message);
+    res.status(500).json({ success: false, message: 'Nao foi possivel responder agora.' });
+  }
+});
+
+router.get('/conversations', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const query = req.query as Record<string, unknown>;
+    const conversations = await listCopilotConversations({
+      userId: req.user!.id,
+      profileId: asOptionalPositiveInteger(query['perfil_id']),
+    });
+    res.json({ success: true, data: conversations });
+  } catch (error) {
+    if (error instanceof FinancialAssistantInputError || error instanceof FinancialCopilotInputError) {
+      res.status(400).json({ success: false, message: error.message });
+      return;
+    }
+    console.error('List copilot conversations failed:', (error as Error).message);
+    res.status(500).json({ success: false, message: 'Nao foi possivel carregar o historico.' });
+  }
+});
+
+router.get('/conversations/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const query = req.query as Record<string, unknown>;
+    const messages = await getCopilotConversation({
+      userId: req.user!.id,
+      profileId: asOptionalPositiveInteger(query['perfil_id']),
+      conversationId: asOptionalPositiveInteger(req.params['id'])!,
+    });
+    res.json({ success: true, data: messages });
+  } catch (error) {
+    if (error instanceof FinancialAssistantInputError || error instanceof FinancialCopilotInputError) {
+      res.status(400).json({ success: false, message: error.message });
+      return;
+    }
+    console.error('Get copilot conversation failed:', (error as Error).message);
+    res.status(500).json({ success: false, message: 'Nao foi possivel carregar a conversa.' });
+  }
+});
+
+router.delete('/conversations/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const query = req.query as Record<string, unknown>;
+    await deleteCopilotConversation({
+      userId: req.user!.id,
+      profileId: asOptionalPositiveInteger(query['perfil_id']),
+      conversationId: asOptionalPositiveInteger(req.params['id'])!,
+    });
+    res.json({ success: true, message: 'Conversa removida.' });
+  } catch (error) {
+    if (error instanceof FinancialAssistantInputError || error instanceof FinancialCopilotInputError) {
+      res.status(400).json({ success: false, message: error.message });
+      return;
+    }
+    console.error('Delete copilot conversation failed:', (error as Error).message);
+    res.status(500).json({ success: false, message: 'Nao foi possivel remover a conversa.' });
   }
 });
 

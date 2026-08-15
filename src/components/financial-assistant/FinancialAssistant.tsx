@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  Bot, Check, ChevronDown, FileText, LoaderCircle, MessageCircleMore,
-  Mic, Paperclip, Send, Square, X,
+  Bot, Check, ChevronDown, FileText, History, LoaderCircle, MessageCircleMore,
+  Mic, Paperclip, Plus, Send, Square, Trash2, X,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Attachment, Expense, Income } from '../../types/finance';
 import type { FinancialAssistantDraft } from '../../types/financialAssistant';
-import { createFinancialDraft } from '../../services/assistantService';
+import type { FinancialCopilotCard } from '../../types/financialCopilot';
+import {
+  deleteFinancialCopilotConversation,
+  fetchFinancialCopilotConversation,
+  fetchFinancialCopilotConversations,
+  sendFinancialCopilotMessage,
+} from '../../services/assistantService';
 import { fetchFinanceDashboard, saveExpense, saveIncome } from '../../services/financeService';
 import { fetchCategorias } from '../../services/configService';
 import { queryKeys } from '../../services/queryKeys';
@@ -19,6 +25,7 @@ interface ChatMessage {
   role: ChatRole;
   content: string;
   attachmentNames?: string[];
+  cards?: FinancialCopilotCard[];
 }
 interface SpeechRecognitionResultLike {
   transcript: string;
@@ -58,7 +65,7 @@ const ACCEPTED_FILE_TYPES = new Set([
 const initialMessage: ChatMessage = {
   id: 'welcome',
   role: 'assistant',
-  content: 'Oi! Me conte uma receita ou despesa, fale pelo microfone ou envie um comprovante. Eu preparo o rascunho para voce revisar.',
+  content: 'Oi! Posso registrar receitas e despesas, ler comprovantes e responder sobre o seu periodo financeiro. Nada e salvo sem voce confirmar.',
 };
 
 function formatCurrency(value: number | null): string {
@@ -135,6 +142,40 @@ function findDuplicate(
   return duplicate ? 'Existe uma despesa muito parecida no periodo selecionado. Confirme antes de salvar.' : null;
 }
 
+function formatCardValue(value: number | string): string {
+  if (typeof value === 'string') return value;
+  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function CopilotCardView({ card }: { card: FinancialCopilotCard }) {
+  return (
+    <div className="mt-3 border border-slate-200 bg-slate-50 p-2.5 dark:border-slate-700 dark:bg-slate-950/50">
+      <p className="mb-1.5 text-xs font-bold text-slate-800 dark:text-slate-100">{card.title}</p>
+      {card.items.length === 0 ? (
+        <p className="text-xs text-slate-500 dark:text-slate-400">Sem registros para exibir.</p>
+      ) : (
+        <div className="divide-y divide-slate-200 dark:divide-slate-800">
+          {card.items.map((item, index) => (
+            <div key={`${item.label}-${index}`} className="flex items-start justify-between gap-3 py-1.5 text-xs">
+              <div className="min-w-0">
+                <p className="truncate font-medium text-slate-700 dark:text-slate-200">{item.label}</p>
+                {item.detail && <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">{item.detail}</p>}
+              </div>
+              <p className={[
+                'shrink-0 font-semibold tabular-nums',
+                item.tone === 'positive' ? 'text-emerald-700 dark:text-emerald-300'
+                  : item.tone === 'danger' ? 'text-red-700 dark:text-red-300'
+                    : item.tone === 'warning' ? 'text-amber-700 dark:text-amber-300'
+                      : 'text-slate-700 dark:text-slate-200',
+              ].join(' ')}>{formatCardValue(item.value)}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function FinancialAssistant() {
   const { month, year } = useAppContext();
   const queryClient = useQueryClient();
@@ -144,6 +185,9 @@ export function FinancialAssistant() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [draftAttachments, setDraftAttachments] = useState<Attachment[]>([]);
   const [draft, setDraft] = useState<FinancialAssistantDraft | null>(null);
+  const [conversationId, setConversationId] = useState<number | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [hasRestoredLatest, setHasRestoredLatest] = useState(false);
   const [isPreparing, setIsPreparing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -162,6 +206,12 @@ export function FinancialAssistant() {
   const dashboardQuery = useQuery({
     queryKey: queryKeys.dashboard(month, year),
     queryFn: () => fetchFinanceDashboard(month, year),
+    enabled: open,
+    staleTime: 30_000,
+  });
+  const conversationsQuery = useQuery({
+    queryKey: queryKeys.copilotConversations,
+    queryFn: fetchFinancialCopilotConversations,
     enabled: open,
     staleTime: 30_000,
   });
@@ -239,24 +289,79 @@ export function FinancialAssistant() {
     setIsPreparing(true);
 
     try {
-      const result = await createFinancialDraft({
+      const result = await sendFinancialCopilotMessage({
         message: displayedMessage,
+        month,
+        year,
         attachments: messageAttachments,
         context: draft ?? undefined,
+        conversationId,
       });
-      setDraft(result.draft);
-      setDraftAttachments((current) => messageAttachments.length > 0 ? [...current, ...messageAttachments] : current);
+      setConversationId(result.conversationId);
+      if (result.mode === 'draft' && result.draft) {
+        setDraft(result.draft);
+        setDraftAttachments((current) => messageAttachments.length > 0 ? [...current, ...messageAttachments] : current);
+      }
       setMessages((current) => [...current, {
         id: newMessageId(),
         role: 'assistant',
         content: result.reply,
+        cards: result.cards,
       }]);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.copilotConversations });
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Nao foi possivel analisar esta informacao.');
     } finally {
       setIsPreparing(false);
     }
   };
+
+  const startNewConversation = () => {
+    setConversationId(null);
+    setMessages([initialMessage]);
+    setDraft(null);
+    setDraftAttachments([]);
+    setHistoryOpen(false);
+    setHasRestoredLatest(true);
+    setError(null);
+  };
+
+  const restoreConversation = async (id: number) => {
+    setError(null);
+    try {
+      const storedMessages = await fetchFinancialCopilotConversation(id);
+      setConversationId(id);
+      setMessages(storedMessages.map((message) => ({
+        id: `history-${message.id}`,
+        role: message.role,
+        content: message.content,
+        cards: message.payload?.cards,
+      })));
+      setDraft(null);
+      setDraftAttachments([]);
+      setHistoryOpen(false);
+      setHasRestoredLatest(true);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Nao foi possivel restaurar a conversa.');
+    }
+  };
+
+  const removeConversation = async (id: number) => {
+    setError(null);
+    try {
+      await deleteFinancialCopilotConversation(id);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.copilotConversations });
+      if (conversationId === id) startNewConversation();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Nao foi possivel remover a conversa.');
+    }
+  };
+
+  useEffect(() => {
+    if (!open || hasRestoredLatest || conversationId || messages.length !== 1 || !conversationsQuery.data?.[0]) return;
+    setHasRestoredLatest(true);
+    void restoreConversation(conversationsQuery.data[0].id);
+  }, [conversationId, conversationsQuery.data, hasRestoredLatest, messages.length, open]);
 
   const toggleVoiceInput = () => {
     if (isListening) {
@@ -380,8 +485,26 @@ export function FinancialAssistant() {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold">Assistente financeira</p>
-                <p className="mt-0.5 text-xs text-cyan-100/70">Rascunhos para voce revisar</p>
+                <p className="mt-0.5 text-xs text-cyan-100/70">Consultas e rascunhos para revisar</p>
               </div>
+              <button
+                type="button"
+                onClick={() => setHistoryOpen((current) => !current)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-cyan-100/75 transition hover:bg-white/10 hover:text-white"
+                aria-label="Abrir historico de conversas"
+                title="Historico"
+              >
+                <History size={18} />
+              </button>
+              <button
+                type="button"
+                onClick={startNewConversation}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-cyan-100/75 transition hover:bg-white/10 hover:text-white"
+                aria-label="Iniciar nova conversa"
+                title="Nova conversa"
+              >
+                <Plus size={18} />
+              </button>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
@@ -392,6 +515,40 @@ export function FinancialAssistant() {
                 <X size={19} />
               </button>
             </header>
+
+            {historyOpen && (
+              <div className="absolute inset-x-0 top-[68px] z-10 max-h-64 overflow-y-auto border-b border-slate-200 bg-white p-3 shadow-lg dark:border-slate-800 dark:bg-slate-900">
+                <p className="mb-2 text-xs font-bold text-slate-700 dark:text-slate-200">Conversas recentes</p>
+                {conversationsQuery.isLoading && <p className="py-3 text-xs text-slate-500">Carregando historico...</p>}
+                {conversationsQuery.error && <p className="py-3 text-xs text-red-600 dark:text-red-300">Nao foi possivel carregar o historico.</p>}
+                {!conversationsQuery.isLoading && !conversationsQuery.error && (conversationsQuery.data?.length ?? 0) === 0 && (
+                  <p className="py-3 text-xs text-slate-500 dark:text-slate-400">Nenhuma conversa salva neste perfil.</p>
+                )}
+                <div className="grid gap-1">
+                  {conversationsQuery.data?.map((conversation) => (
+                    <div key={conversation.id} className="flex items-center gap-1 border border-slate-200 dark:border-slate-700">
+                      <button
+                        type="button"
+                        onClick={() => void restoreConversation(conversation.id)}
+                        className="min-w-0 flex-1 px-2.5 py-2 text-left text-xs text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+                      >
+                        <span className="block truncate font-medium">{conversation.title}</span>
+                        <span className="mt-0.5 block text-[11px] text-slate-400">{new Date(conversation.updatedAt).toLocaleDateString('pt-BR')}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void removeConversation(conversation.id)}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center text-slate-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-300"
+                        aria-label={`Excluir conversa ${conversation.title}`}
+                        title="Excluir conversa"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="flex-1 overflow-y-auto bg-[linear-gradient(135deg,rgba(14,196,216,0.045),transparent_45%)] px-3 py-4 dark:bg-[linear-gradient(135deg,rgba(14,196,216,0.08),transparent_45%)]">
               <div className="space-y-3">
@@ -409,6 +566,7 @@ export function FinancialAssistant() {
                           <FileText size={13} /> {name}
                         </p>
                       ))}
+                      {message.cards?.map((card, index) => <CopilotCardView key={`${card.type}-${index}`} card={card} />)}
                     </div>
                   </div>
                 ))}
@@ -416,7 +574,7 @@ export function FinancialAssistant() {
                 {isPreparing && (
                   <div className="flex justify-start">
                     <div className="flex items-center gap-2 rounded-r-xl rounded-bl-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
-                      <LoaderCircle size={16} className="animate-spin text-[#0C9EAF]" /> Preparando rascunho...
+                      <LoaderCircle size={16} className="animate-spin text-[#0C9EAF]" /> Consultando seus dados...
                     </div>
                   </div>
                 )}
@@ -613,7 +771,7 @@ export function FinancialAssistant() {
                       void handleSend();
                     }
                   }}
-                  placeholder="Ex.: Paguei R$ 82 no mercado"
+                  placeholder="Ex.: Quanto gastei este mes?"
                   className="max-h-28 min-h-10 flex-1 resize-none border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#0C9EAF] focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:bg-slate-950"
                 />
                 <button
