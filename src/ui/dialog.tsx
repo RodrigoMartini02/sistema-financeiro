@@ -2,6 +2,7 @@ import { type ReactNode, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Z_MODAL } from './zIndex';
 import { GUIDE_LAYER_MODAL, useFirstAccessGuideSurface } from '../context/FirstAccessGuideContext';
+import { useDemoMode } from '../services/demo/demoModeContext';
 
 interface DialogProps {
   open: boolean;
@@ -29,6 +30,7 @@ const minHSize: Record<NonNullable<DialogProps['size']>, string> = {
 
 export function Dialog({ open, title, description, onClose, children, size = 'md', scrollBody = true }: DialogProps) {
   useFirstAccessGuideSurface(GUIDE_LAYER_MODAL, open);
+  const isDemoMode = useDemoMode() !== null;
 
   useEffect(() => {
     if (!open) return;
@@ -40,7 +42,7 @@ export function Dialog({ open, title, description, onClose, children, size = 'md
   if (!open) return null;
 
   return (
-    <div className={['fixed inset-0 flex items-end justify-center p-4 sm:items-center', Z_MODAL].join(' ')}>
+    <div className={[isDemoMode ? 'absolute inset-0' : 'fixed inset-0', 'flex items-end justify-center p-4 sm:items-center', Z_MODAL].join(' ')}>
       <div
         className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm"
         onClick={onClose}

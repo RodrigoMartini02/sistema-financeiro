@@ -35,6 +35,10 @@ interface AppShellProps {
   // de página), com o próprio conteúdo controlando seu scroll interno.
   // Usado por telas que precisam caber inteiras na tela, como o calendário.
   fillViewport?: boolean;
+  // Renderizado dentro da seção de demonstração pública: desabilita logout real,
+  // notificações reais, troca de perfil e o assistente financeiro (fora do escopo
+  // da demonstração), mantendo a mesma moldura visual do app real.
+  isDemoMode?: boolean;
 }
 
 const NAV_GROUPS: { label: string; items: { label: string; icon: React.ElementType; section: AppSection }[] }[] = [
@@ -243,7 +247,7 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
 
 export function AppShell({
   user, children, activeSection = 'painel', onNavigate,
-  configTab = 'conta', onConfigTab, fillViewport = false,
+  configTab = 'conta', onConfigTab, fillViewport = false, isDemoMode = false,
 }: AppShellProps) {
   const { theme, toggleTheme } = useAppContext();
   const [notifOpen, setNotifOpen] = useState(false);
@@ -254,7 +258,11 @@ export function AppShell({
     if (activeSection === 'configuracoes') setConfigOpen(true);
   }, [activeSection]);
 
-  const handleLogout = () => { logout(); window.location.replace('/index.html'); };
+  const handleLogout = () => {
+    if (isDemoMode) return;
+    logout();
+    window.location.replace('/index.html');
+  };
   const userInitial = (user?.nome ?? user?.name ?? 'U')[0].toUpperCase();
   const userDocument = (user?.documento ?? user?.document ?? '').replace(/\D/g, '');
   const canViewAnalytics = userDocument === ANALYTICS_ALLOWED_DOCUMENT;
@@ -279,20 +287,25 @@ export function AppShell({
       </div>
 
       {/* Perfil switcher */}
-      <div className="pt-3">
-        <PerfilSwitcher />
-      </div>
+      {!isDemoMode && (
+        <div className="pt-3">
+          <PerfilSwitcher />
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="sidebar-config-scroll flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-2">
         <div className="shrink-0 space-y-4">
-          {NAV_GROUPS.map((group) => (
+          {NAV_GROUPS.map((group) => {
+            const items = isDemoMode ? group.items.filter((item) => item.section !== 'planos') : group.items;
+            if (items.length === 0) return null;
+            return (
             <div key={group.label}>
               <p className="mb-1 px-3 text-[10px] font-bold uppercase tracking-widest text-[rgba(14,196,216,0.38)]">
                 {group.label}
               </p>
               <div className="space-y-0.5">
-                {group.items.map((item) => {
+                {items.map((item) => {
                   const Icon = item.icon;
                   const isActive = activeSection === item.section;
                   return (
@@ -315,9 +328,11 @@ export function AppShell({
                 })}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
+        {!isDemoMode && (
         <div className="mt-4 flex flex-col">
           <p className="mb-1 shrink-0 px-3 text-[10px] font-bold uppercase tracking-widest text-[rgba(14,196,216,0.38)]">Sistema</p>
           <div className="flex flex-col space-y-0.5">
@@ -390,6 +405,7 @@ export function AppShell({
             )}
           </div>
         </div>
+        )}
       </nav>
 
       {/* User footer */}
@@ -415,20 +431,22 @@ export function AppShell({
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-      {notifOpen && <NotificationPanel onClose={() => setNotifOpen(false)} />}
-      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-[rgba(14,196,216,0.18)] lg:flex lg:flex-col shadow-sm">
+    <div className={isDemoMode
+      ? 'relative h-[680px] max-h-[80vh] overflow-hidden bg-slate-50 dark:bg-slate-900'
+      : 'min-h-screen bg-slate-50 dark:bg-slate-900'}>
+      {!isDemoMode && notifOpen && <NotificationPanel onClose={() => setNotifOpen(false)} />}
+      <aside className={['left-0 hidden w-64 border-r border-[rgba(14,196,216,0.18)] lg:flex lg:flex-col shadow-sm', isDemoMode ? 'absolute inset-y-0' : 'fixed inset-y-0'].join(' ')}>
         {sidebar}
       </aside>
 
       {mobileOpen && (
-        <div className={['fixed inset-0 lg:hidden', Z_MOBILE_NAV_OVERLAY].join(' ')}>
+        <div className={[isDemoMode ? 'absolute inset-0' : 'fixed inset-0', 'lg:hidden', Z_MOBILE_NAV_OVERLAY].join(' ')}>
           <div className="absolute inset-0 bg-[#040E12]/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
           <aside className="absolute inset-y-0 left-0 w-64 flex flex-col shadow-2xl">{sidebar}</aside>
         </div>
       )}
 
-      <div className="lg:pl-64">
+      <div className={isDemoMode ? 'h-full overflow-y-auto lg:pl-64' : 'lg:pl-64'}>
         <header className="sticky top-0 z-30 border-b border-[rgba(14,196,216,0.18)] bg-[#0D2E3C]/95 backdrop-blur">
           <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
             <button
@@ -453,6 +471,12 @@ export function AppShell({
             <PeriodSelector />
             <div className="flex-1" />
 
+            {isDemoMode && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#F6A623]/40 bg-[#F6A623]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#F6A623]">
+                Demonstração
+              </span>
+            )}
+
             <button
               onClick={toggleTheme}
               className="flex h-11 w-11 items-center justify-center rounded-lg text-[rgba(14,196,216,0.55)] hover:bg-[rgba(14,196,216,0.08)] hover:text-[#0EC4D8] transition lg:h-8 lg:w-8"
@@ -460,14 +484,16 @@ export function AppShell({
               {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
             </button>
 
-            <div className="relative">
-              <button
-                onClick={() => setNotifOpen((o) => !o)}
-                className="flex h-11 w-11 items-center justify-center rounded-lg text-[rgba(14,196,216,0.55)] hover:bg-[rgba(14,196,216,0.08)] hover:text-[#0EC4D8] transition lg:h-8 lg:w-8"
-              >
-                <Bell size={16} />
-              </button>
-            </div>
+            {!isDemoMode && (
+              <div className="relative">
+                <button
+                  onClick={() => setNotifOpen((o) => !o)}
+                  className="flex h-11 w-11 items-center justify-center rounded-lg text-[rgba(14,196,216,0.55)] hover:bg-[rgba(14,196,216,0.08)] hover:text-[#0EC4D8] transition lg:h-8 lg:w-8"
+                >
+                  <Bell size={16} />
+                </button>
+              </div>
+            )}
 
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#0EC4D8] text-xs font-bold text-[#040E12] shadow-sm lg:hidden">
               {userInitial}
@@ -483,7 +509,7 @@ export function AppShell({
           {children}
         </main>
       </div>
-      <FinancialAssistant />
+      {!isDemoMode && <FinancialAssistant />}
     </div>
   );
 }

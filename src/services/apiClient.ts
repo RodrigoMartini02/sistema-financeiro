@@ -1,4 +1,5 @@
 import { logout } from './session';
+import { isDemoModeActive, resolveDemoRequest } from './demo/demoModeContext';
 
 interface ApiEnvelope<T> {
   success?: boolean;
@@ -23,6 +24,13 @@ export function getActiveProfileId() {
 }
 
 export async function apiRequest<T>(endpoint: string, init: RequestInit = {}): Promise<T> {
+  // Dentro da seção de demonstração pública (DemoModeProvider ativo), toda requisição é
+  // resolvida contra um banco fake em memória — nunca toca rede real, sessão real ou
+  // localStorage/sessionStorage de sessão real. Fora do modo demo, comportamento inalterado.
+  if (isDemoModeActive()) {
+    return resolveDemoRequest(endpoint, { method: init.method, body: init.body as string | undefined }) as T;
+  }
+
   const token = sessionStorage.getItem('token') ?? localStorage.getItem('token');
   const headers = new Headers(init.headers);
 
