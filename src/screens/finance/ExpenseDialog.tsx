@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useForm, Controller, useWatch } from 'react-hook-form';
+import { useForm, Controller, useWatch, type Resolver } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Banknote, CreditCard, Paperclip, Plus, QrCode, Repeat2, X } from 'lucide-react';
+import { Banknote, CreditCard, Paperclip, QrCode, Repeat2, X } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Attachment, Expense, ExpenseFormValues, FinanceDashboardData } from '../../types/finance';
 import { AttachmentSection, type AttachmentSectionHandle } from '../../ui/AttachmentSection';
@@ -97,7 +97,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
   });
 
   const form = useForm<FormData>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as Resolver<FormData>,
     defaultValues: {
       descricao: '', valor_original: '' as unknown as number, valor_final: undefined, precoAVista: undefined,
       dataCompra: todayIso(), dataVencimentoManual: undefined,

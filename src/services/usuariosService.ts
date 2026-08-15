@@ -1,4 +1,4 @@
-import { apiRequest, getActiveProfileId } from './apiClient';
+import { apiRequest } from './apiClient';
 
 export interface UsuarioMe {
   id: number; nome: string; name?: string; email: string;

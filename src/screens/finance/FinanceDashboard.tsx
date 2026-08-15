@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { RefreshCw, AlertTriangle, TrendingDown, TrendingUp, CreditCard, Settings, Tag, Wallet } from 'lucide-react';
+import { RefreshCw, AlertTriangle, TrendingDown, TrendingUp, CreditCard, Settings } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area, Legend, ReferenceLine,
@@ -24,6 +24,7 @@ const CORES = ['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97
 const MONTH_SHORT = MONTH_NAMES.map((n) => n.slice(0, 3));
 
 const fmtK = (v: number) => `R$ ${(v / 1000).toFixed(0)}k`;
+const formatTooltipCurrency = (value: unknown) => formatCurrency(Number(value ?? 0));
 
 const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; color: string; value: number }>; label?: string }) => {
   if (!active || !payload?.length) return null;
@@ -62,7 +63,7 @@ interface FinanceDashboardProps {
 }
 
 export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboardProps) {
-  const { month, year, setMonth, setYear, setQuickAction } = useAppContext();
+  const { month, year, setMonth, setYear } = useAppContext();
   const finance = useFinanceDashboard(month, year);
   const data = finance.dashboard.data;
   const guide = useFirstAccessGuide('painel:mes-v1');
@@ -529,7 +530,7 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
                       <Cell fill="#10b981" />
                       <Cell fill="#6366f1" />
                     </Pie>
-                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                    <Tooltip formatter={formatTooltipCurrency} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -589,7 +590,7 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
                     <Pie data={formaData} cx="50%" cy="50%" innerRadius={50} outerRadius={85} paddingAngle={2} dataKey="value">
                       {formaData.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
                     </Pie>
-                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                    <Tooltip formatter={formatTooltipCurrency} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>

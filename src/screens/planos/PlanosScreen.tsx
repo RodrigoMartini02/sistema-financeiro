@@ -41,6 +41,7 @@ interface CardFormData {
 const PLANO_DEF = {
   plus: {
     nome: 'Plus',
+    destaque: false,
     tipo: 'mensal' as PlanTipo,
     precoNum: 4.99,
     label: 'R$ 4,99/mês',
@@ -91,7 +92,7 @@ let mpInitPromise: Promise<any> | null = null;
 
 function loadMpSdk(): Promise<any> {
   if (mpInitPromise) return mpInitPromise;
-  mpInitPromise = new Promise((resolve, reject) => {
+  mpInitPromise = new Promise((resolve) => {
     const load = async () => {
       try {
         if (!window.MercadoPago) {

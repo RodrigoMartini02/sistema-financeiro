@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { db } from '../../../db/client';
 import { authenticateFootball } from '../middleware/auth';
 import { footballChampionshipMatches, footballChampionshipGuesses, footballUsers } from '../db/schema';
@@ -144,34 +144,31 @@ router.get('/guesses/me', authenticateFootball, async (req: Request, res: Respon
 
 router.get('/leaderboard', authenticateFootball, async (_req: Request, res: Response): Promise<void> => {
   try {
-    const finishedMatches = await db
-      .select()
-      .from(footballChampionshipMatches)
-      .where(eq(footballChampionshipMatches.finished, true));
-
-    if (finishedMatches.length === 0) {
-      res.json([]);
-      return;
-    }
-
-    const matchById = new Map(finishedMatches.map((match) => [match.id, match]));
-    const guesses = await db.select().from(footballChampionshipGuesses);
-
-    const scoreByUser = new Map<string, number>();
-    for (const guess of guesses) {
-      const match = matchById.get(guess.matchId);
-      if (!match) continue;
-      if (guess.homeScore === match.homeScore && guess.awayScore === match.awayScore) {
-        scoreByUser.set(guess.userId, (scoreByUser.get(guess.userId) ?? 0) + 1);
-      }
-    }
-
-    const users = await db.select({ id: footballUsers.id, email: footballUsers.email }).from(footballUsers);
-    const userById = new Map(users.map((user) => [user.id, user]));
-
-    const ranking = [...scoreByUser.entries()]
-      .map(([userId, hits]) => ({ userId, email: userById.get(userId)?.email ?? 'desconhecido', hits }))
-      .sort((a, b) => b.hits - a.hits);
+    const hits = sql<number>`count(*)::int`;
+    const ranking = await db
+      .select({
+        userId: footballChampionshipGuesses.userId,
+        email: footballUsers.email,
+        hits,
+      })
+      .from(footballChampionshipGuesses)
+      .innerJoin(
+        footballChampionshipMatches,
+        eq(footballChampionshipMatches.id, footballChampionshipGuesses.matchId),
+      )
+      .innerJoin(
+        footballUsers,
+        eq(footballUsers.id, footballChampionshipGuesses.userId),
+      )
+      .where(
+        and(
+          eq(footballChampionshipMatches.finished, true),
+          eq(footballChampionshipGuesses.homeScore, footballChampionshipMatches.homeScore),
+          eq(footballChampionshipGuesses.awayScore, footballChampionshipMatches.awayScore),
+        ),
+      )
+      .groupBy(footballChampionshipGuesses.userId, footballUsers.email)
+      .orderBy(desc(hits));
 
     res.json(ranking);
   } catch (error) {

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Briefcase, User, ChevronDown, ChevronUp, Tag } from 'lucide-react';
+import { Plus, Briefcase, ChevronDown, ChevronUp, Tag } from 'lucide-react';
 import { fetchPerfis, savePerfil, deletePerfil } from '../../services/configService';
 import { queryKeys } from '../../services/queryKeys';
-import type { Perfil, Enquadramento } from '../../types/config';
+import type { Perfil } from '../../types/config';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
@@ -122,16 +122,6 @@ const TIPO_OPTIONS = [
   { value: 'empresa', label: 'Empresa / CNPJ',  description: 'Pessoa jurídica com CNPJ' },
   { value: 'pessoal', label: 'Pessoa Física',    description: 'Finanças pessoais' },
 ];
-
-const ENQUADRAMENTO_BADGE: Record<string, string> = {
-  MEI:   'bg-green-100 text-green-700',
-  ME:    'bg-blue-100 text-blue-700',
-  EPP:   'bg-indigo-100 text-indigo-700',
-  SLU:   'bg-violet-100 text-violet-700',
-  EIRELI:'bg-purple-100 text-purple-700',
-  LTDA:  'bg-amber-100 text-amber-700',
-  SA:    'bg-orange-100 text-orange-700',
-};
 
 function CategoryPreview({ enquadramento }: { enquadramento: string }) {
   const [expanded, setExpanded] = useState(false);
