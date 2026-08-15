@@ -1,8 +1,8 @@
 import { type ReactNode, useState, useEffect } from 'react';
 import {
   Activity, BarChart3, Bell, Briefcase, Building2, ChevronDown, ChevronLeft, ChevronRight,
-  ChevronRight as ChevronSubRight, CreditCard, FileText, LayoutDashboard, Layers,
-  LogOut, Moon, Plus, Settings, Sun, Tag, TrendingDown, TrendingUp, User,
+  CreditCard, FileText, LayoutDashboard, Layers,
+  LogOut, Moon, Settings, Sun, Tag, TrendingDown, User,
   UserCheck, Users, Wallet, X,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -244,7 +244,7 @@ export function AppShell({
   user, children, activeSection = 'painel', onNavigate,
   configTab = 'conta', onConfigTab, fillViewport = false,
 }: AppShellProps) {
-  const { theme, toggleTheme, setQuickAction } = useAppContext();
+  const { theme, toggleTheme } = useAppContext();
   const [notifOpen, setNotifOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [configOpen, setConfigOpen] = useState(activeSection === 'configuracoes');

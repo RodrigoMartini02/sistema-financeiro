@@ -92,6 +92,7 @@ function PublicSite() {
         <Route path="/privacidade" element={<LegalPage type="privacidade" />} />
         <Route path="*" element={<HomePage />} />
       </Routes>
+      <CookieBanner />
     </BrowserRouter>
   );
 }

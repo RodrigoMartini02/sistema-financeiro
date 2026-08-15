@@ -5,7 +5,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle, MoneyField } from '../../ui/dialogFormTokens';
-import { Button } from '../../ui/button';
 import type { Reserva, ReservaFormValues, MovimentacaoFormValues } from '../../types/reservas';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
@@ -114,8 +113,8 @@ export function ReservaDialog({
   // --- Form: Movimentar ---
   const today = getLocalTodayIso();
 
-  const movForm = useForm<z.input<typeof movSchema>, unknown, MovimentacaoFormValues>({
-    resolver: zodResolver(movSchema),
+  const movForm = useForm<MovimentacaoFormValues>({
+    resolver: zodResolver(movSchema) as Resolver<MovimentacaoFormValues>,
     defaultValues: { tipo: 'deposito', valor: 0, descricao: '', data: today },
   });
 
@@ -316,7 +315,7 @@ export function ReservaDialog({
 
         {/* ── Aba: Movimentar (só ao editar) ── */}
         {tab === 'movimentar' && reserva && (
-          <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }} onSubmit={movForm.handleSubmit(handleMovimentar as any)}>
+          <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }} onSubmit={movForm.handleSubmit(handleMovimentar)}>
             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
 
               <div style={cardStyle}>

@@ -12,9 +12,8 @@ const PORT = process.env.PORT ?? 3010;
 const envOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
   : [
-      'https://sistema-financeiro-kxed.onrender.com',
-      'https://escalacao-futebol-1.onrender.com',
-      'https://escalacao-futebol.onrender.com',
+      'https://fin-gerence.com.br',
+      'https://www.fin-gerence.com.br',
     ];
 
 const devOrigins =

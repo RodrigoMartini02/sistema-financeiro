@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, Controller, useWatch } from 'react-hook-form';
+import { useForm, Controller, useWatch, type Resolver } from 'react-hook-form';
 import { z } from 'zod';
 import { Paperclip, X, Clock, Users, ChevronDown, ChevronUp } from 'lucide-react';
 import { MONTH_NAMES, type Attachment, type Income, type IncomeFormValues, type FinanceDashboardData } from '../../types/finance';
@@ -126,7 +126,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
   });
 
   const form = useForm<FormData>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as Resolver<FormData>,
     defaultValues: {
       descricao: '', valor: '' as unknown as number, data: defaultDate,
       cliente: '', tipoReceita: '', representanteId: null,

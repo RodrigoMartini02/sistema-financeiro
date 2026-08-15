@@ -2,7 +2,7 @@ import { ArrowRight, Ban, CircleCheck, Paperclip } from 'lucide-react';
 import type { Expense } from '../../types/finance';
 import { KebabMenu, type KebabMenuAction } from '../../ui/KebabMenu';
 import { formatCurrency, formatDate } from '../finance/formatters';
-import { getFormaLabel, getStatus, StatusBadge, TipoBadge } from './DespesasScreen';
+import { getFormaLabel, StatusBadge, TipoBadge } from './DespesasScreen';
 
 interface ExpenseCardProps {
   item: Expense;

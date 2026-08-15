@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, type Resolver } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { Appointment, AppointmentFormValues } from '../../types/appointments';
@@ -34,7 +34,7 @@ export function AppointmentDialog({ open, appointment, presetDate, isSaving, err
   const isEditing = !!appointment;
 
   const form = useForm<FormData>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as Resolver<FormData>,
     defaultValues: {
       titulo: '', data: presetDate ?? todayIso(), hora: undefined,
       duracao_minutos: undefined, local: undefined, descricao: undefined,
