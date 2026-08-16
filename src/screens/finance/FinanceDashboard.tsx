@@ -1,9 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { RefreshCw, AlertTriangle, TrendingDown, TrendingUp, CreditCard, Settings } from 'lucide-react';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, AreaChart, Area, Legend, ReferenceLine,
-} from 'recharts';
 import { MONTH_NAMES } from '../../types/finance';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
 import { useAppContext } from '../../context/AppContext';
@@ -13,50 +9,24 @@ import { fetchDashboardAnual, getContratosFaturamento, fetchParcelasFuturas } fr
 import { Button } from '../../ui/button';
 import { Card } from '../../ui/card';
 import { ErrorState } from '../../ui/states';
-import { MetricCard } from './MetricCard';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { MonthSelector } from './MonthSelector';
 import { formatCurrency } from './formatters';
 import { IncomeBalanceGuide } from './IncomeBalanceGuide';
+import { AnnualTrendChart } from './charts/AnnualTrendChart';
+import { CategoryBarChart } from './charts/CategoryBarChart';
+import { DonutChart } from './charts/DonutChart';
+import { MonthWaterfallChart } from './charts/MonthWaterfallChart';
+import { MonthCategoriesOverview } from './MonthCategoriesOverview';
 
-const CORES = ['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#84cc16','#ec4899','#14b8a6'];
+const CORES = ['#0891b2', '#10b981', '#f59e0b', '#6366f1', '#8b5cf6', '#06b6d4', '#f97316', '#84cc16', '#ec4899', '#14b8a6'];
 const MONTH_SHORT = MONTH_NAMES.map((n) => n.slice(0, 3));
-
-const fmtK = (v: number) => `R$ ${(v / 1000).toFixed(0)}k`;
-const formatTooltipCurrency = (value: unknown) => formatCurrency(Number(value ?? 0));
-
-const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; color: string; value: number }>; label?: string }) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-lg text-xs">
-      <p className="mb-1 font-semibold text-slate-700">{label}</p>
-      {payload.map((p) => (
-        <p key={p.name} style={{ color: p.color }}>{p.name}: {formatCurrency(p.value)}</p>
-      ))}
-    </div>
-  );
-};
 
 function deltaPct(current: number, previous: number | undefined): number | undefined {
   if (previous === undefined || previous === 0) return undefined;
   return ((current - previous) / previous) * 100;
-}
-
-// Largura do eixo de categoria dos gráficos: menor em mobile para dar mais espaço às barras.
-function useCategoryAxisWidth(): number {
-  const query = '(min-width: 640px)';
-  const [isWide, setIsWide] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
-
-  useEffect(() => {
-    const mql = window.matchMedia(query);
-    const handler = (e: MediaQueryListEvent) => setIsWide(e.matches);
-    mql.addEventListener('change', handler);
-    return () => mql.removeEventListener('change', handler);
-  }, []);
-
-  return isWide ? 120 : 84;
 }
 
 interface FinanceDashboardProps {
@@ -69,7 +39,6 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
   const data = finance.dashboard.data;
   const guide = useFirstAccessGuide('painel:mes-v1');
   const comprometimentoGuide = useFirstAccessGuide('painel:comprometimento-v1');
-  const categoryAxisWidth = useCategoryAxisWidth();
 
   const anualQ = useQuery({
     queryKey: queryKeys.dashboardAnual(year),
@@ -102,6 +71,7 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
   const hasNoMonthlyEntries = !finance.dashboard.isLoading && !!data && (data.incomes?.length ?? 0) === 0 && (data.expenses?.length ?? 0) === 0;
   const deltaReceitas = deltaPct(receitas, mesAnterior?.receitas);
   const deltaDespesas = deltaPct(despesas, mesAnterior?.despesas);
+  const pctGasto = receitas > 0 ? Math.min(100, (despesas / receitas) * 100) : 0;
 
   // Contratos summary
   const totalCarteira = contratos.reduce((s, c) => s + c.valorMensal, 0);
@@ -119,10 +89,24 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
   // Annual chart data
   const chartData = MONTH_SHORT.map((name, m) => ({
     name,
-    Receitas: anualData[m]?.receitas ?? 0,
-    Despesas: anualData[m]?.despesas ?? 0,
-    Saldo: anualData[m]?.saldo_final ?? 0,
+    receitas: anualData[m]?.receitas ?? 0,
+    despesas: anualData[m]?.despesas ?? 0,
+    saldo: anualData[m]?.saldo_final ?? 0,
   }));
+
+  const anualHighlights = useMemo(() => {
+    const withData = anualData.map((m, i) => ({ ...m, index: i })).filter((m) => m.receitas > 0 || m.despesas > 0);
+    if (withData.length === 0) return null;
+    const melhorMes = withData.reduce((best, m) => (m.receitas > best.receitas ? m : best));
+    const maiorGasto = withData.reduce((worst, m) => (m.despesas > worst.despesas ? m : worst));
+    return {
+      melhorMesLabel: MONTH_NAMES[melhorMes.index],
+      melhorMesValor: melhorMes.receitas,
+      maiorGastoLabel: MONTH_NAMES[maiorGasto.index],
+      maiorGastoValor: maiorGasto.despesas,
+      saldoAcumulado: anualData[month]?.saldo_final ?? 0,
+    };
+  }, [anualData, month]);
 
   // Category chart
   const catData = useMemo(() => {
@@ -147,8 +131,8 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
       }
     }
     return [
-      { name: 'Contratos', value: ct },
-      { name: 'Avulsas', value: av },
+      { name: 'Contratos', value: ct, color: '#6366f1' },
+      { name: 'Avulsas', value: av, color: '#10b981' },
     ].filter((d) => d.value > 0);
   }, [data]);
 
@@ -159,7 +143,7 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
       const k = d.formaPagamento ?? 'dinheiro';
       map[k] = (map[k] ?? 0) + d.valorFinal;
     }
-    return Object.entries(map).map(([name, value]) => ({ name, value }));
+    return Object.entries(map).map(([name, value], i) => ({ name, value, color: CORES[i % CORES.length] }));
   }, [data]);
 
   // Health bars
@@ -200,6 +184,20 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
   const parcelasFuturas = parcelasQ.data ?? [];
   const totalParcelasFuturas = parcelasFuturas.reduce((s, p) => s + p.total, 0);
 
+  // Cascata do mês: saldo anterior -> receitas -> maiores despesas por categoria -> saldo final
+  const waterfallSteps = useMemo(() => {
+    const topCategorias = catData.slice(0, 5);
+    const outrasCategorias = catData.slice(5).reduce((s, c) => s + c.value, 0);
+    const steps = [
+      { label: 'Saldo anterior', value: saldoAnterior, kind: 'start' as const },
+      { label: 'Receitas', value: receitas, kind: 'increase' as const },
+      ...topCategorias.map((c) => ({ label: c.name, value: -c.value, kind: 'decrease' as const })),
+      ...(outrasCategorias > 0 ? [{ label: `Outras ${catData.length - 5}`, value: -outrasCategorias, kind: 'decrease' as const }] : []),
+      { label: 'Saldo final', value: saldoProjetado, kind: 'end' as const },
+    ];
+    return steps;
+  }, [saldoAnterior, receitas, catData, saldoProjetado]);
+
   const handleRefresh = () => {
     finance.dashboard.refetch();
     void anualQ.refetch();
@@ -235,15 +233,6 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
         )}
       </div>
 
-      {showMonthlySummary && saldoProjetado < 0 && (
-        <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
-          <AlertTriangle size={16} className="shrink-0" />
-          <span>
-            Despesas superam receitas em <strong>{formatCurrency(Math.abs(saldoProjetado))}</strong> neste mês.
-          </span>
-        </div>
-      )}
-
       {(finance.dashboard.error ?? anualQ.error) && (
         <ErrorState
           title="Não foi possível carregar o painel"
@@ -251,47 +240,100 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
         />
       )}
 
-
-      {/* 5 KPI cards */}
+      {/* Resumo consolidado */}
       {showMonthlySummary && (
-      <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
-        <MetricCard label="Saldo anterior" value={formatCurrency(saldoAnterior)} tone="slate" />
-        <MetricCard
-          label="Receitas"
-          value={formatCurrency(receitas)}
-          tone="income"
-          delta={deltaReceitas}
-        />
-        <MetricCard
-          label="Despesas"
-          value={formatCurrency(despesas)}
-          tone="expense"
-          delta={deltaDespesas !== undefined ? -deltaDespesas : undefined}
-        />
-        <MetricCard
-          label="Saldo projetado"
-          value={formatCurrency(saldoProjetado)}
-          tone={saldoProjetado >= 0 ? 'income' : 'expense'}
-        />
-        <div className="relative">
-          <MetricCard
-            label="Comprometimento"
-            value={receitas > 0 ? `${txComprometimento.toFixed(0)}%` : '—'}
-            tone={txComprometimento > 90 ? 'expense' : txComprometimento > 70 ? 'warning' : 'income'}
-          />
-          {comprometimentoGuide.isVisible && (
-            <FirstAccessGuideCard
-              floating
-              placement="top"
-              align="right"
-              className="absolute right-0 top-full z-[45] mt-3 w-[min(25rem,calc(100vw-2rem))]"
-              icon={AlertTriangle}
-              description={firstAccessGuideMessages.painelComprometimento}
-              onDismiss={comprometimentoGuide.dismiss}
-            />
-          )}
-        </div>
-      </div>
+        <Card className="overflow-hidden rounded-2xl p-0">
+          <div className="flex flex-col lg:flex-row">
+            <div className="flex-none border-b border-slate-100 bg-slate-50/60 p-5 dark:border-slate-700 dark:bg-slate-900/40 lg:w-72 lg:border-b-0 lg:border-r">
+              <span className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Saldo projetado</span>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">R$</span>
+                <span className={`text-4xl font-bold tracking-tight tabular-nums ${saldoProjetado >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-300'}`}>
+                  {Math.abs(saldoProjetado).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                {saldoProjetado >= 0 ? 'Sobra do mês depois de todas as despesas.' : 'Despesas superam as receitas neste mês.'}
+              </p>
+            </div>
+
+            <div className="grid flex-1 grid-cols-2 xl:grid-cols-4">
+              <div className="relative border-b border-slate-100 p-5 dark:border-slate-700 xl:border-b-0">
+                <span className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Saldo anterior</span>
+                <p className="mt-2 text-xl font-bold tabular-nums text-slate-900 dark:text-white">{formatCurrency(saldoAnterior)}</p>
+              </div>
+              <div className="relative border-b border-l border-slate-100 p-5 dark:border-slate-700 xl:border-b-0">
+                <span className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Receitas</span>
+                <p className="mt-2 text-xl font-bold tabular-nums text-slate-900 dark:text-white">{formatCurrency(receitas)}</p>
+                {deltaReceitas !== undefined && (
+                  <span className={`mt-1.5 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-bold ${deltaReceitas >= 0 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'}`}>
+                    {deltaReceitas >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                    {Math.abs(deltaReceitas).toFixed(1)}%
+                  </span>
+                )}
+              </div>
+              <div className="relative border-l border-slate-100 p-5 dark:border-slate-700">
+                <span className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Despesas</span>
+                <p className="mt-2 text-xl font-bold tabular-nums text-slate-900 dark:text-white">{formatCurrency(despesas)}</p>
+                {deltaDespesas !== undefined && (
+                  <span className={`mt-1.5 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-bold ${deltaDespesas <= 0 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'}`}>
+                    {deltaDespesas <= 0 ? <TrendingDown size={11} /> : <TrendingUp size={11} />}
+                    {Math.abs(deltaDespesas).toFixed(1)}%
+                  </span>
+                )}
+              </div>
+              <div className="relative border-l border-slate-100 p-5 dark:border-slate-700">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Comprometimento</span>
+                </div>
+                <p className={`mt-2 text-xl font-bold tabular-nums ${txComprometimento > 90 ? 'text-rose-600 dark:text-rose-300' : txComprometimento > 70 ? 'text-amber-600 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>
+                  {receitas > 0 ? `${txComprometimento.toFixed(0)}%` : '—'}
+                </p>
+                <div className="relative mt-2.5 h-1.5 rounded-full bg-slate-100 dark:bg-slate-700">
+                  <div
+                    className={`h-full rounded-full ${txComprometimento > 90 ? 'bg-rose-500' : txComprometimento > 70 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                    style={{ width: `${pctGasto}%` }}
+                  />
+                </div>
+                {comprometimentoGuide.isVisible && (
+                  <FirstAccessGuideCard
+                    floating
+                    placement="top"
+                    align="right"
+                    className="absolute right-0 top-full z-[45] mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                    icon={AlertTriangle}
+                    description={firstAccessGuideMessages.painelComprometimento}
+                    onDismiss={comprometimentoGuide.dismiss}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-4 border-t border-slate-100 bg-slate-50/60 px-5 py-4 dark:border-slate-700 dark:bg-slate-900/40 sm:flex-row sm:items-end">
+            <div className="flex-1">
+              <div className="flex items-baseline gap-2 text-xs">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                <span className="font-semibold text-slate-800 dark:text-slate-100">Receitas</span>
+                <span className="ml-auto font-bold tabular-nums text-slate-900 dark:text-white">{formatCurrency(receitas)}</span>
+              </div>
+              <div className="mt-1.5 h-2 rounded bg-emerald-500" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-baseline gap-2 text-xs">
+                <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                <span className="font-semibold text-slate-800 dark:text-slate-100">Despesas pagas</span>
+                <span className="ml-auto font-bold tabular-nums text-slate-900 dark:text-white">{formatCurrency(despesasPagas)}</span>
+              </div>
+              <div className="mt-1.5 h-2 rounded bg-slate-200 dark:bg-slate-700">
+                <div className="h-2 rounded bg-rose-500" style={{ width: `${Math.min(100, (despesasPagas / healthBase) * 100)}%` }} />
+              </div>
+            </div>
+            <span className="shrink-0 pb-0.5 text-[11.5px] text-slate-500 dark:text-slate-400">
+              Você gastou <b className="text-slate-800 dark:text-slate-100">{pctGasto.toFixed(1)}%</b> do que entrou
+            </span>
+          </div>
+        </Card>
       )}
 
       <IncomeBalanceGuide month={month} year={year} />
@@ -343,43 +385,53 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
         </div>
       )}
 
-      {/* Annual area chart */}
+      {/* Annual chart */}
       <Card className="p-5">
-        <h3 className="mb-4 font-bold text-slate-900 dark:text-white">
-          Receitas × Despesas × Saldo — {year}
-        </h3>
+        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+          <h3 className="font-bold text-slate-900 dark:text-white">
+            Receitas × Despesas × Saldo — {year}
+          </h3>
+          <div className="flex items-center gap-4 text-[11.5px] font-semibold text-slate-500 dark:text-slate-400">
+            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />Receitas</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-rose-500" />Despesas</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-0.5 rounded bg-indigo-500" />Saldo acumulado</span>
+          </div>
+        </div>
         {anualQ.isLoading ? (
           <div className="h-72 flex items-center justify-center text-sm text-slate-400">Carregando...</div>
         ) : (
-          <ResponsiveContainer width="100%" height={280}>
-            <AreaChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-              <defs>
-                <linearGradient id="gradRec" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="gradDesp" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="gradSaldo" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#6366f1" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <YAxis tickFormatter={fmtK} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
-              <ReferenceLine x={MONTH_SHORT[month]} stroke="#6366f1" strokeDasharray="4 2" strokeWidth={1.5} label={{ value: MONTH_SHORT[month], position: 'insideTopRight', fontSize: 10, fill: '#6366f1' }} />
-              <Area type="monotone" dataKey="Receitas" stroke="#10b981" strokeWidth={2} fill="url(#gradRec)" dot={{ r: 3, fill: '#10b981' }} />
-              <Area type="monotone" dataKey="Despesas" stroke="#ef4444" strokeWidth={2} fill="url(#gradDesp)" dot={{ r: 3, fill: '#ef4444' }} />
-              <Area type="monotone" dataKey="Saldo" stroke="#6366f1" strokeWidth={2} fill="url(#gradSaldo)" dot={{ r: 3, fill: '#6366f1' }} />
-            </AreaChart>
-          </ResponsiveContainer>
+          <AnnualTrendChart data={chartData} activeIndex={month} />
+        )}
+        {anualHighlights && (
+          <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1.5 border-t border-slate-100 pt-3 text-[11.5px] text-slate-500 dark:border-slate-700 dark:text-slate-400">
+            <span>Melhor mês <b className="text-slate-800 dark:text-slate-100">{anualHighlights.melhorMesLabel} · {formatCurrency(anualHighlights.melhorMesValor)}</b></span>
+            <span>Maior gasto <b className="text-slate-800 dark:text-slate-100">{anualHighlights.maiorGastoLabel} · {formatCurrency(anualHighlights.maiorGastoValor)}</b></span>
+            <span>Saldo acumulado até {MONTH_NAMES[month]} <b className={anualHighlights.saldoAcumulado >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-300'}>{formatCurrency(anualHighlights.saldoAcumulado)}</b></span>
+          </div>
         )}
       </Card>
+
+      {/* Cascata do mês */}
+      <Card className="p-5">
+        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+          <div>
+            <h3 className="font-bold text-slate-900 dark:text-white">Cascata do mês</h3>
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Do saldo que abriu o mês até o que sobrou, passando por cada corte.</p>
+          </div>
+          {receitas > 0 && (
+            <span className="text-[11.5px] text-slate-500 dark:text-slate-400">
+              Sobrou <b className={saldoProjetado >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-300'}>{((saldoProjetado / receitas) * 100).toFixed(1)}%</b> do que entrou
+            </span>
+          )}
+        </div>
+        {finance.dashboard.isLoading ? (
+          <div className="h-64 flex items-center justify-center text-sm text-slate-400">Carregando...</div>
+        ) : (
+          <MonthWaterfallChart steps={waterfallSteps} />
+        )}
+      </Card>
+
+      <MonthCategoriesOverview month={month} year={year} />
 
       {/* Análise de despesas — 3 cards */}
       <div className="grid gap-5 xl:grid-cols-3">
@@ -387,7 +439,12 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
         <Card className="p-5">
           <h3 className="mb-4 font-bold text-slate-900 dark:text-white">Juros × Descontos</h3>
           {juros === 0 && descontos === 0 ? (
-            <p className="py-6 text-center text-sm text-slate-400">Sem juros ou descontos neste mês</p>
+            <div className="flex flex-col items-center gap-2 py-6 text-center">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300">
+                <TrendingUp size={17} />
+              </span>
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Sem juros ou descontos neste mês</p>
+            </div>
           ) : (
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
@@ -476,7 +533,12 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
           {parcelasQ.isLoading ? (
             <div className="py-6 text-center text-sm text-slate-400">Carregando...</div>
           ) : parcelasFuturas.length === 0 ? (
-            <p className="py-6 text-center text-sm text-slate-400">Nenhuma parcela em aberto nos próximos meses</p>
+            <div className="flex flex-col items-center gap-2 py-6 text-center">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300">
+                <CreditCard size={17} />
+              </span>
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Nenhuma parcela em aberto</p>
+            </div>
           ) : (
             <div className="flex flex-col gap-3">
               {parcelasFuturas.map((p) => (
@@ -499,24 +561,14 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
         </Card>
       </div>
 
-      {/* 2-col: categories + origens */}
+      {/* 2-col: saúde + parcelas futuras já cobertas acima; aqui categorias + origem */}
       <div className="grid gap-5 xl:grid-cols-2">
         <Card className="p-5">
           <h3 className="mb-4 font-bold text-slate-900 dark:text-white">Despesas por categoria</h3>
           {catData.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">Sem despesas neste mês</p>
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={catData} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                <XAxis type="number" tickFormatter={fmtK} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" width={categoryAxisWidth} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="value" name="Valor" radius={[0, 6, 6, 0]}>
-                  {catData.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <CategoryBarChart data={catData} colors={CORES} />
           )}
         </Card>
 
@@ -525,30 +577,7 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
           {origemData.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">Sem receitas neste mês</p>
           ) : (
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-              <div className="w-full sm:w-[55%]">
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie data={origemData} cx="50%" cy="50%" innerRadius={50} outerRadius={85} paddingAngle={2} dataKey="value">
-                      <Cell fill="#10b981" />
-                      <Cell fill="#6366f1" />
-                    </Pie>
-                    <Tooltip formatter={formatTooltipCurrency} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <ul className="flex-1 space-y-3 text-xs">
-                {origemData.map((item, i) => (
-                  <li key={item.name} className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full shrink-0" style={{ background: i === 0 ? '#10b981' : '#6366f1' }} />
-                      <span className="text-slate-700 dark:text-slate-300">{item.name}</span>
-                    </span>
-                    <span className="font-semibold text-slate-900 dark:text-white">{formatCurrency(item.value)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <DonutChart data={origemData} centerLabel="TOTAL" centerValue={formatCurrency(receitas)} />
           )}
         </Card>
       </div>
@@ -586,29 +615,7 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
           {formaData.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-400">Sem dados</p>
           ) : (
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-              <div className="w-full sm:w-[55%]">
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie data={formaData} cx="50%" cy="50%" innerRadius={50} outerRadius={85} paddingAngle={2} dataKey="value">
-                      {formaData.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
-                    </Pie>
-                    <Tooltip formatter={formatTooltipCurrency} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <ul className="flex-1 space-y-2 text-xs">
-                {formaData.map((item, i) => (
-                  <li key={item.name} className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full shrink-0" style={{ background: CORES[i % CORES.length] }} />
-                      <span className="text-slate-700 dark:text-slate-300 capitalize">{item.name}</span>
-                    </span>
-                    <span className="font-semibold text-slate-900 dark:text-white">{formatCurrency(item.value)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <DonutChart data={formaData} centerLabel="PAGO" centerValue={formatCurrency(despesas)} capitalizeLabels />
           )}
         </Card>
       </div>

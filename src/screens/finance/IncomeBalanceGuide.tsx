@@ -135,11 +135,11 @@ export function IncomeBalanceGuide({ month, year }: IncomeBalanceGuideProps) {
   );
 
   return (
-    <Card className="border-slate-200 p-0 dark:border-slate-700">
+    <Card className="overflow-hidden rounded-2xl border-slate-200 p-0 dark:border-slate-700">
       <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-5 dark:border-slate-700 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-cyan-50 text-[#087B89] dark:bg-cyan-950/40 dark:text-cyan-300">
-            <BarChart3 size={20} />
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-cyan-100 bg-cyan-50 text-[#0891b2] dark:border-cyan-900 dark:bg-cyan-950/40 dark:text-cyan-300">
+            <BarChart3 size={18} />
           </span>
           <div>
             <h3 className="text-base font-bold text-slate-900 dark:text-white">Leitura das despesas</h3>
@@ -147,26 +147,27 @@ export function IncomeBalanceGuide({ month, year }: IncomeBalanceGuideProps) {
           </div>
         </div>
         {alertCount > 0 && (
-          <span className="self-start rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+          <span className="inline-flex items-center gap-1.5 self-start rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+            <AlertTriangle size={12} />
             {alertCount} categoria{alertCount > 1 ? 's' : ''} acima da faixa
           </span>
         )}
       </div>
 
-      <div className="grid gap-3 px-5 pt-5 sm:grid-cols-3">
-        <div className="border-l-2 border-cyan-500 pl-3">
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Renda do período</p>
-          <p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">{formatCurrency(overview.incomeTotal)}</p>
+      <div className="grid divide-y divide-slate-100 border-b border-slate-100 dark:divide-slate-700 dark:border-slate-700 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        <div className="border-l-2 border-cyan-500 px-5 py-4">
+          <p className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Renda do período</p>
+          <p className="mt-1.5 text-xl font-bold tabular-nums text-slate-900 dark:text-white">{formatCurrency(overview.incomeTotal)}</p>
         </div>
-        <div className="border-l-2 border-rose-500 pl-3">
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Despesas previstas</p>
-          <p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">{formatCurrency(overview.projectedTotal)}</p>
+        <div className="border-l-2 border-rose-500 px-5 py-4">
+          <p className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Despesas previstas</p>
+          <p className="mt-1.5 text-xl font-bold tabular-nums text-slate-900 dark:text-white">{formatCurrency(overview.projectedTotal)}</p>
         </div>
-        <div className="border-l-2 border-emerald-500 pl-3">
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Comprometimento</p>
+        <div className="border-l-2 border-emerald-500 px-5 py-4">
+          <p className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Comprometimento</p>
           <p className={[
-            'mt-1 text-lg font-bold',
-            incomeCommitment === null ? 'text-slate-900 dark:text-white' : incomeCommitment > 90 ? 'text-rose-600 dark:text-rose-300' : incomeCommitment > 70 ? 'text-amber-600 dark:text-amber-300' : 'text-emerald-600 dark:text-emerald-300',
+            'mt-1.5 text-xl font-bold tabular-nums',
+            incomeCommitment === null ? 'text-slate-900 dark:text-white' : incomeCommitment > 90 ? 'text-rose-600 dark:text-rose-300' : incomeCommitment > 70 ? 'text-amber-600 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300',
           ].join(' ')}>
             {getCommitmentLabel(overview.incomeTotal, overview.projectedTotal)}
           </p>
@@ -182,13 +183,19 @@ export function IncomeBalanceGuide({ month, year }: IncomeBalanceGuideProps) {
           </div>
         </div>
       ) : (
-        <div className="grid gap-5 px-5 py-5 xl:grid-cols-[minmax(0,1fr)_15rem]">
-          <div className="min-w-0">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-              <h4 className="font-semibold text-slate-900 dark:text-white">Comparação por categoria</h4>
-              <span className="text-xs text-slate-500 dark:text-slate-400">{formatCurrency(classifiedTotal)} em despesas comparáveis</span>
+        <div className="flex flex-col xl:flex-row">
+          <div className="min-w-0 flex-1 px-5 py-5">
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white">Comparação por categoria</h4>
+              <div className="flex items-center gap-4 text-[11px] text-slate-500 dark:text-slate-400">
+                <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-3 rounded-sm border-x border-dashed border-slate-300 bg-slate-100 dark:bg-slate-700" />média das famílias brasileiras</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-3 rounded bg-slate-400" />seu gasto</span>
+              </div>
             </div>
-            <div className="grid gap-5">
+            <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
+              Peso de cada categoria dentro de <b className="text-slate-800 dark:text-slate-100">{formatCurrency(classifiedTotal)}</b> em despesas comparáveis.
+            </p>
+            <div className="grid gap-1">
               {activeGroups.map((group) => {
                 const style = STATUS_STYLES[group.status];
                 const StatusIcon = style.icon;
@@ -201,21 +208,19 @@ export function IncomeBalanceGuide({ month, year }: IncomeBalanceGuideProps) {
                 const rangeWidth = Math.min(100 - rangeStart, ((upperBound - lowerBound) / scale) * 100);
 
                 return (
-                  <div key={group.key}>
-                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className={['flex h-6 w-6 items-center justify-center rounded-full', style.surface, style.text].join(' ')}><StatusIcon size={13} /></span>
-                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{group.label}</p>
-                      </div>
-                      <span className={['text-xs font-semibold', style.text].join(' ')}>{style.label}</span>
+                  <div key={group.key} className="border-t border-slate-100 py-3 first:border-t-0 dark:border-slate-700">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusIcon size={15} className={style.text} />
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{group.label}</p>
+                      <span className={['ml-auto text-[11.5px] font-bold', style.text].join(' ')}>{style.label}</span>
                     </div>
-                    <div className="relative mt-2.5 h-3 bg-slate-100 dark:bg-slate-700">
-                      <span className="absolute inset-y-0 bg-emerald-100 dark:bg-emerald-900/45" style={{ left: `${rangeStart}%`, width: `${rangeWidth}%` }} />
-                      <span className={['absolute inset-y-0 left-0', style.bar].join(' ')} style={{ width: `${actualWidth}%` }} />
+                    <div className="relative mt-2 h-5 rounded-md bg-slate-50 dark:bg-slate-800">
+                      <span className="absolute inset-y-0 rounded-sm border-x border-dashed border-slate-300 bg-slate-100 dark:border-slate-500 dark:bg-slate-700" style={{ left: `${rangeStart}%`, width: `${rangeWidth}%` }} />
+                      <span className={['absolute inset-y-0 left-0 top-1/2 -translate-y-1/2 h-2.5 rounded-sm', style.bar].join(' ')} style={{ width: `${actualWidth}%` }} />
                     </div>
-                    <div className="mt-2 flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+                    <div className="mt-2 flex flex-wrap justify-between gap-x-3 gap-y-1 text-[11.5px] text-slate-500 dark:text-slate-400">
                       <span>Você: <strong className="text-slate-700 dark:text-slate-200">{formatPercentage(group.shareOfClassifiedExpenses)}</strong></span>
-                      <span>Faixa esperada: {formatPercentage(lowerBound)} a {formatPercentage(upperBound)}</span>
+                      <span>Média das famílias: {formatPercentage(lowerBound)}–{formatPercentage(upperBound)}</span>
                       <span className="font-semibold text-slate-700 dark:text-slate-200">{formatCurrency(group.projectedAmount)}</span>
                     </div>
                   </div>
@@ -224,21 +229,21 @@ export function IncomeBalanceGuide({ month, year }: IncomeBalanceGuideProps) {
             </div>
           </div>
 
-          <div className="border-l border-slate-100 pl-5 dark:border-slate-700 xl:py-1">
-            <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Resumo do período</p>
-            <div className="mt-4 grid gap-3 text-sm">
-              <div>
-                <p className="text-slate-500 dark:text-slate-400">Dentro da faixa</p>
-                <p className="mt-1 font-bold text-emerald-600 dark:text-emerald-300">{activeGroups.filter((group) => group.status === 'within_reference').length} categoria{activeGroups.filter((group) => group.status === 'within_reference').length !== 1 ? 's' : ''}</p>
+          <div className="flex-none border-t border-slate-100 bg-slate-50/60 px-5 py-5 dark:border-slate-700 dark:bg-slate-900/40 xl:w-60 xl:border-l xl:border-t-0">
+            <p className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Resumo do período</p>
+            <div className="mt-4 grid gap-2.5">
+              <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-3.5 py-3 dark:border-emerald-900 dark:bg-emerald-950/30">
+                <p className="text-[11.5px] text-emerald-700/80 dark:text-emerald-300/80">Dentro da faixa</p>
+                <p className="mt-0.5 text-lg font-bold text-emerald-700 dark:text-emerald-300">{activeGroups.filter((group) => group.status === 'within_reference').length} categoria{activeGroups.filter((group) => group.status === 'within_reference').length !== 1 ? 's' : ''}</p>
               </div>
-              <div>
-                <p className="text-slate-500 dark:text-slate-400">Acima da faixa</p>
-                <p className="mt-1 font-bold text-amber-600 dark:text-amber-300">{alertCount} categoria{alertCount !== 1 ? 's' : ''}</p>
+              <div className="rounded-lg border border-amber-100 bg-amber-50/70 px-3.5 py-3 dark:border-amber-900 dark:bg-amber-950/30">
+                <p className="text-[11.5px] text-amber-700/80 dark:text-amber-300/80">Acima da faixa</p>
+                <p className="mt-0.5 text-lg font-bold text-amber-700 dark:text-amber-300">{alertCount} categoria{alertCount !== 1 ? 's' : ''}</p>
               </div>
               {overview.unclassifiedProjectedTotal > 0 && (
-                <div>
-                  <p className="text-slate-500 dark:text-slate-400">Outros lançamentos</p>
-                  <p className="mt-1 font-bold text-slate-700 dark:text-slate-200">{formatCurrency(overview.unclassifiedProjectedTotal)}</p>
+                <div className="rounded-lg border border-slate-200 bg-white px-3.5 py-3 dark:border-slate-700 dark:bg-slate-800">
+                  <p className="text-[11.5px] text-slate-500 dark:text-slate-400">Outros lançamentos</p>
+                  <p className="mt-0.5 text-lg font-bold tabular-nums text-slate-800 dark:text-slate-100">{formatCurrency(overview.unclassifiedProjectedTotal)}</p>
                 </div>
               )}
             </div>
@@ -250,11 +255,11 @@ export function IncomeBalanceGuide({ month, year }: IncomeBalanceGuideProps) {
         <div className="border-t border-slate-100 px-5 py-5 dark:border-slate-700">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-600 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
                 <Target size={18} />
               </span>
               <div>
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Suas metas do mês</h3>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Suas metas do mês</h3>
                 <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Acompanhe o uso de cada limite que você definiu.</p>
               </div>
             </div>
@@ -278,7 +283,7 @@ export function IncomeBalanceGuide({ month, year }: IncomeBalanceGuideProps) {
                         {formatCurrency(item.projectedAmount)} de {formatCurrency(item.targetAmount)}
                       </p>
                     </div>
-                    <span className={`shrink-0 text-xs font-semibold ${goalStyle.text}`}>{goalStyle.label}</span>
+                    <span className={`shrink-0 text-xs font-bold ${goalStyle.text}`}>{goalStyle.label}</span>
                   </div>
 
                   <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
