@@ -22,7 +22,7 @@ interface RawDespesa {
 interface RawReceita {
   id: number; descricao: string; valor: string | number;
   tipo_receita?: string | null; data_recebimento: string;
-  mes: number; ano: number;
+  mes: number; ano: number; status?: string | null;
 }
 
 type MesAno = { mes: number; ano: number };
@@ -142,6 +142,7 @@ export function RelatoriosScreen() {
   const [dataFim, setDataFim] = useState(`${anoAtual}-${pad2(mesAtual + 1)}-${pad2(lastDayOf(anoAtual, mesAtual + 1))}`);
   const [queryDataInicio, setQueryDataInicio] = useState(`${anoAtual}-${pad2(mesAtual + 1)}-01`);
   const [queryDataFim, setQueryDataFim] = useState(`${anoAtual}-${pad2(mesAtual + 1)}-${pad2(lastDayOf(anoAtual, mesAtual + 1))}`);
+  const [hasConsultado, setHasConsultado] = useState(false);
 
   const [tipoFiltro, setTipoFiltro] = useState<'todos' | 'despesas' | 'receitas'>('todos');
   const [formaFiltro, setFormaFiltro] = useState('todos');
@@ -214,6 +215,7 @@ export function RelatoriosScreen() {
       const results = await Promise.all(mesesQueryRange.map(({ mes, ano }) => fetchDespesasMes(mes, ano)));
       return results.flat();
     },
+    enabled: hasConsultado,
   });
 
   const recQuery = useQuery({
@@ -222,6 +224,7 @@ export function RelatoriosScreen() {
       const results = await Promise.all(mesesQueryRange.map(({ mes, ano }) => fetchReceitasMes(mes, ano)));
       return results.flat();
     },
+    enabled: hasConsultado,
   });
 
   const hasPendingChange = dataInicio !== queryDataInicio || dataFim !== queryDataFim;
@@ -229,10 +232,11 @@ export function RelatoriosScreen() {
   function handleConsultar() {
     setQueryDataInicio(dataInicio);
     setQueryDataFim(dataFim);
+    setHasConsultado(true);
   }
 
   const despesas = despQuery.data ?? [];
-  const receitas = recQuery.data ?? [];
+  const receitas = useMemo(() => (recQuery.data ?? []).filter((r) => (r.status ?? 'ativa') === 'ativa'), [recQuery.data]);
   const totalDesp = sumBy(despesas, (d) => Number(d.valor_final));
   const totalRec  = sumBy(receitas, (r) => Number(r.valor));
 
@@ -293,25 +297,6 @@ export function RelatoriosScreen() {
       {/* Header — single row */}
       <div className="flex items-center gap-4">
         <h2 className="text-2xl font-bold text-slate-950 dark:text-white shrink-0">Relatórios</h2>
-        <div className="relative ml-auto">
-        <button
-          onClick={() => window.print()}
-          className="no-print flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-        >
-          <Printer size={15} /> Exportar PDF
-        </button>
-        {exportGuide.isVisible && (
-          <FirstAccessGuideCard
-            icon={Printer}
-            description={firstAccessGuideMessages.relatoriosExportar}
-            align="right"
-            floating
-            placement="top"
-            className="absolute right-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
-            onDismiss={exportGuide.dismiss}
-          />
-        )}
-        </div>
       </div>
 
       {/* Filters — sem overflow-hidden para dropdowns aparecerem */}
@@ -392,10 +377,10 @@ export function RelatoriosScreen() {
             <button
               type="button"
               onClick={handleConsultar}
-              disabled={!hasPendingChange}
+              disabled={hasConsultado && !hasPendingChange}
               className={[
                 'rounded-lg px-3 py-1.5 text-xs font-semibold transition shrink-0',
-                hasPendingChange
+                !hasConsultado || hasPendingChange
                   ? 'bg-[#0EC4D8] text-white hover:bg-[#0ab5c7]'
                   : 'bg-slate-100 text-slate-400 cursor-default dark:bg-slate-700 dark:text-slate-500',
               ].join(' ')}
@@ -413,6 +398,25 @@ export function RelatoriosScreen() {
                 onDismiss={consultGuide.dismiss}
               />
             )}
+            <div className="relative">
+              <button
+                onClick={() => window.print()}
+                className="no-print flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 shrink-0"
+              >
+                <Printer size={14} /> Exportar PDF
+              </button>
+              {exportGuide.isVisible && (
+                <FirstAccessGuideCard
+                  icon={Printer}
+                  description={firstAccessGuideMessages.relatoriosExportar}
+                  align="right"
+                  floating
+                  placement="top"
+                  className="absolute right-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                  onDismiss={exportGuide.dismiss}
+                />
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -460,7 +464,9 @@ export function RelatoriosScreen() {
             <span className="text-red-600 font-semibold">-{formatCurrency(totalVisible.desp)}</span>
           </div>
         </div>
-        {despQuery.isLoading || recQuery.isLoading ? (
+        {!hasConsultado ? (
+          <p className="py-8 text-center text-sm text-slate-400">Selecione um período e clique em Consultar</p>
+        ) : despQuery.isLoading || recQuery.isLoading ? (
           <p className="py-8 text-center text-sm text-slate-400">Carregando...</p>
         ) : allRows.length === 0 ? (
           <p className="py-8 text-center text-sm text-slate-400">Nenhum lançamento com estes filtros</p>
