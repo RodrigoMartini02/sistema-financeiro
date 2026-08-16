@@ -19,13 +19,13 @@ interface BudgetReferenceDefinition extends BudgetCategoryReference {
 const REFERENCES: BudgetReferenceDefinition[] = [
   {
     key: 'housing',
-    label: 'Habitacao',
+    label: 'Habitação',
     referencePercentage: 36.6,
     aliases: ['habitacao', 'moradia', 'aluguel', 'condominio', 'energia', 'luz', 'agua', 'gas', 'internet', 'telefone', 'reforma residencial'],
   },
   {
     key: 'food',
-    label: 'Alimentacao',
+    label: 'Alimentação',
     referencePercentage: 17.5,
     aliases: ['alimentacao', 'mercado', 'supermercado', 'feira', 'restaurante', 'lanche', 'comida', 'refeicao'],
   },
@@ -37,19 +37,19 @@ const REFERENCES: BudgetReferenceDefinition[] = [
   },
   {
     key: 'health',
-    label: 'Saude',
+    label: 'Saúde',
     referencePercentage: 8,
     aliases: ['saude', 'farmacia', 'medico', 'medica', 'dentista', 'hospital', 'exame', 'terapia', 'plano de saude'],
   },
   {
     key: 'education',
-    label: 'Educacao',
+    label: 'Educação',
     referencePercentage: 4.7,
     aliases: ['educacao', 'escola', 'faculdade', 'curso', 'livro', 'material escolar'],
   },
   {
     key: 'clothing',
-    label: 'Vestuario',
+    label: 'Vestuário',
     referencePercentage: 4.3,
     aliases: ['vestuario', 'roupa', 'calcado', 'tenis', 'sapato'],
   },
