@@ -8,12 +8,12 @@ test('maps common personal categories to POF reference groups', () => {
 
   assert.deepEqual(food, {
     key: 'food',
-    label: 'Alimentacao',
+    label: 'Alimentação',
     referencePercentage: 17.5,
   });
   assert.deepEqual(health, {
     key: 'health',
-    label: 'Saude',
+    label: 'Saúde',
     referencePercentage: 8,
   });
 });
