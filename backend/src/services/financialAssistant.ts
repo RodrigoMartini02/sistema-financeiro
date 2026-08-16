@@ -10,6 +10,7 @@ import { getTodayIsoInTimezone } from '../utils/date';
 const MAX_ATTACHMENTS = 3;
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 const MAX_MESSAGE_LENGTH = 2_000;
+const NUMERIC_AMOUNT_TOKEN = '(?:\\d{1,3}(?:\\.\\d{3})+(?:,\\d{1,2})?|\\d+(?:,\\d{1,2})?|\\d+\\.\\d{1,2})';
 
 const SUPPORTED_ATTACHMENT_TYPES = new Set([
   'application/pdf',
@@ -108,16 +109,28 @@ function parseBrazilianAmount(raw: string): number | null {
   const compact = raw.replace(/R\$\s*/gi, '').replace(/\s/g, '').trim();
   if (!compact) return null;
 
-  let normalized = compact;
-  if (compact.includes(',') && compact.includes('.')) {
-    normalized = compact.replace(/\./g, '').replace(',', '.');
-  } else if (compact.includes(',')) {
-    normalized = compact.replace(',', '.');
-  }
+  const isBrazilianThousands = /^\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?$/.test(compact);
+  const isCommaDecimal = /^\d+(?:,\d{1,2})?$/.test(compact);
+  const isDotDecimal = /^\d+\.\d{1,2}$/.test(compact);
+  if (!isBrazilianThousands && !isCommaDecimal && !isDotDecimal) return null;
+
+  const normalized = isBrazilianThousands
+    ? compact.replace(/\./g, '').replace(',', '.')
+    : compact.replace(',', '.');
 
   const amount = Number(normalized);
   if (!Number.isFinite(amount) || amount <= 0 || amount >= 10_000_000) return null;
   return Math.round(amount * 100) / 100;
+}
+
+function extractTrailingNumericAmount(text: string): { rawAmount: string; description: string } | null {
+  const match = text.match(new RegExp(`(?:^|\\s)(?:R\\$\\s*)?(${NUMERIC_AMOUNT_TOKEN})\\s*(?:reais?)?\\s*$`, 'i'));
+  if (!match?.[1] || match.index === undefined) return null;
+
+  const description = text.slice(0, match.index).trim();
+  if (!description || /\b(dia|data|vence|vencimento)\b/i.test(description)) return null;
+
+  return { rawAmount: match[1], description };
 }
 
 const SPOKEN_NUMBER_VALUES: Record<string, number> = {
@@ -222,21 +235,29 @@ function extractSpokenAmount(text: string): number | null {
 }
 
 function extractAmountFromText(text: string): number | null {
-  const standaloneAmount = text.trim().match(/^([\d.]+,\d{2}|\d+(?:\.\d{2})?)$/);
+  const standaloneAmount = text.trim().match(new RegExp(`^(${NUMERIC_AMOUNT_TOKEN})$`));
   if (standaloneAmount?.[1]) return parseBrazilianAmount(standaloneAmount[1]);
 
-  const currencyMatch = text.match(/R\$\s*([\d.]+,\d{2}|\d+(?:\.\d{2})?)/i);
+  const currencyMatch = text.match(new RegExp(`R\\$\\s*(${NUMERIC_AMOUNT_TOKEN})`, 'i'));
   if (currencyMatch?.[1]) return parseBrazilianAmount(currencyMatch[1]);
 
   const spendingMatch = text.match(
-    /(?:gastei|comprei|compra|custou|passei)\s+(?:de\s+)?([\d.]+,\d{2}|\d+(?:\.\d{2})?)/i,
+    new RegExp(`(?:gastei|comprei|compra|custou|passei)\\s+(?:de\\s+)?(${NUMERIC_AMOUNT_TOKEN})`, 'i'),
   );
   if (spendingMatch?.[1]) return parseBrazilianAmount(spendingMatch[1]);
+
+  const contextualNumericMatch = text.match(
+    new RegExp(`(?:paguei|pagamento|recebi|recebimento|valor|total|entrada|saida|sa[i\\u00ed]da|por)\\s+(?:de\\s+)?(${NUMERIC_AMOUNT_TOKEN})`, 'i'),
+  );
+  if (contextualNumericMatch?.[1]) return parseBrazilianAmount(contextualNumericMatch[1]);
 
   const contextualMatch = text.match(
     /(?:paguei|pagamento|recebi|recebimento|valor|total|entrada|saida|sa[íi]da|por)\s+(?:de\s+)?([\d.]+,\d{2}|\d+(?:\.\d{2})?)/i,
   );
   if (contextualMatch?.[1]) return parseBrazilianAmount(contextualMatch[1]);
+
+  const trailingAmount = extractTrailingNumericAmount(text);
+  if (trailingAmount) return parseBrazilianAmount(trailingAmount.rawAmount);
 
   return extractSpokenAmount(text);
 }
@@ -336,6 +357,11 @@ function inferPaid(text: string, kind: DraftKind, financial?: FinancialInfo | nu
 }
 
 function extractDescription(text: string): string | null {
+  if (/^\s*(?:(?:vence|vencimento)(?:\s+no)?\s+dia|dia)\s+\d{1,2}\s*$/i.test(text)) return null;
+
+  const trailingAmount = extractTrailingNumericAmount(text);
+  if (trailingAmount) return normalizeText(trailingAmount.description).slice(0, 120);
+
   const merchant = text.match(/(?:no|na|para|ao|a|de)\s+(?!R\$)([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9&.' -]{1,80}?)(?=\s+(?:hoje|amanh[aã]|ontem|via|com|em|por)\b|[,.]|$)/i);
   if (merchant?.[1]) return normalizeText(merchant[1]).slice(0, 120);
 

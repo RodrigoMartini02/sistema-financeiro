@@ -26,3 +26,23 @@ test('uses a spoken registration command to identify a new income', () => {
   assert.equal(interpretation.kind, 'income');
   assert.equal(interpretation.amount, 100);
 });
+
+test('extracts a trailing amount next to a financial description', () => {
+  const salary = interpretFinancialAssistantText('salario 5000');
+  const market = interpretFinancialAssistantText('mercado 82,50');
+  const rent = interpretFinancialAssistantText('aluguel 1.500');
+
+  assert.equal(salary.description, 'salario');
+  assert.equal(salary.amount, 5000);
+  assert.equal(market.description, 'mercado');
+  assert.equal(market.amount, 82.5);
+  assert.equal(rent.description, 'aluguel');
+  assert.equal(rent.amount, 1500);
+});
+
+test('does not treat a due date as a financial amount', () => {
+  const interpretation = interpretFinancialAssistantText('vence dia 15');
+
+  assert.equal(interpretation.amount, null);
+  assert.equal(interpretation.description, null);
+});
