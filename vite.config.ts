@@ -11,6 +11,7 @@ export default defineConfig({
       input: {
         app: resolve(__dirname, 'app.html'),
         login: resolve(__dirname, 'index.html'),
+        demo: resolve(__dirname, 'demo.html'),
       },
     },
   },

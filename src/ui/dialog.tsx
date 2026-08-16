@@ -2,7 +2,6 @@ import { type ReactNode, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Z_MODAL } from './zIndex';
 import { GUIDE_LAYER_MODAL, useFirstAccessGuideSurface } from '../context/FirstAccessGuideContext';
-import { useDemoMode } from '../services/demo/demoModeContext';
 
 interface DialogProps {
   open: boolean;
@@ -23,14 +22,13 @@ const maxWSize: Record<NonNullable<DialogProps['size']>, string> = {
 
 const minHSize: Record<NonNullable<DialogProps['size']>, string> = {
   md: '',
-  lg: 'min-h-[560px]',
-  xl: 'min-h-[560px]',
-  xxl: 'min-h-[560px]',
+  lg: '',
+  xl: '',
+  xxl: '',
 };
 
 export function Dialog({ open, title, description, onClose, children, size = 'md', scrollBody = true }: DialogProps) {
   useFirstAccessGuideSurface(GUIDE_LAYER_MODAL, open);
-  const isDemoMode = useDemoMode() !== null;
 
   useEffect(() => {
     if (!open) return;
@@ -42,14 +40,14 @@ export function Dialog({ open, title, description, onClose, children, size = 'md
   if (!open) return null;
 
   return (
-    <div className={[isDemoMode ? 'absolute inset-0' : 'fixed inset-0', 'flex items-end justify-center p-4 sm:items-center', Z_MODAL].join(' ')}>
+    <div className={['fixed inset-0', 'flex items-end justify-center p-4 sm:items-center', Z_MODAL].join(' ')}>
       <div
         className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm"
         onClick={onClose}
       />
       <div
         className={[
-          'relative z-10 w-full flex flex-col max-h-[92vh]',
+          'relative z-10 w-full flex flex-col max-h-[85vh]',
           'rounded-[18px] bg-white shadow-[0_32px_80px_-24px_rgba(13,47,63,0.38),0_0_0_1px_rgba(13,47,63,0.06)]',
           'dark:bg-slate-800 dark:shadow-[0_32px_80px_-24px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.06)]',
           '[--dialog-px:16px] sm:[--dialog-px:26px]',

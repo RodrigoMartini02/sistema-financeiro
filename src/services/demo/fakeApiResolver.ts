@@ -296,6 +296,8 @@ export function resolveFakeApiRequest(
   return undefined;
 }
 
+export const resolveDemoRequest = resolveFakeApiRequest;
+
 export function createDemoDatabaseInstance(): DemoFakeDatabase {
   return createDemoFakeDatabase();
 }

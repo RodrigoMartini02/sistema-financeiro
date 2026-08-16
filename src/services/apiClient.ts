@@ -1,5 +1,6 @@
 import { logout } from './session';
-import { isDemoModeActive, resolveDemoRequest } from './demo/demoModeContext';
+import { resolveDemoRequest } from './demo/fakeApiResolver';
+import { getDemoDatabase } from './demo/demoDatabaseSingleton';
 
 interface ApiEnvelope<T> {
   success?: boolean;
@@ -7,6 +8,12 @@ interface ApiEnvelope<T> {
   data?: T;
   errors?: unknown;
 }
+
+// Documento demo.html (sempre carregado isoladamente, nunca embutido via JS na Home real —
+// a Home embute a demo via <iframe>, um documento/contexto JS totalmente separado). Esta
+// checagem é estática por página carregada, não uma flag runtime compartilhada, então não há
+// como uma chamada da Home real "vazar" para o banco fake, nem vice-versa.
+const IS_DEMO_DOCUMENT = typeof window !== 'undefined' && window.location.pathname.endsWith('/demo.html');
 
 export function getApiUrl() {
   const { hostname, port } = window.location;
@@ -24,11 +31,11 @@ export function getActiveProfileId() {
 }
 
 export async function apiRequest<T>(endpoint: string, init: RequestInit = {}): Promise<T> {
-  // Dentro da seção de demonstração pública (DemoModeProvider ativo), toda requisição é
-  // resolvida contra um banco fake em memória — nunca toca rede real, sessão real ou
-  // localStorage/sessionStorage de sessão real. Fora do modo demo, comportamento inalterado.
-  if (isDemoModeActive()) {
-    return resolveDemoRequest(endpoint, { method: init.method, body: init.body as string | undefined }) as T;
+  // Dentro do documento demo.html, toda requisição é resolvida contra um banco fake em
+  // memória — nunca toca rede real, sessão real ou localStorage/sessionStorage de sessão
+  // real. Fora desse documento (Home real, app autenticado), comportamento inalterado.
+  if (IS_DEMO_DOCUMENT) {
+    return resolveDemoRequest(getDemoDatabase(), endpoint, { method: init.method, body: init.body as string | undefined }) as T;
   }
 
   const token = sessionStorage.getItem('token') ?? localStorage.getItem('token');

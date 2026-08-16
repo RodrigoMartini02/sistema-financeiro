@@ -83,10 +83,20 @@ function PerfilSwitcher() {
   const activePerfil = data.find((p) => String(p.id) === activeId) ?? data[0];
 
   useEffect(() => {
-    if (activePerfil && !localStorage.getItem('perfilAtivoTipo')) {
+    if (!activePerfil) return;
+
+    if (String(activePerfil.id) !== activeId) {
+      localStorage.setItem('perfilAtivoId', String(activePerfil.id));
+      localStorage.setItem('perfilAtivoNome', activePerfil.nome);
+      localStorage.setItem('perfilAtivoTipo', activePerfil.tipo);
+      window.location.reload();
+      return;
+    }
+
+    if (localStorage.getItem('perfilAtivoTipo') !== activePerfil.tipo) {
       localStorage.setItem('perfilAtivoTipo', activePerfil.tipo);
     }
-  }, [activePerfil]);
+  }, [activeId, activePerfil]);
 
   if (data.length <= 1) return null;
   const select = (id: number, nome: string, tipo: string) => {
@@ -437,7 +447,7 @@ export function AppShell({
 
   return (
     <div className={isDemoMode
-      ? 'relative h-[680px] max-h-[80vh] overflow-hidden bg-slate-50 dark:bg-slate-900'
+      ? 'relative h-screen overflow-hidden bg-slate-50 dark:bg-slate-900'
       : 'min-h-screen bg-slate-50 dark:bg-slate-900'}>
       {!isDemoMode && notifOpen && <NotificationPanel onClose={() => setNotifOpen(false)} />}
       <aside className={['left-0 hidden w-64 border-r border-[rgba(14,196,216,0.18)] lg:flex lg:flex-col shadow-sm', isDemoMode ? 'absolute inset-y-0' : 'fixed inset-y-0'].join(' ')}>
@@ -508,7 +518,7 @@ export function AppShell({
 
         <main
           className={fillViewport
-            ? 'flex h-[calc(100vh-56px)] flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-8'
+            ? ['flex flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-8', isDemoMode ? 'h-[calc(100%-56px)]' : 'h-[calc(100vh-56px)]'].join(' ')
             : 'px-4 py-6 sm:px-6 lg:px-8'}
         >
           {children}

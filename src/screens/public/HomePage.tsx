@@ -6,6 +6,7 @@ import { SiteHeader } from './components/SiteHeader';
 import { LoginModal } from './components/LoginModal';
 import { TermosModal } from './TermosModal';
 import { SitePageHero } from './components/SitePageHero';
+import { HomeBenefitsHighlights } from './components/HomeBenefitsHighlights';
 import { HomeInteractiveDemo } from './components/demo-app/HomeInteractiveDemo';
 import { ScrollReveal } from './components/ScrollReveal';
 import { CookieBanner } from '../../components/CookieBanner';
@@ -85,6 +86,7 @@ export function HomePage({ notice }: HomePageProps) {
           scrollHintLabel="Veja funcionando abaixo"
           scrollHintTargetId="demo-interativa-title"
         />
+        <HomeBenefitsHighlights />
         <HomeInteractiveDemo />
 
       {/* ── Avaliações ── */}
