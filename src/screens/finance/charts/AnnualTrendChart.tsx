@@ -17,6 +17,36 @@ function fmtK(v: number) {
   return `R$ ${(v / 1000).toFixed(0)}k`;
 }
 
+interface Point { x: number; y: number }
+
+// Curva suave via Catmull-Rom convertido para Bézier cúbico — mesmo efeito
+// visual do antigo Recharts `type="monotone"`. Os pontos de controle em Y são
+// clampados ao intervalo do segmento (p1↔p2) para evitar overshoot da curva
+// além dos valores reais em transições abruptas (ex.: pico isolado entre
+// meses zerados), mesma garantia que a interpolação "monotone" do Recharts.
+function smoothPath(points: Point[]): string {
+  if (points.length === 0) return '';
+  if (points.length === 1) return `M ${points[0].x},${points[0].y}`;
+
+  const clamp = (v: number, a: number, b: number) => Math.min(Math.max(v, Math.min(a, b)), Math.max(a, b));
+
+  let d = `M ${points[0].x},${points[0].y}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i - 1] ?? points[i];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2] ?? p2;
+
+    const c1x = p1.x + (p2.x - p0.x) / 6;
+    const c1y = clamp(p1.y + (p2.y - p0.y) / 6, p1.y, p2.y);
+    const c2x = p2.x - (p3.x - p1.x) / 6;
+    const c2y = clamp(p2.y - (p3.y - p1.y) / 6, p1.y, p2.y);
+
+    d += ` C ${c1x},${c1y} ${c2x},${c2y} ${p2.x},${p2.y}`;
+  }
+  return d;
+}
+
 export function AnnualTrendChart({ data, activeIndex }: AnnualTrendChartProps) {
   const maxValue = Math.max(1, ...data.flatMap((d) => [d.receitas, d.despesas, Math.abs(d.saldo)]));
   const scaleMax = maxValue * 1.15;
@@ -27,7 +57,7 @@ export function AnnualTrendChart({ data, activeIndex }: AnnualTrendChartProps) {
   const yFor = (value: number) => CHART_BOTTOM - (value / scaleMax) * CHART_HEIGHT;
   const xFor = (index: number) => PAD_LEFT + slot * index + slot / 2;
 
-  const linePoints = data.map((d, i) => `${xFor(i)},${yFor(d.saldo)}`).join(' ');
+  const linePath = smoothPath(data.map((d, i) => ({ x: xFor(i), y: yFor(d.saldo) })));
   const gridLines = [0, 0.25, 0.5, 0.75, 1];
 
   return (
@@ -69,7 +99,7 @@ export function AnnualTrendChart({ data, activeIndex }: AnnualTrendChartProps) {
           );
         })}
 
-        <polyline points={linePoints} fill="none" stroke="#6366f1" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+        <path d={linePath} fill="none" stroke="#6366f1" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
         {data.map((d, i) => (
           <circle
             key={d.name}
