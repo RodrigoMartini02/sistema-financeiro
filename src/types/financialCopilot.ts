@@ -2,6 +2,7 @@ import type { Attachment } from './finance';
 import type { FinancialAssistantDraft } from './financialAssistant';
 
 export type FinancialCopilotCardType = 'summary' | 'categories' | 'transactions' | 'upcoming' | 'budget';
+export type FinancialCopilotIntentHint = 'register_expense' | 'register_income' | 'ask';
 
 export interface FinancialCopilotCardItem {
   label: string;
@@ -32,6 +33,7 @@ export interface FinancialCopilotRequest {
   attachments?: Attachment[];
   context?: Partial<FinancialAssistantDraft>;
   conversationId?: number | null;
+  intentHint?: FinancialCopilotIntentHint | null;
 }
 
 export interface FinancialCopilotConversation {

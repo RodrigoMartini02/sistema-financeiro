@@ -73,6 +73,10 @@ function normalizeText(value: string): string {
   return value.replace(/\s+/g, ' ').trim();
 }
 
+export function normalizeAssistantInputText(value: string): string {
+  return normalizeText(value).replace(/\b(pics|pixs)\b/gi, 'pix');
+}
+
 function normalizeBase64(value: string): Buffer {
   const normalized = value.replace(/\s/g, '');
   if (!normalized || !/^[A-Za-z0-9+/]+={0,2}$/.test(normalized)) {
@@ -116,6 +120,107 @@ function parseBrazilianAmount(raw: string): number | null {
   return Math.round(amount * 100) / 100;
 }
 
+const SPOKEN_NUMBER_VALUES: Record<string, number> = {
+  um: 1,
+  uma: 1,
+  dois: 2,
+  duas: 2,
+  tres: 3,
+  quatro: 4,
+  cinco: 5,
+  seis: 6,
+  sete: 7,
+  oito: 8,
+  nove: 9,
+  dez: 10,
+  onze: 11,
+  doze: 12,
+  treze: 13,
+  catorze: 14,
+  quatorze: 14,
+  quinze: 15,
+  dezesseis: 16,
+  dezessete: 17,
+  dezoito: 18,
+  dezenove: 19,
+  vinte: 20,
+  trinta: 30,
+  quarenta: 40,
+  cinquenta: 50,
+  sessenta: 60,
+  setenta: 70,
+  oitenta: 80,
+  noventa: 90,
+  cem: 100,
+  cento: 100,
+  duzentos: 200,
+  trezentos: 300,
+  quatrocentos: 400,
+  quinhentos: 500,
+  seiscentos: 600,
+  setecentos: 700,
+  oitocentos: 800,
+  novecentos: 900,
+};
+
+function parseSpokenInteger(tokens: string[]): number | null {
+  let total = 0;
+  let current = 0;
+  let recognized = false;
+
+  for (const token of tokens) {
+    if (token === 'e') continue;
+    if (token === 'mil') {
+      total += Math.max(current, 1) * 1_000;
+      current = 0;
+      recognized = true;
+      continue;
+    }
+
+    const value = SPOKEN_NUMBER_VALUES[token];
+    if (!value) return null;
+    current += value;
+    recognized = true;
+  }
+
+  const value = total + current;
+  return recognized && value > 0 ? value : null;
+}
+
+function extractSpokenAmount(text: string): number | null {
+  const tokens: string[] = [...(text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .match(/[a-z]+/g) ?? [])];
+  let bestAmount: number | null = null;
+
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (tokens[index] !== 'real' && tokens[index] !== 'reais') continue;
+
+    let reais: number | null = null;
+    for (let start = Math.max(0, index - 6); start < index; start += 1) {
+      const parsed = parseSpokenInteger(tokens.slice(start, index));
+      if (parsed !== null && (reais === null || parsed > reais)) reais = parsed;
+    }
+    if (reais === null) continue;
+
+    let cents = 0;
+    const centsIndex = tokens.indexOf('centavo', index + 1) >= 0
+      ? tokens.indexOf('centavo', index + 1)
+      : tokens.indexOf('centavos', index + 1);
+    if (centsIndex > index && centsIndex - index <= 5) {
+      const parsedCents = parseSpokenInteger(tokens.slice(index + 1, centsIndex));
+      if (parsedCents !== null && parsedCents < 100) cents = parsedCents;
+    }
+
+    const amount = reais + (cents / 100);
+    if (bestAmount === null || amount > bestAmount) bestAmount = amount;
+  }
+
+  return bestAmount;
+}
+
 function extractAmountFromText(text: string): number | null {
   const standaloneAmount = text.trim().match(/^([\d.]+,\d{2}|\d+(?:\.\d{2})?)$/);
   if (standaloneAmount?.[1]) return parseBrazilianAmount(standaloneAmount[1]);
@@ -123,12 +228,30 @@ function extractAmountFromText(text: string): number | null {
   const currencyMatch = text.match(/R\$\s*([\d.]+,\d{2}|\d+(?:\.\d{2})?)/i);
   if (currencyMatch?.[1]) return parseBrazilianAmount(currencyMatch[1]);
 
+  const spendingMatch = text.match(
+    /(?:gastei|comprei|compra|custou|passei)\s+(?:de\s+)?([\d.]+,\d{2}|\d+(?:\.\d{2})?)/i,
+  );
+  if (spendingMatch?.[1]) return parseBrazilianAmount(spendingMatch[1]);
+
   const contextualMatch = text.match(
     /(?:paguei|pagamento|recebi|recebimento|valor|total|entrada|saida|sa[íi]da|por)\s+(?:de\s+)?([\d.]+,\d{2}|\d+(?:\.\d{2})?)/i,
   );
   if (contextualMatch?.[1]) return parseBrazilianAmount(contextualMatch[1]);
 
-  return null;
+  return extractSpokenAmount(text);
+}
+
+export function interpretFinancialAssistantText(message: string, context?: AssistantDraftContext) {
+  const normalizedMessage = normalizeAssistantInputText(message);
+  const kind = inferKind(normalizedMessage, context);
+  return {
+    normalizedMessage,
+    kind,
+    description: extractDescription(normalizedMessage),
+    amount: extractAmountFromText(normalizedMessage),
+    paymentMethod: inferPaymentMethod(normalizedMessage, undefined, null, context),
+    paid: inferPaid(normalizedMessage, kind, undefined, context),
+  };
 }
 
 function formatDatePart(date: Date): string {
@@ -180,9 +303,11 @@ function extractDateFromText(text: string): string | null {
 
 function inferKind(text: string, context?: AssistantDraftContext, financial?: FinancialInfo | null): DraftKind {
   const lower = text.toLowerCase();
+  if (/\b(receita|nova receita)\b/.test(lower)) return 'income';
   if (/\b(recebi|recebimento|entrada|sal[aá]rio|venda|faturamento|cliente pagou|ganhei|dep[oó]sito)\b/.test(lower)) {
     return 'income';
   }
+  if (/\b(gastei|comprei|compras|passei)\b/.test(lower)) return 'expense';
   if (/\b(paguei|pagar|despesa|boleto|fatura|compra|d[eé]bito|sa[ií]da)\b/.test(lower)) {
     return 'expense';
   }
@@ -192,6 +317,7 @@ function inferKind(text: string, context?: AssistantDraftContext, financial?: Fi
 
 function inferPaymentMethod(text: string, financial?: FinancialInfo | null, pix?: PixInfo | null, context?: AssistantDraftContext): PaymentMethod {
   const lower = text.toLowerCase();
+  if (pix || /\b(pics|pixs)\b/.test(lower)) return 'pix';
   if (pix || /\bpix\b/.test(lower)) return 'pix';
   if (financial?.tipo === 'boleto' || /\bboleto\b/.test(lower)) return 'boleto';
   if (/\b(cr[eé]dito|cart[aã]o de cr[eé]dito)\b/.test(lower)) return 'credito';
@@ -203,6 +329,7 @@ function inferPaymentMethod(text: string, financial?: FinancialInfo | null, pix?
 function inferPaid(text: string, kind: DraftKind, financial?: FinancialInfo | null, context?: AssistantDraftContext): boolean {
   const lower = text.toLowerCase();
   if (kind === 'income' && /\b(recebi|recebido|entrou|depositado)\b/.test(lower)) return true;
+  if (kind === 'expense' && /\b(gastei|comprei|compras|passei)\b/.test(lower)) return true;
   if (kind === 'expense' && /\b(paguei|pago|quitado|comprovante)\b/.test(lower)) return true;
   if (financial?.tipo === 'comprovante') return true;
   return context?.paid ?? false;
@@ -306,8 +433,9 @@ export async function createFinancialAssistantDraft(input: {
 }): Promise<FinancialAssistantResult> {
   validateInput(input.message, input.attachments);
 
+  const textInterpretation = interpretFinancialAssistantText(input.message, input.context);
   const attachments = await Promise.all(input.attachments.map(extractAttachment));
-  const combinedText = normalizeText([input.message, ...attachments.map((attachment) => attachment.text)].filter(Boolean).join(' '));
+  const combinedText = normalizeText([textInterpretation.normalizedMessage, ...attachments.map((attachment) => attachment.text)].filter(Boolean).join(' '));
   const financial = attachments.map((attachment) => attachment.financial).find((value): value is FinancialInfo => value !== null) ?? null;
   const pix = attachments.map((attachment) => attachment.pix).find((value): value is PixInfo => value !== null) ?? null;
   const kind = inferKind(combinedText, input.context, financial);
@@ -319,12 +447,12 @@ export async function createFinancialAssistantDraft(input: {
   const date = extractedDate ?? financial?.data ?? input.context?.date ?? getTodayIsoInTimezone();
   const description = financial?.empresa
     ?? pix?.nome_destinatario
-    ?? extractDescription(input.message)
+    ?? textInterpretation.description
     ?? input.context?.description
     ?? null;
   const amount = financial?.valor
     ?? pix?.valor
-    ?? extractAmountFromText(input.message)
+    ?? textInterpretation.amount
     ?? input.context?.amount
     ?? null;
   const category = description

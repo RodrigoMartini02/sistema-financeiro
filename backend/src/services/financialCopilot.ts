@@ -3,7 +3,7 @@ import { db } from '../db/client';
 import { categories, copilotConversations, copilotMessages, expenses, incomes } from '../db/schema';
 import { getTodayIsoInTimezone } from '../utils/date';
 import { classifyCopilotMessage, type CopilotIntent } from './aiProvider';
-import { inferDeterministicCopilotIntent } from './copilotIntent';
+import { inferDeterministicCopilotIntent, type CopilotIntentHint } from './copilotIntent';
 import { AiUsageLimitError, assertAiUsageWithinLimits, getActiveAiProvider, recordAiUsage } from './aiIntegrations';
 import { getBudgetOverview, resolveFinancialProfile, type FinancialProfile } from './budgetService';
 import {
@@ -39,6 +39,8 @@ export interface FinancialCopilotResponse {
 
 export class FinancialCopilotInputError extends Error {}
 
+export type AssistantIntentHint = CopilotIntentHint;
+
 interface StoredMessage {
   id: number;
   role: 'user' | 'assistant';
@@ -62,6 +64,19 @@ function validateInput(input: { message: string; month: number; year: number }):
   if (!Number.isInteger(input.month) || input.month < 0 || input.month > 11 || !Number.isInteger(input.year) || input.year < 2000 || input.year > 2100) {
     throw new FinancialCopilotInputError('Periodo financeiro invalido.');
   }
+}
+
+function hasPendingDraft(context?: AssistantDraftContext): boolean {
+  return Boolean(context && (!context.description?.trim() || !context.amount || context.amount <= 0));
+}
+
+function contextWithIntentHint(
+  context: AssistantDraftContext | undefined,
+  intentHint: AssistantIntentHint | null,
+): AssistantDraftContext | undefined {
+  if (intentHint === 'register_expense') return { ...context, kind: 'expense' };
+  if (intentHint === 'register_income') return { ...context, kind: 'income' };
+  return context;
 }
 
 function isMissingTableError(error: unknown): boolean {
@@ -301,6 +316,7 @@ export async function runFinancialCopilot(input: {
   attachments: AssistantAttachmentInput[];
   context?: AssistantDraftContext;
   conversationId: number | null;
+  intentHint: AssistantIntentHint | null;
 }): Promise<FinancialCopilotResponse> {
   validateInput(input);
   const profile = await resolveFinancialProfile(input.userId, input.profileId);
@@ -313,7 +329,11 @@ export async function runFinancialCopilot(input: {
   const history = await loadConversationHistory(conversationId);
   await storeMessage({ conversationId, role: 'user', content: input.message });
 
-  let intent = inferDeterministicCopilotIntent(input.message, input.attachments.length);
+  const draftContext = contextWithIntentHint(input.context, input.intentHint);
+  let intent = inferDeterministicCopilotIntent(input.message, input.attachments.length, {
+    intentHint: input.intentHint,
+    hasPendingDraft: hasPendingDraft(draftContext),
+  });
   let providerName: 'openai' | 'anthropic' | 'gemini' | 'deterministic' = 'deterministic';
   let providerModel: string | null = null;
   let inputTokens = 0;
@@ -345,7 +365,7 @@ export async function runFinancialCopilot(input: {
     const draftResult = await createFinancialAssistantDraft({
       message: input.message,
       attachments: input.attachments,
-      context: input.context,
+      context: draftContext,
       userId: input.userId,
     });
     const response: FinancialCopilotResponse = {

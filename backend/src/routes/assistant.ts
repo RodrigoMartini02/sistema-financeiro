@@ -11,6 +11,7 @@ import {
   listCopilotConversations,
   runFinancialCopilot,
   FinancialCopilotInputError,
+  type AssistantIntentHint,
 } from '../services/financialCopilot';
 
 const router = Router();
@@ -55,6 +56,12 @@ function asContext(value: unknown): AssistantDraftContext | undefined {
     paymentMethod,
     paid: typeof context.paid === 'boolean' ? context.paid : undefined,
   };
+}
+
+function asIntentHint(value: unknown): AssistantIntentHint | null {
+  if (value === undefined || value === null || value === '') return null;
+  if (value === 'register_expense' || value === 'register_income' || value === 'ask') return value;
+  throw new FinancialAssistantInputError('Comando da assistente invalido.');
 }
 
 function asOptionalPositiveInteger(value: unknown): number | null {
@@ -111,6 +118,7 @@ router.post('/chat', async (req: Request, res: Response): Promise<void> => {
       attachments: asAttachments(body['attachments']),
       context: asContext(body['context']),
       conversationId: asOptionalPositiveInteger(body['conversa_id']),
+      intentHint: asIntentHint(body['intent_hint']),
     });
     res.json({ success: true, data: result });
   } catch (error) {

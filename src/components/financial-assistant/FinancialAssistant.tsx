@@ -6,7 +6,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Attachment, Expense, Income } from '../../types/finance';
 import type { FinancialAssistantDraft } from '../../types/financialAssistant';
-import type { FinancialCopilotCard } from '../../types/financialCopilot';
+import type { FinancialCopilotCard, FinancialCopilotIntentHint } from '../../types/financialCopilot';
 import {
   deleteFinancialCopilotConversation,
   fetchFinancialCopilotConversation,
@@ -26,6 +26,7 @@ interface ChatMessage {
   content: string;
   attachmentNames?: string[];
   cards?: FinancialCopilotCard[];
+  showWelcomeActions?: boolean;
 }
 interface SpeechRecognitionResultLike {
   transcript: string;
@@ -65,7 +66,30 @@ const ACCEPTED_FILE_TYPES = new Set([
 const initialMessage: ChatMessage = {
   id: 'welcome',
   role: 'assistant',
-  content: 'Oi! Posso registrar receitas e despesas, ler comprovantes e responder sobre o seu periodo financeiro. Nada e salvo sem voce confirmar.',
+  content: 'Ola! Como posso ajudar com suas financas hoje?',
+  showWelcomeActions: true,
+};
+
+const INTENT_DETAILS: Record<FinancialCopilotIntentHint, {
+  label: string;
+  description: string;
+  placeholder: string;
+}> = {
+  register_expense: {
+    label: 'Registrar despesa',
+    description: 'Conte o que comprou e quanto pagou.',
+    placeholder: 'Ex.: Comprei no mercado e paguei R$ 100 no Pix.',
+  },
+  register_income: {
+    label: 'Registrar receita',
+    description: 'Conte o que recebeu e de onde veio.',
+    placeholder: 'Ex.: Recebi R$ 3.000 de salario hoje.',
+  },
+  ask: {
+    label: 'Fazer uma pergunta',
+    description: 'Pergunte sobre seu periodo financeiro.',
+    placeholder: 'Ex.: Quanto gastei este mes?',
+  },
 };
 
 function formatCurrency(value: number | null): string {
@@ -191,6 +215,8 @@ export function FinancialAssistant() {
   const [isPreparing, setIsPreparing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [intentHint, setIntentHint] = useState<FinancialCopilotIntentHint | null>(null);
+  const [lastVoiceTranscript, setLastVoiceTranscript] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
@@ -221,6 +247,8 @@ export function FinancialAssistant() {
     dashboardQuery.data?.incomes ?? [],
     dashboardQuery.data?.expenses ?? [],
   );
+  const activeIntent = intentHint ? INTENT_DETAILS[intentHint] : null;
+  const composerPlaceholder = activeIntent?.placeholder ?? 'Ex.: Quanto gastei este mes?';
 
   useEffect(() => {
     if (open) {
@@ -236,6 +264,13 @@ export function FinancialAssistant() {
 
   const updateDraft = (patch: Partial<FinancialAssistantDraft>) => {
     setDraft((current) => current ? { ...current, ...patch } : current);
+  };
+
+  const selectIntent = (nextIntent: FinancialCopilotIntentHint) => {
+    setIntentHint(nextIntent);
+    setLastVoiceTranscript(null);
+    setError(null);
+    window.setTimeout(() => composerRef.current?.focus(), 0);
   };
 
   const handleFiles = async (files: FileList | null) => {
@@ -286,6 +321,7 @@ export function FinancialAssistant() {
     ]);
     setComposer('');
     setAttachments([]);
+    setLastVoiceTranscript(null);
     setIsPreparing(true);
 
     try {
@@ -296,8 +332,10 @@ export function FinancialAssistant() {
         attachments: messageAttachments,
         context: draft ?? undefined,
         conversationId,
+        intentHint,
       });
       setConversationId(result.conversationId);
+      setIntentHint(null);
       if (result.mode === 'draft' && result.draft) {
         setDraft(result.draft);
         setDraftAttachments((current) => messageAttachments.length > 0 ? [...current, ...messageAttachments] : current);
@@ -321,6 +359,10 @@ export function FinancialAssistant() {
     setMessages([initialMessage]);
     setDraft(null);
     setDraftAttachments([]);
+    setComposer('');
+    setAttachments([]);
+    setIntentHint(null);
+    setLastVoiceTranscript(null);
     setHistoryOpen(false);
     setHasRestoredLatest(true);
     setError(null);
@@ -339,6 +381,8 @@ export function FinancialAssistant() {
       })));
       setDraft(null);
       setDraftAttachments([]);
+      setIntentHint(null);
+      setLastVoiceTranscript(null);
       setHistoryOpen(false);
       setHasRestoredLatest(true);
     } catch (requestError) {
@@ -384,8 +428,10 @@ export function FinancialAssistant() {
       const transcript = Array.from({ length: event.results.length - event.resultIndex }, (_, index) => {
         const result = event.results[event.resultIndex + index];
         return result?.[0]?.transcript ?? '';
-      }).join(' ');
+      }).join(' ').trim();
+      if (!transcript) return;
       setComposer((current) => [current, transcript].filter(Boolean).join(current ? ' ' : ''));
+      setLastVoiceTranscript(transcript);
     };
     recognition.onerror = (event) => {
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
@@ -396,8 +442,13 @@ export function FinancialAssistant() {
     };
     recognition.onend = () => setIsListening(false);
     recognitionRef.current = recognition;
-    setIsListening(true);
-    recognition.start();
+    try {
+      setIsListening(true);
+      recognition.start();
+    } catch {
+      setIsListening(false);
+      setError('Nao foi possivel iniciar a gravacao de voz. Tente novamente.');
+    }
   };
 
   const handleSave = async () => {
@@ -555,12 +606,46 @@ export function FinancialAssistant() {
                 {messages.map((message) => (
                   <div key={message.id} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
                     <div className={[
-                      'max-w-[86%] px-3.5 py-2.5 text-sm leading-relaxed shadow-sm',
+                      message.showWelcomeActions ? 'max-w-[94%]' : 'max-w-[86%]',
+                      'px-3.5 py-2.5 text-sm leading-relaxed shadow-sm',
                       message.role === 'user'
                         ? 'rounded-l-xl rounded-br-xl bg-[#0C9EAF] text-white'
                         : 'rounded-r-xl rounded-bl-xl border border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100',
                     ].join(' ')}>
                       <p>{message.content}</p>
+                      {message.showWelcomeActions && (
+                        <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+                          <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                            Para registrar uma nova despesa, conte o que comprou e quanto pagou. Para consultar suas financas, faca uma pergunta.
+                          </p>
+                          <div className="mt-3 grid gap-2">
+                            <button
+                              type="button"
+                              onClick={() => selectIntent('register_expense')}
+                              className="flex items-center gap-2 border border-slate-200 px-2.5 py-2 text-left transition hover:border-cyan-300 hover:bg-cyan-50 dark:border-slate-700 dark:hover:border-cyan-800 dark:hover:bg-cyan-950/30"
+                            >
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300"><Plus size={15} /></span>
+                              <span className="min-w-0"><span className="block text-xs font-semibold text-slate-800 dark:text-slate-100">Registrar despesa</span><span className="block truncate text-[11px] text-slate-500 dark:text-slate-400">Conte o que comprou e quanto pagou.</span></span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => selectIntent('register_income')}
+                              className="flex items-center gap-2 border border-slate-200 px-2.5 py-2 text-left transition hover:border-cyan-300 hover:bg-cyan-50 dark:border-slate-700 dark:hover:border-cyan-800 dark:hover:bg-cyan-950/30"
+                            >
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300"><Plus size={15} /></span>
+                              <span className="min-w-0"><span className="block text-xs font-semibold text-slate-800 dark:text-slate-100">Registrar receita</span><span className="block truncate text-[11px] text-slate-500 dark:text-slate-400">Conte o que recebeu e de onde veio.</span></span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => selectIntent('ask')}
+                              className="flex items-center gap-2 border border-slate-200 px-2.5 py-2 text-left transition hover:border-cyan-300 hover:bg-cyan-50 dark:border-slate-700 dark:hover:border-cyan-800 dark:hover:bg-cyan-950/30"
+                            >
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center bg-cyan-50 text-[#087B89] dark:bg-cyan-950/40 dark:text-cyan-300"><MessageCircleMore size={15} /></span>
+                              <span className="min-w-0"><span className="block text-xs font-semibold text-slate-800 dark:text-slate-100">Fazer uma pergunta</span><span className="block truncate text-[11px] text-slate-500 dark:text-slate-400">Pergunte sobre seu periodo financeiro.</span></span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
                       {message.attachmentNames?.map((name) => (
                         <p key={name} className="mt-2 flex items-center gap-1.5 text-xs text-inherit/75">
                           <FileText size={13} /> {name}
@@ -720,6 +805,29 @@ export function FinancialAssistant() {
 
             <footer className="shrink-0 border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
               {error && <p className="mb-2 text-xs font-medium text-red-600 dark:text-red-300">{error}</p>}
+              {activeIntent && (
+                <div className="mb-2 flex items-center gap-2 border-l-2 border-[#0C9EAF] bg-cyan-50 px-2.5 py-2 dark:bg-cyan-950/30">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-cyan-900 dark:text-cyan-100">{activeIntent.label}</p>
+                    <p className="truncate text-[11px] text-cyan-800/75 dark:text-cyan-200/75">{activeIntent.description}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIntentHint(null)}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center text-cyan-800 transition hover:bg-cyan-100 dark:text-cyan-200 dark:hover:bg-cyan-900/50"
+                    aria-label="Remover contexto da mensagem"
+                    title="Remover contexto"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              )}
+              {lastVoiceTranscript && (
+                <p className="mb-2 flex items-start gap-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                  <Mic size={13} className="mt-0.5 shrink-0 text-[#0C9EAF]" />
+                  <span>Entendi: &ldquo;{lastVoiceTranscript}&rdquo;. Confira antes de enviar.</span>
+                </p>
+              )}
               {attachments.length > 0 && (
                 <div className="mb-2 flex flex-wrap gap-1.5">
                   {attachments.map((attachment) => (
@@ -771,7 +879,7 @@ export function FinancialAssistant() {
                       void handleSend();
                     }
                   }}
-                  placeholder="Ex.: Quanto gastei este mes?"
+                  placeholder={composerPlaceholder}
                   className="max-h-28 min-h-10 flex-1 resize-none border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#0C9EAF] focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:bg-slate-950"
                 />
                 <button

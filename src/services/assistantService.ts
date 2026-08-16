@@ -35,6 +35,7 @@ export async function sendFinancialCopilotMessage(
       attachments: payload.attachments ?? [],
       context: payload.context,
       conversa_id: payload.conversationId ?? null,
+      intent_hint: payload.intentHint ?? null,
     }),
   });
 }
