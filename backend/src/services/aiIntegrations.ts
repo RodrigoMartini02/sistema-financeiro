@@ -41,7 +41,7 @@ function toSettings(row: typeof aiIntegrations.$inferSelect): AiIntegrationSetti
 
 function validateProvider(value: unknown): AiProviderName {
   if (typeof value !== 'string' || !PROVIDERS.has(value as AiProviderName)) {
-    throw new AiIntegrationInputError('Selecione um provedor de IA valido.');
+    throw new AiIntegrationInputError('Selecione um provedor de IA válido.');
   }
   return value as AiProviderName;
 }
@@ -118,7 +118,7 @@ export async function testAiIntegration(input: {
   const suppliedApiKey = typeof input.apiKey === 'string' ? input.apiKey.trim() : '';
   const [existing] = await db.select().from(aiIntegrations).where(eq(aiIntegrations.provider, provider)).limit(1);
   const apiKey = suppliedApiKey || (existing ? decryptKey(existing.encryptedApiKey) : '');
-  if (!model || !apiKey) throw new AiIntegrationInputError('Informe modelo e chave para testar a integracao.');
+  if (!model || !apiKey) throw new AiIntegrationInputError('Informe modelo e chave para testar a integração.');
   await classifyCopilotMessage({ provider, model, apiKey }, 'Ola. Responda com a intencao help.');
 }
 
@@ -132,10 +132,10 @@ export async function assertAiUsageWithinLimits(userId: number): Promise<void> {
     db.select({ total: count() }).from(aiUsageEvents).where(externalUsage),
   ]);
   if ((userUsage?.total ?? 0) >= perUserLimit) {
-    throw new AiUsageLimitError('O limite diario de uso de IA deste usuario foi atingido.');
+    throw new AiUsageLimitError('O limite diário de uso de IA deste usuário foi atingido.');
   }
   if ((globalUsage?.total ?? 0) >= globalLimit) {
-    throw new AiUsageLimitError('O limite diario global de uso de IA foi atingido.');
+    throw new AiUsageLimitError('O limite diário global de uso de IA foi atingido.');
   }
 }
 

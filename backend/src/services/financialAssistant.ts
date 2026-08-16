@@ -81,17 +81,17 @@ export function normalizeAssistantInputText(value: string): string {
 function normalizeBase64(value: string): Buffer {
   const normalized = value.replace(/\s/g, '');
   if (!normalized || !/^[A-Za-z0-9+/]+={0,2}$/.test(normalized)) {
-    throw new FinancialAssistantInputError('O arquivo enviado nao esta em um formato valido.');
+    throw new FinancialAssistantInputError('O arquivo enviado não está em um formato válido.');
   }
 
   const estimatedBytes = Math.floor((normalized.length * 3) / 4);
   if (estimatedBytes > MAX_ATTACHMENT_BYTES) {
-    throw new FinancialAssistantInputError('Cada arquivo pode ter no maximo 10 MB.');
+    throw new FinancialAssistantInputError('Cada arquivo pode ter no máximo 10 MB.');
   }
 
   const buffer = Buffer.from(normalized, 'base64');
   if (buffer.length === 0 || buffer.length > MAX_ATTACHMENT_BYTES) {
-    throw new FinancialAssistantInputError('Cada arquivo pode ter no maximo 10 MB.');
+    throw new FinancialAssistantInputError('Cada arquivo pode ter no máximo 10 MB.');
   }
 
   return buffer;
@@ -390,12 +390,12 @@ function calculateConfidence(draft: Omit<FinancialAssistantDraft, 'confidence'>,
 function buildReply(kind: DraftKind, draft: FinancialAssistantDraft, missingFields: Array<'description' | 'amount'>, usedDefaultDate: boolean): string {
   const label = kind === 'income' ? 'receita' : 'despesa';
   if (missingFields.length > 0) {
-    const labels = missingFields.map((field) => field === 'description' ? 'a descricao' : 'o valor');
+    const labels = missingFields.map((field) => field === 'description' ? 'a descrição' : 'o valor');
     return `Identifiquei uma ${label}, mas ainda preciso de ${labels.join(' e ')} para montar o rascunho.`;
   }
 
   const amount = draft.amount?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) ?? '';
-  const dateNote = usedDefaultDate ? ' Usei a data de hoje como referencia.' : '';
+  const dateNote = usedDefaultDate ? ' Usei a data de hoje como referência.' : '';
   return `Preparei uma ${label} de ${amount}. Confira os dados antes de confirmar.${dateNote}`;
 }
 
@@ -404,12 +404,12 @@ async function extractAttachment(attachment: AssistantAttachmentInput): Promise<
     throw new FinancialAssistantInputError('Envie PDF, imagem JPG/PNG/WEBP ou arquivo TXT para leitura.');
   }
   if (!attachment.nome || attachment.nome.length > 180 || !Number.isFinite(attachment.tamanho) || attachment.tamanho < 1) {
-    throw new FinancialAssistantInputError('O anexo enviado nao e valido.');
+    throw new FinancialAssistantInputError('O anexo enviado não é válido.');
   }
 
   const buffer = normalizeBase64(attachment.dados);
   if (attachment.tamanho > MAX_ATTACHMENT_BYTES || buffer.length > MAX_ATTACHMENT_BYTES) {
-    throw new FinancialAssistantInputError('Cada arquivo pode ter no maximo 10 MB.');
+    throw new FinancialAssistantInputError('Cada arquivo pode ter no máximo 10 MB.');
   }
 
   if (attachment.tipo === 'text/plain') {
@@ -433,7 +433,7 @@ async function extractAttachment(attachment: AssistantAttachmentInput): Promise<
     ]);
     return { text, financial: extractFinancialInfo(text), pix, source: 'image' };
   } catch {
-    throw new FinancialAssistantInputError('Nao foi possivel ler este arquivo. Tente uma imagem ou PDF mais nitido.');
+    throw new FinancialAssistantInputError('Não foi possível ler este arquivo. Tente uma imagem ou PDF mais nítido.');
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -441,10 +441,10 @@ async function extractAttachment(attachment: AssistantAttachmentInput): Promise<
 
 function validateInput(message: string, attachments: AssistantAttachmentInput[]): void {
   if (message.length > MAX_MESSAGE_LENGTH) {
-    throw new FinancialAssistantInputError('A mensagem pode ter no maximo 2.000 caracteres.');
+    throw new FinancialAssistantInputError('A mensagem pode ter no máximo 2.000 caracteres.');
   }
   if (attachments.length > MAX_ATTACHMENTS) {
-    throw new FinancialAssistantInputError('Envie no maximo tres arquivos por vez.');
+    throw new FinancialAssistantInputError('Envie no máximo três arquivos por vez.');
   }
   if (!message.trim() && attachments.length === 0) {
     throw new FinancialAssistantInputError('Escreva uma mensagem ou envie um arquivo para continuar.');

@@ -57,7 +57,7 @@ function asNumber(value: string | number | null | undefined): number {
 
 function validatePeriod(month: number, year: number): void {
   if (!Number.isInteger(month) || month < 0 || month > 11 || !Number.isInteger(year) || year < 2000 || year > 2100) {
-    throw new BudgetInputError('Periodo financeiro invalido.');
+    throw new BudgetInputError('Período financeiro inválido.');
   }
 }
 
@@ -71,7 +71,7 @@ export async function resolveFinancialProfile(userId: number, requestedProfileId
     .where(where)
     .limit(1);
 
-  if (!profile) throw new BudgetInputError('Perfil financeiro nao encontrado.');
+  if (!profile) throw new BudgetInputError('Perfil financeiro não encontrado.');
   return profile;
 }
 
@@ -267,22 +267,22 @@ export async function saveBudgetTarget(input: {
   targetValue: unknown;
 }): Promise<void> {
   const profile = await resolveFinancialProfile(input.userId, input.profileId);
-  if (profile.type !== 'pessoal') throw new BudgetInputError('Metas de orcamento estao disponiveis apenas no perfil pessoal.');
+  if (profile.type !== 'pessoal') throw new BudgetInputError('Metas de orçamento estão disponíveis apenas no perfil pessoal.');
   const categoryId = Number(input.categoryId);
   const mode: 'amount' | 'income_percent' | null = input.mode === 'amount' || input.mode === 'income_percent'
     ? input.mode
     : null;
   const targetValue = Number(input.targetValue);
   if (!Number.isInteger(categoryId) || !mode || !Number.isFinite(targetValue) || targetValue <= 0) {
-    throw new BudgetInputError('Informe uma categoria, tipo e valor de meta validos.');
+    throw new BudgetInputError('Informe uma categoria, tipo e valor de meta válidos.');
   }
   if ((mode === 'income_percent' && targetValue > 100) || (mode === 'amount' && targetValue > 9_999_999)) {
-    throw new BudgetInputError('O valor da meta esta fora do limite permitido.');
+    throw new BudgetInputError('O valor da meta está fora do limite permitido.');
   }
 
   const [category] = await db.select({ id: categories.id }).from(categories)
     .where(and(eq(categories.id, categoryId), eq(categories.userId, input.userId))).limit(1);
-  if (!category) throw new BudgetInputError('Categoria nao encontrada.');
+  if (!category) throw new BudgetInputError('Categoria não encontrada.');
 
   const [existing] = await db.select({ id: budgetTargets.id }).from(budgetTargets)
     .where(and(eq(budgetTargets.userId, input.userId), eq(budgetTargets.profileId, profile.id), eq(budgetTargets.categoryId, categoryId))).limit(1);

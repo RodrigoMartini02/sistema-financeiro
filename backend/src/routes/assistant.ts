@@ -25,7 +25,7 @@ function asAttachments(value: unknown): AssistantAttachmentInput[] {
 
   return value.map((attachment) => {
     if (!attachment || typeof attachment !== 'object') {
-      throw new FinancialAssistantInputError('O anexo enviado nao e valido.');
+      throw new FinancialAssistantInputError('O anexo enviado não é válido.');
     }
 
     const data = attachment as Record<string, unknown>;
@@ -61,25 +61,25 @@ function asContext(value: unknown): AssistantDraftContext | undefined {
 function asIntentHint(value: unknown): AssistantIntentHint | null {
   if (value === undefined || value === null || value === '') return null;
   if (value === 'register_expense' || value === 'register_income' || value === 'ask') return value;
-  throw new FinancialAssistantInputError('Comando da assistente invalido.');
+  throw new FinancialAssistantInputError('Comando da assistente inválido.');
 }
 
 function asOptionalPositiveInteger(value: unknown): number | null {
   if (value === undefined || value === null || value === '') return null;
   const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) throw new FinancialAssistantInputError('Identificador invalido.');
+  if (!Number.isInteger(parsed) || parsed <= 0) throw new FinancialAssistantInputError('Identificador inválido.');
   return parsed;
 }
 
 function asMonth(value: unknown): number {
   const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 11) throw new FinancialAssistantInputError('Mes invalido.');
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 11) throw new FinancialAssistantInputError('Mês inválido.');
   return parsed;
 }
 
 function asYear(value: unknown): number {
   const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < 2000 || parsed > 2100) throw new FinancialAssistantInputError('Ano invalido.');
+  if (!Number.isInteger(parsed) || parsed < 2000 || parsed > 2100) throw new FinancialAssistantInputError('Ano inválido.');
   return parsed;
 }
 
@@ -101,7 +101,7 @@ router.post('/financial-draft', async (req: Request, res: Response): Promise<voi
     }
 
     console.error('Financial assistant draft failed:', (error as Error).message);
-    res.status(500).json({ success: false, message: 'Nao foi possivel preparar o rascunho financeiro.' });
+    res.status(500).json({ success: false, message: 'Não foi possível preparar o rascunho financeiro.' });
   }
 });
 
@@ -127,7 +127,7 @@ router.post('/chat', async (req: Request, res: Response): Promise<void> => {
       return;
     }
     console.error('Financial copilot chat failed:', (error as Error).message);
-    res.status(500).json({ success: false, message: 'Nao foi possivel responder agora.' });
+    res.status(500).json({ success: false, message: 'Não foi possível responder agora.' });
   }
 });
 
@@ -145,7 +145,7 @@ router.get('/conversations', async (req: Request, res: Response): Promise<void> 
       return;
     }
     console.error('List copilot conversations failed:', (error as Error).message);
-    res.status(500).json({ success: false, message: 'Nao foi possivel carregar o historico.' });
+    res.status(500).json({ success: false, message: 'Não foi possível carregar o histórico.' });
   }
 });
 
@@ -164,7 +164,7 @@ router.get('/conversations/:id', async (req: Request, res: Response): Promise<vo
       return;
     }
     console.error('Get copilot conversation failed:', (error as Error).message);
-    res.status(500).json({ success: false, message: 'Nao foi possivel carregar a conversa.' });
+    res.status(500).json({ success: false, message: 'Não foi possível carregar a conversa.' });
   }
 });
 
@@ -183,7 +183,7 @@ router.delete('/conversations/:id', async (req: Request, res: Response): Promise
       return;
     }
     console.error('Delete copilot conversation failed:', (error as Error).message);
-    res.status(500).json({ success: false, message: 'Nao foi possivel remover a conversa.' });
+    res.status(500).json({ success: false, message: 'Não foi possível remover a conversa.' });
   }
 });
 

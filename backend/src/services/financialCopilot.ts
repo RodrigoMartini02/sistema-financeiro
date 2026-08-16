@@ -60,9 +60,9 @@ function normalizeText(value: string): string {
 
 function validateInput(input: { message: string; month: number; year: number }): void {
   if (!input.message.trim()) throw new FinancialCopilotInputError('Escreva uma mensagem para continuar.');
-  if (input.message.length > 2_000) throw new FinancialCopilotInputError('A mensagem pode ter no maximo 2.000 caracteres.');
+  if (input.message.length > 2_000) throw new FinancialCopilotInputError('A mensagem pode ter no máximo 2.000 caracteres.');
   if (!Number.isInteger(input.month) || input.month < 0 || input.month > 11 || !Number.isInteger(input.year) || input.year < 2000 || input.year > 2100) {
-    throw new FinancialCopilotInputError('Periodo financeiro invalido.');
+    throw new FinancialCopilotInputError('Período financeiro inválido.');
   }
 }
 
@@ -125,7 +125,7 @@ async function ensureConversation(input: {
         eq(copilotConversations.userId, input.userId),
         eq(copilotConversations.profileId, input.profileId),
       )).limit(1);
-    if (!conversation) throw new FinancialCopilotInputError('Conversa nao encontrada.');
+    if (!conversation) throw new FinancialCopilotInputError('Conversa não encontrada.');
     return conversation.id;
   } catch (error) {
     if (isMissingTableError(error)) return null;
@@ -181,7 +181,7 @@ async function buildSummaryCard(userId: number, profile: FinancialProfile, month
   const expenseTotal = expenseRows.reduce((total, row) => total + asNumber(row.amount ?? row.originalAmount), 0);
   return {
     type: 'summary',
-    title: 'Resumo do periodo',
+    title: 'Resumo do período',
     items: [
       { label: 'Receitas', value: incomeTotal, tone: 'positive' },
       { label: 'Despesas', value: expenseTotal, tone: 'danger' },
@@ -232,7 +232,7 @@ async function buildTransactionsCard(input: {
     .slice(0, 10);
   return {
     type: 'transactions',
-    title: normalizedSearch ? `Lancamentos: ${input.searchTerm}` : 'Lancamentos recentes',
+    title: normalizedSearch ? `Lançamentos: ${input.searchTerm}` : 'Lançamentos recentes',
     items: records.map((record) => ({
       label: record.label,
       value: record.value,
@@ -249,7 +249,7 @@ async function buildUpcomingCard(userId: number, profile: FinancialProfile, mont
   const upcoming = rows.filter((row) => !row.paid && String(row.dueDate) >= today).slice(0, 8);
   return {
     type: 'upcoming',
-    title: 'Proximos vencimentos',
+    title: 'Próximos vencimentos',
     items: upcoming.map((row) => ({
       label: row.description,
       value: asNumber(row.amount ?? row.originalAmount),
@@ -263,7 +263,7 @@ async function buildBudgetCard(userId: number, profile: FinancialProfile, month:
   const overview = await getBudgetOverview({ userId, profileId: profile.id, month, year });
   return {
     type: 'budget',
-    title: overview.profileType === 'empresa' ? 'Orcamento pessoal indisponivel neste perfil' : 'Acompanhamento do orcamento',
+    title: overview.profileType === 'empresa' ? 'Orçamento pessoal indisponível neste perfil' : 'Acompanhamento do orçamento',
     items: overview.items.filter((item) => item.targetAmount !== null).slice(0, 8).map((item) => ({
       label: item.categoryName,
       value: item.projectedAmount,
@@ -274,12 +274,12 @@ async function buildBudgetCard(userId: number, profile: FinancialProfile, month:
 }
 
 function responseForCard(intent: CopilotIntent, card: CopilotCard): string {
-  if (card.items.length === 0) return 'Nao encontrei dados para esta consulta no periodo selecionado.';
-  if (intent === 'summary') return 'Aqui esta o resumo financeiro do periodo selecionado.';
-  if (intent === 'categories') return 'Organizei os gastos por categoria para voce comparar.';
-  if (intent === 'transactions') return 'Separei os lancamentos encontrados no periodo.';
-  if (intent === 'upcoming') return 'Estas sao as proximas despesas ainda previstas no periodo.';
-  return 'Este e o acompanhamento das metas que voce definiu.';
+  if (card.items.length === 0) return 'Não encontrei dados para esta consulta no período selecionado.';
+  if (intent === 'summary') return 'Aqui está o resumo financeiro do período selecionado.';
+  if (intent === 'categories') return 'Organizei os gastos por categoria para você comparar.';
+  if (intent === 'transactions') return 'Separei os lançamentos encontrados no período.';
+  if (intent === 'upcoming') return 'Estas são as próximas despesas ainda previstas no período.';
+  return 'Este é o acompanhamento das metas que você definiu.';
 }
 
 export async function listCopilotConversations(input: { userId: number; profileId: number | null }): Promise<Array<{ id: number; title: string; updatedAt: Date | string }>> {
@@ -294,7 +294,7 @@ export async function getCopilotConversation(input: { userId: number; profileId:
   const profile = await resolveFinancialProfile(input.userId, input.profileId);
   const [conversation] = await db.select({ id: copilotConversations.id }).from(copilotConversations)
     .where(and(eq(copilotConversations.id, input.conversationId), eq(copilotConversations.userId, input.userId), eq(copilotConversations.profileId, profile.id))).limit(1);
-  if (!conversation) throw new FinancialCopilotInputError('Conversa nao encontrada.');
+  if (!conversation) throw new FinancialCopilotInputError('Conversa não encontrada.');
   return loadConversationHistory(conversation.id);
 }
 
@@ -397,7 +397,7 @@ export async function runFinancialCopilot(input: {
     : {
       conversationId,
       mode: 'help',
-      reply: 'Posso registrar receitas e despesas, analisar comprovantes, mostrar resumo, categorias, lancamentos, vencimentos e suas metas de orcamento.',
+      reply: 'Posso registrar receitas e despesas, analisar comprovantes, mostrar resumo, categorias, lançamentos, vencimentos e suas metas de orçamento.',
       cards: [],
       draft: null,
       missingFields: [],

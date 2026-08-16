@@ -61,7 +61,7 @@ export function BudgetPanel({ month, year, toolbarStart }: BudgetPanelProps) {
       setEditingCategoryId(null);
       setTargetValue('');
     },
-    onError: (error) => setFormError(error instanceof Error ? error.message : 'Nao foi possivel salvar a meta.'),
+    onError: (error) => setFormError(error instanceof Error ? error.message : 'Não foi possível salvar a meta.'),
   });
   const removeMutation = useMutation({
     mutationFn: deleteBudgetTarget,
@@ -138,7 +138,7 @@ export function BudgetPanel({ month, year, toolbarStart }: BudgetPanelProps) {
                 : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200',
             ].join(' ')}>
               <AlertTriangle size={15} className="shrink-0" />
-              <span><strong>{item.categoryName}</strong> esta em {statusLabel(item)}.</span>
+              <span><strong>{item.categoryName}</strong> está em {statusLabel(item)}.</span>
             </div>
           ))}
         </div>
@@ -152,7 +152,7 @@ export function BudgetPanel({ month, year, toolbarStart }: BudgetPanelProps) {
               type="button"
               onClick={() => setEditingCategoryId(null)}
               className="flex h-8 w-8 items-center justify-center text-slate-500 hover:bg-white hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
-              aria-label="Cancelar edicao da meta"
+              aria-label="Cancelar edição da meta"
               title="Cancelar"
             >
               <X size={16} />
@@ -160,7 +160,7 @@ export function BudgetPanel({ month, year, toolbarStart }: BudgetPanelProps) {
           </div>
           {selectedItem?.suggestedAmount && !selectedItem.mode && (
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Sugestao pela media dos tres meses anteriores: {formatCurrency(selectedItem.suggestedAmount)}.
+              Sugestão pela média dos três meses anteriores: {formatCurrency(selectedItem.suggestedAmount)}.
             </p>
           )}
           <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
@@ -249,7 +249,7 @@ export function BudgetPanel({ month, year, toolbarStart }: BudgetPanelProps) {
               <th className="py-2 pr-3 font-semibold">Projetado</th>
               <th className="py-2 pr-3 font-semibold">Meta</th>
               <th className="py-2 pr-3 font-semibold">Receita</th>
-              <th className="py-2 text-right font-semibold">Acoes</th>
+              <th className="py-2 text-right font-semibold">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
