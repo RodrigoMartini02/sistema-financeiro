@@ -504,6 +504,15 @@ export function FinancialAssistant() {
     }
   };
 
+  const discardDraft = () => {
+    if (isSaving) return;
+    setDraft(null);
+    setDraftAttachments([]);
+    setError(null);
+    setLastVoiceTranscript(null);
+    window.setTimeout(() => composerRef.current?.focus(), 0);
+  };
+
   return (
     <>
       <button
@@ -787,15 +796,25 @@ export function FinancialAssistant() {
                       </p>
                     )}
 
-                    <button
-                      type="button"
-                      onClick={handleSave}
-                      disabled={isSaving}
-                      className="mt-3 flex h-10 w-full items-center justify-center gap-2 bg-[#0C9EAF] px-4 text-sm font-semibold text-white transition hover:bg-[#087B89] disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isSaving ? <LoaderCircle size={16} className="animate-spin" /> : <Check size={16} />}
-                      {isSaving ? 'Salvando...' : `Confirmar ${formatCurrency(draft.amount)}`}
-                    </button>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-[auto_minmax(0,1fr)]">
+                      <button
+                        type="button"
+                        onClick={discardDraft}
+                        disabled={isSaving}
+                        className="flex h-10 items-center justify-center gap-2 border border-slate-300 px-3 text-sm font-semibold text-slate-700 transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:border-rose-900 dark:hover:bg-rose-950/30 dark:hover:text-rose-300"
+                      >
+                        <X size={16} /> Descartar rascunho
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={isSaving}
+                        className="flex h-10 min-w-0 items-center justify-center gap-2 bg-[#0C9EAF] px-4 text-sm font-semibold text-white transition hover:bg-[#087B89] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isSaving ? <LoaderCircle size={16} className="animate-spin" /> : <Check size={16} />}
+                        {isSaving ? 'Salvando...' : `Confirmar ${formatCurrency(draft.amount)}`}
+                      </button>
+                    </div>
                   </div>
                 )}
 
