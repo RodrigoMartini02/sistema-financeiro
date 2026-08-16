@@ -9,7 +9,7 @@
     "dev": "tsx watch src/server.ts",
     "dev:local": "set DOTENV_CONFIG_PATH=../../.env&& tsx watch src/server.ts",
     "build": "tsc --noEmit",
-    "test": "tsx --test src/services/plan-access.test.ts"
+    "test": "tsx --test src/services/*.test.ts"
   },
   "keywords": [
     "financeiro",

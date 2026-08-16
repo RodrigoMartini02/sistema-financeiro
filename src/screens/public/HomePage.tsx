@@ -6,9 +6,9 @@ import { SiteHeader } from './components/SiteHeader';
 import { LoginModal } from './components/LoginModal';
 import { TermosModal } from './TermosModal';
 import { SitePageHero } from './components/SitePageHero';
-import { HeroDashboardPreview } from './components/HeroDashboardPreview';
-import { HomeBenefitsSection } from './components/HomeBenefitsSection';
-import { HomeHowItWorksSection } from './components/HomeHowItWorksSection';
+import { HomeBenefitsHighlights } from './components/HomeBenefitsHighlights';
+import { HomeInteractiveDemo } from './components/demo-app/HomeInteractiveDemo';
+import { ScrollReveal } from './components/ScrollReveal';
 import { CookieBanner } from '../../components/CookieBanner';
 import { apiRequest } from '../../services/apiClient';
 
@@ -83,51 +83,59 @@ export function HomePage({ notice }: HomePageProps) {
           label="HOME"
           title="Controle financeiro com clareza."
           description="Organize sua vida financeira e sua empresa em perfis separados, com saldos, cartões, reservas e relatórios sempre visíveis."
+          scrollHintLabel="Veja funcionando abaixo"
+          scrollHintTargetId="demo-interativa-title"
         />
-        <section className="public-light-panel border-b border-slate-200 bg-white">
-          <div className="mx-auto max-w-[1800px] px-5 py-10 sm:px-8 xl:px-10 xl:py-12">
-            <div className="max-w-[1800px]">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-700">VISÃO DO SISTEMA</p>
-              <h2 className="mt-4 text-[clamp(26px,2.2vw,42px)] font-light leading-[1.16] tracking-[0.02em] text-slate-950">
-                Painel financeiro organizado desde o primeiro acesso.
-              </h2>
-              <p className="mt-4 max-w-[680px] text-[15px] font-light leading-[1.75] text-slate-600">
-                Acompanhe receitas, despesas, saldo e próximos compromissos em uma tela feita para leitura rápida e rotina diária.
-              </p>
-            </div>
-            <HeroDashboardPreview />
-          </div>
-        </section>
-        <HomeBenefitsSection />
-
-        <HomeHowItWorksSection onOpenRegister={openRegister} />
+        <HomeBenefitsHighlights />
+        <HomeInteractiveDemo />
 
       {/* ── Avaliações ── */}
       {avaliacoes.length > 0 && (
         <section className="border-b border-slate-200 bg-[#f8fbfb]">
           <div className="mx-auto max-w-[1800px] px-5 py-14 sm:px-8 xl:px-10 xl:py-18">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-700">O QUE DIZEM OS USUÁRIOS</p>
-            <div className="mt-3 flex items-center gap-3">
-              <StarRating n={Math.round(media)} />
-              <span className="text-[13px] text-slate-500">
-                {media.toFixed(1)} · {totalAval} {totalAval === 1 ? 'avaliação' : 'avaliações'}
-              </span>
-            </div>
+            <ScrollReveal>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-700">O QUE DIZEM OS USUÁRIOS</p>
+              <div className="mt-3 flex items-center gap-3">
+                <StarRating n={Math.round(media)} />
+                <span className="text-[13px] text-slate-500">
+                  {media.toFixed(1)} · {totalAval} {totalAval === 1 ? 'avaliação' : 'avaliações'}
+                </span>
+              </div>
+            </ScrollReveal>
             <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {avaliacoes.slice(0, 6).map((av) => (
-                <article
-                  key={av.id}
-                  className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-6 shadow-[0_16px_42px_rgba(15,23,42,0.05)] transition duration-300 hover:border-brand-200 hover:shadow-[0_20px_54px_rgba(15,23,42,0.08)]"
-                >
-                  <StarRating n={av.estrelas} />
-                  <p className="mt-3 text-[14px] leading-[1.7] text-slate-600">"{av.comentario}"</p>
-                  <p className="mt-4 text-[11px] uppercase tracking-[0.14em] text-slate-500">{av.autor}</p>
-                </article>
+              {avaliacoes.slice(0, 6).map((av, index) => (
+                <ScrollReveal key={av.id} delay={Math.min(index * 0.05, 0.2)}>
+                  <article className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-6 shadow-[0_16px_42px_rgba(15,23,42,0.05)] transition duration-300 hover:border-brand-200 hover:shadow-[0_20px_54px_rgba(15,23,42,0.08)]">
+                    <StarRating n={av.estrelas} />
+                    <p className="mt-3 text-[14px] leading-[1.7] text-slate-600">"{av.comentario}"</p>
+                    <p className="mt-4 text-[11px] uppercase tracking-[0.14em] text-slate-500">{av.autor}</p>
+                  </article>
+                </ScrollReveal>
               ))}
             </div>
           </div>
         </section>
       )}
+
+      <section className="border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-[1800px] px-5 py-14 text-center sm:px-8 xl:px-10 xl:py-18">
+          <ScrollReveal>
+            <h2 className="mx-auto max-w-[720px] text-[clamp(26px,2.4vw,38px)] font-semibold leading-[1.15] text-slate-950 text-balance">
+              Pronto para organizar suas finanças de verdade?
+            </h2>
+            <p className="mx-auto mt-4 max-w-[560px] text-[15px] leading-relaxed text-slate-600">
+              Comece agora e tenha 15 dias grátis para experimentar tudo, sem compromisso.
+            </p>
+            <button
+              type="button"
+              onClick={openRegister}
+              className="site-neon-light-button mt-7 inline-flex min-h-14 w-full max-w-[320px] items-center justify-center rounded-xl border px-7 text-[18px] font-semibold sm:w-auto sm:min-w-[320px]"
+            >
+              Começar 15 dias grátis
+            </button>
+          </ScrollReveal>
+        </div>
+      </section>
 
       </main>
 

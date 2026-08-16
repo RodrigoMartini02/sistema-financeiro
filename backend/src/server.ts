@@ -46,7 +46,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(self), camera=()');
   if (process.env.NODE_ENV === 'production') {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
@@ -91,6 +91,9 @@ import contractServiceRoutes from './routes/contract-services';
 import contractAttachmentRoutes from './routes/contract-attachments';
 import analyticsRoutes from './routes/analytics';
 import internalJobsRoutes from './routes/internal-jobs';
+import assistantRoutes from './routes/assistant';
+import budgetRoutes from './routes/budget';
+import aiIntegrationRoutes from './routes/ai-integrations';
 import futebolRoutes from './modules/futebol/routes';
 import { startFootballCron } from './modules/futebol/cron';
 import { startChampionshipsCron } from './modules/futebol/championshipsCron';
@@ -139,6 +142,10 @@ app.use('/api/contratos-servicos', authenticate, requireActivePlan, contractServ
 app.use('/api/contrato-anexos', authenticate, requireActivePlan, contractAttachmentRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/internal-jobs', internalJobsRoutes);
+app.use('/api/assistant', authenticate, requireActivePlan, assistantRoutes);
+app.use('/api/assistente', authenticate, requireActivePlan, assistantRoutes);
+app.use('/api/orcamento', authenticate, requireActivePlan, budgetRoutes);
+app.use('/api/ai-integracoes', aiIntegrationRoutes);
 app.use('/api/futebol', futebolRoutes);
 
 // ── System endpoints ───────────────────────────────────────────────────
