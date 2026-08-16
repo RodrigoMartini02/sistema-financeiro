@@ -1,6 +1,11 @@
 import { and, eq, isNull, or } from 'drizzle-orm';
 import { db } from '../db/client';
 import { budgetTargets, categories, expenses, incomes, profiles } from '../db/schema';
+import {
+  classifyBudgetReference,
+  resolveBudgetCategoryReference,
+  type BudgetReferenceStatus,
+} from './budgetReference';
 
 export interface FinancialProfile {
   id: number;
@@ -21,6 +26,16 @@ export interface BudgetOverviewItem {
   suggestedAmount: number | null;
 }
 
+export interface BudgetReferenceGroupOverview {
+  key: string;
+  label: string;
+  referencePercentage: number;
+  projectedAmount: number;
+  paidAmount: number;
+  shareOfClassifiedExpenses: number | null;
+  status: BudgetReferenceStatus;
+}
+
 export interface BudgetOverview {
   profileType: 'pessoal' | 'empresa';
   month: number;
@@ -29,6 +44,8 @@ export interface BudgetOverview {
   paidTotal: number;
   projectedTotal: number;
   items: BudgetOverviewItem[];
+  referenceGroups: BudgetReferenceGroupOverview[];
+  unclassifiedProjectedTotal: number;
 }
 
 export class BudgetInputError extends Error {}
@@ -118,6 +135,8 @@ export async function getBudgetOverview(input: {
       paidTotal: expenseRows.filter((row) => row.paid).reduce((total, row) => total + asNumber(row.amount ?? row.originalAmount), 0),
       projectedTotal: expenseRows.reduce((total, row) => total + asNumber(row.amount ?? row.originalAmount), 0),
       items: [],
+      referenceGroups: [],
+      unclassifiedProjectedTotal: 0,
     };
   }
 
@@ -139,12 +158,55 @@ export async function getBudgetOverview(input: {
   const incomeTotal = incomeRows.reduce((total, row) => total + asNumber(row.amount), 0);
   const projectedByCategory = new Map<number, number>();
   const paidByCategory = new Map<number, number>();
+  const categoryReferenceById = new Map(categoryRows.map((category) => [
+    category.id,
+    resolveBudgetCategoryReference(category.name),
+  ]));
+  const referenceTotals = new Map<string, {
+    key: string;
+    label: string;
+    referencePercentage: number;
+    projectedAmount: number;
+    paidAmount: number;
+  }>();
+  let unclassifiedProjectedTotal = 0;
   for (const row of expenseRows) {
-    if (!row.categoryId) continue;
     const amount = asNumber(row.amount ?? row.originalAmount);
-    projectedByCategory.set(row.categoryId, (projectedByCategory.get(row.categoryId) ?? 0) + amount);
-    if (row.paid) paidByCategory.set(row.categoryId, (paidByCategory.get(row.categoryId) ?? 0) + amount);
+    if (row.categoryId) {
+      projectedByCategory.set(row.categoryId, (projectedByCategory.get(row.categoryId) ?? 0) + amount);
+      if (row.paid) paidByCategory.set(row.categoryId, (paidByCategory.get(row.categoryId) ?? 0) + amount);
+    }
+
+    const reference = row.categoryId ? categoryReferenceById.get(row.categoryId) : null;
+    if (!reference) {
+      unclassifiedProjectedTotal += amount;
+      continue;
+    }
+
+    const current = referenceTotals.get(reference.key) ?? {
+      ...reference,
+      projectedAmount: 0,
+      paidAmount: 0,
+    };
+    current.projectedAmount += amount;
+    if (row.paid) current.paidAmount += amount;
+    referenceTotals.set(reference.key, current);
   }
+
+  const classifiedProjectedTotal = [...referenceTotals.values()]
+    .reduce((total, reference) => total + reference.projectedAmount, 0);
+  const referenceGroups = [...referenceTotals.values()]
+    .map((reference): BudgetReferenceGroupOverview => {
+      const shareOfClassifiedExpenses = classifiedProjectedTotal > 0
+        ? (reference.projectedAmount / classifiedProjectedTotal) * 100
+        : null;
+      return {
+        ...reference,
+        shareOfClassifiedExpenses,
+        status: classifyBudgetReference(shareOfClassifiedExpenses, reference.referencePercentage),
+      };
+    })
+    .sort((left, right) => right.projectedAmount - left.projectedAmount || left.label.localeCompare(right.label));
 
   const priorPeriods = previousThreePeriods(input.month, input.year);
   const historicByCategory = new Map<number, number>();
@@ -192,6 +254,8 @@ export async function getBudgetOverview(input: {
     paidTotal: expenseRows.filter((row) => row.paid).reduce((total, row) => total + asNumber(row.amount ?? row.originalAmount), 0),
     projectedTotal: expenseRows.reduce((total, row) => total + asNumber(row.amount ?? row.originalAmount), 0),
     items,
+    referenceGroups,
+    unclassifiedProjectedTotal,
   };
 }
 

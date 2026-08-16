@@ -19,7 +19,7 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { MonthSelector } from './MonthSelector';
 import { formatCurrency } from './formatters';
-import { BudgetPanel } from './BudgetPanel';
+import { IncomeBalanceGuide } from './IncomeBalanceGuide';
 
 const CORES = ['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#84cc16','#ec4899','#14b8a6'];
 const MONTH_SHORT = MONTH_NAMES.map((n) => n.slice(0, 3));
@@ -294,7 +294,7 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
       </div>
       )}
 
-      <BudgetPanel month={month} year={year} />
+      <IncomeBalanceGuide month={month} year={year} />
 
       {/* Contratos panel */}
       {contratos.length > 0 && (

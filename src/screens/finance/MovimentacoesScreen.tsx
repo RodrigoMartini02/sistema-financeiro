@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Calendar, List, Lock, LockOpen, PiggyBank, Plus, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
+import { Calendar, List, Lock, LockOpen, PiggyBank, Plus, RefreshCw, Target, TrendingDown, TrendingUp } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
@@ -21,8 +21,9 @@ import { CalendarView } from './calendar/CalendarView';
 import { CompactPeriodSelector } from './CompactPeriodSelector';
 import { MovementMetricCard } from './MovementMetricCard';
 import { formatCurrency } from './formatters';
+import { BudgetPanel } from './BudgetPanel';
 
-type MovementTab = 'receitas' | 'despesas';
+type MovementTab = 'receitas' | 'despesas' | 'planejamento';
 type ViewMode = 'lista' | 'calendario';
 
 function ViewModeToggle({ mode, onChange }: { mode: ViewMode; onChange: (mode: ViewMode) => void }) {
@@ -63,7 +64,7 @@ interface MovementTableToggleProps {
 
 function MovementTableToggle({ activeTab, onChange }: MovementTableToggleProps) {
   return (
-    <div className="flex items-center gap-1" role="tablist" aria-label="Tipo de movimentação">
+    <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Conteúdo de movimentações">
       <button
         type="button"
         role="tab"
@@ -92,6 +93,20 @@ function MovementTableToggle({ activeTab, onChange }: MovementTableToggleProps) 
       >
         <TrendingDown size={15} /> Despesas
       </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={activeTab === 'planejamento'}
+        onClick={() => onChange('planejamento')}
+        className={[
+          'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition',
+          activeTab === 'planejamento'
+            ? 'border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-300'
+            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600',
+        ].join(' ')}
+      >
+        <Target size={15} /> Planejamento
+      </button>
     </div>
   );
 }
@@ -110,17 +125,18 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
   const [viewMode, setViewMode] = useState<ViewMode>('lista');
   const [subView, setSubView] = useState<CalendarSubView>('mes');
   const [reserveDialogOpen, setReserveDialogOpen] = useState(false);
-  const isLista = viewMode === 'lista';
-  const isCalendario = viewMode === 'calendario';
+  const isPlanning = activeTab === 'planejamento';
+  const isCalendario = viewMode === 'calendario' && !isPlanning;
+  const isLista = !isCalendario;
   const novaReceitaGuide = useFirstAccessGuide('receitas:novo-v1', { enabled: isLista });
   const novaDespesaGuide = useFirstAccessGuide('despesas:novo-v1', { enabled: isLista });
   const fecharMesGuide = useFirstAccessGuide('despesas:fechar-mes-v1');
   const reservaGuide = useFirstAccessGuide('reservas:movimentar-v1', { enabled: isLista });
 
   useEffect(() => {
-    setFillViewport(viewMode === 'calendario');
+    setFillViewport(isCalendario);
     return () => setFillViewport(false);
-  }, [viewMode, setFillViewport]);
+  }, [isCalendario, setFillViewport]);
   const qc = useQueryClient();
   const finance = useFinanceDashboard(month, year);
   const annual = useQuery({
@@ -182,7 +198,11 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
     void annual.refetch();
     void reservas.refetch();
   };
-  const movementTabs = <MovementTableToggle activeTab={activeTab} onChange={setActiveTab} />;
+  const handleTabChange = (tab: MovementTab) => {
+    setActiveTab(tab);
+    if (tab === 'planejamento') setViewMode('lista');
+  };
+  const movementTabs = <MovementTableToggle activeTab={activeTab} onChange={handleTabChange} />;
 
   return (
     <>
@@ -247,53 +267,57 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
                     />
                   )}
                 </div>
-                <div className="relative">
-                  <Button className="!bg-emerald-600 hover:!bg-emerald-700 focus:!ring-emerald-200" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-receita')}>Nova receita</Button>
-                  {novaReceitaGuide.isVisible && (
-                    <FirstAccessGuideCard
-                      floating
-                      placement="top"
-                      align="right"
-                      className="w-[min(25rem,calc(100vw-2rem))]"
-                      icon={TrendingUp}
-                      description={firstAccessGuideMessages.receitasNova}
-                      onDismiss={novaReceitaGuide.dismiss}
-                    />
-                  )}
-                </div>
-                <div className="relative">
-                  <Button variant="danger" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-despesa')}>Nova despesa</Button>
-                  {novaDespesaGuide.isVisible && (
-                    <FirstAccessGuideCard
-                      floating
-                      placement="top"
-                      align="right"
-                      className="w-[min(25rem,calc(100vw-2rem))]"
-                      icon={TrendingDown}
-                      description={firstAccessGuideMessages.despesasNova}
-                      onDismiss={novaDespesaGuide.dismiss}
-                    />
-                  )}
-                </div>
-                <div className="relative">
-                  <Button variant="secondary" icon={<PiggyBank size={15} />} onClick={() => setReserveDialogOpen(true)}>Movimentar reserva</Button>
-                  {reservaGuide.isVisible && (
-                    <FirstAccessGuideCard
-                      floating
-                      placement="top"
-                      align="right"
-                      className="w-[min(24rem,calc(100vw-2rem))]"
-                      icon={PiggyBank}
-                      description={firstAccessGuideMessages.reservasMovimentar}
-                      onDismiss={reservaGuide.dismiss}
-                    />
-                  )}
-                </div>
+                {!isPlanning && (
+                  <>
+                    <div className="relative">
+                      <Button className="!bg-emerald-600 hover:!bg-emerald-700 focus:!ring-emerald-200" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-receita')}>Nova receita</Button>
+                      {novaReceitaGuide.isVisible && (
+                        <FirstAccessGuideCard
+                          floating
+                          placement="top"
+                          align="right"
+                          className="w-[min(25rem,calc(100vw-2rem))]"
+                          icon={TrendingUp}
+                          description={firstAccessGuideMessages.receitasNova}
+                          onDismiss={novaReceitaGuide.dismiss}
+                        />
+                      )}
+                    </div>
+                    <div className="relative">
+                      <Button variant="danger" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-despesa')}>Nova despesa</Button>
+                      {novaDespesaGuide.isVisible && (
+                        <FirstAccessGuideCard
+                          floating
+                          placement="top"
+                          align="right"
+                          className="w-[min(25rem,calc(100vw-2rem))]"
+                          icon={TrendingDown}
+                          description={firstAccessGuideMessages.despesasNova}
+                          onDismiss={novaDespesaGuide.dismiss}
+                        />
+                      )}
+                    </div>
+                    <div className="relative">
+                      <Button variant="secondary" icon={<PiggyBank size={15} />} onClick={() => setReserveDialogOpen(true)}>Movimentar reserva</Button>
+                      {reservaGuide.isVisible && (
+                        <FirstAccessGuideCard
+                          floating
+                          placement="top"
+                          align="right"
+                          className="w-[min(24rem,calc(100vw-2rem))]"
+                          icon={PiggyBank}
+                          description={firstAccessGuideMessages.reservasMovimentar}
+                          onDismiss={reservaGuide.dismiss}
+                        />
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
               <CompactPeriodSelector month={month} year={year} onMonthChange={setMonth} onYearChange={setYear} mesFechado={mesFechado} />
-              <ViewModeToggle mode={viewMode} onChange={setViewMode} />
+              {!isPlanning && <ViewModeToggle mode={viewMode} onChange={setViewMode} />}
             </div>
           </div>
         )}
@@ -324,10 +348,12 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
           </div>
         )}
 
-        {viewMode === 'lista'
+        {isLista
           ? (activeTab === 'receitas'
               ? <ReceitasScreen embedded toolbarStart={movementTabs} />
-              : <DespesasScreen embedded toolbarStart={movementTabs} />)
+              : activeTab === 'despesas'
+                ? <DespesasScreen embedded toolbarStart={movementTabs} />
+                : <BudgetPanel month={month} year={year} toolbarStart={movementTabs} />)
           : (
             <div className="min-h-0 flex-1">
               <CalendarView month={month} year={year} subView={subView} />
