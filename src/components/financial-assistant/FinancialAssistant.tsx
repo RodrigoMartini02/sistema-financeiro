@@ -66,7 +66,7 @@ const ACCEPTED_FILE_TYPES = new Set([
 const initialMessage: ChatMessage = {
   id: 'welcome',
   role: 'assistant',
-  content: 'Ola! Como posso ajudar com suas financas hoje?',
+  content: 'Olá! Como posso ajudar com suas finanças hoje?',
   showWelcomeActions: true,
 };
 
@@ -83,17 +83,17 @@ const INTENT_DETAILS: Record<FinancialCopilotIntentHint, {
   register_income: {
     label: 'Registrar receita',
     description: 'Conte o que recebeu e de onde veio.',
-    placeholder: 'Ex.: Recebi R$ 3.000 de salario hoje.',
+    placeholder: 'Ex.: Recebi R$ 3.000 de salário hoje.',
   },
   ask: {
     label: 'Fazer uma pergunta',
-    description: 'Pergunte sobre seu periodo financeiro.',
-    placeholder: 'Ex.: Quanto gastei este mes?',
+    description: 'Pergunte sobre seu período financeiro.',
+    placeholder: 'Ex.: Quanto gastei este mês?',
   },
 };
 
 function formatCurrency(value: number | null): string {
-  if (!value) return 'Valor nao informado';
+  if (!value) return 'Valor não informado';
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
@@ -120,11 +120,11 @@ function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | null 
 function fileToAttachment(file: File): Promise<Attachment> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = () => reject(new Error('Nao foi possivel ler o arquivo.'));
+    reader.onerror = () => reject(new Error('Não foi possível ler o arquivo.'));
     reader.onload = () => {
       const data = typeof reader.result === 'string' ? reader.result.split(',')[1] : '';
       if (!data) {
-        reject(new Error('Nao foi possivel ler o arquivo.'));
+        reject(new Error('Não foi possível ler o arquivo.'));
         return;
       }
       resolve({
@@ -155,7 +155,7 @@ function findDuplicate(
       && Math.abs(income.valor - draft.amount!) < 0.01
       && income.data === date
     ));
-    return duplicate ? 'Existe uma receita muito parecida no periodo selecionado. Confirme antes de salvar.' : null;
+    return duplicate ? 'Existe uma receita muito parecida no período selecionado. Confirme antes de salvar.' : null;
   }
 
   const duplicate = expenses.find((expense) => (
@@ -163,7 +163,7 @@ function findDuplicate(
     && Math.abs(expense.valorFinal - draft.amount!) < 0.01
     && expense.dataVencimento === date
   ));
-  return duplicate ? 'Existe uma despesa muito parecida no periodo selecionado. Confirme antes de salvar.' : null;
+  return duplicate ? 'Existe uma despesa muito parecida no período selecionado. Confirme antes de salvar.' : null;
 }
 
 function formatCardValue(value: number | string): string {
@@ -248,7 +248,7 @@ export function FinancialAssistant() {
     dashboardQuery.data?.expenses ?? [],
   );
   const activeIntent = intentHint ? INTENT_DETAILS[intentHint] : null;
-  const composerPlaceholder = activeIntent?.placeholder ?? 'Ex.: Quanto gastei este mes?';
+  const composerPlaceholder = activeIntent?.placeholder ?? 'Ex.: Quanto gastei este mês?';
 
   useEffect(() => {
     if (open) {
@@ -279,7 +279,7 @@ export function FinancialAssistant() {
     const selected = Array.from(files);
     const availableSlots = MAX_ATTACHMENTS - attachments.length;
     if (availableSlots <= 0) {
-      setError('Envie no maximo tres arquivos por mensagem.');
+      setError('Envie no máximo três arquivos por mensagem.');
       return;
     }
 
@@ -289,7 +289,7 @@ export function FinancialAssistant() {
         return false;
       }
       if (file.size > MAX_ATTACHMENT_SIZE) {
-        setError('Cada arquivo pode ter no maximo 10 MB.');
+        setError('Cada arquivo pode ter no máximo 10 MB.');
         return false;
       }
       return true;
@@ -299,7 +299,7 @@ export function FinancialAssistant() {
       const converted = await Promise.all(allowed.map(fileToAttachment));
       setAttachments((current) => [...current, ...converted]);
     } catch (fileError) {
-      setError(fileError instanceof Error ? fileError.message : 'Nao foi possivel preparar o arquivo.');
+      setError(fileError instanceof Error ? fileError.message : 'Não foi possível preparar o arquivo.');
     }
   };
 
@@ -348,7 +348,7 @@ export function FinancialAssistant() {
       }]);
       await queryClient.invalidateQueries({ queryKey: queryKeys.copilotConversations });
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Nao foi possivel analisar esta informacao.');
+      setError(requestError instanceof Error ? requestError.message : 'Não foi possível analisar esta informação.');
     } finally {
       setIsPreparing(false);
     }
@@ -386,7 +386,7 @@ export function FinancialAssistant() {
       setHistoryOpen(false);
       setHasRestoredLatest(true);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Nao foi possivel restaurar a conversa.');
+      setError(requestError instanceof Error ? requestError.message : 'Não foi possível restaurar a conversa.');
     }
   };
 
@@ -397,7 +397,7 @@ export function FinancialAssistant() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.copilotConversations });
       if (conversationId === id) startNewConversation();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Nao foi possivel remover a conversa.');
+      setError(requestError instanceof Error ? requestError.message : 'Não foi possível remover a conversa.');
     }
   };
 
@@ -415,7 +415,7 @@ export function FinancialAssistant() {
 
     const Recognition = getSpeechRecognitionConstructor();
     if (!Recognition) {
-      setError('A entrada por voz nao e compativel com este navegador.');
+      setError('A entrada por voz não é compatível com este navegador.');
       return;
     }
 
@@ -437,7 +437,7 @@ export function FinancialAssistant() {
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
         setError('Permita o uso do microfone para registrar por voz.');
       } else if (event.error !== 'aborted') {
-        setError('Nao foi possivel transcrever sua fala. Tente novamente.');
+        setError('Não foi possível transcrever sua fala. Tente novamente.');
       }
     };
     recognition.onend = () => setIsListening(false);
@@ -447,13 +447,13 @@ export function FinancialAssistant() {
       recognition.start();
     } catch {
       setIsListening(false);
-      setError('Nao foi possivel iniciar a gravacao de voz. Tente novamente.');
+      setError('Não foi possível iniciar a gravação de voz. Tente novamente.');
     }
   };
 
   const handleSave = async () => {
     if (!draft?.description?.trim() || !draft.amount || draft.amount <= 0) {
-      setError('Complete a descricao e o valor antes de salvar.');
+      setError('Complete a descrição e o valor antes de salvar.');
       return;
     }
 
@@ -493,12 +493,12 @@ export function FinancialAssistant() {
       setMessages((current) => [...current, {
         id: newMessageId(),
         role: 'assistant',
-        content: 'Lancamento salvo. Mantive os anexos junto com ele.',
+        content: 'Lançamento salvo. Mantive os anexos junto com ele.',
       }]);
       setDraft(null);
       setDraftAttachments([]);
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Nao foi possivel salvar o lancamento.');
+      setError(saveError instanceof Error ? saveError.message : 'Não foi possível salvar o lançamento.');
     } finally {
       setIsSaving(false);
     }
@@ -542,8 +542,8 @@ export function FinancialAssistant() {
                 type="button"
                 onClick={() => setHistoryOpen((current) => !current)}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-cyan-100/75 transition hover:bg-white/10 hover:text-white"
-                aria-label="Abrir historico de conversas"
-                title="Historico"
+                aria-label="Abrir histórico de conversas"
+                title="Histórico"
               >
                 <History size={18} />
               </button>
@@ -570,8 +570,8 @@ export function FinancialAssistant() {
             {historyOpen && (
               <div className="absolute inset-x-0 top-[68px] z-10 max-h-64 overflow-y-auto border-b border-slate-200 bg-white p-3 shadow-lg dark:border-slate-800 dark:bg-slate-900">
                 <p className="mb-2 text-xs font-bold text-slate-700 dark:text-slate-200">Conversas recentes</p>
-                {conversationsQuery.isLoading && <p className="py-3 text-xs text-slate-500">Carregando historico...</p>}
-                {conversationsQuery.error && <p className="py-3 text-xs text-red-600 dark:text-red-300">Nao foi possivel carregar o historico.</p>}
+                {conversationsQuery.isLoading && <p className="py-3 text-xs text-slate-500">Carregando histórico...</p>}
+                {conversationsQuery.error && <p className="py-3 text-xs text-red-600 dark:text-red-300">Não foi possível carregar o histórico.</p>}
                 {!conversationsQuery.isLoading && !conversationsQuery.error && (conversationsQuery.data?.length ?? 0) === 0 && (
                   <p className="py-3 text-xs text-slate-500 dark:text-slate-400">Nenhuma conversa salva neste perfil.</p>
                 )}
@@ -616,7 +616,7 @@ export function FinancialAssistant() {
                       {message.showWelcomeActions && (
                         <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">
                           <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                            Para registrar uma nova despesa, conte o que comprou e quanto pagou. Para consultar suas financas, faca uma pergunta.
+                            Para registrar uma nova despesa, conte o que comprou e quanto pagou. Para consultar suas finanças, faça uma pergunta.
                           </p>
                           <div className="mt-3 grid gap-2">
                             <button
@@ -641,7 +641,7 @@ export function FinancialAssistant() {
                               className="flex items-center gap-2 border border-slate-200 px-2.5 py-2 text-left transition hover:border-cyan-300 hover:bg-cyan-50 dark:border-slate-700 dark:hover:border-cyan-800 dark:hover:bg-cyan-950/30"
                             >
                               <span className="flex h-7 w-7 shrink-0 items-center justify-center bg-cyan-50 text-[#087B89] dark:bg-cyan-950/40 dark:text-cyan-300"><MessageCircleMore size={15} /></span>
-                              <span className="min-w-0"><span className="block text-xs font-semibold text-slate-800 dark:text-slate-100">Fazer uma pergunta</span><span className="block truncate text-[11px] text-slate-500 dark:text-slate-400">Pergunte sobre seu periodo financeiro.</span></span>
+                              <span className="min-w-0"><span className="block text-xs font-semibold text-slate-800 dark:text-slate-100">Fazer uma pergunta</span><span className="block truncate text-[11px] text-slate-500 dark:text-slate-400">Pergunte sobre seu período financeiro.</span></span>
                             </button>
                           </div>
                         </div>
@@ -668,8 +668,8 @@ export function FinancialAssistant() {
                   <div className="border border-cyan-200 bg-white p-3.5 shadow-sm dark:border-cyan-900/70 dark:bg-slate-900">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-bold text-slate-900 dark:text-white">Revisar lancamento</p>
-                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Nada e salvo sem sua confirmacao.</p>
+                        <p className="text-sm font-bold text-slate-900 dark:text-white">Revisar lançamento</p>
+                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Nada é salvo sem sua confirmação.</p>
                       </div>
                       <span className={[
                         'shrink-0 px-2 py-1 text-[11px] font-semibold',
@@ -698,7 +698,7 @@ export function FinancialAssistant() {
                       </label>
 
                       <label className="grid gap-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                        Descricao
+                        Descrição
                         <input
                           value={draft.description ?? ''}
                           onChange={(event) => updateDraft({ description: event.target.value || null })}
@@ -759,8 +759,8 @@ export function FinancialAssistant() {
                                 <option value="pix">Pix</option>
                                 <option value="boleto">Boleto</option>
                                 <option value="dinheiro">Dinheiro</option>
-                                <option value="debito">Debito</option>
-                                <option value="credito">Credito</option>
+                                <option value="debito">Débito</option>
+                                <option value="credito">Crédito</option>
                               </select>
                               <ChevronDown size={15} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                             </span>
@@ -776,7 +776,7 @@ export function FinancialAssistant() {
                             onChange={(event) => updateDraft({ paid: event.target.checked })}
                             className="h-4 w-4 accent-[#0C9EAF]"
                           />
-                          Esta despesa ja foi paga
+                          Esta despesa já foi paga
                         </label>
                       )}
                     </div>
@@ -889,7 +889,7 @@ export function FinancialAssistant() {
                     'flex h-10 w-10 shrink-0 items-center justify-center transition',
                     isListening ? 'bg-red-500 text-white hover:bg-red-600' : 'text-slate-500 hover:bg-slate-100 hover:text-[#0C9EAF] dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-cyan-300',
                   ].join(' ')}
-                  aria-label={isListening ? 'Parar gravacao de voz' : 'Falar com a assistente'}
+                  aria-label={isListening ? 'Parar gravação de voz' : 'Falar com a assistente'}
                   title={isListening ? 'Parar voz' : 'Falar'}
                 >
                   {isListening ? <Square size={16} fill="currentColor" /> : <Mic size={19} />}

@@ -54,12 +54,12 @@ export function IntegracoesIaTab() {
       setForms((current) => ({ ...current, [saved.provider]: { ...current[saved.provider], token: '', enabled: saved.enabled } }));
       setFeedback(`${AI_PROVIDER_LABELS[saved.provider]} atualizado.`);
     },
-    onError: (requestError) => setError(requestError instanceof Error ? requestError.message : 'Nao foi possivel salvar a integracao.'),
+    onError: (requestError) => setError(requestError instanceof Error ? requestError.message : 'Não foi possível salvar a integração.'),
   });
   const testMutation = useMutation({
     mutationFn: testAiIntegration,
-    onSuccess: () => setFeedback('Conexao validada com sucesso.'),
-    onError: (requestError) => setError(requestError instanceof Error ? requestError.message : 'Nao foi possivel validar a integracao.'),
+    onSuccess: () => setFeedback('Conexão validada com sucesso.'),
+    onError: (requestError) => setError(requestError instanceof Error ? requestError.message : 'Não foi possível validar a integração.'),
   });
 
   const save = (provider: AiProviderName) => {
@@ -75,13 +75,13 @@ export function IntegracoesIaTab() {
     testMutation.mutate({ provider, model: form.model, token: form.token || undefined });
   };
 
-  if (settingsQuery.isLoading) return <p className="py-8 text-sm text-slate-500">Carregando integracoes...</p>;
-  if (settingsQuery.error) return <p className="py-8 text-sm text-red-600">Nao foi possivel carregar as integracoes de IA.</p>;
+  if (settingsQuery.isLoading) return <p className="py-8 text-sm text-slate-500">Carregando integrações...</p>;
+  if (settingsQuery.error) return <p className="py-8 text-sm text-red-600">Não foi possível carregar as integrações de IA.</p>;
 
   return (
     <div className="grid max-w-4xl gap-5">
       <div className="border border-cyan-200 bg-cyan-50/60 px-4 py-3 text-sm text-cyan-900 dark:border-cyan-900 dark:bg-cyan-950/30 dark:text-cyan-100">
-        O copiloto funciona com respostas locais enquanto nenhuma IA estiver ativa. Ao ativar um provedor, somente uma integracao fica ativa por vez e a chave permanece cifrada no servidor.
+        O copiloto funciona com respostas locais enquanto nenhuma IA estiver ativa. Ao ativar um provedor, somente uma integração fica ativa por vez e a chave permanece cifrada no servidor.
       </div>
       {feedback && <div className="flex items-center gap-2 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200"><CheckCircle2 size={17} /> {feedback}</div>}
       {error && <div className="flex items-center gap-2 border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200"><CircleAlert size={17} /> {error}</div>}

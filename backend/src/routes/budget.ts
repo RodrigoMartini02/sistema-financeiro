@@ -30,7 +30,7 @@ router.get('/resumo', authenticate, async (req: Request, res: Response): Promise
       return;
     }
     console.error('Budget overview failed:', (error as Error).message);
-    res.status(500).json({ success: false, message: 'Nao foi possivel carregar o orcamento.' });
+    res.status(500).json({ success: false, message: 'Não foi possível carregar o orçamento.' });
   }
 });
 
@@ -51,14 +51,14 @@ router.put('/metas', authenticate, async (req: Request, res: Response): Promise<
       return;
     }
     console.error('Save budget target failed:', (error as Error).message);
-    res.status(500).json({ success: false, message: 'Nao foi possivel salvar a meta.' });
+    res.status(500).json({ success: false, message: 'Não foi possível salvar a meta.' });
   }
 });
 
 router.delete('/metas/:categoryId', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const categoryId = Number(req.params['categoryId']);
-    if (!Number.isInteger(categoryId) || categoryId <= 0) throw new BudgetInputError('Categoria invalida.');
+    if (!Number.isInteger(categoryId) || categoryId <= 0) throw new BudgetInputError('Categoria inválida.');
     const query = req.query as Record<string, unknown>;
     await deleteBudgetTarget({ userId: req.user!.id, profileId: parseProfileId(query['perfil_id']), categoryId });
     res.json({ success: true, message: 'Meta removida.' });
@@ -68,7 +68,7 @@ router.delete('/metas/:categoryId', authenticate, async (req: Request, res: Resp
       return;
     }
     console.error('Delete budget target failed:', (error as Error).message);
-    res.status(500).json({ success: false, message: 'Nao foi possivel remover a meta.' });
+    res.status(500).json({ success: false, message: 'Não foi possível remover a meta.' });
   }
 });
 
