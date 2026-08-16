@@ -1,14 +1,14 @@
 {
-  "id": "/",
-  "name": "IGen - Sistema Financeiro Inteligente — Controle de Gastos com IA",
-  "short_name": "IGen",
-  "description": "Controle financeiro para autônomos e MEIs. Registre gastos por IA, controle cartões e parcelas.",
-  "start_url": "./app.html?source=pwa",
+  "id": "/assistant.html",
+  "name": "FINGERENCE Assistente",
+  "short_name": "FINGERENCE",
+  "description": "Assistente financeiro para consultar suas financas e preparar lancamentos para revisao.",
+  "start_url": "/assistant.html?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#0f172a",
-  "theme_color": "#6366f1",
+  "background_color": "#071D27",
+  "theme_color": "#0D2E3C",
   "lang": "pt-BR",
   "categories": [
     "finance",
@@ -17,22 +17,35 @@
   ],
   "icons": [
     {
-      "src": "icons/logo.png",
+      "src": "/icons/pwa-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/pwa-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/pwa-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [
     {
-      "name": "Painel Principal",
+      "name": "Painel financeiro",
       "short_name": "Painel",
-      "description": "Acessar o painel de controle financeiro",
-      "url": "./app.html?source=shortcut",
+      "description": "Abrir o sistema financeiro completo",
+      "url": "/app.html?source=pwa-shortcut",
       "icons": [
         {
-          "src": "icons/logo.png",
-          "sizes": "512x512"
+          "src": "/icons/pwa-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
         }
       ]
     }

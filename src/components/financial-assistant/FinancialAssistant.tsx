@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  Bot, Check, ChevronDown, FileText, History, LoaderCircle, MessageCircleMore,
+  Check, ChevronDown, FileText, History, LayoutDashboard, LoaderCircle, MessageCircleMore,
   Mic, Paperclip, Plus, Send, Square, Trash2, X,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -200,10 +200,15 @@ function CopilotCardView({ card }: { card: FinancialCopilotCard }) {
   );
 }
 
-export function FinancialAssistant() {
+interface FinancialAssistantProps {
+  mode?: 'floating' | 'standalone';
+}
+
+export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProps) {
   const { month, year } = useAppContext();
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const isStandalone = mode === 'standalone';
+  const [open, setOpen] = useState(isStandalone);
   const [messages, setMessages] = useState<ChatMessage[]>([initialMessage]);
   const [composer, setComposer] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -515,38 +520,58 @@ export function FinancialAssistant() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#0C9EAF] text-white shadow-lg shadow-cyan-950/25 transition hover:bg-[#087B89] focus:outline-none focus:ring-2 focus:ring-[#0EC4D8] focus:ring-offset-2 dark:focus:ring-offset-slate-950"
-        aria-label="Abrir assistente financeira"
-        title="Assistente financeira"
-      >
-        <MessageCircleMore size={25} />
-      </button>
+      {!isStandalone && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#0C9EAF] text-white shadow-lg shadow-cyan-950/25 transition hover:bg-[#087B89] focus:outline-none focus:ring-2 focus:ring-[#0EC4D8] focus:ring-offset-2 dark:focus:ring-offset-slate-950"
+          aria-label="Abrir assistente financeira"
+          title="Assistente financeira"
+        >
+          <MessageCircleMore size={25} />
+        </button>
+      )}
 
       {open && (
         <div className="fixed inset-0 z-[70]">
-          <button
-            type="button"
-            className="absolute inset-0 hidden bg-slate-950/25 backdrop-blur-[1px] sm:block"
-            onClick={() => setOpen(false)}
-            aria-label="Fechar assistente financeira"
-          />
+          {!isStandalone && (
+            <button
+              type="button"
+              className="absolute inset-0 hidden bg-slate-950/25 backdrop-blur-[1px] sm:block"
+              onClick={() => setOpen(false)}
+              aria-label="Fechar assistente financeira"
+            />
+          )}
           <section
-            className="absolute inset-0 flex flex-col bg-slate-50 shadow-2xl dark:bg-slate-950 sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[min(720px,calc(100vh-2.5rem))] sm:w-[420px] sm:overflow-hidden sm:border sm:border-slate-200 sm:shadow-slate-950/25 dark:sm:border-slate-800"
-            role="dialog"
+            className={isStandalone
+              ? 'absolute inset-0 flex min-h-[100dvh] flex-col bg-slate-50 dark:bg-slate-950'
+              : 'absolute inset-0 flex flex-col bg-slate-50 shadow-2xl dark:bg-slate-950 sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[min(720px,calc(100vh-2.5rem))] sm:w-[420px] sm:overflow-hidden sm:border sm:border-slate-200 sm:shadow-slate-950/25 dark:sm:border-slate-800'}
+            role={isStandalone ? undefined : 'dialog'}
             aria-label="Assistente financeira"
-            aria-modal="true"
+            aria-modal={isStandalone ? undefined : true}
           >
             <header className="flex shrink-0 items-center gap-3 border-b border-[#0A6571] bg-[#0D2E3C] px-4 py-3.5 text-white">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0EC4D8] text-[#07313A]">
-                <Bot size={20} />
+              <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-cyan-100/35 bg-[#07313A]">
+                <img
+                  src="/icons/assistente-perfil.webp"
+                  alt="Avatar da assistente financeira"
+                  className="h-full w-full object-cover object-[center_35%]"
+                />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold">Assistente financeira</p>
                 <p className="mt-0.5 text-xs text-cyan-100/70">Consultas e rascunhos para revisar</p>
               </div>
+              {isStandalone && (
+                <a
+                  href="/app.html?source=assistant"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-cyan-100/75 transition hover:bg-white/10 hover:text-white"
+                  aria-label="Abrir painel financeiro"
+                  title="Abrir painel"
+                >
+                  <LayoutDashboard size={18} />
+                </a>
+              )}
               <button
                 type="button"
                 onClick={() => setHistoryOpen((current) => !current)}
@@ -565,15 +590,17 @@ export function FinancialAssistant() {
               >
                 <Plus size={18} />
               </button>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-cyan-100/75 transition hover:bg-white/10 hover:text-white"
-                aria-label="Fechar assistente"
-                title="Fechar"
-              >
-                <X size={19} />
-              </button>
+              {!isStandalone && (
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-cyan-100/75 transition hover:bg-white/10 hover:text-white"
+                  aria-label="Fechar assistente"
+                  title="Fechar"
+                >
+                  <X size={19} />
+                </button>
+              )}
             </header>
 
             {historyOpen && (
