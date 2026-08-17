@@ -1,5 +1,6 @@
 import { AuthenticatedAppGate } from '../../components/auth/AuthenticatedAppGate';
 import { FinancialAssistant } from '../../components/financial-assistant/FinancialAssistant';
+import { UpdatePwaBanner } from '../../components/UpdatePwaBanner';
 
 function AssistantWorkspace() {
   return (
@@ -11,8 +12,11 @@ function AssistantWorkspace() {
 
 export function AssistantPwaScreen() {
   return (
-    <AuthenticatedAppGate>
-      {() => <AssistantWorkspace />}
-    </AuthenticatedAppGate>
+    <>
+      <AuthenticatedAppGate>
+        {() => <AssistantWorkspace />}
+      </AuthenticatedAppGate>
+      <UpdatePwaBanner />
+    </>
   );
 }
