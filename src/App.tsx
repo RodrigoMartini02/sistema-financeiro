@@ -152,7 +152,7 @@ function AppContent() {
 
   const renderContent = () => {
     switch (section) {
-      case 'painel':        return <FinanceDashboard />;
+      case 'painel':        return <FinanceDashboard showMonthlySummary />;
       case 'movimentacoes': return <MovimentacoesScreen onManageReserves={() => handleNavigate('reservas')} />;
       case 'reservas':      return <ReservasScreen />;
       case 'relatorios':    return <RelatoriosScreen />;

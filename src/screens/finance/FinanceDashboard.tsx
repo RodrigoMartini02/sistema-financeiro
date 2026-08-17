@@ -336,8 +336,6 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
         </Card>
       )}
 
-      <IncomeBalanceGuide month={month} year={year} />
-
       {/* Contratos panel */}
       {contratos.length > 0 && (
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
@@ -619,6 +617,8 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
           )}
         </Card>
       </div>
+
+      <IncomeBalanceGuide month={month} year={year} />
     </div>
   );
 }
