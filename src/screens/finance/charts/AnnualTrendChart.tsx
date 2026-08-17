@@ -43,11 +43,14 @@ export function AnnualTrendChart({ data, activeIndex }: AnnualTrendChartProps) {
   const hasEmptyRange = hasForecast && emptyRangeStart !== undefined;
   const emptyRangeMidIndex = hasEmptyRange ? Math.round((solidEnd + 2 + (data.length - 1)) / 2) : -1;
 
-  // O eixo Y segue a escala de receitas/despesas (como no mockup); o saldo acumulado
-  // pode ultrapassar essa faixa em meses de saldo muito negativo/positivo, mas não deve
-  // esticar o gráfico inteiro — por isso o domínio não inclui `saldo`.
-  const maxBar = Math.max(1, ...data.flatMap((d) => [d.receitas, d.despesas]));
-  const yDomain: [number, number] = [0, maxBar * 1.15];
+  // O domínio precisa incluir o saldo acumulado (que pode ficar negativo) além das
+  // barras de receitas/despesas — do contrário um saldo negativo é cortado no zero e
+  // fica indistinguível de "sem dado ainda" (bug visto em produção: a linha grudava
+  // na base em vez de mostrar valores abaixo de zero).
+  const saldoValues = chartData.flatMap((d) => [d.saldoSolido, d.saldoPrevisto]).filter((v): v is number => v !== undefined);
+  const maxBar = Math.max(1, ...data.flatMap((d) => [d.receitas, d.despesas]), ...saldoValues);
+  const minSaldo = Math.min(0, ...saldoValues);
+  const yDomain: [number, number] = [minSaldo < 0 ? minSaldo * 1.15 : 0, maxBar * 1.15];
 
   return (
     <div className="w-full overflow-x-auto">
@@ -96,6 +99,7 @@ export function AnnualTrendChart({ data, activeIndex }: AnnualTrendChartProps) {
               domain={yDomain}
               allowDataOverflow
             />
+            {minSaldo < 0 && <ReferenceLine y={0} stroke="#d7e3ea" strokeWidth={1.5} />}
             <Bar dataKey="receitas" fill="#10b981" radius={[3, 3, 0, 0]} maxBarSize={20} />
             <Bar dataKey="despesas" fill="#ef4444" radius={[3, 3, 0, 0]} maxBarSize={20} />
             <Line
@@ -103,7 +107,8 @@ export function AnnualTrendChart({ data, activeIndex }: AnnualTrendChartProps) {
               stroke="#6366f1"
               strokeWidth={2.5}
               dot={(props) => {
-                const { cx, cy, index } = props;
+                const { cx, cy, index, payload } = props;
+                if (payload.saldoSolido === undefined) return <g key={`dot-${index}`} />;
                 const isActive = index === activeIndex;
                 return (
                   <circle key={`dot-${index}`} cx={cx} cy={cy} r={isActive ? 5 : 4} fill={isActive ? '#6366f1' : '#fff'} stroke="#6366f1" strokeWidth={2.5} />
@@ -119,8 +124,8 @@ export function AnnualTrendChart({ data, activeIndex }: AnnualTrendChartProps) {
               strokeDasharray="5 4"
               strokeOpacity={0.55}
               dot={(props) => {
-                const { cx, cy, index } = props;
-                if (index <= solidEnd) return <g key={`dot-forecast-${index}`} />;
+                const { cx, cy, index, payload } = props;
+                if (payload.saldoPrevisto === undefined || index <= solidEnd) return <g key={`dot-forecast-${index}`} />;
                 return <circle key={`dot-forecast-${index}`} cx={cx} cy={cy} r={4} fill="#fff" stroke="#6366f1" strokeWidth={2.5} opacity={0.6} />;
               }}
               activeDot={false}
