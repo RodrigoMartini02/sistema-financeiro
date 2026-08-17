@@ -1,11 +1,4 @@
 export type BudgetTargetMode = 'amount' | 'income_percent';
-export type BudgetReferenceStatus =
-  | 'without_reference'
-  | 'without_classified_expenses'
-  | 'below_reference'
-  | 'within_reference'
-  | 'attention'
-  | 'risk';
 
 export interface BudgetOverviewItem {
   categoryId: number;
@@ -28,16 +21,4 @@ export interface BudgetOverview {
   paidTotal: number;
   projectedTotal: number;
   items: BudgetOverviewItem[];
-  referenceGroups: BudgetReferenceGroupOverview[];
-  unclassifiedProjectedTotal: number;
-}
-
-export interface BudgetReferenceGroupOverview {
-  key: string;
-  label: string;
-  referencePercentage: number;
-  projectedAmount: number;
-  paidAmount: number;
-  shareOfClassifiedExpenses: number | null;
-  status: BudgetReferenceStatus;
 }

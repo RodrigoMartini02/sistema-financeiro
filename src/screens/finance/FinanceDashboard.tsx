@@ -13,7 +13,6 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useBudgetOverview } from '../../hooks/useBudgetOverview';
 import { formatCurrency } from './formatters';
-import { IncomeBalanceGuide } from './IncomeBalanceGuide';
 import { AnnualTrendChart } from './charts/AnnualTrendChart';
 import { DonutChart } from './charts/DonutChart';
 import { MonthWaterfallChart } from './charts/MonthWaterfallChart';
@@ -684,8 +683,6 @@ export function FinanceDashboard() {
       </Card>
 
       <MonthCategoriesOverview month={month} year={year} />
-
-      <IncomeBalanceGuide month={month} year={year} />
     </div>
   );
 }
