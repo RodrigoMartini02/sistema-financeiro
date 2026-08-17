@@ -35,6 +35,14 @@ export function AnnualTrendChart({ data, activeIndex }: AnnualTrendChartProps) {
 
   const activeName = data[activeIndex]?.name?.toUpperCase();
 
+  // Meses após o mês de projeção (solidEnd + 1) ainda não têm nenhum lançamento nem
+  // projeção — o mockup cobre essa faixa com um retângulo neutro e o texto "ainda sem
+  // lançamentos", evitando que as barras/linha colem visualmente no zero.
+  const emptyRangeStart = data[solidEnd + 2]?.name;
+  const emptyRangeEnd = data[data.length - 1]?.name;
+  const hasEmptyRange = hasForecast && emptyRangeStart !== undefined;
+  const emptyRangeMidIndex = hasEmptyRange ? Math.round((solidEnd + 2 + (data.length - 1)) / 2) : -1;
+
   // O eixo Y segue a escala de receitas/despesas (como no mockup); o saldo acumulado
   // pode ultrapassar essa faixa em meses de saldo muito negativo/positivo, mas não deve
   // esticar o gráfico inteiro — por isso o domínio não inclui `saldo`.
@@ -47,6 +55,16 @@ export function AnnualTrendChart({ data, activeIndex }: AnnualTrendChartProps) {
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={chartData} margin={{ top: 22, right: 12, bottom: 8, left: 8 }} barGap={4}>
             <CartesianGrid stroke="#eef4f7" vertical={false} />
+            {hasEmptyRange && (
+              <ReferenceArea x1={emptyRangeStart} x2={emptyRangeEnd} fill="#f8fafb" ifOverflow="visible" />
+            )}
+            {hasEmptyRange && (
+              <ReferenceLine
+                x={data[emptyRangeMidIndex]?.name}
+                stroke="transparent"
+                label={{ value: 'ainda sem lançamentos', position: 'center', fontSize: 11.5, fill: '#b6c7d0' }}
+              />
+            )}
             <ReferenceArea x1={activeName} x2={activeName} fill="#e6f7fa" ifOverflow="visible" />
             {activeName && (
               <ReferenceLine

@@ -157,7 +157,10 @@ export function FinanceDashboard() {
       const k = d.formaPagamento ?? 'dinheiro';
       map[k] = (map[k] ?? 0) + d.valorFinal;
     }
-    return Object.entries(map).map(([name, value], i) => ({ name, value, color: CORES[i % CORES.length] }));
+    return Object.entries(map)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .map((d, i) => ({ ...d, color: CORES[i % CORES.length] }));
   }, [data]);
 
   // Health bars
@@ -197,6 +200,8 @@ export function FinanceDashboard() {
   // Parcelas futuras
   const parcelasFuturas = parcelasQ.data ?? [];
   const totalParcelasFuturas = parcelasFuturas.reduce((s, p) => s + p.total, 0);
+  const proximosTresMesesNomes = [1, 2, 3].map((offset) => MONTH_NAMES[(month + offset) % 12]);
+  const proximosTresMeses = `${proximosTresMesesNomes.slice(0, -1).join(', ')} e ${proximosTresMesesNomes[proximosTresMesesNomes.length - 1]}`;
 
   // Cascata do mês: saldo anterior -> receitas -> maiores despesas por categoria -> saldo final
   // Os degraus de despesa são normalizados para a mesma base de `despesas` usada no saldo
@@ -455,11 +460,20 @@ export function FinanceDashboard() {
               <p className="flex-1 py-6 text-center text-sm text-slate-400">Sem despesas neste mês</p>
             ) : (
               <div className="mt-[18px] flex flex-1 flex-col gap-4">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-[30px] font-bold leading-none tracking-[-0.03em] tabular-nums text-[#0f2b38] dark:text-white">
-                    {perfilDesp.total > 0 ? Math.round((perfilDesp.variaveis / perfilDesp.total) * 100) : 0}%
-                  </span>
-                  <span className="text-[13px] font-semibold text-[#6c8593] dark:text-slate-400">variáveis</span>
+                <div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[30px] font-bold leading-none tracking-[-0.03em] tabular-nums text-[#0f2b38] dark:text-white">
+                      {perfilDesp.total > 0 ? Math.round((perfilDesp.variaveis / perfilDesp.total) * 100) : 0}%
+                    </span>
+                    <span className="text-[13px] font-semibold text-[#6c8593] dark:text-slate-400">variáveis</span>
+                  </div>
+                  <p className="mt-[5px] text-[11.5px] text-[#5f7885] dark:text-slate-400 text-pretty">
+                    {perfilDesp.variaveis / perfilDesp.total >= 0.7
+                      ? 'Quase todo o seu gasto é flexível — dá para cortar sem mexer em compromissos fixos.'
+                      : perfilDesp.fixas / perfilDesp.total >= 0.7
+                        ? 'A maior parte do seu gasto é fixa — pouca margem para cortar sem rever compromissos.'
+                        : 'Seu gasto está dividido entre despesas fixas e variáveis.'}
+                  </p>
                 </div>
                 <div className="flex gap-[3px] h-3">
                   <div className="rounded-l-md bg-[#6366f1]" style={{ width: `${perfilDesp.total > 0 ? (perfilDesp.fixas / perfilDesp.total) * 100 : 0}%` }} />
@@ -487,13 +501,6 @@ export function FinanceDashboard() {
                     </span>
                   )}
                 </div>
-                <p className="mt-4 border-t border-[#eef4f7] pt-3.5 text-[11.5px] text-[#5f7885] dark:border-slate-700 dark:text-slate-400">
-                  {perfilDesp.variaveis / perfilDesp.total >= 0.7
-                    ? 'Quase todo o seu gasto é flexível — dá para cortar sem mexer em compromissos fixos.'
-                    : perfilDesp.fixas / perfilDesp.total >= 0.7
-                      ? 'A maior parte do seu gasto é fixa — pouca margem para cortar sem rever compromissos.'
-                      : 'Seu gasto está dividido entre despesas fixas e variáveis.'}
-                </p>
               </div>
             )}
           </Card>
@@ -513,7 +520,7 @@ export function FinanceDashboard() {
                   <CreditCard size={19} />
                 </span>
                 <span className="text-[12.5px] font-semibold text-[#0f2b38] dark:text-slate-100">Nenhuma parcela em aberto</span>
-                <span className="max-w-[210px] text-[11.5px] text-[#5f7885] dark:text-slate-400">Os próximos meses estão livres. Nada comprometido à frente.</span>
+                <span className="max-w-[210px] text-[11.5px] text-[#5f7885] dark:text-slate-400">{proximosTresMeses} estão livres. Nada comprometido à frente.</span>
               </div>
             ) : (
               <div className="mt-[18px] flex flex-1 flex-col gap-3">

@@ -1,4 +1,4 @@
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, Customized, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import { formatCurrency } from '../formatters';
 
 export interface WaterfallStep {
@@ -22,6 +22,47 @@ const HEIGHT = 262;
 
 function fmtCompact(v: number) {
   return `R$ ${(v / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+}
+
+interface WaterfallBar extends WaterfallStep {
+  base: number;
+  top: number;
+  before: number;
+}
+
+interface ConnectorLayerProps {
+  bars: WaterfallBar[];
+  xAxisMap?: Record<string, { scale: (value: string) => number; bandSize: number }>;
+  yAxisMap?: Record<string, { scale: (value: number) => number }>;
+}
+
+// Recharts não tem waterfall nativo: os conectores tracejados entre o topo de uma barra
+// e o topo da próxima (que é a base dela) precisam ser desenhados manualmente por cima
+// do BarChart, usando as mesmas escalas x/y que o gráfico calculou internamente.
+function ConnectorLayer({ bars, xAxisMap, yAxisMap }: ConnectorLayerProps) {
+  const xAxis = xAxisMap ? Object.values(xAxisMap)[0] : undefined;
+  const yAxis = yAxisMap ? Object.values(yAxisMap)[0] : undefined;
+  if (!xAxis || !yAxis) return null;
+
+  return (
+    <g>
+      {bars.slice(0, -1).map((bar, i) => {
+        const nextBar = bars[i + 1];
+        // O valor "acumulado depois deste degrau" (before + value para increase/decrease,
+        // ou simplesmente top para start/end) é a altura em que a próxima barra começa.
+        const afterValue = bar.kind === 'decrease' || bar.kind === 'increase' ? bar.before + bar.value : bar.top;
+        const y = yAxis.scale(afterValue);
+        // Espelha o maxBarSize={78} do <Bar>: a barra nunca é mais larga que 78px mesmo
+        // que a faixa (bandSize) do eixo permita mais.
+        const barPixelWidth = Math.min(78, xAxis.bandSize * 0.62);
+        const x1 = xAxis.scale(bar.label) + xAxis.bandSize / 2 + barPixelWidth / 2;
+        const x2 = xAxis.scale(nextBar.label) + xAxis.bandSize / 2 - barPixelWidth / 2;
+        return (
+          <line key={`${bar.label}-connector`} x1={x1} y1={y} x2={x2} y2={y} stroke="#cbd5e1" strokeWidth={1.5} strokeDasharray="4 3" />
+        );
+      })}
+    </g>
+  );
 }
 
 export function MonthWaterfallChart({ steps }: MonthWaterfallChartProps) {
@@ -99,6 +140,7 @@ export function MonthWaterfallChart({ steps }: MonthWaterfallChartProps) {
                 <Cell key={d.label} fill={COLORS[d.kind]} />
               ))}
             </Bar>
+            <Customized component={(props: unknown) => <ConnectorLayer {...(props as object)} bars={bars} />} />
           </BarChart>
         </ResponsiveContainer>
       </div>
