@@ -27,7 +27,13 @@ export function AnnualTrendChart({ data, activeIndex }: AnnualTrendChartProps) {
   const yFor = (value: number) => CHART_BOTTOM - (value / scaleMax) * CHART_HEIGHT;
   const xFor = (index: number) => PAD_LEFT + slot * index + slot / 2;
 
-  const linePoints = data.map((d, i) => `${xFor(i)},${yFor(d.saldo)}`).join(' ');
+  const lastWithData = data.reduce((last, d, i) => (d.receitas > 0 || d.despesas > 0 ? i : last), -1);
+  const solidEnd = Math.max(activeIndex, lastWithData);
+  const solidPoints = data.slice(0, solidEnd + 1).map((d, i) => `${xFor(i)},${yFor(d.saldo)}`).join(' ');
+  const hasForecast = solidEnd < data.length - 1;
+  const forecastPoints = hasForecast
+    ? `${xFor(solidEnd)},${yFor(data[solidEnd].saldo)} ${xFor(solidEnd + 1)},${yFor(data[solidEnd + 1].saldo)}`
+    : '';
   const gridLines = [0, 0.25, 0.5, 0.75, 1];
 
   return (
@@ -69,8 +75,11 @@ export function AnnualTrendChart({ data, activeIndex }: AnnualTrendChartProps) {
           );
         })}
 
-        <polyline points={linePoints} fill="none" stroke="#6366f1" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
-        {data.map((d, i) => (
+        <polyline points={solidPoints} fill="none" stroke="#6366f1" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+        {hasForecast && (
+          <polyline points={forecastPoints} fill="none" stroke="#6366f1" strokeWidth={2.5} strokeLinecap="round" strokeDasharray="5 4" opacity={0.55} />
+        )}
+        {data.slice(0, solidEnd + 1).map((d, i) => (
           <circle
             key={d.name}
             cx={xFor(i)}
@@ -83,6 +92,9 @@ export function AnnualTrendChart({ data, activeIndex }: AnnualTrendChartProps) {
             <title>{`${d.name}: ${formatCurrency(d.saldo)}`}</title>
           </circle>
         ))}
+        {hasForecast && (
+          <circle cx={xFor(solidEnd + 1)} cy={yFor(data[solidEnd + 1].saldo)} r={4} fill="#fff" stroke="#6366f1" strokeWidth={2.5} opacity={0.6} />
+        )}
       </svg>
     </div>
   );
