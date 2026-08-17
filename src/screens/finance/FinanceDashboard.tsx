@@ -6,12 +6,12 @@ import { useAppContext } from '../../context/AppContext';
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../services/queryKeys';
 import { fetchDashboardAnual, getContratosFaturamento, fetchParcelasFuturas } from '../../services/financeService';
-import { fetchBudgetOverview } from '../../services/budgetService';
 import { Card } from '../../ui/card';
 import { ErrorState } from '../../ui/states';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { useBudgetOverview } from '../../hooks/useBudgetOverview';
 import { formatCurrency } from './formatters';
 import { IncomeBalanceGuide } from './IncomeBalanceGuide';
 import { AnnualTrendChart } from './charts/AnnualTrendChart';
@@ -75,11 +75,7 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
     staleTime: 60_000,
   });
 
-  const overviewQ = useQuery({
-    queryKey: queryKeys.budgetOverview(month, year),
-    queryFn: () => fetchBudgetOverview(month, year),
-    staleTime: 30_000,
-  });
+  const overviewQ = useBudgetOverview(month, year);
   const profileTypeLabel = overviewQ.data?.profileType === 'empresa' ? 'empresa' : 'pessoal';
   const lancamentosCount = (data?.incomes?.length ?? 0) + (data?.expenses?.length ?? 0);
   const updatedAgo = useRelativeTime(finance.dashboard.dataUpdatedAt);
@@ -355,49 +351,49 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
 
       {/* Contratos panel */}
       {contratos.length > 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <Card className="rounded-2xl p-5">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <h3 className="font-bold text-slate-900 dark:text-white">
-              Carteira de contratos — {MONTH_NAMES[month]}
+            <h3 className="text-[13.5px] font-bold text-[#0f2b38] dark:text-white">
+              Carteira de contratos <span className="font-semibold text-[#6c8593] dark:text-slate-400">— {MONTH_NAMES[month]}</span>
             </h3>
-            <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+            <span className="text-sm font-semibold text-[#5f7885] dark:text-slate-300">
               {formatCurrency(totalCarteira)}/mês
             </span>
           </div>
           <div className="mb-3">
             <div className="flex justify-between text-xs mb-1.5">
-              <span className="text-slate-500">{Math.round(pctFaturado)}% recebido/faturado</span>
-              <span className="text-slate-500">{contratos.length} contrato(s)</span>
+              <span className="text-[#5f7885]">{Math.round(pctFaturado)}% recebido/faturado</span>
+              <span className="text-[#5f7885]">{contratos.length} contrato(s)</span>
             </div>
-            <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden flex">
+            <div className="h-2.5 w-full rounded-full bg-[#f5f9fb] overflow-hidden flex">
               <div
-                className="h-full bg-green-500 transition-all"
+                className="h-full bg-[#10b981] transition-all"
                 style={{ width: `${totalCarteira > 0 ? (totalRecebido / totalCarteira) * 100 : 0}%` }}
               />
               <div
-                className="h-full bg-blue-400 transition-all"
+                className="h-full bg-[#0891b2] transition-all"
                 style={{ width: `${totalCarteira > 0 ? (totalFaturado / totalCarteira) * 100 : 0}%` }}
               />
             </div>
           </div>
           <div className="flex flex-wrap gap-3 text-xs">
             {totalRecebido > 0 && (
-              <span className="flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-green-700 font-semibold">
+              <span className="flex items-center gap-1.5 rounded-full bg-[#ecfdf3] px-3 py-1 text-[#067647] font-semibold">
                 ✓ Recebido {formatCurrency(totalRecebido)}
               </span>
             )}
             {totalFaturado > 0 && (
-              <span className="flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-blue-700 font-semibold">
+              <span className="flex items-center gap-1.5 rounded-full bg-[#e6f7fa] px-3 py-1 text-[#0e7490] font-semibold">
                 ⏱ Faturado {formatCurrency(totalFaturado)}
               </span>
             )}
             {totalPendente > 0 && (
-              <span className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-slate-600 font-semibold">
+              <span className="flex items-center gap-1.5 rounded-full bg-[#f7fafb] px-3 py-1 text-[#6c8593] font-semibold">
                 ○ Pendente {formatCurrency(totalPendente)}
               </span>
             )}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Análise de despesas — 6 cards em 2 linhas de 3, igual ao mockup */}

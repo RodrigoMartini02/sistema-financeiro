@@ -1,8 +1,6 @@
 import { AlertTriangle, BarChart3, CheckCircle2, CircleDashed, Landmark, Target, TrendingUp } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
 import type { BudgetOverviewItem, BudgetReferenceStatus } from '../../types/budget';
-import { fetchBudgetOverview } from '../../services/budgetService';
-import { queryKeys } from '../../services/queryKeys';
+import { useBudgetOverview } from '../../hooks/useBudgetOverview';
 import { Card } from '../../ui/card';
 import { formatCurrency } from './formatters';
 
@@ -13,49 +11,42 @@ interface IncomeBalanceGuideProps {
 
 const STATUS_STYLES: Record<BudgetReferenceStatus, {
   label: string;
-  surface: string;
   text: string;
   bar: string;
   icon: typeof CheckCircle2;
 }> = {
   without_reference: {
     label: 'Sem faixa definida',
-    surface: 'bg-slate-100 dark:bg-slate-800',
     text: 'text-slate-600 dark:text-slate-300',
     bar: 'bg-slate-400',
     icon: CircleDashed,
   },
   without_classified_expenses: {
     label: 'Sem dados suficientes',
-    surface: 'bg-slate-100 dark:bg-slate-800',
     text: 'text-slate-600 dark:text-slate-300',
     bar: 'bg-slate-400',
     icon: CircleDashed,
   },
   below_reference: {
     label: 'Abaixo da faixa',
-    surface: 'bg-slate-100 dark:bg-slate-800',
     text: 'text-slate-600 dark:text-slate-300',
     bar: 'bg-slate-500',
     icon: TrendingUp,
   },
   within_reference: {
     label: 'Dentro da faixa',
-    surface: 'bg-emerald-50 dark:bg-emerald-950/40',
     text: 'text-emerald-700 dark:text-emerald-300',
     bar: 'bg-emerald-500',
     icon: CheckCircle2,
   },
   attention: {
     label: 'Acima da faixa',
-    surface: 'bg-amber-50 dark:bg-amber-950/40',
     text: 'text-amber-700 dark:text-amber-300',
     bar: 'bg-amber-500',
     icon: AlertTriangle,
   },
   risk: {
     label: 'Bem acima da faixa',
-    surface: 'bg-rose-50 dark:bg-rose-950/40',
     text: 'text-rose-700 dark:text-rose-300',
     bar: 'bg-rose-500',
     icon: AlertTriangle,
@@ -96,11 +87,7 @@ function getCommitmentLabel(incomeTotal: number, projectedTotal: number): string
 }
 
 export function IncomeBalanceGuide({ month, year }: IncomeBalanceGuideProps) {
-  const overviewQuery = useQuery({
-    queryKey: queryKeys.budgetOverview(month, year),
-    queryFn: () => fetchBudgetOverview(month, year),
-    staleTime: 30_000,
-  });
+  const overviewQuery = useBudgetOverview(month, year);
   const overview = overviewQuery.data;
 
   if (overviewQuery.isLoading) {

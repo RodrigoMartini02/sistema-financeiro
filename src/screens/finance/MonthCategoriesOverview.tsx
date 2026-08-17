@@ -1,8 +1,6 @@
 import { Target } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
 import type { BudgetOverviewItem } from '../../types/budget';
-import { fetchBudgetOverview } from '../../services/budgetService';
-import { queryKeys } from '../../services/queryKeys';
+import { useBudgetOverview } from '../../hooks/useBudgetOverview';
 import { Card } from '../../ui/card';
 import { formatCurrency } from './formatters';
 
@@ -24,11 +22,7 @@ function statusLabel(item: BudgetOverviewItem): string {
 }
 
 export function MonthCategoriesOverview({ month, year }: MonthCategoriesOverviewProps) {
-  const overviewQuery = useQuery({
-    queryKey: queryKeys.budgetOverview(month, year),
-    queryFn: () => fetchBudgetOverview(month, year),
-    staleTime: 30_000,
-  });
+  const overviewQuery = useBudgetOverview(month, year);
   const overview = overviewQuery.data;
 
   if (overviewQuery.isLoading || overviewQuery.error || !overview || overview.profileType === 'empresa') return null;
