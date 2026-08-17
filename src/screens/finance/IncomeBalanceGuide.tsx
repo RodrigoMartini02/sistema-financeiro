@@ -1,8 +1,6 @@
-import { AlertTriangle, BarChart3, CheckCircle2, CircleDashed, Landmark, Target, TrendingUp } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import type { BudgetOverviewItem, BudgetReferenceStatus } from '../../types/budget';
-import { fetchBudgetOverview } from '../../services/budgetService';
-import { queryKeys } from '../../services/queryKeys';
+import { AlertTriangle, BarChart3, CheckCircle2, CircleDashed, Landmark, TrendingUp } from 'lucide-react';
+import type { BudgetReferenceStatus } from '../../types/budget';
+import { useBudgetOverview } from '../../hooks/useBudgetOverview';
 import { Card } from '../../ui/card';
 import { formatCurrency } from './formatters';
 
@@ -13,78 +11,47 @@ interface IncomeBalanceGuideProps {
 
 const STATUS_STYLES: Record<BudgetReferenceStatus, {
   label: string;
-  surface: string;
   text: string;
   bar: string;
   icon: typeof CheckCircle2;
 }> = {
   without_reference: {
     label: 'Sem faixa definida',
-    surface: 'bg-slate-100 dark:bg-slate-800',
     text: 'text-slate-600 dark:text-slate-300',
     bar: 'bg-slate-400',
     icon: CircleDashed,
   },
   without_classified_expenses: {
     label: 'Sem dados suficientes',
-    surface: 'bg-slate-100 dark:bg-slate-800',
     text: 'text-slate-600 dark:text-slate-300',
     bar: 'bg-slate-400',
     icon: CircleDashed,
   },
   below_reference: {
     label: 'Abaixo da faixa',
-    surface: 'bg-slate-100 dark:bg-slate-800',
     text: 'text-slate-600 dark:text-slate-300',
     bar: 'bg-slate-500',
     icon: TrendingUp,
   },
   within_reference: {
     label: 'Dentro da faixa',
-    surface: 'bg-emerald-50 dark:bg-emerald-950/40',
     text: 'text-emerald-700 dark:text-emerald-300',
     bar: 'bg-emerald-500',
     icon: CheckCircle2,
   },
   attention: {
     label: 'Acima da faixa',
-    surface: 'bg-amber-50 dark:bg-amber-950/40',
     text: 'text-amber-700 dark:text-amber-300',
     bar: 'bg-amber-500',
     icon: AlertTriangle,
   },
   risk: {
     label: 'Bem acima da faixa',
-    surface: 'bg-rose-50 dark:bg-rose-950/40',
     text: 'text-rose-700 dark:text-rose-300',
     bar: 'bg-rose-500',
     icon: AlertTriangle,
   },
 };
-
-const GOAL_STYLES = {
-  healthy: {
-    label: 'No ritmo da meta',
-    text: 'text-emerald-700 dark:text-emerald-300',
-    bar: 'bg-emerald-500',
-  },
-  attention: {
-    label: 'Próximo do limite',
-    text: 'text-amber-700 dark:text-amber-300',
-    bar: 'bg-amber-500',
-  },
-  over: {
-    label: 'Meta ultrapassada',
-    text: 'text-rose-700 dark:text-rose-300',
-    bar: 'bg-rose-500',
-  },
-} as const;
-
-function getGoalStatus(status: BudgetOverviewItem['status']) {
-  if (status === 'over') return 'over';
-  if (status === 'attention') return 'attention';
-  return 'healthy';
-}
 
 function formatPercentage(value: number | null): string {
   return value === null ? '-' : `${value.toFixed(1)}%`;
@@ -96,11 +63,7 @@ function getCommitmentLabel(incomeTotal: number, projectedTotal: number): string
 }
 
 export function IncomeBalanceGuide({ month, year }: IncomeBalanceGuideProps) {
-  const overviewQuery = useQuery({
-    queryKey: queryKeys.budgetOverview(month, year),
-    queryFn: () => fetchBudgetOverview(month, year),
-    staleTime: 30_000,
-  });
+  const overviewQuery = useBudgetOverview(month, year);
   const overview = overviewQuery.data;
 
   if (overviewQuery.isLoading) {
@@ -129,45 +92,48 @@ export function IncomeBalanceGuide({ month, year }: IncomeBalanceGuideProps) {
   const classifiedTotal = activeGroups.reduce((total, group) => total + group.projectedAmount, 0);
   const incomeCommitment = overview.incomeTotal > 0 ? (overview.projectedTotal / overview.incomeTotal) * 100 : null;
   const alertCount = activeGroups.filter((group) => group.status === 'attention' || group.status === 'risk').length;
-  const goalItems = overview.items.filter(
-    (item): item is BudgetOverviewItem & { targetAmount: number } =>
-      item.targetAmount !== null && item.targetAmount > 0,
-  );
+
+  const worstGroup = activeGroups
+    .filter((group) => group.status === 'risk' || group.status === 'attention')
+    .sort((a, b) => (b.shareOfClassifiedExpenses ?? 0) - (a.shareOfClassifiedExpenses ?? 0))[0];
+  const suggestedCut = worstGroup && classifiedTotal > 0
+    ? worstGroup.projectedAmount - (worstGroup.referencePercentage * 1.2 / 100) * classifiedTotal
+    : 0;
 
   return (
-    <Card className="overflow-hidden rounded-2xl border-slate-200 p-0 dark:border-slate-700">
-      <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-5 dark:border-slate-700 sm:flex-row sm:items-start sm:justify-between">
+    <Card className="overflow-hidden rounded-2xl border-[#e6eef3] p-0 dark:border-slate-700">
+      <div className="flex flex-col gap-4 border-b border-[#e6eef3] px-[22px] py-5 dark:border-slate-700 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-cyan-100 bg-cyan-50 text-[#0891b2] dark:border-cyan-900 dark:bg-cyan-950/40 dark:text-cyan-300">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-[#b9e6ef] bg-[#e6f7fa] text-[#0891b2] dark:border-cyan-900 dark:bg-cyan-950/40 dark:text-cyan-300">
             <BarChart3 size={18} />
           </span>
           <div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">Leitura das despesas</h3>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Acompanhe o peso de cada categoria no seu orçamento.</p>
+            <h2 className="text-[15.5px] font-bold tracking-[-0.01em] text-[#0f2b38] dark:text-white">Leitura das despesas</h2>
+            <p className="mt-1 text-sm text-[#7b93a1] dark:text-slate-400">Acompanhe o peso de cada categoria no seu orçamento.</p>
           </div>
         </div>
         {alertCount > 0 && (
-          <span className="inline-flex items-center gap-1.5 self-start rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+          <span className="inline-flex items-center gap-1.5 self-start rounded-full border border-[#f0e0b0] bg-[#fdf6e3] px-2.5 py-1 text-xs font-bold text-[#8a6d1f] dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
             <AlertTriangle size={12} />
             {alertCount} categoria{alertCount > 1 ? 's' : ''} acima da faixa
           </span>
         )}
       </div>
 
-      <div className="grid divide-y divide-slate-100 border-b border-slate-100 dark:divide-slate-700 dark:border-slate-700 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-        <div className="border-l-2 border-cyan-500 px-5 py-4">
-          <p className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Renda do período</p>
-          <p className="mt-1.5 text-xl font-bold tabular-nums text-slate-900 dark:text-white">{formatCurrency(overview.incomeTotal)}</p>
+      <div className="grid divide-y divide-[#eef4f7] border-b border-[#eef4f7] dark:divide-slate-700 dark:border-slate-700 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        <div className="border-l-2 border-[#06b6d4] px-[22px] py-4">
+          <p className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Renda do período</p>
+          <p className="mt-1.5 text-xl font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(overview.incomeTotal)}</p>
         </div>
-        <div className="border-l-2 border-rose-500 px-5 py-4">
-          <p className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Despesas previstas</p>
-          <p className="mt-1.5 text-xl font-bold tabular-nums text-slate-900 dark:text-white">{formatCurrency(overview.projectedTotal)}</p>
+        <div className="border-l-2 border-[#ef4444] px-[22px] py-4">
+          <p className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Despesas previstas</p>
+          <p className="mt-1.5 text-xl font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(overview.projectedTotal)}</p>
         </div>
-        <div className="border-l-2 border-emerald-500 px-5 py-4">
-          <p className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Comprometimento</p>
+        <div className="border-l-2 border-[#10b981] px-[22px] py-4">
+          <p className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Comprometimento</p>
           <p className={[
             'mt-1.5 text-xl font-bold tabular-nums',
-            incomeCommitment === null ? 'text-slate-900 dark:text-white' : incomeCommitment > 90 ? 'text-rose-600 dark:text-rose-300' : incomeCommitment > 70 ? 'text-amber-600 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300',
+            incomeCommitment === null ? 'text-[#0f2b38] dark:text-white' : incomeCommitment > 90 ? 'text-[#b42318] dark:text-rose-300' : incomeCommitment > 70 ? 'text-[#8a6d1f] dark:text-amber-300' : 'text-[#067647] dark:text-emerald-300',
           ].join(' ')}>
             {getCommitmentLabel(overview.incomeTotal, overview.projectedTotal)}
           </p>
@@ -175,25 +141,25 @@ export function IncomeBalanceGuide({ month, year }: IncomeBalanceGuideProps) {
       </div>
 
       {activeGroups.length === 0 ? (
-        <div className="mx-5 my-5 flex items-start gap-3 border border-dashed border-slate-300 px-4 py-4 text-sm dark:border-slate-600">
+        <div className="mx-[22px] my-5 flex items-start gap-3 border border-dashed border-[#cbd5e1] px-4 py-4 text-sm dark:border-slate-600">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300"><CircleDashed size={17} /></span>
           <div>
-            <p className="font-semibold text-slate-700 dark:text-slate-200">Ainda não há categorias comparáveis neste período.</p>
-            <p className="mt-1 text-slate-500 dark:text-slate-400">Organize os lançamentos nas categorias do seu orçamento para visualizar as faixas.</p>
+            <p className="font-semibold text-[#0f2b38] dark:text-slate-200">Ainda não há categorias comparáveis neste período.</p>
+            <p className="mt-1 text-[#5f7885] dark:text-slate-400">Organize os lançamentos nas categorias do seu orçamento para visualizar as faixas.</p>
           </div>
         </div>
       ) : (
         <div className="flex flex-col xl:flex-row">
-          <div className="min-w-0 flex-1 px-5 py-5">
+          <div className="min-w-0 flex-1 px-[22px] py-5">
             <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-              <h4 className="text-sm font-bold text-slate-900 dark:text-white">Comparação por categoria</h4>
-              <div className="flex items-center gap-4 text-[11px] text-slate-500 dark:text-slate-400">
-                <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-3 rounded-sm border-x border-dashed border-slate-300 bg-slate-100 dark:bg-slate-700" />média das famílias brasileiras</span>
-                <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-3 rounded bg-slate-400" />seu gasto</span>
+              <h3 className="text-sm font-bold text-[#0f2b38] dark:text-white">Comparação por categoria</h3>
+              <div className="flex items-center gap-4 text-[11px] text-[#5f7885] dark:text-slate-400">
+                <span className="inline-flex items-center gap-1.5"><span className="h-3 w-4 rounded-sm border-x border-dashed border-[#a9c2ce] bg-[#e9f1f5] dark:bg-slate-700" />média das famílias brasileiras</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-3 rounded bg-[#8ba3b0]" />seu gasto</span>
               </div>
             </div>
-            <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
-              Peso de cada categoria dentro de <b className="text-slate-800 dark:text-slate-100">{formatCurrency(classifiedTotal)}</b> em despesas comparáveis.
+            <p className="mb-4 text-xs text-[#5f7885] dark:text-slate-400">
+              Peso de cada categoria dentro de <b className="text-[#0f2b38] dark:text-slate-100">{formatCurrency(classifiedTotal)}</b> em despesas comparáveis. A faixa cinza é o quanto uma família brasileira típica gasta em cada categoria — referência de mercado, não uma meta definida por você.
             </p>
             <div className="grid gap-1">
               {activeGroups.map((group) => {
@@ -208,20 +174,20 @@ export function IncomeBalanceGuide({ month, year }: IncomeBalanceGuideProps) {
                 const rangeWidth = Math.min(100 - rangeStart, ((upperBound - lowerBound) / scale) * 100);
 
                 return (
-                  <div key={group.key} className="border-t border-slate-100 py-3 first:border-t-0 dark:border-slate-700">
+                  <div key={group.key} className="border-t border-[#eef4f7] py-[13px] first:border-t-0 dark:border-slate-700">
                     <div className="flex flex-wrap items-center gap-2">
                       <StatusIcon size={15} className={style.text} />
-                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{group.label}</p>
+                      <p className="text-[13.5px] font-semibold text-[#0f2b38] dark:text-slate-100">{group.label}</p>
                       <span className={['ml-auto text-[11.5px] font-bold', style.text].join(' ')}>{style.label}</span>
                     </div>
-                    <div className="relative mt-2 h-5 rounded-md bg-slate-50 dark:bg-slate-800">
-                      <span className="absolute inset-y-0 rounded-sm border-x border-dashed border-slate-300 bg-slate-100 dark:border-slate-500 dark:bg-slate-700" style={{ left: `${rangeStart}%`, width: `${rangeWidth}%` }} />
+                    <div className="relative mt-2 h-5 rounded-md bg-[#f5f9fb] dark:bg-slate-800">
+                      <span className="absolute inset-y-0 rounded-sm border-x border-dashed border-[#a9c2ce] bg-[#e9f1f5] dark:border-slate-500 dark:bg-slate-700" style={{ left: `${rangeStart}%`, width: `${rangeWidth}%` }} />
                       <span className={['absolute inset-y-0 left-0 top-1/2 -translate-y-1/2 h-2.5 rounded-sm', style.bar].join(' ')} style={{ width: `${actualWidth}%` }} />
                     </div>
-                    <div className="mt-2 flex flex-wrap justify-between gap-x-3 gap-y-1 text-[11.5px] text-slate-500 dark:text-slate-400">
-                      <span>Você: <strong className="text-slate-700 dark:text-slate-200">{formatPercentage(group.shareOfClassifiedExpenses)}</strong></span>
+                    <div className="mt-2 flex flex-wrap justify-between gap-x-[18px] gap-y-1 text-[11.5px] text-[#7b93a1] dark:text-slate-400">
+                      <span>Você: <strong className="text-[#0f2b38] dark:text-slate-200">{formatPercentage(group.shareOfClassifiedExpenses)}</strong></span>
                       <span>Média das famílias: {formatPercentage(lowerBound)}–{formatPercentage(upperBound)}</span>
-                      <span className="font-semibold text-slate-700 dark:text-slate-200">{formatCurrency(group.projectedAmount)}</span>
+                      <span className="font-semibold text-[#0f2b38] dark:text-slate-200">{formatCurrency(group.projectedAmount)}</span>
                     </div>
                   </div>
                 );
@@ -229,81 +195,29 @@ export function IncomeBalanceGuide({ month, year }: IncomeBalanceGuideProps) {
             </div>
           </div>
 
-          <div className="flex-none border-t border-slate-100 bg-slate-50/60 px-5 py-5 dark:border-slate-700 dark:bg-slate-900/40 xl:w-60 xl:border-l xl:border-t-0">
-            <p className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Resumo do período</p>
-            <div className="mt-4 grid gap-2.5">
-              <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-3.5 py-3 dark:border-emerald-900 dark:bg-emerald-950/30">
-                <p className="text-[11.5px] text-emerald-700/80 dark:text-emerald-300/80">Dentro da faixa</p>
-                <p className="mt-0.5 text-lg font-bold text-emerald-700 dark:text-emerald-300">{activeGroups.filter((group) => group.status === 'within_reference').length} categoria{activeGroups.filter((group) => group.status === 'within_reference').length !== 1 ? 's' : ''}</p>
+          <div className="flex-none border-t border-[#eef4f7] bg-[#f8fbfc] px-[22px] py-5 dark:border-slate-700 dark:bg-slate-900/40 xl:w-[236px] xl:border-l xl:border-t-0">
+            <p className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Resumo do período</p>
+            <div className="mt-4 grid gap-3.5">
+              <div className="rounded-[11px] border border-[#b7e4c7] bg-[#ecfdf3] px-3.5 py-3 dark:border-emerald-900 dark:bg-emerald-950/30">
+                <p className="text-[11.5px] text-[#3f7a5c] dark:text-emerald-300/80">Dentro da faixa</p>
+                <p className="mt-0.5 text-lg font-bold text-[#067647] dark:text-emerald-300">{activeGroups.filter((group) => group.status === 'within_reference').length} categoria{activeGroups.filter((group) => group.status === 'within_reference').length !== 1 ? 's' : ''}</p>
               </div>
-              <div className="rounded-lg border border-amber-100 bg-amber-50/70 px-3.5 py-3 dark:border-amber-900 dark:bg-amber-950/30">
-                <p className="text-[11.5px] text-amber-700/80 dark:text-amber-300/80">Acima da faixa</p>
-                <p className="mt-0.5 text-lg font-bold text-amber-700 dark:text-amber-300">{alertCount} categoria{alertCount !== 1 ? 's' : ''}</p>
+              <div className="rounded-[11px] border border-[#f0e0b0] bg-[#fdf6e3] px-3.5 py-3 dark:border-amber-900 dark:bg-amber-950/30">
+                <p className="text-[11.5px] text-[#8a7a4f] dark:text-amber-300/80">Acima da faixa</p>
+                <p className="mt-0.5 text-lg font-bold text-[#8a6d1f] dark:text-amber-300">{alertCount} categoria{alertCount !== 1 ? 's' : ''}</p>
               </div>
               {overview.unclassifiedProjectedTotal > 0 && (
-                <div className="rounded-lg border border-slate-200 bg-white px-3.5 py-3 dark:border-slate-700 dark:bg-slate-800">
-                  <p className="text-[11.5px] text-slate-500 dark:text-slate-400">Outros lançamentos</p>
-                  <p className="mt-0.5 text-lg font-bold tabular-nums text-slate-800 dark:text-slate-100">{formatCurrency(overview.unclassifiedProjectedTotal)}</p>
+                <div className="rounded-[11px] border border-[#e6eef3] bg-white px-3.5 py-3 dark:border-slate-700 dark:bg-slate-800">
+                  <p className="text-[11.5px] text-[#7b93a1] dark:text-slate-400">Outros lançamentos</p>
+                  <p className="mt-0.5 text-lg font-bold tabular-nums text-[#0f2b38] dark:text-slate-100">{formatCurrency(overview.unclassifiedProjectedTotal)}</p>
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      )}
-
-      {goalItems.length > 0 && (
-        <div className="border-t border-slate-100 px-5 py-5 dark:border-slate-700">
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-600 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
-                <Target size={18} />
-              </span>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Suas metas do mês</h3>
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Acompanhe o uso de cada limite que você definiu.</p>
-              </div>
-            </div>
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              {goalItems.length} {goalItems.length === 1 ? 'meta ativa' : 'metas ativas'}
-            </span>
-          </div>
-
-          <div className="grid gap-x-8 gap-y-5 lg:grid-cols-2">
-            {goalItems.map((item) => {
-              const progress = (item.projectedAmount / item.targetAmount) * 100;
-              const remainingAmount = item.targetAmount - item.projectedAmount;
-              const goalStyle = GOAL_STYLES[getGoalStatus(item.status)];
-
-              return (
-                <div key={item.categoryId} className="border-l-2 border-slate-200 pl-3 dark:border-slate-600">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{item.categoryName}</p>
-                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        {formatCurrency(item.projectedAmount)} de {formatCurrency(item.targetAmount)}
-                      </p>
-                    </div>
-                    <span className={`shrink-0 text-xs font-bold ${goalStyle.text}`}>{goalStyle.label}</span>
-                  </div>
-
-                  <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
-                    <div
-                      className={`h-full rounded-full transition-all ${goalStyle.bar}`}
-                      style={{ width: `${Math.min(progress, 100)}%` }}
-                    />
-                  </div>
-
-                  <div className="mt-2 flex items-center justify-between gap-3 text-xs">
-                    <span className="font-semibold text-slate-700 dark:text-slate-200">{Math.round(progress)}% utilizado</span>
-                    <span className={remainingAmount < 0 ? 'font-medium text-rose-700 dark:text-rose-300' : 'text-slate-500 dark:text-slate-400'}>
-                      {remainingAmount < 0
-                        ? `${formatCurrency(Math.abs(remainingAmount))} acima da meta`
-                        : `Restam ${formatCurrency(remainingAmount)}`}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
+            {worstGroup && suggestedCut > 0 && (
+              <p className="mt-4 border-t border-[#e6eef3] pt-[14px] text-[11.5px] leading-relaxed text-[#5f7885] dark:border-slate-700 dark:text-slate-400">
+                Cortar <b className="text-[#0f2b38] dark:text-slate-100">{formatCurrency(suggestedCut)}</b> em {worstGroup.label} já traria a categoria de volta para a faixa esperada.
+              </p>
+            )}
           </div>
         </div>
       )}

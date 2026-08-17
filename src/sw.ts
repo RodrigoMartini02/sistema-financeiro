@@ -20,6 +20,7 @@ const worker = self as unknown as AssistantWorkerScope;
 const ASSISTANT_PATH = '/assistant.html';
 const assistantShell = new NetworkFirst({ cacheName: 'fingerence-assistant-shell-v1' });
 const assistantAssets = new StaleWhileRevalidate({ cacheName: 'fingerence-assistant-assets-v1' });
+const appShell = new NetworkFirst({ cacheName: 'fingerence-app-shell-v1' });
 
 clientsClaim();
 void worker.skipWaiting();
@@ -29,6 +30,11 @@ precacheAndRoute(self.__WB_MANIFEST);
 registerRoute(
   ({ sameOrigin, request, url }) => sameOrigin && request.mode === 'navigate' && url.pathname === ASSISTANT_PATH,
   assistantShell,
+);
+
+registerRoute(
+  ({ sameOrigin, request, url }) => sameOrigin && request.mode === 'navigate' && url.pathname !== ASSISTANT_PATH,
+  appShell,
 );
 
 registerRoute(
