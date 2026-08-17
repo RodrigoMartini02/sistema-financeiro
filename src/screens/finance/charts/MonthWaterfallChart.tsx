@@ -1,3 +1,4 @@
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import { formatCurrency } from '../formatters';
 
 export interface WaterfallStep {
@@ -18,11 +19,10 @@ const COLORS: Record<WaterfallStep['kind'], string> = {
 };
 
 const HEIGHT = 262;
-const CHART_TOP = 30;
-const CHART_BOTTOM = 224;
-const CHART_HEIGHT = CHART_BOTTOM - CHART_TOP;
-const PAD_LEFT = 70;
-const PAD_RIGHT = 15;
+
+function fmtCompact(v: number) {
+  return `R$ ${(v / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+}
 
 export function MonthWaterfallChart({ steps }: MonthWaterfallChartProps) {
   let running = 0;
@@ -40,58 +40,68 @@ export function MonthWaterfallChart({ steps }: MonthWaterfallChartProps) {
   });
 
   const maxValue = Math.max(1, ...bars.map((b) => b.top));
-  const width = Math.max(720, PAD_LEFT + PAD_RIGHT + bars.length * 150);
-  const chartWidth = width - PAD_LEFT - PAD_RIGHT;
-  const slot = chartWidth / bars.length;
-  const barWidth = Math.min(78, slot * 0.62);
-
-  const yFor = (value: number) => CHART_BOTTOM - (value / maxValue) * CHART_HEIGHT;
+  const chartData = bars.map((bar) => ({
+    label: bar.label,
+    kind: bar.kind,
+    base: bar.base,
+    height: bar.top - bar.base,
+    valueLabel: bar.kind === 'decrease' ? `-${formatCurrency(Math.abs(bar.value))}` : bar.kind === 'increase' ? `+${formatCurrency(bar.value)}` : formatCurrency(bar.value),
+  }));
 
   return (
     <div className="w-full overflow-x-auto">
-      <svg viewBox={`0 0 ${width} ${HEIGHT}`} className="block w-full min-w-[720px]" style={{ height: HEIGHT }} role="img" aria-label="Cascata do mês: saldo anterior, receitas, despesas por categoria e saldo final">
-        {[0, 0.5, 1].map((g) => {
-          const y = CHART_BOTTOM - g * CHART_HEIGHT;
-          return (
-            <g key={g}>
-              <line x1={PAD_LEFT} y1={y} x2={width - PAD_RIGHT} y2={y} stroke={g === 0 ? '#d7e3ea' : '#eef4f7'} />
-              <text x={PAD_LEFT - 10} y={y + 4} textAnchor="end" fontSize="10.5" fill="#6c8593">{formatCurrency(maxValue * g)}</text>
-            </g>
-          );
-        })}
-
-        {bars.map((bar, i) => {
-          const x = PAD_LEFT + slot * i + (slot - barWidth) / 2;
-          const barTopY = yFor(bar.top);
-          const barBottomY = yFor(bar.base);
-          const barHeight = Math.max(2, barBottomY - barTopY);
-          const centerX = x + barWidth / 2;
-          const nextBar = bars[i + 1];
-
-          return (
-            <g key={`${bar.label}-${i}`}>
-              {nextBar && (
-                <line
-                  x1={x + barWidth}
-                  y1={yFor(bar.kind === 'decrease' || bar.kind === 'increase' ? bar.before + bar.value : bar.top)}
-                  x2={PAD_LEFT + slot * (i + 1) + (slot - barWidth) / 2}
-                  y2={yFor(bar.kind === 'decrease' || bar.kind === 'increase' ? bar.before + bar.value : bar.top)}
-                  stroke="#cbd5e1"
-                  strokeWidth={1.5}
-                  strokeDasharray="4 3"
-                />
-              )}
-              <rect x={x} y={barTopY} width={barWidth} height={barHeight} rx={3} fill={COLORS[bar.kind]} />
-              <text x={centerX} y={barTopY - 8} textAnchor="middle" fontSize="11.5" fontWeight={700} fill={bar.kind === 'decrease' ? '#b42318' : bar.kind === 'increase' ? '#067647' : '#0f2b38'}>
-                {bar.kind === 'decrease' ? `-${formatCurrency(Math.abs(bar.value))}` : bar.kind === 'increase' ? `+${formatCurrency(bar.value)}` : formatCurrency(bar.value)}
-              </text>
-              <text x={centerX} y={HEIGHT - 14} textAnchor="middle" fontSize="11.5" fontWeight={bar.kind === 'start' || bar.kind === 'end' ? 700 : 400} fill={bar.kind === 'start' || bar.kind === 'end' ? '#0f2b38' : '#5f7885'}>
-                {bar.label}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
+      <div className="min-w-[720px]" style={{ height: HEIGHT }} role="img" aria-label="Cascata do mês: saldo anterior, receitas, despesas por categoria e saldo final">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData} margin={{ top: 30, right: 15, bottom: 8, left: 8 }} barCategoryGap="38%">
+            <CartesianGrid stroke="#eef4f7" vertical={false} />
+            <XAxis
+              dataKey="label"
+              axisLine={{ stroke: '#d7e3ea' }}
+              tickLine={false}
+              tick={(props) => {
+                const { x, y, payload } = props;
+                const bar = bars.find((b) => b.label === payload.value);
+                const emphasize = bar?.kind === 'start' || bar?.kind === 'end';
+                return (
+                  <text x={x} y={Number(y) + 12} textAnchor="middle" fontSize={11.5} fontWeight={emphasize ? 700 : 400} fill={emphasize ? '#0f2b38' : '#5f7885'}>
+                    {payload.value}
+                  </text>
+                );
+              }}
+            />
+            <YAxis
+              axisLine={false}
+              tickLine={false}
+              domain={[0, maxValue]}
+              tickFormatter={fmtCompact}
+              tick={{ fontSize: 10.5, fill: '#6c8593' }}
+              width={60}
+            />
+            <Bar dataKey="base" stackId="waterfall" fill="transparent" isAnimationActive={false} />
+            <Bar
+              dataKey="height"
+              stackId="waterfall"
+              radius={[3, 3, 0, 0]}
+              maxBarSize={78}
+              isAnimationActive={false}
+              label={(props) => {
+                const { x, y, width, index } = props;
+                const d = chartData[index as number];
+                const fill = d.kind === 'decrease' ? '#b42318' : d.kind === 'increase' ? '#067647' : '#0f2b38';
+                return (
+                  <text key={`label-${index}`} x={(x as number) + (width as number) / 2} y={(y as number) - 8} textAnchor="middle" fontSize={11.5} fontWeight={700} fill={fill}>
+                    {d.valueLabel}
+                  </text>
+                );
+              }}
+            >
+              {chartData.map((d) => (
+                <Cell key={d.label} fill={COLORS[d.kind]} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }

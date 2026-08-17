@@ -42,11 +42,7 @@ function useRelativeTime(timestamp: number | undefined): string {
   return hours === 1 ? 'há 1 hora' : `há ${hours} horas`;
 }
 
-interface FinanceDashboardProps {
-  showMonthlySummary?: boolean;
-}
-
-export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboardProps) {
+export function FinanceDashboard() {
   const { month, year } = useAppContext();
   const finance = useFinanceDashboard(month, year);
   const data = finance.dashboard.data;
@@ -203,9 +199,15 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
   const totalParcelasFuturas = parcelasFuturas.reduce((s, p) => s + p.total, 0);
 
   // Cascata do mês: saldo anterior -> receitas -> maiores despesas por categoria -> saldo final
+  // Os degraus de despesa são normalizados para a mesma base de `despesas` usada no saldo
+  // projetado (catData soma todas as despesas do período sem o rateio de parcelas que o
+  // saldo aplica), garantindo que a soma dos degraus bata exatamente com o saldo final.
   const waterfallSteps = useMemo(() => {
-    const topCategorias = catData.slice(0, 5);
-    const outrasCategorias = catData.slice(5).reduce((s, c) => s + c.value, 0);
+    const catTotal = catData.reduce((s, c) => s + c.value, 0);
+    const scale = catTotal > 0 ? despesas / catTotal : 0;
+    const scaledCatData = catData.map((c) => ({ name: c.name, value: c.value * scale }));
+    const topCategorias = scaledCatData.slice(0, 5);
+    const outrasCategorias = scaledCatData.slice(5).reduce((s, c) => s + c.value, 0);
     const steps = [
       { label: 'Saldo anterior', value: saldoAnterior, kind: 'start' as const },
       { label: 'Receitas', value: receitas, kind: 'increase' as const },
@@ -214,7 +216,7 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
       { label: 'Saldo final', value: saldoProjetado, kind: 'end' as const },
     ];
     return steps;
-  }, [saldoAnterior, receitas, catData, saldoProjetado]);
+  }, [saldoAnterior, receitas, catData, despesas, saldoProjetado]);
 
   return (
     <div className="grid gap-[18px]">
@@ -222,14 +224,12 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
       <div className="flex items-end gap-4">
         <div className="flex flex-col gap-[3px]">
           <h1 className="m-0 text-[24px] font-bold tracking-[-0.02em] text-[#0f2b38] dark:text-white">Painel financeiro</h1>
-          {showMonthlySummary && (
-            <p className="m-0 text-[13px] text-[#7b93a1] dark:text-slate-400">
-              {MONTH_NAMES[month]} de {year} · perfil {profileTypeLabel} · {lancamentosCount} lançamento{lancamentosCount === 1 ? '' : 's'} no período
-            </p>
-          )}
+          <p className="m-0 text-[13px] text-[#7b93a1] dark:text-slate-400">
+            {MONTH_NAMES[month]} de {year} · perfil {profileTypeLabel} · {lancamentosCount} lançamento{lancamentosCount === 1 ? '' : 's'} no período
+          </p>
         </div>
         <div className="flex-1" />
-        {showMonthlySummary && updatedAgo && (
+        {updatedAgo && (
           <span className="text-[11.5px] text-[#5f7885] dark:text-slate-500">Atualizado {updatedAgo}</span>
         )}
         {guide.isVisible && hasNoMonthlyEntries && (
@@ -255,99 +255,97 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
       )}
 
       {/* Resumo consolidado */}
-      {showMonthlySummary && (
-        <Card className="overflow-hidden rounded-2xl p-0">
-          <div className="flex flex-col lg:flex-row">
-            <div className="flex-none border-b border-[#e6eef3] bg-gradient-to-b from-[#fbfdfe] to-white p-[22px] dark:border-slate-700 dark:bg-slate-900/40 lg:w-[336px] lg:border-b-0 lg:border-r">
-              <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Saldo projetado</span>
-              <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-[13px] font-semibold text-[#6c8593] dark:text-slate-400">R$</span>
-                <span className={`text-[40px] font-bold leading-none tracking-[-0.035em] tabular-nums ${saldoProjetado >= 0 ? 'text-[#067647] dark:text-emerald-300' : 'text-[#b42318] dark:text-rose-300'}`}>
-                  {Math.abs(saldoProjetado).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+      <Card className="overflow-hidden rounded-2xl p-0">
+        <div className="flex flex-col lg:flex-row">
+          <div className="flex-none border-b border-[#e6eef3] bg-gradient-to-b from-[#fbfdfe] to-white p-[22px] dark:border-slate-700 dark:bg-slate-900/40 lg:w-[336px] lg:border-b-0 lg:border-r">
+            <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Saldo projetado</span>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-[13px] font-semibold text-[#6c8593] dark:text-slate-400">R$</span>
+              <span className={`text-[40px] font-bold leading-none tracking-[-0.035em] tabular-nums ${saldoProjetado >= 0 ? 'text-[#067647] dark:text-emerald-300' : 'text-[#b42318] dark:text-rose-300'}`}>
+                {Math.abs(saldoProjetado).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+            <p className="mt-[9px] text-[12px] text-[#7b93a1] dark:text-slate-400">
+              {saldoProjetado >= 0 ? 'Sobra do mês depois de todas as despesas pagas.' : 'Despesas superam as receitas neste mês.'}
+            </p>
+          </div>
+
+          <div className="grid flex-1 grid-cols-2 xl:grid-cols-4">
+            <div className="relative p-5">
+              <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Saldo anterior</span>
+              <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(saldoAnterior)}</p>
+            </div>
+            <div className="relative border-l border-[#eef4f7] p-5 dark:border-slate-700">
+              <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Receitas</span>
+              <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(receitas)}</p>
+              {deltaReceitas !== undefined && (
+                <span className={`mt-[7px] inline-flex items-center gap-1 rounded-full px-[7px] py-0.5 text-[11px] font-bold ${deltaReceitas >= 0 ? 'bg-[#ecfdf3] text-[#067647]' : 'bg-[#fef3f2] text-[#b42318]'}`}>
+                  {deltaReceitas >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                  {Math.abs(deltaReceitas).toFixed(1)}%
                 </span>
-              </div>
-              <p className="mt-[9px] text-[12px] text-[#7b93a1] dark:text-slate-400">
-                {saldoProjetado >= 0 ? 'Sobra do mês depois de todas as despesas.' : 'Despesas superam as receitas neste mês.'}
+              )}
+            </div>
+            <div className="relative border-l border-[#eef4f7] p-5 dark:border-slate-700">
+              <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Despesas</span>
+              <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(despesas)}</p>
+              {deltaDespesas !== undefined && (
+                <span className={`mt-[7px] inline-flex items-center gap-1 rounded-full px-[7px] py-0.5 text-[11px] font-bold ${deltaDespesas <= 0 ? 'bg-[#ecfdf3] text-[#067647]' : 'bg-[#fef3f2] text-[#b42318]'}`}>
+                  {deltaDespesas <= 0 ? <TrendingDown size={11} /> : <TrendingUp size={11} />}
+                  {Math.abs(deltaDespesas).toFixed(1)}%
+                </span>
+              )}
+            </div>
+            <div className="relative border-l border-[#eef4f7] p-5 dark:border-slate-700">
+              <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Comprometimento</span>
+              <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#067647] dark:text-emerald-300">
+                {receitas > 0 ? `${txComprometimento.toFixed(0)}%` : '—'}
               </p>
-            </div>
-
-            <div className="grid flex-1 grid-cols-2 xl:grid-cols-4">
-              <div className="relative p-5">
-                <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Saldo anterior</span>
-                <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(saldoAnterior)}</p>
+              <div className="relative mt-3 flex h-1.5 gap-0.5">
+                <div className="flex-[70] rounded-l bg-[#b7e4c7]" />
+                <div className="flex-[20] bg-[#f0e0b0]" />
+                <div className="flex-[10] rounded-r bg-[#fbd5d1]" />
+                <span className="absolute -top-1 h-3.5 w-[3px] rounded bg-[#067647]" style={{ left: `${Math.min(100, txComprometimento)}%` }} />
               </div>
-              <div className="relative border-l border-[#eef4f7] p-5 dark:border-slate-700">
-                <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Receitas</span>
-                <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(receitas)}</p>
-                {deltaReceitas !== undefined && (
-                  <span className={`mt-[7px] inline-flex items-center gap-1 rounded-full px-[7px] py-0.5 text-[11px] font-bold ${deltaReceitas >= 0 ? 'bg-[#ecfdf3] text-[#067647]' : 'bg-[#fef3f2] text-[#b42318]'}`}>
-                    {deltaReceitas >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-                    {Math.abs(deltaReceitas).toFixed(1)}%
-                  </span>
-                )}
-              </div>
-              <div className="relative border-l border-[#eef4f7] p-5 dark:border-slate-700">
-                <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Despesas</span>
-                <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(despesas)}</p>
-                {deltaDespesas !== undefined && (
-                  <span className={`mt-[7px] inline-flex items-center gap-1 rounded-full px-[7px] py-0.5 text-[11px] font-bold ${deltaDespesas <= 0 ? 'bg-[#ecfdf3] text-[#067647]' : 'bg-[#fef3f2] text-[#b42318]'}`}>
-                    {deltaDespesas <= 0 ? <TrendingDown size={11} /> : <TrendingUp size={11} />}
-                    {Math.abs(deltaDespesas).toFixed(1)}%
-                  </span>
-                )}
-              </div>
-              <div className="relative border-l border-[#eef4f7] p-5 dark:border-slate-700">
-                <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Comprometimento</span>
-                <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#067647] dark:text-emerald-300">
-                  {receitas > 0 ? `${txComprometimento.toFixed(0)}%` : '—'}
-                </p>
-                <div className="relative mt-3 flex h-1.5 gap-0.5">
-                  <div className="flex-[70] rounded-l bg-[#b7e4c7]" />
-                  <div className="flex-[20] bg-[#f0e0b0]" />
-                  <div className="flex-[10] rounded-r bg-[#fbd5d1]" />
-                  <span className="absolute -top-1 h-3.5 w-[3px] rounded bg-[#067647]" style={{ left: `${Math.min(100, txComprometimento)}%` }} />
-                </div>
-                <p className="mt-2 text-[11.5px] text-[#5f7885] dark:text-slate-400">da renda comprometida com despesas previstas</p>
-                {comprometimentoGuide.isVisible && (
-                  <FirstAccessGuideCard
-                    floating
-                    placement="top"
-                    align="right"
-                    className="absolute right-0 top-full z-[45] mt-3 w-[min(25rem,calc(100vw-2rem))]"
-                    icon={AlertTriangle}
-                    description={firstAccessGuideMessages.painelComprometimento}
-                    onDismiss={comprometimentoGuide.dismiss}
-                  />
-                )}
-              </div>
+              <p className="mt-2 text-[11.5px] text-[#5f7885] dark:text-slate-400">da renda comprometida com despesas previstas</p>
+              {comprometimentoGuide.isVisible && (
+                <FirstAccessGuideCard
+                  floating
+                  placement="top"
+                  align="right"
+                  className="absolute right-0 top-full z-[45] mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                  icon={AlertTriangle}
+                  description={firstAccessGuideMessages.painelComprometimento}
+                  onDismiss={comprometimentoGuide.dismiss}
+                />
+              )}
             </div>
           </div>
+        </div>
 
-          <div className="flex flex-col gap-4 border-t border-[#eef4f7] bg-[#fbfdfe] px-[22px] py-[15px] dark:border-slate-700 dark:bg-slate-900/40 sm:flex-row sm:items-end">
-            <div className="flex-1">
-              <div className="flex items-baseline gap-2 text-xs">
-                <span className="h-[7px] w-[7px] rounded-full bg-[#10b981]" />
-                <span className="font-semibold text-[#0f2b38] dark:text-slate-100">Receitas</span>
-                <span className="ml-auto font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(receitas)}</span>
-              </div>
-              <div className="mt-[7px] h-2 rounded bg-[#10b981]" />
+        <div className="flex flex-col gap-4 border-t border-[#eef4f7] bg-[#fbfdfe] px-[22px] py-[15px] dark:border-slate-700 dark:bg-slate-900/40 sm:flex-row sm:items-end">
+          <div className="flex-1">
+            <div className="flex items-baseline gap-2 text-xs">
+              <span className="h-[7px] w-[7px] rounded-full bg-[#10b981]" />
+              <span className="font-semibold text-[#0f2b38] dark:text-slate-100">Receitas</span>
+              <span className="ml-auto font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(receitas)}</span>
             </div>
-            <div className="flex-1">
-              <div className="flex items-baseline gap-2 text-xs">
-                <span className="h-[7px] w-[7px] rounded-full bg-[#ef4444]" />
-                <span className="font-semibold text-[#0f2b38] dark:text-slate-100">Despesas pagas</span>
-                <span className="ml-auto font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(despesasPagas)}</span>
-              </div>
-              <div className="mt-[7px] h-2 rounded bg-[#f1f6f9] dark:bg-slate-700">
-                <div className="h-2 rounded bg-[#ef4444]" style={{ width: `${Math.min(100, (despesasPagas / healthBase) * 100)}%` }} />
-              </div>
-            </div>
-            <span className="shrink-0 pb-px text-[11.5px] text-[#5f7885] dark:text-slate-400">
-              Você gastou <b className="text-[#0f2b38] dark:text-slate-100">{pctGasto.toFixed(1)}%</b> do que entrou
-            </span>
+            <div className="mt-[7px] h-2 rounded bg-[#10b981]" />
           </div>
-        </Card>
-      )}
+          <div className="flex-1">
+            <div className="flex items-baseline gap-2 text-xs">
+              <span className="h-[7px] w-[7px] rounded-full bg-[#ef4444]" />
+              <span className="font-semibold text-[#0f2b38] dark:text-slate-100">Despesas pagas</span>
+              <span className="ml-auto font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(despesasPagas)}</span>
+            </div>
+            <div className="mt-[7px] h-2 rounded bg-[#f1f6f9] dark:bg-slate-700">
+              <div className="h-2 rounded bg-[#ef4444]" style={{ width: `${Math.min(100, (despesasPagas / healthBase) * 100)}%` }} />
+            </div>
+          </div>
+          <span className="shrink-0 pb-px text-[11.5px] text-[#5f7885] dark:text-slate-400">
+            Você gastou <b className="text-[#0f2b38] dark:text-slate-100">{pctGasto.toFixed(1)}%</b> do que entrou
+          </span>
+        </div>
+      </Card>
 
       {/* Contratos panel */}
       {contratos.length > 0 && (
@@ -489,6 +487,13 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
                     </span>
                   )}
                 </div>
+                <p className="mt-4 border-t border-[#eef4f7] pt-3.5 text-[11.5px] text-[#5f7885] dark:border-slate-700 dark:text-slate-400">
+                  {perfilDesp.variaveis / perfilDesp.total >= 0.7
+                    ? 'Quase todo o seu gasto é flexível — dá para cortar sem mexer em compromissos fixos.'
+                    : perfilDesp.fixas / perfilDesp.total >= 0.7
+                      ? 'A maior parte do seu gasto é fixa — pouca margem para cortar sem rever compromissos.'
+                      : 'Seu gasto está dividido entre despesas fixas e variáveis.'}
+                </p>
               </div>
             )}
           </Card>
@@ -557,6 +562,11 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
                 </div>
               ))}
             </div>
+            <p className="mt-4 border-t border-[#eef4f7] pt-3.5 text-[11.5px] text-[#5f7885] dark:border-slate-700 dark:text-slate-400">
+              {despesasPendentes === 0
+                ? `Nada em aberto: tudo que venceu em ${MONTH_NAMES[month].toLowerCase()} já foi pago.`
+                : `Ainda há ${formatCurrency(despesasPendentes)} em despesas pendentes neste mês.`}
+            </p>
           </Card>
 
           {/* Card 5: Receitas por origem */}
@@ -572,6 +582,15 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
               <div className="mt-3 flex flex-1 flex-col items-center gap-3.5">
                 <DonutChart data={origemData} centerLabel="TOTAL" centerValue={formatCurrency(receitas)} />
               </div>
+            )}
+            {origemData.length > 0 && (
+              <p className="mt-4 border-t border-[#eef4f7] pt-3.5 text-[11.5px] text-[#5f7885] dark:border-slate-700 dark:text-slate-400">
+                {origemData.every((d) => d.name === 'Avulsas')
+                  ? 'Toda a renda depende de entradas avulsas, sem receita recorrente garantida.'
+                  : origemData.every((d) => d.name === 'Contratos')
+                    ? 'Toda a renda vem de contratos recorrentes.'
+                    : 'A renda combina contratos recorrentes e entradas avulsas.'}
+              </p>
             )}
           </Card>
 
@@ -589,6 +608,18 @@ export function FinanceDashboard({ showMonthlySummary = false }: FinanceDashboar
                 <DonutChart data={formaData} centerLabel="PAGO" centerValue={formatCurrency(despesas)} capitalizeLabels />
               </div>
             )}
+            {formaData.length > 0 && (() => {
+              const totalForma = formaData.reduce((s, d) => s + d.value, 0);
+              const credito = formaData.find((d) => d.name.toLowerCase().includes('credito') || d.name.toLowerCase().includes('crédito'));
+              const creditoShare = credito && totalForma > 0 ? credito.value / totalForma : 0;
+              return (
+                <p className="mt-4 border-t border-[#eef4f7] pt-3.5 text-[11.5px] text-[#5f7885] dark:border-slate-700 dark:text-slate-400">
+                  {creditoShare > 0.5
+                    ? 'Mais da metade saiu no crédito — o peso maior cai na fatura seguinte.'
+                    : 'Suas despesas estão distribuídas entre diferentes formas de pagamento.'}
+                </p>
+              );
+            })()}
           </Card>
         </div>
       </div>

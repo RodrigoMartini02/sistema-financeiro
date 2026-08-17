@@ -1,5 +1,5 @@
-import { AlertTriangle, BarChart3, CheckCircle2, CircleDashed, Landmark, Target, TrendingUp } from 'lucide-react';
-import type { BudgetOverviewItem, BudgetReferenceStatus } from '../../types/budget';
+import { AlertTriangle, BarChart3, CheckCircle2, CircleDashed, Landmark, TrendingUp } from 'lucide-react';
+import type { BudgetReferenceStatus } from '../../types/budget';
 import { useBudgetOverview } from '../../hooks/useBudgetOverview';
 import { Card } from '../../ui/card';
 import { formatCurrency } from './formatters';
@@ -53,30 +53,6 @@ const STATUS_STYLES: Record<BudgetReferenceStatus, {
   },
 };
 
-const GOAL_STYLES = {
-  healthy: {
-    label: 'No ritmo da meta',
-    text: 'text-emerald-700 dark:text-emerald-300',
-    bar: 'bg-emerald-500',
-  },
-  attention: {
-    label: 'Próximo do limite',
-    text: 'text-amber-700 dark:text-amber-300',
-    bar: 'bg-amber-500',
-  },
-  over: {
-    label: 'Meta ultrapassada',
-    text: 'text-rose-700 dark:text-rose-300',
-    bar: 'bg-rose-500',
-  },
-} as const;
-
-function getGoalStatus(status: BudgetOverviewItem['status']) {
-  if (status === 'over') return 'over';
-  if (status === 'attention') return 'attention';
-  return 'healthy';
-}
-
 function formatPercentage(value: number | null): string {
   return value === null ? '-' : `${value.toFixed(1)}%`;
 }
@@ -116,10 +92,13 @@ export function IncomeBalanceGuide({ month, year }: IncomeBalanceGuideProps) {
   const classifiedTotal = activeGroups.reduce((total, group) => total + group.projectedAmount, 0);
   const incomeCommitment = overview.incomeTotal > 0 ? (overview.projectedTotal / overview.incomeTotal) * 100 : null;
   const alertCount = activeGroups.filter((group) => group.status === 'attention' || group.status === 'risk').length;
-  const goalItems = overview.items.filter(
-    (item): item is BudgetOverviewItem & { targetAmount: number } =>
-      item.targetAmount !== null && item.targetAmount > 0,
-  );
+
+  const worstGroup = activeGroups
+    .filter((group) => group.status === 'risk' || group.status === 'attention')
+    .sort((a, b) => (b.shareOfClassifiedExpenses ?? 0) - (a.shareOfClassifiedExpenses ?? 0))[0];
+  const suggestedCut = worstGroup && classifiedTotal > 0
+    ? worstGroup.projectedAmount - (worstGroup.referencePercentage * 1.2 / 100) * classifiedTotal
+    : 0;
 
   return (
     <Card className="overflow-hidden rounded-2xl border-[#e6eef3] p-0 dark:border-slate-700">
@@ -234,63 +213,11 @@ export function IncomeBalanceGuide({ month, year }: IncomeBalanceGuideProps) {
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      )}
-
-      {goalItems.length > 0 && (
-        <div className="border-t border-[#eef4f7] px-[22px] py-5 dark:border-slate-700">
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-[#b7e4c7] bg-[#ecfdf3] text-[#10b981] dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
-                <Target size={18} />
-              </span>
-              <div>
-                <h3 className="text-sm font-bold text-[#0f2b38] dark:text-white">Suas metas do mês</h3>
-                <p className="mt-0.5 text-xs text-[#7b93a1] dark:text-slate-400">Acompanhe o uso de cada limite que você definiu.</p>
-              </div>
-            </div>
-            <span className="text-xs font-medium text-[#5f7885] dark:text-slate-400">
-              {goalItems.length} {goalItems.length === 1 ? 'meta ativa' : 'metas ativas'}
-            </span>
-          </div>
-
-          <div className="grid gap-x-8 gap-y-5 lg:grid-cols-2">
-            {goalItems.map((item) => {
-              const progress = (item.projectedAmount / item.targetAmount) * 100;
-              const remainingAmount = item.targetAmount - item.projectedAmount;
-              const goalStyle = GOAL_STYLES[getGoalStatus(item.status)];
-
-              return (
-                <div key={item.categoryId} className="border-l-2 border-[#e2e8f0] pl-3 dark:border-slate-600">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-[#0f2b38] dark:text-slate-100">{item.categoryName}</p>
-                      <p className="mt-1 text-xs text-[#7b93a1] dark:text-slate-400">
-                        {formatCurrency(item.projectedAmount)} de {formatCurrency(item.targetAmount)}
-                      </p>
-                    </div>
-                    <span className={`shrink-0 text-xs font-bold ${goalStyle.text}`}>{goalStyle.label}</span>
-                  </div>
-
-                  <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-[#eef4f7] dark:bg-slate-700">
-                    <div
-                      className={`h-full rounded-full transition-all ${goalStyle.bar}`}
-                      style={{ width: `${Math.min(progress, 100)}%` }}
-                    />
-                  </div>
-
-                  <div className="mt-2 flex items-center justify-between gap-3 text-xs">
-                    <span className="font-semibold text-[#0f2b38] dark:text-slate-200">{Math.round(progress)}% utilizado</span>
-                    <span className={remainingAmount < 0 ? 'font-medium text-rose-700 dark:text-rose-300' : 'text-[#5f7885] dark:text-slate-400'}>
-                      {remainingAmount < 0
-                        ? `${formatCurrency(Math.abs(remainingAmount))} acima da meta`
-                        : `Restam ${formatCurrency(remainingAmount)}`}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
+            {worstGroup && suggestedCut > 0 && (
+              <p className="mt-4 border-t border-[#e6eef3] pt-[14px] text-[11.5px] leading-relaxed text-[#5f7885] dark:border-slate-700 dark:text-slate-400">
+                Cortar <b className="text-[#0f2b38] dark:text-slate-100">{formatCurrency(suggestedCut)}</b> em {worstGroup.label} já traria a categoria de volta para a faixa esperada.
+              </p>
+            )}
           </div>
         </div>
       )}
