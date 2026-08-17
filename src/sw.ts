@@ -14,6 +14,7 @@ type AssistantWorkerScope = {
     get: (id: string) => Promise<{ url: string } | undefined>;
   };
   skipWaiting: () => Promise<void>;
+  addEventListener: (type: 'message', listener: (event: MessageEvent) => void) => void;
 };
 
 const worker = self as unknown as AssistantWorkerScope;
@@ -23,9 +24,14 @@ const assistantAssets = new StaleWhileRevalidate({ cacheName: 'fingerence-assist
 const appShell = new NetworkFirst({ cacheName: 'fingerence-app-shell-v1' });
 
 clientsClaim();
-void worker.skipWaiting();
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
+
+worker.addEventListener('message', (event) => {
+  if ((event.data as { type?: string } | undefined)?.type === 'SKIP_WAITING') {
+    void worker.skipWaiting();
+  }
+});
 
 registerRoute(
   ({ sameOrigin, request, url }) => sameOrigin && request.mode === 'navigate' && url.pathname === ASSISTANT_PATH,

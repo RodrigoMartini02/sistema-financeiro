@@ -20,7 +20,7 @@ export default defineConfig({
           'assets/assistant-*.js',
           'assets/globals-*.css',
           'assets/globals-*.js',
-          'assets/register-*.js',
+          'assets/UpdatePwaBanner-*.js',
           'icons/apple-touch-icon.png',
           'icons/assistente-perfil.webp',
           'icons/favicon.svg',

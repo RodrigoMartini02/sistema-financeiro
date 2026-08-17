@@ -21,6 +21,7 @@ import { useAuthSession } from './hooks/useAuthSession';
 import { ErrorState, LoadingState } from './ui/states';
 import { AppShell } from './layout/AppShell';
 import { CookieBanner } from './components/CookieBanner';
+import { UpdatePwaBanner } from './components/UpdatePwaBanner';
 import type { AppSection, ConfigTab } from './layout/AppShell';
 import { IncomeDialog } from './screens/finance/IncomeDialog';
 import { ExpenseDialog } from './screens/finance/ExpenseDialog';
@@ -204,6 +205,7 @@ export function App() {
       <ConfirmProvider>
         <FirstAccessGuideProvider>
           <AppContent />
+          <UpdatePwaBanner />
         </FirstAccessGuideProvider>
       </ConfirmProvider>
     </AppProvider>

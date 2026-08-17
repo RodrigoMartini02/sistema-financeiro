@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import {
-  Check, ChevronDown, FileText, History, LayoutDashboard, LoaderCircle, MessageCircleMore,
-  Mic, Paperclip, Plus, Send, Square, Trash2, X,
+  Check, ChevronDown, FileText, LoaderCircle, MessageCircleMore,
+  Mic, Plus, Send, Square, Trash2, X,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Attachment, Expense, Income } from '../../types/finance';
@@ -17,14 +17,26 @@ import { fetchFinanceDashboard, saveExpense, saveIncome } from '../../services/f
 import { fetchCategorias } from '../../services/configService';
 import { queryKeys } from '../../services/queryKeys';
 import { useAppContext } from '../../context/AppContext';
+import { Card } from '../../ui/card';
+import { Badge } from '../../ui/badge';
+import { AssistantHeaderMenu } from './AssistantHeaderMenu';
+import {
+  fontSizeToScale, readStoredFontSize, storeFontSize, type AssistantFontSize,
+} from './fontSize';
 
 type ChatRole = 'assistant' | 'user';
+
+interface ChatAttachmentSummary {
+  nome: string;
+  tamanho: number;
+}
 
 interface ChatMessage {
   id: string;
   role: ChatRole;
   content: string;
-  attachmentNames?: string[];
+  createdAt: string;
+  attachments?: ChatAttachmentSummary[];
   cards?: FinancialCopilotCard[];
   showWelcomeActions?: boolean;
 }
@@ -63,12 +75,15 @@ const ACCEPTED_FILE_TYPES = new Set([
   'application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'text/plain',
 ]);
 
-const initialMessage: ChatMessage = {
-  id: 'welcome',
-  role: 'assistant',
-  content: 'Olá! Como posso ajudar com suas finanças hoje?',
-  showWelcomeActions: true,
-};
+function buildInitialMessage(): ChatMessage {
+  return {
+    id: 'welcome',
+    role: 'assistant',
+    content: 'Olá! Como posso ajudar com suas finanças hoje?',
+    createdAt: new Date().toISOString(),
+    showWelcomeActions: true,
+  };
+}
 
 const INTENT_DETAILS: Record<FinancialCopilotIntentHint, {
   label: string;
@@ -99,6 +114,41 @@ function formatCurrency(value: number | null): string {
 
 function newMessageId(): string {
   return `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function formatAttachmentSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function dayKey(isoDate: string): string {
+  return isoDate.slice(0, 10);
+}
+
+function formatDayLabel(isoDate: string): string {
+  const date = new Date(isoDate);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  if (dayKey(isoDate) === dayKey(today.toISOString())) return 'Hoje';
+  if (dayKey(isoDate) === dayKey(yesterday.toISOString())) return 'Ontem';
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+}
+
+function groupMessagesByDay(messages: ChatMessage[]): Array<{ dayLabel: string; messages: ChatMessage[] }> {
+  const groups: Array<{ key: string; dayLabel: string; messages: ChatMessage[] }> = [];
+  for (const message of messages) {
+    const key = dayKey(message.createdAt);
+    const lastGroup = groups[groups.length - 1];
+    if (lastGroup && lastGroup.key === key) {
+      lastGroup.messages.push(message);
+    } else {
+      groups.push({ key, dayLabel: formatDayLabel(message.createdAt), messages: [message] });
+    }
+  }
+  return groups;
 }
 
 function normalizeComparable(value: string): string {
@@ -209,7 +259,12 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const queryClient = useQueryClient();
   const isStandalone = mode === 'standalone';
   const [open, setOpen] = useState(isStandalone);
-  const [messages, setMessages] = useState<ChatMessage[]>([initialMessage]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [buildInitialMessage()]);
+  const [fontSize, setFontSize] = useState<AssistantFontSize>(() => readStoredFontSize());
+  const handleFontSizeChange = (nextFontSize: AssistantFontSize) => {
+    setFontSize(nextFontSize);
+    storeFontSize(nextFontSize);
+  };
   const [composer, setComposer] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [draftAttachments, setDraftAttachments] = useState<Attachment[]>([]);
@@ -252,8 +307,9 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     dashboardQuery.data?.incomes ?? [],
     dashboardQuery.data?.expenses ?? [],
   );
+  const messageGroups = groupMessagesByDay(messages);
   const activeIntent = intentHint ? INTENT_DETAILS[intentHint] : null;
-  const composerPlaceholder = activeIntent?.placeholder ?? 'Ex.: Quanto gastei este mês?';
+  const composerPlaceholder = activeIntent?.placeholder ?? 'Escreva sua mensagem…';
 
   useEffect(() => {
     if (open) {
@@ -266,6 +322,13 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   }, [messages, draft, isPreparing]);
 
   useEffect(() => () => recognitionRef.current?.abort?.(), []);
+
+  useEffect(() => {
+    const textarea = composerRef.current;
+    if (!textarea) return;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`;
+  }, [composer]);
 
   const updateDraft = (patch: Partial<FinancialAssistantDraft>) => {
     setDraft((current) => current ? { ...current, ...patch } : current);
@@ -321,7 +384,8 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         id: newMessageId(),
         role: 'user',
         content: displayedMessage,
-        attachmentNames: messageAttachments.map((attachment) => attachment.nome),
+        createdAt: new Date().toISOString(),
+        attachments: messageAttachments.map((attachment) => ({ nome: attachment.nome, tamanho: attachment.tamanho })),
       },
     ]);
     setComposer('');
@@ -349,6 +413,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         id: newMessageId(),
         role: 'assistant',
         content: result.reply,
+        createdAt: new Date().toISOString(),
         cards: result.cards,
       }]);
       await queryClient.invalidateQueries({ queryKey: queryKeys.copilotConversations });
@@ -361,7 +426,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
 
   const startNewConversation = () => {
     setConversationId(null);
-    setMessages([initialMessage]);
+    setMessages([buildInitialMessage()]);
     setDraft(null);
     setDraftAttachments([]);
     setComposer('');
@@ -382,6 +447,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         id: `history-${message.id}`,
         role: message.role,
         content: message.content,
+        createdAt: message.createdAt,
         cards: message.payload?.cards,
       })));
       setDraft(null);
@@ -499,6 +565,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         id: newMessageId(),
         role: 'assistant',
         content: 'Lançamento salvo. Mantive os anexos junto com ele.',
+        createdAt: new Date().toISOString(),
       }]);
       setDraft(null);
       setDraftAttachments([]);
@@ -524,7 +591,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#0C9EAF] text-white shadow-lg shadow-cyan-950/25 transition hover:bg-[#087B89] focus:outline-none focus:ring-2 focus:ring-[#0EC4D8] focus:ring-offset-2 dark:focus:ring-offset-slate-950"
+          className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#0891b2] text-white shadow-lg shadow-cyan-950/25 transition hover:bg-[#0e7490] focus:outline-none focus:ring-2 focus:ring-[#0EC4D8] focus:ring-offset-2 dark:focus:ring-offset-slate-950"
           aria-label="Abrir assistente financeira"
           title="Assistente financeira"
         >
@@ -544,14 +611,14 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
           )}
           <section
             className={isStandalone
-              ? 'absolute inset-0 flex min-h-[100dvh] flex-col bg-slate-50 dark:bg-slate-950'
-              : 'absolute inset-0 flex flex-col bg-slate-50 shadow-2xl dark:bg-slate-950 sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[min(720px,calc(100vh-2.5rem))] sm:w-[420px] sm:overflow-hidden sm:border sm:border-slate-200 sm:shadow-slate-950/25 dark:sm:border-slate-800'}
+              ? 'absolute inset-0 flex min-h-[100dvh] flex-col overflow-hidden bg-slate-50 dark:bg-slate-950'
+              : 'absolute inset-0 flex flex-col overflow-hidden bg-slate-50 shadow-2xl dark:bg-slate-950 sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[min(800px,calc(100vh-2.5rem))] sm:w-[440px] sm:rounded-2xl sm:border sm:border-slate-200 sm:shadow-slate-950/25 dark:sm:border-slate-800'}
             role={isStandalone ? undefined : 'dialog'}
             aria-label="Assistente financeira"
             aria-modal={isStandalone ? undefined : true}
           >
-            <header className="flex shrink-0 items-center gap-3 border-b border-[#0A6571] bg-[#0D2E3C] px-4 py-3.5 text-white">
-              <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-cyan-100/35 bg-[#07313A]">
+            <header className="flex shrink-0 items-center gap-3 border-b border-[#0A6571] bg-[#0D2E3C] px-4 py-3 text-white">
+              <div className="h-[52px] w-[52px] shrink-0 overflow-hidden rounded-full border border-cyan-100/35 bg-[#07313A]">
                 <img
                   src="/icons/assistente-perfil.webp"
                   alt="Avatar da assistente financeira"
@@ -559,42 +626,20 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                 />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold">Assistente financeira</p>
-                <p className="mt-0.5 text-xs text-cyan-100/70">Consultas e rascunhos para revisar</p>
+                <p className="text-base font-bold">Assistente financeira</p>
               </div>
-              {isStandalone && (
-                <a
-                  href="/app.html?source=assistant"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-cyan-100/75 transition hover:bg-white/10 hover:text-white"
-                  aria-label="Abrir painel financeiro"
-                  title="Abrir painel"
-                >
-                  <LayoutDashboard size={18} />
-                </a>
-              )}
-              <button
-                type="button"
-                onClick={() => setHistoryOpen((current) => !current)}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-cyan-100/75 transition hover:bg-white/10 hover:text-white"
-                aria-label="Abrir histórico de conversas"
-                title="Histórico"
-              >
-                <History size={18} />
-              </button>
-              <button
-                type="button"
-                onClick={startNewConversation}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-cyan-100/75 transition hover:bg-white/10 hover:text-white"
-                aria-label="Iniciar nova conversa"
-                title="Nova conversa"
-              >
-                <Plus size={18} />
-              </button>
+              <AssistantHeaderMenu
+                onOpenHistory={() => setHistoryOpen((current) => !current)}
+                onNewConversation={startNewConversation}
+                onOpenDashboard={isStandalone ? () => { window.location.href = '/app.html?source=assistant'; } : undefined}
+                fontSize={fontSize}
+                onFontSizeChange={handleFontSizeChange}
+              />
               {!isStandalone && (
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-cyan-100/75 transition hover:bg-white/10 hover:text-white"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-cyan-100/75 transition hover:bg-white/10 hover:text-white"
                   aria-label="Fechar assistente"
                   title="Fechar"
                 >
@@ -604,7 +649,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
             </header>
 
             {historyOpen && (
-              <div className="absolute inset-x-0 top-[68px] z-10 max-h-64 overflow-y-auto border-b border-slate-200 bg-white p-3 shadow-lg dark:border-slate-800 dark:bg-slate-900">
+              <div className="absolute inset-x-0 top-[73px] z-10 max-h-64 overflow-y-auto border-b border-slate-200 bg-white p-3 shadow-lg dark:border-slate-800 dark:bg-slate-900">
                 <p className="mb-2 text-xs font-bold text-slate-700 dark:text-slate-200">Conversas recentes</p>
                 {conversationsQuery.isLoading && <p className="py-3 text-xs text-slate-500">Carregando histórico...</p>}
                 {conversationsQuery.error && <p className="py-3 text-xs text-red-600 dark:text-red-300">Não foi possível carregar o histórico.</p>}
@@ -637,15 +682,25 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
               </div>
             )}
 
-            <div className="flex-1 overflow-y-auto bg-[linear-gradient(135deg,rgba(14,196,216,0.045),transparent_45%)] px-3 py-4 dark:bg-[linear-gradient(135deg,rgba(14,196,216,0.08),transparent_45%)]">
+            <div
+              className="flex-1 overflow-y-auto bg-[linear-gradient(135deg,rgba(14,196,216,0.045),transparent_45%)] px-3 py-4 dark:bg-[linear-gradient(135deg,rgba(14,196,216,0.08),transparent_45%)]"
+              style={{ zoom: fontSizeToScale(fontSize) } as CSSProperties}
+            >
               <div className="space-y-3">
-                {messages.map((message) => (
-                  <div key={message.id} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
+                {messageGroups.map((group) => (
+                  <div key={group.dayLabel} className="space-y-3">
+                    <div className="flex justify-center">
+                      <span className="rounded-full bg-white/90 px-3.5 py-1 text-xs font-semibold text-slate-500 shadow-sm dark:bg-slate-800/90 dark:text-slate-300">
+                        {group.dayLabel}
+                      </span>
+                    </div>
+                    {group.messages.map((message) => (
+                <div key={message.id} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
                     <div className={[
                       message.showWelcomeActions ? 'max-w-[94%]' : 'max-w-[86%]',
                       'px-3.5 py-2.5 text-sm leading-relaxed shadow-sm',
                       message.role === 'user'
-                        ? 'rounded-l-xl rounded-br-xl bg-[#0C9EAF] text-white'
+                        ? 'rounded-l-xl rounded-br-xl bg-[#0891b2] text-white'
                         : 'rounded-r-xl rounded-bl-xl border border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100',
                     ].join(' ')}>
                       <p>{message.content}</p>
@@ -676,121 +731,141 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                               onClick={() => selectIntent('ask')}
                               className="flex items-center gap-2 border border-slate-200 px-2.5 py-2 text-left transition hover:border-cyan-300 hover:bg-cyan-50 dark:border-slate-700 dark:hover:border-cyan-800 dark:hover:bg-cyan-950/30"
                             >
-                              <span className="flex h-7 w-7 shrink-0 items-center justify-center bg-cyan-50 text-[#087B89] dark:bg-cyan-950/40 dark:text-cyan-300"><MessageCircleMore size={15} /></span>
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center bg-cyan-50 text-[#0e7490] dark:bg-cyan-950/40 dark:text-cyan-300"><MessageCircleMore size={15} /></span>
                               <span className="min-w-0"><span className="block text-xs font-semibold text-slate-800 dark:text-slate-100">Fazer uma pergunta</span><span className="block truncate text-[11px] text-slate-500 dark:text-slate-400">Pergunte sobre seu período financeiro.</span></span>
                             </button>
                           </div>
                         </div>
                       )}
-                      {message.attachmentNames?.map((name) => (
-                        <p key={name} className="mt-2 flex items-center gap-1.5 text-xs text-inherit/75">
-                          <FileText size={13} /> {name}
-                        </p>
+                      {message.attachments?.map((attachment) => (
+                        <div
+                          key={attachment.nome}
+                          className={[
+                            'mt-2 flex items-center gap-2.5 rounded-lg px-3 py-2.5',
+                            message.role === 'user' ? 'bg-white/15' : 'bg-slate-50 dark:bg-slate-800/60',
+                          ].join(' ')}
+                        >
+                          <span className={[
+                            'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+                            message.role === 'user' ? 'bg-white text-rose-600' : 'bg-white text-rose-600 dark:bg-slate-950',
+                          ].join(' ')}>
+                            <FileText size={17} />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-semibold">{attachment.nome}</p>
+                            <p className="mt-0.5 text-[11px] opacity-75">Arquivo · {formatAttachmentSize(attachment.tamanho)}</p>
+                          </div>
+                          {message.role === 'user' && <Check size={15} className="shrink-0 text-[#7ffcff]" />}
+                        </div>
                       ))}
                       {message.cards?.map((card, index) => <CopilotCardView key={`${card.type}-${index}`} card={card} />)}
                     </div>
                   </div>
+                    ))}
+                  </div>
                 ))}
 
                 {isPreparing && (
-                  <div className="flex justify-start">
-                    <div className="flex items-center gap-2 rounded-r-xl rounded-bl-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
-                      <LoaderCircle size={16} className="animate-spin text-[#0C9EAF]" /> Consultando seus dados...
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                      <span className="h-[7px] w-[7px] animate-bounce rounded-full bg-slate-300 [animation-delay:-0.3s] dark:bg-slate-600" />
+                      <span className="h-[7px] w-[7px] animate-bounce rounded-full bg-slate-300 [animation-delay:-0.15s] dark:bg-slate-600" />
+                      <span className="h-[7px] w-[7px] animate-bounce rounded-full bg-slate-300 dark:bg-slate-600" />
                     </div>
+                    <span className="text-xs text-slate-400 dark:text-slate-500">digitando…</span>
                   </div>
                 )}
 
                 {draft && (
-                  <div className="border border-cyan-200 bg-white p-3.5 shadow-sm dark:border-cyan-900/70 dark:bg-slate-900">
-                    <div className="mb-3 flex items-center justify-between gap-3">
+                  <Card className="border-cyan-200 p-0 dark:border-cyan-900/70">
+                    <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-cyan-50/60 px-3.5 py-3 dark:border-slate-800 dark:bg-cyan-950/20">
                       <div>
-                        <p className="text-sm font-bold text-slate-900 dark:text-white">Revisar lançamento</p>
-                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Nada é salvo sem sua confirmação.</p>
+                        <p className="text-sm font-bold text-slate-900 dark:text-white">Confira antes de salvar</p>
+                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Nada entra na sua conta sem você confirmar.</p>
                       </div>
-                      <span className={[
-                        'shrink-0 px-2 py-1 text-[11px] font-semibold',
-                        draft.confidence === 'high' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                          : draft.confidence === 'medium' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
-                          : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
-                      ].join(' ')}>
+                      <Badge tone={draft.confidence === 'high' ? 'income' : draft.confidence === 'medium' ? 'warning' : 'neutral'}>
                         {draft.confidence === 'high' ? 'Leitura alta' : draft.confidence === 'medium' ? 'Conferir' : 'Dados parciais'}
-                      </span>
+                      </Badge>
                     </div>
 
-                    <div className="grid gap-2.5">
-                      <label className="grid gap-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                        Tipo
-                        <span className="relative">
+                    <div className="px-3.5">
+                      <label className="flex items-center gap-3 border-b border-slate-100 py-3.5 dark:border-slate-800">
+                        <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Tipo</span>
+                        <span className="relative flex-1">
                           <select
                             value={draft.kind}
                             onChange={(event) => updateDraft({ kind: event.target.value as FinancialAssistantDraft['kind'] })}
-                            className="h-10 w-full appearance-none border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[#0C9EAF] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                            className={[
+                              'h-8 w-full appearance-none bg-transparent pr-6 text-base font-bold outline-none transition',
+                              draft.kind === 'income' ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-900 dark:text-white',
+                            ].join(' ')}
                           >
                             <option value="expense">Despesa</option>
-                            <option value="income">Receita</option>
+                            <option value="income">Dinheiro que entrou</option>
                           </select>
-                          <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#0891b2]" />
                         </span>
                       </label>
 
-                      <label className="grid gap-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                        Descrição
+                      <label className="flex items-center gap-3 border-b border-slate-100 py-3.5 dark:border-slate-800">
+                        <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Descrição</span>
                         <input
                           value={draft.description ?? ''}
                           onChange={(event) => updateDraft({ description: event.target.value || null })}
                           placeholder="Ex.: Mercado Central"
-                          className="h-10 border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#0C9EAF] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                          className="h-8 flex-1 bg-transparent text-base font-bold text-slate-900 outline-none transition placeholder:text-slate-400 placeholder:font-normal dark:text-white"
                         />
                       </label>
 
-                      <div className="grid grid-cols-2 gap-2.5">
-                        <label className="grid gap-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                          Valor
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={draft.amount ?? ''}
-                            onChange={(event) => updateDraft({ amount: event.target.value ? Number(event.target.value) : null })}
-                            className="h-10 border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[#0C9EAF] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                          />
-                        </label>
-                        <label className="grid gap-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                      <label className="flex items-center gap-3 border-b border-slate-100 py-3.5 dark:border-slate-800">
+                        <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Valor</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={draft.amount ?? ''}
+                          onChange={(event) => updateDraft({ amount: event.target.value ? Number(event.target.value) : null })}
+                          className="h-8 flex-1 appearance-none bg-transparent text-xl font-bold tabular-nums text-slate-900 outline-none transition [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none dark:text-white"
+                        />
+                      </label>
+
+                      <label className={['flex items-center gap-3 py-3.5', draft.kind === 'expense' ? 'border-b border-slate-100 dark:border-slate-800' : ''].join(' ')}>
+                        <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">
                           {draft.kind === 'expense' ? 'Vencimento' : 'Data'}
-                          <input
-                            type="date"
-                            value={(draft.kind === 'expense' ? draft.dueDate : draft.date) ?? ''}
-                            onChange={(event) => draft.kind === 'expense'
-                              ? updateDraft({ dueDate: event.target.value || null })
-                              : updateDraft({ date: event.target.value || null })}
-                            className="h-10 border border-slate-200 bg-white px-2 text-sm text-slate-900 outline-none transition focus:border-[#0C9EAF] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                          />
-                        </label>
-                      </div>
+                        </span>
+                        <input
+                          type="date"
+                          value={(draft.kind === 'expense' ? draft.dueDate : draft.date) ?? ''}
+                          onChange={(event) => draft.kind === 'expense'
+                            ? updateDraft({ dueDate: event.target.value || null })
+                            : updateDraft({ date: event.target.value || null })}
+                          className="h-8 flex-1 bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none transition dark:text-white"
+                        />
+                      </label>
 
                       {draft.kind === 'expense' && (
-                        <div className="grid grid-cols-2 gap-2.5">
-                          <label className="grid gap-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                            Categoria
-                            <span className="relative">
+                        <>
+                          <label className="flex items-center gap-3 border-b border-slate-100 py-3.5 dark:border-slate-800">
+                            <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Categoria</span>
+                            <span className="relative flex-1">
                               <select
                                 value={draft.category ?? ''}
                                 onChange={(event) => updateDraft({ category: event.target.value || null })}
-                                className="h-10 w-full appearance-none border border-slate-200 bg-white px-3 pr-8 text-sm text-slate-900 outline-none transition focus:border-[#0C9EAF] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                                className="h-8 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
                               >
                                 <option value="">Sem categoria</option>
                                 {categories.map((category) => <option key={category.id} value={category.nome}>{category.nome}</option>)}
                               </select>
-                              <ChevronDown size={15} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                              <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#0891b2]" />
                             </span>
                           </label>
-                          <label className="grid gap-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                            Pagamento
-                            <span className="relative">
+                          <label className="flex items-center gap-3 border-b border-slate-100 py-3.5 dark:border-slate-800">
+                            <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Pagamento</span>
+                            <span className="relative flex-1">
                               <select
                                 value={draft.paymentMethod}
                                 onChange={(event) => updateDraft({ paymentMethod: event.target.value as FinancialAssistantDraft['paymentMethod'] })}
-                                className="h-10 w-full appearance-none border border-slate-200 bg-white px-3 pr-8 text-sm text-slate-900 outline-none transition focus:border-[#0C9EAF] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                                className="h-8 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
                               >
                                 <option value="pix">Pix</option>
                                 <option value="boleto">Boleto</option>
@@ -798,51 +873,50 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                                 <option value="debito">Débito</option>
                                 <option value="credito">Crédito</option>
                               </select>
-                              <ChevronDown size={15} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                              <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#0891b2]" />
                             </span>
                           </label>
-                        </div>
-                      )}
-
-                      {draft.kind === 'expense' && (
-                        <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                          <input
-                            type="checkbox"
-                            checked={draft.paid}
-                            onChange={(event) => updateDraft({ paid: event.target.checked })}
-                            className="h-4 w-4 accent-[#0C9EAF]"
-                          />
-                          Esta despesa já foi paga
-                        </label>
+                          <label className="flex items-center gap-3 py-3.5">
+                            <input
+                              type="checkbox"
+                              checked={draft.paid}
+                              onChange={(event) => updateDraft({ paid: event.target.checked })}
+                              className="h-[18px] w-[18px] accent-[#0891b2]"
+                            />
+                            <span className="text-sm font-semibold text-slate-900 dark:text-white">Esta despesa já foi paga</span>
+                          </label>
+                        </>
                       )}
                     </div>
 
+                    <p className="px-3.5 pb-3 text-xs text-slate-500 dark:text-slate-400">Toque em qualquer linha para corrigir.</p>
+
                     {duplicateWarning && (
-                      <p className="mt-3 border-l-2 border-amber-500 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                      <p className="mx-3.5 mb-3 border-l-2 border-amber-500 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
                         {duplicateWarning}
                       </p>
                     )}
 
-                    <div className="mt-3 grid gap-2 sm:grid-cols-[auto_minmax(0,1fr)]">
-                      <button
-                        type="button"
-                        onClick={discardDraft}
-                        disabled={isSaving}
-                        className="flex h-10 items-center justify-center gap-2 border border-slate-300 px-3 text-sm font-semibold text-slate-700 transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:border-rose-900 dark:hover:bg-rose-950/30 dark:hover:text-rose-300"
-                      >
-                        <X size={16} /> Descartar rascunho
-                      </button>
+                    <div className="grid gap-2 px-3.5 pb-3.5">
                       <button
                         type="button"
                         onClick={handleSave}
                         disabled={isSaving}
-                        className="flex h-10 min-w-0 items-center justify-center gap-2 bg-[#0C9EAF] px-4 text-sm font-semibold text-white transition hover:bg-[#087B89] disabled:cursor-not-allowed disabled:opacity-60"
+                        className="flex h-[52px] items-center justify-center gap-2 rounded-lg bg-emerald-700 text-base font-bold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {isSaving ? <LoaderCircle size={16} className="animate-spin" /> : <Check size={16} />}
-                        {isSaving ? 'Salvando...' : `Confirmar ${formatCurrency(draft.amount)}`}
+                        {isSaving ? <LoaderCircle size={18} className="animate-spin" /> : <Check size={18} strokeWidth={3} />}
+                        {isSaving ? 'Salvando...' : `Sim, salvar ${formatCurrency(draft.amount)}`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={discardDraft}
+                        disabled={isSaving}
+                        className="flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-500 transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:border-rose-900 dark:hover:bg-rose-950/30 dark:hover:text-rose-300"
+                      >
+                        <X size={16} /> Não salvar
                       </button>
                     </div>
-                  </div>
+                  </Card>
                 )}
 
                 <div ref={messagesEndRef} />
@@ -852,7 +926,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
             <footer className="shrink-0 border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
               {error && <p className="mb-2 text-xs font-medium text-red-600 dark:text-red-300">{error}</p>}
               {activeIntent && (
-                <div className="mb-2 flex items-center gap-2 border-l-2 border-[#0C9EAF] bg-cyan-50 px-2.5 py-2 dark:bg-cyan-950/30">
+                <div className="mb-2 flex items-center gap-2 border-l-2 border-[#0891b2] bg-cyan-50 px-2.5 py-2 dark:bg-cyan-950/30">
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold text-cyan-900 dark:text-cyan-100">{activeIntent.label}</p>
                     <p className="truncate text-[11px] text-cyan-800/75 dark:text-cyan-200/75">{activeIntent.description}</p>
@@ -870,7 +944,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
               )}
               {lastVoiceTranscript && (
                 <p className="mb-2 flex items-start gap-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                  <Mic size={13} className="mt-0.5 shrink-0 text-[#0C9EAF]" />
+                  <Mic size={13} className="mt-0.5 shrink-0 text-[#0891b2]" />
                   <span>Entendi: &ldquo;{lastVoiceTranscript}&rdquo;. Confira antes de enviar.</span>
                 </p>
               )}
@@ -893,7 +967,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                 </div>
               )}
 
-              <div className="flex items-end gap-2">
+              <div className="flex items-end gap-2.5">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -908,47 +982,49 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center text-slate-500 transition hover:bg-slate-100 hover:text-[#0C9EAF] dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-cyan-300"
-                  aria-label="Anexar documento"
-                  title="Anexar documento"
+                  className="flex h-12 w-12 shrink-0 items-center justify-center self-end rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-[#0891b2] hover:bg-cyan-50 hover:text-[#0891b2] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-cyan-300"
+                  aria-label="Enviar um arquivo ou foto"
+                  title="Enviar um arquivo ou foto"
                 >
-                  <Paperclip size={19} />
+                  <Plus size={20} />
                 </button>
-                <textarea
-                  ref={composerRef}
-                  rows={1}
-                  value={composer}
-                  onChange={(event) => setComposer(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' && !event.shiftKey) {
-                      event.preventDefault();
-                      void handleSend();
-                    }
-                  }}
-                  placeholder={composerPlaceholder}
-                  className="max-h-28 min-h-10 flex-1 resize-none border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#0C9EAF] focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:bg-slate-950"
-                />
-                <button
-                  type="button"
-                  onClick={toggleVoiceInput}
-                  className={[
-                    'flex h-10 w-10 shrink-0 items-center justify-center transition',
-                    isListening ? 'bg-red-500 text-white hover:bg-red-600' : 'text-slate-500 hover:bg-slate-100 hover:text-[#0C9EAF] dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-cyan-300',
-                  ].join(' ')}
-                  aria-label={isListening ? 'Parar gravação de voz' : 'Falar com a assistente'}
-                  title={isListening ? 'Parar voz' : 'Falar'}
-                >
-                  {isListening ? <Square size={16} fill="currentColor" /> : <Mic size={19} />}
-                </button>
+                <div className="flex min-h-12 flex-1 items-end gap-2 rounded-[26px] border border-slate-200 bg-slate-100 py-1 pl-4 pr-1 dark:border-slate-700 dark:bg-slate-900">
+                  <textarea
+                    ref={composerRef}
+                    rows={1}
+                    value={composer}
+                    onChange={(event) => setComposer(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' && !event.shiftKey) {
+                        event.preventDefault();
+                        void handleSend();
+                      }
+                    }}
+                    placeholder={composerPlaceholder}
+                    className="max-h-40 flex-1 resize-none overflow-y-auto bg-transparent py-1.5 text-[15.5px] leading-snug text-slate-900 outline-none transition placeholder:text-slate-500 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden dark:text-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={toggleVoiceInput}
+                    className={[
+                      'flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition',
+                      isListening ? 'bg-red-500 text-white hover:bg-red-600' : 'text-slate-500 hover:bg-slate-200 hover:text-[#0891b2] dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-cyan-300',
+                    ].join(' ')}
+                    aria-label={isListening ? 'Parar gravação de voz' : 'Falar em vez de escrever'}
+                    title={isListening ? 'Parar voz' : 'Falar em vez de escrever'}
+                  >
+                    {isListening ? <Square size={16} fill="currentColor" /> : <Mic size={19} />}
+                  </button>
+                </div>
                 <button
                   type="button"
                   onClick={() => void handleSend()}
                   disabled={isPreparing || (!composer.trim() && attachments.length === 0)}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center bg-[#0C9EAF] text-white transition hover:bg-[#087B89] disabled:cursor-not-allowed disabled:opacity-45"
+                  className="flex h-12 w-12 shrink-0 items-center justify-center self-end rounded-full bg-[#0891b2] text-white shadow-sm transition hover:bg-[#0e7490] disabled:cursor-not-allowed disabled:opacity-45"
                   aria-label="Enviar mensagem"
                   title="Enviar"
                 >
-                  <Send size={18} />
+                  <Send size={19} />
                 </button>
               </div>
             </footer>
