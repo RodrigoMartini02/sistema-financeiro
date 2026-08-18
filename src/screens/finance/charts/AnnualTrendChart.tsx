@@ -1,7 +1,6 @@
 import {
-  Bar,
-  ComposedChart,
-  Line,
+  Area,
+  AreaChart,
   ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
@@ -37,26 +36,40 @@ export function AnnualTrendChart({ data, activeIndex }: AnnualTrendChartProps) {
 
   // Meses após o mês de projeção (solidEnd + 1) ainda não têm nenhum lançamento nem
   // projeção — o mockup cobre essa faixa com um retângulo neutro e o texto "ainda sem
-  // lançamentos", evitando que as barras/linha colem visualmente no zero.
+  // lançamentos", evitando que as áreas/linha colem visualmente no zero.
   const emptyRangeStart = data[solidEnd + 2]?.name;
   const emptyRangeEnd = data[data.length - 1]?.name;
   const hasEmptyRange = hasForecast && emptyRangeStart !== undefined;
   const emptyRangeMidIndex = hasEmptyRange ? Math.round((solidEnd + 2 + (data.length - 1)) / 2) : -1;
 
   // O domínio precisa incluir o saldo acumulado (que pode ficar negativo) além das
-  // barras de receitas/despesas — do contrário um saldo negativo é cortado no zero e
+  // áreas de receitas/despesas — do contrário um saldo negativo é cortado no zero e
   // fica indistinguível de "sem dado ainda" (bug visto em produção: a linha grudava
   // na base em vez de mostrar valores abaixo de zero).
   const saldoValues = chartData.flatMap((d) => [d.saldoSolido, d.saldoPrevisto]).filter((v): v is number => v !== undefined);
-  const maxBar = Math.max(1, ...data.flatMap((d) => [d.receitas, d.despesas]), ...saldoValues);
+  const maxArea = Math.max(1, ...data.flatMap((d) => [d.receitas, d.despesas]), ...saldoValues);
   const minSaldo = Math.min(0, ...saldoValues);
-  const yDomain: [number, number] = [minSaldo < 0 ? minSaldo * 1.15 : 0, maxBar * 1.15];
+  const yDomain: [number, number] = [minSaldo < 0 ? minSaldo * 1.15 : 0, maxArea * 1.15];
 
   return (
     <div className="w-full overflow-x-auto">
       <div className="min-w-[640px]" style={{ height: 264 }} role="img" aria-label="Receitas, despesas e saldo acumulado por mês">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={chartData} margin={{ top: 22, right: 12, bottom: 8, left: 8 }} barGap={4}>
+          <AreaChart data={chartData} margin={{ top: 22, right: 12, bottom: 8, left: 8 }}>
+            <defs>
+              <linearGradient id="gradAnnualReceitas" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
+                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="gradAnnualDespesas" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.25} />
+                <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="gradAnnualSaldo" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.15} />
+                <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+              </linearGradient>
+            </defs>
             <CartesianGrid stroke="#eef4f7" vertical={false} />
             {hasEmptyRange && (
               <ReferenceArea x1={emptyRangeStart} x2={emptyRangeEnd} fill="#f8fafb" ifOverflow="visible" />
@@ -100,12 +113,28 @@ export function AnnualTrendChart({ data, activeIndex }: AnnualTrendChartProps) {
               allowDataOverflow
             />
             {minSaldo < 0 && <ReferenceLine y={0} stroke="#d7e3ea" strokeWidth={1.5} />}
-            <Bar dataKey="receitas" fill="#10b981" radius={[3, 3, 0, 0]} maxBarSize={20} />
-            <Bar dataKey="despesas" fill="#ef4444" radius={[3, 3, 0, 0]} maxBarSize={20} />
-            <Line
+            <Area
+              type="monotone"
+              dataKey="receitas"
+              stroke="#10b981"
+              strokeWidth={2}
+              fill="url(#gradAnnualReceitas)"
+              dot={{ r: 3, fill: '#10b981', strokeWidth: 0 }}
+            />
+            <Area
+              type="monotone"
+              dataKey="despesas"
+              stroke="#ef4444"
+              strokeWidth={2}
+              fill="url(#gradAnnualDespesas)"
+              dot={{ r: 3, fill: '#ef4444', strokeWidth: 0 }}
+            />
+            <Area
+              type="monotone"
               dataKey="saldoSolido"
               stroke="#6366f1"
               strokeWidth={2.5}
+              fill="url(#gradAnnualSaldo)"
               dot={(props) => {
                 const { cx, cy, index, payload } = props;
                 if (payload.saldoSolido === undefined) return <g key={`dot-${index}`} />;
@@ -117,12 +146,15 @@ export function AnnualTrendChart({ data, activeIndex }: AnnualTrendChartProps) {
               activeDot={false}
               connectNulls
             />
-            <Line
+            <Area
+              type="monotone"
               dataKey="saldoPrevisto"
               stroke="#6366f1"
               strokeWidth={2.5}
               strokeDasharray="5 4"
               strokeOpacity={0.55}
+              fill="url(#gradAnnualSaldo)"
+              fillOpacity={0.55}
               dot={(props) => {
                 const { cx, cy, index, payload } = props;
                 if (payload.saldoPrevisto === undefined || index <= solidEnd) return <g key={`dot-forecast-${index}`} />;
@@ -131,7 +163,7 @@ export function AnnualTrendChart({ data, activeIndex }: AnnualTrendChartProps) {
               activeDot={false}
               connectNulls
             />
-          </ComposedChart>
+          </AreaChart>
         </ResponsiveContainer>
       </div>
     </div>
