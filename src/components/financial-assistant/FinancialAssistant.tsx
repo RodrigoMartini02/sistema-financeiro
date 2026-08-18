@@ -593,8 +593,8 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
           type="button"
           onClick={() => setOpen(true)}
           className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#0891b2] text-white shadow-lg shadow-cyan-950/25 transition hover:bg-[#0e7490] focus:outline-none focus:ring-2 focus:ring-[#0EC4D8] focus:ring-offset-2 dark:focus:ring-offset-slate-950"
-          aria-label="Abrir assistente financeira"
-          title="Assistente financeira"
+          aria-label="Abrir assistente financeiro"
+          title="Assistente Financeiro"
         >
           <MessageCircleMore size={25} />
         </button>
@@ -607,7 +607,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
               type="button"
               className="absolute inset-0 hidden bg-slate-950/25 backdrop-blur-[1px] sm:block"
               onClick={() => setOpen(false)}
-              aria-label="Fechar assistente financeira"
+              aria-label="Fechar assistente financeiro"
             />
           )}
           <section
@@ -615,19 +615,19 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
               ? 'absolute inset-0 flex min-h-[100dvh] flex-col overflow-hidden bg-slate-50 dark:bg-slate-950'
               : 'absolute inset-0 flex flex-col overflow-hidden bg-slate-50 shadow-2xl dark:bg-slate-950 sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[min(800px,calc(100vh-2.5rem))] sm:w-[440px] sm:rounded-2xl sm:border sm:border-slate-200 sm:shadow-slate-950/25 dark:sm:border-slate-800'}
             role={isStandalone ? undefined : 'dialog'}
-            aria-label="Assistente financeira"
+            aria-label="Assistente Financeiro"
             aria-modal={isStandalone ? undefined : true}
           >
             <header className="flex shrink-0 items-center gap-3 border-b border-[#0A6571] bg-[#0D2E3C] px-4 py-3 text-white">
               <div className="h-[52px] w-[52px] shrink-0 overflow-hidden rounded-full border border-cyan-100/35 bg-[#07313A]">
                 <img
                   src="/icons/assistente-perfil.webp"
-                  alt="Avatar da assistente financeira"
+                  alt="Avatar do assistente financeiro"
                   className="h-full w-full object-cover object-[center_35%]"
                 />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-base font-bold">Assistente financeira</p>
+                <p className="text-base font-bold">Assistente Financeiro</p>
               </div>
               <AssistantHeaderMenu
                 onOpenHistory={() => setHistoryOpen((current) => !current)}
