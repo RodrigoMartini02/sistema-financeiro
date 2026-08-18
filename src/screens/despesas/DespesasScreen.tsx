@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react';
 import {
   Paperclip, Plus, Ban,
-  CircleCheck, Clock, ArrowRight, X, ChevronDown, CheckSquare, Pencil,
+  CircleCheck, Clock, ArrowRight, X, ChevronDown, CheckSquare, Pencil, Trash2,
 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
@@ -25,6 +25,7 @@ import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
 import { daysAgoLocalIso, getLocalTodayIso } from '../../utils/date';
 import { ExpenseCard } from './ExpenseCard';
+import { DeleteInstallmentDialog } from './DeleteInstallmentDialog';
 import { Z_GUIDE } from '../../ui/zIndex';
 
 type FiltroStatus = 'todos' | 'pago' | 'em_dia' | 'atrasada';
@@ -192,6 +193,7 @@ export function DespesasScreen({ toolbarStart }: DespesasScreenProps) {
     open: false, title: '', anexos: [],
   });
   const [paymentModal, setPaymentModal] = useState<{ open: boolean; item?: Expense }>({ open: false });
+  const [deleteInstallmentDialog, setDeleteInstallmentDialog] = useState<{ open: boolean; item?: Expense }>({ open: false });
 
   const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>('todos');
   const [filtroCategoria, setFiltroCategoria] = useState('');
@@ -255,6 +257,19 @@ export function DespesasScreen({ toolbarStart }: DespesasScreenProps) {
       confirmLabel: 'Cancelar despesa',
     });
     if (ok) cancelarMut.mutate(item.id);
+  };
+
+  const handleExcluirDespesa = async (item: Expense) => {
+    if (item.parcela) {
+      setDeleteInstallmentDialog({ open: true, item });
+      return;
+    }
+    const ok = await confirm({
+      title: 'Excluir despesa',
+      message: `Excluir "${item.descricao}"? Esta ação não pode ser desfeita.`,
+      confirmLabel: 'Excluir despesa',
+    });
+    if (ok) finance.deleteExpense.mutate({ id: item.id });
   };
 
   const categorias = [...new Set(allItems.map((i) => i.categoria))].sort();
@@ -504,6 +519,7 @@ export function DespesasScreen({ toolbarStart }: DespesasScreenProps) {
                     onCancel={() => handleCancelarDespesa(item)}
                     onOpenAttachments={() => setAnexosDialog({ open: true, title: item.descricao, anexos: item.anexos! })}
                     onEdit={() => setDialog({ open: true, item })}
+                    onDelete={() => handleExcluirDespesa(item)}
                   />
                 ))}
               </div>
@@ -694,6 +710,14 @@ export function DespesasScreen({ toolbarStart }: DespesasScreenProps) {
                           >
                             <Ban size={14} />
                           </ActionBtn>
+                          <ActionBtn
+                            onClick={() => handleExcluirDespesa(item)}
+                            disabled={false}
+                            title="Excluir"
+                            colorClass="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30"
+                          >
+                            <Trash2 size={14} />
+                          </ActionBtn>
                         </div>
                       </td>
                     </tr>
@@ -738,6 +762,26 @@ export function DespesasScreen({ toolbarStart }: DespesasScreenProps) {
         onSuccess={() => {
           setSelecionadas(new Set());
           qc.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) });
+        }}
+      />
+      <DeleteInstallmentDialog
+        open={deleteInstallmentDialog.open}
+        expense={deleteInstallmentDialog.item ?? null}
+        isLoading={finance.deleteExpense.isPending}
+        onClose={() => setDeleteInstallmentDialog({ open: false })}
+        onDeleteOne={() => {
+          if (!deleteInstallmentDialog.item) return;
+          finance.deleteExpense.mutate(
+            { id: deleteInstallmentDialog.item.id },
+            { onSuccess: () => setDeleteInstallmentDialog({ open: false }) },
+          );
+        }}
+        onDeleteGroup={() => {
+          if (!deleteInstallmentDialog.item) return;
+          finance.deleteExpense.mutate(
+            { id: deleteInstallmentDialog.item.id, deleteGroup: true },
+            { onSuccess: () => setDeleteInstallmentDialog({ open: false }) },
+          );
         }}
       />
     </>
