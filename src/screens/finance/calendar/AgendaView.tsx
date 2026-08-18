@@ -1,6 +1,7 @@
 import { getLocalTodayIso } from '../../../utils/date';
 import type { CalendarItem } from './types';
 import { kindColors, statusColors } from './calendarStatus';
+import { formatCurrency } from '../formatters';
 
 function formatDayLabel(date: string): { weekday: string; day: string } {
   const d = new Date(`${date}T00:00:00`);
@@ -8,10 +9,6 @@ function formatDayLabel(date: string): { weekday: string; day: string } {
     weekday: d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', ''),
     day: String(d.getDate()),
   };
-}
-
-function brl(v: number): string {
-  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 interface Props {
@@ -51,7 +48,7 @@ export function AgendaView({ itemsByDay, onItemClick }: Props) {
               <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">{day}</span>
               {net !== 0 && (
                 <span className={['text-[11.5px] font-semibold', net >= 0 ? 'text-emerald-600' : 'text-rose-600'].join(' ')}>
-                  {net >= 0 ? '+' : ''}{brl(net)}
+                  {net >= 0 ? '+' : ''}{formatCurrency(net)}
                 </span>
               )}
             </div>
@@ -68,7 +65,7 @@ export function AgendaView({ itemsByDay, onItemClick }: Props) {
                     <span className="w-11 shrink-0 text-[11.5px] text-slate-400">{item.time ? item.time.slice(0, 5) : ''}</span>
                     <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-slate-900 dark:text-white">{item.title}</span>
                     {item.value != null && (
-                      <span className="shrink-0 text-[13.5px] font-bold" style={{ color: color.fg }}>{brl(item.value)}</span>
+                      <span className="shrink-0 text-[13.5px] font-bold" style={{ color: color.fg }}>{formatCurrency(item.value)}</span>
                     )}
                   </div>
                 );

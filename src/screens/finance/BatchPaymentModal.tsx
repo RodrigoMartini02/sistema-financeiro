@@ -10,6 +10,7 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { getLocalTodayIso } from '../../utils/date';
+import { Z_GUIDE } from '../../ui/zIndex';
 
 interface BatchPaymentModalProps {
   open: boolean;
@@ -101,7 +102,7 @@ export function BatchPaymentModal({ open, expenses, onClose, onSuccess }: BatchP
               <FirstAccessGuideCard
                 floating
                 placement="bottom"
-                className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
                 icon={CircleCheck}
                 description={tab === 'original' ? firstAccessGuideMessages.batchValorOriginal : firstAccessGuideMessages.batchValorPersonalizado}
                 onDismiss={tabGuide.dismiss}

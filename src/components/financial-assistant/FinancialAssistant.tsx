@@ -16,6 +16,7 @@ import {
 import { fetchFinanceDashboard, saveExpense, saveIncome } from '../../services/financeService';
 import { fetchCategorias } from '../../services/configService';
 import { queryKeys } from '../../services/queryKeys';
+import { formatCurrency } from '../../screens/finance/formatters';
 import { useAppContext } from '../../context/AppContext';
 import { Card } from '../../ui/card';
 import { Badge } from '../../ui/badge';
@@ -107,9 +108,9 @@ const INTENT_DETAILS: Record<FinancialCopilotIntentHint, {
   },
 };
 
-function formatCurrency(value: number | null): string {
+function formatDraftAmount(value: number | null): string {
   if (!value) return 'Valor não informado';
-  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  return formatCurrency(value);
 }
 
 function newMessageId(): string {
@@ -218,7 +219,7 @@ function findDuplicate(
 
 function formatCardValue(value: number | string): string {
   if (typeof value === 'string') return value;
-  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  return formatCurrency(value);
 }
 
 function CopilotCardView({ card }: { card: FinancialCopilotCard }) {
@@ -905,7 +906,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                         className="flex h-[52px] items-center justify-center gap-2 rounded-lg bg-emerald-700 text-base font-bold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {isSaving ? <LoaderCircle size={18} className="animate-spin" /> : <Check size={18} strokeWidth={3} />}
-                        {isSaving ? 'Salvando...' : `Sim, salvar ${formatCurrency(draft.amount)}`}
+                        {isSaving ? 'Salvando...' : `Sim, salvar ${formatDraftAmount(draft.amount)}`}
                       </button>
                       <button
                         type="button"

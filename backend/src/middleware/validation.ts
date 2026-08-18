@@ -60,25 +60,6 @@ function validateCnpj(cnpj: string): boolean {
   return result === Number(digits.charAt(1));
 }
 
-export function rateLimiter() {
-  const requests = new Map<string, number[]>();
-  const WINDOW_MS = 60 * 1000;
-  const MAX_REQUESTS = parseInt(process.env['REQUEST_LIMIT'] ?? '100');
-
-  return (req: Request, res: Response, next: NextFunction): void => {
-    const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
-    const now = Date.now();
-    const recent = (requests.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
-    if (recent.length >= MAX_REQUESTS) {
-      res.status(429).json({ success: false, message: 'Too many requests. Try again later.' });
-      return;
-    }
-    recent.push(now);
-    requests.set(ip, recent);
-    next();
-  };
-}
-
 interface AttemptData {
   attempts: number;
   firstAttempt: number;

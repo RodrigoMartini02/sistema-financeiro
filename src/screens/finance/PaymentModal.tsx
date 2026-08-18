@@ -4,6 +4,7 @@ import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle, MoneyField } from '../../ui/dialogFormTokens';
 import type { Expense } from '../../types/finance';
 import { getLocalTodayIso } from '../../utils/date';
+import { formatCurrency } from './formatters';
 
 interface PaymentModalProps {
   open: boolean;
@@ -14,10 +15,6 @@ interface PaymentModalProps {
 
 function today() {
   return getLocalTodayIso();
-}
-
-function fmt(v: number) {
-  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 export function PaymentModal({ open, expense, onClose, onConfirm }: PaymentModalProps) {
@@ -77,15 +74,15 @@ export function PaymentModal({ open, expense, onClose, onConfirm }: PaymentModal
                 : { background: C.warnBg, color: C.warn, border: `1px solid ${C.warnBorder}` }),
             }}>
               {diferenca < 0
-                ? `Economia de ${fmt(Math.abs(diferenca))}`
-                : `Acréscimo de ${fmt(diferenca)}`}
+                ? `Economia de ${formatCurrency(Math.abs(diferenca))}`
+                : `Acréscimo de ${formatCurrency(diferenca)}`}
             </div>
           )}
 
           <div style={{ margin: '0 var(--dialog-px) 14px', borderRadius: 12, background: '#f8fafb', padding: '12px 14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: C.textMuted }}>
               <span>Valor original</span>
-              <span style={{ fontWeight: 600, color: C.text }}>{fmt(valorSugerido)}</span>
+              <span style={{ fontWeight: 600, color: C.text }}>{formatCurrency(valorSugerido)}</span>
             </div>
             {expense.dataVencimento && (
               <div style={{ marginTop: 4, display: 'flex', justifyContent: 'space-between', fontSize: 12, color: C.textMuted }}>

@@ -350,9 +350,9 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
 
         {isLista
           ? (activeTab === 'receitas'
-              ? <ReceitasScreen embedded toolbarStart={movementTabs} />
+              ? <ReceitasScreen toolbarStart={movementTabs} />
               : activeTab === 'despesas'
-                ? <DespesasScreen embedded toolbarStart={movementTabs} />
+                ? <DespesasScreen toolbarStart={movementTabs} />
                 : <BudgetPanel month={month} year={year} toolbarStart={movementTabs} />)
           : (
             <div className="min-h-0 flex-1">

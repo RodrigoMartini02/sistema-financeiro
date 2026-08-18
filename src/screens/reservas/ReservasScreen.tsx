@@ -12,10 +12,8 @@ import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
-
-function fmt(v: number) {
-  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
+import { Z_GUIDE } from '../../ui/zIndex';
+import { formatCurrency } from '../finance/formatters';
 
 function calcContribuicao(valorAtual: number, meta: number, prazo: string): number | null {
   const hoje = new Date();
@@ -34,7 +32,7 @@ function ProgressBar({ valor, objetivo, color }: { valor: number; objetivo: numb
   return (
     <div className="mt-2">
       <div className="flex justify-between text-xs text-slate-500 mb-1">
-        <span>{pct.toFixed(0)}% de {fmt(objetivo)}</span>
+        <span>{pct.toFixed(0)}% de {formatCurrency(objetivo)}</span>
       </div>
       <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-700">
         <div
@@ -100,13 +98,13 @@ function ReservaCard({
 
       {/* Zona central */}
       <div className="flex-[3] min-w-0">
-        <p className="text-2xl font-bold text-slate-950 dark:text-white">{fmt(Number(r.valor))}</p>
+        <p className="text-2xl font-bold text-slate-950 dark:text-white">{formatCurrency(Number(r.valor))}</p>
         {temMeta && r.objetivo_valor && (
           <ProgressBar valor={Number(r.valor)} objetivo={Number(r.objetivo_valor)} color={cor} />
         )}
         {contribuicao !== null && (
           <p className="mt-1 text-xs text-slate-500">
-            ~{fmt(contribuicao)}/mês necessários
+            ~{formatCurrency(contribuicao)}/mês necessários
           </p>
         )}
       </div>
@@ -127,7 +125,7 @@ function ReservaCard({
               floating
               placement="top"
               align="right"
-              className="absolute right-0 top-full z-[45] mt-3 w-[min(22rem,calc(100vw-2rem))]"
+              className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(22rem,calc(100vw-2rem))]`}
               icon={TrendingUp}
               description={moveGuide.description}
               onDismiss={moveGuide.onDismiss}
@@ -214,7 +212,7 @@ export function ReservasScreen() {
               <FirstAccessGuideCard
                 floating
                 placement="top"
-                className="absolute right-0 top-full z-[45] mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(25rem,calc(100vw-2rem))]`}
                 icon={PiggyBank}
                 description={firstAccessGuideMessages.reservasNova}
                 onDismiss={guide.dismiss}
@@ -225,7 +223,7 @@ export function ReservasScreen() {
 
         <Card className="p-4">
           <p className="text-xs font-semibold uppercase text-slate-500">Total reservado</p>
-          <p className="mt-1 text-3xl font-bold text-slate-950">{fmt(totalReservado)}</p>
+          <p className="mt-1 text-3xl font-bold text-slate-950">{formatCurrency(totalReservado)}</p>
           <p className="mt-0.5 text-sm text-slate-500">
             {data.length} reserva{data.length !== 1 ? 's' : ''}
           </p>

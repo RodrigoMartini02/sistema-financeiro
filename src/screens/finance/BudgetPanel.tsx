@@ -16,8 +16,6 @@ interface BudgetPanelProps {
 function statusLabel(item: BudgetOverviewItem): string {
   if (!item.targetAmount) return 'Sem meta';
   const percentage = (item.projectedAmount / item.targetAmount) * 100;
-  if (item.status === 'over') return `${percentage.toFixed(0)}% da meta`;
-  if (item.status === 'attention') return `${percentage.toFixed(0)}% da meta`;
   return `${percentage.toFixed(0)}% da meta`;
 }
 

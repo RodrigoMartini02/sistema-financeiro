@@ -8,6 +8,7 @@ import { formatCurrency, formatDate } from '../finance/formatters';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { Z_GUIDE } from '../../ui/zIndex';
 import { ReportCard } from './ReportCard';
 
 // ── types ──────────────────────────────────────────────────────────────────────
@@ -394,7 +395,7 @@ export function RelatoriosScreen() {
                 align="right"
                 floating
                 placement="top"
-                className="absolute right-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
                 onDismiss={consultGuide.dismiss}
               />
             )}
@@ -412,7 +413,7 @@ export function RelatoriosScreen() {
                   align="right"
                   floating
                   placement="top"
-                  className="absolute right-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                  className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
                   onDismiss={exportGuide.dismiss}
                 />
               )}

@@ -21,8 +21,8 @@ import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
-
-const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+import { formatCurrency } from './formatters';
+import { Z_GUIDE } from '../../ui/zIndex';
 
 const schema = z.object({
   descricao:       z.string().min(1, 'Informe a descrição'),
@@ -375,7 +375,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                       >
                         <span style={{ fontSize: '13.5px', fontWeight: 600, color: C.text }}>{match.descricao}</span>
                         <span style={{ fontSize: 12, color: C.textMuted, fontVariantNumeric: 'tabular-nums' }}>
-                          {brl(match.valor)}{match.cliente ? ` · ${match.cliente}` : ''}
+                          {formatCurrency(match.valor)}{match.cliente ? ` · ${match.cliente}` : ''}
                         </span>
                       </button>
                     ))}
@@ -437,7 +437,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                   render={({ field }) => <MoneyField value={field.value || undefined} onChange={field.onChange} />}
                 />
                 <div style={{ fontSize: 12, color: C.textFaint, minHeight: 16 }}>
-                  {ultimoValorRecebido ? `Última vez você recebeu ${brl(ultimoValorRecebido)}` : ''}
+                  {ultimoValorRecebido ? `Última vez você recebeu ${formatCurrency(ultimoValorRecebido)}` : ''}
                 </div>
                 {form.formState.errors.valor?.message && (
                   <div style={{ fontSize: 12, color: '#b42318' }}>{form.formState.errors.valor.message}</div>
@@ -609,7 +609,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                   <FirstAccessGuideCard
                     floating
                     placement="bottom"
-                    className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                    className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
                     icon={Users}
                     description={firstAccessGuideMessages.receitasRepresentante}
                     onDismiss={representanteGuide.dismiss}
@@ -620,7 +620,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                   <div style={{ ...panelStyle, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{repSelecionado.nome}</span>
                     <span style={{ fontSize: 13, color: C.textMuted }}>receberá</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: C.primaryDark }}>{brl(valorComissao)}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: C.primaryDark }}>{formatCurrency(valorComissao)}</span>
                     <span style={{ fontSize: 13, color: C.textFaint }}>·</span>
                     <span style={{ fontSize: 13, color: C.textMuted }}>{comissaoMatch.percentual}%</span>
                     <span style={{ fontSize: 13, color: C.textFaint }}>·</span>
@@ -662,7 +662,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                   <FirstAccessGuideCard
                     floating
                     placement="bottom"
-                    className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                    className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
                     icon={Clock}
                     description={firstAccessGuideMessages.receitasHoras}
                     onDismiss={horasGuide.dismiss}
@@ -717,7 +717,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                               <span style={{ fontSize: 12, fontWeight: 600, color: C.textMuted }}>
-                                {valorHora != null ? `${brl(valorHora)}/h` : '—'}
+                                {valorHora != null ? `${formatCurrency(valorHora)}/h` : '—'}
                               </span>
                               {saldoAtual != null && (
                                 <span style={{ fontSize: 12, color: C.textFaint }}>Saldo: {saldoAtual}h disponíveis</span>
@@ -729,7 +729,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                         {valorCalculado != null && valorCalculado > 0 && (
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: 10, border: `1px solid ${C.primarySoftBorder}`, background: C.primarySoft, padding: '8px 12px' }}>
                             <span style={{ fontSize: 13, color: C.primaryDark }}>Valor calculado:</span>
-                            <span style={{ fontSize: 13, fontWeight: 700, color: C.primaryDark }}>{brl(valorCalculado)}</span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: C.primaryDark }}>{formatCurrency(valorCalculado)}</span>
                           </div>
                         )}
                       </>
@@ -759,7 +759,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                   <FirstAccessGuideCard
                     floating
                     placement="top"
-                    className="absolute left-0 bottom-full z-[45] mb-3 w-[min(24rem,calc(100vw-2rem))]"
+                    className={`absolute left-0 bottom-full ${Z_GUIDE} mb-3 w-[min(24rem,calc(100vw-2rem))]`}
                     icon={ChevronDown}
                     description={firstAccessGuideMessages.receitasReplicar}
                     onDismiss={replicarGuide.dismiss}

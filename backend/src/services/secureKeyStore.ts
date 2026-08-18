@@ -55,22 +55,3 @@ export function decryptKey(value: string | null | undefined): string | null {
   }
 }
 
-export function decryptKeyMap(keys: Record<string, string> = {}): Record<string, string | null> {
-  if (!keys || typeof keys !== 'object' || Array.isArray(keys)) return {};
-  return Object.fromEntries(Object.entries(keys).map(([provider, value]) => [provider, decryptKey(value)]));
-}
-
-export function encryptKeyMap(keys: Record<string, string> = {}): Record<string, string | null> {
-  if (!keys || typeof keys !== 'object' || Array.isArray(keys)) return {};
-  return Object.fromEntries(
-    Object.entries(keys)
-      .filter(([, value]) => !!value)
-      .map(([provider, value]) => [provider, encryptKey(value)]),
-  );
-}
-
-export function maskKey(value: string | null | undefined): string | null {
-  const plain = decryptKey(value ?? null);
-  if (!plain) return null;
-  return plain.slice(0, 6) + '********';
-}

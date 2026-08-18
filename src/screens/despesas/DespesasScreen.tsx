@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react';
 import {
-  Paperclip, Plus, RefreshCw, Ban,
-  CircleCheck, Clock, TrendingDown, TrendingUp, ArrowRight, X, Lock, LockOpen, ChevronDown, CheckSquare,
+  Paperclip, Plus, Ban,
+  CircleCheck, Clock, ArrowRight, X, ChevronDown, CheckSquare,
 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
@@ -14,7 +14,6 @@ import type { Attachment } from '../../types/finance';
 import { Button } from '../../ui/button';
 import { Card } from '../../ui/card';
 import { EmptyState, ErrorState } from '../../ui/states';
-import { MonthSelector } from '../finance/MonthSelector';
 import { ExpenseDialog } from '../finance/ExpenseDialog';
 import { AttachmentPreviewDialog } from '../../ui/AttachmentPreviewDialog';
 import { PaymentModal } from '../finance/PaymentModal';
@@ -26,6 +25,7 @@ import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
 import { daysAgoLocalIso, getLocalTodayIso } from '../../utils/date';
 import { ExpenseCard } from './ExpenseCard';
+import { Z_GUIDE } from '../../ui/zIndex';
 
 type FiltroStatus = 'todos' | 'pago' | 'em_dia' | 'atrasada';
 type FiltroDataPag = 'qualquer' | 'hoje' | 'semana' | 'mes';
@@ -182,12 +182,11 @@ function ActionBtn({
 }
 
 interface DespesasScreenProps {
-  embedded?: boolean;
   toolbarStart?: ReactNode;
 }
 
-export function DespesasScreen({ embedded = false, toolbarStart }: DespesasScreenProps) {
-  const { month, year, setMonth, setYear } = useAppContext();
+export function DespesasScreen({ toolbarStart }: DespesasScreenProps) {
+  const { month, year } = useAppContext();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Expense }>({ open: false });
   const [anexosDialog, setAnexosDialog] = useState<{ open: boolean; title: string; anexos: Attachment[] }>({
     open: false, title: '', anexos: [],
@@ -218,24 +217,6 @@ export function DespesasScreen({ embedded = false, toolbarStart }: DespesasScree
     },
   });
   const mesFechado = mesStatusQuery.data === true;
-
-  const fecharMut = useMutation({
-    mutationFn: async () => {
-      const pid = getActiveProfileId();
-      const body = pid ? { perfil_id: pid } : {};
-      await apiRequest<void>(`/meses/${year}/${month}/fechar`, { method: 'POST', body: JSON.stringify(body) });
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mesStatus(year, month) }),
-  });
-
-  const reabrirMut = useMutation({
-    mutationFn: async () => {
-      const pid = getActiveProfileId();
-      const body = pid ? { perfil_id: pid } : {};
-      await apiRequest<void>(`/meses/${year}/${month}/reabrir`, { method: 'POST', body: JSON.stringify(body) });
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mesStatus(year, month) }),
-  });
 
   const pagarMut = useMutation({
     mutationFn: ({ id, dataPagamento, valorPago }: { id: number; dataPagamento: string; valorPago: number }) =>
@@ -311,13 +292,9 @@ export function DespesasScreen({ embedded = false, toolbarStart }: DespesasScree
   const unpaidFiltered = filtered.filter((i) => !i.pago);
   const allSelected = unpaidFiltered.length > 0 && unpaidFiltered.every((i) => selecionadas.has(i.id));
   const hasMovableItem = filtered.some((item) => !item.pago && !mesFechado && item.status !== 'cancelada');
-  const guide = useFirstAccessGuide('despesas:novo-v1', {
-    enabled: !embedded && !finance.dashboard.isLoading && allItems.length === 0 && !hasFilter2,
-  });
   const filterGuide = useFirstAccessGuide('despesas:filtros-v1', {
     enabled: !finance.dashboard.isLoading && allItems.length > 0,
   });
-  const fecharMesGuide = useFirstAccessGuide('despesas:fechar-mes-v1', { enabled: !embedded });
   const loteGuide = useFirstAccessGuide('despesas:lote-v1', {
     enabled: selecionadas.size === 0 && !mesFechado && unpaidFiltered.length > 0,
   });
@@ -344,13 +321,6 @@ export function DespesasScreen({ embedded = false, toolbarStart }: DespesasScree
     });
   }
 
-  const ativas = allItems.filter((i) => i.status !== 'cancelada');
-  const total = ativas.reduce((s, i) => s + i.valorFinal, 0);
-  const totalPago = ativas.filter((i) => i.pago).reduce((s, i) => s + i.valorFinal, 0);
-  const totalPendente = total - totalPago;
-  const totalDiferenca = ativas.reduce((s, i) =>
-    i.valorOriginal != null ? s + (i.valorFinal - i.valorOriginal) : s, 0);
-
   const handleSave = async (values: ExpenseFormValues[]) => {
     for (const v of values) {
       await finance.saveExpense.mutateAsync({ values: v, id: values.length === 1 ? dialog.item?.id : undefined });
@@ -361,96 +331,6 @@ export function DespesasScreen({ embedded = false, toolbarStart }: DespesasScree
   return (
     <>
       <div className="grid gap-4">
-        {/* Header */}
-        <div className={embedded ? 'hidden' : 'flex flex-col gap-3'}>
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="text-xl font-bold text-slate-950 dark:text-white">Despesas</h2>
-            <div className="relative flex gap-2">
-              <Button variant="secondary" icon={<RefreshCw size={15} />} onClick={() => finance.dashboard.refetch()}>
-                Atualizar
-              </Button>
-              <div className="relative">
-                <Button
-                  variant="secondary"
-                  icon={mesFechado ? <LockOpen size={15} /> : <Lock size={15} />}
-                  onClick={() => mesFechado ? reabrirMut.mutate() : fecharMut.mutate()}
-                  disabled={fecharMut.isPending || reabrirMut.isPending}
-                >
-                  {mesFechado ? 'Reabrir mês' : 'Fechar mês'}
-                </Button>
-                {fecharMesGuide.isVisible && (
-                  <FirstAccessGuideCard
-                    floating
-                    placement="top"
-                    className="absolute right-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
-                    icon={Lock}
-                    description={firstAccessGuideMessages.despesasFecharMes}
-                    onDismiss={fecharMesGuide.dismiss}
-                  />
-                )}
-              </div>
-              <Button icon={<Plus size={15} />} onClick={() => setDialog({ open: true })}>
-                Nova despesa
-              </Button>
-              {guide.isVisible && !finance.dashboard.isLoading && allItems.length === 0 && !hasFilter2 && (
-                <FirstAccessGuideCard
-                  floating
-                  placement="top"
-                  className="absolute right-0 top-full z-[45] mt-3 w-[min(25rem,calc(100vw-2rem))]"
-                  icon={TrendingDown}
-                  description={firstAccessGuideMessages.despesasNova}
-                  onDismiss={guide.dismiss}
-                />
-              )}
-            </div>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
-            <MonthSelector month={month} year={year} onMonthChange={setMonth} onYearChange={setYear} />
-          </div>
-        </div>
-
-        {/* KPIs */}
-        <div className={embedded ? 'hidden' : 'grid grid-cols-2 gap-4 sm:grid-cols-4'}>
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingDown size={15} className="text-red-400" />
-              <p className="text-xs font-semibold uppercase text-slate-500">Total</p>
-            </div>
-            <p className="text-2xl font-bold text-red-700">{formatCurrency(total)}</p>
-            <p className="text-[11px] text-slate-400 mt-0.5">{allItems.length} lançamento(s)</p>
-          </Card>
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <CircleCheck size={15} className="text-green-400" />
-              <p className="text-xs font-semibold uppercase text-slate-500">Pagas</p>
-            </div>
-            <p className="text-2xl font-bold text-green-700">{formatCurrency(totalPago)}</p>
-            <p className="text-[11px] text-slate-400 mt-0.5">{allItems.filter((i) => i.pago).length} item(s)</p>
-          </Card>
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Clock size={15} className="text-amber-400" />
-              <p className="text-xs font-semibold uppercase text-slate-500">Pendentes</p>
-            </div>
-            <p className="text-2xl font-bold text-amber-700">{formatCurrency(totalPendente)}</p>
-            <p className="text-[11px] text-slate-400 mt-0.5">{allItems.filter((i) => !i.pago).length} item(s)</p>
-          </Card>
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              {totalDiferenca > 0
-                ? <TrendingUp size={15} className="text-amber-400" />
-                : <TrendingDown size={15} className="text-emerald-400" />}
-              <p className="text-xs font-semibold uppercase text-slate-500">Diferença</p>
-            </div>
-            <p className={['text-2xl font-bold', totalDiferenca > 0 ? 'text-amber-600' : totalDiferenca < 0 ? 'text-emerald-600' : 'text-slate-400'].join(' ')}>
-              {totalDiferenca === 0 ? '—' : (totalDiferenca > 0 ? '+' : '') + formatCurrency(totalDiferenca)}
-            </p>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              {totalDiferenca > 0 ? 'encargos/juros' : totalDiferenca < 0 ? 'economia' : 'sem variação'}
-            </p>
-          </Card>
-        </div>
-
         {finance.dashboard.error && (
           <ErrorState title="Erro ao carregar despesas" description={finance.dashboard.error.message} />
         )}
@@ -488,7 +368,7 @@ export function DespesasScreen({ embedded = false, toolbarStart }: DespesasScree
                   <FirstAccessGuideCard
                     floating
                     placement="bottom"
-                    className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                    className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
                     icon={CheckSquare}
                     description={firstAccessGuideMessages.despesasPagarSelecionadas}
                     onDismiss={pagarSelecionadasGuide.dismiss}
@@ -504,7 +384,7 @@ export function DespesasScreen({ embedded = false, toolbarStart }: DespesasScree
                   align="right"
                   floating
                   placement="top"
-                  className="absolute right-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                  className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
                   onDismiss={filterGuide.dismiss}
                 />
               )}
@@ -594,7 +474,7 @@ export function DespesasScreen({ embedded = false, toolbarStart }: DespesasScree
                 <FirstAccessGuideCard
                   floating
                   placement="bottom"
-                  className="absolute left-3 top-0 z-[45] w-[min(24rem,calc(100vw-2rem))]"
+                  className={`absolute left-3 top-0 ${Z_GUIDE} w-[min(24rem,calc(100vw-2rem))]`}
                   icon={CheckSquare}
                   description={firstAccessGuideMessages.despesasLote}
                   onDismiss={loteGuide.dismiss}
@@ -605,7 +485,7 @@ export function DespesasScreen({ embedded = false, toolbarStart }: DespesasScree
                   floating
                   placement="top"
                   align="right"
-                  className="absolute right-3 top-0 z-[45] w-[min(22rem,calc(100vw-2rem))]"
+                  className={`absolute right-3 top-0 ${Z_GUIDE} w-[min(22rem,calc(100vw-2rem))]`}
                   icon={ArrowRight}
                   description={firstAccessGuideMessages.despesasMoverMes}
                   onDismiss={moverMesGuide.dismiss}

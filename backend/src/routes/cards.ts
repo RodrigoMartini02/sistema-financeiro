@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { eq, and, ne, sql } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { db, pool } from '../db/client';
-import { cards, expenses } from '../db/schema';
+import { cards } from '../db/schema';
 import { authenticate } from '../middleware/auth';
 
 const router = Router();
@@ -126,63 +126,6 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
   } catch (error) {
     console.error('Create card error:', error);
     res.status(500).json({ success: false, message: 'Failed to create card' });
-  }
-});
-
-// PUT /api/cards (bulk replace — legacy)
-router.put('/', authenticate, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { cartoes } = req.body as { cartoes: Record<string, unknown>[] };
-
-    if (!Array.isArray(cartoes)) {
-      res.status(400).json({ success: false, message: 'Expected an array of cards' });
-      return;
-    }
-    if (cartoes.length > 3) {
-      res.status(400).json({ success: false, message: 'Maximum of 3 cards allowed' });
-      return;
-    }
-
-    for (let i = 0; i < cartoes.length; i++) {
-      const c = cartoes[i]!;
-      if (!c['nome'] || String(c['nome']).trim() === '') {
-        res.status(400).json({ success: false, message: `Card ${i + 1}: name is required` });
-        return;
-      }
-      if (!c['limite'] || Number(c['limite']) <= 0) {
-        res.status(400).json({ success: false, message: `Card ${i + 1}: limit must be greater than zero` });
-        return;
-      }
-    }
-
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      await client.query('DELETE FROM cartoes WHERE usuario_id = $1', [req.user!.id]);
-
-      const inserted: unknown[] = [];
-      for (let i = 0; i < cartoes.length; i++) {
-        const c = cartoes[i]!;
-        const r = await client.query(
-          `INSERT INTO cartoes (usuario_id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-           RETURNING id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao`,
-          [req.user!.id, String(c['nome']).trim(), parseFloat(String(c['limite'])), parseInt(String(c['dia_fechamento'])) || 1, parseInt(String(c['dia_vencimento'])) || 10, c['cor'] ?? '#3498db', true, c['numero_cartao'] ?? i + 1],
-        );
-        inserted.push(r.rows[0]);
-      }
-
-      await client.query('COMMIT');
-      res.json({ success: true, message: 'Cards saved', data: inserted });
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw err;
-    } finally {
-      client.release();
-    }
-  } catch (error) {
-    console.error('Bulk update cards error:', error);
-    res.status(500).json({ success: false, message: 'Failed to save cards' });
   }
 });
 

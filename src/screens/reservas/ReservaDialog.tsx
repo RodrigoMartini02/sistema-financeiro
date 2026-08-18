@@ -11,7 +11,9 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { getLocalTodayIso } from '../../utils/date';
+import { Z_GUIDE } from '../../ui/zIndex';
 import { TrendingUp } from 'lucide-react';
+import { formatCurrency } from '../finance/formatters';
 
 const EMOJIS = ['💰', '🏠', '🚗', '✈️', '📚', '🛡️', '🎓', '💊', '🎮', '💻', '💶', '🐾'];
 
@@ -167,7 +169,7 @@ export function ReservaDialog({
               <FirstAccessGuideCard
                 floating
                 placement="bottom"
-                className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
                 icon={TrendingUp}
                 description={firstAccessGuideMessages.reservasAbaMovimentar}
                 onDismiss={tabsGuide.dismiss}
@@ -269,7 +271,7 @@ export function ReservaDialog({
                       <span>
                         Você precisa guardar cerca de{' '}
                         <strong>
-                          {contribuicao.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês
+                          {formatCurrency(contribuicao)}/mês
                         </strong>{' '}
                         para atingir a meta.
                       </span>
@@ -280,7 +282,7 @@ export function ReservaDialog({
                   <FirstAccessGuideCard
                     floating
                     placement="bottom"
-                    className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                    className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
                     icon={TrendingUp}
                     description={firstAccessGuideMessages.reservasContribuicaoSugerida}
                     onDismiss={contribuicaoGuide.dismiss}

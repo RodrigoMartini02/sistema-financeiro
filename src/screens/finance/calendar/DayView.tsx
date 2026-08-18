@@ -2,6 +2,7 @@ import { Banknote, Calendar, TrendingDown } from 'lucide-react';
 import type { CalendarItem } from './types';
 import type { CalendarItemKind } from './calendarStatus';
 import { kindColors, statusColors } from './calendarStatus';
+import { formatCurrency } from '../formatters';
 
 const START_HOUR = 7;
 const END_HOUR = 20;
@@ -20,10 +21,6 @@ function timeToMinutes(time: string): number {
 
 function formatDateLabel(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
-}
-
-function brl(v: number): string {
-  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 interface Props {
@@ -97,15 +94,15 @@ export function DayView({ date, items, onCreateClick, onItemClick }: Props) {
           <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Resumo do dia</span>
           <div className="flex items-center justify-between">
             <span className="text-[13px] text-slate-500 dark:text-slate-400">A receber</span>
-            <span className="text-[14.5px] font-bold text-emerald-600">{brl(toReceive)}</span>
+            <span className="text-[14.5px] font-bold text-emerald-600">{formatCurrency(toReceive)}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-[13px] text-slate-500 dark:text-slate-400">A pagar</span>
-            <span className="text-[14.5px] font-bold text-rose-600">{brl(toPay)}</span>
+            <span className="text-[14.5px] font-bold text-rose-600">{formatCurrency(toPay)}</span>
           </div>
           <div className="flex items-center justify-between border-t border-slate-100 pt-2 dark:border-slate-800">
             <span className="text-[13px] text-slate-500 dark:text-slate-400">Líquido do dia</span>
-            <span className={['text-[14.5px] font-bold', net >= 0 ? 'text-emerald-600' : 'text-rose-600'].join(' ')}>{brl(net)}</span>
+            <span className={['text-[14.5px] font-bold', net >= 0 ? 'text-emerald-600' : 'text-rose-600'].join(' ')}>{formatCurrency(net)}</span>
           </div>
         </div>
 
@@ -128,7 +125,7 @@ export function DayView({ date, items, onCreateClick, onItemClick }: Props) {
                 >
                   <span className="h-6 w-0.5 rounded-full" style={{ background: color.fg }} />
                   <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-900 dark:text-white">{item.title}</span>
-                  <span className="text-[13px] font-bold" style={{ color: color.fg }}>{item.value != null ? brl(item.value) : ''}</span>
+                  <span className="text-[13px] font-bold" style={{ color: color.fg }}>{item.value != null ? formatCurrency(item.value) : ''}</span>
                 </div>
               );
             })}

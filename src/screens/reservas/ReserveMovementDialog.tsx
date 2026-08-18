@@ -3,6 +3,7 @@ import { ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
 import type { MovimentacaoFormValues, Reserva } from '../../types/reservas';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
+import { formatCurrency } from '../finance/formatters';
 
 interface ReserveMovementDialogProps {
   open: boolean;
@@ -73,7 +74,7 @@ export function ReserveMovementDialog({
             ) : (
               reservas.map((reserva) => (
                 <option key={reserva.id} value={reserva.id}>
-                  {reserva.observacoes || 'Reserva sem nome'} - {Number(reserva.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  {reserva.observacoes || 'Reserva sem nome'} - {formatCurrency(Number(reserva.valor))}
                 </option>
               ))
             )}
