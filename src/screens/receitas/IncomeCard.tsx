@@ -12,7 +12,7 @@ const TIPO_COLORS: Record<string, string> = {
   outros:        'bg-slate-100 text-slate-600',
 };
 
-function tipoBadge(tipo?: string | null) {
+export function tipoBadge(tipo?: string | null) {
   if (!tipo) return null;
   const cls = TIPO_COLORS[tipo.toLowerCase()] ?? 'bg-slate-100 text-slate-600';
   return (

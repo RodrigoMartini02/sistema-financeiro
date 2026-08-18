@@ -23,6 +23,7 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
+import { Z_GUIDE } from '../../ui/zIndex';
 
 // ─── Module-level helpers ─────────────────────────────────────────────────────
 
@@ -200,7 +201,7 @@ function ContratoForm({
           <FirstAccessGuideCard
             floating
             placement="bottom"
-            className="absolute left-0 top-full z-[45] mt-3 w-[min(25rem,calc(100vw-2rem))]"
+            className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(25rem,calc(100vw-2rem))]`}
             icon={Info}
             description={firstAccessGuideMessages.clientesReajuste}
             onDismiss={reajusteGuide.dismiss}
@@ -290,7 +291,7 @@ function ContratoForm({
             <FirstAccessGuideCard
               floating
               placement="bottom"
-              className="absolute left-0 top-full z-[45] mt-3 w-[min(25rem,calc(100vw-2rem))]"
+              className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(25rem,calc(100vw-2rem))]`}
               icon={Users}
               description={firstAccessGuideMessages.clientesRepresentante}
               onDismiss={representanteGuide.dismiss}
@@ -806,7 +807,7 @@ function ContratoModal({
                   <FirstAccessGuideCard
                     floating
                     placement="bottom"
-                    className="absolute left-0 top-full z-[45] mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                    className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(25rem,calc(100vw-2rem))]`}
                     icon={Info}
                     description={firstAccessGuideMessages.clientesImplantacao}
                     onDismiss={implantacaoGuide.dismiss}
@@ -864,7 +865,7 @@ function ContratoModal({
                     <FirstAccessGuideCard
                       floating
                       placement="bottom"
-                      className="absolute left-0 top-full z-[45] mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                      className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(25rem,calc(100vw-2rem))]`}
                       icon={ClockIcon}
                       description={firstAccessGuideMessages.clientesHoras}
                       onDismiss={horasGuide.dismiss}
@@ -998,7 +999,7 @@ function ContratoModal({
                       floating
                       placement="top"
                       align="right"
-                      className="absolute right-0 bottom-full z-[45] mb-3 w-[min(25rem,calc(100vw-2rem))] normal-case"
+                      className={`absolute right-0 bottom-full ${Z_GUIDE} mb-3 w-[min(25rem,calc(100vw-2rem))] normal-case`}
                       icon={Info}
                       description={firstAccessGuideMessages.clientesServicosVinculo}
                       onDismiss={servicosVinculoGuide.dismiss}
@@ -1075,7 +1076,7 @@ function ContratoModal({
                   <FirstAccessGuideCard
                     floating
                     placement="top"
-                    className="absolute left-0 bottom-full z-[45] mb-3 w-[min(24rem,calc(100vw-2rem))]"
+                    className={`absolute left-0 bottom-full ${Z_GUIDE} mb-3 w-[min(24rem,calc(100vw-2rem))]`}
                     icon={AlertTriangle}
                     description={firstAccessGuideMessages.clientesEncerrarContrato}
                     onDismiss={encerrarGuide.dismiss}
@@ -1356,7 +1357,7 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
                   floating
                   placement="top"
                   align="right"
-                  className="absolute right-0 top-full z-[45] mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                  className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(25rem,calc(100vw-2rem))]`}
                   icon={RefreshCw}
                   description={firstAccessGuideMessages.clientesGerarPrevistas}
                   onDismiss={gerarPrevistasGuide.dismiss}

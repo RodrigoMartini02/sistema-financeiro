@@ -12,6 +12,7 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
+import { Z_GUIDE } from '../../ui/zIndex';
 
 const COR_OPCOES = [
   { value: '#1e40af', label: 'Azul' },
@@ -103,7 +104,7 @@ function CartaoDialog({
               <FirstAccessGuideCard
                 floating
                 placement="bottom"
-                className="absolute left-0 top-full z-[45] mt-3 w-[min(22rem,calc(100vw-2rem))]"
+                className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(22rem,calc(100vw-2rem))]`}
                 icon={DollarSign}
                 description={firstAccessGuideMessages.cartoesLimite}
                 onDismiss={limiteGuide.dismiss}
@@ -114,7 +115,7 @@ function CartaoDialog({
                 floating
                 placement="bottom"
                 align="right"
-                className="absolute right-0 top-full z-[45] mt-3 w-[min(22rem,calc(100vw-2rem))]"
+                className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(22rem,calc(100vw-2rem))]`}
                 icon={Calendar}
                 description={firstAccessGuideMessages.cartoesValidade}
                 onDismiss={validadeGuide.dismiss}
@@ -137,7 +138,7 @@ function CartaoDialog({
               <FirstAccessGuideCard
                 floating
                 placement="bottom"
-                className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
                 icon={Calendar}
                 description={firstAccessGuideMessages.cartoesFechamentoVencimento}
                 onDismiss={fechamentoGuide.dismiss}
@@ -248,7 +249,7 @@ export function CartaoTab() {
             align="right"
             floating
             placement="top"
-            className="absolute right-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
+            className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
             onDismiss={createGuide.dismiss}
           />
         )}

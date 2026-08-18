@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { eq, and, ne, count, sum, sql } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { db, pool } from '../db/client';
-import { categories, expenses } from '../db/schema';
+import { categories } from '../db/schema';
 import { authenticate } from '../middleware/auth';
 import { ensureDefaultCategories } from '../services/defaultCategories';
 

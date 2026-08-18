@@ -12,6 +12,7 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
+import { Z_GUIDE } from '../../ui/zIndex';
 
 const CAT_SCHEME = {
   red: {
@@ -109,7 +110,7 @@ function CategoriaDialog({
                 <FirstAccessGuideCard
                   floating
                   placement="bottom"
-                  className="absolute left-0 bottom-full z-[45] mb-3 w-[min(24rem,calc(100vw-2rem))]"
+                  className={`absolute left-0 bottom-full ${Z_GUIDE} mb-3 w-[min(24rem,calc(100vw-2rem))]`}
                   icon={Tag}
                   description={firstAccessGuideMessages.categoriasDesativar}
                   onDismiss={desativarGuide.dismiss}
@@ -221,7 +222,7 @@ function CategoriaRow({
             floating
             placement="top"
             align="right"
-            className="absolute right-0 top-full z-[45] mt-3 w-[min(22rem,calc(100vw-2rem))]"
+            className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(22rem,calc(100vw-2rem))]`}
             icon={FolderTree}
             description={subcategoryGuide.description}
             onDismiss={subcategoryGuide.onDismiss}
@@ -299,7 +300,7 @@ export function CategoriasTab() {
                 floating
                 placement="top"
                 align="right"
-                className="absolute right-0 top-full z-[45] mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(25rem,calc(100vw-2rem))]`}
                 icon={Tag}
                 description={firstAccessGuideMessages.categoriasNova}
                 onDismiss={guideNovaCategoria.dismiss}

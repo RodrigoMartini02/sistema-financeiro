@@ -16,6 +16,7 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
+import { Z_GUIDE } from '../../ui/zIndex';
 
 function ComissaoRow({
   comissao,
@@ -129,7 +130,7 @@ function ComissaoRow({
           <FirstAccessGuideCard
             floating
             placement="bottom"
-            className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
+            className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
             icon={Percent}
             description={tipoGuide.description}
             onDismiss={tipoGuide.onDismiss}
@@ -294,7 +295,7 @@ function RepresentanteDialog({
               <FirstAccessGuideCard
                 floating
                 placement="top"
-                className="absolute left-0 top-full z-[45] mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(25rem,calc(100vw-2rem))]`}
                 icon={Percent}
                 description={firstAccessGuideMessages.representantesComissoes}
                 onDismiss={comissoesGuide.dismiss}
@@ -368,7 +369,7 @@ export function RepresentantesTab() {
             align="right"
             floating
             placement="top"
-            className="absolute right-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
+            className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
             onDismiss={createGuide.dismiss}
           />
         )}

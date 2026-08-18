@@ -84,8 +84,6 @@ import partnerRoutes from './routes/partners';
 import incomeTypeRoutes from './routes/income-types';
 import clientRoutes from './routes/clients';
 import contractRoutes from './routes/contracts';
-import contractModuleRoutes from './routes/contract-modules';
-import technicalServiceRoutes from './routes/technical-services';
 import serviceRoutes from './routes/services';
 import contractServiceRoutes from './routes/contract-services';
 import contractAttachmentRoutes from './routes/contract-attachments';
@@ -112,8 +110,7 @@ app.use('/api/incomes', authenticate, requireActivePlan, incomeRoutes);
 app.use('/api/receitas', authenticate, requireActivePlan, incomeRoutes);         // PT alias
 app.use('/api/expenses', authenticate, requireActivePlan, expenseRoutes);
 app.use('/api/despesas', authenticate, requireActivePlan, expenseRoutes);        // PT alias
-app.use('/api/months', authenticate, requireActivePlan, monthRoutes);
-app.use('/api/meses', authenticate, requireActivePlan, monthRoutes);             // PT alias
+app.use('/api/meses', authenticate, requireActivePlan, monthRoutes);
 app.use('/api/years', authenticate, requireActivePlan, yearRoutes);
 app.use('/api/anos', authenticate, requireActivePlan, yearRoutes);               // PT alias
 app.use('/api/reserves', authenticate, requireActivePlan, reserveRoutes);
@@ -135,8 +132,6 @@ app.use('/api/income-types', authenticate, requireActivePlan, incomeTypeRoutes);
 app.use('/api/tipos-receita', authenticate, requireActivePlan, incomeTypeRoutes); // PT alias
 app.use('/api/clientes', authenticate, requireActivePlan, clientRoutes);
 app.use('/api/contratos', authenticate, requireActivePlan, contractRoutes);
-app.use('/api/modulos-contrato', authenticate, requireActivePlan, contractModuleRoutes);
-app.use('/api/servicos-tecnicos', authenticate, requireActivePlan, technicalServiceRoutes);
 app.use('/api/servicos', authenticate, requireActivePlan, serviceRoutes);
 app.use('/api/contratos-servicos', authenticate, requireActivePlan, contractServiceRoutes);
 app.use('/api/contrato-anexos', authenticate, requireActivePlan, contractAttachmentRoutes);

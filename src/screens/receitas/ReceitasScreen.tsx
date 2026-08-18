@@ -1,16 +1,15 @@
 import { useState, type ReactNode } from 'react';
-import { Paperclip, Plus, RefreshCw, Ban, TrendingUp, Tag, Lock, LockOpen, Clock, CheckCircle, AlertCircle, FileCheck, Building2, Search } from 'lucide-react';
+import { Paperclip, Plus, Ban, Tag, Clock, CheckCircle, AlertCircle, FileCheck, Building2, Search } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
 import { useAppContext } from '../../context/AppContext';
-import { apiRequest, getActiveProfileId } from '../../services/apiClient';
+import { apiRequest } from '../../services/apiClient';
 import { queryKeys } from '../../services/queryKeys';
 import type { Income, IncomeFormValues } from '../../types/finance';
 import { getContratosFaturamento, faturarContrato, type ContratoFaturamento } from '../../services/financeService';
 import { Button } from '../../ui/button';
 import { Card } from '../../ui/card';
 import { EmptyState, ErrorState } from '../../ui/states';
-import { MonthSelector } from '../finance/MonthSelector';
 import { IncomeDialog } from '../finance/IncomeDialog';
 import { AttachmentPreviewDialog } from '../../ui/AttachmentPreviewDialog';
 import { formatCurrency, formatDate } from '../finance/formatters';
@@ -18,9 +17,10 @@ import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
+import { Z_GUIDE } from '../../ui/zIndex';
 import type { Attachment } from '../../types/finance';
 import { getLocalTodayIso } from '../../utils/date';
-import { IncomeCard } from './IncomeCard';
+import { IncomeCard, tipoBadge } from './IncomeCard';
 
 const MONTH_NAMES_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
@@ -42,32 +42,12 @@ function statusFaturamentoBadge(item: ContratoFaturamento, mes: number, ano: num
   return <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700"><Clock size={10} /> Pendente</span>;
 }
 
-const TIPO_COLORS: Record<string, string> = {
-  salario:       'bg-green-100 text-green-700',
-  freelance:     'bg-blue-100 text-blue-700',
-  investimento:  'bg-purple-100 text-purple-700',
-  aluguel:       'bg-amber-100 text-amber-700',
-  comissao:      'bg-orange-100 text-orange-700',
-  outros:        'bg-slate-100 text-slate-600',
-};
-
-function tipoBadge(tipo?: string | null) {
-  if (!tipo) return null;
-  const cls = TIPO_COLORS[tipo.toLowerCase()] ?? 'bg-slate-100 text-slate-600';
-  return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize ${cls}`}>
-      {tipo}
-    </span>
-  );
-}
-
 interface ReceitasScreenProps {
-  embedded?: boolean;
   toolbarStart?: ReactNode;
 }
 
-export function ReceitasScreen({ embedded = false, toolbarStart }: ReceitasScreenProps) {
-  const { month, year, setMonth, setYear } = useAppContext();
+export function ReceitasScreen({ toolbarStart }: ReceitasScreenProps) {
+  const { month, year } = useAppContext();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Income }>({ open: false });
   const [anexosDialog, setAnexosDialog] = useState<{ open: boolean; title: string; anexos: Attachment[] }>({ open: false, title: '', anexos: [] });
   const [busca, setBusca] = useState('');
@@ -116,9 +96,6 @@ export function ReceitasScreen({ embedded = false, toolbarStart }: ReceitasScree
     queryFn: () => getContratosFaturamento(month + 1, year),
     enabled: isEmpresa,
   });
-  const guide = useFirstAccessGuide('receitas:novo-v1', {
-    enabled: !embedded && !finance.dashboard.isLoading && allItems.length === 0 && !busca,
-  });
   const searchGuide = useFirstAccessGuide('receitas:busca-v1', {
     enabled: !finance.dashboard.isLoading && allItems.length > 0,
   });
@@ -144,35 +121,6 @@ export function ReceitasScreen({ embedded = false, toolbarStart }: ReceitasScree
 
   const hoje = getLocalTodayIso();
 
-  const mesStatusQuery = useQuery({
-    queryKey: queryKeys.mesStatus(year, month),
-    queryFn: async () => {
-      const pid = getActiveProfileId();
-      const q = pid ? `?perfil_id=${pid}` : '';
-      const all = await apiRequest<{ ano: number; mes: number; fechado: boolean }[]>(`/meses${q}`);
-      return all.find((m) => m.ano === year && m.mes === month)?.fechado ?? false;
-    },
-  });
-  const mesFechado = mesStatusQuery.data === true;
-
-  const fecharMut = useMutation({
-    mutationFn: async () => {
-      const pid = getActiveProfileId();
-      const body = pid ? { perfil_id: pid } : {};
-      await apiRequest<void>(`/meses/${year}/${month}/fechar`, { method: 'POST', body: JSON.stringify(body) });
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mesStatus(year, month) }),
-  });
-
-  const reabrirMut = useMutation({
-    mutationFn: async () => {
-      const pid = getActiveProfileId();
-      const body = pid ? { perfil_id: pid } : {};
-      await apiRequest<void>(`/meses/${year}/${month}/reabrir`, { method: 'POST', body: JSON.stringify(body) });
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mesStatus(year, month) }),
-  });
-
   const items = busca.trim()
     ? allItems.filter((i) =>
         i.descricao.toLowerCase().includes(busca.toLowerCase()) ||
@@ -180,13 +128,6 @@ export function ReceitasScreen({ embedded = false, toolbarStart }: ReceitasScree
         (i.tipoReceita ?? '').toLowerCase().includes(busca.toLowerCase())
       )
     : allItems;
-
-  const ativas = allItems.filter((i) => i.status === 'ativa');
-  const previstas = allItems.filter((i) => i.status === 'prevista');
-  const atrasadas = previstas.filter((i) => i.data < hoje);
-  const total = ativas.reduce((s, i) => s + i.valor, 0);
-  const totalPrevisto = previstas.reduce((s, i) => s + i.valor, 0);
-  const media = ativas.length > 0 ? total / ativas.length : 0;
 
   const handleSave = async (values: IncomeFormValues) => {
     await finance.saveIncome.mutateAsync({ values, id: dialog.item?.id });
@@ -196,77 +137,6 @@ export function ReceitasScreen({ embedded = false, toolbarStart }: ReceitasScree
   return (
     <>
       <div className="grid gap-4">
-        {/* Header + Month selector */}
-        <div className={embedded ? 'hidden' : 'flex flex-col gap-3'}>
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="text-xl font-bold text-slate-950 dark:text-white">Receitas</h2>
-            <div className="relative flex gap-2">
-              <Button variant="secondary" icon={<RefreshCw size={15} />} onClick={() => finance.dashboard.refetch()}>
-                Atualizar
-              </Button>
-              <Button
-                variant="secondary"
-                icon={mesFechado ? <LockOpen size={15} /> : <Lock size={15} />}
-                onClick={() => mesFechado ? reabrirMut.mutate() : fecharMut.mutate()}
-                disabled={fecharMut.isPending || reabrirMut.isPending}
-              >
-                {mesFechado ? 'Reabrir mês' : 'Fechar mês'}
-              </Button>
-              <Button icon={<Plus size={15} />} onClick={() => setDialog({ open: true })}>
-                Nova receita
-              </Button>
-              {guide.isVisible && !finance.dashboard.isLoading && allItems.length === 0 && !busca && (
-                <FirstAccessGuideCard
-                  floating
-                  placement="top"
-                  className="absolute right-0 top-full z-[45] mt-3 w-[min(25rem,calc(100vw-2rem))]"
-                  icon={TrendingUp}
-                  description={firstAccessGuideMessages.receitasNova}
-                  onDismiss={guide.dismiss}
-                />
-              )}
-            </div>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
-            <MonthSelector month={month} year={year} onMonthChange={setMonth} onYearChange={setYear} />
-          </div>
-        </div>
-
-        {/* KPIs */}
-        <div className={embedded ? 'hidden' : 'grid grid-cols-2 gap-4 sm:grid-cols-4'}>
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp size={15} className="text-green-500" />
-              <p className="text-xs font-semibold uppercase text-slate-500">Recebido</p>
-            </div>
-            <p className="text-2xl font-bold text-green-700">{formatCurrency(total)}</p>
-            <p className="text-xs text-slate-400 mt-0.5">{ativas.length} lançamento{ativas.length !== 1 ? 's' : ''}</p>
-          </Card>
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Clock size={15} className="text-blue-500" />
-              <p className="text-xs font-semibold uppercase text-slate-500">Previsto</p>
-            </div>
-            <p className="text-2xl font-bold text-blue-700">{formatCurrency(totalPrevisto)}</p>
-            <p className="text-xs text-slate-400 mt-0.5">{previstas.length} prevista{previstas.length !== 1 ? 's' : ''}</p>
-          </Card>
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <AlertCircle size={15} className="text-red-500" />
-              <p className="text-xs font-semibold uppercase text-slate-500">Em atraso</p>
-            </div>
-            <p className="text-2xl font-bold text-red-600">{atrasadas.length}</p>
-            <p className="text-xs text-slate-400 mt-0.5">{formatCurrency(atrasadas.reduce((s, i) => s + i.valor, 0))}</p>
-          </Card>
-          <Card className="p-4 hidden sm:block">
-            <div className="flex items-center gap-2 mb-1">
-              <CheckCircle size={15} className="text-slate-400" />
-              <p className="text-xs font-semibold uppercase text-slate-500">Média recebida</p>
-            </div>
-            <p className="text-2xl font-bold text-slate-950">{formatCurrency(media)}</p>
-          </Card>
-        </div>
-
         {finance.dashboard.error && (
           <ErrorState title="Erro ao carregar receitas" description={finance.dashboard.error.message} />
         )}
@@ -284,7 +154,7 @@ export function ReceitasScreen({ embedded = false, toolbarStart }: ReceitasScree
                 <FirstAccessGuideCard
                   floating
                   placement="bottom"
-                  className="absolute left-0 top-full z-[45] mt-3 w-[min(25rem,calc(100vw-2rem))]"
+                  className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(25rem,calc(100vw-2rem))]`}
                   icon={Building2}
                   description={firstAccessGuideMessages.receitasContratosFaturamento}
                   onDismiss={contratosGuide.dismiss}
@@ -356,7 +226,7 @@ export function ReceitasScreen({ embedded = false, toolbarStart }: ReceitasScree
                   align="right"
                   floating
                   placement="top"
-                  className="absolute right-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                  className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
                   onDismiss={searchGuide.dismiss}
                 />
               )}

@@ -18,10 +18,12 @@ import { fetchCategorias, fetchCartoes, saveCategoria } from '../../services/con
 import { fetchExpenseSuggestions, type ExpenseSuggestionMatch } from '../../services/expenseSuggestionsService';
 import { queryKeys } from '../../services/queryKeys';
 import { getLocalTodayIso } from '../../utils/date';
+import { formatCurrency } from './formatters';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
+import { Z_GUIDE } from '../../ui/zIndex';
 
 const schema = z.object({
   descricao:       z.string().min(1, 'Informe a descrição'),
@@ -48,7 +50,6 @@ interface DuplicataInfo { expense: Expense; }
 const todayIso = getLocalTodayIso;
 const todayNumericDay = () => new Date().getDate();
 const formatBr = (iso: string) => new Date(iso + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 interface Props {
   open: boolean; month: number; year: number;
@@ -527,7 +528,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                       >
                         <span style={{ fontSize: '13.5px', fontWeight: 600, color: C.text }}>{match.descricao}</span>
                         <span style={{ fontSize: 12, color: C.textMuted, fontVariantNumeric: 'tabular-nums' }}>
-                          {brl(match.valorFinal)} · {match.formaPagamento}
+                          {formatCurrency(match.valorFinal)} · {match.formaPagamento}
                         </span>
                       </button>
                     ))}
@@ -651,7 +652,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                     {selectedCard && (
                       <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#33566a', fontVariantNumeric: 'tabular-nums' }}>
                         {activeCards.length <= 1 ? `${selectedCard.nome} · ` : ''}
-                        {isCredito ? `limite disponível ${brl(selectedCard.limite ?? 0)}` : 'conta corrente'}
+                        {isCredito ? `limite disponível ${formatCurrency(selectedCard.limite ?? 0)}` : 'conta corrente'}
                       </span>
                     )}
                   </div>
@@ -692,7 +693,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                 <FirstAccessGuideCard
                   floating
                   placement="bottom"
-                  className="absolute left-0 top-full z-[45] mt-3 w-[min(24rem,calc(100vw-2rem))]"
+                  className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
                   icon={Repeat2}
                   description={firstAccessGuideMessages.despesasTogglesTipo}
                   onDismiss={repetitionGuide.dismiss}
@@ -762,22 +763,22 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                 {repeticao === 'parcelas' && totalParceladoDerivado > 0 && (
                   <span style={{ fontSize: 13, fontWeight: 600, color: C.textSoft, fontVariantNumeric: 'tabular-nums' }}>
                     {valorInputMode === 'avista'
-                      ? `${totalParcelas}x de ${brl(valorDigitado)}`
-                      : `total ${brl(totalParceladoDerivado)}`}
+                      ? `${totalParcelas}x de ${formatCurrency(valorDigitado)}`
+                      : `total ${formatCurrency(totalParceladoDerivado)}`}
                     {(parcelasJaPagas ?? 0) > 0 ? ` · ${parcelasJaPagas} paga${(parcelasJaPagas ?? 0) > 1 ? 's' : ''}` : ''}
                     {proximaParcelaVence ? ` · próxima vence ${proximaParcelaVence}` : ''}
                   </span>
                 )}
                 {jurosEmbutido && jurosEmbutido.diferenca > 0 && (
                   <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.warn, background: C.warnBg, border: `1px solid ${C.warnBorder}` }}>
-                    + {brl(jurosEmbutido.diferenca)} de juros embutido ({jurosEmbutido.percentual.toFixed(1)}%)
+                    + {formatCurrency(jurosEmbutido.diferenca)} de juros embutido ({jurosEmbutido.percentual.toFixed(1)}%)
                   </span>
                 )}
               </div>
               <div style={{ fontSize: 12, color: C.textFaint, minHeight: 18 }}>
                 {valorInputMode === 'avista'
                   ? `Dividido em ${totalParcelas}x — este é o valor salvo por parcela`
-                  : ultimoValorPago ? `Última vez você pagou ${brl(ultimoValorPago)}` : 'Preço base da compra'}
+                  : ultimoValorPago ? `Última vez você pagou ${formatCurrency(ultimoValorPago)}` : 'Preço base da compra'}
               </div>
               {form.formState.errors.valor_original?.message && (
                 <div style={{ fontSize: 12, color: C.danger }}>{form.formState.errors.valor_original.message}</div>
@@ -855,12 +856,12 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                     <div style={{ minHeight: 18 }}>
                       {jurosCalculado > 0 && (
                         <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.danger, background: C.dangerBg, border: `1px solid ${C.dangerBorder}` }}>
-                          + {brl(jurosCalculado)} de multa e juros
+                          + {formatCurrency(jurosCalculado)} de multa e juros
                         </span>
                       )}
                       {descontoCalculado > 0 && (
                         <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.success, background: C.successBg, border: `1px solid ${C.successBorder}` }}>
-                          − {brl(descontoCalculado)} de desconto
+                          − {formatCurrency(descontoCalculado)} de desconto
                         </span>
                       )}
                     </div>
@@ -907,12 +908,12 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
           {hasBatch && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <span style={{ fontSize: '11.5px', fontWeight: 700, letterSpacing: '0.07em', color: C.textSoft }}>
-                NO LOTE · {batch.length} · {brl(batchTotal)}
+                NO LOTE · {batch.length} · {formatCurrency(batchTotal)}
               </span>
               {batch.map((item, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: `1px solid ${C.borderInput}`, borderRadius: 8, padding: '5px 8px 5px 10px', fontSize: '12.5px', color: '#33566a' }}>
                   <span style={{ fontWeight: 600 }}>{item.descricao}</span>
-                  <span style={{ color: C.textMuted, fontVariantNumeric: 'tabular-nums' }}>{brl(item.valor_original ?? 0)}</span>
+                  <span style={{ color: C.textMuted, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(item.valor_original ?? 0)}</span>
                   <span onClick={() => setBatch((prev) => prev.filter((_, j) => j !== i))} style={{ color: C.placeholder, cursor: 'pointer', fontSize: 13, lineHeight: 1 }}>
                     ×
                   </span>

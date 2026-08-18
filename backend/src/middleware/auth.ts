@@ -55,23 +55,6 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
   }
 }
 
-export function authenticateOptional(req: Request, res: Response, next: NextFunction): void {
-  try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    if (token) {
-      const decoded = jwt.verify(token, getJwtSecret()) as TokenPayload;
-      req.user = {
-      id: decoded.id,
-      document: decoded.document ?? decoded.documento ?? '',
-      type: decoded.type ?? decoded.tipo ?? 'padrao',
-    };
-    }
-    next();
-  } catch {
-    next();
-  }
-}
-
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
   if (!req.user || (req.user.type !== 'admin' && req.user.type !== 'master')) {
     res.status(403).json({ success: false, message: 'Access denied. Admins only.' });
