@@ -1,4 +1,4 @@
-import { ArrowRight, Ban, CircleCheck, Paperclip } from 'lucide-react';
+import { ArrowRight, Ban, CircleCheck, Paperclip, Pencil } from 'lucide-react';
 import type { Expense } from '../../types/finance';
 import { KebabMenu, type KebabMenuAction } from '../../ui/KebabMenu';
 import { formatCurrency, formatDate } from '../finance/formatters';
@@ -12,15 +12,22 @@ interface ExpenseCardProps {
   onMoveToNextMonth: () => void;
   onCancel: () => void;
   onOpenAttachments: () => void;
+  onEdit: () => void;
 }
 
 export function ExpenseCard({
-  item, isEmpresa, mesFechado, onPay, onMoveToNextMonth, onCancel, onOpenAttachments,
+  item, isEmpresa, mesFechado, onPay, onMoveToNextMonth, onCancel, onOpenAttachments, onEdit,
 }: ExpenseCardProps) {
   const isCancelada = item.status === 'cancelada';
   const anexosCount = item.anexos?.length ?? 0;
 
   const actions: KebabMenuAction[] = [
+    {
+      key: 'editar',
+      label: 'Editar',
+      icon: <Pencil size={15} />,
+      onClick: onEdit,
+    },
     {
       key: 'pagar',
       label: item.pago ? 'Já pago' : mesFechado ? 'Mês fechado' : 'Marcar como pago',

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Paperclip, Plus, Ban, Tag, Clock, CheckCircle, AlertCircle, FileCheck, Building2, Search } from 'lucide-react';
+import { Paperclip, Plus, Ban, Tag, Clock, CheckCircle, AlertCircle, FileCheck, Building2, Search, Pencil } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
 import { useAppContext } from '../../context/AppContext';
@@ -261,6 +261,7 @@ export function ReceitasScreen({ toolbarStart }: ReceitasScreenProps) {
                     onConfirmRecebimento={() => handleConfirmarRecebimento(item)}
                     onCancel={() => handleCancelarReceita(item)}
                     onOpenAttachments={() => setAnexosDialog({ open: true, title: item.descricao, anexos: item.anexos! })}
+                    onEdit={() => setDialog({ open: true, item })}
                   />
                 ))}
               </div>
@@ -350,6 +351,13 @@ export function ReceitasScreen({ toolbarStart }: ReceitasScreenProps) {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-1">
+                          <button
+                            onClick={() => setDialog({ open: true, item })}
+                            title="Editar"
+                            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+                          >
+                            <Pencil size={14} />
+                          </button>
                           {isPrevista ? (
                             <button
                               onClick={() => handleConfirmarRecebimento(item)}

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react';
 import {
   Paperclip, Plus, Ban,
-  CircleCheck, Clock, ArrowRight, X, ChevronDown, CheckSquare,
+  CircleCheck, Clock, ArrowRight, X, ChevronDown, CheckSquare, Pencil,
 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
@@ -503,6 +503,7 @@ export function DespesasScreen({ toolbarStart }: DespesasScreenProps) {
                     onMoveToNextMonth={() => handleMoverProximoMes(item)}
                     onCancel={() => handleCancelarDespesa(item)}
                     onOpenAttachments={() => setAnexosDialog({ open: true, title: item.descricao, anexos: item.anexos! })}
+                    onEdit={() => setDialog({ open: true, item })}
                   />
                 ))}
               </div>
@@ -662,6 +663,13 @@ export function DespesasScreen({ toolbarStart }: DespesasScreenProps) {
                       {/* Ações */}
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-1">
+                          <ActionBtn
+                            onClick={() => setDialog({ open: true, item })}
+                            title="Editar"
+                            colorClass="text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
+                          >
+                            <Pencil size={14} />
+                          </ActionBtn>
                           <ActionBtn
                             onClick={() => setPaymentModal({ open: true, item })}
                             disabled={item.pago || mesFechado || item.status === 'cancelada'}

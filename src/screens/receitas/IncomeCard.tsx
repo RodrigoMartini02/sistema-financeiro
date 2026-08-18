@@ -1,4 +1,4 @@
-import { AlertCircle, Ban, CheckCircle, Clock, Paperclip, Tag } from 'lucide-react';
+import { AlertCircle, Ban, CheckCircle, Clock, Paperclip, Pencil, Tag } from 'lucide-react';
 import type { Income } from '../../types/finance';
 import { KebabMenu, type KebabMenuAction } from '../../ui/KebabMenu';
 import { formatCurrency, formatDate } from '../finance/formatters';
@@ -28,17 +28,21 @@ interface IncomeCardProps {
   onConfirmRecebimento: () => void;
   onCancel: () => void;
   onOpenAttachments: () => void;
+  onEdit: () => void;
 }
 
-export function IncomeCard({ item, hoje, onConfirmRecebimento, onCancel, onOpenAttachments }: IncomeCardProps) {
+export function IncomeCard({ item, hoje, onConfirmRecebimento, onCancel, onOpenAttachments, onEdit }: IncomeCardProps) {
   const isPrevista = item.status === 'prevista';
   const isAtrasada = isPrevista && item.data < hoje;
   const isCancelada = item.status === 'cancelada';
   const anexosCount = item.anexos?.length ?? 0;
 
-  const actions: KebabMenuAction[] = isPrevista
-    ? [{ key: 'confirmar', label: 'Confirmar recebimento', icon: <CheckCircle size={15} />, onClick: onConfirmRecebimento }]
-    : [{ key: 'cancelar', label: isCancelada ? 'Já cancelada' : 'Cancelar', icon: <Ban size={15} />, onClick: onCancel, disabled: isCancelada, tone: 'danger' }];
+  const actions: KebabMenuAction[] = [
+    { key: 'editar', label: 'Editar', icon: <Pencil size={15} />, onClick: onEdit },
+    ...(isPrevista
+      ? [{ key: 'confirmar', label: 'Confirmar recebimento', icon: <CheckCircle size={15} />, onClick: onConfirmRecebimento }]
+      : [{ key: 'cancelar', label: isCancelada ? 'Já cancelada' : 'Cancelar', icon: <Ban size={15} />, onClick: onCancel, disabled: isCancelada, tone: 'danger' as const }]),
+  ];
 
   return (
     <div className={[
