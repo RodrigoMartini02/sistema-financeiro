@@ -1,4 +1,4 @@
-import { ArrowRight, Ban, CircleCheck, Paperclip, Pencil } from 'lucide-react';
+import { ArrowRight, Ban, CircleCheck, Paperclip, Pencil, Trash2 } from 'lucide-react';
 import type { Expense } from '../../types/finance';
 import { KebabMenu, type KebabMenuAction } from '../../ui/KebabMenu';
 import { formatCurrency, formatDate } from '../finance/formatters';
@@ -13,10 +13,11 @@ interface ExpenseCardProps {
   onCancel: () => void;
   onOpenAttachments: () => void;
   onEdit: () => void;
+  onDelete: () => void;
 }
 
 export function ExpenseCard({
-  item, isEmpresa, mesFechado, onPay, onMoveToNextMonth, onCancel, onOpenAttachments, onEdit,
+  item, isEmpresa, mesFechado, onPay, onMoveToNextMonth, onCancel, onOpenAttachments, onEdit, onDelete,
 }: ExpenseCardProps) {
   const isCancelada = item.status === 'cancelada';
   const anexosCount = item.anexos?.length ?? 0;
@@ -48,6 +49,13 @@ export function ExpenseCard({
       icon: <Ban size={15} />,
       onClick: onCancel,
       disabled: isCancelada,
+      tone: 'danger',
+    },
+    {
+      key: 'excluir',
+      label: 'Excluir',
+      icon: <Trash2 size={15} />,
+      onClick: onDelete,
       tone: 'danger',
     },
   ];

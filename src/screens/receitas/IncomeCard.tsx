@@ -1,4 +1,4 @@
-import { AlertCircle, Ban, CheckCircle, Clock, Paperclip, Pencil, Tag } from 'lucide-react';
+import { AlertCircle, Ban, CheckCircle, Clock, Paperclip, Pencil, Tag, Trash2 } from 'lucide-react';
 import type { Income } from '../../types/finance';
 import { KebabMenu, type KebabMenuAction } from '../../ui/KebabMenu';
 import { formatCurrency, formatDate } from '../finance/formatters';
@@ -29,9 +29,10 @@ interface IncomeCardProps {
   onCancel: () => void;
   onOpenAttachments: () => void;
   onEdit: () => void;
+  onDelete: () => void;
 }
 
-export function IncomeCard({ item, hoje, onConfirmRecebimento, onCancel, onOpenAttachments, onEdit }: IncomeCardProps) {
+export function IncomeCard({ item, hoje, onConfirmRecebimento, onCancel, onOpenAttachments, onEdit, onDelete }: IncomeCardProps) {
   const isPrevista = item.status === 'prevista';
   const isAtrasada = isPrevista && item.data < hoje;
   const isCancelada = item.status === 'cancelada';
@@ -42,6 +43,7 @@ export function IncomeCard({ item, hoje, onConfirmRecebimento, onCancel, onOpenA
     ...(isPrevista
       ? [{ key: 'confirmar', label: 'Confirmar recebimento', icon: <CheckCircle size={15} />, onClick: onConfirmRecebimento }]
       : [{ key: 'cancelar', label: isCancelada ? 'Já cancelada' : 'Cancelar', icon: <Ban size={15} />, onClick: onCancel, disabled: isCancelada, tone: 'danger' as const }]),
+    { key: 'excluir', label: 'Excluir', icon: <Trash2 size={15} />, onClick: onDelete, tone: 'danger' as const },
   ];
 
   return (

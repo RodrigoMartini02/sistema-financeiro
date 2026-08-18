@@ -180,8 +180,9 @@ export async function saveExpense(month: number, year: number, values: ExpenseFo
   });
 }
 
-export async function deleteExpense(id: number) {
-  return apiRequest<void>(`/despesas/${id}`, { method: 'DELETE' });
+export async function deleteExpense(id: number, options?: { deleteGroup?: boolean }) {
+  const suffix = options?.deleteGroup ? '?delete_group=true' : '';
+  return apiRequest<void>(`/despesas/${id}${suffix}`, { method: 'DELETE' });
 }
 
 export async function pagarDespesa(id: number, dataPagamento: string, valorPago: number) {

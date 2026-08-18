@@ -37,7 +37,8 @@ export function useFinanceDashboard(month: number, year: number, enabled = true)
   });
 
   const deleteExpenseMut = useMutation({
-    mutationFn: deleteExpense,
+    mutationFn: ({ id, deleteGroup }: { id: number; deleteGroup?: boolean }) =>
+      deleteExpense(id, { deleteGroup }),
     onSuccess: invalidate,
   });
 
