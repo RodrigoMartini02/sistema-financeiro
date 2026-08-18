@@ -11,3 +11,11 @@ export function getTodayIsoInTimezone(): string {
     day: '2-digit',
   }).format(new Date());
 }
+
+// Extrai mês (0-11) e ano civis de uma data ISO "YYYY-MM-DD", para que o
+// mês/ano de um lançamento sempre corresponda à sua data de referência
+// (vencimento/recebimento), nunca ao mês sendo visualizado na tela do client.
+export function getMonthYearFromIsoDate(isoDate: string): { mes: number; ano: number } {
+  const [ano, mes] = isoDate.split('-').map(Number);
+  return { mes: mes! - 1, ano: ano! };
+}

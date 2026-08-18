@@ -3,7 +3,7 @@ import { body } from 'express-validator';
 import { pool } from '../db/client';
 import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
-import { getTodayIsoInTimezone } from '../utils/date';
+import { getMonthYearFromIsoDate, getTodayIsoInTimezone } from '../utils/date';
 
 const router = Router();
 
@@ -311,15 +311,13 @@ router.post(
     body('descricao').notEmpty().withMessage('Description is required'),
     body('valor_original').isFloat({ min: 0.01 }).withMessage('Amount must be greater than zero'),
     body('data_vencimento').isISO8601().withMessage('Invalid date'),
-    body('mes').isInt({ min: 0, max: 11 }).withMessage('Invalid month'),
-    body('ano').isInt({ min: 2000 }).withMessage('Invalid year'),
     validate,
   ],
   async (req: Request, res: Response): Promise<void> => {
     try {
       const {
         descricao, valor_original, valor_final, data_vencimento, data_compra, data_pagamento,
-        mes, ano, categoria_id, cartao_id, forma_pagamento,
+        categoria_id, cartao_id, forma_pagamento,
         parcelado, total_parcelas, parcela_atual, parcelas_ja_pagas, observacoes, pago,
         valor_pago, anexos, recorrente, recorrencia_mensal, perfil_id,
         numero_nf, data_emissao_nf, tipo_despesa,
@@ -337,6 +335,20 @@ router.post(
         ? parseFloat(String(valor_final))
         : parseFloat(String(valor_original));
 
+      // Mês/ano do lançamento sempre derivados da data de vencimento, nunca do
+      // mês que o client tinha aberto na tela no momento do cadastro.
+      const { mes, ano } = getMonthYearFromIsoDate(data_vencimento as string);
+
+      // Data de vencimento já passada (ou é hoje) e forma de pagamento não é
+      // cartão de crédito (que entra na fatura, paga depois): já nasce paga.
+      const dataReferencia = (data_pagamento as string) || (data_vencimento as string);
+      const isRetroativaEPagavelNaHora = forma_pagamento !== 'credito' && dataReferencia <= getTodayIsoInTimezone();
+      const pagoFinal = Boolean(pago) || isRetroativaEPagavelNaHora;
+      const dataPagamentoFinal = pagoFinal ? (dataReferencia) : null;
+      const valorPagoFinal = pagoFinal
+        ? (valor_pago ? parseFloat(String(valor_pago)) : valorFinalCalculado)
+        : null;
+
       const result = await pool.query(
         `INSERT INTO despesas (
           usuario_id, descricao, data_vencimento, data_compra, data_pagamento,
@@ -348,14 +360,14 @@ router.post(
         RETURNING *`,
         [
           req.user!.id, descricao, data_vencimento,
-          (data_compra as string) || null, (data_pagamento as string) || null, mes, ano,
+          (data_compra as string) || null, dataPagamentoFinal, mes, ano,
           categoryFinal, cardIdFinal, forma_pagamento ?? 'dinheiro',
           parcelado ?? false, totalInstallments, currentInstallment,
-          observacoes ?? null, pago ?? false,
+          observacoes ?? null, pagoFinal,
           valor_original ? parseFloat(String(valor_original)) : null,
           valorFinalCalculado,
           valorFinalCalculado,
-          valor_pago ? parseFloat(String(valor_pago)) : null,
+          valorPagoFinal,
           attachmentsJson, recorrente ?? false,
           perfil_id ? parseInt(String(perfil_id)) : null,
           (numero_nf as string) || null, (data_emissao_nf as string) || null,
@@ -389,12 +401,27 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       descricao, valor_original, valor_final, data_vencimento, data_compra, data_pagamento,
       categoria_id, cartao_id, forma_pagamento, observacoes, pago,
       total_parcelas, parcela_atual, valor_pago,
-      anexos, mes, ano, parcelado, recorrente, perfil_id,
+      anexos, parcelado, recorrente, perfil_id,
       numero_nf, data_emissao_nf, tipo_despesa,
     } = req.body as Record<string, unknown>;
 
     const cardIdFinal = await validateCardId(cartao_id, req.user!.id);
     const attachmentsJson = Array.isArray(anexos) && anexos.length > 0 ? JSON.stringify(anexos) : null;
+
+    const valorFinalCalculado = valor_final
+      ? parseFloat(String(valor_final))
+      : (valor_original ? parseFloat(String(valor_original)) : null);
+
+    // Mesma regra da criação: mês/ano seguem a data de vencimento, e uma data
+    // já vencida (fora do crédito) mantém/assume status pago automaticamente.
+    const { mes, ano } = getMonthYearFromIsoDate(data_vencimento as string);
+    const dataReferencia = (data_pagamento as string) || (data_vencimento as string);
+    const isRetroativaEPagavelNaHora = forma_pagamento !== 'credito' && dataReferencia <= getTodayIsoInTimezone();
+    const pagoFinal = Boolean(pago) || isRetroativaEPagavelNaHora;
+    const dataPagamentoFinal = pagoFinal ? dataReferencia : null;
+    const valorPagoFinal = pagoFinal
+      ? (valor_pago ? parseFloat(String(valor_pago)) : valorFinalCalculado)
+      : null;
 
     const result = await pool.query(
       `UPDATE despesas
@@ -404,7 +431,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
            numero_parcelas = $10, parcela_atual = $11,
            valor_original = $12, valor_final = $13, valor_pago = $14,
            anexos = $15,
-           mes = COALESCE($16, mes), ano = COALESCE($17, ano),
+           mes = $16, ano = $17,
            parcelado = COALESCE($18, parcelado),
            recorrente = COALESCE($19, recorrente),
            perfil_id = COALESCE($20, perfil_id),
@@ -413,17 +440,15 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
        RETURNING *`,
       [
         descricao, data_vencimento, (data_compra as string) || null,
-        (data_pagamento as string) || null, categoria_id ?? null, cardIdFinal, forma_pagamento,
-        observacoes ?? null, pago,
+        dataPagamentoFinal, categoria_id ?? null, cardIdFinal, forma_pagamento,
+        observacoes ?? null, pagoFinal,
         total_parcelas ?? null, parcela_atual ?? null,
         valor_original ? parseFloat(String(valor_original)) : null,
-        valor_final
-          ? parseFloat(String(valor_final))
-          : (valor_original ? parseFloat(String(valor_original)) : null),
-        valor_pago ? parseFloat(String(valor_pago)) : null,
+        valorFinalCalculado,
+        valorPagoFinal,
         attachmentsJson,
-        mes !== undefined ? mes : null,
-        ano !== undefined ? ano : null,
+        mes,
+        ano,
         parcelado !== undefined ? parcelado : null,
         recorrente !== undefined ? recorrente : null,
         perfil_id ? parseInt(String(perfil_id)) : null,

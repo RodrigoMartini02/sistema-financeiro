@@ -3,6 +3,7 @@ import { body } from 'express-validator';
 import { pool } from '../db/client';
 import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
+import { getMonthYearFromIsoDate } from '../utils/date';
 
 const router = Router();
 
@@ -93,17 +94,19 @@ router.post(
     body('descricao').notEmpty().withMessage('Description is required'),
     body('valor').isFloat({ min: 0.01 }).withMessage('Amount must be greater than zero'),
     body('data_recebimento').isISO8601().withMessage('Invalid date'),
-    body('mes').isInt({ min: 0, max: 11 }).withMessage('Invalid month'),
-    body('ano').isInt({ min: 2000 }).withMessage('Invalid year'),
     validate,
   ],
   async (req: Request, res: Response): Promise<void> => {
     try {
       const {
-        descricao, valor, data_recebimento, mes, ano, observacoes, anexos, perfil_id,
+        descricao, valor, data_recebimento, observacoes, anexos, perfil_id,
         cliente, tipo_receita, representante_id, valor_comissao,
         contrato_id, tipo_hora, quantidade_horas,
       } = req.body as Record<string, unknown>;
+
+      // Mês/ano da receita sempre derivados da data de recebimento, nunca do
+      // mês que o client tinha aberto na tela no momento do cadastro.
+      const { mes, ano } = getMonthYearFromIsoDate(data_recebimento as string);
 
       const attachmentsJson = Array.isArray(anexos) && anexos.length > 0 ? JSON.stringify(anexos) : null;
       const representanteIdInt = representante_id ? parseInt(String(representante_id)) : null;
@@ -227,11 +230,15 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
 
     const attachmentsJson = Array.isArray(anexos) && anexos.length > 0 ? JSON.stringify(anexos) : null;
 
+    // Mesma regra da criação: mês/ano seguem a data de recebimento.
+    const { mes, ano } = getMonthYearFromIsoDate(data_recebimento as string);
+
     const result = await pool.query(
       `UPDATE receitas
        SET descricao = $1, valor = $2, data_recebimento = $3, observacoes = $4, anexos = $5,
            perfil_id = COALESCE($6, perfil_id),
-           cliente = $7, tipo_receita = $8, representante_id = $9
+           cliente = $7, tipo_receita = $8, representante_id = $9,
+           mes = $12, ano = $13
        WHERE id = $10 AND usuario_id = $11
        RETURNING *`,
       [
@@ -246,6 +253,8 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
         representante_id ? parseInt(String(representante_id)) : null,
         incomeId,
         req.user!.id,
+        mes,
+        ano,
       ],
     );
 
