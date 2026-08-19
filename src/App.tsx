@@ -21,6 +21,7 @@ import { useAuthSession } from './hooks/useAuthSession';
 import { ErrorState, LoadingState } from './ui/states';
 import { AppShell } from './layout/AppShell';
 import { CookieBanner } from './components/CookieBanner';
+import { InstallPwaBanner } from './components/InstallPwaBanner';
 import { UpdatePwaBanner } from './components/UpdatePwaBanner';
 import type { AppSection, ConfigTab } from './layout/AppShell';
 import { IncomeDialog } from './screens/finance/IncomeDialog';
@@ -94,6 +95,7 @@ function PublicSite() {
         <Route path="*" element={<HomePage />} />
       </Routes>
       <CookieBanner />
+      <InstallPwaBanner />
     </BrowserRouter>
   );
 }
