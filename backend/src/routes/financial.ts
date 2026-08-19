@@ -20,6 +20,16 @@ function calcAnnualRate(monthlyRate: number): number {
   return (Math.pow(1 + monthlyRate / 100, 12) - 1) * 100;
 }
 
+async function fetchAporteInicial(userId: number, profileId: number | null): Promise<number> {
+  if (!profileId) return 0;
+  const result = await pool.query(
+    `SELECT aporte_inicial FROM perfis WHERE id = $1 AND usuario_id = $2`,
+    [profileId, userId],
+  );
+  const raw = (result.rows[0] as { aporte_inicial: string | null } | undefined)?.aporte_inicial;
+  return raw ? parseFloat(raw) : 0;
+}
+
 // GET /api/financial/selic — public, no auth required
 router.get('/selic', async (_req: Request, res: Response): Promise<void> => {
   try {
@@ -224,18 +234,41 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
          GROUP BY (contrato_id IS NOT NULL)`,
         params,
       ),
+      // No modo "todo o período" (deChave null) o filtro já cobre desde sempre — não
+      // há "antes" a consultar, então o saldo anterior é resolvido depois só com o
+      // aporte inicial do perfil, sem query aqui. Quando deChave existe, a query usa
+      // índices de parâmetro próprios ($1 = userId, $3 = perfilId) — não reaproveita
+      // o `perfilFiltro` do escopo externo, que assume $2 = userId vindo de `params`;
+      // aqui $2 é `deChave`, não userId.
       deChave === null
-        ? Promise.resolve({ rows: [{ saldo_anterior: 0 }] })
+        ? Promise.resolve({ rows: [{ saldo_anterior: 0, eh_inicio_historico: true }] })
         : pool.query(
-            `SELECT COALESCE(SUM(CASE WHEN origem = 'receita' THEN valor ELSE -valor END), 0)::float AS saldo_anterior
+            `SELECT COALESCE(SUM(CASE WHEN origem = 'receita' THEN valor ELSE -valor END), 0)::float AS saldo_anterior,
+              NOT EXISTS (
+                SELECT 1 FROM receitas WHERE usuario_id = $1 AND status = 'ativa' AND (ano * 12 + mes) < $2::int
+                  AND ($3::int IS NULL OR perfil_id = $3 OR (perfil_id IS NULL AND EXISTS (
+                    SELECT 1 FROM perfis pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $1
+                  )))
+                UNION ALL
+                SELECT 1 FROM despesas WHERE usuario_id = $1 AND status = 'ativa' AND (ano * 12 + mes) < $2::int
+                  AND ($3::int IS NULL OR perfil_id = $3 OR (perfil_id IS NULL AND EXISTS (
+                    SELECT 1 FROM perfis pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $1
+                  )))
+              ) AS eh_inicio_historico
              FROM (
                SELECT valor, 'receita' AS origem
                FROM receitas
-               WHERE usuario_id = $1 AND status = 'ativa' AND (ano * 12 + mes) < $2::int AND ${perfilFiltro}
+               WHERE usuario_id = $1 AND status = 'ativa' AND (ano * 12 + mes) < $2::int
+                 AND ($3::int IS NULL OR perfil_id = $3 OR (perfil_id IS NULL AND EXISTS (
+                   SELECT 1 FROM perfis pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $1
+                 )))
                UNION ALL
                SELECT COALESCE(valor_final, valor_original) AS valor, 'despesa' AS origem
                FROM despesas
-               WHERE usuario_id = $1 AND status = 'ativa' AND (ano * 12 + mes) < $2::int AND ${perfilFiltro}
+               WHERE usuario_id = $1 AND status = 'ativa' AND (ano * 12 + mes) < $2::int
+                 AND ($3::int IS NULL OR perfil_id = $3 OR (perfil_id IS NULL AND EXISTS (
+                   SELECT 1 FROM perfis pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $1
+                 )))
              ) t`,
             [userId, deChave, perfilId],
           ),
@@ -255,8 +288,22 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
       ),
     ]);
 
-    // Granularidade da série: mês se o intervalo tiver até 24 meses, ano caso contrário ou "todo o período".
-    const totalMesesNoIntervalo = deChave !== null && ateChave !== null ? ateChave - deChave + 1 : null;
+    const totaisPrevia = totaisResult.rows[0] as { primeira_data: string | null };
+
+    // Granularidade da série: mês se o intervalo tiver até 24 meses, ano caso contrário.
+    // No modo "todo o período" (sem de/ate), o intervalo real é calculado a partir da
+    // primeira data com lançamento até hoje, em vez de assumir 'ano' incondicionalmente.
+    let totalMesesNoIntervalo: number | null;
+    if (deChave !== null && ateChave !== null) {
+      totalMesesNoIntervalo = ateChave - deChave + 1;
+    } else if (totaisPrevia.primeira_data) {
+      const primeira = new Date(totaisPrevia.primeira_data);
+      const primeiraChave = primeira.getFullYear() * 12 + primeira.getMonth();
+      const hojeChave = new Date().getFullYear() * 12 + new Date().getMonth();
+      totalMesesNoIntervalo = hojeChave - primeiraChave + 1;
+    } else {
+      totalMesesNoIntervalo = null;
+    }
     const granularidade: 'mes' | 'ano' = totalMesesNoIntervalo !== null && totalMesesNoIntervalo <= 24 ? 'mes' : 'ano';
 
     const serieResult = granularidade === 'mes'
@@ -301,11 +348,18 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
       receitas: number; despesas: number; total_receitas: number; total_despesas: number;
       primeira_data: string | null; ultima_data: string | null;
     };
-    const saldoAnterior = (anteriorResult.rows[0] as { saldo_anterior: number }).saldo_anterior;
     const despesasDetalhe = despesasDetalheResult.rows[0] as {
       juros: number; descontos: number; fixas: number; variaveis: number;
       opex: number; capex: number; pagas: number; pendentes: number;
     };
+
+    // Aplica o aporte inicial do perfil (saldo de abertura) uma única vez, quando o
+    // período filtrado começa no início real do histórico do perfil — nunca em
+    // "buracos" no meio do histórico, para não contar o aporte mais de uma vez.
+    const anterior = anteriorResult.rows[0] as { saldo_anterior: number; eh_inicio_historico: boolean };
+    const saldoAnterior = anterior.eh_inicio_historico
+      ? anterior.saldo_anterior + await fetchAporteInicial(userId, perfilId)
+      : anterior.saldo_anterior;
 
     res.json({
       success: true,

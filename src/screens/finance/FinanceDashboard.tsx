@@ -460,46 +460,6 @@ export function FinanceDashboard() {
             </p>
           </Card>
 
-          {/* Card: Parcelas futuras — só quando o filtro é um único mês */}
-          {singleMonth && (
-            <Card className="flex flex-col rounded-2xl p-[18px_20px]">
-              <div className="flex items-baseline gap-2.5">
-                <h3 className="text-[13.5px] font-bold text-[#0f2b38] dark:text-white">Parcelas futuras</h3>
-                <div className="flex-1" />
-                <span className="text-[11.5px] text-[#5f7885] dark:text-slate-400">próximos 3 meses</span>
-              </div>
-              {parcelasQ.isLoading ? (
-                <div className="flex-1 py-6 text-center text-sm text-slate-400">Carregando...</div>
-              ) : parcelasFuturas.length === 0 ? (
-                <div className="flex flex-1 flex-col items-center justify-center gap-[9px] py-[22px] text-center">
-                  <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#ecfdf3] text-[#067647]">
-                    <CreditCard size={19} />
-                  </span>
-                  <span className="text-[12.5px] font-semibold text-[#0f2b38] dark:text-slate-100">Nenhuma parcela em aberto</span>
-                </div>
-              ) : (
-                <div className="mt-[18px] flex flex-1 flex-col gap-3">
-                  {parcelasFuturas.map((p) => (
-                    <div key={`${p.ano}-${p.mes}`} className="flex items-center justify-between">
-                      <span className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50">
-                          <CreditCard size={13} className="text-amber-600" />
-                        </span>
-                        {MONTH_NAMES[p.mes]} {p.ano !== singleMonth.ano ? p.ano : ''}
-                      </span>
-                      <span className="font-semibold text-slate-900 dark:text-white">{formatCurrency(p.total)}</span>
-                    </div>
-                  ))}
-                  <div className="mt-auto flex items-center border-t border-[#eef4f7] pt-[13px] dark:border-slate-700">
-                    <span className="text-[11.5px] text-[#7b93a1]">Total comprometido</span>
-                    <div className="flex-1" />
-                    <span className="text-[13px] font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(parcelasFuturas.reduce((s, p) => s + p.total, 0))}</span>
-                  </div>
-                </div>
-              )}
-            </Card>
-          )}
-
           {/* Card: Receitas por origem */}
           <Card className="flex flex-col rounded-2xl p-[18px_20px_20px]">
             <div className="flex items-baseline gap-2.5">
@@ -552,6 +512,48 @@ export function FinanceDashboard() {
               );
             })()}
           </Card>
+
+          {/* Card: Parcelas futuras — só quando o filtro é um único mês. Fica por
+              último na grade para que sua ausência não deixe buraco no meio das
+              outras linhas quando o filtro não é um mês único. */}
+          {singleMonth && (
+            <Card className="flex flex-col rounded-2xl p-[18px_20px]">
+              <div className="flex items-baseline gap-2.5">
+                <h3 className="text-[13.5px] font-bold text-[#0f2b38] dark:text-white">Parcelas futuras</h3>
+                <div className="flex-1" />
+                <span className="text-[11.5px] text-[#5f7885] dark:text-slate-400">próximos 3 meses</span>
+              </div>
+              {parcelasQ.isLoading ? (
+                <div className="flex-1 py-6 text-center text-sm text-slate-400">Carregando...</div>
+              ) : parcelasFuturas.length === 0 ? (
+                <div className="flex flex-1 flex-col items-center justify-center gap-[9px] py-[22px] text-center">
+                  <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#ecfdf3] text-[#067647]">
+                    <CreditCard size={19} />
+                  </span>
+                  <span className="text-[12.5px] font-semibold text-[#0f2b38] dark:text-slate-100">Nenhuma parcela em aberto</span>
+                </div>
+              ) : (
+                <div className="mt-[18px] flex flex-1 flex-col gap-3">
+                  {parcelasFuturas.map((p) => (
+                    <div key={`${p.ano}-${p.mes}`} className="flex items-center justify-between">
+                      <span className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50">
+                          <CreditCard size={13} className="text-amber-600" />
+                        </span>
+                        {MONTH_NAMES[p.mes]} {p.ano !== singleMonth.ano ? p.ano : ''}
+                      </span>
+                      <span className="font-semibold text-slate-900 dark:text-white">{formatCurrency(p.total)}</span>
+                    </div>
+                  ))}
+                  <div className="mt-auto flex items-center border-t border-[#eef4f7] pt-[13px] dark:border-slate-700">
+                    <span className="text-[11.5px] text-[#7b93a1]">Total comprometido</span>
+                    <div className="flex-1" />
+                    <span className="text-[13px] font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(parcelasFuturas.reduce((s, p) => s + p.total, 0))}</span>
+                  </div>
+                </div>
+              )}
+            </Card>
+          )}
         </div>
       </div>
 
@@ -610,7 +612,7 @@ export function FinanceDashboard() {
         )}
       </Card>
 
-      {singleMonth && <MonthCategoriesOverview month={singleMonth.mes} year={singleMonth.ano} />}
+      {singleMonth && <MonthCategoriesOverview overview={overviewQ.data} />}
     </div>
   );
 }
