@@ -26,14 +26,17 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     if (perfil_id) {
       const profileType = await resolveProfileType(perfil_id, targetUserId);
       if (profileType) {
-        params.push(profileType);
-        whereClause += ` AND COALESCE(c.tipo, 'pessoal') = $${params.length}`;
+        // Uniao: categorias PADRAO do tipo do perfil ativo (globais, tipo
+        // preenchido) OU categorias CUSTOM exclusivas deste perfil_id
+        // especifico (perfil_id preenchido).
+        params.push(profileType, parseInt(perfil_id));
+        whereClause += ` AND (c.tipo = $${params.length - 1} OR c.perfil_id = $${params.length})`;
       }
     }
 
     const result = await pool.query(
       `SELECT
-        c.id, c.nome, c.cor, c.icone, c.forma_favorita, c.cartao_favorito_id, c.parent_id, c.tipo,
+        c.id, c.nome, c.cor, c.icone, c.forma_favorita, c.cartao_favorito_id, c.parent_id, c.tipo, c.perfil_id,
         p.nome AS parent_nome, ct.nome AS cartao_favorito_nome,
         c.data_criacao, c.data_atualizacao,
         COALESCE(c.ativo, true) AS ativo
@@ -139,13 +142,17 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
 
     const parentId = parent_id ? parseInt(parent_id) : null;
 
-    let profileType: string | null = null;
+    // Toda categoria criada manualmente pelo usuario e CUSTOM — exclusiva
+    // do perfil onde foi criada, nunca compartilhada com outros perfis do
+    // mesmo tipo. Categorias PADRAO so sao gravadas por ensureDefaultCategories.
+    let profileId: number | null = null;
     if (perfil_id) {
-      profileType = await resolveProfileType(perfil_id, req.user!.id);
+      const profileType = await resolveProfileType(perfil_id, req.user!.id);
       if (!profileType) {
         res.status(400).json({ success: false, message: 'Profile not found' });
         return;
       }
+      profileId = parseInt(perfil_id);
     }
 
     if (parentId) {
@@ -164,8 +171,8 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     }
 
     const dupResult = await pool.query(
-      `SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2) AND COALESCE(tipo, 'pessoal') = COALESCE($3, 'pessoal')`,
-      [req.user!.id, nome.trim(), profileType],
+      `SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2) AND perfil_id IS NOT DISTINCT FROM $3`,
+      [req.user!.id, nome.trim(), profileId],
     );
 
     if (dupResult.rows.length > 0) {
@@ -174,10 +181,10 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     }
 
     const result = await pool.query(
-      `INSERT INTO categorias (usuario_id, nome, cor, icone, parent_id, tipo)
+      `INSERT INTO categorias (usuario_id, nome, cor, icone, parent_id, perfil_id)
        VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, nome, cor, icone, parent_id, tipo, data_criacao, data_atualizacao`,
-      [req.user!.id, nome.trim(), cor ?? '#3498db', icone ?? null, parentId, profileType],
+       RETURNING id, nome, cor, icone, parent_id, perfil_id, data_criacao, data_atualizacao`,
+      [req.user!.id, nome.trim(), cor ?? '#3498db', icone ?? null, parentId, profileId],
     );
 
     res.status(201).json({ success: true, message: 'Category created', data: result.rows[0] });
@@ -202,7 +209,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const [existing] = await db.select({ id: categories.id, type: categories.type }).from(categories)
+    const [existing] = await db.select({ id: categories.id, type: categories.type, profileId: categories.profileId }).from(categories)
       .where(and(eq(categories.id, categoryId), eq(categories.userId, req.user!.id))).limit(1);
 
     if (!existing) {
@@ -210,10 +217,17 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const duplicateResult = await pool.query(
-      `SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2) AND id != $3 AND COALESCE(tipo, 'pessoal') = COALESCE($4, 'pessoal')`,
-      [req.user!.id, nome.trim(), categoryId, existing.type],
-    );
+    // Categoria padrao (tipo preenchido) checa duplicidade por tipo;
+    // categoria custom (perfil_id preenchido) checa duplicidade por perfil_id.
+    const duplicateResult = existing.type
+      ? await pool.query(
+          `SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2) AND id != $3 AND tipo = $4`,
+          [req.user!.id, nome.trim(), categoryId, existing.type],
+        )
+      : await pool.query(
+          `SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2) AND id != $3 AND perfil_id IS NOT DISTINCT FROM $4`,
+          [req.user!.id, nome.trim(), categoryId, existing.profileId],
+        );
     if (duplicateResult.rows.length > 0) {
       res.status(400).json({ success: false, message: 'A category with this name already exists' });
       return;

@@ -8,6 +8,7 @@ export interface Categoria {
   cartao_favorito_nome?: string | null;
   parent_id?: number | null;
   tipo?: 'pessoal' | 'empresa' | null;
+  perfil_id?: number | null;
   tipo_despesa?: 'opex' | 'capex' | null;
   ativo: boolean;
   data_criacao: string;
