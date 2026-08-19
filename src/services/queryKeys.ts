@@ -28,6 +28,8 @@ export const queryKeys = {
   incomeSuggestions: (descricao: string) => ['income-suggestions', descricao] as const,
   appointments: (month: number, year: number) => ['appointments', month, year] as const,
   budgetOverview: (month: number, year: number) => ['budget-overview', month, year] as const,
+  budgetOverviewRange: (deMes?: number, deAno?: number, ateMes?: number, ateAno?: number) =>
+    ['budget-overview-range', deMes, deAno, ateMes, ateAno] as const,
   copilotConversations: ['copilot-conversations'] as const,
   aiIntegrations: ['ai-integrations'] as const,
 };

@@ -1,4 +1,4 @@
-import { and, eq, isNull, or } from 'drizzle-orm';
+import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { budgetTargets, categories, expenses, incomes, profiles } from '../db/schema';
 
@@ -33,15 +33,75 @@ export interface BudgetOverview {
 
 export class BudgetInputError extends Error {}
 
+// Período aceito por getBudgetOverview: ou um mês único (uso do BudgetPanel, tela de
+// cadastro de metas), ou um intervalo deChave/ateChave em formato ano*12+mes, com
+// null representando "sem limite" nesse extremo (mesmo padrão de /financial/panorama).
+interface SingleMonthPeriod {
+  month: number;
+  year: number;
+}
+interface RangePeriod {
+  deMes?: number;
+  deAno?: number;
+  ateMes?: number;
+  ateAno?: number;
+}
+type BudgetPeriodInput = SingleMonthPeriod | RangePeriod;
+
+interface ResolvedPeriod {
+  deChave: number | null;
+  ateChave: number | null;
+  referenceMonth: number;
+  referenceYear: number;
+}
+
+function isSingleMonthPeriod(period: BudgetPeriodInput): period is SingleMonthPeriod {
+  return 'month' in period && 'year' in period;
+}
+
 function asNumber(value: string | number | null | undefined): number {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function validatePeriod(month: number, year: number): void {
+function validateSingleMonth(month: number, year: number): void {
   if (!Number.isInteger(month) || month < 0 || month > 11 || !Number.isInteger(year) || year < 2000 || year > 2100) {
     throw new BudgetInputError('Período financeiro inválido.');
   }
+}
+
+function validateRangeEdge(mes: number | undefined, ano: number | undefined): void {
+  if (ano === undefined) return;
+  if (!Number.isInteger(ano) || ano < 2000 || ano > 2100 || (mes !== undefined && (!Number.isInteger(mes) || mes < 0 || mes > 11))) {
+    throw new BudgetInputError('Período financeiro inválido.');
+  }
+}
+
+// Resolve o período de entrada em (deChave, ateChave) comparáveis como ano*12+mes,
+// e um mês/ano de referência (usado pela sugestão de meta e por income_percent).
+function resolvePeriod(period: BudgetPeriodInput): ResolvedPeriod {
+  if (isSingleMonthPeriod(period)) {
+    validateSingleMonth(period.month, period.year);
+    const chave = period.year * 12 + period.month;
+    return { deChave: chave, ateChave: chave, referenceMonth: period.month, referenceYear: period.year };
+  }
+
+  validateRangeEdge(period.deMes, period.deAno);
+  validateRangeEdge(period.ateMes, period.ateAno);
+  const deChave = period.deAno !== undefined ? period.deAno * 12 + (period.deMes ?? 0) : null;
+  const ateChave = period.ateAno !== undefined ? period.ateAno * 12 + (period.ateMes ?? 11) : null;
+  if (deChave !== null && ateChave !== null && deChave > ateChave) {
+    throw new BudgetInputError('Período inicial não pode ser depois do período final.');
+  }
+
+  const now = new Date();
+  const referenceChave = ateChave ?? now.getFullYear() * 12 + now.getMonth();
+  return {
+    deChave,
+    ateChave,
+    referenceMonth: ((referenceChave % 12) + 12) % 12,
+    referenceYear: Math.floor(referenceChave / 12),
+  };
 }
 
 export async function resolveFinancialProfile(userId: number, requestedProfileId: number | null): Promise<FinancialProfile> {
@@ -58,11 +118,14 @@ export async function resolveFinancialProfile(userId: number, requestedProfileId
   return profile;
 }
 
-function expenseProfileCondition(userId: number, profile: FinancialProfile, month?: number, year?: number) {
-  const conditions = [eq(expenses.userId, userId)];
-  if (month !== undefined && year !== undefined) {
-    conditions.push(eq(expenses.month, month), eq(expenses.year, year));
-  }
+// deChave/ateChave nulos representam "sem limite" naquele extremo — mesma semântica de
+// COALESCE($n, ±infinito) usada em /financial/panorama, aqui expressa via sql template
+// porque o Drizzle não tem uma coluna computada ano*12+mes para comparar diretamente.
+function expenseProfileCondition(userId: number, profile: FinancialProfile, deChave: number | null, ateChave: number | null) {
+  const conditions = [
+    eq(expenses.userId, userId),
+    sql`(${expenses.year} * 12 + ${expenses.month}) BETWEEN ${deChave ?? -2147483648} AND ${ateChave ?? 2147483647}`,
+  ];
   if (profile.type === 'pessoal') {
     conditions.push(or(eq(expenses.profileId, profile.id), isNull(expenses.profileId))!);
   } else {
@@ -71,8 +134,11 @@ function expenseProfileCondition(userId: number, profile: FinancialProfile, mont
   return and(...conditions);
 }
 
-function incomeProfileCondition(userId: number, profile: FinancialProfile, month: number, year: number) {
-  const conditions = [eq(incomes.userId, userId), eq(incomes.month, month), eq(incomes.year, year)];
+function incomeProfileCondition(userId: number, profile: FinancialProfile, deChave: number | null, ateChave: number | null) {
+  const conditions = [
+    eq(incomes.userId, userId),
+    sql`(${incomes.year} * 12 + ${incomes.month}) BETWEEN ${deChave ?? -2147483648} AND ${ateChave ?? 2147483647}`,
+  ];
   if (profile.type === 'pessoal') {
     conditions.push(or(eq(incomes.profileId, profile.id), isNull(incomes.profileId))!);
   } else {
@@ -93,27 +159,26 @@ function previousThreePeriods(month: number, year: number): Array<{ month: numbe
 export async function getBudgetOverview(input: {
   userId: number;
   profileId: number | null;
-  month: number;
-  year: number;
-}): Promise<BudgetOverview> {
-  validatePeriod(input.month, input.year);
-  const profile = await resolveFinancialProfile(input.userId, input.profileId);
+} & BudgetPeriodInput): Promise<BudgetOverview> {
+  const { userId, profileId, ...period } = input;
+  const resolved = resolvePeriod(period);
+  const profile = await resolveFinancialProfile(userId, profileId);
   const [categoryRows, expenseRows, incomeRows] = await Promise.all([
-    db.select({ id: categories.id, name: categories.name }).from(categories).where(eq(categories.userId, input.userId)),
+    db.select({ id: categories.id, name: categories.name }).from(categories).where(eq(categories.userId, userId)),
     db.select({
       categoryId: expenses.categoryId,
       amount: expenses.finalAmount,
       originalAmount: expenses.originalAmount,
       paid: expenses.paid,
-    }).from(expenses).where(expenseProfileCondition(input.userId, profile, input.month, input.year)),
-    db.select({ amount: incomes.amount }).from(incomes).where(incomeProfileCondition(input.userId, profile, input.month, input.year)),
+    }).from(expenses).where(expenseProfileCondition(userId, profile, resolved.deChave, resolved.ateChave)),
+    db.select({ amount: incomes.amount }).from(incomes).where(incomeProfileCondition(userId, profile, resolved.deChave, resolved.ateChave)),
   ]);
 
   if (profile.type === 'empresa') {
     return {
       profileType: profile.type,
-      month: input.month,
-      year: input.year,
+      month: resolved.referenceMonth,
+      year: resolved.referenceYear,
       incomeTotal: incomeRows.reduce((total, row) => total + asNumber(row.amount), 0),
       paidTotal: expenseRows.filter((row) => row.paid).reduce((total, row) => total + asNumber(row.amount ?? row.originalAmount), 0),
       projectedTotal: expenseRows.reduce((total, row) => total + asNumber(row.amount ?? row.originalAmount), 0),
@@ -126,15 +191,29 @@ export async function getBudgetOverview(input: {
       categoryId: budgetTargets.categoryId,
       mode: budgetTargets.mode,
       targetValue: budgetTargets.targetValue,
-    }).from(budgetTargets).where(and(eq(budgetTargets.userId, input.userId), eq(budgetTargets.profileId, profile.id))),
+    }).from(budgetTargets).where(and(eq(budgetTargets.userId, userId), eq(budgetTargets.profileId, profile.id))),
     db.select({
       categoryId: expenses.categoryId,
       amount: expenses.finalAmount,
       originalAmount: expenses.originalAmount,
       month: expenses.month,
       year: expenses.year,
-    }).from(expenses).where(expenseProfileCondition(input.userId, profile)),
+    }).from(expenses).where(expenseProfileCondition(userId, profile, null, null)),
   ]);
+
+  // Número de meses do período consultado — usado para escalar a meta mensal cadastrada
+  // (que é um valor único e recorrente por categoria, sem coluna de mês/ano própria).
+  // No modo "todo o período" (deChave e ateChave nulos), usa o histórico real de
+  // lançamentos do usuário até hoje, replicando o cálculo de /financial/panorama.
+  let mesesNoIntervalo: number;
+  if (resolved.deChave !== null && resolved.ateChave !== null) {
+    mesesNoIntervalo = resolved.ateChave - resolved.deChave + 1;
+  } else {
+    const chaves = historicalRows.map((row) => row.year * 12 + row.month);
+    const primeiraChave = chaves.length > 0 ? Math.min(...chaves) : null;
+    const hojeChave = new Date().getFullYear() * 12 + new Date().getMonth();
+    mesesNoIntervalo = primeiraChave !== null ? Math.max(1, hojeChave - primeiraChave + 1) : 1;
+  }
 
   const incomeTotal = incomeRows.reduce((total, row) => total + asNumber(row.amount), 0);
   const projectedByCategory = new Map<number, number>();
@@ -146,7 +225,7 @@ export async function getBudgetOverview(input: {
     if (row.paid) paidByCategory.set(row.categoryId, (paidByCategory.get(row.categoryId) ?? 0) + amount);
   }
 
-  const priorPeriods = previousThreePeriods(input.month, input.year);
+  const priorPeriods = previousThreePeriods(resolved.referenceMonth, resolved.referenceYear);
   const historicByCategory = new Map<number, number>();
   for (const row of historicalRows) {
     if (!row.categoryId || !priorPeriods.some((period) => period.month === row.month && period.year === row.year)) continue;
@@ -160,7 +239,7 @@ export async function getBudgetOverview(input: {
     const targetAmount = target
       ? target.mode === 'income_percent'
         ? (incomeTotal * targetValue!) / 100
-        : targetValue
+        : targetValue! * mesesNoIntervalo
       : null;
     const projectedAmount = projectedByCategory.get(category.id) ?? 0;
     const paidAmount = paidByCategory.get(category.id) ?? 0;
@@ -186,8 +265,8 @@ export async function getBudgetOverview(input: {
 
   return {
     profileType: profile.type,
-    month: input.month,
-    year: input.year,
+    month: resolved.referenceMonth,
+    year: resolved.referenceYear,
     incomeTotal,
     paidTotal: expenseRows.filter((row) => row.paid).reduce((total, row) => total + asNumber(row.amount ?? row.originalAmount), 0),
     projectedTotal: expenseRows.reduce((total, row) => total + asNumber(row.amount ?? row.originalAmount), 0),
