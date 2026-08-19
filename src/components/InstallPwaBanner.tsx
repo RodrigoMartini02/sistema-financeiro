@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { Download, Share, X } from 'lucide-react';
 import { getConsent, CONSENT_RESOLVED_EVENT } from './CookieBanner';
 
-const DISMISS_KEY = 'pwa_install_dismissed_until';
-const DISMISS_DAYS = 7;
+const SESSION_DISMISS_KEY = 'pwa_install_dismissed_session';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -22,18 +21,22 @@ function isIosSafari(): boolean {
   return isIos && isSafari;
 }
 
-function isDismissed(): boolean {
+function isMobileDevice(): boolean {
+  const ua = navigator.userAgent;
+  return /Android/.test(ua) || isIosSafari();
+}
+
+function isDismissedThisSession(): boolean {
   try {
-    const until = localStorage.getItem(DISMISS_KEY);
-    return !!until && Date.now() < Number(until);
+    return sessionStorage.getItem(SESSION_DISMISS_KEY) === '1';
   } catch {
     return false;
   }
 }
 
-function dismiss(): void {
+function dismissThisSession(): void {
   try {
-    localStorage.setItem(DISMISS_KEY, String(Date.now() + DISMISS_DAYS * 24 * 60 * 60 * 1000));
+    sessionStorage.setItem(SESSION_DISMISS_KEY, '1');
   } catch {
     // ignore
   }
@@ -41,7 +44,7 @@ function dismiss(): void {
 
 export function InstallPwaBanner() {
   const [cookiesResolved, setCookiesResolved] = useState(() => !!getConsent());
-  const [dismissed, setDismissed] = useState(isDismissed);
+  const [dismissed, setDismissed] = useState(isDismissedThisSession);
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(isStandalone);
 
@@ -68,7 +71,7 @@ export function InstallPwaBanner() {
   }, []);
 
   const handleDismiss = () => {
-    dismiss();
+    dismissThisSession();
     setDismissed(true);
   };
 
@@ -79,7 +82,7 @@ export function InstallPwaBanner() {
     setInstallEvent(null);
   };
 
-  if (installed || dismissed || !cookiesResolved) return null;
+  if (installed || dismissed || !cookiesResolved || !isMobileDevice()) return null;
 
   const showAndroidBanner = !!installEvent;
   const showIosBanner = !installEvent && isIosSafari();
