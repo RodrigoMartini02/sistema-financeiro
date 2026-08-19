@@ -3,6 +3,7 @@ import { Cookie, X, ShieldCheck } from 'lucide-react';
 import { TermosModal } from '../screens/public/TermosModal';
 
 const STORAGE_KEY = 'lgpd_consent';
+export const CONSENT_RESOLVED_EVENT = 'lgpd-consent-resolved';
 
 export type ConsentLevel = 'all' | 'essential';
 
@@ -21,6 +22,7 @@ export function CookieBanner() {
   const accept = (level: ConsentLevel) => {
     localStorage.setItem(STORAGE_KEY, level);
     setVisible(false);
+    window.dispatchEvent(new CustomEvent(CONSENT_RESOLVED_EVENT));
   };
 
   if (!visible) return null;
