@@ -106,3 +106,44 @@ export interface FinanceDashboardData {
   expenses: Expense[];
   balance: MonthBalance;
 }
+
+export interface DashboardPanoramaFiltro {
+  deMes?: number;
+  deAno?: number;
+  ateMes?: number;
+  ateAno?: number;
+}
+
+export interface DashboardPanoramaSeriePonto {
+  ano: number;
+  mes: number | null;
+  receitas: number;
+  despesas: number;
+}
+
+export interface DashboardPanoramaDespesasDetalhe {
+  juros: number;
+  descontos: number;
+  fixas: number;
+  variaveis: number;
+  opex: number;
+  capex: number;
+  pagas: number;
+  pendentes: number;
+}
+
+export interface DashboardPanoramaData {
+  receitas: number;
+  despesas: number;
+  saldoAnterior: number;
+  saldoFinal: number;
+  totalLancamentos: number;
+  primeiraData: string | null;
+  ultimaData: string | null;
+  porCategoria: { categoria: string; total: number }[];
+  porFormaPagamento: { forma_pagamento: string; total: number }[];
+  porOrigem: { origem: 'contrato' | 'avulsa'; total: number }[];
+  granularidade: 'mes' | 'ano';
+  serie: DashboardPanoramaSeriePonto[];
+  despesasDetalhe: DashboardPanoramaDespesasDetalhe;
+}

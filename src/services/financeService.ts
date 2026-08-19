@@ -1,6 +1,6 @@
 import { apiRequest, getActiveProfileId } from './apiClient';
 import type {
-  Attachment, Expense, ExpenseFormValues, FinanceDashboardData,
+  Attachment, DashboardPanoramaData, DashboardPanoramaFiltro, Expense, ExpenseFormValues, FinanceDashboardData,
   Income, IncomeFormValues, MonthBalance,
 } from '../types/finance';
 
@@ -277,4 +277,59 @@ export async function fetchDashboardAnual(ano: number): Promise<DashboardAnualMe
     saldo_final: asNumber(r.saldo_final),
     receitas_previstas: asNumber(r.receitas_previstas),
   }));
+}
+
+export async function fetchDashboardPanorama(filtro: DashboardPanoramaFiltro): Promise<DashboardPanoramaData> {
+  const q = new URLSearchParams();
+  if (filtro.deMes !== undefined) q.set('de_mes', String(filtro.deMes));
+  if (filtro.deAno !== undefined) q.set('de_ano', String(filtro.deAno));
+  if (filtro.ateMes !== undefined) q.set('ate_mes', String(filtro.ateMes));
+  if (filtro.ateAno !== undefined) q.set('ate_ano', String(filtro.ateAno));
+  appendProfile(q);
+  const suffix = q.toString() ? `?${q}` : '';
+  const raw = await apiRequest<{
+    receitas: string | number; despesas: string | number;
+    saldoAnterior: string | number; saldoFinal: string | number;
+    totalLancamentos: string | number;
+    primeiraData: string | null; ultimaData: string | null;
+    porCategoria: Array<{ categoria: string; total: string | number }>;
+    porFormaPagamento: Array<{ forma_pagamento: string; total: string | number }>;
+    porOrigem: Array<{ origem: 'contrato' | 'avulsa'; total: string | number }>;
+    granularidade: 'mes' | 'ano';
+    serie: Array<{ ano: string | number; mes: string | number | null; receitas: string | number; despesas: string | number }>;
+    despesasDetalhe: {
+      juros: string | number; descontos: string | number; fixas: string | number; variaveis: string | number;
+      opex: string | number; capex: string | number; pagas: string | number; pendentes: string | number;
+    };
+  }>(`/financial/panorama${suffix}`);
+
+  return {
+    receitas: asNumber(raw.receitas),
+    despesas: asNumber(raw.despesas),
+    saldoAnterior: asNumber(raw.saldoAnterior),
+    saldoFinal: asNumber(raw.saldoFinal),
+    totalLancamentos: asNumber(raw.totalLancamentos),
+    primeiraData: raw.primeiraData,
+    ultimaData: raw.ultimaData,
+    porCategoria: raw.porCategoria.map((c) => ({ categoria: c.categoria, total: asNumber(c.total) })),
+    porFormaPagamento: raw.porFormaPagamento.map((f) => ({ forma_pagamento: f.forma_pagamento, total: asNumber(f.total) })),
+    porOrigem: raw.porOrigem.map((o) => ({ origem: o.origem, total: asNumber(o.total) })),
+    granularidade: raw.granularidade,
+    serie: raw.serie.map((s) => ({
+      ano: Number(s.ano),
+      mes: s.mes === null ? null : Number(s.mes),
+      receitas: asNumber(s.receitas),
+      despesas: asNumber(s.despesas),
+    })),
+    despesasDetalhe: {
+      juros: asNumber(raw.despesasDetalhe.juros),
+      descontos: asNumber(raw.despesasDetalhe.descontos),
+      fixas: asNumber(raw.despesasDetalhe.fixas),
+      variaveis: asNumber(raw.despesasDetalhe.variaveis),
+      opex: asNumber(raw.despesasDetalhe.opex),
+      capex: asNumber(raw.despesasDetalhe.capex),
+      pagas: asNumber(raw.despesasDetalhe.pagas),
+      pendentes: asNumber(raw.despesasDetalhe.pendentes),
+    },
+  };
 }

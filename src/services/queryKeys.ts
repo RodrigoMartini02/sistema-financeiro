@@ -20,6 +20,8 @@ export const queryKeys = {
   contratosAtivos: ['contratos-ativos'] as const,
   contratosStatusFaturamento: (mes: number, ano: number) => ['contratos-status-faturamento', mes, ano] as const,
   dashboardAnual: (year: number) => ['dashboard-anual', year] as const,
+  dashboardPanorama: (deMes?: number, deAno?: number, ateMes?: number, ateAno?: number) =>
+    ['dashboard-panorama', deMes, deAno, ateMes, ateAno] as const,
   parcelasFuturas: (mes: number, ano: number, meses: number) => ['parcelas-futuras', mes, ano, meses] as const,
   expenseSuggestions: (descricao: string, categoriaId?: number) =>
     ['expense-suggestions', descricao, categoriaId] as const,

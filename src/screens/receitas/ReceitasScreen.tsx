@@ -2,7 +2,6 @@ import { useState, type ReactNode } from 'react';
 import { Paperclip, Plus, Ban, Tag, Clock, CheckCircle, AlertCircle, FileCheck, Building2, Search, Pencil, Trash2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
-import { useAppContext } from '../../context/AppContext';
 import { apiRequest } from '../../services/apiClient';
 import { queryKeys } from '../../services/queryKeys';
 import type { Income, IncomeFormValues } from '../../types/finance';
@@ -43,11 +42,12 @@ function statusFaturamentoBadge(item: ContratoFaturamento, mes: number, ano: num
 }
 
 interface ReceitasScreenProps {
+  month: number;
+  year: number;
   toolbarStart?: ReactNode;
 }
 
-export function ReceitasScreen({ toolbarStart }: ReceitasScreenProps) {
-  const { month, year } = useAppContext();
+export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProps) {
   const [dialog, setDialog] = useState<{ open: boolean; item?: Income }>({ open: false });
   const [anexosDialog, setAnexosDialog] = useState<{ open: boolean; title: string; anexos: Attachment[] }>({ open: false, title: '', anexos: [] });
   const [busca, setBusca] = useState('');

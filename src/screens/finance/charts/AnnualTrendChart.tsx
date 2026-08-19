@@ -11,7 +11,10 @@ import {
 
 interface AnnualTrendChartProps {
   data: Array<{ name: string; receitas: number; despesas: number; saldo: number }>;
-  activeIndex: number;
+  // Índice do ponto "atual" a destacar (ex: mês corrente). Omitido quando o
+  // período filtrado não inclui o presente — nesse caso não há destaque nem
+  // projeção futura, só a série histórica completa.
+  activeIndex?: number;
 }
 
 function fmtK(v: number) {
@@ -20,8 +23,8 @@ function fmtK(v: number) {
 
 export function AnnualTrendChart({ data, activeIndex }: AnnualTrendChartProps) {
   const lastWithData = data.reduce((last, d, i) => (d.receitas > 0 || d.despesas > 0 ? i : last), -1);
-  const solidEnd = Math.max(activeIndex, lastWithData);
-  const hasForecast = solidEnd < data.length - 1;
+  const solidEnd = activeIndex !== undefined ? Math.max(activeIndex, lastWithData) : data.length - 1;
+  const hasForecast = activeIndex !== undefined && solidEnd < data.length - 1;
 
   const chartData = data.map((d, i) => {
     const isForecastPoint = hasForecast && i === solidEnd + 1;
@@ -32,7 +35,7 @@ export function AnnualTrendChart({ data, activeIndex }: AnnualTrendChartProps) {
     };
   });
 
-  const activeName = data[activeIndex]?.name?.toUpperCase();
+  const activeName = activeIndex !== undefined ? data[activeIndex]?.name?.toUpperCase() : undefined;
 
   // Meses após o mês de projeção (solidEnd + 1) ainda não têm nenhum lançamento nem
   // projeção — o mockup cobre essa faixa com um retângulo neutro e o texto "ainda sem

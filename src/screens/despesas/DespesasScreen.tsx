@@ -5,7 +5,6 @@ import {
 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
-import { useAppContext } from '../../context/AppContext';
 import { pagarDespesa, moverDespesa } from '../../services/financeService';
 import { queryKeys } from '../../services/queryKeys';
 import { apiRequest, getActiveProfileId } from '../../services/apiClient';
@@ -183,11 +182,12 @@ function ActionBtn({
 }
 
 interface DespesasScreenProps {
+  month: number;
+  year: number;
   toolbarStart?: ReactNode;
 }
 
-export function DespesasScreen({ toolbarStart }: DespesasScreenProps) {
-  const { month, year } = useAppContext();
+export function DespesasScreen({ month, year, toolbarStart }: DespesasScreenProps) {
   const [dialog, setDialog] = useState<{ open: boolean; item?: Expense }>({ open: false });
   const [anexosDialog, setAnexosDialog] = useState<{ open: boolean; title: string; anexos: Attachment[] }>({
     open: false, title: '', anexos: [],

@@ -22,7 +22,10 @@ const demoQueryClient = new QueryClient({
 
 function DemoAppContent() {
   const [section, setSection] = useState<AppSection>('movimentacoes');
-  const { month, year, quickAction, setQuickAction } = useAppContext();
+  const now = new Date();
+  const [month] = useState(now.getMonth());
+  const [year] = useState(now.getFullYear());
+  const { quickAction, setQuickAction } = useAppContext();
   const finance = useFinanceDashboard(month, year);
 
   const renderContent = () => {
