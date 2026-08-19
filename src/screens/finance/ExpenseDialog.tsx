@@ -821,6 +821,11 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                   {vencimentoManualAberto ? 'usar automática' : 'data de pagamento diferente'}
                 </button>
               </div>
+              {expense?.pago && expense.valorPago != null && expense.valorPago !== expense.valorFinal && (
+                <div style={{ fontSize: '12.5px', color: C.textSoft }}>
+                  Valor realmente pago: <span style={{ fontWeight: 700, color: C.text }}>{formatCurrency(expense.valorPago)}</span>
+                </div>
+              )}
             </div>
 
             {!isCredito && diffDias !== 0 && (
