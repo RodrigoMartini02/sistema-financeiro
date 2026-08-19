@@ -37,7 +37,7 @@ function serieLabel(ano: number, mes: number | null): string {
 }
 
 export function FinanceDashboard() {
-  const [period, setPeriod] = useState<DashboardPeriod>({ mode: 'ano', ano: THIS_YEAR });
+  const [period, setPeriod] = useState<DashboardPeriod>({ mode: 'mes', mes: THIS_MONTH, ano: THIS_YEAR });
   const guide = useFirstAccessGuide('painel:mes-v1');
   const comprometimentoGuide = useFirstAccessGuide('painel:comprometimento-v1');
 
@@ -50,8 +50,13 @@ export function FinanceDashboard() {
   const data = panoramaQ.data;
 
   // Alguns cards (contratos, parcelas futuras, metas por categoria) são estruturalmente
-  // mensais — só fazem sentido quando o filtro do painel aponta para um único mês.
-  const singleMonth = period.mode === 'mes' ? { mes: period.mes!, ano: period.ano! } : null;
+  // mensais — só fazem sentido quando o filtro do painel aponta para um único mês, seja
+  // porque o modo é 'mes', seja porque um 'intervalo' colapsa em um único mês (De = Até).
+  const singleMonth = period.mode === 'mes'
+    ? { mes: period.mes!, ano: period.ano! }
+    : period.mode === 'intervalo' && period.mes === period.ateMes && period.ano === period.ateAno
+      ? { mes: period.mes!, ano: period.ano! }
+      : null;
 
   const contratosQ = useQuery({
     queryKey: queryKeys.contratosStatusFaturamento(singleMonth?.mes ?? -1, singleMonth?.ano ?? -1),
