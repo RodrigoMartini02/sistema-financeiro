@@ -14,14 +14,31 @@ function parsePeriod(value: unknown): number {
   return Number(value);
 }
 
+function parseOptionalInt(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+// Aceita ou mes/ano (mês único, usado pela tela de cadastro de metas) ou
+// de_mes/de_ano/ate_mes/ate_ano (intervalo, usado pelo painel financeiro) —
+// mesmo padrão de parâmetros opcionais de /financial/panorama.
 router.get('/resumo', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const query = req.query as Record<string, unknown>;
+    const hasSingleMonth = query['mes'] !== undefined && query['ano'] !== undefined;
+    const period = hasSingleMonth
+      ? { month: parsePeriod(query['mes']), year: parsePeriod(query['ano']) }
+      : {
+          deMes: parseOptionalInt(query['de_mes']),
+          deAno: parseOptionalInt(query['de_ano']),
+          ateMes: parseOptionalInt(query['ate_mes']),
+          ateAno: parseOptionalInt(query['ate_ano']),
+        };
     const result = await getBudgetOverview({
       userId: req.user!.id,
       profileId: parseProfileId(query['perfil_id']),
-      month: parsePeriod(query['mes']),
-      year: parsePeriod(query['ano']),
+      ...period,
     });
     res.json({ success: true, data: result });
   } catch (error) {

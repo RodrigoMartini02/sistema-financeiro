@@ -5,6 +5,7 @@ import { formatCurrency } from './formatters';
 
 interface MonthCategoriesOverviewProps {
   overview: BudgetOverview | undefined;
+  periodLabel: string;
 }
 
 function statusColor(item: BudgetOverviewItem): string {
@@ -19,7 +20,7 @@ function statusLabel(item: BudgetOverviewItem): string {
   return `${percentage.toFixed(0)}% de ${formatCurrency(item.targetAmount)}`;
 }
 
-export function MonthCategoriesOverview({ overview }: MonthCategoriesOverviewProps) {
+export function MonthCategoriesOverview({ overview, periodLabel }: MonthCategoriesOverviewProps) {
   if (!overview || overview.profileType === 'empresa') return null;
 
   const items = overview.items.filter((item) => item.projectedAmount > 0).sort((a, b) => b.projectedAmount - a.projectedAmount);
@@ -38,8 +39,8 @@ export function MonthCategoriesOverview({ overview }: MonthCategoriesOverviewPro
           <Target size={18} />
         </span>
         <div>
-          <h2 className="text-[15.5px] font-bold tracking-[-0.01em] text-[#0f2b38] dark:text-white">Categorias do mês</h2>
-          <p className="mt-0.5 text-xs text-[#7b93a1] dark:text-slate-400">Quanto cada categoria consumiu e como isso se compara ao limite que você definiu.</p>
+          <h2 className="text-[15.5px] font-bold tracking-[-0.01em] text-[#0f2b38] dark:text-white">Categorias <span className="font-semibold text-[#6c8593] dark:text-slate-400">— {periodLabel}</span></h2>
+          <p className="mt-0.5 text-xs text-[#7b93a1] dark:text-slate-400">Quanto cada categoria consumiu no período e como isso se compara ao limite que você definiu.</p>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-1.5">
           {acimaCount > 0 && (
@@ -64,7 +65,7 @@ export function MonthCategoriesOverview({ overview }: MonthCategoriesOverviewPro
         <div className="mb-3 flex items-center justify-between text-[11px] text-[#5f7885] dark:text-slate-400">
           <span>{formatCurrency(total)} em {items.length} categorias</span>
           <div className="flex items-center gap-4">
-            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-4 rounded-sm bg-[#0891b2]" />gasto no mês</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-4 rounded-sm bg-[#0891b2]" />gasto no período</span>
             <span className="inline-flex items-center gap-1.5"><span className="h-3.5 w-0.5 rounded bg-[#0f2b38] dark:bg-slate-200" />seu limite</span>
           </div>
         </div>

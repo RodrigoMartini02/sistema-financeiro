@@ -9,7 +9,7 @@ import { ErrorState } from '../../ui/states';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
-import { useBudgetOverview } from '../../hooks/useBudgetOverview';
+import { useBudgetOverviewRange } from '../../hooks/useBudgetOverview';
 import { Z_GUIDE } from '../../ui/zIndex';
 import { formatCurrency, formatDate } from './formatters';
 import { AnnualTrendChart } from './charts/AnnualTrendChart';
@@ -74,7 +74,7 @@ export function FinanceDashboard() {
   });
   const parcelasFuturas = singleMonth ? parcelasQ.data ?? [] : [];
 
-  const overviewQ = useBudgetOverview(singleMonth?.mes ?? THIS_MONTH, singleMonth?.ano ?? THIS_YEAR);
+  const overviewQ = useBudgetOverviewRange(query);
   const profileTypeLabel = overviewQ.data?.profileType === 'empresa' ? 'empresa' : 'pessoal';
   const updatedAgo = useRelativeTime(panoramaQ.dataUpdatedAt);
 
@@ -617,7 +617,7 @@ export function FinanceDashboard() {
         )}
       </Card>
 
-      {singleMonth && <MonthCategoriesOverview overview={overviewQ.data} />}
+      <MonthCategoriesOverview overview={overviewQ.data} periodLabel={periodoDescricao} />
     </div>
   );
 }

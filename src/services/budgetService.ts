@@ -6,8 +6,24 @@ function profileQuery(): string {
   return profileId ? `&perfil_id=${profileId}` : '';
 }
 
+export interface BudgetOverviewRangeQuery {
+  deMes?: number;
+  deAno?: number;
+  ateMes?: number;
+  ateAno?: number;
+}
+
 export function fetchBudgetOverview(month: number, year: number): Promise<BudgetOverview> {
   return apiRequest<BudgetOverview>(`/orcamento/resumo?mes=${month}&ano=${year}${profileQuery()}`);
+}
+
+export function fetchBudgetOverviewRange(query: BudgetOverviewRangeQuery): Promise<BudgetOverview> {
+  const params = new URLSearchParams();
+  if (query.deMes !== undefined) params.set('de_mes', String(query.deMes));
+  if (query.deAno !== undefined) params.set('de_ano', String(query.deAno));
+  if (query.ateMes !== undefined) params.set('ate_mes', String(query.ateMes));
+  if (query.ateAno !== undefined) params.set('ate_ano', String(query.ateAno));
+  return apiRequest<BudgetOverview>(`/orcamento/resumo?${params}${profileQuery()}`);
 }
 
 export async function saveBudgetTarget(input: {
