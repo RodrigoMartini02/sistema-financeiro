@@ -1,12 +1,10 @@
 import { Target } from 'lucide-react';
-import type { BudgetOverviewItem } from '../../types/budget';
-import { useBudgetOverview } from '../../hooks/useBudgetOverview';
+import type { BudgetOverview, BudgetOverviewItem } from '../../types/budget';
 import { Card } from '../../ui/card';
 import { formatCurrency } from './formatters';
 
 interface MonthCategoriesOverviewProps {
-  month: number;
-  year: number;
+  overview: BudgetOverview | undefined;
 }
 
 function statusColor(item: BudgetOverviewItem): string {
@@ -21,11 +19,8 @@ function statusLabel(item: BudgetOverviewItem): string {
   return `${percentage.toFixed(0)}% de ${formatCurrency(item.targetAmount)}`;
 }
 
-export function MonthCategoriesOverview({ month, year }: MonthCategoriesOverviewProps) {
-  const overviewQuery = useBudgetOverview(month, year);
-  const overview = overviewQuery.data;
-
-  if (overviewQuery.isLoading || overviewQuery.error || !overview || overview.profileType === 'empresa') return null;
+export function MonthCategoriesOverview({ overview }: MonthCategoriesOverviewProps) {
+  if (!overview || overview.profileType === 'empresa') return null;
 
   const items = overview.items.filter((item) => item.projectedAmount > 0).sort((a, b) => b.projectedAmount - a.projectedAmount);
   if (items.length === 0) return null;

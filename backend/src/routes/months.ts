@@ -19,6 +19,36 @@ interface BalanceBreakdown {
   finalBalance: number;
 }
 
+// Verifica se existe algum lançamento (receita ou despesa) anterior a um
+// (ano, mes), comparando pela mesma chave (ano * 12 + mes) que o endpoint
+// /panorama já utiliza. $2 é a chave de comparação; a cláusula de perfil
+// (quando houver) usa $3.
+async function isInicioRealDoHistorico(userId: number, year: number, month: number, profileId: number | null): Promise<boolean> {
+  const { clause, params: extra } = profileWhere(profileId, 3);
+  const chave = year * 12 + month;
+
+  const result = await pool.query(
+    `SELECT EXISTS (
+      SELECT 1 FROM receitas WHERE usuario_id = $1 AND (ano * 12 + mes) < $2 AND status = 'ativa'${clause}
+      UNION ALL
+      SELECT 1 FROM despesas WHERE usuario_id = $1 AND (ano * 12 + mes) < $2 AND status = 'ativa'${clause}
+    ) AS existe`,
+    [userId, chave, ...extra],
+  );
+
+  return (result.rows[0] as { existe: boolean }).existe === false;
+}
+
+async function fetchAporteInicial(userId: number, profileId: number | null): Promise<number> {
+  if (!profileId) return 0;
+  const result = await pool.query(
+    `SELECT aporte_inicial FROM perfis WHERE id = $1 AND usuario_id = $2`,
+    [profileId, userId],
+  );
+  const raw = (result.rows[0] as { aporte_inicial: string | null } | undefined)?.aporte_inicial;
+  return raw ? parseFloat(raw) : 0;
+}
+
 async function calculateBalanceBreakdown(userId: number, year: number, month: number, profileId: number | null): Promise<BalanceBreakdown> {
   const prevMonth = month === 0 ? 11 : month - 1;
   const prevYear = month === 0 ? year - 1 : year;
@@ -41,7 +71,20 @@ async function calculateBalanceBreakdown(userId: number, year: number, month: nu
 
   const totalIncomes = parseFloat((incomes.rows[0] as { total: string }).total);
   const totalExpenses = parseFloat((expenses_.rows[0] as { total: string }).total);
-  const previousBalance = parseFloat((prevBalance.rows[0] as { balance: string } | undefined)?.balance ?? '0');
+  const prevBalanceRow = (prevBalance.rows[0] as { balance: string } | undefined)?.balance;
+
+  // Sem registro do mês anterior em `meses`: só aplica o aporte inicial do
+  // perfil se este for de fato o início real do histórico (nenhum lançamento
+  // anterior a ele) — evita somar o aporte de novo em "buracos" no meio do
+  // histórico.
+  let previousBalance = parseFloat(prevBalanceRow ?? '0');
+  if (prevBalanceRow === undefined) {
+    const isInicio = await isInicioRealDoHistorico(userId, year, month, profileId);
+    if (isInicio) {
+      previousBalance = await fetchAporteInicial(userId, profileId);
+    }
+  }
+
   return { previousBalance, totalIncomes, totalExpenses, finalBalance: previousBalance + totalIncomes - totalExpenses };
 }
 
