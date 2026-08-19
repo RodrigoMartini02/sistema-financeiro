@@ -12,6 +12,5 @@ export * from './representatives';
 export * from './partners';
 export * from './aiSessions';
 export * from './copilot';
-export * from './analytics';
 export * from './plan-notification-events';
 export * from '../../modules/futebol/db/schema';

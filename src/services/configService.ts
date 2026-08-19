@@ -22,7 +22,7 @@ export async function deleteCategoria(id: number): Promise<void> {
 }
 
 export async function toggleCategoria(id: number): Promise<void> {
-  return apiRequest<void>(`/categorias/${id}/toggle-ativo`, { method: 'PATCH' });
+  return apiRequest<void>(`/categorias/${id}/toggle-active`, { method: 'PATCH' });
 }
 
 export async function fetchCartoes(): Promise<Cartao[]> {

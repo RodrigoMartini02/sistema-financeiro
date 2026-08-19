@@ -249,14 +249,14 @@ function CardPaymentForm({
       if (!tokenResult?.id) throw new Error('Falha ao tokenizar cartão. Verifique os dados.');
 
       if (mode === 'one-time') {
-        const r = await apiRequest<any>('/planos/pagar-cartao', {
+        const r = await apiRequest<any>('/planos/pay-card', {
           method: 'POST',
           body: JSON.stringify({ tipo, card_token: tokenResult.id, installments: form.parcelas, cpf: form.cpf }),
         });
         const data = r.success !== undefined ? r : r.data ?? r;
         if (data.success === false) throw new Error(data.message || 'Pagamento recusado.');
       } else {
-        const r = await apiRequest<any>('/planos/assinar-recorrente', {
+        const r = await apiRequest<any>('/planos/subscribe-recurring', {
           method: 'POST',
           body: JSON.stringify({ tipo, card_token: tokenResult.id }),
         });
@@ -357,7 +357,7 @@ function CheckoutRedirectPanel({ tipo, onError }: { tipo: PlanTipo; onError: (ms
 
   const checkoutMut = useMutation({
     mutationFn: async () => {
-      const r = await apiRequest<any>('/planos/assinar', {
+      const r = await apiRequest<any>('/planos/subscribe', {
         method: 'POST',
         body: JSON.stringify({ tipo, forma_pagamento: formaPag }),
       });
