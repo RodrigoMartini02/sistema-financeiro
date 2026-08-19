@@ -17,7 +17,6 @@ import { fetchFinanceDashboard, saveExpense, saveIncome } from '../../services/f
 import { fetchCategorias } from '../../services/configService';
 import { queryKeys } from '../../services/queryKeys';
 import { formatCurrency } from '../../screens/finance/formatters';
-import { useAppContext } from '../../context/AppContext';
 import { Card } from '../../ui/card';
 import { Badge } from '../../ui/badge';
 import { AssistantHeaderMenu } from './AssistantHeaderMenu';
@@ -256,7 +255,9 @@ interface FinancialAssistantProps {
 }
 
 export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProps) {
-  const { month, year } = useAppContext();
+  const now = new Date();
+  const month = now.getMonth();
+  const year = now.getFullYear();
   const queryClient = useQueryClient();
   const isStandalone = mode === 'standalone';
   const [open, setOpen] = useState(isStandalone);

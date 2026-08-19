@@ -120,7 +120,10 @@ function getDefaultMovementDate(month: number, year: number): string {
 }
 
 export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenProps) {
-  const { month, year, setMonth, setYear, setQuickAction, setFillViewport } = useAppContext();
+  const { setQuickAction, setFillViewport } = useAppContext();
+  const now = new Date();
+  const [month, setMonth] = useState(now.getMonth());
+  const [year, setYear] = useState(now.getFullYear());
   const [activeTab, setActiveTab] = useState<MovementTab>('receitas');
   const [viewMode, setViewMode] = useState<ViewMode>('lista');
   const [subView, setSubView] = useState<CalendarSubView>('mes');
@@ -350,9 +353,9 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
 
         {isLista
           ? (activeTab === 'receitas'
-              ? <ReceitasScreen toolbarStart={movementTabs} />
+              ? <ReceitasScreen month={month} year={year} toolbarStart={movementTabs} />
               : activeTab === 'despesas'
-                ? <DespesasScreen toolbarStart={movementTabs} />
+                ? <DespesasScreen month={month} year={year} toolbarStart={movementTabs} />
                 : <BudgetPanel month={month} year={year} toolbarStart={movementTabs} />)
           : (
             <div className="min-h-0 flex-1">

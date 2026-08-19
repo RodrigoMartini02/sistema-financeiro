@@ -105,7 +105,10 @@ function AppContent() {
   const session = useAuthSession({ enabled: isAppRoute });
   const [section, setSection] = useState<AppSection>('movimentacoes');
   const [configTab, setConfigTab] = useState<ConfigTab>('conta');
-  const { month, year, setMonth, quickAction, setQuickAction, fillViewport } = useAppContext();
+  const now = new Date();
+  const month = now.getMonth();
+  const year = now.getFullYear();
+  const { quickAction, setQuickAction, fillViewport } = useAppContext();
 
   const planQuery = useQuery<PlanoStatus>({
     queryKey: queryKeys.planStatus,
@@ -143,9 +146,8 @@ function AppContent() {
     return <PlanExpiredGate trialExpired={!planQuery.data.plano_tipo} />;
   }
 
-  const handleNavigate = (sec: AppSection, targetMonth?: number) => {
+  const handleNavigate = (sec: AppSection) => {
     setSection(sec);
-    if (targetMonth !== undefined) setMonth(targetMonth);
   };
 
   const handleConfigTab = (tab: ConfigTab) => {

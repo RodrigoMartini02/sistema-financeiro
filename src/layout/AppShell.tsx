@@ -1,6 +1,6 @@
 import { type ReactNode, useState, useEffect } from 'react';
 import {
-  Activity, BarChart3, Bell, Bot, Briefcase, Building2, ChevronDown, ChevronLeft, ChevronRight,
+  Activity, BarChart3, Bell, Bot, Briefcase, Building2, ChevronDown,
   CreditCard, FileText, LayoutDashboard, Layers,
   LogOut, Moon, Settings, Sun, Tag, TrendingDown, User,
   UserCheck, Users, Wallet, X,
@@ -12,7 +12,6 @@ import { apiRequest, getActiveProfileId } from '../services/apiClient';
 import { fetchPerfis } from '../services/configService';
 import { queryKeys } from '../services/queryKeys';
 import { useAppContext } from '../context/AppContext';
-import { MONTH_NAMES } from '../types/finance';
 import { Z_DROPDOWN, Z_MOBILE_NAV_OVERLAY, Z_SYSTEM_OVERLAY } from '../ui/zIndex';
 import { FinancialAssistant } from '../components/financial-assistant/FinancialAssistant';
 
@@ -141,28 +140,10 @@ function PerfilSwitcher() {
   );
 }
 
-function PeriodSelector() {
-  const { month, year, setMonth, setYear } = useAppContext();
-  const prevMonth = () => { if (month === 0) { setMonth(11); setYear(year - 1); } else setMonth(month - 1); };
-  const nextMonth = () => { if (month === 11) { setMonth(0); setYear(year + 1); } else setMonth(month + 1); };
-  return (
-    <div className="flex items-center gap-0.5">
-      <button onClick={prevMonth} className="flex h-8 w-8 items-center justify-center rounded-lg text-[rgba(14,196,216,0.5)] hover:bg-[rgba(14,196,216,0.08)] hover:text-[#0EC4D8] transition">
-        <ChevronLeft size={16} />
-      </button>
-      <div className="min-w-[120px] text-center">
-        <span className="text-sm font-bold text-[#E8F4F5]">{MONTH_NAMES[month]}</span>
-        <span className="ml-1.5 text-sm font-normal text-[rgba(14,196,216,0.45)]">{year}</span>
-      </div>
-      <button onClick={nextMonth} className="flex h-8 w-8 items-center justify-center rounded-lg text-[rgba(14,196,216,0.5)] hover:bg-[rgba(14,196,216,0.08)] hover:text-[#0EC4D8] transition">
-        <ChevronRight size={16} />
-      </button>
-    </div>
-  );
-}
-
 function NotificationPanel({ onClose }: { onClose: () => void }) {
-  const { month, year } = useAppContext();
+  const now = new Date();
+  const month = now.getMonth();
+  const year = now.getFullYear();
 
   const { data = [], isLoading } = useQuery({
     queryKey: ['notif-despesas', month, year],
@@ -483,7 +464,6 @@ export function AppShell({
               </div>
             )}
 
-            <PeriodSelector />
             <div className="flex-1" />
 
             {isDemoMode && (

@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, TrendingDown, TrendingUp, CreditCard, Settings } from 'lucide-react';
 import { MONTH_NAMES } from '../../types/finance';
-import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
-import { useAppContext } from '../../context/AppContext';
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../services/queryKeys';
-import { fetchDashboardAnual, getContratosFaturamento, fetchParcelasFuturas } from '../../services/financeService';
+import { fetchDashboardPanorama, getContratosFaturamento, fetchParcelasFuturas } from '../../services/financeService';
 import { Card } from '../../ui/card';
 import { ErrorState } from '../../ui/states';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
@@ -13,200 +11,132 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useBudgetOverview } from '../../hooks/useBudgetOverview';
 import { Z_GUIDE } from '../../ui/zIndex';
-import { formatCurrency } from './formatters';
+import { formatCurrency, formatDate } from './formatters';
 import { AnnualTrendChart } from './charts/AnnualTrendChart';
 import { DonutChart } from './charts/DonutChart';
 import { MonthWaterfallChart } from './charts/MonthWaterfallChart';
 import { MonthCategoriesOverview } from './MonthCategoriesOverview';
+import { DashboardPeriodFilter, describePeriod, type DashboardPeriod } from './DashboardPeriodFilter';
 
 const CORES = ['#0891b2', '#10b981', '#f59e0b', '#6366f1', '#8b5cf6', '#06b6d4', '#f97316', '#84cc16', '#ec4899', '#14b8a6'];
-const MONTH_SHORT = MONTH_NAMES.map((n) => n.slice(0, 3));
 
-function deltaPct(current: number, previous: number | undefined): number | undefined {
-  if (previous === undefined || previous === 0) return undefined;
-  return ((current - previous) / previous) * 100;
+const now = new Date();
+const THIS_YEAR = now.getFullYear();
+const THIS_MONTH = now.getMonth();
+
+function periodToQuery(period: DashboardPeriod): { deMes?: number; deAno?: number; ateMes?: number; ateAno?: number } {
+  if (period.mode === 'tudo') return {};
+  if (period.mode === 'ano') return { deMes: 0, deAno: period.ano, ateMes: 11, ateAno: period.ano };
+  if (period.mode === 'mes') return { deMes: period.mes, deAno: period.ano, ateMes: period.mes, ateAno: period.ano };
+  return { deMes: period.mes, deAno: period.ano, ateMes: period.ateMes, ateAno: period.ateAno };
 }
 
-function useRelativeTime(timestamp: number | undefined): string {
-  const [, forceTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => forceTick((n) => n + 1), 30_000);
-    return () => clearInterval(id);
-  }, []);
-  if (!timestamp) return '';
-  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
-  if (minutes < 1) return 'agora mesmo';
-  if (minutes === 1) return 'há 1 min';
-  if (minutes < 60) return `há ${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  return hours === 1 ? 'há 1 hora' : `há ${hours} horas`;
+function serieLabel(ano: number, mes: number | null): string {
+  if (mes === null) return String(ano);
+  return `${MONTH_NAMES[mes].slice(0, 3)}/${String(ano).slice(2)}`;
 }
 
 export function FinanceDashboard() {
-  const { month, year } = useAppContext();
-  const finance = useFinanceDashboard(month, year);
-  const data = finance.dashboard.data;
+  const [period, setPeriod] = useState<DashboardPeriod>({ mode: 'ano', ano: THIS_YEAR });
   const guide = useFirstAccessGuide('painel:mes-v1');
   const comprometimentoGuide = useFirstAccessGuide('painel:comprometimento-v1');
 
-  const anualQ = useQuery({
-    queryKey: queryKeys.dashboardAnual(year),
-    queryFn: () => fetchDashboardAnual(year),
-    staleTime: 60_000,
+  const query = periodToQuery(period);
+  const panoramaQ = useQuery({
+    queryKey: queryKeys.dashboardPanorama(query.deMes, query.deAno, query.ateMes, query.ateAno),
+    queryFn: () => fetchDashboardPanorama(query),
+    staleTime: 30_000,
   });
-  const anualData = anualQ.data ?? [];
-  const mesAtual = anualData[month];
-  const mesAnterior = month > 0 ? anualData[month - 1] : undefined;
+  const data = panoramaQ.data;
+
+  // Alguns cards (contratos, parcelas futuras, metas por categoria) são estruturalmente
+  // mensais — só fazem sentido quando o filtro do painel aponta para um único mês.
+  const singleMonth = period.mode === 'mes' ? { mes: period.mes!, ano: period.ano! } : null;
 
   const contratosQ = useQuery({
-    queryKey: queryKeys.contratosStatusFaturamento(month, year),
-    queryFn: () => getContratosFaturamento(month + 1, year),
+    queryKey: queryKeys.contratosStatusFaturamento(singleMonth?.mes ?? -1, singleMonth?.ano ?? -1),
+    queryFn: () => getContratosFaturamento((singleMonth!.mes) + 1, singleMonth!.ano),
     staleTime: 60_000,
+    enabled: !!singleMonth,
   });
-  const contratos = contratosQ.data ?? [];
+  const contratos = singleMonth ? contratosQ.data ?? [] : [];
 
   const parcelasQ = useQuery({
-    queryKey: queryKeys.parcelasFuturas(month, year, 3),
-    queryFn: () => fetchParcelasFuturas(month, year, 3),
+    queryKey: queryKeys.parcelasFuturas(singleMonth?.mes ?? -1, singleMonth?.ano ?? -1, 3),
+    queryFn: () => fetchParcelasFuturas(singleMonth!.mes, singleMonth!.ano, 3),
     staleTime: 60_000,
+    enabled: !!singleMonth,
   });
+  const parcelasFuturas = singleMonth ? parcelasQ.data ?? [] : [];
 
-  const overviewQ = useBudgetOverview(month, year);
+  const overviewQ = useBudgetOverview(singleMonth?.mes ?? THIS_MONTH, singleMonth?.ano ?? THIS_YEAR);
   const profileTypeLabel = overviewQ.data?.profileType === 'empresa' ? 'empresa' : 'pessoal';
-  const lancamentosCount = (data?.incomes?.length ?? 0) + (data?.expenses?.length ?? 0);
-  const updatedAgo = useRelativeTime(finance.dashboard.dataUpdatedAt);
+  const updatedAgo = useRelativeTime(panoramaQ.dataUpdatedAt);
 
-  // KPIs — prefer aggregated annual data, fallback to balance
-  const receitas = mesAtual?.receitas ?? data?.balance.receitas ?? 0;
-  const despesas = mesAtual?.despesas ?? data?.balance.despesas ?? 0;
-  const saldoAnterior = data?.balance.saldoAnterior ?? 0;
-  const saldoProjetado = saldoAnterior + receitas - despesas;
+  const receitas = data?.receitas ?? 0;
+  const despesas = data?.despesas ?? 0;
+  const saldoAnterior = data?.saldoAnterior ?? 0;
+  const saldoFinal = data?.saldoFinal ?? 0;
   const txComprometimento = receitas > 0 ? (despesas / receitas) * 100 : 0;
-  const hasNoMonthlyEntries = !finance.dashboard.isLoading && !!data && (data.incomes?.length ?? 0) === 0 && (data.expenses?.length ?? 0) === 0;
-  const deltaReceitas = deltaPct(receitas, mesAnterior?.receitas);
-  const deltaDespesas = deltaPct(despesas, mesAnterior?.despesas);
   const pctGasto = receitas > 0 ? Math.min(100, (despesas / receitas) * 100) : 0;
+  const hasNoEntries = !panoramaQ.isLoading && !!data && data.totalLancamentos === 0;
 
-  // Contratos summary
-  const totalCarteira = contratos.reduce((s, c) => s + c.valorMensal, 0);
-  const totalRecebido = contratos
-    .filter((c) => c.receitaStatus === 'ativa')
-    .reduce((s, c) => s + c.valorMensal, 0);
-  const totalFaturado = contratos
-    .filter((c) => c.receitaStatus === 'faturada')
-    .reduce((s, c) => s + c.valorMensal, 0);
-  const totalPendente = contratos
-    .filter((c) => !c.receitaStatus || c.receitaStatus === 'prevista')
-    .reduce((s, c) => s + c.valorMensal, 0);
-  const pctFaturado = totalCarteira > 0 ? ((totalRecebido + totalFaturado) / totalCarteira) * 100 : 0;
+  // Annual chart data — usa a série já agregada (mês ou ano) devolvida pelo backend
+  const chartData = useMemo(() => (data?.serie ?? []).map((p) => ({
+    name: serieLabel(p.ano, p.mes),
+    receitas: p.receitas,
+    despesas: p.despesas,
+    saldo: p.receitas - p.despesas,
+  })), [data]);
 
-  // Annual chart data
-  const chartData = MONTH_SHORT.map((name, m) => ({
-    name,
-    receitas: anualData[m]?.receitas ?? 0,
-    despesas: anualData[m]?.despesas ?? 0,
-    saldo: anualData[m]?.saldo_final ?? 0,
-  }));
+  // Quando o período filtrado inclui o mês corrente, destaca esse ponto na série mensal.
+  const activeSerieIndex = useMemo(() => {
+    if (!data || data.granularidade !== 'mes') return undefined;
+    const idx = data.serie.findIndex((p) => p.ano === THIS_YEAR && p.mes === THIS_MONTH);
+    return idx >= 0 ? idx : undefined;
+  }, [data]);
 
-  const anualHighlights = useMemo(() => {
-    const withData = anualData.map((m, i) => ({ ...m, index: i })).filter((m) => m.receitas > 0 || m.despesas > 0);
-    if (withData.length === 0) return null;
-    const melhorMes = withData.reduce((best, m) => (m.receitas > best.receitas ? m : best));
-    const maiorGasto = withData.reduce((worst, m) => (m.despesas > worst.despesas ? m : worst));
+  const highlights = useMemo(() => {
+    if (!data || data.serie.length === 0) return null;
+    const melhor = data.serie.reduce((best, p) => (p.receitas > best.receitas ? p : best));
+    const maiorGasto = data.serie.reduce((worst, p) => (p.despesas > worst.despesas ? p : worst));
     return {
-      melhorMesLabel: MONTH_NAMES[melhorMes.index],
-      melhorMesValor: melhorMes.receitas,
-      maiorGastoLabel: MONTH_NAMES[maiorGasto.index],
+      melhorLabel: serieLabel(melhor.ano, melhor.mes),
+      melhorValor: melhor.receitas,
+      maiorGastoLabel: serieLabel(maiorGasto.ano, maiorGasto.mes),
       maiorGastoValor: maiorGasto.despesas,
-      saldoAcumulado: anualData[month]?.saldo_final ?? 0,
     };
-  }, [anualData, month]);
+  }, [data]);
 
   // Category chart
-  const catData = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const d of data?.expenses ?? []) {
-      const k = d.categoria ?? 'Sem categoria';
-      map[k] = (map[k] ?? 0) + d.valorFinal;
-    }
-    return Object.entries(map)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 8);
-  }, [data]);
+  const catData = useMemo(() => (data?.porCategoria ?? [])
+    .map((c) => ({ name: c.categoria, value: c.total }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 8), [data]);
 
   // Receitas by origin (contratos vs avulsas)
   const origemData = useMemo(() => {
-    let ct = 0, av = 0;
-    for (const r of data?.incomes ?? []) {
-      if (r.status === 'ativa') {
-        if (r.contratoId) ct += r.valor;
-        else av += r.valor;
-      }
+    const map: Record<string, number> = { Contratos: 0, Avulsas: 0 };
+    for (const o of data?.porOrigem ?? []) {
+      if (o.origem === 'contrato') map.Contratos += o.total;
+      else map.Avulsas += o.total;
     }
     return [
-      { name: 'Contratos', value: ct, color: '#6366f1' },
-      { name: 'Avulsas', value: av, color: '#10b981' },
+      { name: 'Contratos', value: map.Contratos, color: '#6366f1' },
+      { name: 'Avulsas', value: map.Avulsas, color: '#10b981' },
     ].filter((d) => d.value > 0);
   }, [data]);
 
   // Payment method
-  const formaData = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const d of data?.expenses ?? []) {
-      const k = d.formaPagamento ?? 'dinheiro';
-      map[k] = (map[k] ?? 0) + d.valorFinal;
-    }
-    return Object.entries(map)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .map((d, i) => ({ ...d, color: CORES[i % CORES.length] }));
-  }, [data]);
+  const formaData = useMemo(() => (data?.porFormaPagamento ?? [])
+    .map((f) => ({ name: f.forma_pagamento, value: f.total }))
+    .sort((a, b) => b.value - a.value)
+    .map((d, i) => ({ ...d, color: CORES[i % CORES.length] })), [data]);
 
-  // Health bars
-  const receitasRecebidas = (data?.incomes ?? [])
-    .filter((r) => r.status === 'ativa')
-    .reduce((s, r) => s + r.valor, 0);
-  const despesasPagas = (data?.expenses ?? [])
-    .filter((e) => e.pago)
-    .reduce((s, e) => s + e.valorFinal, 0);
-  const despesasPendentes = (data?.expenses ?? [])
-    .filter((e) => !e.pago)
-    .reduce((s, e) => s + e.valorFinal, 0);
   const healthBase = Math.max(receitas, despesas, 1);
+  const detalhe = data?.despesasDetalhe;
 
-  // Juros e descontos
-  const { juros, descontos } = useMemo(() => {
-    let j = 0, d = 0;
-    for (const e of data?.expenses ?? []) {
-      if (e.valorOriginal == null) continue;
-      const diff = e.valorFinal - e.valorOriginal;
-      if (diff > 0) j += diff;
-      else if (diff < 0) d += Math.abs(diff);
-    }
-    return { juros: j, descontos: d };
-  }, [data]);
-
-  // Perfil das despesas
-  const perfilDesp = useMemo(() => {
-    const expenses = data?.expenses ?? [];
-    const total = expenses.reduce((s, e) => s + e.valorFinal, 0);
-    const fixas = expenses.filter((e) => e.recorrente).reduce((s, e) => s + e.valorFinal, 0);
-    const opex = expenses.filter((e) => e.tipoDespesa === 'opex').reduce((s, e) => s + e.valorFinal, 0);
-    const capex = expenses.filter((e) => e.tipoDespesa === 'capex').reduce((s, e) => s + e.valorFinal, 0);
-    return { total, fixas, variaveis: total - fixas, opex, capex, semClass: total - opex - capex };
-  }, [data]);
-
-  // Parcelas futuras
-  const parcelasFuturas = parcelasQ.data ?? [];
-  const totalParcelasFuturas = parcelasFuturas.reduce((s, p) => s + p.total, 0);
-  const proximosTresMesesNomes = [1, 2, 3].map((offset) => MONTH_NAMES[(month + offset) % 12]);
-  const proximosTresMeses = `${proximosTresMesesNomes.slice(0, -1).join(', ')} e ${proximosTresMesesNomes[proximosTresMesesNomes.length - 1]}`;
-
-  // Cascata do mês: saldo anterior -> receitas -> maiores despesas por categoria -> saldo final
-  // Os degraus de despesa são normalizados para a mesma base de `despesas` usada no saldo
-  // projetado (catData soma todas as despesas do período sem o rateio de parcelas que o
-  // saldo aplica), garantindo que a soma dos degraus bata exatamente com o saldo final.
+  // Cascata do período: saldo anterior ao período -> receitas -> maiores despesas por categoria -> saldo final
   const waterfallSteps = useMemo(() => {
     const catTotal = catData.reduce((s, c) => s + c.value, 0);
     const scale = catTotal > 0 ? despesas / catTotal : 0;
@@ -218,10 +148,12 @@ export function FinanceDashboard() {
       { label: 'Receitas', value: receitas, kind: 'increase' as const },
       ...topCategorias.map((c) => ({ label: c.name, value: -c.value, kind: 'decrease' as const })),
       ...(outrasCategorias > 0 ? [{ label: `Outras ${catData.length - 5}`, value: -outrasCategorias, kind: 'decrease' as const }] : []),
-      { label: 'Saldo final', value: saldoProjetado, kind: 'end' as const },
+      { label: 'Saldo final', value: saldoFinal, kind: 'end' as const },
     ];
     return steps;
-  }, [saldoAnterior, receitas, catData, despesas, saldoProjetado]);
+  }, [saldoAnterior, receitas, catData, despesas, saldoFinal]);
+
+  const periodoDescricao = describePeriod(period);
 
   return (
     <div className="grid gap-[18px]">
@@ -230,14 +162,18 @@ export function FinanceDashboard() {
         <div className="flex flex-col gap-[3px]">
           <h1 className="m-0 text-[24px] font-bold tracking-[-0.02em] text-[#0f2b38] dark:text-white">Painel financeiro</h1>
           <p className="m-0 text-[13px] text-[#7b93a1] dark:text-slate-400">
-            {MONTH_NAMES[month]} de {year} · perfil {profileTypeLabel} · {lancamentosCount} lançamento{lancamentosCount === 1 ? '' : 's'} no período
+            {periodoDescricao} · perfil {profileTypeLabel} · {data?.totalLancamentos ?? 0} lançamento{(data?.totalLancamentos ?? 0) === 1 ? '' : 's'} no período
+            {data?.primeiraData && data?.ultimaData && (
+              <> · dados de {formatDate(data.primeiraData)} até {formatDate(data.ultimaData)}</>
+            )}
           </p>
         </div>
         <div className="flex-1" />
         {updatedAgo && (
           <span className="text-[11.5px] text-[#5f7885] dark:text-slate-500">Atualizado {updatedAgo}</span>
         )}
-        {guide.isVisible && hasNoMonthlyEntries && (
+        <DashboardPeriodFilter value={period} onChange={setPeriod} primeiraData={data?.primeiraData ?? null} />
+        {guide.isVisible && hasNoEntries && (
           <div className="relative">
             <FirstAccessGuideCard
               icon={Settings}
@@ -252,10 +188,10 @@ export function FinanceDashboard() {
         )}
       </div>
 
-      {(finance.dashboard.error ?? anualQ.error) && (
+      {panoramaQ.error && (
         <ErrorState
           title="Não foi possível carregar o painel"
-          description={(finance.dashboard.error ?? anualQ.error)?.message}
+          description={panoramaQ.error?.message}
         />
       )}
 
@@ -263,15 +199,15 @@ export function FinanceDashboard() {
       <Card className="overflow-hidden rounded-2xl p-0">
         <div className="flex flex-col lg:flex-row">
           <div className="flex-none border-b border-[#e6eef3] bg-gradient-to-b from-[#fbfdfe] to-white p-[22px] dark:border-slate-700 dark:bg-slate-900/40 lg:w-[336px] lg:border-b-0 lg:border-r">
-            <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Saldo projetado</span>
+            <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Saldo do período</span>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-[13px] font-semibold text-[#6c8593] dark:text-slate-400">R$</span>
-              <span className={`text-[40px] font-bold leading-none tracking-[-0.035em] tabular-nums ${saldoProjetado >= 0 ? 'text-[#067647] dark:text-emerald-300' : 'text-[#b42318] dark:text-rose-300'}`}>
-                {Math.abs(saldoProjetado).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              <span className={`text-[40px] font-bold leading-none tracking-[-0.035em] tabular-nums ${saldoFinal >= 0 ? 'text-[#067647] dark:text-emerald-300' : 'text-[#b42318] dark:text-rose-300'}`}>
+                {Math.abs(saldoFinal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </span>
             </div>
             <p className="mt-[9px] text-[12px] text-[#7b93a1] dark:text-slate-400">
-              {saldoProjetado >= 0 ? 'Sobra do mês depois de todas as despesas pagas.' : 'Despesas superam as receitas neste mês.'}
+              {saldoFinal >= 0 ? 'Sobra acumulada depois de todas as despesas do período.' : 'Despesas superam as receitas neste período.'}
             </p>
           </div>
 
@@ -283,22 +219,10 @@ export function FinanceDashboard() {
             <div className="relative border-l border-[#eef4f7] p-5 dark:border-slate-700">
               <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Receitas</span>
               <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(receitas)}</p>
-              {deltaReceitas !== undefined && (
-                <span className={`mt-[7px] inline-flex items-center gap-1 rounded-full px-[7px] py-0.5 text-[11px] font-bold ${deltaReceitas >= 0 ? 'bg-[#ecfdf3] text-[#067647]' : 'bg-[#fef3f2] text-[#b42318]'}`}>
-                  {deltaReceitas >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-                  {Math.abs(deltaReceitas).toFixed(1)}%
-                </span>
-              )}
             </div>
             <div className="relative border-l border-[#eef4f7] p-5 dark:border-slate-700">
               <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Despesas</span>
               <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(despesas)}</p>
-              {deltaDespesas !== undefined && (
-                <span className={`mt-[7px] inline-flex items-center gap-1 rounded-full px-[7px] py-0.5 text-[11px] font-bold ${deltaDespesas <= 0 ? 'bg-[#ecfdf3] text-[#067647]' : 'bg-[#fef3f2] text-[#b42318]'}`}>
-                  {deltaDespesas <= 0 ? <TrendingDown size={11} /> : <TrendingUp size={11} />}
-                  {Math.abs(deltaDespesas).toFixed(1)}%
-                </span>
-              )}
             </div>
             <div className="relative border-l border-[#eef4f7] p-5 dark:border-slate-700">
               <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Comprometimento</span>
@@ -311,7 +235,7 @@ export function FinanceDashboard() {
                 <div className="flex-[10] rounded-r bg-[#fbd5d1]" />
                 <span className="absolute -top-1 h-3.5 w-[3px] rounded bg-[#067647]" style={{ left: `${Math.min(100, txComprometimento)}%` }} />
               </div>
-              <p className="mt-2 text-[11.5px] text-[#5f7885] dark:text-slate-400">da renda comprometida com despesas previstas</p>
+              <p className="mt-2 text-[11.5px] text-[#5f7885] dark:text-slate-400">da renda comprometida com despesas no período</p>
               {comprometimentoGuide.isVisible && (
                 <FirstAccessGuideCard
                   floating
@@ -339,11 +263,11 @@ export function FinanceDashboard() {
           <div className="flex-1">
             <div className="flex items-baseline gap-2 text-xs">
               <span className="h-[7px] w-[7px] rounded-full bg-[#ef4444]" />
-              <span className="font-semibold text-[#0f2b38] dark:text-slate-100">Despesas pagas</span>
-              <span className="ml-auto font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(despesasPagas)}</span>
+              <span className="font-semibold text-[#0f2b38] dark:text-slate-100">Despesas</span>
+              <span className="ml-auto font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(despesas)}</span>
             </div>
             <div className="mt-[7px] h-2 rounded bg-[#f1f6f9] dark:bg-slate-700">
-              <div className="h-2 rounded bg-[#ef4444]" style={{ width: `${Math.min(100, (despesasPagas / healthBase) * 100)}%` }} />
+              <div className="h-2 rounded bg-[#ef4444]" style={{ width: `${Math.min(100, (despesas / healthBase) * 100)}%` }} />
             </div>
           </div>
           <span className="shrink-0 pb-px text-[11.5px] text-[#5f7885] dark:text-slate-400">
@@ -352,70 +276,69 @@ export function FinanceDashboard() {
         </div>
       </Card>
 
-      {/* Contratos panel */}
-      {contratos.length > 0 && (
+      {/* Contratos panel — só quando o filtro é um único mês */}
+      {singleMonth && contratos.length > 0 && (
         <Card className="rounded-2xl p-5">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h3 className="text-[13.5px] font-bold text-[#0f2b38] dark:text-white">
-              Carteira de contratos <span className="font-semibold text-[#6c8593] dark:text-slate-400">— {MONTH_NAMES[month]}</span>
+              Carteira de contratos <span className="font-semibold text-[#6c8593] dark:text-slate-400">— {MONTH_NAMES[singleMonth.mes]}</span>
             </h3>
             <span className="text-sm font-semibold text-[#5f7885] dark:text-slate-300">
-              {formatCurrency(totalCarteira)}/mês
+              {formatCurrency(contratos.reduce((s, c) => s + c.valorMensal, 0))}/mês
             </span>
           </div>
-          <div className="mb-3">
-            <div className="flex justify-between text-xs mb-1.5">
-              <span className="text-[#5f7885]">{Math.round(pctFaturado)}% recebido/faturado</span>
-              <span className="text-[#5f7885]">{contratos.length} contrato(s)</span>
-            </div>
-            <div className="h-2.5 w-full rounded-full bg-[#f5f9fb] overflow-hidden flex">
-              <div
-                className="h-full bg-[#10b981] transition-all"
-                style={{ width: `${totalCarteira > 0 ? (totalRecebido / totalCarteira) * 100 : 0}%` }}
-              />
-              <div
-                className="h-full bg-[#0891b2] transition-all"
-                style={{ width: `${totalCarteira > 0 ? (totalFaturado / totalCarteira) * 100 : 0}%` }}
-              />
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-3 text-xs">
-            {totalRecebido > 0 && (
-              <span className="flex items-center gap-1.5 rounded-full bg-[#ecfdf3] px-3 py-1 text-[#067647] font-semibold">
-                ✓ Recebido {formatCurrency(totalRecebido)}
-              </span>
-            )}
-            {totalFaturado > 0 && (
-              <span className="flex items-center gap-1.5 rounded-full bg-[#e6f7fa] px-3 py-1 text-[#0e7490] font-semibold">
-                ⏱ Faturado {formatCurrency(totalFaturado)}
-              </span>
-            )}
-            {totalPendente > 0 && (
-              <span className="flex items-center gap-1.5 rounded-full bg-[#f7fafb] px-3 py-1 text-[#6c8593] font-semibold">
-                ○ Pendente {formatCurrency(totalPendente)}
-              </span>
-            )}
-          </div>
+          {(() => {
+            const totalCarteira = contratos.reduce((s, c) => s + c.valorMensal, 0);
+            const totalRecebido = contratos.filter((c) => c.receitaStatus === 'ativa').reduce((s, c) => s + c.valorMensal, 0);
+            const totalFaturado = contratos.filter((c) => c.receitaStatus === 'faturada').reduce((s, c) => s + c.valorMensal, 0);
+            const totalPendente = contratos.filter((c) => !c.receitaStatus || c.receitaStatus === 'prevista').reduce((s, c) => s + c.valorMensal, 0);
+            const pctFaturado = totalCarteira > 0 ? ((totalRecebido + totalFaturado) / totalCarteira) * 100 : 0;
+            return (
+              <>
+                <div className="mb-3">
+                  <div className="flex justify-between text-xs mb-1.5">
+                    <span className="text-[#5f7885]">{Math.round(pctFaturado)}% recebido/faturado</span>
+                    <span className="text-[#5f7885]">{contratos.length} contrato(s)</span>
+                  </div>
+                  <div className="h-2.5 w-full rounded-full bg-[#f5f9fb] overflow-hidden flex">
+                    <div className="h-full bg-[#10b981] transition-all" style={{ width: `${totalCarteira > 0 ? (totalRecebido / totalCarteira) * 100 : 0}%` }} />
+                    <div className="h-full bg-[#0891b2] transition-all" style={{ width: `${totalCarteira > 0 ? (totalFaturado / totalCarteira) * 100 : 0}%` }} />
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-3 text-xs">
+                  {totalRecebido > 0 && (
+                    <span className="flex items-center gap-1.5 rounded-full bg-[#ecfdf3] px-3 py-1 text-[#067647] font-semibold">✓ Recebido {formatCurrency(totalRecebido)}</span>
+                  )}
+                  {totalFaturado > 0 && (
+                    <span className="flex items-center gap-1.5 rounded-full bg-[#e6f7fa] px-3 py-1 text-[#0e7490] font-semibold">⏱ Faturado {formatCurrency(totalFaturado)}</span>
+                  )}
+                  {totalPendente > 0 && (
+                    <span className="flex items-center gap-1.5 rounded-full bg-[#f7fafb] px-3 py-1 text-[#6c8593] font-semibold">○ Pendente {formatCurrency(totalPendente)}</span>
+                  )}
+                </div>
+              </>
+            );
+          })()}
         </Card>
       )}
 
-      {/* Análise de despesas — 6 cards em 2 linhas de 3, igual ao mockup */}
+      {/* Análise do período */}
       <div>
         <div className="mb-[11px] flex items-center gap-3">
-          <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Análise de despesas</span>
+          <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Análise do período</span>
           <div className="h-px flex-1 bg-[#e6eef3] dark:bg-slate-700" />
         </div>
         <div className="grid gap-3.5 xl:grid-cols-3">
-          {/* Card 1: Juros × Descontos */}
+          {/* Card: Juros × Descontos */}
           <Card className="flex flex-col rounded-2xl p-[18px_20px]">
             <h3 className="text-[13.5px] font-bold text-[#0f2b38] dark:text-white">Juros × Descontos</h3>
-            {juros === 0 && descontos === 0 ? (
+            {!detalhe || (detalhe.juros === 0 && detalhe.descontos === 0) ? (
               <div className="flex flex-1 flex-col items-center justify-center gap-[9px] py-[26px] text-center">
                 <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#ecfdf3] text-[#067647]">
                   <TrendingUp size={19} />
                 </span>
-                <span className="text-[12.5px] font-semibold text-[#0f2b38] dark:text-slate-100">Sem juros ou descontos neste mês</span>
-                <span className="max-w-[200px] text-[11.5px] text-[#5f7885] dark:text-slate-400">Nenhuma despesa foi paga com acréscimo nem com abatimento em {MONTH_NAMES[month].toLowerCase()}.</span>
+                <span className="text-[12.5px] font-semibold text-[#0f2b38] dark:text-slate-100">Sem juros ou descontos no período</span>
+                <span className="max-w-[200px] text-[11.5px] text-[#5f7885] dark:text-slate-400">Nenhuma despesa foi paga com acréscimo nem com abatimento neste período.</span>
               </div>
             ) : (
               <div className="mt-[18px] flex flex-col gap-4">
@@ -426,7 +349,7 @@ export function FinanceDashboard() {
                     </span>
                     Juros pagos
                   </span>
-                  <span className="font-bold text-red-600">{formatCurrency(juros)}</span>
+                  <span className="font-bold text-red-600">{formatCurrency(detalhe.juros)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
@@ -435,13 +358,13 @@ export function FinanceDashboard() {
                     </span>
                     Descontos obtidos
                   </span>
-                  <span className="font-bold text-green-600">{formatCurrency(descontos)}</span>
+                  <span className="font-bold text-green-600">{formatCurrency(detalhe.descontos)}</span>
                 </div>
-                {juros > 0 && descontos > 0 && (
+                {detalhe.juros > 0 && detalhe.descontos > 0 && (
                   <div className="mt-1 border-t border-slate-100 pt-3 flex items-center justify-between text-xs text-slate-500">
                     <span>Saldo financeiro</span>
-                    <span className={descontos >= juros ? 'font-semibold text-green-600' : 'font-semibold text-red-600'}>
-                      {descontos >= juros ? '+' : '-'}{formatCurrency(Math.abs(descontos - juros))}
+                    <span className={detalhe.descontos >= detalhe.juros ? 'font-semibold text-green-600' : 'font-semibold text-red-600'}>
+                      {detalhe.descontos >= detalhe.juros ? '+' : '-'}{formatCurrency(Math.abs(detalhe.descontos - detalhe.juros))}
                     </span>
                   </div>
                 )}
@@ -449,55 +372,55 @@ export function FinanceDashboard() {
             )}
           </Card>
 
-          {/* Card 2: Perfil das despesas */}
+          {/* Card: Perfil das despesas */}
           <Card className="flex flex-col rounded-2xl p-[18px_20px]">
             <div className="flex items-baseline gap-2.5">
               <h3 className="text-[13.5px] font-bold text-[#0f2b38] dark:text-white">Perfil das despesas</h3>
               <div className="flex-1" />
-              <span className="text-[11.5px] text-[#5f7885] dark:text-slate-400">{formatCurrency(perfilDesp.total)} no mês</span>
+              <span className="text-[11.5px] text-[#5f7885] dark:text-slate-400">{formatCurrency(despesas)} no período</span>
             </div>
-            {perfilDesp.total === 0 ? (
-              <p className="flex-1 py-6 text-center text-sm text-slate-400">Sem despesas neste mês</p>
+            {!detalhe || despesas === 0 ? (
+              <p className="flex-1 py-6 text-center text-sm text-slate-400">Sem despesas neste período</p>
             ) : (
               <div className="mt-[18px] flex flex-1 flex-col gap-4">
                 <div>
                   <div className="flex items-baseline gap-2">
                     <span className="text-[30px] font-bold leading-none tracking-[-0.03em] tabular-nums text-[#0f2b38] dark:text-white">
-                      {perfilDesp.total > 0 ? Math.round((perfilDesp.variaveis / perfilDesp.total) * 100) : 0}%
+                      {Math.round((detalhe.variaveis / despesas) * 100)}%
                     </span>
                     <span className="text-[13px] font-semibold text-[#6c8593] dark:text-slate-400">variáveis</span>
                   </div>
                   <p className="mt-[5px] text-[11.5px] text-[#5f7885] dark:text-slate-400 text-pretty">
-                    {perfilDesp.variaveis / perfilDesp.total >= 0.7
+                    {detalhe.variaveis / despesas >= 0.7
                       ? 'Quase todo o seu gasto é flexível — dá para cortar sem mexer em compromissos fixos.'
-                      : perfilDesp.fixas / perfilDesp.total >= 0.7
+                      : detalhe.fixas / despesas >= 0.7
                         ? 'A maior parte do seu gasto é fixa — pouca margem para cortar sem rever compromissos.'
                         : 'Seu gasto está dividido entre despesas fixas e variáveis.'}
                   </p>
                 </div>
                 <div className="flex gap-[3px] h-3">
-                  <div className="rounded-l-md bg-[#6366f1]" style={{ width: `${perfilDesp.total > 0 ? (perfilDesp.fixas / perfilDesp.total) * 100 : 0}%` }} />
+                  <div className="rounded-l-md bg-[#6366f1]" style={{ width: `${(detalhe.fixas / despesas) * 100}%` }} />
                   <div className="flex-1 rounded-r-md bg-[#c7d2fe]" />
                 </div>
                 <div className="flex items-baseline gap-2.5 text-[11.5px]">
-                  <span className="inline-flex items-center gap-1.5 text-[#7b93a1]"><span className="h-2 w-2 rounded-sm bg-[#6366f1]" />Fixas <b className="text-[#0f2b38] dark:text-slate-100 tabular-nums">{formatCurrency(perfilDesp.fixas)}</b></span>
+                  <span className="inline-flex items-center gap-1.5 text-[#7b93a1]"><span className="h-2 w-2 rounded-sm bg-[#6366f1]" />Fixas <b className="text-[#0f2b38] dark:text-slate-100 tabular-nums">{formatCurrency(detalhe.fixas)}</b></span>
                   <div className="flex-1" />
-                  <span className="inline-flex items-center gap-1.5 text-[#7b93a1]"><span className="h-2 w-2 rounded-sm bg-[#c7d2fe]" />Variáveis <b className="text-[#0f2b38] dark:text-slate-100 tabular-nums">{formatCurrency(perfilDesp.variaveis)}</b></span>
+                  <span className="inline-flex items-center gap-1.5 text-[#7b93a1]"><span className="h-2 w-2 rounded-sm bg-[#c7d2fe]" />Variáveis <b className="text-[#0f2b38] dark:text-slate-100 tabular-nums">{formatCurrency(detalhe.variaveis)}</b></span>
                 </div>
                 <div className="mt-auto flex flex-wrap gap-[7px] pt-4">
-                  {perfilDesp.opex > 0 && (
+                  {detalhe.opex > 0 && (
                     <span className="rounded-full border border-[#b9e6ef] bg-[#e6f7fa] px-[11px] py-[5px] text-[11.5px] font-bold text-[#0e7490]">
-                      OPEX <span className="tabular-nums">{formatCurrency(perfilDesp.opex)}</span>
+                      OPEX <span className="tabular-nums">{formatCurrency(detalhe.opex)}</span>
                     </span>
                   )}
-                  {perfilDesp.capex > 0 && (
+                  {detalhe.capex > 0 && (
                     <span className="rounded-full border border-[#e6eef3] bg-[#f7fafb] px-[11px] py-[5px] text-[11.5px] font-semibold text-[#6c8593]">
-                      CAPEX {formatCurrency(perfilDesp.capex)}
+                      CAPEX {formatCurrency(detalhe.capex)}
                     </span>
                   )}
-                  {perfilDesp.semClass > 0 && (
+                  {(despesas - detalhe.opex - detalhe.capex) > 0 && (
                     <span className="rounded-full border border-[#e6eef3] bg-[#f7fafb] px-[11px] py-[5px] text-[11.5px] font-semibold text-[#6c8593]">
-                      Sem class. {formatCurrency(perfilDesp.semClass)}
+                      Sem class. {formatCurrency(despesas - detalhe.opex - detalhe.capex)}
                     </span>
                   )}
                 </div>
@@ -505,57 +428,18 @@ export function FinanceDashboard() {
             )}
           </Card>
 
-          {/* Card 3: Parcelas futuras */}
-          <Card className="flex flex-col rounded-2xl p-[18px_20px]">
-            <div className="flex items-baseline gap-2.5">
-              <h3 className="text-[13.5px] font-bold text-[#0f2b38] dark:text-white">Parcelas futuras</h3>
-              <div className="flex-1" />
-              <span className="text-[11.5px] text-[#5f7885] dark:text-slate-400">próximos 3 meses</span>
-            </div>
-            {parcelasQ.isLoading ? (
-              <div className="flex-1 py-6 text-center text-sm text-slate-400">Carregando...</div>
-            ) : parcelasFuturas.length === 0 ? (
-              <div className="flex flex-1 flex-col items-center justify-center gap-[9px] py-[22px] text-center">
-                <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#ecfdf3] text-[#067647]">
-                  <CreditCard size={19} />
-                </span>
-                <span className="text-[12.5px] font-semibold text-[#0f2b38] dark:text-slate-100">Nenhuma parcela em aberto</span>
-                <span className="max-w-[210px] text-[11.5px] text-[#5f7885] dark:text-slate-400">{proximosTresMeses} estão livres. Nada comprometido à frente.</span>
-              </div>
-            ) : (
-              <div className="mt-[18px] flex flex-1 flex-col gap-3">
-                {parcelasFuturas.map((p) => (
-                  <div key={`${p.ano}-${p.mes}`} className="flex items-center justify-between">
-                    <span className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50">
-                        <CreditCard size={13} className="text-amber-600" />
-                      </span>
-                      {MONTH_NAMES[p.mes]} {p.ano !== year ? p.ano : ''}
-                    </span>
-                    <span className="font-semibold text-slate-900 dark:text-white">{formatCurrency(p.total)}</span>
-                  </div>
-                ))}
-                <div className="mt-auto flex items-center border-t border-[#eef4f7] pt-[13px] dark:border-slate-700">
-                  <span className="text-[11.5px] text-[#7b93a1]">Total comprometido</span>
-                  <div className="flex-1" />
-                  <span className="text-[13px] font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(totalParcelasFuturas)}</span>
-                </div>
-              </div>
-            )}
-          </Card>
-
-          {/* Card 4: Saúde financeira */}
+          {/* Card: Saúde financeira */}
           <Card className="flex flex-col rounded-2xl p-[18px_20px_20px]">
             <div className="flex items-baseline gap-2.5">
               <h3 className="text-[13.5px] font-bold text-[#0f2b38] dark:text-white">
-                Saúde financeira <span className="font-semibold text-[#6c8593] dark:text-slate-400">— {MONTH_NAMES[month]}</span>
+                Saúde financeira <span className="font-semibold text-[#6c8593] dark:text-slate-400">— {periodoDescricao}</span>
               </h3>
             </div>
             <div className="mt-5 flex flex-1 flex-col gap-4">
               {([
-                { label: 'Receitas recebidas', value: receitasRecebidas, color: '#10b981' },
-                { label: 'Despesas pagas', value: despesasPagas, color: '#6366f1' },
-                { label: 'Despesas pendentes', value: despesasPendentes, color: null },
+                { label: 'Receitas recebidas', value: receitas, color: '#10b981' },
+                { label: 'Despesas pagas', value: detalhe?.pagas ?? 0, color: '#6366f1' },
+                { label: 'Despesas pendentes', value: detalhe?.pendentes ?? 0, color: null },
               ] as const).map(({ label, value, color }) => (
                 <div key={label}>
                   <div className="flex items-baseline gap-2">
@@ -570,13 +454,53 @@ export function FinanceDashboard() {
               ))}
             </div>
             <p className="mt-4 border-t border-[#eef4f7] pt-3.5 text-[11.5px] text-[#5f7885] dark:border-slate-700 dark:text-slate-400">
-              {despesasPendentes === 0
-                ? `Nada em aberto: tudo que venceu em ${MONTH_NAMES[month].toLowerCase()} já foi pago.`
-                : `Ainda há ${formatCurrency(despesasPendentes)} em despesas pendentes neste mês.`}
+              {(detalhe?.pendentes ?? 0) === 0
+                ? 'Nada em aberto: tudo que venceu no período já foi pago.'
+                : `Ainda há ${formatCurrency(detalhe?.pendentes ?? 0)} em despesas pendentes neste período.`}
             </p>
           </Card>
 
-          {/* Card 5: Receitas por origem */}
+          {/* Card: Parcelas futuras — só quando o filtro é um único mês */}
+          {singleMonth && (
+            <Card className="flex flex-col rounded-2xl p-[18px_20px]">
+              <div className="flex items-baseline gap-2.5">
+                <h3 className="text-[13.5px] font-bold text-[#0f2b38] dark:text-white">Parcelas futuras</h3>
+                <div className="flex-1" />
+                <span className="text-[11.5px] text-[#5f7885] dark:text-slate-400">próximos 3 meses</span>
+              </div>
+              {parcelasQ.isLoading ? (
+                <div className="flex-1 py-6 text-center text-sm text-slate-400">Carregando...</div>
+              ) : parcelasFuturas.length === 0 ? (
+                <div className="flex flex-1 flex-col items-center justify-center gap-[9px] py-[22px] text-center">
+                  <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#ecfdf3] text-[#067647]">
+                    <CreditCard size={19} />
+                  </span>
+                  <span className="text-[12.5px] font-semibold text-[#0f2b38] dark:text-slate-100">Nenhuma parcela em aberto</span>
+                </div>
+              ) : (
+                <div className="mt-[18px] flex flex-1 flex-col gap-3">
+                  {parcelasFuturas.map((p) => (
+                    <div key={`${p.ano}-${p.mes}`} className="flex items-center justify-between">
+                      <span className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50">
+                          <CreditCard size={13} className="text-amber-600" />
+                        </span>
+                        {MONTH_NAMES[p.mes]} {p.ano !== singleMonth.ano ? p.ano : ''}
+                      </span>
+                      <span className="font-semibold text-slate-900 dark:text-white">{formatCurrency(p.total)}</span>
+                    </div>
+                  ))}
+                  <div className="mt-auto flex items-center border-t border-[#eef4f7] pt-[13px] dark:border-slate-700">
+                    <span className="text-[11.5px] text-[#7b93a1]">Total comprometido</span>
+                    <div className="flex-1" />
+                    <span className="text-[13px] font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(parcelasFuturas.reduce((s, p) => s + p.total, 0))}</span>
+                  </div>
+                </div>
+              )}
+            </Card>
+          )}
+
+          {/* Card: Receitas por origem */}
           <Card className="flex flex-col rounded-2xl p-[18px_20px_20px]">
             <div className="flex items-baseline gap-2.5">
               <h3 className="text-[13.5px] font-bold text-[#0f2b38] dark:text-white">Receitas por origem</h3>
@@ -584,7 +508,7 @@ export function FinanceDashboard() {
               <span className="text-[11.5px] text-[#5f7885] dark:text-slate-400">de onde veio</span>
             </div>
             {origemData.length === 0 ? (
-              <p className="flex-1 py-8 text-center text-sm text-slate-400">Sem receitas neste mês</p>
+              <p className="flex-1 py-8 text-center text-sm text-slate-400">Sem receitas no período</p>
             ) : (
               <div className="mt-3 flex flex-1 flex-col items-center gap-3.5">
                 <DonutChart data={origemData} centerLabel="TOTAL" centerValue={formatCurrency(receitas)} />
@@ -601,7 +525,7 @@ export function FinanceDashboard() {
             )}
           </Card>
 
-          {/* Card 6: Forma de pagamento */}
+          {/* Card: Forma de pagamento */}
           <Card className="flex flex-col rounded-2xl p-[18px_20px_20px]">
             <div className="flex items-baseline gap-2.5">
               <h3 className="text-[13.5px] font-bold text-[#0f2b38] dark:text-white">Forma de pagamento</h3>
@@ -631,59 +555,77 @@ export function FinanceDashboard() {
         </div>
       </div>
 
-      {/* Annual chart */}
+      {/* Série temporal */}
       <Card className="rounded-2xl p-[20px_22px_16px]">
         <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
           <div>
             <h2 className="text-[15.5px] font-bold tracking-[-0.01em] text-[#0f2b38] dark:text-white">
-              Receitas × Despesas × Saldo <span className="font-semibold text-[#6c8593] dark:text-slate-400">— {year}</span>
+              Receitas × Despesas × Saldo <span className="font-semibold text-[#6c8593] dark:text-slate-400">— {periodoDescricao}</span>
             </h2>
-            <p className="mt-0.5 text-xs text-[#7b93a1] dark:text-slate-400">Barras mostram o movimento de cada mês; a linha acompanha o saldo acumulado do ano.</p>
+            <p className="mt-0.5 text-xs text-[#7b93a1] dark:text-slate-400">
+              {data?.granularidade === 'ano' ? 'Barras mostram o movimento de cada ano.' : 'Barras mostram o movimento de cada mês.'}
+            </p>
           </div>
           <div className="flex-1" />
           <div className="flex items-center gap-3.5 text-[11.5px] font-semibold text-[#6c8593] dark:text-slate-400">
             <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#10b981]" />Receitas</span>
             <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#ef4444]" />Despesas</span>
             <span className="inline-flex items-center gap-1.5"><span className="h-[3px] w-3.5 rounded bg-[#6366f1]" />Saldo acumulado</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-0 w-3.5 border-t-2 border-dashed border-[#a9bcc6]" />Previsto</span>
           </div>
         </div>
-        {anualQ.isLoading ? (
+        {panoramaQ.isLoading ? (
           <div className="h-72 flex items-center justify-center text-sm text-slate-400">Carregando...</div>
+        ) : chartData.length === 0 ? (
+          <div className="h-72 flex items-center justify-center text-sm text-slate-400">Sem lançamentos neste período</div>
         ) : (
-          <AnnualTrendChart data={chartData} activeIndex={month} />
+          <AnnualTrendChart data={chartData} activeIndex={activeSerieIndex} />
         )}
-        {anualHighlights && (
+        {highlights && (
           <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1.5 border-t border-[#eef4f7] pt-3 text-[11.5px] text-[#5f7885] dark:border-slate-700 dark:text-slate-400">
-            <span>Melhor mês <b className="text-[#0f2b38] dark:text-slate-100">{anualHighlights.melhorMesLabel} · {formatCurrency(anualHighlights.melhorMesValor)}</b></span>
-            <span>Maior gasto <b className="text-[#0f2b38] dark:text-slate-100">{anualHighlights.maiorGastoLabel} · {formatCurrency(anualHighlights.maiorGastoValor)}</b></span>
-            <span>Saldo acumulado até {MONTH_NAMES[month]} <b className={anualHighlights.saldoAcumulado >= 0 ? 'text-[#067647] dark:text-emerald-300' : 'text-[#b42318] dark:text-rose-300'}>{formatCurrency(anualHighlights.saldoAcumulado)}</b></span>
+            <span>Melhor {data?.granularidade === 'ano' ? 'ano' : 'mês'} <b className="text-[#0f2b38] dark:text-slate-100">{highlights.melhorLabel} · {formatCurrency(highlights.melhorValor)}</b></span>
+            <span>Maior gasto <b className="text-[#0f2b38] dark:text-slate-100">{highlights.maiorGastoLabel} · {formatCurrency(highlights.maiorGastoValor)}</b></span>
+            <span>Saldo do período <b className={saldoFinal >= 0 ? 'text-[#067647] dark:text-emerald-300' : 'text-[#b42318] dark:text-rose-300'}>{formatCurrency(saldoFinal)}</b></span>
           </div>
         )}
       </Card>
 
-      {/* Cascata do mês */}
+      {/* Cascata do período */}
       <Card className="rounded-2xl p-[20px_22px_16px]">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <div>
-            <h2 className="text-[15.5px] font-bold tracking-[-0.01em] text-[#0f2b38] dark:text-white">Cascata do mês</h2>
-            <p className="mt-0.5 text-xs text-[#7b93a1] dark:text-slate-400">Do saldo que abriu {MONTH_NAMES[month].toLowerCase()} até o que sobrou, passando por cada corte.</p>
+            <h2 className="text-[15.5px] font-bold tracking-[-0.01em] text-[#0f2b38] dark:text-white">Cascata do período</h2>
+            <p className="mt-0.5 text-xs text-[#7b93a1] dark:text-slate-400">Do saldo que abriu o período até o que sobrou, passando por cada corte.</p>
           </div>
           <div className="flex-1" />
           {receitas > 0 && (
             <span className="text-[11.5px] text-[#5f7885] dark:text-slate-400">
-              Sobrou <b className={saldoProjetado >= 0 ? 'text-[#067647] dark:text-emerald-300' : 'text-[#b42318] dark:text-rose-300'}>{((saldoProjetado / receitas) * 100).toFixed(1)}%</b> do que entrou
+              Sobrou <b className={saldoFinal >= 0 ? 'text-[#067647] dark:text-emerald-300' : 'text-[#b42318] dark:text-rose-300'}>{((saldoFinal / receitas) * 100).toFixed(1)}%</b> do que entrou
             </span>
           )}
         </div>
-        {finance.dashboard.isLoading ? (
+        {panoramaQ.isLoading ? (
           <div className="h-64 flex items-center justify-center text-sm text-slate-400">Carregando...</div>
         ) : (
           <MonthWaterfallChart steps={waterfallSteps} />
         )}
       </Card>
 
-      <MonthCategoriesOverview month={month} year={year} />
+      {singleMonth && <MonthCategoriesOverview month={singleMonth.mes} year={singleMonth.ano} />}
     </div>
   );
+}
+
+function useRelativeTime(timestamp: number | undefined): string {
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => forceTick((n) => n + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
+  if (!timestamp) return '';
+  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
+  if (minutes < 1) return 'agora mesmo';
+  if (minutes === 1) return 'há 1 min';
+  if (minutes < 60) return `há ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  return hours === 1 ? 'há 1 hora' : `há ${hours} horas`;
 }
