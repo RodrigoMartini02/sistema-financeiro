@@ -66,6 +66,8 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
   const [verifiedCode, setVerifiedCode] = useState('');
   const [termosAceitos, setTermosAceitos] = useState(false);
   const [modalTermos, setModalTermos] = useState<'termos' | 'privacidade' | null>(null);
+  const [registerDocumento, setRegisterDocumento] = useState('');
+  const isRegisterCnpj = registerDocumento.replace(/\D/g, '').length > 11;
 
   // Handle Google OAuth callback (code in URL)
   useEffect(() => {
@@ -121,6 +123,7 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
       const { token, usuario } = await register(
         fd.get('nome') as string, fd.get('documento') as string,
         fd.get('email') as string, fd.get('senha') as string,
+        fd.get('nome_fantasia') as string | undefined,
       );
       saveSession(token, usuario, { firstAccessGuides: true });
     } catch (err) {
@@ -241,7 +244,19 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
         <div className="mt-4 grid gap-3">
           <form className="grid gap-3" onSubmit={handleRegister}>
             <Field label="Nome"><Input name="nome" required /></Field>
-            <Field label="CPF ou CNPJ"><Input name="documento" required /></Field>
+            <Field label="CPF ou CNPJ">
+              <Input
+                name="documento"
+                required
+                value={registerDocumento}
+                onChange={(e) => setRegisterDocumento(e.target.value)}
+              />
+            </Field>
+            {isRegisterCnpj && (
+              <Field label="Nome fantasia da empresa">
+                <Input name="nome_fantasia" required placeholder="Ex: ABC Stores" />
+              </Field>
+            )}
             <Field label="Email"><Input name="email" type="email" required /></Field>
             <Field label="Senha"><Input name="senha" type="password" required /></Field>
 

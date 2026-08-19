@@ -175,15 +175,22 @@ router.post(
         if (repResult.rows.length > 0) {
           const repNome = (repResult.rows[0] as { nome: string }).nome;
 
-          // Buscar ou criar categoria "Comissão"
+          // Buscar ou criar categoria "Comissão" no tipo de perfil da receita
+          // que a originou ('pessoal' ou 'empresa' — compartilhada entre
+          // todas as empresas do usuario, nao exclusiva de uma so).
+          let comissaoTipo: string | null = null;
+          if (perfil_id) {
+            const profileResult = await pool.query('SELECT tipo FROM perfis WHERE id = $1 AND usuario_id = $2', [parseInt(String(perfil_id)), req.user!.id]);
+            comissaoTipo = profileResult.rows.length > 0 ? (profileResult.rows[0] as { tipo: string }).tipo : null;
+          }
           let catResult = await pool.query(
-            `SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = 'comissão' LIMIT 1`,
-            [req.user!.id],
+            `SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = 'comissão' AND COALESCE(tipo, 'pessoal') = COALESCE($2, 'pessoal') LIMIT 1`,
+            [req.user!.id, comissaoTipo],
           );
           if (catResult.rows.length === 0) {
             catResult = await pool.query(
-              `INSERT INTO categorias (usuario_id, nome, cor, icone) VALUES ($1, 'Comissão', '#f59e0b', 'handshake') RETURNING id`,
-              [req.user!.id],
+              `INSERT INTO categorias (usuario_id, nome, cor, icone, tipo) VALUES ($1, 'Comissão', '#f59e0b', 'handshake', $2) RETURNING id`,
+              [req.user!.id, comissaoTipo],
             );
           }
           const categoriaId = (catResult.rows[0] as { id: number }).id;

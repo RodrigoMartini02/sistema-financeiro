@@ -22,10 +22,12 @@ export async function verifySession(): Promise<AuthUser> {
   return payload.usuario;
 }
 
-export async function register(nome: string, documento: string, email: string, senha: string): Promise<LoginPayload> {
+export async function register(
+  nome: string, documento: string, email: string, senha: string, nomeFantasia?: string,
+): Promise<LoginPayload> {
   return apiRequest<LoginPayload>('/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ nome, documento, email, senha }),
+    body: JSON.stringify({ nome, documento, email, senha, nome_fantasia: nomeFantasia || undefined }),
   });
 }
 

@@ -142,16 +142,14 @@ router.post(
   ],
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { nome, email, documento, senha, tipo, google_id, pais, estado, cidade } =
+      const { nome, email, documento, senha, tipo, google_id, pais, estado, cidade, nome_fantasia } =
         req.body as Record<string, string | undefined>;
 
       const cleanDoc = documento!.replace(/[^\d]+/g, '');
+      const isCnpj = cleanDoc.length === 14;
 
-      if (cleanDoc.length !== 11) {
-        res.status(400).json({
-          success: false,
-          message: 'Only CPF is allowed for self-registration. To register a company, contact the admin.',
-        });
+      if (isCnpj && !nome_fantasia?.trim()) {
+        res.status(400).json({ success: false, message: 'Trade name is required for CNPJ registration' });
         return;
       }
 
@@ -183,9 +181,23 @@ router.post(
           city: cidade ?? null,
         })
         .returning({ id: users.id, name: users.name, email: users.email, document: users.document, type: users.type, status: users.status });
-      // Create useful defaults for the initial personal profile.
-      await ensureDefaultCategories(newUser!.id, 'pessoal');
-      await db.insert(profiles).values({ userId: newUser!.id, type: 'pessoal', name: 'Pessoal', active: true });
+
+      // Create useful defaults for the initial profile — 'empresa' when
+      // registering with a CNPJ, 'pessoal' (CPF) otherwise.
+      if (isCnpj) {
+        await ensureDefaultCategories(newUser!.id, 'empresa');
+        await db.insert(profiles).values({
+          userId: newUser!.id,
+          type: 'empresa',
+          name: nome_fantasia!.trim(),
+          document: cleanDoc,
+          tradeName: nome_fantasia!.trim(),
+          active: true,
+        });
+      } else {
+        await ensureDefaultCategories(newUser!.id, 'pessoal');
+        await db.insert(profiles).values({ userId: newUser!.id, type: 'pessoal', name: 'Pessoal', active: true });
+      }
 
       const token = jwt.sign(
         { id: newUser!.id, documento: newUser!.document, tipo: newUser!.type },

@@ -206,9 +206,22 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
 // GET /api/expenses/categories (dropdown helper)
 router.get('/categories', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
+    const { perfil_id } = req.query as Record<string, string | undefined>;
+
+    let whereClause = 'WHERE usuario_id = $1';
+    const params: unknown[] = [req.user!.id];
+
+    if (perfil_id) {
+      const profileResult = await pool.query('SELECT tipo FROM perfis WHERE id = $1 AND usuario_id = $2', [parseInt(perfil_id), req.user!.id]);
+      if (profileResult.rows.length > 0) {
+        params.push((profileResult.rows[0] as { tipo: string }).tipo);
+        whereClause += ` AND COALESCE(tipo, 'pessoal') = $${params.length}`;
+      }
+    }
+
     const result = await pool.query(
-      'SELECT * FROM categorias WHERE usuario_id = $1 ORDER BY nome ASC',
-      [req.user!.id],
+      `SELECT * FROM categorias ${whereClause} ORDER BY nome ASC`,
+      params,
     );
     res.json({ success: true, data: result.rows });
   } catch (error) {

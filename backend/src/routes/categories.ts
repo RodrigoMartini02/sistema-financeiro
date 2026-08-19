@@ -7,24 +7,42 @@ import { ensureDefaultCategories } from '../services/defaultCategories';
 
 const router = Router();
 
+// Resolve o tipo de perfil ('pessoal' | 'empresa') a partir do perfil_id
+// recebido do client, validando que o perfil pertence ao usuario autenticado.
+async function resolveProfileType(perfilId: string, userId: number): Promise<string | null> {
+  const result = await pool.query('SELECT tipo FROM perfis WHERE id = $1 AND usuario_id = $2', [parseInt(perfilId), userId]);
+  return result.rows.length > 0 ? (result.rows[0] as { tipo: string }).tipo : null;
+}
+
 // GET /api/categories
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { usuario_id } = req.query as Record<string, string | undefined>;
+    const { usuario_id, perfil_id } = req.query as Record<string, string | undefined>;
     const targetUserId = usuario_id && req.user!.type === 'master' ? parseInt(usuario_id) : req.user!.id;
+
+    let whereClause = 'WHERE c.usuario_id = $1';
+    const params: unknown[] = [targetUserId];
+
+    if (perfil_id) {
+      const profileType = await resolveProfileType(perfil_id, targetUserId);
+      if (profileType) {
+        params.push(profileType);
+        whereClause += ` AND COALESCE(c.tipo, 'pessoal') = $${params.length}`;
+      }
+    }
 
     const result = await pool.query(
       `SELECT
-        c.id, c.nome, c.cor, c.icone, c.forma_favorita, c.cartao_favorito_id, c.parent_id,
+        c.id, c.nome, c.cor, c.icone, c.forma_favorita, c.cartao_favorito_id, c.parent_id, c.tipo,
         p.nome AS parent_nome, ct.nome AS cartao_favorito_nome,
         c.data_criacao, c.data_atualizacao,
         COALESCE(c.ativo, true) AS ativo
        FROM categorias c
        LEFT JOIN cartoes ct ON c.cartao_favorito_id = ct.id
        LEFT JOIN categorias p ON c.parent_id = p.id
-       WHERE c.usuario_id = $1
+       ${whereClause}
        ORDER BY COALESCE(p.nome, c.nome) ASC, c.parent_id NULLS FIRST, c.nome ASC`,
-      [targetUserId],
+      params,
     );
 
     res.json({ success: true, message: 'Categories loaded', data: result.rows });
@@ -108,7 +126,7 @@ router.get('/:id', authenticate, async (req: Request, res: Response): Promise<vo
 // POST /api/categories
 router.post('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nome, cor, icone, parent_id } = req.body as Record<string, string | undefined>;
+    const { nome, cor, icone, parent_id, perfil_id } = req.body as Record<string, string | undefined>;
 
     if (!nome?.trim()) {
       res.status(400).json({ success: false, message: 'Category name is required' });
@@ -120,6 +138,15 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     }
 
     const parentId = parent_id ? parseInt(parent_id) : null;
+
+    let profileType: string | null = null;
+    if (perfil_id) {
+      profileType = await resolveProfileType(perfil_id, req.user!.id);
+      if (!profileType) {
+        res.status(400).json({ success: false, message: 'Profile not found' });
+        return;
+      }
+    }
 
     if (parentId) {
       const parentResult = await pool.query(
@@ -137,8 +164,8 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     }
 
     const dupResult = await pool.query(
-      'SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2)',
-      [req.user!.id, nome.trim()],
+      `SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2) AND COALESCE(tipo, 'pessoal') = COALESCE($3, 'pessoal')`,
+      [req.user!.id, nome.trim(), profileType],
     );
 
     if (dupResult.rows.length > 0) {
@@ -147,10 +174,10 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     }
 
     const result = await pool.query(
-      `INSERT INTO categorias (usuario_id, nome, cor, icone, parent_id)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, nome, cor, icone, parent_id, data_criacao, data_atualizacao`,
-      [req.user!.id, nome.trim(), cor ?? '#3498db', icone ?? null, parentId],
+      `INSERT INTO categorias (usuario_id, nome, cor, icone, parent_id, tipo)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, nome, cor, icone, parent_id, tipo, data_criacao, data_atualizacao`,
+      [req.user!.id, nome.trim(), cor ?? '#3498db', icone ?? null, parentId, profileType],
     );
 
     res.status(201).json({ success: true, message: 'Category created', data: result.rows[0] });
@@ -175,7 +202,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const [existing] = await db.select({ id: categories.id }).from(categories)
+    const [existing] = await db.select({ id: categories.id, type: categories.type }).from(categories)
       .where(and(eq(categories.id, categoryId), eq(categories.userId, req.user!.id))).limit(1);
 
     if (!existing) {
@@ -184,8 +211,8 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     }
 
     const duplicateResult = await pool.query(
-      'SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2) AND id != $3',
-      [req.user!.id, nome.trim(), categoryId],
+      `SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2) AND id != $3 AND COALESCE(tipo, 'pessoal') = COALESCE($4, 'pessoal')`,
+      [req.user!.id, nome.trim(), categoryId, existing.type],
     );
     if (duplicateResult.rows.length > 0) {
       res.status(400).json({ success: false, message: 'A category with this name already exists' });
