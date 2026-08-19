@@ -592,11 +592,15 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#0891b2] text-white shadow-lg shadow-cyan-950/25 transition hover:bg-[#0e7490] focus:outline-none focus:ring-2 focus:ring-[#0EC4D8] focus:ring-offset-2 dark:focus:ring-offset-slate-950"
+          className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#0891b2] text-white shadow-lg shadow-cyan-950/25 transition hover:bg-[#0e7490] focus:outline-none focus:ring-2 focus:ring-[#0EC4D8] focus:ring-offset-2 dark:focus:ring-offset-slate-950"
           aria-label="Abrir assistente financeiro"
           title="Assistente Financeiro"
         >
-          <MessageCircleMore size={25} />
+          <img
+            src="/icons/assistente-perfil.webp"
+            alt=""
+            className="h-full w-full object-cover object-[center_35%]"
+          />
         </button>
       )}
 

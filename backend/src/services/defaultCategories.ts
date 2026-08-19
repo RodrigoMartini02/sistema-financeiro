@@ -17,14 +17,18 @@ export const PERSONAL_DEFAULT_CATEGORIES = [
 
 export const BUSINESS_DEFAULT_CATEGORIES = [
   'Fornecedores',
+  'Folha de Pagamento',
   'Impostos e Taxas',
-  'Operacional',
-  'Tecnologia',
+  'Aluguel/Condom\u00ednio',
+  'Pr\u00f3-labore/Retiradas',
   'Marketing',
+  'Tecnologia',
   'Transporte',
   'Contabilidade',
-  'Pr\u00f3-labore/Retiradas',
   'Banc\u00e1rio',
+  'Seguros',
+  'Jur\u00eddico/Consultoria',
+  'Operacional',
   'Outros',
 ] as const;
 
@@ -53,8 +57,10 @@ export async function ensureDefaultCategories(
 
   for (const [index, name] of names.entries()) {
     await pool.query(
-      'INSERT INTO categorias (usuario_id, nome, cor, icone, parent_id) VALUES ($1, $2, $3, NULL, NULL) ON CONFLICT (usuario_id, nome) DO NOTHING',
-      [userId, name, DEFAULT_CATEGORY_COLORS[index % DEFAULT_CATEGORY_COLORS.length] ?? '#6366f1'],
+      `INSERT INTO categorias (usuario_id, nome, cor, icone, parent_id, tipo)
+       VALUES ($1, $2, $3, NULL, NULL, $4)
+       ON CONFLICT (usuario_id, LOWER(nome), COALESCE(tipo, 'pessoal')) DO NOTHING`,
+      [userId, name, DEFAULT_CATEGORY_COLORS[index % DEFAULT_CATEGORY_COLORS.length] ?? '#6366f1', profileType],
     );
   }
 }
