@@ -7,15 +7,22 @@ import {
   index,
 } from 'drizzle-orm/pg-core';
 import { users } from './users';
+import { profiles } from './profiles';
 
-// Unicidade de nome por (usuario_id, LOWER(nome), COALESCE(tipo, 'pessoal')) e
-// aplicada via indice unico funcional na migration (0017_categorias_tipo.sql),
-// nao expressavel diretamente pelo helper `unique()` do Drizzle.
+// Uma categoria e PADRAO do sistema (tipo preenchido, perfil_id nulo) OU
+// CUSTOM criada pelo usuario (perfil_id preenchido, tipo nulo) — nunca os
+// dois ao mesmo tempo.
 //
-// `tipo` ('pessoal' | 'empresa') segmenta categorias por TIPO de perfil, nao
-// por perfil individual: uma categoria 'empresa' e compartilhada entre todas
-// as empresas do usuario, nunca exclusiva de uma so. `tipo = NULL` (legado)
-// cai no perfil pessoal por fallback.
+// Padrao: global, compartilhada entre todos os perfis do mesmo `tipo`
+// ('pessoal' | 'empresa') do usuario. Vem de defaultCategories.ts.
+//
+// Custom: exclusiva do `perfil_id` especifico onde foi criada — nao aparece
+// em outros perfis, mesmo do mesmo tipo (ex: uma categoria criada em "PJ"
+// nao aparece em "Aether", mesmo os dois sendo tipo empresa).
+//
+// Unicidade aplicada via indices unicos funcionais na migration
+// (0018_categorias_perfil_custom.sql), nao expressavel diretamente pelo
+// helper `unique()` do Drizzle.
 export const categories = pgTable(
   'categorias',
   {
@@ -24,6 +31,7 @@ export const categories = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     type: varchar('tipo', { length: 10 }),
+    profileId: integer('perfil_id').references(() => profiles.id),
     name: varchar('nome', { length: 255 }).notNull(),
     color: varchar('cor', { length: 7 }).default('#3498db'),
     icon: varchar('icone', { length: 10 }),
@@ -36,6 +44,7 @@ export const categories = pgTable(
   (table) => ({
     userIdx: index('idx_categorias_usuario').on(table.userId),
     typeIdx: index('idx_categorias_tipo').on(table.type),
+    profileIdx: index('idx_categorias_perfil').on(table.profileId),
   }),
 );
 

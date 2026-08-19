@@ -214,8 +214,10 @@ router.get('/categories', authenticate, async (req: Request, res: Response): Pro
     if (perfil_id) {
       const profileResult = await pool.query('SELECT tipo FROM perfis WHERE id = $1 AND usuario_id = $2', [parseInt(perfil_id), req.user!.id]);
       if (profileResult.rows.length > 0) {
-        params.push((profileResult.rows[0] as { tipo: string }).tipo);
-        whereClause += ` AND COALESCE(tipo, 'pessoal') = $${params.length}`;
+        // Uniao: categorias PADRAO do tipo do perfil ativo OU categorias
+        // CUSTOM exclusivas deste perfil_id especifico.
+        params.push((profileResult.rows[0] as { tipo: string }).tipo, parseInt(perfil_id));
+        whereClause += ` AND (tipo = $${params.length - 1} OR perfil_id = $${params.length})`;
       }
     }
 
