@@ -22,7 +22,7 @@ interface RawExpense {
   data_vencimento: string; data_compra?: string | null; data_pagamento?: string | null;
   mes: number; ano: number; status?: string | null; pago?: boolean; parcelado?: boolean; recorrente?: boolean;
   numero_parcelas?: number | null; parcela_atual?: number | null; observacoes?: string | null;
-  valor_original?: string | null; valor_final?: string | null; valor?: string | null;
+  valor_original?: string | null; valor_final?: string | null; valor?: string | null; valor_pago?: string | null;
   numero_nf?: string | null; data_emissao_nf?: string | null; tipo_despesa?: string | null;
   anexos?: Attachment[] | null;
 }
@@ -78,6 +78,7 @@ function expenseFromApi(r: RawExpense): Expense {
     pago: r.pago === true, recorrente: r.recorrente === true, parcelado: r.parcelado === true,
     parcela, observacoes: r.observacoes,
     valorOriginal: r.valor_original ? asNumber(r.valor_original) : null,
+    valorPago: r.valor_pago != null ? asNumber(r.valor_pago) : null,
     numeroNf: r.numero_nf ?? null,
     dataEmissaoNf: r.data_emissao_nf ?? null,
     tipoDespesa: (r.tipo_despesa as 'opex' | 'capex' | null) ?? null,

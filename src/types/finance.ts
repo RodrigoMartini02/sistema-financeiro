@@ -59,6 +59,7 @@ export interface Expense {
   valorFinal: number;           // valor efetivo por exibição (por parcela para parcelado)
   valorFinalTotal?: number;     // valor_final bruto do banco (total para primeira parcela — usado no edit)
   valorOriginal?: number | null; // preço base acordado
+  valorPago?: number | null;    // valor efetivamente pago (pode diferir do valorFinal por acréscimo/desconto)
   categoria: string;
   formaPagamento: string;
   dataVencimento: string;

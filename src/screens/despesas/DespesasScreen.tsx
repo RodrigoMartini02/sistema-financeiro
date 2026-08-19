@@ -648,9 +648,20 @@ export function DespesasScreen({ month, year, toolbarStart }: DespesasScreenProp
                         <p className="text-[10px] text-slate-400 font-normal">
                           {item.valorOriginal != null ? `inicial ${formatCurrency(item.valorOriginal)}` : ''}
                         </p>
-                        <span className={['font-bold', item.pago ? 'text-slate-400 line-through' : 'text-red-700 dark:text-red-400'].join(' ')}>
-                          {formatCurrency(item.valorFinal)}
-                        </span>
+                        {item.pago && item.valorPago != null && item.valorPago !== item.valorFinal ? (
+                          <>
+                            <span className="text-slate-400 line-through mr-1.5 text-xs font-normal">
+                              {formatCurrency(item.valorFinal)}
+                            </span>
+                            <span className="font-bold text-slate-700 dark:text-slate-200">
+                              {formatCurrency(item.valorPago)}
+                            </span>
+                          </>
+                        ) : (
+                          <span className={['font-bold', item.pago ? 'text-slate-400 line-through' : 'text-red-700 dark:text-red-400'].join(' ')}>
+                            {formatCurrency(item.valorFinal)}
+                          </span>
+                        )}
                       </td>
 
                       {/* NF (empresa only) */}

@@ -98,9 +98,27 @@ export function ExpenseCard({
       </div>
 
       <div className="flex shrink-0 items-start gap-1">
-        <span className={['whitespace-nowrap text-sm font-bold', item.pago ? 'text-slate-400 line-through' : 'text-red-700 dark:text-red-400'].join(' ')}>
-          {formatCurrency(item.valorFinal)}
-        </span>
+        <div className="flex flex-col items-end">
+          {item.valorOriginal != null && (
+            <p className="text-[10px] text-slate-400 font-normal whitespace-nowrap">
+              {`inicial ${formatCurrency(item.valorOriginal)}`}
+            </p>
+          )}
+          {item.pago && item.valorPago != null && item.valorPago !== item.valorFinal ? (
+            <span className="whitespace-nowrap text-sm">
+              <span className="text-slate-400 line-through mr-1 text-xs font-normal">
+                {formatCurrency(item.valorFinal)}
+              </span>
+              <span className="font-bold text-slate-700 dark:text-slate-200">
+                {formatCurrency(item.valorPago)}
+              </span>
+            </span>
+          ) : (
+            <span className={['whitespace-nowrap text-sm font-bold', item.pago ? 'text-slate-400 line-through' : 'text-red-700 dark:text-red-400'].join(' ')}>
+              {formatCurrency(item.valorFinal)}
+            </span>
+          )}
+        </div>
         <KebabMenu actions={actions} />
       </div>
     </div>
