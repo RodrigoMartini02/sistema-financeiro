@@ -42,25 +42,5 @@ export const reserves = pgTable(
   }),
 );
 
-export const reserveMovements = pgTable(
-  'movimentacoes_reservas',
-  {
-    id: serial('id').primaryKey(),
-    reserveId: integer('reserva_id')
-      .notNull()
-      .references(() => reserves.id, { onDelete: 'cascade' }),
-    profileId: integer('perfil_id').references(() => profiles.id),
-    type: varchar('tipo', { length: 10 }).notNull().$type<'entrada' | 'saida'>(),
-    amount: decimal('valor', { precision: 10, scale: 2 }).notNull(),
-    notes: text('observacoes'),
-    createdAt: timestamp('data_hora').defaultNow(),
-  },
-  (table) => ({
-    reserveIdx: index('idx_movimentacoes_reserva').on(table.reserveId),
-  }),
-);
-
 export type Reserve = typeof reserves.$inferSelect;
 export type NewReserve = typeof reserves.$inferInsert;
-export type ReserveMovement = typeof reserveMovements.$inferSelect;
-export type NewReserveMovement = typeof reserveMovements.$inferInsert;

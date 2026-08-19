@@ -3,7 +3,6 @@ import {
   serial,
   integer,
   varchar,
-  decimal,
   boolean,
   timestamp,
   index,
@@ -31,24 +30,5 @@ export const representatives = pgTable(
   }),
 );
 
-export const commissions = pgTable(
-  'comissoes',
-  {
-    id: serial('id').primaryKey(),
-    representativeId: integer('representante_id')
-      .notNull()
-      .references(() => representatives.id, { onDelete: 'cascade' }),
-    incomeType: varchar('tipo_receita', { length: 30 }).notNull(),
-    percentage: decimal('percentual', { precision: 5, scale: 2 }).notNull(),
-    tipo: varchar('tipo', { length: 10 }).notNull().default('mensal'),
-    active: boolean('ativo').default(true),
-  },
-  (table) => ({
-    representativeIdx: index('idx_comissoes_representante').on(table.representativeId),
-  }),
-);
-
 export type Representative = typeof representatives.$inferSelect;
 export type NewRepresentative = typeof representatives.$inferInsert;
-export type Commission = typeof commissions.$inferSelect;
-export type NewCommission = typeof commissions.$inferInsert;
