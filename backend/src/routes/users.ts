@@ -4,6 +4,7 @@ import { eq, and, ne, or, ilike } from 'drizzle-orm';
 import { db, pool } from '../db/client';
 import { users, categories, cards as cardsTable, expenses, incomes, reserves, months } from '../db/schema';
 import { authenticate, requireAdmin, requireMaster } from '../middleware/auth';
+import { validateDocument } from '../middleware/validation';
 import { ensureDefaultCategories } from '../services/defaultCategories';
 
 const router = Router();
@@ -46,7 +47,7 @@ router.get('/me', authenticate, async (req: Request, res: Response): Promise<voi
 // PUT /api/users/me
 router.put('/me', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nome, email, pais, estado, cidade, senha_atual, nova_senha } =
+    const { nome, email, documento, pais, estado, cidade, senha_atual, nova_senha } =
       req.body as Record<string, string | undefined>;
 
     if (!nome?.trim()) {
@@ -55,7 +56,7 @@ router.put('/me', authenticate, async (req: Request, res: Response): Promise<voi
     }
 
     const [current] = await db
-      .select({ password: users.password, email: users.email })
+      .select({ password: users.password, email: users.email, document: users.document })
       .from(users)
       .where(eq(users.id, req.user!.id))
       .limit(1);
@@ -98,9 +99,35 @@ router.put('/me', authenticate, async (req: Request, res: Response): Promise<voi
       }
     }
 
+    let newDocument = current.document!;
+    if (documento) {
+      const cleanDoc = documento.replace(/[^\d]+/g, '');
+
+      if (!validateDocument(cleanDoc)) {
+        res.status(400).json({ success: false, message: 'Invalid CPF/CNPJ' });
+        return;
+      }
+
+      if (cleanDoc !== current.document) {
+        const [documentInUse] = await db
+          .select({ id: users.id })
+          .from(users)
+          .where(and(eq(users.document, cleanDoc), ne(users.id, req.user!.id)))
+          .limit(1);
+
+        if (documentInUse) {
+          res.status(400).json({ success: false, message: 'Document already in use' });
+          return;
+        }
+      }
+
+      newDocument = cleanDoc;
+    }
+
     const updateData: Partial<typeof users.$inferInsert> = {
       name: nome.trim(),
       email: newEmail,
+      document: newDocument,
       country: pais ?? null,
       state: estado ?? null,
       city: cidade ?? null,
@@ -112,7 +139,7 @@ router.put('/me', authenticate, async (req: Request, res: Response): Promise<voi
       .update(users)
       .set(updateData)
       .where(eq(users.id, req.user!.id))
-      .returning({ id: users.id, nome: users.name, email: users.email, pais: users.country, estado: users.state, cidade: users.city });
+      .returning({ id: users.id, nome: users.name, email: users.email, documento: users.document, pais: users.country, estado: users.state, cidade: users.city });
 
     res.json({ success: true, message: 'Profile updated successfully', data: updated });
   } catch (error) {

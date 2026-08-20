@@ -9,7 +9,7 @@ export interface UsuarioMe {
 }
 
 export interface UsuarioMePutBody {
-  nome: string; email?: string;
+  nome: string; email?: string; documento?: string;
   pais?: string; estado?: string; cidade?: string;
   senha_atual?: string; nova_senha?: string;
 }
