@@ -83,6 +83,7 @@ export interface ExpenseFormValues {
   descricao: string;
   valor_original?: number;      // preço base (obrigatório na prática)
   valor_final?: number;         // valor final com juros ou desconto (opcional)
+  valor_pago?: number;          // valor efetivamente pago, quando divergir do valor da compra
   dataVencimento: string;
   dataCompra?: string;
   categoria?: string;

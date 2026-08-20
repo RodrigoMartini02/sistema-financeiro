@@ -29,12 +29,14 @@ const schema = z.object({
   descricao:       z.string().min(1, 'Informe a descrição'),
   valor_original:  z.coerce.number().min(0.01, 'Informe o valor'),
   valor_final:     z.coerce.number().min(0).optional(),
+  valor_pago:      z.coerce.number().min(0).optional(),
   precoAVista:     z.coerce.number().min(0).optional(),
   dataCompra:      z.string().min(10, 'Informe a data da compra'),
   dataVencimentoManual: z.string().optional(),
   categoria_id:    z.coerce.number().optional(),
   cartao_id:       z.coerce.number().optional(),
   formaPagamento:  z.string().min(1),
+  pago:            z.boolean(),
   repeticao:       z.enum(['nao', 'parcelas', 'mensal']),
   totalParcelas:   z.coerce.number().int().min(2).max(360).optional(),
   parcelasJaPagas: z.coerce.number().int().min(0).optional(),
@@ -76,8 +78,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
   const [categoriaSugestao, setCategoriaSugestao] = useState<{ id: number; nome: string } | null>(null);
   const [duplicataInfo, setDuplicataInfo] = useState<DuplicataInfo | null>(null);
   const [vencimentoManualAberto, setVencimentoManualAberto] = useState(false);
-  const [jurosDescontoAberto, setJurosDescontoAberto] = useState(false);
-  const [jurosDescontoTocado, setJurosDescontoTocado] = useState(false);
+  const [valorPagoAberto, setValorPagoAberto] = useState(false);
   const [valorInputMode, setValorInputMode] = useState<'parcela' | 'avista'>('parcela');
   const [methodTouched, setMethodTouched] = useState(false);
 
@@ -100,10 +101,10 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
   const form = useForm<FormData>({
     resolver: zodResolver(schema) as Resolver<FormData>,
     defaultValues: {
-      descricao: '', valor_original: '' as unknown as number, valor_final: undefined, precoAVista: undefined,
+      descricao: '', valor_original: '' as unknown as number, valor_final: undefined, valor_pago: undefined, precoAVista: undefined,
       dataCompra: todayIso(), dataVencimentoManual: undefined,
       categoria_id: undefined, cartao_id: undefined,
-      formaPagamento: 'pix', repeticao: 'nao',
+      formaPagamento: '', pago: false, repeticao: 'nao',
       totalParcelas: 2, parcelasJaPagas: 0, diaRecorrencia: todayNumericDay(),
       numero_nf: undefined, data_emissao_nf: undefined,
     },
@@ -112,6 +113,8 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
   const descricaoWatch     = useWatch({ control: form.control, name: 'descricao' });
   const valorOriginalWatch = useWatch({ control: form.control, name: 'valor_original' });
   const valorFinalWatch    = useWatch({ control: form.control, name: 'valor_final' });
+  const valorPagoWatch     = useWatch({ control: form.control, name: 'valor_pago' });
+  const pagoWatch          = useWatch({ control: form.control, name: 'pago' });
   const precoAVistaWatch   = useWatch({ control: form.control, name: 'precoAVista' });
   const formaPagamento     = useWatch({ control: form.control, name: 'formaPagamento' });
   const cartaoId           = useWatch({ control: form.control, name: 'cartao_id' });
@@ -234,8 +237,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
       setCategoriaSugestao(null);
       setDuplicataInfo(null);
       setVencimentoManualAberto(false);
-      setJurosDescontoAberto(false);
-      setJurosDescontoTocado(false);
+      setValorPagoAberto(false);
       setValorInputMode('parcela');
       setMethodTouched(false);
       setSavedMessage('');
@@ -245,20 +247,20 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
     setAnexos(expense?.anexos ?? []);
     const vOrig = expense?.valorOriginal ?? undefined;
     const vFinalDb = expense?.valorFinalTotal;
-    const temJurosOuDesconto = !!(vFinalDb && vFinalDb !== vOrig);
-    setJurosDescontoAberto(temJurosOuDesconto);
-    setJurosDescontoTocado(temJurosOuDesconto);
+    setValorPagoAberto(!!(expense?.pago && expense.valorPago != null && expense.valorPago !== vFinalDb));
     setMethodTouched(true); // ao editar, não sobrescrever forma de pagamento já escolhida
     form.reset({
       descricao:       expense?.descricao ?? '',
       valor_original:  vOrig ?? '' as unknown as number,
-      valor_final:     temJurosOuDesconto ? vFinalDb : undefined,
+      valor_final:     undefined,
+      valor_pago:      expense?.valorPago ?? undefined,
       precoAVista:     undefined,
       dataCompra:      expense?.dataCompra ?? presetDate ?? todayIso(),
       dataVencimentoManual: expense?.dataVencimento,
       categoria_id:    undefined,
       cartao_id:       undefined,
-      formaPagamento:  expense?.formaPagamento ?? 'pix',
+      formaPagamento:  expense?.formaPagamento ?? '',
+      pago:            expense?.pago ?? false,
       repeticao:       expense?.parcelado ? 'parcelas' : expense?.recorrente ? 'mensal' : 'nao',
       totalParcelas:   2, parcelasJaPagas: 0, diaRecorrencia: todayNumericDay(),
       numero_nf:       expense?.numeroNf ?? undefined,
@@ -306,29 +308,9 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
     return { label: 'Pago', color: C.success, bg: C.successBg, border: C.successBorder };
   }, [isCredito, vencimentoDerivado.data]);
 
-  // O texto de vencimento já diz "Pago na hora"/"Pago em DD/MM" — o selo fica redundante nesse caso.
-  const mostrarSeloStatus = statusDerivado.label !== 'Pago';
-
-  const pagoDerivado = statusDerivado.label === 'Pago';
-
-  // Comparação data informada × vencimento conhecido: decide se é multa/juros (atraso) ou desconto (antecipação).
-  const dataReferenciaPagamento = vencimentoManualAberto && dataVencimentoManual ? dataVencimentoManual : (dataCompra || todayIso());
-  const diffDias = useMemo(() => {
-    if (!vencimentoDerivado.data || !dataReferenciaPagamento) return 0;
-    const a = new Date(dataReferenciaPagamento + 'T00:00:00');
-    const b = new Date(vencimentoDerivado.data + 'T00:00:00');
-    return Math.round((a.getTime() - b.getTime()) / 86400000);
-  }, [dataReferenciaPagamento, vencimentoDerivado.data]);
-
-  // Abre automaticamente o campo de valor efetivo quando a data diverge do vencimento — usuário pode fechar manualmente.
-  useEffect(() => {
-    if (jurosDescontoTocado) return;
-    if (diffDias !== 0 && !isCredito) setJurosDescontoAberto(true);
-  }, [diffDias, isCredito, jurosDescontoTocado]);
-
-  const efetivoFinal = jurosDescontoAberto ? (valorFinalWatch ?? valorDigitado) : valorDigitado;
-  const jurosCalculado = jurosDescontoAberto ? Math.max(0, efetivoFinal - valorDigitado) : 0;
-  const descontoCalculado = jurosDescontoAberto ? Math.max(0, valorDigitado - efetivoFinal) : 0;
+  const efetivoFinal = pagoWatch ? (valorPagoAberto ? (valorPagoWatch ?? valorDigitado) : valorDigitado) : valorDigitado;
+  const jurosCalculado = pagoWatch && valorPagoAberto ? Math.max(0, efetivoFinal - valorDigitado) : 0;
+  const descontoCalculado = pagoWatch && valorPagoAberto ? Math.max(0, valorDigitado - efetivoFinal) : 0;
 
   const totalParceladoDerivado = repeticao === 'parcelas' && (totalParcelas ?? 0) >= 2
     ? valorDigitado * (totalParcelas ?? 1)
@@ -353,18 +335,19 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
     ? `todo mês na fatura ${selectedCard?.nome ?? 'do cartão'}, até cancelar`
     : diaRecorrencia ? `todo dia ${diaRecorrencia}, até cancelar` : 'informe o dia';
 
-  const valorLabel = repeticao === 'parcelas' ? 'VALOR DA PARCELA' : repeticao === 'mensal' ? 'VALOR MENSAL' : 'VALOR PAGO';
+  const valorLabel = repeticao === 'parcelas' ? 'VALOR DA PARCELA' : repeticao === 'mensal' ? 'VALOR MENSAL' : 'VALOR DA COMPRA';
 
   const toFormValues = (data: FormData, anexosArr: Attachment[] = []): ExpenseFormValues => ({
     descricao:       data.descricao,
     valor_original:  data.valor_original,
-    valor_final:     jurosDescontoAberto ? data.valor_final : undefined,
+    valor_final:     undefined,
+    valor_pago:      data.pago && valorPagoAberto ? data.valor_pago : undefined,
     dataVencimento:  vencimentoDerivado.data,
     dataCompra:      data.dataCompra,
     categoria_id:    data.categoria_id ? Number(data.categoria_id) : undefined,
     cartao_id:       (isCredito || isDebito) && data.cartao_id ? Number(data.cartao_id) : undefined,
     formaPagamento:  data.formaPagamento,
-    pago:            pagoDerivado,
+    pago:            data.pago,
     recorrente:      repeticao === 'mensal',
     recorrenciaMensal: repeticao === 'mensal',
     parcelado:       repeticao === 'parcelas',
@@ -378,15 +361,14 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
 
   const resetForm = (data: FormData) => {
     form.reset({
-      descricao: '', valor_original: '' as unknown as number, valor_final: undefined, precoAVista: undefined,
+      descricao: '', valor_original: '' as unknown as number, valor_final: undefined, valor_pago: undefined, precoAVista: undefined,
       dataCompra: data.dataCompra, dataVencimentoManual: undefined,
       categoria_id: undefined, cartao_id: data.cartao_id,
-      formaPagamento: data.formaPagamento, repeticao: 'nao',
+      formaPagamento: data.formaPagamento, pago: false, repeticao: 'nao',
       totalParcelas: 2, parcelasJaPagas: 0, diaRecorrencia: todayNumericDay(),
       numero_nf: undefined, data_emissao_nf: undefined,
     });
-    setJurosDescontoAberto(false);
-    setJurosDescontoTocado(false);
+    setValorPagoAberto(false);
     setValorInputMode('parcela');
   };
 
@@ -786,10 +768,10 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
             </div>
           </div>
 
-          {/* ── Bloco 4: QUANDO (data, vencimento, status, juros/desconto) ── */}
+          {/* ── Bloco 4: QUANDO (data, vencimento, status, valor pago) ── */}
           <div style={{ ...cardStyle, marginBottom: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={labelStyle}>DATA DA COMPRA</label>
+              <label style={{ ...labelStyle, color: C.primaryDark }}>DATA DA COMPRA</label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <input
                   {...form.register('dataCompra')}
@@ -800,7 +782,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                 {vencimentoManualAberto && (
                   <input {...form.register('dataVencimentoManual')} type="date" style={{ ...smallInputStyle, width: 140, border: `1.5px solid ${C.primary}` }} />
                 )}
-                {mostrarSeloStatus && !vencimentoManualAberto && (
+                {isCredito && (
                   <span style={{
                     fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 6,
                     color: statusDerivado.color, background: statusDerivado.bg, border: `1px solid ${statusDerivado.border}`,
@@ -821,56 +803,60 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                   {vencimentoManualAberto ? 'usar automática' : 'data de pagamento diferente'}
                 </button>
               </div>
-              {expense?.pago && expense.valorPago != null && expense.valorPago !== expense.valorFinal && (
-                <div style={{ fontSize: '12.5px', color: C.textSoft }}>
-                  Valor realmente pago: <span style={{ fontWeight: 700, color: C.text }}>{formatCurrency(expense.valorPago)}</span>
-                </div>
-              )}
             </div>
 
-            {!isCredito && diffDias !== 0 && (
+            {!isCredito && (
               <div style={panelStyle}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                  <span style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.09em', color: C.textSoft, textTransform: 'uppercase' }}>
-                    {diffDias > 0
-                      ? `Pago ${diffDias} dia${diffDias > 1 ? 's' : ''} após o vencimento — teve multa ou juros?`
-                      : `Pago ${Math.abs(diffDias)} dia${Math.abs(diffDias) > 1 ? 's' : ''} antes do vencimento — teve desconto?`}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = !jurosDescontoAberto;
-                      setJurosDescontoAberto(next);
-                      setJurosDescontoTocado(true);
-                      if (!next) form.setValue('valor_final', undefined);
-                    }}
-                    style={{ fontSize: '11.5px', fontWeight: 600, color: C.placeholder, cursor: 'pointer', background: 'transparent', border: 'none' }}
-                  >
-                    {jurosDescontoAberto ? 'remover' : 'informar valor pago'}
-                  </button>
-                </div>
-                {jurosDescontoAberto && (
-                  <>
-                    <div style={{ width: 200 }}>
-                      <Controller
-                        control={form.control}
-                        name="valor_final"
-                        render={({ field }) => <MoneyFieldSmall value={field.value} onChange={field.onChange} />}
-                      />
-                    </div>
-                    <div style={{ minHeight: 18 }}>
-                      {jurosCalculado > 0 && (
-                        <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.danger, background: C.dangerBg, border: `1px solid ${C.dangerBorder}` }}>
-                          + {formatCurrency(jurosCalculado)} de multa e juros
-                        </span>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: C.text, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    {...form.register('pago')}
+                    style={{ width: 16, height: 16, accentColor: C.primary, cursor: 'pointer' }}
+                  />
+                  Pago
+                </label>
+                {pagoWatch && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 9, minHeight: 20 }}>
+                      {!valorPagoAberto && (
+                        <span style={{ fontSize: '12.5px', color: C.textSoft }}>Valor pago igual ao valor da compra</span>
                       )}
-                      {descontoCalculado > 0 && (
-                        <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.success, background: C.successBg, border: `1px solid ${C.successBorder}` }}>
-                          − {formatCurrency(descontoCalculado)} de desconto
-                        </span>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = !valorPagoAberto;
+                          setValorPagoAberto(next);
+                          if (!next) form.setValue('valor_pago', undefined);
+                        }}
+                        style={{ fontSize: '12.5px', fontWeight: 600, color: C.primaryDark, cursor: 'pointer', background: 'transparent', border: 'none' }}
+                      >
+                        {valorPagoAberto ? 'usar valor da compra' : 'valor pago diferente'}
+                      </button>
                     </div>
-                  </>
+                    {valorPagoAberto && (
+                      <>
+                        <div style={{ width: 200 }}>
+                          <Controller
+                            control={form.control}
+                            name="valor_pago"
+                            render={({ field }) => <MoneyFieldSmall value={field.value} onChange={field.onChange} />}
+                          />
+                        </div>
+                        <div style={{ minHeight: 18 }}>
+                          {jurosCalculado > 0 && (
+                            <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.danger, background: C.dangerBg, border: `1px solid ${C.dangerBorder}` }}>
+                              + {formatCurrency(jurosCalculado)} de multa e juros
+                            </span>
+                          )}
+                          {descontoCalculado > 0 && (
+                            <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.success, background: C.successBg, border: `1px solid ${C.successBorder}` }}>
+                              − {formatCurrency(descontoCalculado)} de desconto
+                            </span>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
             )}
@@ -946,9 +932,12 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                 onClick={handleAddToBatch}
                 disabled={!podeSalvar}
                 style={{
-                  padding: '12px 8px', borderRadius: 11, fontSize: 13, fontWeight: 600,
-                  background: 'transparent', border: 'none', boxShadow: 'none',
-                  color: podeSalvar ? C.primaryDark : '#adbfc9', cursor: podeSalvar ? 'pointer' : 'not-allowed',
+                  padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
+                  whiteSpace: 'nowrap', border: 'none', transition: 'all .15s ease',
+                  cursor: podeSalvar ? 'pointer' : 'not-allowed',
+                  ...(podeSalvar
+                    ? { background: C.primarySoft, color: C.primaryDark, boxShadow: 'none' }
+                    : { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }),
                 }}
               >
                 + Adicionar ao lote
