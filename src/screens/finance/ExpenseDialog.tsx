@@ -664,7 +664,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                 {([
                   ['nao', 'Não repete'],
                   ['parcelas', 'Parcelas'],
-                  ['mensal', 'Todo mês'],
+                  ['mensal', 'Recorrente'],
                 ] as const).map(([value, label]) => (
                   <div key={value} onClick={() => form.setValue('repeticao', value)} style={chipStyle(repeticao === value)}>
                     {label}
@@ -705,8 +705,11 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
             </div>
           </div>
 
-          {/* ── Bloco 3: QUANTO (valor, significado depende do bloco COMO) ── */}
-          <div style={cardStyle}>
+          {/* ── Bloco 3: QUANTO (valor da compra + valor pago, lado a lado) ── */}
+          <div
+            className="grid grid-cols-1 gap-y-3.5 sm:grid-cols-[1.35fr_1fr] sm:gap-y-0"
+            style={{ ...cardStyle, columnGap: 18, alignItems: 'start' }}
+          >
             <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
                 <label style={{ ...labelStyle, height: 'auto' }}>
@@ -766,9 +769,63 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                 <div style={{ fontSize: 12, color: C.danger }}>{form.formState.errors.valor_original.message}</div>
               )}
             </div>
+
+            {!isCredito && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, height: 15, fontSize: 13, fontWeight: 600, color: C.text, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    {...form.register('pago')}
+                    style={{ width: 16, height: 16, accentColor: C.primary, cursor: 'pointer' }}
+                  />
+                  Pago
+                </label>
+                {pagoWatch && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                    {valorPagoAberto ? (
+                      <div className="w-full max-w-[260px]">
+                        <Controller
+                          control={form.control}
+                          name="valor_pago"
+                          render={({ field }) => <MoneyFieldSmall value={field.value} onChange={field.onChange} />}
+                        />
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: '12.5px', color: C.textSoft }}>Valor pago igual ao valor da compra</span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = !valorPagoAberto;
+                        setValorPagoAberto(next);
+                        if (next) form.setValue('valor_pago', valorOriginalWatch || undefined);
+                        else form.setValue('valor_pago', undefined);
+                      }}
+                      style={{ alignSelf: 'flex-start', fontSize: '12.5px', fontWeight: 600, color: C.primaryDark, cursor: 'pointer', background: 'transparent', border: 'none' }}
+                    >
+                      {valorPagoAberto ? 'usar valor da compra' : 'valor pago diferente'}
+                    </button>
+                    {valorPagoAberto && (
+                      <div style={{ minHeight: 18 }}>
+                        {jurosCalculado > 0 && (
+                          <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.danger, background: C.dangerBg, border: `1px solid ${C.dangerBorder}` }}>
+                            + {formatCurrency(jurosCalculado)} de multa e juros
+                          </span>
+                        )}
+                        {descontoCalculado > 0 && (
+                          <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.success, background: C.successBg, border: `1px solid ${C.successBorder}` }}>
+                            − {formatCurrency(descontoCalculado)} de desconto
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* ── Bloco 4: QUANDO (data, vencimento, status, valor pago) ── */}
+          {/* ── Bloco 4: QUANDO (data, vencimento, status) ── */}
           <div style={{ ...cardStyle, marginBottom: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               <label style={{ ...labelStyle, color: C.primaryDark }}>DATA DA COMPRA</label>
@@ -804,62 +861,6 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                 </button>
               </div>
             </div>
-
-            {!isCredito && (
-              <div style={panelStyle}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: C.text, cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    {...form.register('pago')}
-                    style={{ width: 16, height: 16, accentColor: C.primary, cursor: 'pointer' }}
-                  />
-                  Pago
-                </label>
-                {pagoWatch && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 9, minHeight: 20 }}>
-                      {!valorPagoAberto && (
-                        <span style={{ fontSize: '12.5px', color: C.textSoft }}>Valor pago igual ao valor da compra</span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const next = !valorPagoAberto;
-                          setValorPagoAberto(next);
-                          if (!next) form.setValue('valor_pago', undefined);
-                        }}
-                        style={{ fontSize: '12.5px', fontWeight: 600, color: C.primaryDark, cursor: 'pointer', background: 'transparent', border: 'none' }}
-                      >
-                        {valorPagoAberto ? 'usar valor da compra' : 'valor pago diferente'}
-                      </button>
-                    </div>
-                    {valorPagoAberto && (
-                      <>
-                        <div style={{ width: 200 }}>
-                          <Controller
-                            control={form.control}
-                            name="valor_pago"
-                            render={({ field }) => <MoneyFieldSmall value={field.value} onChange={field.onChange} />}
-                          />
-                        </div>
-                        <div style={{ minHeight: 18 }}>
-                          {jurosCalculado > 0 && (
-                            <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.danger, background: C.dangerBg, border: `1px solid ${C.dangerBorder}` }}>
-                              + {formatCurrency(jurosCalculado)} de multa e juros
-                            </span>
-                          )}
-                          {descontoCalculado > 0 && (
-                            <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.success, background: C.successBg, border: `1px solid ${C.successBorder}` }}>
-                              − {formatCurrency(descontoCalculado)} de desconto
-                            </span>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
 
             {isEmpresa && (
               <div
