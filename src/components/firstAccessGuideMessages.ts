@@ -6,7 +6,7 @@ export const firstAccessGuideMessages = {
   despesasFiltros: 'Use os filtros para separar despesas pagas, pendentes, atrasadas ou por categoria.',
   reservasNova: 'Clique em Nova reserva para separar dinheiro para uma meta.',
   relatoriosConsultar: 'Depois de alterar o per\u00edodo, clique em Consultar para atualizar o relat\u00f3rio.',
-  relatoriosExportar: 'Clique em Exportar PDF para salvar ou imprimir o relat\u00f3rio.',
+  relatoriosExportar: 'Clique em Exportar PDF para baixar o relat\u00f3rio completo em um documento PDF.',
   contaSalvar: 'Altere seus dados ou preencha os campos de senha para trocá-la, depois clique em Salvar.',
   categoriasNova: 'Clique em Nova categoria para organizar seus lan\u00e7amentos por tipo.',
   categoriasSub: 'Crie subcategorias quando precisar detalhar melhor seus gastos.',

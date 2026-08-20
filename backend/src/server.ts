@@ -88,6 +88,7 @@ import serviceRoutes from './routes/services';
 import contractServiceRoutes from './routes/contract-services';
 import contractAttachmentRoutes from './routes/contract-attachments';
 import analyticsRoutes from './routes/analytics';
+import reportRoutes from './routes/reports';
 import internalJobsRoutes from './routes/internal-jobs';
 import assistantRoutes from './routes/assistant';
 import budgetRoutes from './routes/budget';
@@ -111,6 +112,7 @@ app.use('/api/receitas', authenticate, requireActivePlan, incomeRoutes);        
 app.use('/api/expenses', authenticate, requireActivePlan, expenseRoutes);
 app.use('/api/despesas', authenticate, requireActivePlan, expenseRoutes);        // PT alias
 app.use('/api/meses', authenticate, requireActivePlan, monthRoutes);
+app.use('/api/relatorios', authenticate, requireActivePlan, reportRoutes);
 app.use('/api/years', authenticate, requireActivePlan, yearRoutes);
 app.use('/api/anos', authenticate, requireActivePlan, yearRoutes);               // PT alias
 app.use('/api/reserves', authenticate, requireActivePlan, reserveRoutes);

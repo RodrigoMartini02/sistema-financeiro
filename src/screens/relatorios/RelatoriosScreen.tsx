@@ -1,7 +1,8 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart3, Printer, TrendingDown, TrendingUp, ArrowUpDown, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { BarChart3, Loader2, Printer, TrendingDown, TrendingUp, ArrowUpDown, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { apiRequest, getActiveProfileId } from '../../services/apiClient';
+import { downloadReportPdf } from '../../services/reportsService';
 import { MONTH_NAMES } from '../../types/finance';
 import { Card } from '../../ui/card';
 import { formatCurrency, formatDate } from '../finance/formatters';
@@ -150,6 +151,8 @@ export function RelatoriosScreen() {
   const [statusFiltro, setStatusFiltro] = useState<'todos' | 'pago' | 'pendente'>('todos');
   const [sortKey, setSortKey] = useState<'data' | 'valor' | 'descricao'>('data');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [exportando, setExportando] = useState(false);
+  const [exportError, setExportError] = useState('');
   const consultGuide = useFirstAccessGuide('relatorios:consultar-v1');
   const exportGuide = useFirstAccessGuide('relatorios:exportar-v1');
 
@@ -234,6 +237,24 @@ export function RelatoriosScreen() {
     setQueryDataInicio(dataInicio);
     setQueryDataFim(dataFim);
     setHasConsultado(true);
+  }
+
+  async function handleExportarPdf() {
+    setExportError('');
+    setExportando(true);
+    try {
+      await downloadReportPdf({
+        dataInicio: queryDataInicio,
+        dataFim: queryDataFim,
+        tipoFiltro,
+        formaFiltro,
+        statusFiltro,
+      });
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : 'Não foi possível gerar o relatório em PDF');
+    } finally {
+      setExportando(false);
+    }
   }
 
   const despesas = despQuery.data ?? [];
@@ -401,10 +422,12 @@ export function RelatoriosScreen() {
             )}
             <div className="relative">
               <button
-                onClick={() => window.print()}
-                className="no-print flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 shrink-0"
+                onClick={handleExportarPdf}
+                disabled={!hasConsultado || exportando}
+                className="no-print flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 shrink-0"
               >
-                <Printer size={14} /> Exportar PDF
+                {exportando ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
+                {exportando ? 'Gerando PDF...' : 'Exportar PDF'}
               </button>
               {exportGuide.isVisible && (
                 <FirstAccessGuideCard
@@ -416,6 +439,11 @@ export function RelatoriosScreen() {
                   className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
                   onDismiss={exportGuide.dismiss}
                 />
+              )}
+              {exportError && (
+                <p className="no-print absolute right-0 top-full z-10 mt-1 w-max max-w-xs text-right text-xs font-medium text-red-600 dark:text-red-400">
+                  {exportError}
+                </p>
               )}
             </div>
           </div>
