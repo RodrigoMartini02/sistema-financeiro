@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { User, Lock, Save, CheckCircle2 } from 'lucide-react';
+import { User, Save, CheckCircle2 } from 'lucide-react';
 import { fetchMe, updateMe } from '../../services/usuariosService';
 import { Button } from '../../ui/button';
-import { Field, Input } from '../../ui/form';
+import { Field, Input, SectionDivider } from '../../ui/form';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
@@ -28,20 +28,27 @@ export function MinhaContaTab() {
 
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
-  const [saved, setSaved] = useState(false);
+  const [documento, setDocumento] = useState('');
+  const [pais, setPais] = useState('');
+  const [estado, setEstado] = useState('');
+  const [cidade, setCidade] = useState('');
 
   const [senhaAtual, setSenhaAtual] = useState('');
   const [senhaNova, setSenhaNova] = useState('');
   const [senhaConfirm, setSenhaConfirm] = useState('');
-  const [senhaError, setSenhaError] = useState('');
-  const [senhaSaved, setSenhaSaved] = useState(false);
+
+  const [formError, setFormError] = useState('');
+  const [saved, setSaved] = useState(false);
   const saveGuide = useFirstAccessGuide('conta:salvar-v1');
-  const senhaGuide = useFirstAccessGuide('conta:senha-v1');
 
   useEffect(() => {
     if (user) {
       setNome(user.nome ?? '');
       setEmail(user.email ?? '');
+      setDocumento(user.documento ?? '');
+      setPais(user.pais ?? '');
+      setEstado(user.estado ?? '');
+      setCidade(user.cidade ?? '');
     }
   }, [user]);
 
@@ -49,67 +56,56 @@ export function MinhaContaTab() {
     mutationFn: updateMe,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['usuario-me'] });
+      setSenhaAtual(''); setSenhaNova(''); setSenhaConfirm('');
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     },
+    onError: (err) => setFormError(err.message),
   });
 
-  const handleSavePerfil = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    updateMut.mutate({ nome, email });
-  };
+    setFormError('');
 
-  const handleSaveSenha = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSenhaError('');
-    if (senhaNova !== senhaConfirm) { setSenhaError('As senhas não coincidem'); return; }
-    if (senhaNova.length < 8) { setSenhaError('A nova senha deve ter pelo menos 8 caracteres'); return; }
-    updateMut.mutate(
-      { nome, email, senha_atual: senhaAtual, nova_senha: senhaNova },
-      {
-        onSuccess: () => {
-          setSenhaAtual(''); setSenhaNova(''); setSenhaConfirm('');
-          setSenhaSaved(true);
-          setTimeout(() => setSenhaSaved(false), 2500);
-        },
-        onError: (err) => setSenhaError(err.message),
-      }
-    );
+    const isChangingPassword = senhaAtual || senhaNova || senhaConfirm;
+    if (isChangingPassword) {
+      if (!senhaAtual) { setFormError('Informe a senha atual para trocar a senha'); return; }
+      if (senhaNova !== senhaConfirm) { setFormError('As senhas não coincidem'); return; }
+      if (senhaNova.length < 8) { setFormError('A nova senha deve ter pelo menos 8 caracteres'); return; }
+    }
+
+    updateMut.mutate({
+      nome, email, documento, pais, estado, cidade,
+      ...(isChangingPassword ? { senha_atual: senhaAtual, nova_senha: senhaNova } : {}),
+    });
   };
 
   if (isLoading) return <div className="py-12 text-center text-sm text-slate-400">Carregando perfil...</div>;
   if (!user) return <div className="py-12 text-center text-sm text-slate-400">Não foi possível carregar os dados do perfil.</div>;
 
   return (
-    <div className="grid max-w-2xl gap-8">
-      {/* Info do usuário */}
-      <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-100 shrink-0">
-          <User size={26} className="text-brand-600" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="truncate text-base font-bold text-slate-900">{user.nome}</p>
-          <p className="truncate text-sm text-slate-500">{user.email}</p>
-          <div className="mt-1 flex items-center gap-2">
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${TYPE_BADGE[user.tipo] ?? TYPE_BADGE.padrao}`}>
-              {user.tipo}
-            </span>
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_BADGE[user.status] ?? STATUS_BADGE.ativo}`}>
-              {user.status}
-            </span>
+    <div className="mx-auto grid max-w-2xl gap-6">
+      <form onSubmit={handleSubmit} className="grid gap-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        {/* Info do usuário */}
+        <div className="flex items-center gap-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-100 shrink-0">
+            <User size={26} className="text-brand-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="truncate text-base font-bold text-slate-900">{user.nome}</p>
+            <p className="truncate text-sm text-slate-500">{user.email}</p>
+            <div className="mt-1 flex items-center gap-2">
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${TYPE_BADGE[user.tipo] ?? TYPE_BADGE.padrao}`}>
+                {user.tipo}
+              </span>
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_BADGE[user.status] ?? STATUS_BADGE.ativo}`}>
+                {user.status}
+              </span>
+            </div>
           </div>
         </div>
-        {user.documento && (
-          <p className="hidden sm:block text-xs font-mono text-slate-400">{user.documento}</p>
-        )}
-      </div>
 
-      {/* Dados pessoais */}
-      <form onSubmit={handleSavePerfil} className="grid gap-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex items-center gap-2">
-          <User size={18} className="text-brand-600" />
-          <h3 className="text-sm font-bold text-slate-900">Dados pessoais</h3>
-        </div>
+        <SectionDivider label="Dados da conta" />
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Nome completo">
@@ -118,10 +114,38 @@ export function MinhaContaTab() {
           <Field label="E-mail">
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" />
           </Field>
+          <Field label="Documento (CPF/CNPJ)">
+            <Input value={documento} onChange={(e) => setDocumento(e.target.value)} placeholder="000.000.000-00" />
+          </Field>
+          <Field label="País">
+            <Input value={pais} onChange={(e) => setPais(e.target.value)} placeholder="Brasil" />
+          </Field>
+          <Field label="Estado">
+            <Input value={estado} onChange={(e) => setEstado(e.target.value)} placeholder="SP" />
+          </Field>
+          <Field label="Cidade">
+            <Input value={cidade} onChange={(e) => setCidade(e.target.value)} placeholder="Sua cidade" />
+          </Field>
         </div>
 
-        {updateMut.error && !updateMut.variables?.senha_atual && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{updateMut.error.message}</div>
+        <SectionDivider label="Alterar senha" />
+
+        <div className="grid gap-4">
+          <Field label="Senha atual" hint="Necessária apenas se for trocar a senha">
+            <Input type="password" value={senhaAtual} onChange={(e) => setSenhaAtual(e.target.value)} placeholder="••••••••" />
+          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Nova senha" hint="Mínimo 8 caracteres">
+              <Input type="password" value={senhaNova} onChange={(e) => setSenhaNova(e.target.value)} placeholder="••••••••" />
+            </Field>
+            <Field label="Confirmar senha">
+              <Input type="password" value={senhaConfirm} onChange={(e) => setSenhaConfirm(e.target.value)} placeholder="••••••••" />
+            </Field>
+          </div>
+        </div>
+
+        {formError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{formError}</div>
         )}
 
         <div className="relative flex items-center justify-end gap-3">
@@ -131,7 +155,7 @@ export function MinhaContaTab() {
             </span>
           )}
           <Button type="submit" icon={<Save size={15} />} disabled={updateMut.isPending}>
-            Salvar dados
+            Salvar
           </Button>
           {saveGuide.isVisible && (
             <FirstAccessGuideCard
@@ -142,53 +166,6 @@ export function MinhaContaTab() {
               placement="top"
               className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
               onDismiss={saveGuide.dismiss}
-            />
-          )}
-        </div>
-      </form>
-
-      {/* Trocar senha */}
-      <form onSubmit={handleSaveSenha} className="grid gap-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex items-center gap-2">
-          <Lock size={18} className="text-brand-600" />
-          <h3 className="text-sm font-bold text-slate-900">Alterar senha</h3>
-        </div>
-
-        <Field label="Senha atual">
-          <Input type="password" value={senhaAtual} onChange={(e) => setSenhaAtual(e.target.value)} placeholder="••••••••" required />
-        </Field>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Nova senha" hint="Mínimo 8 caracteres">
-            <Input type="password" value={senhaNova} onChange={(e) => setSenhaNova(e.target.value)} placeholder="••••••••" required />
-          </Field>
-          <Field label="Confirmar senha">
-            <Input type="password" value={senhaConfirm} onChange={(e) => setSenhaConfirm(e.target.value)} placeholder="••••••••" required />
-          </Field>
-        </div>
-
-        {senhaError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{senhaError}</div>
-        )}
-
-        <div className="relative flex items-center justify-end gap-3">
-          {senhaSaved && (
-            <span className="flex items-center gap-1.5 text-sm text-green-600">
-              <CheckCircle2 size={15} /> Senha alterada!
-            </span>
-          )}
-          <Button type="submit" icon={<Lock size={15} />} disabled={updateMut.isPending}>
-            Alterar senha
-          </Button>
-          {senhaGuide.isVisible && (
-            <FirstAccessGuideCard
-              icon={Lock}
-              description={firstAccessGuideMessages.contaSenha}
-              align="right"
-              floating
-              placement="top"
-              className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
-              onDismiss={senhaGuide.dismiss}
             />
           )}
         </div>
