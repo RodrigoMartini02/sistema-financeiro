@@ -108,15 +108,20 @@ export function MoneyField({ value, onChange, autoFocus }: { value: number | und
   );
 }
 
-export function MoneyFieldSmall({ value, onChange, autoFocus }: { value: number | undefined; onChange: (v: number) => void; autoFocus?: boolean }) {
+export function MoneyFieldSmall({ value, onChange, autoFocus, disabled }: { value: number | undefined; onChange: (v: number) => void; autoFocus?: boolean; disabled?: boolean }) {
   const cents = value ? Math.round(value * 100) : 0;
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 42, borderRadius: 10, border: `1.5px solid ${C.borderInput}`, background: '#fff', padding: '0 12px' }}>
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 6, height: 42, borderRadius: 10,
+      border: `1.5px solid ${C.borderInput}`, background: disabled ? C.panelBg : '#fff', padding: '0 12px',
+      opacity: disabled ? 0.6 : 1,
+    }}>
       <span style={{ fontSize: 12, fontWeight: 600, color: C.textFaint }}>R$</span>
       <input
         type="text"
         inputMode="numeric"
         autoFocus={autoFocus}
+        disabled={disabled}
         value={cents > 0 ? formatCents(cents) : ''}
         onChange={(e) => onChange(digitsOnly(e.target.value) / 100)}
         placeholder="0,00"
@@ -124,6 +129,7 @@ export function MoneyFieldSmall({ value, onChange, autoFocus }: { value: number 
           flex: 1, width: '100%', minWidth: 0, border: 'none', background: 'transparent',
           fontSize: 15, fontWeight: 700, color: C.text, letterSpacing: '-0.01em',
           fontVariantNumeric: 'tabular-nums', outline: 'none',
+          cursor: disabled ? 'not-allowed' : 'text',
         }}
       />
     </div>

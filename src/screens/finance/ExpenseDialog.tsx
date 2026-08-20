@@ -78,7 +78,6 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
   const [categoriaSugestao, setCategoriaSugestao] = useState<{ id: number; nome: string } | null>(null);
   const [duplicataInfo, setDuplicataInfo] = useState<DuplicataInfo | null>(null);
   const [vencimentoManualAberto, setVencimentoManualAberto] = useState(false);
-  const [valorPagoAberto, setValorPagoAberto] = useState(false);
   const [valorInputMode, setValorInputMode] = useState<'parcela' | 'avista'>('parcela');
   const [methodTouched, setMethodTouched] = useState(false);
 
@@ -137,6 +136,11 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
     const parcela = precoAVistaWatch && n > 0 ? Math.round((precoAVistaWatch / n) * 100) / 100 : 0;
     form.setValue('valor_original', parcela || ('' as unknown as number));
   }, [valorInputMode, repeticao, precoAVistaWatch, totalParcelas]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Desmarcar "Pago" descarta o valor pago digitado.
+  useEffect(() => {
+    if (!pagoWatch) form.setValue('valor_pago', undefined);
+  }, [pagoWatch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sair do modo parcelas ou desligar "à vista" volta o campo a editar o valor da parcela diretamente.
   useEffect(() => {
@@ -237,7 +241,6 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
       setCategoriaSugestao(null);
       setDuplicataInfo(null);
       setVencimentoManualAberto(false);
-      setValorPagoAberto(false);
       setValorInputMode('parcela');
       setMethodTouched(false);
       setSavedMessage('');
@@ -247,13 +250,13 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
     setAnexos(expense?.anexos ?? []);
     const vOrig = expense?.valorOriginal ?? undefined;
     const vFinalDb = expense?.valorFinalTotal;
-    setValorPagoAberto(!!(expense?.pago && expense.valorPago != null && expense.valorPago !== vFinalDb));
+    const valorPagoDiferente = expense?.pago && expense.valorPago != null && expense.valorPago !== vFinalDb;
     setMethodTouched(true); // ao editar, não sobrescrever forma de pagamento já escolhida
     form.reset({
       descricao:       expense?.descricao ?? '',
       valor_original:  vOrig ?? '' as unknown as number,
       valor_final:     undefined,
-      valor_pago:      expense?.valorPago ?? undefined,
+      valor_pago:      valorPagoDiferente ? (expense?.valorPago ?? undefined) : undefined,
       precoAVista:     undefined,
       dataCompra:      expense?.dataCompra ?? presetDate ?? todayIso(),
       dataVencimentoManual: expense?.dataVencimento,
@@ -308,9 +311,10 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
     return { label: 'Pago', color: C.success, bg: C.successBg, border: C.successBorder };
   }, [isCredito, vencimentoDerivado.data]);
 
-  const efetivoFinal = pagoWatch ? (valorPagoAberto ? (valorPagoWatch ?? valorDigitado) : valorDigitado) : valorDigitado;
-  const jurosCalculado = pagoWatch && valorPagoAberto ? Math.max(0, efetivoFinal - valorDigitado) : 0;
-  const descontoCalculado = pagoWatch && valorPagoAberto ? Math.max(0, valorDigitado - efetivoFinal) : 0;
+  const valorPagoPreenchido = valorPagoWatch != null;
+  const efetivoFinal = pagoWatch ? (valorPagoPreenchido ? (valorPagoWatch ?? valorDigitado) : valorDigitado) : valorDigitado;
+  const jurosCalculado = pagoWatch && valorPagoPreenchido ? Math.max(0, efetivoFinal - valorDigitado) : 0;
+  const descontoCalculado = pagoWatch && valorPagoPreenchido ? Math.max(0, valorDigitado - efetivoFinal) : 0;
 
   const totalParceladoDerivado = repeticao === 'parcelas' && (totalParcelas ?? 0) >= 2
     ? valorDigitado * (totalParcelas ?? 1)
@@ -341,7 +345,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
     descricao:       data.descricao,
     valor_original:  data.valor_original,
     valor_final:     undefined,
-    valor_pago:      data.pago && valorPagoAberto ? data.valor_pago : undefined,
+    valor_pago:      data.pago && data.valor_pago != null ? data.valor_pago : undefined,
     dataVencimento:  vencimentoDerivado.data,
     dataCompra:      data.dataCompra,
     categoria_id:    data.categoria_id ? Number(data.categoria_id) : undefined,
@@ -368,7 +372,6 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
       totalParcelas: 2, parcelasJaPagas: 0, diaRecorrencia: todayNumericDay(),
       numero_nf: undefined, data_emissao_nf: undefined,
     });
-    setValorPagoAberto(false);
     setValorInputMode('parcela');
   };
 
@@ -705,7 +708,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
             </div>
           </div>
 
-          {/* ── Bloco 3: QUANTO (valor da compra + valor pago, lado a lado) ── */}
+          {/* ── Bloco 3: QUANTO (valor da compra + checkbox pago / valor pago) ── */}
           <div
             className="grid grid-cols-1 gap-y-3.5 sm:grid-cols-[1.35fr_1fr] sm:gap-y-0"
             style={{ ...cardStyle, columnGap: 18, alignItems: 'start' }}
@@ -763,61 +766,54 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
               <div style={{ fontSize: 12, color: C.textFaint, minHeight: 18 }}>
                 {valorInputMode === 'avista'
                   ? `Dividido em ${totalParcelas}x — este é o valor salvo por parcela`
-                  : ultimoValorPago ? `Última vez você pagou ${formatCurrency(ultimoValorPago)}` : 'Preço base da compra'}
+                  : ultimoValorPago ? `Última vez você pagou ${formatCurrency(ultimoValorPago)}` : ''}
               </div>
               {form.formState.errors.valor_original?.message && (
                 <div style={{ fontSize: 12, color: C.danger }}>{form.formState.errors.valor_original.message}</div>
+              )}
+              {!isCredito && (
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, fontWeight: 600, color: C.text, cursor: 'pointer', marginTop: 4 }}>
+                  <input
+                    type="checkbox"
+                    {...form.register('pago')}
+                    style={{ width: 16, height: 16, marginTop: 1, accentColor: C.primary, cursor: 'pointer' }}
+                  />
+                  <span>
+                    Pago
+                    <span style={{ display: 'block', fontSize: '11.5px', fontWeight: 500, color: C.textMuted }}>
+                      Assinale se a despesa já foi paga
+                    </span>
+                  </span>
+                </label>
               )}
             </div>
 
             {!isCredito && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, height: 15, fontSize: 13, fontWeight: 600, color: C.text, cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    {...form.register('pago')}
-                    style={{ width: 16, height: 16, accentColor: C.primary, cursor: 'pointer' }}
-                  />
-                  Pago
-                </label>
-                {pagoWatch && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                    {valorPagoAberto ? (
-                      <div className="w-full max-w-[260px]">
-                        <Controller
-                          control={form.control}
-                          name="valor_pago"
-                          render={({ field }) => <MoneyFieldSmall value={field.value} onChange={field.onChange} />}
-                        />
-                      </div>
-                    ) : (
-                      <span style={{ fontSize: '12.5px', color: C.textSoft }}>Valor pago igual ao valor da compra</span>
+                <label style={{ ...labelStyle, height: 'auto' }}>VALOR PAGO</label>
+                <div className="w-full max-w-[260px]">
+                  <Controller
+                    control={form.control}
+                    name="valor_pago"
+                    render={({ field }) => (
+                      <MoneyFieldSmall value={field.value} onChange={field.onChange} disabled={!pagoWatch} />
                     )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const next = !valorPagoAberto;
-                        setValorPagoAberto(next);
-                        if (next) form.setValue('valor_pago', valorOriginalWatch || undefined);
-                        else form.setValue('valor_pago', undefined);
-                      }}
-                      style={{ alignSelf: 'flex-start', fontSize: '12.5px', fontWeight: 600, color: C.primaryDark, cursor: 'pointer', background: 'transparent', border: 'none' }}
-                    >
-                      {valorPagoAberto ? 'usar valor da compra' : 'valor pago diferente'}
-                    </button>
-                    {valorPagoAberto && (
-                      <div style={{ minHeight: 18 }}>
-                        {jurosCalculado > 0 && (
-                          <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.danger, background: C.dangerBg, border: `1px solid ${C.dangerBorder}` }}>
-                            + {formatCurrency(jurosCalculado)} de multa e juros
-                          </span>
-                        )}
-                        {descontoCalculado > 0 && (
-                          <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.success, background: C.successBg, border: `1px solid ${C.successBorder}` }}>
-                            − {formatCurrency(descontoCalculado)} de desconto
-                          </span>
-                        )}
-                      </div>
+                  />
+                </div>
+                <div style={{ fontSize: 12, color: C.textFaint, minHeight: 18 }}>
+                  Preencha apenas se o valor pago for diferente do valor da compra
+                </div>
+                {pagoWatch && (jurosCalculado > 0 || descontoCalculado > 0) && (
+                  <div style={{ minHeight: 18 }}>
+                    {jurosCalculado > 0 && (
+                      <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.danger, background: C.dangerBg, border: `1px solid ${C.dangerBorder}` }}>
+                        + {formatCurrency(jurosCalculado)} de multa e juros
+                      </span>
+                    )}
+                    {descontoCalculado > 0 && (
+                      <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.success, background: C.successBg, border: `1px solid ${C.successBorder}` }}>
+                        − {formatCurrency(descontoCalculado)} de desconto
+                      </span>
                     )}
                   </div>
                 )}
