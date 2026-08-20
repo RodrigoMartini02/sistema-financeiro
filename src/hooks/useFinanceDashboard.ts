@@ -17,7 +17,11 @@ export function useFinanceDashboard(month: number, year: number, enabled = true)
     staleTime: 30_000,
   });
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: key });
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: key });
+    qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'dashboard-anual' });
+    qc.invalidateQueries({ queryKey: queryKeys.reservas });
+  };
 
   const saveIncomeMut = useMutation({
     mutationFn: ({ values, id }: { values: IncomeFormValues; id?: number }) =>

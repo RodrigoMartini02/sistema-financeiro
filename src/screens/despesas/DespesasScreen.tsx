@@ -220,23 +220,29 @@ export function DespesasScreen({ month, year, toolbarStart }: DespesasScreenProp
   });
   const mesFechado = mesStatusQuery.data === true;
 
+  const invalidateFinanceQueries = () => {
+    qc.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) });
+    qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'dashboard-anual' });
+    qc.invalidateQueries({ queryKey: queryKeys.reservas });
+  };
+
   const pagarMut = useMutation({
     mutationFn: ({ id, dataPagamento, valorPago }: { id: number; dataPagamento: string; valorPago: number }) =>
       pagarDespesa(id, dataPagamento, valorPago),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) });
+      invalidateFinanceQueries();
       setPaymentModal({ open: false });
     },
   });
 
   const moverMut = useMutation({
     mutationFn: (id: number) => moverDespesa(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) }),
+    onSuccess: invalidateFinanceQueries,
   });
 
   const cancelarMut = useMutation({
     mutationFn: (id: number) => apiRequest<void>(`/despesas/${id}/cancelar`, { method: 'PUT' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) }),
+    onSuccess: invalidateFinanceQueries,
   });
 
   const handleMoverProximoMes = async (item: Expense) => {
