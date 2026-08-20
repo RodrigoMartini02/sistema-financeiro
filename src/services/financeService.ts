@@ -165,7 +165,7 @@ export async function saveExpense(month: number, year: number, values: ExpenseFo
     numero_nf: values.numero_nf ?? null,
     data_emissao_nf: values.data_emissao_nf ?? null,
     tipo_despesa: values.tipo_despesa ?? null,
-    valor_pago: values.pago ? valorFinal : null,
+    valor_pago: values.pago ? (values.valor_pago ?? valorFinal) : null,
     recorrente: values.recorrente ?? false,
     parcelado: values.parcelado ?? false,
     total_parcelas: values.parcelado ? (values.total_parcelas ?? null) : null,
