@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { User, Save, CheckCircle2 } from 'lucide-react';
 import { fetchMe, updateMe } from '../../services/usuariosService';
+import { fetchPerfis, savePerfil } from '../../services/configService';
+import { queryKeys } from '../../services/queryKeys';
 import { Button } from '../../ui/button';
 import { Field, Input, SectionDivider } from '../../ui/form';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
@@ -25,6 +27,8 @@ const STATUS_BADGE: Record<string, string> = {
 export function MinhaContaTab() {
   const qc = useQueryClient();
   const { data: user, isLoading } = useQuery({ queryKey: ['usuario-me'], queryFn: fetchMe });
+  const { data: perfis } = useQuery({ queryKey: queryKeys.perfis, queryFn: fetchPerfis });
+  const perfilEmpresa = perfis?.find((p) => p.tipo === 'empresa');
 
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
@@ -32,6 +36,7 @@ export function MinhaContaTab() {
   const [pais, setPais] = useState('');
   const [estado, setEstado] = useState('');
   const [cidade, setCidade] = useState('');
+  const [nomeFantasia, setNomeFantasia] = useState('');
 
   const [senhaAtual, setSenhaAtual] = useState('');
   const [senhaNova, setSenhaNova] = useState('');
@@ -52,18 +57,18 @@ export function MinhaContaTab() {
     }
   }, [user]);
 
-  const updateMut = useMutation({
-    mutationFn: updateMe,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['usuario-me'] });
-      setSenhaAtual(''); setSenhaNova(''); setSenhaConfirm('');
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
-    },
-    onError: (err) => setFormError(err.message),
-  });
+  useEffect(() => {
+    if (perfilEmpresa) {
+      setNomeFantasia(perfilEmpresa.nome_fantasia ?? '');
+    }
+  }, [perfilEmpresa]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const isCnpj = documento.replace(/\D/g, '').length === 14;
+
+  const updateMut = useMutation({ mutationFn: updateMe });
+  const savePerfilMut = useMutation({ mutationFn: (v: Parameters<typeof savePerfil>[0]) => savePerfil(v, perfilEmpresa!.id) });
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
 
@@ -74,10 +79,32 @@ export function MinhaContaTab() {
       if (senhaNova.length < 8) { setFormError('A nova senha deve ter pelo menos 8 caracteres'); return; }
     }
 
-    updateMut.mutate({
-      nome, email, documento, pais, estado, cidade,
-      ...(isChangingPassword ? { senha_atual: senhaAtual, nova_senha: senhaNova } : {}),
-    });
+    try {
+      await updateMut.mutateAsync({
+        nome, email, documento, pais, estado, cidade,
+        ...(isChangingPassword ? { senha_atual: senhaAtual, nova_senha: senhaNova } : {}),
+      });
+
+      if (perfilEmpresa) {
+        await savePerfilMut.mutateAsync({
+          tipo: 'empresa',
+          nome: perfilEmpresa.nome,
+          documento: perfilEmpresa.documento ?? undefined,
+          razao_social: perfilEmpresa.razao_social ?? undefined,
+          nome_fantasia: nomeFantasia,
+          atividade: perfilEmpresa.atividade ?? undefined,
+          enquadramento: perfilEmpresa.enquadramento ?? undefined,
+        });
+        qc.invalidateQueries({ queryKey: queryKeys.perfis });
+      }
+
+      qc.invalidateQueries({ queryKey: ['usuario-me'] });
+      setSenhaAtual(''); setSenhaNova(''); setSenhaConfirm('');
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      setFormError((err as Error).message);
+    }
   };
 
   if (isLoading) return <div className="py-12 text-center text-sm text-slate-400">Carregando perfil...</div>;
@@ -117,6 +144,11 @@ export function MinhaContaTab() {
           <Field label="Documento (CPF/CNPJ)">
             <Input value={documento} onChange={(e) => setDocumento(e.target.value)} placeholder="000.000.000-00" />
           </Field>
+          {isCnpj && perfilEmpresa && (
+            <Field label="Nome fantasia">
+              <Input value={nomeFantasia} onChange={(e) => setNomeFantasia(e.target.value)} placeholder="Ex: ABC Stores" required />
+            </Field>
+          )}
           <Field label="País">
             <Input value={pais} onChange={(e) => setPais(e.target.value)} placeholder="Brasil" />
           </Field>
@@ -154,7 +186,7 @@ export function MinhaContaTab() {
               <CheckCircle2 size={15} /> Salvo com sucesso
             </span>
           )}
-          <Button type="submit" icon={<Save size={15} />} disabled={updateMut.isPending}>
+          <Button type="submit" icon={<Save size={15} />} disabled={updateMut.isPending || savePerfilMut.isPending}>
             Salvar
           </Button>
           {saveGuide.isVisible && (
