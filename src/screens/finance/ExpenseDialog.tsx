@@ -10,7 +10,7 @@ import { CategoryFloatingSelect } from '../../ui/CategoryFloatingSelect';
 import { Dialog } from '../../ui/dialog';
 import {
   C, labelStyle, fieldInputStyle, smallInputStyle, numericInputStyle,
-  cardStyle, panelStyle, chipStyle, MoneyField, MoneyFieldSmall,
+  cardStyle, panelStyle, chipStyle, MoneyField,
 } from '../../ui/dialogFormTokens';
 import { getRecentCategoryIds, suggestCategoryForDescription } from '../../utils/categorySuggestions';
 import { calcularVencimentoFatura, proximoDiaDoMes } from '../../utils/cardDueDate';
@@ -477,9 +477,21 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
             style={{ ...cardStyle, columnGap: 18, alignItems: 'start' }}
           >
             <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7, position: 'relative' }}>
-              <label style={labelStyle}>
-                <span>DESCRIÇÃO</span><span style={{ color: C.primary }}>*</span>
-              </label>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
+                <label style={{ ...labelStyle, height: 'auto' }}>
+                  <span>DESCRIÇÃO</span><span style={{ color: C.primary }}>*</span>
+                </label>
+                {!isCredito && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: C.text, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      {...form.register('pago')}
+                      style={{ width: 16, height: 16, accentColor: C.primary, cursor: 'pointer' }}
+                    />
+                    Pago
+                  </label>
+                )}
+              </div>
               <input
                 {...form.register('descricao', { onChange: () => setAcHidden(false) })}
                 placeholder="Ex: Conta de luz"
@@ -768,59 +780,48 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
               {form.formState.errors.valor_original?.message && (
                 <div style={{ fontSize: 12, color: C.danger }}>{form.formState.errors.valor_original.message}</div>
               )}
+              {!isCredito && (
+                <button
+                  type="button"
+                  disabled={!pagoWatch}
+                  onClick={() => {
+                    const next = !valorPagoAberto;
+                    setValorPagoAberto(next);
+                    if (next) form.setValue('valor_pago', valorOriginalWatch || undefined);
+                    else form.setValue('valor_pago', undefined);
+                  }}
+                  style={{
+                    alignSelf: 'flex-start', fontSize: '12.5px', fontWeight: 600, background: 'transparent', border: 'none', padding: 0,
+                    color: pagoWatch ? C.primaryDark : '#adbfc9', cursor: pagoWatch ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  {valorPagoAberto ? 'usar valor da compra' : 'valor pago diferente'}
+                </button>
+              )}
             </div>
 
-            {!isCredito && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, height: 15, fontSize: 13, fontWeight: 600, color: C.text, cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    {...form.register('pago')}
-                    style={{ width: 16, height: 16, accentColor: C.primary, cursor: 'pointer' }}
+            {!isCredito && pagoWatch && valorPagoAberto && (
+              <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
+                <label style={{ ...labelStyle, height: 'auto' }}>VALOR PAGO</label>
+                <div className="w-full max-w-[260px]">
+                  <Controller
+                    control={form.control}
+                    name="valor_pago"
+                    render={({ field }) => <MoneyField value={field.value} onChange={field.onChange} />}
                   />
-                  Pago
-                </label>
-                {pagoWatch && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                    {valorPagoAberto ? (
-                      <div className="w-full max-w-[260px]">
-                        <Controller
-                          control={form.control}
-                          name="valor_pago"
-                          render={({ field }) => <MoneyFieldSmall value={field.value} onChange={field.onChange} />}
-                        />
-                      </div>
-                    ) : (
-                      <span style={{ fontSize: '12.5px', color: C.textSoft }}>Valor pago igual ao valor da compra</span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const next = !valorPagoAberto;
-                        setValorPagoAberto(next);
-                        if (next) form.setValue('valor_pago', valorOriginalWatch || undefined);
-                        else form.setValue('valor_pago', undefined);
-                      }}
-                      style={{ alignSelf: 'flex-start', fontSize: '12.5px', fontWeight: 600, color: C.primaryDark, cursor: 'pointer', background: 'transparent', border: 'none' }}
-                    >
-                      {valorPagoAberto ? 'usar valor da compra' : 'valor pago diferente'}
-                    </button>
-                    {valorPagoAberto && (
-                      <div style={{ minHeight: 18 }}>
-                        {jurosCalculado > 0 && (
-                          <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.danger, background: C.dangerBg, border: `1px solid ${C.dangerBorder}` }}>
-                            + {formatCurrency(jurosCalculado)} de multa e juros
-                          </span>
-                        )}
-                        {descontoCalculado > 0 && (
-                          <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.success, background: C.successBg, border: `1px solid ${C.successBorder}` }}>
-                            − {formatCurrency(descontoCalculado)} de desconto
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
+                </div>
+                <div style={{ minHeight: 18 }}>
+                  {jurosCalculado > 0 && (
+                    <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.danger, background: C.dangerBg, border: `1px solid ${C.dangerBorder}` }}>
+                      + {formatCurrency(jurosCalculado)} de multa e juros
+                    </span>
+                  )}
+                  {descontoCalculado > 0 && (
+                    <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.success, background: C.successBg, border: `1px solid ${C.successBorder}` }}>
+                      − {formatCurrency(descontoCalculado)} de desconto
+                    </span>
+                  )}
+                </div>
               </div>
             )}
           </div>
