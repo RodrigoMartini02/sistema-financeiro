@@ -112,11 +112,11 @@ export function MoneyFieldSmall({ value, onChange, autoFocus, disabled }: { valu
   const cents = value ? Math.round(value * 100) : 0;
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 6, height: 42, borderRadius: 10,
-      border: `1.5px solid ${C.borderInput}`, background: disabled ? C.panelBg : '#fff', padding: '0 12px',
+      display: 'flex', alignItems: 'center', gap: 8, height: 54, borderRadius: 12,
+      border: `1.5px solid ${C.borderInput}`, background: disabled ? C.panelBg : '#fff', padding: '0 14px',
       opacity: disabled ? 0.6 : 1,
     }}>
-      <span style={{ fontSize: 12, fontWeight: 600, color: C.textFaint }}>R$</span>
+      <span style={{ fontSize: 13, fontWeight: 600, color: C.textFaint }}>R$</span>
       <input
         type="text"
         inputMode="numeric"
@@ -127,7 +127,7 @@ export function MoneyFieldSmall({ value, onChange, autoFocus, disabled }: { valu
         placeholder="0,00"
         style={{
           flex: 1, width: '100%', minWidth: 0, border: 'none', background: 'transparent',
-          fontSize: 15, fontWeight: 700, color: C.text, letterSpacing: '-0.01em',
+          fontSize: 26, fontWeight: 700, color: C.text, letterSpacing: '-0.02em',
           fontVariantNumeric: 'tabular-nums', outline: 'none',
           cursor: disabled ? 'not-allowed' : 'text',
         }}
