@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Calendar, List, Lock, LockOpen, PiggyBank, Plus, RefreshCw, Target, TrendingDown, TrendingUp } from 'lucide-react';
+import { Calendar, List, Lock, LockOpen, PiggyBank, Plus, Target, TrendingDown, TrendingUp } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
@@ -196,11 +196,6 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
   const saldoProjetado = saldoAnterior + receitas - despesas;
   const comprometimento = receitas > 0 ? (despesas / receitas) * 100 : 0;
 
-  const handleRefresh = () => {
-    void finance.dashboard.refetch();
-    void annual.refetch();
-    void reservas.refetch();
-  };
   const handleTabChange = (tab: MovementTab) => {
     setActiveTab(tab);
     if (tab === 'planejamento') setViewMode('lista');
@@ -214,7 +209,6 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="pr-1 text-base font-bold text-slate-950 dark:text-white">Movimentações</h2>
-              <Button variant="secondary" icon={<RefreshCw size={15} />} onClick={handleRefresh}>Atualizar</Button>
               <div className="relative">
                 <Button
                   variant="secondary"
@@ -248,7 +242,6 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
             <div className="flex flex-col justify-between gap-3 xl:flex-row xl:items-center">
               <h2 className="text-xl font-bold text-slate-950 dark:text-white">Movimentações</h2>
               <div className="flex flex-wrap items-center gap-2">
-                <Button variant="secondary" icon={<RefreshCw size={15} />} onClick={handleRefresh}>Atualizar</Button>
                 <div className="relative">
                   <Button
                     variant="secondary"

@@ -58,15 +58,21 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
   const allItems = finance.dashboard.data?.incomes ?? [];
   const isEmpresa = localStorage.getItem('perfilAtivoTipo') === 'empresa';
 
+  const invalidateFinanceQueries = () => {
+    void qc.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) });
+    void qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'dashboard-anual' });
+    void qc.invalidateQueries({ queryKey: queryKeys.reservas });
+  };
+
   const cancelarReceita = useMutation({
     mutationFn: (id: number) => apiRequest<void>(`/receitas/${id}/cancelar`, { method: 'PUT' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) }),
+    onSuccess: invalidateFinanceQueries,
   });
 
   const receberReceita = useMutation({
     mutationFn: (id: number) => apiRequest<void>(`/receitas/${id}/receber`, { method: 'PUT' }),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) });
+      invalidateFinanceQueries();
       void qc.invalidateQueries({ queryKey: queryKeys.contratosStatusFaturamento(month, year) });
     },
   });
@@ -116,7 +122,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
     mutationFn: (contratoId: number) => faturarContrato(contratoId, month + 1, year),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.contratosStatusFaturamento(month, year) });
-      void qc.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) });
+      invalidateFinanceQueries();
     },
   });
 
@@ -124,7 +130,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
     mutationFn: (receitaId: number) => apiRequest<void>(`/receitas/${receitaId}/receber`, { method: 'PUT' }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.contratosStatusFaturamento(month, year) });
-      void qc.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) });
+      invalidateFinanceQueries();
     },
   });
 
