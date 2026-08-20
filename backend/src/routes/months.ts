@@ -93,6 +93,24 @@ async function calculateFinalBalance(userId: number, year: number, month: number
   return breakdown.finalBalance;
 }
 
+router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { perfil_id } = req.query as Record<string, string | undefined>;
+    const profileId = perfil_id ? parseInt(perfil_id) : null;
+    const { clause, params: extra } = profileWhere(profileId, 2);
+
+    const result = await pool.query(
+      `SELECT ano, mes, fechado FROM meses WHERE usuario_id = $1${clause} ORDER BY ano, mes`,
+      [req.user!.id, ...extra],
+    );
+
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('List meses error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao listar meses' });
+  }
+});
+
 router.get('/:ano/:mes/saldo', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const year = parseInt(req.params['ano']!);
@@ -135,7 +153,8 @@ router.post('/:ano/:mes/fechar', authenticate, async (req: Request, res: Respons
 
     res.json({ success: true, message: 'Mês fechado', data: result.rows[0] });
   } catch (error) {
-    console.error('Fechar mês error:', error);
+    const pgCode = (error as { code?: string }).code;
+    console.error('Fechar mês error:', { code: pgCode, error });
     res.status(500).json({ success: false, message: 'Erro ao fechar mês' });
   }
 });

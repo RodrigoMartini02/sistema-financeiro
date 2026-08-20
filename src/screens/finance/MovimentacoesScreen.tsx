@@ -160,6 +160,8 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
   });
   const mesFechado = mesStatusQuery.data === true;
 
+  const [mesActionError, setMesActionError] = useState('');
+
   const fecharMut = useMutation({
     mutationFn: async () => {
       const profileId = getActiveProfileId();
@@ -168,7 +170,11 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
         body: JSON.stringify(profileId ? { perfil_id: profileId } : {}),
       });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mesStatus(year, month) }),
+    onSuccess: () => {
+      setMesActionError('');
+      qc.invalidateQueries({ queryKey: queryKeys.mesStatus(year, month) });
+    },
+    onError: (error: Error) => setMesActionError(error.message),
   });
   const reabrirMut = useMutation({
     mutationFn: async () => {
@@ -178,7 +184,11 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
         body: JSON.stringify(profileId ? { perfil_id: profileId } : {}),
       });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mesStatus(year, month) }),
+    onSuccess: () => {
+      setMesActionError('');
+      qc.invalidateQueries({ queryKey: queryKeys.mesStatus(year, month) });
+    },
+    onError: (error: Error) => setMesActionError(error.message),
   });
   const moveReserveMut = useMutation({
     mutationFn: ({ reserveId, values }: { reserveId: number; values: MovimentacaoFormValues }) => movimentar(reserveId, values),
@@ -229,6 +239,11 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
                     onDismiss={fecharMesGuide.dismiss}
                   />
                 )}
+                {mesActionError && (
+                  <p className="absolute left-0 top-full z-10 mt-1 whitespace-nowrap text-xs font-medium text-red-600 dark:text-red-400">
+                    {mesActionError}
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -261,6 +276,11 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
                       description={firstAccessGuideMessages.despesasFecharMes}
                       onDismiss={fecharMesGuide.dismiss}
                     />
+                  )}
+                  {mesActionError && (
+                    <p className="absolute left-0 top-full z-10 mt-1 whitespace-nowrap text-xs font-medium text-red-600 dark:text-red-400">
+                      {mesActionError}
+                    </p>
                   )}
                 </div>
                 {!isPlanning && (
