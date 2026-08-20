@@ -768,18 +768,13 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                 <div style={{ fontSize: 12, color: C.danger }}>{form.formState.errors.valor_original.message}</div>
               )}
               {!isCredito && (
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, fontWeight: 600, color: C.text, cursor: 'pointer', marginTop: 4 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '12.5px', fontWeight: 500, color: C.textMuted, cursor: 'pointer', marginTop: 4 }}>
                   <input
                     type="checkbox"
                     {...form.register('pago')}
-                    style={{ width: 16, height: 16, marginTop: 1, accentColor: C.primary, cursor: 'pointer' }}
+                    style={{ width: 16, height: 16, accentColor: C.primary, cursor: 'pointer' }}
                   />
-                  <span>
-                    Pago
-                    <span style={{ display: 'block', fontSize: '11.5px', fontWeight: 500, color: C.textMuted }}>
-                      Assinale se a despesa já foi paga
-                    </span>
-                  </span>
+                  Assinale se a despesa já foi paga
                 </label>
               )}
             </div>
