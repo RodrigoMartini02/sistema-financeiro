@@ -166,38 +166,45 @@ router.post(
 
       const hashedPassword = await bcrypt.hash(senha!, 10);
 
-      const [newUser] = await db
-        .insert(users)
-        .values({
-          name: nome!,
-          email: email!.toLowerCase(),
-          document: cleanDoc,
-          password: hashedPassword,
-          type: (tipo as 'padrao' | 'admin' | 'master' | undefined) ?? 'padrao',
-          status: 'ativo',
-          googleId: google_id ?? null,
-          country: pais ?? null,
-          state: estado ?? null,
-          city: cidade ?? null,
-        })
-        .returning({ id: users.id, name: users.name, email: users.email, document: users.document, type: users.type, status: users.status });
+      // Criação de usuário + perfil + categorias padrão precisa ser atômica:
+      // se qualquer etapa falhar, o usuário não deve ficar registrado sem
+      // perfil/categorias (cadastro incompleto).
+      const newUser = await db.transaction(async (transaction) => {
+        const [createdUser] = await transaction
+          .insert(users)
+          .values({
+            name: nome!,
+            email: email!.toLowerCase(),
+            document: cleanDoc,
+            password: hashedPassword,
+            type: (tipo as 'padrao' | 'admin' | 'master' | undefined) ?? 'padrao',
+            status: 'ativo',
+            googleId: google_id ?? null,
+            country: pais ?? null,
+            state: estado ?? null,
+            city: cidade ?? null,
+          })
+          .returning({ id: users.id, name: users.name, email: users.email, document: users.document, type: users.type, status: users.status });
 
-      // Create useful defaults for the initial profile — 'empresa' when
-      // registering with a CNPJ, 'pessoal' (CPF) otherwise.
-      if (isCnpj) {
-        await ensureDefaultCategories(newUser!.id, 'empresa');
-        await db.insert(profiles).values({
-          userId: newUser!.id,
-          type: 'empresa',
-          name: nome_fantasia!.trim(),
-          document: cleanDoc,
-          tradeName: nome_fantasia!.trim(),
-          active: true,
-        });
-      } else {
-        await ensureDefaultCategories(newUser!.id, 'pessoal');
-        await db.insert(profiles).values({ userId: newUser!.id, type: 'pessoal', name: 'Pessoal', active: true });
-      }
+        // Create useful defaults for the initial profile — 'empresa' when
+        // registering with a CNPJ, 'pessoal' (CPF) otherwise.
+        if (isCnpj) {
+          await ensureDefaultCategories(createdUser!.id, 'empresa', transaction);
+          await transaction.insert(profiles).values({
+            userId: createdUser!.id,
+            type: 'empresa',
+            name: nome_fantasia!.trim(),
+            document: cleanDoc,
+            tradeName: nome_fantasia!.trim(),
+            active: true,
+          });
+        } else {
+          await ensureDefaultCategories(createdUser!.id, 'pessoal', transaction);
+          await transaction.insert(profiles).values({ userId: createdUser!.id, type: 'pessoal', name: 'Pessoal', active: true });
+        }
+
+        return createdUser;
+      });
 
       const token = jwt.sign(
         { id: newUser!.id, documento: newUser!.document, tipo: newUser!.type },

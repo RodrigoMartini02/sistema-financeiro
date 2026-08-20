@@ -1,6 +1,8 @@
-import { pool } from '../db/client';
+import { sql } from 'drizzle-orm';
+import { db } from '../db/client';
 
 export type DefaultCategoryProfileType = 'pessoal' | 'empresa';
+type CategoryExecutor = Pick<typeof db, 'execute'>;
 
 export const PERSONAL_DEFAULT_CATEGORIES = [
   'Alimenta\u00e7\u00e3o',
@@ -52,15 +54,16 @@ export function getDefaultCategories(profileType: DefaultCategoryProfileType): r
 export async function ensureDefaultCategories(
   userId: number,
   profileType: DefaultCategoryProfileType = 'pessoal',
+  executor: CategoryExecutor = db,
 ): Promise<void> {
   const names = getDefaultCategories(profileType);
 
   for (const [index, name] of names.entries()) {
-    await pool.query(
-      `INSERT INTO categorias (usuario_id, nome, cor, icone, parent_id, tipo)
-       VALUES ($1, $2, $3, NULL, NULL, $4)
-       ON CONFLICT (usuario_id, LOWER(nome), COALESCE(tipo, 'pessoal')) DO NOTHING`,
-      [userId, name, DEFAULT_CATEGORY_COLORS[index % DEFAULT_CATEGORY_COLORS.length] ?? '#6366f1', profileType],
-    );
+    const color = DEFAULT_CATEGORY_COLORS[index % DEFAULT_CATEGORY_COLORS.length] ?? '#6366f1';
+    await executor.execute(sql`
+      INSERT INTO categorias (usuario_id, nome, cor, icone, parent_id, tipo)
+      VALUES (${userId}, ${name}, ${color}, NULL, NULL, ${profileType})
+      ON CONFLICT (usuario_id, LOWER(nome), tipo) WHERE perfil_id IS NULL DO NOTHING
+    `);
   }
 }
