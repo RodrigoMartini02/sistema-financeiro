@@ -1,8 +1,8 @@
 import { apiRequest } from './apiClient';
 
 export interface UsuarioMe {
-  id: number; nome: string; name?: string; email: string;
-  documento?: string; document?: string; tipo: string; type?: string; status: string;
+  id: number; nome: string; email: string;
+  documento?: string; tipo: string; status: string;
   pais?: string | null; estado?: string | null; cidade?: string | null;
   foto?: string | null; data_cadastro?: string;
   plano_status?: string; plano_tipo?: string;
@@ -15,8 +15,8 @@ export interface UsuarioMePutBody {
 }
 
 export interface UsuarioListItem {
-  id: number; nome: string; name?: string; email: string;
-  documento?: string; document?: string; tipo: string; type?: string; status: string;
+  id: number; nome: string; email: string;
+  documento?: string; tipo: string; status: string;
   pais?: string | null; estado?: string | null; cidade?: string | null;
   data_cadastro?: string; data_atualizacao?: string;
 }

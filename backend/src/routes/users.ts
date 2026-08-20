@@ -14,18 +14,18 @@ router.get('/me', authenticate, async (req: Request, res: Response): Promise<voi
     const [user] = await db
       .select({
         id: users.id,
-        name: users.name,
+        nome: users.name,
         email: users.email,
-        document: users.document,
-        country: users.country,
-        state: users.state,
-        city: users.city,
-        type: users.type,
+        documento: users.document,
+        pais: users.country,
+        estado: users.state,
+        cidade: users.city,
+        tipo: users.type,
         status: users.status,
-        planStatus: users.planStatus,
-        planType: users.planType,
-        planExpiration: users.planExpiration,
-        createdAt: users.createdAt,
+        plano_status: users.planStatus,
+        plano_tipo: users.planType,
+        plano_expiracao: users.planExpiration,
+        data_cadastro: users.createdAt,
       })
       .from(users)
       .where(eq(users.id, req.user!.id))
@@ -112,7 +112,7 @@ router.put('/me', authenticate, async (req: Request, res: Response): Promise<voi
       .update(users)
       .set(updateData)
       .where(eq(users.id, req.user!.id))
-      .returning({ id: users.id, name: users.name, email: users.email, country: users.country, state: users.state, city: users.city });
+      .returning({ id: users.id, nome: users.name, email: users.email, pais: users.country, estado: users.state, cidade: users.city });
 
     res.json({ success: true, message: 'Profile updated successfully', data: updated });
   } catch (error) {
@@ -368,7 +368,7 @@ router.post('/', authenticate, requireMaster, async (req: Request, res: Response
         state: estado ?? null,
         city: cidade ?? null,
       })
-      .returning({ id: users.id, name: users.name, email: users.email, document: users.document, type: users.type, status: users.status, country: users.country, state: users.state, city: users.city, createdAt: users.createdAt });
+      .returning({ id: users.id, nome: users.name, email: users.email, documento: users.document, tipo: users.type, status: users.status, pais: users.country, estado: users.state, cidade: users.city, data_cadastro: users.createdAt });
 
     res.status(201).json({ success: true, message: 'User created successfully', data: created });
   } catch (error) {
@@ -488,7 +488,7 @@ router.get('/:id', authenticate, requireAdmin, async (req: Request, res: Respons
     }
 
     const [user] = await db
-      .select({ id: users.id, name: users.name, email: users.email, document: users.document, type: users.type, status: users.status, country: users.country, state: users.state, city: users.city, createdAt: users.createdAt, updatedAt: users.updatedAt })
+      .select({ id: users.id, nome: users.name, email: users.email, documento: users.document, tipo: users.type, status: users.status, pais: users.country, estado: users.state, cidade: users.city, data_cadastro: users.createdAt, data_atualizacao: users.updatedAt })
       .from(users)
       .where(eq(users.id, userId))
       .limit(1);
@@ -498,7 +498,7 @@ router.get('/:id', authenticate, requireAdmin, async (req: Request, res: Respons
       return;
     }
 
-    if (req.user!.type === 'admin' && user.type !== 'padrao') {
+    if (req.user!.type === 'admin' && user.tipo !== 'padrao') {
       res.status(403).json({ success: false, message: 'Access denied' });
       return;
     }
@@ -569,7 +569,7 @@ router.put('/:id', authenticate, requireAdmin, async (req: Request, res: Respons
       .update(users)
       .set(updateData)
       .where(eq(users.id, userId))
-      .returning({ id: users.id, name: users.name, email: users.email, document: users.document, type: users.type, status: users.status, updatedAt: users.updatedAt });
+      .returning({ id: users.id, nome: users.name, email: users.email, documento: users.document, tipo: users.type, status: users.status, data_atualizacao: users.updatedAt });
 
     res.json({ success: true, message: 'User updated successfully', data: updated });
   } catch (error) {
@@ -607,7 +607,7 @@ router.put('/:id/status', authenticate, requireAdmin, async (req: Request, res: 
       .update(users)
       .set({ status: status as 'ativo' | 'inativo' | 'bloqueado', updatedAt: new Date() })
       .where(eq(users.id, userId))
-      .returning({ id: users.id, name: users.name, status: users.status });
+      .returning({ id: users.id, nome: users.name, status: users.status });
 
     res.json({ success: true, message: 'Status updated successfully', data: updated });
   } catch (error) {
