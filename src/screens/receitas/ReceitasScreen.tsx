@@ -3,7 +3,7 @@ import { Paperclip, Plus, Ban, Tag, Clock, CheckCircle, AlertCircle, FileCheck, 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
 import { apiRequest } from '../../services/apiClient';
-import { queryKeys } from '../../services/queryKeys';
+import { queryKeys, invalidateFinanceQueries } from '../../services/queryKeys';
 import type { Income, IncomeFormValues } from '../../types/finance';
 import { getContratosFaturamento, faturarContrato, type ContratoFaturamento } from '../../services/financeService';
 import { Button } from '../../ui/button';
@@ -58,21 +58,15 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
   const allItems = finance.dashboard.data?.incomes ?? [];
   const isEmpresa = localStorage.getItem('perfilAtivoTipo') === 'empresa';
 
-  const invalidateFinanceQueries = () => {
-    void qc.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) });
-    void qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'dashboard-anual' });
-    void qc.invalidateQueries({ queryKey: queryKeys.reservas });
-  };
-
   const cancelarReceita = useMutation({
     mutationFn: (id: number) => apiRequest<void>(`/receitas/${id}/cancelar`, { method: 'PUT' }),
-    onSuccess: invalidateFinanceQueries,
+    onSuccess: () => invalidateFinanceQueries(qc, month, year),
   });
 
   const receberReceita = useMutation({
     mutationFn: (id: number) => apiRequest<void>(`/receitas/${id}/receber`, { method: 'PUT' }),
     onSuccess: () => {
-      invalidateFinanceQueries();
+      invalidateFinanceQueries(qc, month, year);
       void qc.invalidateQueries({ queryKey: queryKeys.contratosStatusFaturamento(month, year) });
     },
   });
@@ -122,7 +116,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
     mutationFn: (contratoId: number) => faturarContrato(contratoId, month + 1, year),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.contratosStatusFaturamento(month, year) });
-      invalidateFinanceQueries();
+      invalidateFinanceQueries(qc, month, year);
     },
   });
 
@@ -130,7 +124,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
     mutationFn: (receitaId: number) => apiRequest<void>(`/receitas/${receitaId}/receber`, { method: 'PUT' }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.contratosStatusFaturamento(month, year) });
-      invalidateFinanceQueries();
+      invalidateFinanceQueries(qc, month, year);
     },
   });
 

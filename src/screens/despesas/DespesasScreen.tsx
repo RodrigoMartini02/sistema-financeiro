@@ -6,7 +6,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
 import { pagarDespesa, moverDespesa } from '../../services/financeService';
-import { queryKeys } from '../../services/queryKeys';
+import { queryKeys, invalidateFinanceQueries } from '../../services/queryKeys';
 import { apiRequest, getActiveProfileId } from '../../services/apiClient';
 import type { Expense, ExpenseFormValues } from '../../types/finance';
 import type { Attachment } from '../../types/finance';
@@ -220,29 +220,23 @@ export function DespesasScreen({ month, year, toolbarStart }: DespesasScreenProp
   });
   const mesFechado = mesStatusQuery.data === true;
 
-  const invalidateFinanceQueries = () => {
-    qc.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) });
-    qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'dashboard-anual' });
-    qc.invalidateQueries({ queryKey: queryKeys.reservas });
-  };
-
   const pagarMut = useMutation({
     mutationFn: ({ id, dataPagamento, valorPago }: { id: number; dataPagamento: string; valorPago: number }) =>
       pagarDespesa(id, dataPagamento, valorPago),
     onSuccess: () => {
-      invalidateFinanceQueries();
+      invalidateFinanceQueries(qc, month, year);
       setPaymentModal({ open: false });
     },
   });
 
   const moverMut = useMutation({
     mutationFn: (id: number) => moverDespesa(id),
-    onSuccess: invalidateFinanceQueries,
+    onSuccess: () => invalidateFinanceQueries(qc, month, year),
   });
 
   const cancelarMut = useMutation({
     mutationFn: (id: number) => apiRequest<void>(`/despesas/${id}/cancelar`, { method: 'PUT' }),
-    onSuccess: invalidateFinanceQueries,
+    onSuccess: () => invalidateFinanceQueries(qc, month, year),
   });
 
   const handleMoverProximoMes = async (item: Expense) => {

@@ -1,3 +1,11 @@
+import type { QueryClient } from '@tanstack/react-query';
+
+export function invalidateFinanceQueries(qc: QueryClient, month: number, year: number) {
+  qc.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) });
+  qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'dashboard-anual' });
+  qc.invalidateQueries({ queryKey: queryKeys.reservas });
+}
+
 export const queryKeys = {
   session: ['session'] as const,
   planStatus: ['plano-status'] as const,

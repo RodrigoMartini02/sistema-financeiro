@@ -28,7 +28,6 @@ import { Z_GUIDE } from '../../ui/zIndex';
 const schema = z.object({
   descricao:       z.string().min(1, 'Informe a descrição'),
   valor_original:  z.coerce.number().min(0.01, 'Informe o valor'),
-  valor_final:     z.coerce.number().min(0).optional(),
   valor_pago:      z.coerce.number().min(0).optional(),
   precoAVista:     z.coerce.number().min(0).optional(),
   dataCompra:      z.string().min(10, 'Informe a data da compra'),
@@ -100,7 +99,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
   const form = useForm<FormData>({
     resolver: zodResolver(schema) as Resolver<FormData>,
     defaultValues: {
-      descricao: '', valor_original: '' as unknown as number, valor_final: undefined, valor_pago: undefined, precoAVista: undefined,
+      descricao: '', valor_original: '' as unknown as number, valor_pago: undefined, precoAVista: undefined,
       dataCompra: todayIso(), dataVencimentoManual: undefined,
       categoria_id: undefined, cartao_id: undefined,
       formaPagamento: '', pago: false, repeticao: 'nao',
@@ -111,7 +110,6 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
 
   const descricaoWatch     = useWatch({ control: form.control, name: 'descricao' });
   const valorOriginalWatch = useWatch({ control: form.control, name: 'valor_original' });
-  const valorFinalWatch    = useWatch({ control: form.control, name: 'valor_final' });
   const valorPagoWatch     = useWatch({ control: form.control, name: 'valor_pago' });
   const pagoWatch          = useWatch({ control: form.control, name: 'pago' });
   const precoAVistaWatch   = useWatch({ control: form.control, name: 'precoAVista' });
@@ -255,7 +253,6 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
     form.reset({
       descricao:       expense?.descricao ?? '',
       valor_original:  vOrig ?? '' as unknown as number,
-      valor_final:     undefined,
       valor_pago:      valorPagoDiferente ? (expense?.valorPago ?? undefined) : undefined,
       precoAVista:     undefined,
       dataCompra:      expense?.dataCompra ?? presetDate ?? todayIso(),
@@ -344,7 +341,6 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
   const toFormValues = (data: FormData, anexosArr: Attachment[] = []): ExpenseFormValues => ({
     descricao:       data.descricao,
     valor_original:  data.valor_original,
-    valor_final:     undefined,
     valor_pago:      data.pago && data.valor_pago != null ? data.valor_pago : undefined,
     dataVencimento:  vencimentoDerivado.data,
     dataCompra:      data.dataCompra,
@@ -365,7 +361,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
 
   const resetForm = (data: FormData) => {
     form.reset({
-      descricao: '', valor_original: '' as unknown as number, valor_final: undefined, valor_pago: undefined, precoAVista: undefined,
+      descricao: '', valor_original: '' as unknown as number, valor_pago: undefined, precoAVista: undefined,
       dataCompra: data.dataCompra, dataVencimentoManual: undefined,
       categoria_id: undefined, cartao_id: data.cartao_id,
       formaPagamento: data.formaPagamento, pago: false, repeticao: 'nao',
