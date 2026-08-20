@@ -36,8 +36,8 @@ const TAB_TITLES: Record<ConfigTab, string> = {
 
 export function ConfigScreen({ activeTab = 'conta' }: ConfigScreenProps) {
   const { data: me } = useQuery({ queryKey: ['usuario-me'], queryFn: fetchMe });
-  const meTipo = me?.tipo ?? me?.type;
-  const meDocument = (me?.documento ?? me?.document ?? '').replace(/\D/g, '');
+  const meTipo = me?.tipo;
+  const meDocument = (me?.documento ?? '').replace(/\D/g, '');
   const isAdminOrMaster = meTipo === 'admin' || meTipo === 'master';
   const canViewAnalytics = meDocument === ANALYTICS_ALLOWED_DOCUMENT;
 
