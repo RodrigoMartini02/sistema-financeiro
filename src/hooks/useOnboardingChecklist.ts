@@ -5,7 +5,7 @@ import { fetchClientes } from '../services/clientesService';
 import { fetchRepresentantes } from '../services/representantesService';
 import { queryKeys } from '../services/queryKeys';
 import type { ConfigTab } from '../layout/AppShell';
-import { getFirstAccessGuideUserScope, isFirstAccessGuidesSessionActive } from '../services/firstAccessGuides';
+import { getFirstAccessGuideUserScope } from '../services/userScope';
 
 const STORAGE_PREFIX = 'fingerence:onboarding-checklist';
 
@@ -55,18 +55,16 @@ export interface OnboardingChecklistItem {
 
 export function useOnboardingChecklist(enabled: boolean) {
   const storageKey = useMemo(() => STORAGE_PREFIX + ':' + getFirstAccessGuideUserScope(), []);
-  const [isFirstAccessActive, setIsFirstAccessActive] = useState(() => isFirstAccessGuidesSessionActive());
   const [isDismissed, setIsDismissed] = useState(() => readDismissed(storageKey));
   const isEmpresa = useMemo(() => isEmpresaPerfil(), []);
 
-  const canQuery = enabled && isFirstAccessActive && !isDismissed;
+  const canQuery = enabled && !isDismissed;
   const cartoesQuery = useQuery({ queryKey: queryKeys.cartoes, queryFn: fetchCartoes, enabled: canQuery });
   const categoriasQuery = useQuery({ queryKey: queryKeys.categorias, queryFn: fetchCategorias, enabled: canQuery });
   const clientesQuery = useQuery({ queryKey: queryKeys.clientes, queryFn: fetchClientes, enabled: canQuery && isEmpresa });
   const representantesQuery = useQuery({ queryKey: queryKeys.representantes, queryFn: fetchRepresentantes, enabled: canQuery && isEmpresa });
 
   useEffect(() => {
-    setIsFirstAccessActive(isFirstAccessGuidesSessionActive());
     setIsDismissed(readDismissed(storageKey));
   }, [storageKey]);
 
@@ -116,7 +114,7 @@ export function useOnboardingChecklist(enabled: boolean) {
   }, [storageKey]);
 
   return {
-    isVisible: enabled && isFirstAccessActive && !isDismissed,
+    isVisible: enabled && !isDismissed,
     items,
     dismiss,
   };
