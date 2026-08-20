@@ -214,7 +214,17 @@ router.post(
       res.status(201).json({
         success: true,
         message: 'User registered successfully',
-        data: { token, usuario: newUser },
+        data: {
+          token,
+          usuario: {
+            id: newUser!.id,
+            nome: newUser!.name,
+            email: newUser!.email,
+            documento: newUser!.document,
+            tipo: newUser!.type,
+            status: newUser!.status,
+          },
+        },
       });
     } catch (error) {
       console.error('Registration error:', error);
