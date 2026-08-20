@@ -3,7 +3,7 @@ import { query } from 'express-validator';
 import { pool } from '../db/client';
 import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
-import { generateReportPdf, formatDate, type ReportRow } from '../services/reportPdf';
+import { generateReportPdf, formatDate, type DespesaReportRow, type ReceitaReportRow } from '../services/reportPdf';
 
 const router = Router();
 
@@ -24,22 +24,20 @@ interface DespesaRow {
   forma_pagamento: string | null;
   data_vencimento: string;
   data_compra: string | null;
-  data_pagamento: string | null;
-  valor_original: string | null;
   valor_final: string | null;
-  valor_pago: string | null;
   pago: boolean | null;
+  recorrente: boolean | null;
   parcela_atual: number | null;
   numero_parcelas: number | null;
-  numero_nf: string | null;
-  data_emissao_nf: string | null;
 }
 
 interface ReceitaRow {
   descricao: string;
   tipo_receita: string | null;
   data_recebimento: string;
+  status: string | null;
   valor: string | null;
+  valor_comissao: string | null;
   cliente: string | null;
   representante_nome: string | null;
 }
@@ -74,9 +72,8 @@ async function fetchDespesas(
 
   const result = await pool.query<DespesaRow>(
     `SELECT d.descricao, c.nome AS categoria_nome, d.forma_pagamento,
-            d.data_vencimento, d.data_compra, d.data_pagamento,
-            d.valor_original, d.valor_final, d.valor_pago, d.pago,
-            d.parcela_atual, d.numero_parcelas, d.numero_nf, d.data_emissao_nf
+            d.data_vencimento, d.data_compra, d.valor_final, d.pago,
+            d.recorrente, d.parcela_atual, d.numero_parcelas
      FROM despesas d
      LEFT JOIN categorias c ON d.categoria_id = c.id
      ${where}
@@ -94,11 +91,12 @@ async function fetchReceitas(
   profileId: number | null,
 ): Promise<ReceitaRow[]> {
   const { clause: profileClause, params: profileParams } = profileWhere('r', profileId, 4);
-  const where = `WHERE r.usuario_id = $1 AND r.data_recebimento >= $2 AND r.data_recebimento <= $3 AND r.status = 'ativa'${profileClause}`;
+  const where = `WHERE r.usuario_id = $1 AND r.data_recebimento >= $2 AND r.data_recebimento <= $3 AND r.status != 'cancelada'${profileClause}`;
   const params: unknown[] = [userId, dataInicio, dataFim, ...profileParams];
 
   const result = await pool.query<ReceitaRow>(
-    `SELECT r.descricao, r.tipo_receita, r.data_recebimento, r.valor, r.cliente, rep.nome AS representante_nome
+    `SELECT r.descricao, r.tipo_receita, r.data_recebimento, r.status,
+            r.valor, r.valor_comissao, r.cliente, rep.nome AS representante_nome
      FROM receitas r
      LEFT JOIN representantes rep ON rep.id = r.representante_id
      ${where}
@@ -142,48 +140,29 @@ router.get(
           : Promise.resolve([]),
       ]);
 
-      const rows: ReportRow[] = [
-        ...despesas.map((d): ReportRow => ({
-          tipo: 'despesa',
-          descricao: d.descricao,
-          categoria: d.categoria_nome,
-          formaPagamento: d.forma_pagamento,
-          dataVencimento: d.data_vencimento,
-          dataCompra: d.data_compra,
-          dataPagamento: d.data_pagamento,
-          dataRecebimento: null,
-          valorOriginal: d.valor_original ? parseFloat(d.valor_original) : null,
-          valorFinal: d.valor_final ? parseFloat(d.valor_final) : null,
-          valorPago: d.valor_pago ? parseFloat(d.valor_pago) : null,
-          pago: d.pago,
-          parcelaAtual: d.parcela_atual,
-          numeroParcelas: d.numero_parcelas,
-          cliente: null,
-          representante: null,
-          numeroNf: d.numero_nf,
-          dataEmissaoNf: d.data_emissao_nf,
-        })),
-        ...receitas.map((r): ReportRow => ({
-          tipo: 'receita',
-          descricao: r.descricao,
-          categoria: r.tipo_receita,
-          formaPagamento: null,
-          dataVencimento: null,
-          dataCompra: null,
-          dataPagamento: null,
-          dataRecebimento: r.data_recebimento,
-          valorOriginal: r.valor ? parseFloat(r.valor) : null,
-          valorFinal: null,
-          valorPago: null,
-          pago: null,
-          parcelaAtual: null,
-          numeroParcelas: null,
-          cliente: r.cliente,
-          representante: r.representante_nome,
-          numeroNf: null,
-          dataEmissaoNf: null,
-        })),
-      ];
+      const despesaRows: DespesaReportRow[] = despesas.map((d) => ({
+        descricao: d.descricao,
+        categoria: d.categoria_nome,
+        formaPagamento: d.forma_pagamento,
+        dataVencimento: d.data_vencimento,
+        dataCompra: d.data_compra,
+        valorFinal: d.valor_final ? parseFloat(d.valor_final) : null,
+        pago: d.pago === true,
+        recorrente: d.recorrente === true,
+        parcelaAtual: d.parcela_atual,
+        numeroParcelas: d.numero_parcelas,
+      }));
+
+      const receitaRows: ReceitaReportRow[] = receitas.map((r) => ({
+        descricao: r.descricao,
+        tipoReceita: r.tipo_receita,
+        dataRecebimento: r.data_recebimento,
+        status: r.status,
+        cliente: r.cliente,
+        representante: r.representante_nome,
+        valor: r.valor ? parseFloat(r.valor) : null,
+        valorComissao: r.valor_comissao ? parseFloat(r.valor_comissao) : null,
+      }));
 
       const periodoLabel = `${formatDate(data_inicio!)} a ${formatDate(data_fim!)}`;
       const filtrosParts: string[] = [];
@@ -192,7 +171,7 @@ router.get(
       if (statusFiltro !== 'todos') filtrosParts.push(statusFiltro === 'pago' ? 'Pagas' : 'Pendentes');
       const filtrosLabel = filtrosParts.length > 0 ? filtrosParts.join(' · ') : 'Sem filtros adicionais';
 
-      const pdfBuffer = await generateReportPdf({ periodoLabel, filtrosLabel, rows });
+      const pdfBuffer = await generateReportPdf({ periodoLabel, filtrosLabel, despesas: despesaRows, receitas: receitaRows });
 
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="relatorio-${data_inicio}-a-${data_fim}.pdf"`);
