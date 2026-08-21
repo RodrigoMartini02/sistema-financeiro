@@ -15,6 +15,7 @@ import { formatCurrency, formatDate } from './formatters';
 import { AnnualTrendChart } from './charts/AnnualTrendChart';
 import { DonutChart } from './charts/DonutChart';
 import { MonthWaterfallChart } from './charts/MonthWaterfallChart';
+import { MonthlyComparisonBarChart } from './charts/MonthlyComparisonBarChart';
 import { MonthCategoriesOverview } from './MonthCategoriesOverview';
 import { DashboardPeriodFilter, describePeriod, type DashboardPeriod } from './DashboardPeriodFilter';
 
@@ -25,9 +26,6 @@ const THIS_YEAR = now.getFullYear();
 const THIS_MONTH = now.getMonth();
 
 function periodToQuery(period: DashboardPeriod): { deMes?: number; deAno?: number; ateMes?: number; ateAno?: number } {
-  if (period.mode === 'tudo') return {};
-  if (period.mode === 'ano') return { deMes: 0, deAno: period.ano, ateMes: 11, ateAno: period.ano };
-  if (period.mode === 'mes') return { deMes: period.mes, deAno: period.ano, ateMes: period.mes, ateAno: period.ano };
   return { deMes: period.mes, deAno: period.ano, ateMes: period.ateMes, ateAno: period.ateAno };
 }
 
@@ -37,7 +35,7 @@ function serieLabel(ano: number, mes: number | null): string {
 }
 
 export function FinanceDashboard() {
-  const [period, setPeriod] = useState<DashboardPeriod>({ mode: 'mes', mes: THIS_MONTH, ano: THIS_YEAR });
+  const [period, setPeriod] = useState<DashboardPeriod>({ mes: 0, ano: THIS_YEAR, ateMes: 11, ateAno: THIS_YEAR });
   const guide = useFirstAccessGuide('painel:mes-v1');
   const comprometimentoGuide = useFirstAccessGuide('painel:comprometimento-v1');
 
@@ -50,13 +48,10 @@ export function FinanceDashboard() {
   const data = panoramaQ.data;
 
   // Alguns cards (contratos, parcelas futuras, metas por categoria) são estruturalmente
-  // mensais — só fazem sentido quando o filtro do painel aponta para um único mês, seja
-  // porque o modo é 'mes', seja porque um 'intervalo' colapsa em um único mês (De = Até).
-  const singleMonth = period.mode === 'mes'
-    ? { mes: period.mes!, ano: period.ano! }
-    : period.mode === 'intervalo' && period.mes === period.ateMes && period.ano === period.ateAno
-      ? { mes: period.mes!, ano: period.ano! }
-      : null;
+  // mensais — só fazem sentido quando o filtro do painel colapsa em um único mês (De = Até).
+  const singleMonth = period.mes === period.ateMes && period.ano === period.ateAno
+    ? { mes: period.mes, ano: period.ano }
+    : null;
 
   const contratosQ = useQuery({
     queryKey: queryKeys.contratosStatusFaturamento(singleMonth?.mes ?? -1, singleMonth?.ano ?? -1),
@@ -593,6 +588,30 @@ export function FinanceDashboard() {
             <span>Maior gasto <b className="text-[#0f2b38] dark:text-slate-100">{highlights.maiorGastoLabel} · {formatCurrency(highlights.maiorGastoValor)}</b></span>
             <span>Saldo do período <b className={saldoFinal >= 0 ? 'text-[#067647] dark:text-emerald-300' : 'text-[#b42318] dark:text-rose-300'}>{formatCurrency(saldoFinal)}</b></span>
           </div>
+        )}
+      </Card>
+
+      {/* Comparativo de colunas: Receita x Despesa por mês */}
+      <Card className="rounded-2xl p-[20px_22px_16px]">
+        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+          <div>
+            <h2 className="text-[15.5px] font-bold tracking-[-0.01em] text-[#0f2b38] dark:text-white">
+              Receitas × Despesas por mês <span className="font-semibold text-[#6c8593] dark:text-slate-400">— {periodoDescricao}</span>
+            </h2>
+            <p className="mt-0.5 text-xs text-[#7b93a1] dark:text-slate-400">Comparativo lado a lado de cada mês do período filtrado.</p>
+          </div>
+          <div className="flex-1" />
+          <div className="flex items-center gap-3.5 text-[11.5px] font-semibold text-[#6c8593] dark:text-slate-400">
+            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#10b981]" />Receitas</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#ef4444]" />Despesas</span>
+          </div>
+        </div>
+        {panoramaQ.isLoading ? (
+          <div className="h-60 flex items-center justify-center text-sm text-slate-400">Carregando...</div>
+        ) : chartData.length === 0 ? (
+          <div className="h-60 flex items-center justify-center text-sm text-slate-400">Sem lançamentos neste período</div>
+        ) : (
+          <MonthlyComparisonBarChart data={chartData} />
         )}
       </Card>
 

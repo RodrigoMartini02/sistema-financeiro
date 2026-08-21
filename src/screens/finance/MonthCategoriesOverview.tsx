@@ -21,7 +21,7 @@ function statusLabel(item: BudgetOverviewItem): string {
 }
 
 export function MonthCategoriesOverview({ overview, periodLabel }: MonthCategoriesOverviewProps) {
-  if (!overview || overview.profileType === 'empresa') return null;
+  if (!overview) return null;
 
   const items = overview.items.filter((item) => item.projectedAmount > 0).sort((a, b) => b.projectedAmount - a.projectedAmount);
   if (items.length === 0) return null;
