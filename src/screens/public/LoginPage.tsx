@@ -4,6 +4,7 @@ import {
   login, register, forgotPassword, verifyRecoveryCode, resetPassword,
   googleLogin, buildGoogleOAuthUrl, getGoogleRedirectUri,
 } from '../../services/authService';
+import { consumeAuthOrigin } from '../../services/session';
 import { Button } from '../../ui/button';
 import { Field, Input } from '../../ui/form';
 import { TermosModal } from './TermosModal';
@@ -14,7 +15,8 @@ function saveSession(token: string, usuario: { id?: unknown }) {
   sessionStorage.setItem('token', token);
   localStorage.setItem('token', token);
   localStorage.setItem('dadosUsuarioLogado', JSON.stringify(usuario));
-  window.location.href = '/app.html';
+  const destination = consumeAuthOrigin() === 'assistant' ? '/assistant.html' : '/app.html';
+  window.location.href = destination;
 }
 
 function GoogleButton({ loading, onClick }: { loading: boolean; onClick: () => void }) {
