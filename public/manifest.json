@@ -1,9 +1,9 @@
 {
-  "id": "/?source=pwa",
+  "id": "/assistant.html",
   "name": "FINGERENCE Assistente",
   "short_name": "FINGERENCE",
   "description": "Assistente financeiro para consultar suas financas e preparar lancamentos para revisao.",
-  "start_url": "/?source=pwa",
+  "start_url": "/assistant.html?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
