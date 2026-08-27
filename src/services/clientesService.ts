@@ -19,7 +19,6 @@ export interface Contrato {
   cliente_id: number;
   cliente_nome?: string;
   numero?: string | null;
-  data_assinatura?: string | null;
   vencimento: string;
   num_aditivo: number;
   data_aditivo?: string | null;
@@ -110,7 +109,6 @@ export async function gerarPrevistas(contratoId: number): Promise<{ count: numbe
 
 export interface AditivoContratoValues {
   novo_numero?: string | null;
-  nova_data_assinatura?: string | null;
   novo_vencimento: string;
   novo_num_aditivo?: number | null;
   nova_data_aditivo?: string | null;
