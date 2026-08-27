@@ -135,3 +135,52 @@ export function MoneyFieldSmall({ value, onChange, autoFocus, disabled }: { valu
     </div>
   );
 }
+
+// ── Tabela de valores (rótulo + valor + quantidade/parcelas + total calculado) ──
+// Usada em blocos como Mensalidade/Implantação/Hora presencial/Hora remoto.
+
+export const valuesTableCardStyle: CSSProperties = {
+  display: 'flex', flexDirection: 'column', gap: 0, borderRadius: 14,
+  border: `1px solid ${C.border}`, background: '#fff', overflow: 'hidden',
+};
+
+export const valuesTableHeaderStyle: CSSProperties = {
+  display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.1fr)',
+  alignItems: 'center', gap: 16, padding: '9px 16px', background: C.panelBg, borderBottom: `1px solid ${C.border}`,
+};
+
+export const valuesTableColLabelStyle: CSSProperties = {
+  fontSize: 10.5, fontWeight: 700, letterSpacing: '0.05em', color: C.placeholder, textAlign: 'right',
+};
+
+export const valuesRowStyle: CSSProperties = {
+  display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.1fr)',
+  alignItems: 'center', gap: 16, padding: '10px 16px', borderBottom: `1px solid ${C.border}`,
+};
+
+export const valuesRowLastStyle: CSSProperties = { ...valuesRowStyle, borderBottom: 'none' };
+
+export const valuesRowTitleStyle: CSSProperties = { fontSize: 13, fontWeight: 600, color: C.text };
+export const valuesRowSubtitleStyle: CSSProperties = { fontSize: 10.5, color: C.placeholder };
+
+export const valuesInlineFieldStyle: CSSProperties = {
+  display: 'flex', alignItems: 'center', gap: 6, height: 38, borderRadius: 9,
+  border: `1.5px solid ${C.borderInput}`, background: '#fff', padding: '0 11px',
+};
+
+export const valuesInlineInputStyle: CSSProperties = {
+  flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontSize: 13.5, fontWeight: 600,
+  color: C.text, textAlign: 'right', fontVariantNumeric: 'tabular-nums', outline: 'none', padding: 0,
+};
+
+export const valuesComputedStyle: CSSProperties = {
+  fontSize: 13.5, fontWeight: 700, color: C.textSoft, textAlign: 'right', fontVariantNumeric: 'tabular-nums',
+};
+
+// ── Linha de chips em bloco (label + chips lado a lado, layout do mockup) ──
+
+export const chipGroupLabelStyle: CSSProperties = {
+  fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: C.textFaint,
+};
+
+export const chipRowStyle: CSSProperties = { display: 'flex', gap: 6, flexWrap: 'wrap' };
